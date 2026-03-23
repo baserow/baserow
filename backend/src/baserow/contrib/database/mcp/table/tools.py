@@ -33,6 +33,7 @@ class CreateDatabaseMcpTool(MCPTool):
     """
 
     type = "create_database"
+    enabled = False
     input_schema = CreateDatabaseInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: CreateDatabaseInput) -> dict:
@@ -72,6 +73,7 @@ class CreateTableMcpTool(MCPTool):
     """
 
     type = "create_table"
+    enabled = False
     input_schema = CreateTableInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: CreateTableInput) -> dict:
@@ -91,6 +93,7 @@ class UpdateTableMcpTool(MCPTool):
     """
 
     type = "update_table"
+    enabled = False
     input_schema = UpdateTableInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: UpdateTableInput) -> dict:
@@ -106,6 +109,7 @@ class DeleteTableMcpTool(MCPTool):
     """
 
     type = "delete_table"
+    enabled = False
     input_schema = DeleteTableInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: DeleteTableInput) -> str:

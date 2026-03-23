@@ -17,6 +17,7 @@ class CreateFieldsMcpTool(MCPTool):
     """
 
     type = "create_fields"
+    enabled = False
     input_schema = CreateFieldsInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: CreateFieldsInput) -> list[dict]:
@@ -32,6 +33,7 @@ class UpdateFieldsMcpTool(MCPTool):
     """
 
     type = "update_fields"
+    enabled = False
     input_schema = UpdateFieldsInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: UpdateFieldsInput) -> list[dict]:
@@ -46,6 +48,7 @@ class DeleteFieldsMcpTool(MCPTool):
     """
 
     type = "delete_fields"
+    enabled = False
     input_schema = DeleteFieldsInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: DeleteFieldsInput) -> str:

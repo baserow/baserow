@@ -12,27 +12,32 @@ from mcp.shared.memory import (
 
 from baserow.core.mcp import BaserowMCPServer, current_key
 
-ALL_TOOL_NAMES = {
+ENABLED_TOOL_NAMES = {
     "list_databases",
-    "create_database",
     "list_tables",
-    "create_table",
-    "update_table",
-    "delete_table",
     "get_table_schema",
-    "create_fields",
-    "update_fields",
-    "delete_fields",
     "list_table_rows",
     "create_rows",
     "update_rows",
     "delete_rows",
 }
 
+DISABLED_TOOL_NAMES = {
+    "create_database",
+    "create_table",
+    "update_table",
+    "delete_table",
+    "create_fields",
+    "update_fields",
+    "delete_fields",
+}
+
+ALL_TOOL_NAMES = ENABLED_TOOL_NAMES | DISABLED_TOOL_NAMES
+
 
 @pytest.mark.django_db
-def test_list_tools_returns_exactly_14_static_tools(data_fixture):
-    """tools/list must return exactly 14 tools regardless of workspace content."""
+def test_list_tools_returns_only_enabled_tools(data_fixture):
+    """tools/list must return only enabled tools, hiding disabled ones."""
     endpoint = data_fixture.create_mcp_endpoint()
     database = data_fixture.create_database_application(workspace=endpoint.workspace)
     for _ in range(5):
@@ -46,8 +51,9 @@ def test_list_tools_returns_exactly_14_static_tools(data_fixture):
         async def inner():
             async with client_session(mcp._mcp_server) as client:
                 result = await client.list_tools()
-                assert len(result.tools) == 14
-                assert {t.name for t in result.tools} == ALL_TOOL_NAMES
+                names = {t.name for t in result.tools}
+                assert names == ENABLED_TOOL_NAMES
+                assert not names & DISABLED_TOOL_NAMES
 
         with transaction.atomic():
             async_to_sync(inner)()

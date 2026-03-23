@@ -22,10 +22,17 @@ class MCPTool(Instance):
     Set ``input_schema`` to a pydantic ``BaseModel`` subclass to
     auto-generate the JSON Schema and receive a validated instance in
     ``_sync_call``.
+
+    Set ``enabled = False`` to prevent the tool from being exposed to MCP
+    clients. Disabled tools will be re-enabled once users can control tool
+    availability through the UI.
     """
 
     input_schema: type[BaseModel] | None = None
     """Pydantic model for the tool's input. Used to generate the JSON Schema."""
+
+    enabled: bool = True
+    """Whether the tool is available to MCP clients."""
 
     @property
     def name(self) -> str:
@@ -97,9 +104,11 @@ class MCPToolRegistry(Registry[MCPTool]):
     name = "mcp_tools"
 
     async def list_all_tools(self, endpoint: MCPEndpoint) -> List["Tool"]:
-        """Return all tools available to the given endpoint user."""
+        """Return only *enabled* tools available to the given endpoint user."""
         all_tools: List["Tool"] = []
         for mcp in self.registry.values():
+            if not mcp.enabled:
+                continue
             tools = await mcp.list(endpoint)
             all_tools.extend(tools)
         return all_tools

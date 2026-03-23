@@ -1037,6 +1037,11 @@ class DatabaseConfig(AppConfig):
         notification_type_registry.register(WebhookDeactivatedNotificationType())
         notification_type_registry.register(WebhookPayloadTooLargeNotificationType())
 
+        from baserow.contrib.database.mcp.fields.tools import (
+            CreateFieldsMcpTool,
+            DeleteFieldsMcpTool,
+            UpdateFieldsMcpTool,
+        )
         from baserow.contrib.database.mcp.rows.tools import (
             CreateRowsMcpTool,
             DeleteRowsMcpTool,
@@ -1044,9 +1049,13 @@ class DatabaseConfig(AppConfig):
             UpdateRowsMcpTool,
         )
         from baserow.contrib.database.mcp.table.tools import (
+            CreateDatabaseMcpTool,
+            CreateTableMcpTool,
+            DeleteTableMcpTool,
             GetTableSchemaMcpTool,
             ListDatabasesMcpTool,
             ListTablesMcpTool,
+            UpdateTableMcpTool,
         )
         from baserow.core.mcp.registries import mcp_tool_registry
 
@@ -1057,27 +1066,15 @@ class DatabaseConfig(AppConfig):
         mcp_tool_registry.register(CreateRowsMcpTool())
         mcp_tool_registry.register(UpdateRowsMcpTool())
         mcp_tool_registry.register(DeleteRowsMcpTool())
-
-        # TODO: Enable once UI supports per-database/table tool permissions
-        # from baserow.contrib.database.mcp.fields.tools import (
-        #     CreateFieldsMcpTool,
-        #     DeleteFieldsMcpTool,
-        #     UpdateFieldsMcpTool,
-        # )
-        # from baserow.contrib.database.mcp.table.tools import (
-        #     CreateDatabaseMcpTool,
-        #     CreateTableMcpTool,
-        #     DeleteTableMcpTool,
-        #     ListTablesMcpTool,
-        #     UpdateTableMcpTool,
-        # )
-        # mcp_tool_registry.register(CreateDatabaseMcpTool())
-        # mcp_tool_registry.register(CreateTableMcpTool())
-        # mcp_tool_registry.register(UpdateTableMcpTool())
-        # mcp_tool_registry.register(DeleteTableMcpTool())
-        # mcp_tool_registry.register(CreateFieldsMcpTool())
-        # mcp_tool_registry.register(UpdateFieldsMcpTool())
-        # mcp_tool_registry.register(DeleteFieldsMcpTool())
+        # Disabled (enabled=False) until users can control tool
+        # availability through the UI.
+        mcp_tool_registry.register(CreateDatabaseMcpTool())
+        mcp_tool_registry.register(CreateTableMcpTool())
+        mcp_tool_registry.register(UpdateTableMcpTool())
+        mcp_tool_registry.register(DeleteTableMcpTool())
+        mcp_tool_registry.register(CreateFieldsMcpTool())
+        mcp_tool_registry.register(UpdateFieldsMcpTool())
+        mcp_tool_registry.register(DeleteFieldsMcpTool())
 
         from baserow.contrib.database.rows.history_providers import (
             CreateRowHistoryProvider,
