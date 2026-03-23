@@ -153,8 +153,7 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
                 if ext in self._EMBEDDABLE_EXTENSIONS:
                     if (
                         embed_count >= self._MAX_EMBEDS_PER_REQUEST
-                        or embed_payload + ai_file.size
-                        > self._MAX_EMBED_PAYLOAD_BYTES
+                        or embed_payload + ai_file.size > self._MAX_EMBED_PAYLOAD_BYTES
                     ):
                         continue
                     data = ai_file.read_content()
