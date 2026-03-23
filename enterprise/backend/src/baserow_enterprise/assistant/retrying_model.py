@@ -33,8 +33,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from typing import Any
@@ -172,29 +173,159 @@ def _try_recover_tool_use_failed(exc: Exception) -> ModelResponse | None:
     return _recover_failed_generation(failed_gen, model_name)
 
 
-def _resolve_model(model_name: str) -> Model:
-    """Resolve a model name to a pydantic-ai Model instance.
+# ---------------------------------------------------------------------------
+# Provider credential resolution
+# ---------------------------------------------------------------------------
+# Maps provider prefixes to their native env-var names.
+#
+# Backward-compat: when a provider-specific var is not set we fall back to
+# the deprecated UDSPY_LM_* vars so existing deployments keep working.
+# This compat layer is intentionally minimal — new providers should NOT be
+# added here; operators should use the standard env vars instead.
 
-    For Google models, constructs the model with a fresh
-    ``httpx.AsyncClient`` instead of relying on ``infer_model()`` which
-    uses a process-global cached client.  That cached client binds to the
-    event loop at creation time and breaks when reused on a different loop
-    (common in Django async views).
+_PROVIDER_ENV: dict[str, dict[str, str | None]] = {
+    "openai": {
+        "api_key": "OPENAI_API_KEY",
+        "base_url": "OPENAI_BASE_URL",
+    },
+    "groq": {
+        "api_key": "GROQ_API_KEY",
+    },
+    "anthropic": {
+        "api_key": "ANTHROPIC_API_KEY",
+    },
+    "ollama": {
+        "base_url": "OLLAMA_BASE_URL",
+    },
+}
+
+
+def _resolve_credentials(provider: str) -> dict[str, str | None]:
+    """Return ``{"api_key": ..., "base_url": ...}`` for *provider*.
+
+    Checks the provider-specific env var first, then falls back to the
+    deprecated ``UDSPY_LM_API_KEY`` / ``UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL``
+    for backward-compat.  Never touches ``os.environ``.
+    """
+
+    env = _PROVIDER_ENV.get(provider, {})
+    api_key_var = env.get("api_key")
+    base_url_var = env.get("base_url")
+
+    api_key = (
+        (os.getenv(api_key_var) if api_key_var else None)
+        or os.getenv("UDSPY_LM_API_KEY")
+        or None
+    )
+    base_url = (
+        (os.getenv(base_url_var) if base_url_var else None)
+        or os.getenv("UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL")
+        or None
+    )
+    return {"api_key": api_key, "base_url": base_url}
+
+
+# ---------------------------------------------------------------------------
+# Per-provider model factories
+# ---------------------------------------------------------------------------
+
+
+def _make_openai(name: str, creds: dict[str, str | None]) -> Model:
+    from pydantic_ai.models.openai import OpenAIChatModel
+    from pydantic_ai.providers.openai import OpenAIProvider
+
+    kwargs = {k: v for k, v in creds.items() if v is not None}
+    return OpenAIChatModel(name, provider=OpenAIProvider(**kwargs))
+
+
+def _make_groq(name: str, creds: dict[str, str | None]) -> Model:
+    from pydantic_ai.models.groq import GroqModel
+    from pydantic_ai.providers.groq import GroqProvider
+
+    return GroqModel(name, provider=GroqProvider(api_key=creds["api_key"]))
+
+
+def _make_anthropic(name: str, creds: dict[str, str | None]) -> Model:
+    from pydantic_ai.models.anthropic import AnthropicModel
+    from pydantic_ai.providers.anthropic import AnthropicProvider
+
+    return AnthropicModel(name, provider=AnthropicProvider(api_key=creds["api_key"]))
+
+
+def _make_ollama(name: str, creds: dict[str, str | None]) -> Model:
+    from pydantic_ai.models.openai import OpenAIChatModel
+    from pydantic_ai.providers.ollama import OllamaProvider
+
+    base_url = creds["base_url"] or "http://localhost:11434/v1"
+    return OpenAIChatModel(name, provider=OllamaProvider(base_url=base_url))
+
+
+def _make_google(name: str, creds: dict[str, str | None]) -> Model:
+    """Google models need a fresh httpx client per call to avoid event-loop
+    binding issues in Django async views.
     See: https://github.com/pydantic/pydantic-ai/issues/3240
     """
 
-    if model_name.startswith(("google-gla:", "google:", "google-vertex:")):
-        import httpx
-        from pydantic_ai.models.google import GoogleModel
-        from pydantic_ai.providers.google import GoogleProvider
+    import httpx
+    from pydantic_ai.models.google import GoogleModel
+    from pydantic_ai.providers.google import GoogleProvider
 
-        vertexai = model_name.startswith("google-vertex:")
-        google_model_name = model_name.split(":", 1)[1]
-        return GoogleModel(
-            google_model_name,
-            provider=GoogleProvider(http_client=httpx.AsyncClient(), vertexai=vertexai),
-        )
+    return GoogleModel(
+        name,
+        provider=GoogleProvider(
+            api_key=creds["api_key"], http_client=httpx.AsyncClient()
+        ),
+    )
 
+
+def _make_google_vertex(name: str, creds: dict[str, str | None]) -> Model:
+    import httpx
+    from pydantic_ai.models.google import GoogleModel
+    from pydantic_ai.providers.google import GoogleProvider
+
+    return GoogleModel(
+        name,
+        provider=GoogleProvider(
+            api_key=creds["api_key"],
+            http_client=httpx.AsyncClient(),
+            vertexai=True,
+        ),
+    )
+
+
+_PROVIDER_FACTORIES: dict[str, Callable[[str, dict[str, str | None]], Model]] = {
+    "openai": _make_openai,
+    "groq": _make_groq,
+    "anthropic": _make_anthropic,
+    "ollama": _make_ollama,
+    "google-gla": _make_google,
+    "google": _make_google,
+    "google-vertex": _make_google_vertex,
+}
+
+
+# ---------------------------------------------------------------------------
+# Model resolution
+# ---------------------------------------------------------------------------
+
+
+def _resolve_model(model_name: str) -> Model:
+    """Resolve a model name to a pydantic-ai Model instance.
+
+    Uses explicit provider construction with credential fallback to
+    ``UDSPY_LM_API_KEY`` / ``UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL``
+    so we never need to set ``os.environ``.
+    """
+
+    provider = model_name.split(":")[0] if ":" in model_name else "openai"
+    name = model_name.split(":", 1)[1] if ":" in model_name else model_name
+
+    factory = _PROVIDER_FACTORIES.get(provider)
+    if factory is not None:
+        creds = _resolve_credentials(provider)
+        return factory(name, creds)
+
+    # Unknown provider — let pydantic-ai handle it.
     return infer_model(model_name)
 
 

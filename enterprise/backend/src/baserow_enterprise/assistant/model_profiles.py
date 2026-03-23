@@ -163,12 +163,14 @@ def get_model_string(model: str | None = None) -> str:
 
 @lru_cache(maxsize=1)
 def check_lm_ready_or_raise() -> None:
+    from baserow_enterprise.assistant.retrying_model import _resolve_model
+
     model = get_model_string()
     test_agent = Agent(
         output_type=str, instructions="Respond with 'ok'.", name="test_agent"
     )
     try:
-        test_agent.run_sync("Test", model=model)
+        test_agent.run_sync("Test", model=_resolve_model(model))
     except Exception as e:
         raise AssistantModelNotSupportedError(
             f"The model '{model}' is not supported or accessible: {e}"

@@ -84,28 +84,12 @@ def setup(settings):
         float(_temp_raw) if _temp_raw else None
     )
 
-    # Backward compatibility: bridge old UDSPY_LM_* env vars so existing
-    # deployments continue to work without config changes.
+    # Backward compatibility: bridge old UDSPY_LM_MODEL to the new setting.
+    # Credential fallback (UDSPY_LM_API_KEY, UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL)
+    # is handled at model-creation time in retrying_model._resolve_model().
     _udspy_model = os.getenv("UDSPY_LM_MODEL", "")
     if _udspy_model and not settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
         settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = _udspy_model
-
-    _udspy_api_key = os.getenv("UDSPY_LM_API_KEY", "")
-    if _udspy_api_key:
-        # pydantic-ai reads provider-specific env vars. Set them all as
-        # fallbacks so the old catch-all key works regardless of provider.
-        for _key in (
-            "OPENAI_API_KEY",
-            "GROQ_API_KEY",
-            "ANTHROPIC_API_KEY",
-            "GEMINI_API_KEY",
-        ):
-            os.environ.setdefault(_key, _udspy_api_key)
-
-    _udspy_base_url = os.getenv("UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL", "")
-    if _udspy_base_url:
-        # pydantic-ai's OpenAI provider reads OPENAI_BASE_URL.
-        os.environ.setdefault("OPENAI_BASE_URL", _udspy_base_url)
 
     # Bridge old AWS_REGION_NAME to boto3's standard AWS_DEFAULT_REGION.
     _aws_region = os.getenv("AWS_REGION_NAME", "")

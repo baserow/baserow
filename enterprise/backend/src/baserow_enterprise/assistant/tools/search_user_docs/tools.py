@@ -199,8 +199,11 @@ async def _search_user_docs_impl(
         f"Documentation context (source URL -> content):\n{context}"
     )
     from baserow_enterprise.assistant.model_profiles import get_model_string
+    from baserow_enterprise.assistant.retrying_model import _resolve_model
 
-    agent_result = await search_docs_agent.run(prompt, model=get_model_string())
+    agent_result = await search_docs_agent.run(
+        prompt, model=_resolve_model(get_model_string())
+    )
     prediction = agent_result.output
 
     sources = []
