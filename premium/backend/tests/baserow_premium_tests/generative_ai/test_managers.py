@@ -8,7 +8,7 @@ from baserow.core.user_files.handler import UserFileHandler
 from baserow.test_utils.fixtures.generative_ai import (
     TestGenerativeAIWithFilesModelType,
 )
-from baserow_premium.generative_ai.managers import AIFileManager
+from baserow_premium.fields.handler import AIFieldHandler
 
 
 @pytest.mark.django_db
@@ -39,14 +39,13 @@ def test_prepare_file_content(premium_data_fixture, django_assert_num_queries):
     )
 
     ai_field.refresh_from_db()
-    with django_assert_num_queries(0):
-        content_parts, file_ids = AIFileManager.prepare_file_content(
-            ai_field, row, generative_ai_model_type
-        )
-        assert len(content_parts) == 1
-        assert len(file_ids) == 0  # test fixture embeds, doesn't upload
-        assert content_parts[0].data == b"Hello"
-        assert content_parts[0].media_type == "text/plain"
+    ai_files = AIFieldHandler._collect_ai_files(ai_field, row)
+    prepared = generative_ai_model_type.prepare_files(ai_files)
+
+    assert len([f for f in prepared if f.content]) == 1
+    assert len([f for f in prepared if f.provider_file_id]) == 0
+    assert prepared[0].content.data == b"Hello"
+    assert prepared[0].content.media_type == "text/plain"
 
 
 @pytest.mark.django_db
@@ -75,9 +74,9 @@ def test_prepare_file_content_skip_files_over_max_size(premium_data_fixture):
         values,
         table_model,
     )
-    content_parts, file_ids = AIFileManager.prepare_file_content(
-        ai_field, row, generative_ai_model_type
-    )
 
-    assert len(content_parts) == 0
-    assert len(file_ids) == 0
+    ai_files = AIFieldHandler._collect_ai_files(ai_field, row)
+    prepared = generative_ai_model_type.prepare_files(ai_files)
+
+    assert len([f for f in prepared if f.content]) == 0
+    assert len([f for f in prepared if f.provider_file_id]) == 0

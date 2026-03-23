@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import os
-from typing import Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from django.conf import settings
 
 from baserow.core.models import Workspace
 
 from .registries import GenerativeAIModelType
+
+if TYPE_CHECKING:
+    from baserow_premium.fields.ai_file import AIFile
 
 
 class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
@@ -131,49 +134,46 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
 
     def prepare_files(
         self,
-        files: list[tuple[str, int, str]],
-        read_file: Callable[[str], bytes],
+        files: list[AIFile],
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
-    ) -> tuple[list[Any], list[str]]:
+    ) -> list[AIFile]:
         from pydantic_ai import BinaryContent, UploadedFile
 
-        content_parts: list[Any] = []
-        file_ids: list[str] = []
         embed_payload = 0
         embed_count = 0
         max_upload = self._get_max_upload_bytes()
 
-        for name, size, media_type in files:
-            _, ext = os.path.splitext(name)
+        for ai_file in files:
+            _, ext = os.path.splitext(ai_file.name)
             ext = ext.lower()
 
             if ext in self._EMBEDDABLE_EXTENSIONS:
                 if (
                     embed_count >= self._MAX_EMBEDS_PER_REQUEST
-                    or embed_payload + size > self._MAX_EMBED_PAYLOAD_BYTES
+                    or embed_payload + ai_file.size > self._MAX_EMBED_PAYLOAD_BYTES
                 ):
                     continue
-                data = read_file(name)
-                content_parts.append(BinaryContent(data=data, media_type=media_type))
-                embed_payload += size
+                data = ai_file.read_content()
+                ai_file.content = BinaryContent(data=data, media_type=ai_file.mime_type)
+                embed_payload += ai_file.size
                 embed_count += 1
 
             elif ext in self._UPLOADABLE_EXTENSIONS:
-                if size > max_upload:
+                if ai_file.size > max_upload:
                     continue
-                data = read_file(name)
-                file_id = self._upload_file(name, data, workspace, settings_override)
-                file_ids.append(file_id)
-                content_parts.append(
-                    UploadedFile(
-                        file_id=file_id,
-                        provider_name="openai",
-                        media_type=media_type,
-                    )
+                data = ai_file.read_content()
+                file_id = self._upload_file(
+                    ai_file.name, data, workspace, settings_override
+                )
+                ai_file.provider_file_id = file_id
+                ai_file.content = UploadedFile(
+                    file_id=file_id,
+                    provider_name="openai",
+                    media_type=ai_file.mime_type,
                 )
 
-        return content_parts, file_ids
+        return [f for f in files if f.content is not None]
 
     def _get_upload_client(
         self,
@@ -204,14 +204,14 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
 
     def delete_file(
         self,
-        file_id: str,
+        ai_file: AIFile,
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> None:
         """Delete an uploaded file from OpenAI."""
 
         client = self._get_upload_client(workspace, settings_override)
-        client.files.delete(file_id)
+        client.files.delete(ai_file.provider_file_id)
 
 
 class AnthropicGenerativeAIModelType(GenerativeAIModelType):
