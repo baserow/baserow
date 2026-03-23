@@ -134,10 +134,6 @@ export class ClientErrorMap {
         $i18n.t('clientHandler.disabledPasswordProviderTitle'),
         $i18n.t('clientHandler.disabledPasswordProviderMessage')
       ),
-      ERROR_OUTPUT_PARSER: new ResponseErrorMessage(
-        $i18n.t('clientHandler.outputParserTitle'),
-        $i18n.t('clientHandler.outputParserDescription')
-      ),
       ERROR_GENERATIVE_AI_PROMPT: new ResponseErrorMessage(
         $i18n.t('clientHandler.generateAIPromptTitle'),
         $i18n.t('clientHandler.generateAIPromptDescription')

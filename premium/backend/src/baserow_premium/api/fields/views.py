@@ -14,7 +14,6 @@ from baserow.api.generative_ai.errors import (
     ERROR_GENERATIVE_AI_DOES_NOT_EXIST,
     ERROR_GENERATIVE_AI_PROMPT,
     ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
-    ERROR_OUTPUT_PARSER,
 )
 from baserow.api.jobs.serializers import JobSerializer
 from baserow.api.schemas import (
@@ -44,7 +43,6 @@ from baserow.core.handler import CoreHandler
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
 from baserow_premium.fields.actions import GenerateFormulaWithAIActionType
-from baserow_premium.fields.exceptions import AiFieldOutputParserException
 from baserow_premium.fields.job_types import GenerateAIValuesJobType
 from baserow_premium.fields.models import AIField
 from baserow_premium.license.features import PREMIUM
@@ -167,7 +165,6 @@ class GenerateFormulaWithAIView(APIView):
                 [
                     "ERROR_GENERATIVE_AI_DOES_NOT_EXIST",
                     "ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE",
-                    "ERROR_OUTPUT_PARSER",
                     "ERROR_GENERATIVE_AI_PROMPT",
                     "ERROR_USER_NOT_IN_GROUP",
                 ]
@@ -187,7 +184,6 @@ class GenerateFormulaWithAIView(APIView):
             ModelDoesNotBelongToType: ERROR_MODEL_DOES_NOT_BELONG_TO_TYPE,
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             GenerativeAIPromptError: ERROR_GENERATIVE_AI_PROMPT,
-            AiFieldOutputParserException: ERROR_OUTPUT_PARSER,
         }
     )
     @validate_body(GenerateFormulaWithAIRequestSerializer)
