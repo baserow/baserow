@@ -25,6 +25,10 @@ SCANNABLE_FIELD_CONTENT_TYPES = [
     field._meta.model_name for field in SCANNABLE_FIELD_TYPES
 ]
 
+SCAN_TYPE_PATTERN = "pattern"
+SCAN_TYPE_LIST_OF_VALUES = "list_of_values"
+SCAN_TYPE_LIST_TABLE = "list_table"
+
 STALE_SCAN_THRESHOLD_HOURS = 2
 
 FREQUENCY_INTERVALS = {

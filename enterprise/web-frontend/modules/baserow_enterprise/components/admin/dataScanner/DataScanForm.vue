@@ -52,6 +52,7 @@
           v-model="v$.values.pattern.$model"
           :placeholder="$t('dataScanner.patternPlaceholder')"
           :error="v$.values.pattern.$error"
+          maxlength="100"
           @blur="v$.values.pattern.$touch()"
         />
         <template #error>
@@ -247,7 +248,7 @@
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import { useVuelidate } from '@vuelidate/core'
-import { required, requiredIf, helpers } from '@vuelidate/validators'
+import { required, requiredIf, maxLength, helpers } from '@vuelidate/validators'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { DataScannerScansService } from '@baserow_enterprise/services/dataScanner'
 import { ADMIN_WORKSPACE_OPTIONS_URL } from '@baserow_enterprise/services/adminWorkspaces'
@@ -299,6 +300,10 @@ export default {
           required: helpers.withMessage(
             this.$t('error.requiredField'),
             requiredIf(() => this.values.scan_type === 'pattern')
+          ),
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', { max: 100 }),
+            maxLength(100)
           ),
         },
         list_items: {
@@ -381,7 +386,7 @@ export default {
     },
   },
   async mounted() {
-    if (this.values.list_items?.length > 0) {
+    if (this.values.list_items.length > 0) {
       this.listItemsText = this.values.list_items.join('\n')
     }
     if (
@@ -392,7 +397,7 @@ export default {
     }
     if (
       !this.values.scan_all_workspaces &&
-      this.values.workspace_ids?.length > 0
+      this.values.workspace_ids.length > 0
     ) {
       await this.fetchWorkspaceNamesByIds(this.values.workspace_ids)
     }

@@ -9,13 +9,18 @@ from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
 from baserow.core.jobs.models import Job
 from baserow.core.models import Workspace
+from baserow_enterprise.data_scanner.constants import (
+    SCAN_TYPE_LIST_OF_VALUES,
+    SCAN_TYPE_LIST_TABLE,
+    SCAN_TYPE_PATTERN,
+)
 
 
 class DataScan(models.Model):
     SCAN_TYPE_CHOICES = [
-        ("pattern", "Pattern"),
-        ("list_of_values", "List of values"),
-        ("list_table", "List Table"),
+        (SCAN_TYPE_PATTERN, "Pattern"),
+        (SCAN_TYPE_LIST_OF_VALUES, "List of values"),
+        (SCAN_TYPE_LIST_TABLE, "List Table"),
     ]
 
     FREQUENCY_CHOICES = [
@@ -75,15 +80,12 @@ class DataScanResult(models.Model):
     field = models.ForeignKey(Field, on_delete=models.CASCADE)
     row_id = models.IntegerField()
     matched_value = models.TextField()
-    first_identified_on = models.DateTimeField()
+    first_identified_on = models.DateTimeField(db_index=True)
     last_identified_on = models.DateTimeField()
 
     class Meta:
         unique_together = [("scan", "table", "row_id", "field")]
         ordering = ["-first_identified_on"]
-        indexes = [
-            models.Index(fields=["scan", "first_identified_on"]),
-        ]
 
     def __str__(self):
         return f"Result(scan={self.scan_id}, table={self.table_id}, row={self.row_id})"

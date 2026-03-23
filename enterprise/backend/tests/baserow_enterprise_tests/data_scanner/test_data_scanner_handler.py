@@ -24,21 +24,25 @@ from baserow_enterprise.data_scanner.models import (
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 
+@pytest.mark.data_scanner
 def test_convert_pattern_to_regex_alpha_token():
     assert convert_pattern_to_regex("A") == "[A-Za-z]"
     assert convert_pattern_to_regex("AA") == "[A-Za-z][A-Za-z]"
 
 
+@pytest.mark.data_scanner
 def test_convert_pattern_to_regex_digit_token():
     assert convert_pattern_to_regex("D") == "[0-9]"
     assert convert_pattern_to_regex("DD") == "[0-9][0-9]"
 
 
+@pytest.mark.data_scanner
 def test_convert_pattern_to_regex_any_char_token():
     assert convert_pattern_to_regex("X") == "."
     assert convert_pattern_to_regex("XX") == ".."
 
 
+@pytest.mark.data_scanner
 def test_convert_pattern_to_regex_escaped_literals():
     assert convert_pattern_to_regex("\\N\\L") == "NL"
     assert convert_pattern_to_regex("\\-") == "\\-"
@@ -46,6 +50,7 @@ def test_convert_pattern_to_regex_escaped_literals():
     assert convert_pattern_to_regex("\\D") == "D"
 
 
+@pytest.mark.data_scanner
 def test_convert_pattern_to_regex_mixed():
     assert convert_pattern_to_regex("AADD") == "[A-Za-z][A-Za-z][0-9][0-9]"
     assert (
@@ -54,6 +59,7 @@ def test_convert_pattern_to_regex_mixed():
     )
 
 
+@pytest.mark.data_scanner
 def test_convert_pattern_to_regex_iban_pattern():
     assert (
         convert_pattern_to_regex("AADDAAAADDDDDDDDDD")
@@ -62,6 +68,7 @@ def test_convert_pattern_to_regex_iban_pattern():
     )
 
 
+@pytest.mark.data_scanner
 def test_convert_pattern_to_regex_dutch_iban_with_literals():
     assert (
         convert_pattern_to_regex("\\N\\LDDAAAADDDDDDDDDD")
@@ -70,15 +77,18 @@ def test_convert_pattern_to_regex_dutch_iban_with_literals():
     )
 
 
+@pytest.mark.data_scanner
 def test_convert_pattern_to_regex_empty():
     assert convert_pattern_to_regex("") == ""
 
 
+@pytest.mark.data_scanner
 def test_convert_pattern_to_regex_trailing_backslash():
     # A trailing backslash with nothing after it is treated as a literal backslash
     assert convert_pattern_to_regex("A\\") == "[A-Za-z]\\\\"
 
 
+@pytest.mark.data_scanner
 def test_extract_matching_token():
     compiled = re.compile(r"[A-Za-z][A-Za-z][0-9][0-9]", re.IGNORECASE)
 
@@ -88,6 +98,7 @@ def test_extract_matching_token():
     assert token == "ab12"
 
 
+@pytest.mark.data_scanner
 def test_extract_matching_token_no_match_returns_raw():
     compiled = re.compile(r"[A-Za-z][A-Za-z][0-9][0-9]", re.IGNORECASE)
 
@@ -95,6 +106,7 @@ def test_extract_matching_token_no_match_returns_raw():
     assert token == "'hello':1"
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_pattern(enterprise_data_fixture):
@@ -117,6 +129,7 @@ def test_create_scan_pattern(enterprise_data_fixture):
     assert scan.created_by == user
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_list_of_values(enterprise_data_fixture):
@@ -139,6 +152,7 @@ def test_create_scan_list_of_values(enterprise_data_fixture):
     ]
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_list_table(enterprise_data_fixture):
@@ -164,6 +178,7 @@ def test_create_scan_list_table(enterprise_data_fixture):
     assert scan.source_field_id == field.id
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_with_specific_workspaces(enterprise_data_fixture):
@@ -188,6 +203,7 @@ def test_create_scan_with_specific_workspaces(enterprise_data_fixture):
     }
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_all_workspaces(enterprise_data_fixture):
@@ -206,6 +222,7 @@ def test_create_scan_all_workspaces(enterprise_data_fixture):
     assert scan.workspaces.count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_without_enterprise_license(enterprise_data_fixture):
@@ -220,6 +237,7 @@ def test_create_scan_without_enterprise_license(enterprise_data_fixture):
         )
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_non_staff_user(enterprise_data_fixture):
@@ -235,6 +253,7 @@ def test_create_scan_non_staff_user(enterprise_data_fixture):
         )
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_update_scan(enterprise_data_fixture):
@@ -261,6 +280,7 @@ def test_update_scan(enterprise_data_fixture):
     assert updated.pattern == "99"
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_update_scan_without_license(enterprise_data_fixture):
@@ -281,6 +301,7 @@ def test_update_scan_without_license(enterprise_data_fixture):
         DataScannerHandler.update_scan(user=user, scan_id=scan.id, name="New")
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_update_scan_non_staff(enterprise_data_fixture):
@@ -296,6 +317,7 @@ def test_update_scan_non_staff(enterprise_data_fixture):
         DataScannerHandler.update_scan(user=regular, scan_id=scan.id, name="New")
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_update_scan_not_found(enterprise_data_fixture):
@@ -306,6 +328,27 @@ def test_update_scan_not_found(enterprise_data_fixture):
         DataScannerHandler.update_scan(user=user, scan_id=99999, name="New")
 
 
+@pytest.mark.data_scanner
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_update_scan_already_running(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user(is_staff=True)
+
+    scan = DataScannerHandler.create_scan(
+        user=user,
+        name="Running Scan",
+        scan_type="pattern",
+        pattern="AA",
+    )
+    scan.is_running = True
+    scan.save()
+
+    with pytest.raises(DataScanIsAlreadyRunning):
+        DataScannerHandler.update_scan(user=user, scan_id=scan.id, name="New Name")
+
+
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_update_scan_workspaces(enterprise_data_fixture):
@@ -330,6 +373,7 @@ def test_update_scan_workspaces(enterprise_data_fixture):
     assert set(updated.workspaces.values_list("id", flat=True)) == {ws2.id}
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_update_scan_list_items(enterprise_data_fixture):
@@ -351,6 +395,7 @@ def test_update_scan_list_items(enterprise_data_fixture):
     assert set(updated.list_items.values_list("value", flat=True)) == {"x", "y", "z"}
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_update_scan_table_source(enterprise_data_fixture):
@@ -383,6 +428,7 @@ def test_update_scan_table_source(enterprise_data_fixture):
     assert scan.source_field_id == fields2[0].id
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_update_scan_clears_workspaces_when_scan_all(enterprise_data_fixture):
@@ -410,6 +456,7 @@ def test_update_scan_clears_workspaces_when_scan_all(enterprise_data_fixture):
     assert scan.workspaces.count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_cleanup_stale_results_on_type_change(enterprise_data_fixture):
@@ -440,6 +487,7 @@ def test_cleanup_stale_results_on_type_change(enterprise_data_fixture):
     assert scan.results.count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_cleanup_stale_results_on_pattern_change(enterprise_data_fixture):
@@ -468,6 +516,7 @@ def test_cleanup_stale_results_on_pattern_change(enterprise_data_fixture):
     assert scan.results.count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_cleanup_stale_results_on_list_items_change(enterprise_data_fixture):
@@ -509,6 +558,7 @@ def test_cleanup_stale_results_on_list_items_change(enterprise_data_fixture):
     assert scan.results.first().matched_value == "keep"
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_cleanup_stale_results_on_empty_list(enterprise_data_fixture):
@@ -536,6 +586,7 @@ def test_cleanup_stale_results_on_empty_list(enterprise_data_fixture):
     assert scan.results.count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_scan(enterprise_data_fixture):
@@ -556,6 +607,7 @@ def test_delete_scan(enterprise_data_fixture):
     assert DataScanListItem.objects.filter(scan_id=scan_id).count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_scan_without_license(enterprise_data_fixture):
@@ -576,6 +628,7 @@ def test_delete_scan_without_license(enterprise_data_fixture):
         DataScannerHandler.delete_scan(user=user, scan_id=scan.id)
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_scan_non_staff(enterprise_data_fixture):
@@ -591,6 +644,7 @@ def test_delete_scan_non_staff(enterprise_data_fixture):
         DataScannerHandler.delete_scan(user=regular, scan_id=scan.id)
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_scan_not_found(enterprise_data_fixture):
@@ -601,6 +655,30 @@ def test_delete_scan_not_found(enterprise_data_fixture):
         DataScannerHandler.delete_scan(user=user, scan_id=99999)
 
 
+@pytest.mark.data_scanner
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_delete_scan_already_running(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user(is_staff=True)
+
+    scan = DataScannerHandler.create_scan(
+        user=user,
+        name="Running Scan",
+        scan_type="pattern",
+        pattern="AA",
+    )
+    scan.is_running = True
+    scan.save()
+
+    with pytest.raises(DataScanIsAlreadyRunning):
+        DataScannerHandler.delete_scan(user=user, scan_id=scan.id)
+
+    # Verify the scan was not deleted.
+    assert DataScan.objects.filter(id=scan.id).exists()
+
+
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_scans_without_license(enterprise_data_fixture):
@@ -610,6 +688,7 @@ def test_list_scans_without_license(enterprise_data_fixture):
         DataScannerHandler.list_scans(user=user)
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_scans_non_staff(enterprise_data_fixture):
@@ -620,6 +699,7 @@ def test_list_scans_non_staff(enterprise_data_fixture):
         DataScannerHandler.list_scans(user=user)
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_get_scan(enterprise_data_fixture):
@@ -635,6 +715,7 @@ def test_get_scan(enterprise_data_fixture):
     assert fetched.name == "Get Me"
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_get_scan_not_found(enterprise_data_fixture):
@@ -645,6 +726,7 @@ def test_get_scan_not_found(enterprise_data_fixture):
         DataScannerHandler.get_scan(user, 99999)
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_trigger_scan_without_license(enterprise_data_fixture):
@@ -654,6 +736,7 @@ def test_trigger_scan_without_license(enterprise_data_fixture):
         DataScannerHandler.trigger_scan(user=user, scan_id=999)
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_trigger_scan_non_staff(enterprise_data_fixture):
@@ -669,6 +752,7 @@ def test_trigger_scan_non_staff(enterprise_data_fixture):
         DataScannerHandler.trigger_scan(user=regular, scan_id=scan.id)
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_trigger_scan_not_found(enterprise_data_fixture):
@@ -679,6 +763,7 @@ def test_trigger_scan_not_found(enterprise_data_fixture):
         DataScannerHandler.trigger_scan(user=user, scan_id=99999)
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_trigger_scan_already_running(enterprise_data_fixture):
@@ -698,6 +783,7 @@ def test_trigger_scan_already_running(enterprise_data_fixture):
         DataScannerHandler.trigger_scan(user=user, scan_id=scan.id)
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_trigger_scan_dispatches_task(enterprise_data_fixture):
@@ -715,12 +801,14 @@ def test_trigger_scan_dispatches_task(enterprise_data_fixture):
         mock_delay.assert_called_once_with(scan.id)
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_scan_not_found(enterprise_data_fixture):
     DataScannerHandler.run_scan(99999)
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_pattern_scan(enterprise_data_fixture, populate_search_table):
@@ -750,6 +838,7 @@ def test_run_pattern_scan(enterprise_data_fixture, populate_search_table):
     assert scan.last_error is None or scan.last_error == ""
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_pattern_scan_dutch_iban_with_escaped_literals(
@@ -801,6 +890,7 @@ def test_run_pattern_scan_dutch_iban_with_escaped_literals(
     assert "nl91abna0417164300" in results[1][1].lower()
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_list_of_values_scan(enterprise_data_fixture, populate_search_table):
@@ -833,6 +923,7 @@ def test_run_list_of_values_scan(enterprise_data_fixture, populate_search_table)
     assert scan.results.filter(matched_value="secret123").exists()
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_scan_without_license_records_error(enterprise_data_fixture):
@@ -859,6 +950,7 @@ def test_run_scan_without_license_records_error(enterprise_data_fixture):
     assert "Enterprise license no longer active" in scan.last_error
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_scan_with_no_search_table(enterprise_data_fixture):
@@ -882,6 +974,7 @@ def test_run_scan_with_no_search_table(enterprise_data_fixture):
     assert scan.last_error is None or scan.last_error == ""
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_scan_removes_stale_results(enterprise_data_fixture):
@@ -919,6 +1012,7 @@ def test_run_scan_removes_stale_results(enterprise_data_fixture):
     assert scan.results.count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_scan_removes_result_when_cell_cleared(
@@ -972,6 +1066,7 @@ def test_run_scan_removes_result_when_cell_cleared(
     assert scan.results.count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_upsert_result_updates_existing(enterprise_data_fixture):
@@ -1005,6 +1100,7 @@ def test_upsert_result_updates_existing(enterprise_data_fixture):
     assert result.last_identified_on == t2
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_table_scan_excludes_source_table(
@@ -1061,6 +1157,7 @@ def test_list_table_scan_excludes_source_table(
     assert target_result.matched_value == "secret123"
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_stale_running_scan_reset(enterprise_data_fixture):
@@ -1085,6 +1182,7 @@ def test_stale_running_scan_reset(enterprise_data_fixture):
     assert scan.last_error == "Scan timed out and was automatically reset"
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_check_scans_due_without_license(enterprise_data_fixture):
@@ -1109,6 +1207,7 @@ def test_check_scans_due_without_license(enterprise_data_fixture):
         mock_delay.assert_not_called()
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_check_scans_due_dispatches_scheduled_scan(enterprise_data_fixture):
@@ -1132,6 +1231,7 @@ def test_check_scans_due_dispatches_scheduled_scan(enterprise_data_fixture):
         mock_delay.assert_called_once_with(scan.id)
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_check_scans_due_skips_recently_run_scan(enterprise_data_fixture):
@@ -1155,6 +1255,7 @@ def test_check_scans_due_skips_recently_run_scan(enterprise_data_fixture):
         mock_delay.assert_not_called()
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_check_scans_due_skips_manual_scans(enterprise_data_fixture):
@@ -1178,6 +1279,7 @@ def test_check_scans_due_skips_manual_scans(enterprise_data_fixture):
         mock_delay.assert_not_called()
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_check_scans_due_dispatches_never_run_scan(enterprise_data_fixture):
@@ -1201,6 +1303,7 @@ def test_check_scans_due_dispatches_never_run_scan(enterprise_data_fixture):
         mock_delay.assert_called_once_with(scan.id)
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_result_deleted_when_table_deleted(enterprise_data_fixture):
@@ -1236,6 +1339,7 @@ def test_result_deleted_when_table_deleted(enterprise_data_fixture):
     assert DataScanResult.objects.filter(scan=scan).count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_result_deleted_when_field_deleted(enterprise_data_fixture):
@@ -1272,6 +1376,7 @@ def test_result_deleted_when_field_deleted(enterprise_data_fixture):
     assert DataScanResult.objects.filter(scan=scan).count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_result_deleted_when_scan_deleted(enterprise_data_fixture):
@@ -1300,6 +1405,7 @@ def test_result_deleted_when_scan_deleted(enterprise_data_fixture):
     assert DataScanResult.objects.filter(scan_id=scan_id).count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_source_table_set_null_when_table_deleted(enterprise_data_fixture):
@@ -1325,6 +1431,7 @@ def test_source_table_set_null_when_table_deleted(enterprise_data_fixture):
     assert scan.source_table is None
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_source_field_set_null_when_field_deleted(enterprise_data_fixture):
@@ -1348,6 +1455,7 @@ def test_source_field_set_null_when_field_deleted(enterprise_data_fixture):
     assert scan.source_field is None
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_scan_excludes_trashed_field(
@@ -1380,6 +1488,7 @@ def test_run_scan_excludes_trashed_field(
     assert scan.results.count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_scan_excludes_trashed_table(
@@ -1412,6 +1521,7 @@ def test_run_scan_excludes_trashed_table(
     assert scan.results.count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_scan_excludes_trashed_database(
@@ -1445,6 +1555,7 @@ def test_run_scan_excludes_trashed_database(
     assert scan.results.count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_scan_excludes_trashed_row(enterprise_data_fixture, populate_search_table):
@@ -1477,6 +1588,7 @@ def test_run_scan_excludes_trashed_row(enterprise_data_fixture, populate_search_
     assert scan.results.filter(row_id=rows[1].id).exists()
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_scan_excludes_trashed_workspace(
@@ -1510,6 +1622,7 @@ def test_run_scan_excludes_trashed_workspace(
     assert scan.results.count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_pattern_scan_excludes_trashed_field(

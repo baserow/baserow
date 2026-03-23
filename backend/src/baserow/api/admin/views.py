@@ -13,6 +13,7 @@ from baserow.api.errors import (
 from baserow.api.exceptions import (
     InvalidSortAttributeException,
     InvalidSortDirectionException,
+    QueryParameterValidationException,
 )
 from baserow.api.mixins import (
     FilterableViewMixin,
@@ -66,7 +67,24 @@ class APIListingView(
     def apply_ids_filter(self, ids_param, queryset):
         if not ids_param:
             return queryset
-        ids = [int(i) for i in ids_param.split(",") if i.strip().lstrip("-").isdigit()]
+        ids = []
+        for raw in ids_param.split(","):
+            stripped = raw.strip()
+            if not stripped:
+                continue
+            if not stripped.isdigit():
+                raise QueryParameterValidationException(
+                    {
+                        "ids": [
+                            {
+                                "code": "invalid",
+                                "error": f"'{stripped}' is not a valid ID. "
+                                "Only positive integers are accepted.",
+                            }
+                        ]
+                    }
+                )
+            ids.append(int(stripped))
         if ids:
             queryset = queryset.filter(id__in=ids)
         return queryset

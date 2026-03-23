@@ -10,6 +10,7 @@ from baserow_enterprise.data_scanner.notification_types import (
 )
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_notify_instance_admins_creates_notification(enterprise_data_fixture):
@@ -34,6 +35,7 @@ def test_notify_instance_admins_creates_notification(enterprise_data_fixture):
     assert notification.workspace is None
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_notify_instance_admins_sends_to_all_staff(enterprise_data_fixture):
@@ -53,6 +55,7 @@ def test_notify_instance_admins_sends_to_all_staff(enterprise_data_fixture):
     assert recipient_users == {admin1.id, admin2.id}
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_notify_instance_admins_skips_inactive_staff(enterprise_data_fixture):
@@ -72,6 +75,7 @@ def test_notify_instance_admins_skips_inactive_staff(enterprise_data_fixture):
     assert recipients[0].recipient == active_admin
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_notify_instance_admins_returns_none_when_no_staff(enterprise_data_fixture):
@@ -87,6 +91,7 @@ def test_notify_instance_admins_returns_none_when_no_staff(enterprise_data_fixtu
     assert result is None
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_email_title_singular(enterprise_data_fixture):
@@ -103,6 +108,7 @@ def test_email_title_singular(enterprise_data_fixture):
     assert "1 new result found for IBAN Scanner" in title
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_email_title_plural(enterprise_data_fixture):
@@ -119,6 +125,7 @@ def test_email_title_plural(enterprise_data_fixture):
     assert "10 new results found for IBAN Scanner" in title
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_email_description(enterprise_data_fixture):
@@ -136,6 +143,7 @@ def test_email_description(enterprise_data_fixture):
     assert "3 new matches" in desc
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_scan_sends_notification_on_new_results(
@@ -183,6 +191,7 @@ def test_run_scan_sends_notification_on_new_results(
     assert recipient_ids == {admin1.id, admin2.id}
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_scan_no_notification_when_no_new_results(enterprise_data_fixture):
@@ -204,6 +213,7 @@ def test_run_scan_no_notification_when_no_new_results(enterprise_data_fixture):
     assert Notification.objects.filter(type="data_scan_new_results").count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_scan_no_notification_when_only_existing_results(
@@ -240,6 +250,7 @@ def test_run_scan_no_notification_when_only_existing_results(
     assert Notification.objects.filter(type="data_scan_new_results").count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_run_scan_no_notification_on_error(enterprise_data_fixture):

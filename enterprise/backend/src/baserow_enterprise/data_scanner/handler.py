@@ -16,6 +16,9 @@ from baserow.contrib.database.table.models import Table
 from baserow.core.models import Workspace
 from baserow_enterprise.data_scanner.constants import (
     FREQUENCY_INTERVALS,
+    SCAN_TYPE_LIST_OF_VALUES,
+    SCAN_TYPE_LIST_TABLE,
+    SCAN_TYPE_PATTERN,
     STALE_SCAN_THRESHOLD_HOURS,
 )
 from baserow_enterprise.data_scanner.exceptions import (
@@ -125,15 +128,19 @@ class DataScannerHandler:
             frequency=frequency,
             scan_all_workspaces=scan_all_workspaces,
             created_by=user,
-            source_table_id=source_table_id if scan_type == "list_table" else None,
-            source_field_id=source_field_id if scan_type == "list_table" else None,
+            source_table_id=source_table_id
+            if scan_type == SCAN_TYPE_LIST_TABLE
+            else None,
+            source_field_id=source_field_id
+            if scan_type == SCAN_TYPE_LIST_TABLE
+            else None,
         )
 
         if not scan_all_workspaces and workspace_ids:
             workspaces = Workspace.objects.filter(id__in=workspace_ids)
             scan.workspaces.set(workspaces)
 
-        if scan_type == "list_of_values" and list_items:
+        if scan_type == SCAN_TYPE_LIST_OF_VALUES and list_items:
             DataScanListItem.objects.bulk_create(
                 [DataScanListItem(scan=scan, value=v) for v in list_items]
             )
@@ -161,6 +168,9 @@ class DataScannerHandler:
             scan = DataScan.objects.select_for_update(of=("self",)).get(id=scan_id)
         except DataScan.DoesNotExist:
             raise DataScanDoesNotExist()
+
+        if scan.is_running:
+            raise DataScanIsAlreadyRunning()
 
         simple_fields = [
             "name",
@@ -211,11 +221,11 @@ class DataScannerHandler:
             scan.results.all().delete()
             return
 
-        if "pattern" in kwargs and scan.scan_type == "pattern":
+        if "pattern" in kwargs and scan.scan_type == SCAN_TYPE_PATTERN:
             scan.results.all().delete()
             return
 
-        if "list_items" in kwargs and scan.scan_type == "list_of_values":
+        if "list_items" in kwargs and scan.scan_type == SCAN_TYPE_LIST_OF_VALUES:
             new_items = set(kwargs["list_items"] or [])
             if not new_items:
                 scan.results.all().delete()
@@ -238,6 +248,9 @@ class DataScannerHandler:
             scan = DataScan.objects.select_for_update(of=("self",)).get(id=scan_id)
         except DataScan.DoesNotExist:
             raise DataScanDoesNotExist()
+
+        if scan.is_running:
+            raise DataScanIsAlreadyRunning()
 
         scan.delete()
 
@@ -365,19 +378,19 @@ class DataScannerHandler:
 
             pre_computed: dict = {}
 
-            if scan.scan_type == "pattern":
+            if scan.scan_type == SCAN_TYPE_PATTERN:
                 regex = convert_pattern_to_regex(scan.pattern)
                 pre_computed["regex"] = regex
                 pre_computed["compiled"] = re.compile(regex, re.IGNORECASE)
 
-            elif scan.scan_type == "list_of_values":
+            elif scan.scan_type == SCAN_TYPE_LIST_OF_VALUES:
                 pre_computed["values"] = list(
                     DataScanListItem.objects.filter(scan=scan).values_list(
                         "value", flat=True
                     )
                 )
 
-            elif scan.scan_type == "list_table":
+            elif scan.scan_type == SCAN_TYPE_LIST_TABLE:
                 if not scan.source_table or not scan.source_field:
                     pre_computed["skip"] = True
                 else:
@@ -419,7 +432,7 @@ class DataScannerHandler:
                         workspace_id
                     )
 
-                    if scan.scan_type == "pattern":
+                    if scan.scan_type == SCAN_TYPE_PATTERN:
                         matches = (
                             search_model.objects.annotate(
                                 text_value=Cast("value", TextField())
@@ -436,7 +449,7 @@ class DataScannerHandler:
                                 trashed_field_ids,
                             )
                         )
-                    elif scan.scan_type == "list_of_values":
+                    elif scan.scan_type == SCAN_TYPE_LIST_OF_VALUES:
                         new_results_count += DataScannerHandler._run_list_scan(
                             scan,
                             search_model,
@@ -444,7 +457,7 @@ class DataScannerHandler:
                             now,
                             trashed_field_ids,
                         )
-                    elif scan.scan_type == "list_table":
+                    elif scan.scan_type == SCAN_TYPE_LIST_TABLE:
                         new_results_count += DataScannerHandler._run_list_scan(
                             scan,
                             search_model,

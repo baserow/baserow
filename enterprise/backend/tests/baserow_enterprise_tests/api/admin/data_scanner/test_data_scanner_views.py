@@ -26,6 +26,7 @@ from baserow_enterprise.data_scanner.job_types import DataScanResultExportJobTyp
 from baserow_enterprise.data_scanner.models import DataScan, DataScanResult
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_scans_unauthenticated(api_client):
@@ -36,6 +37,7 @@ def test_list_scans_unauthenticated(api_client):
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_scans_non_staff(api_client, enterprise_data_fixture):
@@ -50,6 +52,7 @@ def test_list_scans_non_staff(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_403_FORBIDDEN
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_scans_without_enterprise_license(api_client, enterprise_data_fixture):
@@ -63,6 +66,7 @@ def test_list_scans_without_enterprise_license(api_client, enterprise_data_fixtu
     assert response.status_code == HTTP_402_PAYMENT_REQUIRED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_scans(api_client, enterprise_data_fixture):
@@ -105,6 +109,7 @@ def test_list_scans(api_client, enterprise_data_fixture):
     }
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_scans_search(api_client, enterprise_data_fixture):
@@ -129,6 +134,7 @@ def test_list_scans_search(api_client, enterprise_data_fixture):
     assert response.json()["results"][0]["name"] == "IBAN Scanner"
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_scans_query_count_is_constant(api_client, enterprise_data_fixture):
@@ -192,6 +198,7 @@ def test_list_scans_query_count_is_constant(api_client, enterprise_data_fixture)
     )
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_unauthenticated(api_client):
@@ -203,6 +210,7 @@ def test_create_scan_unauthenticated(api_client):
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_non_staff(api_client, enterprise_data_fixture):
@@ -218,6 +226,7 @@ def test_create_scan_non_staff(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_403_FORBIDDEN
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_without_license(api_client, enterprise_data_fixture):
@@ -232,6 +241,7 @@ def test_create_scan_without_license(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_402_PAYMENT_REQUIRED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_pattern(api_client, enterprise_data_fixture):
@@ -257,6 +267,7 @@ def test_create_scan_pattern(api_client, enterprise_data_fixture):
     assert data["frequency"] == "daily"
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_list_of_values(api_client, enterprise_data_fixture):
@@ -279,6 +290,7 @@ def test_create_scan_list_of_values(api_client, enterprise_data_fixture):
     assert data["list_items"] == ["val1", "val2"]
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_list_table(api_client, enterprise_data_fixture):
@@ -307,6 +319,7 @@ def test_create_scan_list_table(api_client, enterprise_data_fixture):
     assert data["source_field_id"] == fields[0].id
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_with_specific_workspaces(api_client, enterprise_data_fixture):
@@ -332,6 +345,7 @@ def test_create_scan_with_specific_workspaces(api_client, enterprise_data_fixtur
     assert data["workspace_ids"] == [ws.id]
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_pattern_missing_pattern(api_client, enterprise_data_fixture):
@@ -347,6 +361,7 @@ def test_create_scan_pattern_missing_pattern(api_client, enterprise_data_fixture
     assert response.status_code == HTTP_400_BAD_REQUEST
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_list_of_values_missing_items(api_client, enterprise_data_fixture):
@@ -362,6 +377,7 @@ def test_create_scan_list_of_values_missing_items(api_client, enterprise_data_fi
     assert response.status_code == HTTP_400_BAD_REQUEST
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_list_table_missing_source(api_client, enterprise_data_fixture):
@@ -377,6 +393,7 @@ def test_create_scan_list_table_missing_source(api_client, enterprise_data_fixtu
     assert response.status_code == HTTP_400_BAD_REQUEST
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_create_scan_list_table_incompatible_source_field(
@@ -403,6 +420,7 @@ def test_create_scan_list_table_incompatible_source_field(
     assert response.status_code == HTTP_400_BAD_REQUEST
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_workspace_structure_excludes_incompatible_fields(
@@ -431,6 +449,7 @@ def test_workspace_structure_excludes_incompatible_fields(
     assert "Active" not in field_names
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_get_scan_unauthenticated(api_client, enterprise_data_fixture):
@@ -450,6 +469,7 @@ def test_get_scan_unauthenticated(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_get_scan_non_staff(api_client, enterprise_data_fixture):
@@ -471,6 +491,7 @@ def test_get_scan_non_staff(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_403_FORBIDDEN
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_get_scan_without_license(api_client, enterprise_data_fixture):
@@ -487,6 +508,7 @@ def test_get_scan_without_license(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_402_PAYMENT_REQUIRED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_get_scan(api_client, enterprise_data_fixture):
@@ -529,6 +551,7 @@ def test_get_scan(api_client, enterprise_data_fixture):
     }
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_get_scan_not_found(api_client, enterprise_data_fixture):
@@ -546,6 +569,7 @@ def test_get_scan_not_found(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_404_NOT_FOUND
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_update_scan_unauthenticated(api_client, enterprise_data_fixture):
@@ -566,6 +590,7 @@ def test_update_scan_unauthenticated(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_update_scan_non_staff(api_client, enterprise_data_fixture):
@@ -588,6 +613,7 @@ def test_update_scan_non_staff(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_403_FORBIDDEN
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_update_scan_without_license(api_client, enterprise_data_fixture):
@@ -605,6 +631,7 @@ def test_update_scan_without_license(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_402_PAYMENT_REQUIRED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_update_scan(api_client, enterprise_data_fixture):
@@ -629,6 +656,7 @@ def test_update_scan(api_client, enterprise_data_fixture):
     assert response.json()["frequency"] == "weekly"
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_update_scan_not_found(api_client, enterprise_data_fixture):
@@ -647,6 +675,34 @@ def test_update_scan_not_found(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_404_NOT_FOUND
 
 
+@pytest.mark.data_scanner
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_update_scan_already_running(api_client, enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    user, token = enterprise_data_fixture.create_user_and_token(is_staff=True)
+
+    scan = DataScan.objects.create(
+        name="Running",
+        scan_type="pattern",
+        pattern="AA",
+        created_by=user,
+        is_running=True,
+    )
+
+    response = api_client.patch(
+        reverse(
+            "api:enterprise:admin:data_scanner:detail",
+            kwargs={"scan_id": scan.id},
+        ),
+        {"name": "Updated"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_409_CONFLICT
+
+
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_scan_unauthenticated(api_client, enterprise_data_fixture):
@@ -666,6 +722,7 @@ def test_delete_scan_unauthenticated(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_scan_non_staff(api_client, enterprise_data_fixture):
@@ -687,6 +744,7 @@ def test_delete_scan_non_staff(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_403_FORBIDDEN
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_scan_without_license(api_client, enterprise_data_fixture):
@@ -703,6 +761,7 @@ def test_delete_scan_without_license(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_402_PAYMENT_REQUIRED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_scan(api_client, enterprise_data_fixture):
@@ -725,6 +784,7 @@ def test_delete_scan(api_client, enterprise_data_fixture):
     assert DataScan.objects.filter(id=scan.id).count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_scan_not_found(api_client, enterprise_data_fixture):
@@ -742,6 +802,33 @@ def test_delete_scan_not_found(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_404_NOT_FOUND
 
 
+@pytest.mark.data_scanner
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_delete_scan_already_running(api_client, enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    user, token = enterprise_data_fixture.create_user_and_token(is_staff=True)
+
+    scan = DataScan.objects.create(
+        name="Running",
+        scan_type="pattern",
+        pattern="AA",
+        created_by=user,
+        is_running=True,
+    )
+
+    response = api_client.delete(
+        reverse(
+            "api:enterprise:admin:data_scanner:detail",
+            kwargs={"scan_id": scan.id},
+        ),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_409_CONFLICT
+
+
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_trigger_scan_unauthenticated(api_client, enterprise_data_fixture):
@@ -761,6 +848,7 @@ def test_trigger_scan_unauthenticated(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_trigger_scan_non_staff(api_client, enterprise_data_fixture):
@@ -782,6 +870,7 @@ def test_trigger_scan_non_staff(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_403_FORBIDDEN
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_trigger_scan_without_license(api_client, enterprise_data_fixture):
@@ -798,6 +887,7 @@ def test_trigger_scan_without_license(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_402_PAYMENT_REQUIRED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_trigger_scan(api_client, enterprise_data_fixture):
@@ -824,6 +914,7 @@ def test_trigger_scan(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_202_ACCEPTED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_trigger_scan_not_found(api_client, enterprise_data_fixture):
@@ -841,6 +932,7 @@ def test_trigger_scan_not_found(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_404_NOT_FOUND
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_trigger_scan_already_running(api_client, enterprise_data_fixture):
@@ -866,6 +958,7 @@ def test_trigger_scan_already_running(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_409_CONFLICT
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_results_unauthenticated(api_client):
@@ -876,6 +969,7 @@ def test_list_results_unauthenticated(api_client):
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_results_non_staff(api_client, enterprise_data_fixture):
@@ -890,6 +984,7 @@ def test_list_results_non_staff(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_403_FORBIDDEN
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_results_without_license(api_client, enterprise_data_fixture):
@@ -903,6 +998,7 @@ def test_list_results_without_license(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_402_PAYMENT_REQUIRED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_results(api_client, enterprise_data_fixture):
@@ -945,6 +1041,7 @@ def test_list_results(api_client, enterprise_data_fixture):
     assert result["database_name"] == table.database.name
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_results_filter_by_scan(api_client, enterprise_data_fixture):
@@ -994,6 +1091,7 @@ def test_list_results_filter_by_scan(api_client, enterprise_data_fixture):
     assert data["results"][0]["scan_name"] == "Scan 1"
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_results_search(api_client, enterprise_data_fixture):
@@ -1039,6 +1137,7 @@ def test_list_results_search(api_client, enterprise_data_fixture):
     assert response.json()["results"][0]["matched_value"] == "NL12ABCD0123456789"
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_list_results_query_count_is_constant(api_client, enterprise_data_fixture):
@@ -1103,6 +1202,7 @@ def test_list_results_query_count_is_constant(api_client, enterprise_data_fixtur
     )
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_result_unauthenticated(api_client, enterprise_data_fixture):
@@ -1135,6 +1235,7 @@ def test_delete_result_unauthenticated(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_result_non_staff(api_client, enterprise_data_fixture):
@@ -1169,6 +1270,7 @@ def test_delete_result_non_staff(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_403_FORBIDDEN
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_result_without_license(api_client, enterprise_data_fixture):
@@ -1185,6 +1287,7 @@ def test_delete_result_without_license(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_402_PAYMENT_REQUIRED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_result(api_client, enterprise_data_fixture):
@@ -1219,6 +1322,7 @@ def test_delete_result(api_client, enterprise_data_fixture):
     assert DataScanResult.objects.filter(id=result.id).count() == 0
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_delete_result_not_found(api_client, enterprise_data_fixture):
@@ -1236,6 +1340,7 @@ def test_delete_result_not_found(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_404_NOT_FOUND
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_workspace_structure_unauthenticated(api_client, enterprise_data_fixture):
@@ -1253,6 +1358,7 @@ def test_workspace_structure_unauthenticated(api_client, enterprise_data_fixture
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_workspace_structure_non_staff(api_client, enterprise_data_fixture):
@@ -1272,6 +1378,7 @@ def test_workspace_structure_non_staff(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_403_FORBIDDEN
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_workspace_structure_without_license(api_client, enterprise_data_fixture):
@@ -1288,6 +1395,7 @@ def test_workspace_structure_without_license(api_client, enterprise_data_fixture
     assert response.status_code == HTTP_402_PAYMENT_REQUIRED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_workspace_structure(api_client, enterprise_data_fixture):
@@ -1295,7 +1403,7 @@ def test_workspace_structure(api_client, enterprise_data_fixture):
     user, token = enterprise_data_fixture.create_user_and_token(is_staff=True)
     table, fields, _ = enterprise_data_fixture.build_table(
         user=user,
-        columns=[("Name", "text"), ("Notes", "long_text")],
+        columns=[("Name", "text"), ("Notes", "text")],
         rows=[["test", "note"]],
     )
     workspace = table.database.workspace
@@ -1322,6 +1430,7 @@ def test_workspace_structure(api_client, enterprise_data_fixture):
     assert "Notes" in field_names
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_workspace_structure_not_found(api_client, enterprise_data_fixture):
@@ -1339,6 +1448,7 @@ def test_workspace_structure_not_found(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_404_NOT_FOUND
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_export_results_unauthenticated(api_client):
@@ -1350,6 +1460,7 @@ def test_export_results_unauthenticated(api_client):
     assert response.status_code == HTTP_401_UNAUTHORIZED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_export_results_non_staff(api_client, enterprise_data_fixture):
@@ -1365,6 +1476,7 @@ def test_export_results_non_staff(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_403_FORBIDDEN
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 def test_export_results_without_license(api_client, enterprise_data_fixture):
@@ -1379,6 +1491,7 @@ def test_export_results_without_license(api_client, enterprise_data_fixture):
     assert response.status_code == HTTP_402_PAYMENT_REQUIRED
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 @patch("baserow.core.storage.get_default_storage")
@@ -1429,6 +1542,7 @@ def test_export_results_csv(get_storage_mock, api_client, enterprise_data_fixtur
     close()
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 @patch("baserow.core.storage.get_default_storage")
@@ -1480,6 +1594,7 @@ def test_export_results_csv_without_header(
     close()
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 @patch("baserow.core.storage.get_default_storage")
@@ -1544,6 +1659,7 @@ def test_export_results_csv_filter_by_scan(
     close()
 
 
+@pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 @patch("baserow.core.storage.get_default_storage")

@@ -2,7 +2,12 @@ from rest_framework import serializers
 
 from baserow.contrib.database.fields.models import Field
 from baserow.core.jobs.registries import job_type_registry
-from baserow_enterprise.data_scanner.constants import SCANNABLE_FIELD_CONTENT_TYPES
+from baserow_enterprise.data_scanner.constants import (
+    SCAN_TYPE_LIST_OF_VALUES,
+    SCAN_TYPE_LIST_TABLE,
+    SCAN_TYPE_PATTERN,
+    SCANNABLE_FIELD_CONTENT_TYPES,
+)
 from baserow_enterprise.data_scanner.job_types import DataScanResultExportJobType
 from baserow_enterprise.data_scanner.models import DataScan, DataScanResult
 
@@ -76,7 +81,9 @@ class DataScanWriteSerializer(serializers.Serializer):
         choices=DataScan.SCAN_TYPE_CHOICES,
         required=False,
     )
-    pattern = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    pattern = serializers.CharField(
+        max_length=100, required=False, allow_blank=True, allow_null=True
+    )
     frequency = serializers.ChoiceField(
         choices=DataScan.FREQUENCY_CHOICES,
         required=False,
@@ -122,7 +129,9 @@ class DataScanCreateSerializer(DataScanWriteSerializer):
         child=serializers.CharField(),
         default=list,
     )
-    pattern = serializers.CharField(required=False, allow_blank=True, default=None)
+    pattern = serializers.CharField(
+        max_length=100, required=False, allow_blank=True, default=None
+    )
     frequency = serializers.ChoiceField(
         choices=DataScan.FREQUENCY_CHOICES,
         default="manual",
@@ -131,15 +140,15 @@ class DataScanCreateSerializer(DataScanWriteSerializer):
 
     def validate(self, data):
         scan_type = data.get("scan_type")
-        if scan_type == "pattern" and not data.get("pattern"):
+        if scan_type == SCAN_TYPE_PATTERN and not data.get("pattern"):
             raise serializers.ValidationError(
                 {"pattern": "Pattern is required for pattern scan type."}
             )
-        if scan_type == "list_of_values" and not data.get("list_items"):
+        if scan_type == SCAN_TYPE_LIST_OF_VALUES and not data.get("list_items"):
             raise serializers.ValidationError(
                 {"list_items": "List items are required for list of values scan type."}
             )
-        if scan_type == "list_table":
+        if scan_type == SCAN_TYPE_LIST_TABLE:
             if not data.get("source_table_id") or not data.get("source_field_id"):
                 raise serializers.ValidationError(
                     {

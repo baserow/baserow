@@ -152,10 +152,16 @@ class DataScanDetailView(APIView):
         responses={
             200: DataScanSerializer,
             404: get_error_schema(["ERROR_DATA_SCAN_DOES_NOT_EXIST"]),
+            409: get_error_schema(["ERROR_DATA_SCAN_ALREADY_RUNNING"]),
         },
     )
     @transaction.atomic
-    @map_exceptions({DataScanDoesNotExist: ERROR_DATA_SCAN_DOES_NOT_EXIST})
+    @map_exceptions(
+        {
+            DataScanDoesNotExist: ERROR_DATA_SCAN_DOES_NOT_EXIST,
+            DataScanIsAlreadyRunning: ERROR_DATA_SCAN_ALREADY_RUNNING,
+        }
+    )
     @validate_body(DataScanUpdateSerializer)
     def patch(self, request, scan_id, data):
         scan = action_type_registry.get_by_type(UpdateDataScanActionType).do(
@@ -174,10 +180,16 @@ class DataScanDetailView(APIView):
         responses={
             204: None,
             404: get_error_schema(["ERROR_DATA_SCAN_DOES_NOT_EXIST"]),
+            409: get_error_schema(["ERROR_DATA_SCAN_ALREADY_RUNNING"]),
         },
     )
     @transaction.atomic
-    @map_exceptions({DataScanDoesNotExist: ERROR_DATA_SCAN_DOES_NOT_EXIST})
+    @map_exceptions(
+        {
+            DataScanDoesNotExist: ERROR_DATA_SCAN_DOES_NOT_EXIST,
+            DataScanIsAlreadyRunning: ERROR_DATA_SCAN_ALREADY_RUNNING,
+        }
+    )
     def delete(self, request, scan_id):
         action_type_registry.get_by_type(DeleteDataScanActionType).do(
             user=request.user, scan_id=scan_id
