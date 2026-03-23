@@ -1,10 +1,14 @@
 """Unit tests for RetryingModel."""
 
+import os
+
 import pytest
 
 from baserow_enterprise.assistant.retrying_model import (
     RetryingModel,
     _is_transient_provider_error,
+    _resolve_credentials,
+    _resolve_model,
 )
 
 
@@ -470,3 +474,114 @@ async def test_request_stream_reraises_after_yield():
             [], None, ModelRequestParameters(function_tools=[], output_tools=[])
         ) as stream:
             pass  # stream consumed, then __aexit__ raises
+
+
+# ---------------------------------------------------------------------------
+# Credential resolution & model dispatch
+# ---------------------------------------------------------------------------
+
+
+class TestResolveCredentials:
+    """Tests for _resolve_credentials env-var precedence."""
+
+    def test_provider_specific_key_takes_precedence(self, monkeypatch):
+        monkeypatch.setenv("GROQ_API_KEY", "groq-key")
+        monkeypatch.setenv("UDSPY_LM_API_KEY", "udspy-key")
+
+        creds = _resolve_credentials("groq")
+        assert creds["api_key"] == "groq-key"
+
+    def test_falls_back_to_udspy_api_key(self, monkeypatch):
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
+        monkeypatch.setenv("UDSPY_LM_API_KEY", "udspy-key")
+
+        creds = _resolve_credentials("groq")
+        assert creds["api_key"] == "udspy-key"
+
+    def test_provider_specific_base_url_takes_precedence(self, monkeypatch):
+        monkeypatch.setenv("OPENAI_BASE_URL", "https://custom.openai.com")
+        monkeypatch.setenv("UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL", "https://udspy.com")
+
+        creds = _resolve_credentials("openai")
+        assert creds["base_url"] == "https://custom.openai.com"
+
+    def test_falls_back_to_udspy_base_url(self, monkeypatch):
+        monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+        monkeypatch.setenv("UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL", "https://udspy.com")
+
+        creds = _resolve_credentials("openai")
+        assert creds["base_url"] == "https://udspy.com"
+
+    def test_returns_none_when_nothing_set(self, monkeypatch):
+        for var in (
+            "OPENAI_API_KEY",
+            "OPENAI_BASE_URL",
+            "UDSPY_LM_API_KEY",
+            "UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL",
+        ):
+            monkeypatch.delenv(var, raising=False)
+
+        creds = _resolve_credentials("openai")
+        assert creds["api_key"] is None
+        assert creds["base_url"] is None
+
+    def test_unknown_provider_still_gets_udspy_fallback(self, monkeypatch):
+        monkeypatch.setenv("UDSPY_LM_API_KEY", "udspy-key")
+
+        creds = _resolve_credentials("some_unknown_provider")
+        assert creds["api_key"] == "udspy-key"
+
+    def test_never_mutates_os_environ(self, monkeypatch):
+        monkeypatch.setenv("UDSPY_LM_API_KEY", "udspy-key")
+        monkeypatch.setenv("UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL", "https://udspy.com")
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+        monkeypatch.delenv("GROQ_API_KEY", raising=False)
+
+        snapshot = dict(os.environ)
+
+        _resolve_credentials("openai")
+        _resolve_credentials("groq")
+        _resolve_credentials("anthropic")
+
+        assert dict(os.environ) == snapshot
+
+
+class TestResolveModel:
+    """Tests for _resolve_model provider dispatch."""
+
+    def test_openai_prefix(self, monkeypatch):
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        from pydantic_ai.models.openai import OpenAIChatModel
+
+        model = _resolve_model("openai:gpt-4o")
+        assert isinstance(model, OpenAIChatModel)
+
+    def test_groq_prefix(self, monkeypatch):
+        monkeypatch.setenv("GROQ_API_KEY", "gsk-test")
+        from pydantic_ai.models.groq import GroqModel
+
+        model = _resolve_model("groq:llama-3")
+        assert isinstance(model, GroqModel)
+
+    def test_bare_model_defaults_to_openai(self, monkeypatch):
+        monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+        from pydantic_ai.models.openai import OpenAIChatModel
+
+        model = _resolve_model("gpt-4o")
+        assert isinstance(model, OpenAIChatModel)
+
+    def test_ollama_uses_default_base_url(self, monkeypatch):
+        monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
+        monkeypatch.delenv("UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL", raising=False)
+        from pydantic_ai.models.openai import OpenAIChatModel
+
+        model = _resolve_model("ollama:llama2")
+        assert isinstance(model, OpenAIChatModel)
+
+    def test_never_mutates_os_environ(self, monkeypatch):
+        monkeypatch.setenv("UDSPY_LM_API_KEY", "udspy-key")
+        monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+        snapshot = dict(os.environ)
+        _resolve_model("openai:gpt-4o")
+        assert dict(os.environ) == snapshot
