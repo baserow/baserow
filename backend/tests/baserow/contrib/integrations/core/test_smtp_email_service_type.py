@@ -57,6 +57,9 @@ def mock_django_email(
 
 
 @pytest.mark.django_db
+@override_settings(
+    CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+)
 def test_send_smtp_email_basic(data_fixture):
     smtp_integration = data_fixture.create_smtp_integration(
         host="smtp.example.com",
@@ -652,3 +655,27 @@ def test_smtp_email_service_create_update_with_instance_smtp(data_fixture):
     assert service.integration_id == smtp_integration.id
     assert service.use_instance_smtp_settings is False
     assert service.from_email["formula"] == "'sender@example.com'"
+
+
+@pytest.mark.django_db
+@override_settings(
+    INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=False,
+    CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+    EMAIL_HOST="instance.smtp.example.com",
+)
+def test_smtp_email_service_prepare_values_disables_instance_smtp_when_unavailable(
+    data_fixture,
+):
+    service_type = CoreSMTPEmailServiceType()
+    service = data_fixture.create_core_smtp_email_service(
+        integration=None,
+        use_instance_smtp_settings=True,
+    )
+
+    prepared_values = service_type.prepare_values(
+        {},
+        data_fixture.create_user(),
+        service,
+    )
+
+    assert prepared_values["use_instance_smtp_settings"] is False

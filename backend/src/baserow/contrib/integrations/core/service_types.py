@@ -738,19 +738,16 @@ class CoreSMTPEmailServiceType(CoreServiceType):
     def prepare_values(self, values, user: AbstractUser, instance=None):
         values = super().prepare_values(values, user, instance)
 
-        use_instance_smtp_settings = values.get(
-            "use_instance_smtp_settings",
-            instance.use_instance_smtp_settings
-            if instance
-            else self._instance_smtp_is_available(),
+        use_instance_smtp_settings = (
+            values.get(
+                "use_instance_smtp_settings",
+                instance.use_instance_smtp_settings if instance else True,
+            )
+            if self._instance_smtp_is_available()
+            else False
         )
 
         if use_instance_smtp_settings:
-            if not self._instance_smtp_is_available():
-                raise serializers.ValidationError(
-                    "The instance SMTP configuration is not available."
-                )
-
             values["integration"] = None
 
         values["use_instance_smtp_settings"] = use_instance_smtp_settings
@@ -837,7 +834,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         if using_instance_smtp:
             from_email = settings.DEFAULT_FROM_EMAIL
             connection = get_connection(
-                backend="django.core.mail.backends.smtp.EmailBackend",
+                backend=settings.CELERY_EMAIL_BACKEND,
             )
             smtp_host = settings.EMAIL_HOST
             smtp_port = settings.EMAIL_PORT
@@ -856,7 +853,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 else resolved_values["from_email"]
             )
             connection = get_connection(
-                backend="django.core.mail.backends.smtp.EmailBackend",
+                backend=settings.CELERY_EMAIL_BACKEND,
                 host=smtp_integration.host,
                 port=smtp_integration.port,
                 username=smtp_integration.username,

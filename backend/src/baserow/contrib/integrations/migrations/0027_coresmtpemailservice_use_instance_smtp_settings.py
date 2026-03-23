@@ -12,6 +12,7 @@ class Migration(migrations.Migration):
             name="use_instance_smtp_settings",
             field=models.BooleanField(
                 default=False,
+                db_default=False,
                 help_text="Whether to use the instance-level Django SMTP configuration.",
             ),
         ),

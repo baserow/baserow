@@ -134,6 +134,7 @@ class CoreSMTPEmailService(Service):
 
     use_instance_smtp_settings = models.BooleanField(
         default=False,
+        db_default=False,
         help_text="Whether to use the instance-level Django SMTP configuration.",
     )
     from_email = FormulaField(
