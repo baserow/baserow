@@ -2373,11 +2373,13 @@ class LocalBaserowRowsSignalServiceType(
         Import Local Baserow signal service types paths.
         """
 
-        # All Local Baserow signal service types have a length of 3:
-        # {previousNodeId}.{rowIndex}.{fieldName}. By this point, we should
-        # only have two parts: {rowIndex}.{fieldName}.
-        if len(path) == 2:
-            index, field_dbname = path
+        # If we receive:
+        # {previousNodeId}.{rowIndex}.{fieldName}, or
+        # {previousNodeId}.{rowIndex}.{fieldName}.{fieldValueIndex}.{value}
+        #   (e.g. a `link_row`)
+        # then pluck out the row index / field name and use it.
+        if len(path) >= 2:
+            index, field_dbname, *rest = path
         else:
             # In any other scenario, we have a formula that is not a format we
             # can currently import properly, so we return the path as is.
@@ -2392,7 +2394,7 @@ class LocalBaserowRowsSignalServiceType(
             self.import_property_name(field_dbname, id_mapping) or field_dbname
         )
 
-        return [index, imported_field_dbname]
+        return [index, imported_field_dbname, *rest]
 
 
 class LocalBaserowRowsCreatedServiceType(LocalBaserowRowsSignalServiceType):
