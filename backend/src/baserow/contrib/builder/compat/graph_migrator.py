@@ -1,3 +1,4 @@
+from collections import defaultdict
 from typing import Any, Dict, List, TypedDict
 
 from django.db.models import QuerySet
@@ -9,6 +10,7 @@ class ElementToMigrate(TypedDict):
     id: int
     order: str  # e.g. "1.00000000000000000000"
     parent_element_id: int | None
+    place_in_container: str | None
 
 
 class PageGraphMigrator:
@@ -25,6 +27,7 @@ class PageGraphMigrator:
                 id=element.id,
                 order=element.order,
                 parent_element_id=element.parent_element_id,
+                place_in_container=getattr(element, "place_in_container", None) or "",
             )
             for element in elements
         ]
@@ -35,19 +38,32 @@ class PageGraphMigrator:
         # Find any children this element has.
         children = [e for e in self.elements if e["parent_element_id"] == element["id"]]
         if children:
-            graph_element["children"] = []
-            sorted_children = sorted(children, key=lambda c: c["order"])
-            for child in sorted_children:
-                graph[str(child["id"])] = {}
-                graph_element["children"].append(child["id"])
+            # Group children by their place_in_container (edge key)
+            children_by_place: Dict[str, List[ElementToMigrate]] = defaultdict(list)
+            for child in children:
+                place = child.get("place_in_container") or ""
+                children_by_place[place].append(child)
+
+            # Build the children dict with edges
+            graph_element["children"] = {}
+            for place, place_children in children_by_place.items():
+                sorted_children = sorted(place_children, key=lambda c: c["order"])
+                graph_element["children"][place] = []
+                for child in sorted_children:
+                    graph_element["children"][place].append(child["id"])
+                    # Recursively migrate child elements
+                    graph = self.migrate_element(graph, child)
 
         # Find the next element based on the `order`.
+        # Next elements must have the same parent AND the same place_in_container
         next_element = next(
             (
                 e
                 for e in self.elements
                 if e["order"] > element["order"]
                 and e["parent_element_id"] == element["parent_element_id"]
+                and (e.get("place_in_container") or "")
+                == (element.get("place_in_container") or "")
             ),
             None,
         )
@@ -64,6 +80,6 @@ class PageGraphMigrator:
         ]
         for index, root_page_element in enumerate(root_page_elements):
             if index == 0:
-                graph["0"] = str(root_page_element["id"])
+                graph["0"] = root_page_element["id"]
             graph = self.migrate_element(graph, root_page_element)
         return graph

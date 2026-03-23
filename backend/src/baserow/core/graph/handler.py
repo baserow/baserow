@@ -38,15 +38,18 @@ class BaseGraphHandler(ABC):
         "2": {
             "next": {
                 "uuid1": [3],
-                "uui2": [5],
+                "uuid2": [5],
                 "": [4],
             }
         },
         "3": {},
         "5": {},
         "4": {"next": {"": [6]}},
-        "6": {"children": [7]}
-        "7": {}
+        "6": {"children": {"": [7], "0": [8], "1": [9, 10]}},
+        "7": {},
+        "8": {},
+        "9": {},
+        "10": {}
     }
     ```
 
@@ -56,18 +59,26 @@ class BaseGraphHandler(ABC):
     For each point, `next` is the dict keyed by edge UUIDs and valued by the list of
     point ID on this edge. For now only one point is possible per output.
 
-    `children` is an array of children for the points which support children.
+    `children` is a dict keyed by edge/place identifiers and valued by lists of child
+    point IDs. This allows container elements to have children at different "places"
+    (e.g., different columns or slots). The "" (empty string) key represents the
+    default edge.
 
-    This graph structure use triplet of position to identify the position of a point.
+    For backwards compatibility, `children` may also be a simple array (legacy format):
+    `{"children": [7]}` is treated as `{"children": {"": [7]}}`.
+
+    This graph structure uses triplets to identify the position of a point.
     A triplet looks like [reference_point, position, output].
 
     For instance:
     - [<Point(42)>, 'south', ''] refers to the point placed at the
-    south of the point 42 at default output "".
+      south of the point 42 at default output "".
     - [<Point(42)>, 'south', 'uuid45'] refers to the point placed at the
-    south of the point 42 at the edge with uid `uuid45`.
+      south of the point 42 at the edge with uid `uuid45`.
     - [<Point(42)>, 'child', ''] refers to the point placed as child of the
-    point 42.
+      point 42 at the default edge.
+    - [<Point(42)>, 'child', '0'] refers to the point placed as child of the
+      point 42 at edge/place "0".
     """
 
     outputs_id_mapping: str = ""
@@ -116,6 +127,71 @@ class BaseGraphHandler(ABC):
             point_id = point
 
         return self.graph[str(point_id)]
+
+    def _get_children_dict(
+        self, point_info: Dict[str, Any]
+    ) -> Dict[str, List[int | str]]:
+        """
+        Get the children as a dict, normalizing from the legacy array format if needed.
+
+        Supports both formats:
+        - Legacy: {"children": [7, 8]} -> {"": [7, 8]}
+        - New: {"children": {"": [7], "0": [8]}} -> {"": [7], "0": [8]}
+
+        :param point_info: The info dict of a point.
+        :return: A dict mapping edge keys to lists of child IDs.
+        """
+
+        children = point_info.get("children")
+        if children is None:
+            return {}
+        if isinstance(children, list):
+            # Legacy format: convert to dict with default edge
+            return {"": children} if children else {}
+        # New format: already a dict
+        return children
+
+    def _get_all_children_ids(self, point_info: Dict[str, Any]) -> List[int | str]:
+        """
+        Get all children IDs regardless of edge, handling both legacy and new formats.
+
+        :param point_info: The info dict of a point.
+        :return: A flat list of all child IDs.
+        """
+
+        children_dict = self._get_children_dict(point_info)
+        return [cid for child_list in children_dict.values() for cid in child_list]
+
+    def _set_children(
+        self,
+        point_info: Dict[str, Any],
+        edge: str,
+        child_ids: List[int | str],
+    ):
+        """
+        Set the children for a specific edge, using the new dict format.
+
+        :param point_info: The info dict of a point to modify.
+        :param edge: The edge key (e.g., "", "0", "1").
+        :param child_ids: The list of child IDs for this edge.
+        """
+
+        if "children" not in point_info or isinstance(point_info["children"], list):
+            # Convert from legacy format or initialize
+            existing = point_info.get("children", [])
+            if isinstance(existing, list) and existing:
+                point_info["children"] = {"": existing}
+            else:
+                point_info["children"] = {}
+
+        if child_ids:
+            point_info["children"][edge] = child_ids
+        elif edge in point_info["children"]:
+            del point_info["children"][edge]
+
+        # Clean up empty children dict
+        if not point_info["children"]:
+            del point_info["children"]
 
     @abstractmethod
     def get_point_map(self) -> Dict[int, GraphPoint]:
@@ -168,7 +244,8 @@ class BaseGraphHandler(ABC):
                 return self.get_point(next_points[0])
 
         elif position == "child":
-            children = self.get_info(reference_point).get("children", [])
+            children_dict = self._get_children_dict(self.get_info(reference_point))
+            children = children_dict.get(output, [])
             if children:
                 return self.get_point(children[0])
 
@@ -216,8 +293,10 @@ class BaseGraphHandler(ABC):
                 if point.id in next_points:
                     return point_id, "south", output_uid
 
-            if point.id in point_info.get("children", []):
-                return point_id, "child", ""
+            children_dict = self._get_children_dict(point_info)
+            for edge_key, child_ids in children_dict.items():
+                if point.id in child_ids:
+                    return point_id, "child", edge_key
 
         raise GraphPointNotFoundInGraph(f"Point {point.id} not found in the graph")
 
@@ -254,8 +333,14 @@ class BaseGraphHandler(ABC):
                     if points
                 ]
             )
-            if point_info.get("children"):
-                next_positions.append((point_id, "child", ""))
+            children_dict = self._get_children_dict(point_info)
+            next_positions.extend(
+                [
+                    (point_id, "child", edge_key)
+                    for edge_key, children in children_dict.items()
+                    if children
+                ]
+            )
 
             for next_position in next_positions:
                 found = explore(next_position, path + [next_position])
@@ -301,35 +386,46 @@ class BaseGraphHandler(ABC):
             if output is None or uid == output
         ]
 
-    def get_children(self, point: GraphPoint) -> List[GraphPoint]:
+    def get_children(
+        self, point: GraphPoint, output: str | None = None
+    ) -> List[GraphPoint]:
         """
         Get the children of the given point.
 
         :param point: The point to get the children from.
+        :param output: The edge/place to get children for. If `None`, returns
+            children from all edges.
         :return: A list of children of the given point.
         """
 
-        return [self.get_point(cid) for cid in self.get_info(point).get("children", [])]
+        point_info = self.get_info(point)
+        children_dict = self._get_children_dict(point_info)
+        return [
+            self.get_point(cid)
+            for edge_key, child_ids in children_dict.items()
+            for cid in child_ids
+            if output is None or edge_key == output
+        ]
 
     def get_siblings(self, point: GraphPoint) -> List[GraphPoint]:
         """
         Get the siblings of the given point. Siblings are points that share the same
-        parent.
+        parent and are on the same edge/place.
 
         :param point: The point to get the siblings from.
         :return: A list of siblings of the given point.
         """
 
         # Only consider it a "sibling" relationship if this point is a child
-        parent_point_id, position, output = self.get_position(point)
+        parent_point_id, position, edge_key = self.get_position(point)
         if position != "child":
             return []
 
-        return [
-            self.get_point(pid)
-            for pid in self.get_info(parent_point_id).get("children", [])
-            if pid != point.id
-        ]
+        parent_info = self.get_info(parent_point_id)
+        children_dict = self._get_children_dict(parent_info)
+        children_on_same_edge = children_dict.get(edge_key, [])
+
+        return [self.get_point(pid) for pid in children_on_same_edge if pid != point.id]
 
     def insert(
         self,
@@ -388,11 +484,12 @@ class BaseGraphHandler(ABC):
                     point.id,
                 )
             elif ref_position == "child":
-                self.get_info(ref_position_id)["children"] = _replace(
-                    self.get_info(ref_position_id)["children"],
-                    reference_point.id,
-                    point.id,
-                )
+                # Get existing children for this edge and replace the reference point
+                ref_info = self.get_info(ref_position_id)
+                children_dict = self._get_children_dict(ref_info)
+                children_on_edge = children_dict.get(ref_output, [])
+                new_children = _replace(children_on_edge, reference_point.id, point.id)
+                self._set_children(ref_info, ref_output, new_children)
 
             point_info["next"] = {"": [reference_point.id]}
 
@@ -406,10 +503,12 @@ class BaseGraphHandler(ABC):
             self.get_info(reference_point).setdefault("next", {})[output] = [point.id]
 
         elif position == "child":
-            if "children" in self.get_info(reference_point):
-                new_next = self.get_info(reference_point)["children"]
+            ref_info = self.get_info(reference_point)
+            children_dict = self._get_children_dict(ref_info)
+            if output in children_dict:
+                new_next = children_dict[output]
 
-            self.get_info(reference_point)["children"] = [point.id]
+            self._set_children(ref_info, output, [point.id])
 
         if new_next:
             point_info["next"] = {"": new_next}
@@ -456,13 +555,11 @@ class BaseGraphHandler(ABC):
                 del graph[point_position_id]["next"]
         elif position == "child":
             next_points = self._get_all_next_points(point_to_delete)
-            graph[point_position_id]["children"] = _replace(
-                graph[point_position_id]["children"],
-                point_to_delete.id,
-                next_points,
-            )
-            if not graph[point_position_id]["children"]:
-                del graph[point_position_id]["children"]
+            parent_info = graph[point_position_id]
+            children_dict = self._get_children_dict(parent_info)
+            children_on_edge = children_dict.get(output, [])
+            new_children = _replace(children_on_edge, point_to_delete.id, next_points)
+            self._set_children(parent_info, output, new_children)
 
         if not keep_info:
             del graph[str(point_to_delete.id)]
@@ -495,11 +592,11 @@ class BaseGraphHandler(ABC):
                     new_point.id,
                 )
         elif position == "child":
-            self.graph[reference_point_id]["children"] = _replace(
-                self.graph[reference_point_id]["children"],
-                point_to_replace.id,
-                new_point.id,
-            )
+            parent_info = self.graph[reference_point_id]
+            children_dict = self._get_children_dict(parent_info)
+            children_on_edge = children_dict.get(output, [])
+            new_children = _replace(children_on_edge, point_to_replace.id, new_point.id)
+            self._set_children(parent_info, output, new_children)
 
         del self.graph[point_to_replace_id]
 
@@ -558,9 +655,18 @@ class BaseGraphHandler(ABC):
                         for uid, nids in info["next"].items()
                     }
                 if "children" in info:
-                    migrated[str(map_point(key))]["children"] = [
-                        map_point(nid) for nid in info["children"]
-                    ]
+                    children = info["children"]
+                    if isinstance(children, list):
+                        # Legacy format: migrate to new dict format with default edge
+                        migrated[str(map_point(key))]["children"] = {
+                            "": [map_point(nid) for nid in children]
+                        }
+                    else:
+                        # New format: migrate each edge
+                        migrated[str(map_point(key))]["children"] = {
+                            map_output(edge_key): [map_point(nid) for nid in nids]
+                            for edge_key, nids in children.items()
+                        }
 
         self._update_graph(migrated)
 
@@ -588,13 +694,17 @@ class BaseGraphHandler(ABC):
             else:
                 result[get_label(key)] = {}
                 if "children" in point_info:
-                    result[get_label(key)]["children"] = [
-                        get_label(id) for id in point_info["children"]
-                    ]
+                    children_dict = self._get_children_dict(point_info)
+                    result[get_label(key)]["children"] = {
+                        self.get_point(key).graph_point_edge_label(edge_key): [
+                            get_label(child_id) for child_id in child_ids
+                        ]
+                        for edge_key, child_ids in children_dict.items()
+                    }
                 if "next" in point_info:
                     result[get_label(key)]["next"] = {
                         self.get_point(key).graph_point_edge_label(o): [
-                            get_label(id) for id in n
+                            get_label(point_id) for point_id in n
                         ]
                         for o, n in point_info["next"].items()
                     }

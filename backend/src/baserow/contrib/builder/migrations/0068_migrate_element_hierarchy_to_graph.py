@@ -14,7 +14,7 @@ def forward(apps, schema_editor):
     for pages in grouper(500, pages_iter):
         for page in pages:
             page_elements = Element.objects.filter(page=page).only(
-                "id", "order", "parent_element_id"
+                "id", "order", "parent_element_id", "place_in_container"
             )
             serialized_elements = PageGraphMigrator.serialize_page_elements(
                 page_elements
@@ -34,8 +34,15 @@ def reverse(apps, schema_editor):
                 if element_id == "0":
                     continue
                 # TODO: figure out how to re-apply the `order`.
-                if children := info.get("children", []):
-                    # TODO: set `place_in_container` once it's supported.
+                children = info.get("children", {})
+                if isinstance(children, dict):
+                    # New format: {"place": [child_ids]}
+                    for place, child_ids in children.items():
+                        Element.objects.filter(id__in=child_ids).update(
+                            parent_element_id=element_id, place_in_container=place
+                        )
+                elif isinstance(children, list):
+                    # Legacy format: [child_ids] (default place)
                     Element.objects.filter(id__in=children).update(
                         parent_element_id=element_id, place_in_container=""
                     )
