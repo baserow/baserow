@@ -104,7 +104,7 @@ def test_send_smtp_email_basic(data_fixture):
 
 @pytest.mark.django_db
 @override_settings(
-    INTEGRATION_ALLOW_SMTP_NODE_TO_USE_INSTANCE_SETTINGS=True,
+    INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=True,
     CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
     EMAIL_HOST="instance.smtp.example.com",
     EMAIL_PORT=2525,
@@ -430,7 +430,7 @@ def test_smtp_email_service_generate_schema(data_fixture):
 
 @pytest.mark.django_db
 @override_settings(
-    INTEGRATION_ALLOW_SMTP_NODE_TO_USE_INSTANCE_SETTINGS=True,
+    INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=True,
     CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
     EMAIL_HOST="instance.smtp.example.com",
 )
@@ -518,7 +518,7 @@ def test_serialized_export_import(data_fixture):
 
 @pytest.mark.django_db
 @override_settings(
-    INTEGRATION_ALLOW_SMTP_NODE_TO_USE_INSTANCE_SETTINGS=True,
+    INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=True,
     CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
     EMAIL_HOST="instance.smtp.example.com",
 )
@@ -610,7 +610,7 @@ def test_smtp_email_service_create_update(data_fixture):
 
 @pytest.mark.django_db
 @override_settings(
-    INTEGRATION_ALLOW_SMTP_NODE_TO_USE_INSTANCE_SETTINGS=True,
+    INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=True,
     CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
     EMAIL_HOST="instance.smtp.example.com",
 )

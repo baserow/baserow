@@ -721,7 +721,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
 
     def _instance_smtp_is_available(self) -> bool:
         return bool(
-            settings.INTEGRATION_ALLOW_SMTP_NODE_TO_USE_INSTANCE_SETTINGS
+            settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS
             and getattr(settings, "CELERY_EMAIL_BACKEND", None)
             == "django.core.mail.backends.smtp.EmailBackend"
             and getattr(settings, "EMAIL_HOST", "")
