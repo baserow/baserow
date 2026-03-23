@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
+from loguru import logger
 from pydantic_ai.messages import UserContent
 
 from baserow.core.models import Workspace
@@ -11,6 +12,8 @@ from .exceptions import GenerativeAITypeDoesNotExist
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
+
+    from baserow_premium.fields.ai_file import AIFile
 
 
 class GenerativeAIModelType(Instance):
@@ -50,24 +53,67 @@ class GenerativeAIModelType(Instance):
 
     def prepare_files(
         self,
-        files: list[tuple[str, int, str]],
-        read_file: Callable[[str], bytes],
+        files: list[AIFile],
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
-    ) -> tuple[list[UserContent], list[str]]:
+    ) -> list[AIFile]:
         """Process files into prompt content. Each provider implements its
-        own logic: what to embed, what to upload, limits, rules.
+        own logic for deciding what to embed, what to upload, and which files
+        to skip.
 
-        :param files: List of (name, size_bytes, media_type) tuples — metadata
-            only, no data read yet.
-        :param read_file: Callback to lazily read file data by name. Only call
-            for files the provider decides to accept.
+        Providers set ``content`` and optionally ``provider_file_id`` on each
+        accepted file. Only processed files (those with ``content`` set) are
+        returned; skipped files are filtered out.
+
+        :param files: List of AIFile instances with metadata and lazy
+            ``read_content()`` method.
         :param workspace: The workspace for settings resolution.
         :param settings_override: Optional provider settings override.
-        :return: Tuple of (content_parts, uploaded_file_ids_for_cleanup).
+        :return: The processed files with content/provider_file_id set.
         """
 
-        return [], []
+        return []
+
+    def delete_file(
+        self,
+        ai_file: AIFile,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """
+        Delete a single uploaded file from the provider. Override in
+        subclasses that upload files in ``prepare_files``.
+
+        :param ai_file: The AIFile instance representing the file to delete.
+        :param workspace: The workspace for settings resolution.
+        :param settings_override: Optional provider settings override.
+        """
+
+    def cleanup_files(
+        self,
+        files: list[AIFile],
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """
+        Clean up provider-uploaded files. Only files with a
+        ``provider_file_id`` are processed. Safe to call with an empty list.
+
+        :param files: List of AIFile instances returned by ``prepare_files``.
+        :param workspace: The workspace for settings resolution.
+        :param settings_override: Optional provider settings override.
+        """
+
+        for ai_file in files:
+            if not ai_file.provider_file_id:
+                continue
+            try:
+                self.delete_file(ai_file, workspace, settings_override)
+            except Exception:
+                logger.warning(
+                    f"Failed to delete file {ai_file.provider_file_id} from "
+                    f"provider {self.type}."
+                )
 
     def get_ai_model(
         self,

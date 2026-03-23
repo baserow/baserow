@@ -84,19 +84,18 @@ class TestGenerativeAIWithFilesModelType(GenerativeAIModelType):
     def get_settings_serializer(self):
         return GenerativeAIModelsSerializer
 
-    def prepare_files(self, files, read_file, workspace=None, settings_override=None):
+    def prepare_files(self, files, workspace=None, settings_override=None):
         from pydantic_ai import BinaryContent
 
-        content_parts = []
-        for name, size, media_type in files:
-            if size > 1 * 1024 * 1024:  # 1 MB limit
+        for ai_file in files:
+            if ai_file.size > 1 * 1024 * 1024:  # 1 MB limit
                 continue
-            data = read_file(name)
-            content_parts.append(BinaryContent(data=data, media_type=media_type))
+            data = ai_file.read_content()
+            ai_file.content = BinaryContent(data=data, media_type=ai_file.mime_type)
             break  # first file only
-        return content_parts, []
+        return [f for f in files if f.content is not None]
 
-    def delete_file(self, file_id, workspace=None, settings_override=None):
+    def delete_file(self, ai_file, workspace=None, settings_override=None):
         pass
 
 
