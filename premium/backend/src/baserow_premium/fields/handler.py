@@ -141,7 +141,7 @@ class AIFieldHandler:
             prompt_kwargs["output_type"] = choices
 
         # 3. Prepare files, call AI, cleanup
-        prepared: list[AIFile] = []
+        ai_files: list[AIFile] = []
         use_files = (
             ai_field.ai_file_field_id is not None
             and generative_ai_model_type.supports_files
@@ -159,8 +159,10 @@ class AIFieldHandler:
                 **prompt_kwargs,
             )
         finally:
-            if prepared:
-                generative_ai_model_type.cleanup_files(prepared, workspace)
+            # cleanup uses ai_files (not prepared) so that files uploaded
+            # before a mid-prepare failure are still cleaned up.
+            if ai_files:
+                generative_ai_model_type.cleanup_files(ai_files, workspace)
 
         # 4. Resolve choice if needed
         if choices is not None:

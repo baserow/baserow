@@ -138,6 +138,7 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> list[AIFile]:
+        from loguru import logger
         from pydantic_ai import BinaryContent, UploadedFile
 
         embed_payload = 0
@@ -148,30 +149,39 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
             _, ext = os.path.splitext(ai_file.name)
             ext = ext.lower()
 
-            if ext in self._EMBEDDABLE_EXTENSIONS:
-                if (
-                    embed_count >= self._MAX_EMBEDS_PER_REQUEST
-                    or embed_payload + ai_file.size > self._MAX_EMBED_PAYLOAD_BYTES
-                ):
-                    continue
-                data = ai_file.read_content()
-                ai_file.content = BinaryContent(data=data, media_type=ai_file.mime_type)
-                embed_payload += ai_file.size
-                embed_count += 1
+            try:
+                if ext in self._EMBEDDABLE_EXTENSIONS:
+                    if (
+                        embed_count >= self._MAX_EMBEDS_PER_REQUEST
+                        or embed_payload + ai_file.size
+                        > self._MAX_EMBED_PAYLOAD_BYTES
+                    ):
+                        continue
+                    data = ai_file.read_content()
+                    ai_file.content = BinaryContent(
+                        data=data, media_type=ai_file.mime_type
+                    )
+                    embed_payload += ai_file.size
+                    embed_count += 1
 
-            elif ext in self._UPLOADABLE_EXTENSIONS:
-                if ai_file.size > max_upload:
-                    continue
-                data = ai_file.read_content()
-                file_id = self._upload_file(
-                    ai_file.name, data, workspace, settings_override
+                elif ext in self._UPLOADABLE_EXTENSIONS:
+                    if ai_file.size > max_upload:
+                        continue
+                    data = ai_file.read_content()
+                    file_id = self._upload_file(
+                        ai_file.name, data, workspace, settings_override
+                    )
+                    ai_file.provider_file_id = file_id
+                    ai_file.content = UploadedFile(
+                        file_id=file_id,
+                        provider_name="openai",
+                        media_type=ai_file.mime_type,
+                    )
+            except Exception:
+                logger.warning(
+                    f"Skipping file {ai_file.name}: failed to read or upload."
                 )
-                ai_file.provider_file_id = file_id
-                ai_file.content = UploadedFile(
-                    file_id=file_id,
-                    provider_name="openai",
-                    media_type=ai_file.mime_type,
-                )
+                continue
 
         return [f for f in files if f.content is not None]
 
