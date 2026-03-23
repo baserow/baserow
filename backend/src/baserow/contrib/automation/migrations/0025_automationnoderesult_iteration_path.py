@@ -7,7 +7,7 @@ from django.db.models.functions import Cast
 
 def populate_iteration_path(apps, schema_editor):
     AutomationNodeResult = apps.get_model("automation", "AutomationNodeResult")
-    AutomationNodeResult.objects.exclude(iteration__isnull=True).update(
+    AutomationNodeResult.objects.update(
         iteration_path=Cast("iteration", output_field=CharField())
     )
 

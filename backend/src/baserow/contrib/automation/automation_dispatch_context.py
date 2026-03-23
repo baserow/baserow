@@ -84,7 +84,7 @@ class AutomationDispatchContext(DispatchContext):
         return ".".join([str(self.current_iterations[p.id]) for p in parent_nodes])
 
     def _get_previous_result_cache_key(self, node) -> Optional[str]:
-        return f"wa_previous_nodes_results_{self.history.id}_{node.id}"
+        return f"wa_previous_node_result_{self.history.id}_{node.id}"
 
     @property
     def data_provider_registry(self):
