@@ -148,7 +148,7 @@ export default {
   },
   inject: ['builder', 'currentPage', 'workspace'],
   provide() {
-    return { pageTopData: this.pageTop }
+    return { pageTopData: this.pageTop, dndContext: this.dndState }
   },
   data() {
     return {
@@ -161,6 +161,12 @@ export default {
       showElementId: false,
       // Used as reactive provided pageTop value for ElementPreview
       pageTop: { value: 140 },
+
+      dndState: {
+        draggedElement: null,
+        dropTargetId: null,
+        dropPosition: null,
+      },
     }
   },
   computed: {

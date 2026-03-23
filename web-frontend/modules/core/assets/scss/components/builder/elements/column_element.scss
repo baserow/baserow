@@ -3,13 +3,38 @@
   width: 100%;
   justify-content: space-between;
   gap: var(--space-between-columns);
-  align-items: var(--alignment);
+  align-items: stretch;
 }
 
 .column-element__column {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: var(--alignment);
   width: var(--column-width);
 }
 
 .column-element__element {
   width: 100%;
+}
+
+.column-element__column > .add-element-zone {
+  flex: 1;
+}
+
+.column-element__column--drop-active {
+  @include rounded($rounded-md);
+
+  background-color: rgba($palette-blue-100, 0.4);
+  outline: 1px dashed $palette-blue-400;
+  outline-offset: -2px;
+}
+
+.column-element__drop-zone {
+  min-height: 24px;
+  flex: 1;
+
+  .column-element__column--drop-active & {
+    flex: 1;
+  }
 }

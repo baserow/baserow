@@ -9,8 +9,17 @@
       'element-preview--on-top': isSelected && isAboveThreshold,
       'element-preview--not-visible':
         !isVisible && !isSelected && !isParentOfSelectedElement,
+      'element-preview--dragged': isDragged,
+      'element-preview--drop-before': isDropTarget && dropPosition === 'before',
+      'element-preview--drop-after': isDropTarget && dropPosition === 'after',
     }"
+    :draggable="isDraggable"
     @click="onSelect"
+    @dragstart.stop="onDragStart"
+    @dragend="onDragEnd"
+    @dragover="onDragOver"
+    @dragleave="onDragLeave"
+    @drop="onDrop"
   >
     <div v-if="isSelected" class="element-preview__tags">
       <div class="element-preview__name-tag">
@@ -33,10 +42,12 @@
       :allowed-directions="allowedMoveDirections"
       :is-duplicating="isDuplicating"
       :has-parent="!!parentElement"
+      :can-drag="canDrag"
       @delete="deleteElement"
       @move="onMove"
       @duplicate="duplicateElement"
       @select-parent="selectParentElement()"
+      @drag-handle-mousedown="onDragHandleMouseDown"
     />
     <PageElement
       :element="element"
@@ -80,7 +91,14 @@ export default {
     PageElement,
   },
   mixins: [applicationContextMixin],
-  inject: ['workspace', 'builder', 'mode', 'currentPage', 'pageTopData'],
+  inject: [
+    'workspace',
+    'builder',
+    'mode',
+    'currentPage',
+    'pageTopData',
+    'dndContext',
+  ],
   props: {
     element: {
       type: Object,
@@ -103,9 +121,19 @@ export default {
       isDuplicating: false,
       isAboveThreshold: false,
       observer: null,
+      isDraggable: false,
     }
   },
   computed: {
+    isDragged() {
+      return this.dndContext?.draggedElement?.id === this.element.id
+    },
+    isDropTarget() {
+      return this.dndContext?.dropTargetId === this.element.id
+    },
+    dropPosition() {
+      return this.isDropTarget ? this.dndContext.dropPosition : null
+    },
     ...mapGetters({
       getElementSelected: 'element/getSelected',
       elementAncestors: 'element/getAncestors',
@@ -175,6 +203,15 @@ export default {
       return Object.entries(this.nextPlaces)
         .filter(([, nextPlace]) => !!nextPlace)
         .map(([direction]) => direction)
+    },
+    canDrag() {
+      // Shared-page elements (header/footer children) are confined to sibling reordering
+      const sharedPage = this.$store.getters['page/getSharedPage'](this.builder)
+      if (this.element.page_id === sharedPage?.id) {
+        return this.allowedMoveDirections.length > 0
+      }
+      // Other elements can be dragged if they have a parent or have siblings
+      return !!this.parentElement || this.allowedMoveDirections.length > 0
     },
     canCreate() {
       return this.$hasPermission(
@@ -271,6 +308,7 @@ export default {
     if (this.observer) {
       this.observer.disconnect()
     }
+    window.removeEventListener('mouseup', this.resetDraggable)
   },
   methods: {
     ...mapActions({
@@ -390,6 +428,149 @@ export default {
           builder: this.builder,
           element: this.parentOfElementSelected,
         })
+      }
+    },
+    onDragHandleMouseDown() {
+      this.isDraggable = true
+      window.addEventListener('mouseup', this.resetDraggable, { once: true })
+    },
+    resetDraggable() {
+      this.isDraggable = false
+    },
+    onDragStart(event) {
+      if (!this.dndContext) return
+      event.dataTransfer.effectAllowed = 'move'
+      event.dataTransfer.setData('text/plain', String(this.element.id))
+      this.dndContext.draggedElement = this.element
+    },
+    onDragEnd() {
+      if (!this.dndContext) return
+      this.dndContext.draggedElement = null
+      this.dndContext.dropTargetId = null
+      this.dndContext.dropPosition = null
+      this.isDraggable = false
+    },
+    isCrossContainerDropValid(dragged) {
+      const draggedElementType = this.$registry.get('element', dragged.type)
+      const targetParentElement = this.element.parent_element_id
+        ? this.$store.getters['element/getElementById'](
+            this.elementPage,
+            this.element.parent_element_id
+          )
+        : null
+      return (
+        draggedElementType.isDisallowedReason({
+          workspace: this.workspace,
+          builder: this.builder,
+          page: this.elementPage,
+          parentElement: targetParentElement,
+          beforeElement: this.element,
+          placeInContainer: this.element.place_in_container,
+          pagePlace: this.elementType.getPagePlace(),
+        }) === null
+      )
+    },
+    onDragOver(event) {
+      if (!this.dndContext?.draggedElement) return
+      const dragged = this.dndContext.draggedElement
+      if (dragged.id === this.element.id) return
+
+      // Block cross-page drops (e.g. drop an element below a footer element)
+      if (dragged.page_id !== this.element.page_id) return
+
+      const sharedPage = this.$store.getters['page/getSharedPage'](this.builder)
+      if (dragged.page_id === sharedPage?.id) {
+        // Shared-page elements (header/footer children) are confined to sibling reordering
+        if (dragged.parent_element_id !== this.element.parent_element_id) return
+      } else if (
+        dragged.parent_element_id !== this.element.parent_element_id &&
+        !this.isCrossContainerDropValid(dragged)
+      ) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      const rect = this.$el.getBoundingClientRect()
+      const position =
+        event.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+      this.dndContext.dropTargetId = this.element.id
+      this.dndContext.dropPosition = position
+    },
+    onDragLeave(event) {
+      if (this.dndContext?.dropTargetId !== this.element.id) return
+      // Only clear when truly leaving this element (not entering a child)
+      if (!event.relatedTarget || !this.$el.contains(event.relatedTarget)) {
+        this.dndContext.dropTargetId = null
+        this.dndContext.dropPosition = null
+      }
+    },
+    async onDrop(event) {
+      if (!this.dndContext?.draggedElement) return
+      const dragged = this.dndContext.draggedElement
+      if (dragged.id === this.element.id) return
+
+      if (dragged.page_id !== this.element.page_id) return
+
+      const sharedPage = this.$store.getters['page/getSharedPage'](this.builder)
+      if (dragged.page_id === sharedPage?.id) {
+        // Shared-page elements (header/footer children) are confined to sibling reordering
+        if (dragged.parent_element_id !== this.element.parent_element_id) return
+      } else if (
+        dragged.parent_element_id !== this.element.parent_element_id &&
+        !this.isCrossContainerDropValid(dragged)
+      ) {
+        return
+      }
+
+      event.preventDefault()
+      event.stopPropagation()
+
+      if (
+        !this.$hasPermission(
+          'builder.page.element.update',
+          dragged,
+          this.workspace.id
+        )
+      ) {
+        this.dndContext.dropTargetId = null
+        this.dndContext.dropPosition = null
+        return
+      }
+
+      const position = this.dndContext.dropPosition
+      this.dndContext.draggedElement = null
+      this.dndContext.dropTargetId = null
+      this.dndContext.dropPosition = null
+
+      const draggedPage = this.$store.getters['page/getById'](
+        this.builder,
+        dragged.page_id
+      )
+
+      let beforeElementId
+      if (position === 'before') {
+        beforeElementId = this.element.id
+      } else {
+        const nextElement = this.$store.getters['element/getNextElement'](
+          this.elementPage,
+          this.element
+        )
+        beforeElementId = nextElement?.id || null
+      }
+
+      try {
+        await this.$store.dispatch('element/move', {
+          builder: this.builder,
+          page: draggedPage,
+          elementId: dragged.id,
+          beforeElementId,
+          parentElementId: this.element.parent_element_id,
+          placeInContainer: this.element.place_in_container,
+        })
+      } catch (error) {
+        notifyIf(error)
       }
     },
   },
