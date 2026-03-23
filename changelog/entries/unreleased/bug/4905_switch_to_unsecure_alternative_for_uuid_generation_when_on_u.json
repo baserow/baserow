@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Switch to insecure alternative for UUID generation when on insecure context like HTTP",
+    "issue_origin": "github",
+    "issue_number": 4905,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-03-23"
+}

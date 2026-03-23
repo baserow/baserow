@@ -13,7 +13,7 @@ import {
   InvalidFormulaArgumentType,
   InvalidNumberOfArguments,
 } from '@baserow/modules/core/formula/parser/errors'
-import { reverseString } from '@baserow/modules/core/utils/string'
+import { reverseString, generateUUID } from '@baserow/modules/core/utils/string'
 import { avg, sum } from '@baserow/modules/core/utils/number'
 import {
   ensureString,
@@ -1666,7 +1666,7 @@ export class RuntimeGenerateUUID extends RuntimeFormulaFunction {
   }
 
   execute(context, args) {
-    return crypto.randomUUID()
+    return generateUUID()
   }
 
   getDescription() {

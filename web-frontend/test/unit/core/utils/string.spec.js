@@ -1,5 +1,6 @@
 import {
   uuid,
+  generateUUID,
   upperCaseFirst,
   slugify,
   isValidURL,
@@ -11,9 +12,71 @@ import {
 } from '@baserow/modules/core/utils/string'
 
 describe('test string utils', () => {
+  const originalCrypto = globalThis.crypto
+  const uuidV4Pattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+
+  afterEach(() => {
+    Object.defineProperty(globalThis, 'crypto', {
+      value: originalCrypto,
+      configurable: true,
+      writable: true,
+    })
+    vi.restoreAllMocks()
+  })
+
   test('uuid', () => {
     const value = uuid()
     expect(typeof value).toBe('string')
+  })
+
+  test('generateUUID uses crypto.randomUUID when available', () => {
+    const randomUUID = vi.fn(() => 'test-random-uuid')
+    const getRandomValues = vi.fn()
+
+    Object.defineProperty(globalThis, 'crypto', {
+      value: { randomUUID, getRandomValues },
+      configurable: true,
+      writable: true,
+    })
+
+    expect(generateUUID()).toBe('test-random-uuid')
+    expect(randomUUID).toHaveBeenCalledTimes(1)
+    expect(getRandomValues).not.toHaveBeenCalled()
+  })
+
+  test('generateUUID uses crypto.getRandomValues when randomUUID is unavailable', () => {
+    const getRandomValues = vi.fn((bytes) => {
+      bytes.set([
+        0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xaa, 0xbb,
+        0xcc, 0xdd, 0xee, 0xff,
+      ])
+      return bytes
+    })
+
+    Object.defineProperty(globalThis, 'crypto', {
+      value: { getRandomValues },
+      configurable: true,
+      writable: true,
+    })
+
+    expect(generateUUID()).toBe('00112233-4455-4677-8899-aabbccddeeff')
+    expect(getRandomValues).toHaveBeenCalledTimes(1)
+  })
+
+  test('generateUUID falls back to Math.random when crypto is unavailable', () => {
+    Object.defineProperty(globalThis, 'crypto', {
+      value: undefined,
+      configurable: true,
+      writable: true,
+    })
+
+    const mathRandomSpy = vi.spyOn(Math, 'random')
+
+    const value = generateUUID()
+
+    expect(value).toMatch(uuidV4Pattern)
+    expect(mathRandomSpy).toHaveBeenCalled()
   })
 
   test('upperCaseFirst', () => {
