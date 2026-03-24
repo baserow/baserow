@@ -1166,11 +1166,14 @@ def test_async_start_workflow_rate_limited_runs_eventually_disable_workflow(
 
     histories = list(
         AutomationWorkflowHistory.objects.filter(workflow=original_workflow).order_by(
-            "started_on"
+            "started_on", "id"
         )
     )
 
     assert len(histories) == 6
+
+    # We should have 6 successful call
+    assert mock_start_workflow_celery_task.delay.call_count == 2
 
     assert histories[2].status == HistoryStatusChoices.ERROR
     assert histories[2].message == (
@@ -1190,9 +1193,6 @@ def test_async_start_workflow_rate_limited_runs_eventually_disable_workflow(
     assert histories[5].message == (
         "The workflow was disabled due to too many consecutive errors."
     )
-
-    # We should have 6 successful call
-    assert mock_start_workflow_celery_task.delay.call_count == 2
 
     original_workflow.refresh_from_db()
     published_workflow.refresh_from_db()
