@@ -34,17 +34,11 @@ export default {
   },
   watch: {
     'pageValue.workflow.id': {
-      handler() {
+      handler(newValue) {
         this.loadData()
       },
       immediate: true,
     },
-  },
-  unmounted() {
-    // Restore the current application to the selected application if any
-    this.$store.dispatch('userSourceUser/setCurrentApplication', {
-      application: this.$store.getters['application/getSelected'],
-    })
   },
   methods: {
     async loadData() {
@@ -52,12 +46,9 @@ export default {
 
       try {
         const automation = this.pageValue.automation
-        const workflow = await this.$store.dispatch(
-          'automationWorkflow/selectById',
-          {
-            automation,
-            workflowId: this.pageValue.workflow.id,
-          }
+        const workflow = this.$store.getters['automationWorkflow/getById'](
+          automation,
+          this.pageValue.workflow.id
         )
 
         const automationApplicationType = this.$registry.get(

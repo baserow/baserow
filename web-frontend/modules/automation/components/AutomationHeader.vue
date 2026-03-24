@@ -114,8 +114,8 @@
             testRunEnabled
               ? $t('automationHeader.stopTestRun')
               : $t('automationHeader.startTestRun')
-          }}</Button
-        >
+          }}
+        </Button>
         <Button
           data-highlight="automation-publish"
           :loading="isPublishing"
@@ -159,20 +159,10 @@ export default defineComponent({
     const store = useStore()
     const app = useNuxtApp()
     const isDev = inject('isDev')
+    const workflow = inject('workflow')
 
     const debug = ref(false)
     const isPublishing = ref(false)
-
-    const workflow = inject('workflow')
-
-    const selectedWorkflow = computed(() => {
-      if (!props.automation) return null
-      try {
-        return store.getters['automationWorkflow/getSelected']
-      } catch {
-        return null
-      }
-    })
 
     const testRunDisabled = computed(() => {
       if (!workflow.value?.graph) {
@@ -207,12 +197,12 @@ export default defineComponent({
     })
 
     const publishedOn = computed(() => {
-      if (!selectedWorkflow.value?.published_on || isPublishing.value) {
+      if (!workflow.value?.published_on || isPublishing.value) {
         return null
       }
 
       return moment
-        .utc(selectedWorkflow.value.published_on)
+        .utc(workflow.value.published_on)
         .tz(getUserTimeZone())
         .format('MMM D, YYYY HH:mm:ss')
     })
@@ -313,7 +303,6 @@ export default defineComponent({
       isPublishing,
       isPaused,
       isDisabled,
-      selectedWorkflow,
       workflow,
       activeSidePanel,
       testRunDisabled,

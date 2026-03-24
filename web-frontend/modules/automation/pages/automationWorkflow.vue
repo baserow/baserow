@@ -119,9 +119,7 @@ if (error.value) {
 // Computed properties from async data
 const automation = computed(() => pageData.value?.automation ?? null)
 const workspace = computed(() => pageData.value?.workspace ?? null)
-const workflow = computed(
-  () => $store.getters['automationWorkflow/getSelected']
-)
+const workflow = computed(() => pageData.value?.workflow ?? null)
 
 function onRouteChange(from) {
   const currentAutomation = $store.getters['application/get'](
