@@ -1,7 +1,6 @@
 <template>
   <header class="layout__col-2-1 header header--space-between">
     <ul
-      class="header__filter"
       v-if="
         $hasPermission(
           'application.update',
@@ -9,6 +8,7 @@
           automation.workspace.id
         )
       "
+      class="header__filter"
     >
       <li class="header__filter-item">
         <a
@@ -63,7 +63,6 @@
     </ul>
 
     <div
-      class="header__right"
       v-if="
         $hasPermission(
           'application.update',
@@ -71,6 +70,7 @@
           automation.workspace.id
         )
       "
+      class="header__right"
     >
       <span class="header__switch-container">
         <template v-if="!publishedOn">

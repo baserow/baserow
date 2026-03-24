@@ -621,6 +621,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
 
     allowed_fields = [
         "integration_id",
+        "use_instance_smtp_settings",
         "from_email",
         "from_name",
         "to_emails",
@@ -633,6 +634,8 @@ class CoreSMTPEmailServiceType(CoreServiceType):
 
     serializer_field_names = [
         "integration_id",
+        "use_instance_smtp_settings",
+        "instance_smtp_settings_enabled",
         "from_email",
         "from_name",
         "to_emails",
@@ -644,6 +647,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
     ]
 
     class SerializedDict(ServiceDict):
+        use_instance_smtp_settings: bool
         from_email: str
         from_name: str
         to_emails: str
@@ -651,7 +655,6 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         bcc_emails: str
         subject: str
         body_type: str
-        body: str
         body: str
 
     simple_formula_fields = [
@@ -669,10 +672,20 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         from baserow.core.formula.serializers import FormulaSerializerField
 
         return {
+            "use_instance_smtp_settings": serializers.BooleanField(
+                required=False,
+                default=self._instance_smtp_is_available(),
+                help_text=CoreSMTPEmailService._meta.get_field(
+                    "use_instance_smtp_settings"
+                ).help_text,
+            ),
             "integration_id": serializers.IntegerField(
                 required=False,
                 allow_null=True,
                 help_text="The id of the SMTP integration.",
+            ),
+            "instance_smtp_settings_enabled": serializers.ReadOnlyField(
+                help_text="Whether the instance SMTP configuration can be used and should be the default option in the UI.",
             ),
             "from_email": FormulaSerializerField(
                 help_text=CoreSMTPEmailService._meta.get_field("from_email").help_text,
@@ -706,6 +719,41 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             ),
         }
 
+    def _instance_smtp_is_available(self) -> bool:
+        return bool(
+            settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS
+            and getattr(settings, "CELERY_EMAIL_BACKEND", None)
+            == "django.core.mail.backends.smtp.EmailBackend"
+            and getattr(settings, "EMAIL_HOST", "")
+        )
+
+    def _should_use_instance_smtp(self, service: CoreSMTPEmailService) -> bool:
+        return bool(
+            service.use_instance_smtp_settings and self._instance_smtp_is_available()
+        )
+
+    def requires_integration(self, service: CoreSMTPEmailService) -> bool:
+        return not self._should_use_instance_smtp(service)
+
+    def prepare_values(self, values, user: AbstractUser, instance=None):
+        values = super().prepare_values(values, user, instance)
+
+        use_instance_smtp_settings = (
+            values.get(
+                "use_instance_smtp_settings",
+                instance.use_instance_smtp_settings if instance else True,
+            )
+            if self._instance_smtp_is_available()
+            else False
+        )
+
+        if use_instance_smtp_settings:
+            values["integration"] = None
+
+        values["use_instance_smtp_settings"] = use_instance_smtp_settings
+
+        return values
+
     def get_schema_name(self, service: CoreSMTPEmailService) -> str:
         return f"SMTPEmail{service.id}Schema"
 
@@ -734,21 +782,26 @@ class CoreSMTPEmailServiceType(CoreServiceType):
         }
 
     def formulas_to_resolve(
-        self, service: CoreHTTPRequestService
+        self, service: CoreSMTPEmailService
     ) -> list[FormulaToResolve]:
         """
         Returns the formula to resolve for this service.
         """
 
         ensurers = {
-            "from_email": ensure_email,
-            "from_name": ensure_string,
             "to_emails": lambda v: [ensure_email(e) for e in ensure_array(v)],
             "cc_emails": lambda v: [ensure_email(e) for e in ensure_array(v)],
             "bcc_emails": lambda v: [ensure_email(e) for e in ensure_array(v)],
             "subject": ensure_string,
             "body": ensure_string,
         }
+
+        if not self._should_use_instance_smtp(service):
+            ensurers = {
+                "from_email": ensure_email,
+                "from_name": ensure_string,
+                **ensurers,
+            }
 
         formulas = []
 
@@ -772,30 +825,47 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 "At least one recipient email is required"
             )
 
-        smtp_integration = service.integration.specific
-
         to_emails = resolved_values["to_emails"]
         cc_emails = resolved_values["cc_emails"]
         bcc_emails = resolved_values["bcc_emails"]
 
-        from_email = (
-            f"{resolved_values['from_name']} <{resolved_values['from_email']}>"
-            if resolved_values["from_name"]
-            else resolved_values["from_email"]
-        )
+        using_instance_smtp = self._should_use_instance_smtp(service)
+
+        if using_instance_smtp:
+            from_email = settings.DEFAULT_FROM_EMAIL
+            connection = get_connection(
+                backend=settings.CELERY_EMAIL_BACKEND,
+            )
+            smtp_host = settings.EMAIL_HOST
+            smtp_port = settings.EMAIL_PORT
+        else:
+            if not service.integration_id:
+                # This situation can happen if we have changed the
+                # configuration variable in the meantime.
+                raise ServiceImproperlyConfiguredDispatchException(
+                    "Integration for this service is missing"
+                )
+
+            smtp_integration = service.integration.specific
+            from_email = (
+                f"{resolved_values['from_name']} <{resolved_values['from_email']}>"
+                if resolved_values["from_name"]
+                else resolved_values["from_email"]
+            )
+            connection = get_connection(
+                backend=settings.CELERY_EMAIL_BACKEND,
+                host=smtp_integration.host,
+                port=smtp_integration.port,
+                username=smtp_integration.username,
+                password=smtp_integration.password,
+                use_tls=smtp_integration.use_tls,
+            )
+            smtp_host = smtp_integration.host
+            smtp_port = smtp_integration.port
 
         subject = resolved_values["subject"]
 
         body_content = resolved_values["body"]
-
-        connection = get_connection(
-            backend="django.core.mail.backends.smtp.EmailBackend",
-            host=smtp_integration.host,
-            port=smtp_integration.port,
-            username=smtp_integration.username,
-            password=smtp_integration.password,
-            use_tls=smtp_integration.use_tls,
-        )
 
         email = EmailMultiAlternatives(
             subject,
@@ -822,12 +892,11 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             ) from e
         except socket.gaierror as e:
             raise ServiceImproperlyConfiguredDispatchException(
-                f"The host {smtp_integration.host}:{smtp_integration.port} could not "
-                "be reached"
+                f"The host {smtp_host}:{smtp_port} could not be reached"
             ) from e
         except ConnectionRefusedError as e:
             raise ServiceImproperlyConfiguredDispatchException(
-                f"Connection refused by {smtp_integration.host}:{smtp_integration.port}"
+                f"Connection refused by {smtp_host}:{smtp_port}"
             ) from e
         except SMTPAuthenticationError as e:
             raise ServiceImproperlyConfiguredDispatchException(
@@ -848,9 +917,13 @@ class CoreSMTPEmailServiceType(CoreServiceType):
 
     def export_prepared_values(self, instance: Service) -> dict[str, Any]:
         values = super().export_prepared_values(instance)
+
+        values["integration_id"] = None
+
         if values.get("integration"):
             del values["integration"]
             values["integration_id"] = instance.integration_id
+
         return values
 
 

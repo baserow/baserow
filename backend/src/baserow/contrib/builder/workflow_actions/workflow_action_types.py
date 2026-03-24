@@ -381,7 +381,7 @@ class BuilderWorkflowServiceActionType(BuilderWorkflowActionType):
         # If we received any service values, prepare them.
         service_values = values.pop("service", None) or {}
         prepared_service_values = service_type.prepare_values(
-            service_values, user, service
+            service_values, user, service if instance else None
         )
 
         # Update the service instance with any prepared service values.

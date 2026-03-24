@@ -1,0 +1,4 @@
+interface:
+  display_name: "Add Django Config Env Var"
+  short_description: "Add and propagate a Django env variable"
+  default_prompt: "Use $add-django-config-env-var to add a new environment variable that changes Django configuration across Baserow."

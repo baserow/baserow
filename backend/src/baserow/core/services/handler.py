@@ -220,9 +220,8 @@ class ServiceHandler:
         :return: The result of dispatching the service.
         """
 
-        if (
-            service.integration_id is None
-            and service.get_type().integration_type is not None
+        if service.integration_id is None and service.get_type().requires_integration(
+            service
         ):
             raise ServiceImproperlyConfiguredDispatchException(
                 "No integration selected"
