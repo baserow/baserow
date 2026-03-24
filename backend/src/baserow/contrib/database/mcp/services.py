@@ -251,8 +251,8 @@ def create_table(
         sorted_fields = sorted(
             fields, key=lambda f: _FIELD_CREATION_ORDER.get(f.get("type", "text"), 0)
         )
-        for field_spec in sorted_fields:
-            field_spec = dict(field_spec)  # don't mutate caller's data
+        for src_field_spec in sorted_fields:
+            field_spec = dict(src_field_spec)
             type_name = field_spec.pop("type")
             created = CreateFieldActionType.do(user, table, type_name, **field_spec)
             created_fields.append(_serialize_field(created))
@@ -328,8 +328,8 @@ def create_fields(
         fields, key=lambda f: _FIELD_CREATION_ORDER.get(f.get("type", "text"), 0)
     )
     created = []
-    for field_spec in sorted_fields:
-        field_spec = dict(field_spec)
+    for src_field_spec in sorted_fields:
+        field_spec = dict(src_field_spec)
         type_name = field_spec.pop("type")
         field = CreateFieldActionType.do(user, table, type_name, **field_spec)
         created.append(_serialize_field(field))
@@ -349,8 +349,8 @@ def update_fields(
     from baserow.contrib.database.fields.actions import UpdateFieldActionType
 
     updated = []
-    for field_spec in fields:
-        field_spec = dict(field_spec)
+    for src_field_spec in fields:
+        field_spec = dict(src_field_spec)
         field_id = field_spec.pop("id")
         new_type_name = field_spec.pop("type", None)
         field = get_field(user, workspace, field_id)

@@ -58,7 +58,10 @@ class UpdateRowsMcpTool(MCPTool):
 
     def _sync_call(self, endpoint: MCPEndpoint, args: UpdateRowsInput) -> list[dict]:
         return services.update_rows(
-            endpoint.user, endpoint.workspace, args.table_id, args.rows
+            endpoint.user,
+            endpoint.workspace,
+            args.table_id,
+            [r.model_dump() for r in args.rows],
         )
 
 

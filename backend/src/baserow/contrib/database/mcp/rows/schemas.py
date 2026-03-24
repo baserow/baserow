@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ListRowsInput(BaseModel):
@@ -20,9 +20,17 @@ class CreateRowsInput(BaseModel):
     )
 
 
+class RowUpdateSpec(BaseModel):
+    """A row to update: id is required, extra keys are field name → new value."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: int = Field(..., description="The row ID.")
+
+
 class UpdateRowsInput(BaseModel):
     table_id: int = Field(..., description="The ID of the table containing the rows.")
-    rows: list[dict] = Field(
+    rows: list[RowUpdateSpec] = Field(
         ...,
         description=(
             "List of rows to update. Each row must have 'id' "

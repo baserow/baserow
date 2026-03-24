@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
+from baserow.contrib.database.mcp.fields.schemas import FieldSpec
+
 
 class ListDatabasesInput(BaseModel):
     pass
@@ -22,7 +24,7 @@ class CreateTableInput(BaseModel):
         ..., description="The ID of the database to create the table in."
     )
     name: str = Field(..., description="The name of the table.")
-    fields: list[dict] | None = Field(
+    fields: list[FieldSpec] | None = Field(
         None,
         description=(
             "Optional list of additional fields. Each item must have "

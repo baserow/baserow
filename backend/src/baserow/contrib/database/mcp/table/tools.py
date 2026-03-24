@@ -82,7 +82,7 @@ class CreateTableMcpTool(MCPTool):
             endpoint.workspace,
             args.database_id,
             args.name,
-            args.fields,
+            [f.model_dump() for f in args.fields] if args.fields else None,
         )
 
 

@@ -22,7 +22,10 @@ class CreateFieldsMcpTool(MCPTool):
 
     def _sync_call(self, endpoint: MCPEndpoint, args: CreateFieldsInput) -> list[dict]:
         return services.create_fields(
-            endpoint.user, endpoint.workspace, args.table_id, args.fields
+            endpoint.user,
+            endpoint.workspace,
+            args.table_id,
+            [f.model_dump() for f in args.fields],
         )
 
 
@@ -37,7 +40,9 @@ class UpdateFieldsMcpTool(MCPTool):
     input_schema = UpdateFieldsInput
 
     def _sync_call(self, endpoint: MCPEndpoint, args: UpdateFieldsInput) -> list[dict]:
-        return services.update_fields(endpoint.user, endpoint.workspace, args.fields)
+        return services.update_fields(
+            endpoint.user, endpoint.workspace, [f.model_dump() for f in args.fields]
+        )
 
 
 class DeleteFieldsMcpTool(MCPTool):
