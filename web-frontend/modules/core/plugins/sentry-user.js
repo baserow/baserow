@@ -1,31 +1,25 @@
 import * as Sentry from '@sentry/nuxt'
-import { useNuxtApp, useRuntimeConfig } from '#imports'
+import { nextTick } from 'vue'
+import { useNuxtApp, useRouter, useRuntimeConfig } from '#imports'
 
 export default defineNuxtPlugin(() => {
   const runtimeConfig = useRuntimeConfig()
 
   if (!import.meta.client || !runtimeConfig.public.sentryDsn) return
 
+  const router = useRouter()
   const nuxtApp = useNuxtApp()
 
-  nuxtApp.hook('app:mounted', () => {
-    nuxtApp.$store.subscribe((mutation) => {
-      if (mutation.type === 'auth/SET_USER_DATA') {
-        const userId = nuxtApp.$store.getters['auth/getUserId']
-        if (userId) {
-          Sentry.setUser({ id: String(userId) })
-        }
-      } else if (
-        mutation.type === 'auth/LOGOFF' ||
-        mutation.type === 'auth/CLEAR_USER_DATA'
-      ) {
+  router.afterEach(() => {
+    nextTick(() => {
+      const isAuthenticated = nuxtApp.$store.getters['auth/isAuthenticated']
+      const userId = nuxtApp.$store.getters['auth/getUserId']
+
+      if (isAuthenticated && userId) {
+        Sentry.setUser({ id: String(userId) })
+      } else {
         Sentry.setUser(null)
       }
     })
-
-    const userId = nuxtApp.$store.getters['auth/getUserId']
-    if (userId) {
-      Sentry.setUser({ id: String(userId) })
-    }
   })
 })
