@@ -265,6 +265,22 @@ export class ViewType extends Registerable {
   }
 
   /**
+   * Called when the view needs to be forcefully refreshed via a realtime event.
+   * Handles updating the view and fields atomically. View types can override to
+   * perform additional synchronization before the update.
+   */
+  forceViewRefresh({ store }, view, values, fields, storePrefix) {
+    return Promise.all([
+      store.dispatch('view/forceUpdate', {
+        view,
+        values,
+        repopulate: true,
+      }),
+      store.dispatch('field/forceSetFields', { fields }),
+    ])
+  }
+
+  /**
    * Event that is called when a row is created from an outside source, so for example
    * via a real time event by another user. It can be used to check if data in an store
    * needs to be updated.
@@ -623,6 +639,18 @@ export class GridViewType extends ViewType {
       adhocFiltering,
       adhocSorting,
     })
+  }
+
+  forceViewRefresh({ store }, view, values, fields, storePrefix) {
+    // Sync activeGroupBys together with the view and fields update so that
+    // components don't try to look up fields that have been removed or haven't
+    // been added yet. All dispatches are synchronous commits so Vue batches the
+    // re-render with all three applied atomically.
+    store.dispatch(
+      storePrefix + 'view/grid/updateActiveGroupBys',
+      clone(values.group_bys || [])
+    )
+    return super.forceViewRefresh({ store }, view, values, fields, storePrefix)
   }
 
   async fieldRestored(

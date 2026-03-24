@@ -1387,8 +1387,8 @@ export class LinkRowFieldType extends FieldType {
   }
 
   isEqual(field, value1, value2) {
-    const value1Ids = value1.map((v) => v.id)
-    const value2Ids = value2.map((v) => v.id)
+    const value1Ids = (value1 || []).map((v) => v.id)
+    const value2Ids = (value2 || []).map((v) => v.id)
 
     return _.isEqual(value1Ids, value2Ids)
   }
