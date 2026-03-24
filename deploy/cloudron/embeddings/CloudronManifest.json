@@ -1,0 +1,15 @@
+{
+  "id": "io.baserow.embeddings",
+  "title": "Baserow Embeddings",
+  "author": "Baserow",
+  "description": "file://DESCRIPTION.md",
+  "tagline": "Embeddings server for the AI assistant docs lookup.",
+  "website": "https://baserow.io",
+  "contactEmail": "bram@baserow.io",
+  "tags": ["no-code", "nocode", "database", "data", "collaborate", "airtable"],
+  "version": "2.1.4",
+  "healthCheckPath": "/api/_health/",
+  "httpPort": 80,
+  "memoryLimit": 1000000,
+  "manifestVersion": 2
+}
