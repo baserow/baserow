@@ -10,6 +10,7 @@ so callers never need to worry about permissions or cross-workspace access.
 from typing import Any
 
 from django.contrib.auth.models import AbstractUser
+from django.db import transaction
 
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
@@ -482,7 +483,8 @@ def update_rows(
     table = get_table(user, workspace, table_id)
     model = table.get_model()
     rows_values = _map_user_field_names(model, rows)
-    result = UpdateRowsActionType.do(user, table, rows_values, model=model)
+    with transaction.atomic():
+        result = UpdateRowsActionType.do(user, table, rows_values, model=model)
     return list(
         serialize_rows_for_response(result.updated_rows, model, user_field_names=True)
     )
