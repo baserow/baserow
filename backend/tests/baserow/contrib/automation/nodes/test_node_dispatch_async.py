@@ -38,6 +38,27 @@ def assert_dispatches_next_node(result, *expected_tasks):
         assert task.args == (node.id, history.id, iterations)
 
 
+def execute_dispatch_signature_tree(result):
+    """
+    Execute the returned Celery canvas in-process by recursively dispatching each
+    leaf node in order.
+    """
+
+    if result is None:
+        return
+
+    assert isinstance(result, Signature)
+
+    if hasattr(result, "tasks"):
+        for task in result.tasks:
+            execute_dispatch_signature_tree(task)
+        return
+
+    next_result = AutomationNodeHandler().dispatch_node(*result.args)
+    clear_local()
+    execute_dispatch_signature_tree(next_result)
+
+
 def create_workflow(
     data_fixture,
     user=None,
@@ -422,6 +443,75 @@ def test_dispatch_node_dispatches_iterator_children(data_fixture):
     workflow_history.refresh_from_db()
     assert workflow_history.message == ""
     assert workflow_history.status == HistoryStatusChoices.SUCCESS
+
+
+@pytest.mark.django_db
+def test_dispatch_node_fully_dispatches_nested_iterator_workflow(data_fixture):
+    data = data_fixture.nested_iterator_graph_fixture()
+    trigger_node = data["trigger_node"]
+    trigger_table_fields = data["trigger_table_fields"]
+    child_iterator_child_1_table = data["child_iterator_child_1_table"]
+    child_iterator_child_1_table_fields = data["child_iterator_child_1_table_fields"]
+    child_iterator_child_2_table = data["child_iterator_child_2_table"]
+    child_iterator_child_2_table_fields = data["child_iterator_child_2_table_fields"]
+    after_iteration_table = data["after_iteration_table"]
+
+    original_workflow = trigger_node.workflow.get_original()
+    workflow_history = data_fixture.create_automation_workflow_history(
+        workflow=original_workflow,
+        event_payload={
+            "results": [
+                {
+                    "id": 100,
+                    "order": "10.00000000000000000000",
+                    trigger_table_fields[0].name: "Apple",
+                    trigger_table_fields[1].name: [
+                        {"Name": "Fuji", "Color": "Red"},
+                        {"Name": "Granny Smith", "Color": "Green"},
+                    ],
+                },
+                {
+                    "id": 101,
+                    "order": "20.00000000000000000000",
+                    trigger_table_fields[0].name: "Banana",
+                    trigger_table_fields[1].name: [
+                        {"Name": "Cavendish", "Color": "Yellow"},
+                        {"Name": "Plantain", "Color": "Green"},
+                    ],
+                },
+            ],
+            "has_next_page": False,
+        },
+    )
+
+    result = AutomationNodeHandler().dispatch_node(
+        trigger_node.id,
+        history_id=workflow_history.id,
+    )
+    clear_local()
+    execute_dispatch_signature_tree(result)
+
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.message == ""
+    assert workflow_history.status == HistoryStatusChoices.SUCCESS
+
+    child_1_rows = list(
+        child_iterator_child_1_table.get_model()
+        .objects.order_by("id")
+        .values_list(child_iterator_child_1_table_fields[0].db_column, flat=True)
+    )
+    assert child_1_rows == ["Fuji", "Granny Smith", "Cavendish", "Plantain"]
+
+    child_2_rows = list(
+        child_iterator_child_2_table.get_model()
+        .objects.order_by("id")
+        .values_list(child_iterator_child_2_table_fields[0].db_column, flat=True)
+    )
+    assert child_2_rows == ["Fuji", "Granny Smith", "Cavendish", "Plantain"]
+
+    assert after_iteration_table.get_model().objects.count() == 1
 
 
 @pytest.mark.django_db

@@ -52,7 +52,7 @@ def test_previous_node_data_provider_get_data_chunk(data_fixture):
 
     dispatch_context = AutomationDispatchContext(
         workflow,
-        workflow_history.id,
+        workflow_history,
         event_payload=workflow_history.event_payload,
     )
 
@@ -94,7 +94,7 @@ def test_previous_node_data_provider_get_data_chunk(data_fixture):
 
     dispatch_context = AutomationDispatchContext(
         workflow,
-        workflow_history_2.id,
+        workflow_history_2,
     )
 
     # Existing node but after
@@ -150,12 +150,11 @@ def test_current_iteration_data_provider_get_data_chunk(data_fixture):
     AutomationHistoryHandler().create_node_result(
         node_history=node_history,
         result={"results": [{"field_1": "Horse"}, {"field_1": "Duck"}]},
-        iteration=0,
     )
 
     dispatch_context = AutomationDispatchContext(
         workflow,
-        workflow_history.id,
+        workflow_history,
         event_payload=workflow_history.event_payload,
         current_iterations={iterator.id: 0},
     )

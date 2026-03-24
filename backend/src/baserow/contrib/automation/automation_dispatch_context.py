@@ -3,7 +3,10 @@ from typing import Any, Dict, List, Optional, Union
 from baserow.contrib.automation.data_providers.registries import (
     automation_data_provider_type_registry,
 )
-from baserow.contrib.automation.history.models import AutomationNodeResult
+from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+from baserow.contrib.automation.history.models import (
+    AutomationNodeHistory,
+)
 from baserow.contrib.automation.nodes.models import AutomationActionNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.cache import local_cache
@@ -13,12 +16,12 @@ from baserow.core.services.utils import ServiceAdhocRefinements
 
 
 class AutomationDispatchContext(DispatchContext):
-    own_properties = ["workflow", "event_payload", "history_id"]
+    own_properties = ["workflow", "event_payload", "history"]
 
     def __init__(
         self,
         workflow: AutomationWorkflow,
-        history_id: int,
+        history: AutomationNodeHistory,
         event_payload: Optional[Union[Dict, List[Dict]]] = None,
         simulate_until_node: Optional[AutomationActionNode] = None,
         current_iterations: Optional[Dict[int, int]] = None,
@@ -29,7 +32,7 @@ class AutomationDispatchContext(DispatchContext):
         node's changes.
 
         :param workflow: The workflow that this dispatch context is associated with.
-        :param history_id: The AutomationWorkflowHistory ID from which the
+        :param history: The AutomationWorkflowHistory from which the
             workflow's event payload and node results are derived.
         :param event_payload: The event data from the trigger node, if any was
             provided, as this is optional.
@@ -39,7 +42,7 @@ class AutomationDispatchContext(DispatchContext):
         """
 
         self.workflow = workflow
-        self.history_id = history_id
+        self.history = history
         self.simulate_until_node = simulate_until_node
         self.current_iterations: Dict[int, int] = {}
 
@@ -72,36 +75,30 @@ class AutomationDispatchContext(DispatchContext):
         new_context.current_iterations = {**self.current_iterations}
         return new_context
 
-    def _get_previous_results_cache_key(self) -> Optional[str]:
-        return f"wa_previous_nodes_results_{self.history_id}"
-
-    def _load_previous_results(self) -> Dict[int, Any]:
+    def get_iteration_path(self, node):
         """
-        Returns a dict where keys are the node IDs and values are the results
-        of the previous_nodes_results.
+        Compute the current iteration path for the given node.
         """
+        parent_nodes = node.get_parent_nodes()
 
-        results = {}
-        previous_results = AutomationNodeResult.objects.filter(
-            node_history__workflow_history_id=self.history_id
-        ).select_related("node_history__node")
-        for result in previous_results:
-            results[result.node_history.node_id] = result.result
+        return ".".join([str(self.current_iterations[p.id]) for p in parent_nodes])
 
-        return results
+    def _get_previous_result_cache_key(self, node) -> Optional[str]:
+        return f"wa_previous_node_result_{self.history.id}_{node.id}"
 
     @property
     def data_provider_registry(self):
         return automation_data_provider_type_registry
 
-    @property
-    def previous_nodes_results(self) -> Dict[int, Any]:
-        if cache_key := self._get_previous_results_cache_key():
-            return local_cache.get(
-                cache_key,
-                lambda: self._load_previous_results(),
-            )
-        return {}
+    def get_previous_node_result(self, node) -> Dict[int, Any]:
+        # We don't need to cache per iteration path because it won't change in this
+        # dispatch
+        return local_cache.get(
+            self._get_previous_result_cache_key(node),
+            lambda: AutomationHistoryHandler().get_node_result(
+                self.history, node, self.get_iteration_path(node)
+            ),
+        )
 
     def get_timezone_name(self) -> str:
         """
@@ -120,17 +117,21 @@ class AutomationDispatchContext(DispatchContext):
     def filters(self) -> Optional[str]:
         return None
 
+    @property
     def is_publicly_sortable(self) -> bool:
         return False
 
+    @property
     def is_publicly_filterable(self) -> bool:
         return False
 
+    @property
     def is_publicly_searchable(self) -> bool:
         return False
 
+    @property
     def public_allowed_properties(self) -> Optional[Dict[str, Dict[int, List[str]]]]:
-        return {}
+        return None
 
     def search_query(self) -> Optional[str]:
         return None

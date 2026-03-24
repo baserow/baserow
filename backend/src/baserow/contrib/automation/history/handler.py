@@ -6,6 +6,7 @@ from django.db.models import QuerySet
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.exceptions import (
     AutomationWorkflowHistoryDoesNotExist,
+    AutomationWorkflowHistoryNodeResultDoesNotExist,
 )
 from baserow.contrib.automation.history.models import (
     AutomationNodeHistory,
@@ -105,13 +106,29 @@ class AutomationHistoryHandler:
         self,
         node_history: AutomationNodeHistory,
         result: Optional[Union[Dict, List[Dict]]] = None,
-        iteration: int = 0,
+        iteration_path: str = "",
     ) -> AutomationNodeResult:
         """Saves the result of a Node dispatch."""
 
         result = result if result else {}
         return AutomationNodeResult.objects.create(
             node_history=node_history,
-            iteration=iteration,
+            iteration_path=iteration_path,
             result=result,
         )
+
+    def get_node_result(self, history, node, iteration_path):
+        """
+        Returns the result for the given history/node/iteration_path.
+        """
+
+        try:
+            node_result = AutomationNodeResult.objects.only("result").get(
+                node_history__workflow_history_id=history.id,
+                node_history__node_id=node.id,
+                iteration_path=iteration_path,
+            )
+        except AutomationNodeResult.DoesNotExist:
+            raise AutomationWorkflowHistoryNodeResultDoesNotExist()
+
+        return node_result.result
