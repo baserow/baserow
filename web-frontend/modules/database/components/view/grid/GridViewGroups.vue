@@ -20,7 +20,7 @@
       >
         <GridViewGroup
           :group-by="groupBy"
-          :all-fields-in-table="allFieldsInTable"
+          :field="getGroupByField(groupBy)"
           :value="groupSpan.value"
           :count="groupSpan.count"
         ></GridViewGroup>
@@ -40,14 +40,6 @@ export default {
   components: { GridViewGroup },
   mixins: [gridViewHelpers],
   props: {
-    /**
-     * All the fields in the table, regardless of the visibility, or whether they
-     * should be rendered.
-     */
-    allFieldsInTable: {
-      type: Array,
-      required: true,
-    },
     groupByValueSets: {
       type: Array,
       required: true,

@@ -51,6 +51,11 @@ export default {
     },
   },
   methods: {
+    getGroupByField(groupBy) {
+      return this.$store.getters['field/getAll'].find(
+        (f) => f.id === groupBy.field
+      )
+    },
     getFieldWidth(field) {
       const fieldId = field?.id
       const hasFieldOptions =

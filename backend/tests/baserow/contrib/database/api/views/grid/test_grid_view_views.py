@@ -3236,14 +3236,16 @@ def test_get_public_grid_view(api_client, data_fixture):
     data_fixture.create_grid_view_field_option(grid_view, public_field, hidden=False)
     data_fixture.create_grid_view_field_option(grid_view, hidden_field, hidden=True)
 
-    # This view sort shouldn't be exposed as it is for a hidden field
-    data_fixture.create_view_sort(view=grid_view, field=hidden_field, order="ASC")
+    hidden_sort = data_fixture.create_view_sort(
+        view=grid_view, field=hidden_field, order="ASC"
+    )
     visible_sort = data_fixture.create_view_sort(
         view=grid_view, field=public_field, order="DESC"
     )
 
-    # This group by shouldn't be exposed as it is for a hidden field
-    data_fixture.create_view_group_by(view=grid_view, field=hidden_field, order="ASC")
+    hidden_group_by = data_fixture.create_view_group_by(
+        view=grid_view, field=hidden_field, order="ASC"
+    )
     visible_group_by = data_fixture.create_view_group_by(
         view=grid_view, field=public_field, order="DESC"
     )
@@ -3281,7 +3283,24 @@ def test_get_public_grid_view(api_client, data_fixture):
                 "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
                 "db_index": False,
                 "field_constraints": [],
-            }
+            },
+            {
+                "id": hidden_field.id,
+                "table_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                "name": "hidden",
+                "order": 0,
+                "primary": False,
+                "text_default": "",
+                "type": "text",
+                "read_only": False,
+                "description": None,
+                "immutable_properties": False,
+                "immutable_type": False,
+                "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                "workspace_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
+                "db_index": False,
+                "field_constraints": [],
+            },
         ],
         "view": {
             "id": grid_view.slug,
@@ -3290,17 +3309,30 @@ def test_get_public_grid_view(api_client, data_fixture):
             "public": True,
             "slug": grid_view.slug,
             "sortings": [
-                # Note the sorting for the hidden field is not returned
+                {
+                    "field": hidden_sort.field.id,
+                    "id": hidden_sort.id,
+                    "order": "ASC",
+                    "type": "default",
+                    "view": grid_view.slug,
+                },
                 {
                     "field": visible_sort.field.id,
                     "id": visible_sort.id,
                     "order": "DESC",
                     "type": "default",
                     "view": grid_view.slug,
-                }
+                },
             ],
             "group_bys": [
-                # Note the group by for the hidden field is not returned
+                {
+                    "field": hidden_group_by.field.id,
+                    "id": hidden_group_by.id,
+                    "order": "ASC",
+                    "view": grid_view.slug,
+                    "width": 200,
+                    "type": "default",
+                },
                 {
                     "field": visible_group_by.field.id,
                     "id": visible_group_by.id,
@@ -3308,7 +3340,7 @@ def test_get_public_grid_view(api_client, data_fixture):
                     "view": grid_view.slug,
                     "width": 200,
                     "type": "default",
-                }
+                },
             ],
             "table": {
                 "database_id": PUBLIC_PLACEHOLDER_ENTITY_ID,
@@ -3873,6 +3905,64 @@ def test_list_rows_public_with_query_param_group_by(api_client, data_fixture):
     response_json = response.json()
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE"
+
+
+@pytest.mark.django_db
+def test_list_rows_public_with_query_param_group_by_hidden_field_with_stored_group_by(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    public_field = data_fixture.create_text_field(table=table, name="public")
+    hidden_field = data_fixture.create_text_field(table=table, name="hidden")
+    grid_view = data_fixture.create_grid_view(
+        table=table, user=user, public=True, create_options=False
+    )
+    data_fixture.create_grid_view_field_option(grid_view, public_field, hidden=False)
+    data_fixture.create_grid_view_field_option(grid_view, hidden_field, hidden=True)
+
+    data_fixture.create_view_group_by(view=grid_view, field=hidden_field, order="ASC")
+
+    first_row = RowHandler().create_row(
+        user,
+        table,
+        values={"public": "a", "hidden": "y"},
+        user_field_names=True,
+    )
+    second_row = RowHandler().create_row(
+        user,
+        table,
+        values={"public": "b", "hidden": "x"},
+        user_field_names=True,
+    )
+    third_row = RowHandler().create_row(
+        user,
+        table,
+        values={"public": "c", "hidden": "y"},
+        user_field_names=True,
+    )
+
+    url = reverse(
+        "api:database:views:grid:public_rows", kwargs={"slug": grid_view.slug}
+    )
+    response = api_client.get(
+        f"{url}?group_by=field_{hidden_field.id}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert len(response_json["results"]) == 3
+    assert response_json["results"][0]["id"] == second_row.id
+    assert response_json["results"][1]["id"] == first_row.id
+    assert response_json["results"][2]["id"] == third_row.id
+    assert response_json["group_by_metadata"] == {
+        f"field_{hidden_field.id}": unordered(
+            [
+                {"count": 1, f"field_{hidden_field.id}": "x"},
+                {"count": 2, f"field_{hidden_field.id}": "y"},
+            ]
+        )
+    }
+    assert f"field_{hidden_field.id}" in response_json["results"][0]
 
 
 @pytest.mark.django_db

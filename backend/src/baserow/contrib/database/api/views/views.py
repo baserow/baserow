@@ -2122,11 +2122,14 @@ class PublicViewInfoView(APIView):
             raise ViewDoesNotExist()
 
         field_options = view_type.get_visible_field_options_in_order(view_specific)
+        ordered_field_ids = list(field_options.values_list("field_id", flat=True))
         fields = specific_iterator(
-            Field.objects.filter(id__in=field_options.values_list("field_id"))
+            Field.objects.filter(id__in=ordered_field_ids)
             .select_related("content_type")
             .prefetch_related("select_options")
         )
+        field_id_order = {fid: idx for idx, fid in enumerate(ordered_field_ids)}
+        fields = sorted(fields, key=lambda f: field_id_order.get(f.id, 0))
 
         return Response(
             PublicViewInfoSerializer(

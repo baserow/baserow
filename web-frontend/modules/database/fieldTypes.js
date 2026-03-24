@@ -114,6 +114,7 @@ import RowCardFieldEmail from '@baserow/modules/database/components/card/RowCard
 import RowCardFieldFile from '@baserow/modules/database/components/card/RowCardFieldFile'
 import RowCardFieldFormula from '@baserow/modules/database/components/card/RowCardFieldFormula'
 import RowCardFieldLinkRow from '@baserow/modules/database/components/card/RowCardFieldLinkRow'
+import GroupByFieldLinkRow from '@baserow/modules/database/components/view/grid/GroupByFieldLinkRow'
 import RowCardFieldMultipleSelect from '@baserow/modules/database/components/card/RowCardFieldMultipleSelect'
 import RowCardFieldNumber from '@baserow/modules/database/components/card/RowCardFieldNumber'
 import RowCardFieldRating from '@baserow/modules/database/components/card/RowCardFieldRating'
@@ -1358,6 +1359,10 @@ export class LinkRowFieldType extends FieldType {
 
   getCardComponent() {
     return RowCardFieldLinkRow
+  }
+
+  getGroupByComponent() {
+    return GroupByFieldLinkRow
   }
 
   getRowHistoryEntryComponent() {
@@ -4260,6 +4265,14 @@ export class FormulaFieldType extends mix(
 
   getCardComponent() {
     return RowCardFieldFormula
+  }
+
+  getGroupByComponent(field) {
+    const formulaType = this.getFormulaType(field)
+    if (formulaType) {
+      return formulaType.getCardComponent(field)
+    }
+    return this.getCardComponent(field)
   }
 
   getFilterInputComponent(field, filterType) {
