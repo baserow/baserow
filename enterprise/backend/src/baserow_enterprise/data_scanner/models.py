@@ -86,6 +86,9 @@ class DataScanResult(models.Model):
     class Meta:
         unique_together = [("scan", "table", "row_id", "field")]
         ordering = ["-first_identified_on"]
+        indexes = [
+            models.Index(fields=["scan", "first_identified_on"]),
+        ]
 
     def __str__(self):
         return f"Result(scan={self.scan_id}, table={self.table_id}, row={self.row_id})"

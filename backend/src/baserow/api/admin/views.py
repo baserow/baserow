@@ -23,6 +23,7 @@ from baserow.api.mixins import (
 from baserow.api.pagination import PageNumberPagination
 from baserow.api.schemas import get_error_schema
 from baserow.api.serializers import get_example_pagination_serializer_class
+from baserow.core.utils import split_comma_separated_string
 
 
 class APIListingView(
@@ -67,27 +68,10 @@ class APIListingView(
     def apply_ids_filter(self, ids_param, queryset):
         if not ids_param:
             return queryset
-        ids = []
-        for raw in ids_param.split(","):
-            stripped = raw.strip()
-            if not stripped:
-                continue
-            if not stripped.isdigit():
-                raise QueryParameterValidationException(
-                    {
-                        "ids": [
-                            {
-                                "code": "invalid",
-                                "error": f"'{stripped}' is not a valid ID. "
-                                "Only positive integers are accepted.",
-                            }
-                        ]
-                    }
-                )
-            ids.append(int(stripped))
-        if ids:
-            queryset = queryset.filter(id__in=ids)
-        return queryset
+        record_ids = split_comma_separated_string(ids_param)
+        if not all(record.isdigit() for record in record_ids):
+            raise QueryParameterValidationException(...)
+        return queryset.filter(id__in=[int(i) for i in record_ids])
 
     def get_serializer(self, request, *args, **kwargs):
         if not self.serializer_class:
