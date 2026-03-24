@@ -102,7 +102,7 @@
     "moment-guess": "^1.2.4",
     "moment-timezone": "0.5.43",
     "normalize.css": "^8.0.1",
-    "nuxt": "^3.20.1",
+    "nuxt": "^3.21.2",
     "papaparse": "5.4.1",
     "path-to-regexp": "8.2.0",
     "posthog-js": "^1.232.4",
