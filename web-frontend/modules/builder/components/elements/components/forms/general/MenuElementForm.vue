@@ -32,7 +32,7 @@
     </FormGroup>
 
     <FormGroup
-      :label="$t('menuElementForm.menuType')"
+      :label="$t('menuElementForm.variant')"
       small-label
       required
       class="margin-bottom-2"
@@ -44,13 +44,13 @@
       >
         <template #deviceTypeControl="{ deviceType }">
           <RadioButton
-            v-for="menuType in menuTypes"
-            :key="menuType.value"
-            v-model="values.menu_type[deviceType.getType()]"
-            :icon="menuType.icon"
-            :value="menuType.value"
+            v-for="variant in menuVariants"
+            :key="variant.value"
+            v-model="values.variant[deviceType.getType()]"
+            :icon="variant.icon"
+            :value="variant.value"
           >
-            {{ menuType.label }}
+            {{ variant.label }}
           </RadioButton>
         </template>
       </DeviceSelector>
@@ -153,7 +153,7 @@ export default {
         orientation: ORIENTATIONS.VERTICAL,
         alignment: HORIZONTAL_ALIGNMENTS.LEFT,
         menu_items: [],
-        menu_type: {},
+        variant: {},
       },
       allowedValues: [
         'value',
@@ -161,18 +161,18 @@ export default {
         'menu_items',
         'orientation',
         'alignment',
-        'menu_type',
+        'variant',
       ],
-      menuTypes: [
+      menuVariants: [
         {
           icon: 'iconoir-enlarge-round-arrow',
-          label: this.$t('menuElementForm.expandedMenu'),
+          label: this.$t('menuElementForm.expanded'),
           value: 'expanded',
         },
         {
           icon: 'iconoir-menu',
-          label: this.$t('menuElementForm.mobileMenu'),
-          value: 'mobile',
+          label: this.$t('menuElementForm.compact'),
+          value: 'compact',
         },
       ],
       addMenuItemTypes: [

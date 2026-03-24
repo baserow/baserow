@@ -66,11 +66,6 @@ export default {
       redirecting: false,
     }
   },
-  head() {
-    return {
-      title: this.message,
-    }
-  },
   computed: {
     statusCode() {
       return (this.error && this.error.statusCode) || 500

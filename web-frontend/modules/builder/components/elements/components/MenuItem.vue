@@ -1,9 +1,7 @@
 <template>
   <div>
-    <!-- Menu item: Link -->
     <template v-if="menuItem.type === 'link' && !menuItem.parent_menu_item">
-      <!-- Without children -->
-      <div v-if="!menuItem.children?.length" :style="getStyleOverride('menu')">
+      <div v-if="!menuItem.children?.length">
         <ABLink
           :variant="menuItem.variant"
           :url="getItemUrl(menuItem)"
@@ -20,15 +18,9 @@
           }}
         </ABLink>
       </div>
-
-      <!-- With children -->
-      <div v-else @click="toggleSubMenu($event, menuItem.id)">
-        <div :style="getStyleOverride('menu')">
-          <ABLink
-            :variant="menuItem.variant"
-            url=""
-            :force-active="sublinkIsActive(menuItem)"
-          >
+      <div v-else ref="menuSubLinkContainer" @click="toggleSubMenu()">
+        <div>
+          <ABLink :variant="menuItem.variant" :force-active="sublinkIsActive">
             <div class="menu-element__sub-link-menu--container">
               {{ menuItem.name }}
               <div class="menu-element__sub-link-menu-spacer"></div>
@@ -36,7 +28,7 @@
                 <i
                   class="menu-element__sub-link--expanded-icon"
                   :class="
-                    sublinkParentIsExpanded(menuItem.id)
+                    isExpanded
                       ? 'iconoir-nav-arrow-up'
                       : 'iconoir-nav-arrow-down'
                   "
@@ -46,39 +38,34 @@
           </ABLink>
         </div>
 
-        <ThemeProvider
-          v-if="sublinkParentIsExpanded(menuItem.id)"
-          class="menu-element__sub-link--container"
-        >
-          <div
-            v-for="child in menuItem.children"
-            :key="child.id"
-            class="menu-element__sub-links"
-            :style="getStyleOverride('menu')"
-          >
-            <ABLink
-              :variant="child.variant"
-              :url="getItemUrl(child)"
-              :target="getMenuItem(child).target"
-              class="menu-element__sub-link"
-              :force-active="menuItemIsActive(child)"
-              @click.stop
+        <Context :ref="`subLinkContext`" :hide-on-click-outside="true">
+          <ThemeProvider class="menu-element__sub-links">
+            <div
+              v-for="child in menuItem.children"
+              :key="child.id"
+              :style="getStyleOverride('menu')"
             >
-              {{
-                child.name
-                  ? child.name ||
-                    (mode === 'editing'
-                      ? $t('menuElement.emptyLinkValue')
-                      : '&nbsp;')
-                  : $t('menuElement.missingLinkValue')
-              }}
-            </ABLink>
-          </div>
-        </ThemeProvider>
+              <ABLink
+                :variant="child.variant"
+                :url="getItemUrl(child)"
+                :target="getMenuItem(child).target"
+                class="menu-element__sub-link"
+                :force-active="menuItemIsActive(child)"
+              >
+                {{
+                  child.name
+                    ? child.name ||
+                      (mode === 'editing'
+                        ? $t('menuElement.emptyLinkValue')
+                        : '&nbsp;')
+                    : $t('menuElement.missingLinkValue')
+                }}
+              </ABLink>
+            </div>
+          </ThemeProvider>
+        </Context>
       </div>
     </template>
-
-    <!-- Menu item: Button -->
     <template v-else-if="menuItem.type === 'button'">
       <ABButton
         :style="getStyleOverride('menu')"
@@ -94,37 +81,6 @@
         }}
       </ABButton>
     </template>
-
-    <Context
-      :ref="`subLinkContext_${menuItem.id}`"
-      :hide-on-click-outside="true"
-    >
-      <ThemeProvider class="menu-element__sub-links">
-        <div
-          v-for="child in menuItem.children"
-          :key="child.id"
-          class="menu-element__sub-links"
-          :style="getStyleOverride('menu')"
-        >
-          <ABLink
-            :variant="child.variant"
-            :url="getItemUrl(child)"
-            :target="getMenuItem(child).target"
-            class="menu-element__sub-link"
-            :force-active="menuItemIsActive(child)"
-          >
-            {{
-              child.name
-                ? child.name ||
-                  (mode === 'editing'
-                    ? $t('menuElement.emptyLinkValue')
-                    : '&nbsp;')
-                : $t('menuElement.missingLinkValue')
-            }}
-          </ABLink>
-        </div>
-      </ThemeProvider>
-    </Context>
   </div>
 </template>
 
@@ -159,7 +115,7 @@ export default {
   data() {
     return {
       activeItem: {},
-      sublinkExpandedItems: {},
+      isExpanded: false,
     }
   },
   computed: {
@@ -168,6 +124,11 @@ export default {
     },
     pages() {
       return this.$store.getters['page/getVisiblePages'](this.builder)
+    },
+    sublinkIsActive() {
+      return this.menuItem.children?.some(
+        (child) => child.uid === this.activeItem?.uid
+      )
     },
   },
   mounted() {
@@ -199,24 +160,19 @@ export default {
     }
   },
   methods: {
-    toggleSubMenu(event, itemId) {
+    toggleSubMenu() {
       if (
         this.element.orientation === ORIENTATIONS.VERTICAL ||
         this.isMobileDevice
       ) {
-        this.$set(
-          this.sublinkExpandedItems,
-          itemId,
-          !this.sublinkExpandedItems[itemId]
-        )
+        this.isExpanded = !this.isExpanded
       } else {
-        const contextRef = this.$refs[`subLinkContext_${itemId}`]
-        if (contextRef?.isOpen()) {
-          contextRef.hide()
-        } else {
-          const containerRef = event.currentTarget
-          contextRef.show(containerRef, 'bottom', 'left', 5)
-        }
+        this.$refs.subLinkContext.toggle(
+          this.$refs.menuSubLinkContainer,
+          'bottom',
+          'left',
+          5
+        )
       }
     },
     getItemUrl(item) {
@@ -264,12 +220,6 @@ export default {
     },
     menuItemIsActive(item) {
       return this.activeItem?.uid === item.uid
-    },
-    sublinkIsActive(item) {
-      if (item.children?.some((child) => child.uid === this.activeItem?.uid))
-        return true
-
-      return false
     },
   },
 }
