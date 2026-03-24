@@ -603,7 +603,6 @@ export class GridViewType extends ViewType {
     includeFieldOptions = false,
     sourceEvent = null
   ) {
-    await store.dispatch(storePrefix + 'view/grid/updateActiveGroupBys', [])
     const isPublic = store.getters[storePrefix + 'view/public/getIsPublic']
     const adhocFiltering = isAdhocFiltering(
       this.app,
