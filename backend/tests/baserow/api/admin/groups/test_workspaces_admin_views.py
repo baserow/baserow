@@ -339,6 +339,12 @@ def test_admin_list_workspaces_as_options_filter_by_invalid_ids(
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_QUERY_PARAMETER_VALIDATION"
+    assert response.json()["detail"]["ids"] == [
+        {
+            "code": "invalid",
+            "error": "'-1' is not a valid ID. Only positive integers are accepted.",
+        }
+    ]
 
     # Non-numeric values should be rejected.
     response = api_client.get(
@@ -348,6 +354,12 @@ def test_admin_list_workspaces_as_options_filter_by_invalid_ids(
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_QUERY_PARAMETER_VALIDATION"
+    assert response.json()["detail"]["ids"] == [
+        {
+            "code": "invalid",
+            "error": "'abc' is not a valid ID. Only positive integers are accepted.",
+        }
+    ]
 
     # A mix of valid and invalid values should still be rejected.
     response = api_client.get(
@@ -357,3 +369,9 @@ def test_admin_list_workspaces_as_options_filter_by_invalid_ids(
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json()["error"] == "ERROR_QUERY_PARAMETER_VALIDATION"
+    assert response.json()["detail"]["ids"] == [
+        {
+            "code": "invalid",
+            "error": "'-2' is not a valid ID. Only positive integers are accepted.",
+        }
+    ]

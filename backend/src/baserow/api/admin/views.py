@@ -68,10 +68,26 @@ class APIListingView(
     def apply_ids_filter(self, ids_param, queryset):
         if not ids_param:
             return queryset
+
         record_ids = split_comma_separated_string(ids_param)
-        if not all(record.isdigit() for record in record_ids):
-            raise QueryParameterValidationException(...)
-        return queryset.filter(id__in=[int(i) for i in record_ids])
+
+        invalid_id = next(
+            (record for record in record_ids if not record.isdigit()), None
+        )
+        if invalid_id is not None:
+            raise QueryParameterValidationException(
+                {
+                    "ids": [
+                        {
+                            "code": "invalid",
+                            "error": f"'{invalid_id}' is not a valid ID. Only positive "
+                            f"integers are accepted.",
+                        }
+                    ]
+                }
+            )
+
+        return queryset.filter(id__in=[int(record_id) for record_id in record_ids])
 
     def get_serializer(self, request, *args, **kwargs):
         if not self.serializer_class:
