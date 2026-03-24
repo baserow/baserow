@@ -53,3 +53,11 @@ class WorkspacesAdminResponseSerializer(ModelSerializer):
             "free_users",
             "created_on",
         )
+
+
+class AdminWorkspaceOptionsSerializer(serializers.ModelSerializer):
+    value = serializers.CharField(source="name")
+
+    class Meta:
+        model = Workspace
+        fields = ("id", "value")

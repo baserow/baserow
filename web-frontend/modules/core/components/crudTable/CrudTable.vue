@@ -1,104 +1,124 @@
 <template>
   <div class="data-table" :class="{ 'data-table--loading': loading }">
-    <header class="data-table__header">
-      <h1 class="data-table__title">
-        <slot name="title"></slot>
-      </h1>
-      <div class="data-table__actions">
-        <CrudTableSearch
-          v-if="enableSearch"
-          :loading="loading"
-          @search-changed="doSearch"
-        />
-        <slot name="header-right-side"></slot>
+    <div
+      v-if="
+        hasEmptySlot &&
+        !loading &&
+        rows.length === 0 &&
+        page === 1 &&
+        searchQuery === false &&
+        Object.keys(filters).length === 0
+      "
+    >
+      <slot name="empty"></slot>
+    </div>
+    <template
+      v-else-if="
+        !(hasEmptySlot && loading) ||
+        searchQuery !== false ||
+        Object.keys(filters).length > 0
+      "
+    >
+      <header class="data-table__header">
+        <h1 class="data-table__title">
+          <slot name="title"></slot>
+        </h1>
+        <div class="data-table__actions">
+          <CrudTableSearch
+            v-if="enableSearch"
+            :loading="loading"
+            @search-changed="doSearch"
+          />
+          <slot name="header-right-side"></slot>
+        </div>
+      </header>
+      <slot name="header-filters"></slot>
+      <div class="data-table__body">
+        <table class="data-table__table">
+          <thead>
+            <tr class="data-table__table-row">
+              <th
+                v-for="col in columns"
+                :key="'head-' + col.key"
+                :style="col.widthPerc ? `--width: ${col.widthPerc}%` : ''"
+                class="data-table__table-cell data-table__table-cell--header"
+                :class="{
+                  'data-table__table-cell--sticky-left': col.stickyLeft,
+                  'data-table__table-cell--sticky-right': col.stickyRight,
+                }"
+              >
+                <div class="data-table__table-cell-head">
+                  <template v-if="col.sortable">
+                    <div>
+                      <a
+                        class="data-table__table-cell-head-link"
+                        @click="toggleSort(col)"
+                        >{{ col.header }}</a
+                      >
+                      <HelpIcon v-if="col.helpText" :tooltip="col.helpText" />
+                    </div>
+                    <div class="data-table__table-cell-head-sort-icon">
+                      <template v-if="sorted(col)">
+                        <i :class="sortIcon(col)"></i>
+                        {{ sortIndex(col) }}
+                      </template>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div>
+                      {{ col.header }}
+                      <HelpIcon
+                        v-if="col.helpText"
+                        :tooltip="col.helpText"
+                      /></div
+                  ></template>
+                </div>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="row in rows"
+              :key="'row-' + row.id"
+              class="data-table__table-row"
+            >
+              <td
+                v-for="col in columns"
+                :key="'col-' + col.key"
+                class="data-table__table-cell"
+                :class="{
+                  'data-table__table-cell--sticky-left': col.stickyLeft,
+                  'data-table__table-cell--sticky-right': col.stickyRight,
+                  [`data-table__table-cell--${col.key}`]: true,
+                }"
+                @contextmenu="$emit('row-context', { col, row, event: $event })"
+              >
+                <div class="data-table__table-cell-content">
+                  <component
+                    :is="col.cellComponent"
+                    :row="row"
+                    :column="col"
+                    v-on="$attrs"
+                    @row-context="(payload) => $emit('row-context', payload)"
+                    @row-update="updateRow"
+                    @row-delete="deleteRow"
+                    @refresh="refresh"
+                  />
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </header>
-    <slot name="header-filters"></slot>
-    <div class="data-table__body">
-      <table class="data-table__table">
-        <thead>
-          <tr class="data-table__table-row">
-            <th
-              v-for="col in columns"
-              :key="'head-' + col.key"
-              :style="col.widthPerc ? `--width: ${col.widthPerc}%` : ''"
-              class="data-table__table-cell data-table__table-cell--header"
-              :class="{
-                'data-table__table-cell--sticky-left': col.stickyLeft,
-                'data-table__table-cell--sticky-right': col.stickyRight,
-              }"
-            >
-              <div class="data-table__table-cell-head">
-                <template v-if="col.sortable">
-                  <div>
-                    <a
-                      class="data-table__table-cell-head-link"
-                      @click="toggleSort(col)"
-                      >{{ col.header }}</a
-                    >
-                    <HelpIcon v-if="col.helpText" :tooltip="col.helpText" />
-                  </div>
-                  <div class="data-table__table-cell-head-sort-icon">
-                    <template v-if="sorted(col)">
-                      <i :class="sortIcon(col)"></i>
-                      {{ sortIndex(col) }}
-                    </template>
-                  </div>
-                </template>
-                <template v-else>
-                  <div>
-                    {{ col.header }}
-                    <HelpIcon
-                      v-if="col.helpText"
-                      :tooltip="col.helpText"
-                    /></div
-                ></template>
-              </div>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="row in rows"
-            :key="'row-' + row.id"
-            class="data-table__table-row"
-          >
-            <td
-              v-for="col in columns"
-              :key="'col-' + col.key"
-              class="data-table__table-cell"
-              :class="{
-                'data-table__table-cell--sticky-left': col.stickyLeft,
-                'data-table__table-cell--sticky-right': col.stickyRight,
-                [`data-table__table-cell--${col.key}`]: true,
-              }"
-              @contextmenu="$emit('row-context', { col, row, event: $event })"
-            >
-              <div class="data-table__table-cell-content">
-                <component
-                  :is="col.cellComponent"
-                  :row="row"
-                  :column="col"
-                  v-on="$attrs"
-                  @row-context="(payload) => $emit('row-context', payload)"
-                  @row-update="updateRow"
-                  @row-delete="deleteRow"
-                  @refresh="refresh"
-                />
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-    <div v-if="service.options.isPaginated" class="data-table__footer">
-      <Paginator
-        :page="page"
-        :total-pages="totalPages"
-        @change-page="fetch"
-      ></Paginator>
-    </div>
-    <slot name="menus" :update-row="updateRow" :delete-row="deleteRow"></slot>
+      <div v-if="service.options.isPaginated" class="data-table__footer">
+        <Paginator
+          :page="page"
+          :total-pages="totalPages"
+          @change-page="fetch"
+        ></Paginator>
+      </div>
+      <slot name="menus" :update-row="updateRow" :delete-row="deleteRow"></slot>
+    </template>
   </div>
 </template>
 
@@ -211,13 +231,18 @@ export default {
   emits: ['row-context', 'rows-update'],
   data() {
     return {
-      loading: false,
+      loading: true,
       page: 1,
       totalPages: 0,
       searchQuery: false,
       rows: [],
       columnSorts: this.defaultColumnSorts,
     }
+  },
+  computed: {
+    hasEmptySlot() {
+      return !!this.$slots.empty
+    },
   },
   watch: {
     rows() {

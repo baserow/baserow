@@ -13,6 +13,24 @@ export const rootChildRoutes = [
     file: path.resolve(__dirname, 'pages/auditLog.vue'),
   },
   {
+    name: 'admin-data-scanner',
+    path: '/admin/data-scanner',
+    redirect: '/admin/data-scanner/scans',
+    file: path.resolve(__dirname, 'pages/admin/dataScanner.vue'),
+    children: [
+      {
+        name: 'admin-data-scanner-scans',
+        path: 'scans',
+        file: path.resolve(__dirname, 'pages/admin/dataScanner/scans.vue'),
+      },
+      {
+        name: 'admin-data-scanner-results',
+        path: 'results',
+        file: path.resolve(__dirname, 'pages/admin/dataScanner/results.vue'),
+      },
+    ],
+  },
+  {
     name: 'workspace-audit-log',
     path: '/workspace/:workspaceId/audit-log',
     file: path.resolve(__dirname, 'pages/auditLog.vue'),

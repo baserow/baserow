@@ -153,7 +153,7 @@ export default {
     selectedIndex: {
       handler(i) {
         if (!this.route && i !== undefined) {
-          this.internalSelectedIndex = i
+          this.selectTab(i)
         }
       },
       immediate: true,

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-16 14:50+0000\n"
+"POT-Creation-Date: 2026-03-16 22:06+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -186,6 +186,87 @@ msgstr ""
 #: src/baserow_enterprise/audit_log/models.py:32
 msgid "REDONE"
 msgstr ""
+
+#: src/baserow_enterprise/data_scanner/actions.py:18
+msgid "Create data scan"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/actions.py:19
+#, python-format
+msgid "Data scan \"%(scan_name)s\" (%(scan_id)s) created"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/actions.py:45
+msgid "Update data scan"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/actions.py:46
+#, python-format
+msgid "Data scan \"%(scan_name)s\" (%(scan_id)s) updated"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/actions.py:72
+msgid "Delete data scan"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/actions.py:73
+#, python-format
+msgid "Data scan \"%(scan_name)s\" (%(scan_id)s) deleted"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/job_types.py:34
+msgid "Scan Name"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/job_types.py:38
+msgid "Workspace Name"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/job_types.py:42
+msgid "Database Name"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/job_types.py:46
+msgid "Table Name"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/job_types.py:50
+msgid "Field Name"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/job_types.py:54
+msgid "Row ID"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/job_types.py:58
+msgid "Matched Value"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/job_types.py:62
+msgid "First Identified On"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/job_types.py:66
+msgid "Last Identified On"
+msgstr ""
+
+#: src/baserow_enterprise/data_scanner/notification_types.py:80
+#, python-format
+msgid "%(count)d new result found for %(scan_name)s"
+msgid_plural "%(count)d new results found for %(scan_name)s"
+msgstr[0] ""
+msgstr[1] ""
+
+#: src/baserow_enterprise/data_scanner/notification_types.py:92
+#, python-format
+msgid ""
+"The data scanner \"%(scan_name)s\" found %(count)d new match during its "
+"latest run. Review the results in the admin panel."
+msgid_plural ""
+"The data scanner \"%(scan_name)s\" found %(count)d new matches during its "
+"latest run. Review the results in the admin panel."
+msgstr[0] ""
+msgstr[1] ""
 
 #: src/baserow_enterprise/data_sync/actions.py:21
 msgid "Update periodic data sync interval"

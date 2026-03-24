@@ -1,0 +1,15 @@
+.tabs-body {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tabs-body__tabs {
+  flex: 0 0;
+}
+
+.tabs-body__body {
+  height: 100%;
+  position: relative;
+  background-color: white;
+}

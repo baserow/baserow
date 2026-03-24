@@ -8,7 +8,6 @@ from rest_framework import serializers
 
 from baserow.core.action.registries import action_type_registry
 from baserow.core.jobs.registries import job_type_registry
-from baserow.core.models import Workspace
 from baserow_enterprise.audit_log.job_types import AuditLogExportJobType
 from baserow_enterprise.audit_log.models import AuditLogEntry
 
@@ -89,14 +88,6 @@ class AuditLogUserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "value")
-
-
-class AuditLogWorkspaceSerializer(serializers.ModelSerializer):
-    value = serializers.CharField(source="name")
-
-    class Meta:
-        model = Workspace
         fields = ("id", "value")
 
 
