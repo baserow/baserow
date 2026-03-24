@@ -264,4 +264,8 @@ class BaserowPremiumConfig(AppConfig):
         widget_type_registry.register(ChartWidgetType())
         widget_type_registry.register(PieChartWidgetType())
 
+        from baserow.core.ai_provider.registries import ai_feature_type_registry
+        from baserow_premium.ai_field_feature_type import AIFieldFeatureType
         from baserow_premium.fields import tasks  # noqa: F401
+
+        ai_feature_type_registry.register(AIFieldFeatureType())

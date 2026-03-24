@@ -384,6 +384,13 @@ class BaserowEnterpriseConfig(AppConfig):
         assistant_tool_registry.register(BuilderToolType())
         assistant_tool_registry.register(SearchDocsToolType())
 
+        from baserow.core.ai_provider.registries import ai_feature_type_registry
+        from baserow_enterprise.ai_assistant_feature_type import (
+            AIAssistantFeatureType,
+        )
+
+        ai_feature_type_registry.register(AIAssistantFeatureType())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow_enterprise.assistant.tasks  # noqa: F401

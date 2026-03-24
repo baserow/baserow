@@ -67,6 +67,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     allowed_fields = SelectOptionBaseFieldType.allowed_fields + [
         "ai_generative_ai_type",
         "ai_generative_ai_model",
+        "ai_provider_model_id",
         "ai_output_type",
         "ai_temperature",
         "ai_prompt",
@@ -77,6 +78,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     serializer_field_names = SelectOptionBaseFieldType.allowed_fields + [
         "ai_generative_ai_type",
         "ai_generative_ai_model",
+        "ai_provider_model_id",
         "ai_output_type",
         "ai_temperature",
         "ai_prompt",

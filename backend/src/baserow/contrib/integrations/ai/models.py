@@ -17,6 +17,7 @@ class AIIntegration(Integration):
 
 
 class AIAgentService(Service):
+    # Deprecated: use ai_provider_model FK instead. Kept for backward compatibility.
     ai_generative_ai_type = models.CharField(
         max_length=32,
         null=True,
@@ -26,6 +27,17 @@ class AIAgentService(Service):
         max_length=128,
         null=True,
         help_text='The specific model name (e.g. "gpt-4", "claude-3-opus")',
+    )
+    ai_provider_model = models.ForeignKey(
+        "core.AIProviderModel",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="ai_agent_services",
+        help_text=(
+            "The AI provider model to use. When set, takes precedence over "
+            "ai_generative_ai_type and ai_generative_ai_model."
+        ),
     )
     ai_output_type = models.CharField(
         max_length=32,

@@ -10,6 +10,7 @@ from baserow.core.registries import (
 from baserow.core.services.registries import service_type_registry
 
 from .admin import urls as admin_urls
+from .ai_provider import urls as ai_provider_urls
 from .applications import urls as application_urls
 from .auth_provider import urls as auth_provider_urls
 from .health import urls as health_urls
@@ -55,6 +56,10 @@ urlpatterns = (
         path("notifications/", include(notifications_urls, namespace="notifications")),
         path("search/", include(search_urls, namespace="search")),
         path("admin/", include(admin_urls, namespace="admin")),
+        path(
+            "ai-providers/",
+            include(ai_provider_urls, namespace="ai_providers"),
+        ),
         path("mcp/", include(mcp_urls, namespace="mcp")),
         path(
             "",

@@ -1,6 +1,7 @@
 // plugins/baserow.js
 import { defineNuxtPlugin } from '#app'
 
+import { FF_AI_PROVIDERS } from '@baserow/modules/core/plugins/featureFlags'
 import { Registry } from '@baserow/modules/core/registry'
 import { PasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
 import {
@@ -34,12 +35,18 @@ import {
   UploadViaURLUserFileUploadType,
 } from '@baserow/modules/core/userFileUploadTypes'
 import {
+  AIProvidersAdminType,
   DashboardAdminType,
   UsersAdminType,
   WorkspacesAdminType,
   HealthCheckAdminType,
   SettingsAdminType,
 } from '@baserow/modules/core/adminTypes'
+import {
+  AIFieldFeatureType,
+  AIAssistantFeatureType,
+  AIAgentNodeFeatureType,
+} from '@baserow/modules/core/aiFeatureTypes'
 
 import {
   BasicPermissionManagerType,
@@ -63,7 +70,6 @@ import {
 import { MoreOnboardingType } from '@baserow/modules/core/onboardingTypes'
 import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
 import { TOTPAuthType } from '@baserow/modules/core/twoFactorAuthTypes'
-
 import { DefaultErrorPageType } from '@baserow/modules/core/errorPageTypes'
 
 import {
@@ -147,6 +153,7 @@ export default defineNuxtPlugin({
     registry.registerNamespace('appAuthProvider')
     registry.registerNamespace('roles')
     registry.registerNamespace('generativeAIModel')
+    registry.registerNamespace('aiFeature')
     registry.registerNamespace('onboarding')
     registry.registerNamespace('guidedTour')
     registry.registerNamespace('admin')
@@ -174,6 +181,10 @@ export default defineNuxtPlugin({
     registry.register('generativeAIModel', new MistralModelType(context))
     registry.register('generativeAIModel', new OllamaModelType(context))
     registry.register('generativeAIModel', new OpenRouterModelType(context))
+
+    registry.register('aiFeature', new AIFieldFeatureType(context))
+    registry.register('aiFeature', new AIAssistantFeatureType(context))
+    registry.register('aiFeature', new AIAgentNodeFeatureType(context))
 
     registry.register(
       'permissionManager',
@@ -212,6 +223,9 @@ export default defineNuxtPlugin({
     registry.register('admin', new DashboardAdminType(context))
     registry.register('admin', new UsersAdminType(context))
     registry.register('admin', new WorkspacesAdminType(context))
+    if (nuxtApp.$featureFlagIsEnabled(FF_AI_PROVIDERS)) {
+      registry.register('admin', new AIProvidersAdminType(context))
+    }
     registry.register('admin', new SettingsAdminType(context))
     registry.register('admin', new HealthCheckAdminType(context))
 

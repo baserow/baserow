@@ -136,14 +136,48 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
 # ---------------------------------------------------------------------------
 
 
+def _resolve_model_from_ai_provider() -> str | None:
+    """
+    Try to resolve the assistant model from AIFeatureDefaultModel.
+    Returns a pydantic-ai compatible model string, or None if not configured.
+    """
+
+    try:
+        from baserow.core.ai_provider.handler import AIProviderHandler
+
+        provider_model = AIProviderHandler.get_feature_default_model(
+            feature_type="ai_assistant",
+            scope_type="instance",
+        )
+        if provider_model is None:
+            return None
+
+        # Build a pydantic-ai model string: "provider_type:model_identifier"
+        provider_type = provider_model.provider_config.provider_type
+        model_id = provider_model.model_identifier
+        return f"{provider_type}:{model_id}"
+    except Exception:
+        # If the AI provider system isn't ready (e.g. during migrations),
+        # fall back silently.
+        return None
+
+
 def get_model_string(model: str | None = None) -> str:
     """
     Returns the model string for the pydantic-ai agent.
 
-    :param model: The language model to use. If None, the default model from
-        settings will be used.
+    Resolution order:
+    1. Explicit `model` parameter
+    2. AIFeatureDefaultModel for "ai_assistant" at instance scope
+    3. BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL env var (legacy fallback)
+
+    :param model: The language model to use. If None, resolved from
+        AIFeatureDefaultModel or settings.
     :return: A model string compatible with pydantic-ai.
     """
+
+    if model is None:
+        model = _resolve_model_from_ai_provider()
 
     value = model or settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL
     # pydantic-ai expects "provider:model" (e.g. "groq:openai/gpt-oss-120b").

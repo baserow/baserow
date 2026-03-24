@@ -461,6 +461,39 @@ class CoreConfig(AppConfig):
         generative_ai_model_type_registry.register(OllamaGenerativeAIModelType())
         generative_ai_model_type_registry.register(OpenRouterGenerativeAIModelType())
 
+        # Import the AI feature type registry so plugins can register feature
+        # types in their own ready() methods.
+        import baserow.core.ai_provider.registries  # noqa: F401
+        from baserow.core.ai_provider.actions import (
+            CreateAIProviderActionType,
+            DeleteAIProviderActionType,
+            SetAIFeatureDefaultModelActionType,
+            ToggleAIProviderOverrideActionType,
+            UpdateAIProviderActionType,
+        )
+
+        action_type_registry.register(CreateAIProviderActionType())
+        action_type_registry.register(UpdateAIProviderActionType())
+        action_type_registry.register(DeleteAIProviderActionType())
+        action_type_registry.register(ToggleAIProviderOverrideActionType())
+        action_type_registry.register(SetAIFeatureDefaultModelActionType())
+
+        from baserow.core.ai_provider.object_scopes import (
+            AIProviderConfigObjectScopeType,
+        )
+
+        object_scope_type_registry.register(AIProviderConfigObjectScopeType())
+
+        from baserow.core.ai_provider.operations import (
+            ManageApplicationAIProvidersOperationType,
+            ManageInstanceAIProvidersOperationType,
+            ManageWorkspaceAIProvidersOperationType,
+        )
+
+        operation_type_registry.register(ManageInstanceAIProvidersOperationType())
+        operation_type_registry.register(ManageWorkspaceAIProvidersOperationType())
+        operation_type_registry.register(ManageApplicationAIProvidersOperationType())
+
         # Must import the Posthog signal, otherwise it won't work.
         import baserow.core.posthog  # noqa: F403, F401
 

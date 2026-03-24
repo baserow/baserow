@@ -190,6 +190,29 @@ export class SettingsAdminType extends AdminType {
   }
 }
 
+export class AIProvidersAdminType extends AdminType {
+  static getType() {
+    return 'ai-providers'
+  }
+
+  getIconClass() {
+    return 'iconoir-sparks'
+  }
+
+  getName() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('adminType.aiProviders')
+  }
+
+  getRouteName() {
+    return 'admin-ai-providers'
+  }
+
+  getOrder() {
+    return 130
+  }
+}
+
 export class HealthCheckAdminType extends AdminType {
   static getType() {
     return 'health'

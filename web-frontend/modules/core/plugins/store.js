@@ -14,6 +14,7 @@ import userSourceStoreModule from '../store/userSource'
 import toastStoreModule from '../store/toast'
 import routeMountedStoreModule from '../store/routeMounted'
 import integrationStoreModule from '../store/integration'
+import aiProviderStoreModule from '../store/aiProvider'
 
 export default defineNuxtPlugin({
   name: 'create-store',
@@ -34,6 +35,7 @@ export default defineNuxtPlugin({
         routeMounted: routeMountedStoreModule,
         toast: toastStoreModule,
         integration: integrationStoreModule,
+        aiProvider: aiProviderStoreModule,
       },
     })
     nuxtApp.vueApp.use(store)

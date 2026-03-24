@@ -28,6 +28,12 @@ class GenerativeAIModelType(Instance):
         """
         Get a setting for this AI model type.
 
+        Resolution order:
+        1. settings_override (explicit runtime override, e.g. Builder integration)
+        2. AIProviderConfig records (workspace scope → instance scope)
+        3. Workspace.generative_ai_models_settings JSONField (legacy, deprecated)
+        4. Returns None (concrete types fall back to env vars)
+
         :param workspace: The workspace to get settings from.
         :param key: The setting key to retrieve.
         :param settings_override: Optional dict of settings to use instead of workspace
@@ -35,15 +41,101 @@ class GenerativeAIModelType(Instance):
         :return: The setting value or None.
         """
 
+        # 1. Explicit runtime override takes priority
         if settings_override is not None and key in settings_override:
             return settings_override[key]
 
+        # 2. Try AIProviderConfig records
+        ai_provider_value = self._get_setting_from_ai_provider(workspace, key)
+        if ai_provider_value is not None:
+            return ai_provider_value
+
+        # 3. Legacy: workspace JSONField
         if not isinstance(workspace, Workspace):
             return None
 
         settings = workspace.generative_ai_models_settings or {}
         type_settings = settings.get(self.type, {})
         return type_settings.get(key, None)
+
+    def _get_setting_from_ai_provider(self, workspace, key):
+        """
+        Look up a setting from AIProviderConfig records.
+        Checks workspace-level first, then instance-level.
+        Returns None if no AIProviderConfig records exist for this type.
+        """
+
+        try:
+            configs = self._find_provider_configs(workspace)
+        except Exception:
+            # If anything goes wrong (e.g. table doesn't exist during
+            # migrations), fall back silently to legacy behavior.
+            return None
+
+        if not configs:
+            return None
+
+        # Use the first (most specific) config
+        config = configs[0]
+        return self._extract_setting_from_config(config, key)
+
+    def _find_provider_configs(self, workspace):
+        """
+        Find AIProviderConfig records for this provider_type,
+        ordered from most specific scope to least (workspace → instance).
+        """
+
+        from django.contrib.contenttypes.models import ContentType
+
+        from baserow.core.ai_provider.models import AIProviderConfig
+
+        configs = []
+
+        # Check workspace-level
+        if isinstance(workspace, Workspace):
+            workspace_ct = ContentType.objects.get_for_model(Workspace)
+            ws_configs = list(
+                AIProviderConfig.objects.filter(
+                    provider_type=self.type,
+                    scope_content_type=workspace_ct,
+                    scope_object_id=workspace.id,
+                    is_active=True,
+                )
+            )
+            configs.extend(ws_configs)
+
+        # Check instance-level
+        instance_configs = list(
+            AIProviderConfig.objects.filter(
+                provider_type=self.type,
+                scope_content_type__isnull=True,
+                scope_object_id__isnull=True,
+                is_active=True,
+            )
+        )
+        configs.extend(instance_configs)
+
+        return configs
+
+    @staticmethod
+    def _extract_setting_from_config(config, key):
+        """
+        Extract a setting value from an AIProviderConfig, mapping
+        the key to the appropriate field.
+        """
+
+        if key == "api_key":
+            return config.api_key or None
+        elif key == "models":
+            models = list(
+                config.models.filter(is_enabled=True).values_list(
+                    "model_identifier", flat=True
+                )
+            )
+            return models if models else None
+        else:
+            # Extra settings: organization, base_url, host, etc.
+            return config.extra_settings.get(key, None)
 
     def is_enabled(self, workspace: Optional[Workspace] = None) -> bool:
         return False

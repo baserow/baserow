@@ -19,8 +19,20 @@ User = get_user_model()
 
 
 class AIField(Field):
+    # Deprecated: use ai_provider_model FK instead. Kept for backward compatibility.
     ai_generative_ai_type = models.CharField(max_length=32, null=True)
     ai_generative_ai_model = models.CharField(max_length=128, null=True)
+    ai_provider_model = models.ForeignKey(
+        "core.AIProviderModel",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="ai_fields",
+        help_text=(
+            "The AI provider model to use. When set, takes precedence over "
+            "ai_generative_ai_type and ai_generative_ai_model."
+        ),
+    )
     ai_output_type = models.CharField(
         max_length=32,
         db_default=TextAIFieldOutputType.type,

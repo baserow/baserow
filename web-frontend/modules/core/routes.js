@@ -77,6 +77,11 @@ export const routes = [
         file: path.resolve(__dirname, 'pages/workspace.vue'),
       },
       {
+        name: 'admin-ai-providers',
+        path: '/admin/ai-providers',
+        file: path.resolve(__dirname, 'pages/admin/aiProviders.vue'),
+      },
+      {
         name: 'admin-settings',
         path: '/admin/settings',
         file: path.resolve(__dirname, 'pages/admin/settings.vue'),
