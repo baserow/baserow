@@ -59,7 +59,9 @@
     }
   }
 
-  &--in-error:not(.element-preview--active):not(.element-preview--drop-before)::before {
+  &--in-error:not(.element-preview--active):not(
+      .element-preview--drop-before
+    )::before {
     @include absolute(3px, auto, 3px, 4px);
 
     content: '';
