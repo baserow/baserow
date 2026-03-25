@@ -541,15 +541,10 @@ def test_can_move_element_outside_container(api_client, data_fixture):
         reference_element=container_element,
     )
 
-    page.refresh_from_db(fields=["graph"])
-    assert element_two.parent_element == container_element
-    assert element_two.place_in_container == "0"
-
     url = reverse("api:builder:element:move", kwargs={"element_id": element_two.id})
     response = api_client.patch(
         url,
         {
-            "place_in_container": None,
             "position": GraphPointPosition.NORTH,
             "reference_element_id": container_element.id,
         },
@@ -561,7 +556,7 @@ def test_can_move_element_outside_container(api_client, data_fixture):
     page.refresh_from_db(fields=["graph"])
     assert page.get_graph().graph == {
         "0": element_two.id,
-        str(container_element.id): {"children": [element_one.id]},
+        str(container_element.id): {"children": {"0": [element_one.id]}},
         str(element_one.id): {},
         str(element_two.id): {"next": {"": [container_element.id]}},
     }
@@ -720,6 +715,48 @@ def test_move_element_to_regular_page_without_parent_is_invalid_for_shared_eleme
     header.refresh_from_db()
     assert header.page_id == shared_page.id
     assert header.parent_element_id is None
+
+
+@pytest.mark.django_db
+def test_can_move_element_between_places(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    container_element = data_fixture.create_builder_column_element(page=page)
+    element_one = data_fixture.create_builder_heading_element(
+        page=page,
+        place_in_container="0",
+        position=GraphPointPosition.CHILD,
+        reference_element=container_element,
+    )
+    element_two = data_fixture.create_builder_heading_element(
+        page=page,
+        place_in_container="0",
+        position=GraphPointPosition.CHILD,
+        reference_element=container_element,
+    )
+
+    url = reverse("api:builder:element:move", kwargs={"element_id": element_two.id})
+    response = api_client.patch(
+        url,
+        {
+            "place_in_container": "1",
+            "position": GraphPointPosition.CHILD,
+            "reference_element_id": container_element.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.get_graph().graph == {
+        "0": container_element.id,
+        str(container_element.id): {
+            "children": {"0": [element_one.id], "1": [element_two.id]}
+        },
+        str(element_one.id): {},
+        str(element_two.id): {},
+    }
 
 
 @pytest.mark.django_db

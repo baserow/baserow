@@ -240,8 +240,8 @@ class MoveElementSerializer(serializers.Serializer):
     )
     place_in_container = serializers.CharField(
         required=False,
-        allow_null=True,
-        default=None,
+        allow_null=False,
+        default="",
         help_text="The place in the container.",
     )
     target_page_id = serializers.IntegerField(

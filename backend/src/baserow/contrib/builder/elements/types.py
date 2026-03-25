@@ -23,5 +23,6 @@ class ElementsAndWorkflowActions(TypedDict):
 @dataclass
 class ElementMove:
     element: Element
+    previous_output: str
     previous_reference_element: Element | None
     previous_position: GraphPointPositionType

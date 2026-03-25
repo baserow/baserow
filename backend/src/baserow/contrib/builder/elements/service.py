@@ -274,6 +274,7 @@ class ElementService:
         omitted the element is moved at the end of the page.
 
         :param user: The user who is moving the element.
+        :param target_page: The page this element will move to.
         :param element: The element to move.
         :param place_in_container: The new place in container of the element.
         :param reference_element_id: The element the new position is relative to.
@@ -311,7 +312,7 @@ class ElementService:
         [
             previous_reference_element_id,
             previous_position,
-            _,
+            previous_output,
         ] = target_page.get_graph().get_position(element)
 
         previous_reference_element = (
@@ -321,11 +322,6 @@ class ElementService:
         )
 
         target_page.get_graph().move(element, reference_element, position, place_in_container)
-
-        # If our place in the container has changed, update it.
-        if element.place_in_container != place_in_container:
-            element.place_in_container = place_in_container
-            element.save(update_fields=["place_in_container"])
 
         element_moved.send(
             self,
@@ -337,6 +333,7 @@ class ElementService:
 
         return ElementMove(
             element=element,
+            previous_output=previous_output,
             previous_position=previous_position,
             previous_reference_element=previous_reference_element,
         )
