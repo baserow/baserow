@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 from baserow.core.graph.exceptions import (
     GraphPointDoesNotExist,
@@ -12,6 +12,9 @@ from baserow.core.graph.types import (
     GraphPointPositionType,
     SerializedGraph,
 )
+
+if TYPE_CHECKING:
+    from baserow.core.graph.models import GraphPointMixin
 
 
 def _replace(list_, item_to_replace, replacement):
@@ -84,6 +87,7 @@ class BaseGraphHandler(ABC):
     outputs_id_mapping: str = ""
     instance_id_mapping: str = ""
     does_not_exist_exception = GraphPointDoesNotExist
+    base_point_class: Type["GraphPointMixin"] = None
 
     def __init__(self, instance: GraphModelInstance):
         self.instance = instance

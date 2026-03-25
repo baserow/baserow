@@ -725,15 +725,37 @@ def test_move_element_to_regular_page_without_parent_is_invalid_for_shared_eleme
 @pytest.mark.django_db
 def test_duplicate_element(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
-    element = data_fixture.create_builder_heading_element(user=user, value="'test'")
+    page = data_fixture.create_builder_page(user=user)
+    container = data_fixture.create_builder_column_element(page=page, column_amount=2)
+    heading = data_fixture.create_builder_heading_element(
+        value="'test'",
+        page=page,
+        place_in_container="1",
+        position=GraphPointPosition.CHILD,
+        reference_element=container,
+    )
 
-    url = reverse("api:builder:element:duplicate", kwargs={"element_id": element.id})
+    url = reverse("api:builder:element:duplicate", kwargs={"element_id": container.id})
     response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
 
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
-    assert response_json["elements"][0]["id"] != element.id
-    assert response_json["elements"][0]["value"] == element.value
+    page.refresh_from_db(fields=["graph"])
+    assert len(response_json["elements"]) == 2
+    duplicated_container = response_json["elements"][0]
+    duplicated_heading = response_json["elements"][1]
+    assert page.graph == {
+        "0": container.id,
+        str(container.id): {
+            "next": {"": [duplicated_container["id"]]},
+            "children": {"1": [heading.id]},
+        },
+        str(heading.id): {},
+        str(duplicated_container["id"]): {
+            "children": {"1": [duplicated_heading["id"]]}
+        },
+        str(duplicated_heading["id"]): {},
+    }
 
 
 @pytest.mark.django_db

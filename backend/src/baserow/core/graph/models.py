@@ -207,7 +207,8 @@ class GraphPointMixin:
         :return: A QuerySet of models which are a child of `self`.
         """
 
-        return self.__class__.objects.filter(pk__in=self.get_child_points())
+        child_ids = [child.id for child in self.get_child_points()]
+        return self._get_graph().base_point_class.objects.filter(pk__in=child_ids)
 
     def get_sibling_points(self) -> list[Self]:
         """

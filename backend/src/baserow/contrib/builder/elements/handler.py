@@ -39,6 +39,7 @@ from baserow.contrib.builder.workflow_actions.registries import (
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import MirrorDict, extract_allowed
 
@@ -500,10 +501,16 @@ class ElementHandler:
         # We are just creating new elements here so other data id should remain
         id_mapping = defaultdict(lambda: MirrorDict())
 
-        return self._duplicate_element_recursive(element, id_mapping)
+        return self._duplicate_element_recursive(
+            element, id_mapping, element, GraphPointPosition.SOUTH
+        )
 
     def _duplicate_element_recursive(
-        self, element: Element, id_mapping
+        self,
+        element: Element,
+        id_mapping,
+        reference_element: Element = None,
+        position: GraphPointPosition = GraphPointPosition.SOUTH,
     ) -> ElementsAndWorkflowActions:
         """
         Duplicates an element and all of its children.
@@ -516,26 +523,31 @@ class ElementHandler:
         :return: A list of duplicated elements
         """
 
+        page = element.page
         element_type = element_type_registry.get_by_model(element)
 
         serialized = element_type.export_serialized(element)
+        del serialized["place_in_container"]
 
         element_duplicated = element_type.import_serialized(
             element.page, serialized, id_mapping
+        )
+        page.get_graph().insert(
+            element_duplicated, reference_element, position, element.place_in_container
         )
 
         workflow_actions_duplicated = self._duplicate_workflow_actions_of_element(
             element, id_mapping
         )
 
-        elements_and_workflow_actions_duplicated = {
-            "elements": [element_duplicated],
-            "workflow_actions": workflow_actions_duplicated,
-        }
+        elements_and_workflow_actions_duplicated = ElementsAndWorkflowActions(
+            elements=[element_duplicated],
+            workflow_actions=workflow_actions_duplicated,
+        )
 
         for child in element.children.all():
             children_duplicated = self._duplicate_element_recursive(
-                child.specific, id_mapping
+                child.specific, id_mapping, element_duplicated, GraphPointPosition.CHILD
             )
             elements_and_workflow_actions_duplicated["elements"] += children_duplicated[
                 "elements"

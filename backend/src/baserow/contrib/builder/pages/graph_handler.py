@@ -12,8 +12,12 @@ class PageGraphHandler(BaseGraphHandler):
     the graph of a page.
     """
 
+    base_point_class = Element
     instance_id_mapping = "builder_page_elements"
     does_not_exist_exception = ElementDoesNotExist
 
     def get_point_map(self) -> Dict[int, Element]:
-        return {e.id: e for e in ElementHandler().get_elements(self.instance)}
+        return {
+            e.id: e
+            for e in ElementHandler().get_elements(self.instance, use_cache=False)
+        }
