@@ -164,12 +164,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         last_order = AutomationWorkflow.get_last_order(automation)
 
-        # Find a name unused in a trashed or existing workflow
-        unused_name = self.find_unused_workflow_name(automation, name)
-
         return AutomationWorkflow.objects.create(
             automation=automation,
-            name=unused_name,
+            name=name,
             order=last_order,
         )
 
