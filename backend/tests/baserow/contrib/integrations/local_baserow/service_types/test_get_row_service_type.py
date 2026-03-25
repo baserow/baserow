@@ -918,3 +918,21 @@ def test_can_dispatch_interesting_table(data_fixture):
 
     dispatch_context = FakeDispatchContext(public_allowed_properties=field_names)
     assert len(result.data.keys()) == 1 + 1
+
+
+@pytest.mark.django_db
+def test_extract_properties_with_empty_path_returns_all_fields(data_fixture):
+    """
+    When path is empty, extract_properties should return all field names.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(table=table, name="Fruit")
+    field_2 = data_fixture.create_number_field(table=table, name="Count")
+    service = data_fixture.create_local_baserow_get_row_service(table=table)
+    service_type = LocalBaserowGetRowUserServiceType()
+
+    result = service_type.extract_properties([], service=service)
+
+    assert result == ["id", field_1.db_column, field_2.db_column]

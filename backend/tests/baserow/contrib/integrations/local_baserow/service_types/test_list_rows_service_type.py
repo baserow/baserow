@@ -1250,3 +1250,21 @@ def test_search_on_multiple_select_with_list(data_fixture):
     )
     assert len(dispatch_data["results"]) == 1
     assert dispatch_data["results"][0]._primary_field_id == options[0].field_id
+
+
+@pytest.mark.django_db
+def test_extract_properties_with_empty_path_returns_all_fields(data_fixture):
+    """
+    When path is empty, extract_properties should return all field names.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(table=table, name="Fruit")
+    field_2 = data_fixture.create_number_field(table=table, name="Count")
+    service = data_fixture.create_local_baserow_list_rows_service(table=table)
+    service_type = LocalBaserowListRowsUserServiceType()
+
+    result = service_type.extract_properties([], service=service)
+
+    assert result == ["id", field_1.db_column, field_2.db_column]
