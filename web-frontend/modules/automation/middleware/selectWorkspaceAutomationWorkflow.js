@@ -1,22 +1,23 @@
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { normalizeError } from '@baserow/modules/database/utils/errors'
 
-export default defineNuxtRouteMiddleware(async (to, from) => {
-  const { $store, $i18n } = useNuxtApp()
+export default defineNuxtRouteMiddleware(async (to) => {
+  const { $store } = useNuxtApp()
 
-  const builderId = parseInt(to.params.builderId)
-  const pageId = parseInt(to.params.pageId)
+  const automationId = parseInt(to.params.automationId)
+  const workflowId = parseInt(to.params.workflowId)
+
   try {
-    const loadedBuilder = await $store.dispatch(
+    const automation = await $store.dispatch(
       'application/selectById',
-      builderId
+      automationId
     )
 
-    await $store.dispatch('workspace/selectById', loadedBuilder.workspace.id)
+    await $store.dispatch('workspace/selectById', automation.workspace.id)
 
-    await $store.dispatch('page/selectById', {
-      builder: loadedBuilder,
-      pageId,
+    await $store.dispatch('automationWorkflow/selectById', {
+      automation,
+      workflowId,
     })
   } catch (e) {
     const isStoreLookupError = e instanceof StoreItemLookupError
@@ -31,7 +32,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       statusCode: errorStatus,
       message:
         errorStatus === 404
-          ? $i18n.t('pageEditor.pageNotFound')
+          ? 'Automation workflow not found.'
           : normalizeError(e).message,
       data: {
         report: errorStatus !== 404,

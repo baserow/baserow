@@ -19,7 +19,11 @@ if (dsn && dsn !== '') {
     ...(isDev ? { transport: makeFakeTransport } : {}),
     beforeSend(event, hint) {
       const err = hint?.originalException
-      if (err?.fatal === false) return null
+      if (err?.fatal === false) {
+        return null
+      } else if (err?.fatal === true && err?.data?.report === false) {
+        return null
+      }
 
       // Filter known API errors that are handled by the application (e.g. forceLogoff).
       const status = err?.response?.status || err?.statusCode

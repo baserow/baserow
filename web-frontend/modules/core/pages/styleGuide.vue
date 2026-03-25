@@ -592,7 +592,7 @@
             </template>
           </Alert>
 
-          <Alert type="danger" close-button>
+          <Alert type="error" close-button>
             <template #title>Alert title</template>
             <template #actions>
               <button
@@ -1953,6 +1953,73 @@
             Call to action with an icon
           </CallToAction>
         </div>
+        <div class="margin-bottom-3">
+          <div class="margin-bottom-3">
+            <nuxt-link
+              :to="{
+                name: 'builder-page',
+                params: {
+                  builderId: 99,
+                  pageId: 99,
+                },
+              }"
+            >
+              <Button type="primary" size="small">
+                To missing builder page
+              </Button>
+            </nuxt-link>
+          </div>
+          <div class="margin-bottom-3">
+            <nuxt-link
+              :to="{
+                name: 'database-table',
+                params: {
+                  databaseId: 9999,
+                  tableId: 99,
+                  viewId: 99,
+                },
+              }"
+            >
+              <Button type="primary" size="small">
+                To missing database table
+              </Button>
+            </nuxt-link>
+          </div>
+          <div class="margin-bottom-3">
+            <nuxt-link
+              :to="{
+                name: 'dashboard-application',
+                params: {
+                  dashboardId: 9999,
+                },
+              }"
+            >
+              <Button type="primary" size="small">
+                To missing dashboard
+              </Button>
+            </nuxt-link>
+          </div>
+          <div class="margin-bottom-3">
+            <nuxt-link
+              :to="{
+                name: 'automation-workflow',
+                params: {
+                  automationId: 999,
+                  workflowId: 999,
+                },
+              }"
+            >
+              <Button type="primary" size="small">
+                To missing automation workflow
+              </Button>
+            </nuxt-link>
+          </div>
+          <div>
+            <Button type="primary" size="small" @click="triggerError">
+              Trigger fake error
+            </Button>
+          </div>
+        </div>
         <br /><br /><br />
         <br /><br /><br />
         <br /><br /><br />
@@ -2019,6 +2086,9 @@ export default {
     resolveColor,
     alert(message) {
       alert(message)
+    },
+    triggerError() {
+      throw new Error('Fake error')
     },
   },
 }

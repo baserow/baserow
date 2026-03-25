@@ -1,9 +1,12 @@
 <template>
   <div v-if="!redirecting" class="placeholder">
     <div class="placeholder__logo">
-      <nuxt-link :to="{ name: 'index' }">
+      <a
+        :href="$router.resolve({ name: 'index' }).fullPath"
+        @click.prevent="clearAndNavigate({ name: 'index' })"
+      >
         <Logo class="placeholder__logo-image" />
-      </nuxt-link>
+      </a>
     </div>
     <h1 class="placeholder__title">{{ message }}</h1>
     <p v-if="error.statusCode === 404" class="placeholder__content">
@@ -17,30 +20,32 @@
         icon="iconoir-redo"
         @click="refresh"
       >
-        {{ $t('errorLayout.refresh') }}</Button
-      >
+        {{ $t('errorLayout.refresh') }}
+      </Button>
 
       <Button
         v-else-if="isAuthenticated && currentRouteName !== 'dashboard'"
-        tag="nuxt-link"
-        :to="{ name: 'dashboard' }"
+        tag="a"
+        :href="$router.resolve({ name: 'dashboard' }).fullPath"
         type="primary"
         size="large"
         icon="iconoir-nav-arrow-left"
+        @click.prevent="clearAndNavigate({ name: 'dashboard' })"
       >
         {{ $t('errorLayout.backDashboard') }}
       </Button>
 
       <Button
         v-else
-        tag="nuxt-link"
-        :to="{ name: 'login' }"
+        tag="a"
+        :href="$router.resolve({ name: 'login' }).fullPath"
         type="primary"
         size="large"
         icon="iconoir-nav-arrow-left"
+        @click.prevent="clearAndNavigate({ name: 'login' })"
       >
-        {{ $t('errorLayout.backLogin') }}</Button
-      >
+        {{ $t('errorLayout.backLogin') }}
+      </Button>
     </div>
   </div>
 </template>
@@ -99,6 +104,9 @@ export default {
     }
   },
   methods: {
+    clearAndNavigate(to) {
+      window.location.replace(this.$router.resolve(to).fullPath)
+    },
     refresh() {
       location.reload()
     },
