@@ -1517,7 +1517,9 @@ def test_data_source_data_extract_properties_calls_correct_service_type(
 
     assert result == {mocked_data_source.service_id: expected}
     mocked_get_data_source.assert_called_once_with(int(data_source_id), with_cache=True)
-    mocked_service_type.extract_properties.assert_called_once_with([expected])
+    mocked_service_type.extract_properties.assert_called_once_with(
+        [expected], service=mocked_data_source.service.specific
+    )
 
     mocked_service_type.returns_list = True
     mocked_service_type.extract_properties.reset_mock()
@@ -1525,24 +1527,25 @@ def test_data_source_data_extract_properties_calls_correct_service_type(
     result = DataSourceDataProviderType().extract_properties(
         [data_source_id, "1", expected]
     )
-    mocked_service_type.extract_properties.assert_called_once_with([expected])
+    mocked_service_type.extract_properties.assert_called_once_with(
+        [expected], service=mocked_data_source.service.specific
+    )
     assert result == {mocked_data_source.service_id: expected}
 
 
 @patch.object(DataSourceHandler, "get_data_source")
 @pytest.mark.django_db
-def test_data_source_data_extract_properties_returns_empty_when_no_row_id_or_field_name(
+def test_data_source_data_extract_properties_returns_all_fields_when_no_row_id_or_field_name(
     mocked_get_data_source,
 ):
     """
     Test the DataSourceDataProviderType::extract_properties() method.
 
-    Ensure that when service_type.returns_list is True but the path contains
-    no row ID or field name, an empty dict is returned.
+    Ensure that when there is no row ID or field name, all fields are returned.
     """
 
     mocked_service_type = MagicMock()
-    mocked_service_type.returns_list = True
+    mocked_service_type.extract_properties.return_value = ["id", "field_123"]
     mocked_data_source = MagicMock()
     mocked_data_source.service.specific.get_type = MagicMock(
         return_value=mocked_service_type
@@ -1554,9 +1557,11 @@ def test_data_source_data_extract_properties_returns_empty_when_no_row_id_or_fie
     path = [data_source_id]
     result = DataSourceDataProviderType().extract_properties(path)
 
-    assert result == {}
+    assert result == {mocked_data_source.service_id: ["id", "field_123"]}
     mocked_get_data_source.assert_called_once_with(int(data_source_id), with_cache=True)
-    mocked_service_type.extract_properties.assert_not_called()
+    mocked_service_type.extract_properties.assert_called_once_with(
+        [], service=mocked_data_source.service.specific
+    )
 
 
 @pytest.mark.django_db
