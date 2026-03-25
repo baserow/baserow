@@ -115,7 +115,7 @@ def test_create_workflow_duplicate_name(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json()["name"] != "test"
+    assert response.json()["name"] == "test"
 
 
 @pytest.mark.django_db

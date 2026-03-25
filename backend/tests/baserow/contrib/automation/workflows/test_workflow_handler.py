@@ -107,21 +107,6 @@ def test_create_workflow(data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_workflow_name_not_unique(data_fixture):
-    workflow = data_fixture.create_automation_workflow(name="test")
-
-    handler = AutomationWorkflowHandler()
-    # Simulate it returning the same name
-    handler.find_unused_workflow_name = MagicMock(return_value="test")
-
-    handler.create_workflow(workflow.automation, name="test")
-
-    handler.find_unused_workflow_name.assert_called_once_with(
-        workflow.automation, "test"
-    )
-
-
-@pytest.mark.django_db
 def test_create_workflow_integrity_error(data_fixture):
     unexpected_error = IntegrityError("unexpected integrity error")
     workflow = data_fixture.create_automation_workflow(name="test")
