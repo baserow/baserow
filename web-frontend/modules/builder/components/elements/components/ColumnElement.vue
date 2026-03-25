@@ -66,6 +66,7 @@
 <script>
 import _ from 'lodash'
 
+import { notifyIf } from '@baserow/modules/core/utils/error'
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
 import containerElement from '@baserow/modules/builder/mixins/containerElement'
