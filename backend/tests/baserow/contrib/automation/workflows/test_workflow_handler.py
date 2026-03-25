@@ -1153,7 +1153,7 @@ def test_async_start_workflow_rate_limited_runs_eventually_disable_workflow(
 
     histories = list(
         AutomationWorkflowHistory.objects.filter(workflow=original_workflow).order_by(
-            "started_on"
+            "started_on", "id"
         )
     )
 
