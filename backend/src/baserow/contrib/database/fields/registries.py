@@ -2128,12 +2128,19 @@ class ManyToManyGroupByMixin:
         related_field = through_model._meta.get_fields()[2].name
 
         if field_name not in cte:
-            row_ids = [row.id for row in rows]
-            # Improve performance of the query by creating a CTE with all the
-            # relationships of the field to group by. This is significantly faster than
-            # doing this every row in a separate subquery.
+            # Use the base_queryset to scope the CTE to all rows matching the
+            # view filters, not just the paginated rows. This is necessary
+            # because the count query runs against the full base_queryset, and
+            # rows missing from the CTE would appear as having no linked values,
+            # inflating the "empty" group count.
             aggregated_cte = (
-                through_model.objects.filter(**{f"{reversed_field}_id__in": row_ids})
+                through_model.objects.filter(
+                    **{
+                        f"{reversed_field}_id__in": base_queryset.order_by().values(
+                            "id"
+                        )
+                    }
+                )
                 .values(f"{reversed_field}_id")
                 .annotate(
                     res=ArrayAgg(

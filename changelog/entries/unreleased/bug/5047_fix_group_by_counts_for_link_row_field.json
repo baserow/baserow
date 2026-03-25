@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix group by counts for link row field",
+    "issue_origin": "github",
+    "issue_number": 5047,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-03-25"
+}

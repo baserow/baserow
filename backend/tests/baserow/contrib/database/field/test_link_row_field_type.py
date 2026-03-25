@@ -2723,6 +2723,58 @@ def test_get_group_by_metadata_in_rows_with_many_to_many_field(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_group_by_metadata_in_rows_with_paginated_many_to_many_field(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+
+    row_b1, row_b2 = (
+        RowHandler()
+        .force_create_rows(
+            user=user,
+            table=table_b,
+            rows_values=[{}, {}],
+        )
+        .created_rows
+    )
+
+    RowHandler().force_create_rows(
+        user=user,
+        table=table_a,
+        rows_values=[
+            {f"field_{link_a_to_b.id}": []},
+            {f"field_{link_a_to_b.id}": []},
+            {f"field_{link_a_to_b.id}": [row_b1.id]},
+            {f"field_{link_a_to_b.id}": [row_b1.id]},
+            {f"field_{link_a_to_b.id}": [row_b2.id]},
+            {f"field_{link_a_to_b.id}": [row_b2.id]},
+        ],
+    )
+
+    model = table_a.get_model()
+    queryset = model.objects.all().order_by("id").enhance_by_fields()
+    paginated_rows = list(queryset[:3])
+
+    handler = ViewHandler()
+    counts = handler.get_group_by_metadata_in_rows(
+        [link_a_to_b], paginated_rows, queryset
+    )
+
+    for c in counts.keys():
+        counts[c] = list(counts[c])
+
+    assert counts == {
+        link_a_to_b: unordered(
+            [
+                {"count": 2, f"field_{link_a_to_b.id}": []},
+                {"count": 2, f"field_{link_a_to_b.id}": [row_b1.id]},
+            ]
+        )
+    }
+
+
+@pytest.mark.django_db
 def test_list_rows_with_group_by_link_row_to_multiple_select_field(
     api_client, data_fixture
 ):
