@@ -269,16 +269,31 @@ class Element(
         ordering = ("id",)
 
     @property
+    def place_in_container(self) -> str:
+        """
+        Responsible for returning this element's `place_in_container`. This is the
+        position index this element has if it's inside a container element. We will
+        either return a blank string, or a string index representing a place.
+
+        :return: The place in container of this element.
+        """
+
+        return self.get_place_name()
+
+    @property
     def parent_element(self) -> Optional["Element"]:
-        point_ancestry = self.get_parent_points()
-        return point_ancestry[0] if point_ancestry else None
+        return self.get_parent_point()
 
     @property
     def parent_element_id(self) -> Optional[int]:
         return self.parent_element.id if self.parent_element else None
 
     def graph_point_edge_label(self, uid: str) -> str:
-        return self.place_in_container or ""
+        return (
+            self.get_place_name()
+            if self.get_type().is_container
+            else self.get_previous_edge_name()
+        )
 
     @staticmethod
     def get_type_registry():

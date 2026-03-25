@@ -103,6 +103,47 @@ class GraphPointMixin:
         else:
             return self.get_type().type
 
+    def get_previous_edge_name(self) -> str:
+        """
+        Responsible for walking backwards to the previous point, and assuming
+        it has a `next` in its point info, finding the edge that `self` is along.
+        """
+
+        previous_points = self.get_previous_points()
+        if not previous_points:
+            return ""
+
+        previous_point = previous_points[-1]
+        previous_point_info = self._get_graph().get_info(previous_point.id)
+        previous_point_next_info = previous_point_info.get("next", {})
+        for edge_name, point_ids_on_edge in previous_point_next_info.items():
+            if self.id in point_ids_on_edge:
+                return edge_name
+
+        return ""
+
+    def get_place_name(self) -> str:
+        """
+        Responsible for walking backwards, starting at `self`, and finding the
+        first point which has a position of "child". This point will be inside
+        point info containing "children", and will have a place name to return.
+        """
+
+        # Collect all previous points, and add this current point to the end.
+        previous_points_and_self = self.get_previous_points() + [self]
+
+        # Reverse it, so we start with our current point, and we can
+        # walk backwards through the hierarchy one point at a time.
+        previous_points_and_self.reverse()
+        for point in previous_points_and_self:
+            # Get this point's position. The first child that we find
+            # will be the immediate point along the same edge.
+            _, position, output = self.get_parent().get_graph().get_position(point)
+            if position == GraphPointPosition.CHILD:
+                return output
+
+        return ""
+
     def graph_point_edge_label(self, uid: str) -> str:
         """
         A convenience method used by the graph handler's `labeled_graph` method.
@@ -174,6 +215,15 @@ class GraphPointMixin:
         """
 
         return self._get_graph().get_siblings(self)
+
+    def get_parent_point(self) -> Self | None:
+        """
+        A convenience method which uses `get_parent_points` to
+        return the first parent, or `None`.
+        """
+
+        point_ancestry = self.get_parent_points()
+        return point_ancestry[0] if point_ancestry else None
 
     def get_parent_points(self) -> list[Self]:
         """
