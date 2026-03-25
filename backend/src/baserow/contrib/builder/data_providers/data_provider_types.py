@@ -246,13 +246,15 @@ class DataSourceDataProviderType(BuilderDataProviderType):
         service_type = data_source.service.specific.get_type()
 
         if service_type.returns_list:
-            if not rest:
-                return {}
+            if rest:
+                # We remove the row id from the path
+                _, *rest = rest
 
-            # We remove the row id from the path
-            _, *rest = rest
-
-        return {data_source.service_id: service_type.extract_properties(rest, **kwargs)}
+        return {
+            data_source.service_id: service_type.extract_properties(
+                rest, service=data_source.service.specific, **kwargs
+            )
+        }
 
 
 class DataSourceContextDataProviderType(BuilderDataProviderType):

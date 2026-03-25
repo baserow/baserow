@@ -387,7 +387,7 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         The path can contain one or more parts, depending on the field type
         and the formula. Some examples of `path` are:
 
-        An element that specifies a specific a field:
+        An element that specifies a specific field:
         ['field_5439']
 
         An element that uses a Link Row Field formula
@@ -1168,6 +1168,23 @@ class LocalBaserowListRowsUserServiceType(
             raise ServiceImproperlyConfiguredDispatchException(
                 "The selected table is trashed"
             ) from e
+
+    def extract_properties(self, path: List[str], **kwargs) -> Dict[str, List[str]]:
+        """
+        When path is empty for a list rows data source, the formula
+        e.g. `get('data_source.606')` implies that all fields are needed.
+        """
+
+        if not path:
+            if service := kwargs.get("service"):
+                if field_objects := self.get_table_field_objects(service):
+                    return ["id"] + [
+                        field_object["field"].db_column
+                        for field_object in field_objects
+                    ]
+            return []
+
+        return super().extract_properties(path, **kwargs)
 
 
 class LocalBaserowAggregateRowsUserServiceType(
