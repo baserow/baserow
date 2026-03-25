@@ -2604,3 +2604,26 @@ export class BaserowToUrl extends BaserowFunctionDefinition {
     return 'url'
   }
 }
+
+export class BaserowArrayUnique extends BaserowFunctionDefinition {
+  static getType() {
+    return 'array_unique'
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('formulaFunctions.arrayUniqueDescription')
+  }
+
+  getSyntaxUsage() {
+    return ['array_unique(array)']
+  }
+
+  getExamples() {
+    return ["array_unique(field('my lookup field'))"]
+  }
+
+  getFormulaType() {
+    return 'array'
+  }
+}

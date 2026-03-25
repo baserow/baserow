@@ -119,6 +119,22 @@ class JSONArray(Func):
         )
 
 
+class JSONBArrayUniqueByValue(Func):
+    """
+    Dedup a JSONB array by the 'value' key of each element, preserving
+    first-occurrence order. For arrays with elements like
+    {"id": row_id, "value": actual_value}.
+    """
+
+    template = (
+        "(SELECT COALESCE(jsonb_agg(sub.elem ORDER BY sub.rn), '[]'::jsonb) "
+        "FROM (SELECT DISTINCT ON (t.elem -> 'value') t.elem, t.rn "
+        "FROM jsonb_array_elements(%(expressions)s) WITH ORDINALITY AS t(elem, rn) "
+        "ORDER BY t.elem -> 'value', t.rn) sub)"
+    )
+    output_field = JSONField()
+
+
 class BaserowFilterExpression(Expression):
     """
     Baserow expression that works with field_name and value

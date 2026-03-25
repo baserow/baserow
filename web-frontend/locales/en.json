@@ -620,7 +620,8 @@
     "indexDescription": "Returns the file from a file field at the position provided by the second argument.",
     "secondsToDurationDescription": "Converts the number of seconds provided into a duration.",
     "durationToSecondsDescription": "Converts the duration provided into the corresponding number of seconds.",
-    "hasOptionDescription": "Returns true if the first argument is a multiple select field or a lookup to a single select field and the second argument is one of the options."
+    "hasOptionDescription": "Returns true if the first argument is a multiple select field or a lookup to a single select field and the second argument is one of the options.",
+    "arrayUniqueDescription": "Returns only the unique items from an array, removing duplicates while preserving the order of first occurrence."
   },
   "functionnalGridViewFieldLinkRow": {
     "unnamed": "unnamed row {value}"

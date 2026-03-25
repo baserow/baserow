@@ -1,0 +1,8 @@
+{
+  "type": "feature",
+  "message": "Add the `array_unique` formula function to deduplicate lookup arrays.",
+  "domain": "database",
+  "issue_number": 2326,
+  "bullet_points": [],
+  "created_at": "2026-03-26"
+}

@@ -1,6 +1,7 @@
 import datetime
 import sys
 import traceback
+from datetime import timedelta
 from decimal import Decimal
 from re import search
 from typing import Any, List, Optional
@@ -2168,3 +2169,376 @@ def test_regexp_replace(data_fixture):
         ["a123", "[a-", "#ERROR!"],
         ["a123", "\\", "#ERROR!"],
     ]
+
+
+def _setup_single_select(df, table):
+    field = df.create_single_select_field(table=table, name="target")
+    opt_a = df.create_select_option(field=field, value="Active", color="blue", order=0)
+    opt_b = df.create_select_option(field=field, value="Inactive", color="red", order=1)
+    return field, opt_a.id, opt_b.id
+
+
+def _setup_multiple_select(df, table):
+    field = df.create_multiple_select_field(table=table, name="target")
+    opt_x = df.create_select_option(field=field, value="X", color="blue", order=0)
+    opt_y = df.create_select_option(field=field, value="Y", color="red", order=1)
+    # val_a=[X,Y], val_b=[X] — dedup is by per-row option combination
+    return field, [opt_x.id, opt_y.id], [opt_x.id]
+
+
+def _setup_multiple_collaborators(df, table):
+    workspace = table.database.workspace
+    user_a = df.create_user(workspace=workspace)
+    user_b = df.create_user(workspace=workspace)
+    field = df.create_multiple_collaborators_field(table=table, name="target")
+    return field, [{"id": user_a.id}], [{"id": user_b.id}]
+
+
+def _setup_file_field(df, table):
+    field = df.create_file_field(table=table, name="target")
+    return (
+        field,
+        [{"name": "a.txt", "visible_name": "a.txt"}],
+        [{"name": "b.txt", "visible_name": "b.txt"}],
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "setup_fn",
+    [
+        lambda df, table: (
+            df.create_text_field(table=table, name="target"),
+            "apple",
+            "banana",
+        ),
+        lambda df, table: (
+            df.create_number_field(table=table, name="target", number_decimal_places=2),
+            Decimal("10.50"),
+            Decimal("20.00"),
+        ),
+        lambda df, table: (
+            df.create_boolean_field(table=table, name="target"),
+            True,
+            False,
+        ),
+        lambda df, table: (
+            df.create_date_field(table=table, name="target"),
+            "2024-01-15",
+            "2024-06-01",
+        ),
+        lambda df, table: (
+            df.create_duration_field(
+                table=table, name="target", duration_format="h:mm"
+            ),
+            timedelta(hours=1, minutes=30),
+            timedelta(hours=2),
+        ),
+        lambda df, table: (
+            df.create_url_field(table=table, name="target"),
+            "https://example.com",
+            "https://baserow.io",
+        ),
+        lambda df, table: (
+            df.create_email_field(table=table, name="target"),
+            "alice@example.com",
+            "bob@example.com",
+        ),
+        lambda df, table: (
+            df.create_phone_number_field(table=table, name="target"),
+            "+1234567890",
+            "+0987654321",
+        ),
+        lambda df, table: (
+            df.create_rating_field(table=table, name="target"),
+            3,
+            5,
+        ),
+        _setup_single_select,
+        _setup_multiple_select,
+        _setup_multiple_collaborators,
+    ],
+    ids=[
+        "text",
+        "number",
+        "boolean",
+        "date",
+        "duration",
+        "url",
+        "email",
+        "phone",
+        "rating",
+        "single_select",
+        "multiple_select",
+        "multiple_collaborators",
+    ],
+)
+def test_array_unique_lookup(data_fixture, setup_fn):
+    """
+    array_unique deduplicates a lookup array, preserving first-occurrence order.
+    Parameterized across field types.
+    """
+
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    target_field, val_a, val_b = setup_fn(data_fixture, table_b)
+
+    # 3 rows: val_a, val_b, val_a (duplicate)
+    row_b1, row_b2, row_b3 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_b,
+            [
+                {target_field.db_column: val_a},
+                {target_field.db_column: val_b},
+                {target_field.db_column: val_a},
+            ],
+        )
+        .created_rows
+    )
+
+    # Row A1: links to all 3 (has duplicate val_a)
+    # Row A2: links to 2 (all unique)
+    # Row A3: empty
+    row_a1, row_a2, row_a3 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_a,
+            [
+                {link_field.db_column: [row_b1.id, row_b2.id, row_b3.id]},
+                {link_field.db_column: [row_b1.id, row_b2.id]},
+                {link_field.db_column: []},
+            ],
+        )
+        .created_rows
+    )
+
+    lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{target_field.name}')",
+    )
+    unique_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="unique_lookup",
+        formula="array_unique(field('lookup'))",
+    )
+
+    table_a_model = table_a.get_model()
+    rows = list(
+        table_a_model.objects.all()
+        .order_by("id")
+        .values_list(unique_field.db_column, flat=True)
+    )
+
+    # Row A1: val_a, val_b, val_a → val_a, val_b (deduped, first-occurrence order)
+    assert len(rows[0]) == 2
+    assert rows[0][0]["id"] == row_b1.id
+    assert rows[0][1]["id"] == row_b2.id
+
+    # Row A2: val_a, val_b → unchanged (already unique)
+    assert len(rows[1]) == 2
+    assert rows[1][0]["id"] == row_b1.id
+    assert rows[1][1]["id"] == row_b2.id
+
+    # Row A3: empty
+    assert rows[2] == []
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "create_field_fn",
+    [
+        lambda df, table: df.create_created_on_field(table=table, name="target"),
+        lambda df, table: df.create_autonumber_field(table=table, name="target"),
+    ],
+    ids=["created_on", "autonumber"],
+)
+def test_array_unique_auto_field_lookup(data_fixture, create_field_fn):
+    """
+    array_unique works on auto-populated fields (created_on, autonumber).
+    Values can't be controlled, so we verify dedup count ≤ original count
+    and first-occurrence ordering is preserved.
+    """
+
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    target_field = create_field_fn(data_fixture, table_b)
+
+    row_b1, row_b2, row_b3 = (
+        RowHandler().create_rows(user, table_b, [{}, {}, {}]).created_rows
+    )
+
+    (row_a1,) = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_a,
+            [{link_field.db_column: [row_b1.id, row_b2.id, row_b3.id]}],
+        )
+        .created_rows
+    )
+
+    lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{target_field.name}')",
+    )
+    unique_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="unique_lookup",
+        formula="array_unique(field('lookup'))",
+    )
+
+    table_a_model = table_a.get_model()
+    result = table_a_model.objects.get(id=row_a1.id)
+    lookup_val = getattr(result, lookup_field.db_column)
+    unique_val = getattr(result, unique_field.db_column)
+
+    assert len(unique_val) <= len(lookup_val)
+    assert unique_val[0]["id"] == lookup_val[0]["id"]
+
+
+@pytest.mark.django_db
+def test_array_unique_link_row_lookup(data_fixture):
+    """
+    Test array_unique on a lookup through a link to another link's primary
+    field (A→B→C), where C primary values have duplicates.
+    """
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    table_a = data_fixture.create_database_table(database=database, name="A")
+    table_b = data_fixture.create_database_table(database=database, name="B")
+    table_c = data_fixture.create_database_table(database=database, name="C")
+
+    data_fixture.create_text_field(table=table_a, name="primary_a", primary=True)
+    data_fixture.create_text_field(table=table_b, name="primary_b", primary=True)
+    primary_c = data_fixture.create_text_field(
+        table=table_c, name="primary_c", primary=True
+    )
+
+    link_a_b = FieldHandler().create_field(
+        user, table_a, "link_row", name="link_ab", link_row_table=table_b
+    )
+    link_b_c = FieldHandler().create_field(
+        user, table_b, "link_row", name="link_bc", link_row_table=table_c
+    )
+
+    row_c1, row_c2 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_c,
+            [{primary_c.db_column: "X"}, {primary_c.db_column: "Y"}],
+        )
+        .created_rows
+    )
+
+    row_b1, row_b2, row_b3 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_b,
+            [
+                {link_b_c.db_column: [row_c1.id]},
+                {link_b_c.db_column: [row_c2.id]},
+                {link_b_c.db_column: [row_c1.id]},  # duplicate link to X
+            ],
+        )
+        .created_rows
+    )
+
+    (row_a1,) = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_a,
+            [{link_a_b.db_column: [row_b1.id, row_b2.id, row_b3.id]}],
+        )
+        .created_rows
+    )
+
+    lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup_bc",
+        formula=f"lookup('{link_a_b.name}', '{link_b_c.name}')",
+    )
+    unique_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="unique_bc",
+        formula="array_unique(field('lookup_bc'))",
+    )
+
+    table_a_model = table_a.get_model()
+    result = table_a_model.objects.get(id=row_a1.id)
+    unique_val = getattr(result, unique_field.db_column)
+
+    unique_values = [elem["value"] for elem in unique_val]
+    assert unique_values == ["X", "Y"]
+
+
+@pytest.mark.django_db
+def test_array_unique_rejects_non_array_input(data_fixture):
+    """array_unique on a plain text field should produce a formula error."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="name", primary=True)
+
+    with pytest.raises(InvalidFormulaType, match="array"):
+        FieldHandler().create_field(
+            user,
+            table,
+            "formula",
+            name="bad",
+            formula="array_unique(field('name'))",
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "setup_fn,error_match",
+    [
+        (_setup_file_field, "file"),
+    ],
+    ids=["file"],
+)
+def test_array_unique_rejects_unsupported_lookup(data_fixture, setup_fn, error_match):
+    """array_unique rejects lookups of unsupported field types."""
+
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    target_field, _, _ = setup_fn(data_fixture, table_b)
+
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{target_field.name}')",
+    )
+
+    with pytest.raises(InvalidFormulaType, match=error_match):
+        FieldHandler().create_field(
+            user,
+            table_a,
+            "formula",
+            name="unique_lookup",
+            formula="array_unique(field('lookup'))",
+        )

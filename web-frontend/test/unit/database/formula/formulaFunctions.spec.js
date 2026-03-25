@@ -106,6 +106,7 @@ describe('Formula Functions Test', () => {
       'index',
       'is_image',
       'tourl',
+      'array_unique',
     ]
     const frontendFunctionTypes = Object.keys(
       testApp.store.$registry.getAll('formula_function')

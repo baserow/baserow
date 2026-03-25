@@ -273,6 +273,7 @@ import {
   BaserowIndex,
   BaserowGetFileCount,
   BaserowToUrl,
+  BaserowArrayUnique,
 } from '@baserow/modules/database/formula/functions'
 import {
   BaserowFormulaArrayType,
@@ -856,6 +857,7 @@ export default defineNuxtPlugin({
     $registry.register('formula_function', new BaserowGetFileCount(context))
     $registry.register('formula_function', new BaserowIndex(context))
     $registry.register('formula_function', new BaserowToUrl(context))
+    $registry.register('formula_function', new BaserowArrayUnique(context))
 
     // Formula Types
     $registry.register('formula_type', new BaserowFormulaTextType(context))

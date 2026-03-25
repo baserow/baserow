@@ -84,6 +84,7 @@ from baserow.contrib.database.formula.expression_generator.django_expressions im
     GreaterThanExpr,
     GreaterThanOrEqualExpr,
     IsNullExpr,
+    JSONBArrayUniqueByValue,
     LessThanEqualOrExpr,
     LessThanExpr,
     NotEqualsExpr,
@@ -257,6 +258,8 @@ def register_formula_functions(registry):
     registry.register(BaserowArrayAggNoNesting())
     registry.register(BaserowGetFileCount())
     registry.register(BaserowToURL())
+    # Array utility functions
+    registry.register(BaserowArrayUnique())
     # ManyToMany functions
     registry.register(BaserowStringAggManyToManyValues())
     registry.register(BaserowManyToManyCount())
@@ -2456,6 +2459,36 @@ class BaserowGetFileCount(OneArgumentBaserowFunction):
         return Func(
             arg, function="jsonb_array_length", output_field=fields.IntegerField()
         )
+
+
+class BaserowArrayUnique(OneArgumentBaserowFunction):
+    type = "array_unique"
+    arg_type = [BaserowFormulaValidType]
+
+    def type_function(
+        self,
+        func_call: BaserowFunctionCall[UnTyped],
+        arg: BaserowExpression[BaserowFormulaValidType],
+    ) -> BaserowExpression[BaserowFormulaType]:
+        # When referencing a lookup field, unwrap_at_field_level converts it
+        # back to a "many" expression. Collapse it to an array first.
+        if arg.many:
+            arg = arg.expression_type.collapse_many(arg)
+
+        if not isinstance(arg.expression_type, BaserowFormulaArrayType):
+            return func_call.with_invalid_type(
+                "array_unique requires an array input (a lookup field)."
+            )
+
+        sub_type = arg.expression_type.sub_type
+        if not sub_type.item_is_in_nested_value_object_when_in_array:
+            return func_call.with_invalid_type(
+                "array_unique does not support file fields."
+            )
+        return func_call.with_args([arg]).with_valid_type(arg.expression_type)
+
+    def to_django_expression(self, arg: Expression) -> Expression:
+        return JSONBArrayUniqueByValue(arg)
 
 
 class BaserowFilter(TwoArgumentBaserowFunction):
