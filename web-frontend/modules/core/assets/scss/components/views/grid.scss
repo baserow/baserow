@@ -96,6 +96,69 @@
   z-index: 3;
 }
 
+// The freeze handle starts below the header (33px) so it doesn't block
+// per-field column width resize handles in the header.
+.grid-view__freeze-handle {
+  @include absolute(33px, auto, 0, auto);
+
+  width: 12px;
+  margin-left: -6px;
+  z-index: 4;
+  cursor: col-resize;
+
+  &::before {
+    content: '';
+
+    @include absolute(0, 5px, 0, 5px);
+
+    border-radius: 2px;
+    transition: background-color 0.15s ease;
+  }
+
+  &:hover::before {
+    background-color: $color-primary-500;
+  }
+
+  // During drag, extend the bar up into the header area for a full-height
+  // vertical indicator and increase z-index to stay on top.
+  &--dragging {
+    top: 0;
+    z-index: 5;
+
+    &::before {
+      background-color: $color-primary-500;
+    }
+  }
+}
+
+.grid-view__freeze-handle-icon {
+  @include absolute(auto, auto, auto, 50%);
+
+  top: 8px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border-radius: 50%;
+  background-color: $color-primary-500;
+  border: 2px solid $white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.grid-view__freeze-handle-tooltip {
+  position: absolute;
+  top: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 4px 8px;
+  background-color: $palette-neutral-1200;
+  color: $white;
+  font-size: 12px;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 10;
+}
+
 .grid-view__head {
   @include absolute(0, 0, auto, 0);
 
@@ -213,8 +276,7 @@
 
   border-right: 1px solid $palette-neutral-200;
 
-  &.grid-view__placeholder-column--no-border-right,
-  .grid-view__left & {
+  &.grid-view__placeholder-column--no-border-right {
     border-right: none;
   }
 }
@@ -337,8 +399,7 @@
     border-bottom: 0;
   }
 
-  &.grid-view__column--no-border-right,
-  .grid-view__left & {
+  &.grid-view__column--no-border-right {
     border-right: none;
   }
 

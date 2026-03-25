@@ -85,7 +85,7 @@ class GridViewType(ViewType):
     has_public_info = True
     can_group_by = True
     when_shared_publicly_requires_realtime_events = True
-    allowed_fields = ["row_identifier_type", "row_height_size"]
+    allowed_fields = ["row_identifier_type", "row_height_size", "frozen_column_count"]
     field_options_allowed_fields = [
         "width",
         "hidden",
@@ -93,7 +93,23 @@ class GridViewType(ViewType):
         "aggregation_type",
         "aggregation_raw_type",
     ]
-    serializer_field_names = ["row_identifier_type", "row_height_size"]
+    serializer_field_names = [
+        "row_identifier_type",
+        "row_height_size",
+        "frozen_column_count",
+    ]
+    serializer_field_overrides = {
+        "frozen_column_count": serializers.IntegerField(
+            min_value=1,
+            max_value=4,
+            required=False,
+            allow_null=True,
+            help_text=(
+                "Number of frozen columns including the primary field. "
+                "null means 1 (only primary). Max 4."
+            ),
+        ),
+    }
 
     api_exceptions_map = {
         GridViewAggregationDoesNotSupportField: ERROR_AGGREGATION_DOES_NOT_SUPPORTED_FIELD,
@@ -123,6 +139,7 @@ class GridViewType(ViewType):
         )
         serialized["row_identifier_type"] = grid.row_identifier_type
         serialized["row_height_size"] = grid.row_height_size
+        serialized["frozen_column_count"] = grid.frozen_column_count
 
         serialized_field_options = []
         for field_option in grid.get_field_options():

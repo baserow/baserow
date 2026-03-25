@@ -594,6 +594,11 @@ class GridView(View):
         max_length=10,
         db_default="small",
     )
+    # Number of frozen (pinned) columns including the primary field.
+    # null means 1 (only primary field frozen, the default behavior).
+    # Only stored when greater than 1 to avoid writing a value for every
+    # grid view. Max 4.
+    frozen_column_count = models.PositiveSmallIntegerField(null=True, blank=True)
 
 
 class GridViewFieldOptionsManager(models.Manager):

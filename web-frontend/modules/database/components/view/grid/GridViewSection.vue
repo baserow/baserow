@@ -46,11 +46,7 @@
         :store-prefix="storePrefix"
         @field-created="$emit('field-created', $event)"
         @refresh="$emit('refresh', $event)"
-        @dragging="
-          canOrderFields &&
-          !$event.field.primary &&
-          $refs.fieldDragging.start($event.field, $event.event)
-        "
+        @dragging="handleFieldDragging($event)"
       ></GridViewHead>
       <div
         ref="body"
@@ -268,6 +264,16 @@ export default {
       required: false,
       default: () => false,
     },
+    /**
+     * Optional external handler for field dragging. When provided, the section
+     * emits 'field-dragging' to the parent instead of using its own internal
+     * GridViewFieldDragging component. Used for cross-section dragging.
+     */
+    useExternalFieldDragging: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
     primaryFieldIsSticky: {
       type: Boolean,
       required: false,
@@ -302,6 +308,7 @@ export default {
     'row-context',
     'scroll',
     'field-created',
+    'field-dragging',
     'refresh',
   ],
   data() {
@@ -602,6 +609,14 @@ export default {
     }
   },
   methods: {
+    handleFieldDragging(event) {
+      if (!this.canOrderFields || event.field.primary) return
+      if (this.useExternalFieldDragging) {
+        this.$emit('field-dragging', event)
+      } else {
+        this.$refs.fieldDragging.start(event.field, event.event)
+      }
+    },
     /**
      * For performance reasons we only want to render the cells are visible in the
      * viewport. This method makes sure that the right cells/fields are visible. It's
