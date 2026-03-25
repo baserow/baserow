@@ -400,6 +400,16 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         if len(path) >= 1:
             field_dbname, *rest = path
         else:
+            # When path is empty, e.g. `get('data_source.606')`, we should
+            # return all fields since we don't know which specific fields
+            # are needed.
+            if service := kwargs.get("service"):
+                if field_objects := self.get_table_field_objects(service):
+                    return ["id"] + [
+                        field_object["field"].db_column
+                        for field_object in field_objects
+                    ]
+
             # In any other scenario, we have a formula that is not a format we
             # can currently parse properly, so we return an empty list.
             return []
@@ -1168,23 +1178,6 @@ class LocalBaserowListRowsUserServiceType(
             raise ServiceImproperlyConfiguredDispatchException(
                 "The selected table is trashed"
             ) from e
-
-    def extract_properties(self, path: List[str], **kwargs) -> Dict[str, List[str]]:
-        """
-        When path is empty for a list rows data source, the formula
-        e.g. `get('data_source.606')` implies that all fields are needed.
-        """
-
-        if not path:
-            if service := kwargs.get("service"):
-                if field_objects := self.get_table_field_objects(service):
-                    return ["id"] + [
-                        field_object["field"].db_column
-                        for field_object in field_objects
-                    ]
-            return []
-
-        return super().extract_properties(path, **kwargs)
 
 
 class LocalBaserowAggregateRowsUserServiceType(
