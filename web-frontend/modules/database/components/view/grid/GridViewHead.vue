@@ -163,6 +163,7 @@ export default {
       newField,
       fromField,
       undoRedoActionGroupId = null,
+      visible = null,
     }) {
       try {
         await this.$store.dispatch(
@@ -173,6 +174,7 @@ export default {
             fromField,
             undoRedoActionGroupId,
             readOnly: this.readOnly,
+            visible,
           }
         )
       } catch (error) {

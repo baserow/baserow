@@ -122,6 +122,7 @@ export default {
             position: 'right',
             fromField: this.fromField,
             undoRedoActionGroupId: this.actionGroupId,
+            visible: true,
           })
           this.onDuplicationEnd()
         }

@@ -683,7 +683,7 @@ export class GridViewType extends ViewType {
   }
 
   async afterFieldCreated(
-    { dispatch },
+    { rootGetters, dispatch },
     table,
     field,
     fieldType,
@@ -695,6 +695,12 @@ export class GridViewType extends ViewType {
       { field, value },
       { root: true }
     )
+    const viewId = rootGetters[storePrefix + 'view/grid/getLastGridId']
+    const view = rootGetters['view/get'](viewId)
+    const isPublic = view.public
+    const anyOtherFieldHidden = Object.values(
+      rootGetters[storePrefix + 'view/grid/getAllFieldOptions']
+    ).some((options) => options.hidden)
     await dispatch(
       storePrefix + 'view/grid/setFieldOptionsOfField',
       {
@@ -703,7 +709,7 @@ export class GridViewType extends ViewType {
         // model in the backend to stay consistent.
         values: {
           width: 200,
-          hidden: false,
+          hidden: isPublic || anyOtherFieldHidden,
           order: maxPossibleOrderValue,
           aggregation_type: '',
           aggregation_raw_type: '',

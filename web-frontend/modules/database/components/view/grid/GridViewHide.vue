@@ -29,7 +29,7 @@
 </template>
 
 <script>
-import { mapGetters } from 'vuex'
+import { filterHiddenFieldsFunction } from '@baserow/modules/database/utils/view'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ViewFieldsContext from '@baserow/modules/database/components/view/ViewFieldsContext'
 
@@ -60,13 +60,8 @@ export default {
   },
   computed: {
     hiddenFields() {
-      return this.fields.filter((field) => {
-        const exists = Object.prototype.hasOwnProperty.call(
-          this.fieldOptions,
-          field.id
-        )
-        return !exists || (exists && this.fieldOptions[field.id].hidden)
-      })
+      const isFieldHidden = filterHiddenFieldsFunction(this.fieldOptions)
+      return this.fields.filter((field) => isFieldHidden(field))
     },
     fieldOptions() {
       return this.$store.getters[
@@ -74,15 +69,6 @@ export default {
       ]
     },
   },
-  /*beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        fieldOptions:
-          this.$options.propsData.storePrefix + 'view/grid/getAllFieldOptions',
-      }),
-    }
-  },*/
   methods: {
     async updateAllFieldOptions({ newFieldOptions, oldFieldOptions }) {
       try {

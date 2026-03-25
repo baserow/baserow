@@ -123,7 +123,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
         <div class="grid-view__divider" style="left: 72px;"></div>
         <!--v-if-->
         <div class="grid-view__right" style="left: 72px;">
-          <div class="grid-view__inner" style="min-width: 1000px;">
+          <div class="grid-view__inner" style="min-width: 800px;">
             <div class="grid-view__head">
               <!--v-if-->
               <div class="grid-view__column" style="width: 200px;" filters="">
@@ -156,26 +156,15 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                   <div class="grid-view__description-width"></div>
                 </div>
               </div>
-              <div class="grid-view__column" style="width: 200px;" filters="">
-                <div class="grid-view__description">
-                  <div class="grid-view__description-icon-container"><i class="grid-view__description-icon baserow-icon-circle-checked"></i>
-                    <!--v-if-->
-                  </div>
-                  <div class="grid-view__description-name" title="Active"><span>Active</span></div>
-                  <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
-                  <div class="grid-view__description-width"></div>
-                </div>
-              </div>
               <div class="grid-view__column" style="width: 100px;"><a class="grid-view__add-column" data-highlight="add-field"><i class="grid-view__add-column-icon iconoir-plus"></i></a></div>
             </div>
             <div class="grid-view__body">
               <div class="grid-view__body-inner">
-                <div class="grid-view__placeholder" style="height: 33px; width: 800px;">
+                <div class="grid-view__placeholder" style="height: 33px; width: 600px;">
                   <!--v-if-->
                   <div class="grid-view__placeholder-column" style="left: 199px;"></div>
                   <div class="grid-view__placeholder-column" style="left: 399px;"></div>
                   <div class="grid-view__placeholder-column" style="left: 599px;"></div>
-                  <div class="grid-view__placeholder-column" style="left: 799px;"></div>
                 </div>
                 <!--v-if-->
                 <div class="grid-view__rows" style="transform: translateY(0px) translateX(0px); left: 0px;">
@@ -193,8 +182,8 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                     </div>
                   </div>
                 </div>
-                <div class="grid-view__row" style="width: 800px; height: 33px;">
-                  <div class="grid-view__column" style="width: 800px; height: 33px;"><a class="grid-view__add-row">
+                <div class="grid-view__row" style="width: 600px; height: 33px;">
+                  <div class="grid-view__column" style="width: 600px; height: 33px;"><a class="grid-view__add-row">
                       <!--v-if-->
                     </a></div>
                 </div>
@@ -202,11 +191,6 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             </div>
             <div class="grid-view__foot">
               <!--v-if-->
-              <div style="width: 200px;">
-                <div class="grid-view-aggregation">
-                  <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
-                </div>
-              </div>
               <div style="width: 200px;">
                 <div class="grid-view-aggregation">
                   <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
@@ -230,8 +214,8 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           </div>
         </div>
         <div class="grid-view__row-dragging-container" style="left: 0px; display: none;">
-          <div class="grid-view__row-dragging" style="width: 872px; top: 0px;"></div>
-          <div class="grid-view__row-target" style="width: 872px; top: 0px;"></div>
+          <div class="grid-view__row-dragging" style="width: 672px; top: 0px;"></div>
+          <div class="grid-view__row-target" style="width: 672px; top: 0px;"></div>
         </div>
       </div>
       <!--v-if-->
@@ -364,7 +348,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
         <div class="grid-view__divider" style="left: 72px;"></div>
         <!--v-if-->
         <div class="grid-view__right" style="left: 72px;">
-          <div class="grid-view__inner" style="min-width: 1000px;">
+          <div class="grid-view__inner" style="min-width: 800px;">
             <div class="grid-view__head">
               <!--v-if-->
               <div class="grid-view__column" style="width: 200px;" filters="">
@@ -397,26 +381,15 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                   <div class="grid-view__description-width"></div>
                 </div>
               </div>
-              <div class="grid-view__column" style="width: 200px;" filters="">
-                <div class="grid-view__description">
-                  <div class="grid-view__description-icon-container"><i class="grid-view__description-icon baserow-icon-circle-checked"></i>
-                    <!--v-if-->
-                  </div>
-                  <div class="grid-view__description-name" title="Active"><span>Active</span></div>
-                  <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
-                  <div class="grid-view__description-width"></div>
-                </div>
-              </div>
               <div class="grid-view__column" style="width: 100px;"><a class="grid-view__add-column" data-highlight="add-field"><i class="grid-view__add-column-icon iconoir-plus"></i></a></div>
             </div>
             <div class="grid-view__body">
               <div class="grid-view__body-inner">
-                <div class="grid-view__placeholder" style="height: 66px; width: 800px;">
+                <div class="grid-view__placeholder" style="height: 66px; width: 600px;">
                   <!--v-if-->
                   <div class="grid-view__placeholder-column" style="left: 199px;"></div>
                   <div class="grid-view__placeholder-column" style="left: 399px;"></div>
                   <div class="grid-view__placeholder-column" style="left: 599px;"></div>
-                  <div class="grid-view__placeholder-column" style="left: 799px;"></div>
                 </div>
                 <!--v-if-->
                 <div class="grid-view__rows" style="transform: translateY(0px) translateX(0px); left: 0px;">
@@ -434,8 +407,8 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                     </div>
                   </div>
                 </div>
-                <div class="grid-view__row" style="width: 800px; height: 33px;">
-                  <div class="grid-view__column" style="width: 800px; height: 33px;"><a class="grid-view__add-row">
+                <div class="grid-view__row" style="width: 600px; height: 33px;">
+                  <div class="grid-view__column" style="width: 600px; height: 33px;"><a class="grid-view__add-row">
                       <!--v-if-->
                     </a></div>
                 </div>
@@ -443,11 +416,6 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             </div>
             <div class="grid-view__foot">
               <!--v-if-->
-              <div style="width: 200px;">
-                <div class="grid-view-aggregation">
-                  <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
-                </div>
-              </div>
               <div style="width: 200px;">
                 <div class="grid-view-aggregation">
                   <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
@@ -471,8 +439,8 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           </div>
         </div>
         <div class="grid-view__row-dragging-container" style="left: 0px; display: none;">
-          <div class="grid-view__row-dragging" style="width: 872px; top: 0px;"></div>
-          <div class="grid-view__row-target" style="width: 872px; top: 0px;"></div>
+          <div class="grid-view__row-dragging" style="width: 672px; top: 0px;"></div>
+          <div class="grid-view__row-target" style="width: 672px; top: 0px;"></div>
         </div>
       </div>
       <!--v-if-->

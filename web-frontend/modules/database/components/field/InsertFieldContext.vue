@@ -59,6 +59,7 @@ export default {
         position: this.position,
         fromField: this.fromField,
         undoRedoActionGroupId,
+        visible: true, // when inserting a new field, it should always be visible
       })
     },
     toggle(ref, position) {

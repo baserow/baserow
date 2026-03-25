@@ -102,10 +102,10 @@ test *ARGS:
 ci-test:
     yarn test:coverage
 
-# Update Jest snapshots
+# Update Vitest snapshots
 [group('3 - testing')]
 update-snapshots:
-    yarn test --update
+    EXTRA_VITEST_PARAMS="--update" yarn test
 
 # =============================================================================
 # Development

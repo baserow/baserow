@@ -1529,6 +1529,7 @@ export const actions = {
       fromField,
       undoRedoActionGroupId = null,
       readOnly = false,
+      visible = null,
     }
   ) {
     const { $registry, $client, $i18n, $config } = this
@@ -1566,6 +1567,9 @@ export const actions = {
         // Update all other field order
         options.order = index
         index += 1
+      } else if (visible !== null) {
+        // Make the moved field visible if the `visible` parameter is not null
+        newFieldOptions[fieldId].hidden = !visible
       }
     })
 
