@@ -246,6 +246,9 @@ class DataSourceDataProviderType(BuilderDataProviderType):
         service_type = data_source.service.specific.get_type()
 
         if service_type.returns_list:
+            if not rest:
+                return {}
+
             # We remove the row id from the path
             _, *rest = rest
 
