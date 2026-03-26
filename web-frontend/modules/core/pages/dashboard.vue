@@ -44,9 +44,8 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
-import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { useNuxtApp, navigateTo } from '#imports'
+import { useNuxtApp } from '#imports'
 
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
 import DashboardVerifyEmail from '@baserow/modules/core/components/dashboard/DashboardVerifyEmail'
@@ -60,11 +59,11 @@ definePageMeta({
     'impersonate',
     'workspacesAndApplications',
     'pendingJobs',
+    'dashboardRedirect',
   ],
 })
 
 const store = useStore()
-const route = useRoute()
 const { t } = useI18n()
 const { $hasPermission } = useNuxtApp()
 
@@ -74,29 +73,6 @@ const workspaceInvitations = computed(
   () => store.getters['auth/getWorkspaceInvitations']
 )
 
-const selectedWorkspace = computed(() => store.getters['workspace/getSelected'])
-const allWorkspaces = computed(() => store.getters['workspace/getAll'])
-
-// Handle redirect logic
-if (Object.keys(selectedWorkspace.value).length > 0) {
-  await navigateTo(
-    {
-      name: 'workspace',
-      params: { workspaceId: selectedWorkspace.value.id },
-      query: route.query,
-    },
-    { replace: true }
-  )
-} else if (allWorkspaces.value?.length > 0) {
-  await navigateTo(
-    {
-      name: 'workspace',
-      params: { workspaceId: allWorkspaces.value[0].id },
-      query: route.query,
-    },
-    { replace: true }
-  )
-} else {
-  await store.dispatch('auth/fetchWorkspaceInvitations')
-}
+// If we reach here, no workspace redirect happened — fetch invitations
+await store.dispatch('auth/fetchWorkspaceInvitations')
 </script>
