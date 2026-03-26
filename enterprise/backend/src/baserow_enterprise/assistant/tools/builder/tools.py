@@ -16,7 +16,7 @@ from pydantic_ai.toolsets import FunctionToolset
 
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow_enterprise.assistant.deps import AssistantDeps
-from baserow_enterprise.assistant.tools.core.types import (
+from baserow_enterprise.assistant.tools.builder.themes import (
     THEME_CATALOG,
     ThemeName,
     apply_theme,
@@ -1527,7 +1527,15 @@ def set_theme(
         % {"theme": theme_name, "app": builder.name}
     )
 
-    apply_theme(builder, theme_name, user=user)
+    applied = apply_theme(builder, theme_name, user=user)
+
+    if not applied:
+        return {
+            "status": "error",
+            "application_id": application_id,
+            "theme": theme_name,
+            "error": f"Theme template '{theme_name}' could not be loaded.",
+        }
 
     return {
         "status": "ok",

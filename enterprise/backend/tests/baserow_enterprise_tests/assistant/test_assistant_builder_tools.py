@@ -833,6 +833,7 @@ def test_set_theme(data_fixture, monkeypatch):
         applied["builder"] = builder_instance
         applied["theme"] = theme_name
         applied["user"] = user
+        return True
 
     monkeypatch.setattr(
         "baserow_enterprise.assistant.tools.builder.tools.apply_theme",
@@ -851,6 +852,25 @@ def test_set_theme(data_fixture, monkeypatch):
     assert result["theme"] == "eclipse"
     assert applied["theme"] == "eclipse"
     assert applied["builder"].id == builder.id
+
+
+@pytest.mark.django_db
+def test_apply_theme_function(data_fixture):
+    """apply_theme should update theme properties on an existing builder."""
+
+    from baserow_enterprise.assistant.tools.builder.themes import apply_theme
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+
+    # Before: default color
+    original_color = builder.colorthemeconfigblock.primary_color
+
+    apply_theme(builder, "eclipse")
+
+    builder.colorthemeconfigblock.refresh_from_db()
+    assert builder.colorthemeconfigblock.primary_color != original_color
 
 
 # ===========================================================================
