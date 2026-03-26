@@ -3559,19 +3559,12 @@
   dependencies:
     "@types/node" "*"
 
-"@types/node@*":
-  version "25.0.6"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-25.0.6.tgz#5ca3c46f2b256b59128f433426e42d464765dab1"
-  integrity sha512-NNu0sjyNxpoiW3YuVFfNz7mxSQ+S4X2G28uqg2s+CzoqoQjLPsWSbsFFyztIAqt2vb8kfEAsJNepMGPTxFDx3Q==
+"@types/node@*", "@types/node@>=20.0.0":
+  version "25.5.0"
+  resolved "https://registry.yarnpkg.com/@types/node/-/node-25.5.0.tgz#5c99f37c443d9ccc4985866913f1ed364217da31"
+  integrity sha512-jp2P3tQMSxWugkCUKLRPVUpGaL5MVFwF8RDuSRztfwgN1wmqJeMSbKlnEtQqU8UrhTmzEmZdu2I6v2dpp7XIxw==
   dependencies:
-    undici-types "~7.16.0"
-
-"@types/node@^20.0.0":
-  version "20.19.28"
-  resolved "https://registry.yarnpkg.com/@types/node/-/node-20.19.28.tgz#d968c492e405e4a572f5c27e4f5efc24f0eb9937"
-  integrity sha512-VyKBr25BuFDzBFCK5sUM6ZXiWfqgCTwTAOK8qzGV/m9FCirXYDlmczJ+d5dXBAQALGCdRRdbteKYfJ84NGEusw==
-  dependencies:
-    undici-types "~6.21.0"
+    undici-types "~7.18.0"
 
 "@types/parse-path@^7.0.0":
   version "7.1.0"
@@ -6011,10 +6004,10 @@ entities@^4.2.0, entities@^4.4.0:
   resolved "https://registry.yarnpkg.com/entities/-/entities-4.5.0.tgz#5d268ea5e7113ec74c4d033b79ea5a35a488fb48"
   integrity sha512-V0hjH4dGPh9Ao5p0MoRY6BVqtwCjhz6vI5LT8AJ55H+4g9/4vbHx1I54fS0XuclLhDHArPQCiMjDxjaL8fPxhw==
 
-entities@^7.0.0:
-  version "7.0.0"
-  resolved "https://registry.yarnpkg.com/entities/-/entities-7.0.0.tgz#2ae4e443f3f17d152d3f5b0f79b932c1e59deb7a"
-  integrity sha512-FDWG5cmEYf2Z00IkYRhbFrwIwvdFKH07uV8dvNy0omp/Qb1xcyCWp2UDtcwJF4QZZvk0sLudP6/hAu42TaqVhQ==
+entities@^7.0.0, entities@^7.0.1:
+  version "7.0.1"
+  resolved "https://registry.yarnpkg.com/entities/-/entities-7.0.1.tgz#26e8a88889db63417dcb9a1e79a3f1bc92b5976b"
+  integrity sha512-TWrgLOFUQTH994YUyl1yT4uyavY5nNB5muff+RtWaqNVCAK408b5ZnnbNAUEWLTCpum9w6arT70i1XdQ4UeOPA==
 
 entities@~3.0.1:
   version "3.0.1"
@@ -6998,14 +6991,15 @@ h3@^1.12.0, h3@^1.15.4:
     ufo "^1.6.3"
     uncrypto "^0.1.3"
 
-happy-dom@^20.0.11:
-  version "20.1.0"
-  resolved "https://registry.yarnpkg.com/happy-dom/-/happy-dom-20.1.0.tgz#bb85b1fa696a0780bc3665a137bd8da04a4337eb"
-  integrity sha512-ebvqjBqzenBk2LjzNEAzoj7yhw7rW/R2/wVevMu6Mrq3MXtcI/RUz4+ozpcOcqVLEWPqLfg2v9EAU7fFXZUUJw==
+happy-dom@^20.8.8:
+  version "20.8.8"
+  resolved "https://registry.yarnpkg.com/happy-dom/-/happy-dom-20.8.8.tgz#ad87a83340161943d7f7425dae9ca237b6cd4bc7"
+  integrity sha512-5/F8wxkNxYtsN0bXfMwIyNLZ9WYsoOYPbmoluqVJqv8KBUbcyKZawJ7uYK4WTX8IHBLYv+VXIwfeNDPy1oKMwQ==
   dependencies:
-    "@types/node" "^20.0.0"
+    "@types/node" ">=20.0.0"
     "@types/whatwg-mimetype" "^3.0.2"
     "@types/ws" "^8.18.1"
+    entities "^7.0.1"
     whatwg-mimetype "^3.0.0"
     ws "^8.18.3"
 
@@ -11123,15 +11117,10 @@ unctx@^2.3.1, unctx@^2.4.1, unctx@^2.5.0:
     magic-string "^0.30.21"
     unplugin "^2.3.11"
 
-undici-types@~6.21.0:
-  version "6.21.0"
-  resolved "https://registry.yarnpkg.com/undici-types/-/undici-types-6.21.0.tgz#691d00af3909be93a7faa13be61b3a5b50ef12cb"
-  integrity sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==
-
-undici-types@~7.16.0:
-  version "7.16.0"
-  resolved "https://registry.yarnpkg.com/undici-types/-/undici-types-7.16.0.tgz#ffccdff36aea4884cbfce9a750a0580224f58a46"
-  integrity sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw==
+undici-types@~7.18.0:
+  version "7.18.2"
+  resolved "https://registry.yarnpkg.com/undici-types/-/undici-types-7.18.2.tgz#29357a89e7b7ca4aef3bf0fd3fd0cd73884229e9"
+  integrity sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==
 
 unenv@^2.0.0-rc.24:
   version "2.0.0-rc.24"
