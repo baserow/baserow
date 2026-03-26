@@ -101,7 +101,7 @@ def list_pages(
         _("Listing pages in %(app_name)s...") % {"app_name": builder.name}
     )
 
-    pages = helpers.list_pages(builder)
+    pages = helpers.list_pages(user, builder)
 
     user_sources = UserSourceHandler().get_user_sources(builder)
     user_source_data = []
@@ -155,7 +155,7 @@ def create_pages(
     builder = helpers.get_builder(user, workspace, application_id)
 
     # Skip duplicates
-    existing = {p.name.lower(): p for p in helpers.list_pages(builder)}
+    existing = {p.name.lower(): p for p in helpers.list_pages(user, builder)}
     created_pages: list[PageItem] = []
     skipped_pages: list[PageItem] = []
 
@@ -267,7 +267,7 @@ def list_data_sources(
         _("Listing data sources on %(name)s...") % {"name": page.name}
     )
 
-    ds_list = helpers.list_data_sources(page)
+    ds_list = helpers.list_data_sources(user, page)
     return {"data_sources": [ds.model_dump() for ds in ds_list]}
 
 
@@ -310,9 +310,9 @@ def create_data_sources(
         return {"created_data_sources": [], "ref_to_id_map": {}}
 
     page = helpers.get_page(user, page_id)
-    integration = helpers.get_local_baserow_integration(page.builder)
+    integration = helpers.get_local_baserow_integration(user, page.builder)
 
-    existing_ds = helpers.list_data_sources(page)
+    existing_ds = helpers.list_data_sources(user, page)
     existing_by_name = {ds.name.lower(): ds for ds in existing_ds}
     ref_to_id: dict[str, int] = {}
     created: list[dict] = []
@@ -454,7 +454,7 @@ def list_elements(
         _("Listing elements on %(name)s...") % {"name": page.name}
     )
 
-    elements = helpers.list_elements(page)
+    elements = helpers.list_elements(user, page)
     return {"elements": [el.model_dump() for el in elements]}
 
 
@@ -961,7 +961,7 @@ def list_actions(
         _("Listing actions on %(name)s...") % {"name": page.name}
     )
 
-    actions = helpers.list_workflow_actions(page)
+    actions = helpers.list_workflow_actions(user, page)
     return {"workflow_actions": [a.model_dump() for a in actions]}
 
 
@@ -1009,7 +1009,7 @@ def create_actions(
         return {"created_actions": []}
 
     page = helpers.get_page(user, page_id)
-    integration = helpers.get_local_baserow_integration(page.builder)
+    integration = helpers.get_local_baserow_integration(user, page.builder)
 
     el_refs = _get_element_refs(tool_helpers, page_id)
     ds_refs = _get_data_source_refs(tool_helpers, page_id)
@@ -1078,7 +1078,9 @@ def add_action_field_mapping(
         _("Adding field mapping to action %(id)d...") % {"id": action_id}
     )
 
-    return helpers.add_field_mapping_to_action(action_id, field_id, value_formula)
+    return helpers.add_field_mapping_to_action(
+        ctx.deps.user, action_id, field_id, value_formula
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1104,7 +1106,7 @@ def _setup_data_sources(
     if not data_sources:
         return created, errors
 
-    existing_ds = helpers.list_data_sources(page)
+    existing_ds = helpers.list_data_sources(user, page)
     existing_by_name = {ds.name.lower(): ds for ds in existing_ds}
     ds_pairs: list[tuple] = []
 
@@ -1338,7 +1340,7 @@ def setup_page(
 
     page = helpers.get_page(user, page_id)
     shared_page = PageHandler().get_shared_page(page.builder)
-    integration = helpers.get_local_baserow_integration(page.builder)
+    integration = helpers.get_local_baserow_integration(user, page.builder)
 
     ds_ref_to_id: dict[str, int] = _get_data_source_refs(tool_helpers, page_id)
     el_ref_to_id: dict[str, int] = _get_element_refs(tool_helpers, page_id)
@@ -1441,7 +1443,7 @@ def setup_user_source(
         return {"error": f"Could not find application: {exc}"}
 
     tool_helpers.update_status(_("Setting up user source..."))
-    integration = helpers.get_local_baserow_integration(builder)
+    integration = helpers.get_local_baserow_integration(user, builder)
 
     try:
         with transaction.atomic():
@@ -1513,9 +1515,16 @@ TOOL_FUNCTIONS = [
 builder_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
 
 ROUTING_RULES = """\
-- Check list_* before create_* to avoid duplicates.
+- New page with content: call create_pages first, then setup_page for the NEW page. If elements don't fit the current page context, ask which page to target.
 - switch_mode: switch domain if task needs tools not in the current mode.
-- Builder workflow actions (button/form actions) → use create_actions, NOT load_row_tools.
-- Builder apps that need tables: switch_mode("database") → create_tables → switch_mode("application") → create_pages → setup_page for each page.
-- Builder completeness: every data page needs a data source. Table/repeat elements must specify columns. Forms need inputs + submit action. No page left empty.
-- User authentication: if the app needs login/roles, call setup_user_source before creating pages with visibility="logged-in"."""
+- Use setup_page when creating all content for a page at once. Use individual tools (create_data_sources, create_*_elements, create_actions) when adding to or modifying a page that already has content.
+- Button/form actions (click, submit) → create_actions. Do NOT switch to database mode to use load_row_tools for this — that is for direct database CRUD, not builder page behavior.
+- switch_mode when the task needs tools from another domain. Examples:
+  - Filtering: switch_mode("database") → create_views + create_view_filters → switch_mode("application") → create_data_sources with view_id.
+  - New tables for an app: switch_mode("database") → create_tables → switch_mode("application") → create_pages → setup_page.
+- User authentication: if the app needs login/roles, call setup_user_source before creating pages with visibility="logged-in".
+- Completeness checks before finishing:
+  - Every page that displays data needs at least one data source.
+  - Table/repeat elements must specify their columns/fields.
+  - Forms need input elements + a submit action (create_row or update_row).
+  - Buttons and links need a click action (open_page, notification, etc.)."""

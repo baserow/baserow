@@ -2,6 +2,7 @@ import re
 
 import pytest
 
+from baserow.contrib.builder.data_sources.models import DataSource
 from baserow.contrib.builder.elements.models import (
     Element,
     MenuItemElement,
@@ -89,6 +90,17 @@ PROMPT_TABLE_WITH_EDIT_BUTTON = (
     "On the List page, add a list_rows data source for table '{table_name}', "
     "then add a table element showing columns for {field_names}. "
     "Add an Edit button that links to the Edit page, passing the row id."
+)
+
+PROMPT_CREATE_LANDING_PAGE_WITH_EXISTING = (
+    "Create a landing page with a heading, description, "
+    "and CTA button for my {builder_name}"
+)
+
+PROMPT_FILTERED_DATA_SOURCE = (
+    "In builder '{builder_name}', create a page called 'Pending Tasks' at "
+    "'/pending'. Show only tasks where Status is 'Pending' from the "
+    "'{table_name}' table in a table element with columns for Name and Status."
 )
 
 
@@ -959,4 +971,228 @@ def test_agent_creates_table_with_edit_button(data_fixture, eval_model):
                 f"{action.specific.navigate_to_page_id if action else None}, "
                 f"expected={edit_page.id if edit_page else None}"
             ),
+        )
+
+
+# ---------------------------------------------------------------------------
+# Filtered data source via view eval
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.eval
+@pytest.mark.django_db(transaction=True)
+def test_agent_creates_filtered_data_source_via_view(data_fixture, eval_model):
+    """Agent should switch to database mode to create a filtered view, then
+    switch back to application mode to create a data source referencing it.
+
+    Scenario: Tasks table with a Status single_select field. User wants a page
+    showing only 'Pending' tasks. The agent should:
+    1. switch_mode("database")
+    2. create_views (grid view for the filter)
+    3. create_view_filters (Status = Pending)
+    4. switch_mode("application")
+    5. create a data source with the view_id
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    database = data_fixture.create_database_application(
+        user=user, workspace=workspace, name="Project DB"
+    )
+    table = data_fixture.create_database_table(
+        user=user, database=database, name="Tasks"
+    )
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+    status_field = data_fixture.create_single_select_field(table=table, name="Status")
+    data_fixture.create_select_option(
+        field=status_field, value="Pending", color="light-orange"
+    )
+    data_fixture.create_select_option(
+        field=status_field, value="Done", color="light-green"
+    )
+
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=workspace, name="Task App"
+    )
+
+    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
+        user, workspace, max_iters=30, model=eval_model
+    )
+    ui_context = build_builder_ui_context(user, workspace, builder)
+
+    result = _run_agent(
+        agent,
+        deps,
+        tracker,
+        model,
+        usage_limits,
+        toolset,
+        question=PROMPT_FILTERED_DATA_SOURCE.format(
+            builder_name=builder.name,
+            table_name=table.name,
+        ),
+        ui_context=ui_context,
+    )
+
+    from baserow.contrib.database.views.models import View, ViewFilter
+
+    print_message_history(result)
+    err_count, err_hint = count_tool_errors(result)
+
+    # Check tool call sequence
+    switch_mode_calls = _filter_tool_calls(result, "switch_mode")
+
+    switched_to_db = any(c["args"].get("mode") == "database" for c in switch_mode_calls)
+    switched_back_to_app = any(
+        c["args"].get("mode") == "application" for c in switch_mode_calls
+    )
+
+    # Verify DB state: view + filter created on the Tasks table
+    views = View.objects.filter(table=table)
+    view_filters = ViewFilter.objects.filter(view__table=table, field=status_field)
+
+    # Verify DB state: data source service has a view FK set
+    pages = Page.objects.filter(builder=builder, shared=False)
+    data_sources = DataSource.objects.filter(page__builder=builder, page__shared=False)
+    ds_view_ids = []
+    for ds in data_sources:
+        service = ds.service.specific if ds.service else None
+        if service and hasattr(service, "view_id") and service.view_id:
+            ds_view_ids.append(service.view_id)
+
+    with EvalChecklist("filtered data source via view") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "switched to database mode",
+            switched_to_db,
+            hint=f"switch_mode calls: {[c['args'] for c in switch_mode_calls]}",
+        )
+        checks.check(
+            "view created on Tasks table",
+            views.exists(),
+            hint=f"views for table: {list(views.values_list('name', flat=True))}",
+        )
+        checks.check(
+            "view filter on Status field",
+            view_filters.exists(),
+            hint=f"view_filters: {list(view_filters.values_list('field__name', 'value'))}",
+        )
+        checks.check(
+            "switched back to application mode",
+            switched_back_to_app,
+            hint=f"switch_mode calls: {[c['args'] for c in switch_mode_calls]}",
+        )
+        checks.check(
+            "page created",
+            pages.exists(),
+            hint=f"pages: {list(pages.values_list('name', flat=True))}",
+        )
+        checks.check(
+            "data source in DB has view set",
+            len(ds_view_ids) >= 1,
+            hint=f"data source view_ids in DB: {ds_view_ids}",
+        )
+
+
+# ---------------------------------------------------------------------------
+# New page vs modifying existing page eval
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.eval
+@pytest.mark.django_db(transaction=True)
+def test_agent_creates_new_page_not_modifies_existing(data_fixture, eval_model):
+    """Agent should create a NEW landing page, not add elements to an existing page.
+
+    Scenario: Builder already has a Home page with some content. User asks to
+    "create a landing page". The agent should create a new page rather than
+    modifying the existing Home page.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(
+        user=user, workspace=workspace, name="Back to Local"
+    )
+    home_page = data_fixture.create_builder_page(builder=builder, name="Home", path="/")
+    # Pre-populate with existing content so the agent sees it's not empty
+    data_fixture.create_builder_heading_element(page=home_page, value="'Welcome Home'")
+    data_fixture.create_builder_text_element(
+        page=home_page, value="'Existing content on the home page.'"
+    )
+
+    agent, deps, tracker, model, usage_limits, toolset = create_eval_assistant(
+        user, workspace, max_iters=25, model=eval_model
+    )
+    ui_context = build_builder_ui_context(user, workspace, builder)
+
+    result = _run_agent(
+        agent,
+        deps,
+        tracker,
+        model,
+        usage_limits,
+        toolset,
+        question=PROMPT_CREATE_LANDING_PAGE_WITH_EXISTING.format(
+            builder_name=builder.name,
+        ),
+        ui_context=ui_context,
+    )
+
+    print_message_history(result)
+    err_count, err_hint = count_tool_errors(result)
+
+    # Check that a new page was created (not just the existing Home)
+    pages = Page.objects.filter(builder=builder, shared=False)
+    new_pages = pages.exclude(id=home_page.id)
+
+    # Check elements were added to the NEW page, not the existing Home
+    home_elements_after = Element.objects.filter(page=home_page)
+    new_page_elements = (
+        Element.objects.filter(page=new_pages.first())
+        if new_pages.exists()
+        else Element.objects.none()
+    )
+
+    # The home page started with 2 elements — if more were added, the agent
+    # modified it instead of creating a new page
+    home_element_count_before = 2
+    home_was_modified = home_elements_after.count() > home_element_count_before
+
+    # Check create_pages was called (not just setup_page on existing page)
+    create_page_calls = _filter_tool_calls(result, "create_pages")
+    setup_page_calls = _filter_tool_calls(result, "setup_page")
+
+    # If setup_page was called, check it targeted a new page, not home_page
+    setup_targeted_home = any(
+        c["args"].get("page_id") == home_page.id for c in setup_page_calls
+    )
+
+    with EvalChecklist("creates new page not modifies existing") as checks:
+        checks.check("no tool errors", err_count == 0, hint=err_hint)
+        checks.check(
+            "called create_pages",
+            len(create_page_calls) >= 1,
+            hint=f"tools: {[e.get('tool_name') for e in format_message_history(result) if e.get('tool_name')]}",
+        )
+        checks.check(
+            "new page exists in DB",
+            new_pages.exists(),
+            hint=f"all pages: {list(pages.values_list('name', flat=True))}",
+        )
+        checks.check(
+            "new page has elements",
+            new_page_elements.count() >= 2,
+            hint=f"new page elements: {new_page_elements.count()}",
+        )
+        checks.check(
+            "home page was NOT modified",
+            not home_was_modified,
+            hint=f"home page elements: {home_elements_after.count()} (started with {home_element_count_before})",
+        )
+        checks.check(
+            "setup_page did NOT target existing Home page",
+            not setup_targeted_home,
+            hint=f"setup_page page_ids: {[c['args'].get('page_id') for c in setup_page_calls]}",
         )

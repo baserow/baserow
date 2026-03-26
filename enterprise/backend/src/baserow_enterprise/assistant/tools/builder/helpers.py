@@ -16,11 +16,10 @@ from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.models import Builder
+from baserow.contrib.builder.operations import ListPagesBuilderOperationType
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
-from baserow.contrib.builder.workflow_actions.handler import (
-    BuilderWorkflowActionHandler,
-)
+from baserow.contrib.builder.pages.service import PageService
 from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
@@ -28,9 +27,9 @@ from baserow.contrib.builder.workflow_actions.service import (
     BuilderWorkflowActionService,
 )
 from baserow.core.handler import CoreHandler
-from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
 from baserow.core.integrations.registries import integration_type_registry
+from baserow.core.integrations.service import IntegrationService
 from baserow.core.models import Workspace
 from baserow.core.service import CoreService
 from baserow.core.services.registries import service_type_registry
@@ -88,37 +87,25 @@ def get_page(user: AbstractUser, page_id: int) -> Page:
     """Get a page with permission check."""
 
     try:
-        page = PageHandler().get_page(page_id)
+        return PageService().get_page(user, page_id)
     except Exception:
         raise ToolInputError(
-            f"Page with ID {page_id} not found. Use list_pages to find valid page IDs."
+            f"Page with ID {page_id} not found or not accessible. "
+            "Use list_pages to find valid page IDs."
         )
-    try:
-        CoreHandler().check_permissions(
-            user,
-            "builder.page.read",
-            workspace=page.builder.workspace,
-            context=page,
-        )
-    except Exception:
-        raise ToolInputError(
-            f"No access to page {page_id}. "
-            "Use list_pages to find pages in the current workspace."
-        )
-    return page
 
 
-def get_local_baserow_integration(builder: Builder) -> Integration:
+def get_local_baserow_integration(user: AbstractUser, builder: Builder) -> Integration:
     """Get or create the LocalBaserow integration for a builder."""
 
-    integrations = IntegrationHandler().get_integrations(builder)
+    integrations = IntegrationService().get_integrations(user, builder)
     for integration in integrations:
         if integration.get_type().type == "local_baserow":
             return integration.specific
 
     local_baserow_type = integration_type_registry.get("local_baserow")
-    return IntegrationHandler().create_integration(
-        local_baserow_type, builder, name="Local Baserow"
+    return IntegrationService().create_integration(
+        user, local_baserow_type, builder, name="Local Baserow"
     )
 
 
@@ -127,37 +114,43 @@ def get_local_baserow_integration(builder: Builder) -> Integration:
 # ---------------------------------------------------------------------------
 
 
-def list_pages(builder: Builder) -> list[PageItem]:
+def list_pages(user: AbstractUser, builder: Builder) -> list[PageItem]:
     """List all non-shared pages in a builder."""
-    pages = PageHandler().get_pages(builder).filter(shared=False)
+    pages = CoreHandler().filter_queryset(
+        user,
+        ListPagesBuilderOperationType.type,
+        PageHandler().get_pages(builder, Page.objects.filter(shared=False)),
+        workspace=builder.workspace,
+    )
     return [PageItem.from_orm(p) for p in pages]
 
 
-def list_data_sources(page: Page) -> list[DataSourceItem]:
+def list_data_sources(user: AbstractUser, page: Page) -> list[DataSourceItem]:
     """List all data sources on a page."""
     return [
-        DataSourceItem.from_orm(ds) for ds in DataSourceHandler().get_data_sources(page)
+        DataSourceItem.from_orm(ds)
+        for ds in DataSourceService().get_data_sources(user, page)
     ]
 
 
-def list_elements(page: Page) -> list[ElementItem]:
+def list_elements(user: AbstractUser, page: Page) -> list[ElementItem]:
     """List all elements on a page, including shared elements visible on it."""
-    elements = list(ElementHandler().get_elements(page))
+    elements = list(ElementService().get_elements(user, page))
 
     # Also include shared elements (headers/footers) visible on this page
     if not page.shared:
         shared_page = page.builder.shared_page
-        shared_elements = ElementHandler().get_elements(shared_page)
+        shared_elements = ElementService().get_elements(user, shared_page)
         elements = list(shared_elements) + elements
 
     return [ElementItem.from_orm(el) for el in elements]
 
 
-def list_workflow_actions(page: Page) -> list[ActionItem]:
+def list_workflow_actions(user: AbstractUser, page: Page) -> list[ActionItem]:
     """List all workflow actions on a page."""
     return [
         ActionItem.from_orm(a)
-        for a in BuilderWorkflowActionHandler().get_workflow_actions(page)
+        for a in BuilderWorkflowActionService().get_workflow_actions(user, page)
     ]
 
 
@@ -284,7 +277,6 @@ def update_data_source(
     Returns ``(orm_data_source, service_type_str)``.
     """
 
-    from baserow.contrib.builder.data_sources.handler import DataSourceHandler
     from baserow.core.services.registries import service_type_registry
 
     try:
@@ -715,7 +707,7 @@ def create_table_button_actions(
 
 
 def add_field_mapping_to_action(
-    action_id: int, field_id: int, value_formula: str
+    user: AbstractUser, action_id: int, field_id: int, value_formula: str
 ) -> dict[str, Any]:
     """Add or update a field mapping on a create_row/update_row workflow action."""
 
@@ -727,7 +719,7 @@ def add_field_mapping_to_action(
         BaserowFormulaObject,
     )
 
-    action = BuilderWorkflowActionHandler().get_workflow_action(action_id)
+    action = BuilderWorkflowActionService().get_workflow_action(user, action_id)
     action_type = action.get_type().type
 
     if action_type not in ("create_row", "update_row"):

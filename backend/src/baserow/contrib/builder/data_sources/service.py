@@ -63,12 +63,15 @@ class DataSourceService:
 
         return data_source
 
-    def get_data_sources(self, user: AbstractUser, page: Page) -> List[DataSource]:
+    def get_data_sources(
+        self, user: AbstractUser, page: Page, with_shared: bool = False
+    ) -> List[DataSource]:
         """
         Gets all the data_sources of a given page visible to the given user.
 
         :param user: The user trying to get the data_sources.
         :param page: The page that holds the data_sources.
+        :param with_shared: Whether shared data sources should be included in the result.
         :return: The data_sources of that page.
         """
 
@@ -86,7 +89,11 @@ class DataSourceService:
             workspace=page.builder.workspace,
         )
 
-        return self.handler.get_data_sources(page, base_queryset=user_data_sources)
+        return self.handler.get_data_sources(
+            page,
+            base_queryset=user_data_sources,
+            with_shared=with_shared,
+        )
 
     def get_builder_data_sources(
         self, user: AbstractUser, builder: "Builder", with_cache=False

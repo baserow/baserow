@@ -358,16 +358,13 @@ def _table_orm(el: "ElementItemCreate", user, page) -> dict:
         kwargs["fields"] = _convert_table_fields(el)
     elif el.data_source:
         # Auto-generate default fields from data source
-        from baserow.contrib.builder.data_sources.handler import DataSourceHandler
-        from baserow.contrib.builder.data_sources.models import DataSource
+        from baserow.contrib.builder.data_sources.service import DataSourceService
 
         data_source = next(
             iter(
-                DataSourceHandler().get_data_sources(
-                    page,
-                    base_queryset=DataSource.objects.filter(id=el.data_source),
-                    with_shared=True,
-                )
+                DataSourceService()
+                .get_data_sources(user, page, with_shared=True)
+                .filter(id=el.data_source)
             ),
             None,
         )
@@ -521,7 +518,7 @@ def _table_post_create(el: "ElementItemCreate", user, orm_element, page) -> list
         get_local_baserow_integration,
     )
 
-    integration = get_local_baserow_integration(page.builder)
+    integration = get_local_baserow_integration(user, page.builder)
     action_pairs = create_table_button_actions(user, page, orm_element, el, integration)
 
     # Auto-enable filter/sort/search for text columns referencing real fields.
@@ -1537,7 +1534,7 @@ def _table_update(el: "ElementUpdate") -> dict:
         or el.remove_fields is not None
     )
     if has_field_change:
-        from baserow.contrib.builder.elements.handler import ElementHandler
+        from baserow.contrib.builder.elements.service import ElementHandler
 
         try:
             element = ElementHandler().get_element(el.element_id).specific
