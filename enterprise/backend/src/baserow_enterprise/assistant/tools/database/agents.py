@@ -133,15 +133,15 @@ def make_formula_fixer(
         )
         from baserow_enterprise.assistant.model_profiles import (
             UTILITY,
-            get_model_settings,
-            get_model_string,
+            get_ai_model_settings,
+            get_ai_model_string,
         )
 
-        model = get_model_string()
+        ai_model = get_ai_model_string()
         result = formula_generation_agent.run_sync(
             prompt,
-            model=model,
-            model_settings=get_model_settings(model, UTILITY),
+            model=ai_model,
+            model_settings=get_ai_model_settings(ai_model, UTILITY),
             toolsets=[formula_toolset],
             usage_limits=UsageLimits(request_limit=20),
         )
@@ -218,8 +218,8 @@ def generate_sample_rows(
 
     from baserow_enterprise.assistant.model_profiles import (
         SAMPLE,
-        get_model_settings,
-        get_model_string,
+        get_ai_model_settings,
+        get_ai_model_string,
     )
 
     from .tools import _build_row_tools
@@ -259,7 +259,7 @@ def generate_sample_rows(
     schemas = helpers.get_tables_schema(created_tables, full_schema=True)
     table_info = "\n".join(f"- {schema.model_dump()}" for schema in schemas)
 
-    model = get_model_string()
+    ai_model = get_ai_model_string()
     sample_row_agent = Agent(
         output_type=str,
         instructions=SAMPLE_ROW_AGENT_INSTRUCTIONS,
@@ -268,8 +268,8 @@ def generate_sample_rows(
     )
     sample_row_agent.run_sync(
         format_sample_rows_prompt(table_info, data_brief=data_brief),
-        model=model,
-        model_settings=get_model_settings(model, SAMPLE),
+        model=ai_model,
+        model_settings=get_ai_model_settings(ai_model, SAMPLE),
         usage_limits=UsageLimits(request_limit=len(all_db_tables) * 3 + 2),
     )
 

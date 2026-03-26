@@ -97,16 +97,16 @@ def get_formula_generator(
             )
             from baserow_enterprise.assistant.model_profiles import (
                 UTILITY,
-                get_model_settings,
-                get_model_string,
+                get_ai_model_settings,
+                get_ai_model_string,
             )
 
-            model = get_model_string()
+            ai_model = get_ai_model_string()
             try:
                 result = formula_agent.run_sync(
                     user_prompt,
-                    model=model,
-                    model_settings=get_model_settings(model, UTILITY),
+                    model=ai_model,
+                    model_settings=get_ai_model_settings(ai_model, UTILITY),
                 )
             except Exception as exc:
                 feedback += f"Formula agent error: {str(exc)}\n"

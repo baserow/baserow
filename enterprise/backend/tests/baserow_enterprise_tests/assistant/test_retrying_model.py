@@ -8,7 +8,7 @@ from baserow_enterprise.assistant.retrying_model import (
     RetryingModel,
     _is_transient_provider_error,
     _resolve_credentials,
-    _resolve_model,
+    _resolve_ai_model,
 )
 
 
@@ -546,28 +546,28 @@ class TestResolveCredentials:
         assert dict(os.environ) == snapshot
 
 
-class TestResolveModel:
-    """Tests for _resolve_model provider dispatch."""
+class TestResolveAiModel:
+    """Tests for _resolve_ai_model provider dispatch."""
 
     def test_openai_prefix(self, monkeypatch):
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         from pydantic_ai.models.openai import OpenAIChatModel
 
-        model = _resolve_model("openai:gpt-4o")
+        model = _resolve_ai_model("openai:gpt-4o")
         assert isinstance(model, OpenAIChatModel)
 
     def test_groq_prefix(self, monkeypatch):
         monkeypatch.setenv("GROQ_API_KEY", "gsk-test")
         from pydantic_ai.models.groq import GroqModel
 
-        model = _resolve_model("groq:llama-3")
+        model = _resolve_ai_model("groq:llama-3")
         assert isinstance(model, GroqModel)
 
     def test_bare_model_defaults_to_openai(self, monkeypatch):
         monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
         from pydantic_ai.models.openai import OpenAIChatModel
 
-        model = _resolve_model("gpt-4o")
+        model = _resolve_ai_model("gpt-4o")
         assert isinstance(model, OpenAIChatModel)
 
     def test_ollama_uses_default_base_url(self, monkeypatch):
@@ -575,7 +575,7 @@ class TestResolveModel:
         monkeypatch.delenv("UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL", raising=False)
         from pydantic_ai.models.openai import OpenAIChatModel
 
-        model = _resolve_model("ollama:llama2")
+        model = _resolve_ai_model("ollama:llama2")
         assert isinstance(model, OpenAIChatModel)
 
     def test_never_mutates_os_environ(self, monkeypatch):
@@ -583,5 +583,5 @@ class TestResolveModel:
         monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
         snapshot = dict(os.environ)
-        _resolve_model("openai:gpt-4o")
+        _resolve_ai_model("openai:gpt-4o")
         assert dict(os.environ) == snapshot

@@ -309,7 +309,7 @@ _PROVIDER_FACTORIES: dict[str, Callable[[str, dict[str, str | None]], Model]] = 
 # ---------------------------------------------------------------------------
 
 
-def _resolve_model(model_name: str) -> Model:
+def _resolve_ai_model(ai_model_name: str) -> Model:
     """Resolve a model name to a pydantic-ai Model instance.
 
     Uses explicit provider construction with credential fallback to
@@ -317,8 +317,8 @@ def _resolve_model(model_name: str) -> Model:
     so we never need to set ``os.environ``.
     """
 
-    provider = model_name.split(":")[0] if ":" in model_name else "openai"
-    name = model_name.split(":", 1)[1] if ":" in model_name else model_name
+    provider = ai_model_name.split(":")[0] if ":" in ai_model_name else "openai"
+    name = ai_model_name.split(":", 1)[1] if ":" in ai_model_name else ai_model_name
 
     factory = _PROVIDER_FACTORIES.get(provider)
     if factory is not None:
@@ -326,7 +326,7 @@ def _resolve_model(model_name: str) -> Model:
         return factory(name, creds)
 
     # Unknown provider — let pydantic-ai handle it.
-    return infer_model(model_name)
+    return infer_model(ai_model_name)
 
 
 class RetryingModel(WrapperModel):
@@ -363,7 +363,7 @@ class RetryingModel(WrapperModel):
             self._resolved = (
                 self._wrapped_or_name
                 if isinstance(self._wrapped_or_name, Model)
-                else _resolve_model(self._wrapped_or_name)
+                else _resolve_ai_model(self._wrapped_or_name)
             )
         return self._resolved
 

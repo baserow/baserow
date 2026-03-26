@@ -891,8 +891,8 @@ def generate_formula(
     """
     from baserow_enterprise.assistant.model_profiles import (
         UTILITY,
-        get_model_settings,
-        get_model_string,
+        get_ai_model_settings,
+        get_ai_model_string,
     )
 
     user = ctx.deps.user
@@ -916,11 +916,11 @@ def generate_formula(
         description, database_tables_schema, formula_docs
     )
 
-    model = get_model_string()
+    ai_model = get_ai_model_string()
     agent_result = formula_generation_agent.run_sync(
         prompt,
-        model=model,
-        model_settings=get_model_settings(model, UTILITY),
+        model=ai_model,
+        model_settings=get_ai_model_settings(ai_model, UTILITY),
         toolsets=[formula_toolset],
         usage_limits=UsageLimits(request_limit=20),
     )

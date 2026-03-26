@@ -7,11 +7,8 @@ from asgiref.sync import async_to_sync
 from pydantic_ai.messages import PartStartEvent
 from pydantic_ai.messages import TextPart as PaiTextPart
 
-from baserow_enterprise.assistant.assistant import (
-    Assistant,
-    compact_message_history,
-    get_model_string,
-)
+from baserow_enterprise.assistant.assistant import Assistant, compact_message_history
+from baserow_enterprise.assistant.model_profiles import get_ai_model_string
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.models import AssistantChat, AssistantChatMessage
 from baserow_enterprise.assistant.types import (
@@ -687,20 +684,17 @@ class TestAssistantCancellation:
         assert cache_key == f"assistant:chat:{chat.uuid}:cancelled"
 
 
-class TestGetModelString:
+class TestGetAiModelString:
     """Test the model string conversion logic."""
 
     @override_settings(BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL="groq/llama-3.3-70b")
     def test_replaces_slash_with_colon(self):
-        assert get_model_string() == "groq:llama-3.3-70b"
+        assert get_ai_model_string() == "groq:llama-3.3-70b"
 
     @override_settings(BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL="openai/gpt-4")
     def test_openai_model(self):
-        assert get_model_string() == "openai:gpt-4"
+        assert get_ai_model_string() == "openai:gpt-4"
 
     @override_settings(BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL="gpt-4o")
     def test_bare_model_defaults_to_openai(self):
-        assert get_model_string() == "openai:gpt-4o"
-
-    def test_explicit_model_overrides_setting(self):
-        assert get_model_string("groq/custom-model") == "groq:custom-model"
+        assert get_ai_model_string() == "openai:gpt-4o"

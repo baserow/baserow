@@ -78,7 +78,7 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
         self,
         user: "AbstractUser",
         workspace: "Workspace",
-        model: str,
+        ai_model: str,
         deps: "AssistantDeps",
     ) -> tuple[AbstractToolset, str, str, str, str]:
         """
@@ -86,7 +86,7 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
 
         :param user: The requesting user.
         :param workspace: The current workspace.
-        :param model: The pydantic-ai model string.
+        :param ai_model: The pydantic-ai model string.
         :param deps: The assistant deps (used for mode-aware filtering).
         :return: ``(toolset, database_manifest, application_manifest,
             automation_manifest, explain_manifest)``.
@@ -163,7 +163,7 @@ class AssistantToolRegistry(Registry[AssistantToolType]):
         manifests["explain"] = generate_tool_manifest_compact(explain_groups)
 
         return (
-            InlineRefsToolset(mode_aware, model=model),
+            InlineRefsToolset(mode_aware, ai_model=ai_model),
             manifests["database"],
             manifests["application"],
             manifests["automation"],

@@ -201,7 +201,7 @@ def create_eval_assistant(user, workspace, max_iters=15, model=None):
     model = model or get_eval_model()
 
     # Ensure sub-agents (e.g. formula_agent) also use the eval model.
-    # get_model_string() does .replace("/", ":", 1) on the setting value,
+    # get_ai_model_string() does .replace("/", ":", 1) on the setting value,
     # so store in "/" format (e.g. "groq/openai/gpt-oss-120b").
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = model.replace(":", "/", 1)
 

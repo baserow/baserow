@@ -124,9 +124,9 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
        and rarely succeeds).
     """
 
-    def __init__(self, inner: AbstractToolset[AgentDepsT], model: str):
+    def __init__(self, inner: AbstractToolset[AgentDepsT], ai_model: str):
         self._inner = inner
-        self._model = model
+        self._ai_model = ai_model
         self._original_validators: dict[str, Any] = {}
         self._schemas: dict[str, dict] = {}
 
@@ -151,7 +151,7 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
         visitor: Callable[[AbstractToolset[AgentDepsT]], AbstractToolset[AgentDepsT]],
     ) -> AbstractToolset[AgentDepsT]:
         new = InlineRefsToolset(
-            self._inner.visit_and_replace(visitor), model=self._model
+            self._inner.visit_and_replace(visitor), ai_model=self._ai_model
         )
         return new
 
@@ -225,13 +225,13 @@ class InlineRefsToolset(AbstractToolset[AgentDepsT]):
             )
             from baserow_enterprise.assistant.model_profiles import (
                 UTILITY,
-                get_model_settings,
+                get_ai_model_settings,
             )
 
-            fixer_settings = get_model_settings(self._model, UTILITY)
+            fixer_settings = get_ai_model_settings(self._ai_model, UTILITY)
             result = await fix_agent.run(
                 prompt,
-                model=self._model,
+                model=self._ai_model,
                 model_settings={
                     **fixer_settings,
                     "response_format": {"type": "json_object"},

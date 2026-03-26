@@ -86,7 +86,7 @@ def setup(settings):
 
     # Backward compatibility: bridge old UDSPY_LM_MODEL to the new setting.
     # Credential fallback (UDSPY_LM_API_KEY, UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL)
-    # is handled at model-creation time in retrying_model._resolve_model().
+    # is handled at model-creation time in retrying_model._resolve_ai_model().
     _udspy_model = os.getenv("UDSPY_LM_MODEL", "")
     if _udspy_model and not settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
         settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = _udspy_model

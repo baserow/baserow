@@ -36,8 +36,8 @@ from baserow_enterprise.assistant.history import compact_message_history
 from baserow_enterprise.assistant.model_profiles import (
     ORCHESTRATOR,
     TITLE,
-    get_model_settings,
-    get_model_string,
+    get_ai_model_settings,
+    get_ai_model_string,
 )
 from baserow_enterprise.assistant.retrying_model import RetryingModel
 from baserow_enterprise.assistant.telemetry import (
@@ -124,8 +124,8 @@ class Assistant:
         self._chat = chat
         self._user = chat.user
         self._workspace = chat.workspace
-        self._model_string = get_model_string()
-        self._model = RetryingModel(self._model_string)
+        self._ai_model_string = get_ai_model_string()
+        self._ai_model = RetryingModel(self._ai_model_string)
         self._event_bus = EventBus()
         self._tool_helpers = self._build_tool_helpers()
         self._telemetry = PosthogTracingCallback()
@@ -139,7 +139,7 @@ class Assistant:
             assistant_tool_registry.build_toolset(
                 user=self._user,
                 workspace=self._workspace,
-                model=self._model_string,
+                ai_model=self._ai_model_string,
                 deps=self._deps,
             )
         )
@@ -294,8 +294,8 @@ class Assistant:
 
         result = await title_agent.run(
             user_message,
-            model=self._model,
-            model_settings=get_model_settings(self._model_string, TITLE),
+            model=self._ai_model,
+            model_settings=get_ai_model_settings(self._ai_model_string, TITLE),
         )
         return result.output
 
@@ -443,11 +443,11 @@ class Assistant:
         async for event in main_agent.run_stream_events(
             user_prompt=user_prompt,
             deps=self._deps,
-            model=self._model,
+            model=self._ai_model,
             message_history=message_history,
             usage_limits=UsageLimits(request_limit=200),
             toolsets=[self._toolset],
-            model_settings=get_model_settings(self._model_string, ORCHESTRATOR),
+            model_settings=get_ai_model_settings(self._ai_model_string, ORCHESTRATOR),
         ):
             if isinstance(event, AgentRunResultEvent):
                 answer = event.result.output

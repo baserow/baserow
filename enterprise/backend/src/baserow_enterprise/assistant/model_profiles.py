@@ -2,18 +2,18 @@
 Centralized model configuration and per-model settings for all agents.
 
 Contains:
-- ``get_model_string()``: Resolves the active LLM model identifier.
+- ``get_ai_model_string()``: Resolves the active LLM model identifier.
 - ``check_lm_ready_or_raise()``: Quick connectivity check.
-- ``get_model_settings(model, role)``: Per-model, per-role settings.
+- ``get_ai_model_settings(ai_model, role)``: Per-model, per-role settings.
 
 Usage::
 
     from baserow_enterprise.assistant.model_profiles import (
-        get_model_string, get_model_settings, ORCHESTRATOR,
+        get_ai_model_string, get_ai_model_settings, ORCHESTRATOR,
     )
 
-    model = get_model_string()
-    settings = get_model_settings(model, ORCHESTRATOR)
+    ai_model = get_ai_model_string()
+    settings = get_ai_model_settings(ai_model, ORCHESTRATOR)
 """
 
 from functools import lru_cache
@@ -95,7 +95,7 @@ _MODEL_PROFILES: dict[str, dict[str, ModelSettings]] = {
 }
 
 
-def get_model_settings(model: str, role: str) -> ModelSettings:
+def get_ai_model_settings(ai_model: str, role: str) -> ModelSettings:
     """
     Return the ModelSettings for a given model string and agent role.
 
@@ -106,7 +106,7 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
     ``BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE`` (if set), allowing
     operators to override it without changing code.
 
-    :param model: pydantic-ai model string (e.g. ``"groq:openai/gpt-oss-120b"``).
+    :param ai_model: pydantic-ai model string (e.g. ``"groq:openai/gpt-oss-120b"``).
     :param role: One of ORCHESTRATOR, SUBAGENT, UTILITY, TITLE.
     :return: A ModelSettings dict suitable for ``model_settings=`` parameter.
     """
@@ -114,8 +114,8 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
     # Extract model name after the provider prefix:
     #   "groq:openai/gpt-oss-120b" -> "gpt-oss-120b"
     #   "ollama:kimi-2.5:cloud"    -> "kimi-2.5:cloud"
-    _, sep, after_provider = model.partition(":")
-    model_name = after_provider.rsplit("/", 1)[-1] if sep else model
+    _, sep, after_provider = ai_model.partition(":")
+    model_name = after_provider.rsplit("/", 1)[-1] if sep else ai_model
 
     profile = _MODEL_PROFILES.get(model_name, _DEFAULT_PROFILE)
     result = dict(profile.get(role, _DEFAULT_PROFILE.get(role, {})))
@@ -136,16 +136,14 @@ def get_model_settings(model: str, role: str) -> ModelSettings:
 # ---------------------------------------------------------------------------
 
 
-def get_model_string(model: str | None = None) -> str:
+def get_ai_model_string() -> str:
     """
-    Returns the model string for the pydantic-ai agent.
+    Returns the model string for the pydantic-ai agent from settings.
 
-    :param model: The language model to use. If None, the default model from
-        settings will be used.
     :return: A model string compatible with pydantic-ai.
     """
 
-    value = model or settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL
+    value = settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL
     # pydantic-ai expects "provider:model" (e.g. "groq:openai/gpt-oss-120b").
     # Convert "provider/model" to "provider:model" when the first "/" comes
     # before the first ":" (or there is no ":").  This handles cases like
@@ -163,15 +161,15 @@ def get_model_string(model: str | None = None) -> str:
 
 @lru_cache(maxsize=1)
 def check_lm_ready_or_raise() -> None:
-    from baserow_enterprise.assistant.retrying_model import _resolve_model
+    from baserow_enterprise.assistant.retrying_model import _resolve_ai_model
 
-    model = get_model_string()
+    ai_model = get_ai_model_string()
     test_agent = Agent(
         output_type=str, instructions="Respond with 'ok'.", name="test_agent"
     )
     try:
-        test_agent.run_sync("Test", model=_resolve_model(model))
+        test_agent.run_sync("Test", model=_resolve_ai_model(ai_model))
     except Exception as e:
         raise AssistantModelNotSupportedError(
-            f"The model '{model}' is not supported or accessible: {e}"
+            f"The model '{ai_model}' is not supported or accessible: {e}"
         )
