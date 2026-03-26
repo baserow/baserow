@@ -1107,7 +1107,6 @@ def test_async_start_workflow_with_simulate_until_node_and_error_creates_no_hist
     mock_start_workflow_celery_task.delay.assert_not_called()
 
 
-@pytest.mark.skip("Flaky test, needs investigation")
 @pytest.mark.django_db
 @override_settings(
     AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=4,
