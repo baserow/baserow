@@ -15,6 +15,7 @@
       :row="row"
       :rendered-fields="renderedFields"
       :visible-fields="visibleFields"
+      :all-visible-fields="allVisibleFields"
       :all-fields-in-table="allFieldsInTable"
       :primary-field-is-sticky="primaryFieldIsSticky"
       :field-widths="fieldWidths"
@@ -74,6 +75,10 @@ export default {
      * The fields that are chosen to be visible within the view.
      */
     visibleFields: {
+      type: Array,
+      required: true,
+    },
+    allVisibleFields: {
       type: Array,
       required: true,
     },

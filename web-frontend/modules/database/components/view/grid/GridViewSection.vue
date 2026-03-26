@@ -81,6 +81,7 @@
             :view="view"
             :rendered-fields="fieldsToRender"
             :visible-fields="visibleFields"
+            :all-visible-fields="allVisibleFields"
             :all-fields-in-table="allFieldsInTable"
             :workspace-id="database.workspace.id"
             :decorations-by-place="decorationsByPlace"
@@ -211,6 +212,10 @@ export default {
   mixins: [gridViewHelpers],
   props: {
     visibleFields: {
+      type: Array,
+      required: true,
+    },
+    allVisibleFields: {
       type: Array,
       required: true,
     },

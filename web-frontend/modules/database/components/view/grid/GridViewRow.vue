@@ -194,6 +194,10 @@ export default {
       type: Array,
       required: true,
     },
+    allVisibleFields: {
+      type: Array,
+      required: true,
+    },
     allFieldsInTable: {
       type: Array,
       required: true,
@@ -392,9 +396,9 @@ export default {
             rowId
           )
 
-        const allFieldIds = this.visibleFields.map((field) => field.id)
-        let fieldIndex = allFieldIds.findIndex((id) => field.id === id)
-        fieldIndex += !field.primary && this.primaryFieldIsSticky ? 1 : 0
+        const fieldIndex = this.allVisibleFields.findIndex(
+          (f) => f.id === field.id
+        )
 
         const [minRow, maxRow] =
           this.$store.getters[
