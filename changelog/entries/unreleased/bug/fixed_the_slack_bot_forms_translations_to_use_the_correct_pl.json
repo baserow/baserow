@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed the Slack Bot Form's translations to use the correct placeholders.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-03-26"
+}
