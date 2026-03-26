@@ -1658,7 +1658,9 @@ def test_data_source_context_extract_properties_calls_correct_service_type(
 
     assert result == {mocked_data_source.service_id: expected}
     mocked_get_data_source.assert_called_once_with(int(data_source_id), with_cache=True)
-    mocked_service_type.extract_properties.assert_called_once_with([expected])
+    mocked_service_type.extract_properties.assert_called_once_with(
+        mocked_data_source.service.specific, [expected]
+    )
 
     mocked_service_type.returns_list = True
     mocked_service_type.extract_properties.reset_mock()
@@ -1668,7 +1670,9 @@ def test_data_source_context_extract_properties_calls_correct_service_type(
         [data_source_id, expected]
     )
 
-    mocked_service_type.extract_properties.assert_called_once_with([expected])
+    mocked_service_type.extract_properties.assert_called_once_with(
+        mocked_data_source.service.specific, [expected]
+    )
     assert result == {mocked_data_source.service_id: expected}
 
 
@@ -1857,7 +1861,9 @@ def test_current_record_extract_properties_calls_correct_service_type(
 
     assert result == {mocked_data_source.service_id: expected_field}
     mock_get_data_source.assert_called_once_with(fake_element_id, with_cache=True)
-    mocked_service_type.extract_properties.assert_called_once_with([expected_field])
+    mocked_service_type.extract_properties.assert_called_once_with(
+        mocked_data_source.service.specific, [expected_field]
+    )
 
 
 @pytest.mark.django_db
@@ -1918,15 +1924,17 @@ def test_current_record_extract_properties_called_with_correct_path(
     if returns_list:
         if schema_property:
             mock_service_type.extract_properties.assert_called_once_with(
-                [schema_property, *path]
+                mock_data_source.service.specific, [schema_property, *path]
             )
         else:
-            mock_service_type.extract_properties.assert_called_once_with(path)
+            mock_service_type.extract_properties.assert_called_once_with(
+                mock_data_source.service.specific, path
+            )
         assert result == {service_id: ["field_999"]}
     else:
         if schema_property:
             mock_service_type.extract_properties.assert_called_once_with(
-                [schema_property, *path]
+                mock_data_source.service.specific, [schema_property, *path]
             )
             assert result == {service_id: ["field_999"]}
         else:
