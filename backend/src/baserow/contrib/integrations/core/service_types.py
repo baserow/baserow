@@ -282,7 +282,9 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                 query_param.value = new_formula
                 yield query_param
 
-    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
+    def extract_properties(
+        self, service: Service, path: List[str], **kwargs
+    ) -> List[str]:
         """Returns the first path element if any"""
 
         if path:

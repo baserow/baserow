@@ -1156,7 +1156,7 @@ def test_dispatch_transform_passes_field_ids(mock_get_serializer, field_names):
     [
         (
             [],
-            [],
+            ["id"],
         ),
         (
             ["foo"],
@@ -1187,7 +1187,8 @@ def test_extract_properties(path, expected):
 
     service_type = LocalBaserowListRowsUserServiceType()
 
-    result = service_type.extract_properties(path)
+    mock_service = MagicMock()
+    result = service_type.extract_properties(mock_service, path)
 
     assert result == expected
 
@@ -1265,6 +1266,6 @@ def test_extract_properties_with_empty_path_returns_all_fields(data_fixture):
     service = data_fixture.create_local_baserow_list_rows_service(table=table)
     service_type = LocalBaserowListRowsUserServiceType()
 
-    result = service_type.extract_properties([], service=service)
+    result = service_type.extract_properties(service, [])
 
     assert result == ["id", field_1.db_column, field_2.db_column]

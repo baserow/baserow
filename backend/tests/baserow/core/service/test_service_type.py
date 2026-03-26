@@ -193,7 +193,9 @@ def test_extract_properties():
     service_type_cls.model_class = MagicMock()
     service_type = service_type_cls()
 
-    result = service_type.extract_properties(["foo"])
+    mock_service = MagicMock()
+    result = service_type.extract_properties(mock_service, ["foo"])
+
     assert result == []
 
 

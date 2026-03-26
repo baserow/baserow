@@ -508,7 +508,9 @@ class ServiceType(
 
         return created_instance
 
-    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
+    def extract_properties(
+        self, service: Service, path: List[str], **kwargs
+    ) -> List[str]:
         return []
 
     def import_property_name(

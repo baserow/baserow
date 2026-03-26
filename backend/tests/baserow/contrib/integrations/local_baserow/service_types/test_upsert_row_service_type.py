@@ -809,7 +809,7 @@ def test_dispatch_transform_passes_field_ids(
 @pytest.mark.parametrize(
     "path,expected",
     [
-        ([], []),
+        ([], ["id"]),
         ([None], []),
         ([""], []),
         (["foo"], []),
@@ -830,7 +830,8 @@ def test_extract_properties_returns_expected_list(path, expected):
 
     service_type = LocalBaserowUpsertRowServiceType()
 
-    result = service_type.extract_properties(path)
+    mock_service = MagicMock()
+    result = service_type.extract_properties(mock_service, path)
 
     assert result == expected
 

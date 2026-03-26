@@ -374,7 +374,9 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             return f"field_{new_field_id}" if new_field_id else None
         return property_name
 
-    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
+    def extract_properties(
+        self, service: Service, path: List[str], **kwargs
+    ) -> List[str]:
         """
         Given a list of formula path parts, call the ServiceType's
         extract_properties() method and return a set of unique field IDs.
@@ -388,10 +390,10 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         and the formula. Some examples of `path` are:
 
         An element that specifies a specific field:
-        ['field_5439']
+            ['field_5439']
 
-        An element that uses a Link Row Field formula
-        ['field_5569', '0', 'value']
+        An element that uses a Link Row Field formula:
+            ['field_5569', '0', 'value']
         """
 
         # If the path length is greater or equal to 1, then we have
@@ -403,12 +405,10 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             # When path is empty, e.g. `get('data_source.606')`, we should
             # return all fields since we don't know which specific fields
             # are needed.
-            if service := kwargs.get("service"):
-                if field_objects := self.get_table_field_objects(service):
-                    return ["id"] + [
-                        field_object["field"].db_column
-                        for field_object in field_objects
-                    ]
+            if field_objects := self.get_table_field_objects(service):
+                return ["id"] + [
+                    field_object["field"].db_column for field_object in field_objects
+                ]
 
             # In any other scenario, we have a formula that is not a format we
             # can currently parse properly, so we return an empty list.
@@ -1546,7 +1546,9 @@ class LocalBaserowAggregateRowsUserServiceType(
 
         return DispatchResult(data={"result": result})
 
-    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
+    def extract_properties(
+        self, service: Service, path: List[str], **kwargs
+    ) -> List[str]:
         """
         Returns the usual properties for this service type.
         """

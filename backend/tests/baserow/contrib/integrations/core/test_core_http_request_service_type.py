@@ -1,6 +1,6 @@
 import json
 from contextlib import contextmanager
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from requests import exceptions as request_exceptions
@@ -365,11 +365,13 @@ def test_core_http_request_formula_generator():
 
 @pytest.mark.django_db
 def test_core_http_request_extract_properties(data_fixture):
+    mock_service = MagicMock()
+
     assert CoreHTTPRequestServiceType().extract_properties(
-        ["headers", "content_type"]
+        mock_service, ["headers", "content_type"]
     ) == ["headers"]
 
-    assert CoreHTTPRequestServiceType().extract_properties([]) == []
+    assert CoreHTTPRequestServiceType().extract_properties(mock_service, []) == []
 
 
 @pytest.mark.django_db

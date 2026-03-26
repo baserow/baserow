@@ -1518,7 +1518,7 @@ def test_data_source_data_extract_properties_calls_correct_service_type(
     assert result == {mocked_data_source.service_id: expected}
     mocked_get_data_source.assert_called_once_with(int(data_source_id), with_cache=True)
     mocked_service_type.extract_properties.assert_called_once_with(
-        [expected], service=mocked_data_source.service.specific
+        mocked_data_source.service.specific, [expected]
     )
 
     mocked_service_type.returns_list = True
@@ -1528,7 +1528,7 @@ def test_data_source_data_extract_properties_calls_correct_service_type(
         [data_source_id, "1", expected]
     )
     mocked_service_type.extract_properties.assert_called_once_with(
-        [expected], service=mocked_data_source.service.specific
+        mocked_data_source.service.specific, [expected]
     )
     assert result == {mocked_data_source.service_id: expected}
 
@@ -1560,7 +1560,7 @@ def test_data_source_data_extract_properties_returns_all_fields_when_no_row_id_o
     assert result == {mocked_data_source.service_id: ["id", "field_123"]}
     mocked_get_data_source.assert_called_once_with(int(data_source_id), with_cache=True)
     mocked_service_type.extract_properties.assert_called_once_with(
-        [], service=mocked_data_source.service.specific
+        mocked_data_source.service.specific, []
     )
 
 
