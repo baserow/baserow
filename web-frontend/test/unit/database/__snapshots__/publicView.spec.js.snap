@@ -669,6 +669,7 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
               />
             </div>
           </div>
+          <!--v-if-->
           <div
             class="grid-view__row-dragging-container"
             style="left: 0px; display: none;"

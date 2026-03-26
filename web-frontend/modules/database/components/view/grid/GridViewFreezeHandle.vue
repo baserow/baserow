@@ -11,10 +11,7 @@
       v-if="hovering || dragging"
       class="grid-view__freeze-handle-icon"
     ></div>
-    <div
-      v-if="dragging"
-      class="grid-view__freeze-handle-tooltip"
-    >
+    <div v-if="dragging" class="grid-view__freeze-handle-tooltip">
       {{ tooltipText }}
     </div>
   </div>

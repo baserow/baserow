@@ -440,6 +440,7 @@ exports[`GridView component with decoration > Default component with first_cell 
       />
     </div>
   </div>
+  <!--v-if-->
   <div
     class="grid-view__row-dragging-container"
     style="left: 0px; display: none;"
@@ -906,6 +907,7 @@ exports[`GridView component with decoration > Default component with row wrapper
       />
     </div>
   </div>
+  <!--v-if-->
   <div
     class="grid-view__row-dragging-container"
     style="left: 0px; display: none;"
@@ -1356,6 +1358,7 @@ exports[`GridView component with decoration > Default component with unavailable
       />
     </div>
   </div>
+  <!--v-if-->
   <div
     class="grid-view__row-dragging-container"
     style="left: 0px; display: none;"

@@ -213,6 +213,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             <div class="grid-view__field-target" style="left: 0px;"></div>
           </div>
         </div>
+        <!--v-if-->
         <div class="grid-view__row-dragging-container" style="left: 0px; display: none;">
           <div class="grid-view__row-dragging" style="width: 672px; top: 0px;"></div>
           <div class="grid-view__row-target" style="width: 672px; top: 0px;"></div>
@@ -438,6 +439,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             <div class="grid-view__field-target" style="left: 0px;"></div>
           </div>
         </div>
+        <!--v-if-->
         <div class="grid-view__row-dragging-container" style="left: 0px; display: none;">
           <div class="grid-view__row-dragging" style="width: 672px; top: 0px;"></div>
           <div class="grid-view__row-target" style="width: 672px; top: 0px;"></div>
