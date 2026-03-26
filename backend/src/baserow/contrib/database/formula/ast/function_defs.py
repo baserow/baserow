@@ -84,6 +84,7 @@ from baserow.contrib.database.formula.expression_generator.django_expressions im
     GreaterThanExpr,
     GreaterThanOrEqualExpr,
     IsNullExpr,
+    JSONBArrayJoinValues,
     JSONBArrayUniqueByValue,
     LessThanEqualOrExpr,
     LessThanExpr,
@@ -260,6 +261,8 @@ def register_formula_functions(registry):
     registry.register(BaserowToURL())
     # Array utility functions
     registry.register(BaserowArrayUnique())
+    registry.register(BaserowArrayLength())
+    registry.register(BaserowArrayJoinValues())
     # ManyToMany functions
     registry.register(BaserowStringAggManyToManyValues())
     registry.register(BaserowManyToManyCount())
@@ -2404,6 +2407,7 @@ class BaserowCount(OneArgumentBaserowFunction):
         MustBeManyExprChecker(BaserowFormulaValidType),
         BaserowFormulaMultipleSelectType,
         BaserowFormulaMultipleCollaboratorsType,
+        BaserowFormulaArrayType,
     ]
     aggregate = True
     try_coerce_nullable_args_to_not_null = False
@@ -2415,6 +2419,9 @@ class BaserowCount(OneArgumentBaserowFunction):
     ) -> BaserowExpression[BaserowFormulaType]:
         if BaserowGetFileCount().can_accept_arg(arg):
             return BaserowGetFileCount()(arg)
+
+        if isinstance(arg.expression_type, BaserowFormulaArrayType):
+            return BaserowArrayLength()(arg)
 
         return arg.expression_type.count(func_call, arg).with_valid_type(
             BaserowFormulaNumberType(number_decimal_places=0)
@@ -2489,6 +2496,42 @@ class BaserowArrayUnique(OneArgumentBaserowFunction):
 
     def to_django_expression(self, arg: Expression) -> Expression:
         return JSONBArrayUniqueByValue(arg)
+
+
+class BaserowArrayLength(OneArgumentBaserowFunction):
+    type = "array_length"
+    arg_type = [BaserowFormulaArrayType]
+
+    def type_function(
+        self,
+        func_call: BaserowFunctionCall[UnTyped],
+        arg: BaserowExpression[BaserowFormulaValidType],
+    ) -> BaserowExpression[BaserowFormulaType]:
+        return func_call.with_valid_type(
+            BaserowFormulaNumberType(number_decimal_places=0)
+        )
+
+    def to_django_expression(self, arg: Expression) -> Expression:
+        return Func(
+            arg, function="jsonb_array_length", output_field=fields.IntegerField()
+        )
+
+
+class BaserowArrayJoinValues(TwoArgumentBaserowFunction):
+    type = "array_join_values"
+    arg1_type = [BaserowFormulaArrayType]
+    arg2_type = [BaserowFormulaTextType]
+
+    def type_function(
+        self,
+        func_call: BaserowFunctionCall[UnTyped],
+        arg1: BaserowExpression[BaserowFormulaValidType],
+        arg2: BaserowExpression[BaserowFormulaValidType],
+    ) -> BaserowExpression[BaserowFormulaType]:
+        return func_call.with_valid_type(BaserowFormulaTextType())
+
+    def to_django_expression(self, arg1: Expression, arg2: Expression) -> Expression:
+        return JSONBArrayJoinValues(arg1, arg2)
 
 
 class BaserowFilter(TwoArgumentBaserowFunction):
@@ -2696,7 +2739,7 @@ class BaserowStdDevSample(OneArgumentBaserowFunction):
 
 class BaserowAggJoin(TwoArgumentBaserowFunction):
     type = "join"
-    arg1_type = [MustBeManyExprChecker(BaserowFormulaTextType)]
+    arg1_type = [MustBeManyExprChecker(BaserowFormulaTextType), BaserowFormulaArrayType]
     arg2_type = [BaserowFormulaTextType]
     aggregate = True
 
@@ -2706,6 +2749,8 @@ class BaserowAggJoin(TwoArgumentBaserowFunction):
         arg1: BaserowExpression[BaserowFormulaValidType],
         arg2: BaserowExpression[BaserowFormulaValidType],
     ) -> BaserowExpression[BaserowFormulaType]:
+        if isinstance(arg1.expression_type, BaserowFormulaArrayType):
+            return BaserowArrayJoinValues()(arg1, arg2)
         return func_call.with_valid_type(BaserowFormulaTextType())
 
     def to_django_expression(self, arg1: Expression, arg2: Expression) -> Expression:
