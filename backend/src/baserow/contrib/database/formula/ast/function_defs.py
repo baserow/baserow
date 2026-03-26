@@ -2484,7 +2484,7 @@ class BaserowArrayUnique(OneArgumentBaserowFunction):
 
         if not isinstance(arg.expression_type, BaserowFormulaArrayType):
             return func_call.with_invalid_type(
-                "array_unique requires an array input (a lookup field)."
+                "array_unique requires an array field as input."
             )
 
         sub_type = arg.expression_type.sub_type

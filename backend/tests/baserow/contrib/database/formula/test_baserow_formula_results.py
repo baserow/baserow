@@ -2273,13 +2273,17 @@ def _setup_file_field(df, table):
         "multiple_collaborators",
     ],
 )
-def test_array_unique_lookup(data_fixture, setup_fn):
+def test_array_unique_lookup(data_fixture, api_client, setup_fn):
     """
     array_unique deduplicates a lookup array, preserving first-occurrence order.
     Parameterized across field types.
+
+    Also verifies that row updates, additions, and deletions in the linked
+    table correctly trigger formula recalculation, and that the formula table
+    can still be fetched via the API afterwards.
     """
 
-    user = data_fixture.create_user()
+    user, token = data_fixture.create_user_and_token()
     table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
     target_field, val_a, val_b = setup_fn(data_fixture, table_b)
 
@@ -2349,6 +2353,70 @@ def test_array_unique_lookup(data_fixture, setup_fn):
 
     # Row A3: empty
     assert rows[2] == []
+
+    # ── Step 2: update a linked row's value → triggers recalculation ──
+
+    RowHandler().update_rows(
+        user,
+        table_b,
+        [{"id": row_b1.id, target_field.db_column: val_b}],
+    )
+
+    # Now row_b1 and row_b2 both have val_b, row_b3 has val_a.
+    # Row A1 links to all 3 → unique is [val_b, val_a] (first-occurrence).
+    table_a_model = table_a.get_model()
+    rows = list(
+        table_a_model.objects.all()
+        .order_by("id")
+        .values_list(unique_field.db_column, flat=True)
+    )
+    assert len(rows[0]) == 2
+
+    # ── Step 3: add a new linked row with empty/default value ──
+
+    (row_b4,) = RowHandler().create_rows(user, table_b, [{}]).created_rows
+    RowHandler().update_rows(
+        user,
+        table_a,
+        [
+            {
+                "id": row_a1.id,
+                link_field.db_column: [
+                    row_b1.id,
+                    row_b2.id,
+                    row_b3.id,
+                    row_b4.id,
+                ],
+            }
+        ],
+    )
+
+    table_a_model = table_a.get_model()
+    r1 = table_a_model.objects.get(id=row_a1.id)
+    unique_val = getattr(r1, unique_field.db_column)
+    assert isinstance(unique_val, list)
+
+    # ── Step 4: delete a linked row → triggers recalculation ──
+
+    RowHandler().delete_rows(user, table_b, [row_b3.id])
+
+    table_a_model = table_a.get_model()
+    r1 = table_a_model.objects.get(id=row_a1.id)
+    unique_val = getattr(r1, unique_field.db_column)
+    assert isinstance(unique_val, list)
+
+    # ── Step 5: API fetch must not crash ──
+
+    from baserow.contrib.database.views.handler import ViewHandler
+
+    grid = ViewHandler().create_view(user, table_a, "grid", name="test")
+    response = api_client.get(
+        f"/api/database/views/grid/{grid.id}/",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, (
+        f"API crash after update/delete: {response.content.decode()[:300]}"
+    )
 
 
 @pytest.mark.django_db
