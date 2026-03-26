@@ -163,6 +163,65 @@ class JSONBArrayJoinValues(Func):
         return sql, (*separator_params, *params)
 
 
+class JSONBArraySlice(Expression):
+    """
+    Slice a JSONB array with offset, limit, and optional reverse.
+
+    All parameters should be pre-computed Django expressions:
+    - offset_expr / limit_expr: the forward window (limit may be NULL for "all")
+    - reverse_expr: boolean — when true, output order is reversed
+    """
+
+    def __init__(self, array_expr, offset_expr, limit_expr, reverse_expr):
+        super().__init__(output_field=JSONField())
+        self.array_expr = array_expr
+        self.offset_expr = offset_expr
+        self.limit_expr = limit_expr
+        self.reverse_expr = reverse_expr
+
+    def resolve_expression(
+        self, query=None, allow_joins=True, reuse=None, summarize=False, for_save=False
+    ):
+        c = self.copy()
+        c.is_summary = summarize
+        c.array_expr = self.array_expr.resolve_expression(
+            query, allow_joins, reuse, summarize, for_save
+        )
+        c.offset_expr = self.offset_expr.resolve_expression(
+            query, allow_joins, reuse, summarize, for_save
+        )
+        c.limit_expr = self.limit_expr.resolve_expression(
+            query, allow_joins, reuse, summarize, for_save
+        )
+        c.reverse_expr = self.reverse_expr.resolve_expression(
+            query, allow_joins, reuse, summarize, for_save
+        )
+        return c
+
+    def as_sql(self, compiler, connection):
+        array_sql, array_params = compiler.compile(self.array_expr)
+        offset_sql, offset_params = compiler.compile(self.offset_expr)
+        limit_sql, limit_params = compiler.compile(self.limit_expr)
+        reverse_sql, reverse_params = compiler.compile(self.reverse_expr)
+
+        sql = (
+            "(SELECT COALESCE(jsonb_agg(sub.elem ORDER BY "  # noqa: S608
+            f"CASE WHEN {reverse_sql} THEN -sub.rn ELSE sub.rn END"
+            "), '[]'::jsonb) "
+            "FROM (SELECT t.elem, t.rn "
+            f"FROM jsonb_array_elements({array_sql}) WITH ORDINALITY AS t(elem, rn) "
+            "ORDER BY t.rn "
+            f"OFFSET {offset_sql} "
+            f"LIMIT {limit_sql}) sub)"
+        )
+        return sql, (
+            list(reverse_params)
+            + list(array_params)
+            + list(offset_params)
+            + list(limit_params)
+        )
+
+
 class BaserowFilterExpression(Expression):
     """
     Baserow expression that works with field_name and value

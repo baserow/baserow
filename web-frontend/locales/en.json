@@ -621,7 +621,8 @@
     "secondsToDurationDescription": "Converts the number of seconds provided into a duration.",
     "durationToSecondsDescription": "Converts the duration provided into the corresponding number of seconds.",
     "hasOptionDescription": "Returns true if the first argument is a multiple select field or a lookup to a single select field and the second argument is one of the options.",
-    "arrayUniqueDescription": "Returns only the unique items from an array, removing duplicates while preserving the order of first occurrence."
+    "arrayUniqueDescription": "Returns only the unique items from an array, removing duplicates while preserving the order of first occurrence.",
+    "arraySliceDescription": "Returns a sub-array starting at the given index (0-based, negative start counts from the end). Positive count takes elements forward, 0 means all remaining, negative count takes elements backward in reverse order."
   },
   "functionnalGridViewFieldLinkRow": {
     "unnamed": "unnamed row {value}"

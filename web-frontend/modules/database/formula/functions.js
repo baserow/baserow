@@ -2627,3 +2627,30 @@ export class BaserowArrayUnique extends BaserowFunctionDefinition {
     return 'array'
   }
 }
+
+export class BaserowArraySlice extends BaserowFunctionDefinition {
+  static getType() {
+    return 'array_slice'
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('formulaFunctions.arraySliceDescription')
+  }
+
+  getSyntaxUsage() {
+    return ['array_slice(array, start, count)']
+  }
+
+  getExamples() {
+    return [
+      "array_slice(field('my lookup'), 0, 3)",
+      "array_slice(field('my lookup'), -2, 2)",
+      "array_slice(field('my lookup'), 3, -1)",
+    ]
+  }
+
+  getFormulaType() {
+    return 'array'
+  }
+}

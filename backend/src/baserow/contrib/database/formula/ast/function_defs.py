@@ -85,6 +85,7 @@ from baserow.contrib.database.formula.expression_generator.django_expressions im
     GreaterThanOrEqualExpr,
     IsNullExpr,
     JSONBArrayJoinValues,
+    JSONBArraySlice,
     JSONBArrayUniqueByValue,
     LessThanEqualOrExpr,
     LessThanExpr,
@@ -263,6 +264,7 @@ def register_formula_functions(registry):
     registry.register(BaserowArrayUnique())
     registry.register(BaserowArrayLength())
     registry.register(BaserowArrayJoinValues())
+    registry.register(BaserowArraySlice())
     # ManyToMany functions
     registry.register(BaserowStringAggManyToManyValues())
     registry.register(BaserowManyToManyCount())
@@ -2496,6 +2498,105 @@ class BaserowArrayUnique(OneArgumentBaserowFunction):
 
     def to_django_expression(self, arg: Expression) -> Expression:
         return JSONBArrayUniqueByValue(arg)
+
+
+class BaserowArraySlice(ThreeArgumentBaserowFunction):
+    type = "array_slice"
+    arg1_type = [BaserowFormulaValidType]
+    arg2_type = [BaserowFormulaNumberType]
+    arg3_type = [BaserowFormulaNumberType]
+
+    def type_function(
+        self,
+        func_call: BaserowFunctionCall[UnTyped],
+        arg1: BaserowExpression[BaserowFormulaValidType],
+        arg2: BaserowExpression[BaserowFormulaNumberType],
+        arg3: BaserowExpression[BaserowFormulaNumberType],
+    ) -> BaserowExpression[BaserowFormulaType]:
+        if arg1.many:
+            arg1 = arg1.expression_type.collapse_many(arg1)
+
+        if not isinstance(arg1.expression_type, BaserowFormulaArrayType):
+            return func_call.with_invalid_type("array_slice requires an array input.")
+
+        return func_call.with_args([arg1, arg2, arg3]).with_valid_type(
+            arg1.expression_type
+        )
+
+    def to_django_expression(
+        self, arg1: Expression, arg2: Expression, arg3: Expression
+    ) -> Expression:
+        start_int = trunc_numeric_to_int(arg2)
+        count_int = trunc_numeric_to_int(arg3)
+        abs_count = Func(count_int, function="ABS", output_field=fields.IntegerField())
+
+        is_reverse = LessThanExpr(
+            count_int, Value(0), output_field=fields.BooleanField()
+        )
+
+        array_len = Func(
+            arg1, function="jsonb_array_length", output_field=fields.IntegerField()
+        )
+
+        # Resolve negative start to a 0-based position
+        resolved_start = Case(
+            When(
+                condition=GreaterThanOrEqualExpr(
+                    start_int, Value(0), output_field=fields.BooleanField()
+                ),
+                then=start_int,
+            ),
+            default=Greatest(
+                ExpressionWrapper(
+                    array_len + start_int, output_field=fields.IntegerField()
+                ),
+                Value(0),
+            ),
+            output_field=fields.IntegerField(),
+        )
+
+        # Forward: offset = resolved_start
+        # Backward: offset = max(0, resolved_start - abs_count + 1)
+        offset_expr = Case(
+            When(
+                condition=is_reverse,
+                then=Greatest(
+                    ExpressionWrapper(
+                        resolved_start - abs_count + Value(1),
+                        output_field=fields.IntegerField(),
+                    ),
+                    Value(0),
+                ),
+            ),
+            default=resolved_start,
+            output_field=fields.IntegerField(),
+        )
+
+        # Forward: 0 → NULL (all remaining), else count
+        # Backward: abs(count) — but clamped to (resolved_start + 1)
+        #   so we don't go past the beginning
+        limit_expr = Case(
+            When(
+                condition=is_reverse,
+                then=Least(
+                    abs_count,
+                    ExpressionWrapper(
+                        resolved_start + Value(1),
+                        output_field=fields.IntegerField(),
+                    ),
+                ),
+            ),
+            When(
+                condition=EqualsExpr(
+                    count_int, Value(0), output_field=fields.BooleanField()
+                ),
+                then=Value(None),
+            ),
+            default=count_int,
+            output_field=fields.IntegerField(),
+        )
+
+        return JSONBArraySlice(arg1, offset_expr, limit_expr, is_reverse)
 
 
 class BaserowArrayLength(OneArgumentBaserowFunction):
