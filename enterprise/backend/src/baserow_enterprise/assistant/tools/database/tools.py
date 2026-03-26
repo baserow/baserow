@@ -1222,9 +1222,9 @@ TOOL_FUNCTIONS = [
 database_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
 
 ROUTING_RULES = """\
-- Check list_* before create_* to avoid duplicates.
 - switch_mode: switch domain if task needs tools not in the current mode.
 - Database row CRUD → call load_row_tools first (includes schema — skip get_tables_schema).
 - create_tables: include ALL related tables in one call so link_row fields connect properly. Add sample rows unless told otherwise.
 - create_rows: fill EVERY field including ALL link_row fields.
-- After creating tables for an app/automation task, switch_mode back to continue building."""
+- When creating views/filters for a builder data source, complete ALL view + filter creation before switching back to application mode. Workflow: create_views → create_view_filters → then switch_mode("application").
+- After creating tables or views for an application/data source/automation task, switch_mode back to continue building."""
