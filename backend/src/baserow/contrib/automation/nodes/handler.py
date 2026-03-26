@@ -424,12 +424,23 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             logger.error(str(e))
             return None
 
-        node = self.get_node(node_id)
-        simulate_until_node = (
-            node.workflow.get_graph().get_node(workflow_history.simulate_until_node_id)
-            if workflow_history.simulate_until_node_id
-            else None
-        )
+        try:
+            node = self.get_node(node_id)
+        except AutomationNodeDoesNotExist as e:
+            logger.error(str(e))
+            return None
+
+        try:
+            simulate_until_node = (
+                node.workflow.get_graph().get_node(
+                    workflow_history.simulate_until_node_id
+                )
+                if workflow_history.simulate_until_node_id
+                else None
+            )
+        except AutomationNodeDoesNotExist as e:
+            logger.error(str(e))
+            return None
 
         if simulate_until_node:
             allowed_nodes = {

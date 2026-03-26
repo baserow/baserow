@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug that caused a crash due to a race condition that could happen if a node is deleted while it is being dispatched.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-03-26"
+}
