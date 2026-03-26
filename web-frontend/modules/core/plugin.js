@@ -63,6 +63,7 @@ import {
 import { MoreOnboardingType } from '@baserow/modules/core/onboardingTypes'
 import { SidebarGuidedTourType } from '@baserow/modules/core/guidedTourTypes'
 import { TOTPAuthType } from '@baserow/modules/core/twoFactorAuthTypes'
+import { CloudflareTurnstileCaptchaProviderType } from '@baserow/modules/core/captchaProviderTypes'
 
 import { DefaultErrorPageType } from '@baserow/modules/core/errorPageTypes'
 
@@ -153,6 +154,7 @@ export default defineNuxtPlugin({
     registry.registerNamespace('workspaceSettingsPage')
     registry.registerNamespace('errorPage')
     registry.registerNamespace('twoFactorAuth')
+    registry.registerNamespace('captchaProvider')
 
     const context = { app: nuxtApp }
 
@@ -357,6 +359,11 @@ export default defineNuxtPlugin({
     )
 
     registry.register('twoFactorAuth', new TOTPAuthType(context))
+
+    registry.register(
+      'captchaProvider',
+      new CloudflareTurnstileCaptchaProviderType(context)
+    )
 
     registry.register('onboarding', new MoreOnboardingType(context))
 

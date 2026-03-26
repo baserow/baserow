@@ -247,6 +247,10 @@ x-backend-variables:
   BASEROW_EMBEDDINGS_API_URL:
   BASEROW_OAUTH_BACKEND_URL:
   BASEROW_TOTP_ISSUER_NAME:
+  BASEROW_ENABLE_CAPTCHA:
+  BASEROW_CAPTCHA_PROVIDER:
+  BASEROW_CLOUDFLARE_TURNSTILE_SITE_KEY:
+  BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY:
 
 services:
   # A caddy reverse proxy sitting in-front of all the services. Responsible for routing

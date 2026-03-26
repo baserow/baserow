@@ -1520,3 +1520,14 @@ BASEROW_DEADLOCK_INITIAL_BACKOFF = max(
     try_float(os.getenv("BASEROW_DEADLOCK_INITIAL_BACKOFF"), 0.2),
     0.1,
 )
+
+# Set to "all" to enable captcha everywhere, or comma-separated contexts like
+# "signup,invitations" to enable only in specific places.
+BASEROW_ENABLE_CAPTCHA = os.getenv("BASEROW_ENABLE_CAPTCHA", "")
+BASEROW_CAPTCHA_PROVIDER = os.getenv("BASEROW_CAPTCHA_PROVIDER", "cloudflare_turnstile")
+BASEROW_CLOUDFLARE_TURNSTILE_SITE_KEY = os.getenv(
+    "BASEROW_CLOUDFLARE_TURNSTILE_SITE_KEY", ""
+)
+BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY = os.getenv(
+    "BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY", ""
+)

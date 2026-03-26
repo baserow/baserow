@@ -192,6 +192,8 @@
     "invalidEmail": "Please enter a valid e-mail address.",
     "disabledAccountTitle": "Account disabled",
     "disabledAccountMessage": "This user account has been disabled.",
+    "captchaVerificationFailedTitle": "Captcha verification failed",
+    "captchaVerificationFailedMessage": "The captcha verification failed. Please try again.",
     "incorrectCredentialTitle": "Incorrect credentials",
     "incorrectCredentialMessage": "The provided e-mail address or password is incorrect.",
     "inputRequired": "Input is required.",

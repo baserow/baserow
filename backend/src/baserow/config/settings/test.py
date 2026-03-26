@@ -150,6 +150,7 @@ if CACHALOT_ENABLED:
 
     install_cachalot()
 
+BASEROW_ENABLE_CAPTCHA = ""
 
 try:
     from .local_test import *  # noqa: F403, F401

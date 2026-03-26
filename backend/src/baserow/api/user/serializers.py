@@ -169,6 +169,12 @@ class RegisterSerializer(serializers.Serializer):
         "account. This only works if the `workspace_invitation_token` param is not "
         "provided.",
     )
+    captcha_token = serializers.CharField(
+        required=False,
+        default="",
+        allow_blank=True,
+        help_text="The captcha response token, required when captcha is enabled.",
+    )
 
 
 class AccountSerializer(serializers.Serializer):
