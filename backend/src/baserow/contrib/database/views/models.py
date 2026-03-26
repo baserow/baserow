@@ -1005,3 +1005,40 @@ class ViewSubscription(models.Model):
 
     class Meta:
         unique_together = ("view", "subscriber_content_type", "subscriber_id")
+
+
+class ViewDefaultValue(HierarchicalModelMixin, models.Model):
+    """
+    Tracks which fields have a default value enabled for a specific view.
+
+    The actual default value is stored as a hidden row in the table (identified
+    by default_values_view_id=view.id on the row). This model tracks which
+    fields are enabled and optionally which function (e.g. "now") should be
+    used to resolve the value at row creation time instead of the stored value.
+
+    A record existing means the default is enabled for that field. Deleting the
+    record disables the default.
+    """
+
+    view = models.ForeignKey(
+        View, on_delete=models.CASCADE, related_name="view_default_values"
+    )
+    field = models.ForeignKey(
+        "database.Field",
+        on_delete=models.CASCADE,
+    )
+    function = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        help_text="Optional function name (e.g. 'now') to resolve the default "
+        "value dynamically at row creation time instead of using the "
+        "stored value.",
+    )
+
+    class Meta:
+        unique_together = ("view", "field")
+        ordering = ("id",)
+
+    def get_parent(self):
+        return self.view

@@ -584,6 +584,7 @@ class FormViewType(ViewType):
     can_sort = False
     can_share = True
     can_list_rows = False
+    can_set_default_values = False
     restrict_link_row_public_view_sharing = False
     when_shared_publicly_requires_realtime_events = False
     field_options_model_class = FormViewFieldOptions

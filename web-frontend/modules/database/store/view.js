@@ -103,6 +103,10 @@ export function populateView(view, registry) {
     view.decorations = []
   }
 
+  if (!Object.prototype.hasOwnProperty.call(view, 'default_row_values')) {
+    view.default_row_values = null
+  }
+
   return type.populate(view)
 }
 
@@ -345,6 +349,7 @@ export const actions = {
     try {
       const { data } = await ViewService($client).fetchAll(
         table.id,
+        true,
         true,
         true,
         true,

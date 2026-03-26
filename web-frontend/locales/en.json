@@ -169,7 +169,8 @@
     "formViewEditRowShareWarning": "Anyone with the shared link can edit rows via the {formNames} form through the publicly visible edit row link fields.|Anyone with the shared link can edit rows via the {formNames} forms through the publicly visible edit row link field.",
     "ai": "AI prompt",
     "multipleCollaboratorsDropdown": "Dropdown",
-    "multipleCollaboratorsCheckboxes": "Checkboxes"
+    "multipleCollaboratorsCheckboxes": "Checkboxes",
+    "defaultValueFunctionNow": "Current date"
   },
   "fieldErrors": {
     "invalidNumber": "Invalid number",

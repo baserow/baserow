@@ -339,6 +339,23 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Returns a list of supported default value functions for this field type.
+   * Each item is an object with `name` and `label` properties.
+   * Override in field types that support dynamic defaults (e.g. date fields).
+   */
+  getSupportedDefaultValueFunctions() {
+    return []
+  }
+
+  /**
+   * Resolves a default value function to an actual value for optimistic display.
+   * Override in field types that support functions.
+   */
+  resolveDefaultValueFunction(functionName, field) {
+    return null
+  }
+
+  /**
    * Should return the empty value for the field type.
    */
   getEmptyValue(field) {
@@ -2498,6 +2515,18 @@ export class DateFieldType extends BaseDateFieldType {
   getName() {
     const { $i18n: i18n } = this.app
     return i18n.t('fieldType.date')
+  }
+
+  getSupportedDefaultValueFunctions() {
+    const { $i18n: i18n } = this.app
+    return [{ name: 'now', label: i18n.t('fieldType.defaultValueFunctionNow') }]
+  }
+
+  resolveDefaultValueFunction(functionName, field) {
+    if (functionName === 'now') {
+      return new Date().toISOString()
+    }
+    return null
   }
 
   getGridViewFieldComponent() {

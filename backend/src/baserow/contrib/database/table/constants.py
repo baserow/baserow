@@ -20,3 +20,23 @@ TSV_FIELD_PREFIX = "tsv_field"
 
 LAST_MODIFIED_BY_COLUMN_NAME = "last_modified_by"
 CREATED_BY_COLUMN_NAME = "created_by"
+DEFAULT_VALUES_VIEW_ID_COLUMN_NAME = "default_values_view_id"
+
+
+def get_row_visible_q_filters(field_name):
+    """
+    Returns a filter dict that excludes null and trashed related rows for the
+    given field name when querying across joins (link_row, lookup, formula).
+
+    Note: default-value placeholder rows are excluded at the
+    TableModelManager level, not here, because the default_values_view_id
+    column may not yet exist on all tables (it is added lazily).
+
+    Use this wherever you build queryset filters on related row fields to
+    ensure hidden rows are consistently excluded.
+    """
+
+    return {
+        f"{field_name}__isnull": False,
+        f"{field_name}__trashed": False,
+    }

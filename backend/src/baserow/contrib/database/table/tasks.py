@@ -128,6 +128,15 @@ def setup_created_by_and_last_modified_by_column(self, table_id: int):
 
 
 @app.task(bind=True, queue="export")
+def setup_default_values_column(self, table_id: int):
+    from baserow.contrib.database.table.handler import TableHandler
+
+    with transaction.atomic():
+        table = TableHandler().get_table_for_update(table_id)
+        TableHandler().create_default_values_column(table)
+
+
+@app.task(bind=True, queue="export")
 def setup_m2m_field_indexes_if_not_exist(self, table_id: int):
     from baserow.contrib.database.db.schema import safe_django_schema_editor
     from baserow.contrib.database.table.handler import TableHandler

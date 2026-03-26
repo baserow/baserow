@@ -2075,11 +2075,17 @@ export const actions = {
     )
     const taskId = taskQueue.add(async () => {
       // Create an object of default field values that can be used to fill the row with
-      // missing default values
+      // missing default values. If the view has default row values configured, those
+      // take precedence over the field type's default value.
+      const defaultRowValues = view?.default_row_values?.values || {}
       const fieldNewRowValueMap = fields.reduce((map, field) => {
         const name = `field_${field.id}`
-        const fieldType = $registry.get('field', field._.type.type)
-        map[name] = fieldType.getNewRowValue(field)
+        if (defaultRowValues[name] != null) {
+          map[name] = defaultRowValues[name]
+        } else {
+          const fieldType = $registry.get('field', field._.type.type)
+          map[name] = fieldType.getNewRowValue(field)
+        }
         return map
       }, {})
 

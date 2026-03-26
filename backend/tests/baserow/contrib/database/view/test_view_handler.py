@@ -4484,3 +4484,357 @@ def test_can_duplicate_views_with_multiple_collaborator_has_filter(data_fixture)
     assert list(
         getattr(new_results[0], field.db_column).values_list("id", flat=True)
     ) == [user_1.id]
+
+
+@pytest.mark.django_db
+def test_get_view_default_values_empty(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+    result = handler.get_view_default_values(view)
+    assert result == {}
+
+
+@pytest.mark.django_db
+def test_update_view_default_values(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    number_field = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+
+    # Set default values for the text field only.
+    result = handler.update_view_default_values(
+        user=user,
+        view=view,
+        values={f"field_{text_field.id}": "default text"},
+        enabled_field_ids=[text_field.id],
+    )
+
+    assert text_field.id in result
+    assert result[text_field.id]["value"] == "default text"
+    assert number_field.id not in result
+
+    # Verify the hidden row exists.
+    model = table.get_model()
+    hidden_rows = model.objects_and_trash.filter(
+        default_values_view_id=view.id
+    )
+    assert hidden_rows.count() == 1
+
+    # The hidden row should NOT be visible via normal objects manager.
+    assert model.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_update_view_default_values_with_function(data_fixture):
+    from freezegun import freeze_time
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    date_field = data_fixture.create_date_field(
+        table=table, date_include_time=True
+    )
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+    result = handler.update_view_default_values(
+        user=user,
+        view=view,
+        values={},
+        enabled_field_ids=[date_field.id],
+        functions={str(date_field.id): "now"},
+    )
+
+    assert date_field.id in result
+    assert result[date_field.id]["function"] == "now"
+
+    # When resolving for row creation, should return current time.
+    with freeze_time("2024-01-15 12:00:00"):
+        resolved = handler.get_view_default_values_for_row_creation(view)
+        assert f"field_{date_field.id}" in resolved
+
+
+@pytest.mark.django_db
+def test_form_view_cannot_set_default_values(data_fixture):
+    from baserow.contrib.database.views.exceptions import (
+        ViewDoesNotSupportDefaultValues,
+    )
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    view = data_fixture.create_form_view(user=user, table=table)
+
+    handler = ViewHandler()
+    with pytest.raises(ViewDoesNotSupportDefaultValues):
+        handler.get_view_default_values(view)
+
+    with pytest.raises(ViewDoesNotSupportDefaultValues):
+        handler.update_view_default_values(
+            user=user, view=view, values={}, enabled_field_ids=[]
+        )
+
+
+@pytest.mark.django_db
+def test_hidden_row_not_in_normal_queryset(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+
+    # Create a normal row.
+    row_handler = RowHandler()
+    row_handler.force_create_row(
+        user, table, {f"field_{text_field.id}": "normal row"}
+    )
+
+    # Set default values which creates a hidden row.
+    handler.update_view_default_values(
+        user=user,
+        view=view,
+        values={f"field_{text_field.id}": "default"},
+        enabled_field_ids=[text_field.id],
+    )
+
+    model = table.get_model()
+    # Only the normal row should be visible.
+    assert model.objects.count() == 1
+    assert getattr(model.objects.first(), f"field_{text_field.id}") == "normal row"
+
+    # But with objects_and_trash, both should be visible.
+    assert model.objects_and_trash.filter(trashed=False).count() == 2
+
+
+@pytest.mark.django_db
+def test_view_deletion_cleans_up_hidden_row(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+    handler.update_view_default_values(
+        user=user,
+        view=view,
+        values={f"field_{text_field.id}": "default"},
+        enabled_field_ids=[text_field.id],
+    )
+
+    model = table.get_model()
+    assert model.objects_and_trash.filter(default_values_view_id=view.id).count() == 1
+
+    # Delete the view.
+    handler.delete_view(user, view)
+
+    # The hidden row should be cleaned up.
+    assert model.objects_and_trash.filter(default_values_view_id=view.id).count() == 0
+
+
+@pytest.mark.django_db
+def test_field_hard_deletion_cascades_to_view_default_value(data_fixture):
+    from baserow.contrib.database.fields.models import Field
+    from baserow.contrib.database.views.models import ViewDefaultValue
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+    handler.update_view_default_values(
+        user=user,
+        view=view,
+        values={f"field_{text_field.id}": "default"},
+        enabled_field_ids=[text_field.id],
+    )
+
+    assert ViewDefaultValue.objects.filter(view=view, field=text_field).count() == 1
+
+    # Hard-delete the field to trigger FK cascade.
+    Field.objects.filter(id=text_field.id).delete()
+
+    # ViewDefaultValue record should be cascade-deleted.
+    assert ViewDefaultValue.objects.filter(view=view).count() == 0
+
+
+@pytest.mark.django_db
+def test_annotate_views_with_default_row_values(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view1 = data_fixture.create_grid_view(user=user, table=table)
+    view2 = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+
+    # Set defaults for view1 only.
+    handler.update_view_default_values(
+        user=user,
+        view=view1,
+        values={f"field_{text_field.id}": "view1 default"},
+        enabled_field_ids=[text_field.id],
+    )
+
+    views = handler.annotate_views_with_default_row_values([view1, view2], table)
+
+    assert hasattr(views[0], "_default_row_values")
+    assert text_field.id in views[0]._default_row_values
+    assert views[0]._default_row_values[text_field.id]["value"] == "view1 default"
+
+    assert hasattr(views[1], "_default_row_values")
+    assert views[1]._default_row_values == {}
+
+
+@pytest.mark.django_db
+def test_duplicate_view_copies_default_values(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    number_field = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+
+    # Set default values on the original view.
+    handler.update_view_default_values(
+        user=user,
+        view=view,
+        values={
+            f"field_{text_field.id}": "dup default",
+            f"field_{number_field.id}": 42,
+        },
+        enabled_field_ids=[text_field.id, number_field.id],
+    )
+
+    # Duplicate the view.
+    duplicated_view = handler.duplicate_view(user, view)
+
+    # Check that the duplicated view has default values.
+    dup_defaults = handler.get_view_default_values(duplicated_view)
+    assert text_field.id in dup_defaults
+    assert dup_defaults[text_field.id]["value"] == "dup default"
+    assert number_field.id in dup_defaults
+    assert dup_defaults[number_field.id]["value"] == "42"
+
+    # The hidden rows should be separate (different view IDs).
+    model = table.get_model()
+    original_hidden = model.objects_and_trash.filter(
+        default_values_view_id=view.id
+    )
+    dup_hidden = model.objects_and_trash.filter(
+        default_values_view_id=duplicated_view.id
+    )
+    assert original_hidden.count() == 1
+    assert dup_hidden.count() == 1
+    assert original_hidden.first().id != dup_hidden.first().id
+
+
+@pytest.mark.django_db
+def test_duplicate_view_copies_default_values_with_function(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    date_field = data_fixture.create_date_field(
+        table=table, date_include_time=True
+    )
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+    handler.update_view_default_values(
+        user=user,
+        view=view,
+        values={},
+        enabled_field_ids=[date_field.id],
+        functions={str(date_field.id): "now"},
+    )
+
+    duplicated_view = handler.duplicate_view(user, view)
+    dup_defaults = handler.get_view_default_values(duplicated_view)
+
+    assert date_field.id in dup_defaults
+    assert dup_defaults[date_field.id]["function"] == "now"
+
+
+@pytest.mark.django_db
+def test_export_import_view_with_default_values(data_fixture):
+    from baserow.contrib.database.views.registries import view_type_registry
+    from baserow.core.registries import ImportExportConfig
+    from baserow.core.utils import MirrorDict
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+    handler.update_view_default_values(
+        user=user,
+        view=view,
+        values={f"field_{text_field.id}": "export test"},
+        enabled_field_ids=[text_field.id],
+    )
+
+    view_type = view_type_registry.get_by_model(view)
+    config = ImportExportConfig(include_permission_data=True)
+    cache = {}
+
+    # Export
+    serialized = view_type.export_serialized(view, config, cache)
+    assert "default_row_values" in serialized
+    assert str(text_field.id) in serialized["default_row_values"]
+    assert serialized["default_row_values"][str(text_field.id)]["value"] == "export test"
+
+    # Import into the same table (simulating duplication).
+    id_mapping = {
+        "workspace_id": table.database.workspace.id,
+        "database_fields": MirrorDict(),
+        "database_field_select_options": MirrorDict(),
+    }
+    serialized["name"] = "imported view"
+    imported_view = view_type.import_serialized(table, serialized, config, id_mapping)
+
+    # Verify imported default values.
+    imported_defaults = handler.get_view_default_values(imported_view)
+    assert text_field.id in imported_defaults
+    assert imported_defaults[text_field.id]["value"] == "export test"
+
+
+@pytest.mark.django_db
+def test_update_view_default_values_twice(data_fixture):
+    """Updating default values a second time should work without errors."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+
+    # First update — creates the hidden row.
+    result = handler.update_view_default_values(
+        user=user,
+        view=view,
+        values={f"field_{text_field.id}": "first"},
+        enabled_field_ids=[text_field.id],
+    )
+    assert result[text_field.id]["value"] == "first"
+
+    # Second update — updates the existing hidden row.
+    result = handler.update_view_default_values(
+        user=user,
+        view=view,
+        values={f"field_{text_field.id}": "second"},
+        enabled_field_ids=[text_field.id],
+    )
+    assert result[text_field.id]["value"] == "second"
+
+    # Verify only one hidden row exists.
+    model = table.get_model()
+    assert (
+        model.objects_and_trash.filter(default_values_view_id=view.id).count() == 1
+    )

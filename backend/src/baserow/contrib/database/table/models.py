@@ -47,6 +47,7 @@ from baserow.contrib.database.table.cache import (
 )
 from baserow.contrib.database.table.constants import (
     CREATED_BY_COLUMN_NAME,
+    DEFAULT_VALUES_VIEW_ID_COLUMN_NAME,
     LAST_MODIFIED_BY_COLUMN_NAME,
     ROW_NEEDS_BACKGROUND_UPDATE_COLUMN_NAME,
     USER_TABLE_DATABASE_NAME_PREFIX,
@@ -464,7 +465,10 @@ class TableModelTrashAndObjectsManager(models.Manager):
 
 class TableModelManager(TableModelTrashAndObjectsManager):
     def get_queryset(self):
-        return super().get_queryset().filter(trashed=False)
+        qs = super().get_queryset().filter(trashed=False)
+        if hasattr(self.model, DEFAULT_VALUES_VIEW_ID_COLUMN_NAME):
+            qs = qs.filter(default_values_view_id__isnull=True)
+        return qs
 
 
 class GeneratedTableModel(HierarchicalModelMixin, models.Model):
@@ -893,6 +897,12 @@ class Table(
     # `schema_editor.add_field` does not add them. The `schema_editor.create_model`
     # does add those. This problem has been addressed, but there are tables out there
     # without those indexes.
+    default_values_column_added = models.BooleanField(
+        default=True,
+        null=True,
+        help_text="Indicates whether the table has had the default_values_view_id "
+        "column added.",
+    )
     missing_m2m_indexes_added = models.BooleanField(
         # The `db_default` must be false because this is used when an entry is created
         # no default value is set. This is what happens when the field index changes
@@ -1141,6 +1151,9 @@ class Table(
         if self.field_rules_validity_column_added:
             self._add_field_rules_valid(field_attrs, indexes)
 
+        if self.default_values_column_added:
+            self._add_default_values_view_id(field_attrs, indexes)
+
         attrs.update(**field_attrs)
 
         # Create the model class.
@@ -1197,6 +1210,20 @@ class Table(
         column = FieldRuleHandler.get_state_column()
         field_attrs[FieldRuleHandler.STATE_COLUMN_NAME] = column
         return field_attrs
+
+    def _add_default_values_view_id(self, field_attrs, indexes):
+        field_attrs[DEFAULT_VALUES_VIEW_ID_COLUMN_NAME] = models.IntegerField(
+            null=True,
+            default=None,
+            help_text="When set, this row stores default values for the view "
+            "with this ID.",
+        )
+        indexes.append(
+            models.Index(
+                fields=[DEFAULT_VALUES_VIEW_ID_COLUMN_NAME],
+                name=f"tbl_def_val_view_id_{self.id}_idx",
+            )
+        )
 
     @baserow_trace(tracer)
     def _after_model_generation(self, attrs, model):

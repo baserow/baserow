@@ -54,6 +54,7 @@ def test_get_table_model(data_fixture):
         "order",
         "created_by",
         "last_modified_by",
+        "default_values_view_id",
     ]
     default_model_fields_count = len(base_fields)
 
@@ -191,6 +192,7 @@ def test_get_table_model_with_fulltext_search_enabled(data_fixture):
         "order",
         "created_by",
         "last_modified_by",
+        "default_values_view_id",
     ]
     added_fields = [
         text_field.db_column,

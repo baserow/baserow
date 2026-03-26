@@ -395,6 +395,7 @@ class ViewSerializer(serializers.ModelSerializer):
     decorations = ViewDecorationSerializer(
         many=True, source="viewdecoration_set", required=False
     )
+    default_row_values = serializers.SerializerMethodField(required=False)
     show_logo = serializers.BooleanField(required=False)
     ownership_type = serializers.CharField()
     owned_by_id = serializers.IntegerField(required=False)
@@ -414,6 +415,7 @@ class ViewSerializer(serializers.ModelSerializer):
             "sortings",
             "group_bys",
             "decorations",
+            "default_row_values",
             "filters_disabled",
             "public_view_has_password",
             "show_logo",
@@ -435,6 +437,9 @@ class ViewSerializer(serializers.ModelSerializer):
         context["include_sortings"] = kwargs.pop("sortings", False)
         context["include_decorations"] = kwargs.pop("decorations", False)
         context["include_group_bys"] = kwargs.pop("group_bys", False)
+        context["include_default_row_values"] = kwargs.pop(
+            "default_row_values", False
+        )
         enhance_objects_by_view_ownership = kwargs.pop(
             "enhance_objects_by_view_ownership", True
         )
@@ -475,11 +480,35 @@ class ViewSerializer(serializers.ModelSerializer):
         if not self.context["include_group_bys"]:
             self.fields.pop("group_bys", None)
 
+        if not self.context.get("include_default_row_values"):
+            self.fields.pop("default_row_values", None)
+
         return super().to_representation(instance)
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance):
         return view_type_registry.get_by_model(instance.specific_class).type
+
+    @extend_schema_field(OpenApiTypes.OBJECT)
+    def get_default_row_values(self, instance):
+        default_values = getattr(instance, "_default_row_values", None)
+        if default_values is None:
+            return None
+
+        values = {}
+        enabled_field_ids = []
+        functions = {}
+        for field_id, data in default_values.items():
+            enabled_field_ids.append(field_id)
+            values[f"field_{field_id}"] = data["value"]
+            if data.get("function"):
+                functions[str(field_id)] = data["function"]
+
+        return {
+            "values": values,
+            "enabled_field_ids": enabled_field_ids,
+            "functions": functions,
+        }
 
 
 class CreateViewSerializer(serializers.ModelSerializer):

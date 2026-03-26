@@ -15,6 +15,7 @@ from django.db.models import (
 from django.db.models.functions import Cast, JSONObject
 
 from baserow.contrib.database.formula.ast.exceptions import UnknownFieldReference
+from baserow.contrib.database.table.constants import get_row_visible_q_filters
 from baserow.contrib.database.formula.ast.tree import (
     BaserowBooleanLiteral,
     BaserowDecimalLiteral,
@@ -352,13 +353,10 @@ class BaserowExpressionToDjangoExpressionGenerator(
         # We must ensure the annotation name has no __ as otherwise django will think
         # we aren't referring to an annotation but instead try to perform the joins.
         unique_annotation_path_name = f"not_trashed_{join_path}".replace("__", "_")
-        relation_filters = {
-            f"{join_path}__trashed": False,
-            f"{join_path}__isnull": False,
-        }
+        relation_filters = get_row_visible_q_filters(join_path)
         if middle_link is not None:
-            # We are joining via a middle m2m relation, ensure we don't use any trashed
-            # rows there also.
+            # We are joining via a middle m2m relation, ensure we don't use any
+            # trashed rows there also.
             relation_filters[middle_link + "__trashed"] = False
 
         pre_annotations[unique_annotation_path_name] = FilteredRelation(

@@ -92,11 +92,13 @@ from baserow.contrib.database.views.actions import (
 from baserow.contrib.database.views.exceptions import (
     CannotShareViewTypeError,
     DecoratorValueProviderTypeNotCompatible,
+    InvalidDefaultValueFunction,
     NoAuthorizationToPubliclySharedView,
     UnrelatedFieldError,
     ViewDecorationDoesNotExist,
     ViewDecorationNotSupported,
     ViewDoesNotExist,
+    ViewDoesNotSupportDefaultValues,
     ViewDoesNotSupportFieldOptions,
     ViewDoesNotSupportListingRows,
     ViewFilterDoesNotExist,
@@ -138,12 +140,14 @@ from baserow.core.handler import CoreHandler
 from ..constants import SEARCH_MODE_API_PARAM
 from .errors import (
     ERROR_CANNOT_SHARE_VIEW_TYPE,
+    ERROR_INVALID_DEFAULT_VALUE_FUNCTION,
     ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
     ERROR_UNRELATED_FIELD,
     ERROR_VIEW_DECORATION_DOES_NOT_EXIST,
     ERROR_VIEW_DECORATION_NOT_SUPPORTED,
     ERROR_VIEW_DECORATION_VALUE_PROVIDER_NOT_COMPATIBLE,
     ERROR_VIEW_DOES_NOT_EXIST,
+    ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES,
     ERROR_VIEW_DOES_NOT_SUPPORT_FIELD_OPTIONS,
     ERROR_VIEW_DOES_NOT_SUPPORT_LISTING_ROWS,
     ERROR_VIEW_FILTER_DOES_NOT_EXIST,
@@ -278,9 +282,19 @@ class ViewsView(APIView):
         }
     )
     @validate_query_parameters(ListQueryParamatersSerializer)
-    @allowed_includes("filters", "sortings", "decorations", "group_bys")
+    @allowed_includes(
+        "filters", "sortings", "decorations", "group_bys", "default_row_values"
+    )
     def get(
-        self, request, table_id, query_params, filters, sortings, decorations, group_bys
+        self,
+        request,
+        table_id,
+        query_params,
+        filters,
+        sortings,
+        decorations,
+        group_bys,
+        default_row_values,
     ):
         """
         Responds with a list of serialized views that belong to the table if the user
@@ -303,6 +317,7 @@ class ViewsView(APIView):
             sortings,
             decorations,
             group_bys,
+            default_row_values,
             query_params["limit"],
         )
 
@@ -320,6 +335,7 @@ class ViewsView(APIView):
                 sortings=sortings,
                 decorations=decorations,
                 group_bys=group_bys,
+                default_row_values=default_row_values,
                 many=True,
             ).data
         return Response(serialized_views)
@@ -2455,3 +2471,148 @@ class PublicViewGetRowView(APIView):
             row._meta.model, RowSerializer, is_response=True, field_ids=field_ids
         )
         return Response(serializer_class(row).data)
+
+
+class ViewDefaultValuesView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="view_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="Returns the default row values for the view with "
+                "the given id.",
+            ),
+        ],
+        tags=["Database table views"],
+        operation_id="get_view_default_values",
+        description=(
+            "Returns the default row values configured for the specified view. "
+            "These defaults are applied when creating new rows in the context "
+            "of this view."
+        ),
+        responses={
+            200: OpenApiTypes.OBJECT,
+            400: get_error_schema(
+                ["ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES"]
+            ),
+            404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+            ViewDoesNotSupportDefaultValues: ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES,
+        }
+    )
+    def get(self, request, view_id):
+        """Returns the default row values for the given view."""
+
+        handler = ViewHandler()
+        view = handler.get_view_as_user(request.user, view_id).specific
+        default_values = handler.get_view_default_values(view)
+
+        # Build the response.
+        enabled_field_ids = list(default_values.keys())
+        values = {}
+        functions = {}
+        for field_id, data in default_values.items():
+            values[f"field_{field_id}"] = data["value"]
+            if data.get("function"):
+                functions[str(field_id)] = data["function"]
+
+        return Response(
+            {
+                "values": values,
+                "enabled_field_ids": enabled_field_ids,
+                "functions": functions,
+            }
+        )
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="view_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="Updates the default row values for the view with "
+                "the given id.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Database table views"],
+        operation_id="update_view_default_values",
+        description=(
+            "Updates the default row values for the specified view. Accepts "
+            "field values, a list of enabled field IDs, and optional functions "
+            "for dynamic defaults like 'now' for date fields."
+        ),
+        request=OpenApiTypes.OBJECT,
+        responses={
+            200: OpenApiTypes.OBJECT,
+            400: get_error_schema(
+                [
+                    "ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES",
+                    "ERROR_INVALID_DEFAULT_VALUE_FUNCTION",
+                ]
+            ),
+            404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+            ViewDoesNotSupportDefaultValues: ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES,
+            InvalidDefaultValueFunction: ERROR_INVALID_DEFAULT_VALUE_FUNCTION,
+        }
+    )
+    @transaction.atomic
+    def patch(self, request, view_id):
+        """Updates the default row values for the given view."""
+
+        handler = ViewHandler()
+        view = handler.get_view_as_user(request.user, view_id).specific
+
+        data = request.data
+        raw_values = data.get("values", {})
+        enabled_field_ids = data.get("enabled_field_ids", [])
+        functions = data.get("functions", {})
+
+        # Validate and deserialize the field values using the same row
+        # serializer that the row create/update API endpoints use. This
+        # ensures that rich frontend representations (e.g. single-select
+        # objects, link-row lists) are properly converted to the internal
+        # format expected by prepare_value_for_db.
+        table = view.table
+        model = table.get_model()
+        validation_serializer = get_row_serializer_class(model)
+        values = validate_data(validation_serializer, raw_values)
+
+        updated_defaults = handler.update_view_default_values(
+            user=request.user,
+            view=view,
+            values=values,
+            enabled_field_ids=enabled_field_ids,
+            functions=functions,
+            model=model,
+        )
+
+        # Build the response. Values are already properly serialized by
+        # get_view_default_values through the row response serializer.
+        result_enabled_field_ids = list(updated_defaults.keys())
+        result_values = {}
+        result_functions = {}
+        for field_id, data in updated_defaults.items():
+            result_values[f"field_{field_id}"] = data["value"]
+            if data.get("function"):
+                result_functions[str(field_id)] = data["function"]
+
+        return Response(
+            {
+                "values": result_values,
+                "enabled_field_ids": result_enabled_field_ids,
+                "functions": result_functions,
+            }
+        )

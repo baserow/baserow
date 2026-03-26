@@ -2556,3 +2556,72 @@ class EditFormRowActionType(ActionType):
     @classmethod
     def scope(cls, view_id: int) -> ActionScopeStr:
         return ViewActionScopeType.value(view_id)
+
+
+class UpdateViewDefaultValuesActionType(ActionType):
+    type = "update_view_default_values"
+    description = ActionTypeDescription(
+        _("Update view default values"),
+        _("Default row values updated for view (%(view_name)s)"),
+        VIEW_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "view_id",
+        "table_id",
+        "database_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        view_id: int
+        view_name: str
+        table_id: int
+        table_name: str
+        database_id: int
+        database_name: str
+        enabled_field_ids: List[int]
+
+    @classmethod
+    def do(
+        cls,
+        user: AbstractUser,
+        view: View,
+        values: Dict[str, Any],
+        enabled_field_ids: List[int],
+        functions: Optional[Dict[str, str]] = None,
+    ):
+        """
+        Updates the default row values for the given view.
+        """
+
+        from baserow.contrib.database.views.handler import ViewHandler
+
+        table = view.table
+
+        result = ViewHandler().update_view_default_values(
+            user=user,
+            view=view,
+            values=values,
+            enabled_field_ids=enabled_field_ids,
+            functions=functions,
+        )
+
+        workspace = table.database.workspace
+        params = cls.Params(
+            view.id,
+            view.name,
+            table.id,
+            table.name,
+            table.database.id,
+            table.database.name,
+            list(enabled_field_ids),
+        )
+        cls.register_action(
+            user, params, scope=cls.scope(view.id), workspace=workspace
+        )
+
+        return result
+
+    @classmethod
+    def scope(cls, view_id: int) -> ActionScopeStr:
+        return ViewActionScopeType.value(view_id)

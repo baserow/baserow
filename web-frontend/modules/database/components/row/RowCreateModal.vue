@@ -171,10 +171,13 @@ export default {
   methods: {
     show(defaults = {}, ...args) {
       const row = {}
+      const defaultRowValues = this.view?.default_row_values?.values || {}
       this.allFields.forEach((field) => {
         const name = `field_${field.id}`
         if (this.presets[name] !== undefined) {
           row[name] = this.presets[name]
+        } else if (defaultRowValues[name] != null) {
+          row[name] = defaultRowValues[name]
         } else {
           const fieldType = this.$registry.get('field', field._.type.type)
           row[name] = fieldType.getNewRowValue(field)

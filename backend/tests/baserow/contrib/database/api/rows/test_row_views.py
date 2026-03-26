@@ -4770,3 +4770,85 @@ def test_update_single_field_does_not_affect_others(api_client, data_fixture):
 
         # Update original_values for next iteration
         original_values[field_id] = updated_data[f"field_{field_id}"]
+
+
+@pytest.mark.django_db
+def test_create_row_with_view_default_values(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    from baserow.contrib.database.views.handler import ViewHandler
+
+    ViewHandler().update_view_default_values(
+        user=user,
+        view=view,
+        values={f"field_{text_field.id}": "api default"},
+        enabled_field_ids=[text_field.id],
+    )
+
+    # Create a row with the view context — no explicit field value.
+    response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id})
+        + f"?view={view.id}",
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[f"field_{text_field.id}"] == "api default"
+
+
+@pytest.mark.django_db
+def test_create_row_api_default_value_priority(api_client, data_fixture):
+    """Test priority: empty < field default < view default < user value via API."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, text_default="field default"
+    )
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    from baserow.contrib.database.views.handler import ViewHandler
+
+    # Set view default.
+    ViewHandler().update_view_default_values(
+        user=user,
+        view=view,
+        values={f"field_{text_field.id}": "view default"},
+        enabled_field_ids=[text_field.id],
+    )
+
+    # 1. No view, no value -> field default
+    response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id}),
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[f"field_{text_field.id}"] == "field default"
+
+    # 2. With view, no value -> view default
+    response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id})
+        + f"?view={view.id}",
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[f"field_{text_field.id}"] == "view default"
+
+    # 3. With view, user value -> user value wins
+    response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id})
+        + f"?view={view.id}",
+        {f"field_{text_field.id}": "user value"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[f"field_{text_field.id}"] == "user value"

@@ -151,6 +151,12 @@ class ViewType(
     fetch rows from the view.
     """
 
+    can_set_default_values = True
+    """
+    Indicates if the view supports setting default row values. If not, it will not
+    be possible to configure default values for rows created in this view.
+    """
+
     has_public_info = False
     """
     Indicates if the view supports public information being returned by
@@ -306,6 +312,13 @@ class ViewType(
         if self.can_share:
             serialized["public"] = view.public
 
+        if self.can_set_default_values and view.table_id is not None:
+            default_row_values = self._export_default_row_values(
+                view, cache, files_zip, storage
+            )
+            if default_row_values:
+                serialized["default_row_values"] = default_row_values
+
         # It could be that there is no `table` related to the view when doing an
         # Airtable export, for example. That means it's not part of a workspace, so we
         # can't enhance the export with the `serialization_processor_registry`.
@@ -421,6 +434,11 @@ class ViewType(
         decorations = (
             serialized_copy.pop("decorations", []) if self.can_decorate else []
         )
+        default_row_values_data = (
+            serialized_copy.pop("default_row_values", None)
+            if self.can_set_default_values
+            else None
+        )
 
         view = self.model_class(table=table)
         # Only set the properties that are actually accepted by the view type's model
@@ -523,6 +541,12 @@ class ViewType(
                     view_decoration_object.id
                 )
 
+        if self.can_set_default_values and default_row_values_data:
+            self._import_default_row_values(
+                table, view, default_row_values_data, id_mapping,
+                files_zip, storage,
+            )
+
         for (
             serialized_structure_processor
         ) in serialization_processor_registry.get_all():
@@ -531,6 +555,131 @@ class ViewType(
             )
 
         return view
+
+    def _export_default_row_values(self, view, cache, files_zip, storage):
+        """
+        Exports the default row values for the given view as a serialized dict.
+        """
+
+        from baserow.contrib.database.fields.registries import field_type_registry
+        from baserow.contrib.database.table.constants import (
+            DEFAULT_VALUES_VIEW_ID_COLUMN_NAME,
+        )
+        from baserow.contrib.database.views.models import ViewDefaultValue
+
+        table = view.table
+        if not table.default_values_column_added:
+            return None
+
+        model = table.get_model()
+        try:
+            hidden_row = model.objects_and_trash.get(
+                **{DEFAULT_VALUES_VIEW_ID_COLUMN_NAME: view.id, "trashed": False}
+            )
+        except model.DoesNotExist:
+            return None
+
+        dv_records = {
+            dv.field_id: dv
+            for dv in ViewDefaultValue.objects.filter(view_id=view.id)
+        }
+
+        if not dv_records:
+            return None
+
+        if cache is None:
+            cache = {}
+
+        fields = []
+        for field_obj in model.get_field_objects():
+            if field_obj["field"].id in dv_records:
+                fields.append(field_obj)
+
+        serialized_values = {}
+        for field_obj in fields:
+            field = field_obj["field"]
+            field_type = field_obj["type"]
+            field_name = field_obj["name"]
+
+            value = field_type.get_export_serialized_value(
+                hidden_row, field_name, cache, files_zip, storage
+            )
+            dv_record = dv_records[field.id]
+            serialized_values[str(field.id)] = {
+                "field_id": field.id,
+                "value": value,
+                "function": dv_record.function,
+            }
+
+        return serialized_values
+
+    def _import_default_row_values(
+        self, table, view, default_row_values, id_mapping,
+        files_zip, storage,
+    ):
+        """
+        Imports the default row values from a serialized dict.
+        """
+
+        from baserow.contrib.database.fields.registries import field_type_registry
+        from baserow.contrib.database.rows.handler import RowHandler
+        from baserow.contrib.database.table.constants import (
+            DEFAULT_VALUES_VIEW_ID_COLUMN_NAME,
+        )
+        from baserow.contrib.database.table.handler import TableHandler
+        from baserow.contrib.database.views.models import ViewDefaultValue
+
+        TableHandler().create_default_values_column(table)
+        model = table.get_model(use_cache=False)
+
+        # Create the hidden row first with empty values.
+        hidden_row = RowHandler().force_create_row(
+            user=None, table=table, values={}, model=model
+        )
+        setattr(hidden_row, DEFAULT_VALUES_VIEW_ID_COLUMN_NAME, view.id)
+        hidden_row.save(update_fields=[DEFAULT_VALUES_VIEW_ID_COLUMN_NAME])
+
+        cache = {}
+        m2m_objects = []
+
+        for _old_field_id, dv_data in default_row_values.items():
+            old_field_id = dv_data["field_id"]
+            new_field_id = id_mapping["database_fields"].get(old_field_id)
+            if new_field_id is None:
+                continue
+
+            if new_field_id not in model._field_objects:
+                continue
+
+            field_obj = model._field_objects[new_field_id]
+            field = field_obj["field"]
+            field_type = field_obj["type"]
+            field_name = field_obj["name"]
+
+            m2m_result = field_type.set_import_serialized_value(
+                hidden_row, field_name, dv_data["value"],
+                id_mapping, cache, files_zip, storage,
+            )
+            if m2m_result:
+                m2m_objects.extend(m2m_result)
+
+            # Create the ViewDefaultValue record.
+            ViewDefaultValue.objects.create(
+                view_id=view.id,
+                field_id=new_field_id,
+                function=dv_data.get("function"),
+            )
+
+        hidden_row.save()
+
+        if m2m_objects:
+            # Group by model and bulk create.
+            by_model = {}
+            for obj in m2m_objects:
+                model_class = type(obj)
+                by_model.setdefault(model_class, []).append(obj)
+            for model_class, objects in by_model.items():
+                model_class.objects.bulk_create(objects)
 
     def get_visible_fields_and_model(
         self, view: "View"

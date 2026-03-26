@@ -635,12 +635,19 @@
   "viewContext": {
     "exportView": "Export view",
     "duplicateView": "Duplicate view",
+    "defaultRowValues": "Default row values",
     "renameView": "Rename view",
     "toPersonal": "To personal",
     "toCollaborative": "To collaborative",
     "webhooks": "Webhooks",
     "importFile": "Import file",
     "deleteView": "Delete view"
+  },
+  "defaultValuesModal": {
+    "title": "Default values for {name}",
+    "setDefaultValue": "Set default value",
+    "removeDefaultValue": "Remove default value",
+    "staticValue": "Static value"
   },
   "deleteViewModal": {
     "title": "Delete {name}",

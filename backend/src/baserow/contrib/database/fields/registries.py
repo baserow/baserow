@@ -237,6 +237,38 @@ class FieldType(
             return self._db_column_fields
         return set(self.allowed_fields)
 
+    def get_supported_default_value_functions(self) -> list:
+        """
+        Returns a list of function names that this field type supports for
+        view default values. For example, a date field might support "now" to
+        insert the current timestamp at row creation time.
+
+        :return: A list of supported function name strings.
+        """
+
+        return []
+
+    def resolve_default_value_function(self, function_name: str, field: Field) -> Any:
+        """
+        Resolves a default value function to an actual value at row creation
+        time. The function_name must be one of the strings returned by
+        get_supported_default_value_functions().
+
+        :param function_name: The function name to resolve (e.g. "now").
+        :param field: The field instance.
+        :return: The resolved value.
+        :raises InvalidDefaultValueFunction: If the function is not supported.
+        """
+
+        from baserow.contrib.database.views.exceptions import (
+            InvalidDefaultValueFunction,
+        )
+
+        raise InvalidDefaultValueFunction(
+            f"Function '{function_name}' is not supported by field type "
+            f"'{self.type}'."
+        )
+
     def prepare_value_for_db(self, instance: Field, value: Any) -> Any:
         """
         When a row is created or updated all the values are going to be prepared for the

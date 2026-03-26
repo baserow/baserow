@@ -50,6 +50,7 @@ from django.db.models import (
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import ManyToManyField
 from django.db.models.functions import Cast, Coalesce, RowNumber
+from django.utils import timezone as django_timezone
 
 from dateutil import parser
 from dateutil.parser import ParserError
@@ -134,6 +135,7 @@ from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaURLType,
 )
 from baserow.contrib.database.models import Table
+from baserow.contrib.database.table.constants import get_row_visible_q_filters
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.types import SerializedRowHistoryFieldMetadata
 from baserow.contrib.database.validators import UnicodeRegexValidator
@@ -1128,6 +1130,14 @@ class DateFieldType(FieldType):
     _db_column_fields = ["date_include_time"]
     _can_have_db_index = True
     can_upsert = True
+
+    def get_supported_default_value_functions(self):
+        return ["now"]
+
+    def resolve_default_value_function(self, function_name, field):
+        if function_name == "now":
+            return django_timezone.now()
+        return super().resolve_default_value_function(function_name, field)
 
     def can_represent_date(self, field):
         return True
@@ -2405,12 +2415,7 @@ class LinkRowFieldType(
     def _get_group_by_agg_expression(self, field_name: str) -> dict:
         return ArrayAgg(
             f"{field_name}__id",
-            filter=Q(
-                **{
-                    f"{field_name}__isnull": False,
-                    f"{field_name}__trashed": False,
-                }
-            ),
+            filter=Q(**get_row_visible_q_filters(field_name)),
             distinct=True,
         )
 
@@ -2466,9 +2471,7 @@ class LinkRowFieldType(
         def get_array_agg(expr):
             return ArrayAgg(
                 expr,
-                filter=Q(
-                    **{f"{field_name}__isnull": False, f"{field_name}__trashed": False}
-                ),
+                filter=Q(**get_row_visible_q_filters(field_name)),
                 order_by=(f"{field_name}__order", f"{field_name}__id"),
             )
 
@@ -3509,7 +3512,7 @@ class LinkRowFieldType(
             current_field_name = through_model_fields[1].name
             relation_field_name = through_model_fields[2].name
             for relation in through_model.objects.filter(
-                Q(**{f"{relation_field_name}__trashed": False})
+                Q(**get_row_visible_q_filters(relation_field_name))
             ):
                 cache[cache_entry][
                     getattr(relation, f"{current_field_name}_id")
@@ -3689,10 +3692,11 @@ class LinkRowFieldType(
         model_field: LinkRowField,
         field: ManyToManyField,
     ) -> Q:
-        # Exclude all the trashed rows in the related table.
+        # Exclude trashed and default-value rows in the related table.
         subq = Subquery(
             model_field.model.objects.filter(
-                id=OuterRef("id"), **{f"{field_name}__trashed": False}
+                id=OuterRef("id"),
+                **get_row_visible_q_filters(field_name),
             )[:1]
         )
         annotation_name = f"{field_name}_exists"

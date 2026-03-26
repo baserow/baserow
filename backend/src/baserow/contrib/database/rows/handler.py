@@ -855,6 +855,20 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         self._raise_if_values_contain_hidden_fields(user, view, [values])
         self._check_write_fields_values_permissions(user, model, [values])
 
+        # Apply view default values for fields not explicitly provided by the
+        # user. View defaults take priority over field-level defaults.
+        if view is not None:
+            from baserow.contrib.database.views.handler import ViewHandler
+
+            view_defaults = (
+                ViewHandler().get_view_default_values_for_row_creation(
+                    view, model=model
+                )
+            )
+            for field_name, default_value in view_defaults.items():
+                if field_name not in values:
+                    values[field_name] = default_value
+
         return self.force_create_row(
             user,
             table,
@@ -1311,6 +1325,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         generate_error_report: bool = False,
         skip_search_update: bool = False,
         signal_params: Optional[Dict] = None,
+        use_objects_and_trash: bool = False,
     ) -> CreatedRowsData:
         """
         Creates new rows for a given table without checking permissions. It also calls
@@ -1399,9 +1414,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         rows = [row for (row, _) in rows_relationships]
 
+        manager = model.objects_and_trash if use_objects_and_trash else model.objects
         try:
             with transaction.atomic():
-                inserted_rows = model.objects.bulk_create(rows)
+                inserted_rows = manager.bulk_create(rows)
         except Exception as exc:
             inserted_rows = []
             if is_unique_violation_error(exc):
@@ -1558,6 +1574,22 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         self._raise_if_values_contain_hidden_fields(user, view, rows_values)
         self._check_write_fields_values_permissions(user, model, rows_values)
+
+        # Apply view default values for fields with empty values.
+        if view is not None:
+            from baserow.contrib.database.views.handler import ViewHandler
+
+            view_defaults = (
+                ViewHandler().get_view_default_values_for_row_creation(
+                    view, model=model
+                )
+            )
+            if view_defaults:
+                for row_values in rows_values:
+                    for field_name, default_value in view_defaults.items():
+                        current = row_values.get(field_name)
+                        if current is None or current == "" or current == []:
+                            row_values[field_name] = default_value
 
         return self.force_create_rows(
             user,
@@ -2211,6 +2243,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         skip_search_update: bool = False,
         generate_error_report: bool = False,
         signal_params: Optional[Dict] = None,
+        use_objects_and_trash: bool = False,
     ) -> UpdatedRowsData:
         """
         Updates field values in batch based on provided rows with the new
@@ -2267,7 +2300,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             prepared_rows_values_by_id[row_id] = prepared_row_values
 
         if rows_to_update is None:
-            rows_to_update = self.get_rows_for_update(model, row_ids)
+            rows_to_update = self.get_rows_for_update(
+                model, row_ids, use_objects_and_trash=use_objects_and_trash
+            )
 
         if len(rows_to_update) != len(prepared_rows_values):
             db_rows_ids = [db_row.id for db_row in rows_to_update]
@@ -2452,8 +2487,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 bulk_update_fields.append(field_name)
 
         if len(bulk_update_fields) > 0:
+            manager = (
+                model.objects_and_trash if use_objects_and_trash else model.objects
+            )
             try:
-                model.objects.bulk_update(
+                manager.bulk_update(
                     rows_to_update, bulk_update_fields, batch_size=2000
                 )
             except Exception as exc:
@@ -2677,7 +2715,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         return model.objects.filter(id__in=row_ids).enhance_by_fields()
 
     def get_rows_for_update(
-        self, model: GeneratedTableModel, row_ids: List[int]
+        self,
+        model: GeneratedTableModel,
+        row_ids: List[int],
+        use_objects_and_trash: bool = False,
     ) -> RowsForUpdate:
         """
         Get the rows to update. This method doesn't guarantee that the rows
@@ -2685,8 +2726,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         table ordering is by [order, id]).
         """
 
+        manager = model.objects_and_trash if use_objects_and_trash else model.objects
         return cast(
-            RowsForUpdate, self.get_rows(model, row_ids).select_for_update(of=("self",))
+            RowsForUpdate,
+            manager.filter(id__in=row_ids)
+            .enhance_by_fields()
+            .select_for_update(of=("self",)),
         )
 
     def move_row_by_id(
