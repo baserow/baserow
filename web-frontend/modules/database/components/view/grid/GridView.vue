@@ -570,7 +570,7 @@ export default {
     },
     /**
      * Returns the fields that should be displayed in the frozen left section.
-     * Takes the first N fields in sort order (primary always first).
+     * Takes the first N *visible* fields in sort order (primary always first).
      */
     leftFields() {
       if (!this.primaryFieldIsSticky) {
@@ -579,6 +579,7 @@ export default {
       const fieldOptions = this.fieldOptions
       const sorted = this.fields
         .slice()
+        .filter(filterVisibleFieldsFunction(fieldOptions))
         .sort(sortFieldsByOrderAndIdFunction(fieldOptions, true))
       return sorted.slice(0, this.frozenColumnCount)
     },
@@ -1778,6 +1779,7 @@ export default {
       const fieldOptions = this.fieldOptions
       const sorted = this.fields
         .slice()
+        .filter(filterVisibleFieldsFunction(fieldOptions))
         .sort(sortFieldsByOrderAndIdFunction(fieldOptions, true))
       const frozenFields = sorted.slice(0, this.frozenColumnCount)
       const frozenWidth = frozenFields.reduce(

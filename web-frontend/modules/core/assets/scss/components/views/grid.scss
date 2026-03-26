@@ -279,6 +279,10 @@
   &.grid-view__placeholder-column--no-border-right {
     border-right: none;
   }
+
+  .grid-view__left & {
+    border-right: none;
+  }
 }
 
 .grid-view__filtered-no-results {
@@ -400,6 +404,12 @@
   }
 
   &.grid-view__column--no-border-right {
+    border-right: none;
+  }
+
+  // Remove the right border on the last column in the frozen section to avoid
+  // a double border with the divider's border-left.
+  .grid-view__left &:last-child {
     border-right: none;
   }
 

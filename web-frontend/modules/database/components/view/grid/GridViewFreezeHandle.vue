@@ -19,7 +19,10 @@
 
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { sortFieldsByOrderAndIdFunction } from '@baserow/modules/database/utils/view'
+import {
+  filterVisibleFieldsFunction,
+  sortFieldsByOrderAndIdFunction,
+} from '@baserow/modules/database/utils/view'
 
 const MAX_FROZEN_COLUMNS = 4
 
@@ -83,10 +86,15 @@ export default {
     sortedFields() {
       return this.fields
         .slice()
+        .filter(filterVisibleFieldsFunction(this.fieldOptions))
         .sort(sortFieldsByOrderAndIdFunction(this.fieldOptions, true))
     },
     maxFrozenColumns() {
-      return Math.min(this.sortedFields.length - 1, MAX_FROZEN_COLUMNS)
+      // Ensure at least one field remains in the scrollable section.
+      return Math.min(
+        Math.max(this.sortedFields.length - 1, 1),
+        MAX_FROZEN_COLUMNS
+      )
     },
     tooltipText() {
       const count = this.dragFrozenCount ?? this.currentFrozenCount
@@ -139,6 +147,7 @@ export default {
       const onMove = (e) => {
         e.preventDefault()
         const gridEl = this.$el.closest('.grid-view')
+        if (!gridEl) return
         const gridRect = gridEl.getBoundingClientRect()
         const relativeX = e.clientX - gridRect.left
         const newCount = this.countFromX(relativeX, boundaries)

@@ -1116,7 +1116,6 @@
     "large": "Large"
   },
   "gridViewFreezeHandle": {
-    "tooltip": "Drag to adjust the number of frozen columns",
     "freezeOne": "Freeze 1 column",
     "freezeN": "Freeze {count} columns"
   },
