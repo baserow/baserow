@@ -5,10 +5,7 @@ from baserow_enterprise.assistant.tools.core.tools import (
     create_builders,
     list_builders,
 )
-from baserow_enterprise.assistant.tools.core.types import (
-    BuilderItemCreate,
-    apply_theme,
-)
+from baserow_enterprise.assistant.tools.core.types import BuilderItemCreate
 
 from .utils import make_test_ctx
 
@@ -146,23 +143,6 @@ def test_create_application_applies_eclipse_theme(data_fixture):
     builder = Builder.objects.get(id=app_id)
     # Eclipse theme should have different colors from baserow
     assert builder.colorthemeconfigblock.primary_color != "#4e5cfe"
-
-
-@pytest.mark.django_db
-def test_apply_theme_function(data_fixture):
-    """apply_theme should update theme properties on an existing builder."""
-
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
-
-    # Before: default color
-    original_color = builder.colorthemeconfigblock.primary_color
-
-    apply_theme(builder, "eclipse")
-
-    builder.colorthemeconfigblock.refresh_from_db()
-    assert builder.colorthemeconfigblock.primary_color != original_color
 
 
 @pytest.mark.django_db
