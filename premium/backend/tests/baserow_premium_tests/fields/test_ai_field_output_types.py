@@ -1,6 +1,3 @@
-import enum
-from difflib import get_close_matches
-
 import pytest
 
 from baserow.core.generative_ai.registries import (
@@ -10,33 +7,32 @@ from baserow.core.generative_ai.registries import (
 from baserow.core.jobs.handler import JobHandler
 
 
-def test_choice_fuzzy_matching():
-    """Test that fuzzy matching correctly maps LLM text responses to enum values."""
+def test_resolve_choices():
+    """Test that _resolve_choices correctly normalizes and fuzzy-matches LLM output."""
 
-    choices = enum.Enum(
-        "Choices",
-        {
-            "OPTION_1": "Object",
-            "OPTION_2": "Animal",
-            "OPTION_3": "Human",
-            "OPTION_4": "A,B,C",
-        },
-    )
-    valid_values = [e.value for e in choices]
+    resolve = GenerativeAIModelType._resolve_choices
+    choices = ["Object", "Animal", "Human", "A,B,C"]
 
-    def match(text):
-        closest = get_close_matches(text.strip(), valid_values, n=1, cutoff=0.0)
-        return choices(closest[0]) if closest else None
+    # Exact matches
+    assert resolve(None, "Object", choices) == "Object"
+    assert resolve(None, "Animal", choices) == "Animal"
+    assert resolve(None, "A,B,C", choices) == "A,B,C"
 
-    assert match("Object") == choices.OPTION_1
-    assert match("Animal") == choices.OPTION_2
-    assert match("Human") == choices.OPTION_3
-    assert match("A,B,C") == choices.OPTION_4
+    # Case-insensitive
+    assert resolve(None, "object", choices) == "Object"
+    assert resolve(None, "ANIMAL", choices) == "Animal"
 
-    # Fuzzy matching handles whitespace and quotes
-    assert match(" Object ") == choices.OPTION_1
-    assert match("'Object'") == choices.OPTION_1
-    assert match("'A'") == choices.OPTION_4
+    # Strips quotes, markdown bold, whitespace, trailing punctuation
+    assert resolve(None, "'Object'", choices) == "Object"
+    assert resolve(None, '"Animal"', choices) == "Animal"
+    assert resolve(None, " Object ", choices) == "Object"
+    assert resolve(None, "**Human**", choices) == "Human"
+    assert resolve(None, "`Object`", choices) == "Object"
+    assert resolve(None, "Object.", choices) == "Object"
+
+    # Too far from any choice — below the default 0.6 cutoff
+    assert resolve(None, "xyzzy", choices) is None
+    assert resolve(None, "", choices) is None
 
 
 @pytest.mark.django_db

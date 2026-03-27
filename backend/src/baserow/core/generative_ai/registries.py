@@ -185,6 +185,11 @@ class GenerativeAIModelType(Instance):
             )
 
         if content:
+            prompt = (
+                f"{prompt}\n\n"
+                "The contents of the attached files are included below. "
+                "Use them to answer the prompt above."
+            )
             return [prompt] + content
 
         return prompt

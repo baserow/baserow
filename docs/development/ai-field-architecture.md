@@ -65,9 +65,9 @@ models from the workspace settings populated by the backend's
 The `AIFieldOutputType` registry defines how AI responses map to cell
 values. Current types:
 
-- **Text** — free-form text stored as long text.
-- **Choice** — the prompt is constrained to a set of select options; the
-  model's response is fuzzy-matched to the closest option.
+- `TextAIFieldOutputType` — free-form text stored as long text.
+- `ChoiceAIFieldOutputType` — the prompt is constrained to a set of select
+  options; the model's response is fuzzy-matched to the closest option.
 
 ## File handling
 

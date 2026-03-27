@@ -158,7 +158,9 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
                         continue
                     data = ai_file.read_content()
                     ai_file.content = BinaryContent(
-                        data=data, media_type=ai_file.mime_type
+                        data=data,
+                        media_type=ai_file.mime_type,
+                        identifier=ai_file.original_name,
                     )
                     embed_payload += ai_file.size
                     embed_count += 1
@@ -175,6 +177,7 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
                         file_id=file_id,
                         provider_name="openai",
                         media_type=ai_file.mime_type,
+                        identifier=ai_file.original_name,
                     )
             except Exception:
                 logger.warning(

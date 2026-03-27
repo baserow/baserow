@@ -185,6 +185,7 @@ class AIFieldHandler:
         return [
             AIFile(
                 name=f["name"],
+                original_name=f.get("original_name", f["name"]),
                 size=f.get("size", 0),
                 mime_type=(
                     f.get("mime_type")

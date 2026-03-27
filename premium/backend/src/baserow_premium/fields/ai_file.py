@@ -23,6 +23,7 @@ class AIFile:
     """
 
     name: str
+    original_name: str
     size: int
     mime_type: str
 
