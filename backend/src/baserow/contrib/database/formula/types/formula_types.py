@@ -80,6 +80,9 @@ from baserow.core.utils import list_to_comma_separated_string
 
 
 class BaserowJSONBObjectBaseType(BaserowFormulaValidType, ABC):
+    array_index_sql = "{elem} -> 'value'"
+    output_field_class = JSONField
+
     def parse_filter_value(self, field, model_field, value):
         """
         Since the subclasses don't have a baserow_field_type or data might be stored
@@ -361,6 +364,8 @@ class BaserowFormulaNumberType(
 ):
     type = "number"
     baserow_field_type = "number"
+    array_index_sql = "({elem} ->> 'value')::numeric"
+    output_field_class = models.DecimalField
     user_overridable_formatting_option_fields = [
         "number_decimal_places",
         "number_prefix",
@@ -516,6 +521,8 @@ class BaserowFormulaBooleanType(
 ):
     type = "boolean"
     baserow_field_type = "boolean"
+    array_index_sql = "({elem} ->> 'value')::boolean"
+    output_field_class = models.BooleanField
     can_order_by_in_array = True
     can_group_by = True
     can_have_db_index = True
@@ -715,6 +722,8 @@ class BaserowFormulaDurationType(
 ):
     type = "duration"
     baserow_field_type = "duration"
+    array_index_sql = "({elem} ->> 'value')::interval"
+    output_field_class = models.DurationField
     user_overridable_formatting_option_fields = ["duration_format"]
     can_group_by = True
     can_order_by_in_array = True
@@ -856,6 +865,7 @@ class BaserowFormulaDateType(
     can_order_by_in_array = True
     can_group_by = True
     can_have_db_index = True
+    output_field_class = models.DateTimeField
 
     def __init__(
         self,
@@ -872,6 +882,11 @@ class BaserowFormulaDateType(
         self.date_time_format = date_time_format
         self.date_show_tzinfo = date_show_tzinfo
         self.date_force_timezone = date_force_timezone
+
+    @property
+    def array_index_sql(self) -> str:
+        cast = "::timestamptz" if self.date_include_time else "::date"
+        return f"({{elem}} ->> 'value'){cast}"
 
     @property
     def comparable_types(self) -> List[Type["BaserowFormulaValidType"]]:
@@ -1003,6 +1018,7 @@ class BaserowFormulaSingleFileType(
     can_order_by_in_array = False
     baserow_field_type = None
     item_is_in_nested_value_object_when_in_array = False
+    array_index_sql = "{elem}"
     can_represent_files = True
 
     def is_searchable(self, field):

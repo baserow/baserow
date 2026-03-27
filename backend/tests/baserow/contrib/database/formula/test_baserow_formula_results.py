@@ -3064,6 +3064,45 @@ def test_array_slice_empty_array(data_fixture):
 
 
 @pytest.mark.django_db
+def test_first_and_last(data_fixture):
+    """first() and last() return scalar values (delegates to index())."""
+
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    text_field, b_rows, row_a1 = _setup_text_5_rows(
+        data_fixture, table_a, table_b, link_field, user
+    )
+
+    lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{text_field.name}')",
+    )
+    first_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="first_val",
+        formula="first(field('lookup'))",
+    )
+    last_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="last_val",
+        formula="last(field('lookup'))",
+    )
+
+    table_a_model = table_a.get_model()
+    result = table_a_model.objects.get(id=row_a1.id)
+
+    assert getattr(result, first_field.db_column) == "A"
+    assert getattr(result, last_field.db_column) == "E"
+
+
+@pytest.mark.django_db
 def test_array_slice_rejects_non_array_input(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)

@@ -1,0 +1,8 @@
+{
+  "type": "feature",
+  "message": "Generalize the `index` formula to work with any array type (not just file fields) and add `first` and `last` convenience functions.",
+  "domain": "database",
+  "issue_number": 5065,
+  "bullet_points": [],
+  "created_at": "2026-03-27"
+}

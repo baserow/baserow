@@ -163,6 +163,47 @@ class JSONBArrayJoinValues(Func):
         return sql, (*separator_params, *params)
 
 
+class JSONBArrayGetElement(Expression):
+    """
+    Extract a single element from a JSONB array by 0-based index (negative
+    counts from end) and optionally unwrap / cast the ``value`` key.
+
+    *value_sql* is a SQL template with an ``{elem}`` placeholder that controls
+    how the element is extracted (e.g. ``({elem} ->> 'value')::numeric``).
+    Each formula type provides its own template via ``array_index_sql``.
+
+    PostgreSQL's ``->`` operator natively handles negative indices and returns
+    NULL for out-of-bounds, so no CASE expression is needed.
+    """
+
+    def __init__(self, array_expr, index_expr, value_sql, output_field):
+        super().__init__(output_field=output_field)
+        self.array_expr = array_expr
+        self.index_expr = index_expr
+        self.value_sql = value_sql
+
+    def resolve_expression(
+        self, query=None, allow_joins=True, reuse=None, summarize=False, for_save=False
+    ):
+        c = self.copy()
+        c.is_summary = summarize
+        c.array_expr = self.array_expr.resolve_expression(
+            query, allow_joins, reuse, summarize, for_save
+        )
+        c.index_expr = self.index_expr.resolve_expression(
+            query, allow_joins, reuse, summarize, for_save
+        )
+        return c
+
+    def as_sql(self, compiler, connection):
+        arr_sql, arr_params = compiler.compile(self.array_expr)
+        idx_sql, idx_params = compiler.compile(self.index_expr)
+
+        elem_sql = f"({arr_sql}) -> ({idx_sql})::int"
+        sql = f"({self.value_sql.format(elem=elem_sql)})"
+        return sql, list(arr_params) + list(idx_params)
+
+
 class JSONBArraySlice(Expression):
     """
     Slice a JSONB array with offset, limit, and optional reverse.

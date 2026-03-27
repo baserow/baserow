@@ -1,6 +1,7 @@
 import abc
 from typing import TYPE_CHECKING, List, Type, TypeVar
 
+from django.db import models
 from django.db.models import Expression, F, Model, Value
 from django.utils.functional import classproperty
 
@@ -284,6 +285,18 @@ class BaserowFormulaType(abc.ABC):
     @property
     def item_is_in_nested_value_object_when_in_array(self) -> bool:
         return True
+
+    @property
+    def array_index_mode(self) -> str:
+        return self.type
+
+    @property
+    def array_index_sql(self) -> str:
+        if not self.item_is_in_nested_value_object_when_in_array:
+            return "{elem}"
+        return "{elem} ->> 'value'"
+
+    output_field_class = models.TextField
 
     @property
     def can_have_db_index(self) -> bool:
