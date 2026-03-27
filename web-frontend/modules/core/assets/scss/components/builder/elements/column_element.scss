@@ -22,19 +22,6 @@
   flex: 1;
 }
 
-.column-element__column--drop-active {
-  @include rounded($rounded-md);
-
-  background-color: rgba($palette-blue-100, 0.4);
-  outline: 1px dashed $palette-blue-400;
-  outline-offset: -2px;
-}
-
-.column-element__drop-zone {
+.column-element__column > .add-element-zone--drag-active {
   min-height: 24px;
-  flex: 1;
-
-  .column-element__column--drop-active & {
-    flex: 1;
-  }
 }

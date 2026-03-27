@@ -250,17 +250,19 @@
   content: '';
   display: block;
   height: 2px;
+  width: calc(100% - 2px);
   background-color: $color-primary-500;
   border-radius: 2px;
   pointer-events: none;
-  position: relative;
+  position: absolute;
   z-index: 3;
+  margin: 0 2px;
 }
 
 .element-preview--drop-before::before {
-  margin-bottom: 2px;
+  top: -1px;
 }
 
 .element-preview--drop-after::after {
-  margin-top: 2px;
+  bottom: -1px;
 }

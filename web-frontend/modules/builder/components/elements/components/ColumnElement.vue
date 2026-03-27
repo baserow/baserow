@@ -10,10 +10,6 @@
       v-for="(childrenInColumn, columnIndex) in childrenElements"
       :key="columnIndex"
       class="column-element__column"
-      :class="{
-        'column-element__column--drop-active':
-          isDragging && dragOverColumnIndex === columnIndex,
-      }"
       :style="{ '--column-width': `${columnWidth}%` }"
     >
       <template v-if="childrenInColumn.length > 0">
@@ -37,26 +33,18 @@
         </div>
       </template>
       <AddElementZone
-        v-else-if="
-          mode === 'editing' &&
+        v-else-if="mode === 'editing'"
+        :disabled="
           !isDragging &&
-          $hasPermission(
+          !$hasPermission(
             'builder.page.create_element',
             elementPage,
             workspace.id
           )
         "
-        :page="elementPage"
+        :is-drag-active="isDragging"
         @add-element="showAddElementModal(columnIndex)"
-      />
-      <!-- Drop zone: only for empty columns during drag.
-           Non-empty columns rely on ElementPreview's before/after indicators. -->
-      <div
-        v-if="mode === 'editing' && isDragging && childrenInColumn.length === 0"
-        class="column-element__drop-zone"
-        @dragover.prevent.stop="onColumnDragOver(columnIndex)"
-        @dragleave="onColumnDragLeave(columnIndex, $event)"
-        @drop.prevent.stop="onDropInColumn(columnIndex)"
+        @drop="onDropInColumn(columnIndex)"
       />
     </div>
     <AddElementModal ref="addElementModal" :page="elementPage" />
@@ -103,11 +91,6 @@ export default {
     },
   },
   emits: ['move'],
-  data() {
-    return {
-      dragOverColumnIndex: null,
-    }
-  },
   computed: {
     isDragging() {
       const dragged = this.dndContext?.draggedElement
@@ -178,12 +161,6 @@ export default {
         placeInContainer: `${columnIndex}`,
         parentElementId: this.element.id,
       })
-    },
-    onColumnDragOver(columnIndex) {
-      this.dragOverColumnIndex = columnIndex
-    },
-    onColumnDragLeave(columnIndex, event) {
-      this.dragOverColumnIndex = null
     },
     async onDropInColumn(columnIndex) {
       const dragged = this.dndContext?.draggedElement
