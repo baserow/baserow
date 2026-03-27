@@ -81,6 +81,7 @@ import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapActions, mapGetters } from 'vuex'
 import { checkIntermediateElements } from '@baserow/modules/core/utils/dom'
 import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
+import { useElementDraggable } from '@baserow/modules/builder/composables/useElementDraggable'
 
 export default {
   name: 'ElementPreview',
@@ -91,6 +92,9 @@ export default {
     PageElement,
   },
   mixins: [applicationContextMixin],
+  setup(props) {
+    return useElementDraggable(() => props.element)
+  },
   inject: [
     'workspace',
     'builder',
@@ -121,7 +125,6 @@ export default {
       isDuplicating: false,
       isAboveThreshold: false,
       observer: null,
-      isDraggable: false,
     }
   },
   computed: {
@@ -302,7 +305,6 @@ export default {
     if (this.observer) {
       this.observer.disconnect()
     }
-    window.removeEventListener('mouseup', this.resetDraggable)
   },
   methods: {
     ...mapActions({
@@ -423,26 +425,6 @@ export default {
           element: this.parentOfElementSelected,
         })
       }
-    },
-    onDragHandleMouseDown() {
-      this.isDraggable = true
-      window.addEventListener('mouseup', this.resetDraggable, { once: true })
-    },
-    resetDraggable() {
-      this.isDraggable = false
-    },
-    onDragStart(event) {
-      if (!this.dndContext) return
-      event.dataTransfer.effectAllowed = 'move'
-      event.dataTransfer.setData('text/plain', String(this.element.id))
-      this.dndContext.draggedElement = this.element
-    },
-    onDragEnd() {
-      if (!this.dndContext) return
-      this.dndContext.draggedElement = null
-      this.dndContext.dropTargetId = null
-      this.dndContext.dropPosition = null
-      this.isDraggable = false
     },
     isCrossContainerDropValid(dragged) {
       const draggedElementType = this.$registry.get('element', dragged.type)
