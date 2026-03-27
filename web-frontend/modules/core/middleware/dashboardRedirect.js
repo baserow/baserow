@@ -10,7 +10,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   const selectedWorkspace = store.getters['workspace/getSelected']
   const allWorkspaces = store.getters['workspace/getAll']
 
-  if (Object.keys(selectedWorkspace).length > 0) {
+  if (selectedWorkspace?.id) {
     return navigateTo(
       {
         name: 'workspace',
