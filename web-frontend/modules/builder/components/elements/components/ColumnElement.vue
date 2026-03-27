@@ -111,7 +111,7 @@ export default {
   computed: {
     isDragging() {
       const dragged = this.dndContext?.draggedElement
-      if (!dragged || dragged.page_id !== this.element.page_id) return false
+      if (!dragged) return false
       const draggedElementType = this.$registry.get('element', dragged.type)
       return (
         draggedElementType.isDisallowedReason({
@@ -189,11 +189,6 @@ export default {
       const dragged = this.dndContext?.draggedElement
       if (!dragged) return
 
-      if (dragged.page_id !== this.element.page_id) {
-        this.dragOverColumnIndex = null
-        return
-      }
-
       // Validate the element type is allowed inside this column
       const draggedElementType = this.$registry.get('element', dragged.type)
       const reason = draggedElementType.isDisallowedReason({
@@ -230,6 +225,8 @@ export default {
         dragged.page_id
       )
 
+      const isCrossPage = dragged.page_id !== this.element.page_id
+
       try {
         await this.$store.dispatch('element/move', {
           builder: this.builder,
@@ -238,6 +235,7 @@ export default {
           beforeElementId: null,
           parentElementId: this.element.id,
           placeInContainer: `${columnIndex}`,
+          ...(isCrossPage && { targetPage: this.elementPage }),
         })
       } catch (error) {
         notifyIf(error)
