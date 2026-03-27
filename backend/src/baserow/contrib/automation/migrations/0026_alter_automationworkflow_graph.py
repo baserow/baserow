@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('automation', '0024_automationworkflowhistory_event_payload_and_more'),
+        ('automation', '0025_automationnoderesult_iteration_path'),
     ]
 
     operations = [
