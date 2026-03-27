@@ -11,6 +11,16 @@ from baserow.core.captcha.registries import (
 
 class CaptchaHandler:
     @staticmethod
+    def is_enabled() -> bool:
+        """
+        Return True if the captcha is enabled in the instance.
+
+        :return: True if captcha is enabled in this instance.
+        """
+
+        return bool(getattr(settings, "BASEROW_ENABLE_CAPTCHA", ""))
+
+    @staticmethod
     def is_captcha_enabled_for(context: str) -> bool:
         """
         Returns True if captcha is enabled for the given context.
@@ -19,10 +29,10 @@ class CaptchaHandler:
         :return: True if captcha should be required for this context.
         """
 
-        enabled = getattr(settings, "BASEROW_ENABLE_CAPTCHA", "")
-        if not enabled:
+        if not CaptchaHandler.is_enabled():
             return False
 
+        enabled = getattr(settings, "BASEROW_ENABLE_CAPTCHA", "")
         enabled = enabled.strip().lower()
         if enabled == "all":
             return True
@@ -41,10 +51,6 @@ class CaptchaHandler:
         :raises RuntimeError: If the provider is not properly configured (missing
             env vars).
         """
-
-        enabled = getattr(settings, "BASEROW_ENABLE_CAPTCHA", "")
-        if not enabled:
-            return
 
         provider_type = getattr(settings, "BASEROW_CAPTCHA_PROVIDER", "")
         if not provider_type:
