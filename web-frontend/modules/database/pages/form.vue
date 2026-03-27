@@ -287,6 +287,7 @@ const visibleFields = computed(() => {
 
     if (
       matchSearchFilters(
+        $registry,
         conditionType,
         conditions,
         field.condition_groups,

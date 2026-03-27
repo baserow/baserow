@@ -180,7 +180,7 @@ export default {
         } else {
           await this.$router.push({ name: 'dashboard' })
         }
-        await pageFinished()
+        await pageFinished(this.$store.app)
         await nextTick()
       }
       this.$emit('success')
@@ -195,7 +195,7 @@ export default {
           name: 'workspace',
           params: { workspaceId: workspace.id },
         })
-        await pageFinished()
+        await pageFinished(this.$store.app)
         await nextTick()
       }
       this.$emit('success')

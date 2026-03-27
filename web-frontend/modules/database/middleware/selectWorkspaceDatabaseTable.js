@@ -46,11 +46,13 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     )
 
     if (defaultView) {
-      return navigateTo({
-        name: to.name,
-        params: { ...to.params, viewId: defaultView.id },
-        query: to.query,
-      })
+      return nuxtApp.runWithContext(() =>
+        navigateTo({
+          name: to.name,
+          params: { ...to.params, viewId: defaultView.id },
+          query: to.query,
+        })
+      )
     }
   }
 
@@ -95,13 +97,15 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     // If fetch failed, redirect to table without rowId so that the table is still
     // visible.
     if (!row) {
-      return navigateTo(
-        {
-          name: 'database-table',
-          params: { ...to.params, rowId: '' },
-          query: to.query,
-        },
-        { replace: true }
+      return nuxtApp.runWithContext(() =>
+        navigateTo(
+          {
+            name: 'database-table',
+            params: { ...to.params, rowId: '' },
+            query: to.query,
+          },
+          { replace: true }
+        )
       )
     }
   } else {

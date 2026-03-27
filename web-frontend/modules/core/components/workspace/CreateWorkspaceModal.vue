@@ -64,7 +64,7 @@ export default {
           name: 'workspace',
           params: { workspaceId: workspace.id },
         })
-        await pageFinished()
+        await pageFinished(this.$store.app)
         await nextTick()
         this.$emit('created')
         this.hide()

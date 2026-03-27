@@ -23,6 +23,7 @@ export class PeriodicDataSyncDeactivatedNotificationType extends NotificationTyp
 
   getRoute(notificationData) {
     return tableRouteResetViewIfNeeded(
+      this.app.$router,
       {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
@@ -48,6 +49,7 @@ export class TwoWayDataSyncUpdateFiledNotificationType extends NotificationType 
 
   getRoute(notificationData) {
     return tableRouteResetViewIfNeeded(
+      this.app.$router,
       {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
@@ -73,6 +75,7 @@ export class TwoWaySyncDeactivatedNotificationType extends NotificationType {
 
   getRoute(notificationData) {
     return tableRouteResetViewIfNeeded(
+      this.app.$router,
       {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,

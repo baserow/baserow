@@ -322,14 +322,13 @@ export const createFiltersTree = (filterType, filters, filterGroups) => {
  * view.
  */
 export const matchSearchFilters = (
+  $registry,
   filterType,
   filters,
   filterGroups,
   fields,
   values
 ) => {
-  const { $registry } = useNuxtApp()
-
   // If there aren't any filters then it is not possible to check if the row
   // matches any of the filters, so we can mark it as valid.
   if (filters.length === 0) {

@@ -63,7 +63,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
     const user = store.getters['auth/getUserObject']
     const workspaces = store.getters['workspace/getAll']
     if (!user.completed_onboarding && workspaces.length === 0) {
-      return navigateTo({ name: 'onboarding' })
+      return nuxtApp.runWithContext(() => navigateTo({ name: 'onboarding' }))
     }
   }
 })

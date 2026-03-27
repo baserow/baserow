@@ -3334,6 +3334,7 @@ export const actions = {
     const matches = view.filters_disabled
       ? true
       : matchSearchFilters(
+          this.$registry,
           view.filter_type,
           view.filters,
           view.filter_groups,

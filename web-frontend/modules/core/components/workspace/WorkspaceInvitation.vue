@@ -118,7 +118,7 @@ export default {
             workspaceId: workspace.id,
           },
         })
-        await pageFinished()
+        await pageFinished(this.$store.app)
         await nextTick()
       } catch (error) {
         this.acceptLoading = false

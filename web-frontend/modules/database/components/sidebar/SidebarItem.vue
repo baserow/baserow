@@ -322,7 +322,7 @@ export default {
           },
         })
         if (failure === undefined) {
-          await pageFinished()
+          await pageFinished(this.$store.app)
           await nextTick()
         }
       } finally {

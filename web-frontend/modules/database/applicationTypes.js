@@ -119,7 +119,7 @@ export class DatabaseApplicationType extends ApplicationType {
           tableId: tables[0].id,
         },
       })
-      await pageFinished()
+      await pageFinished(this.app)
       await nextTick()
       return true
     } else {

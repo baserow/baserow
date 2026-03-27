@@ -57,7 +57,7 @@ export default {
         await this.$store.dispatch('workspace/leave', this.workspace)
         if (selected) {
           await this.$router.push({ name: 'dashboard' })
-          await pageFinished()
+          await pageFinished(this.$store.app)
           await nextTick()
         }
         this.hide()

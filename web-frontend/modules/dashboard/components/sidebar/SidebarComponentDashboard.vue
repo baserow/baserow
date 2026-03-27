@@ -49,7 +49,7 @@ export default {
             dashboardId: this.application.id,
           },
         })
-        await pageFinished()
+        await pageFinished(this.$store.app)
         await nextTick()
       } catch (error) {
         if (error.name !== 'NavigationDuplicated') {

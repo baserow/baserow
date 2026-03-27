@@ -579,8 +579,8 @@ export const actions = {
    */
   forceDelete({ commit, dispatch, getters, rootGetters }, view) {
     const { $registry, $client } = this
-    const router = useRouter()
-    const route = useRoute()
+    const router = this.$router
+    const route = this.$router.currentRoute.value
     // If the currently selected view is selected.
     if (view._.selected && view.id === getters.getSelectedId) {
       commit('UNSELECT')

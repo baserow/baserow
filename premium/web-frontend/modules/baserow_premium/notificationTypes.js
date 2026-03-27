@@ -18,7 +18,7 @@ export class RowCommentMentionNotificationType extends NotificationType {
   }
 
   getRoute(notificationData) {
-    return tableRouteResetViewIfNeeded({
+    return tableRouteResetViewIfNeeded(this.app.$router, {
       databaseId: notificationData.database_id,
       tableId: notificationData.table_id,
       rowId: notificationData.row_id,
@@ -40,7 +40,7 @@ export class RowCommentNotificationType extends NotificationType {
   }
 
   getRoute(notificationData) {
-    return tableRouteResetViewIfNeeded({
+    return tableRouteResetViewIfNeeded(this.app.$router, {
       databaseId: notificationData.database_id,
       tableId: notificationData.table_id,
       rowId: notificationData.row_id,

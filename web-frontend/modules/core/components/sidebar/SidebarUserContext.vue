@@ -221,7 +221,7 @@ export default {
       )
       try {
         await this.$router.push({ name: activatedAdminTypes[0].routeName })
-        await pageFinished()
+        await pageFinished(this.$store.app)
         await nextTick()
       } catch {}
     },
@@ -237,7 +237,7 @@ export default {
         name: 'workspace',
         params: { workspaceId: workspace.id },
       })
-      await pageFinished()
+      await pageFinished(this.$store.app)
       await nextTick()
       this.hide()
     },

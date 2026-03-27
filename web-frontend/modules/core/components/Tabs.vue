@@ -203,7 +203,7 @@ export default {
       else return this.internalSelectedIndex === i
     },
     getHref(i) {
-      const router = useRouter()
+      const router = this.$router
       if (this.route) {
         const tab = this.tabs[i]
         return !tab.disabled ? router.resolve(tab.to).path : null

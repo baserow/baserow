@@ -637,7 +637,7 @@ export default {
           tableId: this.job.table_id,
         },
       })
-      await pageFinished()
+      await pageFinished(this.$store.app)
       await nextTick()
       this.hide()
     },

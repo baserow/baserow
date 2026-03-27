@@ -58,7 +58,7 @@ export default {
       try {
         await LicenseService(this.$client).disconnect(this.license.id)
         await this.$nuxt.$router.push({ name: 'admin-licenses' })
-        await pageFinished()
+        await pageFinished(this.$store.app)
         await nextTick()
       } catch (error) {
         this.handleError(error)

@@ -21,7 +21,7 @@ export class CollaboratorAddedToRowNotificationType extends NotificationType {
   }
 
   getRoute(notificationData) {
-    return tableRouteResetViewIfNeeded({
+    return tableRouteResetViewIfNeeded(this.app.$router, {
       databaseId: notificationData.database_id,
       tableId: notificationData.table_id,
       rowId: notificationData.row_id,
@@ -43,7 +43,7 @@ export class FormSubmittedNotificationType extends NotificationType {
   }
 
   getRoute(notificationData) {
-    return tableRouteResetViewIfNeeded({
+    return tableRouteResetViewIfNeeded(this.app.$router, {
       databaseId: notificationData.database_id,
       tableId: notificationData.table_id,
       rowId: notificationData.row_id,
@@ -65,7 +65,7 @@ export class UserMentionInRichTextFieldNotificationType extends NotificationType
   }
 
   getRoute(notificationData) {
-    return tableRouteResetViewIfNeeded({
+    return tableRouteResetViewIfNeeded(this.app.$router, {
       databaseId: notificationData.database_id,
       tableId: notificationData.table_id,
       rowId: notificationData.row_id,
@@ -88,6 +88,7 @@ export class WebhookDeactivatedNotificationType extends NotificationType {
 
   getRoute(notificationData) {
     return tableRouteResetViewIfNeeded(
+      this.app.$router,
       {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,
@@ -112,6 +113,7 @@ export class WebhookPayloadTooLargedNotificationType extends NotificationType {
 
   getRoute(notificationData) {
     return tableRouteResetViewIfNeeded(
+      this.app.$router,
       {
         databaseId: notificationData.database_id,
         tableId: notificationData.table_id,

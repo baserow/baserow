@@ -133,7 +133,7 @@ export const logoutAndRedirectToLogin = async (
   }
 
   await router.push({ name: 'login', query: { noredirect: null } })
-  await pageFinished()
+  await pageFinished(store.app)
   await nextTick()
 
   if (showSessionExpiredToast) {

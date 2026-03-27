@@ -78,7 +78,7 @@ export default {
             id: data.id,
           },
         })
-        await pageFinished()
+        await pageFinished(this.$store.app)
         await nextTick()
       } catch (error) {
         this.handleError(error, 'license', {
