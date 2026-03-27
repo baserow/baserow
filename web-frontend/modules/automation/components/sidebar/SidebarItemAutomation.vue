@@ -164,7 +164,7 @@ export default {
             workflowId: workflow.id,
           },
         })
-        await pageFinished()
+        await pageFinished(this.$store.app)
         await nextTick()
       } finally {
         this.setLoading(automation, false)

@@ -158,7 +158,7 @@ export default {
             pageId: page.id,
           },
         })
-        await pageFinished()
+        await pageFinished(this.$store.app)
         await nextTick()
       } finally {
         this.setLoading(builder, false)

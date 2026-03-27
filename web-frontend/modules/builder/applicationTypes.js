@@ -167,7 +167,7 @@ export class BuilderApplicationType extends ApplicationType {
           pageId: pages[0].id,
         },
       })
-      await pageFinished()
+      await pageFinished(this.app)
       await nextTick()
       return true
     } else {

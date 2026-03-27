@@ -124,7 +124,7 @@ const actions = {
       commit('UNSELECT')
       // Redirect back to the dashboard because the page doesn't exist anymore.
       await this.$router.push({ name: 'dashboard' })
-      await pageFinished()
+      await pageFinished(this.app)
       await nextTick()
     }
 
