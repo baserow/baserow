@@ -1117,7 +1117,8 @@
   },
   "gridViewFreezeHandle": {
     "freezeOne": "Freeze 1 column",
-    "freezeN": "Freeze {count} columns"
+    "freezeN": "Freeze {count} columns",
+    "hoverHint": "Drag to freeze columns"
   },
   "configureDataSyncModal": {
     "title": "Data sync",

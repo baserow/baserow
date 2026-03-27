@@ -1,18 +1,32 @@
 <template>
   <div
     class="grid-view__freeze-handle"
-    :class="{ 'grid-view__freeze-handle--dragging': dragging }"
-    :style="handleStyle"
+    :class="{
+      'grid-view__freeze-handle--dragging': dragging,
+      'grid-view__freeze-handle--near-boundary': nearBoundary,
+    }"
+    :style="[handleStyle, mouseButtonDown ? { pointerEvents: 'none' } : {}]"
     @mousedown.stop="startDrag"
-    @mouseenter="hovering = true"
-    @mouseleave="hovering = false"
+    @mouseenter="onMouseEnter"
+    @mouseleave="onMouseLeave"
+    @mousemove="onHoverMove"
   >
     <div
       v-if="hovering || dragging"
-      class="grid-view__freeze-handle-icon"
+      class="grid-view__freeze-handle-grip"
+      :style="gripStyle"
     ></div>
-    <div v-if="dragging" class="grid-view__freeze-handle-tooltip">
-      {{ tooltipText }}
+    <div
+      v-if="dragging && snapLineOffset !== null"
+      class="grid-view__freeze-snap-line"
+      :style="snapLineStyle"
+    ></div>
+    <div
+      v-if="hovering || dragging"
+      class="grid-view__freeze-handle-tooltip"
+      :style="tooltipStyle"
+    >
+      {{ dragging ? tooltipText : $t('gridViewFreezeHandle.hoverHint') }}
     </div>
   </div>
 </template>
@@ -25,6 +39,7 @@ import {
 } from '@baserow/modules/database/utils/view'
 
 const MAX_FROZEN_COLUMNS = 4
+const SNAP_THRESHOLD = 20
 
 export default {
   name: 'GridViewFreezeHandle',
@@ -63,7 +78,7 @@ export default {
     },
     /**
      * The default left position of the handle (the current frozen section width).
-     * Overridden during drag to snap to field boundaries.
+     * Overridden during drag to follow the cursor freely.
      */
     leftWidth: {
       type: Number,
@@ -76,7 +91,12 @@ export default {
       dragging: false,
       hovering: false,
       dragFrozenCount: null,
-      dragSnapLeft: null,
+      dragMouseX: null,
+      dragMouseY: null,
+      hoverMouseY: null,
+      nearBoundary: false,
+      snapLineOffset: null,
+      mouseButtonDown: false,
     }
   },
   computed: {
@@ -104,15 +124,49 @@ export default {
       return this.$t('gridViewFreezeHandle.freezeN', { count })
     },
     /**
-     * During drag, snap the handle to the field boundary for dragFrozenCount.
+     * During drag, the handle follows the mouse freely.
      * Otherwise, use leftWidth from the parent.
      */
     handleStyle() {
-      if (this.dragging && this.dragSnapLeft !== null) {
-        return { left: this.dragSnapLeft + 'px' }
+      if (this.dragging && this.dragMouseX !== null) {
+        return { left: this.dragMouseX + 'px' }
       }
       return { left: this.leftWidth + 'px' }
     },
+    gripStyle() {
+      const y = this.dragging ? this.dragMouseY : this.hoverMouseY
+      if (y === null) return { top: '50px' }
+      // Grip is 18px tall, center it on the cursor Y. Clamp to stay visible.
+      const clamped = Math.max(0, y - 9)
+      return { top: clamped + 'px' }
+    },
+    tooltipStyle() {
+      const y = this.dragging ? this.dragMouseY : this.hoverMouseY
+      if (y === null) return {}
+      return { top: y + 16 + 'px' }
+    },
+    snapLineStyle() {
+      if (this.snapLineOffset === null) return {}
+      return { left: this.snapLineOffset + 'px' }
+    },
+  },
+  mounted() {
+    this._onGlobalMouseDown = (e) => {
+      // Ignore clicks on the handle itself — those trigger startDrag.
+      if (this.$el.contains(e.target)) return
+      this.mouseButtonDown = true
+      this.hovering = false
+      this.hoverMouseY = null
+    }
+    this._onGlobalMouseUp = () => {
+      this.mouseButtonDown = false
+    }
+    window.addEventListener('mousedown', this._onGlobalMouseDown)
+    window.addEventListener('mouseup', this._onGlobalMouseUp)
+  },
+  beforeUnmount() {
+    window.removeEventListener('mousedown', this._onGlobalMouseDown)
+    window.removeEventListener('mouseup', this._onGlobalMouseUp)
   },
   methods: {
     getFieldBoundaries() {
@@ -124,16 +178,45 @@ export default {
       }
       return boundaries
     },
-    countFromX(clientX, boundaries) {
-      let count = 1
-      for (let i = 0; i < boundaries.length; i++) {
-        const prevEdge = i === 0 ? this.rowDetailsWidth : boundaries[i - 1]
-        const midpoint = prevEdge + (boundaries[i] - prevEdge) / 2
-        if (clientX > midpoint) {
-          count = i + 1
+    nearestBoundaryCount(x, boundaries) {
+      let bestCount = 1
+      let bestDist = Infinity
+      for (let i = 0; i < boundaries.length && i < this.maxFrozenColumns; i++) {
+        const dist = Math.abs(x - boundaries[i])
+        if (dist < bestDist) {
+          bestDist = dist
+          bestCount = i + 1
         }
       }
-      return Math.max(1, Math.min(count, this.maxFrozenColumns))
+      return bestCount
+    },
+    isNearBoundary(x, boundaries) {
+      for (let i = 0; i < boundaries.length && i < this.maxFrozenColumns; i++) {
+        if (Math.abs(x - boundaries[i]) <= SNAP_THRESHOLD) {
+          return true
+        }
+      }
+      return false
+    },
+    onMouseEnter(e) {
+      // Don't show hover visuals if a mouse button is pressed (e.g. multi-select).
+      if (e.buttons !== 0) return
+      this.hovering = true
+    },
+    onMouseLeave() {
+      this.hovering = false
+      this.hoverMouseY = null
+    },
+    onHoverMove(e) {
+      if (this.dragging) return
+      // Hide if a button was pressed while hovering (e.g. started selecting cells).
+      if (e.buttons !== 0) {
+        this.hovering = false
+        this.hoverMouseY = null
+        return
+      }
+      const rect = this.$el.getBoundingClientRect()
+      this.hoverMouseY = e.clientY - rect.top
     },
     startDrag(event) {
       event.preventDefault()
@@ -141,21 +224,50 @@ export default {
       this.dragFrozenCount = this.currentFrozenCount
 
       const boundaries = this.getFieldBoundaries()
-      // Set initial snap position
-      this.dragSnapLeft = boundaries[this.dragFrozenCount - 1] || boundaries[0]
+      const validBoundaries = boundaries.slice(0, this.maxFrozenColumns)
+
+      // Set initial drag position to current handle position
+      this.dragMouseX = this.leftWidth
+
+      const gridEl = this.$el.closest('.grid-view')
 
       const onMove = (e) => {
         e.preventDefault()
-        const gridEl = this.$el.closest('.grid-view')
         if (!gridEl) return
         const gridRect = gridEl.getBoundingClientRect()
         const relativeX = e.clientX - gridRect.left
-        const newCount = this.countFromX(relativeX, boundaries)
-        // Always update snap position to follow the cursor to field boundaries
-        this.dragSnapLeft = boundaries[newCount - 1] || boundaries[0]
+
+        // Clamp X within valid range
+        const minX = this.rowDetailsWidth
+        const maxX =
+          validBoundaries.length > 0
+            ? validBoundaries[validBoundaries.length - 1] + 50
+            : minX + 50
+        this.dragMouseX = Math.max(minX, Math.min(relativeX, maxX))
+
+        // Track Y relative to the handle element
+        const handleRect = this.$el.getBoundingClientRect()
+        this.dragMouseY = e.clientY - handleRect.top
+
+        // Determine nearest boundary and if we're close to it
+        const newCount = this.nearestBoundaryCount(
+          this.dragMouseX,
+          validBoundaries
+        )
+        const snapX = validBoundaries[newCount - 1]
+        this.nearBoundary = Math.abs(this.dragMouseX - snapX) <= SNAP_THRESHOLD
+
+        // Show the snap preview line at the boundary position, offset from
+        // the handle's current left. Compensate for the handle's -6px margin.
+        // Only show when NOT already on the boundary.
+        if (this.dragMouseX !== snapX) {
+          this.snapLineOffset = snapX - this.dragMouseX + 6
+        } else {
+          this.snapLineOffset = null
+        }
+
         if (newCount !== this.dragFrozenCount) {
           this.dragFrozenCount = newCount
-          this.$emit('frozen-count-change', newCount)
         }
       }
 
@@ -165,12 +277,20 @@ export default {
         window.removeEventListener('mouseup', onUp)
         document.body.classList.remove('resizing-horizontal')
 
-        const finalCount = this.dragFrozenCount
+        const finalCount = this.nearestBoundaryCount(
+          this.dragMouseX,
+          validBoundaries
+        )
+
         this.dragging = false
         this.dragFrozenCount = null
-        this.dragSnapLeft = null
+        this.dragMouseX = null
+        this.dragMouseY = null
+        this.nearBoundary = false
+        this.snapLineOffset = null
 
         if (finalCount !== this.currentFrozenCount) {
+          this.$emit('frozen-count-change', finalCount)
           this.saveFrozenCount(finalCount)
         }
       }

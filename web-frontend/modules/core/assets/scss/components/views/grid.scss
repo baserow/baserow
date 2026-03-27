@@ -112,41 +112,66 @@
     @include absolute(0, 5px, 0, 5px);
 
     border-radius: 2px;
-    transition: background-color 0.15s ease;
+    background-color: rgba($color-primary-500, 0.25);
+    transition:
+      background-color 0.15s ease,
+      right 0.15s ease,
+      left 0.15s ease;
   }
 
   &:hover::before {
     background-color: $color-primary-500;
   }
 
-  // During drag, extend the bar up into the header area for a full-height
-  // vertical indicator and increase z-index to stay on top.
+  // During drag, increase z-index to stay on top. Line stays below header.
   &--dragging {
-    top: 0;
     z-index: 5;
 
     &::before {
       background-color: $color-primary-500;
     }
   }
+
+  // When near a column boundary during drag, intensify the indicator.
+  &--near-boundary::before {
+    background-color: $color-primary-700;
+    right: 4px;
+    left: 4px;
+  }
 }
 
-.grid-view__freeze-handle-icon {
-  @include absolute(auto, auto, auto, 50%);
-
-  top: 8px;
-  width: 10px;
-  height: 10px;
-  margin-left: -5px;
-  border-radius: 50%;
+// Grip handle: small solid pill that follows the cursor along the line.
+.grid-view__freeze-handle-grip {
+  position: absolute;
+  left: 50%;
+  width: 8px;
+  height: 20px;
+  margin-left: -4px;
+  border-radius: 4px;
   background-color: $color-primary-500;
-  border: 2px solid $white;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  pointer-events: none;
+  z-index: 6;
+  transition: background-color 0.15s ease;
+
+  .grid-view__freeze-handle--near-boundary & {
+    background-color: $color-primary-700;
+  }
+}
+
+// Vertical snap preview line shown at the target column boundary during drag.
+.grid-view__freeze-snap-line {
+  @include absolute(0, auto, 0, auto);
+
+  width: 2px;
+  margin-left: -1px;
+  background-color: $color-primary-500;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 5;
 }
 
 .grid-view__freeze-handle-tooltip {
   position: absolute;
-  top: 22px;
   left: 50%;
   transform: translateX(-50%);
   white-space: nowrap;
