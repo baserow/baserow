@@ -205,12 +205,6 @@ export default {
         .map(([direction]) => direction)
     },
     canDrag() {
-      // Shared-page elements (header/footer children) are confined to sibling reordering
-      const sharedPage = this.$store.getters['page/getSharedPage'](this.builder)
-      if (this.element.page_id === sharedPage?.id) {
-        return this.allowedMoveDirections.length > 0
-      }
-      // Other elements can be dragged if they have a parent or have siblings
       return !!this.parentElement || this.allowedMoveDirections.length > 0
     },
     canCreate() {
@@ -475,15 +469,11 @@ export default {
       const dragged = this.dndContext.draggedElement
       if (dragged.id === this.element.id) return
 
-      // Block cross-page drops (e.g. drop an element below a footer element)
-      if (dragged.page_id !== this.element.page_id) return
-
-      const sharedPage = this.$store.getters['page/getSharedPage'](this.builder)
-      if (dragged.page_id === sharedPage?.id) {
-        // Shared-page elements (header/footer children) are confined to sibling reordering
-        if (dragged.parent_element_id !== this.element.parent_element_id) return
-      } else if (
-        dragged.parent_element_id !== this.element.parent_element_id &&
+      // When page or parent differs, validate that the element type is allowed at the
+      // drop target location (handles both same-page cross-container and cross-page).
+      if (
+        (dragged.page_id !== this.element.page_id ||
+          dragged.parent_element_id !== this.element.parent_element_id) &&
         !this.isCrossContainerDropValid(dragged)
       ) {
         return
@@ -511,14 +501,9 @@ export default {
       const dragged = this.dndContext.draggedElement
       if (dragged.id === this.element.id) return
 
-      if (dragged.page_id !== this.element.page_id) return
-
-      const sharedPage = this.$store.getters['page/getSharedPage'](this.builder)
-      if (dragged.page_id === sharedPage?.id) {
-        // Shared-page elements (header/footer children) are confined to sibling reordering
-        if (dragged.parent_element_id !== this.element.parent_element_id) return
-      } else if (
-        dragged.parent_element_id !== this.element.parent_element_id &&
+      if (
+        (dragged.page_id !== this.element.page_id ||
+          dragged.parent_element_id !== this.element.parent_element_id) &&
         !this.isCrossContainerDropValid(dragged)
       ) {
         return
@@ -560,6 +545,8 @@ export default {
         beforeElementId = nextElement?.id || null
       }
 
+      const isCrossPage = dragged.page_id !== this.element.page_id
+
       try {
         await this.$store.dispatch('element/move', {
           builder: this.builder,
@@ -568,6 +555,7 @@ export default {
           beforeElementId,
           parentElementId: this.element.parent_element_id,
           placeInContainer: this.element.place_in_container,
+          ...(isCrossPage && { targetPage: this.elementPage }),
         })
       } catch (error) {
         notifyIf(error)
