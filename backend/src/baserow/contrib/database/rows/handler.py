@@ -844,7 +844,15 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if not values:
             values = {}
 
-        self._raise_if_values_contain_hidden_fields(user, view, values)
+        # Map user field names to internal field keys before permission checks
+        # so that hidden-field and write-permission checks can identify field IDs.
+        if user_field_names:
+            values = self.map_user_field_name_dict_to_internal(
+                model._field_objects, values
+            )
+            user_field_names = False
+
+        self._raise_if_values_contain_hidden_fields(user, view, [values])
         self._check_write_fields_values_permissions(user, model, [values])
 
         return self.force_create_row(
@@ -1122,8 +1130,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             [row.id],
         )
 
-        self._raise_if_values_contain_hidden_fields(user, view, values)
-
         if model is None:
             model = table.get_model()
 
@@ -1136,6 +1142,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 updated_fields_by_name[field["name"]] = field["field"]
                 updated_fields.append(field["field"])
 
+        self._raise_if_values_contain_hidden_fields(user, view, [values])
         self._check_write_fields_values_permissions(user, model, [values])
 
         rows = [row]
@@ -1546,11 +1553,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             view,
         )
 
-        self._raise_if_values_contain_hidden_fields(user, view, rows_values)
-
         if model is None:
             model = table.get_model()
 
+        self._raise_if_values_contain_hidden_fields(user, view, rows_values)
         self._check_write_fields_values_permissions(user, model, rows_values)
 
         return self.force_create_rows(
@@ -2169,26 +2175,25 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         self,
         user: AbstractUser,
         view: Optional["View"],
-        values: Union[Dict[str, Any], List[Dict[str, Any]]],
+        rows_values: List[Dict[str, Any]],
     ) -> None:
         """
         Prevents editors from writing to fields they can't see. Without this,
         an editor on a restricted view could modify hidden cell values by
         including them in the request body.
 
-        :param values: A single dict or a list of dicts. The hidden field IDs
-            are resolved once and then checked against all provided dicts.
+        :param rows_values: A list of dicts. The hidden field IDs are resolved once and
+            then checked against all provided dicts.
         """
 
-        if view is None or not values:
+        if view is None or not rows_values:
             return
         ownership_type = view_ownership_type_registry.get(view.ownership_type)
         hidden_ids = ownership_type.get_hidden_field_ids_for_user(user, view)
         if hidden_ids is None:
             return
 
-        values_list = values if isinstance(values, list) else [values]
-        for row_values in values_list:
+        for row_values in rows_values:
             for key in row_values.keys():
                 field_id = get_field_id_from_field_key(key)
                 if field_id is not None and field_id in hidden_ids:
@@ -2616,11 +2621,10 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             [row["id"] for row in rows_values],
         )
 
-        self._raise_if_values_contain_hidden_fields(user, view, rows_values)
-
         if model is None:
             model = table.get_model()
 
+        self._raise_if_values_contain_hidden_fields(user, view, rows_values)
         self._check_write_fields_values_permissions(user, model, rows_values)
 
         return self.force_update_rows(

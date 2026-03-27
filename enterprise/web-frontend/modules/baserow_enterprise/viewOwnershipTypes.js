@@ -86,21 +86,35 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
     )
   }
 
-  _getHiddenFieldIds(fields, visibleFields) {
+  _getHiddenFieldIds(fields, view, storePrefix) {
+    const viewType = this.app.$registry.get('view', view.type)
+    const visibleFields = viewType.getVisibleFieldsInOrder(
+      { $store: this.app.$store },
+      fields,
+      view,
+      storePrefix
+    )
     const visibleFieldIds = new Set(visibleFields.map((f) => f.id))
     return new Set(
       fields.filter((f) => !visibleFieldIds.has(f.id)).map((f) => f.id)
     )
   }
 
-  getSortContextWarning(view, fields, visibleFields, database) {
+  getSortContextWarning(view, fields, database, storePrefix) {
     // If a user has the ability to update the field options, then they can hide and
     // show fields. If they don't have that ability, then this warning should never be
     // shown because they can't control the hidden fields anyway.
     if (!this._canUpdateFieldOptions(view, database)) {
       return null
     }
-    const hiddenFieldIds = this._getHiddenFieldIds(fields, visibleFields)
+    const viewType = this.app.$registry.get('view', view.type)
+    const visibleFields = viewType.getVisibleFieldsInOrder(
+      { $store: this.app.$store },
+      fields,
+      view,
+      storePrefix
+    )
+    const hiddenFieldIds = this._getHiddenFieldIds(fields, view, storePrefix)
     if (hiddenFieldIds.size === 0) {
       return null
     }
@@ -110,14 +124,14 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
     return this.app.$i18n.t('viewSortContext.hiddenFieldWarning')
   }
 
-  getGroupByContextWarning(view, fields, visibleFields, database) {
+  getGroupByContextWarning(view, fields, database, storePrefix) {
     // If a user has the ability to update the field options, then they can hide and
     // show fields. If they don't have that ability, then this warning should never be
     // shown because they can't control the hidden fields anyway.
     if (!this._canUpdateFieldOptions(view, database)) {
       return null
     }
-    const hiddenFieldIds = this._getHiddenFieldIds(fields, visibleFields)
+    const hiddenFieldIds = this._getHiddenFieldIds(fields, view, storePrefix)
     if (hiddenFieldIds.size === 0) {
       return null
     }
@@ -127,14 +141,14 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
     return this.app.$i18n.t('viewGroupByContext.hiddenFieldWarning')
   }
 
-  getDecoratorContextWarning(view, fields, visibleFields, database) {
+  getDecoratorContextWarning(view, fields, database, storePrefix) {
     // If a user has the ability to update the field options, then they can hide and
     // show fields. If they don't have that ability, then this warning should never be
     // shown because they can't control the hidden fields anyway.
     if (!this._canUpdateFieldOptions(view, database)) {
       return null
     }
-    const hiddenFieldIds = this._getHiddenFieldIds(fields, visibleFields)
+    const hiddenFieldIds = this._getHiddenFieldIds(fields, view, storePrefix)
     if (hiddenFieldIds.size === 0) {
       return null
     }

@@ -36,7 +36,11 @@ class ReadViewRowOperationType(ViewRowOperationType):
     type = "database.table.view.read_row"
 
 
-class ListViewFeldsOperationType(ViewOperationType):
+class ReadAdjacentViewRowOperationType(ViewRowOperationType):
+    type = "database.table.view.read_adjacent_row"
+
+
+class ListViewFieldsOperationType(ViewOperationType):
     type = "database.table.view.list_fields"
 
 

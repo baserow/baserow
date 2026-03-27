@@ -14,7 +14,7 @@ export default (client) => {
         searchParams.include = 'metadata'
       }
       if (viewId !== null) {
-        searchParams.view_id = viewId
+        searchParams.view = viewId
       }
       const params = new URLSearchParams(searchParams).toString()
       return client.get(`/database/rows/table/${tableId}/${rowId}/?${params}`)

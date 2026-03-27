@@ -58,12 +58,18 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
   // This can happen when a user does not have full access to a table for
   // example.
   const view = $store.getters['view/get'](viewId)
-  const ownershipType = $registry.get('viewOwnershipType', view.ownership_type)
-  const fieldsRequireViewId = ownershipType.fetchingFieldsRequiresViewId(
-    database,
-    table,
-    view
-  )
+  let fieldsRequireViewId = false
+  if (view) {
+    const ownershipType = $registry.get(
+      'viewOwnershipType',
+      view.ownership_type
+    )
+    fieldsRequireViewId = ownershipType.fetchingFieldsRequiresViewId(
+      database,
+      table,
+      view
+    )
+  }
   const fieldCheckViewId = fieldsRequireViewId ? viewId : null
   const fieldsLoadedFor = $store.getters['field/isLoadedFor'](
     tableId,
@@ -83,6 +89,7 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     const row = await $store.dispatch('rowModalNavigation/fetchRow', {
       tableId: table.id,
       rowId,
+      viewId,
     })
 
     // If fetch failed, redirect to table without rowId so that the table is still

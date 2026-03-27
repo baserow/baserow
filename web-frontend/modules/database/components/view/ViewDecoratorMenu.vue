@@ -100,8 +100,8 @@ export default {
       return ownershipType.getDecoratorContextWarning(
         this.view,
         this.fields,
-        visibleFields,
-        this.database
+        this.database,
+        this.storePrefix
       )
     },
   },

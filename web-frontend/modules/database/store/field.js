@@ -73,7 +73,7 @@ export const actions = {
    * Fetches all the fields of a given table. The is mostly called when the user
    * selects a different table.
    */
-  async fetchAll({ commit, getters, dispatch }, { table, viewId }) {
+  async fetchAll({ commit, getters, dispatch }, { table, viewId = null }) {
     const { $registry, $client } = this
     commit('SET_LOADING', true)
     commit('UNSELECT', {})

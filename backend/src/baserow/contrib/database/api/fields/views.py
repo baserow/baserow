@@ -124,7 +124,7 @@ from baserow.contrib.database.views.exceptions import (
     ViewDoesNotSupportListingRows,
 )
 from baserow.contrib.database.views.handler import ViewHandler
-from baserow.contrib.database.views.operations import ListViewFeldsOperationType
+from baserow.contrib.database.views.operations import ListViewFieldsOperationType
 from baserow.contrib.database.views.registries import view_ownership_type_registry
 from baserow.core.action.registries import action_type_registry
 from baserow.core.db import atomic_with_retry_on_deadlock, specific_iterator
@@ -223,7 +223,7 @@ class FieldsView(APIView):
         )
         view_check = PermissionCheck(
             request.user,
-            ListViewFeldsOperationType.type,
+            ListViewFieldsOperationType.type,
             context=view,
         )
 

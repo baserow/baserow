@@ -22,7 +22,6 @@ export class ViewOwnershipType extends Registerable {
   getFeatureName() {
     return this.getName()
   }
-
   /**
    * The icon for the type in the form of CSS class.
    */
@@ -96,9 +95,9 @@ export class ViewOwnershipType extends Registerable {
   }
 
   /**
-   * If `true`, the `view` parameter is added when listing fields. This can be
-   * needed if the view ownership type has restrictions in which fields are visible,
-   * for example.
+   * If `true`, the `view` query parameter will added when fetching the fields. This can
+   * be needed if the view ownership type has restrictions where not all table fields
+   * are exposed. This is the case with the restricted view, for example.
    */
   fetchingFieldsRequiresViewId(database, table, view) {
     return false

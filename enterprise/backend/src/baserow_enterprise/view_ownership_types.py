@@ -109,6 +109,8 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
             # provided view, then the hidden fields are omitted because they should not
             # be exposed to the user.
             if not field_options_check_result:
+                if not hasattr(view, "_prefetched_objects_cache"):
+                    view._prefetched_objects_cache = {}
                 # Cache hidden field IDs to avoid repeated permission checks.
                 view_type = view_type_registry.get_by_model(view.specific_class)
                 # This could cause N number of queries, but if the views are fetched

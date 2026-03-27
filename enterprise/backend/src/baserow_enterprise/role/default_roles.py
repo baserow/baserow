@@ -165,7 +165,7 @@ from baserow.contrib.database.views.operations import (
     DuplicateViewOperationType,
     ListAggregationsViewOperationType,
     ListViewDecorationOperationType,
-    ListViewFeldsOperationType,
+    ListViewFieldsOperationType,
     ListViewFilterOperationType,
     ListViewGroupByOperationType,
     ListViewsOperationType,
@@ -178,6 +178,7 @@ from baserow.contrib.database.views.operations import (
     ReadViewFilterOperationType,
     ReadViewGroupByOperationType,
     ReadViewOperationType,
+    ReadAdjacentViewRowOperationType,
     ReadViewRowOperationType,
     ReadViewsOrderOperationType,
     ReadViewSortOperationType,
@@ -351,7 +352,6 @@ default_roles[READ_ONLY_ROLE_UID].extend(
         ListTablesDatabaseTableOperationType,
         ReadApplicationOperationType,
         ReadDatabaseTableOperationType,
-        ListRowsDatabaseTableOperationType,
         ReadViewOperationType,
         ListViewSortOperationType,
         ReadViewFieldOptionsOperationType,
@@ -361,8 +361,6 @@ default_roles[READ_ONLY_ROLE_UID].extend(
         ListViewsOperationType,
         ListAggregationsViewOperationType,
         ReadAggregationsViewOperationType,
-        ReadAdjacentRowDatabaseRowOperationType,
-        ListRowNamesDatabaseTableOperationType,
         ReadViewFilterOperationType,
         ReadViewsOrderOperationType,
         ReadViewSortOperationType,
@@ -375,6 +373,7 @@ default_roles[READ_ONLY_ROLE_UID].extend(
         ListWidgetsOperationType,
         ListDashboardDataSourcesOperationType,
         ReadDashboardDataSourceOperationType,
+        ListRowsDatabaseTableOperationType,
     ]
 )
 default_roles[VIEWER_ROLE_UID].extend(
@@ -394,7 +393,10 @@ default_roles[VIEWER_ROLE_UID].extend(
         DispatchDashboardDataSourceOperationType,
         ReadDatabaseRowOperationType,
         ReadViewRowOperationType,
-        ListViewFeldsOperationType,
+        ListViewFieldsOperationType,
+        ReadAdjacentRowDatabaseRowOperationType,
+        ReadAdjacentViewRowOperationType,
+        ListRowNamesDatabaseTableOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(

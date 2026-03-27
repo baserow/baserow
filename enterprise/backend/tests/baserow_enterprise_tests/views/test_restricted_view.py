@@ -731,6 +731,64 @@ def test_editor_cannot_update_row_with_hidden_field_values(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_editor_cannot_create_row_with_hidden_field_values_user_field_names(
+    enterprise_data_fixture,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    user2 = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    visible_field = enterprise_data_fixture.create_text_field(
+        table=table, primary=True, name="Visible"
+    )
+    hidden_field = enterprise_data_fixture.create_text_field(table=table, name="Hidden")
+
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    GridViewFieldOptions.objects.update_or_create(
+        grid_view=view, field=hidden_field, defaults={"hidden": True}
+    )
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    # Editor tries to create a row setting a hidden field via user_field_names — should
+    # fail.
+    with pytest.raises(BaserowPermissionDenied):
+        RowHandler().create_row(
+            user2,
+            table,
+            values={"Hidden": "sneaky"},
+            view=view,
+            user_field_names=True,
+        )
+
+    # Editor can create a row with only visible field values using user_field_names.
+    row = RowHandler().create_row(
+        user2,
+        table,
+        values={"Visible": "ok"},
+        view=view,
+        user_field_names=True,
+    )
+    assert row is not None
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_fetching_restricted_view_fields(
     enterprise_data_fixture,
     api_client,
@@ -1806,3 +1864,241 @@ def test_broadcast_payload_to_all_restricted_views_no_n_plus_one_queries(
         )
 
     assert mock_broadcast_to_channel_group.delay.call_count == 0
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_editor_row_endpoints_exclude_hidden_fields_in_response(
+    api_client, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    visible_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    hidden_field = enterprise_data_fixture.create_text_field(table=table)
+
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    GridViewFieldOptions.objects.update_or_create(
+        grid_view=view, field=hidden_field, defaults={"hidden": True}
+    )
+
+    row = RowHandler().create_row(
+        user,
+        table,
+        values={
+            f"field_{visible_field.id}": "vis",
+            f"field_{hidden_field.id}": "hid",
+        },
+    )
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    workspace = table.database.workspace
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    # GET single row - editor should not see hidden field.
+    response = api_client.get(
+        reverse(
+            "api:database:rows:item",
+            kwargs={"table_id": table.id, "row_id": row.id},
+        )
+        + f"?view={view.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert f"field_{visible_field.id}" in response_json
+    assert f"field_{hidden_field.id}" not in response_json
+
+    # UPDATE single row - editor should not see hidden field in response.
+    response = api_client.patch(
+        reverse(
+            "api:database:rows:item",
+            kwargs={"table_id": table.id, "row_id": row.id},
+        )
+        + f"?view={view.id}",
+        {f"field_{visible_field.id}": "updated"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert f"field_{visible_field.id}" in response_json
+    assert response_json[f"field_{visible_field.id}"] == "updated"
+    assert f"field_{hidden_field.id}" not in response_json
+
+    # CREATE single row - editor should not see hidden field in response.
+    response = api_client.post(
+        reverse(
+            "api:database:rows:list",
+            kwargs={"table_id": table.id},
+        )
+        + f"?view={view.id}",
+        {f"field_{visible_field.id}": "new_val"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    response_json = response.json()
+    assert f"field_{visible_field.id}" in response_json
+    assert f"field_{hidden_field.id}" not in response_json
+
+    # BATCH CREATE rows - editor should not see hidden field in response.
+    response = api_client.post(
+        reverse(
+            "api:database:rows:batch",
+            kwargs={"table_id": table.id},
+        )
+        + f"?view={view.id}",
+        {"items": [{f"field_{visible_field.id}": "batch_val1"}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    response_json = response.json()
+    row_data = response_json["items"][0]
+    assert f"field_{visible_field.id}" in row_data
+    assert f"field_{hidden_field.id}" not in row_data
+
+    # BATCH UPDATE rows - editor should not see hidden field in response.
+    response = api_client.patch(
+        reverse(
+            "api:database:rows:batch",
+            kwargs={"table_id": table.id},
+        )
+        + f"?view={view.id}",
+        {"items": [{"id": row.id, f"field_{visible_field.id}": "batch_updated"}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    response_json = response.json()
+    row_data = response_json["items"][0]
+    assert f"field_{visible_field.id}" in row_data
+    assert row_data[f"field_{visible_field.id}"] == "batch_updated"
+    assert f"field_{hidden_field.id}" not in row_data
+
+    # GET ADJACENT row - editor should not see hidden field in response.
+    response = api_client.get(
+        reverse(
+            "api:database:rows:adjacent",
+            kwargs={"table_id": table.id, "row_id": row.id},
+        )
+        + f"?view_id={view.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    response_json = response.json()
+    assert f"field_{visible_field.id}" in response_json
+    assert f"field_{hidden_field.id}" not in response_json
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_editor_adjacent_row_requires_view_and_excludes_hidden_fields(
+    api_client, enterprise_data_fixture
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    visible_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    hidden_field = enterprise_data_fixture.create_text_field(table=table)
+
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    GridViewFieldOptions.objects.update_or_create(
+        grid_view=view, field=hidden_field, defaults={"hidden": True}
+    )
+
+    row1 = RowHandler().create_row(
+        user,
+        table,
+        values={
+            f"field_{visible_field.id}": "row1_vis",
+            f"field_{hidden_field.id}": "row1_hid",
+        },
+    )
+    row2 = RowHandler().create_row(
+        user,
+        table,
+        values={
+            f"field_{visible_field.id}": "row2_vis",
+            f"field_{hidden_field.id}": "row2_hid",
+        },
+    )
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    workspace = table.database.workspace
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    # Without view_id, the editor should NOT have access (no table-level perm).
+    response = api_client.get(
+        reverse(
+            "api:database:rows:adjacent",
+            kwargs={"table_id": table.id, "row_id": row1.id},
+        ),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+    # With view_id, the editor should have access and hidden fields excluded.
+    response = api_client.get(
+        reverse(
+            "api:database:rows:adjacent",
+            kwargs={"table_id": table.id, "row_id": row1.id},
+        )
+        + f"?view_id={view.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    response_json = response.json()
+    assert f"field_{visible_field.id}" in response_json
+    assert response_json[f"field_{visible_field.id}"] == "row2_vis"
+    assert f"field_{hidden_field.id}" not in response_json
+
+    # Builder should see hidden fields when using the same view.
+    response = api_client.get(
+        reverse(
+            "api:database:rows:adjacent",
+            kwargs={"table_id": table.id, "row_id": row1.id},
+        )
+        + f"?view_id={view.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert f"field_{visible_field.id}" in response_json
+    assert f"field_{hidden_field.id}" in response_json
