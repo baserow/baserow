@@ -10,7 +10,7 @@ This workflow automatically updates the Database Team's GitHub Project board bas
 
 The workflow triggers on PR events (opened, review requested, review submitted, merged, etc.) and automatically:
 
-1. **Checks domain labels** - Only processes PRs with labels starting with `domain::database` or `domain::core`
+1. **Checks domain labels** - Only processes PRs with labels starting with `database 🗄`
 2. **Adds PR to project** - Ensures the PR is added to the Database Team project board
 3. **Updates Status field** - Sets the PR status based on its state:
    - `In Progress` - PR is a draft

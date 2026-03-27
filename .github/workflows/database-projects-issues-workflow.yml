@@ -2,7 +2,7 @@ name: Update Database Team Project Fields
 
 env:
   PROJECT_NUMBER: '3'
-  DOMAIN_LABELS: '["domain::database"]'
+  DOMAIN_LABELS: '["database 🗄️"]'
   STATUS_FIELD_NAME: 'Status'
   STATUS_TODO: 'Todo'
 
@@ -91,7 +91,7 @@ jobs:
               return;
             }
 
-            console.log(`Issue has domain label: ${labels.filter(l => l.startsWith('domain::')).join(', ')}`);
+            console.log(`Issue has domain label: ${labels.filter(l => domainLabels.some(d => l.startsWith(d))).join(', ')}`);
 
             // ============================================================
             // CHECK IF ALREADY IN PROJECT

@@ -2,7 +2,7 @@ name: Database Team PR Automation
 
 env:
   PROJECT_NUMBER: '3'
-  DOMAIN_LABELS: '["domain::database"]'
+  DOMAIN_LABELS: '["database 🗄️"]'
   STATUS_FIELD_NAME: 'Status'
   REVIEW_STATUS_FIELD_NAME: 'Review Status'
   STATUS_IN_PROGRESS: 'In Progress'
@@ -26,6 +26,7 @@ on:
 
 jobs:
   update-status:
+    if: github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Update PR Project Status
@@ -114,7 +115,7 @@ jobs:
               return;
             }
 
-            console.log(`PR has domain label: ${labels.filter(l => l.startsWith('domain::')).join(', ')}`);
+            console.log(`PR has domain label: ${labels.filter(l => domainLabels.some(d => l.startsWith(d))).join(', ')}`);
 
             const statusField = project.fields.nodes.find(f => f.name === '${{ env.STATUS_FIELD_NAME }}');
             const reviewStatusField = project.fields.nodes.find(f => f.name === '${{ env.REVIEW_STATUS_FIELD_NAME }}');
