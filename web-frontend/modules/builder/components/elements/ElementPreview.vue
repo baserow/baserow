@@ -92,9 +92,6 @@ export default {
     PageElement,
   },
   mixins: [applicationContextMixin],
-  setup(props) {
-    return useElementDraggable(() => props.element)
-  },
   inject: [
     'workspace',
     'builder',
@@ -120,6 +117,9 @@ export default {
     },
   },
   emits: ['move'],
+  setup(props) {
+    return useElementDraggable(() => props.element)
+  },
   data() {
     return {
       isDuplicating: false,

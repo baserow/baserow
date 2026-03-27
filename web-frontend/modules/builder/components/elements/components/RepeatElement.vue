@@ -67,7 +67,8 @@
           <AddElementZone
             :disabled="
               !isContainerDragging &&
-              (elementIsInError && !elementHasSourceOfData)
+              elementIsInError &&
+              !elementHasSourceOfData
             "
             :tooltip="addElementErrorTooltipMessage"
             :is-drag-active="isContainerDragging"
@@ -93,7 +94,8 @@
           <AddElementZone
             :disabled="
               !isContainerDragging &&
-              (elementIsInError && !elementHasSourceOfData)
+              elementIsInError &&
+              !elementHasSourceOfData
             "
             :tooltip="addElementErrorTooltipMessage"
             :is-drag-active="isContainerDragging"

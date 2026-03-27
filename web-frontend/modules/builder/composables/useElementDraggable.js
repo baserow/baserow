@@ -5,11 +5,11 @@ import { ref, onUnmounted, inject } from 'vue'
  *
  * Responsibilities:
  *  - Activate the HTML5 draggable attribute only while the drag handle is held
- *    down (so the element itself is not accidentally dragged on a regular click).
+ *    down
  *  - Write / clear the shared dndContext when a drag starts or ends.
  *  - Clean up the mouseup listener automatically when the component unmounts.
  *
- * @param {Function} getElement - Zero-argument getter that returns the current element object.
+ * @param {Function} getElement
  * @returns {{ isDraggable: Ref<boolean>, onDragHandleMouseDown: Function,
  *   onDragStart: Function, onDragEnd: Function }}
  */
