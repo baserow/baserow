@@ -2723,10 +2723,10 @@ def test_get_group_by_metadata_in_rows_with_many_to_many_field(data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_group_by_metadata_in_rows_with_paginated_many_to_many_field(
-    data_fixture,
-):
-    user = data_fixture.create_user()
+def test_list_rows_group_by_link_row_counts_across_pages(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password="password", first_name="Test1"
+    )
     table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
 
     row_b1, row_b2 = (
@@ -2752,23 +2752,23 @@ def test_get_group_by_metadata_in_rows_with_paginated_many_to_many_field(
         ],
     )
 
-    model = table_a.get_model()
-    queryset = model.objects.all().order_by("id").enhance_by_fields()
-    paginated_rows = list(queryset[:3])
+    grid = data_fixture.create_grid_view(table=table_a)
+    data_fixture.create_view_group_by(view=grid, field=link_a_to_b)
 
-    handler = ViewHandler()
-    counts = handler.get_group_by_metadata_in_rows(
-        [link_a_to_b], paginated_rows, queryset
-    )
+    url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
+    response = api_client.get(f"{url}?size=3", **{"HTTP_AUTHORIZATION": f"JWT {token}"})
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
 
-    for c in counts.keys():
-        counts[c] = list(counts[c])
-
-    assert counts == {
-        link_a_to_b: unordered(
+    # Only groups present on the current page are returned, but their counts
+    # must reflect ALL matching rows in the view.  Before the fix, off-page
+    # rows were missing from the CTE so they were counted as "empty",
+    # producing count=5 for [] and count=1 for [row_b1] instead of 2 each.
+    assert response_json["group_by_metadata"] == {
+        f"field_{link_a_to_b.id}": unordered(
             [
-                {"count": 2, f"field_{link_a_to_b.id}": []},
-                {"count": 2, f"field_{link_a_to_b.id}": [row_b1.id]},
+                {f"field_{link_a_to_b.id}": [], "count": 2},
+                {f"field_{link_a_to_b.id}": [row_b1.id], "count": 2},
             ]
         )
     }
