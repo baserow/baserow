@@ -1,3 +1,6 @@
+from decimal import Decimal
+
+from baserow.core.graph.handler import BaseGraphHandler
 from tests.baserow.core.graph.fixtures import make_graph_model
 
 
@@ -121,3 +124,21 @@ def test_merge_from_empty_place_is_noop(container_graph_fixture):
     assert get_place_chain_ids(model, 1, "0") == [2, 3]
     assert get_place_chain_ids(model, 1, "1") == [4]
     assert get_place_chain_ids(model, 1, "2") == [5, 6]
+
+
+def test_graph_handler_get_order_map(graph_model_fixture):
+    model = graph_model_fixture
+    assert BaseGraphHandler.get_order_map(model.graph) == {
+        1: Decimal("1.00000000000000000000"),
+        2: Decimal("2.00000000000000000000"),
+        3: Decimal("1.00000000000000000000"),
+        5: Decimal("1.00000000000000000000"),
+        12: Decimal("2.00000000000000000000"),
+        4: Decimal("3.00000000000000000000"),
+        6: Decimal("4.00000000000000000000"),
+        7: Decimal("1.00000000000000000000"),
+        8: Decimal("1.00000000000000000000"),
+        9: Decimal("1.00000000000000000000"),
+        10: Decimal("2.00000000000000000000"),
+        11: Decimal("3.00000000000000000000"),
+    }
