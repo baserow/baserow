@@ -493,6 +493,7 @@ const actions = {
               order: elementUpdated.order,
               place_in_container: elementUpdated.place_in_container,
               parent_element_id: elementUpdated.parent_element_id,
+              page_id: elementUpdated.page_id,
             },
           })
         } else {
