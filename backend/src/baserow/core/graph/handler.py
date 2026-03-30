@@ -49,10 +49,10 @@ class BaseGraphHandler(ABC):
         "3": {},
         "5": {},
         "4": {"next": {"": [6]}},
-        "6": {"children": {"": [7], "0": [8], "1": [9, 10]}},
+        "6": {"children": {"": [7], "0": [8], "1": [9]}},
         "7": {},
         "8": {},
-        "9": {},
+        "9": {"next": {"": [10]}},
         "10": {}
     }
     ```
@@ -650,10 +650,19 @@ class BaseGraphHandler(ABC):
         elif position == "child":
             ref_info = self.get_info(reference_point)
             children_dict = self._get_children_dict(ref_info)
-            if output in children_dict:
-                new_next = children_dict[output]
 
-            self._set_children(ref_info, output, [point.id])
+            if output in children_dict:
+                # There's already a first child in this slot
+                # The OLD child should point to the NEW child (append to end)
+                old_first_child_id = children_dict[output][0]
+                self.get_info(old_first_child_id).setdefault("next", {})[""] = [
+                    point.id
+                ]
+
+            # Don't update the children - keep the first child as-is
+            # (unless there was no child, then set this as the first)
+            if output not in children_dict:
+                self._set_children(ref_info, output, [point.id])
 
         if new_next:
             point_info["next"] = {"": new_next}

@@ -1,4 +1,3 @@
-from decimal import Decimal
 from unittest.mock import patch
 
 import pytest
@@ -12,6 +11,7 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.core.exceptions import PermissionException
+from baserow.core.graph.types import GraphPointPosition
 
 
 def pytest_generate_tests(metafunc):
@@ -27,6 +27,7 @@ def pytest_generate_tests(metafunc):
 def test_create_element(element_created_mock, data_fixture, element_type):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
+    element1 = data_fixture.create_builder_heading_element(page=page)
     shared_page = page.builder.shared_page
 
     if element_type.is_multi_page_element:
@@ -34,9 +35,6 @@ def test_create_element(element_created_mock, data_fixture, element_type):
 
     prev_is_deactivated = element_type.is_deactivated
     element_type.is_deactivated = lambda x: False
-
-    element1 = data_fixture.create_builder_heading_element(page=page, order="1.0000")
-    element3 = data_fixture.create_builder_heading_element(page=page, order="2.0000")
 
     pytest_params = element_type.get_pytest_params(data_fixture)
 
@@ -51,7 +49,7 @@ def test_create_element(element_created_mock, data_fixture, element_type):
     assert last_element.id == element.id
 
     element_created_mock.send.assert_called_once_with(
-        service, element=element, before_id=None, user=user
+        service, element=element, user=user
     )
 
 
@@ -59,88 +57,49 @@ def test_create_element(element_created_mock, data_fixture, element_type):
 def test_create_element_before(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    element1 = data_fixture.create_builder_heading_element(page=page, order="1.0000")
-    element3 = data_fixture.create_builder_heading_element(page=page, order="2.0000")
+    element1 = data_fixture.create_builder_heading_element(page=page)
+    element3 = data_fixture.create_builder_heading_element(page=page)
+
+    assert page.graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [element3.id]}},
+        str(element3.id): {},
+    }
 
     element_type = element_type_registry.get("heading")
     pytest_params = element_type.get_pytest_params(data_fixture)
 
     element2 = ElementService().create_element(
-        user, element_type, page=page, before=element3, **pytest_params
+        user, element_type, page, element3.id, GraphPointPosition.NORTH, **pytest_params
     )
 
-    elements = Element.objects.all()
-    assert elements[0].id == element1.id
-    assert elements[1].id == element2.id
-    assert elements[2].id == element3.id
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [element2.id]}},
+        str(element2.id): {"next": {"": [element3.id]}},
+        str(element3.id): {},
+    }
 
 
 @pytest.mark.django_db
 def test_create_element_before_not_same_page(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
-    element1 = data_fixture.create_builder_heading_element(page=page, order="1.0000")
-    element3 = data_fixture.create_builder_heading_element(order="2.0000")
+    element1 = data_fixture.create_builder_heading_element(page=page)
+    element3 = data_fixture.create_builder_heading_element()
 
     element_type = element_type_registry.get("heading")
     pytest_params = element_type.get_pytest_params(data_fixture)
 
     with pytest.raises(ElementNotInSamePage):
         ElementService().create_element(
-            user, element_type, page=page, before=element3, **pytest_params
+            user,
+            element_type,
+            page=page,
+            reference_element_id=element3.id,
+            **pytest_params,
         )
-
-
-@pytest.mark.django_db
-def test_get_unique_orders_before_element_triggering_full_page_order_reset(
-    data_fixture,
-):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-    element_1 = data_fixture.create_builder_heading_element(
-        page=page, order="1.00000000000000000000"
-    )
-    element_2 = data_fixture.create_builder_heading_element(
-        page=page, order="1.00000000000000001000"
-    )
-    element_3 = data_fixture.create_builder_heading_element(
-        page=page, order="2.99999999999999999999"
-    )
-    element_4 = data_fixture.create_builder_heading_element(
-        page=page, order="2.99999999999999999998"
-    )
-
-    element_type = element_type_registry.get("heading")
-    pytest_params = element_type.get_pytest_params(data_fixture)
-
-    element_created = ElementService().create_element(
-        user, element_type, page=page, before=element_3, **pytest_params
-    )
-
-    element_1.refresh_from_db()
-    element_2.refresh_from_db()
-    element_3.refresh_from_db()
-    element_4.refresh_from_db()
-
-    assert element_1.order == Decimal("1.00000000000000000000")
-    assert element_2.order == Decimal("2.00000000000000000000")
-    assert element_4.order == Decimal("3.00000000000000000000")
-    assert element_3.order == Decimal("4.00000000000000000000")
-    assert element_created.order == Decimal("3.50000000000000000000")
-
-
-@pytest.mark.django_db
-@patch("baserow.contrib.builder.elements.service.element_orders_recalculated")
-def test_recalculate_full_order(element_orders_recalculated_mock, data_fixture):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-    data_fixture.create_builder_heading_element(page=page, order="1.9000")
-    data_fixture.create_builder_heading_element(page=page, order="3.4000")
-
-    service = ElementService()
-    service.recalculate_full_orders(user, page)
-
-    element_orders_recalculated_mock.send.assert_called_once_with(service, page=page)
 
 
 @pytest.mark.django_db
@@ -314,18 +273,37 @@ def test_move_element(element_moved_mock, data_fixture):
     element2 = data_fixture.create_builder_heading_element(page=page)
     element3 = data_fixture.create_builder_text_element(page=page)
 
+    assert page.graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [element2.id]}},
+        str(element2.id): {"next": {"": [element3.id]}},
+        str(element3.id): {},
+    }
+
     service = ElementService()
-    element_moved = service.move_element(
+    service.move_element(
         user,
         page,
         element3,
-        element3.parent_element,
         element3.place_in_container,
-        before=element2,
+        element2.id,
+        GraphPointPosition.NORTH,
     )
 
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [element3.id]}},
+        str(element3.id): {"next": {"": [element2.id]}},
+        str(element2.id): {},
+    }
+
     element_moved_mock.send.assert_called_once_with(
-        service, element=element_moved, before=element2, user=user
+        service,
+        element=element3,
+        position=GraphPointPosition.NORTH,
+        reference_element=element2,
+        user=user,
     )
 
 
@@ -343,9 +321,9 @@ def test_move_element_not_same_builder(data_fixture, stub_check_permissions):
             user,
             page,
             element3,
-            element3.parent_element,
             element3.place_in_container,
-            before=element2,
+            element2.id,
+            GraphPointPosition.SOUTH,
         )
 
 
@@ -365,38 +343,10 @@ def test_move_element_permission_denied(data_fixture, stub_check_permissions):
             user,
             page,
             element3,
-            element3.parent_element,
             element3.place_in_container,
-            before=element2,
+            element2,
+            GraphPointPosition.SOUTH,
         )
-
-
-@pytest.mark.django_db
-@patch("baserow.contrib.builder.elements.service.element_orders_recalculated")
-def test_move_element_trigger_order_recalculated(
-    element_orders_recalculated_mock, data_fixture
-):
-    user = data_fixture.create_user()
-    page = data_fixture.create_builder_page(user=user)
-    element1 = data_fixture.create_builder_heading_element(
-        page=page, order="2.99999999999999999998"
-    )
-    element2 = data_fixture.create_builder_heading_element(
-        page=page, order="2.99999999999999999999"
-    )
-    element3 = data_fixture.create_builder_heading_element(page=page, order="3.0000")
-
-    service = ElementService()
-    service.move_element(
-        user,
-        page,
-        element3,
-        element3.parent_element,
-        element3.place_in_container,
-        before=element2,
-    )
-
-    element_orders_recalculated_mock.send.assert_called_once_with(service, page=page)
 
 
 @pytest.mark.django_db
@@ -423,3 +373,121 @@ def test_duplicate_element_permission_denied(data_fixture, stub_check_permission
         pytest.raises(PermissionException),
     ):
         ElementService().duplicate_element(user, element)
+
+
+@pytest.mark.django_db
+def test_move_element_end_of_page(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    element1 = data_fixture.create_builder_heading_element(page=page)
+    element2 = data_fixture.create_builder_heading_element(page=page)
+    element3 = data_fixture.create_builder_heading_element(page=page)
+
+    assert page.graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [element2.id]}},
+        str(element2.id): {"next": {"": [element3.id]}},
+        str(element3.id): {},
+    }
+
+    ElementService().move_element(
+        user,
+        element1,
+        element1.place_in_container,
+        element3.id,
+        GraphPointPosition.SOUTH,
+    )
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": element2.id,
+        str(element2.id): {"next": {"": [element3.id]}},
+        str(element3.id): {"next": {"": [element1.id]}},
+        str(element1.id): {},
+    }
+
+
+@pytest.mark.django_db
+def test_move_element_before(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    element1 = data_fixture.create_builder_heading_element(page=page)
+    element2 = data_fixture.create_builder_heading_element(page=page)
+    element3 = data_fixture.create_builder_heading_element(page=page)
+
+    assert page.graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [element2.id]}},
+        str(element2.id): {"next": {"": [element3.id]}},
+        str(element3.id): {},
+    }
+
+    ElementService().move_element(
+        user,
+        element3,
+        element3.place_in_container,
+        element2.id,
+        GraphPointPosition.NORTH,
+    )
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [element3.id]}},
+        str(element3.id): {"next": {"": [element2.id]}},
+        str(element2.id): {},
+    }
+
+
+@pytest.mark.django_db
+def test_moving_elements_inside_container(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    container = data_fixture.create_builder_column_element(page=page)
+    root_element = data_fixture.create_builder_text_element(page=page)
+    element_inside_container_one = data_fixture.create_builder_text_element(
+        page=page,
+        place_in_container="1",
+        reference_element=container,
+        position=GraphPointPosition.CHILD,
+    )
+    element_inside_container_two = data_fixture.create_builder_text_element(
+        page=page,
+        place_in_container="1",
+        reference_element=container,
+        position=GraphPointPosition.CHILD,
+    )
+
+    assert page.graph == {
+        "0": container.id,
+        str(container.id): {
+            "next": {"": [root_element.id]},
+            "children": {"1": [element_inside_container_one.id]},
+        },
+        str(element_inside_container_one.id): {
+            "next": {"": [element_inside_container_two.id]}
+        },
+        str(element_inside_container_two.id): {},
+        str(root_element.id): {},
+    }
+
+    ElementService().move_element(
+        user,
+        element_inside_container_two,
+        element_inside_container_two.place_in_container,
+        element_inside_container_one.id,
+        GraphPointPosition.NORTH,
+    )
+
+    assert page.graph == {
+        "0": container.id,
+        str(container.id): {
+            "next": {"": [root_element.id]},
+            "children": {"1": [element_inside_container_two.id]},
+        },
+        str(element_inside_container_two.id): {
+            "next": {"": [element_inside_container_one.id]}
+        },
+        str(element_inside_container_one.id): {},
+        str(root_element.id): {},
+    }

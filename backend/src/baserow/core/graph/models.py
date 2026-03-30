@@ -1,10 +1,11 @@
+from decimal import Decimal
 from typing import Self
 
 from django.db import models
 
 from baserow.core.cache import local_cache
 from baserow.core.graph.handler import BaseGraphHandler
-from baserow.core.graph.types import SerializedGraph
+from baserow.core.graph.types import GraphPointPosition, SerializedGraph
 
 
 class GraphModelMixin(models.Model):
@@ -87,6 +88,10 @@ class GraphPointMixin:
         """
 
         return self.get_parent().get_graph()
+
+    def get_order(self) -> Decimal:
+        order_map = self._get_graph().get_order_map(self.get_parent().graph)
+        return order_map[self.id]
 
     @property
     def graph_point_label(self) -> str:
@@ -224,19 +229,26 @@ class GraphPointMixin:
         """
 
         point_ancestry = self.get_parent_points()
-        return point_ancestry[0] if point_ancestry else None
+        return point_ancestry[-1] if point_ancestry else None
 
     def get_parent_points(self) -> list[Self]:
         """
-        Returns the ancestors of this point which are the container points that contain
-        the current point instance.
+        Returns the ancestors of this point which are the container points
+        that contain the current point instance.
         """
 
-        return [
-            position[0]
-            for position in self._get_graph().get_previous_positions(self)
-            if position[1] == "child"
-        ]
+        def _get_default():
+            return [
+                position[0]
+                for position in self._get_graph().get_previous_positions(self)
+                if position[1] == GraphPointPosition.CHILD
+            ]
+
+        parent_model = self.get_parent()  # Page/Workflow, not a point.
+        return local_cache.get(
+            f"core_graph_{parent_model.id}_get_parent_points_{self.id}",
+            _get_default,
+        )
 
     def get_next_points(self, output_uid: str | None = None) -> list[Self]:
         """

@@ -18,7 +18,6 @@ from django.db.models import QuerySet
 
 from baserow.contrib.builder.elements.exceptions import (
     ElementDoesNotExist,
-    ElementNotInSamePage,
     ElementTypeDeactivated,
 )
 from baserow.contrib.builder.elements.models import ContainerElement, Element
@@ -38,7 +37,6 @@ from baserow.contrib.builder.workflow_actions.registries import (
 )
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
-from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import MirrorDict, extract_allowed
@@ -178,7 +176,12 @@ class ElementHandler:
         """
 
         elements = self.get_elements(page, use_cache=use_element_cache)
-        grouped_elements = {element.id: element for element in elements}
+        grouped_elements = {}
+        for element in elements:
+            # Pre-populate the page relation so that parent_element_id lookups
+            # (which call _get_graph() → self.page) don't trigger extra queries.
+            element.page = page
+            grouped_elements[element.id] = element
         element = grouped_elements[element_id]
 
         ancestry = []
@@ -316,6 +319,17 @@ class ElementHandler:
 
         return elements
 
+    def invalidate_element_cache(self, page: Page):
+        """
+        Invalidates the element cache. To be used when we add or remove an
+        element from the graph.
+
+        :param page: The target page cache.
+        """
+
+        local_cache.delete(self._get_elements_cache_key(page, True))
+        local_cache.delete(self._get_elements_cache_key(page, False))
+
     def create_element(
         self,
         element_type: ElementType,
@@ -340,10 +354,16 @@ class ElementHandler:
         allowed_values = extract_allowed(
             kwargs, self.allowed_fields_create + element_type.allowed_fields
         )
+        allowed_values["page"] = page
+        allowed_values = element_type.prepare_value_for_db(allowed_values)
 
         model_class = cast(Element, element_type.model_class)
-        element = model_class(page=page, **allowed_values)
+        element = model_class(**allowed_values)
         element.save()
+
+        element_type.after_create(element, kwargs)
+
+        self.invalidate_element_cache(page)
 
         return element
 
@@ -392,28 +412,6 @@ class ElementHandler:
         element.get_type().after_update(element, kwargs, element_changes)
 
         return element
-
-    def order_elements(self, page: Page, order: List[int], base_qs=None) -> List[int]:
-        """
-        Assigns a new order to the elements on a page.
-        You can provide a base_qs for pre-filter the elements affected by this change
-
-        :param page: The page that the elements belong to
-        :param order: The new order of the elements
-        :param base_qs: A QS that can have filters already applied
-        :raises ElementNotInSamePage: If the element is not part of the provided page
-        :return: The new order of the elements
-        """
-
-        if base_qs is None:
-            base_qs = Element.objects.filter(page=page)
-
-        try:
-            full_order = Element.order_objects(base_qs, order)
-        except IdDoesNotExist:
-            raise ElementNotInSamePage()
-
-        return full_order
 
     def before_places_in_container_removed(
         self, container_element: ContainerElement, places: List[str]
@@ -472,9 +470,12 @@ class ElementHandler:
         # We are just creating new elements here so other data id should remain
         id_mapping = defaultdict(lambda: MirrorDict())
 
-        return self._duplicate_element_recursive(
+        duplication = self._duplicate_element_recursive(
             element, id_mapping, element, GraphPointPosition.SOUTH
         )
+        self.invalidate_element_cache(element.page)
+
+        return duplication
 
     def _duplicate_element_recursive(
         self,

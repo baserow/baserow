@@ -81,8 +81,39 @@ class ElementType(
 
     def prepare_value_for_db(self, values: Dict, instance: Optional[Element] = None):
         """
-        I might remove this.
+        This function allows you to hook into the moment an element is created or
+        updated. If the element is updated `instance` will be defined, and you can use
+        `instance` to extract any context data that might be required for the
+        implementation of this hook.
+
+        :param values: The values that are being updated
+        :param instance: (optional) The existing instance that is being updated
+        :return:
         """
+
+        from baserow.contrib.builder.elements.handler import ElementHandler
+
+        parent_element_id = getattr(instance, "parent_element_id", None)
+
+        if instance:
+            place_in_container = values.get(
+                "place_in_container", instance.place_in_container
+            )
+            page = values.get("page", instance.page)
+        else:
+            place_in_container = values.get("place_in_container", None)
+            page = values["page"]
+
+        if parent_element_id is not None:
+            # Validate the place for this element
+            parent_element = ElementHandler().get_element(parent_element_id)
+            self.validate_place(page, parent_element, place_in_container)
+        elif getattr(self, "is_multi_page_element", False) != page.shared:
+            raise ValidationError(
+                "This element type can't be added as root of a "
+                f"{'an unshared' if self.is_multi_page_element else 'the shared'} "
+                "page."
+            )
 
         return values
 
@@ -115,13 +146,6 @@ class ElementType(
             reference_element.get_type().validate_place_in_container(
                 place_in_container, reference_element
             )
-        else:
-            if self.is_multi_page_element != page.shared:
-                raise ValidationError(
-                    "This element type can't be added as root of a "
-                    f"{'an unshared' if self.is_multi_page_element else 'the shared'} "
-                    "page."
-                )
 
     def after_create(self, instance: ElementSubClass, values: Dict):
         """
@@ -253,6 +277,12 @@ class ElementType(
         cache.setdefault("imported_element_map", {})[created_instance.id] = (
             created_instance
         )
+
+        from baserow.contrib.builder.elements.handler import ElementHandler
+
+        # As we've created a new element instance, clear the `ElementHandler`
+        # cache so that any upcoming calls to `get_elements` includes the new model.
+        ElementHandler().invalidate_element_cache(page)
 
         return created_instance
 

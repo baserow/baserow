@@ -180,12 +180,6 @@ class ElementService:
         # Verify the combination of the reference element, and the position.
         self._check_position(page, reference_element, position)
 
-        # Before we create this element, verify if its type has any
-        # specific logic to execute before the creation of the element.
-        element_type.before_create(
-            page, reference_element, position, kwargs.get("place_in_container")
-        )
-
         try:
             with translation.override(user.profile.language):
                 new_element = self.handler.create_element(element_type, page, **kwargs)
