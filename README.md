@@ -57,6 +57,10 @@ going forward at: https://github.com/baserow/baserow.
 Join our forum at https://community.baserow.io/. See
 [CONTRIBUTING.md](./CONTRIBUTING.md) on how to become a contributor.
 
+## Hosted deployment
+
+A hosted deployment is available on [Fronteir AI](https://fronteir.ai/mcp/bram2w-baserow).
+
 ## Installation
 
 * [**Docker**](docs/installation/install-with-docker.md)
