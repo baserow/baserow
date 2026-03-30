@@ -690,7 +690,7 @@ def test_dispatch_local_baserow_create_row_workflow_action_unique_constraint(
     assert response_json["error"] == "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT"
     assert (
         response_json["detail"]
-        == "Cannot create rows in table 1 because it violates a unique constraint."
+        == f"Cannot create rows in table {table.id} because it violates a unique constraint."
     )
 
 
@@ -801,7 +801,10 @@ def test_dispatch_local_baserow_update_row_workflow_action_unique_constraint(
     assert response.status_code == HTTP_400_BAD_REQUEST
     response_json = response.json()
     assert response_json["error"] == "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT"
-    assert response_json["detail"] == "The row with id 2 violates a unique constraint."
+    assert (
+        response_json["detail"]
+        == f"The row with id {second_row.id} violates a unique constraint."
+    )
 
 
 @pytest.mark.django_db
