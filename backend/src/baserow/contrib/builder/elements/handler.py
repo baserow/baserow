@@ -430,42 +430,13 @@ class ElementHandler:
 
         element_type = element_type_registry.get_by_model(container_element)
 
-        elements_being_moved = Element.objects.filter(
-            parent_element=container_element,
-            place_in_container__in=places,
+        new_place_in_container = str(
+            element_type.get_new_place_in_container(container_element, places)
         )
 
-        element_count = elements_being_moved.count()
-
-        if element_count == 0:
-            return []
-
-        new_place_in_container = element_type.get_new_place_in_container(
-            container_element, places
+        return container_element.page.get_graph().merge_children_into_place(
+            container_element, places, new_place_in_container
         )
-
-        new_order_values = Element.get_last_orders(
-            container_element.page,
-            container_element.id,
-            new_place_in_container,
-            amount=element_count,
-        )
-
-        elements_being_moved = element_type.apply_order_by_children(
-            elements_being_moved
-        )
-        elements_being_moved = list(elements_being_moved)
-
-        to_update = []
-        for element in elements_being_moved:
-            # Add order values in the same order
-            element.order = new_order_values.pop(0)
-            element.place_in_container = new_place_in_container
-            to_update.append(element)
-
-        Element.objects.bulk_update(to_update, ["order", "place_in_container"])
-
-        return elements_being_moved
 
     def recalculate_full_orders(
         self,

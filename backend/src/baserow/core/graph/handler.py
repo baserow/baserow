@@ -404,12 +404,104 @@ class BaseGraphHandler(ABC):
 
         point_info = self.get_info(point)
         children_dict = self._get_children_dict(point_info)
-        return [
-            self.get_point(cid)
-            for edge_key, child_ids in children_dict.items()
-            for cid in child_ids
-            if output is None or edge_key == output
-        ]
+        result = []
+        for edge_key, child_ids in children_dict.items():
+            if output is not None and edge_key != output:
+                continue
+            for cid in child_ids:
+                result.extend(self._get_chain_elements(cid))
+        return result
+
+    def _get_chain_tail_id(self, first_id: str | int) -> str:
+        """
+        Follow the default next[""] chain from first_id and return the string ID of
+        the last element — the one that has no next[""] successor.
+
+        :param first_id: The starting point ID.
+        :return: String ID of the tail element.
+        """
+
+        current = str(first_id)
+        while True:
+            next_ids = self.graph.get(current, {}).get("next", {}).get("", [])
+            if not next_ids:
+                return current
+            current = str(next_ids[0])
+
+    def _get_chain_elements(self, first_id: str | int) -> List[GraphPoint]:
+        """
+        Collect all graph points reachable via the default next[""] chain from
+        first_id, in order.
+
+        :param first_id: The starting point ID.
+        :return: Ordered list of all points in the chain.
+        """
+
+        elements = []
+        current = str(first_id)
+        while current:
+            elements.append(self.get_point(int(current)))
+            next_ids = self.graph.get(current, {}).get("next", {}).get("", [])
+            current = str(next_ids[0]) if next_ids else None
+        return elements
+
+    def merge_children_into_place(
+        self,
+        container_point: GraphPoint,
+        from_places: List[str],
+        to_place: str,
+    ) -> List[GraphPoint]:
+        """
+        Moves the children chains from each place in from_places into to_place
+        within the same container, appending them to the end of to_place's existing
+        chain. The from_places entries are removed from the container's children dict.
+
+        Used when a container loses columns/slots and its occupants must be
+        consolidated into a surviving place.
+
+        :param container_point: The container whose children are being reorganised.
+        :param from_places: The place keys being removed; their chains are appended
+            to to_place in order.
+        :param to_place: The surviving place key that will receive the moved children.
+        :return: All GraphPoint instances that were moved (in chain order, per place).
+        """
+
+        from_places = [str(p) for p in from_places]
+        to_place = str(to_place)
+
+        container_info = self.get_info(container_point)
+        children_dict = self._get_children_dict(container_info)
+
+        # Find the current tail of to_place (None means to_place is currently empty).
+        to_place_head = children_dict.get(to_place, [])
+        current_tail_id: str | None = (
+            self._get_chain_tail_id(to_place_head[0]) if to_place_head else None
+        )
+
+        moved: List[GraphPoint] = []
+
+        for place in from_places:
+            from_head = children_dict.get(place, [])
+            if not from_head:
+                continue
+
+            first_id = from_head[0]
+            moved.extend(self._get_chain_elements(first_id))
+
+            if current_tail_id is not None:
+                # Attach the from-chain after the current tail.
+                self.graph[current_tail_id].setdefault("next", {})[""] = [first_id]
+            else:
+                # to_place was empty — make this chain its first child.
+                self._set_children(container_info, to_place, [first_id])
+
+            current_tail_id = self._get_chain_tail_id(first_id)
+
+            # Remove the vacated place from the container.
+            self._set_children(container_info, place, [])
+
+        self._update_graph()
+        return moved
 
     def get_siblings(self, point: GraphPoint) -> List[GraphPoint]:
         """
