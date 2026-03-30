@@ -30,6 +30,7 @@ from baserow.contrib.database.api.rows.serializers import (
 )
 from baserow.contrib.database.api.utils import extract_field_ids_from_list
 from baserow.contrib.database.fields.exceptions import (
+    FieldDataConstraintException,
     FieldDoesNotExist,
     IncompatibleField,
 )
@@ -2143,6 +2144,10 @@ class LocalBaserowUpsertRowServiceType(
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The row with id {row_id} does not exist."
                 ) from exc
+            except FieldDataConstraintException as exc:
+                raise InvalidContextContentDispatchException(
+                    f"The row with id {row_id} violates a unique constraint."
+                ) from exc
         else:
             try:
                 (row,) = CreateRowsActionType.do(
@@ -2155,6 +2160,11 @@ class LocalBaserowUpsertRowServiceType(
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"Cannot create rows in table {table.id} because "
                     "it has a data sync."
+                ) from exc
+            except FieldDataConstraintException as exc:
+                raise InvalidContextContentDispatchException(
+                    f"Cannot create rows in table {table.id} because "
+                    "it violates a unique constraint."
                 ) from exc
 
         return {
