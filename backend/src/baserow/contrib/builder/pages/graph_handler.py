@@ -17,7 +17,4 @@ class PageGraphHandler(BaseGraphHandler):
     does_not_exist_exception = ElementDoesNotExist
 
     def get_point_map(self) -> Dict[int, Element]:
-        return {
-            e.id: e
-            for e in ElementHandler().get_elements(self.instance, use_cache=False)
-        }
+        return {e.id: e for e in ElementHandler().get_elements(self.instance)}
