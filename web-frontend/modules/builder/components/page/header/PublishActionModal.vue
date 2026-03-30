@@ -130,6 +130,7 @@ export default {
   },
   watch: {
     selectedDomainId() {
+      this.stopPollIfRunning()
       this.job = null
     },
     domains() {
@@ -147,6 +148,7 @@ export default {
       actionForceUpdateDomain: 'domain/forceUpdate',
     }),
     async onShow() {
+      this.stopPollIfRunning()
       this.hideError()
       this.job = null
       this.loading = false
