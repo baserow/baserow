@@ -171,15 +171,27 @@ export default {
   methods: {
     show(defaults = {}, ...args) {
       const row = {}
-      const defaultRowValues = this.view?.default_row_values?.values || {}
+      const defaultItems = this.view?.default_row_values || []
+      const defaultsByFieldId = {}
+      for (const item of defaultItems) {
+        if (item.enabled && (item.value != null || item.function)) {
+          defaultsByFieldId[item.field] = item
+        }
+      }
       this.allFields.forEach((field) => {
         const name = `field_${field.id}`
+        const fieldType = this.$registry.get('field', field._.type.type)
+        const dvItem = defaultsByFieldId[field.id]
         if (this.presets[name] !== undefined) {
           row[name] = this.presets[name]
-        } else if (defaultRowValues[name] != null) {
-          row[name] = defaultRowValues[name]
+        } else if (dvItem && dvItem.function) {
+          row[name] = fieldType.resolveDefaultValueFunction(
+            dvItem.function,
+            field
+          )
+        } else if (dvItem && dvItem.value != null) {
+          row[name] = fieldType.parseDefaultRowValue(field, dvItem.value)
         } else {
-          const fieldType = this.$registry.get('field', field._.type.type)
           row[name] = fieldType.getNewRowValue(field)
         }
       })

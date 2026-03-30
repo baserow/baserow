@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.db.models import prefetch_related_objects
 from django.dispatch import receiver
 
 from baserow.contrib.database.api.views.serializers import (
@@ -10,7 +11,6 @@ from baserow.contrib.database.api.views.serializers import (
     ViewSortSerializer,
 )
 from baserow.contrib.database.views import signals as view_signals
-from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.registries import (
     view_ownership_type_registry,
     view_type_registry,
@@ -19,14 +19,18 @@ from baserow.ws.registries import page_registry
 from baserow.ws.tasks import broadcast_to_users
 
 
-def _annotate_view_default_row_values(view):
-    """Ensures the view has `_default_row_values` populated for serialization."""
-    if not hasattr(view, "_default_row_values"):
-        ViewHandler().annotate_views_with_default_row_values([view], view.table)
+def _prefetch_view_default_values(view):
+    """Prefetches view_default_values for efficient serialization."""
+
+    if (
+        not hasattr(view, "_prefetched_objects_cache")
+        or "view_default_values" not in view._prefetched_objects_cache
+    ):
+        prefetch_related_objects([view], "view_default_values")
 
 
 def generate_view_created_payload(user, view):
-    _annotate_view_default_row_values(view)
+    _prefetch_view_default_values(view)
     payload = {
         "type": "view_created",
         "view": view_type_registry.get_serializer(
@@ -157,7 +161,7 @@ def broadcast_to_users_ownership_change(user, new_view, old_view, payload):
 
 @receiver(view_signals.view_updated)
 def view_updated(sender, view, old_view, user, **kwargs):
-    _annotate_view_default_row_values(view)
+    _prefetch_view_default_values(view)
     payload = {
         "type": "view_updated",
         "view_id": view.id,

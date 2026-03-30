@@ -17,6 +17,10 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
+from baserow.contrib.database.api.rows.serializers import (
+    RowSerializer,
+    get_row_serializer_class,
+)
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.handler import ViewHandler, ViewIndexingHandler
 from baserow.contrib.database.views.models import (
@@ -28,7 +32,7 @@ from baserow.contrib.database.views.models import (
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.trash.handler import TrashHandler
-from baserow.test_utils.helpers import AnyStr
+from baserow.test_utils.helpers import AnyStr, setup_interesting_test_table
 
 
 @pytest.fixture(autouse=True)
@@ -1447,8 +1451,7 @@ def test_get_default_values(api_client, data_fixture):
     ViewHandler().update_view_default_values(
         user=user,
         view=view,
-        values={f"field_{text_field.id}": "default text"},
-        enabled_field_ids=[text_field.id],
+        items=[{"field": text_field.id, "enabled": True, "value": "default text"}],
     )
 
     response = api_client.get(
@@ -1457,9 +1460,11 @@ def test_get_default_values(api_client, data_fixture):
     )
     assert response.status_code == HTTP_200_OK
     data = response.json()
-    assert f"field_{text_field.id}" in data["values"]
-    assert data["values"][f"field_{text_field.id}"] == "default text"
-    assert text_field.id in data["enabled_field_ids"]
+    assert isinstance(data, list)
+    assert len(data) == 1
+    assert data[0]["field"] == text_field.id
+    assert data[0]["value"] == "default text"
+    assert data[0]["enabled"] is True
 
 
 @pytest.mark.django_db
@@ -1471,17 +1476,17 @@ def test_patch_default_values(api_client, data_fixture):
 
     response = api_client.patch(
         reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
-        {
-            "values": {f"field_{text_field.id}": "new default"},
-            "enabled_field_ids": [text_field.id],
-        },
+        [{"field": text_field.id, "enabled": True, "value": "new default"}],
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
     data = response.json()
-    assert data["values"][f"field_{text_field.id}"] == "new default"
-    assert text_field.id in data["enabled_field_ids"]
+    assert isinstance(data, list)
+    assert len(data) == 1
+    assert data[0]["field"] == text_field.id
+    assert data[0]["value"] == "new default"
+    assert data[0]["enabled"] is True
 
 
 @pytest.mark.django_db
@@ -1493,18 +1498,16 @@ def test_patch_default_values_with_now_function(api_client, data_fixture):
 
     response = api_client.patch(
         reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
-        {
-            "values": {},
-            "enabled_field_ids": [date_field.id],
-            "functions": {str(date_field.id): "now"},
-        },
+        [{"field": date_field.id, "enabled": True, "function": "now"}],
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
     data = response.json()
-    assert str(date_field.id) in data["functions"]
-    assert data["functions"][str(date_field.id)] == "now"
+    assert isinstance(data, list)
+    assert len(data) == 1
+    assert data[0]["field"] == date_field.id
+    assert data[0]["function"] == "now"
 
 
 @pytest.mark.django_db
@@ -1533,8 +1536,7 @@ def test_default_values_included_in_view_listing(api_client, data_fixture):
     ViewHandler().update_view_default_values(
         user=user,
         view=view,
-        values={f"field_{text_field.id}": "listing default"},
-        enabled_field_ids=[text_field.id],
+        items=[{"field": text_field.id, "enabled": True, "value": "listing default"}],
     )
 
     # Without include param - should NOT have default_row_values.
@@ -1554,7 +1556,10 @@ def test_default_values_included_in_view_listing(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     data = response.json()[0]
     assert "default_row_values" in data
-    assert data["default_row_values"]["values"][f"field_{text_field.id}"] == "listing default"
+    assert isinstance(data["default_row_values"], list)
+    assert len(data["default_row_values"]) == 1
+    assert data["default_row_values"][0]["field"] == text_field.id
+    assert data["default_row_values"][0]["value"] == "listing default"
 
 
 @pytest.mark.django_db
@@ -1572,27 +1577,21 @@ def test_patch_default_values_empty(api_client, data_fixture):
 
     response = api_client.patch(
         reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
-        {
-            "values": {},
-            "enabled_field_ids": [],
-            "functions": {},
-        },
+        [],
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
     data = response.json()
-    assert data["values"] == {}
-    assert data["enabled_field_ids"] == []
-    assert data["functions"] == {}
+    assert isinstance(data, list)
+    assert len(data) == 0
 
 
 @pytest.mark.django_db
-def test_patch_default_values_empty_on_table_without_column(api_client, data_fixture):
+def test_patch_default_values_empty_succeeds(api_client, data_fixture):
     """
-    Simulates the scenario where default_values_column_added is False
-    (table existed before the migration) and the user sends an empty PATCH.
-    The column must be lazily added to the dynamic table.
+    Sending an empty PATCH on a fresh table should succeed and return empty
+    defaults without any errors.
     """
 
     user, token = data_fixture.create_user_and_token()
@@ -1600,41 +1599,16 @@ def test_patch_default_values_empty_on_table_without_column(api_client, data_fix
     data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
 
-    # Simulate a pre-migration table by dropping the column and resetting the flag.
-    from django.db import connection
-
-    from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
-    from baserow.contrib.database.table.models import Table
-
-    with connection.cursor() as cursor:
-        cursor.execute(
-            f"ALTER TABLE database_table_{table.id} "
-            f"DROP COLUMN IF EXISTS default_values_view_id"
-        )
-
-    Table.objects.filter(id=table.id).update(default_values_column_added=False)
-    table.refresh_from_db()
-    invalidate_table_in_model_cache(table.id)
-
     response = api_client.patch(
         reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
-        {
-            "values": {},
-            "enabled_field_ids": [],
-            "functions": {},
-        },
+        [],
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
     data = response.json()
-    assert data["values"] == {}
-    assert data["enabled_field_ids"] == []
-    assert data["functions"] == {}
-
-    # Verify the column was lazily added.
-    table.refresh_from_db()
-    assert table.default_values_column_added is True
+    assert isinstance(data, list)
+    assert len(data) == 0
 
 
 @pytest.mark.django_db
@@ -1644,12 +1618,6 @@ def test_patch_default_values_with_interesting_table(api_client, data_fixture):
     via the API endpoint. This covers all field types and ensures the
     serialization / deserialization round-trip works for each one.
     """
-
-    from baserow.contrib.database.api.rows.serializers import (
-        RowSerializer,
-        get_row_serializer_class,
-    )
-    from baserow.test_utils.helpers import setup_interesting_test_table
 
     table, user, row, _, context = setup_interesting_test_table(data_fixture)
     token = data_fixture.generate_token(user)
@@ -1665,8 +1633,7 @@ def test_patch_default_values_with_interesting_table(api_client, data_fixture):
     )
     row_data = response_serializer(row).data
 
-    values = {}
-    enabled_field_ids = []
+    items = []
     for field_object in model.get_field_objects():
         field = field_object["field"]
         field_type = field_object["type"]
@@ -1690,31 +1657,27 @@ def test_patch_default_values_with_interesting_table(api_client, data_fixture):
             if "id" in value[0]:
                 value = [item["id"] for item in value]
 
-        values[field_name] = value
-        enabled_field_ids.append(field.id)
+        items.append({"field": field.id, "enabled": True, "value": value})
 
-    assert len(enabled_field_ids) > 0, "Expected at least some writable fields"
+    assert len(items) > 0, "Expected at least some writable fields"
 
     response = api_client.patch(
         reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
-        {
-            "values": values,
-            "enabled_field_ids": enabled_field_ids,
-        },
+        items,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK, response.json()
     data = response.json()
-    assert set(data["enabled_field_ids"]) == set(enabled_field_ids)
+    assert isinstance(data, list)
+    returned_field_ids = {item["field"] for item in data}
+    expected_field_ids = {item["field"] for item in items}
+    assert returned_field_ids == expected_field_ids
 
-    # Verify that a second update (editing the existing hidden row) also works.
+    # Verify that a second update (editing existing records) also works.
     response = api_client.patch(
         reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
-        {
-            "values": values,
-            "enabled_field_ids": enabled_field_ids,
-        },
+        items,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -1722,19 +1685,12 @@ def test_patch_default_values_with_interesting_table(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_default_values_serialized_same_as_row(api_client, data_fixture):
+def test_default_values_stored_in_request_format(api_client, data_fixture):
     """
     Sets default values from the interesting test table's existing row, then
-    verifies that the serialized default values in the views list endpoint are
-    identical to the values returned by the row get endpoint. This ensures the
-    frontend can use the same format for both.
+    verifies that the stored default values are returned in the same request
+    format that was sent to the API.
     """
-
-    from baserow.contrib.database.api.rows.serializers import (
-        RowSerializer,
-        get_row_serializer_class,
-    )
-    from baserow.test_utils.helpers import setup_interesting_test_table
 
     table, user, row, _, context = setup_interesting_test_table(data_fixture)
     token = data_fixture.generate_token(user)
@@ -1754,9 +1710,9 @@ def test_default_values_serialized_same_as_row(api_client, data_fixture):
     # (e.g. password returns True/False/None, AI returns generated text).
     non_roundtrip_types = {"password", "ai", "ai_choice"}
 
-    writable_field_ids = []
+    items = []
     comparable_field_ids = []
-    input_values = {}
+    input_values_by_field_id = {}
     for field_object in model.get_field_objects():
         field = field_object["field"]
         field_type = field_object["type"]
@@ -1777,35 +1733,21 @@ def test_default_values_serialized_same_as_row(api_client, data_fixture):
             if "id" in value[0]:
                 value = [item["id"] for item in value]
 
-        input_values[field_name] = value
-        writable_field_ids.append(field.id)
+        items.append({"field": field.id, "enabled": True, "value": value})
+        input_values_by_field_id[field.id] = value
         if field_type.type not in non_roundtrip_types:
             comparable_field_ids.append(field.id)
 
     # Set the default values via the API.
     patch_response = api_client.patch(
         reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
-        {
-            "values": input_values,
-            "enabled_field_ids": writable_field_ids,
-        },
+        items,
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert patch_response.status_code == HTTP_200_OK, patch_response.json()
 
-    # 1. Fetch the row via the row get endpoint.
-    row_response = api_client.get(
-        reverse(
-            "api:database:rows:item",
-            kwargs={"table_id": table.id, "row_id": row.id},
-        ),
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert row_response.status_code == HTTP_200_OK
-    row_api_data = row_response.json()
-
-    # 2. Fetch the views list with default_row_values included.
+    # Fetch the views list with default_row_values included.
     views_response = api_client.get(
         reverse("api:database:views:list", kwargs={"table_id": table.id})
         + "?include=default_row_values",
@@ -1814,32 +1756,16 @@ def test_default_values_serialized_same_as_row(api_client, data_fixture):
     assert views_response.status_code == HTTP_200_OK
     views_data = views_response.json()
     target_view = next(v for v in views_data if v["id"] == view.id)
-    default_row_values = target_view["default_row_values"]["values"]
+    default_row_values = target_view["default_row_values"]
 
-    # 3. Compare: for every comparable field, the default value from the views
-    #    list must be serialized identically to the row get value.
+    # Build a lookup by field ID from the returned list.
+    stored_by_field_id = {item["field"]: item["value"] for item in default_row_values}
+
+    # Values are stored and returned in request format (the same format
+    # that was sent to the PATCH endpoint).
     for field_id in comparable_field_ids:
-        field_name = f"field_{field_id}"
-        row_value = row_api_data[field_name]
-        default_value = default_row_values[field_name]
-
-        # For link row fields the "value" key is a display-only primary field
-        # representation that can differ depending on prefetch state. Compare
-        # by id instead.
-        if (
-            isinstance(row_value, list)
-            and row_value
-            and isinstance(row_value[0], dict)
-            and "value" in row_value[0]
-        ):
-            row_ids = [item["id"] for item in row_value]
-            default_ids = [item["id"] for item in default_value]
-            assert default_ids == row_ids, (
-                f"{field_name}: default ids {default_ids!r} != "
-                f"row ids {row_ids!r}"
-            )
-        else:
-            assert default_value == row_value, (
-                f"{field_name}: default value {default_value!r} != "
-                f"row value {row_value!r}"
-            )
+        sent_value = input_values_by_field_id[field_id]
+        stored_value = stored_by_field_id[field_id]
+        assert stored_value == sent_value, (
+            f"field_{field_id}: stored value {stored_value!r} != sent value {sent_value!r}"
+        )

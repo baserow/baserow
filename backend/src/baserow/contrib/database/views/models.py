@@ -1009,15 +1009,9 @@ class ViewSubscription(models.Model):
 
 class ViewDefaultValue(HierarchicalModelMixin, models.Model):
     """
-    Tracks which fields have a default value enabled for a specific view.
-
-    The actual default value is stored as a hidden row in the table (identified
-    by default_values_view_id=view.id on the row). This model tracks which
-    fields are enabled and optionally which function (e.g. "now") should be
-    used to resolve the value at row creation time instead of the stored value.
-
-    A record existing means the default is enabled for that field. Deleting the
-    record disables the default.
+    Stores a default value for a specific field in a view. When ``enabled`` is
+    True and the field type still matches ``field_type``, the value is applied
+    to new rows created in the context of that view.
     """
 
     view = models.ForeignKey(
@@ -1026,6 +1020,23 @@ class ViewDefaultValue(HierarchicalModelMixin, models.Model):
     field = models.ForeignKey(
         "database.Field",
         on_delete=models.CASCADE,
+    )
+    enabled = models.BooleanField(
+        default=True,
+        help_text="Whether this default value is active.",
+    )
+    value = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text="The raw default value in API request format.",
+    )
+    field_type = models.CharField(
+        max_length=64,
+        null=True,
+        blank=True,
+        help_text="The field type identifier at the time the value was stored. "
+        "Used to detect incompatibility when the field type changes.",
     )
     function = models.CharField(
         max_length=64,

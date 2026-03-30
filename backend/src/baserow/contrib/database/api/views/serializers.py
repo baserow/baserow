@@ -22,6 +22,7 @@ from baserow.contrib.database.views.models import (
     OWNERSHIP_TYPE_COLLABORATIVE,
     View,
     ViewDecoration,
+    ViewDefaultValue,
     ViewFilter,
     ViewFilterGroup,
     ViewGroupBy,
@@ -383,6 +384,24 @@ class CreateViewDecorationSerializer(serializers.ModelSerializer):
         }
 
 
+class ViewDefaultValueSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ViewDefaultValue
+        fields = (
+            "id",
+            "field",
+            "enabled",
+            "value",
+            "field_type",
+            "function",
+        )
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "field_type": {"read_only": True},
+            "enabled": {"default": True},
+        }
+
+
 class ViewSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField()
     table = TableWithoutDataSyncSerializer()
@@ -395,7 +414,9 @@ class ViewSerializer(serializers.ModelSerializer):
     decorations = ViewDecorationSerializer(
         many=True, source="viewdecoration_set", required=False
     )
-    default_row_values = serializers.SerializerMethodField(required=False)
+    default_row_values = ViewDefaultValueSerializer(
+        many=True, source="view_default_values", required=False
+    )
     show_logo = serializers.BooleanField(required=False)
     ownership_type = serializers.CharField()
     owned_by_id = serializers.IntegerField(required=False)
@@ -437,9 +458,7 @@ class ViewSerializer(serializers.ModelSerializer):
         context["include_sortings"] = kwargs.pop("sortings", False)
         context["include_decorations"] = kwargs.pop("decorations", False)
         context["include_group_bys"] = kwargs.pop("group_bys", False)
-        context["include_default_row_values"] = kwargs.pop(
-            "default_row_values", False
-        )
+        context["include_default_row_values"] = kwargs.pop("default_row_values", False)
         enhance_objects_by_view_ownership = kwargs.pop(
             "enhance_objects_by_view_ownership", True
         )
@@ -488,27 +507,6 @@ class ViewSerializer(serializers.ModelSerializer):
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance):
         return view_type_registry.get_by_model(instance.specific_class).type
-
-    @extend_schema_field(OpenApiTypes.OBJECT)
-    def get_default_row_values(self, instance):
-        default_values = getattr(instance, "_default_row_values", None)
-        if default_values is None:
-            return None
-
-        values = {}
-        enabled_field_ids = []
-        functions = {}
-        for field_id, data in default_values.items():
-            enabled_field_ids.append(field_id)
-            values[f"field_{field_id}"] = data["value"]
-            if data.get("function"):
-                functions[str(field_id)] = data["function"]
-
-        return {
-            "values": values,
-            "enabled_field_ids": enabled_field_ids,
-            "functions": functions,
-        }
 
 
 class CreateViewSerializer(serializers.ModelSerializer):

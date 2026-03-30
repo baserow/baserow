@@ -104,7 +104,7 @@ export function populateView(view, registry) {
   }
 
   if (!Object.prototype.hasOwnProperty.call(view, 'default_row_values')) {
-    view.default_row_values = null
+    view.default_row_values = []
   }
 
   return type.populate(view)

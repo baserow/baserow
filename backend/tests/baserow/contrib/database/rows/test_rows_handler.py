@@ -1962,8 +1962,7 @@ def test_create_row_handler_applies_view_defaults(data_fixture):
     ViewHandler().update_view_default_values(
         user=user,
         view=view,
-        values={f"field_{text_field.id}": "view default"},
-        enabled_field_ids=[text_field.id],
+        items=[{"field": text_field.id, "enabled": True, "value": "view default"}],
     )
 
     row = RowHandler().create_row(user, table, values={}, view=view)
@@ -1982,8 +1981,7 @@ def test_create_row_handler_user_values_override(data_fixture):
     ViewHandler().update_view_default_values(
         user=user,
         view=view,
-        values={f"field_{text_field.id}": "view default"},
-        enabled_field_ids=[text_field.id],
+        items=[{"field": text_field.id, "enabled": True, "value": "view default"}],
     )
 
     row = RowHandler().create_row(
@@ -2004,8 +2002,7 @@ def test_create_rows_handler_applies_view_defaults(data_fixture):
     ViewHandler().update_view_default_values(
         user=user,
         view=view,
-        values={f"field_{text_field.id}": "batch default"},
-        enabled_field_ids=[text_field.id],
+        items=[{"field": text_field.id, "enabled": True, "value": "batch default"}],
     )
 
     result = RowHandler().create_rows(user, table, rows_values=[{}, {}], view=view)
@@ -2034,8 +2031,7 @@ def test_create_row_handler_default_value_priority(data_fixture):
     ViewHandler().update_view_default_values(
         user=user,
         view=view,
-        values={f"field_{text_field.id}": "view default"},
-        enabled_field_ids=[text_field.id],
+        items=[{"field": text_field.id, "enabled": True, "value": "view default"}],
     )
 
     row2 = RowHandler().create_row(user, table, values={}, view=view)

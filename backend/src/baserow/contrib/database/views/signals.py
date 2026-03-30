@@ -80,7 +80,6 @@ def update_view_index_if_view_group_by_changes(sender, view_group_by, **kwargs):
 def view_loaded_create_indexes_and_columns(sender, view, table_model, **kwargs):
     from baserow.contrib.database.table.tasks import (
         setup_created_by_and_last_modified_by_column,
-        setup_default_values_column,
         setup_m2m_field_indexes_if_not_exist,
     )
     from baserow.contrib.database.views.handler import ViewIndexingHandler
@@ -90,8 +89,6 @@ def view_loaded_create_indexes_and_columns(sender, view, table_model, **kwargs):
     table = view.table
     if not table.last_modified_by_column_added or not table.created_by_column_added:
         setup_created_by_and_last_modified_by_column.delay(table_id=view.table.id)
-    if not table.default_values_column_added:
-        setup_default_values_column.delay(table_id=view.table_id)
     if not table.missing_m2m_indexes_added:
         setup_m2m_field_indexes_if_not_exist.delay(table_id=view.table_id)
 

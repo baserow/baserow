@@ -135,7 +135,6 @@ from baserow.contrib.database.formula.types.formula_types import (
     BaserowFormulaURLType,
 )
 from baserow.contrib.database.models import Table
-from baserow.contrib.database.table.constants import get_row_visible_q_filters
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.types import SerializedRowHistoryFieldMetadata
 from baserow.contrib.database.validators import UnicodeRegexValidator
@@ -2415,7 +2414,12 @@ class LinkRowFieldType(
     def _get_group_by_agg_expression(self, field_name: str) -> dict:
         return ArrayAgg(
             f"{field_name}__id",
-            filter=Q(**get_row_visible_q_filters(field_name)),
+            filter=Q(
+                **{
+                    f"{field_name}__isnull": False,
+                    f"{field_name}__trashed": False,
+                }
+            ),
             distinct=True,
         )
 
@@ -2471,7 +2475,9 @@ class LinkRowFieldType(
         def get_array_agg(expr):
             return ArrayAgg(
                 expr,
-                filter=Q(**get_row_visible_q_filters(field_name)),
+                filter=Q(
+                    **{f"{field_name}__isnull": False, f"{field_name}__trashed": False}
+                ),
                 order_by=(f"{field_name}__order", f"{field_name}__id"),
             )
 
@@ -3512,7 +3518,7 @@ class LinkRowFieldType(
             current_field_name = through_model_fields[1].name
             relation_field_name = through_model_fields[2].name
             for relation in through_model.objects.filter(
-                Q(**get_row_visible_q_filters(relation_field_name))
+                Q(**{f"{relation_field_name}__trashed": False})
             ):
                 cache[cache_entry][
                     getattr(relation, f"{current_field_name}_id")
@@ -3692,11 +3698,10 @@ class LinkRowFieldType(
         model_field: LinkRowField,
         field: ManyToManyField,
     ) -> Q:
-        # Exclude trashed and default-value rows in the related table.
+        # Exclude all the trashed rows in the related table.
         subq = Subquery(
             model_field.model.objects.filter(
-                id=OuterRef("id"),
-                **get_row_visible_q_filters(field_name),
+                id=OuterRef("id"), **{f"{field_name}__trashed": False}
             )[:1]
         )
         annotation_name = f"{field_name}_exists"
@@ -4389,6 +4394,12 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     ) -> int:
         return getattr(row, f"{field_name}_id")
 
+    def import_serialized_default_value(self, value, id_mapping):
+        if isinstance(value, int):
+            option_mapping = id_mapping.get("database_field_select_options", {})
+            return option_mapping.get(value, value)
+        return value
+
     def get_search_expression(
         self, field: SingleSelectField, queryset: QuerySet
     ) -> Expression:
@@ -4755,6 +4766,14 @@ class MultipleSelectFieldType(
             child=serializers.IntegerField(), required=False, allow_null=True
         ),
     }
+
+    def import_serialized_default_value(self, value, id_mapping):
+        if isinstance(value, list):
+            option_mapping = id_mapping.get("database_field_select_options", {})
+            return [
+                option_mapping.get(v, v) if isinstance(v, int) else v for v in value
+            ]
+        return value
 
     def init_field_data(self, field, model):
         if field.multiple_select_default:

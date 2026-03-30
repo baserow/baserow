@@ -148,6 +148,10 @@ class UpdateViewFieldOptionsOperationType(ViewOperationType):
     type = "database.table.view.update_field_options"
 
 
+class UpdateViewDefaultValuesOperationType(ViewOperationType):
+    type = "database.table.view.update_default_values"
+
+
 class UpdateViewOperationType(ViewOperationType):
     type = "database.table.view.update"
 

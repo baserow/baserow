@@ -609,13 +609,6 @@ class RowsView(APIView):
         view_id = query_params.get("view")
         view = ViewHandler().get_view(view_id) if view_id else None
 
-        # When creating with a view context, only pass the fields that the
-        # user explicitly provided so that view default values can be applied
-        # for the remaining fields by the handler.
-        if view is not None:
-            user_provided_keys = set(request_data.keys())
-            data = {k: v for k, v in data.items() if k in user_provided_keys}
-
         try:
             row = action_type_registry.get_by_type(CreateRowActionType).do(
                 request.user,

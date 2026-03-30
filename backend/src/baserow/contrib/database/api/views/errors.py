@@ -134,8 +134,3 @@ ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES = (
     HTTP_400_BAD_REQUEST,
     "This view type does not support setting default row values.",
 )
-ERROR_INVALID_DEFAULT_VALUE_FUNCTION = (
-    "ERROR_INVALID_DEFAULT_VALUE_FUNCTION",
-    HTTP_400_BAD_REQUEST,
-    "The provided default value function is not supported for the given field type.",
-)

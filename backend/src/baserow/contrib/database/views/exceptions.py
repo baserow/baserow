@@ -222,10 +222,6 @@ class ViewDoesNotSupportDefaultValues(Exception):
     """Raised when trying to set default values on a view that doesn't support it."""
 
 
-class InvalidDefaultValueFunction(Exception):
-    """Raised when an unsupported function is used for a default value."""
-
-
 class InvalidAPIGroupedFiltersFormatException(ValueError):
     """
     Raised when the provided view filters format is invalid.

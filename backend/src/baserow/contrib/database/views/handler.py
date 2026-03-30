@@ -14,7 +14,7 @@ from django.core.cache import cache
 from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db import connection
 from django.db import models as django_models
-from django.db.models import Count, Q
+from django.db.models import Count, Q, prefetch_related_objects
 from django.db.models.expressions import OrderBy
 from django.db.models.query import QuerySet
 
@@ -25,7 +25,10 @@ from redis.exceptions import LockNotOwnedError
 
 from baserow.contrib.database.api.utils import get_include_exclude_field_ids
 from baserow.contrib.database.db.schema import safe_django_schema_editor
-from baserow.contrib.database.fields.exceptions import FieldNotInTable
+from baserow.contrib.database.fields.exceptions import (
+    FieldNotInTable,
+    InvalidDefaultValueFunction,
+)
 from baserow.contrib.database.fields.field_filters import (
     AdvancedFilterBuilder,
     FilterBuilder,
@@ -38,7 +41,9 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchMode
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
-from baserow.contrib.database.views.exceptions import ViewOwnershipTypeDoesNotExist
+from baserow.contrib.database.views.exceptions import (
+    ViewOwnershipTypeDoesNotExist,
+)
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.operations import (
     CreatePublicViewOperationType,
@@ -71,6 +76,7 @@ from baserow.contrib.database.views.operations import (
     ReadViewsOrderOperationType,
     ReadViewSortOperationType,
     UpdateViewDecorationOperationType,
+    UpdateViewDefaultValuesOperationType,
     UpdateViewFieldOptionsOperationType,
     UpdateViewFilterGroupOperationType,
     UpdateViewFilterOperationType,
@@ -111,6 +117,7 @@ from .exceptions import (
     ViewDecorationDoesNotExist,
     ViewDecorationNotSupported,
     ViewDoesNotExist,
+    ViewDoesNotSupportDefaultValues,
     ViewDoesNotSupportFieldOptions,
     ViewDoesNotSupportListingRows,
     ViewFilterDoesNotExist,
@@ -134,6 +141,7 @@ from .models import (
     FormViewFieldOptions,
     View,
     ViewDecoration,
+    ViewDefaultValue,
     ViewFilter,
     ViewFilterGroup,
     ViewGroupBy,
@@ -592,14 +600,14 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         """
         Lists available views for a user/table combination.
 
-        :user: The user on whose behalf we want to return views.
-        :table: The table for which the views should be returned.
-        :_type: The view type to get.
-        :filters: If filters should be prefetched.
-        :sortings: If sorts should be prefetched.
-        :decorations: If view decorations should be prefetched.
-        :default_row_values: If default row values should be loaded.
-        :limit: To limit the number of returned views.
+        :param user: The user on whose behalf we want to return views.
+        :param table: The table for which the views should be returned.
+        :param _type: The view type to get.
+        :param filters: If filters should be prefetched.
+        :param sortings: If sorts should be prefetched.
+        :param decorations: If view decorations should be prefetched.
+        :param default_row_values: If default row values should be prefetched.
+        :param limit: To limit the number of returned views.
         :return: Iterator over returned views.
         """
 
@@ -632,6 +640,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         if group_bys:
             views = views.prefetch_related("viewgroupby_set")
 
+        if default_row_values:
+            views = views.prefetch_related("view_default_values")
+
         if limit:
             views = views[:limit]
 
@@ -643,9 +654,6 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 ).enhance_queryset(queryset)
             ),
         )
-
-        if default_row_values:
-            views = self.annotate_views_with_default_row_values(views, table)
 
         return views
 
@@ -960,6 +968,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             "workspace_id": workspace.id,
         }
 
+        prefetch_related_objects([original_view], "view_default_values")
+
         # Use export/import to duplicate the view easily
         serialized = view_type.export_serialized(original_view, config, cache)
 
@@ -1219,9 +1229,6 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         view_id = view.id
-
-        # Clean up the hidden default-values row before trashing the view.
-        self.delete_view_default_values_row(view)
 
         TrashHandler().trash(user, workspace, view.table.database, view)
 
@@ -3783,129 +3790,36 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             if key in changed_allowed_keys
         }
 
-    def get_view_default_values(self, view, model=None):
+    def get_view_default_values(self, view):
         """
-        Returns the default values for the given view.
+        Returns the ViewDefaultValue queryset for the given view.
 
         :param view: The view to get default values for.
-        :param model: Optional pre-generated table model.
-        :return: A dict with field_id keys and {value, function} values for
-            each enabled default value field.
+        :return: QuerySet of ViewDefaultValue records.
+        :raises ViewDoesNotSupportDefaultValues: If the view type doesn't
+            support default values.
         """
-
-        from baserow.contrib.database.table.constants import (
-            DEFAULT_VALUES_VIEW_ID_COLUMN_NAME,
-        )
-        from baserow.contrib.database.views.models import ViewDefaultValue
 
         view_type = view_type_registry.get_by_model(view.specific_class)
         if not view_type.can_set_default_values:
-            from baserow.contrib.database.views.exceptions import (
-                ViewDoesNotSupportDefaultValues,
-            )
-
             raise ViewDoesNotSupportDefaultValues(
                 f"The view type {view_type.type} does not support default values."
             )
 
-        table = view.table
+        return ViewDefaultValue.objects.filter(view_id=view.id)
 
-        if not table.default_values_column_added:
-            return {}
-
-        if model is None:
-            model = table.get_model()
-
-        # Get the hidden row holding the default values using the
-        # objects_and_trash manager which bypasses the TableModelManager filter.
-        # We use enhance_by_fields so related objects are properly loaded for
-        # the row serializer.
-        try:
-            hidden_row = (
-                model.objects_and_trash.all()
-                .enhance_by_fields()
-                .get(
-                    **{
-                        DEFAULT_VALUES_VIEW_ID_COLUMN_NAME: view.id,
-                        "trashed": False,
-                    }
-                )
-            )
-        except model.DoesNotExist:
-            return {}
-
-        # Get all ViewDefaultValue records (existence = enabled)
-        default_value_records = {
-            dv.field_id: dv
-            for dv in ViewDefaultValue.objects.filter(view_id=view.id)
-        }
-
-        # Serialize the hidden row through the row response serializer so
-        # that all field types are properly converted to their API
-        # representation.
-        from baserow.contrib.database.api.rows.serializers import (
-            RowSerializer,
-            get_row_serializer_class,
-        )
-
-        response_serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True
-        )
-        row_data = response_serializer_class(hidden_row).data
-
-        result = {}
-        for field_object in model.get_field_objects():
-            field = field_object["field"]
-            if field.id not in default_value_records:
-                continue
-
-            field_name = f"field_{field.id}"
-            dv_record = default_value_records[field.id]
-            value = row_data.get(field_name)
-
-            result[field.id] = {
-                "value": value,
-                "function": dv_record.function,
-            }
-
-        return result
-
-    def update_view_default_values(
-        self,
-        user,
-        view,
-        values,
-        enabled_field_ids,
-        functions=None,
-        model=None,
-    ):
+    def update_view_default_values(self, user, view, items, model=None):
         """
-        Updates the default values for the given view. Creates or updates
-        a hidden row in the table to store the actual values, and syncs
-        ViewDefaultValue records to track which fields are enabled.
+        Updates the default values for the given view from a list of item
+        dicts. Each item should contain ``field`` (field ID) and optionally
+        ``enabled``, ``value``, ``function``.
 
         :param user: The user performing the update.
         :param view: The view to update default values for.
-        :param values: Dict of field values (field_N: value format).
-        :param enabled_field_ids: List of field IDs that should have
-            defaults enabled.
-        :param functions: Optional dict of {field_id: function_name}.
+        :param items: List of dicts with field, enabled, value, function.
         :param model: Optional pre-generated table model.
-        :return: The updated default values dict.
+        :return: QuerySet of updated ViewDefaultValue records.
         """
-
-        from baserow.contrib.database.table.constants import (
-            DEFAULT_VALUES_VIEW_ID_COLUMN_NAME,
-        )
-        from baserow.contrib.database.views.exceptions import (
-            InvalidDefaultValueFunction,
-            ViewDoesNotSupportDefaultValues,
-        )
-        from baserow.contrib.database.views.models import View, ViewDefaultValue
-        from baserow.contrib.database.views.signals import view_updated
-
-        if functions is None:
-            functions = {}
 
         view_type = view_type_registry.get_by_model(view.specific_class)
         if not view_type.can_set_default_values:
@@ -3918,310 +3832,132 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         CoreHandler().check_permissions(
             user,
-            UpdateViewFieldOptionsOperationType.type,
+            UpdateViewDefaultValuesOperationType.type,
             workspace=workspace,
             context=view,
         )
 
-        # Lock the view to prevent concurrent updates.
-        View.objects.select_for_update().get(id=view.id)
+        View.objects.select_for_update(of=("self",)).get(id=view.id)
 
-        # Validate functions against field types.
         if model is None:
             model = table.get_model()
 
-        for field_id, func_name in functions.items():
-            field_id_int = int(field_id)
-            if field_id_int not in model._field_objects:
-                continue
-            field_obj = model._field_objects[field_id_int]
-            field_type = field_obj["type"]
-            supported = field_type.get_supported_default_value_functions()
-            if func_name not in supported:
-                raise InvalidDefaultValueFunction(
-                    f"Function '{func_name}' is not supported by field type "
-                    f"'{field_type.type}'."
-                )
-
-        # Ensure the column exists on the table before creating/updating rows.
-        from baserow.contrib.database.table.handler import TableHandler
-
-        TableHandler().create_default_values_column(table)
-        model = table.get_model(use_cache=False)
-
-        row_handler = RowHandler()
-        enabled_field_ids_set = set(int(fid) for fid in enabled_field_ids)
-
-        # Get or create the hidden row. Only create if there are enabled
-        # fields; if all defaults are being cleared, delete any existing
-        # hidden row instead.
-        try:
-            hidden_row = model.objects_and_trash.get(
-                **{DEFAULT_VALUES_VIEW_ID_COLUMN_NAME: view.id, "trashed": False}
-            )
-            if not enabled_field_ids_set:
-                # All defaults cleared — delete the hidden row.
-                hidden_row.delete()
-            elif values:
-                row_handler.force_update_rows(
-                    user=user,
-                    table=table,
-                    rows_values=[{"id": hidden_row.id, **values}],
-                    model=model,
-                    send_realtime_update=False,
-                    send_webhook_events=False,
-                    use_objects_and_trash=True,
-                )
-        except model.DoesNotExist:
-            if enabled_field_ids_set:
-                result = row_handler.force_create_rows(
-                    user=user,
-                    table=table,
-                    rows_values=[values or {}],
-                    model=model,
-                    send_realtime_update=False,
-                    send_webhook_events=False,
-                    use_objects_and_trash=True,
-                )
-                hidden_row = result.created_rows[0]
-                # Mark it as the default values row for this view.
-                setattr(
-                    hidden_row,
-                    DEFAULT_VALUES_VIEW_ID_COLUMN_NAME,
-                    view.id,
-                )
-                hidden_row.save(
-                    update_fields=[DEFAULT_VALUES_VIEW_ID_COLUMN_NAME]
-                )
-
-        # Sync ViewDefaultValue records.
-        existing_records = {
-            dv.field_id: dv
-            for dv in ViewDefaultValue.objects.filter(view_id=view.id)
+        existing_by_field = {
+            default_value.field_id: default_value
+            for default_value in ViewDefaultValue.objects.filter(view_id=view.id)
         }
-        enabled_field_ids_set = set(int(fid) for fid in enabled_field_ids)
 
-        # Delete records for fields no longer enabled.
-        to_delete = [
-            fid for fid in existing_records if fid not in enabled_field_ids_set
-        ]
+        to_create = []
+        to_update = []
+        seen_field_ids = set()
+
+        for item in items:
+            field_id = int(item["field"])
+            seen_field_ids.add(field_id)
+
+            enabled = item.get("enabled", True)
+            value = item.get("value")
+            func_name = item.get("function")
+
+            # Validate function against field type.
+            if func_name and field_id in model._field_objects:
+                field_obj = model._field_objects[field_id]
+                supported = field_obj["type"].get_supported_default_value_functions()
+                if func_name not in supported:
+                    raise InvalidDefaultValueFunction(func_name, field_obj["type"].type)
+
+            field_type_str = None
+            if field_id in model._field_objects:
+                field_type_str = model._field_objects[field_id]["type"].type
+
+            if field_id in existing_by_field:
+                record = existing_by_field[field_id]
+                record.enabled = enabled
+                record.function = func_name
+                if value is not None or "value" in item:
+                    record.value = value
+                    record.field_type = field_type_str
+                to_update.append(record)
+            else:
+                to_create.append(
+                    ViewDefaultValue(
+                        view_id=view.id,
+                        field_id=field_id,
+                        enabled=enabled,
+                        function=func_name,
+                        value=value,
+                        field_type=field_type_str,
+                    )
+                )
+
+        if to_create:
+            ViewDefaultValue.objects.bulk_create(to_create)
+
+        if to_update:
+            ViewDefaultValue.objects.bulk_update(
+                to_update, ["enabled", "function", "value", "field_type"]
+            )
+
+        to_delete = [fid for fid in existing_by_field if fid not in seen_field_ids]
         if to_delete:
             ViewDefaultValue.objects.filter(
                 view_id=view.id, field_id__in=to_delete
             ).delete()
 
-        # Create or update records for enabled fields.
-        for field_id in enabled_field_ids_set:
-            func_name = functions.get(str(field_id)) or functions.get(field_id)
-            if field_id in existing_records:
-                record = existing_records[field_id]
-                if record.function != func_name:
-                    record.function = func_name
-                    record.save(update_fields=["function"])
-            else:
-                ViewDefaultValue.objects.create(
-                    view_id=view.id,
-                    field_id=field_id,
-                    function=func_name,
-                )
-
-        # Send view_updated signal so realtime clients refresh.
         old_view = deepcopy(view)
         view_updated.send(self, view=view, user=user, old_view=old_view)
 
-        return self.get_view_default_values(view, model=model)
+        return ViewDefaultValue.objects.filter(view_id=view.id)
 
     def get_view_default_values_for_row_creation(self, view, model=None):
         """
         Lightweight method for the row creation path. Returns a dict of
         {field_name: resolved_value} for all enabled default fields.
-        Functions like 'now' are resolved to actual values.
+        Functions like 'now' are resolved to actual values. Stored raw
+        values are used directly since they were validated at save time.
 
         :param view: The view whose defaults to resolve.
         :param model: Optional pre-generated table model.
         :return: Dict mapping field_name to resolved default value.
         """
 
-        from baserow.contrib.database.table.constants import (
-            DEFAULT_VALUES_VIEW_ID_COLUMN_NAME,
-        )
-        from baserow.contrib.database.views.models import ViewDefaultValue
-
         view_type = view_type_registry.get_by_model(view.specific_class)
         if not view_type.can_set_default_values:
             return {}
 
-        table = view.table
-        if not table.default_values_column_added:
-            return {}
-
         if model is None:
-            model = table.get_model()
+            model = view.table.get_model()
 
-        try:
-            hidden_row = model.objects_and_trash.get(
-                **{DEFAULT_VALUES_VIEW_ID_COLUMN_NAME: view.id, "trashed": False}
-            )
-        except model.DoesNotExist:
+        default_values = list(
+            ViewDefaultValue.objects.filter(view_id=view.id, enabled=True)
+        )
+        if not default_values:
             return {}
-
-        default_value_records = {
-            dv.field_id: dv
-            for dv in ViewDefaultValue.objects.filter(view_id=view.id)
-        }
 
         result = {}
-        for field_object in model.get_field_objects():
-            field = field_object["field"]
-            if field.id not in default_value_records:
+        for default_value in default_values:
+            field_id = default_value.field_id
+            if field_id not in model._field_objects:
                 continue
 
-            field_name = field_object["name"]
-            field_type = field_object["type"]
-            dv_record = default_value_records[field.id]
+            field_obj = model._field_objects[field_id]
+            field = field_obj["field"]
+            field_type = field_obj["type"]
+            field_name = field_obj["name"]
 
-            # Resolve function if set.
-            if dv_record.function:
-                value = field_type.resolve_default_value_function(
-                    dv_record.function, field
+            if default_value.function:
+                result[field_name] = field_type.resolve_default_value_function(
+                    default_value.function, field
                 )
-            elif field_type.is_many_to_many_field:
-                value = list(
-                    getattr(hidden_row, field_name).values_list("id", flat=True)
-                )
-            else:
-                value = getattr(hidden_row, field_name)
-
-            result[field_name] = value
+            elif default_value.value is not None:
+                if (
+                    default_value.field_type
+                    and default_value.field_type != field_type.type
+                ):
+                    continue
+                result[field_name] = default_value.value
 
         return result
-
-    def annotate_views_with_default_row_values(self, views, table):
-        """
-        Batch-loads default values for multiple views efficiently.
-        Attaches a `_default_row_values` attribute to each view object.
-
-        :param views: Iterable of View objects.
-        :param table: The table these views belong to.
-        """
-
-        from baserow.contrib.database.table.constants import (
-            DEFAULT_VALUES_VIEW_ID_COLUMN_NAME,
-        )
-        from baserow.contrib.database.views.models import ViewDefaultValue
-
-        views_list = list(views)
-
-        # Initialize all views with empty default values.
-        for view in views_list:
-            view._default_row_values = {}
-
-        if not table.default_values_column_added:
-            return views_list
-
-        view_ids = [v.id for v in views_list]
-        view_map = {v.id: v for v in views_list}
-
-        # Batch-fetch all ViewDefaultValue records for these views.
-        all_dv_records = defaultdict(dict)
-        for dv in ViewDefaultValue.objects.filter(view_id__in=view_ids):
-            all_dv_records[dv.view_id][dv.field_id] = dv
-
-        # Only fetch hidden rows for views that have default values.
-        views_with_defaults = [
-            vid for vid in view_ids if vid in all_dv_records
-        ]
-        if not views_with_defaults:
-            return views_list
-
-        model = table.get_model()
-
-        # Batch-fetch all hidden rows with enhance_by_fields so that related
-        # objects (select options, m2m, etc.) are properly loaded.
-        hidden_rows = {}
-        for row in (
-            model.objects_and_trash.all()
-            .enhance_by_fields()
-            .filter(
-                **{
-                    f"{DEFAULT_VALUES_VIEW_ID_COLUMN_NAME}__in": views_with_defaults,
-                    "trashed": False,
-                }
-            )
-        ):
-            view_id = getattr(row, DEFAULT_VALUES_VIEW_ID_COLUMN_NAME)
-            hidden_rows[view_id] = row
-
-        if not hidden_rows:
-            return views_list
-
-        # Serialize the hidden rows through the row response serializer so
-        # that all field types are properly converted to their API
-        # representation (e.g. SelectOption → {"id": 1, "value": "A", ...}).
-        from baserow.contrib.database.api.rows.serializers import (
-            RowSerializer,
-            get_row_serializer_class,
-        )
-
-        response_serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True
-        )
-        serialized_rows = {}
-        for view_id, hidden_row in hidden_rows.items():
-            serialized_rows[view_id] = response_serializer_class(hidden_row).data
-
-        # Build the default values for each view.
-        for view_id, dv_records in all_dv_records.items():
-            if view_id not in view_map or view_id not in serialized_rows:
-                continue
-
-            row_data = serialized_rows[view_id]
-            view_defaults = {}
-
-            for field_object in model.get_field_objects():
-                field = field_object["field"]
-                if field.id not in dv_records:
-                    continue
-
-                field_name = f"field_{field.id}"
-                dv_record = dv_records[field.id]
-                value = row_data.get(field_name)
-
-                view_defaults[field.id] = {
-                    "value": value,
-                    "function": dv_record.function,
-                }
-
-            view_map[view_id]._default_row_values = view_defaults
-
-        return views_list
-
-    def delete_view_default_values_row(self, view):
-        """
-        Deletes the hidden default-values row and ViewDefaultValue records
-        for the given view. Called when a view is deleted.
-        """
-
-        from baserow.contrib.database.table.constants import (
-            DEFAULT_VALUES_VIEW_ID_COLUMN_NAME,
-        )
-        from baserow.contrib.database.views.models import ViewDefaultValue
-
-        # Quick check: if no ViewDefaultValue records exist for this view,
-        # there's nothing to clean up (avoids building the model).
-        if not ViewDefaultValue.objects.filter(view_id=view.id).exists():
-            return
-
-        ViewDefaultValue.objects.filter(view_id=view.id).delete()
-
-        table = view.table
-        if not table.default_values_column_added:
-            return
-
-        model = table.get_model()
-        model.objects_and_trash.filter(
-            **{DEFAULT_VALUES_VIEW_ID_COLUMN_NAME: view.id}
-        ).delete()
 
 
 class ViewSubscriptionHandler:

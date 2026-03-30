@@ -3,9 +3,11 @@ from decimal import Decimal
 from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
+from django.db.models import prefetch_related_objects
 from django.test import override_settings
 
 import pytest
+from freezegun import freeze_time
 from pytest_unordered import unordered
 
 from baserow.contrib.database.fields.exceptions import (
@@ -24,6 +26,7 @@ from baserow.contrib.database.views.exceptions import (
     GridViewAggregationDoesNotSupportField,
     UnrelatedFieldError,
     ViewDoesNotExist,
+    ViewDoesNotSupportDefaultValues,
     ViewDoesNotSupportFieldOptions,
     ViewDoesNotSupportListingRows,
     ViewFilterDoesNotExist,
@@ -51,6 +54,7 @@ from baserow.contrib.database.views.models import (
     GridView,
     GridViewFieldOptions,
     View,
+    ViewDefaultValue,
     ViewFilter,
     ViewFilterGroup,
     ViewGroupBy,
@@ -70,7 +74,9 @@ from baserow.contrib.database.views.view_types import GridViewType
 from baserow.contrib.database.ws.views.rows.handler import ViewRealtimeRowsHandler
 from baserow.core.db import get_collation_name
 from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
+from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
+from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import setup_interesting_test_table
 
 
@@ -4494,7 +4500,7 @@ def test_get_view_default_values_empty(data_fixture):
 
     handler = ViewHandler()
     result = handler.get_view_default_values(view)
-    assert result == {}
+    assert result.count() == 0
 
 
 @pytest.mark.django_db
@@ -4508,50 +4514,38 @@ def test_update_view_default_values(data_fixture):
     handler = ViewHandler()
 
     # Set default values for the text field only.
-    result = handler.update_view_default_values(
+    records = handler.update_view_default_values(
         user=user,
         view=view,
-        values={f"field_{text_field.id}": "default text"},
-        enabled_field_ids=[text_field.id],
+        items=[{"field": text_field.id, "enabled": True, "value": "default text"}],
     )
 
-    assert text_field.id in result
-    assert result[text_field.id]["value"] == "default text"
-    assert number_field.id not in result
+    assert records.filter(field_id=text_field.id).exists()
+    record = records.get(field_id=text_field.id)
+    assert record.value == "default text"
+    assert not records.filter(field_id=number_field.id).exists()
 
-    # Verify the hidden row exists.
-    model = table.get_model()
-    hidden_rows = model.objects_and_trash.filter(
-        default_values_view_id=view.id
-    )
-    assert hidden_rows.count() == 1
-
-    # The hidden row should NOT be visible via normal objects manager.
-    assert model.objects.count() == 0
+    dv = ViewDefaultValue.objects.get(view=view, field=text_field)
+    assert dv.value == "default text"
+    assert dv.field_type == "text"
 
 
 @pytest.mark.django_db
 def test_update_view_default_values_with_function(data_fixture):
-    from freezegun import freeze_time
-
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
-    date_field = data_fixture.create_date_field(
-        table=table, date_include_time=True
-    )
+    date_field = data_fixture.create_date_field(table=table, date_include_time=True)
     view = data_fixture.create_grid_view(user=user, table=table)
 
     handler = ViewHandler()
-    result = handler.update_view_default_values(
+    records = handler.update_view_default_values(
         user=user,
         view=view,
-        values={},
-        enabled_field_ids=[date_field.id],
-        functions={str(date_field.id): "now"},
+        items=[{"field": date_field.id, "enabled": True, "function": "now"}],
     )
 
-    assert date_field.id in result
-    assert result[date_field.id]["function"] == "now"
+    record = records.get(field_id=date_field.id)
+    assert record.function == "now"
 
     # When resolving for row creation, should return current time.
     with freeze_time("2024-01-15 12:00:00"):
@@ -4561,10 +4555,6 @@ def test_update_view_default_values_with_function(data_fixture):
 
 @pytest.mark.django_db
 def test_form_view_cannot_set_default_values(data_fixture):
-    from baserow.contrib.database.views.exceptions import (
-        ViewDoesNotSupportDefaultValues,
-    )
-
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     view = data_fixture.create_form_view(user=user, table=table)
@@ -4574,13 +4564,11 @@ def test_form_view_cannot_set_default_values(data_fixture):
         handler.get_view_default_values(view)
 
     with pytest.raises(ViewDoesNotSupportDefaultValues):
-        handler.update_view_default_values(
-            user=user, view=view, values={}, enabled_field_ids=[]
-        )
+        handler.update_view_default_values(user=user, view=view, items=[])
 
 
 @pytest.mark.django_db
-def test_hidden_row_not_in_normal_queryset(data_fixture):
+def test_default_values_do_not_create_table_rows(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(table=table)
@@ -4590,29 +4578,23 @@ def test_hidden_row_not_in_normal_queryset(data_fixture):
 
     # Create a normal row.
     row_handler = RowHandler()
-    row_handler.force_create_row(
-        user, table, {f"field_{text_field.id}": "normal row"}
-    )
+    row_handler.force_create_row(user, table, {f"field_{text_field.id}": "normal row"})
 
-    # Set default values which creates a hidden row.
+    # Set default values — should NOT create any rows in the table.
     handler.update_view_default_values(
         user=user,
         view=view,
-        values={f"field_{text_field.id}": "default"},
-        enabled_field_ids=[text_field.id],
+        items=[{"field": text_field.id, "enabled": True, "value": "default"}],
     )
 
     model = table.get_model()
-    # Only the normal row should be visible.
+    # Only the normal row should exist.
     assert model.objects.count() == 1
-    assert getattr(model.objects.first(), f"field_{text_field.id}") == "normal row"
-
-    # But with objects_and_trash, both should be visible.
-    assert model.objects_and_trash.filter(trashed=False).count() == 2
+    assert model.objects_and_trash.filter(trashed=False).count() == 1
 
 
 @pytest.mark.django_db
-def test_view_deletion_cleans_up_hidden_row(data_fixture):
+def test_view_deletion_cleans_up_default_values(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(table=table)
@@ -4622,25 +4604,21 @@ def test_view_deletion_cleans_up_hidden_row(data_fixture):
     handler.update_view_default_values(
         user=user,
         view=view,
-        values={f"field_{text_field.id}": "default"},
-        enabled_field_ids=[text_field.id],
+        items=[{"field": text_field.id, "enabled": True, "value": "default"}],
     )
 
-    model = table.get_model()
-    assert model.objects_and_trash.filter(default_values_view_id=view.id).count() == 1
+    assert ViewDefaultValue.objects.filter(view=view).count() == 1
 
-    # Delete the view.
+    # Trashing the view should keep the records (for potential restore).
     handler.delete_view(user, view)
+    assert ViewDefaultValue.objects.filter(view_id=view.id).count() == 1
 
-    # The hidden row should be cleaned up.
-    assert model.objects_and_trash.filter(default_values_view_id=view.id).count() == 0
+    View.objects_and_trash.filter(id=view.id).delete()
+    assert ViewDefaultValue.objects.filter(view_id=view.id).count() == 0
 
 
 @pytest.mark.django_db
 def test_field_hard_deletion_cascades_to_view_default_value(data_fixture):
-    from baserow.contrib.database.fields.models import Field
-    from baserow.contrib.database.views.models import ViewDefaultValue
-
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(table=table)
@@ -4650,8 +4628,7 @@ def test_field_hard_deletion_cascades_to_view_default_value(data_fixture):
     handler.update_view_default_values(
         user=user,
         view=view,
-        values={f"field_{text_field.id}": "default"},
-        enabled_field_ids=[text_field.id],
+        items=[{"field": text_field.id, "enabled": True, "value": "default"}],
     )
 
     assert ViewDefaultValue.objects.filter(view=view, field=text_field).count() == 1
@@ -4664,7 +4641,7 @@ def test_field_hard_deletion_cascades_to_view_default_value(data_fixture):
 
 
 @pytest.mark.django_db
-def test_annotate_views_with_default_row_values(data_fixture):
+def test_prefetch_view_default_values(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(table=table)
@@ -4677,18 +4654,22 @@ def test_annotate_views_with_default_row_values(data_fixture):
     handler.update_view_default_values(
         user=user,
         view=view1,
-        values={f"field_{text_field.id}": "view1 default"},
-        enabled_field_ids=[text_field.id],
+        items=[{"field": text_field.id, "enabled": True, "value": "view1 default"}],
     )
 
-    views = handler.annotate_views_with_default_row_values([view1, view2], table)
+    views = list(
+        View.objects.filter(id__in=[view1.id, view2.id])
+        .order_by("id")
+        .prefetch_related("view_default_values")
+    )
 
-    assert hasattr(views[0], "_default_row_values")
-    assert text_field.id in views[0]._default_row_values
-    assert views[0]._default_row_values[text_field.id]["value"] == "view1 default"
+    v1_defaults = list(views[0].view_default_values.all())
+    assert len(v1_defaults) == 1
+    assert v1_defaults[0].field_id == text_field.id
+    assert v1_defaults[0].value == "view1 default"
 
-    assert hasattr(views[1], "_default_row_values")
-    assert views[1]._default_row_values == {}
+    v2_defaults = list(views[1].view_default_values.all())
+    assert len(v2_defaults) == 0
 
 
 @pytest.mark.django_db
@@ -4705,11 +4686,10 @@ def test_duplicate_view_copies_default_values(data_fixture):
     handler.update_view_default_values(
         user=user,
         view=view,
-        values={
-            f"field_{text_field.id}": "dup default",
-            f"field_{number_field.id}": 42,
-        },
-        enabled_field_ids=[text_field.id, number_field.id],
+        items=[
+            {"field": text_field.id, "enabled": True, "value": "dup default"},
+            {"field": number_field.id, "enabled": True, "value": 42},
+        ],
     )
 
     # Duplicate the view.
@@ -4717,55 +4697,38 @@ def test_duplicate_view_copies_default_values(data_fixture):
 
     # Check that the duplicated view has default values.
     dup_defaults = handler.get_view_default_values(duplicated_view)
-    assert text_field.id in dup_defaults
-    assert dup_defaults[text_field.id]["value"] == "dup default"
-    assert number_field.id in dup_defaults
-    assert dup_defaults[number_field.id]["value"] == "42"
+    record_text = dup_defaults.get(field_id=text_field.id)
+    assert record_text.value == "dup default"
+    record_number = dup_defaults.get(field_id=number_field.id)
+    assert record_number.value == 42
 
-    # The hidden rows should be separate (different view IDs).
-    model = table.get_model()
-    original_hidden = model.objects_and_trash.filter(
-        default_values_view_id=view.id
-    )
-    dup_hidden = model.objects_and_trash.filter(
-        default_values_view_id=duplicated_view.id
-    )
-    assert original_hidden.count() == 1
-    assert dup_hidden.count() == 1
-    assert original_hidden.first().id != dup_hidden.first().id
+    assert ViewDefaultValue.objects.filter(view=view).count() == 2
+    assert ViewDefaultValue.objects.filter(view=duplicated_view).count() == 2
 
 
 @pytest.mark.django_db
 def test_duplicate_view_copies_default_values_with_function(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
-    date_field = data_fixture.create_date_field(
-        table=table, date_include_time=True
-    )
+    date_field = data_fixture.create_date_field(table=table, date_include_time=True)
     view = data_fixture.create_grid_view(user=user, table=table)
 
     handler = ViewHandler()
     handler.update_view_default_values(
         user=user,
         view=view,
-        values={},
-        enabled_field_ids=[date_field.id],
-        functions={str(date_field.id): "now"},
+        items=[{"field": date_field.id, "enabled": True, "function": "now"}],
     )
 
     duplicated_view = handler.duplicate_view(user, view)
     dup_defaults = handler.get_view_default_values(duplicated_view)
 
-    assert date_field.id in dup_defaults
-    assert dup_defaults[date_field.id]["function"] == "now"
+    record = dup_defaults.get(field_id=date_field.id)
+    assert record.function == "now"
 
 
 @pytest.mark.django_db
 def test_export_import_view_with_default_values(data_fixture):
-    from baserow.contrib.database.views.registries import view_type_registry
-    from baserow.core.registries import ImportExportConfig
-    from baserow.core.utils import MirrorDict
-
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(table=table)
@@ -4775,19 +4738,19 @@ def test_export_import_view_with_default_values(data_fixture):
     handler.update_view_default_values(
         user=user,
         view=view,
-        values={f"field_{text_field.id}": "export test"},
-        enabled_field_ids=[text_field.id],
+        items=[{"field": text_field.id, "enabled": True, "value": "export test"}],
     )
 
     view_type = view_type_registry.get_by_model(view)
     config = ImportExportConfig(include_permission_data=True)
     cache = {}
 
-    # Export
     serialized = view_type.export_serialized(view, config, cache)
     assert "default_row_values" in serialized
     assert str(text_field.id) in serialized["default_row_values"]
-    assert serialized["default_row_values"][str(text_field.id)]["value"] == "export test"
+    assert (
+        serialized["default_row_values"][str(text_field.id)]["value"] == "export test"
+    )
 
     # Import into the same table (simulating duplication).
     id_mapping = {
@@ -4800,8 +4763,8 @@ def test_export_import_view_with_default_values(data_fixture):
 
     # Verify imported default values.
     imported_defaults = handler.get_view_default_values(imported_view)
-    assert text_field.id in imported_defaults
-    assert imported_defaults[text_field.id]["value"] == "export test"
+    record = imported_defaults.get(field_id=text_field.id)
+    assert record.value == "export test"
 
 
 @pytest.mark.django_db
@@ -4815,26 +4778,218 @@ def test_update_view_default_values_twice(data_fixture):
 
     handler = ViewHandler()
 
-    # First update — creates the hidden row.
-    result = handler.update_view_default_values(
+    # First update — creates the record.
+    records = handler.update_view_default_values(
         user=user,
         view=view,
-        values={f"field_{text_field.id}": "first"},
-        enabled_field_ids=[text_field.id],
+        items=[{"field": text_field.id, "enabled": True, "value": "first"}],
     )
-    assert result[text_field.id]["value"] == "first"
+    assert records.get(field_id=text_field.id).value == "first"
 
-    # Second update — updates the existing hidden row.
-    result = handler.update_view_default_values(
+    # Second update — updates the existing record.
+    records = handler.update_view_default_values(
         user=user,
         view=view,
-        values={f"field_{text_field.id}": "second"},
-        enabled_field_ids=[text_field.id],
+        items=[{"field": text_field.id, "enabled": True, "value": "second"}],
     )
-    assert result[text_field.id]["value"] == "second"
+    assert records.get(field_id=text_field.id).value == "second"
 
-    # Verify only one hidden row exists.
-    model = table.get_model()
-    assert (
-        model.objects_and_trash.filter(default_values_view_id=view.id).count() == 1
+    assert ViewDefaultValue.objects.filter(view=view).count() == 1
+
+
+@pytest.mark.django_db
+def test_field_type_change_invalidates_default_value(data_fixture):
+    """
+    When a field's type changes (e.g. text → single_select), the stored
+    default value should no longer be returned because the field_type no
+    longer matches.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+
+    # Set a text default value.
+    handler.update_view_default_values(
+        user=user,
+        view=view,
+        items=[{"field": text_field.id, "enabled": True, "value": "hello"}],
     )
+
+    result = handler.get_view_default_values(view)
+    assert result.filter(field_id=text_field.id).exists()
+    assert result.get(field_id=text_field.id).value == "hello"
+
+    # Convert the field from text to single_select.
+    FieldHandler().update_field(user, text_field, new_type_name="single_select")
+
+    # The record still exists in the DB (field_type mismatch is handled at
+    # serialization / row-creation time, not by deletion).  The raw queryset
+    # will still contain the record, but row creation should skip it.
+    resolved = handler.get_view_default_values_for_row_creation(view)
+    assert f"field_{text_field.id}" not in resolved
+
+
+@pytest.mark.django_db
+def test_duplicate_view_remaps_single_select_default_value(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_single_select_field(table=table)
+    option_a = data_fixture.create_select_option(field=field, value="A")
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+    handler.update_view_default_values(
+        user=user,
+        view=view,
+        items=[{"field": field.id, "enabled": True, "value": option_a.id}],
+    )
+
+    # Verify the stored value is the option ID.
+    record = ViewDefaultValue.objects.get(view=view, field=field)
+    assert record.value == option_a.id
+
+    # Duplicate the view.
+    duplicated_view = handler.duplicate_view(user, view)
+
+    # The duplicated record should have the same option ID because
+    # duplicate_view uses MirrorDict (IDs stay the same).
+    dup_record = ViewDefaultValue.objects.get(view=duplicated_view, field=field)
+    assert dup_record.value == option_a.id
+    assert dup_record.enabled is True
+
+    # Creating a row with the duplicated view should apply the default.
+    row = RowHandler().create_row(user, table, values={}, view=duplicated_view)
+    assert getattr(row, f"field_{field.id}_id") == option_a.id
+
+
+@pytest.mark.django_db
+def test_duplicate_view_remaps_multiple_select_default_value(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_multiple_select_field(table=table)
+    option_a = data_fixture.create_select_option(field=field, value="A")
+    option_b = data_fixture.create_select_option(field=field, value="B")
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+    handler.update_view_default_values(
+        user=user,
+        view=view,
+        items=[
+            {
+                "field": field.id,
+                "enabled": True,
+                "value": [option_a.id, option_b.id],
+            }
+        ],
+    )
+
+    record = ViewDefaultValue.objects.get(view=view, field=field)
+    assert record.value == [option_a.id, option_b.id]
+
+    # Duplicate the view.
+    duplicated_view = handler.duplicate_view(user, view)
+
+    dup_record = ViewDefaultValue.objects.get(view=duplicated_view, field=field)
+    assert dup_record.value == [option_a.id, option_b.id]
+    assert dup_record.enabled is True
+
+    # Creating a row with the duplicated view should apply the defaults.
+    row = RowHandler().create_row(user, table, values={}, view=duplicated_view)
+    m2m_ids = list(getattr(row, f"field_{field.id}").values_list("id", flat=True))
+    assert set(m2m_ids) == {option_a.id, option_b.id}
+
+
+@pytest.mark.django_db
+def test_export_import_remaps_single_select_default_value(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_single_select_field(table=table)
+    option_a = data_fixture.create_select_option(field=field, value="A")
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+    handler.update_view_default_values(
+        user=user,
+        view=view,
+        items=[{"field": field.id, "enabled": True, "value": option_a.id}],
+    )
+
+    # Export the view.
+    view_type = view_type_registry.get_by_model(view)
+    config = ImportExportConfig(include_permission_data=True)
+
+    prefetch_related_objects([view], "view_default_values")
+    serialized = view_type.export_serialized(view, config, {})
+
+    assert serialized["default_row_values"][str(field.id)]["value"] == option_a.id
+
+    # Simulate import with a new option ID.
+    new_option_id = option_a.id + 1000
+    id_mapping = {
+        "workspace_id": table.database.workspace.id,
+        "database_fields": {field.id: field.id},
+        "database_field_select_options": {option_a.id: new_option_id},
+    }
+    serialized["name"] = "imported view"
+    imported_view = view_type.import_serialized(table, serialized, config, id_mapping)
+
+    # The imported default value should have the remapped option ID.
+    imported_record = ViewDefaultValue.objects.get(view=imported_view, field=field)
+    assert imported_record.value == new_option_id
+
+
+@pytest.mark.django_db
+def test_export_import_remaps_multiple_select_default_value(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_multiple_select_field(table=table)
+    option_a = data_fixture.create_select_option(field=field, value="A")
+    option_b = data_fixture.create_select_option(field=field, value="B")
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+    handler.update_view_default_values(
+        user=user,
+        view=view,
+        items=[
+            {
+                "field": field.id,
+                "enabled": True,
+                "value": [option_a.id, option_b.id],
+            }
+        ],
+    )
+
+    # Export the view.
+    view_type = view_type_registry.get_by_model(view)
+    config = ImportExportConfig(include_permission_data=True)
+
+    prefetch_related_objects([view], "view_default_values")
+    serialized = view_type.export_serialized(view, config, {})
+
+    assert serialized["default_row_values"][str(field.id)]["value"] == [
+        option_a.id,
+        option_b.id,
+    ]
+
+    # Simulate import with new option IDs.
+    new_a_id = option_a.id + 1000
+    new_b_id = option_b.id + 1000
+    id_mapping = {
+        "workspace_id": table.database.workspace.id,
+        "database_fields": {field.id: field.id},
+        "database_field_select_options": {
+            option_a.id: new_a_id,
+            option_b.id: new_b_id,
+        },
+    }
+    serialized["name"] = "imported view"
+    imported_view = view_type.import_serialized(table, serialized, config, id_mapping)
+
+    imported_record = ViewDefaultValue.objects.get(view=imported_view, field=field)
+    assert imported_record.value == [new_a_id, new_b_id]

@@ -37,6 +37,7 @@
               :key="func.name"
               v-model="fieldModes[field.id]"
               :value="func.name"
+              class="margin-left-1"
               @input="onModeChange(field)"
             >
               {{ func.label }}
@@ -52,8 +53,8 @@
             :read-only="false"
             @update="updateFieldValue(field, $event)"
           />
-          <div>
-            <a class="color-error" @click="disableField(field)">
+          <div class="margin-top-1">
+            <a @click="disableField(field)">
               {{ $t('defaultValuesModal.removeDefaultValue') }}
             </a>
           </div>
@@ -127,24 +128,46 @@ export default {
       return modal.methods.show.call(this, ...args)
     },
     initializeFromView() {
-      const defaultValues = this.view.default_row_values
+      const items = this.view.default_row_values || []
       this.enabledFieldIds = []
       this.rowValues = {}
       this.fieldModes = {}
       this.fieldFunctions = {}
 
-      if (defaultValues) {
-        this.enabledFieldIds = [...defaultValues.enabled_field_ids]
-        this.rowValues = { ...defaultValues.values }
-        for (const [fieldId, funcName] of Object.entries(
-          defaultValues.functions || {}
-        )) {
-          this.fieldFunctions[fieldId] = funcName
-          this.fieldModes[parseInt(fieldId)] = funcName
+      const itemsByFieldId = {}
+      for (const item of items) {
+        itemsByFieldId[item.field] = item
+      }
+
+      // Initialize every editable field with its empty value, then
+      // override with the stored default if one exists.
+      for (const field of this.editableFields) {
+        const fieldType = this.$registry.get('field', field.type)
+        const name = `field_${field.id}`
+        this.rowValues[name] = fieldType.getEmptyValue(field)
+
+        const item = itemsByFieldId[field.id]
+        if (!item) {
+          continue
+        }
+
+        if (item.enabled) {
+          this.enabledFieldIds.push(field.id)
+        }
+
+        if (item.value != null) {
+          this.rowValues[name] = fieldType.parseDefaultRowValue(
+            field,
+            item.value
+          )
+        }
+
+        if (item.function) {
+          this.fieldFunctions[String(field.id)] = item.function
+          this.fieldModes[field.id] = item.function
         }
       }
 
-      // Set default mode to 'static' for enabled fields without a function.
       for (const fieldId of this.enabledFieldIds) {
         if (!this.fieldModes[fieldId]) {
           this.fieldModes[fieldId] = 'static'
@@ -178,10 +201,7 @@ export default {
     },
     getFieldFunctions(field) {
       const fieldType = this.$registry.get('field', field.type)
-      if (typeof fieldType.getSupportedDefaultValueFunctions === 'function') {
-        return fieldType.getSupportedDefaultValueFunctions()
-      }
-      return []
+      return fieldType.getSupportedDefaultValueFunctions()
     },
     getFieldComponent(field) {
       const fieldType = this.$registry.get('field', field.type)
@@ -195,30 +215,34 @@ export default {
       this.hideError()
 
       try {
-        // Prepare the values for the API request using each field type's
-        // prepareValueForUpdate, the same way row updates do it.
-        const preparedValues = {}
-        this.editableFields.forEach((field) => {
-          const name = `field_${field.id}`
-          if (Object.prototype.hasOwnProperty.call(this.rowValues, name)) {
+        const items = this.enabledFieldIds.map((fieldId) => {
+          const field = this.editableFields.find((f) => f.id === fieldId)
+          const name = `field_${fieldId}`
+          const funcName = this.fieldFunctions[String(fieldId)] || null
+
+          let value = null
+          if (
+            field &&
+            !funcName &&
+            Object.prototype.hasOwnProperty.call(this.rowValues, name)
+          ) {
             const fieldType = this.$registry.get('field', field.type)
-            preparedValues[name] = fieldType.prepareValueForUpdate(
-              field,
-              this.rowValues[name]
-            )
+            value = fieldType.prepareValueForUpdate(field, this.rowValues[name])
+          }
+
+          return {
+            field: fieldId,
+            enabled: true,
+            value,
+            function: funcName,
           }
         })
 
         const { data } = await ViewService(this.$client).updateDefaultValues(
           this.view.id,
-          {
-            values: preparedValues,
-            enabledFieldIds: this.enabledFieldIds,
-            functions: this.fieldFunctions,
-          }
+          items
         )
 
-        // Update the view's default_row_values in the store.
         await this.$store.dispatch('view/forceUpdate', {
           view: this.view,
           values: { default_row_values: data },

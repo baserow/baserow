@@ -93,7 +93,7 @@
         v-if="
           canSetDefaultValues &&
           $hasPermission(
-            'database.table.view.update',
+            'database.table.view.update_default_values',
             view,
             database.workspace.id
           )

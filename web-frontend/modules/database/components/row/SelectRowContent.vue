@@ -335,6 +335,7 @@ export default {
           false,
           false,
           false,
+          false,
           // We can safely limit to `1` because the backend provides the views ordered.
           1,
           // We want to fetch the first grid view because for that type we're sure it's

@@ -178,12 +178,8 @@ export default (client) => {
       }
       return client.get(`/database/views/${viewSlug}/row/${rowId}/`, config)
     },
-    updateDefaultValues(viewId, { values, enabledFieldIds, functions }) {
-      return client.patch(`/database/views/${viewId}/default-values/`, {
-        values,
-        enabled_field_ids: enabledFieldIds,
-        functions,
-      })
+    updateDefaultValues(viewId, items) {
+      return client.patch(`/database/views/${viewId}/default-values/`, items)
     },
   }
 }

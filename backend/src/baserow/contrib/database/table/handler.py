@@ -47,7 +47,6 @@ from baserow.core.utils import ChildProgressBuilder, Progress, find_unused_name,
 
 from .constants import (
     CREATED_BY_COLUMN_NAME,
-    DEFAULT_VALUES_VIEW_ID_COLUMN_NAME,
     LAST_MODIFIED_BY_COLUMN_NAME,
     TABLE_CREATION,
 )
@@ -911,28 +910,3 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
         table.save(
             update_fields=["created_by_column_added", "last_modified_by_column_added"]
         )
-
-    def create_default_values_column(self, table: "Table") -> None:
-        """
-        Creates the default_values_view_id column for the provided table if it
-        has not yet been created.
-
-        :param table: Table that should have the default_values_view_id column.
-        """
-
-        from baserow.contrib.database.table.cache import (
-            invalidate_table_in_model_cache,
-        )
-
-        if table.default_values_column_added:
-            return
-
-        table.default_values_column_added = True
-        model = table.get_model(use_cache=False, field_ids=[])
-
-        with safe_django_schema_editor(atomic=False) as schema_editor:
-            field = model._meta.get_field(DEFAULT_VALUES_VIEW_ID_COLUMN_NAME)
-            schema_editor.add_field(model, field)
-
-        table.save(update_fields=["default_values_column_added"])
-        invalidate_table_in_model_cache(table.id)

@@ -11,20 +11,13 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='table',
-            name='default_values_column_added',
-            preserve_default=False,
-            field=models.BooleanField(
-                default=False,
-                help_text='Indicates whether the table has had the default_values_view_id column added.',
-                null=True,
-            ),
-        ),
         migrations.CreateModel(
             name='ViewDefaultValue',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('enabled', models.BooleanField(default=True, help_text='Whether this default value is active.')),
+                ('value', models.JSONField(blank=True, default=None, help_text='The raw default value in API request format.', null=True)),
+                ('field_type', models.CharField(blank=True, help_text='The field type identifier at the time the value was stored. Used to detect incompatibility when the field type changes.', max_length=64, null=True)),
                 ('function', models.CharField(blank=True, help_text="Optional function name (e.g. 'now') to resolve the default value dynamically at row creation time instead of using the stored value.", max_length=64, null=True)),
                 ('field', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='database.field')),
                 ('view', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='view_default_values', to='database.view')),
