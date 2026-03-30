@@ -2,7 +2,12 @@
   <div class="grid-view__group" v-bind="$attrs">
     <div class="grid-view__group-cell">
       <div class="grid-view__group-value">
-        <component :is="groupByComponent" :field="field" :value="value" />
+        <component
+          :is="groupByComponent"
+          v-if="groupByComponent"
+          :field="field"
+          :value="value"
+        />
       </div>
       <div v-if="count > 0" class="grid-view__group-count">
         {{ count }}
@@ -37,6 +42,9 @@ export default {
       return this.getField(this.allFieldsInTable, this.groupBy)
     },
     groupByComponent() {
+      if (!this.field) {
+        return null
+      }
       return this.getGroupByComponent(this.field, this)
     },
   },

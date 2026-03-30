@@ -668,6 +668,13 @@ export class GridViewType extends ViewType {
       { field, fieldType, view: selectedView },
       { root: true }
     )
+    // Sync the grid store's activeGroupBys with the view's group_bys which
+    // may have been updated by the field restore above.
+    await dispatch(
+      storePrefix + 'view/grid/updateActiveGroupBys',
+      clone(selectedView.group_bys || []),
+      { root: true }
+    )
   }
 
   shouldRefreshWhenFieldCreated(registry, store, field, storePrefix) {
@@ -696,8 +703,8 @@ export class GridViewType extends ViewType {
       { root: true }
     )
     const viewId = rootGetters[storePrefix + 'view/grid/getLastGridId']
-    const view = rootGetters['view/get'](viewId)
-    const isPublic = view.public
+    const view = viewId === -1 ? null : rootGetters['view/get'](viewId)
+    const isPublic = view?.public ?? false
     const anyOtherFieldHidden = Object.values(
       rootGetters[storePrefix + 'view/grid/getAllFieldOptions']
     ).some((options) => options.hidden)

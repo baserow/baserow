@@ -1374,7 +1374,7 @@ export const actions = {
       field.group_bys
         .filter((groupBy) => groupBy.view === view.id)
         .forEach((groupBy) => {
-          dispatch('forceCreateSort', { view, values: groupBy })
+          dispatch('forceCreateGroupBy', { view, values: groupBy })
         })
     }
   },

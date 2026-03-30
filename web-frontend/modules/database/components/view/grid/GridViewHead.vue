@@ -7,7 +7,7 @@
       :style="{ width: groupBy.width + 'px' }"
       :set="field = $options.methods.getField(allFieldsInTable, groupBy)"
     >
-      <div class="grid-view__group-cell">
+      <div v-if="field" class="grid-view__group-cell">
         <div class="grid-view__group-name">
           {{ field.name }}
         </div>

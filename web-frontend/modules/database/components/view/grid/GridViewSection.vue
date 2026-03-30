@@ -426,6 +426,9 @@ export default {
               const groupByField = this.allFieldsInTable.find(
                 (f) => f.id === groupBy.field
               )
+              if (!groupByField) {
+                return false
+              }
               const groupByFieldType = this.$registry.get(
                 'field',
                 groupByField.type
@@ -447,11 +450,10 @@ export default {
               (metadata[`field_${groupBy.field}`] || []).find((entry) => {
                 const groupByFields = groupBys
                   .slice(0, groupByIndex + 1)
-                  .map((groupBy) => {
-                    return this.allFieldsInTable.find(
-                      (f) => f.id === groupBy.field
-                    )
-                  })
+                  .map((groupBy) =>
+                    this.allFieldsInTable.find((f) => f.id === groupBy.field)
+                  )
+                  .filter(Boolean)
                 return fieldValuesAreEqualInObjects(
                   groupByFields,
                   this.$registry,
