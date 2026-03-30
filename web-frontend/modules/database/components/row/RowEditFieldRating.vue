@@ -10,6 +10,9 @@
         @update="update"
       />
     </div>
+    <div v-show="touched && !isValid()" class="error">
+      {{ getError() }}
+    </div>
   </div>
 </template>
 

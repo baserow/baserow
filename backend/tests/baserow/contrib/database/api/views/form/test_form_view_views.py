@@ -2996,6 +2996,89 @@ def test_submit_form_view_for_required_number_field_with_0(api_client, data_fixt
 
 
 @pytest.mark.django_db
+def test_submit_form_view_for_required_rating_field_with_0(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    form = data_fixture.create_form_view(
+        table=table,
+        submit_action_message="Test",
+        submit_action_redirect_url="https://baserow.io",
+    )
+    rating_field = data_fixture.create_rating_field(table=table)
+    data_fixture.create_form_view_field_option(
+        form, rating_field, required=True, enabled=True, order=2
+    )
+
+    url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
+
+    # Submitting 0 should fail because 0 means "no rating" for a required rating field
+    response = api_client.post(
+        url,
+        {f"field_{rating_field.id}": 0},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["detail"][f"field_{rating_field.id}"][0]["code"] == "required"
+
+    # Submitting a valid rating should succeed
+    response = api_client.post(
+        url,
+        {f"field_{rating_field.id}": 3},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json == {
+        "row_id": AnyInt(),
+        "submit_action": "MESSAGE",
+        "submit_action_message": "Test",
+        "submit_action_redirect_url": "https://baserow.io",
+    }
+
+
+@pytest.mark.django_db
+def test_submit_form_view_for_non_required_rating_field_with_0(
+    api_client, data_fixture
+):
+    """
+    Submitting 0 should succeed when the rating field is not required.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    form = data_fixture.create_form_view(
+        table=table,
+        submit_action_message="Test",
+        submit_action_redirect_url="https://baserow.io",
+    )
+    rating_field = data_fixture.create_rating_field(table=table)
+    data_fixture.create_form_view_field_option(
+        form, rating_field, required=False, enabled=True, order=2
+    )
+
+    url = reverse("api:database:views:form:submit", kwargs={"slug": form.slug})
+
+    response = api_client.post(
+        url,
+        {f"field_{rating_field.id}": 0},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json == {
+        "row_id": AnyInt(),
+        "submit_action": "MESSAGE",
+        "submit_action_message": "Test",
+        "submit_action_redirect_url": "https://baserow.io",
+    }
+
+
+@pytest.mark.django_db
 def test_upload_file_view(api_client, data_fixture, tmpdir):
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"

@@ -1994,6 +1994,13 @@ export class RatingFieldType extends FieldType {
     return 0
   }
 
+  isEmpty(field, value) {
+    if (value === 0) {
+      return true
+    }
+    return super.isEmpty(field, value)
+  }
+
   canUpsert() {
     return true
   }

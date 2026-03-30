@@ -910,16 +910,29 @@ class RatingFieldType(FieldType):
         return value
 
     def get_serializer_field(self, instance, **kwargs):
-        return serializers.IntegerField(
-            **{
-                "required": False,
-                "allow_null": False,
-                "min_value": 0,
-                "default": 0,
-                "max_value": instance.max_value,
-                **kwargs,
-            }
-        )
+        required = kwargs.get("required", False)
+        field_kwargs = {
+            "required": False,
+            "allow_null": False,
+            "min_value": 0,
+            "default": 0,
+            "max_value": instance.max_value,
+            **kwargs,
+        }
+        if required:
+            field_kwargs.pop("default", None)
+            validators = field_kwargs.get("validators", [])
+            validators.append(self._rating_required_validator)
+            field_kwargs["validators"] = validators
+        return serializers.IntegerField(**field_kwargs)
+
+    @staticmethod
+    def _rating_required_validator(value):
+        if value == 0:
+            raise ValidationError(
+                "This field is required.",
+                code="required",
+            )
 
     def force_same_type_alter_column(self, from_field, to_field):
         """
