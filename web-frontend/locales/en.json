@@ -452,8 +452,6 @@
     "generativeAIDoesNotExistDescription": "The generative AI model does not exist.",
     "modelDoesNotBelongToTypeTitle": "The selected model does not belong to the AI Type",
     "modelDoesNotBelongToTypeDescription": "The selected model does not belong to the selected AI type.",
-    "outputParserTitle": "Wrong output",
-    "outputParserDescription": "The model responded with an incorrect output. Please try again.",
     "generateAIPromptTitle": "Prompt error",
     "generateAIPromptDescription": "Something was wrong with the constructed prompt.",
     "maxNumberOfPendingWorkspaceInvitesReachedTitle": "Max pending invites reached",

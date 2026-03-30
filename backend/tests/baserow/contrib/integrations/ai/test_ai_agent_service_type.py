@@ -25,7 +25,13 @@ def mock_ai_prompt(return_value="AI response", should_fail=False):
     """
 
     def _prompt(
-        model, prompt, workspace=None, temperature=None, settings_override=None
+        model,
+        prompt,
+        workspace=None,
+        temperature=None,
+        settings_override=None,
+        output_type=None,
+        content=None,
     ):
         if should_fail:
             raise GenerativeAIPromptError("AI API error")
@@ -271,6 +277,7 @@ def test_ai_agent_service_dispatch_choice_output(data_fixture, settings):
     service_type = service.get_type()
     dispatch_context = FakeDispatchContext()
 
+    # prompt() with output_choices returns the matched choice string
     with mock_ai_prompt(return_value="positive"):
         result = service_type.dispatch(service, dispatch_context)
 

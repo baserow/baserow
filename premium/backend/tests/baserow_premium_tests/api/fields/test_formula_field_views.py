@@ -12,6 +12,7 @@ from rest_framework.status import (
 )
 
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
+from baserow_premium.fields.pydantic_models import BaserowFormulaModel
 
 
 @pytest.mark.django_db
@@ -254,7 +255,7 @@ def test_generate_formula_output_parser_error(premium_data_fixture, api_client):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_OUTPUT_PARSER"
+    assert response.json()["error"] == "ERROR_GENERATIVE_AI_PROMPT"
 
 
 @pytest.mark.django_db
@@ -319,7 +320,9 @@ def test_generate_formula(premium_data_fixture, api_client):
     generative_ai_instance = generative_ai_model_type_registry.get("test_generative_ai")
 
     with patch.object(
-        generative_ai_instance, "prompt", return_value='{"formula": "field()"}'
+        generative_ai_instance,
+        "prompt",
+        return_value=BaserowFormulaModel(formula="field()"),
     ) as mock:
         response = api_client.post(
             reverse(
@@ -367,7 +370,9 @@ def test_generate_formula_with_temperature(premium_data_fixture, api_client):
     generative_ai_instance = generative_ai_model_type_registry.get("test_generative_ai")
 
     with patch.object(
-        generative_ai_instance, "prompt", return_value='{"formula": "field()"}'
+        generative_ai_instance,
+        "prompt",
+        return_value=BaserowFormulaModel(formula="field()"),
     ) as mock:
         response = api_client.post(
             reverse(
@@ -451,7 +456,9 @@ def test_generate_formula_with_temperature_null(premium_data_fixture, api_client
     generative_ai_instance = generative_ai_model_type_registry.get("test_generative_ai")
 
     with patch.object(
-        generative_ai_instance, "prompt", return_value='{"formula": "field()"}'
+        generative_ai_instance,
+        "prompt",
+        return_value=BaserowFormulaModel(formula="field()"),
     ) as mock:
         response = api_client.post(
             reverse(

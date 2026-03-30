@@ -1,4 +1,3 @@
-import enum
 from typing import Any, Dict, Generator, List, Optional
 
 from django.contrib.auth.models import AbstractUser
@@ -16,7 +15,6 @@ from baserow.core.generative_ai.exceptions import (
 )
 from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow.core.integrations.handler import IntegrationHandler
-from baserow.core.output_parsers import get_strict_enum_output_parser
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
@@ -168,9 +166,6 @@ class AIAgentServiceType(ServiceType):
         resolved_values: Dict[str, Any],
         dispatch_context: DispatchContext,
     ) -> Dict[str, Any]:
-        from langchain_core.exceptions import OutputParserException
-        from langchain_core.prompts import PromptTemplate
-
         if not service.ai_generative_ai_type:
             raise ServiceImproperlyConfiguredDispatchException(
                 "The AI provider type is missing."
@@ -213,39 +208,24 @@ class AIAgentServiceType(ServiceType):
             integration, service.ai_generative_ai_type
         )
 
-        output_parser = None
+        kwargs = {}
+        if service.ai_temperature is not None:
+            kwargs["temperature"] = service.ai_temperature
 
-        # If the choice output type has been set, then a different prompt and output
-        # parser must be used to make sure the result matches the requirements of the
-        # choice type.
-        if service.ai_output_type == AIOutputType.CHOICE:
-            choices = service.ai_choices or []
-
-            if not choices:
-                raise ServiceImproperlyConfiguredDispatchException(
-                    "No valid choices provided for 'choice' output type."
-                )
-
-            choices_enum = enum.Enum(
-                "Choices", {f"OPTION_{i}": choice for i, choice in enumerate(choices)}
-            )
-            output_parser = get_strict_enum_output_parser(enum=choices_enum)
-            format_instructions = output_parser.get_format_instructions()
-            prompt_template = PromptTemplate(
-                template=prompt + "\n\nGiven this user query:\n\n{format_instructions}",
-                input_variables=[],
-                partial_variables={"format_instructions": format_instructions},
-            )
-            prompt = prompt_template.format()
+        # Always pass provider settings (which may be from integration or workspace)
+        if provider_settings:
+            kwargs["settings_override"] = provider_settings
 
         try:
-            kwargs = {}
-            if service.ai_temperature is not None:
-                kwargs["temperature"] = service.ai_temperature
+            if service.ai_output_type == AIOutputType.CHOICE:
+                choices = service.ai_choices or []
 
-            # Always pass provider settings (which may be from integration or workspace)
-            if provider_settings:
-                kwargs["settings_override"] = provider_settings
+                if not choices:
+                    raise ServiceImproperlyConfiguredDispatchException(
+                        "No valid choices provided for 'choice' output type."
+                    )
+
+                kwargs["output_type"] = choices
 
             result = ai_model_type.prompt(
                 model=service.ai_generative_ai_model,
@@ -253,21 +233,11 @@ class AIAgentServiceType(ServiceType):
                 workspace=workspace,
                 **kwargs,
             )
+            return {"result": result}
         except GenerativeAIPromptError as e:
             raise UnexpectedDispatchException(
                 f"AI prompt execution failed: {str(e)}"
             ) from e
-
-        # Parse the result for choice output type
-        if service.ai_output_type == AIOutputType.CHOICE and output_parser:
-            try:
-                parsed_result = output_parser.parse(result)
-                result = parsed_result.value
-            except OutputParserException:
-                # If parsing fails, return the raw result
-                pass
-
-        return {"result": result}
 
     def dispatch_transform(self, data: Dict[str, Any]) -> DispatchResult:
         return DispatchResult(data=data)

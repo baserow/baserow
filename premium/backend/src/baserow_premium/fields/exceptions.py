@@ -5,7 +5,8 @@ class GenerativeAITypeDoesNotSupportFileField(Exception):
     """
 
 
-class AiFieldOutputParserException(Exception):
+class AIFieldEmptyPromptError(Exception):
     """
-    Raised when the output from the AI model could not be parsed correctly.
+    Raised when the resolved prompt for an AI field is empty, meaning there
+    is nothing to send to the model.
     """

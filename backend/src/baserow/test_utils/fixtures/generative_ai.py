@@ -1,15 +1,9 @@
-import random
-from typing import Optional
-
 from baserow.api.generative_ai.serializers import GenerativeAIModelsSerializer
 from baserow.core.generative_ai.exceptions import GenerativeAIPromptError
 from baserow.core.generative_ai.registries import (
     GenerativeAIModelType,
-    GenerativeAIWithFilesModelType,
     generative_ai_model_type_registry,
 )
-from baserow.core.generative_ai.types import FileId
-from baserow.core.models import Workspace
 
 
 class TestGenerativeAINoModelType(GenerativeAIModelType):
@@ -38,17 +32,31 @@ class TestGenerativeAIModelType(GenerativeAIModelType):
         models = self.get_workspace_setting(workspace, "models")
         return models if models else ["test_1"]
 
-    def prompt(self, model, prompt, workspace=None, temperature=None):
+    def prompt(
+        self,
+        model,
+        prompt,
+        workspace=None,
+        temperature=None,
+        settings_override=None,
+        output_type=None,
+        content=None,
+    ):
+        if isinstance(output_type, list):
+            return output_type[0]
+        if output_type is not None:
+            raise GenerativeAIPromptError(
+                "Test fixture does not support structured output."
+            )
         return f"Generated with temperature {temperature}: {prompt}"
 
     def get_settings_serializer(self):
         return GenerativeAIModelsSerializer
 
 
-class TestGenerativeAIWithFilesModelType(
-    GenerativeAIWithFilesModelType, GenerativeAIModelType
-):
+class TestGenerativeAIWithFilesModelType(GenerativeAIModelType):
     type = "test_generative_ai_with_files"
+    supports_files = True
 
     def is_enabled(self, workspace=None):
         return True
@@ -57,46 +65,38 @@ class TestGenerativeAIWithFilesModelType(
         models = self.get_workspace_setting(workspace, "models")
         return models if models else ["test_1"]
 
-    def prompt(self, model, prompt, workspace=None, temperature=None):
+    def prompt(
+        self,
+        model,
+        prompt,
+        workspace=None,
+        temperature=None,
+        settings_override=None,
+        output_type=None,
+        content=None,
+    ):
+        if isinstance(output_type, list):
+            return output_type[0]
+        if content:
+            return f"Generated with files and temperature {temperature}: {prompt}"
         return f"Generated with temperature {temperature}: {prompt}"
 
     def get_settings_serializer(self):
         return GenerativeAIModelsSerializer
 
-    def is_file_compatible(self, file_name: str) -> bool:
-        return True
+    def prepare_files(self, files, workspace=None, settings_override=None):
+        from pydantic_ai import BinaryContent
 
-    def get_max_file_size(self):
-        return 1  # 1 megabyte
+        for ai_file in files:
+            if ai_file.size > 1 * 1024 * 1024:  # 1 MB limit
+                continue
+            data = ai_file.read_content()
+            ai_file.content = BinaryContent(data=data, media_type=ai_file.mime_type)
+            break  # first file only
+        return [f for f in files if f.content is not None]
 
-    def upload_file(
-        self, file_name: str, file: bytes, workspace: Optional[Workspace] = None
-    ):
-        if getattr(self, "_files", None) is None:
-            self._files = {}
-
-        gen_id = str(random.randint(0, 1000))
-        self._files[gen_id] = {
-            "file_name": file_name,
-            "file": file,
-        }
-        return gen_id
-
-    def delete_files(
-        self, file_ids: list[FileId], workspace: Optional[Workspace] = None
-    ):
-        for file_id in file_ids:
-            del self._files[file_id]
-
-    def prompt_with_files(
-        self,
-        model: str,
-        prompt: str,
-        file_ids: list[FileId],
-        workspace: Optional[Workspace] = None,
-        temperature: Optional[float] = None,
-    ):
-        return f"Generated with files {str(file_ids)} and temperature {temperature}: {prompt}"
+    def delete_file(self, ai_file, workspace=None, settings_override=None):
+        pass
 
 
 class TestGenerativeAIModelTypePromptError(GenerativeAIModelType):
@@ -108,7 +108,16 @@ class TestGenerativeAIModelTypePromptError(GenerativeAIModelType):
     def get_enabled_models(self, workspace=None):
         return ["test_1"]
 
-    def prompt(self, model, prompt, workspace=None, temperature=None):
+    def prompt(
+        self,
+        model,
+        prompt,
+        workspace=None,
+        temperature=None,
+        settings_override=None,
+        output_type=None,
+        content=None,
+    ):
         raise GenerativeAIPromptError("Test error")
 
     def get_settings_serializer(self):

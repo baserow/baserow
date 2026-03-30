@@ -18,33 +18,24 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.operations import ListFieldsOperationType
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.rows.runtime_formula_contexts import (
-    HumanReadableRowContext,
-)
 from baserow.contrib.database.rows.signals import rows_ai_values_generation_error
 from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.contrib.database.views.exceptions import ViewDoesNotExist
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
-from baserow.core.formula import resolve_formula
-from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.generative_ai.exceptions import (
     GenerativeAIPromptError,
     ModelDoesNotBelongToType,
-)
-from baserow.core.generative_ai.registries import (
-    GenerativeAIWithFilesModelType,
-    generative_ai_model_type_registry,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import _empty_transaction_context
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.registries import JobType
 from baserow.core.utils import ChildProgressBuilder
-from baserow_premium.generative_ai.managers import AIFileManager
 
+from .exceptions import AIFieldEmptyPromptError
+from .handler import AIFieldHandler
 from .models import AIField, AIFieldScheduledUpdate, GenerateAIValuesJob
-from .registries import ai_field_output_registry
 
 
 class AIValueUpdate(NamedTuple):
@@ -52,27 +43,6 @@ class AIValueUpdate(NamedTuple):
     result: Any | Exception
     start_at: datetime
     end_at: datetime
-
-
-def get_valid_generative_ai_model_type_or_raise(ai_field: AIField):
-    """
-    Returns the generative AI model type for the given AI field if the model belongs
-    to the type. Otherwise, raises a ModelDoesNotBelongToType exception.
-
-    :param ai_field: The AI field to check.
-    :return: The generative AI model type.
-    :raises ModelDoesNotBelongToType: If the model does not belong to the type.
-    """
-
-    generative_ai_model_type = generative_ai_model_type_registry.get(
-        ai_field.ai_generative_ai_type
-    )
-    workspace = ai_field.table.database.workspace
-    ai_models = generative_ai_model_type.get_enabled_models(workspace=workspace)
-
-    if ai_field.ai_generative_ai_model not in ai_models:
-        raise ModelDoesNotBelongToType(model_name=ai_field.ai_generative_ai_model)
-    return generative_ai_model_type
 
 
 class GenerateAIValuesJobType(JobType):
@@ -229,7 +199,7 @@ class GenerateAIValuesJobType(JobType):
             "field_id": ai_field.id,
         }
 
-        get_valid_generative_ai_model_type_or_raise(ai_field)
+        AIFieldHandler.get_valid_model_type_or_raise(ai_field)
 
         if unsaved_job.mode == GenerateAIValuesJob.MODES.AUTO_UPDATE:
             if not AIFieldScheduledUpdate.objects.filter(field_id=ai_field.id).exists():
@@ -425,21 +395,14 @@ class AIValueGenerator:
 
     def prepare(self):
         """
-        Prepares runtime values from AI field attached.
-
-        This method prepares common values to be used during processing and should be
-        called once, before processing is started.
+        Validates that the AI field's model configuration is still valid
+        before processing begins. Sends an error signal and re-raises if the
+        model is no longer available.
         """
 
         try:
-            self.generative_ai_model_type = get_valid_generative_ai_model_type_or_raise(
-                self.ai_field
-            )
+            AIFieldHandler.get_valid_model_type_or_raise(self.ai_field)
         except ModelDoesNotBelongToType as exc:
-            # If the workspace AI settings have been removed before the task starts,
-            # or if the export worker doesn't have the right env vars yet, then it can
-            # fail. We therefore want to handle the error gracefully.
-            # Note: rows might be a generator, so we can't pass it directly
             rows_ai_values_generation_error.send(
                 self.signal_sender,
                 user=self.user,
@@ -449,15 +412,6 @@ class AIValueGenerator:
                 error_message=str(exc),
             )
             raise exc
-
-        self.ai_output_type = ai_field_output_registry.get(self.ai_field.ai_output_type)
-
-        self.use_file_fields = (
-            self.ai_field.ai_file_field_id is not None
-            and isinstance(
-                self.generative_ai_model_type, GenerativeAIWithFilesModelType
-            )
-        )
 
     def generate_value_for(self, row: GeneratedTableModel):
         """
@@ -472,80 +426,19 @@ class AIValueGenerator:
 
         start = datetime.now(tz=timezone.utc)
         try:
-            result = self._generate_value_for(row)
-            end = datetime.now(tz=timezone.utc)
-            self.results_queue.put(
-                AIValueUpdate(row, result, start, end),
-                block=True,
-            )
-        except Exception as e:
-            logger.opt(exception=e).error(f"Value generation for row {row} failed: {e}")
-            end = datetime.now(tz=timezone.utc)
-            self.results_queue.put(
-                AIValueUpdate(row, e, start, end),
-                block=True,
-            )
+            result = AIFieldHandler.generate_value_with_ai(self.ai_field, row)
+        except AIFieldEmptyPromptError:
+            # Empty prompt — preserve existing value.
+            result = getattr(row, self.ai_field.db_column, None)
+        except Exception as exc:
+            logger.exception(f"Value generation for row {row} failed: {exc}")
+            result = exc
 
-    def _generate_value_for(self, row: GeneratedTableModel) -> Any:
-        """
-        Prepares the message (and optionally files), sends it to the AI model and
-        returns the result.
-
-        :param row: A row to generate value for.
-        :return: A result from the AI model.
-        """
-
-        ai_field = self.ai_field
-        ai_output_type = self.ai_output_type
-        generative_ai_model_type = self.generative_ai_model_type
-        workspace = self.workspace
-
-        context = HumanReadableRowContext(row, exclude_field_ids=[ai_field.id])
-        message = str(
-            resolve_formula(
-                ai_field.ai_prompt, formula_runtime_function_registry, context
-            )
+        end = datetime.now(tz=timezone.utc)
+        self.results_queue.put(
+            AIValueUpdate(row, result, start, end),
+            block=True,
         )
-
-        # The AI output type should be able to format the prompt because it can add
-        # additional instructions to it. The choice output type for example adds
-        # additional prompt trying to force the output, for example.
-        message = ai_output_type.format_prompt(message, ai_field)
-
-        if not message or not message.strip():
-            # If the resolved prompt is empty, preserve the existing value instead
-            # of overwriting it with NULL in the database.
-            return getattr(row, ai_field.db_column, None)
-
-        if self.use_file_fields:
-            file_ids = []
-            try:
-                file_ids = AIFileManager.upload_files_from_file_field(
-                    ai_field, row, generative_ai_model_type
-                )
-                value = generative_ai_model_type.prompt_with_files(
-                    ai_field.ai_generative_ai_model,
-                    message,
-                    file_ids=file_ids,
-                    workspace=workspace,
-                    temperature=ai_field.ai_temperature,
-                )
-            finally:
-                generative_ai_model_type.delete_files(file_ids, workspace=workspace)
-        else:
-            value = generative_ai_model_type.prompt(
-                ai_field.ai_generative_ai_model,
-                message,
-                workspace=workspace,
-                temperature=ai_field.ai_temperature,
-            )
-
-        # Because the AI output type can change the prompt to try to force the
-        # output a certain way, then it should give the opportunity to parse the
-        # output when it's given. With the choice output type, it will try to
-        # match it to a `SelectOption`, for example.
-        value = ai_output_type.parse_output(value, ai_field)
-        return value
 
     def handle_error(self, error_message: str):
         """
