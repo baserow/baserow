@@ -3,16 +3,14 @@
     <div v-if="mode === 'editing' && children.length === 0">
       <AddElementZone
         :disabled="
-          !isContainerDragging &&
           !$hasPermission(
             'builder.page.create_element',
             currentPage,
             workspace.id
           )
         "
-        :is-drag-active="isContainerDragging"
+        :parent-element="element"
         @add-element="showAddElementModal"
-        @drop="onContainerDrop"
       ></AddElementZone>
       <AddElementModal
         ref="addElementModal"

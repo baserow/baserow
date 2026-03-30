@@ -420,6 +420,7 @@ class ElementHandler:
 
     def move_element(
         self,
+        target_page: Page,
         element: ElementForUpdate,
         parent_element: Optional[Element],
         place_in_container: str,
@@ -457,6 +458,7 @@ class ElementHandler:
                 element.page, parent_element_id, place_in_container
             )
 
+        element.page = target_page
         element.parent_element = parent_element
         element.place_in_container = place_in_container
 

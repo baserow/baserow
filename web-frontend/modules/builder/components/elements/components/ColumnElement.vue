@@ -35,16 +35,15 @@
       <AddElementZone
         v-else-if="mode === 'editing'"
         :disabled="
-          !isDragging &&
           !$hasPermission(
             'builder.page.create_element',
             elementPage,
             workspace.id
           )
         "
-        :is-drag-active="isDragging"
+        :place-in-container="`${columnIndex}`"
+        :parent-element="element"
         @add-element="showAddElementModal(columnIndex)"
-        @drop="onDropInColumn(columnIndex)"
       />
     </div>
     <AddElementModal ref="addElementModal" :page="elementPage" />
@@ -54,7 +53,6 @@
 <script>
 import _ from 'lodash'
 
-import { notifyIf } from '@baserow/modules/core/utils/error'
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
 import containerElement from '@baserow/modules/builder/mixins/containerElement'
@@ -72,7 +70,6 @@ export default {
     AddElementModal,
   },
   mixins: [containerElement, dimensionMixin],
-  inject: ['dndContext'],
   props: {
     /**
      * @type {Object}
@@ -92,22 +89,6 @@ export default {
   },
   emits: ['move'],
   computed: {
-    isDragging() {
-      const dragged = this.dndContext?.draggedElement
-      if (!dragged) return false
-      const draggedElementType = this.$registry.get('element', dragged.type)
-      return (
-        draggedElementType.isDisallowedReason({
-          workspace: this.workspace,
-          builder: this.builder,
-          page: this.elementPage,
-          parentElement: this.element,
-          beforeElement: null,
-          placeInContainer: '0',
-          pagePlace: this.elementType.getPagePlace(),
-        }) === null
-      )
-    },
     flexAlignment() {
       const alignmentMapping = {
         [VERTICAL_ALIGNMENTS.TOP]: 'flex-start',
@@ -161,62 +142,6 @@ export default {
         placeInContainer: `${columnIndex}`,
         parentElementId: this.element.id,
       })
-    },
-    async onDropInColumn(columnIndex) {
-      const dragged = this.dndContext?.draggedElement
-      if (!dragged) return
-
-      // Validate the element type is allowed inside this column
-      const draggedElementType = this.$registry.get('element', dragged.type)
-      const reason = draggedElementType.isDisallowedReason({
-        workspace: this.workspace,
-        builder: this.builder,
-        page: this.elementPage,
-        parentElement: this.element,
-        beforeElement: null,
-        placeInContainer: `${columnIndex}`,
-        pagePlace: this.elementType.getPagePlace(),
-      })
-      if (reason) {
-        this.dragOverColumnIndex = null
-        return
-      }
-
-      this.dragOverColumnIndex = null
-      this.dndContext.draggedElement = null
-      this.dndContext.dropTargetId = null
-      this.dndContext.dropPosition = null
-
-      if (
-        !this.$hasPermission(
-          'builder.page.element.update',
-          dragged,
-          this.workspace.id
-        )
-      ) {
-        return
-      }
-
-      const draggedPage = this.$store.getters['page/getById'](
-        this.builder,
-        dragged.page_id
-      )
-
-      const isCrossPage = dragged.page_id !== this.element.page_id
-
-      try {
-        await this.$store.dispatch('element/move', {
-          builder: this.builder,
-          page: draggedPage,
-          elementId: dragged.id,
-          beforeElementId: null,
-          parentElementId: this.element.id,
-          placeInContainer: `${columnIndex}`,
-          ...(isCrossPage && { targetPage: this.elementPage }),
-        })
-      } catch (error) {
-        notifyIf(error)
-      }
     },
   },
 }

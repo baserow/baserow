@@ -65,15 +65,10 @@
         <template v-if="children.length === 0 && isEditMode">
           <!-- Give the designer the chance to add child elements -->
           <AddElementZone
-            :disabled="
-              !isContainerDragging &&
-              elementIsInError &&
-              !elementHasSourceOfData
-            "
+            :disabled="elementIsInError && !elementHasSourceOfData"
             :tooltip="addElementErrorTooltipMessage"
-            :is-drag-active="isContainerDragging"
+            :parent-element="element"
             @add-element="showAddElementModal"
-            @drop="onContainerDrop"
           ></AddElementZone>
           <AddElementModal
             ref="addElementModal"
@@ -92,15 +87,10 @@
         <!-- If we also have no children, allow the designer to add elements -->
         <template v-if="children.length === 0 && isEditMode">
           <AddElementZone
-            :disabled="
-              !isContainerDragging &&
-              elementIsInError &&
-              !elementHasSourceOfData
-            "
+            :disabled="elementIsInError && !elementHasSourceOfData"
             :tooltip="addElementErrorTooltipMessage"
-            :is-drag-active="isContainerDragging"
+            :parent-element="element"
             @add-element="showAddElementModal"
-            @drop="onContainerDrop"
           ></AddElementZone>
           <AddElementModal
             ref="addElementModal"
@@ -145,7 +135,6 @@ import { RepeatElementType } from '@baserow/modules/builder/elementTypes'
 import CollectionElementHeader from '@baserow/modules/builder/components/elements/components/CollectionElementHeader'
 import { ORIENTATIONS } from '@baserow/modules/builder/enums'
 import { useCollectionElement } from '@baserow/modules/builder/composables/useCollectionElement'
-import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'RepeatElement',
@@ -156,7 +145,6 @@ export default {
     AddElementModal,
     AddElementZone,
   },
-  inject: ['dndContext', 'workspace', 'builder'],
   props: {
     /**
      * @type {Object}
@@ -222,22 +210,6 @@ export default {
     }
   },
   computed: {
-    isContainerDragging() {
-      const dragged = this.dndContext?.draggedElement
-      if (!dragged) return false
-      const draggedElementType = this.$registry.get('element', dragged.type)
-      return (
-        draggedElementType.isDisallowedReason({
-          workspace: this.workspace,
-          builder: this.builder,
-          page: this.elementPage,
-          parentElement: this.element,
-          beforeElement: null,
-          placeInContainer: null,
-          pagePlace: this.elementType.getPagePlace(),
-        }) === null
-      )
-    },
     deviceTypeSelected() {
       return this.$store.getters['page/getDeviceTypeSelected']
     },
@@ -300,45 +272,6 @@ export default {
         placeInContainer: null,
         parentElementId: this.element.id,
       })
-    },
-    async onContainerDrop() {
-      if (!this.isContainerDragging) return
-
-      const dragged = this.dndContext.draggedElement
-
-      this.dndContext.draggedElement = null
-      this.dndContext.dropTargetId = null
-      this.dndContext.dropPosition = null
-
-      if (
-        !this.$hasPermission(
-          'builder.page.element.update',
-          dragged,
-          this.workspace.id
-        )
-      ) {
-        return
-      }
-
-      const draggedPage = this.$store.getters['page/getById'](
-        this.builder,
-        dragged.page_id
-      )
-      const isCrossPage = dragged.page_id !== this.elementPage.id
-
-      try {
-        await this.$store.dispatch('element/move', {
-          builder: this.builder,
-          page: draggedPage,
-          elementId: dragged.id,
-          beforeElementId: null,
-          parentElementId: this.element.id,
-          placeInContainer: null,
-          ...(isCrossPage && { targetPage: this.elementPage }),
-        })
-      } catch (error) {
-        notifyIf(error)
-      }
     },
   },
 }

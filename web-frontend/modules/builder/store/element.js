@@ -448,7 +448,7 @@ const actions = {
       targetPage = null,
     }
   ) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $client } = this
     const element = getters.getElementById(page, elementId)
     const { order: previousOrder, place_in_container: previousPlace } = element
 

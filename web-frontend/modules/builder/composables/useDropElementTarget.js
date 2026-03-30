@@ -1,0 +1,221 @@
+import { computed, inject, ref, unref } from 'vue'
+import { useStore } from 'vuex'
+import { useNuxtApp } from '#app'
+import { notifyIf } from '@baserow/modules/core/utils/error'
+
+export function useDropElementTarget({
+  parentElement,
+  referenceElement = null,
+  placeInContainer = null,
+}) {
+  const store = useStore()
+  const { $registry, $hasPermission } = useNuxtApp()
+
+  const workspace = inject('workspace')
+  const builder = inject('builder')
+
+  const dndContext = inject('dndContext')
+
+  const isDragOver = ref(false)
+  const dropPosition = ref(null)
+
+  const draggedElement = computed(() => dndContext?.draggedElement ?? null)
+
+  const targetPage = computed(() => {
+    if (unref(referenceElement)) {
+      return store.getters['page/getById'](
+        builder,
+        unref(referenceElement).page_id
+      )
+    }
+    return store.getters['page/getById'](builder, unref(parentElement).page_id)
+  })
+
+  const resolvedParentElement = computed(() => {
+    const reference = unref(referenceElement)
+
+    if (reference) {
+      return store.getters['element/getParent'](targetPage.value, reference)
+    }
+
+    return unref(parentElement)
+  })
+
+  const resolvedBeforeElement = computed(() => {
+    const reference = unref(referenceElement)
+
+    if (!reference) {
+      return null
+    }
+
+    if (dropPosition.value === 'after') {
+      return store.getters['element/getNextElement'](
+        targetPage.value,
+        reference
+      )
+    }
+
+    return reference
+  })
+
+  const resolvedPagePlace = computed(() => {
+    if (!draggedElement.value) {
+      return null
+    }
+    return draggedElementType.value.getPagePlace()
+  })
+
+  const draggedElementType = computed(() => {
+    const dragged = draggedElement.value
+    if (!dragged) {
+      return null
+    }
+
+    return $registry.get('element', dragged.type)
+  })
+
+  const isValidDropTarget = computed(() => {
+    const draggedType = draggedElementType.value
+    if (!draggedType) {
+      return false
+    }
+
+    const draggedElt = draggedElement.value
+
+    // If the reference element is the dragged element it's not a valid target
+    if (
+      draggedElt.id === unref(referenceElement)?.id ||
+      draggedElt.id === unref(parentElement)?.id
+    ) {
+      return false
+    }
+
+    return (
+      draggedType.isDisallowedReason({
+        workspace,
+        builder,
+        page: targetPage.value,
+        parentElement: resolvedParentElement.value,
+        beforeElement: resolvedBeforeElement.value,
+        placeInContainer: unref(placeInContainer),
+        pagePlace: resolvedPagePlace.value,
+      }) === null
+    )
+  })
+
+  const isDropTarget = computed(() => isDragOver.value)
+
+  function clearLocalState() {
+    isDragOver.value = false
+    dropPosition.value = null
+  }
+
+  function syncDropPosition(event) {
+    if (!unref(referenceElement)) {
+      return null
+    }
+
+    const rect = event.currentTarget.getBoundingClientRect()
+    const position =
+      event.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
+
+    dropPosition.value = position
+
+    return position
+  }
+
+  function onDragOverHandler(event) {
+    const dragged = draggedElement.value
+    if (!dragged) {
+      return
+    }
+
+    if (!isValidDropTarget.value) {
+      clearLocalState()
+      return
+    }
+
+    syncDropPosition(event)
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    isDragOver.value = true
+  }
+
+  function onDragLeaveHandler(event) {
+    if (
+      !event.relatedTarget ||
+      !event.currentTarget.contains(event.relatedTarget)
+    ) {
+      clearLocalState()
+    }
+  }
+
+  async function onDropHandler(event) {
+    const dragged = draggedElement.value
+    if (!dragged) {
+      return
+    }
+
+    syncDropPosition(event)
+
+    if (!isValidDropTarget.value) {
+      clearLocalState()
+      return
+    }
+
+    event.preventDefault()
+    event.stopPropagation()
+
+    if (!$hasPermission('builder.page.element.update', dragged, workspace.id)) {
+      clearLocalState()
+      return
+    }
+
+    const reason = draggedElementType.value.isDisallowedReason({
+      workspace,
+      builder,
+      page: targetPage.value,
+      parentElement: resolvedParentElement.value,
+      beforeElement: resolvedBeforeElement.value,
+      placeInContainer: unref(placeInContainer),
+      pagePlace: resolvedPagePlace.value,
+    })
+
+    if (reason) {
+      clearLocalState()
+      return
+    }
+
+    const draggedPage = store.getters['page/getById'](builder, dragged.page_id)
+
+    try {
+      await store.dispatch('element/move', {
+        builder,
+        page: draggedPage,
+        elementId: dragged.id,
+        beforeElementId: resolvedBeforeElement.value?.id || null,
+        parentElementId: resolvedParentElement.value?.id || null,
+        placeInContainer: unref(placeInContainer),
+        targetPage: targetPage.value,
+      })
+    } catch (error) {
+      notifyIf(error)
+    } finally {
+      clearLocalState()
+    }
+  }
+
+  return {
+    draggedElement,
+    draggedElementType,
+    dropPosition,
+    isDragOver,
+    isDropTarget,
+    isValidDropTarget,
+    onDragOver: onDragOverHandler,
+    onDragLeave: onDragLeaveHandler,
+    onDrop: onDropHandler,
+  }
+}

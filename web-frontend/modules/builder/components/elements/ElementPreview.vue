@@ -42,7 +42,6 @@
       :allowed-directions="allowedMoveDirections"
       :is-duplicating="isDuplicating"
       :has-parent="!!parentElement"
-      :can-drag="canDrag"
       @delete="deleteElement"
       @move="onMove"
       @duplicate="duplicateElement"
@@ -72,16 +71,18 @@
 </template>
 
 <script>
+import { computed, inject } from 'vue'
+import { useStore, mapActions, mapGetters } from 'vuex'
 import ElementMenu from '@baserow/modules/builder/components/elements/ElementMenu'
 import InsertElementButton from '@baserow/modules/builder/components/elements/InsertElementButton'
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { DIRECTIONS } from '@baserow/modules/builder/enums'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { mapActions, mapGetters } from 'vuex'
 import { checkIntermediateElements } from '@baserow/modules/core/utils/dom'
 import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
 import { useElementDraggable } from '@baserow/modules/builder/composables/useElementDraggable'
+import { useDropElementTarget } from '@baserow/modules/builder/composables/useDropElementTarget'
 
 export default {
   name: 'ElementPreview',
@@ -118,7 +119,32 @@ export default {
   },
   emits: ['move'],
   setup(props) {
-    return useElementDraggable(() => props.element)
+    const store = useStore()
+    const builder = inject('builder')
+
+    const elementPage = computed(() =>
+      store.getters['page/getById'](builder, props.element.page_id)
+    )
+    const parentElement = computed(() => {
+      if (!props.element.parent_element_id) {
+        return null
+      }
+
+      return store.getters['element/getElementById'](
+        elementPage.value,
+        props.element.parent_element_id
+      )
+    })
+    return {
+      ...useElementDraggable({ element: props.element }),
+      ...useDropElementTarget({
+        parentElement,
+        referenceElement: props.element,
+        placeInContainer: props.element.place_in_container,
+      }),
+      parentElement,
+      elementPage,
+    }
   },
   data() {
     return {
@@ -128,15 +154,6 @@ export default {
     }
   },
   computed: {
-    isDragged() {
-      return this.dndContext?.draggedElement?.id === this.element.id
-    },
-    isDropTarget() {
-      return this.dndContext?.dropTargetId === this.element.id
-    },
-    dropPosition() {
-      return this.isDropTarget ? this.dndContext.dropPosition : null
-    },
     ...mapGetters({
       getElementSelected: 'element/getSelected',
       elementAncestors: 'element/getAncestors',
@@ -155,13 +172,6 @@ export default {
     },
     elementSelected() {
       return this.getElementSelected(this.builder)
-    },
-    elementPage() {
-      // We use the page from the element itself
-      return this.$store.getters['page/getById'](
-        this.builder,
-        this.element.page_id
-      )
     },
     isVisible() {
       return this.elementType.isVisible({
@@ -207,9 +217,6 @@ export default {
         .filter(([, nextPlace]) => !!nextPlace)
         .map(([direction]) => direction)
     },
-    canDrag() {
-      return !!this.parentElement || this.allowedMoveDirections.length > 0
-    },
     canCreate() {
       return this.$hasPermission(
         'builder.page.create_element',
@@ -240,15 +247,6 @@ export default {
     },
     elementType() {
       return this.$registry.get('element', this.element.type)
-    },
-    parentElement() {
-      if (!this.element.parent_element_id) {
-        return null
-      }
-      return this.$store.getters['element/getElementById'](
-        this.elementPage,
-        this.element.parent_element_id
-      )
     },
     errorMessage() {
       return this.elementType.getErrorMessage(
@@ -424,123 +422,6 @@ export default {
           builder: this.builder,
           element: this.parentOfElementSelected,
         })
-      }
-    },
-    isCrossContainerDropValid(dragged) {
-      const draggedElementType = this.$registry.get('element', dragged.type)
-      const targetParentElement = this.element.parent_element_id
-        ? this.$store.getters['element/getElementById'](
-            this.elementPage,
-            this.element.parent_element_id
-          )
-        : null
-      return (
-        draggedElementType.isDisallowedReason({
-          workspace: this.workspace,
-          builder: this.builder,
-          page: this.elementPage,
-          parentElement: targetParentElement,
-          beforeElement: this.element,
-          placeInContainer: this.element.place_in_container,
-          pagePlace: this.elementType.getPagePlace(),
-        }) === null
-      )
-    },
-    onDragOver(event) {
-      if (!this.dndContext?.draggedElement) return
-      const dragged = this.dndContext.draggedElement
-      if (dragged.id === this.element.id) return
-
-      // When page or parent differs, validate that the element type is allowed at the
-      // drop target location (handles both same-page cross-container and cross-page).
-      if (
-        (dragged.page_id !== this.element.page_id ||
-          dragged.parent_element_id !== this.element.parent_element_id) &&
-        !this.isCrossContainerDropValid(dragged)
-      ) {
-        return
-      }
-
-      event.preventDefault()
-      event.stopPropagation()
-
-      const rect = this.$el.getBoundingClientRect()
-      const position =
-        event.clientY < rect.top + rect.height / 2 ? 'before' : 'after'
-      this.dndContext.dropTargetId = this.element.id
-      this.dndContext.dropPosition = position
-    },
-    onDragLeave(event) {
-      if (this.dndContext?.dropTargetId !== this.element.id) return
-      // Only clear when truly leaving this element (not entering a child)
-      if (!event.relatedTarget || !this.$el.contains(event.relatedTarget)) {
-        this.dndContext.dropTargetId = null
-        this.dndContext.dropPosition = null
-      }
-    },
-    async onDrop(event) {
-      if (!this.dndContext?.draggedElement) return
-      const dragged = this.dndContext.draggedElement
-      if (dragged.id === this.element.id) return
-
-      if (
-        (dragged.page_id !== this.element.page_id ||
-          dragged.parent_element_id !== this.element.parent_element_id) &&
-        !this.isCrossContainerDropValid(dragged)
-      ) {
-        return
-      }
-
-      event.preventDefault()
-      event.stopPropagation()
-
-      if (
-        !this.$hasPermission(
-          'builder.page.element.update',
-          dragged,
-          this.workspace.id
-        )
-      ) {
-        this.dndContext.dropTargetId = null
-        this.dndContext.dropPosition = null
-        return
-      }
-
-      const position = this.dndContext.dropPosition
-      this.dndContext.draggedElement = null
-      this.dndContext.dropTargetId = null
-      this.dndContext.dropPosition = null
-
-      const draggedPage = this.$store.getters['page/getById'](
-        this.builder,
-        dragged.page_id
-      )
-
-      let beforeElementId
-      if (position === 'before') {
-        beforeElementId = this.element.id
-      } else {
-        const nextElement = this.$store.getters['element/getNextElement'](
-          this.elementPage,
-          this.element
-        )
-        beforeElementId = nextElement?.id || null
-      }
-
-      const isCrossPage = dragged.page_id !== this.element.page_id
-
-      try {
-        await this.$store.dispatch('element/move', {
-          builder: this.builder,
-          page: draggedPage,
-          elementId: dragged.id,
-          beforeElementId,
-          parentElementId: this.element.parent_element_id,
-          placeInContainer: this.element.place_in_container,
-          ...(isCrossPage && { targetPage: this.elementPage }),
-        })
-      } catch (error) {
-        notifyIf(error)
       }
     },
   },

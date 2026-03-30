@@ -3,7 +3,10 @@ from typing import TYPE_CHECKING, List, Optional
 from django.contrib.auth.models import AbstractUser
 from django.utils import translation
 
-from baserow.contrib.builder.elements.exceptions import ElementNotInSamePage
+from baserow.contrib.builder.elements.exceptions import (
+    ElementMoveNotAllowed,
+    ElementNotInSamePage,
+)
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.elements.operations import (
@@ -26,6 +29,7 @@ from baserow.contrib.builder.elements.types import (
     ElementForUpdate,
     ElementsAndWorkflowActions,
 )
+from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.exceptions import CannotCalculateIntermediateOrder
 from baserow.core.handler import CoreHandler
@@ -212,6 +216,7 @@ class ElementService:
     def move_element(
         self,
         user: AbstractUser,
+        target_page: Page,
         element: ElementForUpdate,
         parent_element: Optional[Element],
         place_in_container: str,
@@ -236,13 +241,18 @@ class ElementService:
             context=element,
         )
 
-        # Check we are on the same page.
-        if before and element.page_id != before.page_id:
-            raise ElementNotInSamePage()
+        # Check we are on the same builder.
+        if target_page.builder != element.page.builder:
+            raise PageNotInBuilder()
+
+        if parent_element and parent_element.id == element.id:
+            raise ElementMoveNotAllowed(
+                "Moving a container inside itself is not allowed"
+            )
 
         try:
             element = self.handler.move_element(
-                element, parent_element, place_in_container, before=before
+                target_page, element, parent_element, place_in_container, before=before
             )
         except CannotCalculateIntermediateOrder:
             # If it's failing, we need to recalculate all orders then move again.
@@ -250,7 +260,7 @@ class ElementService:
             # Refresh the before element as the order might have changed.
             before.refresh_from_db()
             element = self.handler.move_element(
-                element, parent_element, place_in_container, before=before
+                target_page, element, parent_element, place_in_container, before=before
             )
 
         element_moved.send(

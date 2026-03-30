@@ -13,7 +13,7 @@ import { ref, onUnmounted, inject } from 'vue'
  * @returns {{ isDraggable: Ref<boolean>, onDragHandleMouseDown: Function,
  *   onDragStart: Function, onDragEnd: Function }}
  */
-export function useElementDraggable(getElement) {
+export function useElementDraggable({ element }) {
   const dndContext = inject('dndContext')
 
   const isDraggable = ref(false)
@@ -22,23 +22,23 @@ export function useElementDraggable(getElement) {
     isDraggable.value = false
   }
 
+  const isDragged = computed(() => {
+    return dndContext.draggedElement?.id === unref(element).id
+  })
+
   function onDragHandleMouseDown() {
     isDraggable.value = true
     window.addEventListener('mouseup', resetDraggable, { once: true })
   }
 
   function onDragStart(event) {
-    if (!dndContext) return
     event.dataTransfer.effectAllowed = 'move'
-    event.dataTransfer.setData('text/plain', String(getElement().id))
-    dndContext.draggedElement = getElement()
+    event.dataTransfer.setData('text/plain', String(unref(element).id))
+    dndContext.draggedElement = unref(element)
   }
 
   function onDragEnd() {
-    if (!dndContext) return
     dndContext.draggedElement = null
-    dndContext.dropTargetId = null
-    dndContext.dropPosition = null
     isDraggable.value = false
   }
 
@@ -48,6 +48,7 @@ export function useElementDraggable(getElement) {
 
   return {
     isDraggable,
+    isDragged,
     onDragHandleMouseDown,
     onDragStart,
     onDragEnd,
