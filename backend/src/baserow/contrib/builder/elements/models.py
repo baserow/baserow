@@ -5,7 +5,7 @@ from typing import List, Optional
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.db.models import SET_NULL, QuerySet
+from django.db.models import SET_NULL
 from django.utils.functional import lazy
 
 from baserow.contrib.builder.constants import (
@@ -123,7 +123,6 @@ class Element(
         default=list,
         help_text="User roles associated with this element, used in conjunction with role_type.",
     )
-
     visibility = models.CharField(
         choices=VISIBILITY_TYPES.choices,
         max_length=20,
@@ -266,6 +265,34 @@ class Element(
         max_length=6,
     )
 
+    # ---- Compatibility fields, will be removed in an upcoming release ---- #
+    compat_order = models.DecimalField(
+        help_text="Lowest first.",
+        max_digits=40,
+        decimal_places=20,
+        editable=False,
+        default=1,
+        db_column="order",
+    )
+    compat_parent_element = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        default=None,
+        help_text="The parent element, if inside a container.",
+        related_name="compat_children",
+        db_column="parent_element_id",
+    )
+    compat_place_in_container = models.CharField(
+        null=True,
+        blank=True,
+        default=None,
+        max_length=255,
+        help_text="The place in the container.",
+        db_column="place_in_container",
+    )
+    # ---- Compatibility fields, will be removed in an upcoming release ---- #
+
     class Meta:
         ordering = ("id",)
 
@@ -308,30 +335,6 @@ class Element(
 
     def get_parent(self):
         return self.page
-
-    @classmethod
-    def _scope_queryset_to_container(
-        cls, queryset: QuerySet, parent_element_id: int, place_in_container: str
-    ) -> QuerySet:
-        """
-        Filters the queryset to only include elements that are in the same container
-        as the child element.
-
-        :param queryset: The queryset to filter.
-        :param parent_element_id: The ID of the parent element.
-        :param place_in_container: The place in container of the child element.
-        :return: The filtered queryset.
-        """
-
-        if parent_element_id:
-            return queryset.filter(
-                parent_element_id=parent_element_id,
-                place_in_container=place_in_container,
-            )
-        else:
-            return queryset.filter(
-                parent_element_id=None,
-            )
 
 
 class ContainerElement(Element):

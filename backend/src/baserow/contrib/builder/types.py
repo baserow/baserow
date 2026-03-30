@@ -11,7 +11,6 @@ from baserow.core.workflow_actions.models import WorkflowAction
 class ElementDict(TypedDict):
     id: int
     type: str
-    place_in_container: str
     css_classes: str
     visibility: str
     visibility_condition: BaserowFormulaObject
