@@ -105,9 +105,12 @@ export function useDropElementTarget({
 
   const isDropTarget = computed(() => isDragOver.value)
 
+  let dragEnterCount = 0
+
   function clearLocalState() {
     isDragOver.value = false
     dropPosition.value = null
+    dragEnterCount = 0
   }
 
   function syncDropPosition(event) {
@@ -124,6 +127,18 @@ export function useDropElementTarget({
     return position
   }
 
+  function onDragEnterHandler(event) {
+    if (!draggedElement.value || !isValidDropTarget.value) {
+      return
+    }
+
+    dragEnterCount++
+    isDragOver.value = true
+
+    // Prevent the parent drop target from counting this enter
+    event.stopPropagation()
+  }
+
   function onDragOverHandler(event) {
     const dragged = draggedElement.value
     if (!dragged) {
@@ -131,7 +146,9 @@ export function useDropElementTarget({
     }
 
     if (!isValidDropTarget.value) {
-      clearLocalState()
+      if (dragEnterCount > 0) {
+        clearLocalState()
+      }
       return
     }
 
@@ -139,17 +156,20 @@ export function useDropElementTarget({
 
     event.preventDefault()
     event.stopPropagation()
-
-    isDragOver.value = true
   }
 
   function onDragLeaveHandler(event) {
-    if (
-      !event.relatedTarget ||
-      !event.currentTarget.contains(event.relatedTarget)
-    ) {
+    if (dragEnterCount === 0) {
+      return
+    }
+
+    dragEnterCount--
+
+    if (dragEnterCount === 0) {
       clearLocalState()
     }
+
+    event.stopPropagation()
   }
 
   async function onDropHandler(event) {
@@ -214,6 +234,7 @@ export function useDropElementTarget({
     isDragOver,
     isDropTarget,
     isValidDropTarget,
+    onDragEnter: onDragEnterHandler,
     onDragOver: onDragOverHandler,
     onDragLeave: onDragLeaveHandler,
     onDrop: onDropHandler,

@@ -6,6 +6,7 @@
       'add-element-zone--drag-active': isValidDropTarget,
       'add-element-zone--drag-over': isDragOver,
     }"
+    @dragenter="onDragEnter"
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @drop="onDrop"

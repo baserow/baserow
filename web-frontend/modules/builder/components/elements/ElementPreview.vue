@@ -17,6 +17,7 @@
     @click="onSelect"
     @dragstart.stop="onDragStart"
     @dragend="onDragEnd"
+    @dragenter="onDragEnter"
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @drop="onDrop"
