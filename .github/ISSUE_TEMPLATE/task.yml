@@ -1,0 +1,17 @@
+name: Task
+description: Documentation updates, refactoring, dependency bumps, or other non-feature, non-bug work.
+type: "Task"
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template for tasks that aren't bug fixes or new features.
+        Small tasks (typos, broken links) can go straight to a PR without an issue — see [CONTRIBUTING.md](../../CONTRIBUTING.md).
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What needs to be done and why.
+    validations:
+      required: true

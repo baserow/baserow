@@ -1,6 +1,6 @@
-name: 🪲 Bug Report
+name: Bug Report
 description: Report a reproducible bug in Baserow.
-labels: ["needs feedback ⚠️", "bug 🪲"]
+type: "Bug"
 body:
   - type: markdown
     attributes:
@@ -19,8 +19,8 @@ body:
   - type: textarea
     id: steps
     attributes:
-      label: Steps to reproduce
-      description: List the steps required to reproduce the error.
+      label: Steps to reproduce and actual result
+      description: List the steps required to reproduce the error and what currently happens.
       placeholder: |
         1. Go to '...'
         2. Click on '...'
@@ -29,20 +29,10 @@ body:
       required: true
 
   - type: textarea
-    id: actual-result
-    attributes:
-      label: Actual result
-      description: What currently happens in Baserow.
-    validations:
-      required: true
-
-  - type: textarea
     id: expected-result
     attributes:
       label: Expected result
       description: What you expected to happen instead.
-    validations:
-      required: true
 
   - type: textarea
     id: environment

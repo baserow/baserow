@@ -1,76 +1,110 @@
-# Contributing
+# Contributing to Baserow
 
-We love your input! We want to make contributing to this project as easy and
-transparent as possible. If you wish to contribute please first discuss the change
-you wish to make via an issue, email, contact form at https://baserow.io/contact or
-any other method with us. If you do not know on what to contribute, please send us a
-small overview of your experience and optionally what you would like to learn. We will
-get back to you as soon as possible with proposed issues.
+We appreciate your interest in contributing to Baserow. To make the process smooth for everyone, please read these guidelines before opening a pull request.
 
-## We develop with GitLab
+We're a small team. Creating a PR with some changes is easy — reviewing it thoroughly and ensuring it meets our standards takes significantly more time. These guidelines exist to make sure that effort is well spent on both sides.
 
-We use GitLab to host code, to track issues and to make feature requests. The official
-repository can be found on https://github.com/baserow/baserow/. 
+## Types of contributions
 
-## The merge request process
+### Bug fixes
 
-1. Open a new Feature Request/Change Request/Bug issue by selecting the corresponding 
-   issue type when creating an issue, or comment on an existing issue.
-1. Propose your plans and discuss them with the community on the issue.
-1. Fork the repository and create a branch from `develop`.
-1. Make the changes described in the issue.
-1. Ensure that your code meets the quality standards.
-1. Submit your merge request!
-1. Usually we enable the following GitLab merge options:
-    1. "Delete source branch when merge request is accepted. "
-    1. "Squash commits when merge request is accepted."
-1. A maintainer will review your code and merge your code.
+1. **Open a bug issue first** with steps to reproduce and expected behavior
+2. If the fix is obvious, open a PR right away. If you're unsure about the expected behavior or the right approach, wait for confirmation on the issue first.
+
+PRs without a corresponding issue will be closed.
+
+### Features and behavior changes
+
+Any PR that adds new functionality or changes existing behavior — no matter how small — requires prior approval.
+
+1. **Open a feature request issue** using the [feature request template](https://github.com/baserow/baserow/issues/new?template=feature_request.yml)
+2. Describe what you want to build, why and your proposed approach
+3. **Wait for explicit approval** from a maintainer before writing code
+4. Open your PR referencing the approved issue
+
+PRs for features without an approved issue will be closed. This isn't about gatekeeping — it's about making sure you don't invest time in something that won't be merged.
+
+### Tasks
+
+Tasks cover everything that isn't a feature or bug fix: typo corrections, broken links, documentation updates, refactoring, dependency bumps, etc.
+
+- **Small tasks** where the correctness is obvious on sight (typos, broken links, minor doc edits) can be submitted directly as a PR without an issue.
+- **Larger tasks** that touch multiple files or require design decisions need an issue and likely approval, same as features.
+
+If you're unsure, check whether a related issue already exists — if not, open one.
+
+## Before you start
+
+- Make sure your contribution either doesn't require an issue (small task) or has an approved issue (bug fix, feature, or large task). Don't write code before that.
+- Check [existing issues](https://github.com/baserow/baserow/issues) to avoid duplicate work
+- Fork the repository and create your branch from `develop`
+- Read the quality standards below
+
+## Pull request requirements
+
+Your PR title must follow [Conventional Commits](https://www.conventionalcommits.org/) format — it becomes the commit message in our git history. Keep it short and focused on the **intent** of the change, not what files were touched.
+
+Allowed prefixes: `fix:`, `feat:`, `chore:`, `docs:`. An optional scope in parentheses is encouraged: `fix(grid):`, `feat(formulas):`, `chore(deps):`.
+
+Examples:
+- `fix(forms): prevent submission with invalid rating value`
+- `feat: add Cloudflare Turnstile captcha to auth`
+- `chore(deps): bump requests to 2.33.0`
+- `docs: update contribution guidelines`
+
+Your PR must also include:
+
+- **A clear description** of what was changed and why
+- **How to test it** — steps a reviewer can follow to verify your changes
+- **A link to the issue** in the description (e.g., `Closes #123`), when applicable
+- **Tests** — backend changes need tests
+- **A changelog entry** generated using the script in `changelog/`
+
+### What will get your PR closed
+
+- **Modifying premium or enterprise code.** The `premium/` and `enterprise/` directories contain licensed code that is not open to external contributions. PRs that touch these directories — including moving code from them into core — will be closed immediately.
+- **No linked issue** for bug fixes or features (see above)
+- **No description or test instructions**
+- **Not following these guidelines** after being asked to
+
+### Size guideline
+
+Aim for focused, well-scoped PRs. As a rough guideline, we look at **lines of useful code (LOUC)** — excluding tests, boilerplate, translations, docs. A PR touching ~10 files with ~10 LOUC each is a reasonable upper bound, but complexity matters more than line count — a few lines in a critical path can be harder to review than hundreds of boilerplate. Tests and docs are excluded from LOUC but still need to be reviewed, so keep them concise and follow existing patterns. We may ask you to split a PR, reduce scope, or remove scope creep at our discretion.
+
+## What happens after you submit
+
+We review PRs as capacity allows.
+
+Possible outcomes:
+
+- **Approved and merged** — your PR meets our standards
+- **Changes requested** — we'll list what needs to change. Please respond within 2 weeks; PRs with no activity after that will be closed. You can always reopen later.
+- **Closed** — with an explanation of why. This is not personal — it's about priorities, alignment, and capacity. You can reopen if you resolve the issues, or open a fresh PR after incorporating our feedback.
+
+## Help us finish it
+
+If you've started something useful but don't have the time or context to bring it to our full quality standards, you can ask us to take it over. We may also proactively offer this on promising PRs.
+
+How it works:
+
+- Let us know in the PR that you'd like us to finish it
+- If the feature aligns with our priorities and the code is a solid foundation, we'll take it from there
+- **You get credited** as a contributor in the release. Let us know if you'd also like to be mentioned in the release blog post.
+
+We can't guarantee we'll do this for every PR. If the timing isn't right or the PR needs too many changes, we may decline. But we'll always do our best to recognize your work and, where possible, incorporate your contribution.
 
 ## Quality standards
 
-* Backend code must have unit tests.
-* Python code must be compliant with the PEP 8 standard.
-* In code Python docs must be in reStructured style.
-* SCSS code must be compliant with BEM.
-* JavaScript code must be compliant with the eslint:recommended rules.
-* In code documentation is required for every function or class that is not self-evident.
-* Documentation for every concept that can used by a plugin.
-* A new changelog entry file should be generated using the script found in the changelog folder.
-* The pipeline must pass.
-* Try to apply the **rule of 10s**: MRs should aim to have no more than 10 code files with more than 10 lines modified. 
-  A code file doesn't include tests/css/text/migrations/translations/configuration/ etc.
+See [Code quality](docs/development/code-quality.md) for the full list of standards, linters, and testing expectations. The CI pipeline must pass and security impact must be considered.
 
-## Any contributions you make will be under the MIT Software License
+## License
 
-In short, when you submit code changes, your submissions are understood to be under
-the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the
-project. Feel free to contact us if that is a concern.
+When you submit code changes, your submissions are understood to be under the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the project.
 
-## Bug reports
+## Security vulnerabilities
 
-We use GitHub issues to track public bugs. You can report a bug by opening a new issue
-at https://github.com/baserow/baserow/issues and selecting the Bug issue type. You may 
-also reach out to us via the community on https://community.baserow.io.
+If you find a security vulnerability, please report it privately via email or the contact form at https://baserow.io/contact — do not open a public issue.
 
-**Great Bug Reports** tend to have:
+## Questions?
 
-* A quick summary and/or background.
-* Steps to reproduce.
-  * Be specific!
-  * Give sample code if you can.
-* What you expected would happen.
-* What actually happens.
-* Notes (possibly including why you think this might be happening, or stuff you tried
-  that did not work)
-  
-People love thorough bug reports.
-
-## Vulnerability
-
-If you have found a vulnerability in Baserow we would appreciate it if you would notify
-us via email or via the contact form at https://baserow.io/contact instead of publicly
-as the vulnerability might need to be addressed first.
-
-## Updating Documentation
-
-The Baserow documentation can be updated by editing Markdown files in the `docs` directory. We use [CommonMark](https://commonmark.org/) specification rendered using [markdown-it](https://www.npmjs.com/package/markdown-it) library. The documentation site cannot be previewed at the moment, use a compatible Markdown editor to verify changes.
+For general questions about Baserow, use the [community forum](https://community.baserow.io/).
