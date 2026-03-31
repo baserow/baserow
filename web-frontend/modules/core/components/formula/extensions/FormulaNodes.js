@@ -257,15 +257,39 @@ export const FormulaInsertionExtension = Extension.create({
     return {
       insertDataComponent:
         (path) =>
-        ({ editor, commands }) => {
-          commands.insertContent([
-            zwsTextJSON(),
-            {
+        ({ editor, commands, state }) => {
+          // If a get-formula-component node is currently selected, replace it
+          // instead of inserting at the cursor position.
+          let selectedPos = null
+          let selectedSize = null
+
+          state.doc.descendants((node, pos) => {
+            if (selectedPos !== null) return false
+            if (
+              node.type.name === 'get-formula-component' &&
+              node.attrs.isSelected
+            ) {
+              selectedPos = pos
+              selectedSize = node.nodeSize
+            }
+          })
+
+          if (selectedPos !== null) {
+            commands.deleteRange({
+              from: selectedPos,
+              to: selectedPos + selectedSize,
+            })
+            commands.insertContent({
               type: 'get-formula-component',
               attrs: { path },
-            },
-            zwsTextJSON(),
-          ])
+            })
+          } else {
+            commands.insertContent([
+              zwsTextJSON(),
+              { type: 'get-formula-component', attrs: { path } },
+              zwsTextJSON(),
+            ])
+          }
 
           commands.focus()
 
