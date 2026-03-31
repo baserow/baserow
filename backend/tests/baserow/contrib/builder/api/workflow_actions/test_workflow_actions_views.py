@@ -643,13 +643,13 @@ def test_dispatch_local_baserow_create_row_workflow_action(api_client, data_fixt
 
 
 @pytest.mark.django_db
-def test_dispatch_local_baserow_create_row_workflow_action_unique_constraint(
+def test_dispatch_local_baserow_create_row_workflow_action_field_constraint(
     api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
 
-    # Create a field that has a unique constraint
+    # Create a field that has a constraint, e.g. unique
     fruit_field = FieldHandler().create_field(
         user=user,
         table=table,
@@ -690,7 +690,7 @@ def test_dispatch_local_baserow_create_row_workflow_action_unique_constraint(
     assert response_json["error"] == "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT"
     assert (
         response_json["detail"]
-        == f"Cannot create rows in table {table.id} because it violates a unique constraint."
+        == f"Cannot create rows in table {table.id} because it violates a field constraint."
     )
 
 
@@ -753,13 +753,13 @@ def test_dispatch_local_baserow_update_row_workflow_action(api_client, data_fixt
 
 
 @pytest.mark.django_db
-def test_dispatch_local_baserow_update_row_workflow_action_unique_constraint(
+def test_dispatch_local_baserow_update_row_workflow_action_field_constraint(
     api_client, data_fixture
 ):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
 
-    # Create a field that has a unique constraint
+    # Create a field that has a constraint, e.g. unique
     fruit_field = FieldHandler().create_field(
         user=user,
         table=table,
@@ -803,7 +803,7 @@ def test_dispatch_local_baserow_update_row_workflow_action_unique_constraint(
     assert response_json["error"] == "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT"
     assert (
         response_json["detail"]
-        == f"The row with id {second_row.id} violates a unique constraint."
+        == f"The row with id {second_row.id} violates a field constraint."
     )
 
 

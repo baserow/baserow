@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Ensure Local Baserow Upsert integration handles unique constraint errors.",
+    "message": "Ensure Local Baserow Upsert integration handles field constraint errors.",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "integration",

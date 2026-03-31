@@ -2146,7 +2146,7 @@ class LocalBaserowUpsertRowServiceType(
                 ) from exc
             except FieldDataConstraintException as exc:
                 raise InvalidContextContentDispatchException(
-                    f"The row with id {row_id} violates a unique constraint."
+                    f"The row with id {row_id} violates a field constraint."
                 ) from exc
         else:
             try:
@@ -2164,7 +2164,7 @@ class LocalBaserowUpsertRowServiceType(
             except FieldDataConstraintException as exc:
                 raise InvalidContextContentDispatchException(
                     f"Cannot create rows in table {table.id} because "
-                    "it violates a unique constraint."
+                    "it violates a field constraint."
                 ) from exc
 
         return {
