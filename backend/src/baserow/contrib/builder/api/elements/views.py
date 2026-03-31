@@ -357,15 +357,18 @@ class MoveElementView(APIView):
         # If we have a before or a parent, we use the same page otherwise
         # we use the page provided or the one from the element
 
-        target_page = (
-            before.page
-            if before
-            else parent_element.page
-            if parent_element
-            else PageHandler().get_page(target_page_id)
-            if target_page_id
-            else element.page
-        )
+        try:
+            target_page = (
+                before.page
+                if before
+                else parent_element.page
+                if parent_element
+                else PageHandler().get_page(target_page_id)
+                if target_page_id
+                else element.page
+            )
+        except PageDoesNotExist as e:
+            raise PageNotInBuilder(target_page_id) from e
 
         moved_element = ElementService().move_element(
             request.user,

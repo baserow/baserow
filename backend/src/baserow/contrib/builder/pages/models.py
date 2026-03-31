@@ -105,6 +105,9 @@ class Page(
         queryset = Page.objects_without_shared.filter(builder=builder)
         return cls.get_highest_order_of_queryset(queryset) + 1
 
+    def __str__(self):
+        return f"<Page id={self.id} name={self.name}/>"
+
 
 class DuplicatePageJob(
     JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds, Job

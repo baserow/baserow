@@ -455,7 +455,7 @@ class ElementHandler:
             )
         else:
             element.order = Element.get_last_order(
-                element.page, parent_element_id, place_in_container
+                target_page, parent_element_id, place_in_container
             )
 
         element.page = target_page

@@ -271,7 +271,7 @@ const actions = {
       forceCreate = true,
     }
   ) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $registry, $client } = this
     const elementType = $registry.get('element', elementTypeName)
     const updatedValues = elementType.getDefaultValues(page, values)
     const { data: element } = await ElementService($client).create(
@@ -290,7 +290,7 @@ const actions = {
     return element
   },
   async update({ dispatch }, { builder, page, element, values }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $client } = this
     const oldValues = {}
     const newValues = {}
     Object.keys(values).forEach((name) => {
@@ -319,7 +319,7 @@ const actions = {
     { dispatch, getters },
     { builder, page, element, values }
   ) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $client } = this
     const oldValues = {}
     Object.keys(values).forEach((name) => {
       if (Object.prototype.hasOwnProperty.call(element, name)) {
@@ -376,7 +376,7 @@ const actions = {
     })
   },
   async delete({ dispatch, getters }, { builder, page, elementId }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $client } = this
     const elementToDelete = getters.getElementById(page, elementId)
     const descendants = getters.getDescendants(page, elementToDelete)
 
@@ -406,7 +406,7 @@ const actions = {
     }
   },
   async fetch({ dispatch, commit }, { builder, page }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $client } = this
     const { data: elements } = await ElementService($client).fetchAll(page.id)
 
     commit('SET_ITEMS', { builder, page, elements })
@@ -421,7 +421,7 @@ const actions = {
     return elements
   },
   async fetchPublished({ dispatch, commit }, { builder, page }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $client } = this
     const { data: elements } =
       await PublicBuilderService($client).fetchElements(page)
 
@@ -454,6 +454,8 @@ const actions = {
 
     const isCrossPage = targetPage !== null && targetPage.id !== page.id
 
+    const resolvedTargetPage = targetPage !== null ? targetPage : page
+
     if (isCrossPage) {
       await dispatch('forceMoveToPage', {
         page,
@@ -477,6 +479,7 @@ const actions = {
     const fire = async () => {
       try {
         const { data: elementUpdated } = await ElementService($client).move(
+          resolvedTargetPage?.id,
           elementId,
           beforeElementId,
           parentElementId,
@@ -531,7 +534,7 @@ const actions = {
     updateContext.moveTimeout = setTimeout(fire, 1000)
   },
   async duplicate({ commit, dispatch, getters }, { builder, page, elementId }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $client } = this
     const {
       data: { elements, workflow_actions: workflowActions },
     } = await ElementService($client).duplicate(elementId)
@@ -560,14 +563,14 @@ const actions = {
     return elements
   },
   emitElementEvent({ getters }, { event, elements, ...rest }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $registry } = this
     elements.forEach((element) => {
       const elementType = $registry.get('element', element.type)
       elementType.onElementEvent(event, { element, ...rest })
     })
   },
   _setElementNamespacePath({ commit, dispatch, getters }, { page, element }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $registry } = this
     const elementType = $registry.get('element', element.type)
     const elementNamespacePath = elementType.getElementNamespacePath(
       element,
