@@ -205,6 +205,15 @@ export class ElementType extends Registerable {
     if (!parentElement) {
       const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
 
+      if (
+        destinationPage.id === sharedPage.id &&
+        pagePlace === PAGE_PLACES.CONTENT
+      ) {
+        // Content elements can never be root elements on the shared page — they
+        // are only allowed inside header/footer containers.
+        return this.app.$i18n.t('elementType.notAllowedLocation')
+      }
+
       if (pagePlace === PAGE_PLACES.HEADER) {
         if (beforeElement && beforeElement.page_id === sharedPage.id) {
           // It's not allowed to add these elements as root inside header before
