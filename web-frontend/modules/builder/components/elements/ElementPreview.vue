@@ -94,14 +94,7 @@ export default {
     PageElement,
   },
   mixins: [applicationContextMixin],
-  inject: [
-    'workspace',
-    'builder',
-    'mode',
-    'currentPage',
-    'pageTopData',
-    'dndContext',
-  ],
+  inject: ['workspace', 'builder', 'mode', 'currentPage', 'pageTopData'],
   props: {
     element: {
       type: Object,

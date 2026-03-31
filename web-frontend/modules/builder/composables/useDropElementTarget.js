@@ -9,6 +9,8 @@ export function useDropElementTarget({
   placeInContainer = null,
 }) {
   const store = useStore()
+  const uid = useId()
+
   const { $registry, $hasPermission } = useNuxtApp()
 
   const workspace = inject('workspace')
@@ -16,10 +18,10 @@ export function useDropElementTarget({
 
   const dndContext = inject('dndContext')
 
-  const isDragOver = ref(false)
   const dropPosition = ref(null)
 
   const draggedElement = computed(() => dndContext?.draggedElement ?? null)
+  const isDragOver = computed(() => dndContext?.dropTargetId === uid)
 
   const targetPage = computed(() => {
     if (unref(referenceElement)) {
@@ -107,8 +109,8 @@ export function useDropElementTarget({
 
   let dragEnterCount = 0
 
-  function clearLocalState() {
-    isDragOver.value = false
+  function clearState() {
+    dndContext.dropTargetId = null
     dropPosition.value = null
     dragEnterCount = 0
   }
@@ -133,7 +135,7 @@ export function useDropElementTarget({
     }
 
     dragEnterCount++
-    isDragOver.value = true
+    dndContext.dropTargetId = uid
 
     // Prevent the parent drop target from counting this enter
     event.stopPropagation()
@@ -147,7 +149,7 @@ export function useDropElementTarget({
 
     if (!isValidDropTarget.value) {
       if (dragEnterCount > 0) {
-        clearLocalState()
+        clearState()
       }
       return
     }
@@ -166,7 +168,7 @@ export function useDropElementTarget({
     dragEnterCount--
 
     if (dragEnterCount === 0) {
-      clearLocalState()
+      clearState()
     }
 
     event.stopPropagation()
@@ -181,7 +183,7 @@ export function useDropElementTarget({
     syncDropPosition(event)
 
     if (!isValidDropTarget.value) {
-      clearLocalState()
+      clearState()
       return
     }
 
@@ -189,7 +191,7 @@ export function useDropElementTarget({
     event.stopPropagation()
 
     if (!$hasPermission('builder.page.element.update', dragged, workspace.id)) {
-      clearLocalState()
+      clearState()
       return
     }
 
@@ -204,7 +206,7 @@ export function useDropElementTarget({
     })
 
     if (reason) {
-      clearLocalState()
+      clearState()
       return
     }
 
@@ -223,7 +225,7 @@ export function useDropElementTarget({
     } catch (error) {
       notifyIf(error)
     } finally {
-      clearLocalState()
+      clearState()
     }
   }
 

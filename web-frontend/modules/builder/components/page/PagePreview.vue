@@ -165,7 +165,6 @@ export default {
       dndState: {
         draggedElement: null,
         dropTargetId: null,
-        dropPosition: null,
       },
     }
   },
