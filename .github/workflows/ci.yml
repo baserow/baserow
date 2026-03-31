@@ -75,8 +75,12 @@ jobs:
       - name: Check if PR is from a fork
         id: fork-check
         run: |
-          # TEMPORARY: force fork path for testing — revert before merging
-          echo "is_fork=true" >> "$GITHUB_OUTPUT"
+          if [[ "${{ github.event_name }}" == "pull_request" && \
+                "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
+            echo "is_fork=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_fork=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -141,8 +145,12 @@ jobs:
       - name: Check if PR is from a fork
         id: fork-check
         run: |
-          # TEMPORARY: force fork path for testing — revert before merging
-          echo "is_fork=true" >> "$GITHUB_OUTPUT"
+          if [[ "${{ github.event_name }}" == "pull_request" && \
+                "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
+            echo "is_fork=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_fork=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
