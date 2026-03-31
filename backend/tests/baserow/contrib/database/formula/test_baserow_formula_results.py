@@ -2334,12 +2334,40 @@ def test_array_unique_lookup(data_fixture, api_client, setup_fn):
         formula="array_unique(field('lookup'))",
     )
 
-    table_a_model = table_a.get_model()
-    rows = list(
-        table_a_model.objects.all()
-        .order_by("id")
-        .values_list(unique_field.db_column, flat=True)
+    # Same via a formula field that references the target field indirectly.
+    # Formula-backed fields are stored differently (no physical column on
+    # table_b), so this path can surface serialisation mismatches.
+    ref_target_field = FieldHandler().create_field(
+        user,
+        table_b,
+        "formula",
+        name="ref_target",
+        formula=f"field('{target_field.name}')",
     )
+    ref_lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_lookup",
+        formula=f"lookup('{link_field.name}', '{ref_target_field.name}')",
+    )
+    ref_unique_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_unique_lookup",
+        formula="array_unique(field('ref_lookup'))",
+    )
+
+    def _read_unique_rows():
+        """Return (direct_rows, ref_rows) for both unique fields."""
+        model = table_a.get_model()
+        qs = model.objects.all().order_by("id")
+        direct = list(qs.values_list(unique_field.db_column, flat=True))
+        ref = list(qs.values_list(ref_unique_field.db_column, flat=True))
+        return direct, ref
+
+    rows, ref_rows = _read_unique_rows()
 
     # Row A1: val_a, val_b, val_a → val_a, val_b (deduped, first-occurrence order)
     assert len(rows[0]) == 2
@@ -2354,6 +2382,13 @@ def test_array_unique_lookup(data_fixture, api_client, setup_fn):
     # Row A3: empty
     assert rows[2] == []
 
+    # Formula-referenced path must produce identical results
+    assert ref_rows == rows, (
+        f"Formula-ref path diverged from direct path:\n"
+        f"  direct: {rows}\n"
+        f"  ref:    {ref_rows}"
+    )
+
     # ── Step 2: update a linked row's value → triggers recalculation ──
 
     RowHandler().update_rows(
@@ -2364,13 +2399,9 @@ def test_array_unique_lookup(data_fixture, api_client, setup_fn):
 
     # Now row_b1 and row_b2 both have val_b, row_b3 has val_a.
     # Row A1 links to all 3 → unique is [val_b, val_a] (first-occurrence).
-    table_a_model = table_a.get_model()
-    rows = list(
-        table_a_model.objects.all()
-        .order_by("id")
-        .values_list(unique_field.db_column, flat=True)
-    )
+    rows, ref_rows = _read_unique_rows()
     assert len(rows[0]) == 2
+    assert ref_rows == rows
 
     # ── Step 3: add a new linked row with empty/default value ──
 
@@ -2391,19 +2422,17 @@ def test_array_unique_lookup(data_fixture, api_client, setup_fn):
         ],
     )
 
-    table_a_model = table_a.get_model()
-    r1 = table_a_model.objects.get(id=row_a1.id)
-    unique_val = getattr(r1, unique_field.db_column)
-    assert isinstance(unique_val, list)
+    rows, ref_rows = _read_unique_rows()
+    assert isinstance(rows[0], list)
+    assert ref_rows == rows
 
     # ── Step 4: delete a linked row → triggers recalculation ──
 
     RowHandler().delete_rows(user, table_b, [row_b3.id])
 
-    table_a_model = table_a.get_model()
-    r1 = table_a_model.objects.get(id=row_a1.id)
-    unique_val = getattr(r1, unique_field.db_column)
-    assert isinstance(unique_val, list)
+    rows, ref_rows = _read_unique_rows()
+    assert isinstance(rows[0], list)
+    assert ref_rows == rows
 
     # ── Step 5: API fetch must not crash ──
 
@@ -2468,13 +2497,45 @@ def test_array_unique_auto_field_lookup(data_fixture, create_field_fn):
         formula="array_unique(field('lookup'))",
     )
 
+    # Same via a formula field referencing the target indirectly.
+    ref_target_field = FieldHandler().create_field(
+        user,
+        table_b,
+        "formula",
+        name="ref_target",
+        formula=f"field('{target_field.name}')",
+    )
+    ref_lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_lookup",
+        formula=f"lookup('{link_field.name}', '{ref_target_field.name}')",
+    )
+    ref_unique_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_unique_lookup",
+        formula="array_unique(field('ref_lookup'))",
+    )
+
     table_a_model = table_a.get_model()
     result = table_a_model.objects.get(id=row_a1.id)
     lookup_val = getattr(result, lookup_field.db_column)
     unique_val = getattr(result, unique_field.db_column)
+    ref_unique_val = getattr(result, ref_unique_field.db_column)
 
     assert len(unique_val) <= len(lookup_val)
     assert unique_val[0]["id"] == lookup_val[0]["id"]
+
+    # The formula-ref path must also deduplicate without errors.
+    # We don't assert equality with the direct path because date fields with
+    # date_include_time=False truncate values before dedup (so all same-day
+    # rows collapse), while field() exposes the underlying full datetime
+    # (so rows with distinct timestamps stay separate).
+    assert len(ref_unique_val) <= len(lookup_val)
+    assert ref_unique_val[0]["id"] == lookup_val[0]["id"]
 
 
 @pytest.mark.django_db
@@ -2553,12 +2614,42 @@ def test_array_unique_link_row_lookup(data_fixture):
         formula="array_unique(field('lookup_bc'))",
     )
 
+    # Same via a formula field referencing the link field indirectly.
+    ref_link_field = FieldHandler().create_field(
+        user,
+        table_b,
+        "formula",
+        name="ref_link_bc",
+        formula=f"field('{link_b_c.name}')",
+    )
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_lookup_bc",
+        formula=f"lookup('{link_a_b.name}', '{ref_link_field.name}')",
+    )
+    ref_unique_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_unique_bc",
+        formula="array_unique(field('ref_lookup_bc'))",
+    )
+
     table_a_model = table_a.get_model()
     result = table_a_model.objects.get(id=row_a1.id)
     unique_val = getattr(result, unique_field.db_column)
+    ref_unique_val = getattr(result, ref_unique_field.db_column)
 
     unique_values = [elem["value"] for elem in unique_val]
     assert unique_values == ["X", "Y"]
+
+    # The formula-ref path goes through an extra indirection (field() wrapping
+    # the link field), which produces a different id structure (multi-table
+    # 'ids' dict vs single 'id'). We compare only the deduplicated values.
+    ref_unique_values = [elem["value"] for elem in ref_unique_val]
+    assert ref_unique_values == ["X", "Y"]
 
 
 @pytest.mark.django_db
