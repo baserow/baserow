@@ -941,7 +941,10 @@ export class UserDataProviderType extends DataProviderType {
     const { is_authenticated: isAuthenticated, id } =
       this.getDataContent(applicationContext)
 
-    const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    let timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    if (!timezone || timezone.toLowerCase().includes('unknown')) {
+      timezone = 'UTC'
+    }
 
     if (isAuthenticated) {
       return {
