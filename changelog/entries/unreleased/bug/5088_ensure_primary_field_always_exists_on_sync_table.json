@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Ensure primary field always exists on sync table",
+    "issue_origin": "github",
+    "issue_number": 5088,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-03-31"
+}

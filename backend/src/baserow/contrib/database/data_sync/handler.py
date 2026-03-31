@@ -12,6 +12,7 @@ from baserow.contrib.database.fields.constants import DeleteFieldStrategyEnum
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.fields.signals import field_updated
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.operations import CreateTableDatabaseTableOperationType
 from baserow.contrib.database.rows.handler import RowHandler
@@ -622,13 +623,36 @@ class DataSyncHandler:
 
         handler = FieldHandler()
 
+        unique_primary_field = next(
+            (ep.field for ep in enabled_properties if ep.unique_primary), None
+        )
+
         for data_sync_property_instance in properties_to_be_removed:
             field = data_sync_property_instance.field
+            allow_deleting_primary = False
+            # If we're about to delete the primary field, first move primary to the
+            # unique_primary field so the table is never left without one.
+            if field.primary:
+                if unique_primary_field and unique_primary_field.id != field.id:
+                    field.primary = False
+                    field.save(update_fields=["primary"])
+                    old_field = deepcopy(unique_primary_field)
+                    unique_primary_field.primary = True
+                    unique_primary_field.save(update_fields=["primary"])
+                    field_updated.send(
+                        self,
+                        field=unique_primary_field,
+                        old_field=old_field,
+                        related_fields=[],
+                        user=user,
+                    )
+                else:
+                    allow_deleting_primary = True
             data_sync_property_instance.delete()
             handler.delete_field(
                 user=user,
                 field=field,
-                allow_deleting_primary=True,
+                allow_deleting_primary=allow_deleting_primary,
                 delete_strategy=DeleteFieldStrategyEnum.PERMANENTLY_DELETE,
             )
 
