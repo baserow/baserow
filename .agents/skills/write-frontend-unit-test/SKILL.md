@@ -1,6 +1,7 @@
 ---
-name: write-frontend-unit-test
+name: Write Frontend Unit Test
 description: Write or update Baserow frontend unit tests for core, premium, or enterprise code using the repo's existing Vitest, Nuxt, Vue Test Utils, TestApp, and snapshot patterns.
+version: 1.0.0
 ---
 
 # Write Baserow Frontend Unit Tests
