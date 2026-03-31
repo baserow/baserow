@@ -315,7 +315,7 @@ export default {
             this.isFocused = val
           },
           getRootEl: () => this.$el,
-          getContextEl: () => this.$refs.formulaInputContext?.$el,
+          getContextEl: () => this.$refs.formulaInputExplorerContext?.$el,
           showContextMenu: () => {
             this.$nextTick(() => {
               if (!this.isFocused) return
@@ -323,7 +323,7 @@ export default {
             })
           },
           hideContextMenu: () => {
-            this.$refs.formulaInputContext?.hide()
+            this.$refs.formulaInputExplorerContext?.hide()
           },
         }),
         FunctionHelpTooltipExtension.configure({
@@ -578,7 +578,7 @@ export default {
       if (config.needsDynamicOffset) {
         const inputRect = this.$el?.getBoundingClientRect()
         const contextRect =
-          this.$refs.formulaInputContext?.$el?.getBoundingClientRect()
+          this.$refs.formulaInputExplorerContext?.$el?.getBoundingClientRect()
 
         switch (this.contextPosition) {
           case 'left':
@@ -592,7 +592,7 @@ export default {
         }
       }
 
-      this.$refs.formulaInputContext?.show(
+      this.$refs.formulaInputExplorerContext?.show(
         this.$refs.editor.$el,
         vertical,
         horizontal,
