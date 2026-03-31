@@ -46,7 +46,7 @@
           <component
             :is="getFieldComponent(field)"
             v-if="fieldModes[field.id] === 'static'"
-            ref="fieldComponents"
+            :ref="'field-' + field.id"
             :slug="false"
             :field="field"
             :value="rowValues[`field_${field.id}`]"
@@ -100,11 +100,16 @@ export default {
       type: Object,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: true,
+    },
   },
   data() {
     return {
       loading: false,
       saving: false,
+      editableFields: [],
       enabledFieldIds: [],
       rowValues: {},
       fieldModes: {},
@@ -115,12 +120,6 @@ export default {
     ...mapGetters({
       allFields: 'field/getAll',
     }),
-    editableFields() {
-      return this.allFields.filter((field) => {
-        const fieldType = this.$registry.get('field', field.type)
-        return !fieldType.isReadOnlyField(field)
-      })
-    },
   },
   methods: {
     show(...args) {
@@ -128,6 +127,20 @@ export default {
       return modal.methods.show.call(this, ...args)
     },
     initializeFromView() {
+      const viewType = this.$registry.get('view', this.view.type)
+      const orderedFields = viewType.getVisibleFieldsInOrder(
+        this,
+        this.allFields,
+        this.view,
+        this.storePrefix
+      )
+      this.editableFields = orderedFields.filter((field) => {
+        const fieldType = this.$registry.get('field', field.type)
+        return (
+          !fieldType.isReadOnlyField(field) && fieldType.canBeDefaultValue()
+        )
+      })
+
       const items = this.view.default_row_values || []
       this.enabledFieldIds = []
       this.rowValues = {}
@@ -155,14 +168,20 @@ export default {
           this.enabledFieldIds.push(field.id)
         }
 
-        if (item.value != null) {
+        if (
+          item.value != null &&
+          (!item.field_type || item.field_type === field.type)
+        ) {
           this.rowValues[name] = fieldType.parseDefaultRowValue(
             field,
             item.value
           )
         }
 
-        if (item.function) {
+        const supportedFunctions = fieldType
+          .getSupportedDefaultValueFunctions()
+          .map((f) => f.name)
+        if (item.function && supportedFunctions.includes(item.function)) {
           this.fieldFunctions[String(field.id)] = item.function
           this.fieldModes[field.id] = item.function
         }
@@ -211,6 +230,18 @@ export default {
       this.rowValues[`field_${field.id}`] = value
     },
     async save() {
+      for (const fieldId of this.enabledFieldIds) {
+        if (this.fieldModes[fieldId] !== 'static') {
+          continue
+        }
+        const ref = this.$refs['field-' + fieldId]
+        const component = Array.isArray(ref) ? ref[0] : ref
+        if (component && !component.isValid()) {
+          component.$el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          return
+        }
+      }
+
       this.saving = true
       this.hideError()
 

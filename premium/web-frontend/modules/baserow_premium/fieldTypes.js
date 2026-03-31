@@ -36,6 +36,10 @@ export class AIFieldType extends FieldType {
     return false
   }
 
+  canBeDefaultValue() {
+    return false
+  }
+
   getGridViewFieldComponent() {
     return GridViewFieldAI
   }

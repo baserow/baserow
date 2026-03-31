@@ -251,7 +251,7 @@ class ViewsView(APIView):
                 description=(
                     "A comma separated list of extra attributes to include on each "
                     "view in the response. The supported attributes are `filters`, "
-                    "`sortings` and `decorations`. "
+                    "`sortings`, `decorations`, `group_bys` and `default_row_values`. "
                     "For example `include=filters,sortings` will add the "
                     "attributes `filters` and `sortings` to every returned view, "
                     "containing a list of the views filters and sortings respectively."
@@ -2497,7 +2497,12 @@ class ViewDefaultValuesView(APIView):
         ),
         responses={
             200: ViewDefaultValueSerializer(many=True),
-            400: get_error_schema(["ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES"]),
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES",
+                ]
+            ),
             404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
         },
     )
@@ -2505,6 +2510,7 @@ class ViewDefaultValuesView(APIView):
         {
             ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             ViewDoesNotSupportDefaultValues: ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
     def get(self, request, view_id):
@@ -2539,8 +2545,10 @@ class ViewDefaultValuesView(APIView):
             200: ViewDefaultValueSerializer(many=True),
             400: get_error_schema(
                 [
+                    "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES",
                     "ERROR_INVALID_DEFAULT_VALUE_FUNCTION",
+                    "ERROR_FIELD_NOT_IN_TABLE",
                 ]
             ),
             404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
@@ -2551,6 +2559,8 @@ class ViewDefaultValuesView(APIView):
             ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             ViewDoesNotSupportDefaultValues: ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES,
             InvalidDefaultValueFunction: ERROR_INVALID_DEFAULT_VALUE_FUNCTION,
+            FieldNotInTable: ERROR_FIELD_NOT_IN_TABLE,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
     @transaction.atomic

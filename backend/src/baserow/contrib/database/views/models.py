@@ -1027,28 +1027,29 @@ class ViewDefaultValue(HierarchicalModelMixin, models.Model):
     )
     value = models.JSONField(
         null=True,
-        blank=True,
         default=None,
         help_text="The raw default value in API request format.",
     )
     field_type = models.CharField(
         max_length=64,
         null=True,
-        blank=True,
         help_text="The field type identifier at the time the value was stored. "
         "Used to detect incompatibility when the field type changes.",
     )
     function = models.CharField(
         max_length=64,
         null=True,
-        blank=True,
         help_text="Optional function name (e.g. 'now') to resolve the default "
         "value dynamically at row creation time instead of using the "
         "stored value.",
     )
 
     class Meta:
-        unique_together = ("view", "field")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["view", "field"], name="unique_view_field_default_value"
+            )
+        ]
         ordering = ("id",)
 
     def get_parent(self):

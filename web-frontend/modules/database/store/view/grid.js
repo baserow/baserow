@@ -2088,12 +2088,24 @@ export const actions = {
         const name = `field_${field.id}`
         const fieldType = $registry.get('field', field._.type.type)
         const defaultViewItem = defaultsByFieldId[field.id]
-        if (defaultViewItem && defaultViewItem.function) {
+        const supportedFunctions = fieldType
+          .getSupportedDefaultValueFunctions()
+          .map((f) => f.name)
+        if (
+          defaultViewItem &&
+          defaultViewItem.function &&
+          supportedFunctions.includes(defaultViewItem.function)
+        ) {
           map[name] = fieldType.resolveDefaultValueFunction(
             defaultViewItem.function,
             field
           )
-        } else if (defaultViewItem && defaultViewItem.value != null) {
+        } else if (
+          defaultViewItem &&
+          defaultViewItem.value != null &&
+          (!defaultViewItem.field_type ||
+            defaultViewItem.field_type === field._.type.type)
+        ) {
           map[name] = fieldType.parseDefaultRowValue(
             field,
             defaultViewItem.value

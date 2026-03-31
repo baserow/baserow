@@ -2579,6 +2579,7 @@ class UpdateViewDefaultValuesActionType(ActionType):
         table_name: str
         database_id: int
         database_name: str
+        new_values: Dict[str, Any]
 
     @classmethod
     def do(cls, user: AbstractUser, view: View, items: List[Dict[str, Any]]):
@@ -2593,6 +2594,18 @@ class UpdateViewDefaultValuesActionType(ActionType):
             items=items,
         )
 
+        # Capture the saved state analogously to get_row_values in row actions —
+        # evaluate the queryset once so we record what was actually persisted.
+        new_values = {
+            str(record.field_id): {
+                "enabled": record.enabled,
+                "value": record.value,
+                "function": record.function,
+                "field_type": record.field_type,
+            }
+            for record in result
+        }
+
         workspace = table.database.workspace
         params = cls.Params(
             view.id,
@@ -2601,6 +2614,7 @@ class UpdateViewDefaultValuesActionType(ActionType):
             table.name,
             table.database.id,
             table.database.name,
+            new_values=new_values,
         )
         cls.register_action(user, params, scope=cls.scope(view.id), workspace=workspace)
 

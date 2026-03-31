@@ -47,6 +47,7 @@
             :views="views"
             :read-only="readOnly"
             :header-overflow="headerOverflow"
+            :store-prefix="storePrefix"
             @selected-view="$emit('selected-view', $event)"
           ></ViewsContext>
         </li>
@@ -68,6 +69,7 @@
             :view="view"
             :table="table"
             :views="views"
+            :store-prefix="storePrefix"
             @enable-rename="$refs.rename.edit()"
           >
           </ViewContext>

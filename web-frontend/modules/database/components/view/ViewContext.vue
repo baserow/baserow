@@ -158,6 +158,7 @@
       :view="view"
       :table="table"
       :database="database"
+      :store-prefix="storePrefix"
     />
   </Context>
 </template>
@@ -193,6 +194,11 @@ export default {
     table: {
       type: Object,
       required: true,
+    },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
     },
   },
   emits: ['enable-rename'],

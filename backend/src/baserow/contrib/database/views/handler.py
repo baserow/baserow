@@ -3853,6 +3853,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         for item in items:
             field_id = int(item["field"])
+
+            if field_id not in model._field_objects:
+                raise FieldNotInTable(
+                    f"Field {field_id} does not belong to table {table.id}."
+                )
+
             seen_field_ids.add(field_id)
 
             enabled = item.get("enabled", True)
@@ -3860,15 +3866,13 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             func_name = item.get("function")
 
             # Validate function against field type.
-            if func_name and field_id in model._field_objects:
-                field_obj = model._field_objects[field_id]
+            field_obj = model._field_objects[field_id]
+            if func_name:
                 supported = field_obj["type"].get_supported_default_value_functions()
                 if func_name not in supported:
                     raise InvalidDefaultValueFunction(func_name, field_obj["type"].type)
 
-            field_type_str = None
-            if field_id in model._field_objects:
-                field_type_str = model._field_objects[field_id]["type"].type
+            field_type_str = field_obj["type"].type
 
             if field_id in existing_by_field:
                 record = existing_by_field[field_id]
@@ -3944,8 +3948,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             field = field_obj["field"]
             field_type = field_obj["type"]
             field_name = field_obj["name"]
+            supported_functions = field_type.get_supported_default_value_functions()
 
-            if default_value.function:
+            if default_value.function and default_value.function in supported_functions:
                 result[field_name] = field_type.resolve_default_value_function(
                     default_value.function, field
                 )

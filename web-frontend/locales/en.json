@@ -181,6 +181,7 @@
     "invalidPhoneNumber": "Invalid Phone Number",
     "invalidDuration": "Invalid format ({durationFormat}).",
     "overflowDuration": "Value is out of bounds.",
+    "higherThan": "Value is higher than {max}.",
     "maxChars": "Max {max} chars.",
     "minChars": "Min {min} chars."
   },

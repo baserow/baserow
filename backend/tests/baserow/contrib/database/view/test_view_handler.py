@@ -20,6 +20,7 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import ALL_SEARCH_MODES
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.views.actions import UpdateViewDefaultValuesActionType
 from baserow.contrib.database.views.exceptions import (
     CannotShareViewTypeError,
     FormViewFieldTypeIsNotSupported,
@@ -72,6 +73,7 @@ from baserow.contrib.database.views.view_ownership_types import (
 )
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.contrib.database.ws.views.rows.handler import ViewRealtimeRowsHandler
+from baserow.core.action.registries import action_type_registry
 from baserow.core.db import get_collation_name
 from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 from baserow.core.registries import ImportExportConfig
@@ -4531,6 +4533,35 @@ def test_update_view_default_values(data_fixture):
 
 
 @pytest.mark.django_db
+def test_update_view_default_values_field_not_in_table(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    other_table = data_fixture.create_database_table(user=user)
+    other_field = data_fixture.create_text_field(table=other_table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    handler = ViewHandler()
+
+    with pytest.raises(FieldNotInTable):
+        handler.update_view_default_values(
+            user=user,
+            view=view,
+            items=[{"field": other_field.id, "enabled": True, "value": "test"}],
+        )
+
+    # Also test with a completely non-existent field ID.
+    with pytest.raises(FieldNotInTable):
+        handler.update_view_default_values(
+            user=user,
+            view=view,
+            items=[{"field": 99999, "enabled": True, "value": "test"}],
+        )
+
+    # Ensure no records were created.
+    assert not ViewDefaultValue.objects.filter(view=view).exists()
+
+
+@pytest.mark.django_db
 def test_update_view_default_values_with_function(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -4993,3 +5024,38 @@ def test_export_import_remaps_multiple_select_default_value(data_fixture):
 
     imported_record = ViewDefaultValue.objects.get(view=imported_view, field=field)
     assert imported_record.value == [new_a_id, new_b_id]
+
+
+@pytest.mark.django_db
+def test_update_view_default_values_action_stores_new_values(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    captured = {}
+
+    original_register = UpdateViewDefaultValuesActionType.register_action.__func__
+
+    def mock_register(cls, user, params, scope, workspace=None):
+        captured["params"] = params
+        return original_register(cls, user, params, scope, workspace)
+
+    with patch.object(
+        UpdateViewDefaultValuesActionType,
+        "register_action",
+        classmethod(mock_register),
+    ):
+        action_type_registry.get(UpdateViewDefaultValuesActionType.type).do(
+            user=user,
+            view=view,
+            items=[{"field": text_field.id, "enabled": True, "value": "hello"}],
+        )
+
+    params = captured["params"]
+    assert str(text_field.id) in params.new_values
+    record_params = params.new_values[str(text_field.id)]
+    assert record_params["value"] == "hello"
+    assert record_params["enabled"] is True
+    assert record_params["field_type"] == "text"
+    assert record_params["function"] is None

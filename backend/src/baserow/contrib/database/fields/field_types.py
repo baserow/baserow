@@ -50,7 +50,6 @@ from django.db.models import (
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import ManyToManyField
 from django.db.models.functions import Cast, Coalesce, RowNumber
-from django.utils import timezone as django_timezone
 
 from dateutil import parser
 from dateutil.parser import ParserError
@@ -1135,7 +1134,7 @@ class DateFieldType(FieldType):
 
     def resolve_default_value_function(self, function_name, field):
         if function_name == "now":
-            return django_timezone.now()
+            return datetime.now(tz=timezone.utc)
         return super().resolve_default_value_function(function_name, field)
 
     def can_represent_date(self, field):

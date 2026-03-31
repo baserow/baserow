@@ -339,6 +339,16 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Indicates whether this field type is compatible with the default values
+   * feature. By default all writable field types are compatible. Override and
+   * return `false` for field types whose row-edit component or write behaviour
+   * is incompatible with default value setting (e.g. the AI field).
+   */
+  canBeDefaultValue() {
+    return true
+  }
+
+  /**
    * Returns a list of supported default value functions for this field type.
    * Each item is an object with `name` and `label` properties.
    * Override in field types that support dynamic defaults (e.g. date fields).
@@ -2109,6 +2119,29 @@ export class RatingFieldType extends FieldType {
     }
 
     return valueParsed
+  }
+
+  prepareValueForUpdate(field, value) {
+    if (value > field.max_value) {
+      return field.max_value
+    }
+    return value
+  }
+
+  getValidationError(field, value) {
+    const valueParsed = parseInt(value, 10)
+
+    if (isNaN(valueParsed) || valueParsed < 0) {
+      return this.app.$i18n.t('fieldErrors.invalidNumber')
+    }
+
+    if (valueParsed > field.max_value) {
+      return this.app.$i18n.t('fieldErrors.higherThan', {
+        max: field.max_value,
+      })
+    }
+
+    return null
   }
 
   getCanImport() {

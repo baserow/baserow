@@ -182,14 +182,25 @@ export default {
         const name = `field_${field.id}`
         const fieldType = this.$registry.get('field', field._.type.type)
         const dvItem = defaultsByFieldId[field.id]
+        const supportedFunctions = fieldType
+          .getSupportedDefaultValueFunctions()
+          .map((f) => f.name)
         if (this.presets[name] !== undefined) {
           row[name] = this.presets[name]
-        } else if (dvItem && dvItem.function) {
+        } else if (
+          dvItem &&
+          dvItem.function &&
+          supportedFunctions.includes(dvItem.function)
+        ) {
           row[name] = fieldType.resolveDefaultValueFunction(
             dvItem.function,
             field
           )
-        } else if (dvItem && dvItem.value != null) {
+        } else if (
+          dvItem &&
+          dvItem.value != null &&
+          (!dvItem.field_type || dvItem.field_type === field._.type.type)
+        ) {
           row[name] = fieldType.parseDefaultRowValue(field, dvItem.value)
         } else {
           row[name] = fieldType.getNewRowValue(field)
