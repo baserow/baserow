@@ -1501,15 +1501,15 @@ class ViewOwnershipType(Instance):
 
     def get_hidden_field_ids_for_user(
         self, user: Optional["AbstractUser"], view: "View"
-    ) -> Optional[Set[int]]:
+    ) -> Set[int]:
         """
-        Returns `None` by default, meaning no field restriction applies (all fields
-        visible). Subclasses can return a set of field IDs that should be hidden from
-        the user. `None` means "no restriction", `set()` means "restriction active but
-        no fields hidden", `{1, 2}` means "these fields are hidden".
+        Returns an empty set by default, meaning no field restriction applies (all
+        fields visible). Subclasses can return a set of field IDs that should be hidden
+        from the user. An empty `set()` means "no restriction", `{1, 2}` means field
+        with 1 and 2 are hidden.
         """
 
-        return None
+        return set()
 
     def enhance_list_fields_queryset(
         self, user: "AbstractUser", view: "View", queryset: django_models.QuerySet

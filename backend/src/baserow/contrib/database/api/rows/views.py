@@ -111,9 +111,6 @@ from baserow.contrib.database.rows.operations import (
     ReadAdjacentRowDatabaseRowOperationType,
     ReadDatabaseRowHistoryOperationType,
 )
-from baserow.contrib.database.views.operations import (
-    ReadAdjacentViewRowOperationType,
-)
 from baserow.contrib.database.rows.signals import rows_loaded
 from baserow.contrib.database.table.exceptions import TableDoesNotExist
 from baserow.contrib.database.table.handler import TableHandler
@@ -135,6 +132,9 @@ from baserow.contrib.database.views.exceptions import (
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
+from baserow.contrib.database.views.operations import (
+    ReadAdjacentViewRowOperationType,
+)
 from baserow.core.action.registries import action_type_registry
 from baserow.core.db import atomic_with_retry_on_deadlock
 from baserow.core.exceptions import DeadlockException, UserNotInWorkspace
@@ -596,10 +596,7 @@ class RowsView(APIView):
             model, user_field_names=user_field_names
         )
         data = validate_data(
-            validation_serializer,
-            request_data,
-            partial=True,
-            return_validated=True
+            validation_serializer, request_data, partial=True, return_validated=True
         )
 
         before_id = query_params.get("before")

@@ -2190,7 +2190,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             return
         ownership_type = view_ownership_type_registry.get(view.ownership_type)
         hidden_ids = ownership_type.get_hidden_field_ids_for_user(user, view)
-        if hidden_ids is None:
+        if not hidden_ids:
             return
 
         for row_values in rows_values:

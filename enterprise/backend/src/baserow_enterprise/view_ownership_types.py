@@ -56,9 +56,9 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
 
     def get_hidden_field_ids_for_user(
         self, user: Optional[AbstractUser], view: View
-    ) -> Optional[Set[int]]:
+    ) -> Set[int]:
         if user is None:
-            return None
+            return set()
         if CoreHandler().check_permissions(
             user,
             UpdateViewFieldOptionsOperationType.type,
@@ -66,7 +66,7 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
             context=view,
             raise_permission_exceptions=False,
         ):
-            return None
+            return set()
         view_type = view_type_registry.get_by_model(view.specific_class)
         return view_type.get_hidden_fields(view.specific)
 
