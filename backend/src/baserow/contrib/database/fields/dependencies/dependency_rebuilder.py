@@ -1,7 +1,7 @@
 from collections import defaultdict
 from typing import TYPE_CHECKING, List
 
-from django.db.models import Q
+from django.db.models import Case, Q, Value, When
 
 if TYPE_CHECKING:
     from baserow.contrib.database.fields import models as field_models
@@ -16,20 +16,39 @@ from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.field_cache import FieldCache
 
 
-def break_dependencies_for_field(field):
+def break_dependencies_for_fields(fields: List["field_models.Field"]) -> None:
     """
-    Given a specific field ensures no fields depend on it any more, and if they do
-    those dependencies are set to be broken and only reference the field name.
+    Given a list of fields, ensures no fields depend on them any more, and if they
+    do those dependencies are set to be broken and only reference the field name.
+    Batches the queries so that the number of queries is constant regardless of the
+    number of fields.
 
-    :param field: The field whose dependants will have their relationships broken for.
+    :param fields: The fields whose dependants will have their relationships broken.
     """
 
     from baserow.contrib.database.fields.models import LinkRowField
 
-    FieldDependency.objects.filter(dependant=field).delete()
-    field.dependants.update(dependency=None, broken_reference_field_name=field.name)
-    if isinstance(field, LinkRowField):
-        field.vias.all().delete()
+    if not fields:
+        return
+
+    field_ids = [f.id for f in fields]
+
+    # Remove all dependencies where these fields are the dependant.
+    FieldDependency.objects.filter(dependant_id__in=field_ids).delete()
+
+    # Mark all dependants of these fields as broken references, preserving the
+    # per-field name via Case/When so each broken reference records the correct
+    # field name.
+    cases = [When(dependency_id=f.id, then=Value(f.name)) for f in fields]
+    FieldDependency.objects.filter(dependency_id__in=field_ids).update(
+        dependency=None,
+        broken_reference_field_name=Case(*cases),
+    )
+
+    # Remove via dependencies for any LinkRowFields.
+    link_row_field_ids = [f.id for f in fields if isinstance(f, LinkRowField)]
+    if link_row_field_ids:
+        FieldDependency.objects.filter(via_id__in=link_row_field_ids).delete()
 
 
 def update_fields_with_broken_references(fields: List["field_models.Field"]):

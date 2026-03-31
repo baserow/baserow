@@ -1,0 +1,9 @@
+{
+  "type": "refactor",
+  "message": "Optimized table deletion (trash) by batching field operations.",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "database",
+  "bullet_points": [],
+  "created_at": "2026-03-31"
+}

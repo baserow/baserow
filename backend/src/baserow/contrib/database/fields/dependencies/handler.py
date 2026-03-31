@@ -8,7 +8,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q, QuerySet
 
 from baserow.contrib.database.fields.dependencies.dependency_rebuilder import (
-    break_dependencies_for_field,
+    break_dependencies_for_fields,
     rebuild_fields_dependencies,
     update_fields_with_broken_references,
 )
@@ -63,15 +63,18 @@ class FieldDependencyHandler:
         return rebuild_fields_dependencies(fields, field_cache)
 
     @classmethod
-    def break_dependencies_delete_dependants(cls, field):
+    def break_dependencies_delete_dependants(cls, fields):
         """
-        Breaks any dependant relationships to the field.
+        Breaks any dependant relationships to the provided field(s).
 
-        :param field: The field to break all dependant relations onto the field and all
-           dependencies
+        :param fields: A single field or list of fields to break all dependant
+            relations onto and all dependencies.
         """
 
-        break_dependencies_for_field(field)
+        if not isinstance(fields, (list, tuple)):
+            fields = [fields]
+
+        break_dependencies_for_fields(fields)
 
     @classmethod
     def _get_all_dependent_fields(

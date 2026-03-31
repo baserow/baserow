@@ -5,6 +5,9 @@ from django.contrib.auth.models import AbstractUser
 from django.db import connection, router
 
 from baserow.contrib.database.db.schema import safe_django_schema_editor
+from baserow.contrib.database.fields.dependencies.handler import (
+    FieldDependencyHandler,
+)
 from baserow.contrib.database.fields.dependencies.update_collector import (
     FieldUpdateCollector,
 )
@@ -160,28 +163,77 @@ class TableTrashableItemType(TrashableItemType):
         field_cache = FieldCache()
         handler = FieldHandler()
 
-        for field in model._field_objects.values():
-            field = field["field"]
-            # One of the previously deleted fields might have cached this field we
-            # now want to delete, ensure it is gone from the cache as presence in the
-            # cache is treated as the field not being trashed in other code.
-            field_cache.uncache_field(field)
-            handler.delete_field(
-                requesting_user,
-                field,
-                existing_trash_entry=trash_entry,
-                apply_and_send_updates=False,
-                update_collector=update_collector,
-                field_cache=field_cache,
-                allow_deleting_primary=True,
+        fields = [fo["field"] for fo in model._field_objects.values()]
+        all_field_ids = {f.id for f in fields}
+
+        # Pre-compute cross-table dependents per field. Intra-table fields are
+        # all being trashed together and don't need individual updates.
+        per_field_deps: Dict[int, list] = {}
+        for field in fields:
+            deps = list(
+                FieldDependencyHandler.group_all_dependent_fields_by_level(
+                    table_to_trash.id,
+                    [field.id],
+                    field_cache,
+                    associated_relations_changed=True,
+                    database_id_prefilter=table_to_trash.database_id,
+                )
             )
+            filtered = []
+            for group in deps:
+                cross_table = [
+                    (dep_field, dep_type, path)
+                    for dep_field, dep_type, path in group
+                    if dep_field.table_id != table_to_trash.id
+                ]
+                if cross_table:
+                    filtered.append(cross_table)
+            if filtered:
+                per_field_deps[field.id] = filtered
+
+        FieldDependencyHandler.break_dependencies_delete_dependants(fields)
+
+        # Update cross-table dependents before trashing the fields because the
+        # formula recalculation engine needs the fields to still be present.
+        for field in fields:
+            if field.id in per_field_deps:
+                handler._update_dependencies_of_field_deleted(
+                    field,
+                    update_collector,
+                    field_cache,
+                    per_field_deps[field.id],
+                )
+
+        # Batch trash all fields in this table and make sure to invalidate the
+        # table model cache for this table so that if any field operations
+        # happen after the table is trashed we don't use the cached model.
+        Field.objects_and_trash.filter(id__in=all_field_ids).update(trashed=True)
+        if fields:
+            fields[0].invalidate_table_model_cache()
+
+        # Trash related fields in other tables (e.g. reverse link row fields).
+        field_cache.reset_cache()
+        for field in fields:
+            field_type = field_type_registry.get_by_model(field)
+            for (
+                related_field
+            ) in field_type.get_other_fields_to_trash_restore_always_together(field):
+                if not related_field.trashed:
+                    handler.delete_field(
+                        requesting_user,
+                        related_field,
+                        existing_trash_entry=trash_entry,
+                        apply_and_send_updates=False,
+                        update_collector=update_collector,
+                        field_cache=field_cache,
+                    )
 
         update_collector.send_additional_field_updated_signals()
 
         super().trash(table_to_trash, requesting_user, trash_entry)
 
-        # Since link_row can link this table without creating the reverse relation,
-        # we need to be sure to trash that fields manually.
+        # Trash link_row fields that point at this table without a reverse
+        # relation, since they won't be caught by the loop above.
         related_fields_to_trash: List[int] = []
         for field in table_to_trash.linkrowfield_set.filter(trashed=False):
             if (
