@@ -867,7 +867,8 @@ def test_apply_theme_function(data_fixture):
     # Before: default color
     original_color = builder.colorthemeconfigblock.primary_color
 
-    apply_theme(builder, "eclipse")
+    applied = apply_theme(builder, "lavender", user)
+    assert applied is not None
 
     builder.colorthemeconfigblock.refresh_from_db()
     assert builder.colorthemeconfigblock.primary_color != original_color

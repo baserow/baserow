@@ -1,8 +1,13 @@
 import json
+import os
 from functools import lru_cache
 from typing import Literal
 
+from django.contrib.auth.models import AbstractUser
+
 from loguru import logger
+
+from baserow.contrib.builder.theme.service import ThemeService
 
 # ---------------------------------------------------------------------------
 # Theme catalog
@@ -39,12 +44,17 @@ ThemeName = Literal[tuple(THEME_CATALOG.keys())]
 
 @lru_cache(maxsize=len(THEME_CATALOG))
 def _load_theme_data(theme_name: str) -> dict | None:
-    """Load theme properties from a template JSON file. Cached per theme."""
+    """
+    Load theme properties from a template JSON file. Cached per theme.
+
+    :param theme_name: The name of the theme to load (must be a key in
+        THEME_CATALOG).
+    :return: A dictionary of theme properties if successful, or None if the
+        theme is not found or invalid.
+    """
 
     if theme_name not in THEME_CATALOG:
         return None
-
-    import os
 
     from django.conf import settings
 
@@ -66,25 +76,20 @@ def _load_theme_data(theme_name: str) -> dict | None:
     return None
 
 
-def apply_theme(builder, theme_name: str, user=None) -> bool:
+def apply_theme(builder, theme_name: str, user: AbstractUser) -> bool:
     """
     Apply a predefined theme to a builder application.
 
-    Returns ``True`` if the theme was applied, ``False`` if the theme
-    template could not be loaded (missing/corrupt file).
+    :param builder: The builder application instance to update.
+    :param theme_name: The name of the theme to apply (must be a key in
+        THEME_CATALOG).
+    :param user: The user performing the action (for permissions/auditing).
+
+    :return: True if the theme was successfully applied, False otherwise.
     """
 
     theme_data = _load_theme_data(theme_name)
-    if not theme_data:
-        return False
-
-    if user is not None:
-        from baserow.contrib.builder.theme.service import ThemeService
-
+    if theme_data:
         ThemeService().update_theme(user, builder, **theme_data)
-    else:
-        from baserow.contrib.builder.theme.handler import ThemeHandler
 
-        ThemeHandler().update_theme(builder, **theme_data)
-
-    return True
+    return theme_data
