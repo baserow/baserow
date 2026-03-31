@@ -5,7 +5,6 @@ from baserow.core.formula.argument_types import BaserowRuntimeFormulaArgumentTyp
 from baserow.core.formula.parser.exceptions import (
     FormulaFunctionTypeDoesNotExist,
     InvalidFormulaArgumentType,
-    InvalidNumberOfArguments,
 )
 from baserow.core.formula.types import (
     FormulaArg,
@@ -20,6 +19,10 @@ from baserow.core.workflow_actions.models import WorkflowAction
 
 
 class RuntimeFormulaFunction(ABC, Instance):
+    # The minimum number of arguments that the function expects. This value
+    # will only be used if `args` is not defined.
+    min_args = None
+
     @classmethod
     @property
     @abstractmethod
@@ -61,17 +64,21 @@ class RuntimeFormulaFunction(ABC, Instance):
 
         pass
 
-    def validate_args(self, args: FormulaArgs):
+    def validate_args(
+        self,
+        args: FormulaArgs,
+        validation_context: Optional[Dict[str, Any]] = None,
+    ):
         """
         This function can be called to validate all arguments given to the formula
 
         :param args: The arguments provided to the formula
-        :raises InvalidNumberOfArguments: If the number of arguments is invalid
+        :param validation_context: An optional context that can be used during
+            validation. Can provide additional information that is not available in the
+            args themselves.
         :raises InvalidFormulaArgumentType: If any of the arguments have a wrong type
         """
 
-        if not self.validate_number_of_args(args):
-            raise InvalidNumberOfArguments(self, args)
         invalid_arg = self.validate_type_of_args(args)
         if invalid_arg:
             raise InvalidFormulaArgumentType(self, invalid_arg)
@@ -90,7 +97,7 @@ class RuntimeFormulaFunction(ABC, Instance):
         required_args = len([arg for arg in self.args if not arg.optional])
         total_args = len(self.args)
 
-        return len(args) >= required_args and len(args) <= total_args
+        return required_args <= len(args) <= total_args
 
     def validate_type_of_args(self, args: FormulaArgs) -> Optional[FormulaArg]:
         """
@@ -169,6 +176,13 @@ class DataProviderType(
         """
 
         return path
+
+    def is_valid(self, path: List[str]) -> bool:
+        """
+        Allows to hook into the path validation process. Not currently implemented.
+
+        :param path: the list of path strings after the provider name.
+        """
 
     def extract_properties(
         self,

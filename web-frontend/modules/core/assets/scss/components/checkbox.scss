@@ -4,10 +4,22 @@
   gap: 8px;
   cursor: pointer;
   max-width: 100%;
+  position: relative;
 }
 
 .checkbox--small {
   gap: 6px;
+}
+
+.checkbox__native {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .checkbox__button {
@@ -28,7 +40,7 @@
 
   @include rounded($rounded);
 
-  :focus & {
+  .checkbox__native:focus-visible + & {
     @include elevation($elevation-low);
   }
 

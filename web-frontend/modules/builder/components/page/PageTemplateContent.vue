@@ -36,7 +36,9 @@ export default {
       mode,
       formulaComponent: ApplicationBuilderFormulaInput,
       applicationContext: {
+        workspace: this.workspace,
         builder: this.builder,
+        page: this.currentPage,
         mode,
       },
     }
@@ -65,6 +67,7 @@ export default {
   computed: {
     applicationContext() {
       return {
+        workspace: this.workspace,
         builder: this.builder,
         page: this.currentPage,
         mode,

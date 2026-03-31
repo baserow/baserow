@@ -12,7 +12,11 @@
   </div>
   <div v-else>
     <div class="history-side-panel__title">
-      {{ $t('historySidePanel.title') }}
+      <span>
+        {{ $t('historySidePanel.title') }}
+        <Icon icon="iconoir-refresh" type="secondary" @click="refreshData()" />
+      </span>
+
       <a role="button" @click="closeHistory()">
         <Icon icon="iconoir-cancel" type="secondary" />
       </a>
@@ -30,9 +34,21 @@ import { useStore } from 'vuex'
 import HistorySection from '@baserow/modules/automation/components/workflow/sidePanels/HistorySection'
 const store = useStore()
 
+const workflow = inject('workflow')
+
 const workflowHistoryItems = computed(() => {
   const history = store.getters['automationHistory/getWorkflowHistory']()
   return history?.results || []
+})
+
+const refreshData = () => {
+  return store.dispatch('automationHistory/fetchWorkflowHistory', {
+    workflowId: workflow.value.id,
+  })
+}
+
+onMounted(() => {
+  refreshData()
 })
 
 const closeHistory = () => {

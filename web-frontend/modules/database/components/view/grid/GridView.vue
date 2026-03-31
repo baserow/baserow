@@ -1635,7 +1635,7 @@ export default {
           {
             table: this.table,
             view: this.view,
-            fields: this.allVisibleFields,
+            fields: this.fields,
             getScrollTop: () => this.$refs.left.$refs.body.scrollTop,
           }
         )

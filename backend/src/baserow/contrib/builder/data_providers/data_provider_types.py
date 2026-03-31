@@ -246,10 +246,15 @@ class DataSourceDataProviderType(BuilderDataProviderType):
         service_type = data_source.service.specific.get_type()
 
         if service_type.returns_list:
-            # We remove the row id from the path
-            _, *rest = rest
+            if rest:
+                # We remove the row id from the path
+                _, *rest = rest
 
-        return {data_source.service_id: service_type.extract_properties(rest, **kwargs)}
+        return {
+            data_source.service_id: service_type.extract_properties(
+                data_source.service.specific, rest, **kwargs
+            )
+        }
 
 
 class DataSourceContextDataProviderType(BuilderDataProviderType):
@@ -328,7 +333,11 @@ class DataSourceContextDataProviderType(BuilderDataProviderType):
 
         service_type = data_source.service.specific.get_type()
 
-        return {data_source.service_id: service_type.extract_properties(rest, **kwargs)}
+        return {
+            data_source.service_id: service_type.extract_properties(
+                data_source.service.specific, rest, **kwargs
+            )
+        }
 
 
 class CurrentRecordDataProviderType(BuilderDataProviderType):
@@ -445,7 +454,11 @@ class CurrentRecordDataProviderType(BuilderDataProviderType):
             else:
                 path = [schema_property, *path]
 
-        return {data_source.service_id: service_type.extract_properties(path, **kwargs)}
+        return {
+            data_source.service_id: service_type.extract_properties(
+                data_source.service.specific, path, **kwargs
+            )
+        }
 
 
 class PreviousActionProviderType(BuilderDataProviderType):
@@ -584,7 +597,9 @@ class PreviousActionProviderType(BuilderDataProviderType):
 
         service_type = previous_action.service.specific.get_type()
         return {
-            previous_action.service.id: service_type.extract_properties(rest, **kwargs)
+            previous_action.service.id: service_type.extract_properties(
+                previous_action.service.specific, rest, **kwargs
+            )
         }
 
 

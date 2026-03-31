@@ -4,6 +4,9 @@ from typing import List
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
+from baserow.contrib.automation.history.exceptions import (
+    AutomationWorkflowHistoryNodeResultDoesNotExist,
+)
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.core.formula.exceptions import InvalidFormulaContext
@@ -33,10 +36,10 @@ class PreviousNodeProviderType(AutomationDataProviderType):
             raise InvalidFormulaContext(message) from exc
 
         try:
-            previous_node_results = dispatch_context.previous_nodes_results[
-                int(previous_node.id)
-            ]
-        except KeyError as exc:
+            previous_node_result = dispatch_context.get_previous_node_result(
+                previous_node
+            )
+        except AutomationWorkflowHistoryNodeResultDoesNotExist as exc:
             message = (
                 "The previous node id is not present in the dispatch context results"
             )
@@ -45,7 +48,7 @@ class PreviousNodeProviderType(AutomationDataProviderType):
         service = previous_node.service.specific
 
         if service.get_type().returns_list:
-            previous_node_results = previous_node_results["results"]
+            previous_node_result = previous_node_result["results"]
             if len(rest) >= 2:
                 prepared_path = [
                     rest[0],
@@ -56,7 +59,7 @@ class PreviousNodeProviderType(AutomationDataProviderType):
         else:
             prepared_path = service.get_type().prepare_value_path(service, rest)
 
-        return get_value_at_path(previous_node_results, prepared_path)
+        return get_value_at_path(previous_node_result, prepared_path)
 
     def import_path(self, path, id_mapping, **kwargs):
         """
@@ -99,9 +102,7 @@ class CurrentIterationDataProviderType(AutomationDataProviderType):
             raise InvalidFormulaContext(message) from exc
 
         try:
-            parent_node_results = dispatch_context.previous_nodes_results[
-                parent_node.id
-            ]
+            parent_node_result = dispatch_context.get_previous_node_result(parent_node)
         except KeyError as exc:
             message = (
                 "The parent node id is not present in the dispatch context results"
@@ -116,7 +117,7 @@ class CurrentIterationDataProviderType(AutomationDataProviderType):
             )
             raise InvalidFormulaContext(message) from exc
 
-        current_item = parent_node_results["results"][current_iteration]
+        current_item = parent_node_result["results"][current_iteration]
         data = {"index": current_iteration, "item": current_item}
 
         return get_value_at_path(data, rest)

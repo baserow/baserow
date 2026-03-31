@@ -5,11 +5,11 @@ from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import AllowAny
 from rest_framework.views import APIView
 
+from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.decorators import map_exceptions
 from baserow.api.schemas import get_error_schema
-from baserow.contrib.builder.errors import ERROR_BUILDER_DOES_NOT_EXIST
-from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.service import BuilderService
+from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow_enterprise.api.authentication import (
     AuthenticateFromUserSessionAuthentication,
 )
@@ -46,12 +46,16 @@ class PublicCustomCodeView(APIView):
         description=("Returns the css/js for the given builder."),
         responses={
             200: str,
-            404: get_error_schema(["ERROR_BUILDER_DOES_NOT_EXIST"]),
+            404: get_error_schema(
+                [
+                    "ERROR_APPLICATION_DOES_NOT_EXIST",
+                ]
+            ),
         },
     )
     @map_exceptions(
         {
-            BuilderDoesNotExist: ERROR_BUILDER_DOES_NOT_EXIST,
+            ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
         }
     )
     def get(self, request, builder_id, code_type):

@@ -25,6 +25,7 @@ from baserow.api.actions.serializers import (
     UndoRedoResponseSerializer,
     get_undo_request_serializer,
 )
+from baserow.api.captcha.errors import ERROR_CAPTCHA_VERIFICATION_FAILED
 from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.errors import (
     BAD_TOKEN_SIGNATURE,
@@ -34,6 +35,7 @@ from baserow.api.errors import (
 from baserow.api.schemas import get_error_schema
 from baserow.api.sessions import (
     get_untrusted_client_session_id,
+    get_user_remote_ip_address_from_request,
     set_user_session_data_from_request,
 )
 from baserow.api.user.registries import user_data_registry
@@ -48,6 +50,8 @@ from baserow.core.auth_provider.exceptions import (
     EmailVerificationRequired,
 )
 from baserow.core.auth_provider.handler import PasswordProviderHandler
+from baserow.core.captcha.exceptions import CaptchaVerificationFailed
+from baserow.core.captcha.handler import CaptchaHandler
 from baserow.core.exceptions import (
     BaseURLHostnameNotAllowed,
     LockConflict,
@@ -286,6 +290,7 @@ class UserView(APIView):
                     "ERROR_GROUP_INVITATION_DOES_NOT_EXIST",
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "BAD_TOKEN_SIGNATURE",
+                    "ERROR_CAPTCHA_VERIFICATION_FAILED",
                 ]
             ),
             404: get_error_schema(["ERROR_GROUP_INVITATION_DOES_NOT_EXIST"]),
@@ -302,6 +307,7 @@ class UserView(APIView):
             WorkspaceInvitationEmailMismatch: ERROR_GROUP_INVITATION_EMAIL_MISMATCH,
             DisabledSignupError: ERROR_DISABLED_SIGNUP,
             AuthProviderDisabled: ERROR_AUTH_PROVIDER_DISABLED,
+            CaptchaVerificationFailed: ERROR_CAPTCHA_VERIFICATION_FAILED,
         }
     )
     @validate_body(RegisterSerializer)
@@ -310,6 +316,12 @@ class UserView(APIView):
 
         if not PasswordProviderHandler.get().enabled:
             raise AuthProviderDisabled()
+
+        CaptchaHandler.validate_if_required(
+            "signup",
+            data.get("captcha_token"),
+            get_user_remote_ip_address_from_request(request),
+        )
 
         template = (
             Template.objects.get(pk=data["template_id"])

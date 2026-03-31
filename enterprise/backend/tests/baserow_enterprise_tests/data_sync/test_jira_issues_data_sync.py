@@ -7,8 +7,7 @@ from django.urls import reverse
 
 import pytest
 import responses
-from requests.auth import HTTPBasicAuth
-from responses.matchers import header_matcher
+from responses.matchers import header_matcher, query_param_matcher
 from rest_framework.status import HTTP_200_OK, HTTP_402_PAYMENT_REQUIRED
 
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
@@ -339,39 +338,20 @@ EMPTY_ISSUE = {
 }
 
 SINGLE_ISSUE_RESPONSE = {
-    "expand": "schema,names",
-    "startAt": 0,
-    "maxResults": 50,
-    "total": 1,
     "issues": [SINGLE_ISSUE],
 }
 
 SINGLE_ISSUE_RESPONSE_PAGE_1 = {
-    "expand": "schema,names",
-    "startAt": 0,
-    "maxResults": 50,
-    "total": 51,
     "issues": [SINGLE_ISSUE],
+    "nextPageToken": "page2token",
 }
 SINGLE_ISSUE_RESPONSE_PAGE_2 = {
-    "expand": "schema,names",
-    "startAt": 50,
-    "maxResults": 50,
-    "total": 51,
     "issues": [SECOND_ISSUE],
 }
 NO_ISSUES_RESPONSE = {
-    "expand": "schema,names",
-    "startAt": 0,
-    "maxResults": 50,
-    "total": 0,
     "issues": [],
 }
 EMPTY_ISSUE_RESPONSE = {
-    "expand": "schema,names",
-    "startAt": 0,
-    "maxResults": 50,
-    "total": 1,
     "issues": [EMPTY_ISSUE],
 }
 
@@ -441,11 +421,26 @@ def test_sync_data_sync_table(enterprise_data_fixture):
     auth_header_value = f"Basic {encoded_credentials}"
 
     responses.add(
+        responses.POST,
+        "https://test.atlassian.net/rest/api/2/search/approximate-count",
+        status=200,
+        json={"count": 1},
+    )
+    responses.add(
         responses.GET,
-        "https://test.atlassian.net/rest/api/2/search?startAt=0&maxResults=50",
+        "https://test.atlassian.net/rest/api/2/search/jql",
         status=200,
         json=SINGLE_ISSUE_RESPONSE,
-        match=[header_matcher({"Authorization": auth_header_value})],
+        match=[
+            header_matcher({"Authorization": auth_header_value}),
+            query_param_matcher(
+                {
+                    "jql": "created IS NOT EMPTY ORDER BY created DESC",
+                    "maxResults": "50",
+                    "fields": "*all",
+                }
+            ),
+        ],
     )
 
     enterprise_data_fixture.enable_enterprise()
@@ -603,11 +598,26 @@ def test_sync_data_sync_table_empty_issue(enterprise_data_fixture):
     auth_header_value = f"Basic {encoded_credentials}"
 
     responses.add(
+        responses.POST,
+        "https://test.atlassian.net/rest/api/2/search/approximate-count",
+        status=200,
+        json={"count": 1},
+    )
+    responses.add(
         responses.GET,
-        "https://test.atlassian.net/rest/api/2/search?startAt=0&maxResults=50",
+        "https://test.atlassian.net/rest/api/2/search/jql",
         status=200,
         json=EMPTY_ISSUE_RESPONSE,
-        match=[header_matcher({"Authorization": auth_header_value})],
+        match=[
+            header_matcher({"Authorization": auth_header_value}),
+            query_param_matcher(
+                {
+                    "jql": "created IS NOT EMPTY ORDER BY created DESC",
+                    "maxResults": "50",
+                    "fields": "*all",
+                }
+            ),
+        ],
     )
 
     enterprise_data_fixture.enable_enterprise()
@@ -685,11 +695,26 @@ def test_sync_data_sync_table_empty_issue(enterprise_data_fixture):
 @responses.activate
 def test_sync_data_sync_table_personal_access_token(enterprise_data_fixture):
     responses.add(
+        responses.POST,
+        "https://test.atlassian.net/rest/api/2/search/approximate-count",
+        status=200,
+        json={"count": 1},
+    )
+    responses.add(
         responses.GET,
-        "https://test.atlassian.net/rest/api/2/search?startAt=0&maxResults=50",
+        "https://test.atlassian.net/rest/api/2/search/jql",
         status=200,
         json=EMPTY_ISSUE_RESPONSE,
-        match=[header_matcher({"Authorization": "Bearer FAKE_PAT"})],
+        match=[
+            header_matcher({"Authorization": "Bearer FAKE_PAT"}),
+            query_param_matcher(
+                {
+                    "jql": "created IS NOT EMPTY ORDER BY created DESC",
+                    "maxResults": "50",
+                    "fields": "*all",
+                }
+            ),
+        ],
     )
 
     enterprise_data_fixture.enable_enterprise()
@@ -728,20 +753,42 @@ def test_sync_data_sync_table_personal_access_token(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @responses.activate
 def test_create_data_sync_table_pagination(enterprise_data_fixture):
-    basic_auth_header = HTTPBasicAuth("test@test.nl", "test_token")
     responses.add(
-        responses.GET,
-        "https://test.atlassian.net/rest/api/2/search?startAt=0&maxResults=50",
+        responses.POST,
+        "https://test.atlassian.net/rest/api/2/search/approximate-count",
         status=200,
-        json=SINGLE_ISSUE_RESPONSE_PAGE_1,
-        headers={"Authorization": f"Basic {basic_auth_header}"},
+        json={"count": 2},
     )
     responses.add(
         responses.GET,
-        "https://test.atlassian.net/rest/api/2/search?startAt=50&maxResults=50",
+        "https://test.atlassian.net/rest/api/2/search/jql",
+        status=200,
+        json=SINGLE_ISSUE_RESPONSE_PAGE_1,
+        match=[
+            query_param_matcher(
+                {
+                    "jql": "created IS NOT EMPTY ORDER BY created DESC",
+                    "maxResults": "50",
+                    "fields": "*all",
+                }
+            ),
+        ],
+    )
+    responses.add(
+        responses.GET,
+        "https://test.atlassian.net/rest/api/2/search/jql",
         status=200,
         json=SINGLE_ISSUE_RESPONSE_PAGE_2,
-        headers={"Authorization": f"Basic {basic_auth_header}"},
+        match=[
+            query_param_matcher(
+                {
+                    "jql": "created IS NOT EMPTY ORDER BY created DESC",
+                    "maxResults": "50",
+                    "fields": "*all",
+                    "nextPageToken": "page2token",
+                }
+            ),
+        ],
     )
 
     enterprise_data_fixture.enable_enterprise()
@@ -785,13 +832,26 @@ def test_create_data_sync_table_pagination(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @responses.activate
 def test_create_data_sync_table_invalid_auth(enterprise_data_fixture):
-    basic_auth_header = HTTPBasicAuth("test@test.nl", "test_token")
+    responses.add(
+        responses.POST,
+        "https://test.atlassian.net/rest/api/2/search/approximate-count",
+        status=200,
+        json={"count": 0},
+    )
     responses.add(
         responses.GET,
-        "https://test.atlassian.net/rest/api/2/search?startAt=0&maxResults=50",
+        "https://test.atlassian.net/rest/api/2/search/jql",
         status=200,
         json=NO_ISSUES_RESPONSE,
-        headers={"Authorization": f"Basic {basic_auth_header}"},
+        match=[
+            query_param_matcher(
+                {
+                    "jql": "created IS NOT EMPTY ORDER BY created DESC",
+                    "maxResults": "50",
+                    "fields": "*all",
+                }
+            ),
+        ],
     )
 
     enterprise_data_fixture.enable_enterprise()
@@ -823,13 +883,26 @@ def test_create_data_sync_table_invalid_auth(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @responses.activate
 def test_create_data_sync_table_jira_error_message(enterprise_data_fixture):
-    basic_auth_header = HTTPBasicAuth("test@test.nl", "test_token")
+    responses.add(
+        responses.POST,
+        "https://test.atlassian.net/rest/api/2/search/approximate-count",
+        status=200,
+        json={"count": 1},
+    )
     responses.add(
         responses.GET,
-        "https://test.atlassian.net/rest/api/2/search?startAt=0&maxResults=50",
+        "https://test.atlassian.net/rest/api/2/search/jql",
         status=400,
         json={"errorMessages": ["test error"]},
-        headers={"Authorization": f"Basic {basic_auth_header}"},
+        match=[
+            query_param_matcher(
+                {
+                    "jql": "created IS NOT EMPTY ORDER BY created DESC",
+                    "maxResults": "50",
+                    "fields": "*all",
+                }
+            ),
+        ],
     )
 
     enterprise_data_fixture.enable_enterprise()
@@ -859,13 +932,26 @@ def test_create_data_sync_table_jira_error_message(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @responses.activate
 def test_create_data_sync_table_with_project_key(enterprise_data_fixture):
-    basic_auth_header = HTTPBasicAuth("test@test.nl", "test_token")
+    responses.add(
+        responses.POST,
+        "https://test.atlassian.net/rest/api/2/search/approximate-count",
+        status=200,
+        json={"count": 1},
+    )
     responses.add(
         responses.GET,
-        "https://test.atlassian.net/rest/api/2/search?startAt=0&maxResults=50&jql=project=TEST",
+        "https://test.atlassian.net/rest/api/2/search/jql",
         status=200,
         json=SINGLE_ISSUE_RESPONSE,
-        headers={"Authorization": f"Basic {basic_auth_header}"},
+        match=[
+            query_param_matcher(
+                {
+                    "jql": "project=TEST ORDER BY created DESC",
+                    "maxResults": "50",
+                    "fields": "*all",
+                }
+            ),
+        ],
     )
 
     enterprise_data_fixture.enable_enterprise()
@@ -895,13 +981,26 @@ def test_create_data_sync_table_with_project_key(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @responses.activate
 def test_create_data_sync_table_jira_not_updated_twice(enterprise_data_fixture):
-    basic_auth_header = HTTPBasicAuth("test@test.nl", "test_token")
+    responses.add(
+        responses.POST,
+        "https://test.atlassian.net/rest/api/2/search/approximate-count",
+        status=200,
+        json={"count": 1},
+    )
     responses.add(
         responses.GET,
-        "https://test.atlassian.net/rest/api/2/search?startAt=0&maxResults=50",
+        "https://test.atlassian.net/rest/api/2/search/jql",
         status=200,
         json=SINGLE_ISSUE_RESPONSE,
-        headers={"Authorization": f"Basic {basic_auth_header}"},
+        match=[
+            query_param_matcher(
+                {
+                    "jql": "created IS NOT EMPTY ORDER BY created DESC",
+                    "maxResults": "50",
+                    "fields": "*all",
+                }
+            ),
+        ],
     )
 
     enterprise_data_fixture.enable_enterprise()

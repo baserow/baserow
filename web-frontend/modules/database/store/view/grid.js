@@ -677,9 +677,8 @@ export const mutations = {
       let updated = false
       const groupByFields = groupBys
         .slice(0, groupByIndex + 1)
-        .map((groupBy) => {
-          return fields.find((f) => f.id === groupBy.field)
-        })
+        .map((groupBy) => fields.find((f) => f.id === groupBy.field))
+        .filter(Boolean)
       const fieldName = `field_${groupBy.field}`
       if (!Object.prototype.hasOwnProperty.call(existingMetadata, fieldName)) {
         existingMetadata[`field_${groupBy.field}`] = []
@@ -1529,6 +1528,7 @@ export const actions = {
       fromField,
       undoRedoActionGroupId = null,
       readOnly = false,
+      visible = null,
     }
   ) {
     const { $registry, $client, $i18n, $config } = this
@@ -1566,6 +1566,9 @@ export const actions = {
         // Update all other field order
         options.order = index
         index += 1
+      } else if (visible !== null) {
+        // Make the moved field visible if the `visible` parameter is not null
+        newFieldOptions[fieldId].hidden = !visible
       }
     })
 

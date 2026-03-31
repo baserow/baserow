@@ -9,7 +9,7 @@ describe('Checkbox', () => {
       },
     })
 
-    await wrapper.trigger('click')
+    await wrapper.find('input[type="checkbox"]').setValue(true)
 
     expect(wrapper.emitted('input')).toBeTruthy()
     expect(wrapper.emitted('input')[0]).toEqual([true])

@@ -1,24 +1,24 @@
 <template>
   <header class="layout__col-2-1 header header--space-between">
-    <ul class="header__filter">
-      <li
-        v-if="
-          $hasPermission(
-            'application.update',
-            automation,
-            automation.workspace.id
-          )
-        "
-        class="header__filter-item"
-      >
+    <ul
+      v-if="
+        $hasPermission(
+          'application.update',
+          automation,
+          automation.workspace.id
+        )
+      "
+      class="header__filter"
+    >
+      <li class="header__filter-item">
         <a
           data-item-type="settings"
           class="header__filter-link"
           @click="openSettingsModal"
           ><i class="header__filter-icon iconoir-settings"></i>
-          <span class="header__filter-name">{{
-            $t('automationHeader.settingsBtn')
-          }}</span>
+          <span class="header__filter-name"
+            >{{ $t('automationHeader.settingsBtn') }}
+          </span>
         </a>
       </li>
       <li class="header__filter-item">
@@ -62,7 +62,16 @@
       </li>
     </ul>
 
-    <div class="header__right">
+    <div
+      v-if="
+        $hasPermission(
+          'application.update',
+          automation,
+          automation.workspace.id
+        )
+      "
+      class="header__right"
+    >
       <span class="header__switch-container">
         <template v-if="!publishedOn">
           <Badge color="cyan" rounded size="small">{{
@@ -105,8 +114,8 @@
             testRunEnabled
               ? $t('automationHeader.stopTestRun')
               : $t('automationHeader.startTestRun')
-          }}</Button
-        >
+          }}
+        </Button>
         <Button
           data-highlight="automation-publish"
           :loading="isPublishing"
@@ -150,20 +159,10 @@ export default defineComponent({
     const store = useStore()
     const app = useNuxtApp()
     const isDev = inject('isDev')
+    const workflow = inject('workflow')
 
     const debug = ref(false)
     const isPublishing = ref(false)
-
-    const workflow = inject('workflow')
-
-    const selectedWorkflow = computed(() => {
-      if (!props.automation) return null
-      try {
-        return store.getters['automationWorkflow/getSelected']
-      } catch {
-        return null
-      }
-    })
 
     const testRunDisabled = computed(() => {
       if (!workflow.value?.graph) {
@@ -198,12 +197,12 @@ export default defineComponent({
     })
 
     const publishedOn = computed(() => {
-      if (!selectedWorkflow.value?.published_on || isPublishing.value) {
+      if (!workflow.value?.published_on || isPublishing.value) {
         return null
       }
 
       return moment
-        .utc(selectedWorkflow.value.published_on)
+        .utc(workflow.value.published_on)
         .tz(getUserTimeZone())
         .format('MMM D, YYYY HH:mm:ss')
     })
@@ -304,7 +303,6 @@ export default defineComponent({
       isPublishing,
       isPaused,
       isDisabled,
-      selectedWorkflow,
       workflow,
       activeSidePanel,
       testRunDisabled,

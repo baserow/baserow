@@ -142,6 +142,20 @@
                   @update-view="forceUpdateView"
                 />
               </div>
+
+              <Alert
+                v-for="(warning, i) in shareViewWarnings"
+                :key="i"
+                type="warning"
+                class="margin-top-2 margin-bottom-0"
+              >
+                <template #title>{{
+                  $t('shareViewLink.shareViewWarningTitle')
+                }}</template>
+                <p>
+                  {{ warning }}
+                </p>
+              </Alert>
             </div>
 
             <component
@@ -211,6 +225,21 @@ export default {
       type: Boolean,
       required: true,
     },
+    fields: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
+    views: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   data() {
     return {
@@ -256,6 +285,33 @@ export default {
     },
     additionalSharingSections() {
       return this.viewType.getAdditionalSharingSections()
+    },
+    visibleFields() {
+      return this.viewType.getVisibleFieldsInOrder(
+        this,
+        this.fields,
+        this.view,
+        this.storePrefix
+      )
+    },
+    shareViewWarnings() {
+      const context = { view: this.view, allViews: this.views }
+      const fieldsByType = {}
+      for (const field of this.visibleFields) {
+        if (!fieldsByType[field.type]) {
+          fieldsByType[field.type] = []
+        }
+        fieldsByType[field.type].push(field)
+      }
+      const warnings = []
+      for (const [type, fields] of Object.entries(fieldsByType)) {
+        const fieldType = this.$registry.get('field', type)
+        const warning = fieldType.getShareViewWarning(fields, context)
+        if (warning) {
+          warnings.push(warning)
+        }
+      }
+      return warnings
     },
   },
   methods: {

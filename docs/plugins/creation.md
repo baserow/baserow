@@ -8,16 +8,16 @@ plugins to get inspiration from and discuss how to publish your plugin.
 
 ## Initialize your plugin from the official template
 
-We highly recommend using
-the [Step by step tutorial on plugin creation using the plugin boilerplate](./boilerplate.md)
-which will setup a basic Baserow plugin ready for you to start working on.
+We highly recommend using the
+[Step by step tutorial on plugin creation using the plugin boilerplate](./boilerplate.md)
+which will setup a basic Baserow plugin ready for you to start working on. Please note
+that the boilerplate is outdated and only compatible with version 2.0.6 and lower.
 
 To instantiate the template, execute the following commands:
 
 ```sh
-$ cd ~/baserow
 $ pip install cookiecutter
-$ cookiecutter gl:baserow/baserow --directory plugin-boilerplate
+$ $ cookiecutter https://github.com/baserow/plugin-boilerplate.git
 ```
 
 ## Get inspiration from our examples
@@ -122,7 +122,7 @@ containing metadata about your plugin. It should have the following JSON structu
 {
   "name": "TODO",
   "version": "TODO",
-  "supported_baserow_versions": "2.0.6",
+  "supported_baserow_versions": "2.1.6",
   "plugin_api_version": "0.0.1-alpha",
   "description": "TODO",
   "author": "TODO",

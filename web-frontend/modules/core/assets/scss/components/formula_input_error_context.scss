@@ -1,0 +1,13 @@
+.formula-input-error-context {
+  border: none;
+
+  .alert {
+    margin: 0;
+    width: 100%;
+  }
+
+  .alert__message {
+    max-height: 75px;
+    overflow-y: auto;
+  }
+}

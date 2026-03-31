@@ -16,7 +16,7 @@ exports[`GalleryView component with decoration > Default component with first_ce
   >
     <div
       class="gallery-view__cards"
-      style="height: 438px;"
+      style="height: 338px;"
     >
       
       <div
@@ -82,25 +82,6 @@ exports[`GalleryView component with decoration > Default component with first_ce
                 </div>
               </div>
             </div>
-            <div
-              class="card__field"
-            >
-              <div
-                class="card__field-name"
-              >
-                Address
-              </div>
-              <div
-                class="card__field-value"
-              >
-                <div
-                  class="card-text"
-                  field="[object Object]"
-                  row="[object Object]"
-                  workspace-id="1"
-                />
-              </div>
-            </div>
             
           </div>
         </div>
@@ -128,7 +109,7 @@ exports[`GalleryView component with decoration > Default component with row wrap
   >
     <div
       class="gallery-view__cards"
-      style="height: 438px;"
+      style="height: 338px;"
     >
       
       <div
@@ -195,25 +176,6 @@ exports[`GalleryView component with decoration > Default component with row wrap
                     </div>
                   </div>
                 </div>
-                <div
-                  class="card__field"
-                >
-                  <div
-                    class="card__field-name"
-                  >
-                    Address
-                  </div>
-                  <div
-                    class="card__field-value"
-                  >
-                    <div
-                      class="card-text"
-                      field="[object Object]"
-                      row="[object Object]"
-                      workspace-id="1"
-                    />
-                  </div>
-                </div>
                 
               </div>
             </div>
@@ -242,7 +204,7 @@ exports[`GalleryView component with decoration > Default component with unavaila
   >
     <div
       class="gallery-view__cards"
-      style="height: 438px;"
+      style="height: 338px;"
     >
       
       <div
@@ -300,25 +262,6 @@ exports[`GalleryView component with decoration > Default component with unavaila
                 >
                   Bram
                 </div>
-              </div>
-            </div>
-            <div
-              class="card__field"
-            >
-              <div
-                class="card__field-name"
-              >
-                Address
-              </div>
-              <div
-                class="card__field-value"
-              >
-                <div
-                  class="card-text"
-                  field="[object Object]"
-                  row="[object Object]"
-                  workspace-id="1"
-                />
               </div>
             </div>
             

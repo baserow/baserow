@@ -96,7 +96,7 @@ export default {
           .get('field', primary.type)
           .toHumanReadableString(primary, row[`field_${primary.id}`])
         this.rowInfo = null
-      } else if (!this.isDropdown) {
+      } else if (!this.isDropdown && this.valid) {
         // Get the name from server
         this.loading = true
         try {

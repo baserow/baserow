@@ -169,7 +169,7 @@ const { $client, $registry, $i18n } = useNuxtApp()
 useHead({ title: $i18n.t('licenses.titleLicenses') })
 
 // Fetch data using useAsyncData and return the values from the callback
-const { data } = await useAsyncData('licensesPage', async () => {
+const { data, error } = await useAsyncData('licensesPage', async () => {
   try {
     const [{ data: instanceData }, { data: licensesData }] = await Promise.all([
       SettingsService($client).getInstanceID(),
@@ -183,10 +183,15 @@ const { data } = await useAsyncData('licensesPage', async () => {
   } catch (e) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'Something went wrong while fetching the licenses.',
+      message: 'Something went wrong while fetching the licenses.',
+      fatal: true,
     })
   }
 })
+
+if (error.value) {
+  throw error.value
+}
 
 const licenses = computed(() => data.value?.licenses || [])
 const instanceId = computed(() => data.value?.instanceId || '')

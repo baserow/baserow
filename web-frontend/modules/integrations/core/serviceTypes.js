@@ -77,18 +77,27 @@ export class CoreSMTPEmailServiceType extends WorkflowActionServiceTypeMixin(
 
   getErrorMessage({ service }) {
     if (
-      service !== undefined &&
+      service === undefined ||
+      // This case happens in a published application. We don't want to check
+      // the validity in that case.
+      service.use_instance_smtp_settings === undefined
+    ) {
+      return null
+    }
+
+    if (!service.use_instance_smtp_settings && !service.integration_id) {
+      return this.app.$i18n.t('serviceType.errorNoIntegrationSelected')
+    }
+
+    if (
+      !service.use_instance_smtp_settings &&
       service.from_email !== undefined &&
       !service.from_email.formula
     ) {
       return this.app.$i18n.t('serviceType.errorFromEmailMissing')
     }
 
-    if (
-      service !== undefined &&
-      service.to_emails !== undefined &&
-      !service.to_emails.formula
-    ) {
+    if (service.to_emails !== undefined && !service.to_emails.formula) {
       return this.app.$i18n.t('serviceType.errorToEmailsMissing')
     }
 

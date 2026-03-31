@@ -13,9 +13,16 @@
       />
     </div>
 
-    <FormulaInputContext
+    <FormulaInputErrorContext
+      v-if="isFocused && !readOnly && isFormulaInvalid"
+      ref="formulaInputErrorContext"
+      :formula-error-context="formulaErrorContext"
+      @mousedown="onContextMouseDown"
+    />
+
+    <FormulaInputExplorerContext
       v-if="isFocused && !readOnly"
-      ref="formulaInputContext"
+      ref="formulaInputExplorerContext"
       :node-selected="nodeSelected"
       :loading="loading"
       :mode="mode"
@@ -26,7 +33,7 @@
       @node-selected="handleNodeSelected"
       @node-unselected="unSelectNode"
       @mode-changed="handleModeChange"
-      @mousedown="onDataExplorerMouseDown"
+      @mousedown="onContextMouseDown"
     />
 
     <NodeHelpTooltip
@@ -71,7 +78,8 @@ import { ToTipTapVisitor } from '@baserow/modules/core/formula/tiptap/toTipTapVi
 import { RuntimeFunctionCollection } from '@baserow/modules/core/functionCollection'
 import { FromTipTapVisitor } from '@baserow/modules/core/formula/tiptap/fromTipTapVisitor'
 import { mergeAttributes } from '@tiptap/core'
-import FormulaInputContext from '@baserow/modules/core/components/formula/FormulaInputContext'
+import FormulaInputErrorContext from '~/modules/core/components/formula/FormulaInputErrorContext'
+import FormulaInputExplorerContext from '@baserow/modules/core/components/formula/FormulaInputExplorerContext'
 import { isFormulaValid } from '@baserow/modules/core/formula'
 import NodeHelpTooltip from '@baserow/modules/core/components/nodeExplorer/NodeHelpTooltip'
 import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
@@ -79,7 +87,8 @@ import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 export default {
   name: 'FormulaInputField',
   components: {
-    FormulaInputContext,
+    FormulaInputErrorContext,
+    FormulaInputExplorerContext,
     EditorContent,
     NodeHelpTooltip,
   },
@@ -154,6 +163,11 @@ export default {
       required: false,
       default: () => BASEROW_FORMULA_MODES,
     },
+    validationContext: {
+      type: Object,
+      required: false,
+      default: () => ({}),
+    },
   },
   emits: ['input', 'update:mode', 'data-node-clicked'],
   data() {
@@ -161,10 +175,13 @@ export default {
       editor: null,
       content: null,
       isFormulaInvalid: false,
+      formulaErrorContext: { scope: null, title: '', message: '' },
+      errorExpanded: false,
       isFocused: false,
       hoveredFunctionNode: null,
       isHandlingModeChange: false,
       intersectionObserver: null,
+      isEditorInitialized: false,
     }
   },
   computed: {
@@ -348,6 +365,11 @@ export default {
     },
 
     mode(newMode, oldMode) {
+      // In Vue 3, watchers can fire during the initial render cycle before
+      // mounted() completes. Skip if editor hasn't been initialized yet.
+      if (!this.isEditorInitialized) {
+        return
+      }
       // Skip automatic recreation if we're handling it manually in handleModeChange
       if (this.isHandlingModeChange) {
         return
@@ -437,6 +459,7 @@ export default {
           }),
         },
       })
+      this.isEditorInitialized = true
     },
     recreateEditor(formula = null) {
       const currentFormula =
@@ -447,14 +470,31 @@ export default {
       this.createEditor(currentFormula)
     },
     emitChange() {
+      this.formulaErrorContext = { scope: null, title: '', message: '' }
+      this.errorExpanded = false
+
       const functions = new RuntimeFunctionCollection(this.$registry)
       // this.wrapperContent can be stale content, so get the data
       // directly from the editor.
       const editorContent = this.editor.getJSON()
       const formula = this.toFormula(editorContent)
-      this.isFormulaInvalid = !isFormulaValid(formula, functions)
 
-      if (!this.isFormulaInvalid) {
+      // Validate the syntax, and assuming it's valid, then validate the arguments.
+      const validationResult = isFormulaValid(
+        formula,
+        functions,
+        false,
+        this.validationContext,
+        this.$t('formulaInputField.invalidSyntax')
+      )
+      this.isFormulaInvalid = !validationResult.valid
+      if (this.isFormulaInvalid) {
+        this.formulaErrorContext = {
+          scope: validationResult.scope,
+          title: this.$t('formulaInputField.invalidFormulaTitle'),
+          message: validationResult.errors[0],
+        }
+      } else {
         this.$emit('input', formula)
       }
     },
@@ -480,8 +520,8 @@ export default {
           break
       }
     },
-    onDataExplorerMouseDown() {
-      this.editor?.commands.handleDataExplorerMouseDown()
+    onContextMouseDown() {
+      this.editor?.commands.handleContextMouseDown()
     },
     toContent(formula) {
       if (!formula) {
@@ -557,6 +597,7 @@ export default {
         this.$emit('update:mode', newMode)
         this.$emit('input', '')
         this.isFormulaInvalid = false
+        this.formulaErrorContext = { scope: null, title: '', message: '' }
         this.isHandlingModeChange = false
       } else {
         // Otherwise (simple to advanced), keep the current formula

@@ -89,7 +89,7 @@ export const ContextManagementExtension = Extension.create({
               if (config.needsDynamicOffset) {
                 const inputRect = vueComponent.$el?.getBoundingClientRect()
                 const contextRect =
-                  vueComponent.$refs?.formulaInputContext?.$el?.getBoundingClientRect()
+                  vueComponent.$refs?.formulaInputExplorerContext?.$el?.getBoundingClientRect()
 
                 switch (contextPosition) {
                   case 'left':
@@ -103,13 +103,25 @@ export const ContextManagementExtension = Extension.create({
                 }
               }
 
-              if (vueComponent.$refs?.formulaInputContext) {
-                vueComponent.$refs.formulaInputContext.show(
+              if (vueComponent.$refs?.formulaInputExplorerContext) {
+                vueComponent.$refs.formulaInputExplorerContext.show(
                   vueComponent.$refs.editor.$el,
                   vertical,
                   horizontal,
                   verticalOffset,
                   horizontalOffset
+                )
+              }
+              if (vueComponent.$refs?.formulaInputErrorContext) {
+                const editorEl = vueComponent.$refs.editor.$el
+                const editorRect = editorEl.getBoundingClientRect()
+                vueComponent.$refs.formulaInputErrorContext.show(
+                  editorEl,
+                  'top',
+                  'left',
+                  10,
+                  0,
+                  editorRect.width
                 )
               }
             })
@@ -145,13 +157,10 @@ export const ContextManagementExtension = Extension.create({
                 this.storage.clickOutsideEventCancel = onClickOutside(
                   vueComponent.$el,
                   (target, event) => {
-                    if (
-                      vueComponent.$refs?.formulaInputContext &&
-                      !isElement(
-                        vueComponent.$refs.formulaInputContext.$el,
-                        target
-                      )
-                    ) {
+                    const isInsideContext = target.closest(
+                      '[data-formula-input-context]'
+                    )
+                    if (!isInsideContext) {
                       editor.commands.hideContext()
                     }
                   }
@@ -171,8 +180,8 @@ export const ContextManagementExtension = Extension.create({
             vueComponent.isFocused = false
           }
 
-          if (vueComponent?.$refs?.formulaInputContext) {
-            vueComponent.$refs.formulaInputContext.hide()
+          if (vueComponent?.$refs?.formulaInputExplorerContext) {
+            vueComponent.$refs.formulaInputExplorerContext.hide()
           }
 
           editor.commands.unselectNode()
@@ -185,7 +194,7 @@ export const ContextManagementExtension = Extension.create({
           return true
         },
 
-      handleDataExplorerMouseDown: () => () => {
+      handleContextMouseDown: () => () => {
         this.storage.ignoreNextBlur = true
         return true
       },

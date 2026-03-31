@@ -15,9 +15,17 @@ class InvalidNumberOfArguments(BaserowFormulaException):
             error_prefix = "1 argument was"
         else:
             error_prefix = f"{num_args} arguments were"
+
+        if function_def.num_args is None:
+            # This function doesn't take a specific set of `args`, but instead a
+            # variable number of arguments with a minimum number of args.
+            expected = f"at least {function_def.min_args}"
+        else:
+            expected = str(function_def.num_args)
+
         super().__init__(
-            f"{error_prefix} given to the {function_def}, it must instead "
-            f"be given {function_def.num_args}"
+            f"{error_prefix} given to the '{function_def.type}' function, it must "
+            f"instead be given {expected}"
         )
 
 
@@ -51,8 +59,8 @@ class FieldByIdReferencesAreDeprecated(BaserowFormulaException):
 
 
 class UnknownOperator(BaserowFormulaException):
-    def __init__(self, operatorText):
-        super().__init__(f"it used the unknown operator {operatorText}")
+    def __init__(self, operator_text):
+        super().__init__(f"it used the unknown operator {operator_text}")
 
 
 class BaserowFormulaSyntaxError(BaserowFormulaException):

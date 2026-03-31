@@ -1,35 +1,45 @@
-from unittest.mock import MagicMock, Mock, patch
+from unittest.mock import MagicMock, patch
 
 import pytest
-from udspy.module.callbacks import ModuleContext, is_module_callback
 
 from baserow.contrib.database.fields.models import FormulaField
 from baserow.contrib.database.formula.registries import formula_function_registry
 from baserow.contrib.database.table.models import Table
 from baserow.test_utils.helpers import AnyInt
+from baserow_enterprise.assistant.tools.database.agents import FormulaGenerationResult
 from baserow_enterprise.assistant.tools.database.tools import (
-    get_generate_database_formula_tool,
-    get_list_tables_tool,
-    get_table_and_fields_tools_factory,
+    create_fields,
+    create_tables,
+    generate_formula,
+    list_tables,
 )
 from baserow_enterprise.assistant.tools.database.types import (
-    BooleanFieldItemCreate,
-    DateFieldItemCreate,
-    FileFieldItemCreate,
-    LinkRowFieldItemCreate,
+    FieldItem,
+    FieldItemCreate,
+    InvalidFormulaFieldError,
     ListTablesFilterArg,
-    LongTextFieldItemCreate,
-    MultipleSelectFieldItemCreate,
-    NumberFieldItemCreate,
-    RatingFieldItemCreate,
     SelectOptionCreate,
-    SingleSelectFieldItemCreate,
     TableItemCreate,
-    TextFieldItemCreate,
-    field_item_registry,
 )
 
-from .utils import fake_tool_helpers
+from .utils import make_test_ctx
+
+
+def _make_mock_formula_result(**kwargs):
+    """Create a mock agent result with a FormulaGenerationResult output."""
+    defaults = {
+        "table_id": 1,
+        "field_name": "test_formula",
+        "formula": "'ok'",
+        "formula_type": "text",
+        "is_formula_valid": True,
+        "error_message": "",
+    }
+    defaults.update(kwargs)
+    result = FormulaGenerationResult(**defaults)
+    mock_agent_result = MagicMock()
+    mock_agent_result.output = result
+    return mock_agent_result
 
 
 @pytest.mark.django_db
@@ -46,138 +56,86 @@ def test_list_tables_tool(data_fixture):
     table_2 = data_fixture.create_database_table(database=database_1, name="Table 2")
     table_3 = data_fixture.create_database_table(database=database_2, name="Table 3")
 
-    tool = get_list_tables_tool(user, workspace, fake_tool_helpers)
+    ctx = make_test_ctx(user, workspace)
 
-    # Test 1: Filter by database_ids (single database) - returns flat list
-    response = tool(
+    # Test 1: Filter by database_id (single database) - returns flat list
+    response = list_tables(
+        ctx,
+        thought="test",
         filters=ListTablesFilterArg(
-            database_ids=[database_1.id],
-            database_names=None,
-            table_ids=None,
-            table_names=None,
-        )
+            database_id_or_name=database_1.id,
+            table_ids_or_names=None,
+        ),
     )
     assert response == [
         {"id": table_1.id, "name": "Table 1", "database_id": database_1.id},
         {"id": table_2.id, "name": "Table 2", "database_id": database_1.id},
     ]
 
-    # Test 2: Filter by database_names (single database) - returns flat list
-    response = tool(
+    # Test 2: Filter by database_name (single database) - returns flat list
+    response = list_tables(
+        ctx,
+        thought="test",
         filters=ListTablesFilterArg(
-            database_ids=None,
-            database_names=["Database 2"],
-            table_ids=None,
-            table_names=None,
-        )
+            database_id_or_name="Database 2",
+            table_ids_or_names=None,
+        ),
     )
     assert response == [
         {"id": table_3.id, "name": "Table 3", "database_id": database_2.id},
     ]
 
-    # Test 3: Filter by multiple database_ids - returns database wrapper structure
-    response = tool(
+    # Test 4: Filter by database + table_ids - returns flat list
+    response = list_tables(
+        ctx,
+        thought="test",
         filters=ListTablesFilterArg(
-            database_ids=[database_1.id, database_2.id],
-            database_names=None,
-            table_ids=None,
-            table_names=None,
-        )
-    )
-    assert response == [
-        {
-            "id": database_1.id,
-            "name": "Database 1",
-            "tables": [
-                {"id": table_1.id, "name": "Table 1", "database_id": database_1.id},
-                {"id": table_2.id, "name": "Table 2", "database_id": database_1.id},
-            ],
-        },
-        {
-            "id": database_2.id,
-            "name": "Database 2",
-            "tables": [
-                {"id": table_3.id, "name": "Table 3", "database_id": database_2.id},
-            ],
-        },
-    ]
-
-    # Test 4: Filter by table_ids (single database) - returns flat list
-    response = tool(
-        filters=ListTablesFilterArg(
-            database_ids=None,
-            database_names=None,
-            table_ids=[table_1.id, table_2.id],
-            table_names=None,
-        )
+            database_id_or_name=database_1.id,
+            table_ids_or_names=[table_1.id, table_2.id],
+        ),
     )
     assert response == [
         {"id": table_1.id, "name": "Table 1", "database_id": database_1.id},
         {"id": table_2.id, "name": "Table 2", "database_id": database_1.id},
     ]
 
-    # Test 5: Filter by table_names (single database) - returns flat list
-    response = tool(
+    # Test 5: Filter by database + table_names - returns flat list
+    response = list_tables(
+        ctx,
+        thought="test",
         filters=ListTablesFilterArg(
-            database_ids=None,
-            database_names=None,
-            table_ids=None,
-            table_names=["Table 1"],
-        )
+            database_id_or_name=database_1.id,
+            table_ids_or_names=["Table 1"],
+        ),
     )
     assert response == [
         {"id": table_1.id, "name": "Table 1", "database_id": database_1.id},
     ]
 
-    # Test 6: Filter by table_ids across multiple databases - returns database wrapper
-    response = tool(
+    # Test 6: Combined filters (database_id + table_names) - returns flat list
+    response = list_tables(
+        ctx,
+        thought="test",
         filters=ListTablesFilterArg(
-            database_ids=None,
-            database_names=None,
-            table_ids=[table_1.id, table_3.id],
-            table_names=None,
-        )
-    )
-    assert response == [
-        {
-            "id": database_1.id,
-            "name": "Database 1",
-            "tables": [
-                {"id": table_1.id, "name": "Table 1", "database_id": database_1.id},
-            ],
-        },
-        {
-            "id": database_2.id,
-            "name": "Database 2",
-            "tables": [
-                {"id": table_3.id, "name": "Table 3", "database_id": database_2.id},
-            ],
-        },
-    ]
-
-    # Test 7: Combined filters (database_ids + table_names) - returns flat list
-    response = tool(
-        filters=ListTablesFilterArg(
-            database_ids=[database_1.id],
-            database_names=None,
-            table_ids=None,
-            table_names=["Table 2"],
-        )
+            database_id_or_name=database_1.id,
+            table_ids_or_names=["Table 2"],
+        ),
     )
     assert response == [
         {"id": table_2.id, "name": "Table 2", "database_id": database_1.id},
     ]
 
-    # Test 8: No matching tables - returns "No tables found"
-    response = tool(
+    # Test 7: No matching tables - returns hint with available tables
+    response = list_tables(
+        ctx,
+        thought="test",
         filters=ListTablesFilterArg(
-            database_ids=None,
-            database_names=None,
-            table_ids=None,
-            table_names=["Nonexistent Table"],
-        )
+            database_id_or_name=database_1.id,
+            table_ids_or_names=["Nonexistent Table"],
+        ),
     )
-    assert response == "No tables found"
+    info = response["_info"]
+    assert "no tables matching" in info or "No tables found" in info
 
 
 @pytest.mark.django_db
@@ -188,44 +146,29 @@ def test_create_simple_table_tool(data_fixture):
         workspace=workspace, name="Database 1"
     )
 
-    factory = get_table_and_fields_tools_factory(user, workspace, fake_tool_helpers)
-    assert callable(factory)
+    ctx = make_test_ctx(user, workspace)
 
-    tools_upgrade = factory()
-    assert is_module_callback(tools_upgrade)
-
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
-
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    assert len(added_tools) == 2  # create_tables and create_fields
-
-    # Find the create_tables tool
-    create_tables_tool = next(
-        (tool for tool in added_tools if tool.name == "create_tables"), None
-    )
-    assert create_tables_tool is not None
-
-    # Call the underlying function directly (not through udspy.Tool wrapper)
-    response = create_tables_tool.func(
+    # Call the tool function directly
+    response = create_tables(
+        ctx,
+        thought="test",
         database_id=database.id,
         tables=[
             TableItemCreate(
                 name="New Table",
-                primary_field=TextFieldItemCreate(type="text", name="Name"),
+                primary_field_name="Name",
                 fields=[],
             )
         ],
         add_sample_rows=False,
     )
 
-    assert response == {
-        "created_tables": [{"id": AnyInt(), "name": "New Table"}],
-        "notes": [],
-    }
+    assert len(response["created_tables"]) == 1
+    assert response["created_tables"][0]["name"] == "New Table"
+    assert response["created_tables"][0]["id"] == AnyInt()
+    assert response["notes"] == []
+    # Full schema is included so callers have field IDs
+    assert "primary_field" in response["created_tables"][0]
 
     # Ensure the table was actually created
     assert Table.objects.filter(
@@ -242,66 +185,27 @@ def test_create_complex_table_tool(data_fixture):
     )
     table = data_fixture.create_database_table(database=database, name="Table 1")
 
-    factory = get_table_and_fields_tools_factory(user, workspace, fake_tool_helpers)
-    assert callable(factory)
+    ctx = make_test_ctx(user, workspace)
 
-    tools_upgrade = factory()
-    assert is_module_callback(tools_upgrade)
-
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
-
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    assert len(added_tools) == 2  # create_tables and create_fields
-
-    # Find the create_tables tool
-    create_tables_tool = next(
-        (tool for tool in added_tools if tool.name == "create_tables"), None
-    )
-    assert create_tables_tool is not None
-
-    primary_field = TextFieldItemCreate(type="text", name="Name")
+    primary_field_name = "Name"
     fields = [
-        LongTextFieldItemCreate(
-            type="long_text",
-            name="Description",
-            rich_text=True,
-        ),
-        NumberFieldItemCreate(
-            type="number",
-            name="Amount",
-            decimal_places=2,
-            suffix="$",
-        ),
-        DateFieldItemCreate(
-            type="date",
-            name="Due Date",
-            include_time=False,
-        ),
-        DateFieldItemCreate(
-            type="date",
-            name="Event Time",
-            include_time=True,
-        ),
-        BooleanFieldItemCreate(
-            type="boolean",
-            name="Done?",
-        ),
-        SingleSelectFieldItemCreate(
-            type="single_select",
+        FieldItemCreate(name="Description", type="long_text", rich_text=True),
+        FieldItemCreate(name="Amount", type="number", decimal_places=2, suffix="$"),
+        FieldItemCreate(name="Due Date", type="date", include_time=False),
+        FieldItemCreate(name="Event Time", type="date", include_time=True),
+        FieldItemCreate(name="Done?", type="boolean"),
+        FieldItemCreate(
             name="Status",
+            type="single_select",
             options=[
                 SelectOptionCreate(value="New", color="blue"),
                 SelectOptionCreate(value="In Progress", color="yellow"),
                 SelectOptionCreate(value="Done", color="green"),
             ],
         ),
-        MultipleSelectFieldItemCreate(
-            type="multiple_select",
+        FieldItemCreate(
             name="Tags",
+            type="multiple_select",
             options=[
                 SelectOptionCreate(value="Red", color="red"),
                 SelectOptionCreate(value="Yellow", color="yellow"),
@@ -309,38 +213,36 @@ def test_create_complex_table_tool(data_fixture):
                 SelectOptionCreate(value="Blue", color="blue"),
             ],
         ),
-        LinkRowFieldItemCreate(
-            type="link_row",
+        FieldItemCreate(
             name="Related Items",
+            type="link_row",
             linked_table=table.id,
         ),
-        RatingFieldItemCreate(
-            type="rating",
-            name="Rating",
-            max_value=5,
-        ),
-        FileFieldItemCreate(
-            type="file",
-            name="Attachments",
-        ),
+        FieldItemCreate(name="Rating", type="rating", max_value=5),
+        FieldItemCreate(name="Attachments", type="file"),
     ]
-    # Call the underlying function directly (not through udspy.Tool wrapper)
-    response = create_tables_tool.func(
+    # Call the tool function directly
+    response = create_tables(
+        ctx,
+        thought="test",
         database_id=database.id,
         tables=[
             TableItemCreate(
                 name="New Table",
-                primary_field=primary_field,
+                primary_field_name=primary_field_name,
                 fields=fields,
             )
         ],
         add_sample_rows=False,
     )
 
-    assert response == {
-        "created_tables": [{"id": AnyInt(), "name": "New Table"}],
-        "notes": [],
-    }
+    assert len(response["created_tables"]) == 1
+    assert response["created_tables"][0]["name"] == "New Table"
+    assert response["created_tables"][0]["id"] == AnyInt()
+    assert response["notes"] == []
+    # Full schema is included with all field details
+    assert "primary_field" in response["created_tables"][0]
+    assert "fields" in response["created_tables"][0]
 
     # Ensure the table was actually created with all fields
     created_table = Table.objects.filter(
@@ -351,28 +253,41 @@ def test_create_complex_table_tool(data_fixture):
 
     table_model = created_table.get_model()
     fields_map = {field.name: field for field in fields}
-    fields_map[primary_field.name] = primary_field
     for field_object in table_model.get_field_objects():
         orm_field = field_object["field"]
-        assert orm_field.name in fields_map
-        field_item = fields_map.pop(orm_field.name).model_dump()
-        orm_field_to_item = field_item_registry.from_django_orm(orm_field).model_dump()
+        read_item = FieldItem.from_django_orm(orm_field).model_dump()
+
         if orm_field.primary:
-            assert field_item["name"] == primary_field.name
+            assert orm_field.name == primary_field_name
+            continue
 
-        for key, value in orm_field_to_item.items():
-            if key == "id":
+        assert orm_field.name in fields_map
+        create_item = fields_map.pop(orm_field.name)
+        create_dump = create_item.model_dump()
+
+        # Both create and read are flat: type is top-level
+        assert create_dump["type"] == read_item["type"]
+
+        # Compare type-specific fields present in both
+        skip_keys = {"name", "type"}
+        for key, value in create_dump.items():
+            if key in skip_keys:
                 continue
+            read_value = read_item.get(key)
+            if read_value is None:
+                continue  # read model excludes None; defaults aren't relevant
             if key == "options":
-                # Saved options have an ID, so we need to remove them before comparison
-                for option in value:
+                # Saved options have an ID, so remove them before comparison
+                for option in read_value:
                     option.pop("id")
-
-            assert field_item[key] == value
+            assert read_value == value, (
+                f"Field '{orm_field.name}' key '{key}': "
+                f"expected {value}, got {read_value}"
+            )
 
 
 @pytest.mark.django_db
-def test_generate_database_formula_no_save(data_fixture):
+def test_generate_formula_no_save(data_fixture):
     """Test formula generation without saving to a field."""
 
     user = data_fixture.create_user()
@@ -381,20 +296,22 @@ def test_generate_database_formula_no_save(data_fixture):
     table = data_fixture.create_database_table(database=database, name="Test Table")
     data_fixture.create_text_field(table=table, name="text_field", primary=True)
 
-    # Mock the udspy.ReAct to return a valid formula
-    mock_prediction = MagicMock()
-    mock_prediction.is_formula_valid = True
-    mock_prediction.formula = "'ok'"
-    mock_prediction.formula_type = "text"
-    mock_prediction.field_name = "test_formula"
-    mock_prediction.table_id = table.id
-    mock_prediction.error_message = ""
+    mock_result = _make_mock_formula_result(
+        table_id=table.id,
+        field_name="test_formula",
+        formula="'ok'",
+        formula_type="text",
+    )
 
-    with patch("udspy.ReAct") as mock_react:
-        mock_react.return_value.return_value = mock_prediction
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+    ) as mock_agent:
+        mock_agent.return_value = mock_result
 
-        tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
-        result = tool(
+        ctx = make_test_ctx(user, workspace)
+        result = generate_formula(
+            ctx,
+            thought="test",
             database_id=database.id,
             description="Return a simple text",
             save_to_field=False,
@@ -409,7 +326,7 @@ def test_generate_database_formula_no_save(data_fixture):
 
 
 @pytest.mark.django_db
-def test_generate_database_formula_create_new_field(data_fixture):
+def test_generate_formula_create_new_field(data_fixture):
     """Test formula generation creates a new field when none exists."""
 
     user = data_fixture.create_user()
@@ -418,20 +335,22 @@ def test_generate_database_formula_create_new_field(data_fixture):
     table = data_fixture.create_database_table(database=database, name="Test Table")
     data_fixture.create_text_field(table=table, name="text_field", primary=True)
 
-    # Mock the udspy.ReAct to return a valid formula
-    mock_prediction = MagicMock()
-    mock_prediction.is_formula_valid = True
-    mock_prediction.formula = "'ok'"
-    mock_prediction.formula_type = "text"
-    mock_prediction.field_name = "test_formula"
-    mock_prediction.table_id = table.id
-    mock_prediction.error_message = ""
+    mock_result = _make_mock_formula_result(
+        table_id=table.id,
+        field_name="test_formula",
+        formula="'ok'",
+        formula_type="text",
+    )
 
-    with patch("udspy.ReAct") as mock_react:
-        mock_react.return_value.return_value = mock_prediction
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+    ) as mock_agent:
+        mock_agent.return_value = mock_result
 
-        tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
-        result = tool(
+        ctx = make_test_ctx(user, workspace)
+        result = generate_formula(
+            ctx,
+            thought="test",
             database_id=database.id,
             description="Return a simple text",
             save_to_field=True,
@@ -453,7 +372,7 @@ def test_generate_database_formula_create_new_field(data_fixture):
 
 
 @pytest.mark.django_db
-def test_generate_database_formula_update_existing_formula_field(data_fixture):
+def test_generate_formula_update_existing_formula_field(data_fixture):
     """Test formula generation updates an existing formula field."""
 
     user = data_fixture.create_user()
@@ -468,20 +387,22 @@ def test_generate_database_formula_update_existing_formula_field(data_fixture):
     )
     existing_field_id = existing_field.id
 
-    # Mock the udspy.ReAct to return a new formula
-    mock_prediction = MagicMock()
-    mock_prediction.is_formula_valid = True
-    mock_prediction.formula = "'new'"
-    mock_prediction.formula_type = "text"
-    mock_prediction.field_name = "test_formula"
-    mock_prediction.table_id = table.id
-    mock_prediction.error_message = ""
+    mock_result = _make_mock_formula_result(
+        table_id=table.id,
+        field_name="test_formula",
+        formula="'new'",
+        formula_type="text",
+    )
 
-    with patch("udspy.ReAct") as mock_react:
-        mock_react.return_value.return_value = mock_prediction
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+    ) as mock_agent:
+        mock_agent.return_value = mock_result
 
-        tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
-        result = tool(
+        ctx = make_test_ctx(user, workspace)
+        result = generate_formula(
+            ctx,
+            thought="test",
             database_id=database.id,
             description="Return updated text",
             save_to_field=True,
@@ -503,7 +424,7 @@ def test_generate_database_formula_update_existing_formula_field(data_fixture):
 
 
 @pytest.mark.django_db
-def test_generate_database_formula_replace_non_formula_field(data_fixture):
+def test_generate_formula_replace_non_formula_field(data_fixture):
     """Test formula generation replaces a non-formula field."""
 
     user = data_fixture.create_user()
@@ -518,20 +439,22 @@ def test_generate_database_formula_replace_non_formula_field(data_fixture):
     )
     existing_field_id = existing_text_field.id
 
-    # Mock the udspy.ReAct to return a valid formula
-    mock_prediction = MagicMock()
-    mock_prediction.is_formula_valid = True
-    mock_prediction.formula = "'ok'"
-    mock_prediction.formula_type = "text"
-    mock_prediction.field_name = "test_formula"
-    mock_prediction.table_id = table.id
-    mock_prediction.error_message = ""
+    mock_result = _make_mock_formula_result(
+        table_id=table.id,
+        field_name="test_formula",
+        formula="'ok'",
+        formula_type="text",
+    )
 
-    with patch("udspy.ReAct") as mock_react:
-        mock_react.return_value.return_value = mock_prediction
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+    ) as mock_agent:
+        mock_agent.return_value = mock_result
 
-        tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
-        result = tool(
+        ctx = make_test_ctx(user, workspace)
+        result = generate_formula(
+            ctx,
+            thought="test",
             database_id=database.id,
             description="Return a simple text",
             save_to_field=True,
@@ -559,7 +482,7 @@ def test_generate_database_formula_replace_non_formula_field(data_fixture):
 
 
 @pytest.mark.django_db
-def test_generate_database_formula_invalid_formula(data_fixture):
+def test_generate_formula_invalid_formula(data_fixture):
     """Test error handling when formula generation fails."""
 
     user = data_fixture.create_user()
@@ -568,23 +491,27 @@ def test_generate_database_formula_invalid_formula(data_fixture):
     table = data_fixture.create_database_table(database=database, name="Test Table")
     data_fixture.create_text_field(table=table, name="text_field", primary=True)
 
-    # Mock the udspy.ReAct to return an invalid formula
-    mock_prediction = MagicMock()
-    mock_prediction.is_formula_valid = False
-    mock_prediction.formula = ""
-    mock_prediction.formula_type = ""
-    mock_prediction.field_name = "test_formula"
-    mock_prediction.table_id = table.id
-    mock_prediction.error_message = "Formula syntax error: invalid expression"
+    mock_result = _make_mock_formula_result(
+        table_id=table.id,
+        field_name="test_formula",
+        formula="",
+        formula_type="",
+        is_formula_valid=False,
+        error_message="Formula syntax error: invalid expression",
+    )
 
-    with patch("udspy.ReAct") as mock_react:
-        mock_react.return_value.return_value = mock_prediction
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+    ) as mock_agent:
+        mock_agent.return_value = mock_result
 
-        tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
+        ctx = make_test_ctx(user, workspace)
 
         # Verify exception is raised
         with pytest.raises(Exception) as exc_info:
-            tool(
+            generate_formula(
+                ctx,
+                thought="test",
                 database_id=database.id,
                 description="Invalid formula test",
                 save_to_field=True,
@@ -598,7 +525,7 @@ def test_generate_database_formula_invalid_formula(data_fixture):
 
 
 @pytest.mark.django_db
-def test_generate_database_formula_documentation_completeness(data_fixture):
+def test_generate_formula_documentation_completeness(data_fixture):
     """Test that formula documentation contains all required functions."""
 
     user = data_fixture.create_user()
@@ -607,39 +534,39 @@ def test_generate_database_formula_documentation_completeness(data_fixture):
     table = data_fixture.create_database_table(database=database, name="Test Table")
     data_fixture.create_text_field(table=table, name="text_field", primary=True)
 
-    # Mock the udspy.ReAct to capture the formula_documentation argument
-    mock_prediction = MagicMock()
-    mock_prediction.is_formula_valid = True
-    mock_prediction.formula = "'ok'"
-    mock_prediction.formula_type = "text"
-    mock_prediction.field_name = "test_formula"
-    mock_prediction.table_id = table.id
-    mock_prediction.error_message = ""
+    mock_result = _make_mock_formula_result(
+        table_id=table.id,
+        field_name="test_formula",
+        formula="'ok'",
+        formula_type="text",
+    )
 
-    captured_formula_docs = None
+    captured_prompt = None
 
-    class MockReAct:
-        def __init__(self, signature, tools=None, max_iters=10):
-            nonlocal captured_formula_docs
-            # Don't capture anything here - wait for the call
-            self.mock_instance = MagicMock(return_value=mock_prediction)
+    def mock_run_sync(prompt, **kwargs):
+        nonlocal captured_prompt
+        captured_prompt = prompt
+        return mock_result
 
-        def __call__(self, **kwargs):
-            nonlocal captured_formula_docs
-            captured_formula_docs = kwargs.get("formula_documentation")
-            return mock_prediction
-
-    with patch("udspy.ReAct", MockReAct):
-        tool = get_generate_database_formula_tool(user, workspace, fake_tool_helpers)
-        tool(
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync",
+        side_effect=mock_run_sync,
+    ):
+        ctx = make_test_ctx(user, workspace)
+        generate_formula(
+            ctx,
+            thought="test",
             database_id=database.id,
             description="Test documentation",
             save_to_field=False,
         )
 
-    # Verify formula_documentation was provided
-    assert captured_formula_docs is not None
-    assert len(captured_formula_docs) > 0
+    # Verify formula documentation was included in the prompt
+    assert captured_prompt is not None
+    assert len(captured_prompt) > 0
+
+    # The formula_documentation is now embedded in the prompt string
+    captured_formula_docs = captured_prompt
 
     # Known exceptions (internal functions not documented)
     formula_exceptions = [
@@ -689,3 +616,204 @@ def test_generate_database_formula_documentation_completeness(data_fixture):
         assert func in captured_formula_docs, (
             f"Expected function '{func}' not found in documentation"
         )
+
+
+@pytest.mark.django_db
+def test_formula_field_validation_raises_on_invalid_formula(data_fixture):
+    """Invalid formula in to_django_orm_kwargs raises InvalidFormulaFieldError."""
+
+    table = data_fixture.create_database_table(name="Test")
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+
+    item = FieldItemCreate(
+        name="Bad Formula",
+        type="formula",
+        formula="this is not a valid formula!!!",
+    )
+    with pytest.raises(InvalidFormulaFieldError) as exc_info:
+        item.to_django_orm_kwargs(table)
+
+    assert exc_info.value.field_name == "Bad Formula"
+    assert exc_info.value.formula == "this is not a valid formula!!!"
+    assert exc_info.value.table == table
+
+
+@pytest.mark.django_db
+def test_formula_field_validation_passes_for_valid_formula(data_fixture):
+    """Valid formula in to_django_orm_kwargs returns kwargs without error."""
+
+    table = data_fixture.create_database_table(name="Test")
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+
+    item = FieldItemCreate(
+        name="Good Formula",
+        type="formula",
+        formula="field('Name')",
+    )
+    result = item.to_django_orm_kwargs(table)
+    assert result == {"name": "Good Formula", "formula": "field('Name')"}
+
+
+@pytest.mark.django_db
+def test_formula_field_validation_passes_for_empty_formula(data_fixture):
+    """Empty formula string skips validation."""
+
+    table = data_fixture.create_database_table(name="Test")
+
+    item = FieldItemCreate(
+        name="Empty Formula",
+        type="formula",
+        formula="",
+    )
+    result = item.to_django_orm_kwargs(table)
+    assert result == {"name": "Empty Formula", "formula": ""}
+
+
+@pytest.mark.django_db
+def test_create_fields_tool_with_invalid_formula_auto_fixes(data_fixture):
+    """
+    When a formula field has an invalid formula, create_fields
+    auto-fixes it via the formula generation pipeline.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Test")
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+
+    mock_result = _make_mock_formula_result(
+        table_id=table.id,
+        field_name="Fixed Formula",
+        formula="field('Name')",
+        formula_type="text",
+    )
+
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+    ) as mock_agent:
+        mock_agent.return_value = mock_result
+
+        ctx = make_test_ctx(user, workspace)
+        result = create_fields(
+            ctx,
+            thought="test",
+            table_id=table.id,
+            fields=[
+                FieldItemCreate(name="Description", type="text"),
+                FieldItemCreate(
+                    name="Bad Formula",
+                    type="formula",
+                    formula="invalid_stuff!!!",
+                ),
+            ],
+        )
+
+    # The text field should be created successfully
+    assert len(result["created_fields"]) == 2
+    # No formula errors since auto-fix succeeded
+    assert "formula_errors" not in result
+
+    # Verify the formula field was created with the original name and fixed formula
+    formula_field = table.field_set.filter(name="Bad Formula").first()
+    assert formula_field is not None
+
+
+@pytest.mark.django_db
+def test_create_fields_tool_reports_error_when_auto_fix_fails(data_fixture):
+    """
+    When auto-fix also fails, create_fields reports the error
+    without failing the entire batch.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database, name="Test")
+    data_fixture.create_text_field(table=table, name="Name", primary=True)
+
+    mock_result = _make_mock_formula_result(
+        is_formula_valid=False,
+        error_message="Could not fix formula",
+    )
+
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync"
+    ) as mock_agent:
+        mock_agent.return_value = mock_result
+
+        ctx = make_test_ctx(user, workspace)
+        result = create_fields(
+            ctx,
+            thought="test",
+            table_id=table.id,
+            fields=[
+                FieldItemCreate(name="Description", type="text"),
+                FieldItemCreate(
+                    name="Bad Formula",
+                    type="formula",
+                    formula="invalid_stuff!!!",
+                ),
+            ],
+        )
+
+    # The text field should still be created successfully
+    assert len(result["created_fields"]) == 1
+    assert result["created_fields"][0]["name"] == "Description"
+
+    # Formula errors should be reported
+    assert len(result["formula_errors"]) == 1
+    assert result["formula_errors"][0]["field_name"] == "Bad Formula"
+    assert "hint" in result["formula_errors"][0]
+
+
+@pytest.mark.django_db
+def test_create_tables_with_invalid_formula_auto_fixes(data_fixture):
+    """
+    When create_tables encounters an invalid formula, it auto-fixes
+    via the formula generation pipeline.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+
+    def mock_run_sync(prompt, **kwargs):
+        # The table doesn't exist yet when the mock is created, so we
+        # dynamically set table_id on call.
+        tables = Table.objects.filter(database=database).order_by("-id")
+        return _make_mock_formula_result(
+            table_id=tables.first().id,
+            field_name="My Formula",
+            formula="'fixed'",
+            formula_type="text",
+        )
+
+    with patch(
+        "baserow_enterprise.assistant.tools.database.tools.formula_generation_agent.run_sync",
+        side_effect=mock_run_sync,
+    ):
+        ctx = make_test_ctx(user, workspace)
+        result = create_tables(
+            ctx,
+            thought="test",
+            database_id=database.id,
+            tables=[
+                TableItemCreate(
+                    name="Test Table",
+                    primary_field_name="Name",
+                    fields=[
+                        FieldItemCreate(
+                            name="My Formula",
+                            type="formula",
+                            formula="bad formula!!!",
+                        ),
+                    ],
+                )
+            ],
+            add_sample_rows=False,
+        )
+
+    assert len(result["created_tables"]) == 1
+    # No formula error notes since auto-fix succeeded
+    assert result["notes"] == []

@@ -1,6 +1,6 @@
-import typing
 from datetime import datetime, timezone
 from functools import wraps
+from typing import Any, Callable, Dict, Optional, Type
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from django.db import OperationalError
@@ -249,6 +249,7 @@ def validate_body(
 def validate_body_custom_fields(
     registry,
     base_serializer_class=None,
+    serializer_class_context: Optional[Dict[str, Any]] = None,
     type_attribute_name="type",
     partial=False,
     allow_empty_type=False,
@@ -266,6 +267,8 @@ def validate_body_custom_fields(
     :param base_serializer_class: The base serializer class that will be used when
         generating the serializer.
     :type base_serializer_class: ModelSerializer
+    :param serializer_class_context: If provided, this context will be passed to the
+        `get_serializer_class` method of the type instance.
     :param type_attribute_name: The attribute name containing the type value in the
         request data.
     :type type_attribute_name: str
@@ -301,6 +304,7 @@ def validate_body_custom_fields(
                 registry,
                 request.data,
                 base_serializer_class=base_serializer_class,
+                serializer_class_context=serializer_class_context,
                 type_attribute_name=type_attribute_name,
                 partial=partial,
                 allow_empty_type=allow_empty_type,
@@ -400,7 +404,7 @@ def accept_timezone():
     return validate_decorator
 
 
-def require_request_data_type(*rtypes: typing.Type) -> typing.Callable:
+def require_request_data_type(*rtypes: Type) -> Callable:
     """
     Decorate a view function to restrict allowed request.data to specific types,
     allowing request.data type checks before actual view is called. This may be

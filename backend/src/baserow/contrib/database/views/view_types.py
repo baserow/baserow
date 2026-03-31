@@ -263,9 +263,12 @@ class GridViewType(ViewType):
                 )
 
     def get_visible_field_options_in_order(self, grid_view):
+        group_by_field_ids = grid_view.viewgroupby_set.values_list(
+            "field_id", flat=True
+        )
         return (
             grid_view.get_field_options(create_if_missing=True)
-            .filter(hidden=False)
+            .filter(Q(hidden=False) | Q(field_id__in=group_by_field_ids))
             .order_by("-field__primary", "order", "field__id")
         )
 

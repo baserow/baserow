@@ -1627,9 +1627,15 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                     class="control__elements-wrapper"
                   >
                     
-                    <div
+                    <label
                       class="checkbox checkbox--checked"
                     >
+                      <input
+                        checked=""
+                        class="checkbox__native"
+                        id="checkboxv-0-0-5"
+                        type="checkbox"
+                      />
                       <div
                         class="checkbox__button"
                       >
@@ -1683,14 +1689,14 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                           />
                         </svg>
                       </div>
-                      <label
+                      <span
                         class="checkbox__label"
                       >
                         
                         common.yes
                         
-                      </label>
-                    </div>
+                      </span>
+                    </label>
                     
                   </div>
                   <!--v-if-->
@@ -3369,9 +3375,15 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                     class="control__elements-wrapper"
                   >
                     
-                    <div
+                    <label
                       class="checkbox checkbox--checked"
                     >
+                      <input
+                        checked=""
+                        class="checkbox__native"
+                        id="checkboxv-0-0-5"
+                        type="checkbox"
+                      />
                       <div
                         class="checkbox__button"
                       >
@@ -3425,14 +3437,14 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                           />
                         </svg>
                       </div>
-                      <label
+                      <span
                         class="checkbox__label"
                       >
                         
                         common.yes
                         
-                      </label>
-                    </div>
+                      </span>
+                    </label>
                     
                   </div>
                   <!--v-if-->

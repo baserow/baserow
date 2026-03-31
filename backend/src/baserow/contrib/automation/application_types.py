@@ -12,6 +12,9 @@ from baserow.contrib.automation.automation_init_application import (
     AutomationApplicationTypeInitApplication,
 )
 from baserow.contrib.automation.constants import IMPORT_SERIALIZED_IMPORTING
+from baserow.contrib.automation.data_providers.registries import (
+    automation_data_provider_type_registry,
+)
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
 from baserow.contrib.automation.operations import ListAutomationWorkflowsOperationType
 from baserow.contrib.automation.types import AutomationDict
@@ -41,6 +44,7 @@ class AutomationApplicationType(ApplicationType):
     supports_integrations = True
     request_serializer_field_names = []
     serializer_mixins = [lazy_get_instance_serializer_class]
+    data_provider_type_registry = automation_data_provider_type_registry
 
     # Automation applications are imported third (after database, builder)
     import_application_priority = 0

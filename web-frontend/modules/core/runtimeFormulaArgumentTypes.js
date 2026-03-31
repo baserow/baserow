@@ -57,7 +57,7 @@ export class NumberBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormu
   }
 
   parse(value) {
-    const val = ensureNumeric(value, { allowNull: true })
+    const val = ensureNumeric(value)
     if (this.castToInt) {
       return Math.trunc(val)
     } else if (this.castToFloat) {
@@ -126,6 +126,27 @@ export class ArrayBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormul
 
   parse(value) {
     return ensureArray(value)
+  }
+}
+
+export class ArrayOfNumbersBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    try {
+      value = ensureArray(value)
+    } catch (e) {
+      return false
+    }
+    try {
+      value.forEach((item) => ensureNumeric(item))
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  parse(value) {
+    value = ensureArray(value)
+    return value.map((item) => ensureNumeric(item))
   }
 }
 

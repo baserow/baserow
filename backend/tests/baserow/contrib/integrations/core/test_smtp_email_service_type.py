@@ -4,6 +4,8 @@ import socket
 from contextlib import contextmanager
 from unittest.mock import MagicMock, patch
 
+from django.test import override_settings
+
 import pytest
 
 from baserow.contrib.integrations.core.service_types import CoreSMTPEmailServiceType
@@ -55,6 +57,9 @@ def mock_django_email(
 
 
 @pytest.mark.django_db
+@override_settings(
+    CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+)
 def test_send_smtp_email_basic(data_fixture):
     smtp_integration = data_fixture.create_smtp_integration(
         host="smtp.example.com",
@@ -97,6 +102,46 @@ def test_send_smtp_email_basic(data_fixture):
             connection=mock_connection.return_value,
         )
         assert mock_email.return_value.content_subtype == "plain"
+        assert result.data == {"success": True}
+
+
+@pytest.mark.django_db
+@override_settings(
+    INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=True,
+    CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+    EMAIL_HOST="instance.smtp.example.com",
+    EMAIL_PORT=2525,
+    DEFAULT_FROM_EMAIL="instance@example.com",
+)
+def test_send_smtp_email_uses_instance_smtp_settings(data_fixture):
+    service = data_fixture.create_core_smtp_email_service(
+        integration=None,
+        use_instance_smtp_settings=True,
+        from_email="''",
+        from_name="''",
+        to_emails="'recipient@example.com'",
+        subject="'Test Subject'",
+        body="'Hello, this is a test email!'",
+        body_type="plain",
+    )
+
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext()
+
+    with mock_django_email() as (mock_email, mock_connection):
+        result = service_type.dispatch(service, dispatch_context)
+        mock_connection.assert_called_once_with(
+            backend="django.core.mail.backends.smtp.EmailBackend",
+        )
+        mock_email.assert_called_once_with(
+            "Test Subject",
+            "Hello, this is a test email!",
+            "instance@example.com",
+            ["recipient@example.com"],
+            bcc=[],
+            cc=[],
+            connection=mock_connection.return_value,
+        )
         assert result.data == {"success": True}
 
 
@@ -339,6 +384,26 @@ def test_send_smtp_email_no_recipients_error(data_fixture):
 
 
 @pytest.mark.django_db
+def test_send_smtp_email_missing_integration_error(data_fixture):
+    service = data_fixture.create_core_smtp_email_service(
+        integration=None,
+        use_instance_smtp_settings=False,
+        from_email="'sender@example.com'",
+        to_emails="'recipient@example.com'",
+        subject="'Test Subject'",
+        body="'Test body'",
+    )
+
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext()
+
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc_info:
+        service_type.dispatch(service, dispatch_context)
+
+    assert str(exc_info.value) == "Integration for this service is missing"
+
+
+@pytest.mark.django_db
 def test_smtp_email_service_generate_schema(data_fixture):
     smtp_integration = data_fixture.create_smtp_integration()
 
@@ -367,6 +432,18 @@ def test_smtp_email_service_generate_schema(data_fixture):
 
 
 @pytest.mark.django_db
+@override_settings(
+    INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=True,
+    CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+    EMAIL_HOST="instance.smtp.example.com",
+)
+def test_smtp_email_service_exposes_instance_smtp_enabled_flag(data_fixture):
+    service = data_fixture.create_core_smtp_email_service()
+
+    assert service.instance_smtp_settings_enabled is True
+
+
+@pytest.mark.django_db
 def test_serialized_export_import(data_fixture):
     smtp_integration = data_fixture.create_smtp_integration(
         host="smtp.example.com",
@@ -378,6 +455,7 @@ def test_serialized_export_import(data_fixture):
 
     service = data_fixture.create_core_smtp_email_service(
         integration=smtp_integration,
+        use_instance_smtp_settings=False,
         from_email="'sender@example.com'",
         from_name="'Test Sender'",
         to_emails="'recipient@example.com'",
@@ -395,6 +473,7 @@ def test_serialized_export_import(data_fixture):
     expected_serialized = {
         "id": AnyInt(),
         "integration_id": smtp_integration.id,
+        "use_instance_smtp_settings": False,
         "sample_data": None,
         "type": "smtp_email",
         "from_email": {
@@ -437,6 +516,37 @@ def test_serialized_export_import(data_fixture):
     assert new_service.subject["formula"] == "'Test Subject'"
     assert new_service.body_type == "html"
     assert new_service.body["formula"] == "'Test body'"
+    assert new_service.use_instance_smtp_settings is False
+
+
+@pytest.mark.django_db
+@override_settings(
+    INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=True,
+    CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+    EMAIL_HOST="instance.smtp.example.com",
+)
+def test_serialized_export_import_with_instance_smtp(data_fixture):
+    service = data_fixture.create_core_smtp_email_service(
+        integration=None,
+        use_instance_smtp_settings=True,
+        from_email="''",
+        from_name="''",
+        to_emails="'recipient@example.com'",
+        subject="'Test Subject'",
+        body="'Test body'",
+        body_type="html",
+    )
+
+    service_type = service.get_type()
+    serialized = json.loads(json.dumps(service_type.export_serialized(service)))
+
+    assert serialized["integration_id"] is None
+    assert serialized["use_instance_smtp_settings"] is True
+
+    new_service = service_type.import_serialized(None, serialized, {}, lambda x, d: x)
+
+    assert new_service.integration_id is None
+    assert new_service.use_instance_smtp_settings is True
 
 
 @pytest.mark.django_db
@@ -446,6 +556,7 @@ def test_smtp_email_service_create_update(data_fixture):
     service = ServiceHandler().create_service(
         CoreSMTPEmailServiceType(),
         integration_id=smtp_integration.id,
+        use_instance_smtp_settings=False,
         from_email="'sender@example.com'",
         from_name="'Test Sender'",
         to_emails="'recipient@example.com'",
@@ -481,6 +592,7 @@ def test_smtp_email_service_create_update(data_fixture):
     }
     assert service.body_type == "plain"
     assert service.integration_id == smtp_integration.id
+    assert service.use_instance_smtp_settings is False
 
     service_type = service.get_type()
     ServiceHandler().update_service(
@@ -497,3 +609,73 @@ def test_smtp_email_service_create_update(data_fixture):
     assert service.subject["formula"] == "'Updated Subject'"
     assert service.body["formula"] == "'Test body'"
     assert service.body_type == "html"
+
+
+@pytest.mark.django_db
+@override_settings(
+    INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=True,
+    CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+    EMAIL_HOST="instance.smtp.example.com",
+)
+def test_smtp_email_service_create_update_with_instance_smtp(data_fixture):
+    service_type = CoreSMTPEmailServiceType()
+
+    prepared_values = service_type.prepare_values(
+        {
+            "use_instance_smtp_settings": True,
+            "integration_id": None,
+            "to_emails": "'recipient@example.com'",
+            "subject": "'Test Subject'",
+            "body": "'Test body'",
+            "from_email": "''",
+            "from_name": "''",
+        },
+        data_fixture.create_user(),
+    )
+
+    service = ServiceHandler().create_service(service_type, **prepared_values)
+
+    assert service.integration_id is None
+    assert service.use_instance_smtp_settings is True
+
+    smtp_integration = data_fixture.create_smtp_integration()
+    prepared_updates = service_type.prepare_values(
+        {
+            "use_instance_smtp_settings": False,
+            "integration_id": smtp_integration.id,
+            "from_email": "'sender@example.com'",
+        },
+        data_fixture.create_user(),
+        service,
+    )
+
+    ServiceHandler().update_service(service_type, service, **prepared_updates)
+    service.refresh_from_db()
+
+    assert service.integration_id == smtp_integration.id
+    assert service.use_instance_smtp_settings is False
+    assert service.from_email["formula"] == "'sender@example.com'"
+
+
+@pytest.mark.django_db
+@override_settings(
+    INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=False,
+    CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
+    EMAIL_HOST="instance.smtp.example.com",
+)
+def test_smtp_email_service_prepare_values_disables_instance_smtp_when_unavailable(
+    data_fixture,
+):
+    service_type = CoreSMTPEmailServiceType()
+    service = data_fixture.create_core_smtp_email_service(
+        integration=None,
+        use_instance_smtp_settings=True,
+    )
+
+    prepared_values = service_type.prepare_values(
+        {},
+        data_fixture.create_user(),
+        service,
+    )
+
+    assert prepared_values["use_instance_smtp_settings"] is False

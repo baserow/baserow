@@ -12,6 +12,7 @@ from .models import (
     AutonumberField,
     FileField,
     FormulaField,
+    FormViewEditRowField,
     LinkRowField,
     MultipleCollaboratorsField,
     MultipleSelectField,
@@ -120,6 +121,15 @@ class FormulaFieldConverter(RecreateFieldConverter):
 
     def is_applicable(self, from_model, from_field, to_field):
         return isinstance(to_field, FormulaField)
+
+
+class FormViewEditRowFieldConverter(RecreateFieldConverter):
+    type = "form_view_edit_row"
+
+    def is_applicable(self, from_model, from_field, to_field):
+        from_edit_row = isinstance(from_field, FormViewEditRowField)
+        to_edit_row = isinstance(to_field, FormViewEditRowField)
+        return from_edit_row != to_edit_row
 
 
 class AutonumberFieldConverter(RecreateFieldConverter):

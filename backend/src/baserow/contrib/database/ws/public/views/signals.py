@@ -77,6 +77,23 @@ def public_view_filter_deleted(sender, view_filter_id, view_filter, user, **kwar
     _send_force_rows_refresh_if_view_public(view_filter.view)
 
 
+@receiver(view_signals.view_group_by_created)
+def public_view_group_by_created(sender, view_group_by, user, **kwargs):
+    _send_force_view_refresh_if_view_public(view_group_by.view)
+
+
+@receiver(view_signals.view_group_by_updated)
+def public_view_group_by_updated(sender, view_group_by, user, **kwargs):
+    _send_force_view_refresh_if_view_public(view_group_by.view)
+
+
+@receiver(view_signals.view_group_by_deleted)
+def public_view_group_by_deleted(
+    sender, view_group_by_id, view_group_by, user, **kwargs
+):
+    _send_force_view_refresh_if_view_public(view_group_by.view)
+
+
 @receiver(view_signals.view_field_options_updated)
 def public_view_field_options_updated(sender, view, user, **kwargs):
     _send_force_view_refresh_if_view_public(view)

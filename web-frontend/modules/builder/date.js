@@ -98,6 +98,6 @@ export function parseDateForCalendar(value, dateFormat) {
   if (!value) {
     return null
   }
-  const parsedDate = moment.utc(value, dateFormat, true) // Strict parsing
+  const parsedDate = moment(value, dateFormat, true) // Strict parsing
   return parsedDate.isValid() ? parsedDate.toDate() : null
 }

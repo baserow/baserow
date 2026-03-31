@@ -36,6 +36,7 @@ from baserow.contrib.database.fields.operations import ReadFieldOperationType
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import SearchMode
+from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.exceptions import ViewOwnershipTypeDoesNotExist
 from baserow.contrib.database.views.filters import AdHocFilters
@@ -129,6 +130,8 @@ from .exceptions import (
 from .models import (
     DEFAULT_SORT_TYPE_KEY,
     OWNERSHIP_TYPE_COLLABORATIVE,
+    FormView,
+    FormViewFieldOptions,
     View,
     ViewDecoration,
     ViewFilter,
@@ -3273,6 +3276,11 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         setattr(view, slug_field, slug)
         view.save()
 
+        table_id = view.table_id
+        # Invalidate the model cache because fields could be depending on that specific
+        # model slug, like the edit row link field.
+        invalidate_table_in_model_cache(table_id)
+
         view_updated.send(self, view=view, user=user, old_view=old_view)
 
         return view
@@ -3350,14 +3358,30 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         return view
 
+    @staticmethod
+    def _get_allowed_form_field_names(model, enabled_field_options):
+        """
+        Return the list of internal field names that are enabled in the given
+        form view field options.
+
+        :param model: The generated table model.
+        :param enabled_field_options: The enabled form view field options.
+        :return: A list of allowed field names.
+        """
+
+        return [
+            model._field_objects[field.field_id]["name"]
+            for field in enabled_field_options
+        ]
+
     def submit_form_view(
         self,
-        user,
-        form,
-        values,
-        model: GeneratedTableModel | None = None,
-        enabled_field_options=None,
-    ):
+        user: AbstractUser,
+        form: FormView,
+        values: Dict[str, Any],
+        model: Optional[Type[GeneratedTableModel]] = None,
+        enabled_field_options: Optional[QuerySet[FormViewFieldOptions]] = None,
+    ) -> GeneratedTableModel:
         """
         Handles when a form is submitted. It will validate the data by checking if
         the required fields are provided and not empty and it will create a new row
@@ -3384,15 +3408,13 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         if not enabled_field_options:
             enabled_field_options = form.active_field_options
 
-        allowed_field_names = []
-        field_errors = {}
+        allowed_field_names = self._get_allowed_form_field_names(
+            model, enabled_field_options
+        )
 
-        # Loop over all field options, find the name in the model and check if the
-        # required values are provided. If not, a validation error is raised.
+        field_errors = {}
         for field in enabled_field_options:
             field_name = model._field_objects[field.field_id]["name"]
-            allowed_field_names.append(field_name)
-
             if field.is_required() and (
                 field_name not in values
                 or value_is_empty_for_required_form_field(values[field_name])
@@ -3408,6 +3430,50 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             self, form=form, row=created_row, values=allowed_values, user=user
         )
         return created_row
+
+    def edit_form_view_row(
+        self,
+        user: AbstractUser,
+        form: FormView,
+        row_id: int,
+        values: Dict[str, Any],
+        model: Optional[Type[GeneratedTableModel]] = None,
+        enabled_field_options: Optional[QuerySet[FormViewFieldOptions]] = None,
+    ) -> GeneratedTableModel:
+        """
+        Handles when a row is edited via a form view. Only fields that are enabled
+        in the form view can be updated.
+
+        :param user: The user on whose behalf the row is updated.
+        :param form: The form view used to edit the row.
+        :param row_id: The primary key of the row to update.
+        :param values: The submitted values to update.
+        :param model: If the model is already generated, it can be provided here.
+        :param enabled_field_options: If the enabled field options have already been
+            fetched, they can be provided here.
+        :return: The updated row instance.
+        """
+
+        table = form.table
+
+        if model is None:
+            model = table.get_model()
+
+        if not enabled_field_options:
+            enabled_field_options = form.active_field_options
+
+        allowed_field_names = self._get_allowed_form_field_names(
+            model, enabled_field_options
+        )
+        allowed_values = extract_allowed(values, allowed_field_names)
+
+        updated_rows_data = RowHandler().force_update_rows(
+            user,
+            table,
+            [{"id": row_id, **allowed_values}],
+            model=model,
+        )
+        return updated_rows_data.updated_rows[0]
 
     def restrict_row_for_view(
         self, view: View, serialized_row: Dict[str, Any]

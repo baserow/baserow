@@ -1,15 +1,12 @@
-from unittest.mock import Mock
-
 import pytest
-from udspy.module.callbacks import ModuleContext, is_module_callback
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow_enterprise.assistant.tools.database.tools import (
-    get_list_rows_tool,
-    get_rows_tools_factory,
+    list_rows,
+    load_row_tools,
 )
 
-from .utils import fake_tool_helpers
+from .utils import make_test_ctx
 
 
 def _create_simple_database_with_linked_tables_and_rows(data_fixture):
@@ -134,20 +131,20 @@ def test_list_rows(data_fixture):
     user = res["user"]
     workspace = res["workspace"]
     table = res["table_a"]
-    tool_helpers = fake_tool_helpers
 
-    list_table_rows = get_list_rows_tool(user, workspace, tool_helpers)
-    assert callable(list_table_rows)
+    ctx = make_test_ctx(user, workspace)
 
-    result = list_table_rows(table_id=table.id, offset=0, limit=50)
+    result = list_rows(
+        ctx, table_id=table.id, offset=0, limit=50, field_ids=None, thought="test"
+    )
     rows = result["rows"]
     assert len(rows) == 3
     assert rows[0] == {
         "primary": "Row A1",
         "Long text field": "Long text A1",
         "Number field": 10.123,
-        "Date field": {"year": 2023, "month": 1, "day": 1},
-        "Datetime field": {"year": 2023, "month": 1, "day": 1, "hour": 10, "minute": 0},
+        "Date field": "2023-01-01",
+        "Datetime field": "2023-01-01T10:00",
         "Single link to B": "Row B1",
         "Multiple select": ["Option A", "Option B"],
         "Text field": "Text A1",
@@ -159,8 +156,8 @@ def test_list_rows(data_fixture):
         "primary": "Row A2",
         "Long text field": "Long text A2",
         "Number field": 20.456,
-        "Date field": {"year": 2023, "month": 2, "day": 1},
-        "Datetime field": {"year": 2023, "month": 2, "day": 1, "hour": 11, "minute": 0},
+        "Date field": "2023-02-01",
+        "Datetime field": "2023-02-01T11:00",
         "Single link to B": "Row B2",
         "Multiple select": ["Option B", "Option C"],
         "Text field": "Text A2",
@@ -183,8 +180,13 @@ def test_list_rows(data_fixture):
     }
 
     # List a single field
-    result = list_table_rows(
-        table_id=table.id, offset=0, limit=50, field_ids=[table.get_primary_field().id]
+    result = list_rows(
+        ctx,
+        table_id=table.id,
+        offset=0,
+        limit=50,
+        field_ids=[table.get_primary_field().id],
+        thought="test",
     )
     rows = result["rows"]
     assert len(rows) == 3
@@ -209,24 +211,19 @@ def test_create_rows(data_fixture):
     user = res["user"]
     workspace = res["workspace"]
     table = res["table_a"]
-    tool_helpers = fake_tool_helpers
 
-    meta_tool = get_rows_tools_factory(user, workspace, tool_helpers)
-    assert callable(meta_tool)
+    ctx = make_test_ctx(user, workspace)
 
-    tools_upgrade = meta_tool([table.id], ["create"])
-    assert is_module_callback(tools_upgrade)
+    observation = load_row_tools(ctx, [table.id], ["create"], thought="test")
+    assert isinstance(observation, str)
+    assert f"create_rows_in_table_{table.id}" in observation
 
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
+    # Tools should be stored in ctx.deps.dynamic_tools
+    dynamic_tools = ctx.deps.dynamic_tools
+    assert len(dynamic_tools) == 1
 
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    added_tools_names = [tool.name for tool in added_tools]
-    assert len(added_tools) == 1
-    assert f"create_rows_in_table_{table.id}" in added_tools_names
+    create_tool = dynamic_tools[0]
+    assert create_tool.name == f"create_rows_in_table_{table.id}"
 
     table_model = table.get_model()
     assert table_model.objects.count() == 3
@@ -236,14 +233,8 @@ def test_create_rows(data_fixture):
         "Text field": "Text A3",
         "Long text field": "Long text A3",
         "Number field": 30.789,
-        "Date field": {"year": 2023, "month": 3, "day": 1},
-        "Datetime field": {
-            "year": 2023,
-            "month": 3,
-            "day": 1,
-            "hour": 12,
-            "minute": 0,
-        },
+        "Date field": "2023-03-01",
+        "Datetime field": "2023-03-01T12:00",
         "Single select": "Option 1",
         "Multiple select": ["Option A", "Option C"],
         "Single link to B": "Row B3",
@@ -261,8 +252,12 @@ def test_create_rows(data_fixture):
         "Single link to B": None,
         "link": [],
     }
-    create_table_rows = added_tools[0]
-    result = create_table_rows(rows=[row_1, row_2])
+    # Validate dicts through the tool's schema (as pydantic-ai would),
+    # then call the underlying function.
+    validated_args = create_tool.function_schema.validator.validate_python(
+        {"rows": [row_1, row_2], "thought": "test"}
+    )
+    result = create_tool.function(**validated_args)
     created_row_ids = result["created_row_ids"]
     assert len(created_row_ids) == 2
     assert created_row_ids == [4, 5]
@@ -275,28 +270,22 @@ def test_update_rows(data_fixture):
     user = res["user"]
     workspace = res["workspace"]
     table = res["table_a"]
-    tool_helpers = fake_tool_helpers
 
-    meta_tool = get_rows_tools_factory(user, workspace, tool_helpers)
-    assert callable(meta_tool)
-    tools_upgrade = meta_tool([table.id], ["update"])
-    assert is_module_callback(tools_upgrade)
+    ctx = make_test_ctx(user, workspace)
 
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
+    observation = load_row_tools(ctx, [table.id], ["update"], thought="test")
+    assert isinstance(observation, str)
 
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    added_tools_names = [tool.name for tool in added_tools]
-    assert len(added_tools) == 1
-    assert f"update_rows_in_table_{table.id}" in added_tools_names
+    dynamic_tools = ctx.deps.dynamic_tools
+    assert len(dynamic_tools) == 1
+
+    update_tool = dynamic_tools[0]
+    assert update_tool.name == f"update_rows_in_table_{table.id}"
 
     table_model = table.get_model()
     assert table_model.objects.count() == 3
 
-    # Update row 1 with new values
+    # Update row 1 — only pass fields to change, omit the rest
     row_1_updates = {
         "id": 1,
         "primary": "Updated Row A1",
@@ -305,41 +294,33 @@ def test_update_rows(data_fixture):
         "Single select": "Option 2",
         "link": ["Row B3"],
         "Single link to B": "Row B2",
-        "Datetime field": "__NO_CHANGE__",
-        "Date field": "__NO_CHANGE__",
-        "Multiple select": "__NO_CHANGE__",
-        "Long text field": "__NO_CHANGE__",
     }
-    # Update row 2 with new values
+    # Update row 2 — only pass fields to change
     row_2_updates = {
         "id": 2,
-        "Single link to B": "__NO_CHANGE__",
         "Long text field": "Updated Long text A2",
-        "Date field": {"year": 2024, "month": 12, "day": 31},
+        "Date field": "2024-12-31",
         "Multiple select": ["Option A"],
-        "primary": "__NO_CHANGE__",
-        "Text field": "__NO_CHANGE__",
-        "Number field": "__NO_CHANGE__",
-        "Datetime field": "__NO_CHANGE__",
-        "Single select": "__NO_CHANGE__",
-        "link": "__NO_CHANGE__",
     }
 
-    update_table_rows = added_tools[0]
-    result = update_table_rows(rows=[row_1_updates, row_2_updates])
+    validated_args = update_tool.function_schema.validator.validate_python(
+        {"rows": [row_1_updates, row_2_updates], "thought": "test"}
+    )
+    result = update_tool.function(**validated_args)
     updated_row_ids = result["updated_row_ids"]
     assert len(updated_row_ids) == 2
     assert updated_row_ids == [1, 2]
 
     # Verify the rows were updated correctly
-    list_table_rows = get_list_rows_tool(user, workspace, tool_helpers)
-    row_1, row_2 = list_table_rows(table_id=table.id, offset=0, limit=2)["rows"]
+    row_1, row_2 = list_rows(
+        ctx, table_id=table.id, offset=0, limit=2, field_ids=None, thought="test"
+    )["rows"]
     assert row_1 == {
         "primary": "Updated Row A1",
         "Long text field": "Long text A1",
         "Number field": 99.999,
-        "Date field": {"year": 2023, "month": 1, "day": 1},
-        "Datetime field": {"year": 2023, "month": 1, "day": 1, "hour": 10, "minute": 0},
+        "Date field": "2023-01-01",
+        "Datetime field": "2023-01-01T10:00",
         "Single link to B": "Row B2",
         "Multiple select": ["Option A", "Option B"],
         "Text field": "Updated Text A1",
@@ -351,8 +332,8 @@ def test_update_rows(data_fixture):
         "primary": "Row A2",
         "Long text field": "Updated Long text A2",
         "Number field": 20.456,
-        "Date field": {"year": 2024, "month": 12, "day": 31},
-        "Datetime field": {"year": 2023, "month": 2, "day": 1, "hour": 11, "minute": 0},
+        "Date field": "2024-12-31",
+        "Datetime field": "2023-02-01T11:00",
         "Single link to B": "Row B2",
         "Multiple select": ["Option A"],
         "Text field": "Text A2",
@@ -369,29 +350,23 @@ def test_delete_rows(data_fixture):
     user = res["user"]
     workspace = res["workspace"]
     table = res["table_a"]
-    tool_helpers = fake_tool_helpers
 
-    meta_tool = get_rows_tools_factory(user, workspace, tool_helpers)
-    assert callable(meta_tool)
+    ctx = make_test_ctx(user, workspace)
 
-    tools_upgrade = meta_tool([table.id], ["delete"])
-    assert is_module_callback(tools_upgrade)
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    added_tools_names = [tool.name for tool in added_tools]
-    assert len(added_tools) == 1
-    assert f"delete_rows_in_table_{table.id}" in added_tools_names
-    delete_table_rows = added_tools[0]
+    observation = load_row_tools(ctx, [table.id], ["delete"], thought="test")
+    assert isinstance(observation, str)
+
+    dynamic_tools = ctx.deps.dynamic_tools
+    assert len(dynamic_tools) == 1
+
+    delete_tool = dynamic_tools[0]
+    assert delete_tool.name == f"delete_rows_in_table_{table.id}"
 
     table_model = table.get_model()
     assert table_model.objects.count() == 3
 
     # Delete rows with ids 1 and 3
-    result = delete_table_rows(row_ids=[1, 3])
+    result = delete_tool.function(row_ids=[1, 3], thought="test")
     assert result["deleted_row_ids"] == [1, 3]
 
     # Verify rows were deleted

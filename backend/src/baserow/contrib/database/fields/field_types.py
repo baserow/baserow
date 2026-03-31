@@ -142,6 +142,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import (
     DEFAULT_SORT_TYPE_KEY,
     OWNERSHIP_TYPE_COLLABORATIVE,
+    FormView,
     View,
 )
 from baserow.core.db import (
@@ -206,6 +207,7 @@ from .field_sortings import OptionallyAnnotatedOrderBy
 from .fields import (
     BaserowExpressionField,
     BaserowLastModifiedField,
+    FormViewEditRowURLSerializerField,
     IntegerFieldWithSequence,
     MultipleSelectManyToManyField,
     SingleSelectForeignKey,
@@ -226,6 +228,7 @@ from .models import (
     Field,
     FileField,
     FormulaField,
+    FormViewEditRowField,
     LastModifiedByField,
     LastModifiedField,
     LinkRowField,
@@ -263,6 +266,7 @@ from .utils.duration import (
     prepare_duration_value_for_db,
     text_value_sql_to_duration,
 )
+from .utils.row_edit import build_row_edit_url
 
 User = get_user_model()
 
@@ -620,20 +624,8 @@ class NumberFieldType(FieldType):
             return value
 
         if isinstance(value, str):
-            if instance.number_prefix is not None:
-                value = value.lstrip(instance.number_prefix)
-            if instance.number_suffix is not None:
-                value = value.rstrip(instance.number_suffix)
-
-            thousand_sep, decimal_sep = get_thousand_and_decimal_separator(
-                instance.number_separator
-            )
-
-            value = value.replace(thousand_sep, "").replace(decimal_sep, ".").strip()
-
-            if value in ["", "NaN"]:
+            if value == "":
                 return None
-
         try:
             value = Decimal(value)
         except (InvalidOperation, ValueError, TypeError):
@@ -918,16 +910,29 @@ class RatingFieldType(FieldType):
         return value
 
     def get_serializer_field(self, instance, **kwargs):
-        return serializers.IntegerField(
-            **{
-                "required": False,
-                "allow_null": False,
-                "min_value": 0,
-                "default": 0,
-                "max_value": instance.max_value,
-                **kwargs,
-            }
-        )
+        required = kwargs.get("required", False)
+        field_kwargs = {
+            "required": False,
+            "allow_null": False,
+            "min_value": 0,
+            "default": 0,
+            "max_value": instance.max_value,
+            **kwargs,
+        }
+        if required:
+            field_kwargs.pop("default", None)
+            validators = field_kwargs.get("validators", [])
+            validators.append(self._rating_required_validator)
+            field_kwargs["validators"] = validators
+        return serializers.IntegerField(**field_kwargs)
+
+    @staticmethod
+    def _rating_required_validator(value):
+        if value == 0:
+            raise ValidationError(
+                "This field is required.",
+                code="required",
+            )
 
     def force_same_type_alter_column(self, from_field, to_field):
         """
@@ -7515,3 +7520,137 @@ class PasswordFieldType(FieldType):
     def is_searchable(self, field: Field) -> bool:
         # passwords shouldn't be searchable!
         return False
+
+
+class FormViewEditRowFieldType(ReadOnlyFieldType):
+    """
+    A field type that generates a unique, secure URL per row. When visited, the URL
+    opens the linked form view pre-filled with that row's current values, allowing the
+    visitor to edit and save them.
+    """
+
+    type = "form_view_edit_row"
+    model_class = FormViewEditRowField
+    allowed_fields = ["form_view_id"]
+    serializer_field_names = ["form_view_id"]
+    serializer_field_overrides = {
+        "form_view_id": serializers.IntegerField(
+            required=False,
+            allow_null=True,
+            help_text="The id of the form view used to edit rows via this field.",
+        )
+    }
+    can_be_in_form_view = False
+    field_data_is_derived_from_attrs = False
+    _can_order_by_types = []
+    _can_be_primary_field = False
+    can_get_unique_values = False
+    _can_have_db_index = True
+    keep_data_on_duplication = False
+    api_exceptions_map = {
+        ViewNotInTable: ERROR_VIEW_NOT_IN_TABLE,
+    }
+
+    def get_serializer_field(self, instance, **kwargs):
+        return serializers.UUIDField(required=False, **kwargs)
+
+    def get_response_serializer_field(self, instance, **kwargs):
+        return FormViewEditRowURLSerializerField(field_instance=instance, **kwargs)
+
+    def get_model_field(self, instance, **kwargs):
+        return models.UUIDField(
+            default=uuid.uuid4,
+            db_default=RandomUUID(),
+            null=True,
+            db_index=instance.db_index,
+            **kwargs,
+        )
+
+    def enhance_field_queryset(
+        self, queryset: QuerySet[Field], field: Field
+    ) -> QuerySet[Field]:
+        return queryset.select_related("form_view")
+
+    def before_create(
+        self, table, primary, allowed_field_values, order, user, field_kwargs
+    ):
+        form_view_id = field_kwargs.get("form_view_id")
+        if form_view_id:
+            if not FormView.objects.filter(id=form_view_id, table=table).exists():
+                raise ViewNotInTable(form_view_id)
+
+    def before_update(self, from_field, to_field_values, user, field_kwargs):
+        form_view_id = field_kwargs.get("form_view_id")
+        if form_view_id is not None:
+            if not FormView.objects.filter(
+                id=form_view_id, table_id=from_field.table_id
+            ).exists():
+                raise ViewNotInTable(form_view_id)
+
+    def is_searchable(self, field: Field) -> bool:
+        return False
+
+    def get_export_value(self, value, field_object, rich_value=False):
+        if not value:
+            return ""
+        field_instance = field_object["field"]
+        form_view = field_instance.form_view
+        if form_view is None:
+            return ""
+        return build_row_edit_url(str(value), form_view, field_instance.id)
+
+    def import_serialized(
+        self,
+        table: "Table",
+        serialized_values: Dict[str, Any],
+        import_export_config: ImportExportConfig,
+        id_mapping: Dict[str, Any],
+        deferred_fk_update_collector: DeferredForeignKeyUpdater,
+    ) -> Optional[Field]:
+        """
+        Import the field and remap the ``form_view_id`` to the newly created
+        view via the deferred FK collector.
+
+        :param table: The table the field is being imported into.
+        :param serialized_values: The exported field attributes.
+        :param import_export_config: Import/export configuration.
+        :param id_mapping: Mapping from old IDs to new IDs.
+        :param deferred_fk_update_collector: Collector for deferred FK updates.
+        :return: The newly created field instance.
+        """
+
+        serialized_copy = serialized_values.copy()
+        old_form_view_id = serialized_copy.pop("form_view_id", None)
+
+        field = super().import_serialized(
+            table,
+            serialized_copy,
+            import_export_config,
+            id_mapping,
+            deferred_fk_update_collector,
+        )
+
+        if old_form_view_id:
+            deferred_fk_update_collector.add_deferred_fk_to_update(
+                field,
+                "form_view_id",
+                old_form_view_id,
+                "database_views",
+            )
+
+        return field
+
+    def get_export_serialized_value(
+        self,
+        row: "GeneratedTableModel",
+        field_name: str,
+        cache: Dict[str, Any],
+        files_zip=None,
+        storage=None,
+    ):
+        return None
+
+    def set_import_serialized_value(
+        self, row, field_name, value, id_mapping, cache, files_zip, storage
+    ):
+        pass

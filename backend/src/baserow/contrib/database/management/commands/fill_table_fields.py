@@ -8,6 +8,7 @@ from baserow.contrib.database.fields.field_helpers import (
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.table.models import Table
+from baserow.contrib.database.views.models import FormView
 
 
 class Command(BaseCommand):
@@ -60,10 +61,18 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"{limit} fields have been created."))
 
 
+def _get_or_create_form_view(table: Table) -> FormView:
+    return FormView.objects.get_or_create(
+        table=table,
+        defaults={"name": "Form", "order": 0},
+    )[0]
+
+
 def fill_table_fields(limit, table, shuffle_fields=False):
     field_handler = FieldHandler()
+    form_view = _get_or_create_form_view(table)
     all_kwargs_per_type = construct_all_possible_field_kwargs(
-        None, None, None, None, None
+        None, None, None, None, None, form_view
     )
     first_user = table.database.workspace.users.first()
     # Keep all fields but link_row, count, rollup and lookup
@@ -95,8 +104,9 @@ def fill_table_fields(limit, table, shuffle_fields=False):
 
 def create_field_for_every_type(table):
     field_handler = FieldHandler()
+    form_view = _get_or_create_form_view(table)
     all_kwargs_per_type = construct_all_possible_field_kwargs(
-        None, None, None, None, None
+        None, None, None, None, None, form_view
     )
     first_user = table.database.workspace.users.first()
     i = 0

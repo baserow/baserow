@@ -96,6 +96,16 @@ def _set_user_websocket_id(user, websocket_id):
 
 
 def get_user_remote_ip_address_from_request(request):
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    if x_forwarded_for:
+        # X-Forwarded-For can contain multiple IPs: client, proxy1, proxy2.
+        # The first one is the original client IP.
+        return x_forwarded_for.split(",")[0].strip()
+
+    x_real_ip = request.META.get("HTTP_X_REAL_IP")
+    if x_real_ip:
+        return x_real_ip.strip()
+
     return request.META.get("REMOTE_ADDR")
 
 

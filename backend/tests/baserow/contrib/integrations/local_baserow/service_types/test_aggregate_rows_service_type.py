@@ -15,6 +15,8 @@ from baserow.core.services.exceptions import (
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
+from baserow.core.services.types import DispatchResult
+from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
@@ -238,6 +240,9 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_table(data_fixture):
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert result["baserow_table_model"]
     assert result["data"] == {"result": Decimal("20")}
+    assert service_type.dispatch_transform(result) == DispatchResult(
+        data={"result": "20"}, status=200, output_uid=""
+    )
 
 
 @pytest.mark.django_db
@@ -278,6 +283,9 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_view(data_fixture):
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
     assert result["baserow_table_model"]
     assert result["data"] == {"result": Decimal("20")}
+    assert service_type.dispatch_transform(result) == DispatchResult(
+        data={"result": "20"}, status=200, output_uid=""
+    )
 
 
 @pytest.mark.django_db
@@ -501,11 +509,12 @@ def test_local_baserow_aggregate_rows_dispatch_data_field_deleted(data_fixture):
     dispatch_context = FakeDispatchContext()
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
 
-    field.delete()
+    TrashHandler.trash(user, dashboard.workspace, dashboard, field)
+    service.refresh_from_db(fields=["field"])
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
-    assert exc.value.args[0] == f"The field with ID {field.id} does not exist."
+    assert exc.value.args[0] == f"The field with ID {field.id} is trashed."
 
 
 @pytest.mark.django_db

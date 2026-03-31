@@ -6,6 +6,7 @@
     :nodes-hierarchy="nodesHierarchy"
     context-position="left"
     :mode="localMode"
+    :validation-context="{ dataProviderRegistry: dataProviders }"
     @update:mode="updateMode"
     @input="updatedFormulaStr"
   />

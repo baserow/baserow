@@ -832,7 +832,7 @@ def atomic_with_retry_on_deadlock(
 ):
     """
     Decorator that wraps a function in a transaction.atomic block and retries
-    when deadlock occurswith exponential backoff.
+    when deadlock occurs with exponential backoff.
 
     The decorated function must be idempotent - it should be safe to retry multiple
     times without changing behavior. Avoid modifying request.data or other mutable

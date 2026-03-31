@@ -58,7 +58,8 @@
     "download": "Download",
     "copyToClipboard": "Copy to clipboard",
     "reset": "Reset",
-    "hide": "Hide"
+    "hide": "Hide",
+    "next": "Next"
   },
   "adminType": {
     "settings": "Settings",
@@ -164,6 +165,8 @@
     "singleSelectRadios": "Radios",
     "autonumber": "Autonumber",
     "password": "Password",
+    "formViewEditRow": "Edit row link",
+    "formViewEditRowShareWarning": "Anyone with the shared link can edit rows via the {formNames} form through the publicly visible edit row link fields.|Anyone with the shared link can edit rows via the {formNames} forms through the publicly visible edit row link field.",
     "ai": "AI prompt",
     "multipleCollaboratorsDropdown": "Dropdown",
     "multipleCollaboratorsCheckboxes": "Checkboxes"
@@ -213,7 +216,8 @@
     "multipleCollaborators": "Accepts an array of objects where each object contains a user's id.",
     "uuid": "A read-only unique and persistent uuid.",
     "autonumber": "A read-only field that automatically increments a number for each new row.",
-    "password": "A write-only field that holds a hashed password. The value will be `null` if not set, or `true` if it has been set. It accepts a string to set it."
+    "password": "A write-only field that holds a hashed password. The value will be `null` if not set, or `true` if it has been set. It accepts a string to set it.",
+    "formViewEditRow": "A read-only field that generates a unique, signed URL allowing the row to be edited through the linked form view."
   },
   "fieldConstraint": {
     "uniqueWithEmpty": "Unique with empty"
@@ -697,6 +701,12 @@
     "categoryBoolean": "Boolean",
     "categoryDate": "Date",
     "categoryCondition": "Condition"
+  },
+  "runtimeGetErrors": {
+    "invalidPath": "The 'get' argument '{path}' must be a dot-delimited path (e.g., 'provider.property').",
+    "missingProvider": "The 'get' argument '{path}' is missing its formula provider prefix.",
+    "unknownProvider": "The '{providerName}' formula provider does not exist.",
+    "invalidProviderPath": "The '{providerName}' formula provider found '{path}' to be invalid."
   },
   "nodeExplorer": {
     "noResults": "No results found",

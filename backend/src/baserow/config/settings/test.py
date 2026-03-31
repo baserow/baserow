@@ -26,13 +26,13 @@ else:
     TEST_ENV_VARS = {}
 
 # Prefixes for vars that can be overridden via env vars (for DB/Redis configuration)
-ALLOWED_ENV_PREFIXES = ("DATABASE_",)
+ALLOWED_ENV_PREFIXES = ("DATABASE_", "BASEROW_EMBEDDINGS_API_URL")
 
 
 def getenv_for_tests(key: str, default: str = "") -> str:
     """
     Get env var for tests:
-    - DATABASE_* vars: check real env first, then TEST_ENV_FILE, then default
+    - ALLOWED_ENV_PREFIXES vars: use real env var if set, else TEST_ENV_FILE, else default
     - Other vars: only use TEST_ENV_FILE or default (never real env)
     """
 
@@ -65,9 +65,9 @@ CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}
 BASEROW_TESTS_SETUP_DB_FIXTURE = str_to_bool(
     os.getenv("BASEROW_TESTS_SETUP_DB_FIXTURE", "on")
 )
-DATABASES["default"]["TEST"] = {
-    "MIGRATE": not BASEROW_TESTS_SETUP_DB_FIXTURE,
-}
+DATABASES["default"].setdefault("TEST", {})[
+    "MIGRATE"
+] = not BASEROW_TESTS_SETUP_DB_FIXTURE
 
 # Open a second database connection that can be used to test transactions.
 DATABASES["default-copy"] = deepcopy(DATABASES["default"])
@@ -150,6 +150,7 @@ if CACHALOT_ENABLED:
 
     install_cachalot()
 
+BASEROW_ENABLE_CAPTCHA = ""
 
 try:
     from .local_test import *  # noqa: F403, F401

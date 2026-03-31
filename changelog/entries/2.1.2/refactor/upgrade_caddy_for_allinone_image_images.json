@@ -1,0 +1,9 @@
+{
+  "type": "refactor",
+  "message": "Upgrade caddy to 2.11.1.",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "core",
+  "bullet_points": [],
+  "created_at": "2026-02-26"
+}

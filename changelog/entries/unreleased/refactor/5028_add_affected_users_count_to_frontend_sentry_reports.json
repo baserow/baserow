@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Add affected users count to frontend sentry reports",
+    "issue_origin": "github",
+    "issue_number": 5028,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-03-23"
+}

@@ -24,9 +24,9 @@ def set_openai_api_key_env_var():
     """
     Set a dummy OpenAI API key for tests to prevent client instantiation errors.
 
-    udspy.LM() creates an OpenAI client that raises an error if OPENAI_API_KEY is not
-    set during client instantiation. This fixture ensures tests don't fail due to
-    missing API key configuration, which is not needed anyway.
+    Some pydantic-ai model backends create an OpenAI client that raises an error
+    if OPENAI_API_KEY is not set during client instantiation. This fixture ensures
+    tests don't fail due to missing API key configuration.
     """
 
     if not os.getenv("OPENAI_API_KEY"):

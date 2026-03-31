@@ -1,8 +1,8 @@
+from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
-from rest_framework.fields import empty
 from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
@@ -15,7 +15,10 @@ from baserow.api.user_files.errors import ERROR_FILE_SIZE_TOO_LARGE, ERROR_INVAL
 from baserow.api.user_files.serializers import UserFileSerializer
 from baserow.api.utils import validate_data
 from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DATA_CONSTRAINT
-from baserow.contrib.database.api.rows.errors import ERROR_CANNOT_CREATE_ROWS_IN_TABLE
+from baserow.contrib.database.api.rows.errors import (
+    ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
+    ERROR_ROW_DOES_NOT_EXIST,
+)
 from baserow.contrib.database.api.rows.serializers import (
     get_example_row_serializer_class,
     get_row_serializer_class,
@@ -26,9 +29,18 @@ from baserow.contrib.database.api.views.errors import (
 )
 from baserow.contrib.database.api.views.utils import get_public_view_authorization_token
 from baserow.contrib.database.fields.exceptions import FieldDataConstraintException
-from baserow.contrib.database.fields.models import FileField, LongTextField
-from baserow.contrib.database.rows.exceptions import CannotCreateRowsInTable
-from baserow.contrib.database.views.actions import SubmitFormActionType
+from baserow.contrib.database.fields.models import (
+    FileField,
+    LongTextField,
+)
+from baserow.contrib.database.rows.exceptions import (
+    CannotCreateRowsInTable,
+    RowDoesNotExist,
+)
+from baserow.contrib.database.views.actions import (
+    EditFormRowActionType,
+    SubmitFormActionType,
+)
 from baserow.contrib.database.views.exceptions import (
     NoAuthorizationToPubliclySharedView,
     ViewDoesNotExist,
@@ -36,10 +48,6 @@ from baserow.contrib.database.views.exceptions import (
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import FormView
 from baserow.contrib.database.views.registries import view_ownership_type_registry
-from baserow.contrib.database.views.validators import (
-    allow_only_specific_select_options_factory,
-    no_empty_form_values_when_required_validator,
-)
 from baserow.core.action.registries import action_type_registry
 from baserow.core.user_files.exceptions import (
     FileSizeTooLargeError,
@@ -49,11 +57,16 @@ from baserow.core.user_files.handler import UserFileHandler
 
 from .errors import (
     ERROR_FORM_DOES_NOT_EXIST,
+    ERROR_INVALID_EDIT_ROW_TOKEN,
     ERROR_NO_PERMISSION_TO_PUBLICLY_SHARED_FORM,
     ERROR_VIEW_HAS_NO_PUBLIC_FILE_FIELD,
 )
-from .exceptions import ViewHasNoPublicFileFieldError
+from .exceptions import (
+    InvalidEditRowTokenError,
+    ViewHasNoPublicFileFieldError,
+)
 from .serializers import FormViewSubmittedSerializer, PublicFormViewSerializer
+from .utils import build_field_kwargs_for_options, decode_and_validate_edit_token
 
 
 class SubmitFormViewView(APIView):
@@ -146,27 +159,9 @@ class SubmitFormViewView(APIView):
         model = form.table.get_model()
 
         options = form.active_field_options
-        field_kwargs = {}
-        for option in options:
-            validators = []
-            o = {}
-            if option.is_required():
-                o["required"] = True
-                o["default"] = empty
-                validators.append(no_empty_form_values_when_required_validator)
-            if not option.include_all_select_options:
-                validators.append(
-                    allow_only_specific_select_options_factory(
-                        [
-                            allowed_select_option.id
-                            for allowed_select_option in option.allowed_select_options.all()
-                        ]
-                    )
-                )
-            if len(validators) > 0 and len(o) > 0:
-                name = model._field_objects[option.field_id]["name"]
-                o["validators"] = validators
-                field_kwargs[name] = o
+        field_kwargs = build_field_kwargs_for_options(
+            model, options, enforce_required=True
+        )
 
         field_ids = [option.field_id for option in options]
         validation_serializer = get_row_serializer_class(
@@ -180,6 +175,173 @@ class SubmitFormViewView(APIView):
             request.user, form, values, model, options
         )
         form.row_id = created_row.id
+        return Response(FormViewSubmittedSerializer(form).data)
+
+
+class EditRowFormViewView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="slug",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.STR,
+                required=True,
+                description="The slug of the form view.",
+            ),
+            OpenApiParameter(
+                name="row_token",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.STR,
+                required=True,
+                description="The signed edit token that identifies the row to edit.",
+            ),
+        ],
+        tags=["Database table form view"],
+        operation_id="get_edit_row_database_table_form_view",
+        description=(
+            "Returns the current field values of the row identified by the edit token. "
+            "Only fields visible in the form view are returned. The token must be a "
+            "valid signed token generated by a form_view_edit_row field."
+        ),
+        responses={
+            200: get_example_row_serializer_class(example_type="get"),
+            401: get_error_schema(
+                [
+                    "ERROR_NO_PERMISSION_TO_PUBLICLY_SHARED_FORM",
+                ]
+            ),
+            404: get_error_schema(
+                [
+                    "ERROR_FORM_DOES_NOT_EXIST",
+                    "ERROR_ROW_DOES_NOT_EXIST",
+                    "ERROR_INVALID_EDIT_ROW_TOKEN",
+                ]
+            ),
+        },
+    )
+    @map_exceptions(
+        {
+            ViewDoesNotExist: ERROR_FORM_DOES_NOT_EXIST,
+            NoAuthorizationToPubliclySharedView: ERROR_NO_PERMISSION_TO_PUBLICLY_SHARED_FORM,
+            InvalidEditRowTokenError: ERROR_INVALID_EDIT_ROW_TOKEN,
+            RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
+        }
+    )
+    def get(self, request: Request, slug: str, row_token: str) -> Response:
+        handler = ViewHandler()
+        form = handler.get_public_view_by_slug(
+            request.user,
+            slug,
+            view_model=FormView,
+            authorization_token=get_public_view_authorization_token(request),
+        )
+        cell_uuid, field_id = decode_and_validate_edit_token(form, row_token)
+
+        model = form.table.get_model()
+        field_column = f"field_{field_id}"
+
+        try:
+            row = model.objects.get(**{field_column: cell_uuid})
+        except (model.DoesNotExist, ValidationError):
+            raise RowDoesNotExist(cell_uuid)
+
+        options = form.active_field_options
+        field_ids = [option.field_id for option in options]
+
+        serializer_class = get_row_serializer_class(
+            model, is_response=True, field_ids=field_ids
+        )
+        return Response(serializer_class(row).data)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="slug",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.STR,
+                required=True,
+                description="The slug of the form view.",
+            ),
+            OpenApiParameter(
+                name="row_token",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.STR,
+                required=True,
+                description="The signed edit token that identifies the row to edit.",
+            ),
+        ],
+        tags=["Database table form view"],
+        operation_id="update_edit_row_database_table_form_view",
+        description=(
+            "Updates the row identified by the edit token using the submitted field "
+            "values. Only fields that are visible in the form view can be changed. "
+            "The `row_token` must be a valid signed token generated by a "
+            "form_view_edit_row field."
+        ),
+        request=get_example_row_serializer_class(example_type="patch"),
+        responses={
+            200: FormViewSubmittedSerializer,
+            401: get_error_schema(
+                [
+                    "ERROR_NO_PERMISSION_TO_PUBLICLY_SHARED_FORM",
+                ]
+            ),
+            400: get_error_schema(["ERROR_FIELD_DATA_CONSTRAINT"]),
+            404: get_error_schema(
+                [
+                    "ERROR_FORM_DOES_NOT_EXIST",
+                    "ERROR_ROW_DOES_NOT_EXIST",
+                    "ERROR_INVALID_EDIT_ROW_TOKEN",
+                ]
+            ),
+        },
+    )
+    @map_exceptions(
+        {
+            ViewDoesNotExist: ERROR_FORM_DOES_NOT_EXIST,
+            NoAuthorizationToPubliclySharedView: ERROR_NO_PERMISSION_TO_PUBLICLY_SHARED_FORM,
+            InvalidEditRowTokenError: ERROR_INVALID_EDIT_ROW_TOKEN,
+            RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
+            FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
+        }
+    )
+    @transaction.atomic
+    def patch(self, request: Request, slug: str, row_token: str) -> Response:
+        handler = ViewHandler()
+        form = handler.get_public_view_by_slug(
+            request.user,
+            slug,
+            view_model=FormView,
+            authorization_token=get_public_view_authorization_token(request),
+        )
+
+        cell_uuid, field_id = decode_and_validate_edit_token(form, row_token)
+        data = request.data
+
+        model = form.table.get_model()
+        field_column = f"field_{field_id}"
+
+        try:
+            row = model.objects.get(**{field_column: cell_uuid})
+        except (model.DoesNotExist, ValidationError):
+            raise RowDoesNotExist(cell_uuid)
+
+        options = form.active_field_options
+        field_kwargs = build_field_kwargs_for_options(model, options)
+
+        field_ids = [option.field_id for option in options]
+        validation_serializer = get_row_serializer_class(
+            model, field_ids=field_ids, field_kwargs=field_kwargs
+        )
+        values = validate_data(validation_serializer, data, return_validated=True)
+
+        updated_row = action_type_registry.get_by_type(EditFormRowActionType).do(
+            request.user, form, row.id, values, model, options
+        )
+
+        form.row_id = updated_row.id
         return Response(FormViewSubmittedSerializer(form).data)
 
 

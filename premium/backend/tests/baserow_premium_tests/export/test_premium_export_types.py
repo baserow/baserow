@@ -11,7 +11,10 @@ from baserow.contrib.database.export.handler import ExportHandler
 from baserow.contrib.database.export.models import EXPORT_JOB_FINISHED_STATUS
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.storage import get_default_storage
-from baserow.test_utils.helpers import setup_interesting_test_table
+from baserow.test_utils.helpers import (
+    get_form_view_edit_row_url,
+    setup_interesting_test_table,
+)
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 
@@ -24,12 +27,14 @@ def test_can_export_every_interesting_different_field_to_json(
     storage_mock = MagicMock()
     get_storage_mock.return_value = storage_mock
 
-    contents = run_export_over_interesting_test_table(
+    contents, row, blank_row, context = run_export_over_interesting_test_table(
         premium_data_fixture,
         storage_mock,
         {"exporter_type": "json"},
         user_kwargs={"has_active_premium_license": True, "email": "user@example.com"},
     )
+    form_view_edit_row_url_row1 = get_form_view_edit_row_url(context, blank_row)
+    form_view_edit_row_url_row2 = get_form_view_edit_row_url(context, row)
     assert (
         contents
         == """[
@@ -115,6 +120,7 @@ def test_can_export_every_interesting_different_field_to_json(
     "uuid": "00000000-0000-4000-8000-000000000001",
     "autonumber": 1,
     "password": "",
+    "form_view_edit_row": "FORM_VIEW_EDIT_ROW_URL_ROW1",
     "ai": "",
     "ai_choice": ""
 },
@@ -264,11 +270,14 @@ def test_can_export_every_interesting_different_field_to_json(
     "uuid": "00000000-0000-4000-8000-000000000002",
     "autonumber": 2,
     "password": true,
+    "form_view_edit_row": "FORM_VIEW_EDIT_ROW_URL_ROW2",
     "ai": "I'm an AI.",
     "ai_choice": "Object"
 }
 ]
-"""
+""".replace("FORM_VIEW_EDIT_ROW_URL_ROW1", form_view_edit_row_url_row1).replace(
+            "FORM_VIEW_EDIT_ROW_URL_ROW2", form_view_edit_row_url_row2
+        )
     )
 
 
@@ -347,12 +356,14 @@ def test_can_export_every_interesting_different_field_to_xml(
 ):
     storage_mock = MagicMock()
     get_storage_mock.return_value = storage_mock
-    xml = run_export_over_interesting_test_table(
+    xml, row, blank_row, context = run_export_over_interesting_test_table(
         premium_data_fixture,
         storage_mock,
         {"exporter_type": "xml"},
         user_kwargs={"has_active_premium_license": True, "email": "user@example.com"},
     )
+    form_view_edit_row_url_row1 = get_form_view_edit_row_url(context, blank_row)
+    form_view_edit_row_url_row2 = get_form_view_edit_row_url(context, row)
     expected_xml = """<?xml version="1.0" encoding="utf-8" ?>
 <rows>
    <row>
@@ -437,6 +448,7 @@ def test_can_export_every_interesting_different_field_to_xml(
       <uuid>00000000-0000-4000-8000-000000000001</uuid>
       <autonumber>1</autonumber>
       <password/>
+      <form-view-edit-row>FORM_VIEW_EDIT_ROW_URL_ROW1</form-view-edit-row>
       <ai/>
       <ai-choice/>
    </row>
@@ -586,11 +598,15 @@ def test_can_export_every_interesting_different_field_to_xml(
       <uuid>00000000-0000-4000-8000-000000000002</uuid>
       <autonumber>2</autonumber>
       <password>true</password>
+      <form-view-edit-row>FORM_VIEW_EDIT_ROW_URL_ROW2</form-view-edit-row>
       <ai>I'm an AI.</ai>
       <ai-choice>Object</ai-choice>
    </row>
 </rows>
 """
+    expected_xml = expected_xml.replace(
+        "FORM_VIEW_EDIT_ROW_URL_ROW1", form_view_edit_row_url_row1
+    ).replace("FORM_VIEW_EDIT_ROW_URL_ROW2", form_view_edit_row_url_row2)
     assert strip_indents_and_newlines(xml) == strip_indents_and_newlines(expected_xml)
 
 
@@ -679,14 +695,14 @@ def strip_indents_and_newlines(xml):
 def run_export_over_interesting_test_table(
     premium_data_fixture, storage_mock, options, user_kwargs=None, user=None
 ):
-    table, user, _, _, context = setup_interesting_test_table(
+    table, user, row, blank_row, context = setup_interesting_test_table(
         premium_data_fixture, user_kwargs=user_kwargs, user=user
     )
     grid_view = premium_data_fixture.create_grid_view(table=table)
     job, contents = run_export_job_with_mock_storage(
         table, grid_view, storage_mock, user, options
     )
-    return contents
+    return contents, row, blank_row, context
 
 
 def run_export_job_with_mock_storage(
@@ -739,7 +755,7 @@ def test_can_export_every_interesting_different_field_to_excel(
     storage_mock = MagicMock()
     get_storage_mock.return_value = storage_mock
 
-    contents = run_export_over_interesting_test_table(
+    contents, row, blank_row, context = run_export_over_interesting_test_table(
         premium_data_fixture,
         storage_mock,
         {
@@ -749,6 +765,8 @@ def test_can_export_every_interesting_different_field_to_excel(
         },
         user_kwargs={"has_active_premium_license": True, "email": "user@example.com"},
     )
+    form_view_edit_row_url_row1 = get_form_view_edit_row_url(context, blank_row)
+    form_view_edit_row_url_row2 = get_form_view_edit_row_url(context, row)
 
     excel_file = BytesIO(contents)
     workbook = load_workbook(excel_file)
@@ -829,6 +847,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "uuid",
         "autonumber",
         "password",
+        "form_view_edit_row",
         "ai",
         "ai_choice",
     ]
@@ -907,6 +926,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "00000000-0000-4000-8000-000000000001",
         "1",
         None,
+        form_view_edit_row_url_row1,
         None,
         None,
     ]
@@ -985,6 +1005,7 @@ def test_can_export_every_interesting_different_field_to_excel(
         "00000000-0000-4000-8000-000000000002",
         "2",
         "True",
+        form_view_edit_row_url_row2,
         "I'm an AI.",
         "Object",
     ]
@@ -1011,7 +1032,7 @@ def test_can_export_every_interesting_different_field_to_excel_without_header(
     storage_mock = MagicMock()
     get_storage_mock.return_value = storage_mock
 
-    contents = run_export_over_interesting_test_table(
+    contents, _, _, _ = run_export_over_interesting_test_table(
         premium_data_fixture,
         storage_mock,
         {"exporter_type": "excel", "export_charset": None},

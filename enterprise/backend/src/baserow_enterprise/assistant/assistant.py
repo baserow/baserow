@@ -1,30 +1,56 @@
-from dataclasses import dataclass
-from functools import lru_cache
-from typing import Any, AsyncGenerator, Callable, Tuple, TypedDict
+import asyncio
+from typing import Any, AsyncGenerator
 
-from django.conf import settings
 from django.core.cache import cache
 from django.utils import translation
 
-import udspy
-from udspy.callback import BaseCallback
+from loguru import logger
+from pydantic_ai._thinking_part import split_content_into_text_and_thinking
+from pydantic_ai.messages import (
+    FunctionToolCallEvent,
+    FunctionToolResultEvent,
+    ModelMessage,
+    ModelMessagesTypeAdapter,
+    PartDeltaEvent,
+    PartStartEvent,
+    TextPart,
+    TextPartDelta,
+    ThinkingPart,
+    ThinkingPartDelta,
+)
+from pydantic_ai.run import AgentRunResultEvent
+from pydantic_ai.usage import UsageLimits
 
 from baserow.api.sessions import get_client_undo_redo_action_group_id
-from baserow_enterprise.assistant.exceptions import (
-    AssistantMessageCancelled,
-    AssistantModelNotSupportedError,
+from baserow_enterprise.assistant.agents import main_agent, title_agent
+from baserow_enterprise.assistant.deps import (
+    AgentMode,
+    AssistantDeps,
+    EventBus,
+    QueueEvent,
+    QueueEventKind,
+    ToolHelpers,
 )
-from baserow_enterprise.assistant.telemetry import PosthogTracingCallback
-from baserow_enterprise.assistant.tools.navigation.types import AnyNavigationRequestType
+from baserow_enterprise.assistant.exceptions import AssistantMessageCancelled
+from baserow_enterprise.assistant.history import compact_message_history
+from baserow_enterprise.assistant.model_profiles import (
+    ORCHESTRATOR,
+    TITLE,
+    get_model_settings,
+    get_model_string,
+)
+from baserow_enterprise.assistant.retrying_model import RetryingModel
+from baserow_enterprise.assistant.telemetry import (
+    PosthogTracingCallback,
+    setup_instrumentation,
+)
 from baserow_enterprise.assistant.tools.navigation.utils import unsafe_navigate_to
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
-from .signatures import ChatSignature
 from .types import (
     AiMessage,
     AiMessageChunk,
-    AiNavigationMessage,
     AiReasoningChunk,
     AiStartedMessage,
     AiThinkingMessage,
@@ -33,175 +59,118 @@ from .types import (
     HumanMessage,
 )
 
-
-@dataclass
-class ToolHelpers:
-    update_status: Callable[[str], None]
-    navigate_to: Callable[["AnyNavigationRequestType"], str]
+_CANCELLATION_KEY_TTL = 300  # seconds
+_THINKING_TAGS = ("<think>", "</think>")
 
 
-class AssistantMessagePair(TypedDict):
-    question: str
-    answer: str
+def _strip_think_tags(text: str) -> str:
+    """Remove ``<think>...</think>`` blocks from *text*, returning only the
+    non-thinking content.  Uses pydantic-ai's own tag parser.
 
+    Also strips any trailing unclosed ``<think>`` block that may appear
+    during streaming (the closing tag hasn't arrived yet).
+    """
 
-class AssistantCallbacks(BaseCallback):
-    def __init__(self, tool_helpers: ToolHelpers | None = None):
-        self.tool_helpers = tool_helpers
-        self.tool_calls = {}
-        self.sources = []
+    if "<think>" not in text:
+        return text
 
-    def extend_sources(self, sources: list[str]) -> None:
-        """
-        Extends the current list of sources with new ones, avoiding duplicates.
+    # Strip any trailing unclosed <think> block (common during streaming)
+    last_open = text.rfind("<think>")
+    last_close = text.rfind("</think>")
+    if last_open > last_close:
+        text = text[:last_open]
 
-        :param sources: The list of new source URLs to add.
-        :return: None
-        """
+    if "<think>" not in text:
+        return text.strip()
 
-        self.sources.extend([s for s in sources if s not in self.sources])
-
-    def on_tool_start(
-        self,
-        call_id: str,
-        instance: Any,
-        inputs: dict[str, Any],
-    ) -> None:
-        """
-        Called when a tool starts. It records the tool call and invokes the
-        corresponding tool's on_tool_start method if it exists.
-
-        :param call_id: The unique identifier of the tool call.
-        :param instance: The instance of the tool being called.
-        :param inputs: The inputs provided to the tool.
-        """
-
-        try:
-            assistant_tool_registry.get(instance.name).on_tool_start(
-                call_id, instance, inputs
-            )
-            self.tool_calls[call_id] = (instance, inputs)
-        except assistant_tool_registry.does_not_exist_exception_class:
-            pass
-
-    def on_tool_end(
-        self,
-        call_id: str,
-        outputs: dict[str, Any] | None,
-        exception: Exception | None = None,
-    ) -> None:
-        """
-        Called when a tool ends. It invokes the corresponding tool's on_tool_end
-        method if it exists and updates the sources if the tool produced any.
-
-        :param call_id: The unique identifier of the tool call.
-        :param outputs: The outputs returned by the tool, or None if there was an
-            exception.
-        :param exception: The exception raised by the tool, or None if it was
-            successful.
-        """
-
-        if call_id not in self.tool_calls:
-            return
-
-        instance, inputs = self.tool_calls.pop(call_id)
-        assistant_tool_registry.get(instance.name).on_tool_end(
-            call_id, instance, inputs, outputs, exception
-        )
-
-        if exception is not None and self.tool_helpers is not None:
-            self.tool_helpers.update_status(
-                f"Calling the {instance.name} tool encountered an error."
-            )
-
-        # If the tool produced sources, add them to the overall list of sources.
-        if isinstance(outputs, dict) and "sources" in outputs:
-            self.extend_sources(outputs["sources"])
+    parts = split_content_into_text_and_thinking(text, _THINKING_TAGS)
+    return "".join(p.content for p in parts if not isinstance(p, ThinkingPart)).strip()
 
 
 def get_assistant_cancellation_key(chat_uuid: str) -> str:
-    """
-    Get the Redis cache key for cancellation tracking.
-
-    :param chat_uuid: The UUID of the assistant chat.
-    :return: The cache key as a string.
-    """
+    """Return the cache key used to signal cancellation for a chat session."""
 
     return f"assistant:chat:{chat_uuid}:cancelled"
 
 
-def set_assistant_cancellation_key(chat_uuid: str, timeout: int = 300) -> None:
-    """
-    Set the cancellation flag in the cache for the given chat UUID.
+def set_assistant_cancellation_key(
+    chat_uuid: str, timeout: int = _CANCELLATION_KEY_TTL
+) -> None:
+    """Set the cancellation flag in the cache for a chat session."""
 
-    :param chat_uuid: The UUID of the assistant chat.
-    :param timeout: The time in seconds after which the cancellation flag expires.
-    """
-
-    cache_key = get_assistant_cancellation_key(chat_uuid)
-    cache.set(cache_key, True, timeout=timeout)
+    cache.set(get_assistant_cancellation_key(chat_uuid), True, timeout=timeout)
 
 
-def get_lm_client(
-    model: str | None = None,
-) -> "Assistant":
-    """
-    Returns a udspy.LM client configured with the specified model or the default model.
+def _extract_tool_thought(event: FunctionToolCallEvent) -> str | None:
+    """Extract the chain-of-thought ``thought`` argument from a tool call
+    event, if present and non-empty."""
 
-    :param model: The language model to use. If None, the default model from settings
-        will be used.
-    :return: A udspy.LM instance.
-    """
-
-    return udspy.LM(model=model or settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL)
-
-
-@lru_cache(maxsize=1)
-def check_lm_ready_or_raise() -> None:
-    """
-    Checks if the configured LLM is ready by making a test call. Raises
-    AssistantModelNotSupportedError if the model is not supported or accessible.
-    """
-
-    lm = get_lm_client()
     try:
-        lm("Respond in JSON: {'response': 'ok'}")
-    except Exception as e:
-        raise AssistantModelNotSupportedError(
-            f"The model '{lm.model}' is not supported or accessible: {e}"
-        )
+        args = event.part.args_as_dict()
+    except Exception:
+        return None
+    thought = args.get("thought")
+    return thought if isinstance(thought, str) and thought.strip() else None
 
 
 class Assistant:
+    """Orchestrates a single assistant chat session.
+
+    Wires together the pydantic-ai agent, toolsets, telemetry, event
+    streaming, and message persistence for one ``AssistantChat``.
+    """
+
     def __init__(self, chat: AssistantChat):
         self._chat = chat
         self._user = chat.user
         self._workspace = chat.workspace
+        self._model_string = get_model_string()
+        self._model = RetryingModel(self._model_string)
+        self._event_bus = EventBus()
+        self._tool_helpers = self._build_tool_helpers()
+        self._telemetry = PosthogTracingCallback()
 
-        self._lm_client = get_lm_client()
-        self._init_assistant()
-
-    def _init_assistant(self):
-        self.history = None
-        self.tool_helpers = self.get_tool_helpers()
-        tools = [
-            t if isinstance(t, udspy.Tool) else udspy.Tool(t)
-            for t in assistant_tool_registry.list_all_usable_tools(
-                self._user, self._workspace, self.tool_helpers
-            )
-        ]
-
-        self._assistant_callbacks = AssistantCallbacks(self.tool_helpers)
-        self._telemetry_callbacks = PosthogTracingCallback()
-        self._callbacks = [self._assistant_callbacks, self._telemetry_callbacks]
-
-        module_kwargs = {
-            "temperature": settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE,
-            "response_format": {"type": "json_object"},
-        }
-        self._assistant = udspy.ReAct(
-            ChatSignature, tools=tools, max_iters=20, **module_kwargs
+        self._deps = AssistantDeps(
+            user=self._user,
+            workspace=self._workspace,
+            tool_helpers=self._tool_helpers,
         )
+        self._toolset, db_m, app_m, auto_m, explain_m = (
+            assistant_tool_registry.build_toolset(
+                user=self._user,
+                workspace=self._workspace,
+                model=self._model_string,
+                deps=self._deps,
+            )
+        )
+        self._deps.database_manifest = db_m
+        self._deps.application_manifest = app_m
+        self._deps.automation_manifest = auto_m
+        self._deps.explain_manifest = explain_m
+
+        setup_instrumentation()
+
+    # ------------------------------------------------------------------
+    # Setup
+    # ------------------------------------------------------------------
+
+    def _build_tool_helpers(self) -> ToolHelpers:
+        """Create the ``ToolHelpers`` that tools use for status updates,
+        navigation, and cancellation during the agent run."""
+
+        def update_status(status: str):
+            with translation.override(self._user.profile.language):
+                self._event_bus.emit(AiThinkingMessage(content=status))
+
+        return ToolHelpers(
+            update_status=update_status,
+            navigate_to=lambda loc: unsafe_navigate_to(loc, self._event_bus),
+            event_bus=self._event_bus,
+        )
+
+    # ------------------------------------------------------------------
+    # Message persistence
+    # ------------------------------------------------------------------
 
     async def acreate_chat_message(
         self,
@@ -210,37 +179,24 @@ class Assistant:
         artifacts: dict[str, Any] | None = None,
         **kwargs,
     ) -> AssistantChatMessage:
-        """
-        Creates and saves a new chat message.
-
-        :param role: The role of the message (human or AI).
-        :param content: The content of the message.
-        :param artifacts: Optional artifacts associated with the message.
-        :return: The created AssistantChatMessage instance.
-        """
+        """Persist a new chat message to the database."""
 
         message = AssistantChatMessage(
-            chat=self._chat,
-            role=role,
-            content=content,
-            **kwargs,
+            chat=self._chat, role=role, content=content, **kwargs
         )
         if artifacts:
             message.artifacts = artifacts
-
         await message.asave()
         return message
 
     def list_chat_messages(
         self, last_message_id: int | None = None, limit: int = 100
-    ) -> list[AssistantChatMessage]:
-        """
-        Lists all chat messages in chronological order.
+    ) -> list[AssistantMessageUnion]:
+        """Return recent chat messages, oldest-first.
 
-        :param last_message_id: The ID of the last message received. If provided, only
-            messages before this ID will be returned.
-        :param limit: The maximum number of messages to return.
-        :return: A list of AssistantChatMessage instances.
+        :param last_message_id: If set, only return messages with ``id``
+            below this value (cursor-based pagination).
+        :param limit: Maximum number of messages to return.
         """
 
         queryset = (
@@ -251,7 +207,7 @@ class Assistant:
         if last_message_id is not None:
             queryset = queryset.filter(id__lt=last_message_id)
 
-        messages = []
+        messages: list[AssistantMessageUnion] = []
         for msg in queryset[:limit]:
             if msg.role == AssistantChatMessage.Role.HUMAN:
                 messages.append(
@@ -276,267 +232,393 @@ class Assistant:
                 )
         return list(reversed(messages))
 
-    async def afetch_chat_history(self, limit: int = 50) -> udspy.History:
-        """
-        Loads the chat history into a udspy.History object. It only loads complete
-        message pairs (human + AI). The history will be in chronological order and must
-        respect the module signature (question, answer).
-
-        :param limit: The maximum number of message pairs to load.
-        :return: A udspy.History instance containing the chat history.
-        """
-
-        history = udspy.History()
-        last_saved_messages: list[AssistantChatMessage] = [
-            msg async for msg in self._chat.messages.order_by("-created_on")[:limit]
-        ]
-
-        while len(last_saved_messages) >= 2:
-            # Pop the oldest message pair to respect chronological order.
-            first_message = last_saved_messages.pop()
-            next_message = last_saved_messages[-1]
-            if (
-                first_message.role != AssistantChatMessage.Role.HUMAN
-                or next_message.role != AssistantChatMessage.Role.AI
-            ):
-                continue
-
-            history.add_user_message(first_message.content)
-            assistant_answer = last_saved_messages.pop()
-            history.add_assistant_message(assistant_answer.content)
-
-        return history
-
-    def get_tool_helpers(self) -> ToolHelpers:
-        def update_status_localized(status: str):
-            """
-            Sends a localized message to the frontend to update the assistant status.
-
-            :param status: The status message to send.
-            """
-
-            with translation.override(self._user.profile.language):
-                udspy.emit_event(AiThinkingMessage(content=status))
-
-        return ToolHelpers(
-            update_status=update_status_localized,
-            navigate_to=unsafe_navigate_to,
-        )
-
-    async def _generate_chat_title(self, user_message: str) -> str:
-        """
-        Generates a title for the chat based on the user message and AI response.
-
-        :param user_message: The latest user message in the chat.
-        :return: The generated chat title.
-        """
-
-        title_generator = udspy.Predict(
-            udspy.Signature.from_string(
-                "user_message -> chat_title",
-                "Create a short title for the following user request.",
-            )
-        )
-        rsp = await title_generator.aforward(
-            user_message=user_message,
-        )
-        return rsp.chat_title
-
-    async def _acreate_ai_message_response(
-        self,
-        human_msg: HumanMessage,
-        prediction: udspy.Prediction,
+    async def _save_ai_response(
+        self, human_msg: AssistantChatMessage, answer: str
     ) -> AiMessage:
-        """
-        Creates and saves an AI chat message response based on the prediction. Stores
-        the prediction in AssistantChatPrediction, linking it to the human message, so
-        it can be referenced later to provide feedback.
+        """Persist the AI answer and create a prediction record for
+        feedback tracking."""
 
-        :param human_msg: The human message instance.
-        :param prediction: The udspy.Prediction instance containing the AI response.
-        :return: The created AiMessage instance to return to the user.
-        """
-
-        sources = self._assistant_callbacks.sources
+        sources = self._deps.sources
         ai_msg = await self.acreate_chat_message(
             AssistantChatMessage.Role.AI,
-            prediction.answer,
+            answer,
             artifacts={"sources": sources},
             action_group_id=get_client_undo_redo_action_group_id(self._user),
         )
-
         await AssistantChatPrediction.objects.acreate(
             human_message=human_msg,
             ai_response=ai_msg,
-            prediction={k: v for k, v in prediction.items() if k != "module"},
+            prediction={"answer": answer},
         )
-
-        # Yield final complete message
         return AiMessage(
             id=ai_msg.id,
-            content=prediction.answer,
+            content=answer,
             sources=sources,
             can_submit_feedback=True,
         )
 
-    def _get_cancellation_cache_key(self) -> str:
-        """
-        Get the Redis cache key for cancellation tracking.
+    # ------------------------------------------------------------------
+    # Message history (pydantic-ai ModelMessage round-trips)
+    # ------------------------------------------------------------------
 
-        :return: The cache key as a string.
-        """
+    async def _save_message_history(self, messages_json: bytes) -> None:
+        """Persist the serialised pydantic-ai message history on the chat."""
 
-        return get_assistant_cancellation_key(self._chat.uuid)
+        self._chat.message_history = messages_json
+        await self._chat.asave(update_fields=["message_history", "updated_on"])
 
-    def _check_cancellation(self, cache_key: str, message_id: str) -> None:
-        """
-        Check if the message generation has been cancelled.
+    async def _load_message_history(self) -> list[ModelMessage] | None:
+        """Deserialise and compact the stored message history, returning
+        ``None`` if absent or corrupt."""
 
-        :param cache_key: The cache key to check for cancellation.
-        :param message_id: The ID of the message being generated.
-        :raises AssistantMessageCancelled: If the message generation has been cancelled.
-        """
+        raw = self._chat.message_history
+        if not raw:
+            return None
+        try:
+            messages = ModelMessagesTypeAdapter.validate_json(bytes(raw))
+            return compact_message_history(messages)
+        except Exception:
+            logger.opt(exception=True).warning(
+                "Failed to load message history for chat {}, starting fresh",
+                self._chat.pk,
+            )
+            return None
 
-        if cache.get(cache_key):
-            cache.delete(cache_key)
-            raise AssistantMessageCancelled(message_id=message_id)
+    # ------------------------------------------------------------------
+    # Agent execution
+    # ------------------------------------------------------------------
 
-    async def _process_agent_stream(
+    async def _generate_chat_title(self, user_message: str) -> str:
+        """Ask the title agent to summarise a user message into a short
+        chat title."""
+
+        result = await title_agent.run(
+            user_message,
+            model=self._model,
+            model_settings=get_model_settings(self._model_string, TITLE),
+        )
+        return result.output
+
+    _MAX_TOOL_CALL_AS_TEXT_RETRIES = 2
+
+    _TOOL_CALL_CORRECTION_PROMPT = (
+        "Your previous response contained a raw JSON tool call instead of "
+        "actually invoking the tool. The malformed output was:\n\n"
+        "{malformed_output}\n\n"
+        "Please call the tool directly using the proper tool-calling "
+        "mechanism instead of outputting JSON text. Make sure the "
+        "arguments conform to the tool's schema."
+    )
+
+    async def _emit_answer(
         self,
-        event: Any,
-        human_msg: AssistantChatMessage,
-    ) -> Tuple[list[AssistantMessageUnion], udspy.Prediction | None]:
+        answer: str,
+        run_result: Any,
+        queue: asyncio.Queue[QueueEvent],
+    ) -> None:
+        """Push the final answer and result events onto *queue*."""
+
+        await queue.put(
+            QueueEvent(
+                kind=QueueEventKind.STREAM,
+                message=AiMessageChunk(content=answer, sources=self._deps.sources),
+            )
+        )
+        queue.put_nowait(
+            QueueEvent(
+                kind=QueueEventKind.RESULT,
+                answer=answer,
+                messages_json=run_result.all_messages_json(),
+            )
+        )
+
+    async def _run_agent(
+        self,
+        user_prompt: str,
+        message_history: list[ModelMessage] | None,
+        queue: asyncio.Queue[QueueEvent],
+    ) -> None:
+        """Execute the main agent, retrying if it outputs tool calls as text.
+
+        Delegates each streaming pass to ``_stream_agent_run``.  If the
+        final output looks like a raw JSON tool call, re-runs the agent
+        with the conversation history and a corrective prompt (up to
+        ``_MAX_TOOL_CALL_AS_TEXT_RETRIES`` times) so the model can
+        self-correct and invoke the tool properly.
+
+        Pushes ``STREAM``, ``RESULT``, ``ERROR``, and ``DONE`` events
+        onto *queue* for the consumer in ``astream_messages``.
         """
-        Process a single event from the output stream.
 
-        :param event: The event to process.
-        :param human_msg: The human message instance.
-        :return: a tuple of (messages_to_yield, prediction).
+        try:
+            with self._telemetry.trace(self._chat, user_prompt) as tracer:
+                answer, run_result = await self._run_agent_with_retries(
+                    user_prompt, message_history, queue
+                )
+                tracer.set_trace_output(answer)
+                await self._emit_answer(answer, run_result, queue)
+        except Exception as exc:
+            logger.exception("Error running main agent")
+            queue.put_nowait(QueueEvent(kind=QueueEventKind.ERROR, error=exc))
+        finally:
+            queue.put_nowait(QueueEvent(kind=QueueEventKind.DONE))
+
+    async def _run_agent_with_retries(
+        self,
+        user_prompt: str,
+        message_history: list[ModelMessage] | None,
+        queue: asyncio.Queue[QueueEvent],
+    ) -> tuple[str, Any]:
+        """Stream the agent, retrying on tool-call-as-text outputs.
+
+        Returns ``(answer, run_result)`` — either the model's valid
+        answer or a fallback message after exhausting retries.
+
+        :raises RuntimeError: if the stream ends without a result event.
         """
 
-        messages = []
-        prediction = None
+        current_prompt = user_prompt
+        current_history = message_history
 
-        if isinstance(event, (AiThinkingMessage, AiNavigationMessage)):
-            messages.append(event)
-            return messages, prediction
+        for attempt in range(1 + self._MAX_TOOL_CALL_AS_TEXT_RETRIES):
+            result = await self._stream_agent_run(
+                current_prompt, current_history, queue
+            )
+            if result is None:
+                raise RuntimeError("Agent stream ended without a result event")
 
-        # Stream the final answer
-        if isinstance(event, udspy.OutputStreamChunk):
-            if (
-                event.field_name == "answer"
-                and event.module is self._assistant.extract_module
-            ):
-                messages.append(
-                    AiMessageChunk(
-                        content=event.content,
-                        sources=self._assistant_callbacks.sources,
+            answer, run_result = result
+
+            if not self._looks_like_json_tool_call(answer):
+                return answer, run_result
+
+            logger.warning(
+                "[assistant] Model output tool call as text (attempt {}/{}): {}",
+                attempt + 1,
+                1 + self._MAX_TOOL_CALL_AS_TEXT_RETRIES,
+                answer[:200],
+            )
+
+            if attempt < self._MAX_TOOL_CALL_AS_TEXT_RETRIES:
+                # Replace the malformed JSON visible in the UI with a
+                # reasoning indicator so the user doesn't see garbage.
+                await queue.put(
+                    QueueEvent(
+                        kind=QueueEventKind.STREAM,
+                        message=AiReasoningChunk(content=""),
                     )
                 )
+                current_history = run_result.all_messages()
+                current_prompt = self._TOOL_CALL_CORRECTION_PROMPT.format(
+                    malformed_output=answer[:500]
+                )
 
-        elif isinstance(event, udspy.Prediction):
-            # final prediction contains the answer to the user question
-            if event.module is self._assistant:
-                prediction = event
-                ai_msg = await self._acreate_ai_message_response(human_msg, prediction)
-                messages.append(ai_msg)
-
-            elif reasoning := getattr(event, "next_thought", None):
-                messages.append(AiReasoningChunk(content=reasoning))
-
-        return messages, prediction
-
-    def get_agent_stream(
-        self, message: HumanMessage, conversation_history: udspy.History | None = None
-    ) -> AsyncGenerator[Any, None]:
-        """
-        Returns an async generator that streams the ReAct agent's response to a user
-        message.
-
-        :param user_message: The message from the user.
-        :return: An async generator that yields stream events.
-        """
-
-        formatted_history = (
-            ChatSignature.format_conversation_history(conversation_history)
-            if conversation_history
-            else []
+        # Exhausted retries — give up gracefully.
+        logger.error(
+            "[assistant] Model persisted outputting tool "
+            "calls as text after {} retries",
+            self._MAX_TOOL_CALL_AS_TEXT_RETRIES,
         )
-        formatted_ui_context = (
-            message.ui_context.format() if message.ui_context else None
+        fallback = (
+            "I ran into a temporary issue processing "
+            "your request. Could you please try again?"
         )
+        return fallback, run_result
 
-        return self._assistant.astream(
-            question=message.content,
-            conversation_history=formatted_history,
-            ui_context=formatted_ui_context,
-        )
-
-    async def _process_stream(
+    async def _stream_agent_run(
         self,
-        human_msg: HumanMessage,
-        stream: AsyncGenerator[Any, None],
-        process_event_func: Callable[
-            [Any, AssistantChatMessage],
-            Tuple[list[AssistantMessageUnion], udspy.Prediction | None],
-        ],
-    ) -> AsyncGenerator[Tuple[AssistantMessageUnion, udspy.Prediction | None], None]:
-        chunk_count = 0
-        cancellation_key = self._get_cancellation_cache_key()
-        message_id = str(human_msg.id)
+        user_prompt: str,
+        message_history: list[ModelMessage] | None,
+        queue: asyncio.Queue[QueueEvent],
+    ) -> tuple[str, Any] | None:
+        """Run a single agent streaming pass.
 
-        async for event in stream:
-            # Periodically check for cancellation
-            chunk_count += 1
-            if chunk_count % 10 == 0:
-                self._check_cancellation(cancellation_key, message_id)
+        Streams reasoning/text chunks to *queue* and returns
+        ``(answer, run_result)`` when an ``AgentRunResultEvent`` is
+        received, or ``None`` if the stream ends without one.
+        """
 
-            messages, prediction = await process_event_func(event, human_msg)
+        reasoning_so_far = ""
 
-            if messages:  # Don't return responses if cancelled
-                self._check_cancellation(cancellation_key, message_id)
+        async for event in main_agent.run_stream_events(
+            user_prompt=user_prompt,
+            deps=self._deps,
+            model=self._model,
+            message_history=message_history,
+            usage_limits=UsageLimits(request_limit=200),
+            toolsets=[self._toolset],
+            model_settings=get_model_settings(self._model_string, ORCHESTRATOR),
+        ):
+            if isinstance(event, AgentRunResultEvent):
+                answer = event.result.output
+                if isinstance(answer, str):
+                    answer = _strip_think_tags(answer)
+                return (answer, event.result)
 
-                for msg in messages:
-                    yield msg, prediction
+            if isinstance(event, FunctionToolCallEvent):
+                thought = _extract_tool_thought(event)
+                if thought:
+                    reasoning_so_far += thought
+                    cleaned = _strip_think_tags(reasoning_so_far)
+                    await self._enqueue_reasoning(queue, cleaned)
+                continue
+
+            if isinstance(event, FunctionToolResultEvent):
+                reasoning_so_far = ""  # reset on tool results, to show the reasoning leading up to the next tool call
+                continue
+
+            # Accumulate text/thinking deltas and send full reasoning.
+            # The frontend replaces content on each chunk, so we must
+            # send the complete text every time.
+            content = self._get_content_delta(event)
+            if content:
+                reasoning_so_far += content
+                cleaned = _strip_think_tags(reasoning_so_far)
+                if cleaned:
+                    await self._enqueue_reasoning(queue, cleaned)
+
+        return None
+
+    @staticmethod
+    def _get_content_delta(event: Any) -> str | None:
+        """Extract text or thinking content from a stream event delta."""
+
+        if isinstance(event, PartStartEvent) and isinstance(
+            event.part, (TextPart, ThinkingPart)
+        ):
+            return event.part.content or None
+        if isinstance(event, PartDeltaEvent) and isinstance(
+            event.delta, (TextPartDelta, ThinkingPartDelta)
+        ):
+            return event.delta.content_delta or None
+        return None
+
+    @staticmethod
+    async def _enqueue_reasoning(
+        queue: asyncio.Queue[QueueEvent], content: str
+    ) -> None:
+        """Push an ``AiReasoningChunk`` onto *queue*."""
+
+        await queue.put(
+            QueueEvent(
+                kind=QueueEventKind.STREAM,
+                message=AiReasoningChunk(content=content),
+            )
+        )
+
+    @staticmethod
+    def _looks_like_json_tool_call(text: str) -> bool:
+        """Return True if *text* looks like a tool call dumped as JSON.
+
+        Checks for ``{"name": ..., "arguments": ...}`` pattern in the first
+        200 chars. Does not require valid JSON (the output may be truncated).
+        """
+
+        stripped = text.strip()
+        return (
+            bool(stripped)
+            and stripped[0] == "{"
+            and '"name"' in stripped[:200]
+            and '"arguments"' in stripped[:200]
+        )
+
+    # ------------------------------------------------------------------
+    # Cancellation
+    # ------------------------------------------------------------------
+
+    async def _monitor_cancellation(self, task: asyncio.Task) -> None:
+        """Poll the cache for a cancellation flag and cancel *task* if
+        set. Runs as a concurrent task alongside the agent."""
+
+        cache_key = get_assistant_cancellation_key(self._chat.uuid)
+        while not task.done():
+            await asyncio.sleep(0.2)
+            if cache.get(cache_key):
+                cache.delete(cache_key)
+                self._tool_helpers.cancel()
+                task.cancel()
+                return
+
+    # ------------------------------------------------------------------
+    # Public streaming API
+    # ------------------------------------------------------------------
 
     async def astream_messages(
         self, message: HumanMessage
     ) -> AsyncGenerator[AssistantMessageUnion, None]:
-        """
-        Streams the response to a user message.
+        """Stream the full response lifecycle for a user message.
 
-        :param human_message: The message from the user.
-        :return: An async generator that yields the response messages.
+        Yields events in order: ``AiStartedMessage``, zero or more
+        streaming chunks (``AiMessageChunk`` / ``AiReasoningChunk`` /
+        ``AiThinkingMessage``), and finally an ``AiMessage`` with the
+        persisted answer. A ``ChatTitleMessage`` is appended on the first
+        message in a chat.
         """
+
+        # Sticky task: capture on first message of the session
+        if not self._deps.original_request:
+            self._deps.original_request = message.content
+
+            # Auto-detect starting mode from UI context (only on first message)
+            if message.ui_context:
+                if message.ui_context.application or message.ui_context.page:
+                    self._deps.mode = AgentMode.APPLICATION
+                elif message.ui_context.automation or message.ui_context.workflow:
+                    self._deps.mode = AgentMode.AUTOMATION
+                # else stays DATABASE (default)
 
         human_msg = await self.acreate_chat_message(
-            AssistantChatMessage.Role.HUMAN,
-            message.content,
+            AssistantChatMessage.Role.HUMAN, message.content
         )
-        default_callbacks = udspy.settings.callbacks
+        message_id = str(human_msg.id)
+        yield AiStartedMessage(message_id=message_id)
 
-        with (
-            udspy.settings.context(
-                lm=self._lm_client,
-                callbacks=[*default_callbacks, *self._callbacks],
-            ),
-            self._telemetry_callbacks.trace(self._chat, human_msg.content),
-        ):
-            message_id = str(human_msg.id)
-            yield AiStartedMessage(message_id=message_id)
+        ui_context = message.ui_context.format() if message.ui_context else None
+        self._tool_helpers.request_context["ui_context"] = ui_context
+        message_history = await self._load_message_history()
 
-            history = await self.afetch_chat_history(limit=30)
+        queue: asyncio.Queue[QueueEvent] = asyncio.Queue()
+        self._event_bus.set_queue(queue)
 
-            agent_stream = self.get_agent_stream(message, history)
+        agent_task = asyncio.create_task(
+            self._run_agent(message.content, message_history, queue)
+        )
+        monitor_task = asyncio.create_task(self._monitor_cancellation(agent_task))
 
-            async for msg, __ in self._process_stream(
-                human_msg, agent_stream, self._process_agent_stream
-            ):
-                yield msg
+        try:
+            answer = None
+            messages_json = None
 
-            # Generate chat title if needed
-            if not self._chat.title:
-                chat_title = await self._generate_chat_title(human_msg.content)
-                self._chat.title = chat_title
+            while True:
+                event = await queue.get()
+                if event.kind == QueueEventKind.DONE:
+                    break
+                elif event.kind == QueueEventKind.RESULT:
+                    answer, messages_json = event.answer, event.messages_json
+                elif event.kind == QueueEventKind.ERROR:
+                    raise event.error
+                else:
+                    yield event.message
+
+            if agent_task.cancelled():
+                raise AssistantMessageCancelled(message_id=message_id)
+
+            if answer is not None:
+                yield await self._save_ai_response(human_msg, answer)
+                if messages_json:
+                    await self._save_message_history(messages_json)
+        finally:
+            monitor_task.cancel()
+            if not agent_task.done():
+                agent_task.cancel()
+            await asyncio.gather(monitor_task, agent_task, return_exceptions=True)
+            self._event_bus.set_queue(None)
+
+        if not self._chat.title:
+            try:
+                title = await self._generate_chat_title(human_msg.content)
+                self._chat.title = title[: AssistantChat.TITLE_MAX_LENGTH]
                 await self._chat.asave(update_fields=["title", "updated_on"])
-                yield ChatTitleMessage(content=chat_title)
+                yield ChatTitleMessage(content=self._chat.title)
+            except Exception:
+                logger.exception("Failed to generate chat title")

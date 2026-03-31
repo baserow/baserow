@@ -1,558 +1,238 @@
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
-from baserow_enterprise.assistant.types import Annotated, BaseModel
+from baserow_enterprise.assistant.types import BaseModel
 
-from .base import Date
+from .base import parse_date
+
+# ---------------------------------------------------------------------------
+# Flat filter model
+# ---------------------------------------------------------------------------
+
+FilterType = Literal[
+    "text", "number", "date", "single_select", "multiple_select", "link_row", "boolean"
+]
+
+_OPERATORS: dict[str, tuple[str, ...]] = {
+    "text": ("equal", "not_equal", "contains", "contains_not", "empty", "not_empty"),
+    "number": ("equal", "not_equal", "higher_than", "lower_than", "empty", "not_empty"),
+    "date": ("equal", "not_equal", "after", "before"),
+    "single_select": ("is_any_of", "is_none_of"),
+    "multiple_select": ("is_any_of", "is_none_of"),
+    "link_row": ("has", "has_not"),
+    "boolean": ("equal",),
+}
+
+# Operator aliases: normalize LLM-natural names to Baserow names before validation.
+_OPERATOR_ALIASES: dict[str, str] = {
+    "equals": "equal",
+    "is": "equal",
+    "not_equals": "not_equal",
+    "is_not": "not_equal",
+    "greater_than": "higher_than",
+    "greater_than_or_equal": "higher_than",  # or_equal flag handles the rest
+    "less_than": "lower_than",
+    "less_than_or_equal": "lower_than",  # or_equal flag handles the rest
+    "gte": "higher_than",
+    "lte": "lower_than",
+    "gt": "higher_than",
+    "lt": "lower_than",
+    "neq": "not_equal",
+    "ne": "not_equal",
+    "eq": "equal",
+}
+
+DateFilterMode = Literal[
+    "today",
+    "yesterday",
+    "tomorrow",
+    "this_week",
+    "last_week",
+    "next_week",
+    "this_month",
+    "last_month",
+    "next_month",
+    "this_year",
+    "last_year",
+    "next_year",
+    "nr_days_ago",
+    "nr_days_from_now",
+    "nr_weeks_ago",
+    "nr_weeks_from_now",
+    "nr_months_ago",
+    "nr_months_from_now",
+    "nr_years_ago",
+    "nr_years_from_now",
+    "exact_date",
+]
+
+
+# ---------------------------------------------------------------------------
+# ORM type dispatch: (filter, field, **kwargs) -> str
+# ---------------------------------------------------------------------------
+
+_NUMBER_OR_EQUAL = {
+    "higher_than": "higher_than_or_equal",
+    "lower_than": "lower_than_or_equal",
+}
+
+_DATE_ORM_TYPE = {
+    "equal": "date_is",
+    "not_equal": "date_is_not",
+    "after": "date_is_after",
+    "before": "date_is_before",
+}
+
+_DATE_OR_EQUAL = {
+    "after": "date_is_on_or_after",
+    "before": "date_is_on_or_before",
+}
+
+_SINGLE_SELECT_ORM_TYPE = {
+    "is_any_of": "single_select_is_any_of",
+    "is_none_of": "single_select_is_none_of",
+}
+
+_MULTIPLE_SELECT_ORM_TYPE = {
+    "is_any_of": "multiple_select_has",
+    "is_none_of": "multiple_select_has_not",
+}
+
+_LINK_ROW_ORM_TYPE = {
+    "has": "link_row_has",
+    "has_not": "link_row_has_not",
+}
+
+_GET_ORM_TYPE = {
+    "text": lambda f, field, **kw: f.operator,
+    "number": lambda f, field, **kw: (
+        _NUMBER_OR_EQUAL.get(f.operator, f.operator) if f.or_equal else f.operator
+    ),
+    "date": lambda f, field, **kw: (
+        _DATE_OR_EQUAL[f.operator]
+        if f.or_equal and f.operator in _DATE_OR_EQUAL
+        else _DATE_ORM_TYPE[f.operator]
+    ),
+    "single_select": lambda f, field, **kw: _SINGLE_SELECT_ORM_TYPE[f.operator],
+    "multiple_select": lambda f, field, **kw: _MULTIPLE_SELECT_ORM_TYPE[f.operator],
+    "link_row": lambda f, field, **kw: _LINK_ROW_ORM_TYPE[f.operator],
+    "boolean": lambda f, field, **kw: "equal",
+}
+
+
+# ---------------------------------------------------------------------------
+# ORM value dispatch: (filter, field, **kwargs) -> str
+# ---------------------------------------------------------------------------
+
+
+def _select_orm_value(f, field, **kwargs):
+    values = set(v.lower() for v in f.value)
+    valid_option_ids = [
+        option.id
+        for option in field.select_options.all()
+        if option.value.lower() in values
+    ]
+    return ",".join(str(v) for v in valid_option_ids)
+
+
+def _date_orm_value(f, field, **kwargs):
+    timezone = kwargs.get("timezone", "UTC")
+    if isinstance(f.value, str):
+        value = parse_date(f.value).isoformat()
+    elif isinstance(f.value, int):
+        value = str(f.value)
+    else:
+        value = ""
+    return f"{timezone}?{value}?{f.mode}"
+
+
+_GET_ORM_VALUE = {
+    "text": lambda f, field, **kw: f.value
+    if isinstance(f.value, str)
+    else str(f.value or ""),
+    "number": lambda f, field, **kw: str(f.value),
+    "date": _date_orm_value,
+    "single_select": _select_orm_value,
+    "multiple_select": _select_orm_value,
+    "link_row": lambda f, field, **kw: str(f.value),
+    "boolean": lambda f, field, **kw: "1" if f.value else "0",
+}
+
+
+# ---------------------------------------------------------------------------
+# ViewFilterItemCreate
+# ---------------------------------------------------------------------------
 
 
 class ViewFilterItemCreate(BaseModel):
-    """Model for creating a new view filter (no ID)."""
+    """Flat model for creating a view filter: field_id + type + operator + value."""
 
-    field_id: int = Field(...)
-    type: str = Field(...)
-    operator: str = Field(...)
-    value: str = Field(...)
+    field_id: int = Field(..., description="Field ID to filter on.")
+    type: FilterType = Field(..., description="Must match field type.")
+    operator: str = Field(
+        ...,
+        description=(
+            "Filter operator. "
+            "text: equal/not_equal/contains/contains_not/empty/not_empty. "
+            "number: equal/not_equal/greater_than/less_than/empty/not_empty "
+            "(use or_equal=true for ≥/≤). "
+            "date: equal/not_equal/after/before (use or_equal=true for on_or_after/on_or_before). "
+            "single_select/multiple_select: is_any_of/is_none_of. "
+            "link_row: has/has_not. "
+            "boolean: equal."
+        ),
+    )
+    value: str | float | int | bool | list[str] | None = Field(
+        None,
+        description="Filter value (type-dependent).",
+    )
+    mode: DateFilterMode | None = Field(None, description="(date) Date filter mode.")
+    or_equal: bool = Field(False, description="(number, date) Include equal values.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _normalize_operator(cls, data):
+        if isinstance(data, dict) and "operator" in data:
+            op = data["operator"]
+            normalized = _OPERATOR_ALIASES.get(op)
+            if normalized:
+                data = dict(data)
+                data["operator"] = normalized
+                # Auto-set or_equal for _or_equal variants
+                if "or_equal" in op:
+                    data.setdefault("or_equal", True)
+        return data
+
+    @model_validator(mode="after")
+    def _validate_per_type(self):
+        valid = _OPERATORS.get(self.type)
+        if valid and self.operator not in valid:
+            raise ValueError(
+                f"Invalid operator '{self.operator}' for type '{self.type}'. "
+                f"Valid operators: {', '.join(valid)}"
+            )
+        if self.type == "date" and self.mode is None:
+            raise ValueError("date filter requires 'mode'.")
+        return self
 
     def get_django_orm_type(self, field, **kwargs) -> str:
-        return self.operator
+        return _GET_ORM_TYPE[self.type](self, field, **kwargs)
 
     def get_django_orm_value(self, field, **kwargs) -> str:
-        return self.value
+        return _GET_ORM_VALUE[self.type](self, field, **kwargs)
 
 
 class ViewFilterItem(ViewFilterItemCreate):
-    """Model for an existing view filter (with ID)."""
+    """Existing view filter with ID."""
 
     id: int = Field(..., description="The unique identifier of the view filter.")
 
 
-class TextViewFilterItemCreate(ViewFilterItemCreate):
-    type: Literal["text"] = Field(..., description="A text filter.")
-    value: str = Field(..., description="The text value to filter on.")
-
-
-class TextEqualViewFilterItemCreate(TextViewFilterItemCreate):
-    operator: Literal["equal"] = Field(
-        ..., description="Checks if the field is equal to the value."
-    )
-
-
-class TextEqualViewFilterItem(TextEqualViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-class TextNotEqualViewFilterItemCreate(TextViewFilterItemCreate):
-    operator: Literal["not_equal"] = Field(
-        ..., description="Checks if the field is not equal to the value."
-    )
-
-
-class TextNotEqualViewFilterItem(TextNotEqualViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-class TextContainsViewFilterItemCreate(TextViewFilterItemCreate):
-    operator: Literal["contains"] = Field(
-        ..., description="Checks if the field contains the value."
-    )
-
-
-class TextContainsViewFilterItem(TextContainsViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-class TextNotContainsViewFilterItemCreate(TextViewFilterItemCreate):
-    operator: Literal["contains_not"] = Field(
-        ..., description="Checks if the field does not contain the value."
-    )
-
-
-class TextNotContainsViewFilterItem(
-    TextNotContainsViewFilterItemCreate, ViewFilterItem
-):
-    pass
-
-
-class TextEmptyViewFilterItemCreate(TextViewFilterItemCreate):
-    operator: Literal["empty"] = Field(..., description="Checks if the field is empty.")
-
-
-class TextEmptyViewFilterItem(TextEmptyViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-class TextNotEmptyViewFilterItemCreate(TextViewFilterItemCreate):
-    operator: Literal["not_empty"] = Field(
-        ..., description="Checks if the field is not empty."
-    )
-
-
-class TextNotEmptyViewFilterItem(TextNotEmptyViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-AnyTextViewFilterItemCreate = Annotated[
-    TextEqualViewFilterItemCreate
-    | TextNotEqualViewFilterItemCreate
-    | TextContainsViewFilterItemCreate
-    | TextNotContainsViewFilterItemCreate
-    | TextEmptyViewFilterItemCreate
-    | TextNotEmptyViewFilterItemCreate,
-    Field(discriminator="operator"),
-]
-
-AnyTextViewFilterItem = Annotated[
-    TextEqualViewFilterItem
-    | TextNotEqualViewFilterItem
-    | TextContainsViewFilterItem
-    | TextNotContainsViewFilterItem
-    | TextEmptyViewFilterItem
-    | TextNotEmptyViewFilterItem,
-    Field(discriminator="operator"),
-]
-
-
-class NumberViewFilterItemCreate(ViewFilterItemCreate):
-    type: Literal["number"] = Field(..., description="A number filter.")
-    value: float = Field(..., description="The number value to filter on.")
-
-    def get_django_orm_value(self, field, **kwargs) -> str:
-        return str(self.value)
-
-
-class NumberViewFilterItem(NumberViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-class NumberEqualsViewFilterItemCreate(NumberViewFilterItemCreate):
-    operator: Literal["equal"] = Field(
-        ..., description="Checks if the field is equal to the value."
-    )
-
-
-class NumberEqualsViewFilterItem(NumberEqualsViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-class NumberNotEqualsViewFilterItemCreate(NumberViewFilterItemCreate):
-    operator: Literal["not_equal"] = Field(
-        ..., description="Checks if the field is not equal to the value."
-    )
-
-
-class NumberNotEqualsViewFilterItem(
-    NumberNotEqualsViewFilterItemCreate, ViewFilterItem
-):
-    pass
-
-
-class NumberHigherThanViewFilterItemCreate(NumberViewFilterItemCreate):
-    operator: Literal["higher_than"] = Field(
-        ..., description="Checks if the field is higher than the value."
-    )
-    or_equal: bool = Field(
-        False,
-        description="If true, checks if the field is higher than or equal to the value.",
-    )
-
-
-class NumberHigherThanViewFilterItem(
-    NumberHigherThanViewFilterItemCreate, ViewFilterItem
-):
-    pass
-
-
-class NumberLowerThanViewFilterItemCreate(NumberViewFilterItemCreate):
-    operator: Literal["lower_than"] = Field(
-        ..., description="Checks if the field is lower than the value."
-    )
-    or_equal: bool = Field(
-        False,
-        description="If true, checks if the field is lower than or equal to the value.",
-    )
-
-
-class NumberLowerThanViewFilterItem(
-    NumberLowerThanViewFilterItemCreate, ViewFilterItem
-):
-    pass
-
-
-class NumberEmptyViewFilterItemCreate(NumberViewFilterItemCreate):
-    operator: Literal["empty"] = Field(..., description="Checks if the field is empty.")
-
-
-class NumberEmptyViewFilterItem(NumberEmptyViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-class NumberNotEmptyViewFilterItemCreate(NumberViewFilterItemCreate):
-    operator: Literal["not_empty"] = Field(
-        ..., description="Checks if the field is not empty."
-    )
-
-
-class NumberNotEmptyViewFilterItem(NumberNotEmptyViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-AnyNumberViewFilterItemCreate = Annotated[
-    NumberEqualsViewFilterItemCreate
-    | NumberNotEqualsViewFilterItemCreate
-    | NumberHigherThanViewFilterItemCreate
-    | NumberLowerThanViewFilterItemCreate
-    | NumberEmptyViewFilterItemCreate
-    | NumberNotEmptyViewFilterItemCreate,
-    Field(discriminator="operator"),
-]
-
-AnyNumberViewFilterItem = Annotated[
-    NumberEqualsViewFilterItem
-    | NumberNotEqualsViewFilterItem
-    | NumberHigherThanViewFilterItem
-    | NumberLowerThanViewFilterItem
-    | NumberEmptyViewFilterItem
-    | NumberNotEmptyViewFilterItem,
-    Field(discriminator="operator"),
-]
-
-
-class DateViewFilterItemCreate(ViewFilterItemCreate):
-    type: Literal["date"] = Field(..., description="A date filter.")
-    value: Date | int | None = Field(
-        ...,
-        description="\n".join(
-            [
-                "The date value to filter on.",
-                "Use an integer for days/weeks/months/years ago/from now.",
-                "Use a date object for an exact date.",
-                "None otherwise.",
-            ]
-        ),
-    )
-    mode: Literal[
-        "today",
-        "yesterday",
-        "tomorrow",
-        "this_week",
-        "last_week",
-        "next_week",
-        "this_month",
-        "last_month",
-        "next_month",
-        "this_year",
-        "last_year",
-        "next_year",
-        "nr_days_ago",
-        "nr_days_from_now",
-        "nr_weeks_ago",
-        "nr_weeks_from_now",
-        "nr_months_ago",
-        "nr_months_from_now",
-        "nr_years_ago",
-        "nr_years_from_now",
-        "exact_date",
-    ] = Field(
-        "exact_date",
-        description="The mode to use for the date filter. ALWAYS use the right mode if available. Use 'exact_date' if you have an exact date.",
-    )
-
-    def get_django_orm_value(self, field, **kwargs) -> str:
-        timezone = kwargs.get("timezone", "UTC")
-
-        if isinstance(self.value, Date):
-            value = self.value.to_django_orm()
-        elif isinstance(self.value, int):
-            value = str(self.value)
-        else:
-            value = ""
-
-        return f"{timezone}?{value}?{self.mode}"
-
-
-class DateEqualsViewFilterItemCreate(DateViewFilterItemCreate):
-    operator: Literal["equal"] = Field(
-        ..., description="Checks if the field is equal to the value."
-    )
-
-    def get_django_orm_type(self, field, **kwargs) -> str:
-        return "date_is"
-
-
-class DateEqualsViewFilterItem(DateEqualsViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-class DateNotEqualsViewFilterItemCreate(DateViewFilterItemCreate):
-    operator: Literal["not_equal"] = Field(
-        ..., description="Checks if the field is not equal to the value."
-    )
-
-    def get_django_orm_type(self, field, **kwargs) -> str:
-        return "date_is_not"
-
-
-class DateNotEqualsViewFilterItem(DateNotEqualsViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-class DateAfterViewFilterItemCreate(DateViewFilterItemCreate):
-    operator: Literal["after"] = Field(
-        ..., description="Checks if the field is after the value."
-    )
-    or_equal: bool = Field(
-        False,
-        description="If true, checks if the field is after or equal to the value.",
-    )
-
-    def get_django_orm_type(self, field, **kwargs) -> str:
-        return "date_is_on_or_after" if self.or_equal else "date_is_after"
-
-
-class DateAfterViewFilterItem(DateAfterViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-class DateBeforeViewFilterItemCreate(DateViewFilterItemCreate):
-    operator: Literal["before"] = Field(
-        ..., description="Checks if the field is before the value."
-    )
-    or_equal: bool = Field(
-        False,
-        description="If true, checks if the field is before or equal to the value.",
-    )
-
-    def get_django_orm_type(self, field, **kwargs) -> str:
-        return "date_is_on_or_before" if self.or_equal else "date_is_before"
-
-
-class DateBeforeViewFilterItem(DateBeforeViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-AnyDateViewFilterItemCreate = Annotated[
-    DateEqualsViewFilterItemCreate
-    | DateNotEqualsViewFilterItemCreate
-    | DateAfterViewFilterItemCreate
-    | DateBeforeViewFilterItemCreate,
-    Field(discriminator="operator"),
-]
-AnyDateViewFilterItem = Annotated[
-    DateEqualsViewFilterItem
-    | DateNotEqualsViewFilterItem
-    | DateAfterViewFilterItem
-    | DateBeforeViewFilterItem,
-    Field(discriminator="operator"),
-]
-
-
-class SingleSelectViewFilterItemCreate(ViewFilterItemCreate):
-    type: Literal["single_select"] = Field(..., description="A single select filter.")
-    value: list[str] = Field(
-        ..., description="The select option value(s) to filter on."
-    )
-
-    def get_django_orm_value(self, field, **kwargs) -> str:
-        values = set(v.lower() for v in self.value)
-        valid_option_ids = [
-            option.id
-            for option in field.select_options.all()
-            if option.value.lower() in values
-        ]
-        return ",".join([str(v) for v in valid_option_ids])
-
-
-class SingleSelectIsAnyViewFilterItemCreate(SingleSelectViewFilterItemCreate):
-    operator: Literal["is_any_of"] = Field(
-        ..., description="Checks if the field is equal to any of the values "
-    )
-
-    def get_django_orm_type(self, field, **kwargs):
-        return "single_select_is_any_of"
-
-
-class SingleSelectIsAnyViewFilterItem(
-    SingleSelectIsAnyViewFilterItemCreate, ViewFilterItem
-):
-    pass
-
-
-class SingleSelectIsNoneOfNotViewFilterItemCreate(SingleSelectViewFilterItemCreate):
-    operator: Literal["is_none_of"] = Field(
-        ..., description="Checks if the field is not equal to the value."
-    )
-
-    def get_django_orm_type(self, field, **kwargs):
-        return "single_select_is_none_of"
-
-
-class SingleSelectIsNoneOfNotViewFilterItem(
-    SingleSelectIsNoneOfNotViewFilterItemCreate, ViewFilterItem
-):
-    pass
-
-
-AnySingleSelectViewFilterItemCreate = Annotated[
-    SingleSelectIsAnyViewFilterItemCreate | SingleSelectIsNoneOfNotViewFilterItemCreate,
-    Field(discriminator="operator"),
-]
-
-AnySingleSelectViewFilterItem = Annotated[
-    SingleSelectIsAnyViewFilterItem | SingleSelectIsNoneOfNotViewFilterItem,
-    Field(discriminator="operator"),
-]
-
-
-class MultipleSelectViewFilterItemCreate(ViewFilterItemCreate):
-    type: Literal["multiple_select"] = Field(
-        ..., description="A multiple select filter."
-    )
-    value: list[str] = Field(
-        ..., description="The select option value(s) to filter on."
-    )
-
-    def get_django_orm_value(self, field, **kwargs) -> str:
-        values = set(v.lower() for v in self.value)
-        valid_option_ids = [
-            option.id
-            for option in field.select_options.all()
-            if option.value.lower() in values
-        ]
-        return ",".join([str(v) for v in valid_option_ids])
-
-
-class MultipleSelectIsAnyViewFilterItemCreate(MultipleSelectViewFilterItemCreate):
-    operator: Literal["is_any_of"] = Field(
-        ..., description="Checks if the field is equal to any of the values "
-    )
-
-    def get_django_orm_type(self, field, **kwargs):
-        return "multiple_select_has"
-
-
-class MultipleSelectIsAnyViewFilterItem(
-    MultipleSelectIsAnyViewFilterItemCreate, ViewFilterItem
-):
-    pass
-
-
-class MultipleSelectIsNoneOfNotViewFilterItemCreate(MultipleSelectViewFilterItemCreate):
-    operator: Literal["is_none_of"] = Field(
-        ..., description="Checks if the field is not equal to the value."
-    )
-
-    def get_django_orm_type(self, field, **kwargs):
-        return "multiple_select_has_not"
-
-
-class MultipleSelectIsNoneOfNotViewFilterItem(
-    MultipleSelectIsNoneOfNotViewFilterItemCreate, ViewFilterItem
-):
-    pass
-
-
-AnyMultipleSelectViewFilterItemCreate = Annotated[
-    MultipleSelectIsAnyViewFilterItemCreate
-    | MultipleSelectIsNoneOfNotViewFilterItemCreate,
-    Field(discriminator="operator"),
-]
-
-AnyMultipleSelectViewFilterItem = Annotated[
-    MultipleSelectIsAnyViewFilterItem | MultipleSelectIsNoneOfNotViewFilterItem,
-    Field(discriminator="operator"),
-]
-
-
-class LinkRowViewFilterItemCreate(ViewFilterItemCreate):
-    type: Literal["link_row"] = Field(..., description="A link row filter.")
-    value: int = Field(..., description="The linked record ID to filter on.")
-
-    def get_django_orm_value(self, field, **kwargs) -> str:
-        return str(self.value)
-
-
-class LinkRowHasViewFilterItemCreate(LinkRowViewFilterItemCreate):
-    operator: Literal["has"] = Field(
-        ..., description="Checks if the field has the linked record."
-    )
-
-    def get_django_orm_type(self, field, **kwargs):
-        return "link_row_has"
-
-
-class LinkRowHasViewFilterItem(LinkRowHasViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-class LinkRowHasNotViewFilterItemCreate(LinkRowViewFilterItemCreate):
-    operator: Literal["has_not"] = Field(
-        ..., description="Checks if the field does not have the linked record."
-    )
-
-    def get_django_orm_type(self, field, **kwargs):
-        return "link_row_has_not"
-
-
-class LinkRowHasNotViewFilterItem(LinkRowHasNotViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-AnyLinkRowViewFilterItemCreate = Annotated[
-    LinkRowHasViewFilterItemCreate | LinkRowHasNotViewFilterItemCreate,
-    Field(discriminator="operator"),
-]
-
-AnyLinkRowViewFilterItem = Annotated[
-    LinkRowHasViewFilterItem | LinkRowHasNotViewFilterItem,
-    Field(discriminator="operator"),
-]
-
-
-class BooleanViewFilterItemCreate(ViewFilterItemCreate):
-    type: Literal["boolean"] = Field(..., description="A boolean filter.")
-    value: bool = Field(..., description="The boolean value to filter on.")
-
-    def get_django_orm_value(self, field, **kwargs) -> str:
-        return "1" if self.value else "0"
-
-
-class BooleanIsViewFilterItemCreate(BooleanViewFilterItemCreate):
-    operator: Literal["is"] = Field(..., description="Checks if the field is true.")
-    value: bool = Field(..., description="The boolean value to filter on.")
-
-    def get_django_orm_type(self, field, **kwargs) -> str:
-        return "boolean"
-
-
-class BooleanIsTrueViewFilterItem(BooleanIsViewFilterItemCreate, ViewFilterItem):
-    pass
-
-
-AnyViewFilterItemCreate = Annotated[
-    AnyTextViewFilterItemCreate
-    | AnyNumberViewFilterItemCreate
-    | AnyDateViewFilterItemCreate
-    | AnySingleSelectViewFilterItemCreate
-    | AnyLinkRowViewFilterItemCreate
-    | BooleanViewFilterItemCreate
-    | MultipleSelectViewFilterItemCreate,
-    Field(discriminator="type"),
-]
-
-AnyViewFilterItem = Annotated[
-    AnyTextViewFilterItem
-    | AnyNumberViewFilterItem
-    | AnyDateViewFilterItem
-    | AnySingleSelectViewFilterItem
-    | AnyLinkRowViewFilterItem
-    | BooleanIsTrueViewFilterItem
-    | MultipleSelectIsAnyViewFilterItem,
-    Field(discriminator="type"),
-]
+AnyViewFilterItemCreate = ViewFilterItemCreate
+AnyViewFilterItem = ViewFilterItem
 
 
 class ViewFiltersArgs(BaseModel):
     view_id: int
-    filters: list[AnyViewFilterItemCreate]
+    filters: list[ViewFilterItemCreate]

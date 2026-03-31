@@ -2127,31 +2127,29 @@ class ManyToManyGroupByMixin:
         reversed_field = through_model._meta.get_fields()[1].name
         related_field = through_model._meta.get_fields()[2].name
 
-        if field_name not in cte:
-            row_ids = [row.id for row in rows]
-            # Improve performance of the query by creating a CTE with all the
-            # relationships of the field to group by. This is significantly faster than
-            # doing this every row in a separate subquery.
-            aggregated_cte = (
-                through_model.objects.filter(**{f"{reversed_field}_id__in": row_ids})
-                .values(f"{reversed_field}_id")
-                .annotate(
-                    res=ArrayAgg(
-                        F(f"{related_field}_id"),
-                        filter=Q(**{f"{related_field}_id__isnull": False}),
-                        order_by=self.get_group_by_aggregated_order(related_field),
-                    )
-                )
-            )
-            cte[field_name] = With(aggregated_cte, name=f"{field_name}_cte")
-
         filters = {field_name: value}
+        # Use a correlated subquery instead of a CTE so that the database
+        # computes each row's linked-ID array via an index lookup on the
+        # through table, without materialising the entire relationship set
+        # up-front. This is correct for all rows in the base_queryset
+        # (including off-page ones) and avoids dragging enhance_by_fields()
+        # joins into a CTE filter subquery.
         annotations = {
             field_name: Coalesce(
                 Subquery(
-                    cte[field_name]
-                    .queryset()
-                    .filter(**{f"{reversed_field}_id": OuterRef("id")})
+                    through_model.objects.filter(
+                        **{
+                            f"{reversed_field}_id": OuterRef("id"),
+                            f"{related_field}_id__isnull": False,
+                        }
+                    )
+                    .values(f"{reversed_field}_id")
+                    .annotate(
+                        res=ArrayAgg(
+                            F(f"{related_field}_id"),
+                            order_by=self.get_group_by_aggregated_order(related_field),
+                        )
+                    )
                     .values("res")[:1]
                 ),
                 Value([], output_field=ArrayField(IntegerField())),

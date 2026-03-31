@@ -1,5 +1,7 @@
+import { generateUUID } from '@baserow/modules/core/utils/string'
+
 export const createNewUndoRedoActionGroupId = () => {
-  return crypto.randomUUID()
+  return generateUUID()
 }
 
 export const UNDO_REDO_ACTION_GROUP_HEADER = 'ClientUndoRedoActionGroupId'

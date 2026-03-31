@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved an issue which prevented router nodes from being renamed once they had branches.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-02-19"
+}

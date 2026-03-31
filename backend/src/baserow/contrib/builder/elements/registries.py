@@ -20,7 +20,6 @@ from django.db import models
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
-from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.formula.types import BaserowFormulaObject
@@ -202,8 +201,6 @@ class ElementType(
         cache: Dict[str, Any] | None = None,
         **kwargs,
     ) -> ElementSubClass:
-        from baserow.contrib.builder.elements.handler import ElementHandler
-
         # Add mapping for builder element event uids (for collection field or other
         # elements that are using dynamic events.
         if "builder_element_event_uids" not in id_mapping:
@@ -211,20 +208,6 @@ class ElementType(
 
         if cache is None:
             cache = {}
-
-        import_context = {}
-
-        parent_element_id = serialized_values["parent_element_id"]
-
-        # If we have a parent element then we want to add used its import context
-        if parent_element_id:
-            imported_parent_element_id = id_mapping["builder_page_elements"][
-                parent_element_id
-            ]
-            import_context = ElementHandler().get_import_context_addition(
-                imported_parent_element_id,
-                element_map=cache.get("imported_element_map", None),
-            )
 
         existing_roles = cache.get("existing_roles", {}).get(page.builder.id)
         if not existing_roles:
@@ -246,15 +229,8 @@ class ElementType(
             files_zip,
             storage,
             cache,
-            **(kwargs | import_context),
+            **kwargs,
         )
-
-        # Update formulas of the current element
-        updated_models = self.import_formulas(
-            created_instance, id_mapping, import_formula, **(kwargs | import_context)
-        )
-
-        [m.save() for m in updated_models]
 
         # Add created instance to an element cache
         cache.setdefault("imported_element_map", {})[created_instance.id] = (

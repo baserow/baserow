@@ -1,0 +1,194 @@
+{
+    "VALID_FORMULA_EXECUTION_TESTS": [
+        {
+            "formula": "'test'",
+            "result": "test",
+            "context": {}
+        },
+        {
+            "formula": "1",
+            "result": 1,
+            "context": {}
+        },
+        {
+            "formula": "true",
+            "result": true,
+            "context": {}
+        },
+        {
+            "formula": "false",
+            "result": false,
+            "context": {}
+        },
+        {
+            "formula": "concat('a', 'b')",
+            "result": "ab",
+            "context": {}
+        },
+        {
+            "formula": "get('a')",
+            "result": "test",
+            "context": {
+                "a": "test"
+            }
+        },
+        {
+            "formula": "1 + 2",
+            "result": 3,
+            "context": {}
+        },
+        {
+            "formula": "get('a') + get('b')",
+            "result": 4,
+            "context": {"a":  1, "b":  3}
+        }
+    ],
+    "INVALID_FORMULA_EXECUTION_TESTS": [
+        {
+            "formula": "invalid()",
+            "context": {}
+        },
+        {
+            "formula": "1 + 'hello'",
+            "context": {}
+        },
+        {
+            "formula": "get(1,2)",
+            "context": {}
+        }
+    ],
+    "VALID_FORMULA_VALIDATION_TESTS": [
+        {
+            "formula": "'test'",
+            "context": {}
+        },
+        {
+            "formula": "get('test_data_provider.1')",
+            "context": {}
+        },
+        {
+            "formula": "is_even(2)",
+            "context": {},
+            "description": "Literal numeric value validates correctly"
+        },
+        {
+            "formula": "is_odd(3)",
+            "context": {},
+            "description": "Literal numeric value validates correctly"
+        },
+        {
+            "formula": "is_even(get('test_data_provider.value'))",
+            "context": {},
+            "description": "Nested get() call is deferred, skipping type validation"
+        },
+        {
+            "formula": "is_odd(get('test_data_provider.value'))",
+            "context": {},
+            "description": "Nested get() call is deferred, skipping type validation"
+        },
+        {
+            "formula": "add(get('test_data_provider.a'), get('test_data_provider.b'))",
+            "context": {},
+            "description": "Multiple nested get() calls are deferred"
+        },
+        {
+          "formula": "is_even(add(1, 2))",
+          "context": {},
+          "description": "Nested function calls with literals are deferred"
+        },
+        {
+          "formula": "is_odd(1 + 2)",
+          "context": {},
+          "description": "Literal numeric values with an operator validate correctly"
+        },
+        {
+          "formula": "if(1 + 3, 'true', 'false')",
+          "context": {},
+          "description": "The boolean expression in the first argument is not strict."
+        }
+    ],
+    "INVALID_FORMULA_VALIDATION_TESTS": [
+        {
+            "formula": "unknownfunction()",
+            "context": {},
+            "frontendError": "Unsupported function 'unknownfunction'.",
+            "backend_error": "Unsupported function 'unknownfunction'."
+        },
+        {
+          "formula": "field('field_123')",
+          "context": {},
+          "frontendError": "Unsupported function 'field'.",
+          "backend_error": "'field' is not a a supported function"
+        },
+        {
+            "formula": "get()",
+            "context": {},
+            "frontendError": "formulaParserErrors.invalidArgCountExact",
+            "backend_error": "0 arguments were given to the 'get' function, it must instead be given 1"
+        },
+        {
+            "formula": "get('a', 'b')",
+            "context": {},
+            "frontendError": "formulaParserErrors.invalidArgCountExact",
+            "backend_error": "2 arguments were given to the 'get' function, it must instead be given 1"
+        },
+        {
+            "formula": "get('jeff')",
+            "context": {},
+            "frontendError": "runtimeGetErrors.invalidPath",
+            "backend_error": "The formula provider 'jeff' used in 'jeff' does not exist in this module."
+        },
+        {
+            "formula": "get('.1')",
+            "context": {},
+            "frontendError": "runtimeGetErrors.missingProvider",
+            "backend_error": "The 'get' function arguments must start with a formula provider name."
+        },
+        {
+            "formula": "get('foo.1')",
+            "context": {},
+            "frontendError": "runtimeGetErrors.unknownProvider",
+            "backend_error": "The formula provider 'foo' used in 'foo.1' does not exist in this module."
+        },
+        {
+            "formula": "concat()",
+            "context": {},
+            "frontendError": null,
+            "backend_error": "0 arguments were given to the 'concat' function, it must instead be given at least 2"
+        },
+        {
+            "formula": "concat('a')",
+            "context": {},
+            "frontendError": null,
+            "backend_error": null
+        },
+        {
+            "formula": "is_even('not a number')",
+            "context": {},
+            "frontendError": null,
+            "backend_error": "is not a valid number or convertible to a number",
+            "description": "Literal string fails numeric type validation"
+        },
+        {
+            "formula": "add(1, 'two')",
+            "context": {},
+            "frontendError": null,
+            "backend_error": "is not a valid number or convertible to a number",
+            "description": "Mixed literal types fail validation"
+        },
+        {
+          "formula": "is_even(1 + 'two')",
+          "context": {},
+          "frontendError": null,
+          "backend_error": "is not a valid number or convertible to a number",
+          "description": "Mixed literal types fail validation"
+        },
+        {
+          "formula": "avg('foobar')",
+          "context": {},
+          "frontendError": null,
+          "backend_error": "is not a valid number or convertible to a number",
+          "description": "Cannot be ensured to an array of numbers."
+        }
+    ]
+}

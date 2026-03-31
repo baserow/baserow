@@ -216,19 +216,26 @@ const router = useRouter()
 const { $client, $registry } = useNuxtApp()
 
 // Fetch license data
-const { data } = await useAsyncData(`license-${route.params.id}`, async () => {
-  try {
-    const { data: licenseData } = await LicenseService($client).fetch(
-      route.params.id
-    )
-    return licenseData
-  } catch {
-    throw createError({
-      statusCode: 404,
-      message: 'The license was not found.',
-    })
+const { data, error } = await useAsyncData(
+  `license-${route.params.id}`,
+  async () => {
+    try {
+      const { data: licenseData } = await LicenseService($client).fetch(
+        route.params.id
+      )
+      return licenseData
+    } catch {
+      throw createError({
+        statusCode: 404,
+        message: 'The license was not found.',
+      })
+    }
   }
-})
+)
+
+if (error.value) {
+  throw error.value
+}
 
 const license = computed(() => data.value)
 

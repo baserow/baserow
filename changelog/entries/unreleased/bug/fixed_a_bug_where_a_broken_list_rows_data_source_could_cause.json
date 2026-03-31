@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug where a broken List Rows data source could cause a crash.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-03-25"
+}

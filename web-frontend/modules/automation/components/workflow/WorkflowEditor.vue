@@ -22,7 +22,7 @@
         :key="updateKey"
         :node="trigger"
         :debug="workflowDebug"
-        :read-only="workflowReadOnly"
+        :read-only="readOnly"
         :selected-node-id="selectedNodeId"
         @add-node="emit('add-node', $event)"
         @remove-node="emit('remove-node', $event)"
@@ -70,6 +70,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  readOnly: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits([
@@ -84,7 +88,6 @@ const emit = defineEmits([
 // Injected dependencies
 const workflow = inject('workflow')
 const workflowDebug = inject('workflowDebug')
-const workflowReadOnly = inject('workflowReadOnly')
 
 // Vue Flow setup
 const { onPaneClick } = useVueFlow()

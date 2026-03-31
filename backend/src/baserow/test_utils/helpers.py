@@ -7,6 +7,7 @@ from decimal import Decimal
 from typing import Any, Dict, Generator, List, Optional, Type, Union
 from unittest.mock import patch
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db import connection
@@ -20,6 +21,7 @@ from baserow.contrib.database.fields.field_helpers import (
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
+from baserow.contrib.database.fields.utils.row_edit import generate_row_edit_token
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.action.models import Action
@@ -142,12 +144,14 @@ def setup_interesting_test_table(
     ) = data_fixture.create_database_table(
         database=database, user=user, name="multiple_collaborators_link_table"
     )
+    form_view = data_fixture.create_form_view(user=user, table=table)
     all_possible_kwargs_per_type = construct_all_possible_field_kwargs(
         table,
         link_table,
         decimal_link_table,
         file_link_table,
         multiple_collaborators_link_table,
+        form_view,
     )
     name_to_field_id = {}
     i = 0
@@ -304,6 +308,7 @@ def setup_interesting_test_table(
             "duration_rollup_sum",
             "multiple_collaborators_lookup",
             "multiple_select_with_default",
+            "form_view_edit_row",
         }
     )
     assert missing_fields == set(), (
@@ -442,6 +447,7 @@ def setup_interesting_test_table(
         "fields": fields,
         "tables": linked_tables,
         "name_to_field_id": name_to_field_id,
+        "form_view": form_view,
     }
 
     return table, user, row, blank_row, context
@@ -561,6 +567,25 @@ def independent_test_db_connection():
     conn.close()
 
 
+def get_form_view_edit_row_url(context: Dict[str, Any], row) -> str:
+    """
+    Compute the expected form_view_edit_row URL for a given row in an
+    interesting test table.
+
+    :param context: The context dict returned by ``setup_interesting_test_table``.
+    :param row: The row instance (must have the edit-link field column).
+    :return: The full edit URL.
+    """
+
+    form_view = context["form_view"]
+    name_to_field_id = context["name_to_field_id"]
+    field_id = name_to_field_id["form_view_edit_row"]
+    cell_uuid = str(getattr(row, f"field_{field_id}"))
+    base = getattr(settings, "PUBLIC_WEB_FRONTEND_URL", "").rstrip("/")
+    token = generate_row_edit_token(form_view.slug, field_id, cell_uuid)
+    return f"{base}/form/{form_view.slug}/?edit_token={token}"
+
+
 def assert_serialized_field_values_are_the_same(
     value_1, value_2, ordered=False, field_name=None
 ):
@@ -591,6 +616,10 @@ def extract_serialized_field_value(field_value):
 
 def assert_serialized_rows_contain_same_values(row_1, row_2):
     for field_name, row_field_value in row_1.items():
+        # The form_view_edit_row field embeds the field_id in its token,
+        # so duplicated fields/tables will always produce different URLs.
+        if field_name == "form_view_edit_row":
+            continue
         row_1_value = extract_serialized_field_value(row_field_value)
         row_2_value = extract_serialized_field_value(row_2[field_name])
         assert_serialized_field_values_are_the_same(

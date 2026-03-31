@@ -117,11 +117,6 @@ The docs folder contains markdown files with the full developer documentation of
 Baserow. The contents of these files are automatically placed on
 https://baserow.io/docs.
 
-## plugin-boilerplate
-
-Contains a cookiecutter boilerplate for a Baserow plugin. More information can be found
-on the [plugin boilerplate page](../plugins/boilerplate.md).
-
 ## media
 
 Contains a nginx based docker image which is used in Baserow's docker setup to serve

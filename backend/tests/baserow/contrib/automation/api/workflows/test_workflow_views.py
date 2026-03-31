@@ -115,7 +115,7 @@ def test_create_workflow_duplicate_name(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_200_OK
-    assert response.json()["name"] != "test"
+    assert response.json()["name"] == "test"
 
 
 @pytest.mark.django_db
@@ -181,7 +181,7 @@ def test_update_workflow_duplicate_name(api_client, data_fixture):
         user, automation=automation, name="test"
     )
     workflow_2 = data_fixture.create_automation_workflow(
-        user, automation=automation, name="test2"
+        user, automation=automation, name="test"
     )
 
     url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow_2.id})
@@ -192,8 +192,11 @@ def test_update_workflow_duplicate_name(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE"
+    assert response.status_code == HTTP_200_OK
+    workflow.refresh_from_db()
+    assert workflow.name == "test"
+    workflow_2.refresh_from_db()
+    assert workflow_2.name == "test"
 
 
 @pytest.mark.django_db
@@ -541,7 +544,7 @@ def test_publish_workflow_error_invalid_workflow(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_workflow_history(api_client, data_fixture):
+def test_get_workflow_histories(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     history = data_fixture.create_workflow_history(user=user)
 
@@ -567,7 +570,7 @@ def test_get_workflow_history(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_workflow_history_invalid_workflow(api_client, data_fixture):
+def test_get_workflow_histories_invalid_workflow(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
 
     url = reverse(API_URL_WORKFLOW_HISTORY, kwargs={"workflow_id": 99999})
@@ -581,7 +584,7 @@ def test_get_workflow_history_invalid_workflow(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_workflow_history_permission_error(api_client, data_fixture):
+def test_get_workflow_histories_permission_error(api_client, data_fixture):
     user, _ = data_fixture.create_user_and_token()
     history = data_fixture.create_workflow_history(user=user)
 
@@ -617,5 +620,8 @@ def test_rename_workflow_using_existing_workflow_name(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE"
+    assert response.status_code == HTTP_200_OK
+    workflow_1.refresh_from_db()
+    assert workflow_1.name == "test1"
+    workflow_2.refresh_from_db()
+    assert workflow_2.name == "test1"

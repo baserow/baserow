@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Return 404 when view doesn't exist in batch delete rows endpoint.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-02-20"
+}

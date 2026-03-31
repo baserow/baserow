@@ -1,14 +1,14 @@
 {
   "id": "io.baserow.cloudronapp",
   "title": "Baserow",
-  "author": "Bram Wiepjes",
+  "author": "Baserow",
   "description": "file://DESCRIPTION.md",
   "tagline": "Collaborate on any form of data",
   "website": "https://baserow.io",
   "contactEmail": "bram@baserow.io",
   "icon": "file://logo.png",
   "tags": ["no-code", "nocode", "database", "data", "collaborate", "airtable"],
-  "version": "2.0.6",
+  "version": "2.1.6",
   "healthCheckPath": "/api/_health/",
   "httpPort": 80,
   "addons": {

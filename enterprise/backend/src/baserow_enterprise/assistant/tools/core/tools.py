@@ -1,130 +1,173 @@
-from typing import TYPE_CHECKING, Any, Callable, Literal
+from typing import Annotated, Any, Literal
 
-from django.contrib.auth.models import AbstractUser
 from django.db import transaction
 from django.utils.translation import gettext as _
 
+from pydantic import Field
+from pydantic_ai import RunContext
+from pydantic_ai.toolsets import FunctionToolset
+
 from baserow.core.actions import CreateApplicationActionType
-from baserow.core.models import Workspace
-from baserow.core.registries import application_type_registry
 from baserow.core.service import CoreService
-from baserow_enterprise.assistant.tools.registries import AssistantToolType
+from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
 
-from .types import AnyBuilderItem, BuilderItem, BuilderItemCreate
-
-if TYPE_CHECKING:
-    from baserow_enterprise.assistant.assistant import ToolHelpers
+from .types import BuilderItem, BuilderItemCreate, builder_type_registry
 
 
-def get_list_builders_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-) -> Callable[[], list[AnyBuilderItem]]:
+def list_builders(
+    ctx: RunContext[AssistantDeps],
+    builder_types: Annotated[
+        list[Literal["database", "application", "automation", "dashboard"]] | None,
+        Field(
+            description="Filter: only return builders of these types. null to return all types."
+        ),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    List databases, applications, automations, dashboards in the workspace.
+
+    WHEN to use: You need to find databases, applications, automations, or dashboards in the workspace. Call this before creating builders to avoid duplicates.
+    WHAT it does: Lists all builders the user can access, optionally filtered by type. Max 20 results.
+    RETURNS: Dict of builders grouped by type, each with id, name, type.
+    DO NOT USE when: You already know the builder ID you need.
     """
-    Returns a function that lists all the builders the user has access to in the
-    current workspace.
+
+    user = ctx.deps.user
+    workspace = ctx.deps.workspace
+    tool_helpers = ctx.deps.tool_helpers
+
+    tool_helpers.update_status(
+        _("Listing %(builder_types)ss...")
+        % {
+            "builder_types": builder_types[0]
+            if builder_types and len(builder_types) == 1
+            else "builder"
+        }
+    )
+
+    applications_qs = CoreService().list_applications_in_workspace(
+        user, workspace, specific=False
+    )
+
+    builders = {}
+    for app in applications_qs:
+        try:
+            item = builder_type_registry.from_django_orm(app)
+        except KeyError:
+            continue
+        if not builder_types or item.type in builder_types:
+            builders.setdefault(item.type, []).append(item.model_dump())
+
+    if not builders:
+        return {}
+
+    total = sum(len(v) for v in builders.values())
+    max_items = 20
+    if total > max_items:
+        truncated = {}
+        remaining = max_items
+        for btype, items in builders.items():
+            truncated[btype] = items[:remaining]
+            remaining -= len(truncated[btype])
+            if remaining <= 0:
+                break
+        return {
+            **truncated,
+            "_info": f"Showing {max_items} of {total} builders. "
+            "Use builder_types to filter.",
+        }
+
+    return builders
+
+
+def create_builders(
+    ctx: RunContext[AssistantDeps],
+    builders: Annotated[
+        list[BuilderItemCreate],
+        Field(description="List of builders to create, each with a name and type."),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Create a new database, application, or automation.
+
+    WHEN to use: User wants a new database, application, or automation created in the workspace.
+    WHAT it does: Creates one or more builders with the specified names and types.
+    RETURNS: List of created builders with id, name, type.
+    DO NOT USE when: A builder with that name may already exist — check with list_builders first.
+    HOW: Pick a unique, descriptive name. Check existing builders with list_builders to avoid duplicates.
     """
 
-    def list_builders(
-        builder_types: list[
-            Literal["database", "application", "automation", "dashboard"]
-        ]
-        | None = None,
-    ) -> list[AnyBuilderItem] | str:
-        """
-        Lists all the builders the user can access (databases, applications,
-        automations, dashboards) in the current workspace.
+    user = ctx.deps.user
+    workspace = ctx.deps.workspace
+    tool_helpers = ctx.deps.tool_helpers
 
-        If `builder_types` is provided, only builders of that type are returned,
-        otherwise all builders are returned (default).
-        """
+    created_builders = []
+    with transaction.atomic():
+        for builder in builders:
+            tool_helpers.raise_if_cancelled()
+            tool_helpers.update_status(
+                _("Creating %(builder_type)s %(builder_name)s...")
+                % {"builder_type": builder.type, "builder_name": builder.name}
+            )
+            builder_orm_instance = CreateApplicationActionType.do(
+                user, workspace, builder.get_orm_type(), name=builder.name
+            )
+            builder.post_creation_hook(user, builder_orm_instance)
+            created_builders.append(
+                BuilderItem(
+                    id=builder_orm_instance.id,
+                    name=builder_orm_instance.name,
+                    type=builder.type,
+                ).model_dump()
+            )
 
-        nonlocal user, workspace, tool_helpers
+    return {"created_builders": created_builders}
 
-        tool_helpers.update_status(
-            _("Listing %(builder_types)ss...")
-            % {
-                "builder_types": builder_types[0]
-                if builder_types and len(builder_types) == 1
-                else "builder"
-            }
+
+def switch_mode(
+    ctx: RunContext[AssistantDeps],
+    mode: Annotated[
+        Literal["database", "application", "automation", "explain"],
+        Field(
+            description=(
+                "Target mode: 'database' for table/field/view/row ops, "
+                "'application' for page/element/data-source ops, "
+                "'automation' for workflow/node ops, "
+                "'explain' for answering Baserow questions."
+            )
+        ),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> str:
+    """\
+    Switch between domain modes (database, application, automation, explain).
+
+    WHEN to use: Task needs tools from a different domain, or user asks a how-to question (→ "explain").
+    WHAT it does: Changes the available toolset to the target domain's tools.
+    RETURNS: Confirmation of mode switch.
+    DO NOT USE when: Already in the requested mode.
+    """
+
+    target = AgentMode(mode)
+    if ctx.deps.mode == target:
+        return f"Already in {target.value} mode."
+
+    ctx.deps.mode = target
+    if target == AgentMode.EXPLAIN:
+        return (
+            "Switched to explain mode. "
+            "Call search_user_docs now to answer the user's question from the Baserow documentation."
         )
-
-        applications_qs = CoreService().list_applications_in_workspace(
-            user, workspace, specific=False
-        )
-
-        builders = {}
-        for builder in applications_qs:
-            builder_type = application_type_registry.get_by_model(
-                builder.specific_class
-            ).type
-            if not builder_types or builder_type in builder_types:
-                builders.setdefault(builder_type, []).append(
-                    BuilderItem(
-                        id=builder.id, name=builder.name, type=builder_type
-                    ).model_dump()
-                )
-
-        return builders if builders else "no builders found"
-
-    return list_builders
+    return f"Switched to {target.value} mode."
 
 
-class ListBuildersToolType(AssistantToolType):
-    type = "list_builders"
-
-    @classmethod
-    def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-    ) -> Callable[[Any], Any]:
-        return get_list_builders_tool(user, workspace, tool_helpers)
-
-
-def get_create_modules_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-) -> Callable[[str], dict[str, Any]]:
-    """
-    Returns a function that creates a module in the current workspace.
-    """
-
-    def create_builders(builders: list[BuilderItemCreate]) -> dict[str, Any]:
-        """
-        Create a builder in the current workspace and return its ID and name.
-
-        - name: desired name for the builder (better if unique in the workspace)
-        """
-
-        nonlocal user, workspace, tool_helpers
-
-        created_builders = []
-        with transaction.atomic():
-            for builder in builders:
-                tool_helpers.update_status(
-                    _("Creating %(builder_type)s %(builder_name)s...")
-                    % {"builder_type": builder.type, "builder_name": builder.name}
-                )
-                builder_orm_instance = CreateApplicationActionType.do(
-                    user, workspace, builder.get_orm_type(), name=builder.name
-                )
-                builder.post_creation_hook(user, builder_orm_instance)
-                created_builders.append(
-                    BuilderItem(
-                        id=builder_orm_instance.id,
-                        name=builder_orm_instance.name,
-                        type=builder.type,
-                    ).model_dump()
-                )
-
-        return {"created_builders": created_builders}
-
-    return create_builders
-
-
-class CreateBuildersToolType(AssistantToolType):
-    type = "create_builders"
-
-    @classmethod
-    def get_tool(
-        cls, user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-    ) -> Callable[[Any], Any]:
-        return get_create_modules_tool(user, workspace, tool_helpers)
+TOOL_FUNCTIONS = [list_builders, create_builders, switch_mode]
+core_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)

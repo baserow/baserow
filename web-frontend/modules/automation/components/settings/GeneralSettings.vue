@@ -59,6 +59,7 @@ export default {
         name: '',
         notification: false,
       },
+      allowedValues: ['name', 'notification'],
     }
   },
   validations() {

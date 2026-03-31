@@ -41,5 +41,15 @@ export default (client, baseUrl, isPaginated = true) => {
 
       return client.get(baseUrl, { params })
     },
+    /**
+     * Fetch items by a list of IDs using the `ids` query parameter supported
+     * by the APIListingView.
+     * @param baseUrl The base url to use for the request.
+     * @param ids An array of numeric IDs to filter by.
+     * @returns {*}
+     */
+    fetchByIds(baseUrl, ids) {
+      return client.get(baseUrl, { params: { ids: ids.join(',') } })
+    },
   }
 }

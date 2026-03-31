@@ -1,4 +1,5 @@
 from typing import Any, Optional
+from uuid import UUID
 
 from django.db import models
 from django.db.models import Field
@@ -9,7 +10,10 @@ from django.db.models.fields.related_descriptors import (
 )
 from django.utils.functional import cached_property
 
+from rest_framework import serializers
+
 from baserow.contrib.database.fields.utils.duration import duration_value_to_timedelta
+from baserow.contrib.database.fields.utils.row_edit import build_row_edit_url
 from baserow.contrib.database.formula import BaserowExpression
 from baserow.core.fields import SyncedDateTimeField
 
@@ -219,6 +223,9 @@ class BaserowExpressionField(models.Field):
         # expression field.
         return self.expression_field.__class__
 
+    def get_placeholder(self, value, compiler, connection):
+        return "%s"
+
     def get_transform(self, name):
         # When a model field of this type is pickled and stored in the Baserow model
         # cache, the lookups on the class setup in the __init__ are not persisted.
@@ -374,3 +381,42 @@ class SyncedUserForeignKeyField(IgnoreMissingForeignKey):
             kwargs.pop("editable", None)
             kwargs.pop("blank", None)
         return name, path, args, kwargs
+
+
+class FormViewEditRowURLSerializerField(serializers.Field):
+    """
+    A custom serializer field that computes a unique, secure edit URL for a
+    row. It reads the per-cell UUID stored in the field column and uses it
+    together with the form view slug to generate a signed token URL.
+    """
+
+    def __init__(self, field_instance, *args, **kwargs):
+        self.field_instance = field_instance
+        kwargs.setdefault("read_only", True)
+        super().__init__(*args, **kwargs)
+
+    def to_representation(self, cell_uuid: UUID) -> Optional[str]:
+        """
+        Convert the cell UUID into a full edit URL.
+
+        :param cell_uuid: The unique UUID stored in the row's edit-link cell.
+        :return: The edit URL, or ``None`` if no form view is configured.
+        """
+
+        if not cell_uuid:
+            return None
+        if not self.field_instance.form_view_id:
+            return None
+        try:
+            form_view = self.field_instance.form_view
+        except Exception:
+            # The form view may have been deleted while the model cache still
+            # holds the old field instance (form_view_id is non-null but FK
+            # target is gone).
+            return None
+        if form_view is None:
+            return None
+        return build_row_edit_url(str(cell_uuid), form_view, self.field_instance.id)
+
+    def to_internal_value(self, data):
+        raise serializers.ValidationError("This field is read-only.")

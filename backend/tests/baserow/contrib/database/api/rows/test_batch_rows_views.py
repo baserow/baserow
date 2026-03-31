@@ -2382,6 +2382,27 @@ def test_batch_delete_rows_user_not_in_workspace(api_client, data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.api_rows
+def test_batch_delete_rows_view_does_not_exist(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    model = table.get_model()
+    row_1 = model.objects.create()
+    request_body = {"items": [row_1.id]}
+    url = reverse("api:database:rows:batch-delete", kwargs={"table_id": table.id})
+
+    response = api_client.post(
+        f"{url}?view=-1",
+        request_body,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_404_NOT_FOUND, response.json()
+    assert response.json()["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+@pytest.mark.api_rows
 def test_batch_delete_rows_invalid_table_id(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
     url = reverse("api:database:rows:batch-delete", kwargs={"table_id": 14343})

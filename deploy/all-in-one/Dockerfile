@@ -3,7 +3,7 @@ ARG GID="9999"
 
 ARG BACKEND_IMAGE=baserow/backend
 ARG WEBFRONTEND_IMAGE=baserow/web-frontend
-ARG CADDY_VERSION=2.10.2
+ARG CADDY_VERSION=2.11.1
 # hadolint ignore=DL3006
 FROM ${BACKEND_IMAGE} AS backend_image
 # hadolint ignore=DL3006
@@ -26,9 +26,7 @@ ENV DOCKER_USER=baserow_docker_user \
     BASEROW_PLUGIN_DIR=/baserow/data/plugins
 
 # Runtime dependencies
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
-    apt-get update && \
+RUN apt-get update && \
     apt-get upgrade -y && \
     DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get install --no-install-recommends -y \
     curl gnupg2 ca-certificates && \
@@ -43,6 +41,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     xmlsec1 \
     gettext \
     tini \
+    tzdata-legacy \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* \
     && \
     # Setup user and group with fixed UID/GID for volume permission consistency
     getent group "$GID" || groupadd --system --gid "$GID" "${DOCKER_USER}" && \
@@ -116,13 +116,15 @@ ARG GID
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install postgres + redis (PGDG repo already added in base stage)
-RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
-    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+RUN curl -fsSL https://packages.redis.io/gpg | gpg --batch --dearmor -o /usr/share/keyrings/redis-archive-keyring.gpg && \
+    echo "deb [signed-by=/usr/share/keyrings/redis-archive-keyring.gpg] https://packages.redis.io/deb trixie main" > /etc/apt/sources.list.d/redis.list && \
     apt-get update && \
     apt-get install --no-install-recommends -y \
     "postgresql-${POSTGRES_VERSION}" \
     "postgresql-${POSTGRES_VERSION}-pgvector" \
-    redis-server && \
+    redis \
+    && apt-get clean && rm -rf /var/lib/apt/lists/* \
+    && \
     # Setup redis
     usermod -a -G tty redis && \
     sed -i 's/daemonize yes/daemonize no/g' /etc/redis/redis.conf && \

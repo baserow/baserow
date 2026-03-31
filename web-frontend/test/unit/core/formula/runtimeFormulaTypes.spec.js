@@ -1753,7 +1753,6 @@ describe('RuntimeStrip', () => {
 
 describe('RuntimeSum', () => {
   test.each([
-    { args: [[2.5, 3, 'foo', 4]], expected: null },
     { args: [['2', '3', '4']], expected: 9 },
     { args: [[2.5, 3, 4]], expected: 9.5 },
   ])('execute returns expected value', ({ args, expected }) => {
@@ -1765,8 +1764,9 @@ describe('RuntimeSum', () => {
 
   test.each([
     { args: [''], expected: undefined },
-    { args: ['[]'], expected: undefined },
-    { args: [[]], expected: undefined },
+    { args: [['1', 2]], expected: undefined },
+    // String '["1", "foo"]' is invalid (can't be parsed as array of numbers)
+    { args: ['["1", "foo"]'], expected: '["1", "foo"]' },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeSum()
     const result = formulaType.validateTypeOfArgs(args)
@@ -1786,8 +1786,8 @@ describe('RuntimeSum', () => {
 
 describe('RuntimeAvg', () => {
   test.each([
-    { args: [[1, 2, 'foo', 3, 4]], expected: null },
     { args: [[1, 2, 3, 4]], expected: 2.5 },
+    { args: [['1', 2]], expected: 1.5 },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeAvg()
     const parsedArgs = formulaType.parseArgs(args)
@@ -1797,8 +1797,8 @@ describe('RuntimeAvg', () => {
 
   test.each([
     { args: [''], expected: undefined },
-    { args: ['[]'], expected: undefined },
-    { args: [[]], expected: undefined },
+    { args: [['1', 2]], expected: undefined },
+    { args: ['["1", "foo"]'], expected: '["1", "foo"]' },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeAvg()
     const result = formulaType.validateTypeOfArgs(args)

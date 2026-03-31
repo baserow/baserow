@@ -1,4 +1,5 @@
 from django.apps import AppConfig
+from django.conf import settings
 from django.db.models.signals import post_migrate
 
 from tqdm import tqdm
@@ -13,8 +14,12 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow_enterprise.audit_log.operations import (
             ListWorkspaceAuditLogEntriesOperationType,
         )
+        from baserow_enterprise.data_scanner.job_types import (
+            DataScanResultExportJobType,
+        )
 
         job_type_registry.register(AuditLogExportJobType())
+        job_type_registry.register(DataScanResultExportJobType())
 
         from baserow.api.user.registries import member_data_registry
         from baserow.core.action.registries import (
@@ -260,11 +265,19 @@ class BaserowEnterpriseConfig(AppConfig):
         data_sync_type_registry.unregister(PostgreSQLDataSyncType.type)
         data_sync_type_registry.register(PostgreSQLDataSyncType())
 
+        from baserow_enterprise.data_scanner.actions import (
+            CreateDataScanActionType,
+            DeleteDataScanActionType,
+            UpdateDataScanActionType,
+        )
         from baserow_enterprise.data_sync.actions import (
             UpdatePeriodicDataSyncIntervalActionType,
         )
 
         action_type_registry.register(UpdatePeriodicDataSyncIntervalActionType())
+        action_type_registry.register(CreateDataScanActionType())
+        action_type_registry.register(UpdateDataScanActionType())
+        action_type_registry.register(DeleteDataScanActionType())
 
         from baserow.contrib.database.webhooks.registries import (
             webhook_event_type_registry,
@@ -282,11 +295,12 @@ class BaserowEnterpriseConfig(AppConfig):
 
         # Make sure that the assistant knowledge base is up to date after running the
         # migrations.
-        post_migrate.connect(
-            sync_assistant_knowledge_base,
-            sender=self,
-            dispatch_uid="sync_assistant_knowledge_base",
-        )
+        if not settings.TESTS:
+            post_migrate.connect(
+                sync_assistant_knowledge_base,
+                sender=self,
+                dispatch_uid="sync_assistant_knowledge_base",
+            )
 
         from baserow_enterprise.teams.receivers import (
             connect_to_post_delete_signals_to_cascade_deletion_to_team_subjects,
@@ -301,6 +315,9 @@ class BaserowEnterpriseConfig(AppConfig):
         connect_to_post_delete_signals_to_cascade_deletion_to_role_assignments()
 
         from baserow.core.notifications.registries import notification_type_registry
+        from baserow_enterprise.data_scanner.notification_types import (
+            DataScanNewResultsNotificationType,
+        )
         from baserow_enterprise.data_sync.notification_types import (
             PeriodicDataSyncDeactivatedNotificationType,
             TwoWaySyncDeactivatedNotificationType,
@@ -312,43 +329,7 @@ class BaserowEnterpriseConfig(AppConfig):
         )
         notification_type_registry.register(TwoWaySyncUpdateFailedNotificationType())
         notification_type_registry.register(TwoWaySyncDeactivatedNotificationType())
-
-        from baserow_enterprise.assistant.tools import (
-            CreateBuildersToolType,
-            GenerateDatabaseFormulaToolType,
-            GetTablesSchemaToolType,
-            ListBuildersToolType,
-            ListRowsToolType,
-            ListTablesToolType,
-            ListViewsToolType,
-            ListWorkflowsToolType,
-            NavigationToolType,
-            RowsToolFactoryToolType,
-            SearchDocsToolType,
-            TableAndFieldsToolFactoryToolType,
-            ViewsToolFactoryToolType,
-            WorkflowToolFactoryToolType,
-        )
-        from baserow_enterprise.assistant.tools.registries import (
-            assistant_tool_registry,
-        )
-
-        assistant_tool_registry.register(SearchDocsToolType())
-        assistant_tool_registry.register(NavigationToolType())
-
-        assistant_tool_registry.register(ListBuildersToolType())
-        assistant_tool_registry.register(CreateBuildersToolType())
-        assistant_tool_registry.register(ListTablesToolType())
-        assistant_tool_registry.register(GetTablesSchemaToolType())
-        assistant_tool_registry.register(TableAndFieldsToolFactoryToolType())
-        assistant_tool_registry.register(GenerateDatabaseFormulaToolType())
-        assistant_tool_registry.register(ListRowsToolType())
-        assistant_tool_registry.register(RowsToolFactoryToolType())
-        assistant_tool_registry.register(ListViewsToolType())
-        assistant_tool_registry.register(ViewsToolFactoryToolType())
-
-        assistant_tool_registry.register(ListWorkflowsToolType())
-        assistant_tool_registry.register(WorkflowToolFactoryToolType())
+        notification_type_registry.register(DataScanNewResultsNotificationType())
 
         from baserow_enterprise.views.operations import (
             ListenToAllRestrictedViewEventsOperationType,
@@ -376,10 +357,34 @@ class BaserowEnterpriseConfig(AppConfig):
         page_registry.register(RestrictedViewPageType())
         view_realtime_rows_registry.register(RestrictedViewRealtimeRowsType())
 
+        from baserow_enterprise.assistant.tools.automation.tool_types import (
+            AutomationToolType,
+        )
+        from baserow_enterprise.assistant.tools.core.tool_types import CoreToolType
+        from baserow_enterprise.assistant.tools.database.tool_types import (
+            DatabaseToolType,
+        )
+        from baserow_enterprise.assistant.tools.navigation.tool_types import (
+            NavigationToolType,
+        )
+        from baserow_enterprise.assistant.tools.registries import (
+            assistant_tool_registry,
+        )
+        from baserow_enterprise.assistant.tools.search_user_docs.tool_types import (
+            SearchDocsToolType,
+        )
+
+        assistant_tool_registry.register(NavigationToolType())
+        assistant_tool_registry.register(CoreToolType())
+        assistant_tool_registry.register(DatabaseToolType())
+        assistant_tool_registry.register(AutomationToolType())
+        assistant_tool_registry.register(SearchDocsToolType())
+
         # The signals must always be imported last because they use the registries
         # which need to be filled first.
         import baserow_enterprise.assistant.tasks  # noqa: F401
         import baserow_enterprise.audit_log.signals  # noqa: F401
+        import baserow_enterprise.data_scanner.tasks  # noqa: F401
         import baserow_enterprise.ws.signals  # noqa: F401
 
 

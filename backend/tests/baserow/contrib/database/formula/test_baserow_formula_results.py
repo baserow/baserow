@@ -930,13 +930,13 @@ INVALID_FORMULA_TESTS = [
     (
         "CONCAT()",
         "ERROR_WITH_FORMULA",
-        "Error with formula: 0 arguments were given to the function concat, it must "
+        "Error with formula: 0 arguments were given to the 'concat' function, it must "
         "instead be given more than 1 arguments.",
     ),
     (
         "CONCAT('a')",
         "ERROR_WITH_FORMULA",
-        "Error with formula: 1 argument was given to the function concat, it must "
+        "Error with formula: 1 argument was given to the 'concat' function, it must "
         "instead be given more than 1 arguments.",
     ),
     ("UPPER()", "ERROR_WITH_FORMULA", None),
@@ -944,7 +944,7 @@ INVALID_FORMULA_TESTS = [
     (
         "UPPER('a','a')",
         "ERROR_WITH_FORMULA",
-        "Error with formula: 2 arguments were given to the function upper, it must "
+        "Error with formula: 2 arguments were given to the 'upper' function, it must "
         "instead be given exactly 1 argument.",
     ),
     ("LOWER('a','a')", "ERROR_WITH_FORMULA", None),

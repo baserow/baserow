@@ -30,10 +30,14 @@ class BuilderItemCreate(BaseModel):
     def from_django_orm(cls, orm_app: BaserowApplication) -> "BuilderItem":
         """Creates a BuilderItem instance from a Django ORM Application instance."""
 
+        orm_type = application_type_registry.get_by_model(orm_app.specific_class).type
+        # The application_type_registry uses "builder" internally, but our
+        # Literal type expects "application".
+        type_mapping = {"builder": "application"}
         return cls(
             id=orm_app.id,
             name=orm_app.name,
-            type=application_type_registry.get_by_model(orm_app.specific_class).type,
+            type=type_mapping.get(orm_type, orm_type),
         )
 
     def _post_creation_hook(self, user, builder_orm_instance):

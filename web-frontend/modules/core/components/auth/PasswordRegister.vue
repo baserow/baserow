@@ -93,6 +93,11 @@
         :key="index"
         @updated-account="updatedAccount"
       ></component>
+      <CaptchaWidget
+        ref="captchaWidget"
+        context="signup"
+        @token="onCaptchaToken"
+      />
       <div class="auth__action mt-32 mb-32">
         <Button
           type="primary"
@@ -118,11 +123,12 @@ import { email, maxLength, minLength, required } from '@vuelidate/validators'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import error from '@baserow/modules/core/mixins/error'
 import PasswordInput from '@baserow/modules/core/components/helpers/PasswordInput'
+import CaptchaWidget from '@baserow/modules/core/components/auth/CaptchaWidget'
 import { passwordValidation } from '@baserow/modules/core/validators'
 
 export default {
   name: 'PasswordRegister',
-  components: { PasswordInput },
+  components: { PasswordInput, CaptchaWidget },
   mixins: [error],
   props: {
     invitation: {
@@ -166,6 +172,7 @@ export default {
   data() {
     return {
       loading: false,
+      captchaToken: '',
     }
   },
   computed: {
@@ -208,6 +215,7 @@ export default {
           email: this.account.email,
           password: this.account.password,
           language: this.$i18n.locale,
+          captchaToken: this.captchaToken,
         }
 
         // If there is a valid invitation we can add the workspace invitation token to the
@@ -234,6 +242,9 @@ export default {
         this.$emit('success', { email: values.email })
       } catch (error) {
         this.loading = false
+        if (this.$refs.captchaWidget) {
+          this.$refs.captchaWidget.reset()
+        }
         this.handleError(error, 'signup', {
           ERROR_EMAIL_ALREADY_EXISTS: new ResponseErrorMessage(
             this.$t('error.alreadyExistsTitle'),
@@ -243,8 +254,15 @@ export default {
             this.$t('error.disabledAccountTitle'),
             this.$t('error.disabledAccountMessage')
           ),
+          ERROR_CAPTCHA_VERIFICATION_FAILED: new ResponseErrorMessage(
+            this.$t('error.captchaVerificationFailedTitle'),
+            this.$t('error.captchaVerificationFailedMessage')
+          ),
         })
       }
+    },
+    onCaptchaToken(token) {
+      this.captchaToken = token
     },
     updatedAccount({ key, value }) {
       this.account[key] = value

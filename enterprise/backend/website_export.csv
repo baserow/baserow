@@ -4172,6 +4172,12 @@ No. Undo/redo only works for your own actions in your current browser session. Y
 
 Yes. [Export tables](/user-docs/export-tables), [export views](/user-docs/export-a-view), or [export entire workspaces](/user-docs/export-workspaces) regularly to create backups. For automated backup solutions, consider using the [Baserow API](/user-docs/database-api) or [webhooks](/user-docs/webhooks) with external backup systems.
 
+### Can I recover an element (like a button, text, or container) after deleting it?
+
+Currently, when you delete an individual element or container within the Baserow Application Builder, it is permanently removed and cannot be recovered.
+
+Unlike deleting an entire Application or Database, which moves to your Workspace Trash Bin for 3 days, individual elements are not yet supported by the Trash Bin system.
+
 ## Related resources
 
 ### Deletion guides
@@ -4210,7 +4216,7 @@ Still need help? If you're looking for something else, please feel free to make 
 
 
   [1]: https://baserow.io/user-docs/row-change-history
-  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e16b8f4c-2dc8-429c-85e1-b1b17d31554d/Restore%20deleted%20items%20from%20the%20past%203%20days.jpg",,baserow_user_docs,https://baserow.io/user-docs/data-recovery-and-deletion
+  [2]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/e16b8f4c-2dc8-429c-85e1-b1b17d31554d/Restore%20deleted%20items%20from%20the%20past%203%20days.jpg",workspace,baserow_user_docs,https://baserow.io/user-docs/data-recovery-and-deletion
 24,Tables overview,intro-to-tables,Manage your data in Baserow tables,"# Introduction to tables in Baserow
 
 Tables are where your data lives in Baserow.  Baserow tables combine spreadsheet familiarity with database power; organize once, visualize many ways.
@@ -11501,6 +11507,10 @@ Yes. Self-hosted Baserow supports air-gapped deployment on servers without inter
 
 Baserow uses WebSockets for real-time collaboration. If you lose connection, you'll see a ""Connection to the server failed"" message. Baserow automatically attempts to reconnect. Simply refresh the page once your connection is restored. Check the [status page][5] if issues persist.
 
+### Can I run a raw SQL query on Baserow Cloud?
+
+No, direct SQL/database access is not possible on the cloud-hosted (SaaS) plan. The alternative is using the REST API or switching to the Self-Hosted version if direct DB access is a hard requirement.
+
 ## Troubleshooting and resources
 
 ### Self-hosted installation help:
@@ -12496,9 +12506,11 @@ Baserow's permission system allows you to control who can view, edit, or manage 
 
 This guide covers how to understand Baserow's permission system, compare free vs. paid role-based access control, and learn which approach fits your security needs.
 
+> Public view sharing isolates specific data for read-only external access. Learn more about [public sharing][1].
+
 ## Overview
 
-Permissions determine what members can do within workspaces, databases, tables, and fields. As a workspace admin, you assign roles when [inviting users to a workspace][1] or [creating teams][2], then adjust access as your needs evolve.
+Permissions determine what members can do within workspaces, databases, tables, and fields. As a workspace admin, you assign roles when [inviting users to a workspace][2] or [creating teams][3], then adjust access as your needs evolve.
 
 The right permission strategy depends on your plan, team size, and security requirements. This guide helps you understand your options and select the best approach.
 
@@ -12572,7 +12584,7 @@ Setting up permissions for a new workspace involves a few key planning steps. Fo
 
 ### How to set up permissions in a new workspace
 
-1.  **Assess your plan's capabilities**: First, identify which roles are available on your [plan][3].
+1.  **Assess your plan's capabilities**: First, identify which roles are available on your [plan][4].
 2.  **Design your permission structure**: Before inviting anyone, map out your data access strategy. Ask these questions:
     * Who needs what level of access (e.g., read-only, editor, admin)?
     * Which databases or tables contain sensitive data that needs to be restricted?
@@ -12658,9 +12670,10 @@ Still need help? If you're looking for something else, please feel free to make 
 - [Contact support](/contact) for questions about Baserow or help with your account
 
 
-  [1]: https://baserow.io/user-docs/working-with-collaborators
-  [2]: https://baserow.io/user-docs/create-and-manage-teams
-  [3]: https://baserow.io/user-docs/pricing-plans",roles and permissions,baserow_user_docs,https://baserow.io/user-docs/permissions-overview
+  [1]: https://baserow.io/user-docs/public-sharing
+  [2]: https://baserow.io/user-docs/working-with-collaborators
+  [3]: https://baserow.io/user-docs/create-and-manage-teams
+  [4]: https://baserow.io/user-docs/pricing-plans",roles and permissions,baserow_user_docs,https://baserow.io/user-docs/permissions-overview
 113,Member workspace roles,assign-roles-to-members-at-workspace-level,Assign workspace roles to members in Baserow,"# Assign roles to members at workspace level
 
 Workspace-level roles set the default permissions each member has across all databases and tables within a workspace; creating a baseline that can be refined with database and table-level exceptions.
@@ -20994,9 +21007,15 @@ Baserow applications do **not** update automatically when you change elements in
 
 ## Embed an application
 
-To embed your dashboard or application in another website (like Softr, WordPress, or a custom site), publish your app to get a public URL, then use an HTML <iframe> tag.
+To embed your dashboard or application in another website (like Softr, WordPress, or a custom site), publish your app to get a public URL, then use an HTML `<iframe>` tag.
 
 ## Frequently asked questions (FAQ)
+
+### How to publish an application in a self-hosted instance?
+
+The configuration for custom domains highly depends on the hosting environment, so you configure it at the server level. You may find information in the Baserow installation pages. See this page for more details -> [Application builder domains][6]
+ 
+For your custom application, you need to create the login page in the application for your users to log in. The login page is different and is not the Baserow login page.
 
 ### Do I need to pay for hosting?
 No. Baserow hosts the application for you. You just need to choose a domain name (or use a free subdomain).
@@ -21013,7 +21032,7 @@ Yes, you can delete the domain to remove the link, effectively taking the applic
 
 * [Configure a custom domain][4]
 * [Managing Data Sources][3]
-* [Application Builder settings][6]
+* [Application Builder settings][7]
 
 ---
 
@@ -21028,7 +21047,8 @@ Still need help? If you're looking for something else, please feel free to make 
   [3]: /user-docs/data-sources
   [4]: /user-docs/add-a-domain-to-an-application
   [5]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/0a3bea54-7fd6-428d-a906-d5a94911c058/Untitled%201.png
-  [6]: /user-docs/application-builder-configuration",application builder,baserow_user_docs,https://baserow.io/user-docs/preview-and-publish-application
+  [6]: https://baserow.io/docs/installation%2Finstall-with-docker#application-builder-domains
+  [7]: /user-docs/application-builder-configuration",application builder,baserow_user_docs,https://baserow.io/user-docs/preview-and-publish-application
 166,Application settings,application-settings,Application settings in Baserow Application Builder,"# Configure Application Builder settings
 
 The **Settings** menu in the Application Builder is the control center for your app's global behavior. Unlike the canvas (where you build individual pages), the settings menu handles the environment your application runs in, including how it looks (Theme), where it lives (Domains), and how it accesses data (Integrations).
@@ -22080,6 +22100,8 @@ Duplicating is the fastest way to build repetitive layouts. It creates an exact 
 
 ## Remove an element
 
+> Double-check before deleting: Always confirm you are selecting the correct element or container before clicking delete. If you are about to make major changes to a page layout, consider duplicating the page first so you have a ""backup"" of your original design.
+
 Removing an element deletes it from the user interface.
 
 1.  Hover over the element you want to remove.
@@ -22103,6 +22125,16 @@ Currently, elements cannot be dragged directly between pages. To move content, y
 
 ### Why can't I place an element next to another?
 By default, elements stack vertically. To place elements side-by-side, you must first add a **Columns** element, and then place your content inside the columns.
+
+### Can I recover an element (like a button, text, or container) after deleting it?
+
+Currently, when you delete an individual element or container within the Baserow Application Builder, it is permanently removed and cannot be recovered.
+
+Unlike deleting an entire Application or Database, which moves to your Workspace Trash Bin for 3 days, individual elements are not yet supported by the Trash Bin system.
+
+### Why isn't my deleted element in the Trash Bin?
+
+While we have robust Trash Bin support for high-level items (like Databases and Tables), we are still implementing granular ""trash"" support for the internal components of an application.
 
 ## Related content
 
@@ -23705,14 +23737,23 @@ Once a user logs in, the application state changes.
 
 ### Login works, but the user is not redirected
 This usually happens if the user does not have permission to view the destination page.
-* **Check Page Visibility:** Go to the destination page (e.g., ""Dashboard"") and check its **Visibility** settings. Ensure the user's role is included in the ""Allow roles"" list.
-* **Check User Source:** Ensure the User Source has the **Role field** correctly mapped to your database.
+ * **Check Page Visibility:** Go to the destination page (e.g., ""Dashboard"") and check its **Visibility** settings. Ensure the user's role is included in the ""Allow roles"" list.
+ * **Check User Source:** Ensure the User Source has the **Role field** correctly mapped to your database.
+ * Check that a page has `/` path
+ * Ensure you are using the login element. The standard Form container is designed to submit data to a table, while the Login element specifically handles authentication and session routing. 
+ * Ensure the user you are trying to log in with is actually in the specific table you linked to your Authentication source. If you’ve added yourself as a ""Team Member"" in your database but haven't configured the App Builder's User Source to point to that specific table, the app won't recognize your credentials.
+ * If you are self-hosting Baserow (Docker/Cloudron), your URL must perfectly match the URL in your browser (including http:// vs https://).
 
 ### ""Invalid Credentials"" error
  * Ensure the email and password in your database match exactly.
  * Remember that passwords in Baserow are hashed. You cannot simply type a plain text password into the database cell; you must create the user via a Sign-Up form or use the admin tools to set the password.
 
 Learn more about the [password field type][4].
+
+### Quick Troubleshooting Check:
+ * Open your browser's Developer Tools (F12) and go to the Network tab.
+ * Try to log in again.
+ * Look for a red line (likely a 401 Unauthorized or 404 Not Found).
 
 ## Related content
 
@@ -25524,9 +25565,9 @@ Import as a new workspace to create a separate workspace, or merge with an exist
 
  1. Log in to your target Baserow instance and go to the **Home** page. 
  2. Locate the workspace where you want to import data. Click the arrow next to the workspace name and select **Import data**.
- 3. Upload your workspace export file by clicking the upload area or dragging the ZIP file into the interface. Baserow will validate the file to ensure it’s a compatible workspace export.
+ 3. Upload your workspace export file by clicking the upload area or dragging the **ZIP file** into the interface. Baserow will validate the file to ensure it’s a compatible workspace export.
  4. Select applications to import.
- 5. Confirm your settings and start the import. The process duration depends on workspace size. Wait for it to complete before closing the browser.
+ 5. Confirm your settings and start the import. The process duration depends on the workspace size. Wait for it to complete before closing the browser.
 
 After completion, verify the imported content by checking databases, tables, applications, dashboards, and views to ensure everything transferred correctly.
 
@@ -25582,7 +25623,7 @@ Yes. Each import creates a new copy unless you explicitly merge with an existing
 
 ### Do published applications work immediately after import?
 
-No. Published applications require reconfiguration, including setting up publishing, configuring custom domains if used, and verifying that authentication works correctly. Applications import successfully, but aren't automatically published.
+No. Published applications require reconfiguration, including setting up publishing, configuring custom domains if used, and verifying that authentication works correctly. Applications are imported successfully, but aren't automatically published.
 
 ### How long do imports take?
 
@@ -27504,11 +27545,27 @@ Baserow Self-Hosted users can configure at the workspace-level for team-specific
 
 ![Baserow AI field configuration interface][2]
 
+### Baserow deployment comparison: Cloud vs. Self-Hosted
+
+| AI Feature / Control | Baserow Cloud (SaaS) | Baserow Self-Hosted |
+| --- | --- | --- |
+| **Model Connection** | Secure Enterprise Proxy | Direct-to-Provider (No Middleware) |
+| **Data Residency** | Germany (Europe) | Your Infrastructure (Global) |
+| **Zero Training** | ✅ Yes | ✅ Yes |
+| **API Key Storage** | App Storage | Your Internal Database |
+| **Log Retention** | Fixed (6 Months) | Custom (You Control Retention) |
+| **Air-Gapped (Offline)** | ❌ No | ✅ Yes (via Ollama) |
+| **Firewall Control** | Managed by Baserow | Managed by You |
+
+> **Note:** If you are prioritizing strict regulatory compliance or need to process sensitive PII, the **Self-Hosted** version is generally the standard choice as it eliminates the ""middleman"" during AI model requests.
+
 ## Configure API keys
 
 ### At instance level
 
 For self-hosted Baserow, configure API keys globally using [environment variables][3]. This applies settings across all workspaces in your instance.
+
+> For Kuma [Table Analysis], it’s not possible to set an API key on the workspace level; this is only possible for the AI-field and automations.
 
 ### At workspace level
 
@@ -29037,6 +29094,8 @@ Meet Kuma, your AI assistant. Chat with Kuma to create databases, write formulas
 
 This guide introduces Kuma, Baserow's built-in AI assistant. Learn how to access Kuma, what you can ask it, and how it can help you build and manage your databases faster.
 
+Kuma is configured to work on versions from Baserow v2.0.
+
 Learn more: [AI assistant developer docs][1]
 
 ## What is Kuma?
@@ -29047,7 +29106,7 @@ It’s not just a chatbot. Kuma understands the context of your workspace and ca
 
 > If you self-host, you can also choose which [AI provider and model][2] it uses, so you stay in control of your data and privacy. 
 
-Learn more: [AI-assistant Configuration][3]
+Kuma is built into the interface starting with 2.0 and requires proper AI provider configuration to show up. Learn more: [Self-hosted AI-assistant Configuration][3]
 
 ![Meet Kuma, your Baserow AI assistant][4]
 
@@ -29115,7 +29174,9 @@ Baserow integrates with multiple AI providers (OpenAI, Anthropic, Ollama, OpenRo
 
 ## Install and configure Kuma in self‑hosted
 
-Kuma is configured to work on versions from Baserow v2.0.
+The Kuma AI assistant is part of the newer AI features introduced in Baserow 2.0. These features (including Kuma) may not appear in your self-hosted instance if you are running a version earlier than 2.0, or if the AI assistant isn’t configured yet in your setup.  
+
+If you’re on an older version or your deployment doesn’t yet include the Kuma UI or AI settings, you’ll need to upgrade to a release that includes the AI assistant features and configure your AI provider options. 
 
 Learn more about [Baserow AI-Assistant: Quick DevOps Setup][10]. This guide shows how to enable the AI-assistant in Baserow, configure the required environment variables, and turn on knowledge-base lookups via an embeddings server.
 
@@ -29265,6 +29326,8 @@ By the end, you’ll have:
 - A deep understanding of how the integration works (and its limitations)
 
 Let’s transform your Baserow data into compelling visual insights.
+
+<iframe width=""560"" height=""315"" src=""https://www.youtube.com/embed/s-vKgc3xrDo?si=WNtFpV6lxJqv0O7L"" title=""YouTube video player"" frameborder=""0"" allow=""accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"" referrerpolicy=""strict-origin-when-cross-origin"" allowfullscreen></iframe>
 
 ## Integration Architecture
 

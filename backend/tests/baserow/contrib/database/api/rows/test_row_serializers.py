@@ -13,7 +13,11 @@ from baserow.contrib.database.api.rows.serializers import (
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.fields.registries import field_type_registry
-from baserow.test_utils.helpers import AnyStr, setup_interesting_test_table
+from baserow.test_utils.helpers import (
+    AnyStr,
+    get_form_view_edit_row_url,
+    setup_interesting_test_table,
+)
 
 
 @pytest.mark.django_db
@@ -318,6 +322,8 @@ def test_get_row_serializer_with_user_field_names(
     table, user, row, _, context = setup_interesting_test_table(data_fixture)
     model = table.get_model()
 
+    form_view_edit_row_url = get_form_view_edit_row_url(context, row)
+
     # get_row_serializer_class should nevere make any queries to the database
     with django_assert_num_queries(0):
         serializer_class = get_row_serializer_class(
@@ -562,6 +568,7 @@ def test_get_row_serializer_with_user_field_names(
                     "id": SelectOption.objects.get(value="Object").id,
                     "value": "Object",
                 },
+                "form_view_edit_row": form_view_edit_row_url,
             }
         )
     )

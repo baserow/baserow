@@ -166,6 +166,40 @@ def test_patch_workflow_actions(api_client, data_fixture):
     assert response_json["description"]["formula"] == "'hello'"
 
 
+@pytest.mark.django_db
+def test_updating_workflow_actions_with_invalid_formula_arguments_throws_error(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    workflow_action = data_fixture.create_notification_workflow_action(page=page)
+
+    url = reverse(
+        "api:builder:workflow_action:item",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+    response = api_client.patch(
+        url,
+        {"description": "get('foobar.123')"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            "description": [
+                {
+                    "error": "The formula provider 'foobar' used "
+                    "in 'foobar.123' does not exist in this module.",
+                    "code": "invalid_formula_argument",
+                }
+            ]
+        },
+    }
+
+
 class PublicTestWorkflowActionType(NotificationWorkflowActionType):
     type = "test_workflow_action"
 

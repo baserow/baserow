@@ -1,52 +1,53 @@
-from typing import TYPE_CHECKING, Callable
+from typing import Annotated
 
-from django.contrib.auth.models import AbstractUser
+from django.core.exceptions import ObjectDoesNotExist
 from django.utils.translation import gettext as _
 
-from baserow.core.models import Workspace
-from baserow_enterprise.assistant.tools.registries import AssistantToolType
+from pydantic import Field
+from pydantic_ai import RunContext
+from pydantic_ai.toolsets import FunctionToolset
+
+from baserow_enterprise.assistant.deps import AssistantDeps
 
 from .types import AnyNavigationRequestType
 
-if TYPE_CHECKING:
-    from baserow_enterprise.assistant.assistant import ToolHelpers
 
+def navigate(
+    ctx: RunContext[AssistantDeps],
+    request: Annotated[
+        AnyNavigationRequestType,
+        Field(
+            description="The navigation target: either a specific table or the workspace home."
+        ),
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> str:
+    """\
+    Navigate the UI to a table, view, automation, page, or workspace home.
 
-def get_navigation_tool(
-    user: AbstractUser, workspace: Workspace, tool_helpers: "ToolHelpers"
-) -> Callable[[AnyNavigationRequestType], str]:
+    WHEN to use: User asks to open, go to, or see something in the workspace. Also after creating new resources (views, fields, rows) in an existing database or table.
+    WHAT it does: Navigates the UI to a table, view, automation workflow, builder page, or workspace home.
+    RETURNS: Confirmation of navigation.
+    DO NOT USE when: You need data — use list/get tools instead. Navigation only changes the UI focus.
     """
-    Returns a function that provides navigation instructions to the user based on
-    their current workspace context.
-    """
 
-    def navigate(request: AnyNavigationRequestType) -> str:
-        """
-        Navigate within the workspace.
+    user = ctx.deps.user
+    workspace = ctx.deps.workspace
+    tool_helpers = ctx.deps.tool_helpers
 
-        Use when:
-        - the user asks to open, go, to be brought to something
-        - the user asks to see something from their workspace
-        - if something new has been created in a previously existing database or table,
-        like a view, a field or some rows
-        """
-
-        nonlocal user, workspace
-
+    try:
         location = request.to_location(user, workspace, request)
+    except ObjectDoesNotExist:
+        return "Error: could not navigate — the target was not found. Check that the ID is correct."
 
-        tool_helpers.update_status(
-            _("Navigating to %(location)s...")
-            % {"location": location.to_localized_string()}
-        )
-        return tool_helpers.navigate_to(location)
-
-    return navigate
+    tool_helpers.update_status(
+        _("Navigating to %(location)s...")
+        % {"location": location.to_localized_string()}
+    )
+    return tool_helpers.navigate_to(location)
 
 
-class NavigationToolType(AssistantToolType):
-    type = "navigation"
-
-    @classmethod
-    def get_tool(cls, user, workspace, tool_helpers):
-        return get_navigation_tool(user, workspace, tool_helpers)
+TOOL_FUNCTIONS = [navigate]
+navigation_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)

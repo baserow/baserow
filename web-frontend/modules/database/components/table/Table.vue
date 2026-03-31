@@ -167,7 +167,13 @@
           "
           class="header__filter-item"
         >
-          <ShareViewLink :view="view" :read-only="readOnly"></ShareViewLink>
+          <ShareViewLink
+            :view="view"
+            :read-only="readOnly"
+            :fields="fields"
+            :views="views"
+            :store-prefix="storePrefix"
+          ></ShareViewLink>
         </li>
         <li
           v-if="

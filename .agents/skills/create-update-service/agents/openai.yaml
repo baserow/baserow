@@ -1,0 +1,4 @@
+interface:
+    display_name: 'Integrations and Services'
+    short_description: 'Create or update Baserow Integrations and Services'
+    default_prompt: 'Use $create-update-service to create or update Baserow Integrations and Services.'

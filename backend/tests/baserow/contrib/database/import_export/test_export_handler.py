@@ -40,7 +40,10 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.exceptions import ViewNotInTable
 from baserow.contrib.database.views.models import GridView, GridViewFieldOptions
 from baserow.core.exceptions import PermissionDenied
-from baserow.test_utils.helpers import setup_interesting_test_table
+from baserow.test_utils.helpers import (
+    get_form_view_edit_row_url,
+    setup_interesting_test_table,
+)
 
 
 def _parse_datetime(datetime):
@@ -290,9 +293,11 @@ def test_can_export_every_interesting_different_field_to_csv(
 ):
     storage_mock = MagicMock()
     get_storage_mock.return_value = storage_mock
-    contents = run_export_job_over_interesting_table(
+    contents, row, blank_row, context = run_export_job_over_interesting_table(
         data_fixture, storage_mock, {"exporter_type": "csv"}
     )
+    form_view_edit_row_url_row1 = get_form_view_edit_row_url(context, blank_row)
+    form_view_edit_row_url_row2 = get_form_view_edit_row_url(context, row)
     # noinspection HttpUrlsUsage
     fields = {
         "id": ["1", "2"],
@@ -392,6 +397,10 @@ def test_can_export_every_interesting_different_field_to_csv(
         ],
         "autonumber": ["1", "2"],
         "password": ["", "True"],
+        "form_view_edit_row": [
+            form_view_edit_row_url_row1,
+            form_view_edit_row_url_row2,
+        ],
         "ai": ["", "I'm an AI."],
         "ai_choice": ["", "Object"],
     }
@@ -430,14 +439,14 @@ def test_can_export_every_interesting_different_field_to_csv(
 
 
 def run_export_job_over_interesting_table(data_fixture, storage_mock, options):
-    table, user, _, _, context = setup_interesting_test_table(
+    table, user, row, blank_row, context = setup_interesting_test_table(
         data_fixture, user_kwargs={"email": "user@example.com"}
     )
     grid_view = data_fixture.create_grid_view(table=table)
     job, contents = run_export_job_with_mock_storage(
         table, grid_view, storage_mock, user, options
     )
-    return contents
+    return contents, row, blank_row, context
 
 
 @pytest.mark.django_db

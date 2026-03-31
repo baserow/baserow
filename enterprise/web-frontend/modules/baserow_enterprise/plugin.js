@@ -1,10 +1,17 @@
-import { AuditLogExportJobType } from '@baserow_enterprise/jobTypes'
+import {
+  AuditLogExportJobType,
+  DataScanResultExportJobType,
+} from '@baserow_enterprise/jobTypes'
 import { registerRealtimeEvents } from '@baserow_enterprise/realtime'
 import {
   RolePermissionManagerType,
   WriteFieldValuesPermissionManagerType,
 } from '@baserow_enterprise/permissionManagerTypes'
-import { AuditLogType, AuthProvidersType } from '@baserow_enterprise/adminTypes'
+import {
+  AuditLogType,
+  AuthProvidersType,
+  DataScannerType,
+} from '@baserow_enterprise/adminTypes'
 import authProviderAdminStore from '@baserow_enterprise/store/authProviderAdmin'
 import assistantStore from '@baserow_enterprise/store/assistant'
 import { PasswordAuthProviderType as CorePasswordAuthProviderType } from '@baserow/modules/core/authProviderTypes'
@@ -56,6 +63,7 @@ import {
 } from '@baserow_enterprise/dataSyncTypes'
 import { PeriodicIntervalFieldsConfigureDataSyncType } from '@baserow_enterprise/configureDataSyncTypes'
 import {
+  DataScanNewResultsNotificationType,
   PeriodicDataSyncDeactivatedNotificationType,
   TwoWayDataSyncUpdateFiledNotificationType,
   TwoWaySyncDeactivatedNotificationType,
@@ -68,6 +76,7 @@ import {
   BuilderCustomCodePaidFeature,
   BuilderFileInputElementPaidFeature,
   CoBrandingPaidFeature,
+  DataScannerPaidFeature,
   DataSyncPaidFeature,
   DateDependencyPaidFeature,
   FieldLevelPermissionsPaidFeature,
@@ -124,6 +133,7 @@ export default defineNuxtPlugin({
     )
 
     $registry.register('admin', new AuditLogType(context))
+    $registry.register('admin', new DataScannerType(context))
     $registry.register('plugin', new EnterprisePlugin(context))
 
     $registry.register(
@@ -137,6 +147,7 @@ export default defineNuxtPlugin({
     )
 
     $registry.register('job', new AuditLogExportJobType(context))
+    $registry.register('job', new DataScanResultExportJobType(context))
 
     $registry.register('license', new AdvancedLicenseType(context))
     $registry.register(
@@ -190,6 +201,10 @@ export default defineNuxtPlugin({
       'notification',
       new TwoWaySyncDeactivatedNotificationType(context)
     )
+    $registry.register(
+      'notification',
+      new DataScanNewResultsNotificationType(context)
+    )
 
     $registry.register(
       'configureDataSync',
@@ -219,6 +234,7 @@ export default defineNuxtPlugin({
       new BuilderFileInputElementPaidFeature(context)
     )
 
+    $registry.register('paidFeature', new DataScannerPaidFeature(context))
     $registry.register('paidFeature', new DateDependencyPaidFeature(context))
     $registry.register(
       'timelineFieldRules',

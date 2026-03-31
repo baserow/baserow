@@ -113,6 +113,7 @@ class DatabaseConfig(AppConfig):
             DeleteViewGroupByActionType,
             DeleteViewSortActionType,
             DuplicateViewActionType,
+            EditFormRowActionType,
             OrderViewsActionType,
             RotateViewSlugActionType,
             SubmitFormActionType,
@@ -140,6 +141,7 @@ class DatabaseConfig(AppConfig):
         action_type_registry.register(UpdateViewGroupByActionType())
         action_type_registry.register(DeleteViewGroupByActionType())
         action_type_registry.register(SubmitFormActionType())
+        action_type_registry.register(EditFormRowActionType())
         action_type_registry.register(RotateViewSlugActionType())
         action_type_registry.register(UpdateViewFieldOptionsActionType())
         action_type_registry.register(CreateDecorationActionType())
@@ -196,6 +198,7 @@ class DatabaseConfig(AppConfig):
             EmailFieldType,
             FileFieldType,
             FormulaFieldType,
+            FormViewEditRowFieldType,
             LastModifiedByFieldType,
             LastModifiedFieldType,
             LinkRowFieldType,
@@ -240,6 +243,7 @@ class DatabaseConfig(AppConfig):
         field_type_registry.register(UUIDFieldType())
         field_type_registry.register(AutonumberFieldType())
         field_type_registry.register(PasswordFieldType())
+        field_type_registry.register(FormViewEditRowFieldType())
 
         from .fields.field_aggregations import (
             AverageFieldAggregationType,
@@ -287,6 +291,7 @@ class DatabaseConfig(AppConfig):
             AutonumberFieldConverter,
             FileFieldConverter,
             FormulaFieldConverter,
+            FormViewEditRowFieldConverter,
             LinkRowFieldConverter,
             MultipleCollaboratorsFieldConverter,
             MultipleSelectFieldToSingleSelectFieldConverter,
@@ -308,6 +313,7 @@ class DatabaseConfig(AppConfig):
             SingleSelectFieldToMultipleSelectFieldConverter()
         )
         field_converter_registry.register(FormulaFieldConverter())
+        field_converter_registry.register(FormViewEditRowFieldConverter())
         field_converter_registry.register(AutonumberFieldConverter())
         field_converter_registry.register(PasswordFieldConverter())
 

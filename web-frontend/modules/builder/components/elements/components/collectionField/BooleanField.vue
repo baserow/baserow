@@ -1,5 +1,5 @@
 <template>
-  <ABCheckbox :value="value" :read-only="true" />
+  <ABCheckbox :model-value="value" :read-only="true" />
 </template>
 
 <script>

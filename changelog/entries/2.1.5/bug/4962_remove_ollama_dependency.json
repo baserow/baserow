@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Remove ollama dependency",
+    "issue_origin": "github",
+    "issue_number": 4962,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-03-12"
+}

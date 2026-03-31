@@ -423,6 +423,18 @@ class CoreConfig(AppConfig):
 
         two_factor_auth_type_registry.register(TOTPAuthProviderType())
 
+        from baserow.core.captcha.provider_types import (
+            CloudflareTurnstileCaptchaProviderType,
+        )
+        from baserow.core.captcha.registries import captcha_provider_registry
+
+        captcha_provider_registry.register(CloudflareTurnstileCaptchaProviderType())
+
+        from baserow.api.settings.registries import settings_data_registry
+        from baserow.core.captcha.settings_data_type import CaptchaSettingsDataType
+
+        settings_data_registry.register(CaptchaSettingsDataType())
+
         import baserow.core.notifications.receivers  # noqa: F401
         import baserow.core.notifications.tasks  # noqa: F401
         from baserow.core.notification_types import (

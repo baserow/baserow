@@ -19,7 +19,7 @@
 <script setup>
 import { computed, ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute } from 'vue-router'
-import { useAsyncData, useNuxtApp } from '#app'
+import { useAsyncData, useNuxtApp, useState } from '#app'
 import { useHead } from '#imports'
 
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
@@ -37,9 +37,12 @@ const route = useRoute()
 const nuxtApp = useNuxtApp()
 const { $store, $realtime, $priorityBus, $config, $i18n } = nuxtApp
 
-const originalLanguageBeforeDetect = ref(null)
-originalLanguageBeforeDetect.value = $i18n.locale
-$i18n.locale = $i18n.getBrowserLocale()
+const originalLanguageBeforeDetect = ref($i18n.locale.value)
+const detectedLocale = useState('public-view-detected-locale', () => {
+  return $i18n.getBrowserLocale() || $i18n.defaultLocale
+})
+$i18n.locale.value = detectedLocale.value
+await $i18n.loadLocaleMessages(detectedLocale.value)
 
 const { data, error } = await useAsyncData(
   `database-public-view-${route.params.slug}`,
@@ -132,6 +135,7 @@ const { data, error } = await useAsyncData(
         throw createError({
           statusCode: 500,
           message: e.message || 'Error loading view.',
+          fatal: true,
         })
       }
     }
@@ -139,11 +143,7 @@ const { data, error } = await useAsyncData(
 )
 
 if (error.value) {
-  if (error.value.statusCode === 404) {
-    showError(error.value)
-  } else {
-    throw error.value
-  }
+  throw error.value
 }
 
 if (data.value?.redirect) {
@@ -182,7 +182,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
-  $i18n.locale = originalLanguageBeforeDetect.value
+  $i18n.locale.value = originalLanguageBeforeDetect.value
 
   document.body.removeEventListener('keydown', keydownEvent)
 

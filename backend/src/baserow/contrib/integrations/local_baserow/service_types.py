@@ -374,7 +374,9 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
             return f"field_{new_field_id}" if new_field_id else None
         return property_name
 
-    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
+    def extract_properties(
+        self, service: Service, path: List[str], **kwargs
+    ) -> List[str]:
         """
         Given a list of formula path parts, call the ServiceType's
         extract_properties() method and return a set of unique field IDs.
@@ -387,11 +389,11 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         The path can contain one or more parts, depending on the field type
         and the formula. Some examples of `path` are:
 
-        An element that specifies a specific a field:
-        ['field_5439']
+        An element that specifies a specific field:
+            ['field_5439']
 
-        An element that uses a Link Row Field formula
-        ['field_5569', '0', 'value']
+        An element that uses a Link Row Field formula:
+            ['field_5569', '0', 'value']
         """
 
         # If the path length is greater or equal to 1, then we have
@@ -400,6 +402,14 @@ class LocalBaserowTableServiceType(LocalBaserowServiceType):
         if len(path) >= 1:
             field_dbname, *rest = path
         else:
+            # When path is empty, e.g. `get('data_source.606')`, we should
+            # return all fields since we don't know which specific fields
+            # are needed.
+            if field_objects := self.get_table_field_objects(service):
+                return ["id"] + [
+                    field_object["field"].db_column for field_object in field_objects
+                ]
+
             # In any other scenario, we have a formula that is not a format we
             # can currently parse properly, so we return an empty list.
             return []
@@ -1326,7 +1336,7 @@ class LocalBaserowAggregateRowsUserServiceType(
 
         :param values: The values defining the
             aggregate rows service type.
-        :param user: The user on whos behalf the aggregation is
+        :param user: The user on whose behalf the aggregation is
             requested.
         :param instance: The service instance.
         """
@@ -1487,7 +1497,7 @@ class LocalBaserowAggregateRowsUserServiceType(
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The field with ID {service.field.id} is trashed."
                 )
-            field = service.field
+            field = service.field.specific
             model = self.get_table_model(service)
             model_field = model._meta.get_field(field.db_column)
             queryset = self.build_queryset(
@@ -1499,6 +1509,7 @@ class LocalBaserowAggregateRowsUserServiceType(
             return {
                 "data": {"result": result},
                 "baserow_table_model": model,
+                "field": field,
             }
         except DjangoFieldDoesNotExist as ex:
             raise ServiceImproperlyConfiguredDispatchException(
@@ -1522,9 +1533,22 @@ class LocalBaserowAggregateRowsUserServiceType(
         :return: A dictionary containing the aggregation result.
         """
 
-        return DispatchResult(data=data["data"])
+        # Use the field type's serializer field to ensure the aggregation result
+        # is serialized correctly. Some aggregations can return values which are not
+        # JSON serializable (e.g. Decimal), so we need to use the serializer field
+        # to convert them into a JSON serializable format.
+        result = (
+            data["field"]
+            .get_type()
+            .get_serializer_field(data["field"])
+            .to_representation(data["data"]["result"])
+        )
 
-    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
+        return DispatchResult(data={"result": result})
+
+    def extract_properties(
+        self, service: Service, path: List[str], **kwargs
+    ) -> List[str]:
         """
         Returns the usual properties for this service type.
         """
@@ -2323,7 +2347,7 @@ class LocalBaserowRowsSignalServiceType(
         model: "GeneratedTableModel",
         **kwargs,
     ):
-        def get_data():
+        def get_data(service: Service):
             # Make sure we have an up to date model
             local_model = model.baserow_table.get_model()
 
@@ -2361,11 +2385,13 @@ class LocalBaserowRowsSignalServiceType(
         Import Local Baserow signal service types paths.
         """
 
-        # All Local Baserow signal service types have a length of 3:
-        # {previousNodeId}.{rowIndex}.{fieldName}. By this point, we should
-        # only have two parts: {rowIndex}.{fieldName}.
-        if len(path) == 2:
-            index, field_dbname = path
+        # If we receive:
+        # {previousNodeId}.{rowIndex}.{fieldName}, or
+        # {previousNodeId}.{rowIndex}.{fieldName}.{fieldValueIndex}.{value}
+        #   (e.g. a `link_row`)
+        # then pluck out the row index / field name and use it.
+        if len(path) >= 2:
+            index, field_dbname, *rest = path
         else:
             # In any other scenario, we have a formula that is not a format we
             # can currently import properly, so we return the path as is.
@@ -2380,7 +2406,7 @@ class LocalBaserowRowsSignalServiceType(
             self.import_property_name(field_dbname, id_mapping) or field_dbname
         )
 
-        return [index, imported_field_dbname]
+        return [index, imported_field_dbname, *rest]
 
 
 class LocalBaserowRowsCreatedServiceType(LocalBaserowRowsSignalServiceType):

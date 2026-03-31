@@ -52,6 +52,8 @@ x-backend-variables:
   REDIS_PROTOCOL:
   REDIS_URL:
   REDIS_USER:
+  REDIS_SSL_CERT_REQS:
+  REDIS_SSL_CA_CERTS:
 
   # Set these to enable Baserow to send emails.
   EMAIL_SMTP:
@@ -87,6 +89,9 @@ x-backend-variables:
   BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
   BASEROW_AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
   BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS:
+  BASEROW_AUTOMATION_WORKFLOW_TIMEOUT_HOURS:
+  BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS:
+  BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES:
 
   BASEROW_EXTRA_ALLOWED_HOSTS:
   ADDITIONAL_APPS:
@@ -191,7 +196,7 @@ x-backend-variables:
 
 services:
   backend:
-    image: baserow/backend:2.0.6
+    image: baserow/backend:2.1.6
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
@@ -206,7 +211,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:2.0.6
+    image: baserow/web-frontend:2.1.6
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
@@ -235,6 +240,7 @@ services:
       BASEROW_UNIQUE_ROW_VALUES_SIZE_LIMIT:
       BASEROW_ROW_PAGE_SIZE_LIMIT:
       BASEROW_INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT:
+      BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS:
       BASEROW_INTEGRATIONS_PERIODIC_MINUTE_MIN:
       BASEROW_BUILDER_DOMAINS:
       BASEROW_FRONTEND_SAME_SITE_COOKIE:
@@ -243,13 +249,16 @@ services:
       BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
       BASEROW_AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS:
       BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS:
+      BASEROW_AUTOMATION_WORKFLOW_TIMEOUT_HOURS:
+      BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS:
+      BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES:
     depends_on:
       - backend
     networks:
       local:
 
   celery:
-    image: baserow/backend:2.0.6
+    image: baserow/backend:2.1.6
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -270,7 +279,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:2.0.6
+    image: baserow/backend:2.1.6
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -291,7 +300,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:2.0.6
+    image: baserow/backend:2.1.6
     restart: unless-stopped
     command: celery-beat
     environment:

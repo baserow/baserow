@@ -1,6 +1,7 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.db.models.query import QuerySet
 
 from baserow.contrib.builder.formula_property_extractor import (
@@ -24,6 +25,8 @@ BUILDER_PUBLIC_RECORDS_CACHE_TTL_SECONDS = 60 * 60
 BUILDER_PREVIEW_USED_PROPERTIES_CACHE_TTL_SECONDS = 60 * 10
 
 SENTINEL = "__no_results__"
+
+User = get_user_model()
 
 
 class BuilderHandler:
@@ -56,14 +59,14 @@ class BuilderHandler:
         return f"{USED_PROPERTIES_CACHE_KEY_PREFIX}_version_{builder.id}"
 
     def get_builder_used_properties_cache_key(
-        self, user: UserSourceUser, builder: Builder
+        self, user: Union[User, UserSourceUser], builder: Builder
     ) -> str:
         """
         Returns a cache key that can be used to key the results of making the
         expensive function call to get_builder_used_property_names().
         """
 
-        if user.is_anonymous or not user.role:
+        if user.is_anonymous or not hasattr(user, "role"):
             # When the user is anonymous, only use the prefix + page ID.
             role = ""
         else:

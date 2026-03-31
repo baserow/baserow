@@ -4,7 +4,6 @@ from typing import Annotated, Literal, Optional
 
 from django.utils.translation import gettext as _
 
-import udspy
 from pydantic import BaseModel as PydanticBaseModel
 from pydantic import ConfigDict, Field
 
@@ -12,6 +11,7 @@ from pydantic import ConfigDict, Field
 class BaseModel(PydanticBaseModel):
     model_config = ConfigDict(
         extra="forbid",
+        coerce_numbers_to_str=True,
     )
 
 
@@ -157,7 +157,7 @@ class AiMessage(AiMessageChunk):
     )
 
 
-class AiThinkingMessage(BaseModel, udspy.StreamEvent):
+class AiThinkingMessage(BaseModel):
     type: Literal["ai/thinking"] = AssistantMessageType.AI_THINKING.value
     content: str = Field(
         default="",
@@ -236,16 +236,27 @@ class WorkflowNavigationType(BaseModel):
         return _("workflow %(workflow_name)s") % {"workflow_name": self.workflow_name}
 
 
+class BuilderPageNavigationType(BaseModel):
+    type: Literal["builder-page"]
+    application_id: int
+    page_id: int
+    page_name: str
+
+    def to_localized_string(self):
+        return _("page %(page_name)s") % {"page_name": self.page_name}
+
+
 AnyNavigationType = Annotated[
     TableNavigationType
     | WorkspaceNavigationType
     | ViewNavigationType
-    | WorkflowNavigationType,
+    | WorkflowNavigationType
+    | BuilderPageNavigationType,
     Field(discriminator="type"),
 ]
 
 
-class AiNavigationMessage(BaseModel, udspy.StreamEvent):
+class AiNavigationMessage(BaseModel):
     type: Literal["ai/navigation"] = "ai/navigation"
     location: AnyNavigationType
 

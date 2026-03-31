@@ -80,19 +80,17 @@ export function sortFieldsByOrderAndIdFunction(
  */
 export function filterVisibleFieldsFunction(fieldOptions) {
   return (field) => {
-    const exists = Object.prototype.hasOwnProperty.call(fieldOptions, field.id)
-    return !exists || !fieldOptions[field.id].hidden
+    const options = fieldOptions[field.id]
+    return options && !options.hidden
   }
 }
 
 /**
- * Returns only fields that are visible (not hidden).
+ * Returns only fields that are hidden (not visible).
  */
 export function filterHiddenFieldsFunction(fieldOptions) {
-  return (field) => {
-    const exists = Object.prototype.hasOwnProperty.call(fieldOptions, field.id)
-    return exists && fieldOptions[field.id].hidden
-  }
+  const isFieldVisible = filterVisibleFieldsFunction(fieldOptions)
+  return (field) => !isFieldVisible(field)
 }
 
 /**

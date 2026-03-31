@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Fix slow query fetching notifications to send.",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "core",
+  "bullet_points": [],
+  "created_at": "2026-02-20"
+}

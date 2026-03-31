@@ -1,10 +1,12 @@
 import random
 import uuid
-from typing import Optional
+from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 
+from baserow.core.exceptions import InstanceTypeDoesNotExist
+from baserow.core.formula import BaserowFormulaSyntaxError
 from baserow.core.formula.argument_types import (
     AnyBaserowRuntimeFormulaArgumentType,
     ArrayOfNumbersBaserowRuntimeFormulaArgumentType,
@@ -19,10 +21,12 @@ from baserow.core.formula.registries import RuntimeFormulaFunction
 from baserow.core.formula.types import FormulaArg, FormulaArgs, FormulaContext
 from baserow.core.formula.utils.date import convert_date_format_moment_to_python
 from baserow.core.formula.validator import ensure_array, ensure_string
+from baserow.core.utils import to_path
 
 
 class RuntimeConcat(RuntimeFormulaFunction):
     type = "concat"
+    min_args = 2
 
     def validate_type_of_args(self, args) -> Optional[FormulaArg]:
         arg_type = TextBaserowRuntimeFormulaArgumentType()
@@ -32,7 +36,7 @@ class RuntimeConcat(RuntimeFormulaFunction):
         )
 
     def validate_number_of_args(self, args):
-        return len(args) > 1
+        return len(args) >= self.min_args
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return "".join([ensure_string(a) for a in args])
@@ -41,6 +45,34 @@ class RuntimeConcat(RuntimeFormulaFunction):
 class RuntimeGet(RuntimeFormulaFunction):
     type = "get"
     args = [TextBaserowRuntimeFormulaArgumentType()]
+
+    def validate_args(
+        self,
+        args: FormulaArgs,
+        validation_context: Optional[Dict[str, Any]] = None,
+    ):
+        super().validate_args(args)
+
+        provider_name, *rest = to_path(args[0])
+        if not provider_name:
+            raise BaserowFormulaSyntaxError(
+                f"The '{self.type}' function arguments "
+                "must start with a formula provider name."
+            )
+
+        data_provider_type_registry = validation_context["data_provider_type_registry"]
+        try:
+            provider = data_provider_type_registry.get(provider_name)
+        except InstanceTypeDoesNotExist:
+            # Re-raise the exception but with a more precise message. We
+            # are at a stage where we have enough variables that we can
+            # precisely say where the argument is wrong.
+            raise InstanceTypeDoesNotExist(
+                provider_name,
+                f"The formula provider '{provider_name}' "
+                f"used in '{args[0]}' does not exist in this module.",
+            )
+        provider.is_valid(rest)
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return context[args[0]]

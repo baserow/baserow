@@ -112,6 +112,7 @@ export default defineNuxtModule({
     )
 
     addPlugin(resolve('plugins/store.js'))
+    addPlugin(resolve('plugins/errorHandler.js'))
     addPlugin(resolve('plugins/filters.js'))
     addPlugin(resolve('plugins/vuexState.js'))
     addPlugin(resolve('plugin.js'))
@@ -129,8 +130,8 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/ensureRender.js'))
     addPlugin(resolve('plugins/version.js'))
     addPlugin(resolve('plugins/posthog.js'))
+    addPlugin(resolve('plugins/sentry-user.js'))
     addPlugin(resolve('plugins/vueDatepicker.js'))
-    //addPlugin(resolve('plugins/router.js'))
     addPlugin(resolve('plugins/routeMounted.js'))
     addPlugin(resolve('plugins/storeRegister.js'))
     addPlugin(resolve('plugins/isWebFrontendHostname.js'))
@@ -174,6 +175,11 @@ export default defineNuxtModule({
     addRouteMiddleware({
       name: 'urlCheck',
       path: resolve('./middleware/urlCheck'),
+    })
+
+    addRouteMiddleware({
+      name: 'dashboardRedirect',
+      path: resolve('./middleware/dashboardRedirect'),
     })
 
     // Changes the stroke-width of the iconoir svg files because this way, we don't

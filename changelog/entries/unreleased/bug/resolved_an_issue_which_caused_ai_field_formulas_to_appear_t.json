@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved an issue which caused AI field formulas to appear twice in the UI.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-03-18"
+}

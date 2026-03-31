@@ -16,23 +16,33 @@ export const ZWSManagementExtension = Extension.create({
         key: new PluginKey('zwsManagement'),
         appendTransaction(transactions, oldState, newState) {
           const tr = newState.tr
-          let modified = false
 
-          // Phase 1: Clean up consecutive ZWS
+          // Phase 1: Clean up consecutive ZWS.
+          // Collect replacements first, then apply in reverse order to avoid
+          // position drift: each insertText changes the document length, so
+          // positions calculated during iteration become invalid after the first
+          // modification. Applying in reverse (highest pos first) keeps earlier
+          // positions valid for subsequent operations.
+          const zwsReplacements = []
           newState.doc.descendants((node, pos) => {
             if (node.isText && node.text) {
-              // Check if the text contains multiple consecutive ZWS
               const text = node.text
               if (text.includes('\u200B\u200B')) {
-                // Replace multiple consecutive ZWS with a single one
                 const cleanedText = text.replace(/\u200B+/g, '\u200B')
                 if (cleanedText !== text) {
-                  tr.insertText(cleanedText, pos, pos + node.nodeSize)
-                  modified = true
+                  zwsReplacements.push({
+                    cleanedText,
+                    pos,
+                    end: pos + node.nodeSize,
+                  })
                 }
               }
             }
           })
+          let modified = Boolean(zwsReplacements.length)
+          for (const { cleanedText, pos, end } of zwsReplacements.reverse()) {
+            tr.insertText(cleanedText, pos, end)
+          }
 
           // Apply cleanup changes before checking for missing ZWS
           const docAfterCleanup = modified ? tr.doc : newState.doc

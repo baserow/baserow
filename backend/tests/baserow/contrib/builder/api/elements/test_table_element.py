@@ -64,14 +64,14 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
                 {
                     "name": "Name",
                     "type": "text",
-                    "value": "get('test1')",
+                    "value": "get('data_source.123')",
                     "uid": uuids[0],
                 },
                 {
                     "name": "Color",
                     "type": "link",
-                    "navigate_to_url": "get('test2')",
-                    "link_name": "get('test3')",
+                    "navigate_to_url": "get('data_source.124')",
+                    "link_name": "get('data_source.125')",
                     "target": "self",
                     "variant": LinkElement.VARIANTS.BUTTON,
                     "uid": uuids[1],
@@ -79,7 +79,7 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
                 {
                     "name": "Question",
                     "type": "text",
-                    "value": "get('test3')",
+                    "value": "get('data_source.126')",
                     "uid": uuids[2],
                 },
             ],
@@ -97,7 +97,7 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
             "name": "Name",
             "type": "text",
             "value": BaserowFormulaObject(
-                formula="get('test1')",
+                formula="get('data_source.123')",
                 version=BASEROW_FORMULA_VERSION_INITIAL,
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
             ),
@@ -110,12 +110,12 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
             "navigate_to_page_id": None,
             "navigation_type": NavigationElementMixin.NAVIGATION_TYPES.PAGE,
             "navigate_to_url": BaserowFormulaObject(
-                formula="get('test2')",
+                formula="get('data_source.124')",
                 version=BASEROW_FORMULA_VERSION_INITIAL,
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
             ),
             "link_name": BaserowFormulaObject(
-                formula="get('test3')",
+                formula="get('data_source.125')",
                 version=BASEROW_FORMULA_VERSION_INITIAL,
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
             ),
@@ -130,7 +130,7 @@ def test_can_update_a_table_element_fields(api_client, data_fixture):
             "name": "Question",
             "type": "text",
             "value": BaserowFormulaObject(
-                formula="get('test3')",
+                formula="get('data_source.126')",
                 version=BASEROW_FORMULA_VERSION_INITIAL,
                 mode=BASEROW_FORMULA_MODE_SIMPLE,
             ),

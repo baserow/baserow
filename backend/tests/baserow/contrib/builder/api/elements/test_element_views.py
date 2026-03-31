@@ -259,6 +259,36 @@ def test_update_element(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_updating_element_with_invalid_formula_arguments_throws_error(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_heading_element(page=page)
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": element.id})
+    response = api_client.patch(
+        url,
+        {"value": "get('foobar.123')", "level": 3},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            "value": [
+                {
+                    "error": "The formula provider 'foobar' used "
+                    "in 'foobar.123' does not exist in this module.",
+                    "code": "invalid_formula_argument",
+                }
+            ]
+        },
+    }
+
+
+@pytest.mark.django_db
 def test_update_element_styles(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)

@@ -297,8 +297,8 @@ def test_notifications_are_grouped_when_user_is_added_to_multiple_rows(
                 },
                 "workspace": {"id": workspace.id},
                 "data": {
-                    "row_id": row_1_id,
-                    "row_name": f"unnamed row {row_1_id}",
+                    "row_id": row_2_id,
+                    "row_name": f"unnamed row {row_2_id}",
                     "field_id": collaborator_field.id,
                     "field_name": collaborator_field.name,
                     "table_id": table.id,
@@ -319,8 +319,8 @@ def test_notifications_are_grouped_when_user_is_added_to_multiple_rows(
                 },
                 "workspace": {"id": workspace.id},
                 "data": {
-                    "row_id": row_2_id,
-                    "row_name": f"unnamed row {row_2_id}",
+                    "row_id": row_1_id,
+                    "row_name": f"unnamed row {row_1_id}",
                     "field_id": collaborator_field.id,
                     "field_name": collaborator_field.name,
                     "table_id": table.id,

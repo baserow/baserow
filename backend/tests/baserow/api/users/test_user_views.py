@@ -4,8 +4,10 @@ from unittest.mock import patch
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.shortcuts import reverse
+from django.test.utils import override_settings
 
 import pytest
+import responses
 from freezegun import freeze_time
 from rest_framework.status import (
     HTTP_200_OK,
@@ -1500,3 +1502,135 @@ def test_change_email_same_as_current(data_fixture, client):
 
     user.refresh_from_db()
     assert user.email == "test@test.nl"
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_ENABLE_CAPTCHA="")
+def test_create_user_without_captcha_when_disabled(client, data_fixture):
+    data_fixture.create_password_provider()
+    response = client.post(
+        reverse("api:user:index"),
+        {
+            "name": "Test",
+            "email": "captcha_disabled@test.nl",
+            "password": "thisIsAValidPassword",
+        },
+        format="json",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert User.objects.filter(email="captcha_disabled@test.nl").exists()
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_ENABLE_CAPTCHA="all",
+    BASEROW_CAPTCHA_PROVIDER="cloudflare_turnstile",
+    BASEROW_CLOUDFLARE_TURNSTILE_SITE_KEY="test-site-key",
+    BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY="test-secret-key",
+)
+def test_create_user_captcha_required_when_enabled(client, data_fixture):
+    data_fixture.create_password_provider()
+    response = client.post(
+        reverse("api:user:index"),
+        {
+            "name": "Test",
+            "email": "captcha_required@test.nl",
+            "password": "thisIsAValidPassword",
+        },
+        format="json",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_CAPTCHA_VERIFICATION_FAILED"
+    assert not User.objects.filter(email="captcha_required@test.nl").exists()
+
+
+@pytest.mark.django_db
+@responses.activate
+@override_settings(
+    BASEROW_ENABLE_CAPTCHA="all",
+    BASEROW_CAPTCHA_PROVIDER="cloudflare_turnstile",
+    BASEROW_CLOUDFLARE_TURNSTILE_SITE_KEY="test-site-key",
+    BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY="test-secret-key",
+)
+def test_create_user_captcha_valid_token(client, data_fixture):
+    from baserow.core.captcha.provider_types import TURNSTILE_VERIFY_URL
+
+    responses.add(
+        responses.POST,
+        TURNSTILE_VERIFY_URL,
+        json={"success": True},
+        status=200,
+    )
+
+    data_fixture.create_password_provider()
+    response = client.post(
+        reverse("api:user:index"),
+        {
+            "name": "Test",
+            "email": "captcha_valid@test.nl",
+            "password": "thisIsAValidPassword",
+            "captcha_token": "valid-token",
+        },
+        format="json",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert User.objects.filter(email="captcha_valid@test.nl").exists()
+    assert len(responses.calls) == 1
+
+
+@pytest.mark.django_db
+@responses.activate
+@override_settings(
+    BASEROW_ENABLE_CAPTCHA="all",
+    BASEROW_CAPTCHA_PROVIDER="cloudflare_turnstile",
+    BASEROW_CLOUDFLARE_TURNSTILE_SITE_KEY="test-site-key",
+    BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY="test-secret-key",
+)
+def test_create_user_captcha_invalid_token(client, data_fixture):
+    from baserow.core.captcha.provider_types import TURNSTILE_VERIFY_URL
+
+    responses.add(
+        responses.POST,
+        TURNSTILE_VERIFY_URL,
+        json={"success": False, "error-codes": ["invalid-input-response"]},
+        status=200,
+    )
+
+    data_fixture.create_password_provider()
+    response = client.post(
+        reverse("api:user:index"),
+        {
+            "name": "Test",
+            "email": "captcha_invalid@test.nl",
+            "password": "thisIsAValidPassword",
+            "captcha_token": "invalid-token",
+        },
+        format="json",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_CAPTCHA_VERIFICATION_FAILED"
+    assert not User.objects.filter(email="captcha_invalid@test.nl").exists()
+
+
+@pytest.mark.django_db
+@override_settings(
+    BASEROW_ENABLE_CAPTCHA="invitations",
+    BASEROW_CAPTCHA_PROVIDER="cloudflare_turnstile",
+    BASEROW_CLOUDFLARE_TURNSTILE_SITE_KEY="test-site-key",
+    BASEROW_CLOUDFLARE_TURNSTILE_SECRET_KEY="test-secret-key",
+)
+def test_create_user_captcha_only_for_configured_context(client, data_fixture):
+    data_fixture.create_password_provider()
+    # Captcha is enabled for "invitations" only, not "signup",
+    # so signup should work without a captcha token.
+    response = client.post(
+        reverse("api:user:index"),
+        {
+            "name": "Test",
+            "email": "captcha_context@test.nl",
+            "password": "thisIsAValidPassword",
+        },
+        format="json",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert User.objects.filter(email="captcha_context@test.nl").exists()

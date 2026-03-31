@@ -1,8 +1,8 @@
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterable, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.db import router
-from django.db.models import Q, QuerySet
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
@@ -277,12 +277,12 @@ class CoreRouterActionNodeType(AutomationNodeActionNodeType):
         :return: The prepared values for the router node.
         """
 
-        if instance:
-            service = instance.service.specific
-
+        service_values = values.get("service", {})
+        if instance and "edges" in service_values:
             prepared_uids = [
-                str(edge["uid"]) for edge in values["service"].get("edges", [])
+                str(edge["uid"]) for edge in service_values.get("edges", [])
             ]
+            service = instance.service.specific
             persisted_uids = [str(edge.uid) for edge in service.edges.only("uid")]
             removed_uids = list(set(persisted_uids) - set(prepared_uids))
 
@@ -340,8 +340,8 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
     def on_event(
         self,
-        services: QuerySet[Service],
-        event_payload: List[Dict] | None | Callable = None,
+        services: Iterable[Service],
+        event_payload: Dict | None | Callable = None,
         user: Optional[AbstractUser] = None,
     ):
         from baserow.contrib.automation.workflows.handler import (
@@ -363,15 +363,22 @@ class AutomationNodeTriggerType(AutomationNodeType):
             .select_related("workflow__automation__workspace")
         )
 
-        if triggers and callable(event_payload):
-            event_payload = event_payload()
+        # For perf reasons, store the trigger<->service relationship.
+        service_map = {service.id: service for service in services}
 
         for trigger in triggers:
-            workflow = trigger.workflow
+            # If we've received a callable payload, call it with the specific service,
+            # this can give us a payload that is specific to the trigger's service.
+            service_payload = (
+                event_payload(service_map[trigger.service_id])
+                if callable(event_payload)
+                else event_payload
+            )
 
+            workflow = trigger.workflow
             AutomationWorkflowHandler().async_start_workflow(
                 workflow,
-                event_payload,
+                service_payload,
             )
 
             # We don't want subsequent events to trigger a new test run

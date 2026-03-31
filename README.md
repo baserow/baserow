@@ -28,7 +28,7 @@ existing tools and performs at any scale.
 [![Deploy to Heroku](https://www.herokucdn.com/deploy/button.svg)](https://www.heroku.com/deploy/?template=https://github.com/baserow/baserow/tree/master)
 
 ```bash
-docker run -v baserow_data:/baserow/data -p 80:80 -p 443:443 baserow/baserow:2.0.6
+docker run -v baserow_data:/baserow/data -p 80:80 -p 443:443 baserow/baserow:2.1.6
 ```
 
 ![Baserow database screenshot](docs/assets/screenshot.png "Baserow database screenshot")
@@ -102,21 +102,13 @@ Unlike proprietary tools like Airtable, Baserow gives you **full data ownership*
 **infinite scalability**, and **no vendor lock-in** — all while keeping the simplicity
 of a spreadsheet interface.
 
-## Plugin development
-
-Because of the modular architecture of Baserow it is possible to create plugins. Make
-your own fields, views, applications, pages, or endpoints. We also have a plugin
-boilerplate to get you started right away. More information can be found in the
-[plugin introduction](./docs/plugins/introduction.md) and in the
-[plugin boilerplate docs](./docs/plugins/boilerplate.md).
-
 ## Meta
 
 Created by Baserow B.V. - bram@baserow.io.
 
 Distributes under the MIT license. See `LICENSE` for more information.
 
-Version: 2.0.6
+Version: 2.1.6
 
 The official repository can be found at https://github.com/baserow/baserow.
 

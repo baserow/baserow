@@ -44,6 +44,7 @@ from baserow.contrib.automation.api.nodes.serializers import (
 from baserow.contrib.automation.api.workflows.errors import (
     ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
 )
+from baserow.contrib.automation.application_types import AutomationApplicationType
 from baserow.contrib.automation.nodes.actions import (
     CreateAutomationNodeActionType,
     DeleteAutomationNodeActionType,
@@ -72,6 +73,7 @@ from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
 )
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
 
 AUTOMATION_NODES_TAG = "Automation nodes"
@@ -175,7 +177,7 @@ class AutomationNodesView(APIView):
         }
     )
     def get(self, request, workflow_id: int):
-        workflow = AutomationWorkflowService().get_workflow(request.user, workflow_id)
+        workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
 
         nodes = AutomationNodeService().get_nodes(request.user, workflow)
 
@@ -243,6 +245,7 @@ class AutomationNodeView(APIView):
             automation_node_type_registry,
             request.data,
             base_serializer_class=UpdateAutomationNodeSerializer,
+            serializer_class_context={"application_type": AutomationApplicationType},
             partial=True,
             return_validated=True,
         )

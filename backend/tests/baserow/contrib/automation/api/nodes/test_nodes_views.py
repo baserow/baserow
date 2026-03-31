@@ -375,7 +375,6 @@ def test_duplicate_node_invalid_node(api_client, data_fixture):
 def test_update_node(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workflow = data_fixture.create_automation_workflow(user)
-    trigger = workflow.get_trigger()
     node = data_fixture.create_automation_node(user=user, workflow=workflow)
 
     assert node.label == ""
@@ -391,6 +390,38 @@ def test_update_node(api_client, data_fixture):
         "service": AnyDict(),
         "type": node.get_type().type,
         "workflow": workflow.id,
+    }
+
+
+@pytest.mark.django_db
+def test_updating_node_with_invalid_formula_arguments_throws_error(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    node = data_fixture.create_local_baserow_get_row_action_node(
+        user=user, workflow=workflow
+    )
+    service_type = node.service.get_type()
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": node.id}),
+        {"service": {"type": service_type.type, "row_id": "get('foobar.123')"}},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            "service": {
+                "row_id": [
+                    {
+                        "error": "The formula provider 'foobar' used "
+                        "in 'foobar.123' does not exist in this module.",
+                        "code": "invalid_formula_argument",
+                    }
+                ]
+            }
+        },
     }
 
 
@@ -674,6 +705,44 @@ def test_updating_router_node_with_edge_removals_when_they_have_output_nodes_dis
         "but they still point to output nodes. These nodes must be trashed before "
         "the router can be updated.",
     }
+
+
+@pytest.mark.django_db
+def test_updating_router_node_without_service_allowed(
+    api_client,
+    data_fixture,
+):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user)
+    service = data_fixture.create_core_router_service(default_edge_label="Default")
+    router = data_fixture.create_core_router_action_node(
+        workflow=workflow, service=service, label="Original"
+    )
+    edge = data_fixture.create_core_router_service_edge(
+        service=service, label="Do this", condition="'true'"
+    )
+
+    assert (
+        workflow.get_graph().get_node_at_position(router, "south", str(edge.uid))
+        is not None
+    )
+
+    response = api_client.patch(
+        reverse(API_URL_ITEM, kwargs={"node_id": router.id}),
+        {"label": "Modified"},
+        **get_api_kwargs(token),
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["label"] == "Modified"
+    assert response_json["service"]["edges"] == [
+        {
+            "uid": str(edge.uid),
+            "label": edge.label,
+            "order": AnyStr(),
+            "condition": edge.condition,
+        }
+    ]
 
 
 @pytest.mark.django_db

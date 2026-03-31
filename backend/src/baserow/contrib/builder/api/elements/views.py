@@ -38,6 +38,7 @@ from baserow.contrib.builder.api.elements.serializers import (
     UpdateElementSerializer,
 )
 from baserow.contrib.builder.api.pages.errors import ERROR_PAGE_DOES_NOT_EXIST
+from baserow.contrib.builder.application_types import BuilderApplicationType
 from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.elements.exceptions import (
     CollectionElementPropertyOptionsNotUnique,
@@ -148,7 +149,9 @@ class ElementsView(APIView):
         }
     )
     @validate_body_custom_fields(
-        element_type_registry, base_serializer_class=CreateElementSerializer
+        element_type_registry,
+        base_serializer_class=CreateElementSerializer,
+        serializer_class_context={"application_type": BuilderApplicationType},
     )
     def post(self, request, data: Dict, page_id: int):
         """Creates a new element."""
@@ -228,6 +231,7 @@ class ElementView(APIView):
             element_type_registry,
             request.data,
             base_serializer_class=UpdateElementSerializer,
+            serializer_class_context={"application_type": BuilderApplicationType},
             partial=True,
             return_validated=True,
         )

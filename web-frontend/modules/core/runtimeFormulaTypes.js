@@ -8,12 +8,14 @@ import {
   TimezoneBaserowRuntimeFormulaArgumentType,
   AnyBaserowRuntimeFormulaArgumentType,
   ArrayBaserowRuntimeFormulaArgumentType,
+  ArrayOfNumbersBaserowRuntimeFormulaArgumentType,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
+  InvalidFormulaArgument,
   InvalidFormulaArgumentType,
   InvalidNumberOfArguments,
 } from '@baserow/modules/core/formula/parser/errors'
-import { reverseString } from '@baserow/modules/core/utils/string'
+import { reverseString, generateUUID } from '@baserow/modules/core/utils/string'
 import { avg, sum } from '@baserow/modules/core/utils/number'
 import {
   ensureString,
@@ -71,21 +73,22 @@ export class RuntimeFormulaFunction extends Registerable {
   }
 
   /**
-   * This function can be called to validate all arguments given to the formula
+   * This function can be called to perform basic argument validation on the formula
+   * functions. By default, it'll check if the argument types match what the function
+   * expects.
    *
-   * @param args - The arguments provided to the formula
-   * @throws InvalidNumberOfArguments - If the number of arguments is incorrect
+   * Individual formula functions should override this method if they need to
+   * perform custom argument validation beyond number and type checks.
+   *
+   * @param {Array} args - The parsed ANTLR arguments.
+   * @param {Object} validationContext - E.g. { dataProviderRegistry }
+   * @param {Object} ctx - ANTLR context object
    * @throws InvalidFormulaArgumentType - If any of the arguments have a wrong type
    */
-  validateArgs(args, validateType = true) {
-    if (!this.validateNumberOfArgs(args)) {
-      throw new InvalidNumberOfArguments(this, args)
-    }
-    if (validateType) {
-      const invalidArg = this.validateTypeOfArgs(args)
-      if (invalidArg) {
-        throw new InvalidFormulaArgumentType(this, invalidArg)
-      }
+  validateArgs(args, { ctx = null, validationContext = {} } = {}) {
+    const invalidArg = this.validateTypeOfArgs(args)
+    if (invalidArg) {
+      throw new InvalidFormulaArgumentType(this, invalidArg)
     }
   }
 
@@ -93,15 +96,19 @@ export class RuntimeFormulaFunction extends Registerable {
    * This function validates that the number of args is correct.
    *
    * @param args - The args passed to the execute function
-   * @returns {boolean} - If the number is correct.
+   * @param throwOnError - Whether to throw an error if the number of args is incorrect
+   * @throws {InvalidNumberOfArguments} - If the number of args is incorrect
    */
-  validateNumberOfArgs(args) {
+  validateNumberOfArgs(args, throwOnError = false) {
     if (this.numArgs === null) return true
-
     const requiredArgs = this.args.filter((arg) => !arg.optional).length
     const totalArgs = this.args.length
-
-    return args.length >= requiredArgs && args.length <= totalArgs
+    const validArgLength =
+      args.length >= requiredArgs && args.length <= totalArgs
+    if (!validArgLength && throwOnError) {
+      throw new InvalidNumberOfArguments(this, requiredArgs, totalArgs)
+    }
+    return validArgLength
   }
 
   /**
@@ -217,8 +224,18 @@ export class RuntimeConcat extends RuntimeFormulaFunction {
     return args.map((arg) => ensureString(arg)).join('')
   }
 
-  validateNumberOfArgs(args) {
-    return args.length > 1
+  /**
+   * Validates that the number of args is at least 2.
+   * @param args - The ANTLR parsed args.
+   * @param throwOnError - Whether to throw an error if the number of args is incorrect.
+   * @return {boolean} - Whether the number of args is valid.
+   */
+  validateNumberOfArgs(args, throwOnError = false) {
+    const validArgLength = args.length > 1
+    if (!validArgLength && throwOnError) {
+      throw new InvalidNumberOfArguments(this, 2)
+    }
+    return validArgLength
   }
 
   toNode(args, mode = 'simple') {
@@ -346,6 +363,67 @@ export class RuntimeGet extends RuntimeFormulaFunction {
         result: "'Hello world'",
       },
     ]
+  }
+
+  /**
+   * Validates the arguments for the get() function.
+   *
+   * @param {Array} args - The accepted ANTLR parse tree nodes for arguments
+   *
+   * @param {Object} validationContext - Contains { dataProviderRegistry }
+   * @param {Object} ctx - ANTLR context object
+   * @throws {InvalidFormulaArgument} - If the argument is invalid.
+   */
+  validateArgs(args, { ctx = null, validationContext = {} } = {}) {
+    // Perform our argument count and type validation first.
+    super.validateArgs(args, { ctx, validationContext })
+
+    // Only continue with validation if we have a context to work with.
+    // In the validation visitor, we'll have additional context, in the
+    // execution visitor, we won't.
+    if (_.isEmpty(validationContext)) {
+      return
+    }
+
+    const { $i18n } = this.app
+    const { dataProviderRegistry } = validationContext
+    const path = args[0]
+
+    // Ensure the path is dot-delimited (e.g., 'a.b' or 'a.b.c')
+    if (!path.includes('.')) {
+      throw new InvalidFormulaArgument(
+        this.getType(),
+        $i18n.t('runtimeGetErrors.invalidPath', { path })
+      )
+    }
+    const [providerName, ...rest] = _.toPath(path)
+
+    // Ensure that a provider has been given to us.
+    if (!providerName) {
+      throw new InvalidFormulaArgument(
+        this.getType(),
+        $i18n.t('runtimeGetErrors.missingProvider', { path })
+      )
+    }
+
+    // Check if provider exists in registry
+    const provider = dataProviderRegistry.find(
+      (p) => p.getType() === providerName
+    )
+    if (!provider) {
+      throw new InvalidFormulaArgument(
+        this.getType(),
+        $i18n.t('runtimeGetErrors.unknownProvider', { providerName })
+      )
+    }
+
+    // Ask the provider to validate this path.
+    if (!provider.isValid(rest)) {
+      throw new InvalidFormulaArgument(
+        this.getType(),
+        $i18n.t('runtimeGetErrors.invalidProviderPath', { providerName, path })
+      )
+    }
   }
 }
 
@@ -1666,7 +1744,7 @@ export class RuntimeGenerateUUID extends RuntimeFormulaFunction {
   }
 
   execute(context, args) {
-    return crypto.randomUUID()
+    return generateUUID()
   }
 
   getDescription() {
@@ -2251,7 +2329,7 @@ export class RuntimeSum extends RuntimeFormulaFunction {
   }
 
   get args() {
-    return [new ArrayBaserowRuntimeFormulaArgumentType()]
+    return [new ArrayOfNumbersBaserowRuntimeFormulaArgumentType()]
   }
 
   execute(context, [arg]) {
@@ -2295,7 +2373,7 @@ export class RuntimeAvg extends RuntimeFormulaFunction {
   }
 
   get args() {
-    return [new ArrayBaserowRuntimeFormulaArgumentType()]
+    return [new ArrayOfNumbersBaserowRuntimeFormulaArgumentType()]
   }
 
   execute(context, [arg]) {

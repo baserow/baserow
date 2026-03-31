@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, call, patch
 
 from django.db import transaction
-from django.utils.timezone import now
 
 import pytest
 from freezegun import freeze_time
@@ -16,16 +15,18 @@ from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeT
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.integrations.core.constants import (
-    PERIODIC_INTERVAL_DAY,
     PERIODIC_INTERVAL_HOUR,
     PERIODIC_INTERVAL_MINUTE,
-    PERIODIC_INTERVAL_MONTH,
-    PERIODIC_INTERVAL_WEEK,
 )
 from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import CorePeriodicServiceType
+from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import service_type_registry
+
+from .cases.core_periodic_service_type import (
+    CALL_PERIODIC_SERVICES_THAT_ARE_DUE_CASES,
+)
 
 
 @pytest.mark.django_db
@@ -46,7 +47,10 @@ def test_periodic_trigger_service_type_generate_schema(data_fixture):
     assert CorePeriodicServiceType().generate_schema(service) == {
         "title": f"Periodic{service.id}Schema",
         "type": "object",
-        "properties": {"triggered_at": {"type": "string", "title": "Triggered at"}},
+        "properties": {
+            "triggered_at": {"type": "string", "title": "Previous scheduled run"},
+            "next_run_at": {"type": "string", "title": "Next scheduled run"},
+        },
     }
 
 
@@ -58,22 +62,22 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
         automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
 
-    node_handler = AutomationNodeHandler()
-    service_handler = ServiceHandler()
-    node_type = automation_node_type_registry.get(CorePeriodicTriggerNodeType.type)
     service_type = CorePeriodicServiceType()
+    node_type = automation_node_type_registry.get(CorePeriodicTriggerNodeType.type)
 
-    service = service_handler.create_service(
-        service_type,
-        interval=PERIODIC_INTERVAL_MINUTE,
-        minute=15,
-        hour=10,
-    )
-    trigger_node = node_handler.create_node(
-        node_type=node_type,
-        workflow=workflow,
-        service=service,
-    )
+    with freeze_time("2025-02-15 10:30:45"):
+        service = ServiceHandler().create_service(
+            service_type,
+            interval=PERIODIC_INTERVAL_MINUTE,
+            minute=15,
+            hour=10,
+        )
+        service_type.prepare_values({}, user, service)
+        trigger_node = AutomationNodeHandler().create_node(
+            node_type=node_type,
+            workflow=workflow,
+            service=service,
+        )
 
     assert trigger_node.workflow == workflow
     assert trigger_node.service == service
@@ -83,21 +87,29 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
     assert service_specific.minute == 15
     assert service_specific.hour == 10
     assert service_specific.last_periodic_run is None
+    assert service_specific.next_run_at is None
 
-    updated_service = service_handler.update_service(
-        service_type=service_type,
-        service=service,
-        interval=PERIODIC_INTERVAL_HOUR,
-        minute=30,
-        hour=14,
-        day_of_week=2,  # Wednesday
-    ).service
+    with freeze_time("2025-02-15 11:00:00"):
+        updated_service = (
+            ServiceHandler()
+            .update_service(
+                service_type=service_type,
+                service=service,
+                interval=PERIODIC_INTERVAL_HOUR,
+                minute=30,
+                hour=14,
+                day_of_week=2,  # Wednesday
+            )
+            .service
+        )
+        service_type.prepare_values({}, user, updated_service)
 
     updated_service_specific = updated_service.specific
     assert updated_service_specific.interval == PERIODIC_INTERVAL_HOUR
     assert updated_service_specific.minute == 30
     assert updated_service_specific.hour == 14
     assert updated_service_specific.day_of_week == 2
+    assert updated_service_specific.next_run_at is None
 
 
 @pytest.mark.django_db
@@ -136,27 +148,26 @@ def test_periodic_service_prepare_values_validates_minute_minimum(data_fixture):
 @patch(
     "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.start_workflow"
 )
-def test_call_periodic_services_that_are_not_published(
-    mock_start_workflow, data_fixture
-):
+def test_call_periodic_services_in_draft_workflow(mock_start_workflow, data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
         automation=automation, state=WorkflowState.DRAFT, create_trigger=False
     )
+    service = data_fixture.create_core_periodic_service(
+        interval=PERIODIC_INTERVAL_MINUTE,
+        last_periodic_run=None,
+    )
     data_fixture.create_periodic_trigger_node(
         workflow=workflow,
-        service_kwargs={
-            "interval": PERIODIC_INTERVAL_MINUTE,
-            "last_periodic_run": None,
-        },
+        service=service,
     )
 
     with freeze_time("2025-02-15 10:30:45"):
         with transaction.atomic():
             service_type_registry.get(
                 CorePeriodicServiceType.type
-            ).call_periodic_services_that_are_due(now())
+            ).call_periodic_services_that_are_due()
 
     mock_start_workflow.delay.assert_not_called()
 
@@ -165,25 +176,26 @@ def test_call_periodic_services_that_are_not_published(
 @patch(
     "baserow.contrib.automation.workflows.handler.AutomationWorkflowHandler.start_workflow"
 )
-def test_call_periodic_services_that_are_paused(mock_start_workflow, data_fixture):
+def test_call_periodic_services_in_paused_workflow(mock_start_workflow, data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
     workflow = data_fixture.create_automation_workflow(
         automation=automation, state=WorkflowState.PAUSED, create_trigger=False
     )
+    service = data_fixture.create_core_periodic_service(
+        interval=PERIODIC_INTERVAL_MINUTE,
+        last_periodic_run=None,
+    )
     data_fixture.create_periodic_trigger_node(
         workflow=workflow,
-        service_kwargs={
-            "interval": PERIODIC_INTERVAL_MINUTE,
-            "last_periodic_run": None,
-        },
+        service=service,
     )
 
     with freeze_time("2025-02-15 10:30:45"):
         with transaction.atomic():
             service_type_registry.get(
                 CorePeriodicServiceType.type
-            ).call_periodic_services_that_are_due(now())
+            ).call_periodic_services_that_are_due()
 
     mock_start_workflow.delay.assert_not_called()
 
@@ -198,12 +210,13 @@ def test_call_periodic_services_that_are_locked(mock_start_workflow, data_fixtur
     workflow = data_fixture.create_automation_workflow(
         automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
+    service = data_fixture.create_core_periodic_service(
+        interval=PERIODIC_INTERVAL_MINUTE,
+        last_periodic_run=None,
+    )
     trigger = data_fixture.create_periodic_trigger_node(
         workflow=workflow,
-        service_kwargs={
-            "interval": PERIODIC_INTERVAL_MINUTE,
-            "last_periodic_run": None,
-        },
+        service=service,
     )
 
     with transaction.atomic(using="default-copy"):
@@ -215,7 +228,7 @@ def test_call_periodic_services_that_are_locked(mock_start_workflow, data_fixtur
             with transaction.atomic():
                 service_type_registry.get(
                     CorePeriodicServiceType.type
-                ).call_periodic_services_that_are_due(now())
+                ).call_periodic_services_that_are_due()
 
         mock_start_workflow.delay.assert_not_called()
 
@@ -232,39 +245,52 @@ def test_call_multiple_periodic_services_that_are_due(
     workflow_1 = data_fixture.create_automation_workflow(
         automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
-    data_fixture.create_periodic_trigger_node(
-        workflow=workflow_1,
-        service_kwargs={
-            "interval": PERIODIC_INTERVAL_MINUTE,
-            "last_periodic_run": None,
-        },
-    )
     workflow_2 = data_fixture.create_automation_workflow(
         automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
-    data_fixture.create_periodic_trigger_node(
-        workflow=workflow_2,
-        service_kwargs={
-            "interval": PERIODIC_INTERVAL_MINUTE,
-            "last_periodic_run": None,
-        },
-    )
+
+    # Create services with next_run_at set to now so they trigger immediately
+    with freeze_time("2025-02-15 10:30:45"):
+        service_1 = data_fixture.create_core_periodic_service(
+            interval=PERIODIC_INTERVAL_MINUTE,
+            last_periodic_run=None,
+            next_run_at=datetime(2025, 2, 15, 10, 30, 0, tzinfo=timezone.utc),
+        )
+        data_fixture.create_periodic_trigger_node(
+            workflow=workflow_1,
+            service=service_1,
+        )
+        service_2 = data_fixture.create_core_periodic_service(
+            interval=PERIODIC_INTERVAL_MINUTE,
+            last_periodic_run=None,
+            next_run_at=datetime(2025, 2, 15, 10, 30, 0, tzinfo=timezone.utc),
+        )
+        data_fixture.create_periodic_trigger_node(
+            workflow=workflow_2,
+            service=service_2,
+        )
 
     with freeze_time("2025-02-15 10:30:45"):
         with transaction.atomic():
             service_type_registry.get(
                 CorePeriodicServiceType.type
-            ).call_periodic_services_that_are_due(now())
+            ).call_periodic_services_that_are_due()
 
     assert list(mock_async_start_workflow.call_args_list) == unordered(
         [
             call(
                 workflow_1,
-                {"triggered_at": "2025-02-15T10:30:00+00:00"},
+                {
+                    "triggered_at": "2025-02-15T10:30:00+00:00",
+                    "next_run_at": "2025-02-15T10:31:00+00:00",
+                },
             ),
             call(
                 workflow_2,
-                {"triggered_at": "2025-02-15T10:30:00+00:00"},
+                {
+                    "triggered_at": "2025-02-15T10:30:00+00:00",
+                    "next_run_at": "2025-02-15T10:31:00+00:00",
+                },
             ),
         ]
     )
@@ -273,376 +299,7 @@ def test_call_multiple_periodic_services_that_are_due(
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.parametrize(
     "service_kwargs,frozen_time,should_be_called",
-    [
-        # Minute
-        (
-            {
-                "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_run": None,
-            },
-            "2025-02-15 10:30:45",
-            # never triggered before, so it must always be triggered.
-            True,
-        ),
-        (
-            {
-                # Compat: no `minute` is provided, so it defaults to "1" (every minute).
-                "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_run": datetime(
-                    2025, 2, 15, 10, 30, 30, tzinfo=timezone.utc
-                ),
-            },
-            "2025-02-15 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-2-15-10 30:30 = 15 seconds, so should not be
-            # triggered.
-            False,
-        ),
-        (
-            {
-                # Compat: no `minute` is provided, so it defaults to "1" (every minute).
-                "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_run": datetime(
-                    2025, 2, 15, 10, 30, 0, tzinfo=timezone.utc
-                ),
-            },
-            "2025-02-15 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-2-15-10 30:00 = 45 seconds, so should not be
-            # triggered.
-            False,
-        ),
-        (
-            {
-                # Compat: no `minute` is provided, so it defaults to "1" (every minute).
-                "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_run": datetime(
-                    2025, 2, 15, 10, 28, 59, tzinfo=timezone.utc
-                ),
-            },
-            "2025-02-15 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-2-15-10 28:59 = 1 minute 46 seconds, so should
-            # be triggered.
-            True,
-        ),
-        (
-            {
-                # Compat: no `minute` is provided, so it defaults to "1" (every minute).
-                "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_run": datetime(
-                    2025, 1, 16, 2, 59, 59, tzinfo=timezone.utc
-                ),
-            },
-            "2025-02-15 10:30:45",
-            # Almost a month ago, so it should be triggered.
-            True,
-        ),
-        (
-            {
-                "minute": 5,
-                "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_run": datetime(
-                    2025, 11, 6, 12, 0, 0, tzinfo=timezone.utc
-                ),
-            },
-            "2025-11-06 12:03:00",
-            # It's been 3 minutes, so it should not be triggered.
-            False,
-        ),
-        (
-            {
-                "minute": 5,
-                "interval": PERIODIC_INTERVAL_MINUTE,
-                "last_periodic_run": datetime(
-                    2025, 11, 6, 12, 0, 0, tzinfo=timezone.utc
-                ),
-            },
-            "2025-11-06 12:05:00",
-            # It's been 5 minutes, so it should be triggered.
-            True,
-        ),
-        # Hour
-        (
-            {
-                "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_run": None,
-                "minute": 34,
-            },
-            "2025-02-15 10:30:45",
-            # Never triggerd before, but it's not past the 34th minute,
-            # so not triggered.
-            False,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_run": None,
-                "minute": 34,
-            },
-            "2025-02-15 10:35:45",
-            # Never triggerd before, but it's not past the 34th minute,
-            # so not triggered.
-            True,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_run": datetime(
-                    2025, 2, 15, 10, 5, 45, tzinfo=timezone.utc
-                ),
-                "minute": 5,
-            },
-            "2025-02-15 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-02-15 10:05:45 = 25 minutes ago,
-            # so it should not be triggered.
-            False,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_run": datetime(
-                    2025, 2, 15, 9, 45, 45, tzinfo=timezone.utc
-                ),
-                "minute": 45,
-            },
-            "2025-02-15 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-02-15 09:45:30 = 45 minutes ago,
-            # so it should not be triggered.
-            False,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_run": datetime(
-                    2025, 2, 15, 9, 27, 45, tzinfo=timezone.utc
-                ),
-                "minute": 31,
-            },
-            "2025-02-15 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-02-15 09:27:30 = 1 hour and 3 minutes ago,
-            # but not yet past the desired minute, so it should not be triggered.
-            False,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_run": datetime(
-                    2025, 2, 15, 9, 27, 45, tzinfo=timezone.utc
-                ),
-                "minute": 29,
-            },
-            "2025-02-15 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-02-15 09:27:30 = 1 hour and 3 minutes ago,
-            # and past the desired minute, so it should be triggered.
-            True,
-        ),
-        # Day
-        (
-            {
-                "interval": PERIODIC_INTERVAL_DAY,
-                "last_periodic_run": None,
-                "minute": 34,
-                "hour": 10,
-            },
-            "2025-02-15 10:30:45",
-            # Never triggerd before, but it's not past 11:34,
-            # so not triggered.
-            False,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_DAY,
-                "last_periodic_run": None,
-                "minute": 34,
-                "hour": 10,
-            },
-            "2025-02-15 10:35:45",
-            # Triggered because it was never triggered before, and it's past 11:34.
-            True,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_run": datetime(
-                    2025, 2, 14, 10, 40, 45, tzinfo=timezone.utc
-                ),
-                "minute": 34,
-                "hour": 10,
-            },
-            "2025-02-15 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-02-14 10:40:45 = 23 hours and 10 minutes ago,
-            # so it should not be triggered.
-            False,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_run": datetime(
-                    2025, 2, 14, 9, 45, 45, tzinfo=timezone.utc
-                ),
-                "minute": 45,
-                "hour": 11,
-            },
-            "2025-02-15 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-02-14 09:45:45 = 1 day and 1 hout ago,
-            # but not yet at 11:45, so it should not be triggered.
-            False,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_run": datetime(
-                    2025, 2, 14, 9, 45, 45, tzinfo=timezone.utc
-                ),
-                "minute": 15,
-                "hour": 10,
-            },
-            "2025-02-15 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-02-14 09:45:45 = 1 day and 1 hour ago,
-            # and it's 10:15, so it should not be triggered.
-            True,
-        ),
-        # Week
-        (
-            {
-                "interval": PERIODIC_INTERVAL_WEEK,
-                "last_periodic_run": None,
-                "minute": 34,
-                "hour": 10,
-                "day_of_week": 1,  # Tuesday
-            },
-            "2025-02-10 10:30:45",
-            # Never triggerd before, but it's not past Tuesday 11:34,
-            # so not triggered.
-            False,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_WEEK,
-                "last_periodic_run": None,
-                "minute": 34,
-                "hour": 10,
-                "day_of_week": 1,  # Tuesday
-            },
-            "2025-02-11 10:35:45",
-            # Triggered because it was never triggered before, and it's past
-            # Tuesday 11:34.
-            True,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_run": datetime(
-                    2025, 2, 4, 10, 40, 45, tzinfo=timezone.utc
-                ),
-                "minute": 34,
-                "hour": 10,
-                "day_of_week": 1,  # Tuesday
-            },
-            "2025-02-11 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-02-04 10:40:45 = 1 week, 23 hours and 10
-            # minutes ago, so it should not be triggered.
-            False,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_run": datetime(
-                    2025, 2, 4, 9, 45, 45, tzinfo=timezone.utc
-                ),
-                "minute": 45,
-                "hour": 11,
-                "day_of_week": 1,  # Tuesday
-            },
-            "2025-02-11 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-02-04 09:45:45 = 1 week and 1 hour ago,
-            # but not yet at 11:45, so it should not be triggered.
-            False,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_HOUR,
-                "last_periodic_run": datetime(
-                    2025, 2, 4, 9, 45, 45, tzinfo=timezone.utc
-                ),
-                "minute": 45,
-                "hour": 11,
-                "day_of_week": 1,  # Tuesday
-            },
-            "2025-02-11 11:46:45",
-            # 2025-02-15 10:30:45 - 2025-02-04 09:45:45 = 1 week and 1 hour ago,
-            # and past 11:46 on Tuesday, so should be triggered.
-            True,
-        ),
-        # Month
-        (
-            {
-                "interval": PERIODIC_INTERVAL_MONTH,
-                "last_periodic_run": None,
-                "minute": 34,
-                "hour": 10,
-                "day_of_month": 12,
-            },
-            "2025-02-10 10:30:45",
-            # Never triggerd before, but it's not past 12th 11:34,
-            # so not triggered.
-            False,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_MONTH,
-                "last_periodic_run": None,
-                "minute": 34,
-                "hour": 10,
-                "day_of_month": 11,
-            },
-            "2025-02-11 10:35:45",
-            # Triggered because it was never triggered before, and it's past 12th 11:34.
-            True,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_MONTH,
-                "last_periodic_run": datetime(
-                    2025, 1, 10, 10, 40, 45, tzinfo=timezone.utc
-                ),
-                "minute": 34,
-                "hour": 10,
-                "day_of_month": 11,
-            },
-            "2025-02-11 10:30:45",
-            # 2025-02-15 10:30:45 - 2025-01-10 10:40:45 = 1 month, 23 hours and 10
-            # minutes ago, so it should not be triggered.
-            False,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_MONTH,
-                "last_periodic_run": datetime(
-                    2025, 1, 11, 10, 20, 45, tzinfo=timezone.utc
-                ),
-                "minute": 45,
-                "hour": 11,
-                "day_of_month": 11,
-            },
-            "2025-02-11 10:30:45",
-            #  Should not be triggered.
-            False,
-        ),
-        (
-            {
-                "interval": PERIODIC_INTERVAL_MONTH,
-                "last_periodic_run": datetime(
-                    2025, 1, 11, 11, 44, 45, tzinfo=timezone.utc
-                ),
-                "minute": 45,
-                "hour": 11,
-                "day_of_month": 11,
-            },
-            "2025-02-11 11:46:45",
-            # 2025-02-15 10:30:45 - 2025-01-11 11:44:45 = 1 week and 1 hour ago,
-            # and past 11:46 on Tuesday, so should be triggered.
-            True,
-        ),
-    ],
+    CALL_PERIODIC_SERVICES_THAT_ARE_DUE_CASES,
 )
 def test_call_periodic_services_that_are_due(
     data_fixture, service_kwargs, frozen_time, should_be_called
@@ -652,10 +309,13 @@ def test_call_periodic_services_that_are_due(
     workflow = data_fixture.create_automation_workflow(
         automation=automation, state=WorkflowState.LIVE, create_trigger=False
     )
-    trigger = data_fixture.create_periodic_trigger_node(
-        workflow=workflow,
-        service_kwargs=service_kwargs,
-    )
+    # Create the service at the frozen time so next_run_at is calculated correctly
+    with freeze_time(frozen_time):
+        service = data_fixture.create_core_periodic_service(**service_kwargs)
+        trigger = data_fixture.create_periodic_trigger_node(
+            workflow=workflow,
+            service=service,
+        )
 
     service_type = service_type_registry.get(CorePeriodicServiceType.type)
     service_type.on_event = MagicMock()
@@ -666,16 +326,27 @@ def test_call_periodic_services_that_are_due(
 
     def check_service_count(services, event_payload):
         if should_be_called:
-            assert services.count() == 1
-            assert event_payload == {"triggered_at": target_date.isoformat()}
+            assert len(services) == 1
+            next_run_at = calculate_next_periodic_run(
+                services[0].interval,
+                services[0].minute,
+                services[0].hour,
+                services[0].day_of_week,
+                services[0].day_of_month,
+            )
+            service_payload = event_payload(services[0])
+            assert service_payload == {
+                "triggered_at": target_date.isoformat(),
+                "next_run_at": next_run_at.isoformat(),
+            }
         else:
-            assert services.count() == 0
+            assert len(services) == 0
 
     service_type.on_event.side_effect = check_service_count
 
     with freeze_time(frozen_time):
         with transaction.atomic():
-            service_type.call_periodic_services_that_are_due(now())
+            service_type.call_periodic_services_that_are_due()
 
     trigger.refresh_from_db()
     service = trigger.service.specific
@@ -683,3 +354,6 @@ def test_call_periodic_services_that_are_due(
 
     if should_be_called:
         assert service.last_periodic_run == target_date
+        # Verify next_run_at was updated to the next scheduled time
+        assert service.next_run_at is not None
+        assert service.next_run_at > target_date

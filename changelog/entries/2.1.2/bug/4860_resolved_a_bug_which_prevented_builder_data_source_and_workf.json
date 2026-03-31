@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved a bug which prevented builder data source and workflow action filtering with formula values from working correctly.",
+    "issue_origin": "github",
+    "issue_number": 4860,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-02-24"
+}

@@ -28,7 +28,7 @@ export default {
       }
     },
   },
-  mounted() {
+  created() {
     this.copy = this.prepareCopy(this.value)
   },
   methods: {

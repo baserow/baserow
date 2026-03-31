@@ -205,7 +205,7 @@ const nodeType = computed(() => {
 })
 
 const isDraggable = computed(() => {
-  return !nodeType.value.isFixed
+  return !props.readOnly && !nodeType.value.isFixed
 })
 
 const handleDragStart = (event) => {

@@ -248,6 +248,9 @@ class ServiceType(
 
         return None
 
+    def requires_integration(self, service: ServiceSubClass) -> bool:
+        return self.integration_type is not None
+
     def formulas_to_resolve(self, service: ServiceSubClass) -> list[FormulaToResolve]:
         return []
 
@@ -505,7 +508,9 @@ class ServiceType(
 
         return created_instance
 
-    def extract_properties(self, path: List[str], **kwargs) -> List[str]:
+    def extract_properties(
+        self, service: Service, path: List[str], **kwargs
+    ) -> List[str]:
         return []
 
     def import_property_name(

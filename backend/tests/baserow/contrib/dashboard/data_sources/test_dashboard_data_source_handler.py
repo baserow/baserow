@@ -361,7 +361,7 @@ def test_dispatch_data_source(data_fixture):
         data_source, dispatch_context
     )
 
-    assert result == {"result": 60}
+    assert result == {"result": "60"}
 
 
 @pytest.mark.django_db

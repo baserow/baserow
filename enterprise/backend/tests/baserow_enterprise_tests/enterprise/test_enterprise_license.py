@@ -258,7 +258,7 @@ def test_user_data_no_enterprise_features_instance_wide_not_active(
         }
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 @responses.activate
 def test_check_licenses_with_enterprise_license_sends_usage_data(
@@ -303,7 +303,7 @@ def test_check_licenses_with_enterprise_license_sends_usage_data(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_enterprise_license_counts_viewers_as_free(
     enterprise_data_fixture, data_fixture
@@ -350,7 +350,7 @@ def test_enterprise_license_counts_viewers_as_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_who_is_editor_in_one_workspace_and_viewer_in_another_is_not_free(
     enterprise_data_fixture, data_fixture
@@ -393,7 +393,7 @@ def test_user_who_is_editor_in_one_workspace_and_viewer_in_another_is_not_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_marked_for_deletion_is_not_counted_as_a_paid_user(
     enterprise_data_fixture, data_fixture
@@ -439,7 +439,7 @@ def test_user_marked_for_deletion_is_not_counted_as_a_paid_user(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_deactivated_user_is_not_counted_as_a_paid_user(
     enterprise_data_fixture, data_fixture
@@ -584,7 +584,7 @@ def test_enterprise_license_being_unregistered_sends_signal_to_all(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_with_paid_table_role_is_not_free(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -622,7 +622,7 @@ def test_user_with_paid_table_role_is_not_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_with_free_table_role_is_free(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -660,7 +660,7 @@ def test_user_with_free_table_role_is_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_with_paid_database_role_is_not_free(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -698,7 +698,7 @@ def test_user_with_paid_database_role_is_not_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_with_free_database_role_is_free(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -736,7 +736,7 @@ def test_user_with_free_database_role_is_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_with_paid_table_role_is_not_free_from_team(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -777,7 +777,7 @@ def test_user_with_paid_table_role_is_not_free_from_team(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_with_free_table_role_is_free_from_team(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -818,7 +818,7 @@ def test_user_with_free_table_role_is_free_from_team(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_with_paid_database_role_is_not_free_from_team(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -859,7 +859,7 @@ def test_user_with_paid_database_role_is_not_free_from_team(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_with_free_database_role_is_free_from_team(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -900,7 +900,7 @@ def test_user_with_free_database_role_is_free_from_team(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_in_deleted_team_with_paid_role_is_free(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -943,7 +943,7 @@ def test_user_in_deleted_team_with_paid_role_is_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_inactive_user_with_paid_role_is_free(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -1002,7 +1002,7 @@ def test_inactive_user_with_paid_role_is_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_inactive_user_in_team_with_paid_role_is_free(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -1064,7 +1064,7 @@ def test_inactive_user_in_team_with_paid_role_is_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_to_be_deleted_with_paid_role_is_free(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -1123,7 +1123,7 @@ def test_user_to_be_deleted_with_paid_role_is_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_to_be_deleted_in_team_with_paid_role_is_free(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -1185,7 +1185,7 @@ def test_user_to_be_deleted_in_team_with_paid_role_is_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_complex_free_vs_paid_scenario(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -1281,7 +1281,7 @@ def test_complex_free_vs_paid_scenario(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_with_role_paid_on_trashed_database_is_free(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -1341,7 +1341,7 @@ def test_user_with_role_paid_on_trashed_database_is_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_with_role_paid_on_database_in_trashed_workspace_is_free(
     enterprise_data_fixture, data_fixture, synced_roles, django_assert_num_queries
@@ -1401,7 +1401,7 @@ def test_user_with_role_paid_on_database_in_trashed_workspace_is_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_with_role_paid_on_trashed_table_is_free(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -1461,7 +1461,7 @@ def test_user_with_role_paid_on_trashed_table_is_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_in_team_with_role_paid_on_trashed_database_is_free(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -1524,7 +1524,7 @@ def test_user_in_team_with_role_paid_on_trashed_database_is_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_in_team_with_role_paid_on_trashed_table_is_free(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -1587,7 +1587,7 @@ def test_user_in_team_with_role_paid_on_trashed_table_is_free(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_summary_calculation_for_enterprise_doesnt_do_n_plus_one_queries(
     enterprise_data_fixture, data_fixture, synced_roles, django_assert_num_queries
@@ -1678,7 +1678,7 @@ def test_user_summary_calculation_for_enterprise_doesnt_do_n_plus_one_queries(
         )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_can_query_for_summary_per_workspace(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -1814,7 +1814,7 @@ def test_can_query_for_summary_per_workspace(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_user_with_team_and_user_role_picks_highest_of_either(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -1860,7 +1860,7 @@ def test_user_with_team_and_user_role_picks_highest_of_either(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_order_of_roles_is_as_expected(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -1904,7 +1904,7 @@ def test_order_of_roles_is_as_expected(
         )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_weird_workspace_user_permission_doesnt_break_usage_check(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -1936,7 +1936,7 @@ def test_weird_workspace_user_permission_doesnt_break_usage_check(
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_weird_ras_for_wrong_workspace_not_counted_when_querying_for_single_workspace_usage(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -1996,7 +1996,7 @@ def test_weird_ras_for_wrong_workspace_not_counted_when_querying_for_single_work
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_missing_roles_doesnt_cause_crash_and_members_admins_are_treated_as_non_free(
     enterprise_data_fixture, data_fixture, synced_roles
@@ -2032,7 +2032,7 @@ def test_missing_roles_doesnt_cause_crash_and_members_admins_are_treated_as_non_
     )
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @override_settings(DEBUG=True)
 def test_orphaned_paid_role_assignments_dont_get_counted(
     enterprise_data_fixture, data_fixture, synced_roles

@@ -22,7 +22,8 @@ export default (client) => {
       language,
       authenticate = true,
       workspaceInvitationToken = null,
-      templateId = null
+      templateId = null,
+      captchaToken = ''
     ) {
       const values = {
         name,
@@ -38,6 +39,10 @@ export default (client) => {
 
       if (templateId !== null) {
         values.template_id = templateId
+      }
+
+      if (captchaToken) {
+        values.captcha_token = captchaToken
       }
 
       return client.post('/user/', values)

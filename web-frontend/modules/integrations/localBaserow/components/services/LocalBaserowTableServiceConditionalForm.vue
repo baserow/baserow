@@ -32,7 +32,7 @@
       >
         <InjectedFormulaInput
           v-if="filter.value_is_formula && propFilterType.hasEditableValue"
-          :value="getFormulaObject(filter)"
+          :model-value="getFormulaObject(filter)"
           class="filters__value--formula-input"
           :placeholder="
             $t(

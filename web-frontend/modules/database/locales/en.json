@@ -554,7 +554,8 @@
     "EnablePassword": "Restrict access with a password",
     "DisablePassword": "Access is password-protected",
     "ChangePassword": "Change",
-    "notSharedYetText": "Allow anyone to see the data in this view or sync events to your external calendar."
+    "notSharedYetText": "Allow anyone to see the data in this view or sync events to your external calendar.",
+    "shareViewWarningTitle": "Warning"
   },
   "viewGroupByContext": {
     "noGroupByTitle": "You have not yet created any groupings",
@@ -1153,5 +1154,19 @@
     "ruleDoesNotExist": "Rule doesn't exist",
     "ruleTypeDoesNotExist": "Rule type doesn't exist",
     "ruleAlreadyExists": "Rule already exists"
+  },
+  "fieldFormViewEditRowSubForm": {
+    "selectFormViewLabel": "Form view",
+    "description": "Each row will get a unique link that opens this form pre-filled with that row's data. Note that everyone with read access to the table and field will be able to edit the row via the form view, also viewers and visitors of a publicly shared view.",
+    "notPublicWarning": "This form view is not publicly shared. The edit link will not work until the form is made public.",
+    "notPublic": "(not public)",
+    "formDoesNotExist": "The selected form does not exist anymore."
+  },
+  "editRowLink": {
+    "editRow": "Edit row"
+  },
+  "rowEditFieldFormViewEditRow": {
+    "copyLink": "Copy link",
+    "noFormView": "No form view configured"
   }
 }

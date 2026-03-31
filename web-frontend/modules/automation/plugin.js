@@ -48,15 +48,9 @@ export default defineNuxtPlugin({
   name: 'automation',
   dependsOn: ['core', 'store'],
   setup(nuxtApp) {
-    const { $registry, $store, $clientErrorMap, $i18n } = nuxtApp
+    const { $registry, $store } = nuxtApp
 
     const context = { app: nuxtApp }
-
-    $clientErrorMap.setError(
-      'ERROR_AUTOMATION_WORKFLOW_NAME_NOT_UNIQUE',
-      $i18n.t('automationWorkflowErrors.errorNameNotUnique'),
-      $i18n.t('automationWorkflowErrors.errorNameNotUniqueDescription')
-    )
 
     // Register stores
     $store.registerModuleNuxtSafe(

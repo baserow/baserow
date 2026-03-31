@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved a bug in the periodic trigger which prevented it from being scheduled correctly.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-03-13"
+}

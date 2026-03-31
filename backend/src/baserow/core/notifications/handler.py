@@ -691,20 +691,17 @@ class NotificationHandler:
         if not limit_notifications_per_user:
             limit_notifications_per_user = settings.MAX_NOTIFICATIONS_LISTED_PER_EMAIL
 
-        unsent_notification_subquery = Subquery(
-            NotificationRecipient.objects.filter(
-                recipient_id=OuterRef("notificationrecipient__recipient_id"),
-                **NOTIFICATIONS_WITH_EMAIL_SCHEDULED_FILTERS,
-            )
-            .order_by("-created_on")
-            .values_list("notification_id", flat=True)[:limit_notifications_per_user]
-        )
-
         notifications_to_send_by_email_prefetch = Prefetch(
             "notifications",
-            queryset=Notification.objects.filter(id__in=unsent_notification_subquery)
+            queryset=Notification.objects.filter(
+                **{
+                    f"notificationrecipient__{k}": v
+                    for k, v in NOTIFICATIONS_WITH_EMAIL_SCHEDULED_FILTERS.items()
+                },
+            )
             .distinct()
-            .select_related("sender"),
+            .select_related("sender")
+            .order_by("-created_on", "-id")[:limit_notifications_per_user],
             to_attr="unsent_email_notifications",
         )
 

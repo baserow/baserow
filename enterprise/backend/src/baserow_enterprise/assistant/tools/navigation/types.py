@@ -5,11 +5,10 @@ from django.contrib.auth.models import AbstractUser
 from pydantic import Field
 
 from baserow.core.models import Workspace
-from baserow_enterprise.assistant.tools.database.utils import filter_tables
+from baserow_enterprise.assistant.tools.database.helpers import filter_tables
 from baserow_enterprise.assistant.types import (
     BaseModel,
     TableNavigationType,
-    WorkspaceNavigationType,
 )
 
 
@@ -51,22 +50,7 @@ class TableNavigationRequestType(NavigationRequestType):
         )
 
 
-class WorkspaceNavigationRequestType(NavigationRequestType):
-    type: Literal["workspace"] = Field(
-        ..., description="The home page of the workspace"
-    )
-
-    @classmethod
-    def to_location(
-        cls,
-        user: AbstractUser,
-        workspace: Workspace,
-        request: "WorkspaceNavigationRequestType",
-    ) -> WorkspaceNavigationType:
-        return WorkspaceNavigationType(type="workspace", id=workspace.id)
-
-
 AnyNavigationRequestType = Annotated[
-    TableNavigationRequestType | WorkspaceNavigationRequestType,
+    TableNavigationRequestType,
     Field(discriminator="type"),
 ]

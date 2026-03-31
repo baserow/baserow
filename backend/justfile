@@ -72,15 +72,19 @@ venv_dir := env("UV_PROJECT_ENVIRONMENT", justfile_directory() / "../.venv")
 # Export for uv to use
 export UV_PROJECT_ENVIRONMENT := venv_dir
 
+# Prevent stdout buffering
+export PYTHONUNBUFFERED := "1"
+
 # Use --active to respect VIRTUAL_ENV, since venv may be in parent dir
 uv_run := "uv run --active"
 
 # Repo root (parent of backend/) - clean() normalizes path (removes ..)
 repo_root := clean(justfile_directory() / "..")
 
+_set_pythonpath := 'export PYTHONPATH="' + repo_root / 'backend/src:' + repo_root / 'premium/backend/src:' + repo_root / 'enterprise/backend/src:' + repo_root / 'backend/tests:' + repo_root / 'premium/backend/tests:' + repo_root / 'enterprise/backend/tests${PYTHONPATH:+:$PYTHONPATH}"'
 # Helper to load .env.local if present and set PYTHONPATH with absolute paths
 # Include this at the start of bash recipes that need env vars
-_load_env := 'if [ -f "../.env.local" ]; then set -a; source "../.env.local"; set +a; fi; export PYTHONPATH="' + repo_root / 'backend/src:' + repo_root / 'premium/backend/src:' + repo_root / 'enterprise/backend/src:' + repo_root / 'backend/tests:' + repo_root / 'premium/backend/tests:' + repo_root / 'enterprise/backend/tests${PYTHONPATH:+:$PYTHONPATH}"'
+_load_env := 'if [ -f "../.env.local" ]; then set -a; source "../.env.local"; set +a; fi; ' + _set_pythonpath
 
 # Source directories
 backend_source_dirs := "src/ ../premium/backend/src/ ../enterprise/backend/src/"
@@ -225,14 +229,14 @@ alias f := fix
 
 # PYTHONPATH for test fixtures across all test directories
 test_pythonpath := "tests:../premium/backend/tests:../enterprise/backend/tests"
-_pytest := 'PYTHONPATH="' + test_pythonpath + ':${PYTHONPATH:-}" ' + uv_run + ' pytest'
+_pytest := 'PYTHONPATH="' + test_pythonpath + ':${PYTHONPATH:-}" ' + uv_run + ' pytest -c pytest.ini'
 
 # Run tests. Pass -n=auto to run in parallel with pytest-xdist
 [group('3 - testing')]
 test *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
-    {{ _load_env }}
+    {{ _set_pythonpath }}
     {{ _pytest }} {{ ARGS }}
 
 # Run tests with coverage report

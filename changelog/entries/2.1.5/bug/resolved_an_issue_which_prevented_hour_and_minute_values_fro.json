@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved an issue which prevented hour and minute values from persisting in the periodic trigger form.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-03-09"
+}

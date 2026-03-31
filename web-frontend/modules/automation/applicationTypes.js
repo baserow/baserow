@@ -6,6 +6,8 @@ import { populateAutomationWorkflow } from '@baserow/modules/automation/store/au
 import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
+import WorkflowTemplate from '@baserow/modules/automation/components/workflow/WorkflowTemplate.vue'
+import WorkflowTemplateSideBar from '@baserow/modules/automation/components/workflow/WorkflowTemplateSideBar.vue'
 
 export class AutomationApplicationType extends ApplicationType {
   static getType() {
@@ -50,6 +52,21 @@ export class AutomationApplicationType extends ApplicationType {
 
   getSidebarComponent() {
     return SidebarComponentAutomation
+  }
+
+  getTemplateSidebarComponent() {
+    return WorkflowTemplateSideBar
+  }
+
+  getTemplatesPageComponent() {
+    return WorkflowTemplate
+  }
+
+  getTemplatePage(application) {
+    return {
+      automation: application,
+      page: application.workflows[0],
+    }
   }
 
   delete(application) {

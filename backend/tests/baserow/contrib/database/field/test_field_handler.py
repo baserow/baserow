@@ -83,7 +83,7 @@ from baserow.contrib.database.fields.registries import (
 from baserow.contrib.database.fields.utils import DeferredForeignKeyUpdater
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.models import Table
-from baserow.contrib.database.views.models import ViewFilter
+from baserow.contrib.database.views.models import FormView, ViewFilter
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 from baserow.core.psycopg import is_unique_violation_error
@@ -110,7 +110,7 @@ def _test_can_convert_between_fields(data_fixture, field_type_to_test):
     does not raise any exceptions.
     """
 
-    table, user, row, _, _ = setup_interesting_test_table(data_fixture)
+    table, user, row, _, context = setup_interesting_test_table(data_fixture)
 
     handler = FieldHandler()
     row_handler = RowHandler()
@@ -128,6 +128,7 @@ def _test_can_convert_between_fields(data_fixture, field_type_to_test):
         Table.objects.get(name="decimal_link_table"),
         Table.objects.get(name="file_link_table"),
         Table.objects.get(name="multiple_collaborators_link_table"),
+        FormView.objects.get(table=table),
     )
 
     i = 1

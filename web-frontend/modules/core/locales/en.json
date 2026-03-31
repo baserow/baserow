@@ -192,6 +192,8 @@
     "invalidEmail": "Please enter a valid e-mail address.",
     "disabledAccountTitle": "Account disabled",
     "disabledAccountMessage": "This user account has been disabled.",
+    "captchaVerificationFailedTitle": "Captcha verification failed",
+    "captchaVerificationFailedMessage": "The captcha verification failed. Please try again.",
     "incorrectCredentialTitle": "Incorrect credentials",
     "incorrectCredentialMessage": "The provided e-mail address or password is incorrect.",
     "inputRequired": "Input is required.",
@@ -635,6 +637,9 @@
     "settingsVerifyImportSignatureDescription": "When enabled, the signature of the imported data is verified to ensure the data has not been tampered with."
   },
   "formSidebar": {
+    "fields": "Fields",
+    "rowEditableBy": "Update rows via fields",
+    "rowEditableByDescription": "The rows in this table can be updated using this form via the following row edit fields:",
     "actions": {
       "addAll": "Add all",
       "removeAll": "Remove all",
@@ -839,9 +844,14 @@
   },
   "formulaInputField": {
     "errorInvalidFormula": "The formula is invalid.",
-    "advancedFormulaMode": "Advanced formula mode"
+    "advancedFormulaMode": "Advanced formula mode",
+    "invalidFormulaTitle": "Invalid formula",
+    "invalidSyntax": "Not a valid expert formula, please check the syntax."
   },
-  "formulaInputContext": {
+  "formulaInputErrorContext": {
+    "viewFullError": "View full error"
+  },
+  "formulaInputExplorerContext": {
     "variables": "Variables",
     "functions": "Functions",
     "operators": "Operators",
@@ -852,6 +862,11 @@
     "useAdvancedInput": "Switch to expert mode",
     "useAdvancedInputModalTitle": "Switch to expert mode?",
     "modalMessage": "Switching to a different mode will clear the current formula. Are you sure you want to continue?"
+  },
+  "formulaParserErrors": {
+    "invalidArgCountMin": "The '{funcType}' function expects a minimum of {minArgs} arguments.",
+    "invalidArgCountExact": "The '{funcType}' function expects exactly {minArgs} arguments.",
+    "invalidArgCountRange": "The '{funcType}' function expects between {minArgs} and {maxArgs} arguments."
   },
   "dataExplorer": {
     "noMatchingNodesText": "No matching results were found.",

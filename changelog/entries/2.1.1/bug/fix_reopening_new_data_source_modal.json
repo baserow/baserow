@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Fix re-opening new data source modal bug.",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "builder",
+  "bullet_points": [],
+  "created_at": "2026-02-20"
+}

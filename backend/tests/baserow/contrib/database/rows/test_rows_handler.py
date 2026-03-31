@@ -16,6 +16,7 @@ from baserow.contrib.database.api.utils import (
     extract_user_field_names_from_params,
     get_include_exclude_fields,
 )
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
@@ -1080,6 +1081,42 @@ def test_import_rows_with_read_only_field(
     model = table.get_model()
     rows = list(model.objects.all())
     assert len(rows) == 0
+
+
+@pytest.mark.django_db
+def test_import_rows_with_broken_lookup_field(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    table2 = data_fixture.create_database_table(user=user, database=table.database)
+    data_fixture.create_text_field(name="primary", table=table, primary=True)
+    target_field = data_fixture.create_text_field(
+        name="target", table=table2, primary=True
+    )
+
+    linkrowfield = FieldHandler().create_field(
+        user, table, "link_row", name="link", link_row_table=table2
+    )
+    FieldHandler().create_field(
+        user,
+        table,
+        "lookup",
+        name="lookup",
+        through_field_id=linkrowfield.id,
+        target_field_id=target_field.id,
+    )
+
+    FieldHandler().update_field(user, linkrowfield.specific, new_type_name="text")
+
+    handler = RowHandler()
+    rows, report = handler.import_rows(
+        user=user,
+        table=table,
+        data=[["row1", ""], ["row2", ""]],
+        send_realtime_update=False,
+    )
+
+    assert len(rows) == 2
+    assert report == {}
 
 
 @pytest.mark.django_db

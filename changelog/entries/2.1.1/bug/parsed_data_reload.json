@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Handle missing parsedData in reloadPreview().",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-02-20"
+}

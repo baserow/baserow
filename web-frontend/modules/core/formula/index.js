@@ -1,5 +1,6 @@
 import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
-import JavascriptExecutor from '@baserow/modules/core/formula/parser/javascriptExecutor'
+import BaserowFormulaExecutionVisitor from '@baserow/modules/core/formula/parser/formulaExecutionVisitor.js'
+import BaserowFormulaValidationVisitor from '@baserow/modules/core/formula/parser/formulaValidationVisitor.js'
 import { FORMULA_TYPE } from '@baserow/modules/core/enums'
 
 /**
@@ -27,25 +28,56 @@ export const resolveFormula = (
 
   try {
     const tree = parseBaserowFormula(formulaCtx.formula)
-    return new JavascriptExecutor(functions, RuntimeFormulaContext).visit(tree)
+    return new BaserowFormulaExecutionVisitor(
+      functions,
+      RuntimeFormulaContext
+    ).visit(tree)
   } catch (err) {
     console.debug(`FORMULA DEBUG: ${err}`)
     return null
   }
 }
 
-export const isFormulaValid = (formula, functions) => {
+/**
+ * Validates if a formula is syntactically correct and optionally validates
+ * its arguments using the provided functions and validation context.
+ *
+ * @param {string} formula - The formula string to validate
+ * @param {FunctionCollection} functions - The collection of available formula functions
+ * @param {boolean} syntaxOnly - If true, only syntax is validated; if false, functions
+ *  and their arguments are also validated.
+ * @param validationContext - Context needed for validation (e.g., { dataProviderRegistry })
+ * @param localisedInvalidSyntaxMessage - the localised 'Invalid formula syntax' message.
+ *  Only used if the thrown error isn't human-readable (e.g. a syntax / runtime error).
+ * @returns {Object} - Object with { scope: string, valid: boolean, errors: Array<string> }
+ */
+export const isFormulaValid = (
+  formula,
+  functions,
+  syntaxOnly = true,
+  validationContext = {},
+  localisedInvalidSyntaxMessage = null
+) => {
   if (!formula) {
-    return true
+    return { scope: null, valid: true, errors: [] }
   }
-
   try {
     const tree = parseBaserowFormula(formula)
-    // we don't validate type as we can't without the right context
-    new JavascriptExecutor(functions, {}, false).visit(tree)
-    return true
+    if (!syntaxOnly) {
+      new BaserowFormulaValidationVisitor(functions, validationContext).visit(
+        tree
+      )
+    }
+    return { errors: [], valid: true, scope: null }
   } catch (err) {
-    return false
+    const isReadableError = err?.isHumanReadableError === true
+    const fallbackMessage =
+      localisedInvalidSyntaxMessage || 'Invalid formula syntax'
+    return {
+      valid: false,
+      errors: [isReadableError ? err.message : fallbackMessage],
+      scope: isReadableError ? 'human' : 'internal',
+    }
   }
 }
 

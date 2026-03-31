@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix public view with hidden group by field",
+    "issue_origin": "github",
+    "issue_number": 4858,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-02-24"
+}

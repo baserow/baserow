@@ -7,7 +7,7 @@
       :style="{ width: groupBy.width + 'px' }"
       :set="field = $options.methods.getField(allFieldsInTable, groupBy)"
     >
-      <div class="grid-view__group-cell">
+      <div v-if="field" class="grid-view__group-cell">
         <div class="grid-view__group-name">
           {{ field.name }}
         </div>
@@ -163,6 +163,7 @@ export default {
       newField,
       fromField,
       undoRedoActionGroupId = null,
+      visible = null,
     }) {
       try {
         await this.$store.dispatch(
@@ -173,6 +174,7 @@ export default {
             fromField,
             undoRedoActionGroupId,
             readOnly: this.readOnly,
+            visible,
           }
         )
       } catch (error) {

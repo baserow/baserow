@@ -1,28 +1,25 @@
-from unittest.mock import Mock
-
 import pytest
-from udspy.module.callbacks import ModuleContext, is_module_callback
 
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.core.formula import resolve_formula
 from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_ADVANCED
+from baserow_enterprise.assistant.tools.automation.agents import AssistantFormulaContext
 from baserow_enterprise.assistant.tools.automation.tools import (
-    get_list_workflows_tool,
-    get_workflow_tool_factory,
+    create_workflows,
+    list_workflows,
 )
 from baserow_enterprise.assistant.tools.automation.types import (
-    CreateRowActionCreate,
-    DeleteRowActionCreate,
-    RouterNodeCreate,
+    ActionNodeCreate,
     TriggerNodeCreate,
-    UpdateRowActionCreate,
     WorkflowCreate,
 )
-from baserow_enterprise.assistant.tools.automation.types.node import RouterEdgeCreate
-from baserow_enterprise.assistant.tools.automation.utils import AssistantFormulaContext
+from baserow_enterprise.assistant.tools.automation.types.node import (
+    AutomationFieldValue,
+    RouterEdgeCreate,
+)
 
-from .utils import fake_tool_helpers
+from .utils import make_test_ctx
 
 
 @pytest.fixture(autouse=True)
@@ -38,7 +35,7 @@ def mock_formula_generator(monkeypatch):
         pass
 
     monkeypatch.setattr(
-        "baserow_enterprise.assistant.tools.automation.utils.update_workflow_formulas",
+        "baserow_enterprise.assistant.tools.automation.agents.update_workflow_formulas",
         mock_update_workflow_formulas,
     )
 
@@ -54,8 +51,8 @@ def test_list_workflows(data_fixture):
         automation=automation, name="Test Workflow"
     )
 
-    tool = get_list_workflows_tool(user, workspace, fake_tool_helpers)
-    result = tool(automation_id=automation.id)
+    ctx = make_test_ctx(user, workspace)
+    result = list_workflows(ctx, automation_id=automation.id, thought="test")
 
     assert result == {
         "workflows": [{"id": workflow.id, "name": "Test Workflow", "state": "draft"}]
@@ -76,8 +73,8 @@ def test_list_workflows_multiple(data_fixture):
         automation=automation, name="Workflow 2"
     )
 
-    tool = get_list_workflows_tool(user, workspace, fake_tool_helpers)
-    result = tool(automation_id=automation.id)
+    ctx = make_test_ctx(user, workspace)
+    result = list_workflows(ctx, automation_id=automation.id, thought="test")
 
     assert result == {
         "workflows": [
@@ -97,25 +94,10 @@ def test_create_workflows(data_fixture):
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
 
-    factory = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
-    assert callable(factory)
+    ctx = make_test_ctx(user, workspace)
 
-    tools_upgrade = factory()
-    assert is_module_callback(tools_upgrade)
-
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
-
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    create_workflows_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflows"), None
-    )
-    assert create_workflows_tool is not None
-
-    result = create_workflows_tool.func(
+    result = create_workflows(
+        ctx,
         automation_id=automation.id,
         workflows=[
             WorkflowCreate(
@@ -124,19 +106,21 @@ def test_create_workflows(data_fixture):
                     ref="trigger1",
                     label="Periodic Trigger",
                     type="periodic",
+                    periodic_interval={"interval": "DAY"},
                 ),
                 nodes=[
-                    CreateRowActionCreate(
+                    ActionNodeCreate(
                         ref="action1",
                         label="Create row",
                         previous_node_ref="trigger1",
                         type="create_row",
                         table_id=table.id,
-                        values={},
+                        values=[],
                     )
                 ],
             )
         ],
+        thought="test",
     )
 
     assert len(result["created_workflows"]) == 1
@@ -144,8 +128,6 @@ def test_create_workflows(data_fixture):
     assert result["created_workflows"][0]["state"] == "draft"
 
     # Verify workflow was created with a trigger
-    from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-
     workflow_id = result["created_workflows"][0]["id"]
     workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
     trigger = workflow.get_trigger()
@@ -163,25 +145,10 @@ def test_create_multiple_workflows(data_fixture):
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
 
-    factory = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
-    assert callable(factory)
+    ctx = make_test_ctx(user, workspace)
 
-    tools_upgrade = factory()
-    assert is_module_callback(tools_upgrade)
-
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
-
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    create_workflows_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflows"), None
-    )
-    assert create_workflows_tool is not None
-
-    result = create_workflows_tool.func(
+    result = create_workflows(
+        ctx,
         automation_id=automation.id,
         workflows=[
             WorkflowCreate(
@@ -190,15 +157,16 @@ def test_create_multiple_workflows(data_fixture):
                     ref="trigger1",
                     label="Trigger",
                     type="periodic",
+                    periodic_interval={"interval": "DAY"},
                 ),
                 nodes=[
-                    CreateRowActionCreate(
+                    ActionNodeCreate(
                         ref="action1",
                         label="Action",
                         previous_node_ref="trigger1",
                         type="create_row",
                         table_id=table.id,
-                        values={},
+                        values=[],
                     )
                 ],
             ),
@@ -208,19 +176,21 @@ def test_create_multiple_workflows(data_fixture):
                     ref="trigger2",
                     label="Trigger",
                     type="periodic",
+                    periodic_interval={"interval": "DAY"},
                 ),
                 nodes=[
-                    CreateRowActionCreate(
+                    ActionNodeCreate(
                         ref="action2",
                         label="Action",
                         previous_node_ref="trigger2",
                         type="create_row",
                         table_id=table.id,
-                        values={},
+                        values=[],
                     )
                 ],
             ),
         ],
+        thought="test",
     )
 
     assert len(result["created_workflows"]) == 2
@@ -234,36 +204,45 @@ def test_create_multiple_workflows(data_fixture):
     [
         (
             TriggerNodeCreate(
-                type="rows_created", ref="trigger", label="Rows Created Trigger"
+                type="rows_created",
+                ref="trigger",
+                label="Rows Created Trigger",
+                rows_triggers_settings={"table_id": 999},
             ),
-            CreateRowActionCreate(
+            ActionNodeCreate(
                 type="create_row",
                 ref="action",
                 previous_node_ref="trigger",
                 label="Create Row Action",
                 table_id=999,
-                values={},
+                values=[],
             ),
         ),
         (
             TriggerNodeCreate(
-                type="rows_updated", ref="trigger", label="Rows Updated Trigger"
+                type="rows_updated",
+                ref="trigger",
+                label="Rows Updated Trigger",
+                rows_triggers_settings={"table_id": 999},
             ),
-            UpdateRowActionCreate(
+            ActionNodeCreate(
                 type="update_row",
                 ref="action",
                 previous_node_ref="trigger",
                 label="Update Row Action",
                 table_id=999,
                 row_id="1",
-                values={},
+                values=[],
             ),
         ),
         (
             TriggerNodeCreate(
-                type="rows_deleted", ref="trigger", label="Rows Deleted Trigger"
+                type="rows_deleted",
+                ref="trigger",
+                label="Rows Deleted Trigger",
+                rows_triggers_settings={"table_id": 999},
             ),
-            DeleteRowActionCreate(
+            ActionNodeCreate(
                 type="delete_row",
                 ref="action",
                 previous_node_ref="trigger",
@@ -285,25 +264,10 @@ def test_create_workflow_with_row_triggers_and_actions(data_fixture, trigger, ac
     table.pk = 999  # To match the action's table_id
     table.save()
 
-    factory = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
-    assert callable(factory)
+    ctx = make_test_ctx(user, workspace)
 
-    tools_upgrade = factory()
-    assert is_module_callback(tools_upgrade)
-
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
-
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    create_workflows_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflows"), None
-    )
-    assert create_workflows_tool is not None
-
-    result = create_workflows_tool.func(
+    result = create_workflows(
+        ctx,
         automation_id=automation.id,
         workflows=[
             WorkflowCreate(
@@ -312,6 +276,7 @@ def test_create_workflow_with_row_triggers_and_actions(data_fixture, trigger, ac
                 nodes=[action],
             )
         ],
+        thought="test",
     )
 
     assert len(result["created_workflows"]) == 1
@@ -328,7 +293,7 @@ def test_create_workflow_with_row_triggers_and_actions(data_fixture, trigger, ac
 
 @pytest.mark.django_db(transaction=True)
 def test_create_row_action_with_field_ids(data_fixture):
-    """Test CreateRowActionCreate uses field IDs in values dict, not field names."""
+    """Test ActionNodeCreate uses field IDs in values dict, not field names."""
 
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -340,25 +305,10 @@ def test_create_row_action_with_field_ids(data_fixture):
     text_field = data_fixture.create_text_field(table=table, name="Name")
     number_field = data_fixture.create_number_field(table=table, name="Age")
 
-    factory = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
-    assert callable(factory)
+    ctx = make_test_ctx(user, workspace)
 
-    tools_upgrade = factory()
-    assert is_module_callback(tools_upgrade)
-
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
-
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    create_workflows_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflows"), None
-    )
-    assert create_workflows_tool is not None
-
-    result = create_workflows_tool.func(
+    result = create_workflows(
+        ctx,
         automation_id=automation.id,
         workflows=[
             WorkflowCreate(
@@ -367,22 +317,26 @@ def test_create_row_action_with_field_ids(data_fixture):
                     ref="trigger1",
                     label="Periodic Trigger",
                     type="periodic",
+                    periodic_interval={"interval": "DAY"},
                 ),
                 nodes=[
-                    CreateRowActionCreate(
+                    ActionNodeCreate(
                         ref="action1",
                         label="Create row with field IDs",
                         previous_node_ref="trigger1",
                         type="create_row",
                         table_id=table.id,
-                        values={
-                            text_field.id: "John Doe",
-                            number_field.id: 25,
-                        },
+                        values=[
+                            AutomationFieldValue(
+                                field_id=text_field.id, value="John Doe"
+                            ),
+                            AutomationFieldValue(field_id=number_field.id, value="25"),
+                        ],
                     )
                 ],
             )
         ],
+        thought="test",
     )
 
     assert len(result["created_workflows"]) == 1
@@ -400,7 +354,7 @@ def test_create_row_action_with_field_ids(data_fixture):
 
 @pytest.mark.django_db(transaction=True)
 def test_update_row_action_with_row_id_and_field_ids(data_fixture):
-    """Test UpdateRowActionCreate uses row_id parameter and field IDs in values."""
+    """Test ActionNodeCreate uses row_id parameter and field IDs in values."""
 
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -411,25 +365,10 @@ def test_update_row_action_with_row_id_and_field_ids(data_fixture):
     table = data_fixture.create_database_table(user=user, database=database)
     text_field = data_fixture.create_text_field(table=table, name="Status")
 
-    factory = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
-    assert callable(factory)
+    ctx = make_test_ctx(user, workspace)
 
-    tools_upgrade = factory()
-    assert is_module_callback(tools_upgrade)
-
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
-
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    create_workflows_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflows"), None
-    )
-    assert create_workflows_tool is not None
-
-    result = create_workflows_tool.func(
+    result = create_workflows(
+        ctx,
         automation_id=automation.id,
         workflows=[
             WorkflowCreate(
@@ -438,42 +377,44 @@ def test_update_row_action_with_row_id_and_field_ids(data_fixture):
                     ref="trigger1",
                     label="Periodic Trigger",
                     type="periodic",
+                    periodic_interval={"interval": "DAY"},
                 ),
                 nodes=[
-                    UpdateRowActionCreate(
+                    ActionNodeCreate(
                         ref="action1",
                         label="Update row",
                         previous_node_ref="trigger1",
                         type="update_row",
                         table_id=table.id,
                         row_id="123",
-                        values={text_field.id: "completed"},
+                        values=[
+                            AutomationFieldValue(
+                                field_id=text_field.id, value="completed"
+                            )
+                        ],
                     )
                 ],
             )
         ],
+        thought="test",
     )
 
     assert len(result["created_workflows"]) == 1
     workflow_id = result["created_workflows"][0]["id"]
     workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
 
-    # Get the action node and verify it was created with the correct table
-    # Note: row_id formula generation occurs in a separate transaction and may fail
-    # if DSPy is not configured, so we only verify basic service configuration
     action_nodes = workflow.automation_workflow_nodes.exclude(
         id=workflow.get_trigger().id
     )
     assert action_nodes.count() == 1
     action_node = action_nodes.first()
     assert action_node.service.specific.table_id == table.id
-    # Verify the service type is correct for upsert_row (update operation)
     assert action_node.service.get_type().type == "local_baserow_upsert_row"
 
 
 @pytest.mark.django_db(transaction=True)
 def test_delete_row_action_with_row_id(data_fixture):
-    """Test DeleteRowActionCreate uses row_id parameter."""
+    """Test ActionNodeCreate uses row_id parameter."""
 
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -483,25 +424,10 @@ def test_delete_row_action_with_row_id(data_fixture):
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
 
-    factory = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
-    assert callable(factory)
+    ctx = make_test_ctx(user, workspace)
 
-    tools_upgrade = factory()
-    assert is_module_callback(tools_upgrade)
-
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
-
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    create_workflows_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflows"), None
-    )
-    assert create_workflows_tool is not None
-
-    result = create_workflows_tool.func(
+    result = create_workflows(
+        ctx,
         automation_id=automation.id,
         workflows=[
             WorkflowCreate(
@@ -510,9 +436,10 @@ def test_delete_row_action_with_row_id(data_fixture):
                     ref="trigger1",
                     label="Periodic Trigger",
                     type="periodic",
+                    periodic_interval={"interval": "DAY"},
                 ),
                 nodes=[
-                    DeleteRowActionCreate(
+                    ActionNodeCreate(
                         ref="action1",
                         label="Delete row",
                         previous_node_ref="trigger1",
@@ -523,28 +450,25 @@ def test_delete_row_action_with_row_id(data_fixture):
                 ],
             )
         ],
+        thought="test",
     )
 
     assert len(result["created_workflows"]) == 1
     workflow_id = result["created_workflows"][0]["id"]
     workflow = AutomationWorkflowHandler().get_workflow(workflow_id)
 
-    # Get the action node and verify it was created with the correct table
-    # Note: row_id formula generation occurs in a separate transaction and may fail
-    # if DSPy is not configured, so we only verify basic service configuration
     action_nodes = workflow.automation_workflow_nodes.exclude(
         id=workflow.get_trigger().id
     )
     assert action_nodes.count() == 1
     action_node = action_nodes.first()
     assert action_node.service.specific.table_id == table.id
-    # Verify the service type is correct for delete_row
     assert action_node.service.get_type().type == "local_baserow_delete_row"
 
 
 @pytest.mark.django_db(transaction=True)
 def test_router_node_with_required_conditions(data_fixture):
-    """Test RouterNodeCreate requires condition field for each edge."""
+    """Test ActionNodeCreate requires condition field for each edge."""
 
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
@@ -554,25 +478,10 @@ def test_router_node_with_required_conditions(data_fixture):
     database = data_fixture.create_database_application(user=user, workspace=workspace)
     table = data_fixture.create_database_table(user=user, database=database)
 
-    factory = get_workflow_tool_factory(user, workspace, fake_tool_helpers)
-    assert callable(factory)
+    ctx = make_test_ctx(user, workspace)
 
-    tools_upgrade = factory()
-    assert is_module_callback(tools_upgrade)
-
-    mock_module = Mock()
-    mock_module._tools = []
-    mock_module.init_module = Mock()
-    tools_upgrade(ModuleContext(module=mock_module))
-    assert mock_module.init_module.called
-
-    added_tools = mock_module.init_module.call_args[1]["tools"]
-    create_workflows_tool = next(
-        (tool for tool in added_tools if tool.name == "create_workflows"), None
-    )
-    assert create_workflows_tool is not None
-
-    result = create_workflows_tool.func(
+    result = create_workflows(
+        ctx,
         automation_id=automation.id,
         workflows=[
             WorkflowCreate(
@@ -581,9 +490,10 @@ def test_router_node_with_required_conditions(data_fixture):
                     ref="trigger1",
                     label="Periodic Trigger",
                     type="periodic",
+                    periodic_interval={"interval": "DAY"},
                 ),
                 nodes=[
-                    RouterNodeCreate(
+                    ActionNodeCreate(
                         ref="router1",
                         label="Router",
                         previous_node_ref="trigger1",
@@ -599,17 +509,18 @@ def test_router_node_with_required_conditions(data_fixture):
                             ),
                         ],
                     ),
-                    CreateRowActionCreate(
+                    ActionNodeCreate(
                         ref="action1",
                         label="Create row",
                         previous_node_ref="router1",
                         type="create_row",
                         table_id=table.id,
-                        values={},
+                        values=[],
                     ),
                 ],
             )
         ],
+        thought="test",
     )
 
     assert len(result["created_workflows"]) == 1

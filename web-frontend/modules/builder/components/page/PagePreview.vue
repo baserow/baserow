@@ -315,7 +315,7 @@ export default {
       })
     },
     elementSelectedId(newValue) {
-      if (newValue) {
+      if (newValue && this.$refs.previewScaled) {
         this.$refs.previewScaled.focus()
       }
     },

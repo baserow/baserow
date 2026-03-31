@@ -48,10 +48,6 @@
     "duplicating": "Duplicating",
     "duplicatedTitle": "Workflow duplicated"
   },
-  "automationWorkflowErrors": {
-    "errorNameNotUnique": "A workflow with this name already exists",
-    "errorNameNotUniqueDescription": "Please enter a unique name for the workflow"
-  },
   "trashType": {
     "workflow": "workflow",
     "automation": "automation"
@@ -94,11 +90,13 @@
     "title": "History",
     "noRunsTitle": "No runs yet",
     "noRunsDescription": "When this workflow has run, the results will be shown here.",
+    "statusStarted": "In progress...",
     "statusSuccess": "Ran successfully",
     "statusError": "Failed to run",
     "statusDisabled": "Disabled by Baserow",
     "completedInSeconds": "Completed in {s} seconds.",
     "completedInLessThanSecond": "Completed in less than 1 second.",
+    "running": "Running for {at}s",
     "testRun": "Test"
   },
   "nodeType": {

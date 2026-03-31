@@ -147,12 +147,11 @@ class AssistantHandler:
 
         :param chat: The AI assistant chat to get the assistant for.
         :param human_message: The new message from the user.
-        :param ui_ontext: The UI context where the message was sent.
+        :param ui_context: The UI context where the message was sent.
         :return: An async generator yielding messages from the assistant.
         """
 
         assistant = self.get_assistant(chat)
-        async for message in assistant.astream_messages(
-            human_message, ui_context=ui_context
-        ):
-            yield message
+        message = HumanMessage(content=human_message, ui_context=ui_context)
+        async for msg in assistant.astream_messages(message):
+            yield msg

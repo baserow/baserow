@@ -316,6 +316,10 @@ export default {
      * Reload the preview without re-parsing the raw data.
      */
     reloadPreview() {
+      if (!Array.isArray(this.parsedData) || this.parsedData.length === 0) {
+        return
+      }
+
       const [rawHeader, ...rawData] = this.firstRowHeader
         ? this.parsedData
         : [[], ...this.parsedData]

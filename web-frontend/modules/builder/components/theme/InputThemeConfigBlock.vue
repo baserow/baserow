@@ -283,7 +283,7 @@
               v-for="(option, index) in options"
               :key="option.value"
               :name="option.name"
-              :value="index === 1"
+              :model-value="index === 1"
             >
               {{ option.name }}
             </ABCheckbox>

@@ -67,14 +67,26 @@ jobs:
       packages: write
     outputs:
       image: ${{ steps.image.outputs.full }}
+      is_fork: ${{ steps.fork-check.outputs.is_fork }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Check if PR is from a fork
+        id: fork-check
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" && \
+                "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
+            echo "is_fork=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_fork=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
+        if: steps.fork-check.outputs.is_fork != 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -95,14 +107,27 @@ jobs:
           context: .
           file: backend/Dockerfile
           target: ci
-          push: true
+          push: ${{ steps.fork-check.outputs.is_fork != 'true' }}
+          load: ${{ steps.fork-check.outputs.is_fork == 'true' }}
           tags: ${{ steps.image.outputs.full }}
           cache-from: ${{ inputs.clear_cache != true && 'type=gha,scope=backend-ci' || '' }}
-          cache-to: type=gha,scope=backend-ci,mode=max
+          cache-to: ${{ steps.fork-check.outputs.is_fork != 'true' && 'type=gha,scope=backend-ci,mode=max' || '' }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+      - name: Save Docker image for fork PRs
+        if: steps.fork-check.outputs.is_fork == 'true'
+        run: docker save ${{ steps.image.outputs.full }} | gzip > /tmp/backend-ci-image.tar.gz
+
+      - name: Upload Docker image artifact
+        if: steps.fork-check.outputs.is_fork == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-ci-image
+          path: /tmp/backend-ci-image.tar.gz
+          retention-days: 1
 
   build-frontend:
     name: Build Web-Frontend CI Image
@@ -112,14 +137,26 @@ jobs:
       packages: write
     outputs:
       image: ${{ steps.image.outputs.full }}
+      is_fork: ${{ steps.fork-check.outputs.is_fork }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Check if PR is from a fork
+        id: fork-check
+        run: |
+          if [[ "${{ github.event_name }}" == "pull_request" && \
+                "${{ github.event.pull_request.head.repo.full_name }}" != "${{ github.repository }}" ]]; then
+            echo "is_fork=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_fork=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GitHub Container Registry
+        if: steps.fork-check.outputs.is_fork != 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -140,14 +177,27 @@ jobs:
           context: .
           file: web-frontend/Dockerfile
           target: ci
-          push: true
+          push: ${{ steps.fork-check.outputs.is_fork != 'true' }}
+          load: ${{ steps.fork-check.outputs.is_fork == 'true' }}
           tags: ${{ steps.image.outputs.full }}
           cache-from: ${{ inputs.clear_cache != true && 'type=gha,scope=frontend-ci' || '' }}
-          cache-to: type=gha,scope=frontend-ci,mode=max
+          cache-to: ${{ steps.fork-check.outputs.is_fork != 'true' && 'type=gha,scope=frontend-ci,mode=max' || '' }}
           labels: |
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
             org.opencontainers.image.revision=${{ env.REAL_GITHUB_SHA }}
             org.opencontainers.image.created=${{ github.event.head_commit.timestamp }}
+
+      - name: Save Docker image for fork PRs
+        if: steps.fork-check.outputs.is_fork == 'true'
+        run: docker save ${{ steps.image.outputs.full }} | gzip > /tmp/frontend-ci-image.tar.gz
+
+      - name: Upload Docker image artifact
+        if: steps.fork-check.outputs.is_fork == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-ci-image
+          path: /tmp/frontend-ci-image.tar.gz
+          retention-days: 1
 
   # ==========================================================================
   # LINT STAGE - Run linting on backend, frontend, and Dockerfiles
@@ -228,11 +278,23 @@ jobs:
       packages: read
     steps:
       - name: Log in to GitHub Container Registry
+        if: needs.build-frontend.outputs.is_fork != 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download frontend image artifact
+        if: needs.build-frontend.outputs.is_fork == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-ci-image
+          path: /tmp
+
+      - name: Load frontend image from artifact
+        if: needs.build-frontend.outputs.is_fork == 'true'
+        run: gunzip -c /tmp/frontend-ci-image.tar.gz | docker load
 
       - name: Run frontend lint
         run: |
@@ -340,11 +402,23 @@ jobs:
           --shm-size=512m
     steps:
       - name: Log in to GitHub Container Registry
+        if: needs.build-backend.outputs.is_fork != 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download backend image artifact
+        if: needs.build-backend.outputs.is_fork == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-ci-image
+          path: /tmp
+
+      - name: Load backend image from artifact
+        if: needs.build-backend.outputs.is_fork == 'true'
+        run: gunzip -c /tmp/backend-ci-image.tar.gz | docker load
 
       - name: Check backend startup
         run: |
@@ -405,11 +479,23 @@ jobs:
           --shm-size=512m
     steps:
       - name: Log in to GitHub Container Registry
+        if: needs.build-backend.outputs.is_fork != 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download backend image artifact
+        if: needs.build-backend.outputs.is_fork == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-ci-image
+          path: /tmp
+
+      - name: Load backend image from artifact
+        if: needs.build-backend.outputs.is_fork == 'true'
+        run: gunzip -c /tmp/backend-ci-image.tar.gz | docker load
 
       - name: Run backend tests for group ${{ matrix.group }}
         run: |
@@ -464,11 +550,23 @@ jobs:
         shard: [1, 2, 3]
     steps:
       - name: Log in to GitHub Container Registry
+        if: needs.build-frontend.outputs.is_fork != 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download frontend image artifact
+        if: needs.build-frontend.outputs.is_fork == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-ci-image
+          path: /tmp
+
+      - name: Load frontend image from artifact
+        if: needs.build-frontend.outputs.is_fork == 'true'
+        run: gunzip -c /tmp/frontend-ci-image.tar.gz | docker load
 
       - name: Run web-frontend tests for shard ${{ matrix.shard }}
         env:
@@ -621,11 +719,34 @@ jobs:
           cache-dependency-path: "e2e-tests/yarn.lock"
 
       - name: Log in to GitHub Container Registry
+        if: needs.build-backend.outputs.is_fork != 'true'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Download backend image artifact
+        if: needs.build-backend.outputs.is_fork == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-ci-image
+          path: /tmp
+
+      - name: Load backend image from artifact
+        if: needs.build-backend.outputs.is_fork == 'true'
+        run: gunzip -c /tmp/backend-ci-image.tar.gz | docker load
+
+      - name: Download frontend image artifact
+        if: needs.build-frontend.outputs.is_fork == 'true'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-ci-image
+          path: /tmp
+
+      - name: Load frontend image from artifact
+        if: needs.build-frontend.outputs.is_fork == 'true'
+        run: gunzip -c /tmp/frontend-ci-image.tar.gz | docker load
 
       - name: Restore database from dump
         run: |

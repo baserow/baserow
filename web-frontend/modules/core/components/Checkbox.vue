@@ -1,5 +1,15 @@
 <template>
-  <div class="checkbox" :class="classNames" @click="toggle(currentValue)">
+  <label class="checkbox" :class="classNames">
+    <input
+      :id="inputId"
+      ref="nativeInput"
+      class="checkbox__native"
+      type="checkbox"
+      :checked="currentValue"
+      :disabled="disabled"
+      :aria-checked="indeterminate ? 'mixed' : undefined"
+      @change="onChange"
+    />
     <div class="checkbox__button">
       <svg
         v-show="currentValue && !indeterminate"
@@ -48,10 +58,10 @@
         />
       </svg>
     </div>
-    <label v-if="hasSlot" class="checkbox__label">
+    <span v-if="hasSlot" class="checkbox__label">
       <slot></slot>
-    </label>
-  </div>
+    </span>
+  </label>
 </template>
 
 <script>
@@ -121,6 +131,9 @@ export default {
     currentValue() {
       return this.modelValue !== undefined ? this.modelValue : this.checked
     },
+    inputId() {
+      return `checkbox${this.uniqClipId}`
+    },
     /**
      * The `clip-path` IDs are expected to be unique in the DOM. If we have
      * multiple checkboxes on the same page, and IDs are re-used, this can
@@ -142,13 +155,24 @@ export default {
       return !!this.$slots.default
     },
   },
+  mounted() {
+    this.syncNativeInput()
+  },
+  updated() {
+    this.syncNativeInput()
+  },
   methods: {
-    toggle(checked) {
+    onChange(event) {
       if (this.disabled) return
 
-      const value = !checked
+      const value = event.target.checked
       this.$emit('update:modelValue', value)
       this.$emit('input', value)
+    },
+    syncNativeInput() {
+      if (this.$refs.nativeInput) {
+        this.$refs.nativeInput.indeterminate = this.indeterminate
+      }
     },
   },
 }

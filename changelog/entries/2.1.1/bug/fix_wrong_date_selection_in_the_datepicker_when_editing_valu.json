@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix wrong date selection in the datepicker when editing values directly in the text input.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-02-20"
+}

@@ -32,7 +32,6 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       throw createError({
         statusCode: 404,
         message: 'Dashboard not found.',
-        fatal: false,
       })
     }
   }

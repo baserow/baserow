@@ -207,7 +207,7 @@ class GlobalCache:
     def get(
         self,
         key: str,
-        default: T | Callable[[], T] = None,
+        default: T | Callable[[], T] | None = None,
         invalidate_key: None | str = None,
         timeout: int = 60,
     ) -> T:
@@ -275,7 +275,7 @@ class GlobalCache:
         self,
         key: str,
         callback: Callable[[T], T],
-        default_value: T | Callable[[], T] = None,
+        default_value: T | Callable[[], T] | None = None,
         invalidate_key: None | str = None,
         timeout: int = 60,
     ) -> T:
@@ -288,8 +288,8 @@ class GlobalCache:
 
         try:
             default = default_value() if callable(default_value) else default_value
-            initial_value = cache.get(cache_key_to_use, default)
-            new_value = callback(initial_value)
+            current_cached_value = cache.get(cache_key_to_use, default)
+            new_value = callback(current_cached_value)
             cache.set(
                 cache_key_to_use,
                 new_value,

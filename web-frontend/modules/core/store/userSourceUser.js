@@ -169,7 +169,16 @@ export const actions = {
     commit('LOGOFF', { application })
 
     if (refreshToken && invalidateToken) {
-      await UserSourceService(this.$client).blacklistToken(refreshToken)
+      try {
+        await UserSourceService(this.$client).blacklistToken(refreshToken)
+      } catch (e) {
+        // blacklistToken() could return a 401 ERROR_INVALID_REFRESH_TOKEN
+        // error if the refresh token has already expired. We swallow the
+        // error here because the user source session has already been cleared.
+        if (e.response?.status !== 401) {
+          throw e
+        }
+      }
     }
   },
 

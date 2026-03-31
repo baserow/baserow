@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved a bug where a container-type element with a visibility condition would be unable to use form data in its formula.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-03-11"
+}

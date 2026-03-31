@@ -68,6 +68,7 @@ from baserow.contrib.database.api.tables.errors import (
 )
 from baserow.contrib.database.api.tokens.authentications import TokenAuthentication
 from baserow.contrib.database.api.tokens.errors import ERROR_NO_PERMISSION_TO_TABLE
+from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.fields.actions import (
     ChangePrimaryFieldActionType,
     CreateFieldActionType,
@@ -278,6 +279,7 @@ class FieldsView(APIView):
     @validate_body_custom_fields(
         field_type_registry,
         base_serializer_class=CreateFieldSerializer,
+        serializer_class_context={"application_type": DatabaseApplicationType},
     )
     @map_exceptions(
         {
@@ -463,6 +465,7 @@ class FieldView(APIView):
             field_type_registry,
             request.data,
             base_serializer_class=UpdateFieldSerializer,
+            serializer_class_context={"application_type": DatabaseApplicationType},
         )
 
         # Because each field type can raise custom exceptions at while updating the

@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Filter out unactionable AxiosErrors from sentry",
+    "issue_origin": "github",
+    "issue_number": 5008,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-03-19"
+}

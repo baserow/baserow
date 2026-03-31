@@ -831,7 +831,7 @@ class NavigationElementManager:
         **kwargs,
     ) -> Any:
         if prop_name == "navigate_to_page_id" and value:
-            return id_mapping["builder_pages"][value]
+            return id_mapping["builder_pages"].get(value)
 
         return value
 
@@ -1519,13 +1519,13 @@ class InputTextElementType(InputElementType):
         :return: Whether the value is valid or not for this element.
         """
 
-        if value == "":
+        if value == "" or value is None:
             if element.required:
                 raise ValueError("The value is required")
 
         elif element.validation_type == "integer":
             try:
-                return ensure_numeric(value)
+                return ensure_numeric(value, True)
             except (InvalidOperation, ValidationError) as exc:
                 raise TypeError(f"{value} is not a valid number") from exc
 

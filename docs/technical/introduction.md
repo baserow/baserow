@@ -121,6 +121,9 @@ are accepted.
 * `REDIS_PASSWORD` (default ``):  The password of the Redis server.
 * `REDIS_PROTOCOL` (default `redis`): The redis protocol. Can either be `redis` or
   `rediss`.
+* `REDIS_SSL_CERT_REQS` (default `required`): whether the SSL certificate is required.
+  Can either be `required`, `optional` or `none`.
+* `REDIS_SSL_CA_CERTS` (default ``): The path to the CA file.
 * `EMAIL_SMTP` (default ``): Providing anything other than an empty string will enable
   SMTP email.
 * `EMAIL_SMTP_HOST` (default `localhost`): The hostname of the SMTP server.

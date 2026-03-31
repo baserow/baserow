@@ -265,6 +265,22 @@ export class ViewType extends Registerable {
   }
 
   /**
+   * Called when the view needs to be forcefully refreshed via a realtime event.
+   * Handles updating the view and fields atomically. View types can override to
+   * perform additional synchronization before the update.
+   */
+  forceViewRefresh({ store }, view, values, fields, storePrefix) {
+    return Promise.all([
+      store.dispatch('view/forceUpdate', {
+        view,
+        values,
+        repopulate: true,
+      }),
+      store.dispatch('field/forceSetFields', { fields }),
+    ])
+  }
+
+  /**
    * Event that is called when a row is created from an outside source, so for example
    * via a real time event by another user. It can be used to check if data in an store
    * needs to be updated.
@@ -625,6 +641,18 @@ export class GridViewType extends ViewType {
     })
   }
 
+  forceViewRefresh({ store }, view, values, fields, storePrefix) {
+    // Sync activeGroupBys together with the view and fields update so that
+    // components don't try to look up fields that have been removed or haven't
+    // been added yet. All dispatches are synchronous commits so Vue batches the
+    // re-render with all three applied atomically.
+    store.dispatch(
+      storePrefix + 'view/grid/updateActiveGroupBys',
+      clone(values.group_bys || [])
+    )
+    return super.forceViewRefresh({ store }, view, values, fields, storePrefix)
+  }
+
   async fieldRestored(
     { dispatch, rootGetters },
     table,
@@ -638,6 +666,13 @@ export class GridViewType extends ViewType {
     await dispatch(
       'view/fieldRestored',
       { field, fieldType, view: selectedView },
+      { root: true }
+    )
+    // Sync the grid store's activeGroupBys with the view's group_bys which
+    // may have been updated by the field restore above.
+    await dispatch(
+      storePrefix + 'view/grid/updateActiveGroupBys',
+      clone(selectedView.group_bys || []),
       { root: true }
     )
   }
@@ -655,7 +690,7 @@ export class GridViewType extends ViewType {
   }
 
   async afterFieldCreated(
-    { dispatch },
+    { rootGetters, dispatch },
     table,
     field,
     fieldType,
@@ -667,6 +702,12 @@ export class GridViewType extends ViewType {
       { field, value },
       { root: true }
     )
+    const viewId = rootGetters[storePrefix + 'view/grid/getLastGridId']
+    const view = viewId === -1 ? null : rootGetters['view/get'](viewId)
+    const isPublic = view?.public ?? false
+    const anyOtherFieldHidden = Object.values(
+      rootGetters[storePrefix + 'view/grid/getAllFieldOptions']
+    ).some((options) => options.hidden)
     await dispatch(
       storePrefix + 'view/grid/setFieldOptionsOfField',
       {
@@ -675,7 +716,7 @@ export class GridViewType extends ViewType {
         // model in the backend to stay consistent.
         values: {
           width: 200,
-          hidden: false,
+          hidden: isPublic || anyOtherFieldHidden,
           order: maxPossibleOrderValue,
           aggregation_type: '',
           aggregation_raw_type: '',

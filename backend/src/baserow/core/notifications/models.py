@@ -63,9 +63,9 @@ class Notification(models.Model):
         return notification_type.get_web_frontend_url(self)
 
     class Meta:
-        ordering = ["-created_on"]
+        ordering = ["-created_on", "-id"]
         indexes = [
-            models.Index(fields=["-created_on"]),
+            models.Index(fields=["-created_on", "-id"]),
             GinIndex(name="notification_data", fields=["data"]),
         ]
 
@@ -128,10 +128,10 @@ class NotificationRecipient(models.Model):
     )
 
     class Meta:
-        ordering = ["-created_on"]
+        ordering = ["-created_on", "-id"]
         unique_together = ("notification", "recipient")
         indexes = [
-            models.Index(fields=["-created_on"]),
+            models.Index(fields=["-created_on", "-id"]),
             models.Index(
                 fields=[
                     "broadcast",

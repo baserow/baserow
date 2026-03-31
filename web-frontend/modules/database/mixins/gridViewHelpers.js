@@ -14,18 +14,6 @@ export default {
       gridViewRowDetailsWidth: 72,
     }
   },
-  /*beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        fieldOptions:
-          this.$options.propsData.storePrefix + 'view/grid/getAllFieldOptions',
-        publicGrid: 'page/view/public/getIsPublic',
-        activeGroupBys:
-          this.$options.propsData.storePrefix + 'view/grid/getActiveGroupBys',
-      }),
-    }
-  },*/
   computed: {
     activeGroupByWidth() {
       return this.activeGroupBys.reduce(
@@ -53,19 +41,13 @@ export default {
   methods: {
     getFieldWidth(field) {
       const fieldId = field?.id
-      const hasFieldOptions =
-        fieldId &&
-        Object.prototype.hasOwnProperty.call(this.fieldOptions, fieldId)
+      const options = fieldId ? this.fieldOptions[fieldId] : undefined
 
-      if (
-        hasFieldOptions &&
-        this.fieldOptions[fieldId].hidden &&
-        !field.primary
-      ) {
+      if (options?.hidden && !field.primary) {
         return 0
       }
 
-      return hasFieldOptions ? this.fieldOptions[fieldId].width : 200
+      return options?.width ?? 200
     },
     async moveFieldWidth(field, width) {
       await this.$store.dispatch(

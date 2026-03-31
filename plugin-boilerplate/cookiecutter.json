@@ -1,5 +1,0 @@
-{
-  "project_name": "My Baserow Plugin",
-  "project_slug": "{{ cookiecutter.project_name.lower()|replace(' ', '-')|replace('_', '-')|replace('.', '-')|trim() }}",
-  "project_module": "{{ cookiecutter.project_name.lower()|replace(' ', '_')|replace('-', '_')|replace('.', '_')|trim() }}"
-}

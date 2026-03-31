@@ -79,6 +79,19 @@ def setup(settings):
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = os.getenv(
         "BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL", ""
     )
-    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE = float(
-        os.getenv("BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE", "") or 0.3
+    _temp_raw = os.getenv("BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE", "")
+    settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_TEMPERATURE = (
+        float(_temp_raw) if _temp_raw else None
     )
+
+    # Backward compatibility: bridge old UDSPY_LM_MODEL to the new setting.
+    # Credential fallback (UDSPY_LM_API_KEY, UDSPY_LM_OPENAI_COMPATIBLE_BASE_URL)
+    # is handled at model-creation time in retrying_model._resolve_model().
+    _udspy_model = os.getenv("UDSPY_LM_MODEL", "")
+    if _udspy_model and not settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL:
+        settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = _udspy_model
+
+    # Bridge old AWS_REGION_NAME to boto3's standard AWS_DEFAULT_REGION.
+    _aws_region = os.getenv("AWS_REGION_NAME", "")
+    if _aws_region:
+        os.environ.setdefault("AWS_DEFAULT_REGION", _aws_region)

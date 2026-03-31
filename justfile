@@ -830,6 +830,7 @@ dc-prod *ARGS:
     if [ -z "{{ ARGS }}" ]; then
         just _dc_help
     else
+        export BASEROW_PUBLIC_URL="${BASEROW_PUBLIC_URL:-http://localhost}"
         VERSION="${BASEROW_VERSION:-latest}"
         if [ "$VERSION" = "latest" ] || [ -z "$BASEROW_VERSION" ]; then
             # Build locally for latest/unset

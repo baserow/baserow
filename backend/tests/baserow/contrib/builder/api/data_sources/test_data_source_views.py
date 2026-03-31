@@ -258,6 +258,43 @@ def test_update_data_source(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_updating_data_source_with_invalid_formula_arguments_throws_error(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_database_table(user=user)
+    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page
+    )
+    url = reverse(
+        "api:builder:data_source:item", kwargs={"data_source_id": data_source.id}
+    )
+    response = api_client.patch(
+        url,
+        {
+            "table_id": table.id,
+            "row_id": "get('foobar.123')",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_REQUEST_BODY_VALIDATION",
+        "detail": {
+            "row_id": [
+                {
+                    "error": "The formula provider 'foobar' used "
+                    "in 'foobar.123' does not exist in this module.",
+                    "code": "invalid_formula_argument",
+                }
+            ]
+        },
+    }
+
+
+@pytest.mark.django_db
 def test_update_data_source_page(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)

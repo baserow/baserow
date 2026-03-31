@@ -1,5 +1,5 @@
 <template>
-  <Modal ref="modal" wide v-on="$attrs">
+  <Modal ref="modal" wide v-on="$attrs" @show="onShow">
     <h2 class="box__title">
       {{
         create
@@ -19,7 +19,7 @@
         :data-source="dataSource"
         :builder="builder"
         :page="dataSourcePage"
-        :default-values="dataSource"
+        :default-values="currentDefaultValues"
         :integrations="integrations"
         :create="create"
         :application-context-additions="{
@@ -41,7 +41,7 @@
         <Button
           size="large"
           :loading="loading"
-          :disabled="loading || !changed || $refs.dataSourceForm.v$.$anyError"
+          :disabled="submitIsDisabled"
           @click.prevent="$refs.dataSourceForm.submit()"
         >
           {{ create ? $t('action.create') : $t('action.save') }}
@@ -77,15 +77,20 @@ export default {
   props: {
     dataSourceId: { type: Number, required: false, default: null },
   },
-  emits: ['updated'],
+  emits: ['updated', 'data-source-created'],
   data() {
     return {
       loading: false,
-      actualDataSourceId: this.dataSourceId,
       changed: false,
+      currentDefaultValues: {},
     }
   },
   computed: {
+    submitIsDisabled() {
+      return (
+        this.loading || !this.changed || this.$refs.dataSourceForm.v$.$anyError
+      )
+    },
     dataSources() {
       return this.$store.getters['dataSource/getPageDataSources'](
         this.currentPage
@@ -103,7 +108,7 @@ export default {
       return [...this.dataSources, ...this.sharedDataSources]
     },
     create() {
-      return !this.actualDataSourceId
+      return !this.dataSourceId
     },
     isShared() {
       return !this.create && this.dataSource?.page_id === this.sharedPage.id
@@ -112,9 +117,7 @@ export default {
       if (this.create) {
         return undefined
       }
-      return this.allDataSources.find(
-        ({ id }) => id === this.actualDataSourceId
-      )
+      return this.allDataSources.find(({ id }) => id === this.dataSourceId)
     },
     integrations() {
       return this.$store.getters['integration/getIntegrations'](this.builder)
@@ -138,14 +141,22 @@ export default {
       ]
     },
   },
+  watch: {
+    dataSource(newValue) {
+      this.currentDefaultValues = { ...this.dataSource }
+    },
+  },
   methods: {
     ...mapActions({
       actionFetchIntegrations: 'integration/fetch',
       actionCreateDataSource: 'dataSource/create',
       actionUpdateDataSource: 'dataSource/update',
     }),
+    onShow() {
+      this.currentDefaultValues = { ...this.dataSource }
+    },
     onValuesChanged(values) {
-      if (!this.actualDataSourceId) {
+      if (!this.dataSourceId) {
         this.changed = true
         return
       }
@@ -154,6 +165,10 @@ export default {
       )
 
       if (differences.length) {
+        this.currentDefaultValues = {
+          ...this.currentDefaultValues,
+          ...Object.fromEntries(differences),
+        }
         this.changed = true
       }
     },
@@ -167,7 +182,7 @@ export default {
             page: this.currentPage,
             values,
           })
-          this.actualDataSourceId = createdDataSource.id
+          this.$emit('data-source-created', createdDataSource)
         } else {
           const differences = Object.fromEntries(
             Object.entries(values).filter(

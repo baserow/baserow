@@ -42,9 +42,9 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useHead } from '#imports'
+import { useHead, useState } from '#imports'
 import { useVuelidate } from '@vuelidate/core'
 import { required, helpers } from '@vuelidate/validators'
 
@@ -60,10 +60,13 @@ const router = useRouter()
 const nuxtApp = useNuxtApp()
 const { $store, $client, $i18n } = nuxtApp
 
-// Language detection (replaces languageDetection mixin)
-const originalLanguageBeforeDetect = ref(null)
-originalLanguageBeforeDetect.value = $i18n.locale
-$i18n.locale = $i18n.getBrowserLocale()
+// Language detection — useState ensures server/client agree on the detected locale (SSR-safe)
+const originalLanguageBeforeDetect = ref($i18n.locale.value)
+const detectedLocale = useState('public-view-login-detected-locale', () => {
+  return $i18n.getBrowserLocale() || $i18n.defaultLocale
+})
+$i18n.locale.value = detectedLocale.value
+await $i18n.loadLocaleMessages(detectedLocale.value)
 
 // Page title
 useHead({
@@ -139,5 +142,9 @@ onMounted(() => {
   nextTick(() => {
     passwordInput.value?.focus()
   })
+})
+
+onBeforeUnmount(() => {
+  $i18n.locale.value = originalLanguageBeforeDetect.value
 })
 </script>

@@ -8,6 +8,7 @@ from baserow_enterprise.features import (
     BUILDER_FILE_INPUT,
     BUILDER_NO_BRANDING,
     BUILDER_SSO,
+    DATA_SCANNER,
     DATA_SYNC,
     DATE_DEPENDENCY,
     ENTERPRISE_SETTINGS,
@@ -102,6 +103,7 @@ class EnterpriseWithoutSupportLicenseType(AdvancedLicenseType):
         *COMMON_ADVANCED_FEATURES,
         ENTERPRISE_SETTINGS,
         SECURE_FILE_SERVE,
+        DATA_SCANNER,
     ]
 
     def handle_seat_overflow(self, seats_taken: int, license_object: License):

@@ -132,6 +132,11 @@ class CoreSMTPEmailService(Service):
     A service for sending emails via SMTP.
     """
 
+    use_instance_smtp_settings = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether to use the instance-level Django SMTP configuration.",
+    )
     from_email = FormulaField(
         help_text="The sender's email address.",
     )
@@ -165,6 +170,10 @@ class CoreSMTPEmailService(Service):
     body = FormulaField(
         help_text="The email body content.",
     )
+
+    @property
+    def instance_smtp_settings_enabled(self) -> bool:
+        return self.get_type()._instance_smtp_is_available()
 
 
 class CoreRouterService(Service):
@@ -205,6 +214,13 @@ class CorePeriodicService(Service):
         null=True,
         help_text="Timestamp when the service was last executed periodically. This "
         "value is used to calculate when it should be run.",
+    )
+    next_run_at = models.DateTimeField(
+        null=True,
+        db_index=True,
+        db_default=None,
+        help_text="The next scheduled time for this service to run. Automatically "
+        "calculated based on the interval and schedule fields.",
     )
     interval = models.CharField(
         max_length=10,
