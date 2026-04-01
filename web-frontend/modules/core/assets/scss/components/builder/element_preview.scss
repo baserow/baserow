@@ -260,9 +260,9 @@
 }
 
 .element-preview--drop-before::before {
-  top: -1px;
+  top: 0;
 }
 
 .element-preview--drop-after::after {
-  bottom: -1px;
+  bottom: 0;
 }
