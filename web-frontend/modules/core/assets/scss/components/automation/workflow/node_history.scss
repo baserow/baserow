@@ -90,6 +90,9 @@
 
 .node-history__nested-scroll {
   overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+  padding-bottom: 4px;
 }
 
 .node-history__nested-scroll-inner {
