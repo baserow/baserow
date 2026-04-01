@@ -75,14 +75,18 @@
             </div>
           </template>
           <template #default>
-            <NodeHistory
-              v-for="nodeHistory in group.histories"
-              :key="nodeHistory.id"
-              :node-id="nodeHistory.node"
-              :node-histories="[nodeHistory]"
-              :child-node-histories-by-parent="childNodeHistoriesByParent"
-              :depth="depth + 1"
-            />
+            <div class="node-history__nested-scroll">
+              <div class="node-history__nested-scroll-inner">
+                <NodeHistory
+                  v-for="nodeHistory in group.histories"
+                  :key="nodeHistory.id"
+                  :node-id="nodeHistory.node"
+                  :node-histories="[nodeHistory]"
+                  :child-node-histories-by-parent="childNodeHistoriesByParent"
+                  :depth="depth + 1"
+                />
+              </div>
+            </div>
           </template>
         </Expandable>
       </template>

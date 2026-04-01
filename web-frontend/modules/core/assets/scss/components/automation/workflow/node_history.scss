@@ -87,3 +87,11 @@
 .node-history__show-result-button-icon {
   color: $palette-neutral-600;
 }
+
+.node-history__nested-scroll {
+  overflow-x: auto;
+}
+
+.node-history__nested-scroll-inner {
+  min-width: max-content;
+}
