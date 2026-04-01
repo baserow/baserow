@@ -130,7 +130,21 @@ export function useDropElementTarget({
   }
 
   function onDragEnterHandler(event) {
-    if (!draggedElement.value || !isValidDropTarget.value) {
+    if (!draggedElement.value) {
+      return
+    }
+
+    if (!isValidDropTarget.value) {
+      // When the cursor re-enters the dragged element's own preview, stop
+      // propagation so the parent container doesn't claim the drop zone.
+      // Without this, a tiny drag within the element immediately makes its
+      // parent the active drop target.
+      const isOverDragSource =
+        draggedElement.value.id === unref(referenceElement)?.id ||
+        draggedElement.value.id === unref(parentElement)?.id
+      if (isOverDragSource) {
+        event.stopPropagation()
+      }
       return
     }
 
@@ -177,6 +191,13 @@ export function useDropElementTarget({
   async function onDropHandler(event) {
     const dragged = draggedElement.value
     if (!dragged) {
+      return
+    }
+
+    // Only process the drop if this zone was the active drop target (indicator
+    // was visible). Without this guard, a quick drag-and-release would bubble up
+    // to a parent drop zone and trigger an unintended move.
+    if (!isDragOver.value) {
       return
     }
 
