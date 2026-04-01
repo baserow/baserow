@@ -197,12 +197,18 @@ const actions = {
     } else {
       // Otherwise place at the end of the target container.
       const lastElement = getters
-        .getElementsInPlace(resolvedTargetPage, parentElementId, placeInContainer)
+        .getElementsInPlace(
+          resolvedTargetPage,
+          parentElementId,
+          placeInContainer
+        )
         .at(-1)
       tempOrder = calculateTempOrder(getOrder(lastElement), null)
     }
 
     if (isCrossPage) {
+      const descendants = getters.getDescendants(page, element)
+
       commit('DELETE_ITEM', { page, elementId: element.id })
       commit('ADD_ITEM', {
         page: resolvedTargetPage,
@@ -214,6 +220,20 @@ const actions = {
           page_id: resolvedTargetPage.id,
         },
       })
+
+      // move all descendants to the target page.
+      for (const descendant of descendants) {
+        commit('DELETE_ITEM', { page, elementId: descendant.id })
+        commit('ADD_ITEM', {
+          page: resolvedTargetPage,
+          element: { ...descendant, page_id: resolvedTargetPage.id },
+        })
+        dispatch('_setElementNamespacePath', {
+          page: resolvedTargetPage,
+          element: getters.getElementById(resolvedTargetPage, descendant.id),
+        })
+      }
+
       dispatch('_setElementNamespacePath', {
         page: resolvedTargetPage,
         element: getters.getElementById(resolvedTargetPage, elementId),
