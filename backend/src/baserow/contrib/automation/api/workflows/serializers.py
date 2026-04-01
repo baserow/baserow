@@ -143,7 +143,13 @@ class AutomationNodeHistorySerializer(AutomationHistorySerializer):
     @extend_schema_field(OpenApiTypes.INT)
     def get_iteration(self, obj):
         result = obj.node_results.first()
-        return result.iteration if result else None
+        if result is None:
+            return None
+
+        if result.iteration_path:
+            return int(result.iteration_path.rsplit(".", 1)[-1])
+
+        return 0
 
     def get_result(self, obj):
         if result := obj.node_results.first():
