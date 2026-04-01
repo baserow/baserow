@@ -39,6 +39,7 @@ export function useElementDraggable({ element }) {
 
   function onDragEnd() {
     dndContext.draggedElement = null
+    dndContext.dropTargetId = null
     isDraggable.value = false
   }
 
