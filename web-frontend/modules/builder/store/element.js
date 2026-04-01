@@ -162,71 +162,32 @@ const actions = {
     const elementType = $registry.get('element', elementToDelete.type)
     elementType.afterDelete(elementToDelete, page)
   },
-  forceMove(
-    { commit, getters },
-    {
-      builder,
-      page,
-      elementId,
-      beforeElementId,
-      parentElementId,
-      placeInContainer,
-    }
-  ) {
-    const element = getters.getElementById(page, elementId)
-
-    let tempOrder = ''
-    // Compute temporary order while waiting for the update from the server
-    if (beforeElementId) {
-      // If we have a before element then we should place the element
-      // between the before element and the element before the before element.
-      const beforeElement = getters.getElementById(page, beforeElementId)
-      const beforeBeforeElement = getters.getPreviousElement(
-        page,
-        beforeElement
-      )
-      const afterOrder = getOrder(beforeElement)
-      const beforeOrder = getOrder(beforeBeforeElement)
-      tempOrder = calculateTempOrder(beforeOrder, afterOrder)
-    } else {
-      // Otherwise it's should be placed as the last in the column so we get the last
-      // element and we just add one.
-      const lastElement = getters
-        .getElementsInPlace(page, parentElementId, placeInContainer)
-        .at(-1)
-      tempOrder = calculateTempOrder(getOrder(lastElement), null)
-    }
-
-    commit('UPDATE_ITEM', {
-      builder,
-      page,
-      element,
-      values: {
-        order: tempOrder,
-        parent_element_id: parentElementId,
-        place_in_container: placeInContainer,
-      },
-    })
-  },
   forceMoveToPage(
     { commit, dispatch, getters },
     {
+      builder,
       page,
-      targetPage,
+      targetPage = null,
       elementId,
       beforeElementId,
       parentElementId,
       placeInContainer,
     }
   ) {
+    const isCrossPage = targetPage !== null && targetPage.id !== page.id
+    const resolvedTargetPage = isCrossPage ? targetPage : page
     const element = getters.getElementById(page, elementId)
 
     // Compute a temporary order on the target page while waiting for the server.
     let tempOrder = ''
     if (beforeElementId) {
-      const beforeElement = getters.getElementById(targetPage, beforeElementId)
+      // Place the element between beforeElement and its predecessor.
+      const beforeElement = getters.getElementById(
+        resolvedTargetPage,
+        beforeElementId
+      )
       const beforeBeforeElement = getters.getPreviousElement(
-        targetPage,
+        resolvedTargetPage,
         beforeElement
       )
       tempOrder = calculateTempOrder(
@@ -234,27 +195,41 @@ const actions = {
         getOrder(beforeElement)
       )
     } else {
+      // Otherwise place at the end of the target container.
       const lastElement = getters
-        .getElementsInPlace(targetPage, parentElementId, placeInContainer)
+        .getElementsInPlace(resolvedTargetPage, parentElementId, placeInContainer)
         .at(-1)
       tempOrder = calculateTempOrder(getOrder(lastElement), null)
     }
 
-    commit('DELETE_ITEM', { page, elementId: element.id })
-    commit('ADD_ITEM', {
-      page: targetPage,
-      element: {
-        ...element,
-        order: tempOrder,
-        parent_element_id: parentElementId,
-        place_in_container: placeInContainer,
-        page_id: targetPage.id,
-      },
-    })
-    dispatch('_setElementNamespacePath', {
-      page: targetPage,
-      element: getters.getElementById(targetPage, elementId),
-    })
+    if (isCrossPage) {
+      commit('DELETE_ITEM', { page, elementId: element.id })
+      commit('ADD_ITEM', {
+        page: resolvedTargetPage,
+        element: {
+          ...element,
+          order: tempOrder,
+          parent_element_id: parentElementId,
+          place_in_container: placeInContainer,
+          page_id: resolvedTargetPage.id,
+        },
+      })
+      dispatch('_setElementNamespacePath', {
+        page: resolvedTargetPage,
+        element: getters.getElementById(resolvedTargetPage, elementId),
+      })
+    } else {
+      commit('UPDATE_ITEM', {
+        builder,
+        page,
+        element,
+        values: {
+          order: tempOrder,
+          parent_element_id: parentElementId,
+          place_in_container: placeInContainer,
+        },
+      })
+    }
   },
   select({ commit }, { builder, element }) {
     updateContext.lastUpdatedValues = null
@@ -456,25 +431,15 @@ const actions = {
 
     const resolvedTargetPage = targetPage !== null ? targetPage : page
 
-    if (isCrossPage) {
-      await dispatch('forceMoveToPage', {
-        page,
-        targetPage,
-        elementId,
-        beforeElementId,
-        parentElementId,
-        placeInContainer,
-      })
-    } else {
-      await dispatch('forceMove', {
-        builder,
-        page,
-        elementId,
-        beforeElementId,
-        parentElementId,
-        placeInContainer,
-      })
-    }
+    await dispatch('forceMoveToPage', {
+      builder,
+      page,
+      targetPage,
+      elementId,
+      beforeElementId,
+      parentElementId,
+      placeInContainer,
+    })
 
     const fire = async () => {
       try {
