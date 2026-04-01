@@ -31,7 +31,7 @@
   },
   "dependencies": {
     "@nuxtjs/i18n": "10.2.4",
-    "@sentry/node": "10.46.0",
+    "@sentry/node": "10.47.0",
     "@sentry/nuxt": "10.46.0",
     "@sentry/vue": "10.46.0",
     "@tiptap/core": "^3.13.0",
