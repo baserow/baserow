@@ -31,7 +31,7 @@
     }
   }
 
-  &-show-payload {
+  &-show-result {
     display: flex;
     align-self: center;
     width: 16px;
@@ -84,6 +84,6 @@
   color: $palette-neutral-900;
 }
 
-.node-history__show-payload-button-icon {
+.node-history__show-result-button-icon {
   color: $palette-neutral-600;
 }

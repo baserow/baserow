@@ -102,12 +102,12 @@
           n{{ nodeId }} - {{ nodeTypeLabel(nodeId) }}
         </div>
 
-        <div class="node-history__header-show-payload">
+        <div class="node-history__header-show-result">
           <a
-            ref="nodePayloadButtonContextToggle"
+            ref="nodeResultButtonContextToggle"
             role="button"
             :title="$t('workflowNode.nodeOptions')"
-            @click="openNodePayloadButtonContext()"
+            @click="openNodeResultButtonContext()"
           >
             <i class="baserow-icon-more-vertical"></i>
           </a>
@@ -158,21 +158,21 @@
     </div>
 
     <!-- TODO: find a better way to show button pop-up to avoid background overlap. -->
-    <Context ref="nodePayloadButtonContext">
+    <Context ref="nodeResultButtonContext">
       <Button
-        ref="nodePayloadContextToggle"
+        ref="nodeResultContextToggle"
         type="secondary"
         full-width
-        icon="iconoir-code-brackets node-history__show-payload-button-icon"
-        @click="showNodePayloadModal"
+        icon="iconoir-code-brackets node-history__show-result-button-icon"
+        @click="showNodeResultModal"
       >
-        Show Payload
+        Show Result
       </Button>
     </Context>
 
     <SampleDataModal
-      ref="nodePayloadModal"
-      :sample-data="nodeHistories[0].payload"
+      ref="nodeResultModal"
+      :sample-data="nodeHistories[0].result"
       :title="nodeTypeLabel(nodeId)"
     />
   </div>
@@ -209,9 +209,9 @@ const store = useStore()
 const workflow = inject('workflow')
 const automation = inject('automation')
 
-const nodePayloadButtonContext = ref(null)
-const nodePayloadButtonContextToggle = ref(null)
-const nodePayloadModal = ref(null)
+const nodeResultButtonContext = ref(null)
+const nodeResultButtonContextToggle = ref(null)
+const nodeResultModal = ref(null)
 
 const getNode = (nodeId) => {
   return store.getters['automationWorkflowNode/findById'](
@@ -284,10 +284,10 @@ const childNodeHistoriesByIteration = computed(() => {
     }))
 })
 
-const openNodePayloadButtonContext = () => {
-  if (nodePayloadButtonContext.value && nodePayloadButtonContextToggle.value) {
-    nodePayloadButtonContext.value.toggle(
-      nodePayloadButtonContextToggle.value,
+const openNodeResultButtonContext = () => {
+  if (nodeResultButtonContext.value && nodeResultButtonContextToggle.value) {
+    nodeResultButtonContext.value.toggle(
+      nodeResultButtonContextToggle.value,
       'bottom',
       'left',
       0
@@ -295,7 +295,7 @@ const openNodePayloadButtonContext = () => {
   }
 }
 
-const showNodePayloadModal = () => {
-  nodePayloadModal.value.show()
+const showNodeResultModal = () => {
+  nodeResultModal.value.show()
 }
 </script>
