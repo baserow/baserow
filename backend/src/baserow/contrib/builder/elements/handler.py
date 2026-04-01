@@ -440,6 +440,9 @@ class ElementHandler:
         :return: The moved element.
         """
 
+        if parent_element is not None:
+            parent_element = parent_element.specific
+
         parent_element_id = getattr(parent_element, "id", None)
 
         element.get_type().validate_place(
