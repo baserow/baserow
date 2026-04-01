@@ -1,7 +1,8 @@
 from datetime import datetime
 from unittest.mock import ANY, call, patch
 
-from django.test.utils import override_settings
+from django.db import connection
+from django.test.utils import CaptureQueriesContext, override_settings
 from django.urls import reverse
 
 import pytest
@@ -10,6 +11,7 @@ from starlette.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FO
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
 from baserow.contrib.database.fields.models import DateField
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import (
     GalleryViewFieldOptions,
     GridViewFieldOptions,
@@ -2102,3 +2104,230 @@ def test_editor_adjacent_row_requires_view_and_excludes_hidden_fields(
     response_json = response.json()
     assert f"field_{visible_field.id}" in response_json
     assert f"field_{hidden_field.id}" in response_json
+
+
+def _setup_default_values_test(enterprise_data_fixture):
+    """
+    Helper that creates a workspace with an admin (builder) and a second user,
+    a table with a visible and a hidden field, a restricted view with hidden
+    field configuration, and a default value on each field. Returns a dict with
+    all the objects needed by the tests.
+    """
+
+    enterprise_data_fixture.enable_enterprise()
+
+    admin, admin_token = enterprise_data_fixture.create_user_and_token()
+    other_user, other_token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(
+        user=admin, members=[other_user]
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    visible_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    hidden_field = enterprise_data_fixture.create_text_field(table=table)
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    _set_field_hidden(view, hidden_field, visible_fields=[visible_field])
+
+    ViewHandler().update_view_default_values(
+        user=admin,
+        view=view,
+        items=[
+            {
+                "field": visible_field.id,
+                "enabled": True,
+                "value": "visible default",
+            },
+            {
+                "field": hidden_field.id,
+                "enabled": True,
+                "value": "hidden default",
+            },
+        ],
+    )
+
+    return {
+        "admin": admin,
+        "admin_token": admin_token,
+        "other_user": other_user,
+        "other_token": other_token,
+        "workspace": workspace,
+        "table": table,
+        "visible_field": visible_field,
+        "hidden_field": hidden_field,
+        "view": view,
+    }
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_default_values_list_views_builder_sees_all(
+    enterprise_data_fixture, api_client
+):
+    ctx = _setup_default_values_test(enterprise_data_fixture)
+
+    response = api_client.get(
+        reverse("api:database:views:list", kwargs={"table_id": ctx["table"].id})
+        + "?include=default_row_values",
+        HTTP_AUTHORIZATION=f"JWT {ctx['admin_token']}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    view_data = next(v for v in data if v["id"] == ctx["view"].id)
+    default_values = view_data["default_row_values"]
+    field_ids = {dv["field"] for dv in default_values}
+    assert ctx["visible_field"].id in field_ids
+    assert ctx["hidden_field"].id in field_ids
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_default_values_list_views_editor_sees_visible_only(
+    enterprise_data_fixture, api_client
+):
+    ctx = _setup_default_values_test(enterprise_data_fixture)
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        ctx["other_user"],
+        ctx["workspace"],
+        role=no_access_role,
+        scope=ctx["workspace"],
+    )
+    RoleAssignmentHandler().assign_role(
+        ctx["other_user"],
+        ctx["workspace"],
+        role=editor_role,
+        scope=View.objects.get(id=ctx["view"].id),
+    )
+
+    response = api_client.get(
+        reverse("api:database:views:list", kwargs={"table_id": ctx["table"].id})
+        + "?include=default_row_values",
+        HTTP_AUTHORIZATION=f"JWT {ctx['other_token']}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    view_data = next(v for v in data if v["id"] == ctx["view"].id)
+    default_values = view_data["default_row_values"]
+    field_ids = {dv["field"] for dv in default_values}
+    assert ctx["visible_field"].id in field_ids
+    assert ctx["hidden_field"].id not in field_ids
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_default_values_list_views_viewer_sees_none(
+    enterprise_data_fixture, api_client
+):
+    ctx = _setup_default_values_test(enterprise_data_fixture)
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    viewer_role = Role.objects.get(uid="VIEWER")
+    RoleAssignmentHandler().assign_role(
+        ctx["other_user"],
+        ctx["workspace"],
+        role=no_access_role,
+        scope=ctx["workspace"],
+    )
+    RoleAssignmentHandler().assign_role(
+        ctx["other_user"],
+        ctx["workspace"],
+        role=viewer_role,
+        scope=View.objects.get(id=ctx["view"].id),
+    )
+
+    response = api_client.get(
+        reverse("api:database:views:list", kwargs={"table_id": ctx["table"].id})
+        + "?include=default_row_values",
+        HTTP_AUTHORIZATION=f"JWT {ctx['other_token']}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    view_data = next(v for v in data if v["id"] == ctx["view"].id)
+    default_values = view_data["default_row_values"]
+    assert default_values == []
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_default_values_list_views_no_n_plus_one_queries(
+    enterprise_data_fixture, api_client
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    admin, admin_token = enterprise_data_fixture.create_user_and_token()
+    editor_user, editor_token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(
+        user=admin, members=[editor_user]
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    visible_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    hidden_field = enterprise_data_fixture.create_text_field(table=table)
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        editor_user, workspace, role=no_access_role, scope=workspace
+    )
+
+    def _create_restricted_view_with_defaults():
+        view = enterprise_data_fixture.create_grid_view(
+            table=table, ownership_type=RestrictedViewOwnershipType.type
+        )
+        _set_field_hidden(view, hidden_field, visible_fields=[visible_field])
+        ViewHandler().update_view_default_values(
+            user=admin,
+            view=view,
+            items=[
+                {"field": visible_field.id, "enabled": True, "value": "vis"},
+                {"field": hidden_field.id, "enabled": True, "value": "hid"},
+            ],
+        )
+        RoleAssignmentHandler().assign_role(
+            editor_user,
+            workspace,
+            role=editor_role,
+            scope=View.objects.get(id=view.id),
+        )
+        return view
+
+    # Create one view and measure the query count.
+    _create_restricted_view_with_defaults()
+
+    url = (
+        reverse("api:database:views:list", kwargs={"table_id": table.id})
+        + "?include=default_row_values"
+    )
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {editor_token}")
+    assert response.status_code == HTTP_200_OK
+    # Warm up caches (content types, etc.) by making the first request above.
+
+    with CaptureQueriesContext(connection) as context_one_view:
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {editor_token}")
+    assert response.status_code == HTTP_200_OK
+    baseline_query_count = len(context_one_view)
+
+    # Create two more views.
+    _create_restricted_view_with_defaults()
+    _create_restricted_view_with_defaults()
+
+    with CaptureQueriesContext(connection) as context_three_views:
+        response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {editor_token}")
+    assert response.status_code == HTTP_200_OK
+    three_views_query_count = len(context_three_views)
+
+    # Verify all three views have filtered default values (only visible field).
+    data = response.json()
+    for view_data in data:
+        default_values = view_data["default_row_values"]
+        assert len(default_values) == 1
+        assert default_values[0]["field"] == visible_field.id
+
+    # The query count should be the same regardless of view count.
+    assert three_views_query_count == baseline_query_count

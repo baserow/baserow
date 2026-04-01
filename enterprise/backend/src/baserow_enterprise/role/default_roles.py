@@ -174,6 +174,7 @@ from baserow.contrib.database.views.operations import (
     ReadAdjacentViewRowOperationType,
     ReadAggregationsViewOperationType,
     ReadViewDecorationOperationType,
+    ReadViewDefaultValuesOperationType,
     ReadViewFieldOptionsOperationType,
     ReadViewFilterGroupOperationType,
     ReadViewFilterOperationType,
@@ -427,6 +428,7 @@ default_roles[EDITOR_ROLE_UID].extend(
         CreateViewRowOperationType,
         UpdateViewRowOperationType,
         DeleteViewRowOperationType,
+        ReadViewDefaultValuesOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(

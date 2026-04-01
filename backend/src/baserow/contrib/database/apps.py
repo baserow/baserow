@@ -776,6 +776,7 @@ class DatabaseConfig(AppConfig):
 
         from baserow.contrib.database.views.operations import (
             CanReceiveNotificationOnSubmitFormViewOperationType,
+            ReadViewDefaultValuesOperationType,
             UpdateViewDefaultValuesOperationType,
             UpdateViewFieldOptionsOperationType,
         )
@@ -920,6 +921,7 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(DeleteRelatedLinkRowFieldOperationType())
         operation_type_registry.register(DuplicateFieldOperationType())
         operation_type_registry.register(UpdateViewFieldOptionsOperationType())
+        operation_type_registry.register(ReadViewDefaultValuesOperationType())
         operation_type_registry.register(UpdateViewDefaultValuesOperationType())
         operation_type_registry.register(WriteFieldValuesOperationType())
         operation_type_registry.register(SubmitAnonymousFieldValuesOperationType())

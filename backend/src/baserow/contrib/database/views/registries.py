@@ -1572,7 +1572,10 @@ class ViewOwnershipType(Instance):
         return False
 
     def prepare_views_for_user(
-        self, user: Optional[AbstractUser], views: List["View"]
+        self,
+        user: Optional[AbstractUser],
+        views: List["View"],
+        includes: Optional[Set[str]] = None,
     ) -> List["View"]:
         """
         A hook that can be used to make changes to the provided view objects `views` if
@@ -1582,6 +1585,11 @@ class ViewOwnershipType(Instance):
         :param user: The user on whose behalf the view objects are enhanced. Can be
             used for permission checking. Note that it's not always provided.
         :param views: The views to enhance.
+        :param includes: Optional set of field names that the serializer will
+            include in the response (e.g. ``{"filters", "sortings",
+            "default_row_values"}``).  When provided, implementations should
+            skip work for fields that are not in the set so that no unnecessary
+            queries are executed.  ``None`` means "unknown / include everything".
         :return: The enhanced views.
         """
 
@@ -1642,7 +1650,10 @@ class ViewOwnershipTypeRegistry(Registry):
     does_not_exist_exception_class = ViewOwnershipTypeDoesNotExist
 
     def prepare_views_of_different_types_for_user(
-        self, user: AbstractUser, views: List["View"]
+        self,
+        user: AbstractUser,
+        views: List["View"],
+        includes: Optional[Set[str]] = None,
     ) -> List["View"]:
         """
         Loops over the provided views and per ownership type, calls the
@@ -1651,6 +1662,9 @@ class ViewOwnershipTypeRegistry(Registry):
         :param user: The user on whose behalf the views are requested. Can be used for
             permission checks.
         :param views: The views that must be enhanced.
+        :param includes: Optional set of field names that will be included in the
+            response.  Passed through to each ownership type's
+            ``prepare_views_for_user`` so it can skip unnecessary work.
         :return: The enhanced views.
         """
 
@@ -1661,7 +1675,7 @@ class ViewOwnershipTypeRegistry(Registry):
                 if view.ownership_type == view_ownership_type.type
             ]
             views_of_type = view_ownership_type.prepare_views_for_user(
-                user, views_of_type
+                user, views_of_type, includes=includes
             )
             # Put the enhanced view back into the original list at the right index so
             # that the order is not changed.

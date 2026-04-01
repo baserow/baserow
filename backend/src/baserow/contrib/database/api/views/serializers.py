@@ -468,14 +468,33 @@ class ViewSerializer(serializers.ModelSerializer):
         # makes sure that the user only receives data about the view that they are
         # permitted to see, according to the ownership type.
         if enhance_objects_by_view_ownership and "user" in context:
+            # Build a set of field names that will actually appear in the
+            # response so that ownership types can skip unnecessary work (and
+            # queries) for fields that are not included.
+            includes = set()
+            if context.get("include_filters"):
+                includes.add("filters")
+            if context.get("include_sortings"):
+                includes.add("sortings")
+            if context.get("include_decorations"):
+                includes.add("decorations")
+            if context.get("include_group_bys"):
+                includes.add("group_bys")
+            if context.get("include_default_row_values"):
+                includes.add("default_row_values")
+
             if isinstance(instance, list):
                 instance = view_ownership_type_registry.prepare_views_of_different_types_for_user(
-                    context["user"], instance
+                    context["user"],
+                    instance,
+                    includes=includes,
                 )
             else:
                 instance = (
                     view_ownership_type_registry.prepare_views_of_different_types_for_user(
-                        context["user"], [instance]
+                        context["user"],
+                        [instance],
+                        includes=includes,
                     )
                 )[0]
         super().__init__(instance, *args, **kwargs)

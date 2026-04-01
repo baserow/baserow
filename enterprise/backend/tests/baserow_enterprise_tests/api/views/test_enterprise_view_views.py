@@ -9,6 +9,7 @@ from rest_framework.status import (
     HTTP_402_PAYMENT_REQUIRED,
 )
 
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.core.subjects import UserSubjectType
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -1014,3 +1015,59 @@ def test_cannot_update_rows_in_table_using_unrelated_view(
         HTTP_AUTHORIZATION=f"JWT {token2}",
     )
     assert response.status_code == HTTP_401_UNAUTHORIZED
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_default_values_collaborative_view_viewer_sees_none(
+    enterprise_data_fixture, api_client
+):
+    """
+    A viewer on a collaborative view does not see default row values because
+    they cannot create rows.
+    """
+
+    enterprise_data_fixture.enable_enterprise()
+
+    admin, admin_token = enterprise_data_fixture.create_user_and_token()
+    viewer_user, viewer_token = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(
+        user=admin, members=[viewer_user]
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table)
+    view = enterprise_data_fixture.create_grid_view(table=table)
+
+    ViewHandler().update_view_default_values(
+        user=admin,
+        view=view,
+        items=[{"field": text_field.id, "enabled": True, "value": "test"}],
+    )
+
+    viewer_role = Role.objects.get(uid="VIEWER")
+    RoleAssignmentHandler().assign_role(
+        viewer_user, workspace, role=viewer_role, scope=workspace
+    )
+
+    # List views: viewer should not get default_row_values.
+    response = api_client.get(
+        reverse("api:database:views:list", kwargs={"table_id": table.id})
+        + "?include=default_row_values",
+        HTTP_AUTHORIZATION=f"JWT {viewer_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    view_data = next(v for v in data if v["id"] == view.id)
+    assert view_data["default_row_values"] == []
+
+    # Admin (builder+) should see default_row_values.
+    response = api_client.get(
+        reverse("api:database:views:list", kwargs={"table_id": table.id})
+        + "?include=default_row_values",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    view_data = next(v for v in data if v["id"] == view.id)
+    assert len(view_data["default_row_values"]) == 1

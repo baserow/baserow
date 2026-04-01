@@ -1,4 +1,4 @@
-from typing import Optional, Set
+from typing import List, Optional, Set
 
 from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
@@ -7,6 +7,7 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.operations import (
     CreateViewFilterOperationType,
+    ReadViewDefaultValuesOperationType,
     UpdateViewFieldOptionsOperationType,
 )
 from baserow.contrib.database.views.registries import (
@@ -70,9 +71,21 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
         view_type = view_type_registry.get_by_model(view.specific_class)
         return view_type.get_hidden_fields(view.specific)
 
-    def prepare_views_for_user(self, user, views):
+    def prepare_views_for_user(
+        self,
+        user: Optional["AbstractUser"],
+        views: List["View"],
+        includes: Optional[Set[str]] = None,
+    ) -> List["View"]:
         if len(views) == 0 or user is None:
             return views
+
+        include_default_row_values = (
+            includes is None or "default_row_values" in includes
+        )
+        include_sortings = includes is None or "sortings" in includes
+        include_group_bys = includes is None or "group_bys" in includes
+        include_decorations = includes is None or "decorations" in includes
 
         permission_checks = {}
         for view in views:
@@ -86,19 +99,26 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
                 UpdateViewFieldOptionsOperationType.type,
                 context=view,
             )
+            if include_default_row_values:
+                permission_checks[f"read_default_values{view.id}"] = PermissionCheck(
+                    user,
+                    ReadViewDefaultValuesOperationType.type,
+                    context=view,
+                )
 
         check_results = CoreHandler().check_multiple_permissions(
             permission_checks.values(), workspace=views[0].table.database.workspace
         )
 
         for view in views:
+            if not hasattr(view, "_prefetched_objects_cache"):
+                view._prefetched_objects_cache = {}
+
             filter_check_result = check_results[permission_checks[f"filter{view.id}"]]
             # If the user does not have create view filter permissions for the provided
-            # view, then the filters are omitted because the they're forcefully applied
+            # view, then the filters are omitted because they're forcefully applied
             # so that the user can only see the rows that match the filter.
             if not filter_check_result:
-                if not hasattr(view, "_prefetched_objects_cache"):
-                    view._prefetched_objects_cache = {}
                 view._prefetched_objects_cache["viewfilter_set"] = []
                 view._prefetched_objects_cache["filter_groups"] = []
 
@@ -109,8 +129,6 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
             # provided view, then the hidden fields are omitted because they should not
             # be exposed to the user.
             if not field_options_check_result:
-                if not hasattr(view, "_prefetched_objects_cache"):
-                    view._prefetched_objects_cache = {}
                 # Cache hidden field IDs to avoid repeated permission checks.
                 view_type = view_type_registry.get_by_model(view.specific_class)
                 # This could cause N number of queries, but if the views are fetched
@@ -123,32 +141,63 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
                 # Remove sorts and group_bys that reference hidden fields so
                 # that editors don't see them in the API response.
                 if hidden_field_ids:
-                    if "viewsort_set" not in view._prefetched_objects_cache:
-                        view._prefetched_objects_cache["viewsort_set"] = list(
-                            view.viewsort_set.all()
-                        )
-                    view._prefetched_objects_cache["viewsort_set"] = [
-                        s
-                        for s in view._prefetched_objects_cache["viewsort_set"]
-                        if s.field_id not in hidden_field_ids
-                    ]
+                    if include_sortings:
+                        if "viewsort_set" not in view._prefetched_objects_cache:
+                            view._prefetched_objects_cache["viewsort_set"] = list(
+                                view.viewsort_set.all()
+                            )
+                        view._prefetched_objects_cache["viewsort_set"] = [
+                            s
+                            for s in view._prefetched_objects_cache["viewsort_set"]
+                            if s.field_id not in hidden_field_ids
+                        ]
 
-                    if "viewgroupby_set" not in view._prefetched_objects_cache:
-                        view._prefetched_objects_cache["viewgroupby_set"] = list(
-                            view.viewgroupby_set.all()
-                        )
-                    view._prefetched_objects_cache["viewgroupby_set"] = [
-                        g
-                        for g in view._prefetched_objects_cache["viewgroupby_set"]
-                        if g.field_id not in hidden_field_ids
-                    ]
+                    if include_group_bys:
+                        if "viewgroupby_set" not in view._prefetched_objects_cache:
+                            view._prefetched_objects_cache["viewgroupby_set"] = list(
+                                view.viewgroupby_set.all()
+                            )
+                        view._prefetched_objects_cache["viewgroupby_set"] = [
+                            g
+                            for g in view._prefetched_objects_cache["viewgroupby_set"]
+                            if g.field_id not in hidden_field_ids
+                        ]
 
-                    # Remove all decorations for editors because decorations may have
-                    # conditions referencing hidden fields, which would cause errors on
-                    # the frontend.
-                    view._prefetched_objects_cache["viewdecoration_set"] = []
+                    if include_decorations:
+                        # Remove all decorations for editors because decorations
+                        # may have conditions referencing hidden fields, which
+                        # would cause errors on the frontend.
+                        view._prefetched_objects_cache["viewdecoration_set"] = []
             else:
                 view._hidden_field_ids = None
+                hidden_field_ids = set()
+
+            # Determine which default row values to expose based on the user's
+            # permissions. Builders and admins (who have UpdateViewFieldOptions) can
+            # see all default values. Editors (who have ReadViewDefaultValues) can
+            # see default values for visible fields only. Commenters and viewers
+            # cannot see any default values.
+            if include_default_row_values:
+                if field_options_check_result:
+                    # Builder or admin: expose all default values.
+                    pass
+                elif check_results[permission_checks[f"read_default_values{view.id}"]]:
+                    # Editor: expose default values for visible fields only.
+                    if hidden_field_ids:
+                        if "view_default_values" not in view._prefetched_objects_cache:
+                            view._prefetched_objects_cache["view_default_values"] = (
+                                list(view.view_default_values.all())
+                            )
+                        view._prefetched_objects_cache["view_default_values"] = [
+                            default_value
+                            for default_value in view._prefetched_objects_cache[
+                                "view_default_values"
+                            ]
+                            if default_value.field_id not in hidden_field_ids
+                        ]
+                else:
+                    # Commenter or viewer: no default values.
+                    view._prefetched_objects_cache["view_default_values"] = []
 
         return views
 
