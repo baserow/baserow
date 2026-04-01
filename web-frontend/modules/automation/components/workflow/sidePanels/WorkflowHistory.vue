@@ -12,10 +12,15 @@
         <span class="workflow-history__header-title">
           h{{ item.id }} {{ historyTitlePrefix }}{{ statusTitle }}
         </span>
-        <span :title="completedDate" class="workflow-history__header-date">
+        <span
+          v-if="item.completed_on"
+          :title="completedDate"
+          class="workflow-history__header-date"
+        >
           {{ humanCompletedDate }}
         </span>
         <Icon
+          v-if="item.completed_on"
           :icon="
             expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
           "
