@@ -145,7 +145,7 @@ dev = [
     "mypy==1.19.1",
     "mypy-extensions==1.1.0",
     "ipython",
-    "fakeredis[lua]==2.33.0",
+    "fakeredis[lua]==2.34.1",
     "pytest-retry==1.7.0",
     "pytest-testmon==2.2.0",
     "ipdb",
