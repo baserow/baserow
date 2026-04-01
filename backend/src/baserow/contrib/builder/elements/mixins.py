@@ -131,6 +131,32 @@ class ContainerElementTypeMixin:
 
         return True
 
+    def after_move(self, instance: ElementSubClass):
+        """
+        If the instance page has changed, we ensure that all children are on the same
+        page (pun intended).
+        """
+
+        target_page_id = instance.page_id
+        parent_ids = [instance.id]
+
+        while parent_ids:
+            child_ids = list(
+                Element.objects.filter(parent_element_id__in=parent_ids).values_list(
+                    "id", flat=True
+                )
+            )
+
+            if not child_ids:
+                break
+
+            (
+                Element.objects.filter(id__in=child_ids)
+                .exclude(page_id=target_page_id)
+                .update(page_id=target_page_id)
+            )
+            parent_ids = child_ids
+
 
 class CollectionElementTypeMixin:
     is_collection_element = True
@@ -806,7 +832,7 @@ class FormElementTypeMixin:
         element: Type[FormElement],
         value: Any,
         dispatch_context: DispatchContext,
-    ) -> bool:
+    ) -> Any:
         """
         Given an element and form data value, returns whether it's valid.
         Used by `FormDataProviderType` to determine if form data is valid.

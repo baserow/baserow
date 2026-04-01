@@ -442,12 +442,9 @@ class ElementHandler:
 
         parent_element_id = getattr(parent_element, "id", None)
 
-        if parent_element is not None and place_in_container is not None:
-            parent_element = parent_element.specific
-            parent_element_type = element_type_registry.get_by_model(parent_element)
-            parent_element_type.validate_place_in_container(
-                place_in_container, parent_element
-            )
+        element.get_type().validate_place(
+            target_page, parent_element, place_in_container
+        )
 
         if before:
             element.order = Element.get_unique_order_before_element(
@@ -463,6 +460,8 @@ class ElementHandler:
         element.place_in_container = place_in_container
 
         element.save()
+
+        element.get_type().after_move(element)
 
         return element
 
