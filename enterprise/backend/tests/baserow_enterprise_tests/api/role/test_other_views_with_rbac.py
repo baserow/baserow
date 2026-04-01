@@ -350,6 +350,11 @@ def test_list_views_doesnt_include_personal_views_the_user_used_to_have(data_fix
         collab_view.id,
     }
 
+    # Restore the global default_roles dict so subsequent tests are not affected.
+    default_roles[role_that_looses_personal_views].append(
+        CreateAndUsePersonalViewOperationType
+    )
+
 
 VIEW_FILTER_RBAC_TESTS_PRAMS = [
     ("VIEWER", OWNERSHIP_TYPE_PERSONAL, HTTP_200_OK),
@@ -465,3 +470,73 @@ def test_builders_and_up_can_change_views_ownership_type(
         else initial_ownership_type
     )
     assert view.ownership_type == expected_ownership_type
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.view_ownership
+def test_editor_personal_view_default_values_applied_to_new_row(
+    api_client, data_fixture, synced_roles
+):
+    """
+    An editor is normally not allowed to update default values on a collaborative
+    view, but they should be able to do so on their own personal view. This is
+    because the ViewOwnershipPermissionManagerType grants the
+    UpdateViewDefaultValuesOperationType on personal views owned by the user.
+    """
+
+    user, token = data_fixture.create_user_and_token(
+        email="test@test.nl", password="password", first_name="Test1"
+    )
+    table = data_fixture.create_database_table(user)
+    text_field = data_fixture.create_text_field(table=table)
+
+    editor_role = RoleAssignmentHandler().get_role_by_uid("EDITOR")
+    RoleAssignmentHandler().assign_role(
+        user, table.database.workspace, role=editor_role, scope=table
+    )
+
+    # Verify the editor cannot set default values on a collaborative view.
+    collaborative_view = data_fixture.create_grid_view(table=table)
+    response = api_client.patch(
+        reverse(
+            "api:database:views:default_values",
+            kwargs={"view_id": collaborative_view.id},
+        ),
+        [{"field": text_field.id, "enabled": True, "value": "should fail"}],
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+    # Editor creates their own personal view.
+    create_view_response = api_client.post(
+        reverse("api:database:views:list", kwargs={"table_id": table.id}),
+        {"name": "Editor personal", "type": "grid", "ownership_type": "personal"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert create_view_response.status_code == HTTP_200_OK
+    personal_view_id = create_view_response.json()["id"]
+
+    # Editor sets default values on their own personal view.
+    patch_response = api_client.patch(
+        reverse(
+            "api:database:views:default_values",
+            kwargs={"view_id": personal_view_id},
+        ),
+        [{"field": text_field.id, "enabled": True, "value": "editor default"}],
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert patch_response.status_code == HTTP_200_OK
+
+    # Editor creates a row using their personal view — defaults should apply.
+    create_row_response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id})
+        + f"?view={personal_view_id}",
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert create_row_response.status_code == HTTP_200_OK
+    assert create_row_response.json()[f"field_{text_field.id}"] == "editor default"

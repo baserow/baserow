@@ -69,15 +69,17 @@ class ViewRealtimeRowsHandler:
             updated_field_ids,
         )
 
-    def broadcast_to_types(self, view: View, payload: Dict):
+    def broadcast_to_types(self, view: View, payload: Dict, user=None):
         """
         Helper method that broadcasts the provided payload using the ViewRealtimeRows
         type, if the view matches the filter.
 
         :param view: The view object where to broadcast the payload to.
         :param payload: The payload that must be broadcasted.
+        :param user: The user that triggered the event. Passed through to the
+            broadcast method so that the original sender can be excluded.
         """
 
         for t in view_realtime_rows_registry.get_all():
             if getattr(view, self._is_name(t.type), False):
-                t.broadcast(view, payload)
+                t.broadcast(view, payload, user=user)

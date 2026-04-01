@@ -109,7 +109,6 @@ export default {
     return {
       loading: false,
       saving: false,
-      editableFields: [],
       enabledFieldIds: [],
       rowValues: {},
       fieldModes: {},
@@ -120,6 +119,27 @@ export default {
     ...mapGetters({
       allFields: 'field/getAll',
     }),
+    editableFields() {
+      const viewType = this.$registry.get('view', this.view.type)
+      const visibleFields = viewType.getVisibleFieldsInOrder(
+        this,
+        this.allFields,
+        this.view,
+        this.storePrefix
+      )
+
+      const visibleFieldIds = new Set(visibleFields.map((f) => f.id))
+      const hiddenFields = this.allFields.filter(
+        (f) => !visibleFieldIds.has(f.id)
+      )
+
+      return [...visibleFields, ...hiddenFields].filter((field) => {
+        const fieldType = this.$registry.get('field', field.type)
+        return (
+          !fieldType.isReadOnlyField(field) && fieldType.canBeDefaultValue()
+        )
+      })
+    },
   },
   methods: {
     show(...args) {
@@ -127,20 +147,6 @@ export default {
       return modal.methods.show.call(this, ...args)
     },
     initializeFromView() {
-      const viewType = this.$registry.get('view', this.view.type)
-      const orderedFields = viewType.getVisibleFieldsInOrder(
-        this,
-        this.allFields,
-        this.view,
-        this.storePrefix
-      )
-      this.editableFields = orderedFields.filter((field) => {
-        const fieldType = this.$registry.get('field', field.type)
-        return (
-          !fieldType.isReadOnlyField(field) && fieldType.canBeDefaultValue()
-        )
-      })
-
       const items = this.view.default_row_values || []
       this.enabledFieldIds = []
       this.rowValues = {}

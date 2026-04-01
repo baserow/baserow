@@ -25,6 +25,7 @@ def _send_rows_created_event_to_views(
     serialized_rows: List[Dict[Any, Any]],
     before: Optional[GeneratedTableModel],
     views: List[FilteredViewRows],
+    user=None,
 ):
     view_handler = ViewHandler()
     view_realtime_rows_handler = ViewRealtimeRowsHandler()
@@ -43,13 +44,14 @@ def _send_rows_created_event_to_views(
             metadata={},
             before=before,
         )
-        view_realtime_rows_handler.broadcast_to_types(view, payload)
+        view_realtime_rows_handler.broadcast_to_types(view, payload, user=user)
 
 
 @baserow_trace(tracer)
 def _send_rows_deleted_event_to_views(
     serialized_deleted_rows: List[Dict[Any, Any]],
     views: List[FilteredViewRows],
+    user=None,
 ):
     view_handler = ViewHandler()
     view_realtime_rows_handler = ViewRealtimeRowsHandler()
@@ -66,7 +68,7 @@ def _send_rows_deleted_event_to_views(
             table_id=view.table_id,
             serialized_rows=restricted_serialized_deleted_rows,
         )
-        view_realtime_rows_handler.broadcast_to_types(view, payload)
+        view_realtime_rows_handler.broadcast_to_types(view, payload, user=user)
 
 
 @receiver(row_signals.rows_created)
@@ -93,6 +95,7 @@ def views_rows_created(
             serialize_rows_for_response(rows, model),
             before,
             row_checker.get_filtered_views_where_rows_are_visible(rows),
+            user=user,
         ),
     )
 
@@ -124,7 +127,9 @@ def views_rows_deleted(
         "deleted_rows"
     ]
     transaction.on_commit(
-        lambda: _send_rows_deleted_event_to_views(serialized_deleted_rows, views)
+        lambda: _send_rows_deleted_event_to_views(
+            serialized_deleted_rows, views, user=user
+        )
     )
 
 
@@ -235,12 +240,13 @@ def views_rows_updated(
     @baserow_trace(tracer)
     def _send_created_updated_deleted_row_signals_to_views():
         _send_rows_deleted_event_to_views(
-            serialized_old_rows, views_where_rows_were_deleted
+            serialized_old_rows, views_where_rows_were_deleted, user=user
         )
         _send_rows_created_event_to_views(
             serialized_updated_rows,
             before=None,
             views=views_where_rows_were_created,
+            user=user,
         )
 
         view_handler = ViewHandler()
@@ -260,6 +266,6 @@ def views_rows_updated(
                 updated_field_ids=list(updated_field_ids),
                 metadata={},
             )
-            view_realtime_rows_handler.broadcast_to_types(view, payload)
+            view_realtime_rows_handler.broadcast_to_types(view, payload, user=user)
 
     transaction.on_commit(_send_created_updated_deleted_row_signals_to_views)

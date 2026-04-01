@@ -1769,3 +1769,28 @@ def test_default_values_stored_in_request_format(api_client, data_fixture):
         assert stored_value == sent_value, (
             f"field_{field_id}: stored value {stored_value!r} != sent value {sent_value!r}"
         )
+
+
+@pytest.mark.django_db
+def test_patch_default_values_invalid_single_select_option(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    single_select_field = data_fixture.create_single_select_field(table=table)
+    data_fixture.create_select_option(field=single_select_field, value="Valid")
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    response = api_client.patch(
+        reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
+        [
+            {
+                "field": single_select_field.id,
+                "enabled": True,
+                "value": 999999,
+            }
+        ],
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"

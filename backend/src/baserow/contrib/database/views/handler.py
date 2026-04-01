@@ -3842,6 +3842,19 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         if model is None:
             model = table.get_model()
 
+        # Run the same prepare_values step used during row creation so that
+        # field types can perform additional validation (e.g.
+        # NumberFieldType rejecting negative values, SingleSelectFieldType
+        # rejecting unknown option IDs) that the serializer alone does not
+        # catch.
+        raw_values = {}
+        for item in items:
+            field_id = item.get("field")
+            if field_id and item.get("value") is not None:
+                raw_values[f"field_{field_id}"] = item["value"]
+        if raw_values:
+            RowHandler().prepare_values(model._field_objects, raw_values)
+
         existing_by_field = {
             default_value.field_id: default_value
             for default_value in ViewDefaultValue.objects.filter(view_id=view.id)

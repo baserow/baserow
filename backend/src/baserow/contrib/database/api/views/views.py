@@ -3,6 +3,7 @@ from typing import Any, Dict
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import ObjectDoesNotExist
 
@@ -23,6 +24,7 @@ from baserow.api.decorators import (
     validate_query_parameters,
 )
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
+from baserow.api.exceptions import RequestBodyValidationException
 from baserow.api.pagination import PageNumberPagination
 from baserow.api.schemas import (
     CLIENT_SESSION_ID_SCHEMA_PARAMETER,
@@ -2572,8 +2574,8 @@ class ViewDefaultValuesView(APIView):
         handler = ViewHandler()
         view = handler.get_view(view_id).specific
 
-        # Validate field values through the row serializer to ensure they are valid for
-        # the respective field types.
+        # Validate field values through the row serializer to ensure they are valid
+        # for the respective field types.
         table = view.table
         model = table.get_model()
         validation_serializer = get_row_serializer_class(model)
@@ -2587,9 +2589,15 @@ class ViewDefaultValuesView(APIView):
         if raw_values:
             validate_data(validation_serializer, raw_values)
 
-        records = action_type_registry.get(UpdateViewDefaultValuesActionType.type).do(
-            user=request.user,
-            view=view,
-            items=items,
-        )
+        try:
+            records = action_type_registry.get(
+                UpdateViewDefaultValuesActionType.type
+            ).do(
+                user=request.user,
+                view=view,
+                items=items,
+            )
+        except ValidationError as e:
+            raise RequestBodyValidationException(detail=e.message)
+
         return Response(ViewDefaultValueSerializer(records, many=True).data)

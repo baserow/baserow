@@ -4912,12 +4912,10 @@ def test_create_row_with_interesting_table_default_values(api_client, data_fixtu
     )
     row_data = response_serializer(row).data
 
-    # Field types that cannot be round-tripped or compared straightforwardly.
-    skip_types = {"password", "ai", "ai_choice", "link_row", "file"}
-
     items = []
     comparable_field_ids = []
     input_values_by_field_name = {}
+    field_type_by_id = {}
     for field_object in model.get_field_objects():
         field = field_object["field"]
         field_type = field_object["type"]
@@ -4940,8 +4938,8 @@ def test_create_row_with_interesting_table_default_values(api_client, data_fixtu
 
         items.append({"field": field.id, "enabled": True, "value": value})
         input_values_by_field_name[field_name] = value
-        if field_type.type not in skip_types:
-            comparable_field_ids.append(field.id)
+        comparable_field_ids.append(field.id)
+        field_type_by_id[field.id] = field_type.type
 
     assert len(items) > 0, "Expected at least some writable fields"
 
@@ -4953,6 +4951,27 @@ def test_create_row_with_interesting_table_default_values(api_client, data_fixtu
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert patch_response.status_code == HTTP_200_OK, patch_response.json()
+
+    # Verify the default values are returned correctly via the list views endpoint.
+    list_response = api_client.get(
+        reverse("api:database:views:list", kwargs={"table_id": table.id})
+        + "?include=default_row_values",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert list_response.status_code == HTTP_200_OK
+    view_data = next(v for v in list_response.json() if v["id"] == view.id)
+    stored_defaults = {dv["field"]: dv for dv in view_data["default_row_values"]}
+    for item in items:
+        field_id = item["field"]
+        assert field_id in stored_defaults, (
+            f"field_{field_id}: missing from view default_row_values"
+        )
+        stored = stored_defaults[field_id]
+        assert stored["enabled"] is True
+        assert stored["value"] == item["value"], (
+            f"field_{field_id}: stored value {stored['value']!r} != "
+            f"sent value {item['value']!r}"
+        )
 
     # Create a new row without providing any field values.
     create_response = api_client.post(
@@ -4971,12 +4990,31 @@ def test_create_row_with_interesting_table_default_values(api_client, data_fixtu
         field_name = f"field_{field_id}"
         created_value = created_row[field_name]
         sent_value = input_values_by_field_name[field_name]
+        ft = field_type_by_id[field_id]
+
+        # Password: response is a boolean indicating whether a password is set.
+        if ft == "password":
+            assert created_value is True, (
+                f"{field_name}: expected password to be set (True)"
+            )
+            continue
+
+        # File: compare by the sorted list of file names.
+        if ft == "file":
+            created_names = sorted(f["name"] for f in created_value)
+            sent_names = sorted(
+                f["name"] if isinstance(f, dict) else f for f in sent_value
+            )
+            assert created_names == sent_names, (
+                f"{field_name}: file names {created_names!r} != {sent_names!r}"
+            )
+            continue
 
         # Single select: response is an object, input was an ID.
         if isinstance(created_value, dict) and "id" in created_value:
             created_value = created_value["id"]
-        # Multiple select / multiple collaborators: response is a list of
-        # objects, input was a list of IDs.
+        # Multiple select / link row / multiple collaborators: response is a
+        # list of objects, input was a list of IDs.
         elif (
             isinstance(created_value, list)
             and created_value

@@ -20,6 +20,7 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.trash.handler import TrashHandler
 
@@ -1957,8 +1958,6 @@ def test_create_row_handler_applies_view_defaults(data_fixture):
     text_field = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
 
-    from baserow.contrib.database.views.handler import ViewHandler
-
     ViewHandler().update_view_default_values(
         user=user,
         view=view,
@@ -1975,8 +1974,6 @@ def test_create_row_handler_user_values_override(data_fixture):
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
-
-    from baserow.contrib.database.views.handler import ViewHandler
 
     ViewHandler().update_view_default_values(
         user=user,
@@ -1996,8 +1993,6 @@ def test_create_rows_handler_applies_view_defaults(data_fixture):
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
-
-    from baserow.contrib.database.views.handler import ViewHandler
 
     ViewHandler().update_view_default_values(
         user=user,
@@ -2024,9 +2019,6 @@ def test_create_row_handler_default_value_priority(data_fixture):
     # 1. No view, no user value -> field default
     row1 = RowHandler().create_row(user, table, values={})
     assert getattr(row1, f"field_{text_field.id}") == "field default"
-
-    # 2. View default set, no user value -> view default wins
-    from baserow.contrib.database.views.handler import ViewHandler
 
     ViewHandler().update_view_default_values(
         user=user,
