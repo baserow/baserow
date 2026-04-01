@@ -2336,13 +2336,20 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
       return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
     }
 
-    if (page.id !== sharedPage.id) {
-      const orderedElements =
-        this.app.$store.getters['element/getElementsOrdered'](page)
-      // Can't be inserted after the first element of the page
-      if (beforeElement && beforeElement.id !== orderedElements[0].id) {
-        return this.app.$i18n.t('elementType.notAllowedUnlessTop')
+    if (page.id === sharedPage.id) {
+      // A header element can't be placed after any footer element.
+      if (
+        beforeElement &&
+        this.app.$registry.get('element', beforeElement.type).getPagePlace() ===
+          PAGE_PLACES.FOOTER
+      ) {
+        return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
       }
+    }
+
+    if (page.id !== sharedPage.id && pagePlace === PAGE_PLACES.HEADER) {
+      // A header element is being dragged to the current page content.
+      return this.app.$i18n.t('elementType.notAllowedLocation')
     }
     return null
   }
@@ -2409,15 +2416,24 @@ export class FooterElementType extends HeaderElementType {
       pagePlace &&
       pagePlace !== PAGE_PLACES.FOOTER
     ) {
-      // can't be inserted outside of header
+      // can't be inserted outside of footer
       return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
     }
 
-    if (page.id !== sharedPage.id) {
-      // Can't be inserted before the end of the page
-      if (beforeElement && beforeElement.page_id !== sharedPage.id) {
-        return this.app.$i18n.t('elementType.notAllowedUnlessBottom')
+    if (page.id === sharedPage.id) {
+      // A footer element can't be placed before any header element.
+      if (
+        beforeElement &&
+        this.app.$registry.get('element', beforeElement.type).getPagePlace() ===
+          PAGE_PLACES.HEADER
+      ) {
+        return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
       }
+    }
+
+    if (page.id !== sharedPage.id && pagePlace === PAGE_PLACES.FOOTER) {
+      // A footer element is being dragged to the current page content.
+      return this.app.$i18n.t('elementType.notAllowedLocation')
     }
     return null
   }
