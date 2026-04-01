@@ -99,7 +99,7 @@ See [Code quality](docs/development/code-quality.md) for the full list of standa
 
 ## License
 
-When you submit code changes, your submissions are understood to be under the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the project.
+When you submit code changes, your submissions are understood to be under the same [MIT License](https://choosealicense.com/licenses/mit/) that covers the project.
 
 ## Security vulnerabilities
 

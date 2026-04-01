@@ -69,7 +69,7 @@ Hi,
 
 Thanks for your contribution. After reviewing this PR, we've decided not to move forward with it because [specific reason: not aligned with our roadmap / addresses a use case we don't plan to support / etc.].
 
-If you'd like to contribute in the future, please check our [CONTRIBUTING.md](../CONTRIBUTING.md) for guidelines on how we evaluate contributions.
+If you'd like to contribute in the future, please check our [CONTRIBUTING.md](../../CONTRIBUTING.md) for guidelines on how we evaluate contributions.
 
 Thanks for your interest in Baserow.
 ```
@@ -83,7 +83,7 @@ Hi,
 
 Thanks for taking the time to submit this. [Features require an approved issue / Bug fixes require an issue with reproduction steps] before opening a PR. This helps us align on the approach early and avoid wasted effort on both sides.
 
-Please open an issue first following our [contribution guidelines](../CONTRIBUTING.md), and we'll take it from there.
+Please open an issue first following our [contribution guidelines](../../CONTRIBUTING.md), and we'll take it from there.
 ```
 
 ### Touches premium/enterprise code
@@ -113,7 +113,7 @@ Thanks for this PR. The direction looks [good / promising], but it needs some ch
 
 Please address these within the next 2 weeks. If we don't hear back, we'll close the PR. You can always reopen it later if you want to pick it back up.
 
-If you'd prefer, you can also ask us to finish it — see the "Help us finish it" section in our [CONTRIBUTING.md](../CONTRIBUTING.md).
+If you'd prefer, you can also ask us to finish it — see the "Help us finish it" section in our [CONTRIBUTING.md](../../CONTRIBUTING.md).
 ```
 
 ### Offering to finish it (proactive)
