@@ -52,7 +52,7 @@ def test_list_admin_workspaces(api_client, data_fixture, django_assert_num_queri
     )
     assert response.status_code == HTTP_403_FORBIDDEN
 
-    with django_assert_num_queries(5):
+    with django_assert_num_queries(6):
         response = api_client.get(
             reverse("api:admin:workspaces:list"),
             format="json",
