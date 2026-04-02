@@ -2703,9 +2703,6 @@ def test_array_unique_rejects_unsupported_lookup(data_fixture, setup_fn, error_m
         )
 
 
-# === array_slice tests ===
-
-
 def _setup_text_5_rows(df, table_a, table_b, link_field, user):
     """Create 5 text rows [A, B, C, D, E] linked from a single row in table_a."""
 
@@ -3322,3 +3319,41 @@ def test_count_join_array_slice_inline_lookup(data_fixture):
     result = model.objects.get(id=row_a1.id)
     assert getattr(result, count_field.db_column) == 2  # A, B
     assert getattr(result, join_field.db_column) == "A, B"
+
+
+@pytest.mark.django_db
+def test_array_slice_nan_arguments(data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    text_field, b_rows, row_a1 = _setup_text_5_rows(
+        data_fixture, table_a, table_b, link_field, user
+    )
+
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{text_field.name}')",
+    )
+
+    nan_start_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="nan_start",
+        formula="array_slice(field('lookup'), tonumber('x'), 2)",
+    )
+    nan_count_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="nan_count",
+        formula="array_slice(field('lookup'), 1, tonumber('x'))",
+    )
+
+    model = table_a.get_model()
+    result = model.objects.get(id=row_a1.id)
+
+    assert getattr(result, nan_start_field.db_column) == []
+    assert getattr(result, nan_count_field.db_column) == []

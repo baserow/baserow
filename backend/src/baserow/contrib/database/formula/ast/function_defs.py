@@ -2526,6 +2526,10 @@ class BaserowArraySlice(ThreeArgumentBaserowFunction):
     def to_django_expression(
         self, arg1: Expression, arg2: Expression, arg3: Expression
     ) -> Expression:
+        either_nan = EqualsExpr(
+            arg2, Value(Decimal("NaN")), output_field=fields.BooleanField()
+        ) | EqualsExpr(arg3, Value(Decimal("NaN")), output_field=fields.BooleanField())
+
         start_int = trunc_numeric_to_int(arg2)
         count_int = trunc_numeric_to_int(arg3)
         abs_count = Func(count_int, function="ABS", output_field=fields.IntegerField())
@@ -2596,7 +2600,11 @@ class BaserowArraySlice(ThreeArgumentBaserowFunction):
             output_field=fields.IntegerField(),
         )
 
-        return JSONBArraySlice(arg1, offset_expr, limit_expr, is_reverse)
+        return Case(
+            When(condition=either_nan, then=Value([], output_field=JSONField())),
+            default=JSONBArraySlice(arg1, offset_expr, limit_expr, is_reverse),
+            output_field=JSONField(),
+        )
 
 
 class BaserowArrayLength(OneArgumentBaserowFunction):
