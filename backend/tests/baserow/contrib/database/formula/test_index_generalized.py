@@ -253,8 +253,6 @@ def test_index_first_last_scalar_types(
         formula="index(field('ref_lookup'), 1)",
     )
 
-    # ── Step 1: verify initial values ──
-
     model = table_a.get_model()
     r1 = model.objects.get(id=row_a1.id)
     r2 = model.objects.get(id=row_a2.id)
@@ -284,8 +282,6 @@ def test_index_first_last_scalar_types(
     assert getattr(r3, ref_first.db_column) == expected_vals[3]
     assert getattr(r3, ref_last.db_column) == expected_vals[3]
 
-    # ── Step 2: re-link to include the 4th row → last() changes ──
-
     RowHandler().update_rows(
         user,
         table_a,
@@ -302,8 +298,6 @@ def test_index_first_last_scalar_types(
     assert getattr(r1, last_field.db_column) == expected_vals[3]
     assert getattr(r1, ref_last.db_column) == expected_vals[3]
 
-    # ── Step 3: update a linked row's value → triggers recalculation ──
-
     RowHandler().update_rows(
         user,
         table_b,
@@ -315,11 +309,7 @@ def test_index_first_last_scalar_types(
     assert getattr(r1, first_field.db_column) == expected_vals[3]
     assert getattr(r1, ref_first.db_column) == expected_vals[3]
 
-    # ── Step 4: delete a linked row → triggers recalculation ──
-
     RowHandler().delete_rows(user, table_b, [rows_b[0].id])
-
-    # ── Step 5: API fetch must not crash ──
 
     from baserow.contrib.database.views.handler import ViewHandler
 
@@ -827,3 +817,50 @@ def test_index_file_field_still_works(data_fixture):
     # File index should return the file object (JSONB)
     assert val is not None
     assert "visible_name" in val
+
+
+@pytest.mark.django_db
+def test_index_nan_argument_returns_null(data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    text_field = data_fixture.create_text_field(table=table_b, name="target")
+
+    b_row = (
+        RowHandler()
+        .create_rows(user, table_b, [{text_field.db_column: "A"}])
+        .created_rows[0]
+    )
+
+    row_a = (
+        RowHandler()
+        .create_rows(user, table_a, [{link_field.db_column: [b_row.id]}])
+        .created_rows[0]
+    )
+
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{text_field.name}')",
+    )
+
+    nan_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="nan_index",
+        formula="index(field('lookup'), tonumber('x'))",
+    )
+    div_zero_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="div_zero_index",
+        formula="index(field('lookup'), 1/0)",
+    )
+
+    model = table_a.get_model()
+    result = model.objects.get(id=row_a.id)
+    assert getattr(result, nan_field.db_column) is None
+    assert getattr(result, div_zero_field.db_column) is None

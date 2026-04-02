@@ -2611,17 +2611,21 @@ class BaserowArraySlice(ThreeArgumentBaserowFunction):
         )
 
 
-class _BaserowIndexShortcut(OneArgumentBaserowFunction):
-    """Base for first()/last() — delegates to index() with a fixed index."""
-
+class BaserowIndexShortcut(OneArgumentBaserowFunction):
     arg_type = [BaserowFormulaValidType]
-    _index: int  # override in subclass
+    _index: int
 
     def type_function(
         self,
         func_call: BaserowFunctionCall[UnTyped],
         arg: BaserowExpression[BaserowFormulaValidType],
     ) -> BaserowExpression[BaserowFormulaType]:
+        if arg.many:
+            arg = arg.expression_type.collapse_many(arg)
+
+        if not isinstance(arg.expression_type, BaserowFormulaArrayType):
+            return func_call.with_invalid_type(f"{self.type} requires an array input.")
+
         from baserow.contrib.database.formula.registries import (
             formula_function_registry,
         )
@@ -2636,12 +2640,12 @@ class _BaserowIndexShortcut(OneArgumentBaserowFunction):
         raise NotImplementedError("type_function delegates to index")
 
 
-class BaserowFirst(_BaserowIndexShortcut):
+class BaserowFirst(BaserowIndexShortcut):
     type = "first"
     _index = 0
 
 
-class BaserowLast(_BaserowIndexShortcut):
+class BaserowLast(BaserowIndexShortcut):
     type = "last"
     _index = -1
 
@@ -3018,9 +3022,6 @@ class BaserowGetSingleSelectValue(OneArgumentBaserowFunction):
         )
 
 
-# ── index() helpers ──────────────────────────────────────────────────────────
-
-
 def _index_output_field(mode):
     """Return a fresh Django output_field for the given extraction mode."""
 
@@ -3051,12 +3052,9 @@ def _unwrap_literal_value(django_expr):
     return django_expr.value
 
 
-# ── BaserowIndex ─────────────────────────────────────────────────────────────
-
-
 class BaserowIndex(BaserowFunctionDefinition):
     type = "index"
-    num_args = NumOfArgsGreaterThan(1)
+    num_args = NumOfArgsBetween(2, 4)
 
     @property
     def arg_types(self) -> BaserowArgumentTypeChecker:
@@ -3075,6 +3073,11 @@ class BaserowIndex(BaserowFunctionDefinition):
         args: List[BaserowExpression[BaserowFormulaValidType]],
         func_call: BaserowFunctionCall[UnTyped],
     ) -> BaserowExpression[BaserowFormulaType]:
+        if len(args) not in (2, 4):
+            return func_call.with_invalid_type(
+                "index requires exactly 2 arguments: an array and an index."
+            )
+
         arg1, arg2 = args[0], args[1]
 
         if arg1.many:
@@ -3084,6 +3087,10 @@ class BaserowIndex(BaserowFunctionDefinition):
             return func_call.with_invalid_type("index requires an array input.")
 
         sub_type = arg1.expression_type.sub_type
+
+        if len(args) == 4:
+            return func_call.with_args(list(args)).with_valid_type(sub_type)
+
         mode_literal = BaserowStringLiteral(
             sub_type.array_index_mode, BaserowFormulaTextType()
         )
@@ -3102,9 +3109,14 @@ class BaserowIndex(BaserowFunctionDefinition):
     ) -> "WrappedExpressionWithMetadata":
         mode = _unwrap_literal_value(args[2].expression) or "text"
         value_sql = _unwrap_literal_value(args[3].expression) or "{elem} ->> 'value'"
+        safe_index = handle_arg_being_nan(
+            args[1].expression,
+            Value(None, output_field=fields.IntegerField()),
+            args[1].expression,
+        )
         expr = JSONBArrayGetElement(
             args[0].expression,
-            args[1].expression,
+            safe_index,
             value_sql,
             _index_output_field(mode),
         )

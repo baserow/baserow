@@ -3064,9 +3064,7 @@ def test_array_slice_empty_array(data_fixture):
 
 
 @pytest.mark.django_db
-def test_first_and_last(data_fixture):
-    """first() and last() return scalar values (delegates to index())."""
-
+def test_first_and_last_return_scalar_values(data_fixture):
     user = data_fixture.create_user()
     table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
     text_field, b_rows, row_a1 = _setup_text_5_rows(

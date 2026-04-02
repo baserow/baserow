@@ -185,15 +185,15 @@ class JSONBArrayGetElement(Expression):
     def resolve_expression(
         self, query=None, allow_joins=True, reuse=None, summarize=False, for_save=False
     ):
-        c = self.copy()
-        c.is_summary = summarize
-        c.array_expr = self.array_expr.resolve_expression(
+        clone = self.copy()
+        clone.is_summary = summarize
+        clone.array_expr = self.array_expr.resolve_expression(
             query, allow_joins, reuse, summarize, for_save
         )
-        c.index_expr = self.index_expr.resolve_expression(
+        clone.index_expr = self.index_expr.resolve_expression(
             query, allow_joins, reuse, summarize, for_save
         )
-        return c
+        return clone
 
     def as_sql(self, compiler, connection):
         arr_sql, arr_params = compiler.compile(self.array_expr)
