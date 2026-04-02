@@ -37,9 +37,11 @@ class AutomationHistoryHandler:
             "workflow__automation__workspace",
             Prefetch(
                 "node_histories",
-                queryset=AutomationNodeHistory.objects.prefetch_related(
-                    "node_results"
-                ).order_by("started_on"),
+                queryset=AutomationNodeHistory.objects.select_related(
+                    "node", "node__workflow"
+                )
+                .prefetch_related("node_results")
+                .order_by("started_on"),
             ),
         )
 
