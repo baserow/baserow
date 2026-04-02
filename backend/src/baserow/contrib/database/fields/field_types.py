@@ -7414,12 +7414,17 @@ class AutonumberFieldType(ReadOnlyFieldType):
             cursor.execute(
                 f"ALTER SEQUENCE {db_column}_seq OWNED BY {db_table}.{db_column};"
             )
-            # Set the sequence to the count of rows in the table, only if there
-            # is at least one row.
+            # Use COALESCE(MAX, COUNT) to set the sequence correctly in all
+            # cases: MAX handles gaps from deleted rows or imported data,
+            # COUNT is the fallback when the column is all NULLs (e.g. when
+            # creating a new autonumber field on an existing table).
             cursor.execute(
                 f"""
-                WITH count AS (SELECT COUNT(*) FROM {db_table})
-                SELECT setval('{db_column}_seq', count) FROM count WHERE count > 0;
+                WITH seq_val AS (
+                    SELECT COALESCE(MAX({db_column}), COUNT(*)) AS val
+                    FROM {db_table}
+                )
+                SELECT setval('{db_column}_seq', val) FROM seq_val WHERE val > 0;
                 """  # noqa: S608
             )
 
