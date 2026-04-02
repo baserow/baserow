@@ -5,7 +5,7 @@
       <div class="workflow-history__header">
         <img :src="getHistoryIconPath()" width="16" height="16" />
         <span class="workflow-history__header-title">
-          h{{ item.id }} {{ historyTitlePrefix }}{{ statusTitle }}
+          {{ statusTitle }}
         </span>
         <span
           v-if="item.completed_on"
@@ -77,12 +77,6 @@ const completedDate = computed(() => {
 
 const humanCompletedDate = computed(() => {
   return moment.utc(props.item.completed_on).tz(getUserTimeZone()).fromNow()
-})
-
-const historyTitlePrefix = computed(() => {
-  return props.item.is_test_run === true
-    ? `[${app.$i18n.t('historySidePanel.testRun')}] `
-    : ''
 })
 
 /**
