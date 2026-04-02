@@ -231,12 +231,10 @@ class UserProfile(models.Model):
     )
     signup_ip_address = models.GenericIPAddressField(
         null=True,
-        blank=True,
         help_text="The IP address that was used when creating a new account.",
     )
     last_login_ip_address = models.GenericIPAddressField(
         null=True,
-        blank=True,
         help_text="The IP address that was used on last login.",
     )
 
@@ -403,7 +401,6 @@ class WorkspaceInvitation(
     )
     from_ip_address = models.GenericIPAddressField(
         null=True,
-        blank=True,
         help_text="The IP address that was used when creating the invitation.",
     )
 
