@@ -169,7 +169,7 @@
       <InjectedFormulaInput
         v-model="values.body_content"
         :enabled-modes="
-          values.body_type === 'plain'
+          values.body_type !== 'html'
             ? BASEROW_FORMULA_MODES
             : ['raw', 'simple']
         "
