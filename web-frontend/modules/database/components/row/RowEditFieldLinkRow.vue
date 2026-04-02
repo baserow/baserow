@@ -7,7 +7,11 @@
         class="field-link-row__item"
       >
         <component
-          :is="readOnly || isInForeignRowEditModal ? 'span' : 'a'"
+          :is="
+            readOnly || isInForeignRowEditModal || !canAccessLinkedTable
+              ? 'span'
+              : 'a'
+          "
           class="field-link-row__name"
           :class="{
             'field-link-row__name--unnamed':
@@ -22,7 +26,7 @@
           class="field-link-row__loading"
         ></span>
         <a
-          v-else-if="!shouldFetchRow && !readOnly"
+          v-else-if="!shouldFetchRow && !readOnly && canAccessLinkedTable"
           class="field-link-row__remove"
           @click.prevent.stop="removeValue($event, value, item.id)"
         >
@@ -37,7 +41,7 @@
       </li>
     </ul>
     <a
-      v-if="!shouldFetchRow && !readOnly && canAddValue"
+      v-if="!shouldFetchRow && !readOnly && canAddValue && canAccessLinkedTable"
       class="add"
       @click.prevent="$refs.selectModal.show()"
     >
@@ -51,7 +55,7 @@
       {{ error }}
     </div>
     <SelectRowModal
-      v-if="!readOnly"
+      v-if="!readOnly && canAccessLinkedTable"
       ref="selectModal"
       :table-id="field.link_row_table_id"
       :view-id="field.link_row_limit_selection_view_id"
@@ -63,7 +67,7 @@
       @unselected="removeValue({}, value, $event.row.id)"
     ></SelectRowModal>
     <ForeignRowEditModal
-      v-if="!readOnly || isInForeignRowEditModal"
+      v-if="!readOnly && !isInForeignRowEditModal && canAccessLinkedTable"
       ref="rowEditModal"
       :table-id="field.link_row_table_id"
       :fields-sortable="false"
@@ -123,7 +127,11 @@ export default {
       this.touch()
     },
     async showForeignRowModal(item) {
-      if (this.readOnly || this.isInForeignRowEditModal) {
+      if (
+        this.readOnly ||
+        this.isInForeignRowEditModal ||
+        !this.canAccessLinkedTable
+      ) {
         return
       }
 
