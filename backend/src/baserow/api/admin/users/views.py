@@ -23,6 +23,7 @@ from baserow.api.admin.users.serializers import (
 )
 from baserow.api.admin.views import AdminListingView
 from baserow.api.decorators import map_exceptions, validate_body
+from baserow.api.pagination import PageNumberPaginationWithApproximateCount
 from baserow.api.schemas import get_error_schema
 from baserow.api.user.registries import member_data_registry
 from baserow.api.user.schemas import authenticate_user_schema
@@ -35,9 +36,6 @@ from baserow.core.admin.users.exceptions import (
 from baserow.core.admin.users.handler import UserAdminHandler
 from baserow.core.user.exceptions import DeactivatedUserException, UserAlreadyExist
 from baserow.core.user.utils import generate_session_tokens_for_user
-from baserow_enterprise.api.audit_log.views import (
-    PageNumberPaginationWithApproximateCount,
-)
 
 from .serializers import BaserowImpersonateAuthTokenSerializer
 
