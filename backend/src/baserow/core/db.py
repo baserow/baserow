@@ -1,4 +1,5 @@
 import contextlib
+import json
 import random
 import time
 from collections import defaultdict
@@ -24,7 +25,6 @@ from django.db import (
     DEFAULT_DB_ALIAS,
     OperationalError,
     connection,
-    connections,
     transaction,
 )
 from django.db.models import ForeignKey, ManyToManyField, Max, Model, Prefetch, QuerySet
@@ -57,12 +57,9 @@ def get_approximate_row_count(queryset: QuerySet) -> int:
     :return: An estimate of the row count for the queryset.
     """
 
-    compiled_sql, params = queryset.query.sql_with_params()
-    explain_sql = sql.SQL("EXPLAIN (FORMAT JSON) ") + sql.SQL(compiled_sql)
-    with connections[queryset.db].cursor() as cursor:
-        cursor.execute(explain_sql, params)
-        plan = cursor.fetchone()[0]
-        estimate = int(plan[0]["Plan"]["Plan Rows"])
+    queryset = queryset.order_by()
+    plan = json.loads(queryset.explain(format="json"))
+    estimate = int(plan[0]["Plan"]["Plan Rows"])
 
     if estimate < APPROXIMATE_COUNT_THRESHOLD:
         return queryset.count()
