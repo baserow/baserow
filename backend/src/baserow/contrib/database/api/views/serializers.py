@@ -649,6 +649,9 @@ class PublicViewSerializer(serializers.ModelSerializer):
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_ownership_type(self, instance):
+        # The publicly shared view does not need to know which view ownership type is
+        # publicly shared. However, it does need to have this value in order to work
+        # correctly, so we can always expose the collaborative type.
         return CollaborativeViewOwnershipType.type
 
     class Meta:
