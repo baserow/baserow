@@ -20,7 +20,13 @@ from typing import (
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.db import DEFAULT_DB_ALIAS, OperationalError, connection, transaction
+from django.db import (
+    DEFAULT_DB_ALIAS,
+    OperationalError,
+    connection,
+    connections,
+    transaction,
+)
 from django.db.models import ForeignKey, ManyToManyField, Max, Model, Prefetch, QuerySet
 from django.db.models.functions import Collate
 from django.db.models.query import ModelIterable
@@ -51,9 +57,10 @@ def get_approximate_row_count(queryset: QuerySet) -> int:
     :return: An estimate of the row count for the queryset.
     """
 
-    sql, params = queryset.query.sql_with_params()
-    with connection.cursor() as cursor:
-        cursor.execute(f"EXPLAIN (FORMAT JSON) {sql}", params)
+    compiled_sql, params = queryset.query.sql_with_params()
+    explain_sql = sql.SQL("EXPLAIN (FORMAT JSON) ") + sql.SQL(compiled_sql)
+    with connections[queryset.db].cursor() as cursor:
+        cursor.execute(explain_sql, params)
         plan = cursor.fetchone()[0]
         estimate = int(plan[0]["Plan"]["Plan Rows"])
 
