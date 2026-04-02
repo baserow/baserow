@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fix autonumber sequuence",
+    "message": "Fix autonumber sequence",
     "issue_origin": "github",
     "issue_number": 5115,
     "domain": "database",
