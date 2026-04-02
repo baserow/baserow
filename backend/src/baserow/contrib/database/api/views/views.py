@@ -486,8 +486,19 @@ class ViewView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
-    @allowed_includes("filters", "sortings", "decorations", "group_bys")
-    def get(self, request, view_id, filters, sortings, decorations, group_bys):
+    @allowed_includes(
+        "filters", "sortings", "decorations", "group_bys", "default_row_values"
+    )
+    def get(
+        self,
+        request,
+        view_id,
+        filters,
+        sortings,
+        decorations,
+        group_bys,
+        default_row_values,
+    ):
         """Selects a single view and responds with a serialized version."""
 
         view = ViewHandler().get_view_as_user(request.user, view_id)
@@ -499,6 +510,7 @@ class ViewView(APIView):
             sortings=sortings,
             decorations=decorations,
             group_bys=group_bys,
+            default_row_values=default_row_values,
             context={"user": request.user},
         )
         return Response(serializer.data)
@@ -2480,48 +2492,6 @@ class PublicViewGetRowView(APIView):
 
 class ViewDefaultValuesView(APIView):
     permission_classes = (IsAuthenticated,)
-
-    @extend_schema(
-        parameters=[
-            OpenApiParameter(
-                name="view_id",
-                location=OpenApiParameter.PATH,
-                type=OpenApiTypes.INT,
-                description="Returns the default row values for the view with "
-                "the given id.",
-            ),
-        ],
-        tags=["Database table views"],
-        operation_id="get_view_default_values",
-        description=(
-            "Returns the default row values configured for the specified view. These "
-            "defaults are applied when creating new rows in the context of this view."
-        ),
-        responses={
-            200: ViewDefaultValueSerializer(many=True),
-            400: get_error_schema(
-                [
-                    "ERROR_USER_NOT_IN_GROUP",
-                    "ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES",
-                ]
-            ),
-            404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
-        },
-    )
-    @map_exceptions(
-        {
-            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
-            ViewDoesNotSupportDefaultValues: ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES,
-            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
-        }
-    )
-    def get(self, request, view_id):
-        """Returns the default row values for the given view."""
-
-        handler = ViewHandler()
-        view = handler.get_view_as_user(request.user, view_id).specific
-        records = handler.get_view_default_values(view)
-        return Response(ViewDefaultValueSerializer(records, many=True).data)
 
     @extend_schema(
         parameters=[

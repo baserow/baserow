@@ -26,6 +26,28 @@ def _send_force_rows_refresh_if_view_restricted(view):
         )
 
 
+@receiver(view_signals.view_updated)
+def view_updated(sender, view, old_view, user, **kwargs):
+    view_page_type = page_registry.get("restricted_view")
+    if view.ownership_type == RestrictedViewOwnershipType.type:
+        transaction.on_commit(
+            lambda: view_page_type.broadcast(
+                # Broadcast the `force_view_refresh_and_default_values` event
+                # because that will force the view and default values to be
+                # refreshed. Unfortunately, the client has to fetch the default
+                # values again because we don't know what permissions the user has.
+                # Viewer should not receive default, but editor only the visible
+                # fields, for example.
+                {
+                    "type": "force_view_refresh_and_default_values",
+                    "view_id": view.id,
+                },
+                None,
+                restricted_view_id=view.id,
+            )
+        )
+
+
 @receiver(view_signals.view_filter_created)
 def restricted_view_filter_created(sender, view_filter, user, **kwargs):
     _send_force_rows_refresh_if_view_restricted(view_filter.view)

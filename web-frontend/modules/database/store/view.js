@@ -520,6 +520,33 @@ export const actions = {
     })
   },
   /**
+   * Fetches the view from the server (without filters, sortings, decorations, or
+   * group_bys, but with default_row_values) and updates only the view properties
+   * and default values in the store without touching the existing filters, sorts, etc.
+   */
+  async refreshViewAndDefaultValues({ commit }, { view }) {
+    const { $client } = this
+    const { data } = await ViewService($client).get(
+      view.id,
+      false,
+      false,
+      false,
+      false,
+      true
+    )
+
+    // Only update the view properties and default_row_values. We don't want to
+    // overwrite filters, sortings, decorations, or group_bys that are already
+    // in the store.
+    const { filters, sortings, decorations, group_bys, ...viewValues } = data
+    commit('UPDATE_ITEM', {
+      id: view.id,
+      view,
+      values: viewValues,
+      repopulate: false,
+    })
+  },
+  /**
    * Duplicates an existing view.
    */
   async duplicate({ commit, dispatch }, view) {

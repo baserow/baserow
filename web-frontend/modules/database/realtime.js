@@ -349,6 +349,16 @@ export const registerRealtimeEvents = (realtime) => {
     }
   })
 
+  realtime.registerEvent(
+    'force_view_refresh_and_default_values',
+    async ({ store }, data) => {
+      const view = store.getters['view/get'](data.view_id)
+      if (view !== undefined) {
+        await store.dispatch('view/refreshViewAndDefaultValues', { view })
+      }
+    }
+  )
+
   realtime.registerEvent('view_filter_created', ({ store, app }, data) => {
     const view = store.getters['view/get'](data.view_filter.view)
     if (view !== undefined) {

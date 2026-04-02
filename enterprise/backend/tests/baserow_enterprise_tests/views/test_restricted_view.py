@@ -2106,6 +2106,38 @@ def test_editor_adjacent_row_requires_view_and_excludes_hidden_fields(
     assert f"field_{hidden_field.id}" in response_json
 
 
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.ws.registries.broadcast_to_channel_group")
+def test_when_restricted_view_updated_force_view_refresh_is_broadcasted(
+    mock_broadcast_to_channel_group,
+    enterprise_data_fixture,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    table = enterprise_data_fixture.create_database_table(user=user)
+    restricted_view = enterprise_data_fixture.create_grid_view(
+        table=table,
+        ownership_type=RestrictedViewOwnershipType.type,
+    )
+
+    mock_broadcast_to_channel_group.delay.reset_mock()
+
+    ViewHandler().update_view(user=user, view=restricted_view, name="Updated name")
+
+    restricted_channel = f"restricted-view-{restricted_view.id}"
+    restricted_call = None
+    for c in mock_broadcast_to_channel_group.delay.call_args_list:
+        if c[0][0] == restricted_channel:
+            restricted_call = c
+            break
+    assert restricted_call is not None, f"No broadcast to {restricted_channel} found"
+
+    payload = restricted_call[0][1]
+    assert payload["type"] == "force_view_refresh_and_default_values"
+    assert payload["view_id"] == restricted_view.id
+
+
 def _setup_default_values_test(enterprise_data_fixture):
     """
     Helper that creates a workspace with an admin (builder) and a second user,
@@ -2331,3 +2363,38 @@ def test_default_values_list_views_no_n_plus_one_queries(
 
     # The query count should be the same regardless of view count.
     assert three_views_query_count == baseline_query_count
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_default_values_get_view_editor_sees_visible_only(
+    enterprise_data_fixture, api_client
+):
+    ctx = _setup_default_values_test(enterprise_data_fixture)
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        ctx["other_user"],
+        ctx["workspace"],
+        role=no_access_role,
+        scope=ctx["workspace"],
+    )
+    RoleAssignmentHandler().assign_role(
+        ctx["other_user"],
+        ctx["workspace"],
+        role=editor_role,
+        scope=View.objects.get(id=ctx["view"].id),
+    )
+
+    response = api_client.get(
+        reverse("api:database:views:item", kwargs={"view_id": ctx["view"].id})
+        + "?include=default_row_values",
+        HTTP_AUTHORIZATION=f"JWT {ctx['other_token']}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    default_values = data["default_row_values"]
+    field_ids = {dv["field"] for dv in default_values}
+    assert ctx["visible_field"].id in field_ids
+    assert ctx["hidden_field"].id not in field_ids

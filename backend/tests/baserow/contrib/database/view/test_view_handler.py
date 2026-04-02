@@ -10,6 +10,10 @@ import pytest
 from freezegun import freeze_time
 from pytest_unordered import unordered
 
+from baserow.contrib.database.api.rows.serializers import (
+    RowSerializer,
+    get_row_serializer_class,
+)
 from baserow.contrib.database.fields.exceptions import (
     FieldNotInTable,
     FilterFieldNotFound,
@@ -5059,3 +5063,92 @@ def test_update_view_default_values_action_stores_new_values(data_fixture):
     assert record_params["enabled"] is True
     assert record_params["field_type"] == "text"
     assert record_params["function"] is None
+
+
+@pytest.mark.django_db
+def test_export_import_default_values_for_all_field_types(data_fixture):
+    table, user, row, _, context = setup_interesting_test_table(data_fixture)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    model = table.get_model()
+    row = model.objects.all().enhance_by_fields().get(id=row.id)
+
+    # Serialize the populated row in response format, then convert to request
+    # format (the format default values are stored in).
+    response_serializer = get_row_serializer_class(
+        model, RowSerializer, is_response=True
+    )
+    row_data = response_serializer(row).data
+
+    items = []
+    for field_object in model.get_field_objects():
+        field = field_object["field"]
+        field_type = field_object["type"]
+        field_name = f"field_{field.id}"
+
+        if field.read_only or field_type.read_only:
+            continue
+
+        if field_name not in row_data:
+            continue
+
+        value = row_data[field_name]
+
+        # Convert response format → request format for specific field types.
+        # Single select: {"id": 1, "value": "A", "color": "blue"} → 1
+        if isinstance(value, dict) and "id" in value and "value" in value:
+            value = value["id"]
+        # Link row / multiple select / multiple collaborators:
+        # [{"id": 1, ...}, ...] → [1, 2, ...]
+        elif isinstance(value, list) and value and isinstance(value[0], dict):
+            if "id" in value[0]:
+                value = [item["id"] for item in value]
+
+        items.append({"field": field.id, "enabled": True, "value": value})
+
+    assert len(items) > 0, "Expected at least some writable fields"
+
+    handler = ViewHandler()
+    handler.update_view_default_values(user=user, view=view, items=items)
+
+    # Export the view.
+    view_type = view_type_registry.get_by_model(view)
+    config = ImportExportConfig(include_permission_data=True)
+    prefetch_related_objects([view], "view_default_values")
+    serialized = view_type.export_serialized(view, config, {})
+
+    assert "default_row_values" in serialized
+    assert len(serialized["default_row_values"]) == len(items)
+
+    # Import the view back into the same table using MirrorDict so IDs stay
+    # the same (simulating duplication within the same database).
+    id_mapping = {
+        "workspace_id": table.database.workspace.id,
+        "database_fields": MirrorDict(),
+        "database_field_select_options": MirrorDict(),
+    }
+    serialized["name"] = "imported view"
+    imported_view = view_type.import_serialized(table, serialized, config, id_mapping)
+
+    # Verify imported default values.
+    imported_defaults = {
+        dv.field_id: dv for dv in ViewDefaultValue.objects.filter(view=imported_view)
+    }
+    original_defaults = {
+        dv.field_id: dv for dv in ViewDefaultValue.objects.filter(view=view)
+    }
+
+    assert set(imported_defaults.keys()) == set(original_defaults.keys()), (
+        f"Field ID mismatch: imported={set(imported_defaults.keys())}, "
+        f"original={set(original_defaults.keys())}"
+    )
+
+    for field_id, original in original_defaults.items():
+        imported = imported_defaults[field_id]
+        assert imported.value == original.value, (
+            f"field_{field_id} ({original.field_type}): "
+            f"imported={imported.value!r} != original={original.value!r}"
+        )
+        assert imported.enabled == original.enabled
+        assert imported.field_type == original.field_type
+        assert imported.function == original.function

@@ -305,6 +305,40 @@ def test_get_view(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_view_default_row_values(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    ViewHandler().update_view_default_values(
+        user=user,
+        view=view,
+        items=[{"field": text_field.id, "enabled": True, "value": "test default"}],
+    )
+
+    url = reverse("api:database:views:item", kwargs={"view_id": view.id})
+
+    # Without include param - should NOT have default_row_values.
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+    assert "default_row_values" not in response.json()
+
+    # With include param - should have default_row_values.
+    response = api_client.get(
+        f"{url}?include=default_row_values",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert "default_row_values" in data
+    assert isinstance(data["default_row_values"], list)
+    assert len(data["default_row_values"]) == 1
+    assert data["default_row_values"][0]["field"] == text_field.id
+    assert data["default_row_values"][0]["value"] == "test default"
+
+
+@pytest.mark.django_db
 def test_delete_view(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     user_2, token_2 = data_fixture.create_user_and_token()
@@ -1440,34 +1474,6 @@ def test_get_public_row(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_get_default_values(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    table = data_fixture.create_database_table(user=user)
-    text_field = data_fixture.create_text_field(table=table)
-    view = data_fixture.create_grid_view(user=user, table=table)
-
-    from baserow.contrib.database.views.handler import ViewHandler
-
-    ViewHandler().update_view_default_values(
-        user=user,
-        view=view,
-        items=[{"field": text_field.id, "enabled": True, "value": "default text"}],
-    )
-
-    response = api_client.get(
-        reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_200_OK
-    data = response.json()
-    assert isinstance(data, list)
-    assert len(data) == 1
-    assert data[0]["field"] == text_field.id
-    assert data[0]["value"] == "default text"
-    assert data[0]["enabled"] is True
-
-
-@pytest.mark.django_db
 def test_patch_default_values(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
@@ -1511,27 +1517,11 @@ def test_patch_default_values_with_now_function(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_form_view_default_values_returns_error(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    table = data_fixture.create_database_table(user=user)
-    view = data_fixture.create_form_view(user=user, table=table)
-
-    response = api_client.get(
-        reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES"
-
-
-@pytest.mark.django_db
 def test_default_values_included_in_view_listing(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(table=table)
     view = data_fixture.create_grid_view(user=user, table=table)
-
-    from baserow.contrib.database.views.handler import ViewHandler
 
     ViewHandler().update_view_default_values(
         user=user,
