@@ -1,5 +1,5 @@
 <template>
-  <Expandable toggle-on-click>
+  <Expandable :toggle-on-click="item.status !== 'started'">
     <template #header="{ expanded }">
       <div class="workflow-history__divider"></div>
       <div class="workflow-history__header">
