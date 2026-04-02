@@ -37,6 +37,32 @@ from .utils import find_intermediate_order
 ModelInstance = TypeVar("ModelInstance", bound=object)
 
 
+APPROXIMATE_COUNT_THRESHOLD = 50_000
+
+
+def get_approximate_row_count(queryset: QuerySet) -> int:
+    """
+    Uses Postgres EXPLAIN to estimate the row count for the given queryset.
+    If the estimate is below APPROXIMATE_COUNT_THRESHOLD, falls back to an
+    exact COUNT(*) since the cost is negligible for small result sets and
+    the planner estimate is unreliable at that scale.
+
+    :param queryset: The queryset to estimate the row count for.
+    :return: An estimate of the row count for the queryset.
+    """
+
+    sql, params = queryset.query.sql_with_params()
+    with connection.cursor() as cursor:
+        cursor.execute(f"EXPLAIN (FORMAT JSON) {sql}", params)
+        plan = cursor.fetchone()[0]
+        estimate = int(plan[0]["Plan"]["Plan Rows"])
+
+    if estimate < APPROXIMATE_COUNT_THRESHOLD:
+        return queryset.count()
+
+    return estimate
+
+
 def get_database_dsn() -> str:
     """
     Constructs the database DSN from the default database settings.

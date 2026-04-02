@@ -17,6 +17,7 @@ from baserow.api.decorators import (
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST
 from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
 from baserow.api.jobs.serializers import JobSerializer
+from baserow.api.pagination import PageNumberPaginationWithApproximateCount
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.core.actions import DeleteWorkspaceActionType, OrderWorkspacesActionType
 from baserow.core.exceptions import WorkspaceDoesNotExist
@@ -44,6 +45,7 @@ from .serializers import (
 
 class AuditLogView(APIListingView):
     permission_classes = (IsAuthenticated,)
+    pagination_class = PageNumberPaginationWithApproximateCount
     serializer_class = AuditLogSerializer
     filters_field_mapping = {
         "user_id": "user_id",
