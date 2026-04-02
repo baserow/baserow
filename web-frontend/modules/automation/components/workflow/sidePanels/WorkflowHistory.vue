@@ -3,12 +3,7 @@
     <template #header="{ expanded }">
       <div class="workflow-history__divider"></div>
       <div class="workflow-history__header">
-        <Icon
-          v-if="props.item.status === 'success'"
-          icon="iconoir-check-circle"
-          type="success"
-        />
-        <Icon v-else icon="iconoir-warning-circle" type="error" />
+        <img :src="getHistoryIconPath()" width="16" height="16" />
         <span class="workflow-history__header-title">
           h{{ item.id }} {{ historyTitlePrefix }}{{ statusTitle }}
         </span>
@@ -46,6 +41,9 @@
 import moment from '@baserow/modules/core/moment'
 import { getUserTimeZone } from '@baserow/modules/core/utils/date'
 
+import historySuccessIcon from '@baserow/modules/core/assets/images/history-success.svg?url'
+import historyFailedIcon from '@baserow/modules/core/assets/images/history-failed.svg?url'
+import historyDisabledIcon from '@baserow/modules/core/assets/images/history-disabled.svg?url'
 import NodeHistory from '@baserow/modules/automation/components/workflow/sidePanels/NodeHistory.vue'
 
 const app = useNuxtApp()
@@ -144,4 +142,15 @@ const childNodeHistoriesByParent = computed(() => {
   }
   return _childNodeHistoriesByParent
 })
+
+const getHistoryIconPath = () => {
+  switch (props.item.status) {
+    case 'success':
+      return historySuccessIcon
+    case 'error':
+      return historyFailedIcon
+    default:
+      return historyDisabledIcon
+  }
+}
 </script>
