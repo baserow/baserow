@@ -586,6 +586,12 @@ BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = int(
     Decimal(os.getenv("BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB", 1024 * 1024)) * 1024 * 1024
 )  # ~1TB by default
 
+# Maximum total uncompressed size (in bytes) allowed when extracting an import ZIP.
+# Default is 5 GB. Set to 0 to disable the limit.
+BASEROW_IMPORT_MAX_UNCOMPRESSED_SIZE = int(
+    os.getenv("BASEROW_IMPORT_MAX_UNCOMPRESSED_SIZE", 5 * 1024 * 1024 * 1024)
+)
+
 BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB = int(
     os.getenv("BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB", 512)
 )

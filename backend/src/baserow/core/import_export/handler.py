@@ -758,7 +758,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
         checksums = manifest["checksums"]
         for file_path, checksum in checksums.items():
-            full_path = join(import_tmp_dir, file_path)
+            full_path = self._validate_safe_path(import_tmp_dir, file_path)
 
             if not storage.exists(full_path):
                 raise ImportExportResourceDoesNotExist(
@@ -799,7 +799,9 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         :return: The imported Application instance.
         """
 
-        data_file_path = join(import_tmp_path, application_manifest["files"]["schema"])
+        data_file_path = self._validate_safe_path(
+            import_tmp_path, application_manifest["files"]["schema"]
+        )
         if not storage.exists(data_file_path):
             raise ImportExportResourceDoesNotExist(
                 f"The file {data_file_path} does not exist."
@@ -935,6 +937,23 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         Application.objects.bulk_update(imported_applications, ["order"])
         return imported_applications
 
+    @staticmethod
+    def _validate_safe_path(base_path: str, filename: str) -> str:
+        """
+        Validates that a filename, when joined with base_path, does not escape
+        the base directory via path traversal sequences.
+
+        :param base_path: The trusted base directory.
+        :param filename: The untrusted filename from the archive or manifest.
+        :return: The safe full path (join of base_path and normalized filename).
+        :raises SuspiciousOperation: If the path would escape the base directory.
+        """
+
+        normalized = os.path.normpath(filename)
+        if normalized.startswith("..") or os.path.isabs(normalized):
+            raise SuspiciousOperation(f"Detected path traversal attempt: {filename}")
+        return join(base_path, normalized)
+
     def extract_files_from_zip(
         self,
         tmp_import_path: str,
@@ -960,11 +979,33 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             progress_builder, child_total=len(file_list)
         )
 
+        max_size = settings.BASEROW_IMPORT_MAX_UNCOMPRESSED_SIZE
+        total_bytes_written = 0
+        chunk_size = 4 * 1024 * 1024
+
         for file_info in file_list:
-            extracted_file_path = join(tmp_import_path, file_info.filename)
+            if file_info.is_dir():
+                progress.increment()
+                continue
+
+            extracted_file_path = self._validate_safe_path(
+                tmp_import_path, file_info.filename
+            )
+
             with zip_file.open(file_info) as extracted_file:
-                file_content = extracted_file.read()
-                storage.save(extracted_file_path, ContentFile(file_content))
+                chunks = []
+                while True:
+                    chunk = extracted_file.read(chunk_size)
+                    if not chunk:
+                        break
+                    total_bytes_written += len(chunk)
+                    if max_size and total_bytes_written > max_size:
+                        raise ImportExportResourceInvalidFile(
+                            "Uncompressed archive size exceeds the allowed limit."
+                        )
+                    chunks.append(chunk)
+                storage.save(extracted_file_path, ContentFile(b"".join(chunks)))
+
             progress.increment()
 
     def import_workspace_applications(
@@ -1036,16 +1077,34 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                     self.mark_resource_invalid(resource)
                     raise
 
-                self.extract_files_from_zip(
-                    import_tmp_path,
-                    zip_file,
-                    storage,
-                    progress.create_child_builder(represents_progress=10),
-                )
+                try:
+                    self.extract_files_from_zip(
+                        import_tmp_path,
+                        zip_file,
+                        storage,
+                        progress.create_child_builder(represents_progress=10),
+                    )
+                except SuspiciousOperation:
+                    self.clean_storage(import_tmp_path, storage)
+                    self.mark_resource_invalid(resource)
+                    raise ImportExportResourceInvalidFile(
+                        "The import file contains invalid file paths."
+                    )
+                except Exception:
+                    self.clean_storage(import_tmp_path, storage)
+                    self.mark_resource_invalid(resource)
+                    raise
 
                 try:
                     self.validate_checksums(manifest_data, import_tmp_path, storage)
+                except SuspiciousOperation:
+                    self.clean_storage(import_tmp_path, storage)
+                    self.mark_resource_invalid(resource)
+                    raise ImportExportResourceInvalidFile(
+                        "The import file contains invalid file paths."
+                    )
                 except Exception as e:  # noqa
+                    self.clean_storage(import_tmp_path, storage)
                     self.mark_resource_invalid(resource)
                     raise
 
