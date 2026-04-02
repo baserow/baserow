@@ -2355,7 +2355,6 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
             PAGE_PLACES.HEADER
       )
 
-      
       // Find the last header before beforeElement's order position (or the last header if placing at end).
       const precedingElement = beforeElement
         ? rootHeaderElements
