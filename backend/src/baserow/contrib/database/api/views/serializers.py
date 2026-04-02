@@ -35,6 +35,7 @@ from baserow.contrib.database.views.registries import (
     view_type_registry,
 )
 
+from ...views.view_ownership_types import CollaborativeViewOwnershipType
 from ..tables.serializers import TableWithoutDataSyncSerializer
 from .exceptions import FiltersParamValidationException
 
@@ -614,6 +615,7 @@ class PublicViewSerializer(serializers.ModelSerializer):
     sortings = serializers.SerializerMethodField()
     group_bys = serializers.SerializerMethodField()
     show_logo = serializers.BooleanField(required=False)
+    ownership_type = serializers.SerializerMethodField()
 
     @extend_schema_field(PublicViewSortSerializer(many=True))
     def get_sortings(self, instance):
@@ -641,6 +643,10 @@ class PublicViewSerializer(serializers.ModelSerializer):
     def get_type(self, instance):
         return view_type_registry.get_by_model(instance.specific_class).type
 
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_ownership_type(self, instance):
+        return CollaborativeViewOwnershipType.type
+
     class Meta:
         model = View
         fields = (
@@ -655,6 +661,7 @@ class PublicViewSerializer(serializers.ModelSerializer):
             "slug",
             "show_logo",
             "allow_public_export",
+            "ownership_type",
         )
         extra_kwargs = {
             "id": {"read_only": True},
