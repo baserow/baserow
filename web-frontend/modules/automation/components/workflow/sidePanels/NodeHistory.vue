@@ -127,7 +127,7 @@
 
     <div v-if="status === 'error'" class="node-history__error">
       <div class="node-history__error-info">
-        {{ nodeHistories[0].message }}
+        {{ errorMessage }}
       </div>
 
       <Expandable toggle-on-click>
@@ -155,7 +155,7 @@
         </template>
         <template #default>
           <div class="node-history__error-expanded">
-            {{ nodeHistories[0].message }}
+            {{ errorMessage }}
           </div>
         </template>
       </Expandable>
@@ -241,6 +241,13 @@ const statusLabel = computed(() => {
     return app.$i18n.t('historySidePanel.statusSuccessBadge')
   }
   return app.$i18n.t('historySidePanel.statusErrorBadge')
+})
+
+const errorMessage = computed(() => {
+  const historyWithError = props.nodeHistories.find(
+    (nh) => nh.status === 'error'
+  )
+  return historyWithError.message
 })
 
 const childNodeHistories = computed(
