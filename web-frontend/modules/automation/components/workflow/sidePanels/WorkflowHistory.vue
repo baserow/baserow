@@ -25,8 +25,15 @@
     </template>
 
     <template #default>
+      <div
+        v-if="!item.node_histories.length && item.message"
+        class="workflow-history__message"
+      >
+        {{ item.message }}
+      </div>
       <NodeHistory
         v-for="nodeId in rootNodeIds"
+        v-else
         :key="nodeId"
         :node-id="nodeId"
         :node-histories="nodeHistoriesByNode[nodeId] || []"
