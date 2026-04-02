@@ -1592,6 +1592,7 @@ def test_get_public_kanban_without_with_single_select_and_cover(
             "single_select_field": None,
             "show_logo": True,
             "allow_public_export": False,
+            "ownership_type": "collaborative",
         },
     }
 
@@ -1714,6 +1715,7 @@ def test_get_public_kanban_view_with_single_select_and_cover(
             "single_select_field": single_select_field.id,
             "show_logo": True,
             "allow_public_export": False,
+            "ownership_type": "collaborative",
         },
     }
 

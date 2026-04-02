@@ -1187,6 +1187,7 @@ def test_get_public_timeline_view(api_client, premium_data_fixture):
             "start_date_field": start_date_field.id,
             "end_date_field": end_date_field.id,
             "timescale": "month",
+            "ownership_type": "collaborative",
         },
     }
 

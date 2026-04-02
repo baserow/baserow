@@ -11,6 +11,9 @@ from rest_framework import serializers
 from baserow.api.utils import serialize_validation_errors_recursive
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
+from baserow.contrib.database.api.tables.serializers import (
+    TableWithoutDataSyncSerializer,
+)
 from baserow.contrib.database.fields.field_filters import (
     FILTER_TYPE_AND,
     FILTER_TYPE_OR,
@@ -34,9 +37,10 @@ from baserow.contrib.database.views.registries import (
     view_ownership_type_registry,
     view_type_registry,
 )
+from baserow.contrib.database.views.view_ownership_types import (
+    CollaborativeViewOwnershipType,
+)
 
-from ...views.view_ownership_types import CollaborativeViewOwnershipType
-from ..tables.serializers import TableWithoutDataSyncSerializer
 from .exceptions import FiltersParamValidationException
 
 

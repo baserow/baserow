@@ -1014,6 +1014,7 @@ def test_get_public_calendar_view_with_single_select_and_cover(
             "allow_public_export": False,
             "ical_public": False,
             "ical_feed_url": calendar_view.ical_feed_url,
+            "ownership_type": "collaborative",
         },
     }
 

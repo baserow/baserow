@@ -981,6 +981,7 @@ def test_user_with_password_can_get_info_about_a_public_password_protected_view(
             "row_height_size": grid_view.row_height_size,
             "show_logo": grid_view.show_logo,
             "allow_public_export": grid_view.allow_public_export,
+            "ownership_type": "collaborative",
         },
     }
 
@@ -1011,6 +1012,7 @@ def test_user_with_password_can_get_info_about_a_public_password_protected_view(
             "row_height_size": grid_view.row_height_size,
             "show_logo": grid_view.show_logo,
             "allow_public_export": grid_view.allow_public_export,
+            "ownership_type": "collaborative",
         },
     }
 
