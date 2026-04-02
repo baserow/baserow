@@ -7,7 +7,7 @@
       <template #header="{ expanded }">
         <div class="node-history__header-row">
           <div class="node-history__header-icon">
-            <i :class="getNodeIconClass(nodeId)"></i>
+            <i :class="getNodeIconClass()"></i>
           </div>
           <div class="node-history__header-info">
             <div>
@@ -17,7 +17,7 @@
                   'node-history__header-info-type-error': status === 'error',
                 }"
               >
-                n{{ nodeId }} - {{ nodeTypeLabel(nodeId) }}
+                n{{ nodeId }} - {{ nodeTypeLabel() }}
               </div>
             </div>
 
@@ -94,7 +94,7 @@
 
     <div v-else class="node-history__header-row">
       <div class="node-history__header-icon">
-        <i :class="getNodeIconClass(nodeId)"></i>
+        <i :class="getNodeIconClass()"></i>
       </div>
       <div class="node-history__header-info">
         <div
@@ -103,7 +103,7 @@
             'node-history__header-info-type-error': status === 'error',
           }"
         >
-          n{{ nodeId }} - {{ nodeTypeLabel(nodeId) }}
+          n{{ nodeId }} - {{ nodeTypeLabel() }}
         </div>
 
         <div class="node-history__header-show-result">
@@ -177,14 +177,13 @@
     <SampleDataModal
       ref="nodeResultModal"
       :sample-data="nodeHistories[0].result"
-      :title="nodeTypeLabel(nodeId)"
+      :title="nodeTypeLabel()"
     />
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
-import { useStore } from 'vuex'
 
 import SampleDataModal from '@baserow/modules/automation/components/sidebar/SampleDataModal'
 
@@ -209,34 +208,20 @@ const props = defineProps({
   },
 })
 
-const store = useStore()
-const workflow = inject('workflow')
-const automation = inject('automation')
-
 const nodeResultButtonContext = ref(null)
 const nodeResultButtonContextToggle = ref(null)
 const nodeResultModal = ref(null)
 
-const getNode = (nodeId) => {
-  return store.getters['automationWorkflowNode/findById'](
-    workflow.value,
-    nodeId
-  )
+const getNodeType = () => {
+  return app.$registry.get('node', props.nodeHistories[0].node_type)
 }
 
-const getNodeType = (nodeId) => {
-  return app.$registry.get('node', getNode(nodeId).type)
+const getNodeIconClass = () => {
+  return getNodeType().iconClass
 }
 
-const getNodeIconClass = (nodeId) => {
-  const nodeType = getNodeType(nodeId)
-  return nodeType.iconClass
-}
-
-const nodeTypeLabel = (nodeId) => {
-  const nodeType = getNodeType(nodeId)
-  const node = getNode(nodeId)
-  return nodeType.getLabel({ automation: automation.value, node })
+const nodeTypeLabel = () => {
+  return props.nodeHistories[0].node_label || getNodeType().name
 }
 
 const status = computed(() => {
