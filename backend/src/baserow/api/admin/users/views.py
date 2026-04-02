@@ -35,6 +35,9 @@ from baserow.core.admin.users.exceptions import (
 from baserow.core.admin.users.handler import UserAdminHandler
 from baserow.core.user.exceptions import DeactivatedUserException, UserAlreadyExist
 from baserow.core.user.utils import generate_session_tokens_for_user
+from baserow_enterprise.api.audit_log.views import (
+    PageNumberPaginationWithApproximateCount,
+)
 
 from .serializers import BaserowImpersonateAuthTokenSerializer
 
@@ -43,6 +46,7 @@ User = get_user_model()
 
 class UsersAdminView(AdminListingView):
     serializer_class = UserAdminResponseSerializer
+    pagination_class = PageNumberPaginationWithApproximateCount
     search_fields = ["id", "username", "first_name"]
     sort_field_mapping = {
         "id": "id",
