@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js'
 import { Registerable } from '@baserow/modules/core/registry'
 import TextElement from '@baserow/modules/builder/components/elements/components/TextElement'
 import HeadingElement from '@baserow/modules/builder/components/elements/components/HeadingElement'
@@ -2319,10 +2320,16 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     beforeElement,
     placeInContainer,
     pagePlace,
+    referencePagePlace,
   }) {
     if (parentElement) {
       // Can't be inserted inside another container
       return this.app.$i18n.t('elementType.notAllowedInsideContainer')
+    }
+
+    // Disallow drops when the cursor is hovering over a different page section (e.g. a footer zone).
+    if (referencePagePlace && referencePagePlace !== PAGE_PLACES.HEADER) {
+      return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
     }
 
     const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
@@ -2337,11 +2344,33 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     }
 
     if (page.id === sharedPage.id) {
-      // A header element can't be placed after any footer element.
+      // A header must only follow another header; filter to headers to avoid
+      // elements with lower order values being treated as the preceding element.
+      const rootHeaderElements = this.app.$store.getters[
+        'element/getElementsOrdered'
+      ](sharedPage).filter(
+        (e) =>
+          !e.parent_element_id &&
+          this.app.$registry.get('element', e.type).getPagePlace() ===
+            PAGE_PLACES.HEADER
+      )
+
+      
+      // Find the last header before beforeElement's order position (or the last header if placing at end).
+      const precedingElement = beforeElement
+        ? rootHeaderElements
+            .slice()
+            .reverse()
+            .find((e) =>
+              new BigNumber(e.order).lt(new BigNumber(beforeElement.order))
+            ) || null
+        : (rootHeaderElements.at(-1) ?? null)
+
       if (
-        beforeElement &&
-        this.app.$registry.get('element', beforeElement.type).getPagePlace() ===
-          PAGE_PLACES.FOOTER
+        precedingElement &&
+        this.app.$registry
+          .get('element', precedingElement.type)
+          .getPagePlace() !== PAGE_PLACES.HEADER
       ) {
         return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
       }
@@ -2404,10 +2433,16 @@ export class FooterElementType extends HeaderElementType {
     beforeElement,
     placeInContainer,
     pagePlace,
+    referencePagePlace,
   }) {
     if (parentElement) {
       // Can't be inserted inside another container
       return this.app.$i18n.t('elementType.notAllowedInsideContainer')
+    }
+
+    // Disallow drops when the cursor is hovering over a different page section (e.g. a header zone).
+    if (referencePagePlace && referencePagePlace !== PAGE_PLACES.FOOTER) {
+      return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
     }
 
     const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
@@ -2421,12 +2456,28 @@ export class FooterElementType extends HeaderElementType {
     }
 
     if (page.id === sharedPage.id) {
-      // A footer element can't be placed before any header element.
-      if (
-        beforeElement &&
-        this.app.$registry.get('element', beforeElement.type).getPagePlace() ===
-          PAGE_PLACES.HEADER
-      ) {
+      // A footer must only precede another footer; filter to footers to avoid
+      // elements with higher order values being treated as the next element.
+      const rootFooterElements = this.app.$store.getters[
+        'element/getElementsOrdered'
+      ](sharedPage).filter(
+        (e) =>
+          !e.parent_element_id &&
+          this.app.$registry.get('element', e.type).getPagePlace() ===
+            PAGE_PLACES.FOOTER
+      )
+
+      // Find the first footer at or after beforeElement's order position.
+      const nextFooterElement = beforeElement
+        ? rootFooterElements.find((e) =>
+            new BigNumber(e.order).gte(new BigNumber(beforeElement.order))
+          ) || null
+        : null
+
+      if (nextFooterElement && nextFooterElement.id !== beforeElement?.id) {
+        // There is a footer at or after `beforeElement`, but `beforeElement` itself
+        // is not a footer — inserting here would place the footer before non-footer
+        // content that still precedes another footer.
         return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
       }
     }

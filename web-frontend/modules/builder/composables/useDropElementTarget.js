@@ -67,6 +67,14 @@ export function useDropElementTarget({
     return draggedElementType.value.getPagePlace()
   })
 
+  const referencePagePlace = computed(() => {
+    const reference = unref(referenceElement)
+    if (!reference || !$registry.exists('element', reference.type)) {
+      return null
+    }
+    return $registry.get('element', reference.type).getPagePlace()
+  })
+
   const draggedElementType = computed(() => {
     const dragged = draggedElement.value
     if (!dragged) {
@@ -101,6 +109,7 @@ export function useDropElementTarget({
         beforeElement: resolvedBeforeElement.value,
         placeInContainer: unref(placeInContainer),
         pagePlace: resolvedPagePlace.value,
+        referencePagePlace: referencePagePlace.value,
       }) === null
     )
   })
@@ -224,6 +233,7 @@ export function useDropElementTarget({
       beforeElement: resolvedBeforeElement.value,
       placeInContainer: unref(placeInContainer),
       pagePlace: resolvedPagePlace.value,
+      referencePagePlace: referencePagePlace.value,
     })
 
     if (reason) {
