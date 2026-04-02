@@ -706,6 +706,45 @@ def test_create_workspace_invitation(mock_send_email, data_fixture):
 
 @pytest.mark.django_db
 @patch("baserow.core.handler.CoreHandler.send_workspace_invitation_email")
+def test_create_workspace_invitation_with_ip_address(mock_send_email, data_fixture):
+    user_workspace = data_fixture.create_user_workspace()
+    user = user_workspace.user
+    workspace = user_workspace.workspace
+
+    handler = CoreHandler()
+
+    invitation = handler.create_workspace_invitation(
+        user=user,
+        workspace=workspace,
+        email="test@test.nl",
+        permissions="ADMIN",
+        base_url="http://localhost:3000/invite",
+        ip_address="192.168.1.100",
+    )
+    assert invitation.from_ip_address == "192.168.1.100"
+
+
+@pytest.mark.django_db
+@patch("baserow.core.handler.CoreHandler.send_workspace_invitation_email")
+def test_create_workspace_invitation_without_ip_address(mock_send_email, data_fixture):
+    user_workspace = data_fixture.create_user_workspace()
+    user = user_workspace.user
+    workspace = user_workspace.workspace
+
+    handler = CoreHandler()
+
+    invitation = handler.create_workspace_invitation(
+        user=user,
+        workspace=workspace,
+        email="test@test.nl",
+        permissions="ADMIN",
+        base_url="http://localhost:3000/invite",
+    )
+    assert invitation.from_ip_address is None
+
+
+@pytest.mark.django_db
+@patch("baserow.core.handler.CoreHandler.send_workspace_invitation_email")
 @override_settings(BASEROW_MAX_PENDING_WORKSPACE_INVITES=1)
 def test_create_workspace_invitation_max_pending(mock_send_email, data_fixture):
     user_workspace = data_fixture.create_user_workspace()

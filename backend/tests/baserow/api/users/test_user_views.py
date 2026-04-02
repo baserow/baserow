@@ -214,6 +214,58 @@ def test_create_user(client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_user_stores_signup_ip_address(client, data_fixture):
+    data_fixture.create_password_provider()
+    valid_password = "thisIsAValidPassword"
+
+    response = client.post(
+        reverse("api:user:index"),
+        {"name": "Test1", "email": "test@test.nl", "password": valid_password},
+        format="json",
+        REMOTE_ADDR="192.168.1.50",
+    )
+    assert response.status_code == HTTP_200_OK
+    user = User.objects.get(email="test@test.nl")
+    assert user.profile.signup_ip_address == "192.168.1.50"
+
+
+@pytest.mark.django_db
+def test_create_user_stores_signup_ip_address_from_x_forwarded_for(
+    client, data_fixture
+):
+    data_fixture.create_password_provider()
+    valid_password = "thisIsAValidPassword"
+
+    response = client.post(
+        reverse("api:user:index"),
+        {"name": "Test1", "email": "test@test.nl", "password": valid_password},
+        format="json",
+        HTTP_X_FORWARDED_FOR="10.0.0.1, 172.16.0.1",
+    )
+    assert response.status_code == HTTP_200_OK
+    user = User.objects.get(email="test@test.nl")
+    assert user.profile.signup_ip_address == "10.0.0.1"
+
+
+@pytest.mark.django_db
+def test_login_stores_last_login_ip_address(api_client, data_fixture):
+    data_fixture.create_password_provider()
+    user = data_fixture.create_user(
+        email="test@test.nl", password="thisIsAValidPassword"
+    )
+
+    response = api_client.post(
+        reverse("api:user:token_auth"),
+        {"email": "test@test.nl", "password": "thisIsAValidPassword"},
+        format="json",
+        REMOTE_ADDR="192.168.1.75",
+    )
+    assert response.status_code == HTTP_200_OK
+    user.profile.refresh_from_db()
+    assert user.profile.last_login_ip_address == "192.168.1.75"
+
+
+@pytest.mark.django_db
 def test_user_account(data_fixture, api_client):
     user, token = data_fixture.create_user_and_token(
         email="test@localhost.nl", language="en", first_name="Nikolas"

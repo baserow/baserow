@@ -336,6 +336,7 @@ class UserView(APIView):
             language=data["language"],
             workspace_invitation_token=data.get("workspace_invitation_token"),
             template=template,
+            ip_address=get_user_remote_ip_address_from_request(request),
         )
 
         response = {"user": UserSerializer(user).data}

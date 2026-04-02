@@ -57,6 +57,7 @@ class CreateUserActionType(ActionType):
         workspace_invitation_token: Optional[str] = None,
         template: Optional[Template] = None,
         auth_provider: Optional[AuthProviderModel] = None,
+        ip_address: Optional[str] = None,
     ) -> AbstractUser:
         """
         Creates a new user.
@@ -69,6 +70,7 @@ class CreateUserActionType(ActionType):
             used to add the user to a workspace.
         :param template: The template that will be used to create the user.
         :param auth_provider: The auth provider that will be used to create the user.
+        :param ip_address: The IP address of the user thet created the account.
 
         :return: The created user.
         """
@@ -84,6 +86,7 @@ class CreateUserActionType(ActionType):
             workspace_invitation_token,
             template,
             auth_provider=auth_provider,
+            ip_address=ip_address,
         )
 
         workspace_id, workspace_name = None, None
@@ -277,6 +280,7 @@ class SignInUserActionType(ActionType):
         cls,
         user: AbstractUser,
         auth_provider: Optional[AuthProviderModel] = None,
+        ip_address: Optional[str] = None,
     ):
         """
         Sign in the user into Baserow.
@@ -284,6 +288,8 @@ class SignInUserActionType(ActionType):
         :param user: The user that sign in.
         :param auth_provider: The authentication provider that was used to
             sign in the user.
+        :param ip_address: If provided, it will be stored in the user profile as the
+            last login IP address.
         """
 
         handler = UserHandler()
@@ -301,7 +307,9 @@ class SignInUserActionType(ActionType):
             UserHandler().cancel_user_deletion(user)
 
         def log_signin_action():
-            handler.user_signed_in_via_provider(user, auth_provider)
+            handler.user_signed_in_via_provider(
+                user, auth_provider, ip_address=ip_address
+            )
             cls.register_action(
                 user=user,
                 params=cls.Params(

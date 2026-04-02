@@ -46,6 +46,12 @@ class UserAdminResponseSerializer(ModelSerializer):
     name = CharField(source="first_name", max_length=150)
     username = EmailField()
     workspaces = UserAdminWorkspacesSerializer(source="workspaceuser_set", many=True)
+    signup_ip_address = serializers.IPAddressField(
+        source="profile.signup_ip_address", read_only=True, allow_null=True
+    )
+    last_login_ip_address = serializers.IPAddressField(
+        source="profile.last_login_ip_address", read_only=True, allow_null=True
+    )
 
     class Meta:
         model = User
@@ -58,6 +64,8 @@ class UserAdminResponseSerializer(ModelSerializer):
             "date_joined",
             "is_active",
             "is_staff",
+            "signup_ip_address",
+            "last_login_ip_address",
         )
         extra_kwargs = _USER_ADMIN_SERIALIZER_API_DOC_KWARGS
 

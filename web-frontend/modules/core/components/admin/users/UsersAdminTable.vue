@@ -75,10 +75,20 @@ export default {
           true
         ),
         new CrudTableColumn(
+          'last_login_ip_address',
+          () => this.$t('usersAdminTable.lastLoginIpAddress'),
+          SimpleField
+        ),
+        new CrudTableColumn(
           'date_joined',
           () => this.$t('usersAdminTable.dateJoined'),
           LocalDateField,
           true
+        ),
+        new CrudTableColumn(
+          'signup_ip_address',
+          () => this.$t('usersAdminTable.signupIpAddress'),
+          SimpleField
         ),
         new CrudTableColumn(
           'is_active',

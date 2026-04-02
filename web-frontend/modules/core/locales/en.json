@@ -999,7 +999,9 @@
     "name": "Name",
     "workspaces": "Workspaces",
     "lastLogin": "Last login",
+    "lastLoginIpAddress": "Last login IP",
     "dateJoined": "Signed up",
+    "signupIpAddress": "Signup IP",
     "active": "Active"
   },
   "editUserContext": {

@@ -1,3 +1,4 @@
+import ipaddress
 import re
 import uuid
 from typing import Any
@@ -95,18 +96,33 @@ def _set_user_websocket_id(user, websocket_id):
     user.web_socket_id = websocket_id
 
 
+def validate_ip_address(value):
+    """
+    Validates that the given string is a valid IPv4 or IPv6 address.
+    Returns the normalized string representation, or None if invalid.
+    """
+
+    if not value:
+        return None
+    try:
+        return str(ipaddress.ip_address(value))
+    except ValueError:
+        return None
+
+
 def get_user_remote_ip_address_from_request(request):
     x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
     if x_forwarded_for:
         # X-Forwarded-For can contain multiple IPs: client, proxy1, proxy2.
         # The first one is the original client IP.
-        return x_forwarded_for.split(",")[0].strip()
+        ip = x_forwarded_for.split(",")[0].strip()
+        return validate_ip_address(ip)
 
     x_real_ip = request.META.get("HTTP_X_REAL_IP")
     if x_real_ip:
-        return x_real_ip.strip()
+        return validate_ip_address(x_real_ip.strip())
 
-    return request.META.get("REMOTE_ADDR")
+    return validate_ip_address(request.META.get("REMOTE_ADDR"))
 
 
 def set_user_remote_addr_ip_from_request(user, request):

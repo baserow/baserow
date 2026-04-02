@@ -229,6 +229,16 @@ class UserProfile(models.Model):
         blank=True,
         null=True,
     )
+    signup_ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        help_text="The IP address that was used when creating a new account.",
+    )
+    last_login_ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        help_text="The IP address that was used on last login.",
+    )
 
     def iat_before_last_password_change(self, iat: int) -> bool:
         """
@@ -390,6 +400,11 @@ class WorkspaceInvitation(
         max_length=250,
         help_text="An optional message that the invitor can provide. This will be "
         "visible to the receiver of the invitation.",
+    )
+    from_ip_address = models.GenericIPAddressField(
+        null=True,
+        blank=True,
+        help_text="The IP address that was used when creating the invitation.",
     )
 
     def get_parent(self):

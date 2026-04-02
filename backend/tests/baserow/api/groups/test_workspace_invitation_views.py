@@ -257,6 +257,30 @@ def test_create_workspace_invitation(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_workspace_invitation_stores_ip_address(api_client, data_fixture):
+    user_1, token_1 = data_fixture.create_user_and_token(email="test1@test.nl")
+    workspace_1 = data_fixture.create_workspace(user=user_1)
+
+    response = api_client.post(
+        reverse(
+            "api:workspaces:invitations:list", kwargs={"workspace_id": workspace_1.id}
+        ),
+        {
+            "email": "test@test.nl",
+            "permissions": "ADMIN",
+            "message": "Test",
+            "base_url": "http://localhost:3000/invite",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token_1}",
+        REMOTE_ADDR="10.20.30.40",
+    )
+    assert response.status_code == HTTP_200_OK
+    invitation = WorkspaceInvitation.objects.get(id=response.json()["id"])
+    assert invitation.from_ip_address == "10.20.30.40"
+
+
+@pytest.mark.django_db
 @override_settings(BASEROW_MAX_PENDING_WORKSPACE_INVITES=1)
 def test_create_workspace_invitation_max_pending(api_client, data_fixture):
     user_1, token_1 = data_fixture.create_user_and_token(email="test1@test.nl")

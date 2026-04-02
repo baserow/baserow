@@ -105,6 +105,8 @@ def test_admin_can_see_admin_users_endpoint(api_client, data_fixture):
                 "is_staff": True,
                 "is_active": True,
                 "last_login": None,
+                "signup_ip_address": None,
+                "last_login_ip_address": None,
             }
         ],
     }
@@ -207,6 +209,8 @@ def test_admin_can_search_users(api_client, data_fixture):
                 "is_staff": False,
                 "is_active": True,
                 "last_login": None,
+                "signup_ip_address": None,
+                "last_login_ip_address": None,
             }
         ],
     }
@@ -248,6 +252,8 @@ def test_admin_can_sort_users(api_client, data_fixture):
                 "is_staff": False,
                 "is_active": True,
                 "last_login": None,
+                "signup_ip_address": None,
+                "last_login_ip_address": None,
             }
         ],
     }
@@ -538,6 +544,8 @@ def test_admin_can_create_user(api_client, data_fixture):
             "is_staff": True,
             "is_active": True,
             "last_login": None,
+            "signup_ip_address": None,
+            "last_login_ip_address": None,
         }
 
     response = api_client.post(
@@ -579,6 +587,8 @@ def test_admin_can_patch_user(api_client, data_fixture):
         "is_staff": True,
         "is_active": True,
         "last_login": None,
+        "signup_ip_address": None,
+        "last_login_ip_address": None,
     }
 
 
@@ -612,6 +622,8 @@ def test_admin_can_patch_user_without_providing_password(api_client, data_fixtur
         "is_staff": True,
         "is_active": True,
         "last_login": None,
+        "signup_ip_address": None,
+        "last_login_ip_address": None,
     }
 
 

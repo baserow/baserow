@@ -1080,7 +1080,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         return workspace_invitation
 
     def create_workspace_invitation(
-        self, user, workspace, email, permissions, base_url, message=""
+        self, user, workspace, email, permissions, base_url, message="", ip_address=None
     ):
         """
         Creates a new workspace invitation for the given email address and sends out an
@@ -1102,6 +1102,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         :type base_url: str
         :param message: A custom message that will be included in the invitation email.
         :type message: Optional[str]
+        :param ip_address: If provided, it will be stored on the invitation as the
+            IP address from which the invitation was created.
+        :type ip_address: Optional[str]
         :raises ValueError: If the provided permissions are not allowed.
         :raises UserInvalidWorkspacePermissionsError: If the user does not belong to the
             workspace or doesn't have right permissions in the workspace.
@@ -1146,6 +1149,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
                 "message": message,
                 "permissions": permissions,
                 "invited_by": user,
+                "from_ip_address": ip_address,
             },
         )
 

@@ -182,6 +182,7 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         workspace_invitation_token: Optional[str] = None,
         template: Template = None,
         auth_provider: Optional[AuthProviderModel] = None,
+        ip_address: Optional[str] = None,
     ) -> AbstractUser:
         """
         Creates a new user with the provided information and creates a new workspace and
@@ -199,6 +200,8 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         :param auth_provider: If provided, a reference to the authentication
             provider will be stored in order to be able to provide different options
             for the user to login.
+        :param ip_address: If provided, it will be stored in the user profile as the
+            signup IP address.
         :raises: UserAlreadyExist: When a user with the provided username (email)
             already exists.
         :raises WorkspaceInvitationEmailMismatch: If the workspace invitation email
@@ -242,6 +245,11 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
             is_staff=not User.objects.exists(),
             language=language,
         )
+
+        if ip_address:
+            profile = user.profile
+            profile.signup_ip_address = ip_address
+            profile.save(update_fields=["signup_ip_address"])
 
         if instance_settings.show_admin_signup_page:
             instance_settings.show_admin_signup_page = False
@@ -620,40 +628,54 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         return user, old_email
 
     def user_signed_in_via_provider(
-        self, user: AbstractUser, authentication_provider: AuthProviderModel
+        self,
+        user: AbstractUser,
+        authentication_provider: AuthProviderModel,
+        ip_address: Optional[str] = None,
     ):
         """
         Registers the authentication provider used to authenticate the user.
 
         :param user: The user instance.
         :param authentication_provider: The authentication provider instance.
+        :param ip_address: If provided, it will be stored in the user profile as the
+            last login IP address.
         """
 
         authentication_provider.user_signed_in(user)
-        self.user_signed_in(user)
+        self.user_signed_in(user, ip_address=ip_address)
 
-    def update_last_login(self, user: AbstractUser):
+    def update_last_login(self, user: AbstractUser, ip_address: Optional[str] = None):
         """
         Update the user last_login date only if the previous last_login is old enough.
 
         :param user: The user that has just signed in.
+        :param ip_address: If provided, it will be stored in the user profile as the
+            last login IP address.
         """
 
         now = datetime.now(tz=timezone.utc)
         if user.last_login is None or (now - user.last_login) > LAST_LOGIN_UPDATE_DELAY:
             update_last_login(None, user)
 
-    def user_signed_in(self, user: AbstractUser):
+            if ip_address:
+                profile = user.profile
+                profile.last_login_ip_address = ip_address
+                profile.save()
+
+    def user_signed_in(self, user: AbstractUser, ip_address: Optional[str] = None):
         """
         Executes tasks and informs plugins when a user signs in.
 
         :param user: The user that has just signed in.
+        :param ip_address: If provided, it will be stored in the user profile as the
+            last login IP address.
         """
 
         if user.profile.to_be_deleted:
             self.cancel_user_deletion(user)
 
-        self.update_last_login(user)
+        self.update_last_login(user, ip_address=ip_address)
         UserLogEntry.objects.create(actor=user, action="SIGNED_IN")
 
         # Call the user_signed_in method for each plugin that is in the registry to

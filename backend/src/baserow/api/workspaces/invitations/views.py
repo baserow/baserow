@@ -23,6 +23,7 @@ from baserow.api.errors import (
 )
 from baserow.api.mixins import SearchableViewMixin, SortableViewMixin
 from baserow.api.schemas import get_error_schema
+from baserow.api.sessions import get_user_remote_ip_address_from_request
 from baserow.api.workspaces.invitations.errors import (
     ERROR_GROUP_INVITATION_DOES_NOT_EXIST,
     ERROR_GROUP_INVITATION_EMAIL_MISMATCH,
@@ -188,6 +189,7 @@ class WorkspaceInvitationsView(APIView, SortableViewMixin, SearchableViewMixin):
             data["permissions"],
             data["base_url"],
             data.get("message", ""),
+            ip_address=get_user_remote_ip_address_from_request(request),
         )
 
         return Response(WorkspaceInvitationSerializer(workspace_invitation).data)

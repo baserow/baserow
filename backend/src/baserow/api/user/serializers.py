@@ -16,7 +16,10 @@ from rest_framework_simplejwt.serializers import (
 )
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from baserow.api.sessions import set_user_session_data_from_request
+from baserow.api.sessions import (
+    get_user_remote_ip_address_from_request,
+    set_user_session_data_from_request,
+)
 from baserow.api.two_factor_auth.tokens import TwoFactorAccessToken
 from baserow.api.user.jwt import get_user_from_token
 from baserow.api.user.registries import user_data_registry
@@ -325,7 +328,11 @@ def log_in_user(request, user):
     data.update(**get_all_user_data_serialized(user, request))
 
     set_user_session_data_from_request(user, request)
-    action_type_registry.get(SignInUserActionType.type).do(user, password_provider)
+    action_type_registry.get(SignInUserActionType.type).do(
+        user,
+        password_provider,
+        ip_address=get_user_remote_ip_address_from_request(request),
+    )
     return data
 
 

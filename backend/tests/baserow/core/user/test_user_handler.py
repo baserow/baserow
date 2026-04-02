@@ -105,6 +105,59 @@ def test_create_user(data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_user_with_ip_address(data_fixture):
+    user_handler = UserHandler()
+    valid_password = "thisIsAValidPassword"
+
+    user = user_handler.create_user(
+        "Test1", "test@test.nl", valid_password, ip_address="192.168.1.1"
+    )
+    assert user.profile.signup_ip_address == "192.168.1.1"
+
+
+@pytest.mark.django_db
+def test_create_user_without_ip_address(data_fixture):
+    user_handler = UserHandler()
+    valid_password = "thisIsAValidPassword"
+
+    user = user_handler.create_user("Test1", "test@test.nl", valid_password)
+    assert user.profile.signup_ip_address is None
+
+
+@pytest.mark.django_db
+def test_update_last_login_with_ip_address(data_fixture):
+    user = data_fixture.create_user()
+    handler = UserHandler()
+
+    handler.update_last_login(user, ip_address="10.0.0.1")
+
+    user.profile.refresh_from_db()
+    assert user.profile.last_login_ip_address == "10.0.0.1"
+
+
+@pytest.mark.django_db
+def test_update_last_login_without_ip_address(data_fixture):
+    user = data_fixture.create_user()
+    handler = UserHandler()
+
+    handler.update_last_login(user)
+
+    user.profile.refresh_from_db()
+    assert user.profile.last_login_ip_address is None
+
+
+@pytest.mark.django_db
+def test_user_signed_in_saves_ip_address(data_fixture):
+    user = data_fixture.create_user()
+    handler = UserHandler()
+
+    handler.user_signed_in(user, ip_address="172.16.0.1")
+
+    user.profile.refresh_from_db()
+    assert user.profile.last_login_ip_address == "172.16.0.1"
+
+
+@pytest.mark.django_db
 def test_update_user(data_fixture):
     user_handler = UserHandler()
     user = data_fixture.create_user(first_name="Initial", language="fr")
