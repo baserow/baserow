@@ -13,7 +13,7 @@ from rest_framework.status import (
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.fields.handler import FieldHandler
-from baserow.contrib.database.fields.models import FormulaField, NumberField
+from baserow.contrib.database.fields.models import NumberField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.db import specific_iterator
@@ -1728,10 +1728,12 @@ def test_sync_ensure_primary_field_always_exists(enterprise_data_fixture):
     assert row_id_field.primary is False
     assert name_field.primary is True
 
-    source_text_field.change_polymorphic_type_to(FormulaField)
-    source_text_field.formula = "'constant'"
-    source_text_field.formula_type = "text"
-    source_text_field.save()
+    FieldHandler().update_field(
+        user=user,
+        field=source_text_field,
+        new_type_name="formula",
+        formula="'constant'",
+    )
 
     handler.sync_data_sync_table(user=user, data_sync=data_sync)
 

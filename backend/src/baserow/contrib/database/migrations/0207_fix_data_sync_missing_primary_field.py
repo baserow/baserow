@@ -15,18 +15,14 @@ def fix_data_sync_missing_primary_field(apps, schema_editor):
         "database", "DataSyncSyncedProperty"
     )
     Field = apps.get_model("database", "Field")
-    Table = apps.get_model("database", "Table")
 
-    # Find all unique_primary synced properties whose table has no primary field.
-    unique_primary_properties = DataSyncSyncedProperty.objects.filter(
-        unique_primary=True
-    ).select_related("data_sync", "field")
-
-    for prop in unique_primary_properties:
-        table_id = prop.data_sync.table_id
-        has_primary = Field.objects.filter(table_id=table_id, primary=True).exists()
-        if not has_primary:
-            Field.objects.filter(id=prop.field_id).update(primary=True)
+    tables_with_primary = Field.objects.filter(primary=True).values("table_id")
+    should_be_primary_field_ids = (
+        DataSyncSyncedProperty.objects.filter(unique_primary=True)
+        .exclude(data_sync__table_id__in=tables_with_primary)
+        .values("field_id")
+    )
+    Field.objects.filter(id__in=should_be_primary_field_ids).update(primary=True)
 
 
 class Migration(migrations.Migration):
