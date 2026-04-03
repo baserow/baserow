@@ -49,4 +49,5 @@ def is_index_row_size_error(exc: Exception) -> bool:
         and isinstance(exc.__cause__, errors.ProgramLimitExceeded)
     ):
         return False
-    return "index row size" in str(exc)
+    msg = str(exc)
+    return "index" in msg and "size" in msg

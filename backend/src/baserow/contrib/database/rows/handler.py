@@ -957,22 +957,27 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         instance = model(**row_values)
         field_rules_handler.validate_row(instance)
 
+        def safe_save_instance():
+            try:
+                with transaction.atomic():
+                    instance.save(force_insert=True)
+                rows_created_counter.add(1)
+            except Exception as exc:
+                if is_unique_violation_error(exc):
+                    raise FieldDataConstraintException()
+                else:
+                    raise exc
+
         try:
-            with transaction.atomic():
-                instance.save(force_insert=True)
-            rows_created_counter.add(1)
+            safe_save_instance()
         except Exception as exc:
-            if is_unique_violation_error(exc):
-                raise FieldDataConstraintException()
-            elif is_index_row_size_error(exc):
+            if is_index_row_size_error(exc):
                 from baserow.contrib.database.views.handler import (
                     ViewIndexingHandler,
                 )
 
                 ViewIndexingHandler.handle_index_row_size_error(model.baserow_table_id)
-
-                instance.save(force_insert=True)
-                rows_created_counter.add(1)
+                safe_save_instance()
             else:
                 raise exc
 
@@ -1212,20 +1217,26 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             setattr(row, LAST_MODIFIED_BY_COLUMN_NAME, user if user.id else None)
             always_updated_fields.append(LAST_MODIFIED_BY_COLUMN_NAME)
 
+        def safe_save_row():
+            try:
+                with transaction.atomic():
+                    row.save(update_fields=update_row_fields + always_updated_fields)
+            except Exception as exc:
+                if is_unique_violation_error(exc):
+                    raise FieldDataConstraintException()
+                else:
+                    raise exc
+
         try:
-            with transaction.atomic():
-                row.save(update_fields=update_row_fields + always_updated_fields)
+            safe_save_row()
         except Exception as exc:
-            if is_unique_violation_error(exc):
-                raise FieldDataConstraintException()
-            elif is_index_row_size_error(exc):
+            if is_index_row_size_error(exc):
                 from baserow.contrib.database.views.handler import (
                     ViewIndexingHandler,
                 )
 
                 ViewIndexingHandler.handle_index_row_size_error(model.baserow_table_id)
-
-                row.save(update_fields=update_row_fields + always_updated_fields)
+                safe_save_row()
             else:
                 raise exc
         rows_updated_counter.add(1)
@@ -1430,29 +1441,35 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         rows = [row for (row, _) in rows_relationships]
 
-        try:
-            with transaction.atomic():
-                inserted_rows = model.objects.bulk_create(rows)
-        except Exception as exc:
-            inserted_rows = []
-            if is_unique_violation_error(exc):
-                if not generate_error_report:
-                    raise FieldDataConstraintException()
+        def safe_bulk_create():
+            try:
+                with transaction.atomic():
+                    return model.objects.bulk_create(rows)
+            except Exception as exc:
+                if is_unique_violation_error(exc):
+                    if not generate_error_report:
+                        raise FieldDataConstraintException()
 
-                for index, (row, _) in enumerate(rows_relationships):
-                    report[index] = {
-                        "non_field_errors": [
-                            "Row was not inserted due to conflicts or constraints"
-                        ]
-                    }
-            elif is_index_row_size_error(exc):
+                    for index, (row, _) in enumerate(rows_relationships):
+                        report[index] = {
+                            "non_field_errors": [
+                                "Row was not inserted due to conflicts or constraints"
+                            ]
+                        }
+                    return []
+                else:
+                    raise exc
+
+        try:
+            inserted_rows = safe_bulk_create()
+        except Exception as exc:
+            if is_index_row_size_error(exc):
                 from baserow.contrib.database.views.handler import (
                     ViewIndexingHandler,
                 )
 
                 ViewIndexingHandler.handle_index_row_size_error(model.baserow_table_id)
-
-                inserted_rows = model.objects.bulk_create(rows)
+                inserted_rows = safe_bulk_create()
             else:
                 raise exc
 
@@ -2505,30 +2522,38 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 bulk_update_fields.append(field_name)
 
         if len(bulk_update_fields) > 0:
-            try:
-                with transaction.atomic():
-                    model.objects.bulk_update(
-                        rows_to_update, bulk_update_fields, batch_size=2000
-                    )
-            except Exception as exc:
-                if is_unique_violation_error(exc):
-                    if generate_error_report:
-                        for idx, row in enumerate(rows_to_update):
-                            report[idx] = {
-                                "non_field_errors": [
-                                    "Row was not updated due to conflicts or constraints"
-                                ]
-                            }
-                        return UpdatedRowsData(
-                            [],
-                            [],
-                            original_row_values_by_id,
-                            fields_metadata_by_row_id,
-                            report,
-                            [],
+
+            def safe_bulk_update():
+                try:
+                    with transaction.atomic():
+                        model.objects.bulk_update(
+                            rows_to_update, bulk_update_fields, batch_size=2000
                         )
-                    raise FieldDataConstraintException()
-                elif is_index_row_size_error(exc):
+                except Exception as exc:
+                    if is_unique_violation_error(exc):
+                        if generate_error_report:
+                            for idx, row in enumerate(rows_to_update):
+                                report[idx] = {
+                                    "non_field_errors": [
+                                        "Row was not updated due to conflicts or constraints"
+                                    ]
+                                }
+                            return UpdatedRowsData(
+                                [],
+                                [],
+                                original_row_values_by_id,
+                                fields_metadata_by_row_id,
+                                report,
+                                [],
+                            )
+                        raise FieldDataConstraintException()
+                    else:
+                        raise exc
+
+            try:
+                safe_bulk_update()
+            except Exception as exc:
+                if is_index_row_size_error(exc):
                     from baserow.contrib.database.views.handler import (
                         ViewIndexingHandler,
                     )
@@ -2536,10 +2561,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     ViewIndexingHandler.handle_index_row_size_error(
                         model.baserow_table_id
                     )
-
-                    model.objects.bulk_update(
-                        rows_to_update, bulk_update_fields, batch_size=2000
-                    )
+                    safe_bulk_update()
                 else:
                     raise exc
 

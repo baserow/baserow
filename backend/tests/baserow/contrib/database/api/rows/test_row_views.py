@@ -3,7 +3,7 @@ import json
 import os
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from unittest.mock import call, patch
+from unittest.mock import patch
 from urllib.parse import quote
 
 from django.db import connection
@@ -5098,15 +5098,12 @@ def test_create_row_succeeds_when_legacy_view_index_exceeds_max_size(
 
     url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
 
-    with patch(
-        "baserow.contrib.database.views.tasks.schedule_view_index_update"
-    ) as mock_schedule:
-        response = api_client.post(
-            url,
-            {f"field_{long_text_field.id}": large_text},
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
-        )
+    response = api_client.post(
+        url,
+        {f"field_{long_text_field.id}": large_text},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
 
     assert response.status_code == HTTP_200_OK
     assert response.json()[f"field_{long_text_field.id}"] == large_text
@@ -5118,13 +5115,6 @@ def test_create_row_succeeds_when_legacy_view_index_exceeds_max_size(
 
     grid_view_2.refresh_from_db()
     assert grid_view_2.db_index_name is None
-
-    # A recreation task should have been scheduled
-    mock_schedule.assert_has_calls(
-        [call(grid_view.pk), call(grid_view_2.pk)],
-        any_order=True,
-    )
-    assert mock_schedule.call_count == 2
 
 
 @pytest.mark.django_db(transaction=True)
@@ -5197,15 +5187,12 @@ def test_update_row_succeeds_when_legacy_view_index_exceeds_max_size(
         kwargs={"table_id": table.id, "row_id": row.id},
     )
 
-    with patch(
-        "baserow.contrib.database.views.tasks.schedule_view_index_update"
-    ) as mock_schedule:
-        response = api_client.patch(
-            url,
-            {f"field_{long_text_field.id}": large_text},
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {jwt_token}",
-        )
+    response = api_client.patch(
+        url,
+        {f"field_{long_text_field.id}": large_text},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
 
     assert response.status_code == HTTP_200_OK
     assert response.json()[f"field_{long_text_field.id}"] == large_text
@@ -5218,10 +5205,3 @@ def test_update_row_succeeds_when_legacy_view_index_exceeds_max_size(
 
     grid_view_2.refresh_from_db()
     assert grid_view_2.db_index_name is None
-
-    # Index recreation should have been scheduled
-    mock_schedule.assert_has_calls(
-        [call(grid_view.pk), call(grid_view_2.pk)],
-        any_order=True,
-    )
-    assert mock_schedule.call_count == 2

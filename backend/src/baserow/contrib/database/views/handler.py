@@ -515,14 +515,15 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
                     view_table_id=view.table_id,
                 )
         except OperationalError as exc:
-            if "index row size" in str(exc):
+            msg = str(exc)
+            if "index" in msg and "size" in msg:
                 logger.warning(
                     "Failed to create index {db_index_name} for view {view_pk} of "
                     "table {view_table_id}: {exc}",
                     db_index_name=db_index.name,
                     view_pk=view.pk,
                     view_table_id=view.table_id,
-                    exc=str(exc),
+                    exc=msg,
                 )
                 return None
 
