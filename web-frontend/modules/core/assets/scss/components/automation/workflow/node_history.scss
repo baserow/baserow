@@ -19,8 +19,11 @@
   &-info {
     display: flex;
     gap: 4px;
+    min-width: 0;
 
     &-type {
+      @extend %ellipsis;
+
       font-size: 12px;
       line-height: 20px;
       font-weight: 500;
