@@ -19487,7 +19487,7 @@
                                                     }
                                                 ],
                                                 "Subtask": {
-                                                    "url": "https://baserow.stanford.getbaserow.com/form/Fs4SSZ0qA78L0_JAMcY4NcPFJf4RDjoSGSvwt0EhXfY?prefill_Task=Build%20sales%20pipeline&prefill_Start%20time=2026-04-01%2012:20",
+                                                    "url": "https://your-baserow-instance/form/Fs4SSZ0qA78L0_JAMcY4NcPFJf4RDjoSGSvwt0EhXfY?prefill_Task=Build%20sales%20pipeline&prefill_Start%20time=2026-04-01%2012:20",
                                                     "label": "Add new subtask"
                                                 },
                                                 "Assignee": [
@@ -19579,7 +19579,7 @@
                                                     }
                                                 ],
                                                 "Subtask": {
-                                                    "url": "https://baserow.stanford.getbaserow.com/form/Fs4SSZ0qA78L0_JAMcY4NcPFJf4RDjoSGSvwt0EhXfY?prefill_Task=Build%20sales%20pipeline&prefill_Start%20time=2026-04-01%2012:20",
+                                                    "url": "https://your-baserow-instance/form/Fs4SSZ0qA78L0_JAMcY4NcPFJf4RDjoSGSvwt0EhXfY?prefill_Task=Build%20sales%20pipeline&prefill_Start%20time=2026-04-01%2012:20",
                                                     "label": "Add new subtask"
                                                 },
                                                 "Assignee": [
@@ -19705,7 +19705,7 @@
                                             }
                                         ],
                                         "Subtask": {
-                                            "url": "https://baserow.stanford.getbaserow.com/form/Fs4SSZ0qA78L0_JAMcY4NcPFJf4RDjoSGSvwt0EhXfY?prefill_Task=Build%20sales%20pipeline&prefill_Start%20time=2026-04-01%2012:20",
+                                            "url": "https://your-baserow-instance/form/Fs4SSZ0qA78L0_JAMcY4NcPFJf4RDjoSGSvwt0EhXfY?prefill_Task=Build%20sales%20pipeline&prefill_Start%20time=2026-04-01%2012:20",
                                             "label": "Add new subtask"
                                         },
                                         "Assignee": [
