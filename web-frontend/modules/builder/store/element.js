@@ -174,8 +174,7 @@ const actions = {
       placeInContainer,
     }
   ) {
-    const isCrossPage = targetPage !== null && targetPage.id !== page.id
-    const resolvedTargetPage = isCrossPage ? targetPage : page
+    const resolvedTargetPage = targetPage !== null ? targetPage : page
     const element = getters.getElementById(page, elementId)
 
     // Compute a temporary order on the target page while waiting for the server.
@@ -206,50 +205,36 @@ const actions = {
       tempOrder = calculateTempOrder(getOrder(lastElement), null)
     }
 
-    if (isCrossPage) {
-      const descendants = getters.getDescendants(page, element)
+    const descendants = getters.getDescendants(page, element)
 
-      commit('DELETE_ITEM', { page, elementId: element.id })
+    commit('DELETE_ITEM', { page, elementId: element.id })
+    commit('ADD_ITEM', {
+      page: resolvedTargetPage,
+      element: {
+        ...element,
+        order: tempOrder,
+        parent_element_id: parentElementId,
+        place_in_container: placeInContainer,
+        page_id: resolvedTargetPage.id,
+      },
+    })
+
+    for (const descendant of descendants) {
+      commit('DELETE_ITEM', { page, elementId: descendant.id })
       commit('ADD_ITEM', {
         page: resolvedTargetPage,
-        element: {
-          ...element,
-          order: tempOrder,
-          parent_element_id: parentElementId,
-          place_in_container: placeInContainer,
-          page_id: resolvedTargetPage.id,
-        },
+        element: { ...descendant, page_id: resolvedTargetPage.id },
       })
-
-      // move all descendants to the target page.
-      for (const descendant of descendants) {
-        commit('DELETE_ITEM', { page, elementId: descendant.id })
-        commit('ADD_ITEM', {
-          page: resolvedTargetPage,
-          element: { ...descendant, page_id: resolvedTargetPage.id },
-        })
-        dispatch('_setElementNamespacePath', {
-          page: resolvedTargetPage,
-          element: getters.getElementById(resolvedTargetPage, descendant.id),
-        })
-      }
-
       dispatch('_setElementNamespacePath', {
         page: resolvedTargetPage,
-        element: getters.getElementById(resolvedTargetPage, elementId),
-      })
-    } else {
-      commit('UPDATE_ITEM', {
-        builder,
-        page,
-        element,
-        values: {
-          order: tempOrder,
-          parent_element_id: parentElementId,
-          place_in_container: placeInContainer,
-        },
+        element: getters.getElementById(resolvedTargetPage, descendant.id),
       })
     }
+
+    dispatch('_setElementNamespacePath', {
+      page: resolvedTargetPage,
+      element: getters.getElementById(resolvedTargetPage, elementId),
+    })
   },
   select({ commit }, { builder, element }) {
     updateContext.lastUpdatedValues = null
@@ -445,9 +430,6 @@ const actions = {
   ) {
     const { $client } = this
     const element = getters.getElementById(page, elementId)
-    const { order: previousOrder, place_in_container: previousPlace } = element
-
-    const isCrossPage = targetPage !== null && targetPage.id !== page.id
 
     const resolvedTargetPage = targetPage !== null ? targetPage : page
 
@@ -471,46 +453,23 @@ const actions = {
           placeInContainer
         )
 
-        if (isCrossPage) {
-          // Replace the optimistic element on the target page with the server values.
-          dispatch('forceUpdate', {
-            builder,
-            page: targetPage,
-            element: elementUpdated,
-            values: {
-              order: elementUpdated.order,
-              place_in_container: elementUpdated.place_in_container,
-              parent_element_id: elementUpdated.parent_element_id,
-              page_id: elementUpdated.page_id,
-            },
-          })
-        } else {
-          dispatch('forceUpdate', {
-            builder,
-            page,
-            element: elementUpdated,
-            values: {
-              order: elementUpdated.order,
-              place_in_container: elementUpdated.place_in_container,
-              parent_element_id: elementUpdated.parent_element_id,
-            },
-          })
-        }
+        // Replace the optimistic element with the server values.
+        dispatch('forceUpdate', {
+          builder,
+          page: resolvedTargetPage,
+          element: elementUpdated,
+          values: {
+            order: elementUpdated.order,
+            place_in_container: elementUpdated.place_in_container,
+            parent_element_id: elementUpdated.parent_element_id,
+            page_id: elementUpdated.page_id,
+          },
+        })
       } catch (error) {
-        if (isCrossPage) {
-          // Rollback: remove from target page and restore on source page.
-          commit('DELETE_ITEM', { page: targetPage, elementId: element.id })
-          commit('ADD_ITEM', { page, element })
-          dispatch('_setElementNamespacePath', { page, element })
-        } else {
-          // Restore previous order and place_in_container properties.
-          await dispatch('forceUpdate', {
-            builder,
-            page,
-            element,
-            values: { order: previousOrder, place_in_container: previousPlace },
-          })
-        }
+        // Rollback: remove from target page and restore on source page.
+        commit('DELETE_ITEM', { page: resolvedTargetPage, elementId: element.id })
+        commit('ADD_ITEM', { page, element })
+        dispatch('_setElementNamespacePath', { page, element })
         throw error
       }
     }
