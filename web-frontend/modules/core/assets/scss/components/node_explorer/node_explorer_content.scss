@@ -8,6 +8,7 @@
 
 .node-explorer-content__name {
   flex: 1;
+  @extend %ellipsis;
 }
 
 .node-explorer-content__content {
