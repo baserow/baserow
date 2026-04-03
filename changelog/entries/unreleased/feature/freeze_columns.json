@@ -1,6 +1,6 @@
 {
   "type": "feature",
-  "message": "Allow freezing (pinning) up to 4 columns on the left side of the grid view. Drag the handle at the divider between frozen and scrollable sections to adjust the number of frozen columns.",
+  "message": "Allow freezing (pinning) up to 4 columns on the left side of the grid view.",
   "issue_origin": "github",
   "issue_number": 2047,
   "domain": "database",

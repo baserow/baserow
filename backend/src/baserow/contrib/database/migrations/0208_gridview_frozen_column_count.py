@@ -4,7 +4,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("database", "0206_rowhistory_database_ro_action__6ea699_idx"),
+        ("database", "0207_fix_data_sync_missing_primary_field"),
     ]
 
     operations = [
@@ -12,8 +12,8 @@ class Migration(migrations.Migration):
             model_name="gridview",
             name="frozen_column_count",
             field=models.PositiveSmallIntegerField(
-                blank=True,
-                null=True,
+                default=1,
+                db_default=1,
             ),
         ),
     ]

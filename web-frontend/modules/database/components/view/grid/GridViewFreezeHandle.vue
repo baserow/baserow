@@ -101,7 +101,7 @@ export default {
   },
   computed: {
     currentFrozenCount() {
-      return this.view.frozen_column_count || 1
+      return this.view.frozen_column_count ?? 1
     },
     sortedFields() {
       return this.fields
@@ -110,18 +110,11 @@ export default {
         .sort(sortFieldsByOrderAndIdFunction(this.fieldOptions, true))
     },
     maxFrozenColumns() {
-      // Ensure at least one field remains in the scrollable section.
-      return Math.min(
-        Math.max(this.sortedFields.length - 1, 1),
-        MAX_FROZEN_COLUMNS
-      )
+      return Math.min(this.sortedFields.length, MAX_FROZEN_COLUMNS)
     },
     tooltipText() {
       const count = this.dragFrozenCount ?? this.currentFrozenCount
-      if (count === 1) {
-        return this.$t('gridViewFreezeHandle.freezeOne')
-      }
-      return this.$t('gridViewFreezeHandle.freezeN', { count })
+      return this.$t('gridViewFreezeHandle.freeze', { count })
     },
     /**
      * During drag, the handle follows the mouse freely.
@@ -143,7 +136,7 @@ export default {
     tooltipStyle() {
       const y = this.dragging ? this.dragMouseY : this.hoverMouseY
       if (y === null) return {}
-      return { top: y + 16 + 'px' }
+      return { top: y - 10 + 'px', left: '16px', transform: 'none' }
     },
     snapLineStyle() {
       if (this.snapLineOffset === null) return {}
@@ -179,8 +172,9 @@ export default {
       return boundaries
     },
     nearestBoundaryCount(x, boundaries) {
-      let bestCount = 1
-      let bestDist = Infinity
+      // Count 0 snaps to the row-details right edge (no frozen columns).
+      let bestCount = 0
+      let bestDist = Math.abs(x - this.rowDetailsWidth)
       for (let i = 0; i < boundaries.length && i < this.maxFrozenColumns; i++) {
         const dist = Math.abs(x - boundaries[i])
         if (dist < bestDist) {
@@ -191,6 +185,9 @@ export default {
       return bestCount
     },
     isNearBoundary(x, boundaries) {
+      if (Math.abs(x - this.rowDetailsWidth) <= SNAP_THRESHOLD) {
+        return true
+      }
       for (let i = 0; i < boundaries.length && i < this.maxFrozenColumns; i++) {
         if (Math.abs(x - boundaries[i]) <= SNAP_THRESHOLD) {
           return true
@@ -254,7 +251,8 @@ export default {
           this.dragMouseX,
           validBoundaries
         )
-        const snapX = validBoundaries[newCount - 1]
+        const snapX =
+          newCount === 0 ? this.rowDetailsWidth : validBoundaries[newCount - 1]
         this.nearBoundary = Math.abs(this.dragMouseX - snapX) <= SNAP_THRESHOLD
 
         // Show the snap preview line at the boundary position, offset from
@@ -276,6 +274,7 @@ export default {
         window.removeEventListener('mousemove', onMove)
         window.removeEventListener('mouseup', onUp)
         document.body.classList.remove('resizing-horizontal')
+        document.body.classList.remove('grid-view--disable-selection')
 
         const finalCount = this.nearestBoundaryCount(
           this.dragMouseX,
@@ -298,13 +297,13 @@ export default {
       window.addEventListener('mousemove', onMove)
       window.addEventListener('mouseup', onUp)
       document.body.classList.add('resizing-horizontal')
+      document.body.classList.add('grid-view--disable-selection')
     },
     async saveFrozenCount(count) {
-      const value = count <= 1 ? null : count
       try {
         await this.$store.dispatch('view/update', {
           view: this.view,
-          values: { frozen_column_count: value },
+          values: { frozen_column_count: count },
           readOnly:
             this.readOnly ||
             !this.$hasPermission(

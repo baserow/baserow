@@ -115,10 +115,6 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
               <div class="grid-view__foot-info">gridView.rowCount - 1</div>
             </div>
           </div>
-          <div style="display: none;">
-            <div class="grid-view__field-dragging" style="width: 0px; left: 0px;"></div>
-            <div class="grid-view__field-target" style="left: 0px;"></div>
-          </div>
         </div>
         <div class="grid-view__divider" style="left: 72px;"></div>
         <!--v-if-->
@@ -207,10 +203,6 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                 </div>
               </div>
             </div>
-          </div>
-          <div style="display: none;">
-            <div class="grid-view__field-dragging" style="width: 0px; left: 0px;"></div>
-            <div class="grid-view__field-target" style="left: 0px;"></div>
           </div>
         </div>
         <!--v-if-->
@@ -341,10 +333,6 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
               <div class="grid-view__foot-info">gridView.rowCount - 2</div>
             </div>
           </div>
-          <div style="display: none;">
-            <div class="grid-view__field-dragging" style="width: 0px; left: 0px;"></div>
-            <div class="grid-view__field-target" style="left: 0px;"></div>
-          </div>
         </div>
         <div class="grid-view__divider" style="left: 72px;"></div>
         <!--v-if-->
@@ -433,10 +421,6 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                 </div>
               </div>
             </div>
-          </div>
-          <div style="display: none;">
-            <div class="grid-view__field-dragging" style="width: 0px; left: 0px;"></div>
-            <div class="grid-view__field-target" style="left: 0px;"></div>
           </div>
         </div>
         <!--v-if-->

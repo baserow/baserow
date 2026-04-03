@@ -52,6 +52,14 @@
 .grid-view__left {
   left: 0;
   background-color: $palette-neutral-25;
+
+  // Let the last frozen column's resize handle extend past the boundary.
+  overflow: visible;
+  z-index: 4; // Above right section (1) and divider (3).
+
+  .grid-view__inner {
+    overflow: visible;
+  }
 }
 
 // The width of the first column can be adjusted that is why the left offset is
@@ -112,7 +120,6 @@
     @include absolute(0, 5px, 0, 5px);
 
     border-radius: 2px;
-    background-color: rgba($color-primary-500, 0.25);
     transition:
       background-color 0.15s ease,
       right 0.15s ease,
@@ -191,6 +198,10 @@
   height: 33px;
   background-color: $palette-neutral-25;
   border-bottom: 1px solid $palette-neutral-400;
+}
+
+.grid-view__left .grid-view__head {
+  overflow: visible;
 }
 
 .grid-view__head-row-identifier {

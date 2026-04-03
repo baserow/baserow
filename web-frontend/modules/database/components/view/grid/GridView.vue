@@ -33,7 +33,6 @@
       :include-grid-view-identifier-dropdown="!viewHasGroupBys"
       :include-group-by="true"
       :can-order-fields="frozenColumnCount > 1"
-      :use-external-field-dragging="frozenColumnCount > 1"
       :read-only="
         readOnly ||
         (!$hasPermission(
@@ -81,7 +80,12 @@
       :style="{ left: leftWidth + 'px' }"
     ></div>
     <GridViewFreezeHandle
-      v-if="primaryFieldIsSticky && isEditable && allDraggableFields.length > 0"
+      v-if="
+        canFitFrozenColumns &&
+        !viewHasGroupBys &&
+        isEditable &&
+        allDraggableFields.length > 0
+      "
       :view="view"
       :database="database"
       :fields="fields"
@@ -126,7 +130,6 @@
       :include-grid-view-identifier-dropdown="viewHasGroupBys"
       :include-add-field="true"
       :can-order-fields="true"
-      :use-external-field-dragging="frozenColumnCount > 1"
       :read-only="
         readOnly ||
         (!$hasPermission(
@@ -167,7 +170,7 @@
       @cell-selected="cellSelected"
     ></GridViewSection>
     <GridViewFieldDragging
-      v-if="primaryFieldIsSticky && frozenColumnCount > 1"
+      v-if="primaryFieldIsSticky"
       ref="crossSectionFieldDragging"
       :view="view"
       :fields="allDraggableFields"
@@ -553,10 +556,14 @@ export default {
       return this.activeGroupBys.length > 0
     },
     frozenColumnCount() {
-      return this.view.frozen_column_count || 1
+      return this.view.frozen_column_count
     },
     primaryFieldIsSticky() {
-      return this.canFitFrozenColumns && !this.viewHasGroupBys
+      return (
+        this.canFitFrozenColumns &&
+        !this.viewHasGroupBys &&
+        this.frozenColumnCount > 0
+      )
     },
     isEditable() {
       return (
@@ -654,8 +661,9 @@ export default {
     },
     'view.frozen_column_count'() {
       // When the frozen column count changes (e.g. real-time sync from another
-      // user), recalculate the viewport fit and update scrollbars.
-      this.fieldsUpdated()
+      // user), recalculate the viewport fit and update scrollbars. Use $nextTick
+      // so the DOM reflects the new leftWidth before scrollbar recalculates.
+      this.$nextTick(() => this.fieldsUpdated())
     },
     row: {
       deep: true,
@@ -766,9 +774,8 @@ export default {
       return this.$refs.gridView
     },
     /**
-     * Called when a non-primary field header is dragged in either section
-     * while frozen columns > 1. Delegates to the shared cross-section
-     * field dragging component.
+     * Called when a non-primary field header is dragged in either section.
+     * Delegates to the shared cross-section field dragging component.
      */
     startCrossSectionFieldDrag(field, event) {
       if (

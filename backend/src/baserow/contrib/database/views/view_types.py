@@ -100,14 +100,11 @@ class GridViewType(ViewType):
     ]
     serializer_field_overrides = {
         "frozen_column_count": serializers.IntegerField(
-            min_value=1,
+            min_value=0,
             max_value=4,
             required=False,
-            allow_null=True,
-            help_text=(
-                "Number of frozen columns including the primary field. "
-                "null means 1 (only primary). Max 4."
-            ),
+            default=1,
+            help_text="Number of frozen columns including the primary field.",
         ),
     }
 

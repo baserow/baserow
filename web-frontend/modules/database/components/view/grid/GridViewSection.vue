@@ -162,24 +162,6 @@
         </div>
       </div>
     </div>
-    <GridViewFieldDragging
-      ref="fieldDragging"
-      :view="view"
-      :fields="draggingFields"
-      :offset="draggingOffset"
-      :container-width="width"
-      :read-only="
-        readOnly ||
-        !$hasPermission(
-          'database.table.view.update_field_options',
-          view,
-          database.workspace.id
-        )
-      "
-      :store-prefix="storePrefix"
-      :get-scroll-element="getScrollElement"
-      @scroll="$emit('scroll', $event)"
-    ></GridViewFieldDragging>
   </div>
 </template>
 
@@ -191,7 +173,6 @@ import GridViewPlaceholder from '@baserow/modules/database/components/view/grid/
 import GridViewGroups from '@baserow/modules/database/components/view/grid/GridViewGroups'
 import GridViewRows from '@baserow/modules/database/components/view/grid/GridViewRows'
 import GridViewRowAdd from '@baserow/modules/database/components/view/grid/GridViewRowAdd'
-import GridViewFieldDragging from '@baserow/modules/database/components/view/grid/GridViewFieldDragging'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewFieldFooter from '@baserow/modules/database/components/view/grid/GridViewFieldFooter'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
@@ -206,7 +187,6 @@ export default {
     GridViewGroups,
     GridViewRows,
     GridViewRowAdd,
-    GridViewFieldDragging,
     GridViewFieldFooter,
   },
   mixins: [gridViewHelpers],
@@ -268,16 +248,6 @@ export default {
       type: Boolean,
       required: false,
       default: () => false,
-    },
-    /**
-     * Optional external handler for field dragging. When provided, the section
-     * emits 'field-dragging' to the parent instead of using its own internal
-     * GridViewFieldDragging component. Used for cross-section dragging.
-     */
-    useExternalFieldDragging: {
-      type: Boolean,
-      required: false,
-      default: false,
     },
     primaryFieldIsSticky: {
       type: Boolean,
@@ -616,11 +586,7 @@ export default {
   methods: {
     handleFieldDragging(event) {
       if (!this.canOrderFields || event.field.primary) return
-      if (this.useExternalFieldDragging) {
-        this.$emit('field-dragging', event)
-      } else {
-        this.$refs.fieldDragging.start(event.field, event.event)
-      }
+      this.$emit('field-dragging', event)
     },
     /**
      * For performance reasons we only want to render the cells are visible in the
