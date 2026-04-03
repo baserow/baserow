@@ -467,7 +467,10 @@ const actions = {
         })
       } catch (error) {
         // Rollback: remove from target page and restore on source page.
-        commit('DELETE_ITEM', { page: resolvedTargetPage, elementId: element.id })
+        commit('DELETE_ITEM', {
+          page: resolvedTargetPage,
+          elementId: element.id,
+        })
         commit('ADD_ITEM', { page, element })
         dispatch('_setElementNamespacePath', { page, element })
         throw error
