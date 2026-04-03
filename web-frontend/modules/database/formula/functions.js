@@ -2570,11 +2570,14 @@ export class BaserowIndex extends BaserowFunctionDefinition {
   }
 
   getSyntaxUsage() {
-    return ['index(a file field, a number)']
+    return ['index(a file field, a number)', 'index(an array field, a number)']
   }
 
   getExamples() {
-    return ['index(field("File field"), 0)']
+    return [
+      'index(field("File field"), 0)',
+      'index(field("Link row field"), 0)',
+    ]
   }
 
   getFormulaType() {
