@@ -28,13 +28,12 @@ def fix_data_sync_missing_primary_field(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("database", "0206_rowhistory_database_ro_action__6ea699_idx"),
+        ("database", "0207_add_view_default_values"),
     ]
 
     operations = [
         migrations.RunPython(
             fix_data_sync_missing_primary_field,
             migrations.RunPython.noop,
-            elidable=True,
         ),
     ]
