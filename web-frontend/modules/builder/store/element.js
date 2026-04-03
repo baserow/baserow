@@ -79,9 +79,20 @@ const mutations = {
     )
     updateCachedValues(page)
   },
-  ADD_ITEM(state, { page, element, beforeId = null }) {
+  ADD_ITEM(state, { page, element, sourcePageId = null, beforeId = null }) {
     const { $registry } = this
+    // For same-page moves, preserve the existing content/loading state so the
+    // element doesn't flash a spinner while the Nuxt useAsyncData cache skips
+    // the re-fetch. For cross-page moves, let populateElement reset cleanly so
+    // the new page context fetches fresh content.
+    const isSamePageMove = sourcePageId !== null && sourcePageId === page.id
+    const existingContentState = isSamePageMove ? element._ : null
     page.elements.push(populateElement(element, $registry))
+    if (existingContentState) {
+      element._.content = existingContentState.content
+      element._.hasNextPage = existingContentState.hasNextPage
+      element._.contentLoading = false
+    }
     updateCachedValues(page)
   },
   UPDATE_ITEM(state, { builder, page, element: elementToUpdate, values }) {
@@ -210,6 +221,7 @@ const actions = {
     commit('DELETE_ITEM', { page, elementId: element.id })
     commit('ADD_ITEM', {
       page: resolvedTargetPage,
+      sourcePageId: page.id,
       element: {
         ...element,
         order: tempOrder,
@@ -223,6 +235,7 @@ const actions = {
       commit('DELETE_ITEM', { page, elementId: descendant.id })
       commit('ADD_ITEM', {
         page: resolvedTargetPage,
+        sourcePageId: page.id,
         element: { ...descendant, page_id: resolvedTargetPage.id },
       })
       dispatch('_setElementNamespacePath', {
@@ -417,7 +430,7 @@ const actions = {
     return elements
   },
   async move(
-    { commit, dispatch, getters },
+    { commit, dispatch, getters, rootGetters },
     {
       builder,
       page,
@@ -433,6 +446,17 @@ const actions = {
 
     const resolvedTargetPage = targetPage !== null ? targetPage : page
 
+    // Check before the optimistic move whether the element's data source will
+    // still be reachable from the target page. Must run now while the element
+    // is still on the source page so element.data_source_id is the original value.
+    const sharedPage = rootGetters['page/getSharedPage'](builder)
+    const shouldClearDataSource =
+      !!element.data_source_id &&
+      !rootGetters['dataSource/getPagesDataSourceById'](
+        [resolvedTargetPage, sharedPage],
+        element.data_source_id
+      )
+
     await dispatch('forceMoveToPage', {
       builder,
       page,
@@ -442,6 +466,18 @@ const actions = {
       parentElementId,
       placeInContainer,
     })
+
+    // Immediately reset the data source in the store so the side panel
+    // reflects the new available data sources without waiting for the server.
+    if (shouldClearDataSource) {
+      const movedElement = getters.getElementById(resolvedTargetPage, elementId)
+      commit('UPDATE_ITEM', {
+        builder,
+        page: resolvedTargetPage,
+        element: movedElement,
+        values: { data_source_id: null, schema_property: null },
+      })
+    }
 
     const fire = async () => {
       try {
@@ -465,6 +501,20 @@ const actions = {
             page_id: elementUpdated.page_id,
           },
         })
+
+        // Persist the data source reset to the server now that the move succeeded.
+        if (shouldClearDataSource) {
+          const movedElement = getters.getElementById(
+            resolvedTargetPage,
+            elementId
+          )
+          await dispatch('update', {
+            builder,
+            page: resolvedTargetPage,
+            element: movedElement,
+            values: { data_source_id: null, schema_property: null },
+          })
+        }
       } catch (error) {
         // Rollback: remove from target page and restore on source page.
         commit('DELETE_ITEM', {

@@ -99,22 +99,28 @@ export default {
     /**
      * Returns all data sources that are available not on shared page.
      * The data source will need a `type` and a valid schema.
+     * Derived from element.page_id (reactive) rather than the injected
+     * elementPage, which is a static snapshot and doesn't update when the
+     * element is moved to a different page via drag-and-drop.
      * @returns {Array} - The data sources the page designer can choose from.
      */
     localDataSources() {
-      if (this.elementPage.id === this.sharedPage.id) {
-        // If the element is on the shared page they are no local page but only
-        // shared page.
+      if (!this.element) return null
+      const currentElementPage = this.$store.getters['page/getById'](
+        this.builder,
+        this.element.page_id
+      )
+      if (!currentElementPage || currentElementPage.id === this.sharedPage.id) {
+        // Element is on the shared page: only shared data sources apply.
         return null
-      } else {
-        return this.$store.getters['dataSource/getPagesDataSources']([
-          this.elementPage,
-        ]).filter((dataSource) => {
-          const serviceType =
-            dataSource.type && this.$registry.get('service', dataSource.type)
-          return serviceType?.getDataSchema(dataSource)
-        })
       }
+      return this.$store.getters['dataSource/getPagesDataSources']([
+        currentElementPage,
+      ]).filter((dataSource) => {
+        const serviceType =
+          dataSource.type && this.$registry.get('service', dataSource.type)
+        return serviceType?.getDataSchema(dataSource)
+      })
     },
     /**
      * Returns the shared data sources.
