@@ -17,6 +17,7 @@
       @click="!disabled && $emit('add-element')"
     >
       <i class="iconoir-plus add-element-zone__icon"></i>
+      <span v-if="label" class="add-element-zone__label">{{ label }}</span>
     </div>
   </div>
 </template>
@@ -29,7 +30,14 @@ export default {
   props: {
     parentElement: {
       type: Object,
-      required: true,
+      required: false,
+      default: null,
+    },
+    // Explicit target page when parentElement is null (e.g. empty page drop zone).
+    page: {
+      type: Object,
+      required: false,
+      default: null,
     },
     placeInContainer: {
       type: [String, null],
@@ -46,12 +54,18 @@ export default {
       required: false,
       default: null,
     },
+    label: {
+      type: String,
+      required: false,
+      default: null,
+    },
   },
   emits: ['add-element', 'dragover', 'dragleave', 'drop'],
   setup(props) {
     return useDropElementTarget({
       parentElement: props.parentElement,
       placeInContainer: props.placeInContainer,
+      page: props.page,
     })
   },
 }

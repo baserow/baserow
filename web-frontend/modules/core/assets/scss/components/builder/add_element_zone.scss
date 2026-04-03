@@ -18,7 +18,17 @@
 }
 
 .add-element-zone__button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   padding: 10px; // Add more space around to make the click easier
+}
+
+.add-element-zone__label {
+  font-size: 13px;
+  color: $color-neutral-600;
+  cursor: pointer;
 }
 
 .add-element-zone__icon {
@@ -38,6 +48,12 @@
   .add-element-zone.add-element-zone--disabled & {
     cursor: not-allowed;
   }
+}
+
+.add-element-zone--full-height {
+  height: auto;
+  flex: 1;
+  padding: 120px 0;
 }
 
 .add-element-zone--drag-active {

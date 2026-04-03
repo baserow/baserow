@@ -7,6 +7,7 @@ export function useDropElementTarget({
   parentElement,
   referenceElement = null,
   placeInContainer = null,
+  page = null,
 }) {
   const store = useStore()
   const uid = useId()
@@ -30,7 +31,13 @@ export function useDropElementTarget({
         unref(referenceElement).page_id
       )
     }
-    return store.getters['page/getById'](builder, unref(parentElement).page_id)
+    if (unref(parentElement)) {
+      return store.getters['page/getById'](
+        builder,
+        unref(parentElement).page_id
+      )
+    }
+    return unref(page)
   })
 
   const resolvedParentElement = computed(() => {
