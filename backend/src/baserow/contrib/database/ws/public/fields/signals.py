@@ -40,6 +40,7 @@ def _send_payload_to_public_views_where_field_not_hidden(
 
     views_with_hidden_fields = _get_views_where_field_visible_and_hidden_fields_in_view(
         field,
+        # Only bother calculating the hidden_fields set for the related_fields
         hidden_fields_field_ids_filter=related_field_ids,
     )
     _broadcast_payload_to_views_with_restricted_related_fields(
@@ -49,17 +50,25 @@ def _send_payload_to_public_views_where_field_not_hidden(
 
 def _get_public_views_with_hidden_fields(
     table_id: int,
+    field_ids: Optional[List[int]] = None,
 ) -> List[Tuple[View, Set[int]]]:
     """
     Returns the public views for a table with their hidden field sets. Results
     are cached in the request-scoped local_cache so that repeated calls for the
     same table within a single request don't re-query.
+
+    :param table_id: The id of the table to get the views for.
+    :param field_ids: When provided, only calculate the hidden fields for these
+        field ids, otherwise calculate for all fields in the table.
+    :return: A list of (view, hidden_field_ids) tuples for all public views of the
     """
 
     def _fetch() -> List[Tuple[View, Set[int]]]:
+        nonlocal field_ids
+
         views_qs = (
             View.objects.filter(public=True, table_id=table_id)
-            .select_related("table")
+            .select_related("table__database__workspace")
             .prefetch_related("table__field_set")
         )
 
@@ -73,9 +82,9 @@ def _get_public_views_with_hidden_fields(
         )
         if not specific_views:
             return []
-
-        table = specific_views[0].table
-        all_field_ids = [f.id for f in table.field_set.all()]
+        elif not field_ids:
+            table = specific_views[0].table
+            field_ids = [f.id for f in table.field_set.all()]
 
         result = []
         for view in specific_views:
@@ -84,13 +93,14 @@ def _get_public_views_with_hidden_fields(
             if not view_type.when_shared_publicly_requires_realtime_events:
                 continue
 
-            hidden_field_ids = view_type.get_hidden_fields(view, all_field_ids)
+            hidden_field_ids = view_type.get_hidden_fields(view, field_ids)
             result.append((view, hidden_field_ids))
 
         return result
 
     return local_cache.get(
-        f"public_views_with_hidden_fields_{table_id}", default=_fetch
+        f"public_views_with_hidden_fields_{table_id}_{field_ids}",
+        default=_fetch,
     )
 
 
@@ -109,33 +119,14 @@ def _get_views_where_field_visible_and_hidden_fields_in_view(
         visible.
     """
 
-    if hidden_fields_field_ids_filter is not None:
-        restrict_to = {field.id, *hidden_fields_field_ids_filter}
-        views_qs = (
-            View.objects.filter(public=True, table_id=field.table_id)
-            .select_related("table__database__workspace")
-            .prefetch_related("table__field_set")
-        )
-        specific_views = specific_iterator(
-            views_qs,
-            per_content_type_queryset_hook=(
-                lambda model, queryset: view_type_registry.get_by_model(
-                    model
-                ).enhance_queryset(queryset)
-            ),
-        )
-        result = []
-        for view in specific_views:
-            view = view.specific
-            view_type = view_type_registry.get_by_model(view)
-            if not view_type.when_shared_publicly_requires_realtime_events:
-                continue
-            hidden_field_ids = view_type.get_hidden_fields(view, list(restrict_to))
-            if field.id not in hidden_field_ids:
-                result.append((view, hidden_field_ids))
-        return result
-
-    views_with_hidden = _get_public_views_with_hidden_fields(field.table_id)
+    field_ids = (
+        list({field.id, *hidden_fields_field_ids_filter})
+        if hidden_fields_field_ids_filter
+        else None
+    )
+    views_with_hidden = _get_public_views_with_hidden_fields(
+        field.table_id, field_ids=field_ids
+    )
     return [
         (view, hidden_field_ids)
         for view, hidden_field_ids in views_with_hidden
