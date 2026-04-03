@@ -195,6 +195,7 @@ def test_import_workspace_applications_calls_signals(
     mock_application_imported.send.assert_has_calls(expected_calls)
 
 
+@pytest.mark.import_export_workspace
 def test_validate_safe_path_allows_normal_paths():
     handler = ImportExportHandler()
     result = handler._validate_safe_path("/base/dir", "subdir/file.json")
@@ -204,6 +205,7 @@ def test_validate_safe_path_allows_normal_paths():
     assert result == "/base/dir/file.json"
 
 
+@pytest.mark.import_export_workspace
 def test_validate_safe_path_rejects_traversal():
     handler = ImportExportHandler()
 
@@ -250,8 +252,29 @@ def test_import_rejects_zipslip_traversal(data_fixture, use_tmp_media_root, tmp_
         )
 
 
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
-def test_extract_files_rejects_oversized_content(tmp_path, settings):
+def test_extract_files_rejects_files_not_in_manifest(tmp_path, use_tmp_media_root):
+    zip_path = f"{tmp_path}/allowlist_test.zip"
+    with zipfile.ZipFile(zip_path, "w") as zf:
+        zf.writestr("trusted.txt", "trusted content")
+        zf.writestr("extra.txt", "untrusted content")
+
+    storage = get_default_storage()
+    extract_dir = "import_test/extract"
+
+    with zipfile.ZipFile(zip_path, "r") as zf:
+        with pytest.raises(ImportExportResourceInvalidFile, match="unexpected file"):
+            ImportExportHandler().extract_files_from_zip(
+                extract_dir, zf, storage, allowed_files=["trusted.txt"]
+            )
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db
+def test_extract_files_rejects_oversized_content(
+    tmp_path, settings, use_tmp_media_root
+):
     settings.BASEROW_IMPORT_MAX_UNCOMPRESSED_SIZE = 100  # 100 bytes
 
     zip_path = f"{tmp_path}/bomb_test.zip"
@@ -263,10 +286,25 @@ def test_extract_files_rejects_oversized_content(tmp_path, settings):
     with zipfile.ZipFile(zip_path, "r") as zf:
         with pytest.raises(ImportExportResourceInvalidFile, match="exceeds"):
             ImportExportHandler().extract_files_from_zip(
-                str(tmp_path / "extract"), zf, storage
+                "import_test/extract",
+                zf,
+                storage,
+                allowed_files=["large_file.txt"],
             )
 
 
+@pytest.mark.import_export_workspace
+def test_build_allowed_files_includes_checksums_and_meta():
+    manifest = {"checksums": {"data.json": "abc", "file.bin": "def"}}
+    result = ImportExportHandler._build_allowed_files(manifest)
+    assert "data.json" in result
+    assert "file.bin" in result
+    assert "manifest.json" in result
+    assert "manifest_signature.json" in result
+    assert len(result) == 4
+
+
+@pytest.mark.import_export_workspace
 @pytest.mark.django_db
 def test_validate_checksums_rejects_traversal(tmp_path):
     handler = ImportExportHandler()

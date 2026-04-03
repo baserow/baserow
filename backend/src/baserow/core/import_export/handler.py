@@ -954,23 +954,42 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             raise SuspiciousOperation(f"Detected path traversal attempt: {filename}")
         return join(base_path, normalized)
 
+    @staticmethod
+    def _build_allowed_files(manifest_data: dict) -> list:
+        """
+        Builds the complete list of filenames allowed in an import ZIP archive
+        from the manifest data. Includes checksummed data files plus the
+        manifest and signature meta files.
+
+        :param manifest_data: The parsed manifest dictionary.
+        :return: List of allowed filenames.
+        """
+
+        allowed = list(manifest_data.get("checksums", {}).keys())
+        allowed.append(MANIFEST_NAME)
+        allowed.append(SIGNATURE_NAME)
+        return allowed
+
     def extract_files_from_zip(
         self,
         tmp_import_path: str,
         zip_file: ZipFile,
         storage: Storage,
+        allowed_files: list,
         progress_builder: Optional[ChildProgressBuilder] = None,
     ):
         """
         Extracts files from a zip archive to a specified temporary import path.
 
-        This method iterates over the files in the provided zip archive and saves each
-        file to the specified temporary import path using the provided storage instance.
+        Only files present in allowed_files are extracted. Any file not listed
+        raises an error, ensuring only trusted content is written to storage.
 
         :param tmp_import_path: The temporary directory where the files will be
             extracted.
         :param zip_file: The ZipFile instance containing the files to be extracted.
         :param storage: The storage instance used to save the extracted files.
+        :param allowed_files: List of filenames permitted to be extracted. Files
+            not in this list cause the import to fail.
         :param progress_builder: A progress builder that allows for publishing progress.
         """
 
@@ -987,6 +1006,12 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             if file_info.is_dir():
                 progress.increment()
                 continue
+
+            if file_info.filename not in allowed_files:
+                raise ImportExportResourceInvalidFile(
+                    f"Archive contains unexpected file not listed in "
+                    f"manifest: {file_info.filename}"
+                )
 
             extracted_file_path = self._validate_safe_path(
                 tmp_import_path, file_info.filename
@@ -1082,7 +1107,10 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                         import_tmp_path,
                         zip_file,
                         storage,
-                        progress.create_child_builder(represents_progress=10),
+                        allowed_files=self._build_allowed_files(manifest_data),
+                        progress_builder=progress.create_child_builder(
+                            represents_progress=10
+                        ),
                     )
                 except SuspiciousOperation:
                     self.clean_storage(import_tmp_path, storage)
