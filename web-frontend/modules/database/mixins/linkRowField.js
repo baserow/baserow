@@ -1,6 +1,6 @@
 import { getPrimaryOrFirstField } from '@baserow/modules/database/utils/field'
 import BigNumber from 'bignumber.js'
-import { DatabaseApplicationType } from '~/modules/database/applicationTypes.js'
+import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 
 export default {
   emits: ['update'],
