@@ -23,6 +23,7 @@
     &-type {
       @extend %ellipsis;
 
+      max-width: 160px;
       font-size: 12px;
       line-height: 20px;
       font-weight: 500;

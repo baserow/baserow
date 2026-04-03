@@ -221,7 +221,13 @@ const getNodeIconClass = () => {
 }
 
 const nodeTypeLabel = () => {
-  return props.nodeHistories[0].node_label || getNodeType().name
+  const nodeHistory = props.nodeHistories[0]
+  const baseLabel = nodeHistory.node_label || getNodeType().name
+  const result = nodeHistory.result
+  if (nodeHistory.node_type === 'router') {
+    return `${baseLabel} (${result.edge.label})`
+  }
+  return baseLabel
 }
 
 const status = computed(() => {
