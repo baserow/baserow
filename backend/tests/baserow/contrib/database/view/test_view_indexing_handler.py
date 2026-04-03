@@ -129,7 +129,7 @@ def test_update_index_catches_operational_error_gracefully(data_fixture):
     ) as mock_editor_ctx:
         mock_schema_editor = mock_editor_ctx.return_value.__enter__.return_value
         mock_schema_editor.add_index.side_effect = OperationalError(
-            "index row requires 10704 bytes, maximum size is 8191"
+            "index row size 6568 exceeds btree version 4 maximum 2704 for index"
         )
 
         ViewIndexingHandler.update_index(grid_view, table_model)
@@ -188,7 +188,7 @@ def test_drop_all_indexes_for_table(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_handle_index_row_size_error_drops_and_recreate_indexes(data_fixture):
+def test_handle_index_row_size_error_drops_indexes(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
     text_field = data_fixture.create_text_field(user=user, table=table)
@@ -208,11 +208,7 @@ def test_handle_index_row_size_error_drops_and_recreate_indexes(data_fixture):
     grid_view.refresh_from_db()
     assert grid_view.db_index_name is not None
 
-    with patch(
-        "baserow.contrib.database.views.tasks.schedule_view_index_update"
-    ) as mock_schedule:
-        ViewIndexingHandler.handle_index_row_size_error(table.id)
+    ViewIndexingHandler.handle_index_row_size_error(table.id)
 
     grid_view.refresh_from_db()
     assert grid_view.db_index_name is None
-    mock_schedule.assert_called_once_with(grid_view.pk)

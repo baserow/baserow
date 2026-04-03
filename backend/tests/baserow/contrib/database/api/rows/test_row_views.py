@@ -4779,6 +4779,7 @@ def test_update_single_field_does_not_affect_others(api_client, data_fixture):
         # Update original_values for next iteration
         original_values[field_id] = updated_data[f"field_{field_id}"]
 
+
 @pytest.mark.django_db
 def test_create_row_with_view_default_values(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
@@ -5031,6 +5032,7 @@ def test_create_row_with_interesting_table_default_values(api_client, data_fixtu
             f"{field_name}: created row value {created_value!r} != "
             f"default value {sent_value!r}"
         )
+
 
 @pytest.mark.django_db(transaction=True)
 def test_create_row_succeeds_when_legacy_view_index_exceeds_max_size(

@@ -442,20 +442,29 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
             be dropped.
         """
 
-        views_with_index = View.objects.filter(
-            table_id=table_id,
-            db_index_name__isnull=False,
+        views_with_index = list(
+            View.objects.filter(
+                table_id=table_id,
+                db_index_name__isnull=False,
+            )
         )
 
-        for view in views_with_index:
-            index_name = view.db_index_name
-            if index_name:
-                with connection.cursor() as cursor:
-                    cursor.execute(
-                        f"DROP INDEX IF EXISTS {connection.ops.quote_name(index_name)}"
-                    )
-            view.db_index_name = None
-            view.save(update_fields=["db_index_name"])
+        index_names = set(view.db_index_name for view in views_with_index)
+
+        if index_names:
+            drop_index_sql = sql.SQL("DROP INDEX IF EXISTS {}").format(
+                sql.SQL(", ").join(
+                    sql.Identifier(index_name) for index_name in index_names
+                )
+            )
+
+            with connection.cursor() as cursor:
+                cursor.execute(drop_index_sql)
+
+        if views_with_index:
+            View.objects.filter(id__in=[v.id for v in views_with_index]).update(
+                db_index_name=None
+            )
 
     @classmethod
     def handle_index_row_size_error(cls, table_id: int):
@@ -465,26 +474,12 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
         btree maximum row size.
 
         The method drops every view index for the affected table so the
-        write can be retried, then schedules asynchronous recreation of each
-        index (which will now use truncated expressions).
+        write can be retried.
 
         :param table_id: PK of the database table that triggered the error.
         """
 
-        views_with_index = View.objects.filter(
-            table_id=table_id,
-            db_index_name__isnull=False,
-        )
-        view_pks = list(views_with_index.values_list("pk", flat=True))
-
         cls.drop_all_indexes_for_table(table_id)
-
-        for view_pk in view_pks:
-            from baserow.contrib.database.views.tasks import (
-                schedule_view_index_update,
-            )
-
-            schedule_view_index_update(view_pk)
 
     @classmethod
     def create_index_if_not_exists(
@@ -520,15 +515,16 @@ class ViewIndexingHandler(metaclass=baserow_trace_methods(tracer)):
                     view_table_id=view.table_id,
                 )
         except OperationalError as exc:
-            logger.warning(
-                "Failed to create index {db_index_name} for view {view_pk} of "
-                "table {view_table_id}: {exc}",
-                db_index_name=db_index.name,
-                view_pk=view.pk,
-                view_table_id=view.table_id,
-                exc=str(exc),
-            )
-            return None
+            if "index row size" in str(exc):
+                logger.warning(
+                    "Failed to create index {db_index_name} for view {view_pk} of "
+                    "table {view_table_id}: {exc}",
+                    db_index_name=db_index.name,
+                    view_pk=view.pk,
+                    view_table_id=view.table_id,
+                    exc=str(exc),
+                )
+                return None
 
         return db_index.name
 
