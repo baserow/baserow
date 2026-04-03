@@ -57,16 +57,16 @@
 }
 
 .add-element-zone--drag-active {
-  border: 1px dashed $palette-blue-300;
-  background-color: rgba($palette-blue-50, 0.4);
+  border: 1px dashed $palette-green-400;
+  background-color: rgba($palette-green-50, 0.6);
 
   &:hover {
-    border-color: $palette-blue-300;
-    background-color: rgba($palette-blue-50, 0.4);
+    border-color: $palette-green-400;
+    background-color: rgba($palette-green-50, 0.6);
   }
 }
 
 .add-element-zone--drag-over {
-  background-color: rgba($palette-blue-100, 0.6);
-  border: 1px dashed $palette-blue-400;
+  background-color: rgba($palette-green-100, 0.7);
+  border: 1px dashed $palette-green-500;
 }
