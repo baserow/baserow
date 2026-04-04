@@ -204,6 +204,7 @@ class CoreConfig(AppConfig):
             DeleteWorkspaceOperationType,
             DeleteWorkspaceUserOperationType,
             DuplicateApplicationOperationType,
+            ExportWorkspaceOperationType,
             ListApplicationsWorkspaceOperationType,
             ListInvitationsWorkspaceOperationType,
             ListWorkspacesOperationType,
@@ -247,6 +248,7 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(ListWorkspacesOperationType())
         operation_type_registry.register(UpdateWorkspaceInvitationType())
         operation_type_registry.register(ReadWorkspaceOperationType())
+        operation_type_registry.register(ExportWorkspaceOperationType())
         operation_type_registry.register(UpdateWorkspaceOperationType())
         operation_type_registry.register(ListWorkspaceUsersWorkspaceOperationType())
         operation_type_registry.register(OrderApplicationsOperationType())

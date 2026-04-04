@@ -15,7 +15,7 @@
     ></div>
     <ul v-else class="context__menu">
       <li
-        v-if="$hasPermission('workspace.read', workspace, workspace.id)"
+        v-if="$hasPermission('workspace.export', workspace, workspace.id)"
         class="context__menu-item"
       >
         <a class="context__menu-item-link" @click="openExportData">
@@ -118,7 +118,7 @@
     >
     </TrashModal>
     <ExportWorkspaceModal
-      v-if="$hasPermission('workspace.read', workspace, workspace.id)"
+      v-if="$hasPermission('workspace.export', workspace, workspace.id)"
       ref="exportWorkspaceModal"
       :workspace="workspace"
     >

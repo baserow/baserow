@@ -66,8 +66,8 @@ from baserow.core.models import (
 )
 from baserow.core.operations import (
     CreateApplicationsWorkspaceOperationType,
+    ExportWorkspaceOperationType,
     ListApplicationsWorkspaceOperationType,
-    ReadWorkspaceOperationType,
 )
 from baserow.core.service import CoreService
 from baserow.core.utils import Progress
@@ -300,7 +300,7 @@ class ExportApplicationsJobType(JobType):
 
         CoreHandler().check_permissions(
             user,
-            ReadWorkspaceOperationType.type,
+            ExportWorkspaceOperationType.type,
             workspace=workspace,
             context=workspace,
         )

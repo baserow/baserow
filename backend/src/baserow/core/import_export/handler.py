@@ -49,7 +49,7 @@ from baserow.core.models import (
     ImportExportTrustedSource,
     Workspace,
 )
-from baserow.core.operations import ReadWorkspaceOperationType
+from baserow.core.operations import ExportWorkspaceOperationType
 from baserow.core.registries import ImportExportConfig, application_type_registry
 from baserow.core.signals import application_created, application_imported
 from baserow.core.storage import (
@@ -99,7 +99,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
         core_handler.check_permissions(
             user,
-            ReadWorkspaceOperationType.type,
+            ExportWorkspaceOperationType.type,
             workspace=workspace,
             context=workspace,
         )

@@ -227,6 +227,7 @@ from baserow.core.operations import (
     DeleteWorkspaceOperationType,
     DeleteWorkspaceUserOperationType,
     DuplicateApplicationOperationType,
+    ExportWorkspaceOperationType,
     ListApplicationsWorkspaceOperationType,
     ListInvitationsWorkspaceOperationType,
     ListWorkspaceUsersWorkspaceOperationType,
@@ -612,5 +613,6 @@ default_roles[ADMIN_ROLE_UID].extend(
         ListWorkspaceAuditLogEntriesOperationType,
         ReadRoleViewOperationType,
         UpdateRoleViewOperationType,
+        ExportWorkspaceOperationType,
     ]
 )
