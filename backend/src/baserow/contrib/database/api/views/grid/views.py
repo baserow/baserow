@@ -86,13 +86,14 @@ from baserow.contrib.database.views.exceptions import (
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import GridView
+from baserow.contrib.database.views.operations import ListViewRowsOperationType
 from baserow.contrib.database.views.registries import (
     view_aggregation_type_registry,
     view_type_registry,
 )
 from baserow.contrib.database.views.signals import view_loaded
+from baserow.contrib.database.views.utils import check_permissions_with_view_fallback
 from baserow.core.exceptions import UserNotInWorkspace
-from baserow.core.handler import CoreHandler
 from baserow.core.utils import split_comma_separated_string
 
 from .errors import ERROR_GRID_DOES_NOT_EXIST
@@ -237,13 +238,14 @@ class GridViewView(APIView):
         )
         view_type = view_type_registry.get_by_model(view)
 
-        workspace = view.table.database.workspace
-        CoreHandler().check_permissions(
-            request.user,
+        check_permissions_with_view_fallback(
             ListRowsDatabaseTableOperationType.type,
-            workspace=workspace,
-            context=view.table,
+            ListViewRowsOperationType.type,
+            request.user,
+            view.table,
+            view,
         )
+
         field_ids = get_include_exclude_field_ids(
             view.table, include_fields, exclude_fields
         )
@@ -347,11 +349,12 @@ class GridViewView(APIView):
         """
 
         view = ViewHandler().get_view_as_user(request.user, view_id, GridView)
-        CoreHandler().check_permissions(
-            request.user,
+        check_permissions_with_view_fallback(
             ListRowsDatabaseTableOperationType.type,
-            workspace=view.table.database.workspace,
-            context=view.table,
+            ListViewRowsOperationType.type,
+            request.user,
+            view.table,
+            view,
         )
         hidden_field_ids = get_hidden_field_ids_for_view_user(request.user, view)
 

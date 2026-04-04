@@ -44,10 +44,11 @@ from baserow.contrib.database.views.exceptions import (
 )
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.operations import ListViewRowsOperationType
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.signals import view_loaded
+from baserow.contrib.database.views.utils import check_permissions_with_view_fallback
 from baserow.core.exceptions import UserNotInWorkspace
-from baserow.core.handler import CoreHandler
 from baserow_premium.api.views.errors import ERROR_INVALID_SELECT_OPTION_PARAMETER
 from baserow_premium.api.views.exceptions import InvalidSelectOptionParameter
 from baserow_premium.license.features import PREMIUM
@@ -177,11 +178,12 @@ class KanbanViewView(APIView):
                 PREMIUM, request.user, workspace
             )
 
-        CoreHandler().check_permissions(
-            request.user,
+        check_permissions_with_view_fallback(
             ListRowsDatabaseTableOperationType.type,
-            workspace=workspace,
-            context=view.table,
+            ListViewRowsOperationType.type,
+            request.user,
+            view.table,
+            view,
         )
         single_select_option_field = view.single_select_field
 

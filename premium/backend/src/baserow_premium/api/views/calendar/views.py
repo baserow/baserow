@@ -63,12 +63,13 @@ from baserow.contrib.database.views.exceptions import (
 )
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.operations import ListViewRowsOperationType
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.signals import view_loaded
+from baserow.contrib.database.views.utils import check_permissions_with_view_fallback
 from baserow.core.action.registries import action_type_registry
 from baserow.core.db import specific_queryset
 from baserow.core.exceptions import UserNotInWorkspace
-from baserow.core.handler import CoreHandler
 from baserow_premium.api.views.calendar.errors import (
     ERROR_CALENDAR_VIEW_HAS_NO_DATE_FIELD,
 )
@@ -215,11 +216,12 @@ class CalendarViewView(APIView):
                 PREMIUM, request.user, workspace
             )
 
-        CoreHandler().check_permissions(
-            request.user,
+        check_permissions_with_view_fallback(
             ListRowsDatabaseTableOperationType.type,
-            workspace=workspace,
-            context=view.table,
+            ListViewRowsOperationType.type,
+            request.user,
+            view.table,
+            view,
         )
 
         date_field = view.date_field

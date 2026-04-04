@@ -68,9 +68,10 @@ from baserow.contrib.database.views.exceptions import (
 )
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.operations import ListViewRowsOperationType
 from baserow.contrib.database.views.signals import view_loaded
+from baserow.contrib.database.views.utils import check_permissions_with_view_fallback
 from baserow.core.exceptions import UserNotInWorkspace
-from baserow.core.handler import CoreHandler
 from baserow_premium.api.views.timeline.errors import (
     ERROR_TIMELINE_VIEW_HAS_INVALID_DATE_SETTINGS,
 )
@@ -227,11 +228,12 @@ class TimelineViewView(APIView):
                 PREMIUM, request.user, workspace
             )
 
-        CoreHandler().check_permissions(
-            request.user,
+        check_permissions_with_view_fallback(
             ListRowsDatabaseTableOperationType.type,
-            workspace=workspace,
-            context=view.table,
+            ListViewRowsOperationType.type,
+            request.user,
+            view.table,
+            view,
         )
 
         field_ids = get_include_exclude_field_ids(

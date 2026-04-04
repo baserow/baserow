@@ -168,6 +168,7 @@ from baserow.contrib.database.views.operations import (
     ListViewFieldsOperationType,
     ListViewFilterOperationType,
     ListViewGroupByOperationType,
+    ListViewRowsOperationType,
     ListViewsOperationType,
     ListViewSortOperationType,
     OrderViewsOperationType,
@@ -342,40 +343,20 @@ default_roles[settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED].append(
 # Note that the read only role can automatically be assigned to the user if they have a
 # role assigned on a higher scope. If the user for example has `NO_ACCESS` to a
 # database, but has been given `EDITOR` role to the table, then they will automatically
-# get the viewer role of the database. The individual endpoints or filter queryset
-# rules must prevent accidental data exposure.
+# get the read only role of the database. The individual endpoints or filter queryset
+# rules must prevent accidental data exposure. Only add operations related to
+# endpoints that filter items that the user does not have access to like listing
+# workspaces, listing applications, etc.
 default_roles[READ_ONLY_ROLE_UID].extend(
     default_roles[NO_ACCESS_ROLE_UID]
     + [
-        ReadWorkspaceOperationType,
-        ReadTeamOperationType,
         ListTeamsOperationType,
         ListApplicationsWorkspaceOperationType,
         ListTablesDatabaseTableOperationType,
+        ListViewsOperationType,
+        ReadWorkspaceOperationType,
         ReadApplicationOperationType,
         ReadDatabaseTableOperationType,
-        ReadViewOperationType,
-        ListViewSortOperationType,
-        ReadViewFieldOptionsOperationType,
-        ReadViewDecorationOperationType,
-        ListViewDecorationOperationType,
-        ListViewFilterOperationType,
-        ListViewsOperationType,
-        ListAggregationsViewOperationType,
-        ReadAggregationsViewOperationType,
-        ReadViewFilterOperationType,
-        ReadViewsOrderOperationType,
-        ReadViewSortOperationType,
-        ListViewGroupByOperationType,
-        ReadViewGroupByOperationType,
-        ListBuilderWorkflowActionsPageOperationType,
-        ReadBuilderWorkflowActionOperationType,
-        ReadViewFilterGroupOperationType,
-        ReadWidgetOperationType,
-        ListWidgetsOperationType,
-        ListDashboardDataSourcesOperationType,
-        ReadDashboardDataSourceOperationType,
-        ListRowsDatabaseTableOperationType,
     ]
 )
 default_roles[VIEWER_ROLE_UID].extend(
@@ -399,6 +380,29 @@ default_roles[VIEWER_ROLE_UID].extend(
         ReadAdjacentRowDatabaseRowOperationType,
         ReadAdjacentViewRowOperationType,
         ListRowNamesDatabaseTableOperationType,
+        ReadTeamOperationType,
+        ReadViewOperationType,
+        ReadViewFieldOptionsOperationType,
+        ReadViewDecorationOperationType,
+        ListViewSortOperationType,
+        ListViewDecorationOperationType,
+        ListViewFilterOperationType,
+        ListAggregationsViewOperationType,
+        ReadAggregationsViewOperationType,
+        ReadViewFilterOperationType,
+        ReadViewsOrderOperationType,
+        ReadViewSortOperationType,
+        ListViewGroupByOperationType,
+        ReadViewGroupByOperationType,
+        ListBuilderWorkflowActionsPageOperationType,
+        ReadBuilderWorkflowActionOperationType,
+        ReadViewFilterGroupOperationType,
+        ReadWidgetOperationType,
+        ListWidgetsOperationType,
+        ListDashboardDataSourcesOperationType,
+        ReadDashboardDataSourceOperationType,
+        ListRowsDatabaseTableOperationType,
+        ListViewRowsOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(

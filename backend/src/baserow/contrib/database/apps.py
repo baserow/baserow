@@ -855,6 +855,7 @@ class DatabaseConfig(AppConfig):
             ListViewFieldsOperationType,
             ListViewFilterOperationType,
             ListViewGroupByOperationType,
+            ListViewRowsOperationType,
             ListViewsOperationType,
             ListViewSortOperationType,
             OrderViewsOperationType,
@@ -892,6 +893,7 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(ReadViewRowOperationType())
         operation_type_registry.register(ReadAdjacentViewRowOperationType())
         operation_type_registry.register(ListViewFieldsOperationType())
+        operation_type_registry.register(ListViewRowsOperationType())
         operation_type_registry.register(CreateViewRowOperationType())
         operation_type_registry.register(UpdateViewRowOperationType())
         operation_type_registry.register(DeleteViewRowOperationType())

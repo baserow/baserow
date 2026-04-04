@@ -67,10 +67,11 @@ from baserow.contrib.database.views.exceptions import (
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import GalleryView
+from baserow.contrib.database.views.operations import ListViewRowsOperationType
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.signals import view_loaded
+from baserow.contrib.database.views.utils import check_permissions_with_view_fallback
 from baserow.core.exceptions import UserNotInWorkspace
-from baserow.core.handler import CoreHandler
 
 from .errors import ERROR_GALLERY_DOES_NOT_EXIST
 from .pagination import GalleryLimitOffsetPagination
@@ -207,12 +208,12 @@ class GalleryViewView(APIView):
         )
         view_type = view_type_registry.get_by_model(view)
 
-        workspace = view.table.database.workspace
-        CoreHandler().check_permissions(
-            request.user,
+        check_permissions_with_view_fallback(
             ListRowsDatabaseTableOperationType.type,
-            workspace=workspace,
-            context=view.table,
+            ListViewRowsOperationType.type,
+            request.user,
+            view.table,
+            view,
         )
 
         search = query_params.get("search")

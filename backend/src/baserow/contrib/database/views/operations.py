@@ -32,6 +32,10 @@ class ViewRowOperationType(OperationType, abc.ABC):
     context_scope_name = DatabaseViewObjectScopeType.type
 
 
+class ListViewRowsOperationType(ViewRowOperationType):
+    type = "database.table.view.list_rows"
+
+
 class ReadViewRowOperationType(ViewRowOperationType):
     type = "database.table.view.read_row"
 

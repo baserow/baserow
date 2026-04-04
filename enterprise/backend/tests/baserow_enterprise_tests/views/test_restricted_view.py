@@ -2398,3 +2398,71 @@ def test_default_values_get_view_editor_sees_visible_only(
     field_ids = {dv["field"] for dv in default_values}
     assert ctx["visible_field"].id in field_ids
     assert ctx["hidden_field"].id not in field_ids
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_editor_with_view_access_can_list_rows_for_all_view_types(
+    enterprise_data_fixture,
+    premium_data_fixture,
+    api_client,
+):
+    """
+    Tests that a user who has NO_ACCESS at workspace level but EDITOR on a
+    specific restricted view can still list rows through all view type
+    endpoints via the view-level permission fallback.
+    """
+
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+
+    RowHandler().create_row(user, table, values={f"field_{text_field.id}": "a"})
+
+    for view_type in view_type_registry.get_all():
+        if view_type.type not in view_type_url_mapping:
+            continue
+
+        view_path, fixture_create, response_path = view_type_url_mapping[view_type.type]
+
+        view = getattr(premium_data_fixture, fixture_create)(
+            table=table, ownership_type=RestrictedViewOwnershipType.type
+        )
+
+        RoleAssignmentHandler().assign_role(
+            user2,
+            workspace,
+            role=editor_role,
+            scope=View.objects.get(id=view.id),
+        )
+
+        for field in table.field_set.all():
+            if field.specific_class == DateField:
+                table.get_model().objects.all().update(
+                    **{f"field_{field.id}": datetime(2021, 1, 1)}
+                )
+
+        query_param = "?from_timestamp=2021-01-01&to_timestamp=2021-02-01"
+        response = api_client.get(
+            reverse(view_path, kwargs={"view_id": view.id}) + query_param,
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token2}",
+        )
+        assert response.status_code == HTTP_200_OK, (
+            f"Editor with view-level access should be able to list rows in "
+            f"{view_type.type}"
+        )
+        response_json = response.json()
+        rows = get_value_at_path(response_json, response_path)
+        assert len(rows) == 1, f"Editor should see the row in {view_type.type}"
