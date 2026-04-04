@@ -7,7 +7,11 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from baserow.api.decorators import map_exceptions, validate_body
+from baserow.api.decorators import (
+    map_exceptions,
+    validate_body,
+    validate_query_parameters,
+)
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.pagination import PageNumberPagination
 from baserow.api.schemas import get_error_schema
@@ -39,6 +43,19 @@ from .serializers import (
     RowCommentCreateSerializer,
     RowCommentSerializer,
     RowCommentsNotificationModeSerializer,
+    RowCommentViewQueryParamsSerializer,
+)
+
+VIEW_ID_API_PARAM = OpenApiParameter(
+    name="view",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.INT,
+    required=False,
+    description=(
+        "Optionally provide a view id. If the user doesn't have table-level "
+        "permissions, the system will check if the user has view-level "
+        "permissions as a fallback."
+    ),
 )
 
 
@@ -85,6 +102,7 @@ class RowCommentsView(APIView):
                 description="Can only be used in combination with the `page` parameter "
                 "and defines how many rows should be returned.",
             ),
+            VIEW_ID_API_PARAM,
         ],
         tags=["Database table rows"],
         operation_id="get_row_comments",
@@ -110,9 +128,12 @@ class RowCommentsView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
-    def get(self, request, table_id, row_id):
+    @validate_query_parameters(RowCommentViewQueryParamsSerializer)
+    def get(self, request, table_id, row_id, query_params):
+        view_id = query_params.get("view")
+
         comments = RowCommentHandler.get_comments(
-            request.user, table_id, row_id, include_trash=True
+            request.user, table_id, row_id, include_trash=True, view_id=view_id
         )
 
         if LimitOffsetPagination.limit_query_param in request.GET:
@@ -143,6 +164,7 @@ class RowCommentsView(APIView):
                 type=OpenApiTypes.INT,
                 description="The row to create a comment for.",
             ),
+            VIEW_ID_API_PARAM,
         ],
         tags=["Database table rows"],
         operation_id="create_row_comment",
@@ -167,10 +189,13 @@ class RowCommentsView(APIView):
         }
     )
     @validate_body(RowCommentCreateSerializer)
+    @validate_query_parameters(RowCommentViewQueryParamsSerializer)
     @transaction.atomic
-    def post(self, request, table_id, row_id, data):
+    def post(self, request, table_id, row_id, data, query_params):
+        view_id = query_params.get("view")
+
         new_row_comment = action_type_registry.get(CreateRowCommentActionType.type).do(
-            request.user, table_id, row_id, data["message"]
+            request.user, table_id, row_id, data["message"], view_id=view_id
         )
         context = {"user": request.user}
         return Response(RowCommentSerializer(new_row_comment, context=context).data)
@@ -191,6 +216,7 @@ class RowCommentView(APIView):
                 type=OpenApiTypes.INT,
                 description="The row comment to update.",
             ),
+            VIEW_ID_API_PARAM,
         ],
         tags=["Database table rows"],
         operation_id="update_row_comment",
@@ -221,12 +247,15 @@ class RowCommentView(APIView):
         }
     )
     @validate_body(RowCommentCreateSerializer)
+    @validate_query_parameters(RowCommentViewQueryParamsSerializer)
     @transaction.atomic
-    def patch(self, request, table_id, comment_id, data):
+    def patch(self, request, table_id, comment_id, data, query_params):
+        view_id = query_params.get("view")
+
         comment = data.get("message", data.get("comment", None))
         updated_row_comment = action_type_registry.get(
             UpdateRowCommentActionType.type
-        ).do(request.user, table_id, comment_id, comment)
+        ).do(request.user, table_id, comment_id, comment, view_id=view_id)
         context = {"user": request.user}
         return Response(RowCommentSerializer(updated_row_comment, context=context).data)
 
@@ -244,6 +273,7 @@ class RowCommentView(APIView):
                 type=OpenApiTypes.INT,
                 description="The row comment to delete.",
             ),
+            VIEW_ID_API_PARAM,
         ],
         tags=["Database table rows"],
         operation_id="delete_row_comment",
@@ -267,10 +297,13 @@ class RowCommentView(APIView):
             UserNotRowCommentAuthorException: ERROR_USER_NOT_COMMENT_AUTHOR,
         }
     )
+    @validate_query_parameters(RowCommentViewQueryParamsSerializer)
     @transaction.atomic
-    def delete(self, request, table_id, comment_id):
+    def delete(self, request, table_id, comment_id, query_params):
+        view_id = query_params.get("view")
+
         trashed_comment = action_type_registry.get(DeleteRowCommentActionType.type).do(
-            request.user, table_id, comment_id
+            request.user, table_id, comment_id, view_id=view_id
         )
         context = {"user": request.user}
         return Response(RowCommentSerializer(trashed_comment, context=context).data)
@@ -291,6 +324,7 @@ class RowCommentsNotificationModeView(APIView):
                 type=OpenApiTypes.INT,
                 description="The row on which to manage the comment subscription.",
             ),
+            VIEW_ID_API_PARAM,
         ],
         tags=["Database table rows"],
         operation_id="update_row_comment_notification_mode",
@@ -318,10 +352,13 @@ class RowCommentsNotificationModeView(APIView):
         }
     )
     @validate_body(RowCommentsNotificationModeSerializer, return_validated=True)
+    @validate_query_parameters(RowCommentViewQueryParamsSerializer)
     @transaction.atomic
-    def put(self, request, table_id, row_id, data):
+    def put(self, request, table_id, row_id, data, query_params):
+        view_id = query_params.get("view")
+
         notification_mode = data["mode"]
         RowCommentHandler.update_row_comments_notification_mode(
-            request.user, table_id, row_id, notification_mode
+            request.user, table_id, row_id, notification_mode, view_id=view_id
         )
         return Response(status=204)

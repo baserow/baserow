@@ -1,5 +1,5 @@
 import dataclasses
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
@@ -49,6 +49,7 @@ class CreateRowCommentActionType(ActionType):
         table_id: int,
         row_id: int,
         message: Dict[str, Any],
+        view_id: Optional[int] = None,
     ) -> RowComment:
         """
         Creates a new comment for the given row.
@@ -58,7 +59,9 @@ class CreateRowCommentActionType(ActionType):
         Redo this action will restore the comment.
         """
 
-        row_comment = RowCommentHandler.create_comment(user, table_id, row_id, message)
+        row_comment = RowCommentHandler.create_comment(
+            user, table_id, row_id, message, view_id=view_id
+        )
 
         table = TableHandler().get_table(table_id)
         database = table.database
@@ -122,6 +125,7 @@ class UpdateRowCommentActionType(ActionType):
         table_id: int,
         row_comment_id: int,
         comment_content: str,
+        view_id: Optional[int] = None,
     ) -> RowComment:
         """
         Updates a comment with the given comment_content.
@@ -132,7 +136,7 @@ class UpdateRowCommentActionType(ActionType):
         """
 
         row_comment = RowCommentHandler.get_comment_by_id(
-            user, table_id, row_comment_id
+            user, table_id, row_comment_id, view_id=view_id
         )
 
         table = row_comment.table
@@ -141,7 +145,7 @@ class UpdateRowCommentActionType(ActionType):
         original_message = row_comment.message
 
         updated_comment = RowCommentHandler.update_comment(
-            user, row_comment, comment_content
+            user, row_comment, comment_content, view_id=view_id
         )
 
         cls.register_action(
@@ -196,7 +200,13 @@ class DeleteRowCommentActionType(ActionType):
         workspace_name: str
 
     @classmethod
-    def do(cls, user: AbstractUser, table_id: int, row_comment_id: int) -> RowComment:
+    def do(
+        cls,
+        user: AbstractUser,
+        table_id: int,
+        row_comment_id: int,
+        view_id: Optional[int] = None,
+    ) -> RowComment:
         """
         Deletes a comment from the given row.
         Look at .handler.RowCommentHandler.delete_comment for
@@ -206,9 +216,9 @@ class DeleteRowCommentActionType(ActionType):
         """
 
         row_comment = RowCommentHandler.get_comment_by_id(
-            user, table_id, row_comment_id
+            user, table_id, row_comment_id, view_id=view_id
         )
-        RowCommentHandler.delete_comment(user, row_comment)
+        RowCommentHandler.delete_comment(user, row_comment, view_id=view_id)
 
         table = row_comment.table
         database = table.database

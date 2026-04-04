@@ -16,12 +16,20 @@ export class CommentsRowModalSidebarType extends RowModalSidebarType {
     return RowCommentsSidebar
   }
 
-  isDeactivated(database, table, readOnly) {
-    return !this.app.$hasPermission(
+  isDeactivated(database, table, readOnly, view = null) {
+    const hasTablePermission = this.app.$hasPermission(
       'database.table.list_comments',
       table,
       database.workspace.id
     )
+    const hasViewPermission =
+      view &&
+      this.app.$hasPermission(
+        'database.table.view.list_comments',
+        view,
+        database.workspace.id
+      )
+    return !hasTablePermission && !hasViewPermission
   }
 
   isSelectedByDefault(database) {

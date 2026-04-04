@@ -98,6 +98,11 @@ export default {
       type: Object,
       required: true,
     },
+    view: {
+      type: Object,
+      required: false,
+      default: null,
+    },
   },
   computed: {
     hasPremiumFeaturesEnabled() {
@@ -144,6 +149,7 @@ export default {
           table: this.table,
           row: this.row,
           mode,
+          viewId: this.view?.id,
         })
       } catch (error) {
         notifyIf(error, 'application')

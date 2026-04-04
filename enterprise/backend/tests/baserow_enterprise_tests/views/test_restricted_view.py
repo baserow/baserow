@@ -2001,7 +2001,7 @@ def test_editor_row_endpoints_exclude_hidden_fields_in_response(
             "api:database:rows:adjacent",
             kwargs={"table_id": table.id, "row_id": row.id},
         )
-        + f"?view_id={view.id}",
+        + f"?view={view.id}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token2}",
     )
@@ -2080,7 +2080,7 @@ def test_editor_adjacent_row_requires_view_and_excludes_hidden_fields(
             "api:database:rows:adjacent",
             kwargs={"table_id": table.id, "row_id": row1.id},
         )
-        + f"?view_id={view.id}",
+        + f"?view={view.id}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token2}",
     )
@@ -2096,7 +2096,7 @@ def test_editor_adjacent_row_requires_view_and_excludes_hidden_fields(
             "api:database:rows:adjacent",
             kwargs={"table_id": table.id, "row_id": row1.id},
         )
-        + f"?view_id={view.id}",
+        + f"?view={view.id}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -2466,3 +2466,173 @@ def test_editor_with_view_access_can_list_rows_for_all_view_types(
         response_json = response.json()
         rows = get_value_at_path(response_json, response_path)
         assert len(rows) == 1, f"Editor should see the row in {view_type.type}"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_editor_with_view_access_can_comment_on_rows(
+    enterprise_data_fixture,
+    premium_data_fixture,
+    api_client,
+    synced_roles,
+):
+    """
+    Tests that a user who has NO_ACCESS at workspace level but COMMENTER on a
+    specific restricted view can create, read, update, and delete comments on
+    rows that match the view's filters.
+    """
+
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    user2, token2 = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True,
+    )
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+
+    commenter_role = Role.objects.get(uid="COMMENTER")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+
+    row = RowHandler().create_row(
+        user, table, values={f"field_{text_field.id}": "visible"}
+    )
+    row_outside = RowHandler().create_row(
+        user, table, values={f"field_{text_field.id}": "hidden"}
+    )
+
+    view = premium_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=text_field, type="equal", value="visible"
+    )
+
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=commenter_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    # User2 can create a comment on a row that matches the view's filters.
+    message = {
+        "type": "doc",
+        "content": [
+            {"type": "paragraph", "content": [{"type": "text", "text": "test comment"}]}
+        ],
+    }
+    response = api_client.post(
+        reverse(
+            "api:premium:row_comments:list",
+            kwargs={"table_id": table.id, "row_id": row.id},
+        )
+        + f"?view={view.id}",
+        {"message": message},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == 200, (
+        f"Commenter with view-level access should be able to create a comment: "
+        f"{response.json()}"
+    )
+    comment_id = response.json()["id"]
+
+    # User2 can read comments on the row.
+    response = api_client.get(
+        reverse(
+            "api:premium:row_comments:list",
+            kwargs={"table_id": table.id, "row_id": row.id},
+        )
+        + f"?view={view.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == 200
+    assert response.json()["count"] == 1
+
+    # User2 can update their own comment.
+    updated_message = {
+        "type": "doc",
+        "content": [
+            {
+                "type": "paragraph",
+                "content": [{"type": "text", "text": "updated comment"}],
+            }
+        ],
+    }
+    response = api_client.patch(
+        reverse(
+            "api:premium:row_comments:item",
+            kwargs={"table_id": table.id, "comment_id": comment_id},
+        )
+        + f"?view={view.id}",
+        {"message": updated_message},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == 200
+
+    # User2 can delete their own comment.
+    response = api_client.delete(
+        reverse(
+            "api:premium:row_comments:item",
+            kwargs={"table_id": table.id, "comment_id": comment_id},
+        )
+        + f"?view={view.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == 200
+
+    # User2 can update notification mode on a row within the view's filters.
+    response = api_client.put(
+        reverse(
+            "api:premium:row_comments:notification_mode",
+            kwargs={"table_id": table.id, "row_id": row.id},
+        )
+        + f"?view={view.id}",
+        {"mode": "all"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == 204, (
+        f"Commenter with view-level access should be able to update notification "
+        f"mode: {response.json() if response.status_code != 204 else ''}"
+    )
+
+    # User2 cannot update notification mode on a row outside the view's filters.
+    response = api_client.put(
+        reverse(
+            "api:premium:row_comments:notification_mode",
+            kwargs={"table_id": table.id, "row_id": row_outside.id},
+        )
+        + f"?view={view.id}",
+        {"mode": "all"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code != 204, (
+        "Commenter should not be able to update notification mode on a row "
+        "outside the view's filters"
+    )
+
+    # User2 cannot create a comment on a row outside the view's filters.
+    response = api_client.post(
+        reverse(
+            "api:premium:row_comments:list",
+            kwargs={"table_id": table.id, "row_id": row_outside.id},
+        )
+        + f"?view={view.id}",
+        {"message": message},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code != 200, (
+        "Commenter should not be able to comment on a row outside the view's filters"
+    )

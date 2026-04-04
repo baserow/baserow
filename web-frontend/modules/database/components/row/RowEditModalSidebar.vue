@@ -18,6 +18,7 @@
         :table="table"
         :database="database"
         :fields="fields"
+        :view="view"
       ></component>
     </Tab>
   </Tabs>
@@ -50,6 +51,11 @@ export default {
       type: Object,
       required: true,
     },
+    view: {
+      type: Object,
+      required: false,
+      default: null,
+    },
     readOnly: {
       type: Boolean,
       required: false,
@@ -68,8 +74,12 @@ export default {
       const allSidebarTypes = this.$registry.getOrderedList('rowModalSidebar')
       return allSidebarTypes.filter(
         (type) =>
-          type.isDeactivated(this.database, this.table, this.readOnly) ===
-            false && type.getComponent()
+          type.isDeactivated(
+            this.database,
+            this.table,
+            this.readOnly,
+            this.view
+          ) === false && type.getComponent()
       )
     },
   },

@@ -60,6 +60,26 @@ class DeleteViewRowOperationType(ViewRowOperationType):
     type = "database.table.view.delete_row"
 
 
+class ReadViewRowCommentsOperationType(ViewRowOperationType):
+    type = "database.table.view.list_comments"
+
+
+class CreateViewRowCommentOperationType(ViewRowOperationType):
+    type = "database.table.view.create_comment"
+
+
+class UpdateViewRowCommentOperationType(ViewRowOperationType):
+    type = "database.table.view.update_comment"
+
+
+class DeleteViewRowCommentOperationType(ViewRowOperationType):
+    type = "database.table.view.delete_comment"
+
+
+class RestoreViewRowCommentOperationType(ViewRowOperationType):
+    type = "database.table.view.restore_comment"
+
+
 class CreateViewSortOperationType(ViewOperationType):
     type = "database.table.view.create_sort"
 

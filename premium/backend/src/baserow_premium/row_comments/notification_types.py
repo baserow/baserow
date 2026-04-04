@@ -167,6 +167,7 @@ def on_row_comment_created(sender, row_comment, row, user, mentions, **kwargs):
             row_id,
             RowCommentsNotificationModes.MODE_ALL_COMMENTS.value,
             include_user_in_signal=True,
+            skip_permission_check=True,
         )
 
 
