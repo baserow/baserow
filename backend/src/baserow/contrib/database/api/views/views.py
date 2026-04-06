@@ -116,6 +116,7 @@ from baserow.contrib.database.views.exceptions import (
     ViewGroupByNotSupported,
     ViewNotInTable,
     ViewOwnershipTypeDoesNotExist,
+    ViewOwnershipTypeNotCompatibleWithViewType,
     ViewSortDoesNotExist,
     ViewSortFieldAlreadyExist,
     ViewSortFieldNotSupported,
@@ -164,6 +165,7 @@ from .errors import (
     ERROR_VIEW_GROUP_BY_NOT_SUPPORTED,
     ERROR_VIEW_NOT_IN_TABLE,
     ERROR_VIEW_OWNERSHIP_TYPE_DOES_NOT_EXIST,
+    ERROR_VIEW_OWNERSHIP_TYPE_INCOMPATIBLE_WITH_VIEW_TYPE,
     ERROR_VIEW_SORT_DOES_NOT_EXIST,
     ERROR_VIEW_SORT_FIELD_ALREADY_EXISTS,
     ERROR_VIEW_SORT_FIELD_NOT_SUPPORTED,
@@ -405,6 +407,7 @@ class ViewsView(APIView):
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             ViewOwnershipTypeDoesNotExist: ERROR_VIEW_OWNERSHIP_TYPE_DOES_NOT_EXIST,
+            ViewOwnershipTypeNotCompatibleWithViewType: ERROR_VIEW_OWNERSHIP_TYPE_INCOMPATIBLE_WITH_VIEW_TYPE,
         }
     )
     @allowed_includes("filters", "sortings", "decorations", "group_bys")

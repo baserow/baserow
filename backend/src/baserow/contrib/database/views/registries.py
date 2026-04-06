@@ -1492,6 +1492,17 @@ class ViewOwnershipType(Instance):
 
         return "table", None
 
+    def is_compatible_with_view_type(self, view_type: ViewType) -> bool:
+        """
+        Returns whether this ownership type is compatible with the given view type.
+        Subclasses can override this to prevent certain combinations.
+
+        :param view_type: The view type instance.
+        :return: True if compatible, False otherwise.
+        """
+
+        return True
+
     def before_form_view_submitted(self, form, request):
         """
         Called before a form view of this ownership type is submitted. Can be used

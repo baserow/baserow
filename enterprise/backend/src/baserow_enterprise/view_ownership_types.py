@@ -17,6 +17,7 @@ from baserow.contrib.database.views.registries import (
     view_type_registry,
 )
 from baserow.contrib.database.views.row_checker import FilteredViewRowChecker
+from baserow.contrib.database.views.view_types import FormViewType
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
@@ -34,6 +35,11 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
     """
 
     type = "restricted"
+
+    def is_compatible_with_view_type(self, view_type) -> bool:
+        # The form view is not related to showing data, so it does not make any sense to
+        # have a restricted view ownership type.
+        return view_type.type != FormViewType.type
 
     def change_ownership_type(self, user: AbstractUser, view: View) -> View:
         # It's not possible to change to and from restricted view type because that

@@ -14,6 +14,7 @@
       :default-name="getDefaultName()"
       :database="database"
       :table="table"
+      :view-type="viewType"
       @submitted="submitted"
     >
       <div class="actions">

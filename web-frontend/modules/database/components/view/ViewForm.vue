@@ -86,6 +86,11 @@ export default {
       type: Object,
       required: true,
     },
+    viewType: {
+      type: Object,
+      required: false,
+      default: null,
+    },
   },
 
   setup() {
@@ -114,8 +119,10 @@ export default {
       return Object.values(this.$registry.getAll('viewOwnershipType'))
     },
     availableViewOwnershipTypesForCreation() {
-      return this.activeViewOwnershipTypes.filter((t) =>
-        t.userCanTryCreate(this.table, this.database.workspace.id)
+      return this.activeViewOwnershipTypes.filter(
+        (t) =>
+          t.userCanTryCreate(this.table, this.database.workspace.id) &&
+          (this.viewType === null || t.isCompatibleWithViewType(this.viewType))
       )
     },
     activeViewOwnershipTypes() {

@@ -2,6 +2,7 @@ import { ViewOwnershipType } from '@baserow/modules/database/viewOwnershipTypes'
 import EnterpriseFeatures from '@baserow_enterprise/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { RBACPaidFeature } from '@baserow_enterprise/paidFeatures'
+import { FormViewType } from '@baserow/modules/database/viewTypes.js'
 
 export class RestrictedViewOwnershipType extends ViewOwnershipType {
   static getType() {
@@ -25,6 +26,10 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
 
   getIconClass() {
     return 'iconoir-shield-check'
+  }
+
+  isCompatibleWithViewType(viewType) {
+    return viewType.type !== FormViewType.getType()
   }
 
   isDeactivated(workspaceId) {

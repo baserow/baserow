@@ -43,6 +43,7 @@ from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.exceptions import (
     ViewOwnershipTypeDoesNotExist,
+    ViewOwnershipTypeNotCompatibleWithViewType,
 )
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.operations import (
@@ -946,6 +947,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         view_type = view_type_registry.get(type_name)
 
         workspace = table.database.workspace
+
+        if not view_ownership_type.is_compatible_with_view_type(view_type):
+            raise ViewOwnershipTypeNotCompatibleWithViewType(
+                ownership_type=view_ownership_type_str,
+                view_type=type_name,
+            )
 
         CoreHandler().check_permissions(
             user,

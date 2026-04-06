@@ -134,3 +134,9 @@ ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES = (
     HTTP_400_BAD_REQUEST,
     "This view type does not support setting default row values.",
 )
+ERROR_VIEW_OWNERSHIP_TYPE_INCOMPATIBLE_WITH_VIEW_TYPE = (
+    "ERROR_VIEW_OWNERSHIP_TYPE_INCOMPATIBLE_WITH_VIEW_TYPE",
+    HTTP_400_BAD_REQUEST,
+    "The ownership type {e.ownership_type} is not compatible with "
+    "view type {e.view_type}.",
+)
