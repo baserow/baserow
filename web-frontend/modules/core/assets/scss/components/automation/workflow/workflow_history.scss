@@ -16,10 +16,10 @@
 }
 
 .workflow-history__header-title {
+  flex: 1;
   color: $color-neutral-900;
   font-size: 12px;
   font-weight: 500;
-  flex: 1;
 }
 
 .workflow-history__header-date {
@@ -49,9 +49,9 @@
 
 .workflow-history__node-history-info {
   display: flex;
+  flex: 1;
   align-items: start;
   flex-direction: column;
-  flex: 1;
 }
 
 .workflow-history__node-history-info-type {
@@ -78,8 +78,8 @@
 }
 
 .workflow-history__node-history-error-info {
-  margin-bottom: 8px;
   display: -webkit-box;
+  margin-bottom: 8px;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
   overflow: hidden;
