@@ -8,6 +8,7 @@ from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.serializers import IntegerField
 from rest_framework.status import HTTP_202_ACCEPTED
 from rest_framework.views import APIView
 
@@ -233,7 +234,15 @@ class AutomationWorkflowHistoryView(APIView):
         description="Retrieve the history for a workflow.",
         responses={
             200: get_example_pagination_serializer_class(
-                AutomationWorkflowHistorySerializer
+                AutomationWorkflowHistorySerializer,
+                additional_fields={
+                    "success_count": IntegerField(
+                        help_text="The total number of successful workflow runs."
+                    ),
+                    "fail_count": IntegerField(
+                        help_text="The total number of failed workflow runs."
+                    ),
+                },
             ),
             404: get_error_schema(
                 [
