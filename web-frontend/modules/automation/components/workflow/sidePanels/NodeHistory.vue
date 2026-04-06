@@ -56,7 +56,13 @@
               :style="{ marginLeft: 48 + 'px' }"
             >
               <div class="node-history__header-info">
-                <span class="node-history__header-info-type">
+                <span
+                  class="node-history__header-info-type"
+                  :class="{
+                    'node-history__header-info-type-error':
+                      iterationHasError(group),
+                  }"
+                >
                   {{
                     $t('historySidePanel.runNumber', { n: group.iteration + 1 })
                   }}
@@ -125,7 +131,7 @@
       </Badge>
     </div>
 
-    <div v-if="status === 'error'" class="node-history__error">
+    <div v-if="hasOwnError" class="node-history__error">
       <div class="node-history__error-info">
         {{ errorMessage }}
       </div>
@@ -230,13 +236,28 @@ const nodeTypeLabel = () => {
   return baseLabel
 }
 
+const hasDescendantError = (nodeId) => {
+  const children = props.childNodeHistoriesByParent[nodeId] || []
+  return children.some(
+    (child) => child.status === 'error' || hasDescendantError(child.node)
+  )
+}
+
+const iterationHasError = (group) => {
+  return group.histories.some(
+    (h) => h.status === 'error' || hasDescendantError(h.node)
+  )
+}
+
+const hasOwnError = computed(() =>
+  props.nodeHistories.some((nh) => nh.status === 'error')
+)
+
 const status = computed(() => {
   if (props.nodeHistories.length === 0) return 'success'
-  return props.nodeHistories.some(
-    (nodeHistory) => nodeHistory.status === 'error'
-  )
-    ? 'error'
-    : 'success'
+
+  const childError = hasDescendantError(props.nodeId)
+  return hasOwnError.value || childError ? 'error' : 'success'
 })
 
 const statusLabel = computed(() => {
