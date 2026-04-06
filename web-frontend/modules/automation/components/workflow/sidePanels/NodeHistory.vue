@@ -7,7 +7,7 @@
       <template #header="{ expanded }">
         <div class="node-history__header-row">
           <div class="node-history__header-icon">
-            <i :class="getNodeIconClass()"></i>
+            <i :class="nodeIconClass"></i>
           </div>
           <div class="node-history__header-info">
             <div>
@@ -17,7 +17,7 @@
                   'node-history__header-info-type-error': status === 'error',
                 }"
               >
-                {{ nodeTypeLabel() }}
+                {{ nodeTypeLabel }}
               </div>
             </div>
 
@@ -100,7 +100,7 @@
 
     <div v-else class="node-history__header-row">
       <div class="node-history__header-icon">
-        <i :class="getNodeIconClass()"></i>
+        <i :class="nodeIconClass"></i>
       </div>
       <div class="node-history__header-info">
         <div
@@ -109,7 +109,7 @@
             'node-history__header-info-type-error': status === 'error',
           }"
         >
-          {{ nodeTypeLabel() }}
+          {{ nodeTypeLabel }}
         </div>
 
         <div class="node-history__header-show-result">
@@ -183,7 +183,7 @@
       v-if="!hasChildren"
       ref="nodeResultModal"
       :sample-data="nodeHistories[0].result"
-      :title="nodeTypeLabel()"
+      :title="nodeTypeLabel"
     />
   </div>
 </template>
@@ -222,11 +222,11 @@ const getNodeType = () => {
   return app.$registry.get('node', props.nodeHistories[0].node_type)
 }
 
-const getNodeIconClass = () => {
+const nodeIconClass = computed(() => {
   return getNodeType().iconClass
-}
+})
 
-const nodeTypeLabel = () => {
+const nodeTypeLabel = computed(() => {
   const nodeHistory = props.nodeHistories[0]
   const baseLabel = nodeHistory.node_label || getNodeType().name
   const result = nodeHistory.result
@@ -236,7 +236,7 @@ const nodeTypeLabel = () => {
     return `${baseLabel} (${result.edge?.label ?? ''})`
   }
   return baseLabel
-}
+})
 
 const hasDescendantError = (nodeId) => {
   const children = props.childNodeHistoriesByParent[nodeId] || []
