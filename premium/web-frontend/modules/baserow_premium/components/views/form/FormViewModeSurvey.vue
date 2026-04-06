@@ -38,7 +38,6 @@
                   "
                   type="primary"
                   size="large"
-                  @click="validateAndNext(index)"
                   >Next</Button
                 >
 
