@@ -22,7 +22,10 @@ from baserow.contrib.automation.constants import (
 )
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
-from baserow.contrib.automation.history.models import AutomationWorkflowHistory
+from baserow.contrib.automation.history.models import (
+    AutomationNodeHistory,
+    AutomationWorkflowHistory,
+)
 from baserow.contrib.automation.models import Automation
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.nodes.models import AutomationNode
@@ -847,11 +850,34 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         max_history_date = timezone.now() - timedelta(
             hours=settings.AUTOMATION_WORKFLOW_TIMEOUT_HOURS
         )
-        original_workflow.workflow_histories.filter(
-            status=HistoryStatusChoices.STARTED, started_on__lt=max_history_date
+        now = timezone.now()
+        error = "This workflow took too long and was timed out."
+
+        workflow_history_ids = list(
+            original_workflow.workflow_histories.filter(
+                status=HistoryStatusChoices.STARTED,
+                started_on__lt=max_history_date,
+            ).values_list("id", flat=True)
+        )
+
+        if not workflow_history_ids:
+            return
+
+        AutomationWorkflowHistory.objects.filter(
+            id__in=workflow_history_ids,
         ).update(
             status=HistoryStatusChoices.ERROR,
-            message="This workflow took too long and was timed out.",
+            message=error,
+            completed_on=now,
+        )
+
+        AutomationNodeHistory.objects.filter(
+            workflow_history_id__in=workflow_history_ids,
+            status=HistoryStatusChoices.STARTED,
+        ).update(
+            status=HistoryStatusChoices.ERROR,
+            message=error,
+            completed_on=now,
         )
 
     def _get_workflow_history_rate_limit_cache_key(
