@@ -2001,7 +2001,7 @@ def test_editor_row_endpoints_exclude_hidden_fields_in_response(
             "api:database:rows:adjacent",
             kwargs={"table_id": table.id, "row_id": row.id},
         )
-        + f"?view={view.id}",
+        + f"?view_id={view.id}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token2}",
     )
@@ -2080,7 +2080,7 @@ def test_editor_adjacent_row_requires_view_and_excludes_hidden_fields(
             "api:database:rows:adjacent",
             kwargs={"table_id": table.id, "row_id": row1.id},
         )
-        + f"?view={view.id}",
+        + f"?view_id={view.id}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token2}",
     )
@@ -2096,7 +2096,7 @@ def test_editor_adjacent_row_requires_view_and_excludes_hidden_fields(
             "api:database:rows:adjacent",
             kwargs={"table_id": table.id, "row_id": row1.id},
         )
-        + f"?view={view.id}",
+        + f"?view_id={view.id}",
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
