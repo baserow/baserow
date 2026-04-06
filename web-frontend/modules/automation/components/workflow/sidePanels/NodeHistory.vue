@@ -230,7 +230,9 @@ const nodeTypeLabel = () => {
   const baseLabel = nodeHistory.node_label || getNodeType().name
   const result = nodeHistory.result
   if (nodeHistory.node_type === 'router') {
-    return `${baseLabel} (${result.edge.label})`
+    // When a Router node fails, the result is empty (no node result)
+    // we therefore need to check if edge label exists.
+    return `${baseLabel} (${result.edge?.label ?? ''})`
   }
   return baseLabel
 }
