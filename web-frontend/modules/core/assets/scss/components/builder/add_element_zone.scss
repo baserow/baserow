@@ -4,14 +4,14 @@
   justify-content: center;
   width: calc(100% - 4px);
   height: 120px;
-  border: 1px dashed $color-neutral-200;
-  background-color: $color-neutral-10;
+  border: 1px dashed $palette-neutral-400;
+  background-color: $palette-neutral-50;
   margin: 2px; // To make sure we have enough space to see the border
 
   @include rounded($rounded-md);
 
   &:hover {
-    border: 1px solid $color-primary-500;
+    border: 1px solid $palette-blue-500;
     background-color: $palette-blue-50;
     border-color: $palette-blue-300;
   }
@@ -27,13 +27,13 @@
 
 .add-element-zone__label {
   font-size: 13px;
-  color: $color-neutral-600;
+  color: $palette-neutral-600;
   cursor: pointer;
 }
 
 .add-element-zone__icon {
   font-size: 16px;
-  border: solid 1px $color-neutral-400;
+  border: solid 1px $palette-neutral-400;
   border-radius: 100%;
   padding: 8px;
   line-height: 1em;
@@ -42,7 +42,7 @@
   @include elevation($elevation-low);
 
   .add-element-zone:hover & {
-    color: $color-primary-600;
+    color: $palette-blue-600;
   }
 
   .add-element-zone.add-element-zone--disabled & {
@@ -57,8 +57,8 @@
 }
 
 .add-element-zone--drag-active {
-  border: 1px dashed $palette-green-400;
-  background-color: rgba($palette-green-50, 0.6);
+  border: 1px dashed $palette-blue-400;
+  background-color: rgba($palette-blue-50, 0.6);
 
   &:hover {
     border-color: $palette-green-400;
