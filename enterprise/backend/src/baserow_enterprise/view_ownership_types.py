@@ -3,17 +3,20 @@ from typing import List, Optional, Set
 from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
 
+from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.operations import (
     CreateViewFilterOperationType,
     ReadViewDefaultValuesOperationType,
+    ReadViewRowCommentsOperationType,
     UpdateViewFieldOptionsOperationType,
 )
 from baserow.contrib.database.views.registries import (
     ViewOwnershipType,
     view_type_registry,
 )
+from baserow.contrib.database.views.row_checker import FilteredViewRowChecker
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace
@@ -215,6 +218,70 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
             id__in=rows_in_view
         )
         return not rows_outside_view.exists()
+
+    def get_users_to_notify_for_row_comment(
+        self,
+        table: Table,
+        row_id: int,
+        users: List[AbstractUser],
+    ) -> List[AbstractUser]:
+        if not users:
+            return []
+
+        # Fetch all restricted views for this table in one query, with filters
+        # prefetched so FilteredViewRowChecker can work efficiently.
+        restricted_views_qs = (
+            View.objects.filter(table=table, ownership_type=self.type)
+            .select_related("table")
+            .prefetch_related("viewfilter_set", "filter_groups", "table__field_set")
+        )
+
+        # Use FilteredViewRowChecker to determine in a single bulk query which
+        # restricted views the commented row is visible in. When there are no restricted
+        # views the checker will simply produce no results.
+        model = table.get_model()
+        checker = FilteredViewRowChecker(
+            model,
+            restricted_views_qs,
+            only_include_views_which_want_realtime_events=False,
+        )
+
+        try:
+            row = model.objects.get(id=row_id)
+        except model.DoesNotExist:
+            return []
+
+        visible_views = checker.get_filtered_views_where_row_is_visible(row)
+        if not visible_views:
+            return []
+
+        # Check ReadViewRowCommentsOperationType for each remaining user on each view
+        # where the row is visible, in a single bulk call.
+        workspace = table.database.workspace
+        checks = []
+        check_to_user = {}
+        for user in users:
+            for view in visible_views:
+                check = PermissionCheck(
+                    user, ReadViewRowCommentsOperationType.type, view
+                )
+                checks.append(check)
+                check_to_user[check] = user
+
+        check_results = CoreHandler().check_multiple_permissions(
+            checks, workspace=workspace
+        )
+
+        allowed_user_ids = set()
+        additional_users = []
+        for check, result in check_results.items():
+            if result is True:
+                user = check_to_user[check]
+                if user.id not in allowed_user_ids:
+                    allowed_user_ids.add(user.id)
+                    additional_users.append(user)
+
+        return additional_users
 
     def enhance_list_fields_queryset(
         self, user: AbstractUser, view: View, queryset: QuerySet

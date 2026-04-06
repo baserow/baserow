@@ -1624,6 +1624,31 @@ class ViewOwnershipType(Instance):
 
         return set()
 
+    def get_users_to_notify_for_row_comment(
+        self,
+        table: "Table",
+        row_id: int,
+        users: List["AbstractUser"],
+    ) -> List["AbstractUser"]:
+        """
+        Returns users from `users` who should receive a notification about a new
+        comment on the given row. This is used for users who do not have table-level
+        comment-read permission but might have view-level access via this ownership
+        type.
+
+        The base implementation returns an empty list. Ownership types that grant
+        view-level access (e.g. restricted views) should override this to check whether
+        the row is visible in any of their views and whether the users have the
+        appropriate view-level permission.
+
+        :param table: The table the comment belongs to.
+        :param row_id: The id of the commented row.
+        :param users: Users to check for view-level access.
+        :return: The subset of `users` that should also be notified.
+        """
+
+        return []
+
     def enhance_list_fields_queryset(
         self, user: "AbstractUser", view: "View", queryset: django_models.QuerySet
     ) -> django_models.QuerySet:

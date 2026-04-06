@@ -34,6 +34,10 @@ from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
 from baserow_enterprise.ws.restricted_view.fields.signals import (
     _broadcast_payload_to_all_restricted_views,
 )
+from baserow_premium.row_comments.handler import (
+    RowCommentHandler,
+    RowCommentsNotificationModes,
+)
 from baserow_premium.views.models import (
     CalendarViewFieldOptions,
     KanbanViewFieldOptions,
@@ -1866,6 +1870,210 @@ def test_broadcast_payload_to_all_restricted_views_no_n_plus_one_queries(
         )
 
     assert mock_broadcast_to_channel_group.delay.call_count == 0
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_commenter_with_view_access_included_in_users_to_notify_for_comment(
+    enterprise_data_fixture,
+    premium_data_fixture,
+    synced_roles,
+):
+    """
+    Tests that get_users_to_notify_for_comment includes users who only have
+    view-level COMMENTER access (NO_ACCESS at workspace level, COMMENTER on a
+    restricted view) when they are subscribed to row comment notifications.
+    """
+
+    enterprise_data_fixture.enable_enterprise()
+
+    owner = enterprise_data_fixture.create_user()
+    view_commenter = premium_data_fixture.create_user(
+        has_active_premium_license=True,
+    )
+    workspace = enterprise_data_fixture.create_workspace(
+        user=owner, members=[view_commenter]
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    commenter_role = Role.objects.get(uid="COMMENTER")
+    RoleAssignmentHandler().assign_role(
+        view_commenter, workspace, role=no_access_role, scope=workspace
+    )
+
+    row = RowHandler().create_row(
+        owner, table, values={f"field_{text_field.id}": "visible"}
+    )
+
+    view = premium_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=text_field, type="equal", value="visible"
+    )
+
+    RoleAssignmentHandler().assign_role(
+        view_commenter,
+        workspace,
+        role=commenter_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    # Subscribe the view_commenter to notifications on this row.
+    RowCommentHandler.update_row_comments_notification_mode(
+        view_commenter,
+        table.id,
+        row.id,
+        RowCommentsNotificationModes.MODE_ALL_COMMENTS.value,
+        skip_permission_check=True,
+    )
+
+    row_outside = RowHandler().create_row(
+        owner, table, values={f"field_{text_field.id}": "hidden"}
+    )
+
+    # Also subscribe to notifications on the row outside the view's filters.
+    RowCommentHandler.update_row_comments_notification_mode(
+        view_commenter,
+        table.id,
+        row_outside.id,
+        RowCommentsNotificationModes.MODE_ALL_COMMENTS.value,
+        skip_permission_check=True,
+    )
+
+    message = {
+        "type": "doc",
+        "content": [
+            {
+                "type": "paragraph",
+                "content": [{"type": "text", "text": "owner comment"}],
+            }
+        ],
+    }
+
+    # The row is within the view's filters, so the view-level commenter should
+    # be included in users to notify.
+    row_comment = RowCommentHandler.create_comment(owner, table.id, row.id, message)
+    users_to_notify = RowCommentHandler.get_users_to_notify_for_comment(row_comment)
+    assert view_commenter in users_to_notify, (
+        "A user with view-level COMMENTER access who is subscribed to row comment "
+        "notifications should be included when the row is within the view's filters"
+    )
+
+    # The row is outside the view's filters, so the view-level commenter should
+    # NOT be included because the row is not visible in any restricted view
+    # they have access to.
+    row_comment_outside = RowCommentHandler.create_comment(
+        owner, table.id, row_outside.id, message
+    )
+    users_to_notify = RowCommentHandler.get_users_to_notify_for_comment(
+        row_comment_outside
+    )
+    assert view_commenter not in users_to_notify, (
+        "A user with view-level COMMENTER access should NOT be notified for "
+        "comments on rows outside the view's filters"
+    )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_get_users_to_notify_for_comment_no_n_plus_one_queries(
+    enterprise_data_fixture,
+    premium_data_fixture,
+    synced_roles,
+):
+    """
+    Verifies that increasing the number of view-level commenters does not
+    increase the number of database queries executed by
+    get_users_to_notify_for_comment (no N+1 problem).
+    """
+
+    enterprise_data_fixture.enable_enterprise()
+
+    owner = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=owner)
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    text_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    commenter_role = Role.objects.get(uid="COMMENTER")
+
+    row = RowHandler().create_row(
+        owner, table, values={f"field_{text_field.id}": "visible"}
+    )
+
+    view = premium_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+    enterprise_data_fixture.create_view_filter(
+        view=view, field=text_field, type="equal", value="visible"
+    )
+
+    message = {
+        "type": "doc",
+        "content": [
+            {
+                "type": "paragraph",
+                "content": [{"type": "text", "text": "test"}],
+            }
+        ],
+    }
+    row_comment = RowCommentHandler.create_comment(owner, table.id, row.id, message)
+
+    def _create_commenter():
+        user = premium_data_fixture.create_user(has_active_premium_license=True)
+        enterprise_data_fixture.create_user_workspace(
+            user=user, workspace=workspace, order=0
+        )
+        RoleAssignmentHandler().assign_role(
+            user, workspace, role=no_access_role, scope=workspace
+        )
+        RoleAssignmentHandler().assign_role(
+            user,
+            workspace,
+            role=commenter_role,
+            scope=View.objects.get(id=view.id),
+        )
+        RowCommentHandler.update_row_comments_notification_mode(
+            user,
+            table.id,
+            row.id,
+            RowCommentsNotificationModes.MODE_ALL_COMMENTS.value,
+            skip_permission_check=True,
+        )
+        return user
+
+    # Create 2 commenters and measure query count.
+    _create_commenter()
+    _create_commenter()
+
+    # Warm up caches with a first call.
+    RowCommentHandler.get_users_to_notify_for_comment(row_comment)
+
+    with CaptureQueriesContext(connection) as ctx_two:
+        result_two = RowCommentHandler.get_users_to_notify_for_comment(row_comment)
+    assert len(result_two) == 2
+
+    # Create 3 more commenters (5 total) and measure again.
+    _create_commenter()
+    _create_commenter()
+    _create_commenter()
+
+    # Warm up caches again.
+    RowCommentHandler.get_users_to_notify_for_comment(row_comment)
+
+    with CaptureQueriesContext(connection) as ctx_five:
+        result_five = RowCommentHandler.get_users_to_notify_for_comment(row_comment)
+    assert len(result_five) == 5
+
+    assert len(ctx_five) == len(ctx_two), (
+        f"Query count should not grow with the number of users. "
+        f"2 users: {len(ctx_two)} queries, 5 users: {len(ctx_five)} queries"
+    )
 
 
 @pytest.mark.django_db

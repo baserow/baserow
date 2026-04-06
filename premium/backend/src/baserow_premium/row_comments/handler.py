@@ -12,6 +12,9 @@ from baserow.contrib.database.views.operations import (
     ReadViewRowCommentsOperationType,
     UpdateViewRowCommentOperationType,
 )
+from baserow.contrib.database.views.registries import (
+    view_ownership_type_registry,
+)
 from baserow.contrib.database.views.utils import check_permissions_with_view_fallback
 from baserow.core.handler import CoreHandler
 from baserow.core.prosemirror.utils import (
@@ -358,7 +361,9 @@ class RowCommentHandler:
 
     @classmethod
     def get_users_to_notify_for_comment(
-        cls, row_comment: RowComment, user_ids_to_exclude=None
+        cls,
+        row_comment: RowComment,
+        user_ids_to_exclude=None,
     ) -> List[AbstractUser]:
         """
         Returns a list of users who should be notified about a new comment on a
@@ -367,7 +372,7 @@ class RowCommentHandler:
         :param row_comment: The comment to notify users about.
         :param user_ids_to_exclude: A list of user ids to exclude from the
             returned list (i.e. users mentioned in the comment).
-        :return: A queryset of users who should be notified about the comment.
+        :return: A list of users who should be notified about the comment.
         """
 
         user_ids_to_exclude = user_ids_to_exclude or []
@@ -391,13 +396,35 @@ class RowCommentHandler:
         )
 
         if len(user_subscriptions):
-            # Ensure users can see comments for this table
-            users_to_notify = CoreHandler().check_permission_for_multiple_actors(
-                [u.user for u in user_subscriptions],
+            table = row_comment.table
+            workspace = table.database.workspace
+            users = [u.user for u in user_subscriptions]
+
+            # Step 1: check table-level permission for all subscribed users.
+            # This covers the common case where users have workspace or table
+            # level access.
+            table_allowed_users = CoreHandler().check_permission_for_multiple_actors(
+                users,
                 ReadRowCommentsOperationType.type,
-                workspace=row_comment.table.database.workspace,
-                context=row_comment.table,
+                workspace=workspace,
+                context=table,
             )
+            table_allowed = {u.id for u in table_allowed_users}
+            users_to_notify.extend(table_allowed_users)
+
+            # Step 2: for users who didn't pass the table-level check, ask each view
+            # ownership type if there are additional users that should be notified.
+            # This allows ownership types like "restricted" to check view-level
+            # permissions and row visibility within their views.
+            remaining_users = [u for u in users if u.id not in table_allowed]
+            if remaining_users:
+                for ownership_type in view_ownership_type_registry.get_all():
+                    additional = ownership_type.get_users_to_notify_for_row_comment(
+                        table,
+                        row_comment.row_id,
+                        remaining_users,
+                    )
+                    users_to_notify.extend(additional)
 
         return users_to_notify
 
