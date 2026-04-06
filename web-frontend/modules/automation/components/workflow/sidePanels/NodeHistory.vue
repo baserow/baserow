@@ -167,7 +167,6 @@
       </Expandable>
     </div>
 
-    <!-- TODO: find a better way to show button pop-up to avoid background overlap. -->
     <Context ref="nodeResultButtonContext">
       <Button
         ref="nodeResultContextToggle"
@@ -176,7 +175,7 @@
         icon="iconoir-code-brackets node-history__show-result-button-icon"
         @click="showNodeResultModal"
       >
-        Show Result
+        {{ $t('historySidePanel.showResult') }}
       </Button>
     </Context>
 
@@ -261,13 +260,9 @@ const status = computed(() => {
 })
 
 const statusLabel = computed(() => {
-  if (status.value === 'error') {
-    return app.$i18n.t('historySidePanel.statusErrorBadge')
-  }
-  if (status.value === 'success') {
-    return app.$i18n.t('historySidePanel.statusSuccessBadge')
-  }
-  return app.$i18n.t('historySidePanel.statusErrorBadge')
+  return status.value === 'success'
+    ? app.$i18n.t('historySidePanel.statusSuccessBadge')
+    : app.$i18n.t('historySidePanel.statusErrorBadge')
 })
 
 const errorMessage = computed(() => {

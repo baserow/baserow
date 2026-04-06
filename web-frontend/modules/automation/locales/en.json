@@ -115,7 +115,8 @@
     "errorShowDetails": "Show details",
     "runNumber": "Run {n}",
     "runCount": "{n} runs",
-    "testRun": "Test"
+    "testRun": "Test",
+    "showResult": "Show result"
   },
   "nodeType": {
     "triggerDeletionError": "Triggers cannot be deleted, only replaced.",

@@ -59,7 +59,6 @@ class AutomationWorkflowHistory(AutomationHistory):
 
 
 class AutomationNodeHistory(AutomationHistory):
-    # TODO: Should this be a 1-1 relation?
     workflow_history = models.ForeignKey(
         "automation.AutomationWorkflowHistory",
         on_delete=models.CASCADE,
