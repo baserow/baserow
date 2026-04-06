@@ -127,6 +127,7 @@ def test_import_export_kanban_view(premium_data_fixture, tmpdir):
             serialized,
             ImportExportConfig(include_permission_data=False),
             id_mapping,
+            {},
             files_zip,
             storage,
         )

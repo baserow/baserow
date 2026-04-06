@@ -4794,7 +4794,9 @@ def test_export_import_view_with_default_values(data_fixture):
         "database_field_select_options": MirrorDict(),
     }
     serialized["name"] = "imported view"
-    imported_view = view_type.import_serialized(table, serialized, config, id_mapping)
+    imported_view = view_type.import_serialized(
+        table, serialized, config, id_mapping, {}
+    )
 
     # Verify imported default values.
     imported_defaults = handler.get_view_default_values(imported_view)
@@ -4957,9 +4959,10 @@ def test_export_import_remaps_single_select_default_value(data_fixture):
     # Export the view.
     view_type = view_type_registry.get_by_model(view)
     config = ImportExportConfig(include_permission_data=True)
+    cache = {}
 
     prefetch_related_objects([view], "view_default_values")
-    serialized = view_type.export_serialized(view, config, {})
+    serialized = view_type.export_serialized(view, config, cache)
 
     assert serialized["default_row_values"][str(field.id)]["value"] == option_a.id
 
@@ -4971,7 +4974,9 @@ def test_export_import_remaps_single_select_default_value(data_fixture):
         "database_field_select_options": {option_a.id: new_option_id},
     }
     serialized["name"] = "imported view"
-    imported_view = view_type.import_serialized(table, serialized, config, id_mapping)
+    imported_view = view_type.import_serialized(
+        table, serialized, config, id_mapping, {}
+    )
 
     # The imported default value should have the remapped option ID.
     imported_record = ViewDefaultValue.objects.get(view=imported_view, field=field)
@@ -5003,9 +5008,10 @@ def test_export_import_remaps_multiple_select_default_value(data_fixture):
     # Export the view.
     view_type = view_type_registry.get_by_model(view)
     config = ImportExportConfig(include_permission_data=True)
+    cache = {}
 
     prefetch_related_objects([view], "view_default_values")
-    serialized = view_type.export_serialized(view, config, {})
+    serialized = view_type.export_serialized(view, config, cache)
 
     assert serialized["default_row_values"][str(field.id)]["value"] == [
         option_a.id,
@@ -5024,10 +5030,107 @@ def test_export_import_remaps_multiple_select_default_value(data_fixture):
         },
     }
     serialized["name"] = "imported view"
-    imported_view = view_type.import_serialized(table, serialized, config, id_mapping)
+    imported_view = view_type.import_serialized(
+        table, serialized, config, id_mapping, {}
+    )
 
     imported_record = ViewDefaultValue.objects.get(view=imported_view, field=field)
     assert imported_record.value == [new_a_id, new_b_id]
+
+
+@pytest.mark.django_db
+def test_export_import_remaps_multiple_collaborators_default_value(data_fixture):
+    user = data_fixture.create_user()
+    user_b = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(users=[user, user_b])
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_multiple_collaborators_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    # The multiple collaborators default value is stored as a list of dicts
+    # with an "id" key containing the user ID.
+    ViewDefaultValue.objects.create(
+        view=view,
+        field_id=field.id,
+        enabled=True,
+        value=[{"id": user.id}, {"id": user_b.id}],
+        field_type="multiple_collaborators",
+    )
+
+    # Export the view.
+    view_type = view_type_registry.get_by_model(view)
+    config = ImportExportConfig(include_permission_data=True)
+
+    prefetch_related_objects([view], "view_default_values")
+    serialized = view_type.export_serialized(view, config, {})
+
+    # The exported value should contain email addresses, not user IDs.
+    exported_value = serialized["default_row_values"][str(field.id)]["value"]
+    assert set(exported_value) == {user.email, user_b.email}
+
+    # Import the view back into the same table.
+    id_mapping = {
+        "workspace_id": workspace.id,
+        "database_fields": MirrorDict(),
+        "database_field_select_options": MirrorDict(),
+    }
+    serialized["name"] = "imported view"
+    imported_view = view_type.import_serialized(
+        table, serialized, config, id_mapping, {}
+    )
+
+    # The imported default value should have the resolved user IDs and names.
+    imported_record = ViewDefaultValue.objects.get(view=imported_view, field=field)
+    assert sorted(imported_record.value, key=lambda x: x["id"]) == sorted(
+        [
+            {"id": user.id, "name": user.first_name},
+            {"id": user_b.id, "name": user_b.first_name},
+        ],
+        key=lambda x: x["id"],
+    )
+
+
+@pytest.mark.django_db
+def test_export_import_multiple_collaborators_default_value_skips_missing_users(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(users=[user])
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    field = data_fixture.create_multiple_collaborators_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    # Simulate an exported value containing an email that does not exist in
+    # the target workspace.
+    view_type = view_type_registry.get_by_model(view)
+    config = ImportExportConfig(include_permission_data=True)
+    cache = {}
+
+    serialized = view_type.export_serialized(view, config, cache)
+    serialized["default_row_values"] = {
+        str(field.id): {
+            "field_id": field.id,
+            "enabled": True,
+            "value": [user.email, "nonexistent@example.com"],
+            "function": None,
+            "field_type": "multiple_collaborators",
+        }
+    }
+
+    id_mapping = {
+        "workspace_id": workspace.id,
+        "database_fields": MirrorDict(),
+        "database_field_select_options": MirrorDict(),
+    }
+    serialized["name"] = "imported view"
+    imported_view = view_type.import_serialized(
+        table, serialized, config, id_mapping, {}
+    )
+
+    imported_record = ViewDefaultValue.objects.get(view=imported_view, field=field)
+    assert imported_record.value == [{"id": user.id, "name": user.first_name}]
 
 
 @pytest.mark.django_db
@@ -5098,7 +5201,15 @@ def test_export_import_default_values_for_all_field_types(data_fixture):
         # Single select: {"id": 1, "value": "A", "color": "blue"} → 1
         if isinstance(value, dict) and "id" in value and "value" in value:
             value = value["id"]
-        # Link row / multiple select / multiple collaborators:
+        # Multiple collaborators: [{"id": 1, "name": "..."}, ...] → [{"id": 1}, ...]
+        elif (
+            field_type.type == "multiple_collaborators"
+            and isinstance(value, list)
+            and value
+            and isinstance(value[0], dict)
+        ):
+            value = [{"id": item["id"]} for item in value]
+        # Link row / multiple select:
         # [{"id": 1, ...}, ...] → [1, 2, ...]
         elif isinstance(value, list) and value and isinstance(value[0], dict):
             if "id" in value[0]:
@@ -5114,8 +5225,11 @@ def test_export_import_default_values_for_all_field_types(data_fixture):
     # Export the view.
     view_type = view_type_registry.get_by_model(view)
     config = ImportExportConfig(include_permission_data=True)
+    cache = {
+        "workspace_id": table.database.workspace.id,
+    }
     prefetch_related_objects([view], "view_default_values")
-    serialized = view_type.export_serialized(view, config, {})
+    serialized = view_type.export_serialized(view, config, cache)
 
     assert "default_row_values" in serialized
     assert len(serialized["default_row_values"]) == len(items)
@@ -5128,7 +5242,9 @@ def test_export_import_default_values_for_all_field_types(data_fixture):
         "database_field_select_options": MirrorDict(),
     }
     serialized["name"] = "imported view"
-    imported_view = view_type.import_serialized(table, serialized, config, id_mapping)
+    imported_view = view_type.import_serialized(
+        table, serialized, config, id_mapping, {}
+    )
 
     # Verify imported default values.
     imported_defaults = {
@@ -5145,10 +5261,20 @@ def test_export_import_default_values_for_all_field_types(data_fixture):
 
     for field_id, original in original_defaults.items():
         imported = imported_defaults[field_id]
-        assert imported.value == original.value, (
-            f"field_{field_id} ({original.field_type}): "
-            f"imported={imported.value!r} != original={original.value!r}"
-        )
+        if original.field_type == "multiple_collaborators":
+            # The import enriches collaborator entries with the user's name,
+            # so we only compare the IDs.
+            imported_ids = sorted(item["id"] for item in imported.value)
+            original_ids = sorted(item["id"] for item in original.value)
+            assert imported_ids == original_ids, (
+                f"field_{field_id} ({original.field_type}): "
+                f"imported IDs={imported_ids!r} != original IDs={original_ids!r}"
+            )
+        else:
+            assert imported.value == original.value, (
+                f"field_{field_id} ({original.field_type}): "
+                f"imported={imported.value!r} != original={original.value!r}"
+            )
         assert imported.enabled == original.enabled
         assert imported.field_type == original.field_type
         assert imported.function == original.function

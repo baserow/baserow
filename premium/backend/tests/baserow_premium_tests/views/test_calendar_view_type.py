@@ -154,6 +154,7 @@ def test_calendar_view_import_export(premium_data_fixture, tmpdir):
             serialized,
             ImportExportConfig(include_permission_data=False),
             id_mapping,
+            {},
             files_zip,
             storage,
         )

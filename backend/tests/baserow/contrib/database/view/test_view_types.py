@@ -69,6 +69,7 @@ def test_import_export_grid_view(data_fixture):
         serialized,
         ImportExportConfig(include_permission_data=False),
         id_mapping,
+        {},
         None,
         None,
     )
@@ -222,6 +223,7 @@ def test_import_export_gallery_view(data_fixture, tmpdir):
             serialized,
             ImportExportConfig(include_permission_data=False),
             id_mapping,
+            {},
             files_zip,
             storage,
         )
@@ -433,6 +435,7 @@ def test_import_export_form_view(data_fixture, tmpdir):
             serialized,
             ImportExportConfig(include_permission_data=False),
             id_mapping,
+            {},
             files_zip,
             storage,
         )
@@ -727,6 +730,7 @@ def test_import_export_form_view_with_grouped_conditions(data_fixture, tmpdir):
             serialized,
             ImportExportConfig(include_permission_data=False),
             id_mapping,
+            {},
             files_zip,
             storage,
         )
@@ -947,6 +951,7 @@ def test_import_export_view_ownership_type(data_fixture):
         serialized,
         ImportExportConfig(include_permission_data=False),
         {},
+        {},
         None,
         None,
     )
@@ -963,6 +968,7 @@ def test_import_export_view_ownership_type(data_fixture):
         grid_view.table,
         serialized,
         ImportExportConfig(include_permission_data=False),
+        {},
         {},
         None,
         None,
@@ -982,6 +988,7 @@ def test_import_export_view_ownership_type(data_fixture):
         grid_view.table,
         serialized,
         ImportExportConfig(include_permission_data=False),
+        {},
         {},
         None,
         None,
@@ -1014,6 +1021,7 @@ def test_import_export_view_ownership_type_created_by_backward_compatible(data_f
         grid_view.table,
         serialized,
         ImportExportConfig(include_permission_data=False),
+        {},
         {},
         None,
         None,
@@ -1054,6 +1062,7 @@ def test_import_export_view_ownership_type_not_in_registry(data_fixture):
             grid_view.table,
             serialized,
             ImportExportConfig(include_permission_data=False),
+            {},
             {},
             None,
             None,

@@ -4395,7 +4395,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     ) -> int:
         return getattr(row, f"{field_name}_id")
 
-    def import_serialized_default_value(self, value, id_mapping):
+    def import_serialized_default_value(self, value, id_mapping, workspace_id, cache):
         if isinstance(value, int):
             option_mapping = id_mapping.get("database_field_select_options", {})
             return option_mapping.get(value, value)
@@ -4768,7 +4768,7 @@ class MultipleSelectFieldType(
         ),
     }
 
-    def import_serialized_default_value(self, value, id_mapping):
+    def import_serialized_default_value(self, value, id_mapping, workspace_id, cache):
         if isinstance(value, list):
             option_mapping = id_mapping.get("database_field_select_options", {})
             return [
@@ -7056,6 +7056,50 @@ class MultipleCollaboratorsFieldType(
                 )
 
         return through_objects
+
+    def export_serialized_default_value(self, value, field, workspace_id, cache):
+        if not isinstance(value, list):
+            return value
+
+        cache_entry = f"collaborator_id_to_email_export_{workspace_id}"
+        if cache_entry not in cache:
+            cache[cache_entry] = dict(
+                WorkspaceUser.objects.filter(workspace_id=workspace_id).values_list(
+                    "user_id", "user__email"
+                )
+            )
+
+        id_to_email = cache[cache_entry]
+        return [
+            id_to_email[user["id"]]
+            for user in value
+            if isinstance(user["id"], int) and user["id"] in id_to_email
+        ]
+
+    def import_serialized_default_value(self, value, id_mapping, workspace_id, cache):
+        if not isinstance(value, list):
+            return value
+
+        cache_key = f"collaborator_email_to_id_import_{workspace_id}"
+        if cache_key not in cache:
+            cache[cache_key] = {
+                workspace_user["user__email"]: workspace_user
+                for workspace_user in WorkspaceUser.objects.filter(
+                    workspace_id=workspace_id
+                )
+                .select_related("user")
+                .values("user__email", "user__first_name", "user_id")
+            }
+
+        email_to_id = cache[cache_key]
+        return [
+            {
+                "id": email_to_id[email]["user_id"],
+                "name": email_to_id[email]["user__first_name"],
+            }
+            for email in value
+            if isinstance(email, str) and email in email_to_id
+        ]
 
     def random_value(self, instance, fake, cache):
         """

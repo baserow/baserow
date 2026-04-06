@@ -192,6 +192,94 @@ def test_get_set_export_serialized_value_multiple_collaborators_field(data_fixtu
     assert imported_row_3_field[0].id == user.id
 
 
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.field_multiple_collaborators
+def test_export_import_multiple_collaborators_default_value_across_workspaces(
+    data_fixture,
+):
+    user = data_fixture.create_user(email="shared@baserow.io", first_name="Shared")
+    user_2 = data_fixture.create_user(
+        email="only_source@baserow.io", first_name="OnlySource"
+    )
+
+    source_workspace = data_fixture.create_workspace(user=user)
+    data_fixture.create_user_workspace(workspace=source_workspace, user=user_2)
+
+    target_workspace = data_fixture.create_workspace(user=user)
+    # user_2 is intentionally NOT added to target_workspace.
+
+    database = data_fixture.create_database_application(workspace=source_workspace)
+    table = data_fixture.create_database_table(database=database)
+    collab_field = data_fixture.create_multiple_collaborators_field(
+        user=user, table=table, name="Collaborators"
+    )
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    # Create a row with collaborators so the field is exercised during export.
+    RowHandler().create_row(
+        user=user,
+        table=table,
+        values={
+            f"field_{collab_field.id}": [{"id": user.id}, {"id": user_2.id}],
+        },
+    )
+
+    # Set a default value with both collaborators.
+    from django.db import transaction
+
+    with transaction.atomic():
+        ViewHandler().update_view_default_values(
+            user=user,
+            view=view,
+            items=[
+                {
+                    "field": collab_field.id,
+                    "enabled": True,
+                    "value": [{"id": user.id}, {"id": user_2.id}],
+                }
+            ],
+        )
+
+    # Export the entire workspace.
+    config = ImportExportConfig(include_permission_data=False)
+    core_handler = CoreHandler()
+    exported = core_handler.export_workspace_applications(
+        source_workspace, BytesIO(), config
+    )
+
+    # Import into the target workspace.
+    imported_apps, id_mapping = core_handler.import_applications_to_workspace(
+        target_workspace, exported, BytesIO(), config, None
+    )
+
+    imported_database = imported_apps[0]
+    imported_table = imported_database.table_set.first()
+    imported_field = imported_table.field_set.first().specific
+    imported_view = imported_table.view_set.first()
+
+    # Verify the row-level data: only user (shared) should be present because
+    # user_2 is not a member of the target workspace.
+    imported_model = imported_table.get_model()
+    imported_row = imported_model.objects.first()
+    collaborators = list(
+        getattr(imported_row, f"field_{imported_field.id}").order_by("id").all()
+    )
+    assert len(collaborators) == 1
+    assert collaborators[0].id == user.id
+
+    # Verify the default value: only user (shared) should be present.
+    from baserow.contrib.database.views.models import ViewDefaultValue
+
+    default_value = ViewDefaultValue.objects.get(
+        view=imported_view, field=imported_field
+    )
+    assert default_value.enabled is True
+    assert default_value.field_type == "multiple_collaborators"
+    assert len(default_value.value) == 1
+    assert default_value.value[0]["id"] == user.id
+    assert default_value.value[0]["name"] == user.first_name
+
+
 @pytest.mark.django_db
 def test_multiple_collaborators_field_type_sorting(
     data_fixture, django_assert_num_queries
