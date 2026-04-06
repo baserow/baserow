@@ -167,7 +167,7 @@
       </Expandable>
     </div>
 
-    <Context ref="nodeResultButtonContext">
+    <Context v-if="!hasChildren" ref="nodeResultButtonContext">
       <Button
         ref="nodeResultContextToggle"
         type="secondary"
@@ -180,6 +180,7 @@
     </Context>
 
     <SampleDataModal
+      v-if="!hasChildren"
       ref="nodeResultModal"
       :sample-data="nodeHistories[0].result"
       :title="nodeTypeLabel()"
