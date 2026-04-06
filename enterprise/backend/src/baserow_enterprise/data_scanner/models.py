@@ -56,6 +56,7 @@ class DataScan(models.Model):
     source_field = models.ForeignKey(
         Field, on_delete=models.SET_NULL, null=True, blank=True
     )
+    whole_words = models.BooleanField(db_default=True, default=True)
 
     class Meta:
         ordering = ["-created_on"]

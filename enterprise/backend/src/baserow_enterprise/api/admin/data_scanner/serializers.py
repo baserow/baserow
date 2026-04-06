@@ -39,6 +39,7 @@ class DataScanSerializer(serializers.ModelSerializer):
             "results_count",
             "source_table_id",
             "source_field_id",
+            "whole_words",
             "source_workspace_id",
             "source_database_id",
             "created_on",
@@ -99,6 +100,7 @@ class DataScanWriteSerializer(serializers.Serializer):
     )
     source_table_id = serializers.IntegerField(required=False, allow_null=True)
     source_field_id = serializers.IntegerField(required=False, allow_null=True)
+    whole_words = serializers.BooleanField(required=False)
 
     def validate_source_field_id(self, value):
         if value is not None:
@@ -137,6 +139,7 @@ class DataScanCreateSerializer(DataScanWriteSerializer):
         default="manual",
     )
     scan_all_workspaces = serializers.BooleanField(default=True)
+    whole_words = serializers.BooleanField(default=True)
 
     def validate(self, data):
         scan_type = data.get("scan_type")

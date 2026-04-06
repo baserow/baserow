@@ -62,6 +62,7 @@ export default {
           pattern: this.scan.pattern || '',
           frequency: this.scan.frequency,
           scan_all_workspaces: this.scan.scan_all_workspaces,
+          whole_words: this.scan.whole_words ?? true,
           workspace_ids: this.scan.workspace_ids || [],
           list_items: this.scan.list_items || [],
           source_workspace_id: this.scan.source_workspace_id || null,
