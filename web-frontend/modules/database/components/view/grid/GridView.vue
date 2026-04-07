@@ -28,7 +28,6 @@
       :database="database"
       :table="table"
       :view="view"
-      :include-field-width-handles="true"
       :include-row-details="!viewHasGroupBys"
       :include-grid-view-identifier-dropdown="!viewHasGroupBys"
       :include-group-by="true"
@@ -123,7 +122,6 @@
       :all-fields-in-table="fields"
       :decorations-by-place="decorationsByPlace"
       :database="database"
-      :primary-field-is-sticky="primaryFieldIsSticky"
       :table="table"
       :view="view"
       :include-row-details="viewHasGroupBys"
@@ -170,15 +168,16 @@
       @cell-selected="cellSelected"
     ></GridViewSection>
     <GridViewFieldDragging
-      v-if="primaryFieldIsSticky"
+      v-if="hasFrozenColumns"
       ref="crossSectionFieldDragging"
       :view="view"
       :fields="allDraggableFields"
       :offset="crossSectionDraggingOffset"
-      :container-width="crossSectionContainerWidth"
       :read-only="!isEditable"
       :store-prefix="storePrefix"
       :get-scroll-element="getCrossSectionScrollElement"
+      :get-scrollable-element="getCrossSectionScrollableElement"
+      :frozen-section-width="leftWidth"
       @scroll="scroll(0, $event.pixelX)"
     ></GridViewFieldDragging>
     <GridViewRowDragging
@@ -506,9 +505,8 @@ export default {
       selectedRow: null,
       deletingRow: false,
       showHiddenFieldsInRowModal: false,
-      // Indicates whether the first two columns have enough space to be usable. If
-      // not, the primary field is not sticky, so it's easier to view all data on for
-      // example a smartphone.
+      // Whether the frozen columns fit in the viewport with enough remaining
+      // space for the scrollable section. When false, frozen columns are disabled.
       canFitFrozenColumns: true,
       // When a cell is selected, the component will be propagated and stored into this
       // array until it's unselected. Having these components here can be useful if a
@@ -558,7 +556,7 @@ export default {
     frozenColumnCount() {
       return this.view.frozen_column_count
     },
-    primaryFieldIsSticky() {
+    hasFrozenColumns() {
       return (
         this.canFitFrozenColumns &&
         !this.viewHasGroupBys &&
@@ -580,7 +578,7 @@ export default {
      * Takes the first N *visible* fields in sort order (primary always first).
      */
     leftFields() {
-      if (!this.primaryFieldIsSticky) {
+      if (!this.hasFrozenColumns) {
         return []
       }
       const fieldOptions = this.fieldOptions
@@ -594,7 +592,7 @@ export default {
      * Returns the fields that should be displayed in the scrollable right section.
      */
     rightFields() {
-      if (!this.primaryFieldIsSticky) {
+      if (!this.hasFrozenColumns) {
         return this.fields
       }
       const leftIds = new Set(this.leftFields.map((f) => f.id))
@@ -627,10 +625,6 @@ export default {
         this.gridViewRowDetailsWidth +
         (primary ? this.getFieldWidth(primary) : 0)
       )
-    },
-    crossSectionContainerWidth() {
-      if (!this.$refs.gridView) return 2000
-      return this.$refs.gridView.clientWidth
     },
     activeSearchTerm() {
       return this.$store.getters[
@@ -773,6 +767,9 @@ export default {
     getCrossSectionScrollElement() {
       return this.$refs.gridView
     },
+    getCrossSectionScrollableElement() {
+      return this.$refs.right.$el
+    },
     /**
      * Called when a non-primary field header is dragged in either section.
      * Delegates to the shared cross-section field dragging component.
@@ -842,7 +839,7 @@ export default {
 
       if (scrollDirection !== 'vertical') {
         const fieldPrimary = field.primary
-        if (elementLeft < 0 && (!this.primaryFieldIsSticky || !fieldPrimary)) {
+        if (elementLeft < 0 && (!this.hasFrozenColumns || !fieldPrimary)) {
           // If the field isn't visible in the viewport we need to scroll left in order
           // to show it.
           this.horizontalScroll(
@@ -851,7 +848,7 @@ export default {
           this.$refs.scrollbars.updateHorizontal()
         } else if (
           elementRight > horizontalContainerWidth &&
-          (!this.primaryFieldIsSticky || !fieldPrimary)
+          (!this.hasFrozenColumns || !fieldPrimary)
         ) {
           // If the field isn't visible in the viewport we need to scroll right in order
           // to show it.

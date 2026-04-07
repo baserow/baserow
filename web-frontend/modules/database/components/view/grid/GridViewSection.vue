@@ -35,7 +35,6 @@
         :view="view"
         :all-fields-in-table="allFieldsInTable"
         :visible-fields="visibleFields"
-        :include-field-width-handles="includeFieldWidthHandles"
         :include-row-details="includeRowDetails"
         :include-add-field="includeAddField"
         :include-grid-view-identifier-dropdown="
@@ -86,7 +85,6 @@
             :workspace-id="database.workspace.id"
             :decorations-by-place="decorationsByPlace"
             :left-offset="fieldsLeftOffset"
-            :primary-field-is-sticky="primaryFieldIsSticky"
             :include-row-details="includeRowDetails"
             :include-group-by="includeGroupBy"
             :rows-at-end-of-groups="rowsAtEndOfGroups"
@@ -219,11 +217,6 @@ export default {
       type: Object,
       required: true,
     },
-    includeFieldWidthHandles: {
-      type: Boolean,
-      required: false,
-      default: () => true,
-    },
     includeRowDetails: {
       type: Boolean,
       required: false,
@@ -248,11 +241,6 @@ export default {
       type: Boolean,
       required: false,
       default: () => false,
-    },
-    primaryFieldIsSticky: {
-      type: Boolean,
-      required: false,
-      default: () => true,
     },
     readOnly: {
       type: Boolean,
@@ -318,20 +306,6 @@ export default {
       }
 
       return width
-    },
-    draggingFields() {
-      return this.visibleFields.filter((f) => !f.primary)
-    },
-    draggingOffset() {
-      let offset = this.visibleFields
-        .filter((f) => f.primary)
-        .reduce((sum, f) => sum + this.getFieldWidth(f), 0)
-
-      if (this.includeRowDetails) {
-        offset += this.gridViewRowDetailsWidth
-      }
-
-      return offset
     },
     groupByDividers() {
       if (!this.includeGroupBy) {

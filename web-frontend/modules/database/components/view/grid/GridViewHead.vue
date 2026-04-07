@@ -32,15 +32,18 @@
       ></GridViewRowIdentifierDropdown>
     </div>
     <GridViewFieldType
-      v-for="field in visibleFields"
+      v-for="(field, index) in visibleFields"
       :key="'field-type-' + field.id"
+      :class="{
+        'grid-view__column--last-frozen':
+          !includeAddField && index === visibleFields.length - 1,
+      }"
       :database="database"
       :table="table"
       :view="view"
       :field="field"
       :all-fields-in-table="allFieldsInTable"
       :filters="view.filters"
-      :include-field-width-handles="includeFieldWidthHandles"
       :read-only="readOnly"
       :store-prefix="storePrefix"
       @refresh="$emit('refresh', $event)"
@@ -119,11 +122,6 @@ export default {
     allFieldsInTable: {
       type: Array,
       required: true,
-    },
-    includeFieldWidthHandles: {
-      type: Boolean,
-      required: false,
-      default: () => false,
     },
     includeRowDetails: {
       type: Boolean,

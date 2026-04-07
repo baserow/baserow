@@ -3,7 +3,6 @@
     class="grid-view__freeze-handle"
     :class="{
       'grid-view__freeze-handle--dragging': dragging,
-      'grid-view__freeze-handle--near-boundary': nearBoundary,
     }"
     :style="[handleStyle, mouseButtonDown ? { pointerEvents: 'none' } : {}]"
     @mousedown.stop="startDrag"
@@ -39,7 +38,7 @@ import {
 } from '@baserow/modules/database/utils/view'
 
 const MAX_FROZEN_COLUMNS = 4
-const SNAP_THRESHOLD = 20
+const HANDLE_PADDING = 20
 
 export default {
   name: 'GridViewFreezeHandle',
@@ -94,7 +93,6 @@ export default {
       dragMouseX: null,
       dragMouseY: null,
       hoverMouseY: null,
-      nearBoundary: false,
       snapLineOffset: null,
       mouseButtonDown: false,
     }
@@ -184,17 +182,6 @@ export default {
       }
       return bestCount
     },
-    isNearBoundary(x, boundaries) {
-      if (Math.abs(x - this.rowDetailsWidth) <= SNAP_THRESHOLD) {
-        return true
-      }
-      for (let i = 0; i < boundaries.length && i < this.maxFrozenColumns; i++) {
-        if (Math.abs(x - boundaries[i]) <= SNAP_THRESHOLD) {
-          return true
-        }
-      }
-      return false
-    },
     onMouseEnter(e) {
       // Don't show hover visuals if a mouse button is pressed (e.g. multi-select).
       if (e.buttons !== 0) return
@@ -238,8 +225,8 @@ export default {
         const minX = this.rowDetailsWidth
         const maxX =
           validBoundaries.length > 0
-            ? validBoundaries[validBoundaries.length - 1] + 50
-            : minX + 50
+            ? validBoundaries[validBoundaries.length - 1] + HANDLE_PADDING
+            : minX + HANDLE_PADDING
         this.dragMouseX = Math.max(minX, Math.min(relativeX, maxX))
 
         // Track Y relative to the handle element
@@ -253,7 +240,6 @@ export default {
         )
         const snapX =
           newCount === 0 ? this.rowDetailsWidth : validBoundaries[newCount - 1]
-        this.nearBoundary = Math.abs(this.dragMouseX - snapX) <= SNAP_THRESHOLD
 
         // Show the snap preview line at the boundary position, offset from
         // the handle's current left. Compensate for the handle's -6px margin.
@@ -285,7 +271,6 @@ export default {
         this.dragFrozenCount = null
         this.dragMouseX = null
         this.dragMouseY = null
-        this.nearBoundary = false
         this.snapLineOffset = null
 
         if (finalCount !== this.currentFrozenCount) {

@@ -233,11 +233,6 @@ export default {
       type: Number,
       required: true,
     },
-    primaryFieldIsSticky: {
-      type: Boolean,
-      required: false,
-      default: () => true,
-    },
   },
   emits: [
     'update',

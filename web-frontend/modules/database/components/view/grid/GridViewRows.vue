@@ -17,7 +17,6 @@
       :visible-fields="visibleFields"
       :all-visible-fields="allVisibleFields"
       :all-fields-in-table="allFieldsInTable"
-      :primary-field-is-sticky="primaryFieldIsSticky"
       :field-widths="fieldWidths"
       :include-row-details="includeRowDetails"
       :include-group-by="includeGroupBy"
@@ -120,11 +119,6 @@ export default {
     workspaceId: {
       type: Number,
       required: true,
-    },
-    primaryFieldIsSticky: {
-      type: Boolean,
-      required: false,
-      default: () => true,
     },
     rowsAtEndOfGroups: {
       type: Set,

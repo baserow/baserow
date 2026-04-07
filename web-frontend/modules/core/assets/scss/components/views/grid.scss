@@ -2,6 +2,7 @@
   @include absolute(0);
 
   overflow: hidden;
+  isolation: isolate;
 
   .scrollbars__vertical-wrapper {
     // We don't want to scrollbar to go over the header and footer.
@@ -121,9 +122,9 @@
 
     border-radius: 2px;
     transition:
-      background-color 0.15s ease,
-      right 0.15s ease,
-      left 0.15s ease;
+      background-color 0.1s ease,
+      right 0.1s ease,
+      left 0.1s ease;
   }
 
   &:hover::before {
@@ -137,13 +138,6 @@
     &::before {
       background-color: $color-primary-500;
     }
-  }
-
-  // When near a column boundary during drag, intensify the indicator.
-  &--near-boundary::before {
-    background-color: $color-primary-700;
-    right: 4px;
-    left: 4px;
   }
 }
 
@@ -159,10 +153,6 @@
   pointer-events: none;
   z-index: 6;
   transition: background-color 0.15s ease;
-
-  .grid-view__freeze-handle--near-boundary & {
-    background-color: $color-primary-700;
-  }
 }
 
 // Vertical snap preview line shown at the target column boundary during drag.
@@ -443,9 +433,7 @@
     border-right: none;
   }
 
-  // Remove the right border on the last column in the frozen section to avoid
-  // a double border with the divider's border-left.
-  .grid-view__left &:last-child {
+  &.grid-view__column--last-frozen {
     border-right: none;
   }
 
@@ -865,6 +853,14 @@
   &.hover {
     background-color: $palette-neutral-50;
   }
+}
+
+.grid-view__field-dragging-container {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+  z-index: 4;
 }
 
 .grid-view__field-dragging {
