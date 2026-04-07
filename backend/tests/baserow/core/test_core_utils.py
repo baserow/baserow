@@ -683,8 +683,18 @@ def test_remove_duplicates():
 
 def test_get_all_ips():
     assert get_all_ips("localhost") == {"127.0.0.1", "::1"}
+    assert get_all_ips("0.0.0.0") == {"0.0.0.0"}  # noqa: S104
+    assert get_all_ips("::") == {"::"}
 
 
 def test_are_hostnames_same():
     assert are_hostnames_same("localhost", "localhost") is True
     assert are_hostnames_same("baserow.io", "localhost") is False
+
+    # Wildcard addresses should never be considered the same as any hostname
+    assert are_hostnames_same("0.0.0.0", "localhost") is True  # noqa: S104
+    assert are_hostnames_same("localhost", "0.0.0.0") is True  # noqa: S104
+    assert are_hostnames_same("::", "localhost") is True
+    assert are_hostnames_same("localhost", "::") is True
+    assert are_hostnames_same("0.0.0.0", "::") is True  # noqa: S104
+    assert are_hostnames_same("::", "0.0.0.0") is True  # noqa: S104

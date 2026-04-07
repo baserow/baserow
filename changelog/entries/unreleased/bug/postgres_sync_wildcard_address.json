@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Forbid wildcard addresses in Postgres data sync",
+    "issue_origin": null,
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-07"
+}
