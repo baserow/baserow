@@ -235,6 +235,21 @@ class CollectionElementTypeMixin:
                     raise CollectionElementPropertyOptionsNotUnique()
                 raise e
 
+    def after_move(self, element: ElementSubClass):
+        """
+        Unlink the data source if we moved to shared page and the data source isn't
+        on shared page.
+        """
+        if (
+            element.data_source_id is not None
+            and element.page.id == element.page.builder.shared_page.id
+        ):
+            if element.data_source.page_id != element.page.builder.shared_page.id:
+                element.property_options.all().delete()
+                element.data_source_id = None
+                element.schema_property = None
+                element.save()
+
     @property
     def serializer_field_overrides(self):
         from baserow.core.formula.serializers import FormulaSerializerField

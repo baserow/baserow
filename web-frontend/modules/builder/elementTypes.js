@@ -472,10 +472,11 @@ export class ElementType extends Registerable {
   /**
    * A hook that is triggered right after an element is moved.
    *
-   * @param element - The element after the move
+   * @param builder - The builder containing the page and the element
    * @param page - The page the element now belongs to
+   * @param element - The element after the move
    */
-  afterMove(element, page, context) {}
+  afterMove({ builder, page, element }) {}
 
   /**
    * A hook that is triggered right after an element is deleted.

@@ -61,14 +61,14 @@ export const CollectionElementTypeMixin = (Base) =>
   class extends Base {
     isCollectionElement = true
 
-    afterMove(element, page, { builder } = {}) {
+    afterMove({ builder, page, element }) {
       /**
        * When a collection element is moved across pages, its data source might no longer
        * be reachable from the new page.
        * In that case we reset it immediately in the store so the side panel reflects
        * the available data sources without waiting for the server.
        */
-      if (!builder || !element?.data_source_id) {
+      if (!element.data_source_id) {
         return
       }
 
@@ -78,16 +78,16 @@ export const CollectionElementTypeMixin = (Base) =>
       ]([page, sharedPage], element.data_source_id)
 
       if (!dataSource) {
-        this.app.$store.commit(
-          'element/UPDATE_ITEM',
-          {
-            builder,
-            page,
-            element,
-            values: { data_source_id: null },
+        this.app.$store.commit('element/UPDATE_ITEM', {
+          builder,
+          page,
+          element,
+          values: {
+            data_source_id: null,
+            schema_property: null,
+            property_options: [],
           },
-          { root: true }
-        )
+        })
       }
     }
 

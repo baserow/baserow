@@ -1,6 +1,9 @@
 import pytest
 
-from baserow.contrib.builder.elements.mixins import ContainerElementTypeMixin
+from baserow.contrib.builder.elements.mixins import (
+    CollectionElementTypeMixin,
+    ContainerElementTypeMixin,
+)
 
 
 @pytest.mark.django_db
@@ -42,3 +45,30 @@ def test_after_move_updates_descendants_page_ids_recursively(data_fixture):
     ]:
         element.refresh_from_db()
         assert element.page_id == target_page.id
+
+
+@pytest.mark.django_db
+def test_after_move_unlinks_non_shared_data_source_when_moved_to_shared_page(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    shared_page = builder.shared_page
+
+    table_element = data_fixture.create_builder_table_element(page=page)
+    table_element.schema_property = "field_1"
+    table_element.save(update_fields=["schema_property"])
+    table_element.property_options.create(schema_property="field_1", sortable=True)
+
+    table_element.page = shared_page
+    table_element.save(update_fields=["page"])
+
+    CollectionElementTypeMixin().after_move(table_element)
+
+    table_element.refresh_from_db()
+
+    assert table_element.page_id == shared_page.id
+    assert table_element.data_source_id is None
+    assert table_element.schema_property is None
+    assert table_element.property_options.count() == 0

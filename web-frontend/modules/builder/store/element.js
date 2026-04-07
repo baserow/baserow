@@ -252,13 +252,8 @@ const actions = {
 
     const { $registry } = this
     const elementType = $registry.get('element', movedElement.type)
-    elementType.afterMove(movedElement, resolvedTargetPage, {
-      builder,
-      sourcePage: page,
-      beforeElementId,
-      parentElementId,
-      placeInContainer,
-    })
+
+    elementType.afterMove({ builder, page, element: movedElement })
   },
   select({ commit }, { builder, element }) {
     updateContext.lastUpdatedValues = null
@@ -488,7 +483,6 @@ const actions = {
             place_in_container: elementUpdated.place_in_container,
             parent_element_id: elementUpdated.parent_element_id,
             page_id: elementUpdated.page_id,
-            data_source_id: elementUpdated.data_source_id,
           },
         })
       } catch (error) {
