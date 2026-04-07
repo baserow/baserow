@@ -148,7 +148,7 @@ const actions = {
     commit('CLEAR_ITEMS', { page })
   },
   forceCreate({ dispatch, commit }, { page, element }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $registry } = this
     commit('ADD_ITEM', { page, element })
     dispatch('_setElementNamespacePath', { page, element })
 
@@ -156,13 +156,13 @@ const actions = {
     elementType.afterCreate(element, page)
   },
   forceUpdate({ commit }, { builder, page, element, values }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $registry } = this
     commit('UPDATE_ITEM', { builder, page, element, values })
     const elementType = $registry.get('element', element.type)
     elementType.afterUpdate(element, page)
   },
   forceDelete({ commit, getters }, { builder, page, elementId }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $registry } = this
     const elementToDelete = getters.getElementById(page, elementId)
 
     if (getters.getSelected(builder)?.id === elementId) {
@@ -216,44 +216,40 @@ const actions = {
       tempOrder = calculateTempOrder(getOrder(lastElement), null)
     }
 
-    const descendants = getters.getDescendants(page, element)
-
-    commit('DELETE_ITEM', { page, elementId: element.id })
-    commit('ADD_ITEM', {
-      page: resolvedTargetPage,
-      sourcePageId: page.id,
-      element: {
-        ...element,
-        order: tempOrder,
-        parent_element_id: parentElementId,
-        place_in_container: placeInContainer,
-        page_id: resolvedTargetPage.id,
-      },
-    })
-
-    for (const descendant of descendants) {
-      commit('DELETE_ITEM', { page, elementId: descendant.id })
-      commit('ADD_ITEM', {
-        page: resolvedTargetPage,
-        sourcePageId: page.id,
-        element: { ...descendant, page_id: resolvedTargetPage.id },
-      })
-      dispatch('_setElementNamespacePath', {
-        page: resolvedTargetPage,
-        element: getters.getElementById(resolvedTargetPage, descendant.id),
-      })
-    }
-
-    const movedElement = getters.getElementById(resolvedTargetPage, elementId)
-    dispatch('_setElementNamespacePath', {
-      page: resolvedTargetPage,
-      element: movedElement,
-    })
-
     const { $registry } = this
-    const elementType = $registry.get('element', movedElement.type)
+    const elementType = $registry.get('element', element.type)
 
-    elementType.afterMove({ builder, page, element: movedElement })
+    elementType.wrapMove(
+      {
+        builder,
+        previousPage: page,
+        page: resolvedTargetPage,
+        element: element,
+      },
+      () => {
+        commit('DELETE_ITEM', { page, elementId: element.id })
+        commit('ADD_ITEM', {
+          page: resolvedTargetPage,
+          sourcePageId: page.id,
+          element: {
+            ...element,
+            order: tempOrder,
+            parent_element_id: parentElementId,
+            place_in_container: placeInContainer,
+            page_id: resolvedTargetPage.id,
+          },
+        })
+
+        const movedElement = getters.getElementById(
+          resolvedTargetPage,
+          elementId
+        )
+        dispatch('_setElementNamespacePath', {
+          page: resolvedTargetPage,
+          element: movedElement,
+        })
+      }
+    )
   },
   select({ commit }, { builder, element }) {
     updateContext.lastUpdatedValues = null
