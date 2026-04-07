@@ -58,7 +58,8 @@
         "download": "다운로드",
         "copyToClipboard": "클립보드에 복사",
         "reset": "재설정",
-        "hide": "숨기기"
+        "hide": "숨기기",
+        "next": "다음"
     },
     "adminType": {
         "settings": "설정",
@@ -166,7 +167,9 @@
         "password": "비밀번호",
         "ai": "AI 프롬프트",
         "multipleCollaboratorsDropdown": "드롭다운",
-        "multipleCollaboratorsCheckboxes": "체크박스"
+        "multipleCollaboratorsCheckboxes": "체크박스",
+        "formViewEditRow": "행 편집 링크",
+        "formViewEditRowShareWarning": "공유 링크를 가진 사람은 누구나 공개적으로 표시되는 행 편집 링크 필드를 통해 {formNames} 양식에서 행을 편집할 수 있습니다."
     },
     "fieldErrors": {
         "invalidNumber": "유효하지 않은 숫자",
@@ -213,7 +216,8 @@
         "multipleCollaborators": "각 객체에 사용자 ID가 포함된 객체 배열을 허용합니다.",
         "uuid": "읽기 전용의 고유하고 영구적인 UUID입니다.",
         "autonumber": "각 새 행에 대해 자동으로 번호를 증가시키는 읽기 전용 필드입니다.",
-        "password": "해시된 비밀번호를 보유하는 쓰기 전용 필드입니다. 설정되지 않은 경우 값은 `null`이며, 설정된 경우 `true`입니다. 문자열을 받아서 설정합니다."
+        "password": "해시된 비밀번호를 보유하는 쓰기 전용 필드입니다. 설정되지 않은 경우 값은 `null`이며, 설정된 경우 `true`입니다. 문자열을 받아서 설정합니다.",
+        "formViewEditRow": "읽기 전용 필드로, 연결된 양식 보기를 통해 행을 편집할 수 있도록 고유하고 서명된 URL을 생성합니다."
     },
     "viewFilter": {
         "hasEmptyValue": "값이 비어 있음",
@@ -708,5 +712,11 @@
     "nodeExplorer": {
         "noResults": "검색 결과가 없습니다",
         "resetSearch": "검색 재설정"
+    },
+    "runtimeGetErrors": {
+        "invalidPath": "'get' 인수 '{path}'는 점으로 구분된 경로여야 합니다(예: 'provider.property').",
+        "missingProvider": "'get' 인수 '{path}'에 수식 제공자 접두사가 누락되었습니다.",
+        "unknownProvider": "'{providerName}' 수식 공급자가 존재하지 않습니다.",
+        "invalidProviderPath": "'{providerName}' 수식 공급자가 '{path}'가 유효하지 않다고 판단했습니다."
     }
 }
