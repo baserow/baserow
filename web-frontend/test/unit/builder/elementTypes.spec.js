@@ -851,6 +851,90 @@ describe('elementTypes tests', () => {
         })
       ).toEqual(null)
     })
+    test('RepeatElementType cannot be moved inside itself.', () => {
+      const repeatContainerElementType = testApp.$registry.get(
+        'element',
+        'repeat'
+      )
+
+      const page = {
+        id: 123,
+        orderedElements: [],
+      }
+      const repeatElement = { id: 111, type: 'repeat', page_id: page.id }
+      const nestedRepeatElement = {
+        id: 112,
+        type: 'repeat',
+        page_id: page.id,
+        parent_element_id: repeatElement.id,
+      }
+
+      page.elementMap = {
+        111: repeatElement,
+        112: nestedRepeatElement,
+      }
+      page.orderedElements = [repeatElement, nestedRepeatElement]
+
+      expect(
+        repeatContainerElementType.isDisallowedReason({
+          builder: { id: 1, pages: [page] },
+          page,
+          element: repeatElement,
+          parentElement: nestedRepeatElement,
+          beforeElement: null,
+          placeInContainer: 'content',
+        })
+      ).toEqual('elementType.notAllowedLocation')
+    })
+    test('ColumnElementType cannot be moved if one of its children is disallowed in the destination.', () => {
+      const columnContainerElementType = testApp.$registry.get(
+        'element',
+        'column'
+      )
+
+      const page = {
+        id: 123,
+        orderedElements: [],
+      }
+      const destinationFormContainer = {
+        id: 111,
+        type: 'form_container',
+        page_id: page.id,
+      }
+      const columnElement = {
+        id: 112,
+        type: 'column',
+        page_id: page.id,
+      }
+      const childFormContainer = {
+        id: 113,
+        type: 'form_container',
+        page_id: page.id,
+        parent_element_id: columnElement.id,
+      }
+
+      page.elementMap = {
+        111: destinationFormContainer,
+        112: columnElement,
+        113: childFormContainer,
+      }
+      page.orderedElements = [
+        destinationFormContainer,
+        columnElement,
+        childFormContainer,
+      ]
+
+      expect(
+        columnContainerElementType.isDisallowedReason({
+          builder: { id: 1, pages: [page] },
+          page,
+          element: columnElement,
+          parentElement: destinationFormContainer,
+          beforeElement: null,
+          placeInContainer: 'content',
+        })
+      ).toEqual('elementType.notAllowedLocation')
+    })
   })
 
   describe('elementTypes ChoiceElementType getOptionsResolved tests', () => {

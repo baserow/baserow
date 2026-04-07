@@ -58,6 +58,70 @@ export const ContainerElementTypeMixin = (Base) =>
       moveFn()
     }
 
+    isDisallowedReason({
+      workspace,
+      builder,
+      page,
+      element,
+      parentElement,
+      beforeElement,
+      placeInContainer,
+      pagePlace,
+    }) {
+      const { $store, $registry } = this.app
+
+      if (parentElement && element) {
+        const elementPage = $store.getters['page/getById'](
+          builder,
+          element.page_id
+        )
+
+        const moveInsideItself = !!this.app.$store.getters[
+          'element/getAncestors'
+        ](page, parentElement, {
+          predicate: (ancestor) => ancestor.id === element.id,
+          includeSelf: true,
+        }).length
+
+        if (moveInsideItself) {
+          return this.app.$i18n.t('elementType.notAllowedLocation')
+        }
+
+        const elementChildren = this.app.$store.getters['element/getChildren'](
+          elementPage,
+          element
+        )
+
+        for (const child of elementChildren) {
+          const childType = $registry.get('element', child.type)
+          const isChildDisallowed = childType.isDisallowedReason({
+            workspace,
+            builder,
+            page,
+            element: child,
+            parentElement,
+            beforeElement,
+            placeInContainer,
+            pagePlace,
+          })
+          if (isChildDisallowed) {
+            return this.app.$i18n.t('elementType.notAllowedLocation')
+          }
+        }
+      }
+
+      return super.isDisallowedReason({
+        workspace,
+        builder,
+        page,
+        element,
+        parentElement,
+        beforeElement,
+        placeInContainer,
+        pagePlace,
+      })
+    }
+
     /**
      * Returns the default value when creating a child element to this container.
      * @param {Object} page The current page object

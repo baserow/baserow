@@ -182,6 +182,7 @@ export class ElementType extends Registerable {
    * Returns the reason why this element type is disallowed for the given location.
    * @param {Object} builder the current builder object
    * @param {Object} page the current page
+   * @param {Object} element optional element if we have one
    * @param {Object} parentElement the parent container element in which we want to
    *   add the element in if any.
    * @param {Object} beforeElement the element before which we want to add the element.
@@ -195,6 +196,7 @@ export class ElementType extends Registerable {
     workspace,
     builder,
     page: destinationPage,
+    element = null,
     parentElement,
     beforeElement,
     placeInContainer,
@@ -1023,6 +1025,7 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
     workspace,
     builder,
     page,
+    element,
     parentElement,
     beforeElement,
     placeInContainer,
@@ -1043,6 +1046,7 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
       workspace,
       builder,
       page,
+      element,
       parentElement,
       beforeElement,
       placeInContainer,
@@ -1118,6 +1122,7 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
     workspace,
     builder,
     page,
+    element,
     parentElement,
     beforeElement,
     placeInContainer,
@@ -1138,6 +1143,7 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
       workspace,
       builder,
       page,
+      element,
       parentElement,
       beforeElement,
       placeInContainer,
@@ -2329,6 +2335,7 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     workspace,
     builder,
     page,
+    element,
     parentElement,
     beforeElement,
     placeInContainer,
@@ -2441,6 +2448,7 @@ export class FooterElementType extends HeaderElementType {
     workspace,
     builder,
     page,
+    element,
     parentElement,
     beforeElement,
     placeInContainer,
