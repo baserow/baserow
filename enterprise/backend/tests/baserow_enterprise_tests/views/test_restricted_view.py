@@ -2851,6 +2851,8 @@ def test_editor_with_view_access_can_comment_on_rows(
     )
 
 
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_cannot_create_form_view_with_restricted_ownership_type(
     enterprise_data_fixture, api_client
 ):
