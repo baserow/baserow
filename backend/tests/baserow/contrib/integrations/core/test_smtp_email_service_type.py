@@ -107,6 +107,57 @@ def test_send_smtp_email_basic(data_fixture):
 
 @pytest.mark.django_db
 @override_settings(
+    CELERY_EMAIL_BACKEND="anymail.backends.mailgun.EmailBackend",
+)
+def test_send_smtp_email_with_integration_ignores_global_celery_email_backend(
+    data_fixture,
+):
+    smtp_integration = data_fixture.create_smtp_integration(
+        host="smtp.example.com",
+        port=587,
+        use_tls=True,
+        username="user@example.com",
+        password="password123",
+    )
+
+    service = data_fixture.create_core_smtp_email_service(
+        integration=smtp_integration,
+        use_instance_smtp_settings=False,
+        from_email="'sender@example.com'",
+        from_name="'Test Sender'",
+        to_emails="'recipient@example.com'",
+        subject="'Test Subject'",
+        body="'Hello, this is a test email!'",
+        body_type="plain",
+    )
+
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext()
+
+    with mock_django_email() as (mock_email, mock_connection):
+        result = service_type.dispatch(service, dispatch_context)
+        mock_connection.assert_called_once_with(
+            backend="django.core.mail.backends.smtp.EmailBackend",
+            host="smtp.example.com",
+            port=587,
+            username="user@example.com",
+            password="password123",
+            use_tls=True,
+        )
+        mock_email.assert_called_once_with(
+            "Test Subject",
+            "Hello, this is a test email!",
+            "Test Sender <sender@example.com>",
+            ["recipient@example.com"],
+            bcc=[],
+            cc=[],
+            connection=mock_connection.return_value,
+        )
+        assert result.data == {"success": True}
+
+
+@pytest.mark.django_db
+@override_settings(
     INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=True,
     CELERY_EMAIL_BACKEND="django.core.mail.backends.smtp.EmailBackend",
     EMAIL_HOST="instance.smtp.example.com",

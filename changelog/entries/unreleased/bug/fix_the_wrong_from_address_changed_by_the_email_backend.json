@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix the wrong from address changed by the email backend",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-04-07"
+}
