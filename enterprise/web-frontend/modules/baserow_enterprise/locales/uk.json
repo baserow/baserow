@@ -64,7 +64,8 @@
     },
     "adminType": {
         "AuditLog": "Журнал аудиту",
-        "Authentication": "Автентифікація"
+        "Authentication": "Автентифікація",
+        "DataScanner": "Сканер даних"
     },
     "auditLog": {
         "adminTitle": "Журнал аудиту",
@@ -734,5 +735,27 @@
     },
     "assistantOnboardingMessage": {
         "instructing": "Інструкція Kuma щодо створення вашої бази даних."
+    },
+    "dataScanner": {
+        "title": "Сканер даних",
+        "scansTab": "Сканування",
+        "resultsTab": "Результати",
+        "createScan": "Створити сканер даних",
+        "editScan": "Редагувати сканування",
+        "nameColumn": "Назва",
+        "typeColumn": "Тип",
+        "frequencyColumn": "Частота",
+        "statusColumn": "Статус",
+        "runningSince": "Працює з {time}",
+        "idle": "У режимі очікування",
+        "neverRun": "Ніколи не запускався",
+        "runNow": "Запустити зараз",
+        "edit": "Редагувати",
+        "delete": "Видалити",
+        "nameLabel": "Назва",
+        "namePlaceholder": "Введіть назву сканування",
+        "scanTypeLabel": "Тип сканування",
+        "patternLabel": "Патерн",
+        "patternPlaceholder": "напр. \\N\\LDDAAAADDDDDDDDDD"
     }
 }
