@@ -10,7 +10,10 @@ import pytest
 from freezegun import freeze_time
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
-from baserow.contrib.automation.history.models import AutomationWorkflowHistory
+from baserow.contrib.automation.history.models import (
+    AutomationNodeHistory,
+    AutomationWorkflowHistory,
+)
 from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.nodes.node_types import (
     CorePeriodicTriggerNodeType,
@@ -1670,14 +1673,27 @@ def test_before_run_marks_timed_out_started_history_as_failed(data_fixture):
             workflow=original_workflow,
             status=HistoryStatusChoices.STARTED,
         )
+        node_history = AutomationNodeHistory.objects.create(
+            workflow_history=timed_out_history,
+            node=original_workflow.get_trigger(),
+            started_on=timed_out_history.started_on,
+            status=HistoryStatusChoices.STARTED,
+        )
 
     with freeze_time("2026-03-10 12:00:00"):
         AutomationWorkflowHandler().before_run(published_workflow)
 
-    timed_out_history.refresh_from_db()
+    error_message = "This workflow took too long and was timed out."
 
+    timed_out_history.refresh_from_db()
     assert timed_out_history.status == HistoryStatusChoices.ERROR
-    assert timed_out_history.message == "This workflow took too long and was timed out."
+    assert timed_out_history.message == error_message
+    assert timed_out_history.completed_on is not None
+
+    node_history.refresh_from_db()
+    assert node_history.status == HistoryStatusChoices.ERROR
+    assert node_history.message == error_message
+    assert node_history.completed_on == timed_out_history.completed_on
 
 
 @pytest.mark.django_db
