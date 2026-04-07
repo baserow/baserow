@@ -2,11 +2,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(100% - 4px);
+  width: calc(100% - 20px);
   height: 120px;
   border: 1px dashed $palette-neutral-400;
   background-color: $palette-neutral-50;
-  margin: 2px; // To make sure we have enough space to see the border
+  margin: 10px;
 
   @include rounded($rounded-md);
 
@@ -14,6 +14,7 @@
     border: 1px solid $palette-blue-500;
     background-color: $palette-blue-50;
     border-color: $palette-blue-300;
+    cursor: pointer;
   }
 }
 
@@ -27,7 +28,7 @@
 
 .add-element-zone__label {
   font-size: 13px;
-  color: $palette-neutral-600;
+  color: $palette-neutral-1000;
   cursor: pointer;
 }
 
@@ -36,6 +37,7 @@
   border: solid 1px $palette-neutral-400;
   border-radius: 100%;
   padding: 8px;
+  background: $white;
   line-height: 1em;
   cursor: pointer;
 

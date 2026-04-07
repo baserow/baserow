@@ -61,13 +61,13 @@ export const CollectionElementTypeMixin = (Base) =>
   class extends Base {
     isCollectionElement = true
 
-    /**
-     * When a collection element is moved across pages, its data source might no longer
-     * be reachable from the new page (e.g. because of form namespace / ancestry).
-     * In that case we reset it immediately in the store so the side panel reflects
-     * the available data sources without waiting for the server.
-     */
     afterMove(element, page, { builder } = {}) {
+      /**
+       * When a collection element is moved across pages, its data source might no longer
+       * be reachable from the new page.
+       * In that case we reset it immediately in the store so the side panel reflects
+       * the available data sources without waiting for the server.
+       */
       if (!builder || !element?.data_source_id) {
         return
       }

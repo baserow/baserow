@@ -6,16 +6,13 @@
       'add-element-zone--drag-active': isValidDropTarget,
       'add-element-zone--drag-over': isDragOver,
     }"
+    @click="!disabled && $emit('add-element')"
     @dragenter="onDragEnter"
     @dragover="onDragOver"
     @dragleave="onDragLeave"
     @drop="onDrop"
   >
-    <div
-      v-tooltip="disabled ? tooltip : null"
-      class="add-element-zone__button"
-      @click="!disabled && $emit('add-element')"
-    >
+    <div v-tooltip="disabled ? tooltip : null" class="add-element-zone__button">
       <i class="iconoir-plus add-element-zone__icon"></i>
       <span v-if="label" class="add-element-zone__label">{{ label }}</span>
     </div>
