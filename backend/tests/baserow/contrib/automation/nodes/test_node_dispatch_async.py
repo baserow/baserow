@@ -205,6 +205,10 @@ def test_dispatch_node_service_error(data_fixture):
     assert error in node_history.message
     assert node_history.status == HistoryStatusChoices.ERROR
 
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.result == {}
+    assert node_result.iteration_path == ""
+
 
 @pytest.mark.django_db
 @patch(f"{TRIGGER_NODE_TYPE_PATH}.dispatch")
@@ -233,6 +237,10 @@ def test_dispatch_node_unexpected_error(mock_logger, mock_dispatch, data_fixture
     node_history = AutomationNodeHistory.objects.get(workflow_history=workflow_history)
     assert error in node_history.message
     assert node_history.status == HistoryStatusChoices.ERROR
+
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.result == {}
+    assert node_result.iteration_path == ""
 
 
 @pytest.mark.django_db
@@ -268,6 +276,10 @@ def test_dispatch_node_expected_error(mock_logger, mock_dispatch, data_fixture):
     node_history = AutomationNodeHistory.objects.get(workflow_history=workflow_history)
     assert error in node_history.message
     assert node_history.status == HistoryStatusChoices.ERROR
+
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.result == {}
+    assert node_result.iteration_path == ""
 
 
 @pytest.mark.django_db
