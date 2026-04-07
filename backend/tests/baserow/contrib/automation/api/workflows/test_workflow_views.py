@@ -1,5 +1,6 @@
 import datetime
 
+from django.db.models import Count, Q
 from django.urls import reverse
 from django.utils import timezone
 
@@ -14,8 +15,14 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.automation.api.workflows.serializers import (
+    AutomationWorkflowHistorySerializer,
+)
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.workflows.constants import ALLOW_TEST_RUN_MINUTES
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.cache import local_cache
 from baserow.test_utils.helpers import AnyInt, AnyStr
 from tests.baserow.contrib.automation.api.utils import get_api_kwargs
 
@@ -711,3 +718,52 @@ def test_rename_workflow_using_existing_workflow_name(api_client, data_fixture):
     assert workflow_1.name == "test1"
     workflow_2.refresh_from_db()
     assert workflow_2.name == "test1"
+
+
+@pytest.mark.django_db
+def test_get_workflow_histories_query_count(data_fixture, django_assert_num_queries):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = workflow.get_trigger()
+
+    handler = AutomationHistoryHandler()
+
+    def _create_histories(count):
+        for _ in range(count):
+            workflow_history = handler.create_workflow_history(
+                workflow=workflow,
+                started_on=timezone.now(),
+                is_test_run=False,
+            )
+            node_history = handler.create_node_history(
+                workflow_history=workflow_history,
+                node=trigger,
+                started_on=timezone.now(),
+            )
+            handler.create_node_result(
+                node_history=node_history,
+                result={"foo": "bar"},
+            )
+
+    _create_histories(3)
+    local_cache.clear()
+
+    expected_queries = 10
+    with django_assert_num_queries(expected_queries):
+        queryset = handler.get_workflow_histories(workflow)
+        queryset.aggregate(
+            success_count=Count("id", filter=Q(status=HistoryStatusChoices.SUCCESS)),
+            fail_count=Count("id", filter=Q(status=HistoryStatusChoices.ERROR)),
+        )
+        AutomationWorkflowHistorySerializer(list(queryset), many=True).data
+
+    _create_histories(3)
+    local_cache.clear()
+
+    with django_assert_num_queries(expected_queries):
+        queryset = handler.get_workflow_histories(workflow)
+        queryset.aggregate(
+            success_count=Count("id", filter=Q(status=HistoryStatusChoices.SUCCESS)),
+            fail_count=Count("id", filter=Q(status=HistoryStatusChoices.ERROR)),
+        )
+        AutomationWorkflowHistorySerializer(list(queryset), many=True).data

@@ -34,7 +34,6 @@ class AutomationHistoryHandler:
             workflow=workflow,
             simulate_until_node__isnull=True,
         ).prefetch_related(
-            "workflow__automation__workspace",
             Prefetch(
                 "node_histories",
                 queryset=AutomationNodeHistory.objects.select_related(
