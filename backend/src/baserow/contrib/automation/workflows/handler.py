@@ -847,10 +847,11 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         is marked as failed.
         """
 
-        max_history_date = timezone.now() - timedelta(
+        now = timezone.now()
+        max_history_date = now - timedelta(
             hours=settings.AUTOMATION_WORKFLOW_TIMEOUT_HOURS
         )
-        now = timezone.now()
+
         error = "This workflow took too long and was timed out."
 
         workflow_history_ids = list(
