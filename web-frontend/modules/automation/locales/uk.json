@@ -99,7 +99,8 @@
         "statusDisabled": "Вимкнено Baserow",
         "completedInSeconds": "Виконано за {s} секунд.",
         "completedInLessThanSecond": "Виконано менше ніж за 1 секунду.",
-        "testRun": "Тест"
+        "testRun": "Тест",
+        "statusStarted": "У процесі…"
     },
     "nodeType": {
         "triggerDeletionError": "Тригери не можна видаляти, лише замінювати.",
