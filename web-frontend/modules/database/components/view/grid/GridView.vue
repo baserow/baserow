@@ -168,7 +168,7 @@
       @cell-selected="cellSelected"
     ></GridViewSection>
     <GridViewFieldDragging
-      v-if="hasFrozenColumns"
+      v-if="isEditable"
       ref="crossSectionFieldDragging"
       :view="view"
       :fields="allDraggableFields"
@@ -554,7 +554,7 @@ export default {
       return this.activeGroupBys.length > 0
     },
     frozenColumnCount() {
-      return this.view.frozen_column_count
+      return this.view.frozen_column_count ?? 1
     },
     hasFrozenColumns() {
       return (
@@ -1780,18 +1780,7 @@ export default {
         return
       }
 
-      const fieldOptions = this.fieldOptions
-      const sorted = this.fields
-        .slice()
-        .filter(filterVisibleFieldsFunction(fieldOptions))
-        .sort(sortFieldsByOrderAndIdFunction(fieldOptions, true))
-      const frozenFields = sorted.slice(0, this.frozenColumnCount)
-      const frozenWidth = frozenFields.reduce(
-        (sum, field) => sum + this.getFieldWidth(field),
-        0
-      )
-      const maxWidth = this.gridViewRowDetailsWidth + frozenWidth + 300
-
+      const maxWidth = this.gridViewRowDetailsWidth + this.leftFieldsWidth + 300
       this.canFitFrozenColumns = this.$refs.gridView.clientWidth > maxWidth
     },
     /**
