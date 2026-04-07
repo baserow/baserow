@@ -43,6 +43,8 @@ TOKEN_MAP = {
     "X": ".",
 }
 
+TOKEN_CHARS = {"A", "D", "X"}
+
 
 def convert_pattern_to_regex(pattern: str) -> str:
     """
@@ -83,7 +85,6 @@ def _pattern_has_special_chars(pattern: str) -> bool:
     approach.
     """
 
-    TOKEN_CHARS = {"A", "D", "X"}
     i = 0
     while i < len(pattern):
         char = pattern[i]

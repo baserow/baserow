@@ -117,6 +117,7 @@ class DataScanListView(APIListingView):
             list_items=data.get("list_items", []),
             source_table_id=data.get("source_table_id"),
             source_field_id=data.get("source_field_id"),
+            whole_words=data.get("whole_words", True),
         )
         return Response(DataScanSerializer(scan).data)
 
