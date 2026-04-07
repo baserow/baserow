@@ -34,10 +34,6 @@
     <GridViewFieldType
       v-for="(field, index) in visibleFields"
       :key="'field-type-' + field.id"
-      :class="{
-        'grid-view__column--last-frozen':
-          !includeAddField && index === visibleFields.length - 1,
-      }"
       :database="database"
       :table="table"
       :view="view"

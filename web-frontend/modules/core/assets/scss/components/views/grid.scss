@@ -433,7 +433,7 @@
     border-right: none;
   }
 
-  &.grid-view__column--last-frozen {
+  .grid-view__left &:last-child {
     border-right: none;
   }
 
