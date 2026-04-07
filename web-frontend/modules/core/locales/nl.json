@@ -72,7 +72,9 @@
         "incorrectCredentialMessage": "Het opgegeven e-mailadres of wachtwoord is niet correct.",
         "inputRequired": "Dit is een verplicht veld.",
         "disabledPasswordProviderTitle": "Wachtwoordverificatie is uitgeschakeld.",
-        "disabledPasswordProviderMessage": "Gebruik een andere authenticatie provider."
+        "disabledPasswordProviderMessage": "Gebruik een andere authenticatie provider.",
+        "captchaVerificationFailedTitle": "De Captcha-verificatie is mislukt",
+        "captchaVerificationFailedMessage": "De captcha-verificatie is mislukt. Probeer het nog eens."
     },
     "field": {
         "language": "Taal",
@@ -433,7 +435,10 @@
             }
         },
         "prefillOrHideInfoLink": "Dynamisch invullen of verbergen",
-        "notifyUserOnSubmit": "Notificatie ontvangen bij verzenden"
+        "notifyUserOnSubmit": "Notificatie ontvangen bij verzenden",
+        "fields": "Velden",
+        "rowEditableBy": "Rijen bijwerken via velden",
+        "rowEditableByDescription": "De rijen in deze tabel kunnen via dit formulier worden bijgewerkt met behulp van de volgende velden voor het bewerken van rijen:"
     },
     "deleteAccountSettings": {
         "orphanWorkspaces": "Zal ook permanent worden verwijderd na de respijtperiode",
@@ -707,7 +712,9 @@
     },
     "formulaInputField": {
         "errorInvalidFormula": "De formule is ongeldig.",
-        "advancedFormulaMode": "Geavanceerde formule-modus"
+        "advancedFormulaMode": "Geavanceerde formule-modus",
+        "invalidFormulaTitle": "Ongeldige formule",
+        "invalidSyntax": "Dit is geen geldige formule, controleer de syntax."
     },
     "userPasswordChangedToast": {
         "title": "Wachtwoord veranderd",
@@ -1253,5 +1260,25 @@
     },
     "adminWorkspaces": {
         "title": "Werkruimtes"
+    },
+    "formulaInputErrorContext": {
+        "viewFullError": "Bekijk de volledige foutmelding"
+    },
+    "formulaInputExplorerContext": {
+        "variables": "Variabelen",
+        "functions": "Functies",
+        "operators": "Operators",
+        "search": "Zoeken",
+        "useRegularInputModalTitle": "Gebruik je standaard invoer voor dit veld?",
+        "useSimpleInput": "Schakel over naar basismodus",
+        "useSimpleInputModalTitle": "Overstappen naar basismodus?",
+        "useAdvancedInput": "Schakel over naar de expertmodus",
+        "useAdvancedInputModalTitle": "Wil je overschakelen naar de expertmodus?",
+        "modalMessage": "Als u naar een andere modus overschakelt, wordt de huidige formule gewist. Weet u zeker dat u wilt doorgaan?"
+    },
+    "formulaParserErrors": {
+        "invalidArgCountMin": "De functie '{funcType}' verwacht minimaal {minArgs} argumenten.",
+        "invalidArgCountExact": "De functie '{funcType}' verwacht precies {minArgs} argumenten.",
+        "invalidArgCountRange": "De functie '{funcType}' verwacht tussen {minArgs} en {maxArgs} argumenten."
     }
 }
