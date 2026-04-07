@@ -201,7 +201,9 @@
         "bodyTypePlain": "일반 텍스트",
         "bodyTypeHtml": "HTML",
         "body": "Body",
-        "bodyPlaceholder": "이메일 내용..."
+        "bodyPlaceholder": "이메일 내용...",
+        "useInstanceSmtpSettings": "인스턴스 SMTP 서버를 사용하십시오",
+        "smtpConfigurationMode": "SMTP 구성"
     },
     "serviceRefinementForms": {
         "filterTabTitle": "필터 | 1 필터 | {count} 필터",
@@ -297,14 +299,15 @@
         "supportDescription": "Slack 앱과 페어링하는 데 도움이 필요하면 아래 단계를 참조하세요.",
         "supportSetupHeading": "1. 앱 설정",
         "supportSetupDescription": "Slack 작업 공간 설정에 따라 새 Slack 앱을 생성할 수 있습니다. 그렇지 않은 경우 관리자가 대신 생성해야 합니다. 메시지를 작성할 수 있는 기존 앱을 재사용하는 경우 'Slack 앱과 페어링하기' 섹션으로 건너뛰세요.",
-        "supportSetupStep1": "워크스페이스의 &lt;a href=\"https://api.slack.com/apps\" target=\"_blank\"&gt;앱 페이지&lt;/a&gt;로 이동하세요.",
+        "supportSetupStep1": "워크스페이스의 {링크}로 이동하세요.",
         "supportSetupStep2": "새 앱을 만들고 '처음부터'를 선택한 후 이름을 입력하세요. 앱이 작동할 작업 공간을 선택하고 '만들기'를 클릭하세요.",
-        "supportSetupStep3": "왼쪽 사이드바에서 'OAuth 및 권한'으로 이동한 다음, '범위'까지 아래로 스크롤하여 '봇 토큰 범위' 아래에서 'OAuth 범위 추가'를 선택합니다.",
-        "supportSetupStep4": "앱에서 메시지를 게시할 수 있도록 하려면 &lt;pre&gt;chat:write&lt;/pre&gt; 범위를 추가하세요.",
+        "supportSetupStep3": "왼쪽 사이드바에서 'OAuth > 권한'으로 이동한 다음, '범위'까지 아래로 스크롤하여 '봇 토큰 범위' 아래에서 'OAuth 범위 추가'를 선택합니다.",
+        "supportSetupStep4": "앱에서 메시지를 게시할 수 있도록 하려면 {scope} 스코프를 추가하세요.",
         "supportPairingHeading": "2. Slack 앱과 페어링",
-        "supportPairingStep1": "앱이 새로 설치된 경우: '설정' &gt; '앱 설치'로 이동하세요. 녹색 버튼을 클릭하여 작업 공간에 앱을 설치하세요.",
+        "supportPairingStep1": "앱이 새로 설치된 경우 '설정' > '앱 설치'로 이동하세요. 녹색 버튼을 클릭하여 앱을 작업 공간에 설치합니다.",
         "supportPairingStep2": "'봇 사용자 OAuth 토큰'을 복사하여 이 양식의 '봇 사용자 토큰' 필드에 저장하세요.",
-        "supportPairingStep3": "마지막으로, 앱이 새롭다면: Slack에서 &lt;pre&gt;/invite {'@'}yourAppName yourChannel&lt;/pre&gt; 명령어로 선택한 채널에 앱을 초대하세요."
+        "supportPairingStep3": "마지막으로, 앱이 새로 개발된 경우 Slack에서 {command} 명령어를 사용하여 원하는 채널에 앱을 초대하세요.",
+        "supportSetupStep1Link": "앱 페이지"
     },
     "slackWriteMessageServiceForm": {
         "alertMessage": "이 작업은 Slack 앱과 연동되어야 합니다. 시작하려면 통합 팝업의 가이드를 따르세요.",
