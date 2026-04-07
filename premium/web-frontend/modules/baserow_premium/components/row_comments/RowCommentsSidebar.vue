@@ -220,8 +220,6 @@ export default {
         const tableId = this.table.id
         const rowId = this.row.id
         const viewId = this.view?.id
-        console.log(this.view)
-        console.log(viewId)
 
         // If the row is not an integer, it can mean that the row hasn't been created
         // in the backend yet. It's fine to not do anything then, because there are no

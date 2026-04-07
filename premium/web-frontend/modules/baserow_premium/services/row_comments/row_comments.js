@@ -5,7 +5,6 @@ function buildViewIdParam(viewId) {
 export default (client) => {
   return {
     fetchAll(tableId, rowId, { offset = 0, limit = 50, viewId = null }) {
-      console.log(viewId)
       return client.get(
         `/row_comments/${tableId}/${rowId}/?offset=${offset}&limit=${limit}${buildViewIdParam(viewId)}`
       )

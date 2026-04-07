@@ -51,6 +51,9 @@
             :field="field"
             :value="rowValues[`field_${field.id}`]"
             :read-only="false"
+            :workspace-id="database.workspace.id"
+            :row="rowValues"
+            :all-fields-in-table="allFields"
             @update="updateFieldValue(field, $event)"
           />
           <div class="margin-top-1">
