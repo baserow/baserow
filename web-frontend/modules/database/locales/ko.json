@@ -533,7 +533,8 @@
         "EnablePassword": "비밀번호로 접근 제한",
         "DisablePassword": "비밀번호로 보호됨",
         "ChangePassword": "변경",
-        "notSharedYetText": "이 뷰의 데이터를 누구나 볼 수 있도록 허용하거나 외부 캘린더와 이벤트를 동기화하세요."
+        "notSharedYetText": "이 뷰의 데이터를 누구나 볼 수 있도록 허용하거나 외부 캘린더와 이벤트를 동기화하세요.",
+        "shareViewWarningTitle": "경고"
     },
     "viewGroupByContext": {
         "noGroupByTitle": "아직 그룹을 생성하지 않았습니다",
@@ -1157,5 +1158,19 @@
         "ruleDoesNotExist": "규칙이 존재하지 않습니다",
         "ruleTypeDoesNotExist": "규칙 유형이 존재하지 않습니다",
         "ruleAlreadyExists": "규칙이 이미 존재합니다"
+    },
+    "fieldFormViewEditRowSubForm": {
+        "selectFormViewLabel": "폼 보기",
+        "description": "각 행에는 해당 행의 데이터가 미리 채워진 양식을 여는 고유 링크가 부여됩니다. 테이블과 필드에 읽기 권한이 있는 모든 사용자는 양식 보기를 통해 해당 행을 편집할 수 있으며, 공개적으로 공유된 보기의 보기 사용자 및 방문자도 편집할 수 있습니다.",
+        "notPublicWarning": "이 양식 보기 화면은 공개되어 있지 않습니다. 양식이 공개될 때까지 편집 링크가 작동하지 않습니다.",
+        "notPublic": "(비공개)",
+        "formDoesNotExist": "선택한 양식이 더 이상 존재하지 않습니다."
+    },
+    "editRowLink": {
+        "editRow": "행 편집"
+    },
+    "rowEditFieldFormViewEditRow": {
+        "copyLink": "링크 복사",
+        "noFormView": "폼 뷰가 구성되지 않았습니다"
     }
 }
