@@ -27,7 +27,7 @@ dependencies = [
     "websockets==15.0.1",
     "requests==2.33.0",
     "itsdangerous==2.2.0",
-    "Pillow==12.1.1",
+    "Pillow==12.2.0",
     "drf-spectacular==0.29.0",
     "asgiref==3.11.0",
     "channels[daphne]==4.3.2",
