@@ -218,17 +218,17 @@ const nodeResultButtonContext = ref(null)
 const nodeResultButtonContextToggle = ref(null)
 const nodeResultModal = ref(null)
 
-const getNodeType = () => {
+const nodeType = computed(() => {
   return app.$registry.get('node', props.nodeHistories[0].node_type)
-}
+})
 
 const nodeIconClass = computed(() => {
-  return getNodeType().iconClass
+  return nodeType.value.iconClass
 })
 
 const nodeTypeLabel = computed(() => {
   const nodeHistory = props.nodeHistories[0]
-  const baseLabel = nodeHistory.node_label || getNodeType().name
+  const baseLabel = nodeHistory.node_label || nodeType.value.name
   const result = nodeHistory.result
   if (nodeHistory.node_type === 'router') {
     // When a Router node fails, the result is empty (no node result)
