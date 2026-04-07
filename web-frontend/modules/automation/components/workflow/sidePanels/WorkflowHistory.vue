@@ -3,7 +3,7 @@
     <template #header="{ expanded }">
       <div class="workflow-history__divider"></div>
       <div class="workflow-history__header">
-        <img :src="getHistoryIconPath()" width="16" height="16" />
+        <img :src="historyIconPath" width="16" height="16" />
         <span class="workflow-history__header-title">
           {{ historyTitlePrefix }}{{ statusTitle }}
         </span>
@@ -150,7 +150,7 @@ const childNodeHistoriesByParent = computed(() => {
   return _childNodeHistoriesByParent
 })
 
-const getHistoryIconPath = () => {
+const historyIconPath = computed(() => {
   switch (props.item.status) {
     case 'success':
       return historySuccessIcon
@@ -159,5 +159,5 @@ const getHistoryIconPath = () => {
     default:
       return historyDisabledIcon
   }
-}
+})
 </script>
