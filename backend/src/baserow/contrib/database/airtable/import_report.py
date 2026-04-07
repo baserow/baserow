@@ -102,7 +102,7 @@ class AirtableImportReport:
         empty_serialized_grid_view = grid_view_type.export_serialized(
             grid_view,
             ImportExportConfig(include_permission_data=False),
-            None,
+            {},
             None,
             None,
         )

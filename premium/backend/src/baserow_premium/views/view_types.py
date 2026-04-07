@@ -139,7 +139,7 @@ class KanbanViewType(ViewType):
         self,
         kanban: View,
         import_export_config: ImportExportConfig,
-        cache: Optional[Dict] = None,
+        cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
     ):
@@ -403,7 +403,7 @@ class CalendarViewType(ViewType):
         self,
         calendar: View,
         import_export_config: ImportExportConfig,
-        cache: Optional[Dict] = None,
+        cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
     ):
@@ -726,7 +726,7 @@ class TimelineViewType(ViewType):
         self,
         timeline: View,
         import_export_config: ImportExportConfig,
-        cache: Optional[Dict] = None,
+        cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
     ):

@@ -231,7 +231,7 @@ class ViewType(
         self,
         view: "View",
         import_export_config: ImportExportConfig,
-        cache: Optional[Dict] = None,
+        cache: Dict,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Dict[str, Any]:

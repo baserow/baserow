@@ -110,7 +110,7 @@ class GridViewType(ViewType):
         self,
         grid: View,
         import_export_config: ImportExportConfig,
-        cache: Optional[Dict] = None,
+        cache: Dict,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ):
@@ -432,7 +432,7 @@ class GalleryViewType(ViewType):
         self,
         gallery: View,
         import_export_config: ImportExportConfig,
-        cache: Optional[Dict] = None,
+        cache: Dict,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ):
@@ -1135,7 +1135,7 @@ class FormViewType(ViewType):
         self,
         form: View,
         import_export_config: ImportExportConfig,
-        cache: Optional[Dict] = None,
+        cache: Dict,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ):
