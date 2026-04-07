@@ -832,6 +832,16 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             send_webhook_events=send_webhook_events,
         )
 
+    @staticmethod
+    def _after_rows_create_failed(model):
+        """
+        Notify all field types that a row INSERT has failed so they can
+        clean up non-transactional side effects (e.g. PostgreSQL sequences).
+        """
+
+        for field_object in model._field_objects.values():
+            field_object["type"].after_rows_create_failed(field_object["field"], model)
+
     def force_create_row(
         self,
         user: AbstractUser,
@@ -917,6 +927,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                     instance.save(force_insert=True)
                 rows_created_counter.add(1)
             except Exception as exc:
+                self._after_rows_create_failed(model)
                 if is_unique_violation_error(exc):
                     raise FieldDataConstraintException()
                 else:
@@ -1400,6 +1411,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 with transaction.atomic():
                     return model.objects.bulk_create(rows)
             except Exception as exc:
+                self._after_rows_create_failed(model)
                 if is_unique_violation_error(exc):
                     if not generate_error_report:
                         raise FieldDataConstraintException()

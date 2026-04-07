@@ -156,6 +156,7 @@ from baserow.core.formula import BaserowFormulaException
 from baserow.core.formula.parser.exceptions import FormulaFunctionTypeDoesNotExist
 from baserow.core.handler import CoreHandler
 from baserow.core.models import UserFile, WorkspaceUser
+from baserow.core.psycopg import sql
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile, get_default_storage
 from baserow.core.user_files.exceptions import UserFileDoesNotExist
@@ -7317,6 +7318,14 @@ class AutonumberFieldType(ReadOnlyFieldType):
         self.create_field_sequence(field, model, connection)
         self.update_rows_with_field_sequence(field, field_kwargs.get("view", None))
 
+    def after_rows_create_failed(self, field, model):
+        try:
+            self.reset_field_sequence(field, model, connection)
+        except Exception:
+            logger.exception(
+                "Failed to reset autonumber sequence for field %s", field.id
+            )
+
     def before_update(self, from_field, to_field_values, user, field_kwargs):
         self._extract_view_from_field_kwargs(user, field_kwargs)
 
@@ -7451,6 +7460,36 @@ class AutonumberFieldType(ReadOnlyFieldType):
                 SELECT setval('{db_column}_seq', val) FROM seq_val WHERE val > 0;
                 """  # noqa: S608
             )
+
+    def reset_field_sequence(
+        self, field: Field, model: "GeneratedTableModel", connection
+    ):
+        """
+        Reset the sequence for the given autonumber field to the current MAX
+        value in the column. This must be called after a failed INSERT to
+        prevent gaps caused by PostgreSQL sequences being non-transactional
+        (nextval() advances even on rollback).
+
+        :param field: The autonumber field whose sequence should be reset.
+        :param model: The model of the table that the field belongs to.
+        :param connection: The connection to use for the query.
+        """
+
+        db_table = model._meta.db_table
+        db_column = field.db_column
+
+        query = sql.SQL(
+            "WITH seq_val AS (SELECT MAX({column}) AS max_val FROM {table}) "
+            "SELECT setval({seq}, GREATEST(COALESCE(max_val, 0), 1), "
+            "max_val IS NOT NULL) FROM seq_val"
+        ).format(
+            column=sql.Identifier(db_column),
+            table=sql.Identifier(db_table),
+            seq=sql.Literal(f"{db_column}_seq"),
+        )
+
+        with connection.cursor() as cursor:
+            cursor.execute(query)
 
     def drop_field_sequence(
         self, field: Field, model: "GeneratedTableModel", connection

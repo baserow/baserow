@@ -8,6 +8,7 @@ from baserow.contrib.database.fields.actions import (
     DeleteFieldActionType,
     UpdateFieldActionType,
 )
+from baserow.contrib.database.fields.exceptions import FieldDataConstraintException
 from baserow.contrib.database.fields.field_types import AutonumberFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
@@ -710,3 +711,118 @@ def test_autonumber_sequence_uses_max_value_not_row_count(data_fixture):
     new_row = model.objects.create()
     new_row.refresh_from_db()
     assert getattr(new_row, db_column) == 101
+
+
+@pytest.mark.field_autonumber
+@pytest.mark.django_db
+def test_autonumber_sequence_reset_after_failed_bulk_create(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, order=1)
+    autonumber_field = data_fixture.create_autonumber_field(
+        table=table, name="autonumber", order=2
+    )
+
+    model = table.get_model()
+    db_column = f"field_{autonumber_field.id}"
+    text_column = f"field_{text_field.id}"
+
+    handler = RowHandler()
+    for i in range(3):
+        handler.force_create_row(user, table, {text_column: f"row{i}"}, model=model)
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"CREATE UNIQUE INDEX tmp_unique_idx ON {model._meta.db_table} ({text_column});"
+        )
+
+    with pytest.raises(FieldDataConstraintException):
+        handler.force_create_rows(
+            user,
+            table,
+            [
+                {text_column: "new1"},
+                {text_column: "new2"},
+                {text_column: "row0"},
+                {text_column: "new3"},
+                {text_column: "new4"},
+            ],
+            model=model,
+        )
+
+    new_row = handler.force_create_row(
+        user, table, {text_column: "after_failure"}, model=model
+    )
+    new_row.refresh_from_db()
+    assert getattr(new_row, db_column) == 4
+
+
+@pytest.mark.field_autonumber
+@pytest.mark.django_db
+def test_autonumber_sequence_reset_after_failed_single_create(data_fixture):
+    """
+    Same as the bulk test but for single row creation via force_create_row.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, order=1)
+    autonumber_field = data_fixture.create_autonumber_field(
+        table=table, name="autonumber", order=2
+    )
+
+    model = table.get_model()
+    db_column = f"field_{autonumber_field.id}"
+    text_column = f"field_{text_field.id}"
+
+    handler = RowHandler()
+    handler.force_create_row(user, table, {text_column: "row1"}, model=model)
+
+    # Add unique constraint
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"CREATE UNIQUE INDEX tmp_unique_idx2 ON {model._meta.db_table} ({text_column});"
+        )
+
+    with pytest.raises(FieldDataConstraintException):
+        handler.force_create_row(
+            user,
+            table,
+            {text_column: "row1"},
+            model=model,  # duplicate
+        )
+
+    # Next row should get autonumber = 2, not 3
+    new_row = handler.force_create_row(user, table, {text_column: "row2"}, model=model)
+    new_row.refresh_from_db()
+    assert getattr(new_row, db_column) == 2
+
+
+@pytest.mark.field_autonumber
+@pytest.mark.django_db
+def test_autonumber_reset_field_sequence_on_empty_table(data_fixture):
+    """
+    Verify reset_field_sequence works correctly when the table has no rows,
+    ensuring the sequence restarts at 1.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    autonumber_field = data_fixture.create_autonumber_field(
+        table=table, name="autonumber"
+    )
+
+    model = table.get_model()
+    db_column = f"field_{autonumber_field.id}"
+
+    # Advance the sequence manually (simulating consumed-but-unused values)
+    with connection.cursor() as cursor:
+        cursor.execute(f"SELECT setval('{db_column}_seq', 50);")
+
+    # Reset should bring it back to 1 for an empty table
+    field_type = AutonumberFieldType()
+    field_type.reset_field_sequence(autonumber_field, model, connection)
+
+    new_row = model.objects.create()
+    new_row.refresh_from_db()
+    assert getattr(new_row, db_column) == 1

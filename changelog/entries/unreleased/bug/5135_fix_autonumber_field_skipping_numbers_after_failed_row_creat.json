@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix AutoNumber field skipping numbers after failed row creation",
+    "issue_origin": "github",
+    "issue_number": 5135,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-07"
+}

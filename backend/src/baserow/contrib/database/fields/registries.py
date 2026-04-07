@@ -1181,6 +1181,18 @@ class FieldType(
             this collector.
         """
 
+    def after_rows_create_failed(
+        self,
+        field: Field,
+        model: "GeneratedTableModel",
+    ):
+        """
+        Called after a row INSERT has failed (e.g. unique constraint violation).
+        This gives field types a chance to clean up any side effects that survive
+        a transaction rollback, such as PostgreSQL sequences advanced by
+        non-transactional nextval() calls.
+        """
+
     def after_rows_created(
         self,
         field: Field,
