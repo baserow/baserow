@@ -212,7 +212,9 @@
         "bodyTypePlain": "Platte Tekst",
         "bodyTypeHtml": "HTML",
         "body": "Body",
-        "bodyPlaceholder": "De inhoud van je e-mail..."
+        "bodyPlaceholder": "De inhoud van je e-mail...",
+        "smtpConfigurationMode": "SMTP-configuratie",
+        "useInstanceSmtpSettings": "Gebruik de SMTP-server van de instantie"
     },
     "routerForm": {
         "defaultEdgeLabelLabel": "Standaard vertakkingslabel",
@@ -310,7 +312,8 @@
         "supportPairingHeading": "2. Koppelen met je Slack-app",
         "supportPairingStep1": "Als je app nieuw is: ga naar 'Instellingen' &gt; 'App installeren'. Klik op de groene knop om de app op je werkruimte te installeren.",
         "supportPairingStep2": "Kopieer uw 'Bot Gebruiker OAuth Token' en sla deze op in het veld 'Bot Gebruiker Token' in dit formulier.",
-        "supportPairingStep3": "Tot slot, als je app nieuw is: nodig in Slack je app uit voor het door jou gekozen kanaal met &lt;pre&gt;/invite {'@'}yourAppName yourChannel&lt;/pre&gt;"
+        "supportPairingStep3": "Tot slot, als je app nieuw is: nodig in Slack je app uit voor het door jou gekozen kanaal met &lt;pre&gt;/invite {'@'}yourAppName yourChannel&lt;/pre&gt;",
+        "supportSetupStep1Link": "apps pagina"
     },
     "slackWriteMessageServiceForm": {
         "alertMessage": "Deze actie moet worden gekoppeld met een Slack-app. Volg de handleiding in de integratie popup om aan de slag te gaan.",
