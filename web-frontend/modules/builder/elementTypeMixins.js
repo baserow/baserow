@@ -62,6 +62,36 @@ export const CollectionElementTypeMixin = (Base) =>
     isCollectionElement = true
 
     /**
+     * When a collection element is moved across pages, its data source might no longer
+     * be reachable from the new page (e.g. because of form namespace / ancestry).
+     * In that case we reset it immediately in the store so the side panel reflects
+     * the available data sources without waiting for the server.
+     */
+    afterMove(element, page, { builder } = {}) {
+      if (!builder || !element?.data_source_id) {
+        return
+      }
+
+      const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
+      const dataSource = this.app.$store.getters[
+        'dataSource/getPagesDataSourceById'
+      ]([page, sharedPage], element.data_source_id)
+
+      if (!dataSource) {
+        this.app.$store.commit(
+          'element/UPDATE_ITEM',
+          {
+            builder,
+            page,
+            element,
+            values: { data_source_id: null },
+          },
+          { root: true }
+        )
+      }
+    }
+
+    /**
      * A helper function responsible for returning this collection element's
      * schema properties.
      */

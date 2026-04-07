@@ -244,9 +244,20 @@ const actions = {
       })
     }
 
+    const movedElement = getters.getElementById(resolvedTargetPage, elementId)
     dispatch('_setElementNamespacePath', {
       page: resolvedTargetPage,
-      element: getters.getElementById(resolvedTargetPage, elementId),
+      element: movedElement,
+    })
+
+    const { $registry } = this
+    const elementType = $registry.get('element', movedElement.type)
+    elementType.afterMove(movedElement, resolvedTargetPage, {
+      builder,
+      sourcePage: page,
+      beforeElementId,
+      parentElementId,
+      placeInContainer,
     })
   },
   select({ commit }, { builder, element }) {
@@ -430,7 +441,7 @@ const actions = {
     return elements
   },
   async move(
-    { commit, dispatch, getters, rootGetters },
+    { commit, dispatch, getters },
     {
       builder,
       page,
@@ -441,21 +452,11 @@ const actions = {
       targetPage = null,
     }
   ) {
-    const { $client } = this
+    const { $client, $registry } = this
     const element = getters.getElementById(page, elementId)
 
     const resolvedTargetPage = targetPage !== null ? targetPage : page
-
-    // Check before the optimistic move whether the element's data source will
-    // still be reachable from the target page. Must run now while the element
-    // is still on the source page so element.data_source_id is the original value.
-    const sharedPage = rootGetters['page/getSharedPage'](builder)
-    const shouldClearDataSource =
-      !!element.data_source_id &&
-      !rootGetters['dataSource/getPagesDataSourceById'](
-        [resolvedTargetPage, sharedPage],
-        element.data_source_id
-      )
+    const originalDataSourceId = element?.data_source_id || null
 
     await dispatch('forceMoveToPage', {
       builder,
@@ -466,18 +467,6 @@ const actions = {
       parentElementId,
       placeInContainer,
     })
-
-    // Immediately reset the data source in the store so the side panel
-    // reflects the new available data sources without waiting for the server.
-    if (shouldClearDataSource) {
-      const movedElement = getters.getElementById(resolvedTargetPage, elementId)
-      commit('UPDATE_ITEM', {
-        builder,
-        page: resolvedTargetPage,
-        element: movedElement,
-        values: { data_source_id: null, schema_property: null },
-      })
-    }
 
     const fire = async () => {
       try {
@@ -499,22 +488,9 @@ const actions = {
             place_in_container: elementUpdated.place_in_container,
             parent_element_id: elementUpdated.parent_element_id,
             page_id: elementUpdated.page_id,
+            data_source_id: elementUpdated.data_source_id,
           },
         })
-
-        // Persist the data source reset to the server now that the move succeeded.
-        if (shouldClearDataSource) {
-          const movedElement = getters.getElementById(
-            resolvedTargetPage,
-            elementId
-          )
-          await dispatch('update', {
-            builder,
-            page: resolvedTargetPage,
-            element: movedElement,
-            values: { data_source_id: null, schema_property: null },
-          })
-        }
       } catch (error) {
         // Rollback: remove from target page and restore on source page.
         commit('DELETE_ITEM', {
