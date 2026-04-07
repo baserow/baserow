@@ -2,11 +2,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(100% - 20px);
+  width: calc(100% - 40px);
   height: 120px;
   border: 1px dashed $palette-neutral-400;
   background-color: $palette-neutral-50;
-  margin: 10px;
+  margin: 20px;
 
   @include rounded($rounded-md);
 
@@ -55,7 +55,9 @@
 .add-element-zone--full-height {
   height: auto;
   flex: 1;
+  min-height: 0;
   padding: 120px 0;
+  max-height: 600px;
 }
 
 .add-element-zone--drag-active {
