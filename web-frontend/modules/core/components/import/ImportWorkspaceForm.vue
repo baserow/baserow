@@ -13,5 +13,11 @@
 <script>
 export default {
   name: 'ImportWorkspaceForm',
+  emits: ['submitted'],
+  methods: {
+    submit() {
+      this.$emit('submitted')
+    },
+  },
 }
 </script>
