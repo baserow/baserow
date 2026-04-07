@@ -1,6 +1,7 @@
 import datetime
 import sys
 import traceback
+from datetime import timedelta
 from decimal import Decimal
 from re import search
 from typing import Any, List, Optional
@@ -2168,3 +2169,1228 @@ def test_regexp_replace(data_fixture):
         ["a123", "[a-", "#ERROR!"],
         ["a123", "\\", "#ERROR!"],
     ]
+
+
+def _setup_single_select(df, table):
+    field = df.create_single_select_field(table=table, name="target")
+    opt_a = df.create_select_option(field=field, value="Active", color="blue", order=0)
+    opt_b = df.create_select_option(field=field, value="Inactive", color="red", order=1)
+    return field, opt_a.id, opt_b.id
+
+
+def _setup_multiple_select(df, table):
+    field = df.create_multiple_select_field(table=table, name="target")
+    opt_x = df.create_select_option(field=field, value="X", color="blue", order=0)
+    opt_y = df.create_select_option(field=field, value="Y", color="red", order=1)
+    # val_a=[X,Y], val_b=[X] — dedup is by per-row option combination
+    return field, [opt_x.id, opt_y.id], [opt_x.id]
+
+
+def _setup_multiple_collaborators(df, table):
+    workspace = table.database.workspace
+    user_a = df.create_user(workspace=workspace)
+    user_b = df.create_user(workspace=workspace)
+    field = df.create_multiple_collaborators_field(table=table, name="target")
+    return field, [{"id": user_a.id}], [{"id": user_b.id}]
+
+
+def _setup_file_field(df, table):
+    field = df.create_file_field(table=table, name="target")
+    return (
+        field,
+        [{"name": "a.txt", "visible_name": "a.txt"}],
+        [{"name": "b.txt", "visible_name": "b.txt"}],
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "setup_fn",
+    [
+        lambda df, table: (
+            df.create_text_field(table=table, name="target"),
+            "apple",
+            "banana",
+        ),
+        lambda df, table: (
+            df.create_number_field(table=table, name="target", number_decimal_places=2),
+            Decimal("10.50"),
+            Decimal("20.00"),
+        ),
+        lambda df, table: (
+            df.create_boolean_field(table=table, name="target"),
+            True,
+            False,
+        ),
+        lambda df, table: (
+            df.create_date_field(table=table, name="target"),
+            "2024-01-15",
+            "2024-06-01",
+        ),
+        lambda df, table: (
+            df.create_duration_field(
+                table=table, name="target", duration_format="h:mm"
+            ),
+            timedelta(hours=1, minutes=30),
+            timedelta(hours=2),
+        ),
+        lambda df, table: (
+            df.create_url_field(table=table, name="target"),
+            "https://example.com",
+            "https://baserow.io",
+        ),
+        lambda df, table: (
+            df.create_email_field(table=table, name="target"),
+            "alice@example.com",
+            "bob@example.com",
+        ),
+        lambda df, table: (
+            df.create_phone_number_field(table=table, name="target"),
+            "+1234567890",
+            "+0987654321",
+        ),
+        lambda df, table: (
+            df.create_rating_field(table=table, name="target"),
+            3,
+            5,
+        ),
+        _setup_single_select,
+        _setup_multiple_select,
+        _setup_multiple_collaborators,
+    ],
+    ids=[
+        "text",
+        "number",
+        "boolean",
+        "date",
+        "duration",
+        "url",
+        "email",
+        "phone",
+        "rating",
+        "single_select",
+        "multiple_select",
+        "multiple_collaborators",
+    ],
+)
+def test_array_unique_lookup(data_fixture, api_client, setup_fn):
+    """
+    array_unique deduplicates a lookup array, preserving first-occurrence order.
+    Parameterized across field types.
+
+    Also verifies that row updates, additions, and deletions in the linked
+    table correctly trigger formula recalculation, and that the formula table
+    can still be fetched via the API afterwards.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    target_field, val_a, val_b = setup_fn(data_fixture, table_b)
+
+    # 3 rows: val_a, val_b, val_a (duplicate)
+    row_b1, row_b2, row_b3 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_b,
+            [
+                {target_field.db_column: val_a},
+                {target_field.db_column: val_b},
+                {target_field.db_column: val_a},
+            ],
+        )
+        .created_rows
+    )
+
+    # Row A1: links to all 3 (has duplicate val_a)
+    # Row A2: links to 2 (all unique)
+    # Row A3: empty
+    row_a1, row_a2, row_a3 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_a,
+            [
+                {link_field.db_column: [row_b1.id, row_b2.id, row_b3.id]},
+                {link_field.db_column: [row_b1.id, row_b2.id]},
+                {link_field.db_column: []},
+            ],
+        )
+        .created_rows
+    )
+
+    lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{target_field.name}')",
+    )
+    unique_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="unique_lookup",
+        formula="array_unique(field('lookup'))",
+    )
+
+    # Same via a formula field that references the target field indirectly.
+    # Formula-backed fields are stored differently (no physical column on
+    # table_b), so this path can surface serialisation mismatches.
+    ref_target_field = FieldHandler().create_field(
+        user,
+        table_b,
+        "formula",
+        name="ref_target",
+        formula=f"field('{target_field.name}')",
+    )
+    ref_lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_lookup",
+        formula=f"lookup('{link_field.name}', '{ref_target_field.name}')",
+    )
+    ref_unique_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_unique_lookup",
+        formula="array_unique(field('ref_lookup'))",
+    )
+
+    def _read_unique_rows():
+        """Return (direct_rows, ref_rows) for both unique fields."""
+        model = table_a.get_model()
+        qs = model.objects.all().order_by("id")
+        direct = list(qs.values_list(unique_field.db_column, flat=True))
+        ref = list(qs.values_list(ref_unique_field.db_column, flat=True))
+        return direct, ref
+
+    rows, ref_rows = _read_unique_rows()
+
+    # Row A1: val_a, val_b, val_a → val_a, val_b (deduped, first-occurrence order)
+    assert len(rows[0]) == 2
+    assert rows[0][0]["id"] == row_b1.id
+    assert rows[0][1]["id"] == row_b2.id
+
+    # Row A2: val_a, val_b → unchanged (already unique)
+    assert len(rows[1]) == 2
+    assert rows[1][0]["id"] == row_b1.id
+    assert rows[1][1]["id"] == row_b2.id
+
+    # Row A3: empty
+    assert rows[2] == []
+
+    # Formula-referenced path must produce identical results
+    assert ref_rows == rows, (
+        f"Formula-ref path diverged from direct path:\n"
+        f"  direct: {rows}\n"
+        f"  ref:    {ref_rows}"
+    )
+
+    # ── Step 2: update a linked row's value → triggers recalculation ──
+
+    RowHandler().update_rows(
+        user,
+        table_b,
+        [{"id": row_b1.id, target_field.db_column: val_b}],
+    )
+
+    # Now row_b1 and row_b2 both have val_b, row_b3 has val_a.
+    # Row A1 links to all 3 → unique is [val_b, val_a] (first-occurrence).
+    rows, ref_rows = _read_unique_rows()
+    assert len(rows[0]) == 2
+    assert ref_rows == rows
+
+    # ── Step 3: add a new linked row with empty/default value ──
+
+    (row_b4,) = RowHandler().create_rows(user, table_b, [{}]).created_rows
+    RowHandler().update_rows(
+        user,
+        table_a,
+        [
+            {
+                "id": row_a1.id,
+                link_field.db_column: [
+                    row_b1.id,
+                    row_b2.id,
+                    row_b3.id,
+                    row_b4.id,
+                ],
+            }
+        ],
+    )
+
+    rows, ref_rows = _read_unique_rows()
+    assert isinstance(rows[0], list)
+    assert ref_rows == rows
+
+    # ── Step 4: delete a linked row → triggers recalculation ──
+
+    RowHandler().delete_rows(user, table_b, [row_b3.id])
+
+    rows, ref_rows = _read_unique_rows()
+    assert isinstance(rows[0], list)
+    assert ref_rows == rows
+
+    # ── Step 5: API fetch must not crash ──
+
+    from baserow.contrib.database.views.handler import ViewHandler
+
+    grid = ViewHandler().create_view(user, table_a, "grid", name="test")
+    response = api_client.get(
+        f"/api/database/views/grid/{grid.id}/",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200, (
+        f"API crash after update/delete: {response.content.decode()[:300]}"
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "create_field_fn",
+    [
+        lambda df, table: df.create_created_on_field(table=table, name="target"),
+        lambda df, table: df.create_autonumber_field(table=table, name="target"),
+    ],
+    ids=["created_on", "autonumber"],
+)
+def test_array_unique_auto_field_lookup(data_fixture, create_field_fn):
+    """
+    array_unique works on auto-populated fields (created_on, autonumber).
+    Values can't be controlled, so we verify dedup count ≤ original count
+    and first-occurrence ordering is preserved.
+    """
+
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    target_field = create_field_fn(data_fixture, table_b)
+
+    row_b1, row_b2, row_b3 = (
+        RowHandler().create_rows(user, table_b, [{}, {}, {}]).created_rows
+    )
+
+    (row_a1,) = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_a,
+            [{link_field.db_column: [row_b1.id, row_b2.id, row_b3.id]}],
+        )
+        .created_rows
+    )
+
+    lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{target_field.name}')",
+    )
+    unique_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="unique_lookup",
+        formula="array_unique(field('lookup'))",
+    )
+
+    # Same via a formula field referencing the target indirectly.
+    ref_target_field = FieldHandler().create_field(
+        user,
+        table_b,
+        "formula",
+        name="ref_target",
+        formula=f"field('{target_field.name}')",
+    )
+    ref_lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_lookup",
+        formula=f"lookup('{link_field.name}', '{ref_target_field.name}')",
+    )
+    ref_unique_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_unique_lookup",
+        formula="array_unique(field('ref_lookup'))",
+    )
+
+    table_a_model = table_a.get_model()
+    result = table_a_model.objects.get(id=row_a1.id)
+    lookup_val = getattr(result, lookup_field.db_column)
+    unique_val = getattr(result, unique_field.db_column)
+    ref_unique_val = getattr(result, ref_unique_field.db_column)
+
+    assert len(unique_val) <= len(lookup_val)
+    assert unique_val[0]["id"] == lookup_val[0]["id"]
+
+    # The formula-ref path must also deduplicate without errors.
+    # We don't assert equality with the direct path because date fields with
+    # date_include_time=False truncate values before dedup (so all same-day
+    # rows collapse), while field() exposes the underlying full datetime
+    # (so rows with distinct timestamps stay separate).
+    assert len(ref_unique_val) <= len(lookup_val)
+    assert ref_unique_val[0]["id"] == lookup_val[0]["id"]
+
+
+@pytest.mark.django_db
+def test_array_unique_link_row_lookup(data_fixture):
+    """
+    Test array_unique on a lookup through a link to another link's primary
+    field (A→B→C), where C primary values have duplicates.
+    """
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    table_a = data_fixture.create_database_table(database=database, name="A")
+    table_b = data_fixture.create_database_table(database=database, name="B")
+    table_c = data_fixture.create_database_table(database=database, name="C")
+
+    data_fixture.create_text_field(table=table_a, name="primary_a", primary=True)
+    data_fixture.create_text_field(table=table_b, name="primary_b", primary=True)
+    primary_c = data_fixture.create_text_field(
+        table=table_c, name="primary_c", primary=True
+    )
+
+    link_a_b = FieldHandler().create_field(
+        user, table_a, "link_row", name="link_ab", link_row_table=table_b
+    )
+    link_b_c = FieldHandler().create_field(
+        user, table_b, "link_row", name="link_bc", link_row_table=table_c
+    )
+
+    row_c1, row_c2 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_c,
+            [{primary_c.db_column: "X"}, {primary_c.db_column: "Y"}],
+        )
+        .created_rows
+    )
+
+    row_b1, row_b2, row_b3 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_b,
+            [
+                {link_b_c.db_column: [row_c1.id]},
+                {link_b_c.db_column: [row_c2.id]},
+                {link_b_c.db_column: [row_c1.id]},  # duplicate link to X
+            ],
+        )
+        .created_rows
+    )
+
+    (row_a1,) = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_a,
+            [{link_a_b.db_column: [row_b1.id, row_b2.id, row_b3.id]}],
+        )
+        .created_rows
+    )
+
+    lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup_bc",
+        formula=f"lookup('{link_a_b.name}', '{link_b_c.name}')",
+    )
+    unique_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="unique_bc",
+        formula="array_unique(field('lookup_bc'))",
+    )
+
+    # Same via a formula field referencing the link field indirectly.
+    ref_link_field = FieldHandler().create_field(
+        user,
+        table_b,
+        "formula",
+        name="ref_link_bc",
+        formula=f"field('{link_b_c.name}')",
+    )
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_lookup_bc",
+        formula=f"lookup('{link_a_b.name}', '{ref_link_field.name}')",
+    )
+    ref_unique_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_unique_bc",
+        formula="array_unique(field('ref_lookup_bc'))",
+    )
+
+    table_a_model = table_a.get_model()
+    result = table_a_model.objects.get(id=row_a1.id)
+    unique_val = getattr(result, unique_field.db_column)
+    ref_unique_val = getattr(result, ref_unique_field.db_column)
+
+    unique_values = [elem["value"] for elem in unique_val]
+    assert unique_values == ["X", "Y"]
+
+    # The formula-ref path goes through an extra indirection (field() wrapping
+    # the link field), which produces a different id structure (multi-table
+    # 'ids' dict vs single 'id'). We compare only the deduplicated values.
+    ref_unique_values = [elem["value"] for elem in ref_unique_val]
+    assert ref_unique_values == ["X", "Y"]
+
+
+@pytest.mark.django_db
+def test_array_unique_rejects_non_array_input(data_fixture):
+    """array_unique on a plain text field should produce a formula error."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="name", primary=True)
+
+    with pytest.raises(InvalidFormulaType, match="array"):
+        FieldHandler().create_field(
+            user,
+            table,
+            "formula",
+            name="bad",
+            formula="array_unique(field('name'))",
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "setup_fn,error_match",
+    [
+        (_setup_file_field, "file"),
+    ],
+    ids=["file"],
+)
+def test_array_unique_rejects_unsupported_lookup(data_fixture, setup_fn, error_match):
+    """array_unique rejects lookups of unsupported field types."""
+
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    target_field, _, _ = setup_fn(data_fixture, table_b)
+
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{target_field.name}')",
+    )
+
+    with pytest.raises(InvalidFormulaType, match=error_match):
+        FieldHandler().create_field(
+            user,
+            table_a,
+            "formula",
+            name="unique_lookup",
+            formula="array_unique(field('lookup'))",
+        )
+
+
+def _setup_text_5_rows(df, table_a, table_b, link_field, user):
+    """Create 5 text rows [A, B, C, D, E] linked from a single row in table_a."""
+
+    text_field = df.create_text_field(table=table_b, name="target")
+    row_b1, row_b2, row_b3, row_b4, row_b5 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_b,
+            [
+                {text_field.db_column: "A"},
+                {text_field.db_column: "B"},
+                {text_field.db_column: "C"},
+                {text_field.db_column: "D"},
+                {text_field.db_column: "E"},
+            ],
+        )
+        .created_rows
+    )
+    (row_a1,) = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_a,
+            [
+                {
+                    link_field.db_column: [
+                        row_b1.id,
+                        row_b2.id,
+                        row_b3.id,
+                        row_b4.id,
+                        row_b5.id,
+                    ]
+                }
+            ],
+        )
+        .created_rows
+    )
+    return text_field, [row_b1, row_b2, row_b3, row_b4, row_b5], row_a1
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "start,count,expected_values",
+    [
+        # Forward slicing (0-based start, positive count)
+        (0, 2, ["A", "B"]),
+        (1, 3, ["B", "C", "D"]),
+        (3, 1, ["D"]),
+        (0, 5, ["A", "B", "C", "D", "E"]),
+        # count exceeds remaining → returns up to end
+        (3, 100, ["D", "E"]),
+        (0, 999, ["A", "B", "C", "D", "E"]),
+        # count = 0 → all remaining forward
+        (0, 0, ["A", "B", "C", "D", "E"]),
+        (2, 0, ["C", "D", "E"]),
+        (-1, 0, ["E"]),
+        (-3, 0, ["C", "D", "E"]),
+        # Negative start (from end), forward
+        (-1, 1, ["E"]),
+        (-2, 2, ["D", "E"]),
+        (-3, 2, ["C", "D"]),
+        (-5, 3, ["A", "B", "C"]),
+        # Negative start exceeding length → clamp to 0
+        (-100, 2, ["A", "B"]),
+        # start beyond end → empty
+        (10, 2, []),
+        # Reverse slicing (negative count = backward from start)
+        (2, -1, ["C"]),
+        (2, -2, ["C", "B"]),
+        (2, -3, ["C", "B", "A"]),
+        (4, -3, ["E", "D", "C"]),
+        (-1, -3, ["E", "D", "C"]),
+        (-1, -5, ["E", "D", "C", "B", "A"]),
+        # Reverse count exceeds available → clamp
+        (1, -10, ["B", "A"]),
+        (0, -1, ["A"]),
+        (0, -5, ["A"]),
+    ],
+    ids=[
+        "fwd_first_2",
+        "fwd_mid_3",
+        "fwd_single_mid",
+        "fwd_all_exact",
+        "fwd_count_exceeds",
+        "fwd_count_way_exceeds",
+        "all_from_start",
+        "all_from_2",
+        "all_from_last",
+        "all_from_neg3",
+        "fwd_last_1",
+        "fwd_last_2",
+        "fwd_last_3_take_2",
+        "fwd_neg_start_exact_len",
+        "neg_start_clamped",
+        "start_beyond",
+        "rev_1_from_2",
+        "rev_2_from_2",
+        "rev_3_from_2",
+        "rev_3_from_end",
+        "rev_3_from_neg1",
+        "rev_all_from_end",
+        "rev_exceeds",
+        "rev_from_0",
+        "rev_from_0_exceeds",
+    ],
+)
+def test_array_slice_text_lookup(data_fixture, start, count, expected_values):
+    """
+    array_slice returns a sub-array from a lookup. 0-based start (negative
+    counts from end). count > 0 = forward, count = 0 = all remaining,
+    count < 0 = backward (reversed).
+    """
+
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    text_field, b_rows, row_a1 = _setup_text_5_rows(
+        data_fixture, table_a, table_b, link_field, user
+    )
+
+    lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{text_field.name}')",
+    )
+    slice_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="sliced",
+        formula=f"array_slice(field('lookup'), {start}, {count})",
+    )
+
+    # Same via a formula field referencing the text field indirectly.
+    ref_target_field = FieldHandler().create_field(
+        user,
+        table_b,
+        "formula",
+        name="ref_target",
+        formula=f"field('{text_field.name}')",
+    )
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_lookup",
+        formula=f"lookup('{link_field.name}', '{ref_target_field.name}')",
+    )
+    ref_slice_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_sliced",
+        formula=f"array_slice(field('ref_lookup'), {start}, {count})",
+    )
+
+    table_a_model = table_a.get_model()
+    result = table_a_model.objects.get(id=row_a1.id)
+    sliced = getattr(result, slice_field.db_column)
+    ref_sliced = getattr(result, ref_slice_field.db_column)
+
+    actual_values = [elem["value"] for elem in sliced]
+    assert actual_values == expected_values
+
+    # Formula-referenced path must produce identical results
+    assert ref_sliced == sliced
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "setup_fn",
+    [
+        lambda df, table: (
+            df.create_text_field(table=table, name="target"),
+            "apple",
+            "banana",
+        ),
+        lambda df, table: (
+            df.create_number_field(table=table, name="target", number_decimal_places=2),
+            Decimal("10.50"),
+            Decimal("20.00"),
+        ),
+        lambda df, table: (
+            df.create_boolean_field(table=table, name="target"),
+            True,
+            False,
+        ),
+        lambda df, table: (
+            df.create_date_field(table=table, name="target"),
+            "2024-01-15",
+            "2024-06-01",
+        ),
+        _setup_single_select,
+        _setup_multiple_select,
+        _setup_multiple_collaborators,
+    ],
+    ids=[
+        "text",
+        "number",
+        "boolean",
+        "date",
+        "single_select",
+        "multiple_select",
+        "multiple_collaborators",
+    ],
+)
+def test_array_slice_field_types(data_fixture, setup_fn):
+    """array_slice works across field types — takes first 2 of 3 elements."""
+
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    target_field, val_a, val_b = setup_fn(data_fixture, table_b)
+
+    row_b1, row_b2, row_b3 = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_b,
+            [
+                {target_field.db_column: val_a},
+                {target_field.db_column: val_b},
+                {target_field.db_column: val_a},
+            ],
+        )
+        .created_rows
+    )
+
+    (row_a1,) = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_a,
+            [{link_field.db_column: [row_b1.id, row_b2.id, row_b3.id]}],
+        )
+        .created_rows
+    )
+
+    lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{target_field.name}')",
+    )
+    slice_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="sliced",
+        formula="array_slice(field('lookup'), 0, 1)",
+    )
+
+    # Same via a formula field referencing the target field indirectly.
+    ref_target_field = FieldHandler().create_field(
+        user,
+        table_b,
+        "formula",
+        name="ref_target",
+        formula=f"field('{target_field.name}')",
+    )
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_lookup",
+        formula=f"lookup('{link_field.name}', '{ref_target_field.name}')",
+    )
+    ref_slice_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_sliced",
+        formula="array_slice(field('ref_lookup'), 0, 1)",
+    )
+
+    table_a_model = table_a.get_model()
+    result = table_a_model.objects.get(id=row_a1.id)
+    sliced = getattr(result, slice_field.db_column)
+    ref_sliced = getattr(result, ref_slice_field.db_column)
+
+    assert len(sliced) == 1
+    assert sliced[0]["id"] == row_b1.id
+
+    # Formula-referenced path must produce identical results
+    assert ref_sliced == sliced
+
+    # Now pick only the last element via negative count
+    FieldHandler().update_field(
+        user, slice_field, formula="array_slice(field('lookup'), -1, 1)"
+    )
+    FieldHandler().update_field(
+        user, ref_slice_field, formula="array_slice(field('ref_lookup'), -1, 1)"
+    )
+
+    result.refresh_from_db()
+    sliced = getattr(result, slice_field.db_column)
+    assert len(sliced) == 1
+    assert sliced[0]["id"] == row_b3.id
+    ref_sliced = getattr(result, ref_slice_field.db_column)
+    assert ref_sliced == sliced
+
+
+@pytest.mark.django_db
+def test_array_slice_empty_array(data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    table_b_primary = table_b.field_set.get(primary=True)
+
+    (row_a1,) = (
+        RowHandler()
+        .create_rows(user, table_a, [{link_field.db_column: []}])
+        .created_rows
+    )
+
+    lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{table_b_primary.name}')",
+    )
+    slice_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="sliced",
+        formula="array_slice(field('lookup'), 0, 5)",
+    )
+
+    # Same via a formula field referencing the primary field indirectly.
+    ref_target_field = FieldHandler().create_field(
+        user,
+        table_b,
+        "formula",
+        name="ref_target",
+        formula=f"field('{table_b_primary.name}')",
+    )
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_lookup",
+        formula=f"lookup('{link_field.name}', '{ref_target_field.name}')",
+    )
+    ref_slice_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_sliced",
+        formula="array_slice(field('ref_lookup'), 0, 5)",
+    )
+
+    table_a_model = table_a.get_model()
+    result = table_a_model.objects.get(id=row_a1.id)
+    assert getattr(result, slice_field.db_column) == []
+    assert getattr(result, ref_slice_field.db_column) == []
+
+
+@pytest.mark.django_db
+def test_first_and_last_return_scalar_values(data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    text_field, b_rows, row_a1 = _setup_text_5_rows(
+        data_fixture, table_a, table_b, link_field, user
+    )
+
+    lookup_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{text_field.name}')",
+    )
+    first_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="first_val",
+        formula="first(field('lookup'))",
+    )
+    last_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="last_val",
+        formula="last(field('lookup'))",
+    )
+
+    table_a_model = table_a.get_model()
+    result = table_a_model.objects.get(id=row_a1.id)
+
+    assert getattr(result, first_field.db_column) == "A"
+    assert getattr(result, last_field.db_column) == "E"
+
+
+@pytest.mark.django_db
+def test_array_slice_rejects_non_array_input(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="name", primary=True)
+
+    with pytest.raises(InvalidFormulaType, match="array"):
+        FieldHandler().create_field(
+            user,
+            table,
+            "formula",
+            name="bad",
+            formula="array_slice(field('name'), 0, 1)",
+        )
+
+
+@pytest.mark.django_db
+def test_count_array_slice(data_fixture):
+    """count(array_slice(...)) returns the length of the sliced sub-array."""
+
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    text_field, b_rows, row_a1 = _setup_text_5_rows(
+        data_fixture, table_a, table_b, link_field, user
+    )
+
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{text_field.name}')",
+    )
+    count_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="count_sliced",
+        formula="count(array_slice(field('lookup'), 1, 3))",
+    )
+
+    # Also via formula-ref path
+    ref_target = FieldHandler().create_field(
+        user,
+        table_b,
+        "formula",
+        name="ref_target",
+        formula=f"field('{text_field.name}')",
+    )
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_lookup",
+        formula=f"lookup('{link_field.name}', '{ref_target.name}')",
+    )
+    ref_count_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_count_sliced",
+        formula="count(array_slice(field('ref_lookup'), 1, 3))",
+    )
+
+    model = table_a.get_model()
+    result = model.objects.get(id=row_a1.id)
+    assert getattr(result, count_field.db_column) == 3  # B, C, D
+    assert getattr(result, ref_count_field.db_column) == 3
+
+
+@pytest.mark.django_db
+def test_join_array_slice(data_fixture):
+    """join(array_slice(...), sep) returns comma-separated sliced values."""
+
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    text_field, b_rows, row_a1 = _setup_text_5_rows(
+        data_fixture, table_a, table_b, link_field, user
+    )
+
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{text_field.name}')",
+    )
+    join_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="join_sliced",
+        formula="join(array_slice(field('lookup'), 0, 2), ', ')",
+    )
+
+    # Also via formula-ref path
+    ref_target = FieldHandler().create_field(
+        user,
+        table_b,
+        "formula",
+        name="ref_target",
+        formula=f"field('{text_field.name}')",
+    )
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_lookup",
+        formula=f"lookup('{link_field.name}', '{ref_target.name}')",
+    )
+    ref_join_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_join_sliced",
+        formula="join(array_slice(field('ref_lookup'), 0, 2), ', ')",
+    )
+
+    model = table_a.get_model()
+    result = model.objects.get(id=row_a1.id)
+    assert getattr(result, join_field.db_column) == "A, B"
+    assert getattr(result, ref_join_field.db_column) == "A, B"
+
+
+@pytest.mark.django_db
+def test_array_slice_array_unique_chained(data_fixture):
+    """array_slice(array_unique(...)) chains correctly — deduplicate then slice."""
+
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    target = data_fixture.create_text_field(table=table_b, name="target")
+
+    rows_b = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_b,
+            [
+                {target.db_column: "X"},
+                {target.db_column: "Y"},
+                {target.db_column: "X"},  # duplicate
+                {target.db_column: "Z"},
+            ],
+        )
+        .created_rows
+    )
+
+    (row_a1,) = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_a,
+            [{link_field.db_column: [r.id for r in rows_b]}],
+        )
+        .created_rows
+    )
+
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{target.name}')",
+    )
+    # unique gives [X, Y, Z], then slice first 2 → [X, Y]
+    chained_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="slice_unique",
+        formula="array_slice(array_unique(field('lookup')), 0, 2)",
+    )
+
+    # Also via formula-ref path
+    ref_target = FieldHandler().create_field(
+        user,
+        table_b,
+        "formula",
+        name="ref_target",
+        formula=f"field('{target.name}')",
+    )
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_lookup",
+        formula=f"lookup('{link_field.name}', '{ref_target.name}')",
+    )
+    ref_chained_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="ref_slice_unique",
+        formula="array_slice(array_unique(field('ref_lookup')), 0, 2)",
+    )
+
+    model = table_a.get_model()
+    result = model.objects.get(id=row_a1.id)
+    sliced = getattr(result, chained_field.db_column)
+    ref_sliced = getattr(result, ref_chained_field.db_column)
+
+    assert [e["value"] for e in sliced] == ["X", "Y"]
+    assert ref_sliced == sliced
+
+
+@pytest.mark.django_db
+def test_count_join_array_slice_inline_lookup(data_fixture):
+    """count() and join() work with array_slice wrapping an inline lookup."""
+
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    target = data_fixture.create_text_field(table=table_b, name="target")
+
+    rows_b = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_b,
+            [
+                {target.db_column: "A"},
+                {target.db_column: "B"},
+                {target.db_column: "C"},
+            ],
+        )
+        .created_rows
+    )
+
+    (row_a1,) = (
+        RowHandler()
+        .create_rows(
+            user,
+            table_a,
+            [{link_field.db_column: [r.id for r in rows_b]}],
+        )
+        .created_rows
+    )
+
+    count_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="count_sliced",
+        formula=f"count(array_slice(lookup('{link_field.name}', '{target.name}'), 0, 2))",
+    )
+    join_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="join_sliced",
+        formula=f"join(array_slice(lookup('{link_field.name}', '{target.name}'), 0, 2), ', ')",
+    )
+
+    model = table_a.get_model()
+    result = model.objects.get(id=row_a1.id)
+    assert getattr(result, count_field.db_column) == 2  # A, B
+    assert getattr(result, join_field.db_column) == "A, B"
+
+
+@pytest.mark.django_db
+def test_array_slice_nan_arguments(data_fixture):
+    user = data_fixture.create_user()
+    table_a, table_b, link_field = data_fixture.create_two_linked_tables(user=user)
+    text_field, b_rows, row_a1 = _setup_text_5_rows(
+        data_fixture, table_a, table_b, link_field, user
+    )
+
+    FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="lookup",
+        formula=f"lookup('{link_field.name}', '{text_field.name}')",
+    )
+
+    nan_start_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="nan_start",
+        formula="array_slice(field('lookup'), tonumber('x'), 2)",
+    )
+    nan_count_field = FieldHandler().create_field(
+        user,
+        table_a,
+        "formula",
+        name="nan_count",
+        formula="array_slice(field('lookup'), 1, tonumber('x'))",
+    )
+
+    model = table_a.get_model()
+    result = model.objects.get(id=row_a1.id)
+
+    assert getattr(result, nan_start_field.db_column) == []
+    assert getattr(result, nan_count_field.db_column) == []

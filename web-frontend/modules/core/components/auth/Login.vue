@@ -83,7 +83,7 @@ import {
 } from '@baserow/modules/core/utils/url'
 import TOTPLogin from '@baserow/modules/core/components/auth/TOTPLogin'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick } from '#imports'
+import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   components: {
@@ -127,6 +127,10 @@ export default {
     },
   },
   emits: ['success'],
+  setup() {
+    const nuxtApp = useNuxtApp()
+    return { nuxtApp }
+  },
   data() {
     return {
       passwordLoginHiddenIfDisabled: true,
@@ -180,7 +184,7 @@ export default {
         } else {
           await this.$router.push({ name: 'dashboard' })
         }
-        await pageFinished()
+        await pageFinished(this.nuxtApp)
         await nextTick()
       }
       this.$emit('success')
@@ -195,7 +199,7 @@ export default {
           name: 'workspace',
           params: { workspaceId: workspace.id },
         })
-        await pageFinished()
+        await pageFinished(this.nuxtApp)
         await nextTick()
       }
       this.$emit('success')

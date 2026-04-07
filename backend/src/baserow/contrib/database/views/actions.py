@@ -2556,3 +2556,70 @@ class EditFormRowActionType(ActionType):
     @classmethod
     def scope(cls, view_id: int) -> ActionScopeStr:
         return ViewActionScopeType.value(view_id)
+
+
+class UpdateViewDefaultValuesActionType(ActionType):
+    type = "update_view_default_values"
+    description = ActionTypeDescription(
+        _("Update view default values"),
+        _("Default row values updated for view (%(view_name)s)"),
+        VIEW_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "view_id",
+        "table_id",
+        "database_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        view_id: int
+        view_name: str
+        table_id: int
+        table_name: str
+        database_id: int
+        database_name: str
+        new_values: Dict[str, Any]
+
+    @classmethod
+    def do(cls, user: AbstractUser, view: View, items: List[Dict[str, Any]]):
+        """
+        Updates the default row values for the given view.
+        """
+
+        table = view.table
+        result = ViewHandler().update_view_default_values(
+            user=user,
+            view=view,
+            items=items,
+        )
+
+        # Capture the saved state analogously to get_row_values in row actions —
+        # evaluate the queryset once so we record what was actually persisted.
+        new_values = {
+            str(record.field_id): {
+                "enabled": record.enabled,
+                "value": record.value,
+                "function": record.function,
+                "field_type": record.field_type,
+            }
+            for record in result
+        }
+
+        workspace = table.database.workspace
+        params = cls.Params(
+            view.id,
+            view.name,
+            table.id,
+            table.name,
+            table.database.id,
+            table.database.name,
+            new_values=new_values,
+        )
+        cls.register_action(user, params, scope=cls.scope(view.id), workspace=workspace)
+
+        return result
+
+    @classmethod
+    def scope(cls, view_id: int) -> ActionScopeStr:
+        return ViewActionScopeType.value(view_id)

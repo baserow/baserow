@@ -46,6 +46,7 @@ from baserow.contrib.database.api.views.errors import (
 )
 from baserow.contrib.database.api.views.serializers import FieldOptionsField
 from baserow.contrib.database.api.views.utils import (
+    get_hidden_field_ids_for_view_user,
     get_public_view_authorization_token,
     paginate_and_serialize_queryset,
     serialize_rows_metadata,
@@ -67,9 +68,10 @@ from baserow.contrib.database.views.exceptions import (
 )
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.operations import ListViewRowsOperationType
 from baserow.contrib.database.views.signals import view_loaded
+from baserow.contrib.database.views.utils import check_permissions_with_view_fallback
 from baserow.core.exceptions import UserNotInWorkspace
-from baserow.core.handler import CoreHandler
 from baserow_premium.api.views.timeline.errors import (
     ERROR_TIMELINE_VIEW_HAS_INVALID_DATE_SETTINGS,
 )
@@ -226,19 +228,26 @@ class TimelineViewView(APIView):
                 PREMIUM, request.user, workspace
             )
 
-        CoreHandler().check_permissions(
-            request.user,
+        check_permissions_with_view_fallback(
             ListRowsDatabaseTableOperationType.type,
-            workspace=workspace,
-            context=view.table,
+            ListViewRowsOperationType.type,
+            request.user,
+            view.table,
+            view,
         )
 
         field_ids = get_include_exclude_field_ids(
             view.table, include_fields, exclude_fields
         )
+        hidden_field_ids = get_hidden_field_ids_for_view_user(request.user, view)
 
         queryset = get_timeline_view_filtered_queryset(
-            request.user, view, adhoc_filters, order_by, query_params
+            request.user,
+            view,
+            adhoc_filters,
+            order_by,
+            query_params,
+            hidden_field_ids=hidden_field_ids,
         )
         model = queryset.model
 
@@ -246,11 +255,15 @@ class TimelineViewView(APIView):
             return Response({"count": queryset.count()})
 
         response, page, _ = paginate_and_serialize_queryset(
-            queryset, request, field_ids
+            queryset, request, field_ids, exclude_field_ids=hidden_field_ids
         )
 
         if field_options:
-            response.data.update(**serialize_view_field_options(view, model))
+            response.data.update(
+                **serialize_view_field_options(
+                    view, model, exclude_field_ids=hidden_field_ids
+                )
+            )
 
         if row_metadata:
             response.data.update(

@@ -39,10 +39,14 @@ import RegisterLicenseForm from '@baserow_premium/components/license/RegisterLic
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import { getPricingURL } from '@baserow_premium/utils/pricing'
 import { pageFinished } from '@baserow/modules/core/utils/routing.js'
-import { nextTick } from '#imports'
+import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'RegisterLicenseModal',
+  setup() {
+    const nuxtApp = useNuxtApp()
+    return { nuxtApp }
+  },
   emits: ['registered'],
   components: { RegisterLicenseForm },
   mixins: [modal, error],
@@ -72,13 +76,13 @@ export default {
           values.license
         )
         this.$emit('registered', data)
-        await this.$nuxt.$router.push({
+        await this.$router.push({
           name: 'admin-license',
           params: {
             id: data.id,
           },
         })
-        await pageFinished()
+        await pageFinished(this.nuxtApp)
         await nextTick()
       } catch (error) {
         this.handleError(error, 'license', {

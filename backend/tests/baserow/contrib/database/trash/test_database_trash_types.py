@@ -30,6 +30,7 @@ from baserow.core.trash.exceptions import (
     RelatedTableTrashedException,
 )
 from baserow.core.trash.handler import TrashHandler
+from baserow.test_utils.helpers import setup_interesting_test_table
 
 
 @pytest.mark.django_db
@@ -1572,3 +1573,149 @@ def test_trash_and_restore_rows_in_batch_will_restore_formula_fields(
     restored_row = send_mock.call_args[1]["rows"][0]
     assert getattr(restored_row, f_name.db_column) == "John"
     assert getattr(restored_row, f_f_name.db_column) == "John"
+
+
+@pytest.mark.django_db
+def test_trash_and_restore_table_with_diverse_field_types(data_fixture):
+    """
+    Uses setup_interesting_test_table (which creates every field type and
+    sub-type), trashes the table, restores it, and verifies:
+    - all row values come back identical
+    - reverse link row fields on linked tables are trashed / restored
+    - a lookup field on a linked table becomes invalid when the table is
+      trashed and recovers after restore
+    """
+
+    table, user, row, blank_row, context = setup_interesting_test_table(data_fixture)
+    database = table.database
+    name_to_field_id = context["name_to_field_id"]
+    link_table = context["tables"]["link_table"]
+
+    # -- Create a lookup on link_table that depends on the main table --
+    # link_table has a reverse link row field from the "link_row" field on the
+    # main table. We create a lookup through that reverse field targeting the
+    # main table's "text" field so we can verify cross-table formula invalidation.
+    link_row_field = LinkRowField.objects.get(id=name_to_field_id["link_row"])
+    reverse_link_field = link_row_field.link_row_related_field
+    assert reverse_link_field is not None
+
+    text_field = Field.objects.get(id=name_to_field_id["text"])
+    cross_table_lookup = FieldHandler().create_field(
+        user=user,
+        table=link_table,
+        type_name="lookup",
+        name="lookup_main_text",
+        through_field_id=reverse_link_field.id,
+        target_field_id=text_field.id,
+    )
+    assert cross_table_lookup.formula_type == "array"
+    assert cross_table_lookup.error is None
+
+    # Collect all reverse link row field ids on linked tables that should be
+    # trashed when the main table is trashed.
+    link_row_field_names = [
+        "link_row",
+        "decimal_link_row",
+        "file_link_row",
+        "multiple_collaborators_link_row",
+    ]
+    reverse_field_ids = {}
+    for name in link_row_field_names:
+        lr = LinkRowField.objects.get(id=name_to_field_id[name])
+        if lr.link_row_related_field_id:
+            reverse_field_ids[name] = lr.link_row_related_field_id
+
+    # Snapshot row values before trashing.
+    model = table.get_model()
+    row_before = model.objects.all().enhance_by_fields().get(id=row.id)
+    blank_before = model.objects.all().enhance_by_fields().get(id=blank_row.id)
+
+    field_objects = model._field_objects
+    m2m_field_names = set()
+    values_before = {}
+    blank_values_before = {}
+    for fo in field_objects.values():
+        field = fo["field"]
+        col = field.db_column
+        model_field = model._meta.get_field(col)
+        if model_field.many_to_many:
+            m2m_field_names.add(col)
+            values_before[col] = sorted(
+                getattr(row_before, col).values_list("id", flat=True)
+            )
+            blank_values_before[col] = sorted(
+                getattr(blank_before, col).values_list("id", flat=True)
+            )
+        else:
+            values_before[col] = getattr(row_before, col)
+            blank_values_before[col] = getattr(blank_before, col)
+
+    field_names_before = set(
+        Field.objects.filter(table=table).values_list("name", flat=True)
+    )
+    field_count_before = len(field_names_before)
+
+    # -- Trash the table --
+    TrashHandler.trash(user, database.workspace, database, table)
+
+    # All fields in the main table should be trashed.
+    assert not Field.objects.filter(table=table).exists()
+    assert (
+        Field.objects_and_trash.filter(table=table, trashed=True).count()
+        == field_count_before
+    )
+
+    # Reverse link row fields on linked tables should be trashed.
+    for name, rev_id in reverse_field_ids.items():
+        rev = Field.objects_and_trash.get(id=rev_id)
+        assert rev.trashed, f"Reverse field for {name} should be trashed"
+
+    # The cross-table lookup on link_table should be invalidated.
+    cross_table_lookup.refresh_from_db()
+    assert cross_table_lookup.formula_type == "invalid"
+
+    # -- Restore the table --
+    TrashHandler.restore_item(user, "table", table.id)
+
+    # All fields should be back.
+    field_names_after = set(
+        Field.objects.filter(table=table).values_list("name", flat=True)
+    )
+    assert field_names_after == field_names_before
+
+    # Reverse link row fields should be restored.
+    for name, rev_id in reverse_field_ids.items():
+        rev = Field.objects_and_trash.get(id=rev_id)
+        assert not rev.trashed, f"Reverse field for {name} should be restored"
+
+    # The cross-table lookup should recover after restore.
+    cross_table_lookup.refresh_from_db()
+    assert cross_table_lookup.formula_type == "array"
+
+    # Re-fetch rows and compare every field value.
+    model = table.get_model()
+    row_after = model.objects.all().enhance_by_fields().get(id=row.id)
+    blank_after = model.objects.all().enhance_by_fields().get(id=blank_row.id)
+
+    for fo in model._field_objects.values():
+        field = fo["field"]
+        col = field.db_column
+        if col in m2m_field_names:
+            after_ids = sorted(getattr(row_after, col).values_list("id", flat=True))
+            assert after_ids == values_before[col], (
+                f"Row m2m mismatch on {field.name} ({col}): "
+                f"{after_ids} != {values_before[col]}"
+            )
+            blank_ids = sorted(getattr(blank_after, col).values_list("id", flat=True))
+            assert blank_ids == blank_values_before[col], (
+                f"Blank m2m mismatch on {field.name} ({col})"
+            )
+        else:
+            assert getattr(row_after, col) == values_before[col], (
+                f"Row value mismatch on {field.name} ({col}): "
+                f"{getattr(row_after, col)!r} != {values_before[col]!r}"
+            )
+            assert getattr(blank_after, col) == blank_values_before[col], (
+                f"Blank value mismatch on {field.name} ({col}): "
+                f"{getattr(blank_after, col)!r} != {blank_values_before[col]!r}"
+            )

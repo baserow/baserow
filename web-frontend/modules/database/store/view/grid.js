@@ -2074,12 +2074,45 @@ export const actions = {
       `table_${table.id}`
     )
     const taskId = taskQueue.add(async () => {
-      // Create an object of default field values that can be used to fill the row with
-      // missing default values
+      // Create an object of default field values that can be used to fill the row. If
+      // the view has default row values configured, those take precedence over the
+      // field type's default value.
+      const defaultItems = view.default_row_values
+      const defaultsByFieldId = {}
+      for (const item of defaultItems) {
+        if (item.enabled && (item.value != null || item.function)) {
+          defaultsByFieldId[item.field] = item
+        }
+      }
       const fieldNewRowValueMap = fields.reduce((map, field) => {
         const name = `field_${field.id}`
         const fieldType = $registry.get('field', field._.type.type)
-        map[name] = fieldType.getNewRowValue(field)
+        const defaultViewItem = defaultsByFieldId[field.id]
+        const supportedFunctions = fieldType
+          .getSupportedDefaultValueFunctions()
+          .map((f) => f.name)
+        if (
+          defaultViewItem &&
+          defaultViewItem.function &&
+          supportedFunctions.includes(defaultViewItem.function)
+        ) {
+          map[name] = fieldType.resolveDefaultValueFunction(
+            defaultViewItem.function,
+            field
+          )
+        } else if (
+          defaultViewItem &&
+          defaultViewItem.value != null &&
+          (!defaultViewItem.field_type ||
+            defaultViewItem.field_type === field._.type.type)
+        ) {
+          map[name] = fieldType.parseDefaultRowValue(
+            field,
+            defaultViewItem.value
+          )
+        } else {
+          map[name] = fieldType.getNewRowValue(field)
+        }
         return map
       }, {})
 
@@ -3301,6 +3334,7 @@ export const actions = {
     const matches = view.filters_disabled
       ? true
       : matchSearchFilters(
+          this.$registry,
           view.filter_type,
           view.filters,
           view.filter_groups,

@@ -33,3 +33,21 @@ def is_unique_violation_error(exc: Exception) -> bool:
     return isinstance(exc, IntegrityError) and isinstance(
         exc.__cause__, errors.UniqueViolation
     )
+
+
+def is_index_row_size_error(exc: Exception) -> bool:
+    """
+    Return True when an error is raised because a btree index
+    row exceeds the maximum size.
+
+    This happens for example when existing (legacy) indexes were
+    created before the ``Left()`` truncation was applied to text columns.
+    """
+
+    if not (
+        isinstance(exc, OperationalError)
+        and isinstance(exc.__cause__, errors.ProgramLimitExceeded)
+    ):
+        return False
+    msg = str(exc)
+    return "index" in msg and "size" in msg

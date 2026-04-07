@@ -335,7 +335,7 @@ export const actions = {
       // can't be accessed anymore.
       await dispatch('unselect', workspace)
       await this.$router.push({ name: 'dashboard' })
-      await pageFinished()
+      await pageFinished(this.app)
       await nextTick()
     }
 

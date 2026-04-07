@@ -339,6 +339,48 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Indicates whether this field type is compatible with the default values
+   * feature. By default all writable field types are compatible. Override and
+   * return `false` for field types whose row-edit component or write behaviour
+   * is incompatible with default value setting (e.g. the AI field).
+   */
+  canBeDefaultValue() {
+    return true
+  }
+
+  /**
+   * Returns a list of supported default value functions for this field type.
+   * Each item is an object with `name` and `label` properties.
+   * Override in field types that support dynamic defaults (e.g. date fields).
+   */
+  getSupportedDefaultValueFunctions() {
+    return []
+  }
+
+  /**
+   * Resolves a default value function to an actual value for optimistic display.
+   * Override in field types that support functions.
+   */
+  resolveDefaultValueFunction(functionName, field) {
+    return null
+  }
+
+  /**
+   * Converts a raw default value (stored in API request format) into the
+   * frontend's internal row representation so that it can be displayed and
+   * later passed through `prepareValueForUpdate` correctly.
+   *
+   * By default returns the value as-is. Override in field types where the
+   * request format differs from the frontend representation (e.g.
+   * single_select stores an ID but the frontend expects an option object,
+   * multiple_select stores [id, ...] but the frontend expects [{id, value,
+   * color}, ...]).
+   */
+  parseDefaultRowValue(field, value) {
+    return value
+  }
+
+  /**
    * Should return the empty value for the field type.
    */
   getEmptyValue(field) {
@@ -2079,6 +2121,29 @@ export class RatingFieldType extends FieldType {
     return valueParsed
   }
 
+  prepareValueForUpdate(field, value) {
+    if (value > field.max_value) {
+      return field.max_value
+    }
+    return value
+  }
+
+  getValidationError(field, value) {
+    const valueParsed = parseInt(value, 10)
+
+    if (isNaN(valueParsed) || valueParsed < 0) {
+      return this.app.$i18n.t('fieldErrors.invalidNumber')
+    }
+
+    if (valueParsed > field.max_value) {
+      return this.app.$i18n.t('fieldErrors.higherThan', {
+        max: field.max_value,
+      })
+    }
+
+    return null
+  }
+
   getCanImport() {
     return true
   }
@@ -2498,6 +2563,22 @@ export class DateFieldType extends BaseDateFieldType {
   getName() {
     const { $i18n: i18n } = this.app
     return i18n.t('fieldType.date')
+  }
+
+  getSupportedDefaultValueFunctions() {
+    const { $i18n: i18n } = this.app
+    return [{ name: 'now', label: i18n.t('fieldType.defaultValueFunctionNow') }]
+  }
+
+  resolveDefaultValueFunction(functionName, field) {
+    if (functionName === 'now') {
+      const now = new Date()
+      if (field.date_include_time) {
+        return now.toISOString()
+      }
+      return now.toISOString().split('T')[0]
+    }
+    return null
   }
 
   getGridViewFieldComponent() {
@@ -3610,6 +3691,17 @@ export class SingleSelectFieldType extends SelectOptionBaseFieldType {
     return value ? { value } : null
   }
 
+  parseDefaultRowValue(field, value) {
+    if (value === null || value === undefined) {
+      return null
+    }
+    // Raw value is an option ID; resolve to the full option object.
+    if (typeof value !== 'object') {
+      return field.select_options.find((opt) => opt.id === value) || null
+    }
+    return value
+  }
+
   prepareValueForUpdate(field, value) {
     if (value === undefined || value === null) {
       return null
@@ -3859,6 +3951,21 @@ export class MultipleSelectFieldType extends SelectOptionBaseFieldType {
 
       return collatedStringCompare(stringA, stringB, order)
     }
+  }
+
+  parseDefaultRowValue(field, value) {
+    if (!Array.isArray(value)) {
+      return []
+    }
+    // Raw value is an array of option IDs; resolve to full option objects.
+    return value
+      .map((item) => {
+        if (typeof item === 'object' && item !== null) {
+          return item
+        }
+        return field.select_options.find((opt) => opt.id === item) || null
+      })
+      .filter(Boolean)
   }
 
   prepareValueForUpdate(field, value) {
@@ -4748,6 +4855,10 @@ export class MultipleCollaboratorsFieldType extends FieldType {
     const value2Ids = value2.map((v) => v.id)
 
     return _.isEqual(value1Ids, value2Ids)
+  }
+
+  getEmptyValue(field) {
+    return []
   }
 }
 

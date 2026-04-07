@@ -17,10 +17,12 @@
     </a>
     <ViewSortContext
       ref="context"
+      :database="database"
       :view="view"
       :fields="fields"
       :read-only="readOnly"
       :disable-sort="disableSort"
+      :store-prefix="storePrefix"
       @changed="$emit('changed')"
     ></ViewSortContext>
   </div>
@@ -33,6 +35,10 @@ export default {
   name: 'ViewSort',
   components: { ViewSortContext },
   props: {
+    database: {
+      type: Object,
+      required: true,
+    },
     fields: {
       type: Array,
       required: true,
@@ -49,6 +55,11 @@ export default {
       type: Boolean,
       required: false,
       default: false,
+    },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
     },
   },
   emits: ['changed'],

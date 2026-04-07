@@ -1,3 +1,4 @@
+from functools import cached_property
 from typing import Protocol
 
 from django.core.paginator import Paginator as DjangoPaginator
@@ -11,6 +12,8 @@ from rest_framework.pagination import (
 )
 from rest_framework.response import Response
 from rest_framework.status import HTTP_400_BAD_REQUEST
+
+from baserow.core.db import get_approximate_row_count
 
 
 class Pageable(Protocol):
@@ -150,3 +153,24 @@ class LimitOffsetPaginationWithoutCount(LimitOffsetPagination):
                 "results": schema,
             },
         }
+
+
+class ApproximateCountPaginator(Paginator):
+    """
+    A paginator that uses Postgres EXPLAIN to estimate the total row count
+    instead of running an expensive COUNT(*) query.
+    """
+
+    @cached_property
+    def count(self):
+        return get_approximate_row_count(self.object_list)
+
+
+class PageNumberPaginationWithApproximateCount(PageNumberPagination):
+    """
+    Page number pagination that uses an approximate count from Postgres EXPLAIN
+    instead of COUNT(*). Suitable for large tables like audit logs where an
+    exact count is not required.
+    """
+
+    django_paginator_class = ApproximateCountPaginator

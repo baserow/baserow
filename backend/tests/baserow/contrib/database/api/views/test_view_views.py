@@ -17,6 +17,10 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
+from baserow.contrib.database.api.rows.serializers import (
+    RowSerializer,
+    get_row_serializer_class,
+)
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.handler import ViewHandler, ViewIndexingHandler
 from baserow.contrib.database.views.models import (
@@ -28,7 +32,7 @@ from baserow.contrib.database.views.models import (
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.view_types import GridViewType
 from baserow.core.trash.handler import TrashHandler
-from baserow.test_utils.helpers import AnyStr
+from baserow.test_utils.helpers import AnyStr, setup_interesting_test_table
 
 
 @pytest.fixture(autouse=True)
@@ -298,6 +302,40 @@ def test_get_view(api_client, data_fixture):
     )
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_get_view_default_row_values(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    ViewHandler().update_view_default_values(
+        user=user,
+        view=view,
+        items=[{"field": text_field.id, "enabled": True, "value": "test default"}],
+    )
+
+    url = reverse("api:database:views:item", kwargs={"view_id": view.id})
+
+    # Without include param - should NOT have default_row_values.
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+    assert "default_row_values" not in response.json()
+
+    # With include param - should have default_row_values.
+    response = api_client.get(
+        f"{url}?include=default_row_values",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert "default_row_values" in data
+    assert isinstance(data["default_row_values"], list)
+    assert len(data["default_row_values"]) == 1
+    assert data["default_row_values"][0]["field"] == text_field.id
+    assert data["default_row_values"][0]["value"] == "test default"
 
 
 @pytest.mark.django_db
@@ -981,6 +1019,7 @@ def test_user_with_password_can_get_info_about_a_public_password_protected_view(
             "row_height_size": grid_view.row_height_size,
             "show_logo": grid_view.show_logo,
             "allow_public_export": grid_view.allow_public_export,
+            "ownership_type": "collaborative",
         },
     }
 
@@ -1011,6 +1050,7 @@ def test_user_with_password_can_get_info_about_a_public_password_protected_view(
             "row_height_size": grid_view.row_height_size,
             "show_logo": grid_view.show_logo,
             "allow_public_export": grid_view.allow_public_export,
+            "ownership_type": "collaborative",
         },
     }
 
@@ -1433,3 +1473,316 @@ def test_get_public_row(api_client, data_fixture):
         "order": AnyStr(),
         f"field_{text_field.id}": "Green",
     }
+
+
+@pytest.mark.django_db
+def test_patch_default_values(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    response = api_client.patch(
+        reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
+        [{"field": text_field.id, "enabled": True, "value": "new default"}],
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 1
+    assert data[0]["field"] == text_field.id
+    assert data[0]["value"] == "new default"
+    assert data[0]["enabled"] is True
+
+
+@pytest.mark.django_db
+def test_patch_default_values_with_now_function(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    date_field = data_fixture.create_date_field(table=table, date_include_time=True)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    response = api_client.patch(
+        reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
+        [{"field": date_field.id, "enabled": True, "function": "now"}],
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 1
+    assert data[0]["field"] == date_field.id
+    assert data[0]["function"] == "now"
+
+
+@pytest.mark.django_db
+def test_default_values_included_in_view_listing(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    ViewHandler().update_view_default_values(
+        user=user,
+        view=view,
+        items=[{"field": text_field.id, "enabled": True, "value": "listing default"}],
+    )
+
+    # Without include param - should NOT have default_row_values.
+    response = api_client.get(
+        reverse("api:database:views:list", kwargs={"table_id": table.id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert "default_row_values" not in response.json()[0]
+
+    # With include param - should have default_row_values.
+    response = api_client.get(
+        reverse("api:database:views:list", kwargs={"table_id": table.id})
+        + "?include=default_row_values",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data = response.json()[0]
+    assert "default_row_values" in data
+    assert isinstance(data["default_row_values"], list)
+    assert len(data["default_row_values"]) == 1
+    assert data["default_row_values"][0]["field"] == text_field.id
+    assert data["default_row_values"][0]["value"] == "listing default"
+
+
+@pytest.mark.django_db
+def test_patch_default_values_empty(api_client, data_fixture):
+    """
+    Sending an empty PATCH (no values, no enabled fields) should succeed
+    and return empty defaults. Reproduces the real scenario where the user
+    opens the modal and saves without enabling any field.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    response = api_client.patch(
+        reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
+        [],
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 0
+
+
+@pytest.mark.django_db
+def test_patch_default_values_empty_succeeds(api_client, data_fixture):
+    """
+    Sending an empty PATCH on a fresh table should succeed and return empty
+    defaults without any errors.
+    """
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    response = api_client.patch(
+        reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
+        [],
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert isinstance(data, list)
+    assert len(data) == 0
+
+
+@pytest.mark.django_db
+def test_patch_default_values_with_interesting_table(api_client, data_fixture):
+    """
+    Sets default values for every writable field in the interesting test table
+    via the API endpoint. This covers all field types and ensures the
+    serialization / deserialization round-trip works for each one.
+    """
+
+    table, user, row, _, context = setup_interesting_test_table(data_fixture)
+    token = data_fixture.generate_token(user)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    model = table.get_model()
+    row = model.objects.all().enhance_by_fields().get(id=row.id)
+
+    # Serialize the row in response format, then convert to request format
+    # for fields where the two differ (link_row, single_select, etc.).
+    response_serializer = get_row_serializer_class(
+        model, RowSerializer, is_response=True
+    )
+    row_data = response_serializer(row).data
+
+    items = []
+    for field_object in model.get_field_objects():
+        field = field_object["field"]
+        field_type = field_object["type"]
+        field_name = f"field_{field.id}"
+
+        if field.read_only or field_type.read_only:
+            continue
+
+        if field_name not in row_data:
+            continue
+
+        value = row_data[field_name]
+
+        # Convert response format → request format for specific field types.
+        # Single select: {"id": 1, "value": "A", "color": "blue"} → 1
+        if isinstance(value, dict) and "id" in value and "value" in value:
+            value = value["id"]
+        # Link row / multiple select / multiple collaborators:
+        # [{"id": 1, ...}, ...] → [1, 2, ...]
+        elif isinstance(value, list) and value and isinstance(value[0], dict):
+            if "id" in value[0]:
+                value = [item["id"] for item in value]
+
+        items.append({"field": field.id, "enabled": True, "value": value})
+
+    assert len(items) > 0, "Expected at least some writable fields"
+
+    response = api_client.patch(
+        reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
+        items,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    data = response.json()
+    assert isinstance(data, list)
+    returned_field_ids = {item["field"] for item in data}
+    expected_field_ids = {item["field"] for item in items}
+    assert returned_field_ids == expected_field_ids
+
+    # Verify that a second update (editing existing records) also works.
+    response = api_client.patch(
+        reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
+        items,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+
+
+@pytest.mark.django_db
+def test_default_values_stored_in_request_format(api_client, data_fixture):
+    """
+    Sets default values from the interesting test table's existing row, then
+    verifies that the stored default values are returned in the same request
+    format that was sent to the API.
+    """
+
+    table, user, row, _, context = setup_interesting_test_table(data_fixture)
+    token = data_fixture.generate_token(user)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    model = table.get_model()
+    row = model.objects.all().enhance_by_fields().get(id=row.id)
+
+    # Serialize the existing row to get the response format, then convert to
+    # request format (input) so we can set them as default values.
+    response_serializer = get_row_serializer_class(
+        model, RowSerializer, is_response=True
+    )
+    row_data = response_serializer(row).data
+
+    # Field types whose response serialization cannot be round-tripped
+    # (e.g. password returns True/False/None, AI returns generated text).
+    non_roundtrip_types = {"password", "ai", "ai_choice"}
+
+    items = []
+    comparable_field_ids = []
+    input_values_by_field_id = {}
+    for field_object in model.get_field_objects():
+        field = field_object["field"]
+        field_type = field_object["type"]
+        field_name = f"field_{field.id}"
+
+        if field.read_only or field_type.read_only:
+            continue
+
+        if field_name not in row_data:
+            continue
+
+        value = row_data[field_name]
+
+        # Convert response format → request format for specific field types.
+        if isinstance(value, dict) and "id" in value and "value" in value:
+            value = value["id"]
+        elif isinstance(value, list) and value and isinstance(value[0], dict):
+            if "id" in value[0]:
+                value = [item["id"] for item in value]
+
+        items.append({"field": field.id, "enabled": True, "value": value})
+        input_values_by_field_id[field.id] = value
+        if field_type.type not in non_roundtrip_types:
+            comparable_field_ids.append(field.id)
+
+    # Set the default values via the API.
+    patch_response = api_client.patch(
+        reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
+        items,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert patch_response.status_code == HTTP_200_OK, patch_response.json()
+
+    # Fetch the views list with default_row_values included.
+    views_response = api_client.get(
+        reverse("api:database:views:list", kwargs={"table_id": table.id})
+        + "?include=default_row_values",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert views_response.status_code == HTTP_200_OK
+    views_data = views_response.json()
+    target_view = next(v for v in views_data if v["id"] == view.id)
+    default_row_values = target_view["default_row_values"]
+
+    # Build a lookup by field ID from the returned list.
+    stored_by_field_id = {item["field"]: item["value"] for item in default_row_values}
+
+    # Values are stored and returned in request format (the same format
+    # that was sent to the PATCH endpoint).
+    for field_id in comparable_field_ids:
+        sent_value = input_values_by_field_id[field_id]
+        stored_value = stored_by_field_id[field_id]
+        assert stored_value == sent_value, (
+            f"field_{field_id}: stored value {stored_value!r} != sent value {sent_value!r}"
+        )
+
+
+@pytest.mark.django_db
+def test_patch_default_values_invalid_single_select_option(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    single_select_field = data_fixture.create_single_select_field(table=table)
+    data_fixture.create_select_option(field=single_select_field, value="Valid")
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    response = api_client.patch(
+        reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
+        [
+            {
+                "field": single_select_field.id,
+                "enabled": True,
+                "value": 999999,
+            }
+        ],
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_REQUEST_BODY_VALIDATION"

@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Use Postgres EXPLAIN-based approximate count for audit log pagination to avoid expensive COUNT(*) on large tables.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-04-02"
+}

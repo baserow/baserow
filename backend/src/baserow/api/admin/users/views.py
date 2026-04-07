@@ -23,6 +23,7 @@ from baserow.api.admin.users.serializers import (
 )
 from baserow.api.admin.views import AdminListingView
 from baserow.api.decorators import map_exceptions, validate_body
+from baserow.api.pagination import PageNumberPaginationWithApproximateCount
 from baserow.api.schemas import get_error_schema
 from baserow.api.user.registries import member_data_registry
 from baserow.api.user.schemas import authenticate_user_schema
@@ -43,6 +44,7 @@ User = get_user_model()
 
 class UsersAdminView(AdminListingView):
     serializer_class = UserAdminResponseSerializer
+    pagination_class = PageNumberPaginationWithApproximateCount
     search_fields = ["id", "username", "first_name"]
     sort_field_mapping = {
         "id": "id",

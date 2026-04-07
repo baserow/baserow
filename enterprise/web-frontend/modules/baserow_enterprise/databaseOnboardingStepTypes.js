@@ -74,7 +74,7 @@ export class AIDatabaseOnboardingStepType extends DatabaseOnboardingStepType {
   getCompletedRoute(data, responses) {
     const response = responses[DatabaseOnboardingType.getType()]
     nextTick(async () => {
-      await pageFinished()
+      await pageFinished(this.app)
       await nextTick()
       await this.app.$bus.$emit('toggle-right-sidebar', true)
       await this.app.$store.dispatch('assistant/selectChat', response.chat)

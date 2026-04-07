@@ -1,21 +1,18 @@
-import os
 from io import BytesIO
-from unittest.mock import Mock
-
-from django.conf import settings
 
 import pytest
 
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.storage import get_default_storage
 from baserow.core.user_files.handler import UserFileHandler
-from baserow.test_utils.fixtures.generative_ai import TestGenerativeAIWithFilesModelType
-from baserow.test_utils.helpers import AnyStr
-from baserow_premium.generative_ai.managers import AIFileManager
+from baserow.test_utils.fixtures.generative_ai import (
+    TestGenerativeAIWithFilesModelType,
+)
+from baserow_premium.fields.handler import AIFieldHandler
 
 
 @pytest.mark.django_db
-def test_upload_files_from_file_field(premium_data_fixture, django_assert_num_queries):
+def test_prepare_file_content(premium_data_fixture, django_assert_num_queries):
     storage = get_default_storage()
 
     user = premium_data_fixture.create_user()
@@ -42,20 +39,17 @@ def test_upload_files_from_file_field(premium_data_fixture, django_assert_num_qu
     )
 
     ai_field.refresh_from_db()
-    with django_assert_num_queries(0):
-        file_ids = AIFileManager.upload_files_from_file_field(
-            ai_field, row, generative_ai_model_type
-        )
-        assert file_ids == [AnyStr()]
+    ai_files = AIFieldHandler._collect_ai_files(ai_field, row)
+    prepared = generative_ai_model_type.prepare_files(ai_files)
 
-    assert len(generative_ai_model_type._files) == 1
-    assert generative_ai_model_type._files[file_ids[0]]["file_name"].endswith(
-        os.path.join(settings.MEDIA_ROOT, f"user_files/{user_file_1.name}")
-    )
+    assert len([f for f in prepared if f.content]) == 1
+    assert len([f for f in prepared if f.provider_file_id]) == 0
+    assert prepared[0].content.data == b"Hello"
+    assert prepared[0].content.media_type == "text/plain"
 
 
 @pytest.mark.django_db
-def test_upload_files_from_file_field_skip_files_over_max_size(premium_data_fixture):
+def test_prepare_file_content_skip_files_over_max_size(premium_data_fixture):
     storage = get_default_storage()
 
     user = premium_data_fixture.create_user()
@@ -67,8 +61,10 @@ def test_upload_files_from_file_field_skip_files_over_max_size(premium_data_fixt
     ai_field = premium_data_fixture.create_ai_field(
         table=table, order=1, name="AI prompt", ai_file_field=file_field
     )
+    # Create a file larger than the 1MB test limit
+    large_content = b"x" * (2 * 1024 * 1024)
     user_file_1 = UserFileHandler().upload_user_file(
-        user, "aifile.txt", BytesIO(b"Hello"), storage=storage
+        user, "aifile.txt", BytesIO(large_content), storage=storage
     )
     table_model = table.get_model()
     values = {f"field_{file_field.id}": [{"name": user_file_1.name}]}
@@ -78,9 +74,9 @@ def test_upload_files_from_file_field_skip_files_over_max_size(premium_data_fixt
         values,
         table_model,
     )
-    generative_ai_model_type.get_max_file_size = Mock()
-    generative_ai_model_type.get_max_file_size.return_value = 0
-    AIFileManager.upload_files_from_file_field(ai_field, row, generative_ai_model_type)
 
-    stored_files = getattr(generative_ai_model_type, "_files", {})
-    assert len(stored_files) == 0
+    ai_files = AIFieldHandler._collect_ai_files(ai_field, row)
+    prepared = generative_ai_model_type.prepare_files(ai_files)
+
+    assert len([f for f in prepared if f.content]) == 0
+    assert len([f for f in prepared if f.provider_file_id]) == 0

@@ -262,6 +262,7 @@ export default {
           false,
           false,
           false,
+          false,
           false
         )
         this.views = data

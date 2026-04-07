@@ -219,3 +219,9 @@ ERROR_VIEW_NOT_SUPPORTED = (
     HTTP_400_BAD_REQUEST,
     "Cannot use the view type.",
 )
+ERROR_INVALID_DEFAULT_VALUE_FUNCTION = (
+    "ERROR_INVALID_DEFAULT_VALUE_FUNCTION",
+    HTTP_400_BAD_REQUEST,
+    "The provided default value function `{e.unsupported_function}` is not supported "
+    "for the given field type `{e.field_type}`.",
+)

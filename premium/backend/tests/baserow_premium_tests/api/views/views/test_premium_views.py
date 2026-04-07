@@ -294,3 +294,51 @@ def test_create_personal_grid_view_with_license(api_client, premium_data_fixture
     )
     assert response.status_code == HTTP_200_OK
     assert response.json()["ownership_type"] == "personal"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_personal_view_default_values_applied_to_new_row(
+    api_client, premium_data_fixture
+):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table)
+    number_field = premium_data_fixture.create_number_field(table=table)
+
+    # Create a personal view via the API.
+    create_view_response = api_client.post(
+        reverse("api:database:views:list", kwargs={"table_id": table.id}),
+        {"name": "My personal view", "type": "grid", "ownership_type": "personal"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert create_view_response.status_code == HTTP_200_OK
+    view_id = create_view_response.json()["id"]
+
+    # Set default values on the personal view.
+    patch_response = api_client.patch(
+        reverse("api:database:views:default_values", kwargs={"view_id": view_id}),
+        [
+            {"field": text_field.id, "enabled": True, "value": "personal default"},
+            {"field": number_field.id, "enabled": True, "value": "42"},
+        ],
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert patch_response.status_code == HTTP_200_OK
+
+    # Create a row without providing any values, using the personal view.
+    create_row_response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id})
+        + f"?view={view_id}",
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert create_row_response.status_code == HTTP_200_OK
+    row_data = create_row_response.json()
+    assert row_data[f"field_{text_field.id}"] == "personal default"
+    assert row_data[f"field_{number_field.id}"] == "42"

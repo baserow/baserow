@@ -51,6 +51,7 @@
         :database="database"
         :table="table"
         :view="view"
+        :store-prefix="storePrefix"
         @enable-rename="enableRename"
       ></ViewContext>
     </template>
@@ -83,6 +84,10 @@ export default {
       type: Boolean,
       required: false,
       default: true,
+    },
+    storePrefix: {
+      type: String,
+      required: true,
     },
   },
   emits: ['selected'],

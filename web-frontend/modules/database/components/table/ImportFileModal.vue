@@ -206,7 +206,7 @@ import _ from 'lodash'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import ImportErrorReport from '@baserow/modules/database/components/table/ImportErrorReport.vue'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick } from '#imports'
+import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'ImportFileModal',
@@ -229,6 +229,10 @@ export default {
     },
   },
   emits: ['table-refresh'],
+  setup() {
+    const nuxtApp = useNuxtApp()
+    return { nuxtApp }
+  },
   data() {
     return {
       importer: '',
@@ -637,7 +641,7 @@ export default {
           tableId: this.job.table_id,
         },
       })
-      await pageFinished()
+      await pageFinished(this.nuxtApp)
       await nextTick()
       this.hide()
     },

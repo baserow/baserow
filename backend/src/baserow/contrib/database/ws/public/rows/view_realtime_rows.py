@@ -13,7 +13,7 @@ class PublicViewRealtimeRowsType(ViewRealtimeRowsType):
     def get_views_filter(self) -> Q:
         return Q(public=True)
 
-    def broadcast(self, view, payload):
+    def broadcast(self, view, payload, user=None):
         view_page_type = page_registry.get("view")
         payload = deepcopy(payload)
         payload["table_id"] = PUBLIC_PLACEHOLDER_ENTITY_ID

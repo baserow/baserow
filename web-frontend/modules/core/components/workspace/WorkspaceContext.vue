@@ -15,7 +15,7 @@
     ></div>
     <ul v-else class="context__menu">
       <li
-        v-if="$hasPermission('workspace.read', workspace, workspace.id)"
+        v-if="$hasPermission('workspace.export', workspace, workspace.id)"
         class="context__menu-item"
       >
         <a class="context__menu-item-link" @click="openExportData">
@@ -118,7 +118,7 @@
     >
     </TrashModal>
     <ExportWorkspaceModal
-      v-if="$hasPermission('workspace.read', workspace, workspace.id)"
+      v-if="$hasPermission('workspace.export', workspace, workspace.id)"
       ref="exportWorkspaceModal"
       :workspace="workspace"
     >
@@ -151,7 +151,7 @@ import TrashModal from '@baserow/modules/core/components/trash/TrashModal'
 import LeaveWorkspaceModal from '@baserow/modules/core/components/workspace/LeaveWorkspaceModal'
 import WorkspaceSettingsModal from '@baserow/modules/core/components/workspace/WorkspaceSettingsModal'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick } from '#imports'
+import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'WorkspaceContext',
@@ -170,6 +170,10 @@ export default {
     },
   },
   emits: ['rename'],
+  setup() {
+    const nuxtApp = useNuxtApp()
+    return { nuxtApp }
+  },
   data() {
     return {
       loading: false,
@@ -206,7 +210,7 @@ export default {
         })
         if (selected) {
           await this.$router.push({ name: 'dashboard' })
-          await pageFinished()
+          await pageFinished(this.nuxtApp)
           await nextTick()
         }
       } catch (error) {

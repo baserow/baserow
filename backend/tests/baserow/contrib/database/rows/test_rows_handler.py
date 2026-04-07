@@ -20,6 +20,7 @@ from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.rows.exceptions import RowDoesNotExist
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.trash.handler import TrashHandler
 
@@ -1948,3 +1949,88 @@ def test_update_rows_only_create_or_delete_differences_for_m2m_fields(data_fixtu
     assert set(multiselect_through.objects.values_list("id", flat=True)) == {2}
     assert set(multicollab_through.objects.values_list("id", flat=True)) == {2}
     assert set(link_through.objects.values_list("id", flat=True)) == {3}
+
+
+@pytest.mark.django_db
+def test_create_row_handler_applies_view_defaults(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    ViewHandler().update_view_default_values(
+        user=user,
+        view=view,
+        items=[{"field": text_field.id, "enabled": True, "value": "view default"}],
+    )
+
+    row = RowHandler().create_row(user, table, values={}, view=view)
+    assert getattr(row, f"field_{text_field.id}") == "view default"
+
+
+@pytest.mark.django_db
+def test_create_row_handler_user_values_override(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    ViewHandler().update_view_default_values(
+        user=user,
+        view=view,
+        items=[{"field": text_field.id, "enabled": True, "value": "view default"}],
+    )
+
+    row = RowHandler().create_row(
+        user, table, values={f"field_{text_field.id}": "user value"}, view=view
+    )
+    assert getattr(row, f"field_{text_field.id}") == "user value"
+
+
+@pytest.mark.django_db
+def test_create_rows_handler_applies_view_defaults(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    ViewHandler().update_view_default_values(
+        user=user,
+        view=view,
+        items=[{"field": text_field.id, "enabled": True, "value": "batch default"}],
+    )
+
+    result = RowHandler().create_rows(user, table, rows_values=[{}, {}], view=view)
+    for row in result.created_rows:
+        assert getattr(row, f"field_{text_field.id}") == "batch default"
+
+
+@pytest.mark.django_db
+def test_create_row_handler_default_value_priority(data_fixture):
+    """Test: empty < field default < view default < user value."""
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, text_default="field default"
+    )
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    # 1. No view, no user value -> field default
+    row1 = RowHandler().create_row(user, table, values={})
+    assert getattr(row1, f"field_{text_field.id}") == "field default"
+
+    ViewHandler().update_view_default_values(
+        user=user,
+        view=view,
+        items=[{"field": text_field.id, "enabled": True, "value": "view default"}],
+    )
+
+    row2 = RowHandler().create_row(user, table, values={}, view=view)
+    assert getattr(row2, f"field_{text_field.id}") == "view default"
+
+    # 3. User value provided -> user value wins
+    row3 = RowHandler().create_row(
+        user, table, values={f"field_{text_field.id}": "user value"}, view=view
+    )
+    assert getattr(row3, f"field_{text_field.id}") == "user value"

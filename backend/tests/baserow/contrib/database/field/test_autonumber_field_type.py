@@ -8,6 +8,7 @@ from baserow.contrib.database.fields.actions import (
     DeleteFieldActionType,
     UpdateFieldActionType,
 )
+from baserow.contrib.database.fields.field_types import AutonumberFieldType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
@@ -678,3 +679,34 @@ def test_autonumber_field_can_be_looked_up(data_fixture):
     )
 
     assert getattr(row, f"field_{formula_field.id}") == 3
+
+
+@pytest.mark.field_autonumber
+@pytest.mark.django_db
+def test_autonumber_sequence_uses_max_value_not_row_count(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    autonumber_field = data_fixture.create_autonumber_field(
+        table=table, name="autonumber"
+    )
+
+    model = table.get_model()
+
+    rows = [model.objects.create() for _ in range(5)]
+
+    for row in rows[:3]:
+        row.delete()
+
+    db_column = f"field_{autonumber_field.id}"
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f"UPDATE {model._meta.db_table} SET {db_column} = 100 WHERE id = %s",
+            [rows[4].id],
+        )
+
+    field_type = AutonumberFieldType()
+    field_type.create_field_sequence(autonumber_field, model, connection)
+
+    new_row = model.objects.create()
+    new_row.refresh_from_db()
+    assert getattr(new_row, db_column) == 101

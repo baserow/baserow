@@ -127,7 +127,7 @@ export class DatabaseRowSearchType extends BaseSearchType {
       return null
     }
 
-    return tableRouteResetViewIfNeeded({
+    return tableRouteResetViewIfNeeded(this.app.$router, {
       databaseId: result.metadata.database_id,
       tableId: result.metadata.table_id,
       rowId: result.metadata.row_id,

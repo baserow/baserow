@@ -1,5 +1,6 @@
 import { getPrimaryOrFirstField } from '@baserow/modules/database/utils/field'
 import BigNumber from 'bignumber.js'
+import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
 
 export default {
   emits: ['update'],
@@ -14,6 +15,39 @@ export default {
     }
   },
   computed: {
+    // Return the reactive object that can be updated in runtime.
+    workspace() {
+      return this.$store.getters['workspace/get'](this.workspaceId)
+    },
+    allTables() {
+      const databaseType = DatabaseApplicationType.getType()
+      return this.$store.getters['application/getAll'].reduce(
+        (tables, application) => {
+          if (application.type === databaseType) {
+            return tables.concat(application.tables || [])
+          }
+          return tables
+        },
+        []
+      )
+    },
+    canAccessLinkedTable() {
+      const linkedTable = this.allTables.find(
+        ({ id }) => id === this.field.link_row_table_id
+      )
+
+      if (!linkedTable) {
+        return false
+      }
+
+      return (
+        this.$hasPermission(
+          'database.table.read',
+          linkedTable,
+          this.workspace.id
+        ) && !this.readOnly
+      )
+    },
     /**
      * Returns the value of the field that can be used when creating a new row
      * in the linked table starting from the current row.

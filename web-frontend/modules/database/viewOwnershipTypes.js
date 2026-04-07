@@ -22,7 +22,6 @@ export class ViewOwnershipType extends Registerable {
   getFeatureName() {
     return this.getName()
   }
-
   /**
    * The icon for the type in the form of CSS class.
    */
@@ -93,6 +92,60 @@ export class ViewOwnershipType extends Registerable {
    */
   enhanceRealtimePagePayload(database, table, view, realtimePage) {
     return realtimePage
+  }
+
+  /**
+   * If `true`, the `view` query parameter will added when fetching the fields. This can
+   * be needed if the view ownership type has restrictions where not all table fields
+   * are exposed. This is the case with the restricted view, for example.
+   */
+  fetchingFieldsRequiresViewId(database, table, view) {
+    return false
+  }
+
+  /**
+   * Returns a warning message string to display at the bottom of the sort
+   * context menu, or `null` if no warning is needed.
+   *
+   * @param {Object} view - The view object (contains sortings).
+   * @param {Array} fields - All fields available to the current user.
+   * @param {Array} visibleFields - The visible fields in the view (from
+   *   viewType.getVisibleFieldsInOrder).
+   * @param {Object} database - The database object.
+   * @returns {string|null}
+   */
+  getSortContextWarning(view, fields, visibleFields, database) {
+    return null
+  }
+
+  /**
+   * Returns a warning message string to display at the bottom of the group by
+   * context menu, or `null` if no warning is needed.
+   *
+   * @param {Object} view - The view object (contains group_bys).
+   * @param {Array} fields - All fields available to the current user.
+   * @param {Array} visibleFields - The visible fields in the view (from
+   *   viewType.getVisibleFieldsInOrder).
+   * @param {Object} database - The database object.
+   * @returns {string|null}
+   */
+  getGroupByContextWarning(view, fields, visibleFields, database) {
+    return null
+  }
+
+  /**
+   * Returns a warning message string to display at the bottom of the decorator
+   * context menu, or `null` if no warning is needed.
+   *
+   * @param {Object} view - The view object.
+   * @param {Array} fields - All fields available to the current user.
+   * @param {Array} visibleFields - The visible fields in the view (from
+   *   viewType.getVisibleFieldsInOrder).
+   * @param {Object} database - The database object.
+   * @returns {string|null}
+   */
+  getDecoratorContextWarning(view, fields, visibleFields, database) {
+    return null
   }
 }
 

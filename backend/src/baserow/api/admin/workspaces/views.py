@@ -10,6 +10,7 @@ from rest_framework.views import APIView
 from baserow.api.admin.views import AdminListingView, APIListingView
 from baserow.api.decorators import map_exceptions
 from baserow.api.errors import ERROR_GROUP_DOES_NOT_EXIST
+from baserow.api.pagination import PageNumberPaginationWithApproximateCount
 from baserow.api.schemas import get_error_schema
 from baserow.core.admin.workspaces.exceptions import CannotDeleteATemplateGroupError
 from baserow.core.admin.workspaces.handler import WorkspacesAdminHandler
@@ -27,6 +28,7 @@ from .serializers import (
 
 class WorkspacesAdminView(AdminListingView):
     serializer_class = WorkspacesAdminResponseSerializer
+    pagination_class = PageNumberPaginationWithApproximateCount
     search_fields = ["id", "name"]
     sort_field_mapping = {
         "id": "id",

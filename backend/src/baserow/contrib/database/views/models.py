@@ -1005,3 +1005,52 @@ class ViewSubscription(models.Model):
 
     class Meta:
         unique_together = ("view", "subscriber_content_type", "subscriber_id")
+
+
+class ViewDefaultValue(HierarchicalModelMixin, models.Model):
+    """
+    Stores a default value for a specific field in a view. When ``enabled`` is
+    True and the field type still matches ``field_type``, the value is applied
+    to new rows created in the context of that view.
+    """
+
+    view = models.ForeignKey(
+        View, on_delete=models.CASCADE, related_name="view_default_values"
+    )
+    field = models.ForeignKey(
+        "database.Field",
+        on_delete=models.CASCADE,
+    )
+    enabled = models.BooleanField(
+        default=True,
+        help_text="Whether this default value is active.",
+    )
+    value = models.JSONField(
+        null=True,
+        default=None,
+        help_text="The raw default value in API request format.",
+    )
+    field_type = models.CharField(
+        max_length=64,
+        null=True,
+        help_text="The field type identifier at the time the value was stored. "
+        "Used to detect incompatibility when the field type changes.",
+    )
+    function = models.CharField(
+        max_length=64,
+        null=True,
+        help_text="Optional function name (e.g. 'now') to resolve the default "
+        "value dynamically at row creation time instead of using the "
+        "stored value.",
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["view", "field"], name="unique_view_field_default_value"
+            )
+        ]
+        ordering = ("id",)
+
+    def get_parent(self):
+        return self.view

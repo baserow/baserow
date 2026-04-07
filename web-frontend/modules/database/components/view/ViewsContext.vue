@@ -54,6 +54,7 @@
             :view="view"
             :table="table"
             :read-only="readOnly"
+            :store-prefix="storePrefix"
             @selected="selectedView"
           ></ViewsContextItem>
         </ul>
@@ -114,6 +115,10 @@ export default {
       type: Boolean,
       required: false,
       default: true,
+    },
+    storePrefix: {
+      type: String,
+      required: true,
     },
   },
   emits: ['selected-view'],

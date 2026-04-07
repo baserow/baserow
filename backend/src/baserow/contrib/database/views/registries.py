@@ -151,6 +151,12 @@ class ViewType(
     fetch rows from the view.
     """
 
+    can_set_default_values = True
+    """
+    Indicates if the view supports setting default row values. If not, it will not
+    be possible to configure default values for rows created in this view.
+    """
+
     has_public_info = False
     """
     Indicates if the view supports public information being returned by
@@ -306,6 +312,13 @@ class ViewType(
         if self.can_share:
             serialized["public"] = view.public
 
+        if self.can_set_default_values and view.table_id is not None:
+            default_row_values = self._export_default_row_values(
+                view, cache, files_zip, storage
+            )
+            if default_row_values:
+                serialized["default_row_values"] = default_row_values
+
         # It could be that there is no `table` related to the view when doing an
         # Airtable export, for example. That means it's not part of a workspace, so we
         # can't enhance the export with the `serialization_processor_registry`.
@@ -421,6 +434,11 @@ class ViewType(
         decorations = (
             serialized_copy.pop("decorations", []) if self.can_decorate else []
         )
+        default_row_values_data = (
+            serialized_copy.pop("default_row_values", None)
+            if self.can_set_default_values
+            else None
+        )
 
         view = self.model_class(table=table)
         # Only set the properties that are actually accepted by the view type's model
@@ -523,6 +541,16 @@ class ViewType(
                     view_decoration_object.id
                 )
 
+        if self.can_set_default_values and default_row_values_data:
+            self._import_default_row_values(
+                table,
+                view,
+                default_row_values_data,
+                id_mapping,
+                files_zip,
+                storage,
+            )
+
         for (
             serialized_structure_processor
         ) in serialization_processor_registry.get_all():
@@ -531,6 +559,83 @@ class ViewType(
             )
 
         return view
+
+    def _export_default_row_values(self, view, cache, files_zip, storage):
+        """
+        Exports the default row values for the given view as a serialized dict.
+        Uses the prefetched ``view_default_values`` related manager when
+        available to avoid extra queries during batch exports. The raw JSON
+        value is exported as-is since it is already serializable.
+        """
+
+        default_values = view.view_default_values.all()
+        if not default_values:
+            return None
+
+        serialized_values = {}
+        for default_value in default_values:
+            serialized_values[str(default_value.field_id)] = {
+                "field_id": default_value.field_id,
+                "enabled": default_value.enabled,
+                "value": default_value.value,
+                "function": default_value.function,
+                "field_type": default_value.field_type,
+            }
+
+        return serialized_values
+
+    def _import_default_row_values(
+        self,
+        table,
+        view,
+        default_row_values,
+        id_mapping,
+        files_zip,
+        storage,
+    ):
+        """
+        Imports the default row values from a serialized dict using
+        ``bulk_create`` for efficiency. Values are remapped through
+        the field type's ``import_serialized_default_value`` hook so
+        that IDs (e.g. select option IDs) point to the newly created
+        objects.
+        """
+
+        from baserow.contrib.database.views.models import ViewDefaultValue
+
+        model = table.get_model()
+        records = []
+
+        for _old_field_id, default_value_data in default_row_values.items():
+            old_field_id = default_value_data["field_id"]
+            new_field_id = id_mapping["database_fields"].get(old_field_id)
+            if new_field_id is None:
+                continue
+
+            if new_field_id not in model._field_objects:
+                continue
+
+            field_obj = model._field_objects[new_field_id]
+            field_type = field_obj["type"]
+            field_type_str = field_type.type
+
+            value = default_value_data.get("value")
+            if value is not None:
+                value = field_type.import_serialized_default_value(value, id_mapping)
+
+            records.append(
+                ViewDefaultValue(
+                    view_id=view.id,
+                    field_id=new_field_id,
+                    enabled=default_value_data.get("enabled", True),
+                    function=default_value_data.get("function"),
+                    value=value,
+                    field_type=default_value_data.get("field_type", field_type_str),
+                )
+            )
+
+        if records:
+            ViewDefaultValue.objects.bulk_create(records)
 
     def get_visible_fields_and_model(
         self, view: "View"
@@ -1467,7 +1572,10 @@ class ViewOwnershipType(Instance):
         return False
 
     def prepare_views_for_user(
-        self, user: Optional[AbstractUser], views: List["View"]
+        self,
+        user: Optional[AbstractUser],
+        views: List["View"],
+        includes: Optional[Set[str]] = None,
     ) -> List["View"]:
         """
         A hook that can be used to make changes to the provided view objects `views` if
@@ -1477,6 +1585,11 @@ class ViewOwnershipType(Instance):
         :param user: The user on whose behalf the view objects are enhanced. Can be
             used for permission checking. Note that it's not always provided.
         :param views: The views to enhance.
+        :param includes: Optional set of field names that the serializer will
+            include in the response (e.g. ``{"filters", "sortings",
+            "default_row_values"}``).  When provided, implementations should
+            skip work for fields that are not in the set so that no unnecessary
+            queries are executed.  ``None`` means "unknown / include everything".
         :return: The enhanced views.
         """
 
@@ -1499,6 +1612,34 @@ class ViewOwnershipType(Instance):
 
         return False
 
+    def get_hidden_field_ids_for_user(
+        self, user: Optional["AbstractUser"], view: "View"
+    ) -> Set[int]:
+        """
+        Returns an empty set by default, meaning no field restriction applies (all
+        fields visible). Subclasses can return a set of field IDs that should be hidden
+        from the user. An empty `set()` means "no restriction", `{1, 2}` means field
+        with 1 and 2 are hidden.
+        """
+
+        return set()
+
+    def enhance_list_fields_queryset(
+        self, user: "AbstractUser", view: "View", queryset: django_models.QuerySet
+    ) -> django_models.QuerySet:
+        """
+        Hook to change the queryset that is used when listing all the fields. This can
+        for example be used to limit the returned fields, if needed.
+
+        :param user: The user on whose behalf the fields are requested.
+        :param view: The view that is provided when listing the fields.
+        :param queryset: The queryset to fetch the fields. Note that this will be
+            converted into a specific queryset.
+        :return: The enhanced queryset.
+        """
+
+        return queryset
+
 
 class ViewOwnershipTypeRegistry(Registry):
     """
@@ -1509,7 +1650,10 @@ class ViewOwnershipTypeRegistry(Registry):
     does_not_exist_exception_class = ViewOwnershipTypeDoesNotExist
 
     def prepare_views_of_different_types_for_user(
-        self, user: AbstractUser, views: List["View"]
+        self,
+        user: AbstractUser,
+        views: List["View"],
+        includes: Optional[Set[str]] = None,
     ) -> List["View"]:
         """
         Loops over the provided views and per ownership type, calls the
@@ -1518,6 +1662,9 @@ class ViewOwnershipTypeRegistry(Registry):
         :param user: The user on whose behalf the views are requested. Can be used for
             permission checks.
         :param views: The views that must be enhanced.
+        :param includes: Optional set of field names that will be included in the
+            response.  Passed through to each ownership type's
+            ``prepare_views_for_user`` so it can skip unnecessary work.
         :return: The enhanced views.
         """
 
@@ -1528,7 +1675,7 @@ class ViewOwnershipTypeRegistry(Registry):
                 if view.ownership_type == view_ownership_type.type
             ]
             views_of_type = view_ownership_type.prepare_views_for_user(
-                user, views_of_type
+                user, views_of_type, includes=includes
             )
             # Put the enhanced view back into the original list at the right index so
             # that the order is not changed.

@@ -91,6 +91,22 @@
       </li>
       <li
         v-if="
+          canSetDefaultValues &&
+          $hasPermission(
+            'database.table.view.update_default_values',
+            view,
+            database.workspace.id
+          )
+        "
+        class="context__menu-item"
+      >
+        <a class="context__menu-item-link" @click="openDefaultValuesModal()">
+          <i class="context__menu-item-icon iconoir-settings"></i>
+          {{ $t('viewContext.defaultRowValues') }}
+        </a>
+      </li>
+      <li
+        v-if="
           $hasPermission(
             'database.table.view.update',
             view,
@@ -137,6 +153,13 @@
       :fields="fields"
     />
     <WebhookModal ref="webhookModal" :database="database" :table="table" />
+    <DefaultValuesModal
+      ref="defaultValuesModal"
+      :view="view"
+      :table="table"
+      :database="database"
+      :store-prefix="storePrefix"
+    />
   </Context>
 </template>
 
@@ -148,6 +171,7 @@ import ImportFileModal from '@baserow/modules/database/components/table/ImportFi
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ExportTableModal from '@baserow/modules/database/components/export/ExportTableModal'
 import WebhookModal from '@baserow/modules/database/components/webhook/WebhookModal.vue'
+import DefaultValuesModal from '@baserow/modules/database/components/view/DefaultValuesModal.vue'
 
 export default {
   name: 'ViewContext',
@@ -155,6 +179,7 @@ export default {
     ExportTableModal,
     WebhookModal,
     ImportFileModal,
+    DefaultValuesModal,
   },
   mixins: [context],
   props: {
@@ -170,6 +195,11 @@ export default {
       type: Object,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   emits: ['enable-rename'],
   data() {
@@ -181,6 +211,10 @@ export default {
   computed: {
     hasValidExporter() {
       return viewTypeHasExporterTypes(this.view.type, this.$registry)
+    },
+    canSetDefaultValues() {
+      const viewType = this.$registry.get('view', this.view.type)
+      return viewType.canSetDefaultValues
     },
     ...mapGetters({
       fields: 'field/getAll',
@@ -262,6 +296,10 @@ export default {
     openWebhookModal() {
       this.$refs.context.hide()
       this.$refs.webhookModal.show()
+    },
+    openDefaultValuesModal() {
+      this.$refs.context.hide()
+      this.$refs.defaultValuesModal.show()
     },
   },
 }

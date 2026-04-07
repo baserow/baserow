@@ -47,6 +47,7 @@
             :views="views"
             :read-only="readOnly"
             :header-overflow="headerOverflow"
+            :store-prefix="storePrefix"
             @selected-view="$emit('selected-view', $event)"
           ></ViewsContext>
         </li>
@@ -68,6 +69,7 @@
             :view="view"
             :table="table"
             :views="views"
+            :store-prefix="storePrefix"
             @enable-rename="$refs.rename.edit()"
           >
           </ViewContext>
@@ -125,10 +127,12 @@
           data-highlight="view-sorts"
         >
           <ViewSort
+            :database="database"
             :view="view"
             :fields="fields"
             :read-only="adhocSorting"
             :disable-sort="disableSort"
+            :store-prefix="storePrefix"
             @changed="refresh()"
           ></ViewSort>
         </li>
@@ -136,7 +140,7 @@
           v-if="
             hasSelectedView &&
             view._.type.canGroupBy &&
-            (readOnly ||
+            (adhocGrouping ||
               $hasPermission(
                 'database.table.view.create_group_by',
                 view,
@@ -147,10 +151,12 @@
           data-highlight="view-group-by"
         >
           <ViewGroupBy
+            :database="database"
             :view="view"
             :fields="fields"
-            :read-only="readOnly"
+            :read-only="adhocGrouping"
             :disable-group-by="disableGroupBy"
+            :store-prefix="storePrefix"
             @changed="refresh()"
           ></ViewGroupBy>
         </li>
@@ -195,6 +201,7 @@
             :fields="fields"
             :read-only="adhocDecorations"
             :disable-sort="disableSort"
+            :store-prefix="storePrefix"
             @changed="refresh()"
           ></ViewDecoratorMenu>
         </li>
@@ -449,6 +456,24 @@ export default {
         ) &&
         !this.$hasPermission(
           'database.table.view.create_sort',
+          this.view,
+          this.database.workspace.id
+        )
+      )
+    },
+    adhocGrouping() {
+      if (this.readOnly) {
+        return true
+      }
+
+      return (
+        this.$hasPermission(
+          'database.table.view.list_group_bys',
+          this.view,
+          this.database.workspace.id
+        ) &&
+        !this.$hasPermission(
+          'database.table.view.create_group_by',
           this.view,
           this.database.workspace.id
         )

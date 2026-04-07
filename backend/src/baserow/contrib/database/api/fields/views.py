@@ -7,7 +7,6 @@ from django.db import transaction
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-from rest_framework.decorators import permission_classes as method_permission_classes
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
@@ -120,23 +119,35 @@ from baserow.contrib.database.table.exceptions import (
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.database.tokens.exceptions import NoPermissionToTable
 from baserow.contrib.database.tokens.handler import TokenHandler
-from baserow.contrib.database.views.exceptions import ViewDoesNotSupportListingRows
+from baserow.contrib.database.views.exceptions import (
+    ViewDoesNotExist,
+    ViewDoesNotSupportListingRows,
+)
+from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.operations import ListViewFieldsOperationType
+from baserow.contrib.database.views.registries import view_ownership_type_registry
 from baserow.core.action.registries import action_type_registry
 from baserow.core.db import atomic_with_retry_on_deadlock, specific_iterator
-from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.exceptions import (
+    PermissionException,
+    UserNotInWorkspace,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
+from baserow.core.types import PermissionCheck
 
 from ...rows.handler import RowHandler
+from ..views.errors import ERROR_VIEW_DOES_NOT_EXIST
 from .serializers import (
     ChangePrimaryFieldParamsSerializer,
     CreateFieldSerializer,
     DuplicateFieldParamsSerializer,
     FieldSerializer,
     FieldSerializerWithRelatedFields,
+    ListFieldsQueryParamsSerializer,
     PasswordFieldAuthenticationResponseSerializer,
     PasswordFieldAuthenticationSerializer,
     RelatedFieldsSerializer,
@@ -190,10 +201,11 @@ class FieldsView(APIView):
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
         }
     )
-    @method_permission_classes([AllowAny])
-    def get(self, request, table_id):
+    @validate_query_parameters(ListFieldsQueryParamsSerializer)
+    def get(self, request, table_id, query_params):
         """
         Responds with a list of serialized fields that belong to the table if the user
         has access to that workspace.
@@ -201,18 +213,50 @@ class FieldsView(APIView):
 
         table = TableHandler().get_table(table_id)
 
-        CoreHandler().check_permissions(
+        view_id = query_params.get("view")
+        view = ViewHandler().get_view(view_id, table_id=table.id) if view_id else None
+
+        table_check = PermissionCheck(
             request.user,
             ListFieldsOperationType.type,
-            workspace=table.database.workspace,
             context=table,
         )
+        view_check = PermissionCheck(
+            request.user,
+            ListViewFieldsOperationType.type,
+            context=view,
+        )
+
+        checks = [table_check]
+        if view is not None:
+            checks.append(view_check)
+
+        check_results = CoreHandler().check_multiple_permissions(
+            checks,
+            workspace=table.database.workspace,
+            return_permissions_exceptions=True,
+        )
+
+        if view is None and isinstance(check_results[table_check], PermissionException):
+            raise check_results[table_check]
+
+        if view is not None and isinstance(
+            check_results[view_check], PermissionException
+        ):
+            raise check_results[view_check]
 
         TokenHandler().check_table_permissions(
             request, ["read", "create", "update"], table, False
         )
 
         base_field_queryset = FieldHandler().get_base_fields_queryset()
+
+        if view is not None:
+            ownership_type = view_ownership_type_registry.get(view.ownership_type)
+            base_field_queryset = ownership_type.enhance_list_fields_queryset(
+                request.user, view, base_field_queryset
+            )
+
         fields = specific_iterator(
             base_field_queryset.filter(table=table),
             per_content_type_queryset_hook=(

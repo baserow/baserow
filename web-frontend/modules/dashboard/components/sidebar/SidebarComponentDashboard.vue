@@ -17,7 +17,7 @@ import SidebarApplication from '@baserow/modules/core/components/sidebar/Sidebar
 import { mapGetters } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick } from '#imports'
+import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'SidebarComponentDashboard',
@@ -34,6 +34,10 @@ export default {
       required: true,
     },
   },
+  setup() {
+    const nuxtApp = useNuxtApp()
+    return { nuxtApp }
+  },
   computed: {
     ...mapGetters({
       isAppSelected: 'application/isSelected',
@@ -43,13 +47,13 @@ export default {
     async selected(application) {
       try {
         this.$store.dispatch('application/select', application)
-        await this.$nuxt.$router.push({
+        await this.$router.push({
           name: 'dashboard-application',
           params: {
             dashboardId: this.application.id,
           },
         })
-        await pageFinished()
+        await pageFinished(this.nuxtApp)
         await nextTick()
       } catch (error) {
         if (error.name !== 'NavigationDuplicated') {

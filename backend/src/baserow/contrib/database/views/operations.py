@@ -32,8 +32,20 @@ class ViewRowOperationType(OperationType, abc.ABC):
     context_scope_name = DatabaseViewObjectScopeType.type
 
 
+class ListViewRowsOperationType(ViewRowOperationType):
+    type = "database.table.view.list_rows"
+
+
 class ReadViewRowOperationType(ViewRowOperationType):
     type = "database.table.view.read_row"
+
+
+class ReadAdjacentViewRowOperationType(ViewRowOperationType):
+    type = "database.table.view.read_adjacent_row"
+
+
+class ListViewFieldsOperationType(ViewOperationType):
+    type = "database.table.view.list_fields"
 
 
 class CreateViewRowOperationType(ViewRowOperationType):
@@ -138,6 +150,14 @@ class ReadViewFieldOptionsOperationType(ViewOperationType):
 
 class UpdateViewFieldOptionsOperationType(ViewOperationType):
     type = "database.table.view.update_field_options"
+
+
+class ReadViewDefaultValuesOperationType(ViewOperationType):
+    type = "database.table.view.read_default_values"
+
+
+class UpdateViewDefaultValuesOperationType(ViewOperationType):
+    type = "database.table.view.update_default_values"
 
 
 class UpdateViewOperationType(ViewOperationType):

@@ -94,6 +94,7 @@ export default {
             true,
             true,
             true,
+            true,
             true
           )
           viewsData.forEach((part, index, d) => {

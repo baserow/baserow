@@ -32,7 +32,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
       await store.dispatch('auth/refresh', refreshToken)
     } catch (error) {
       if (error.response?.status === 401) {
-        return navigateTo({ name: 'login' }, { external: true }) // force browser 302 redirect to get rid of the jwt cookie in the request headers
+        return nuxtApp.runWithContext(() =>
+          navigateTo({ name: 'login' }, { external: true })
+        ) // force browser 302 redirect to get rid of the jwt cookie in the request headers
       }
     }
   }

@@ -30,6 +30,7 @@ class APIListingView(
     APIView, SearchableViewMixin, SortableViewMixin, FilterableViewMixin
 ):
     serializer_class = None
+    pagination_class = PageNumberPagination
     search_fields: List[str] = ["id"]
     filters_field_mapping: Dict[str, str] = {}
     sort_field_mapping: Dict[str, str] = {}
@@ -56,7 +57,7 @@ class APIListingView(
         queryset = self.apply_sorts_or_default_sort(sorts, queryset)
         queryset = self.apply_ids_filter(ids_param, queryset)
 
-        paginator = PageNumberPagination(limit_page_size=100)
+        paginator = self.pagination_class(limit_page_size=100)
         page = paginator.paginate_queryset(queryset, request, self)
         serializer = self.get_serializer(request, page, many=True)
 

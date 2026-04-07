@@ -57,6 +57,7 @@ from baserow.contrib.database.api.views.grid.serializers import (
 )
 from baserow.contrib.database.api.views.serializers import FieldOptionsField
 from baserow.contrib.database.api.views.utils import (
+    get_hidden_field_ids_for_view_user,
     get_public_view_authorization_token,
     get_public_view_filtered_queryset,
     get_view_filtered_queryset,
@@ -85,13 +86,14 @@ from baserow.contrib.database.views.exceptions import (
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import GridView
+from baserow.contrib.database.views.operations import ListViewRowsOperationType
 from baserow.contrib.database.views.registries import (
     view_aggregation_type_registry,
     view_type_registry,
 )
 from baserow.contrib.database.views.signals import view_loaded
+from baserow.contrib.database.views.utils import check_permissions_with_view_fallback
 from baserow.core.exceptions import UserNotInWorkspace
-from baserow.core.handler import CoreHandler
 from baserow.core.utils import split_comma_separated_string
 
 from .errors import ERROR_GRID_DOES_NOT_EXIST
@@ -236,19 +238,26 @@ class GridViewView(APIView):
         )
         view_type = view_type_registry.get_by_model(view)
 
-        workspace = view.table.database.workspace
-        CoreHandler().check_permissions(
-            request.user,
+        check_permissions_with_view_fallback(
             ListRowsDatabaseTableOperationType.type,
-            workspace=workspace,
-            context=view.table,
+            ListViewRowsOperationType.type,
+            request.user,
+            view.table,
+            view,
         )
+
         field_ids = get_include_exclude_field_ids(
             view.table, include_fields, exclude_fields
         )
+        hidden_field_ids = get_hidden_field_ids_for_view_user(request.user, view)
 
         queryset = get_view_filtered_queryset(
-            request.user, view, adhoc_filters, order_by, query_params
+            request.user,
+            view,
+            adhoc_filters,
+            order_by,
+            query_params,
+            hidden_field_ids=hidden_field_ids,
         )
         model = queryset.model
 
@@ -256,7 +265,7 @@ class GridViewView(APIView):
             return Response({"count": queryset.count()})
 
         response, page, _ = paginate_and_serialize_queryset(
-            queryset, request, field_ids
+            queryset, request, field_ids, exclude_field_ids=hidden_field_ids
         )
 
         if view_type.can_group_by and view.viewgroupby_set.all():
@@ -270,7 +279,11 @@ class GridViewView(APIView):
             response.data.update(group_by_metadata=serialized_group_by_metadata)
 
         if field_options:
-            response.data.update(**serialize_view_field_options(view, model))
+            response.data.update(
+                **serialize_view_field_options(
+                    view, model, exclude_field_ids=hidden_field_ids
+                )
+            )
 
         if row_metadata:
             response.data.update(
@@ -336,18 +349,23 @@ class GridViewView(APIView):
         """
 
         view = ViewHandler().get_view_as_user(request.user, view_id, GridView)
-        CoreHandler().check_permissions(
-            request.user,
+        check_permissions_with_view_fallback(
             ListRowsDatabaseTableOperationType.type,
-            workspace=view.table.database.workspace,
-            context=view.table,
+            ListViewRowsOperationType.type,
+            request.user,
+            view.table,
+            view,
         )
+        hidden_field_ids = get_hidden_field_ids_for_view_user(request.user, view)
 
         model = view.table.get_model(field_ids=data["field_ids"])
         results = model.objects.filter(pk__in=data["row_ids"])
 
         serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True
+            model,
+            RowSerializer,
+            is_response=True,
+            exclude_field_ids=hidden_field_ids,
         )
         serializer = serializer_class(results, many=True)
         return Response(serializer.data)

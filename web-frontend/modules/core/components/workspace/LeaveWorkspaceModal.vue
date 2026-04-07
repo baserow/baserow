@@ -29,7 +29,7 @@
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick } from '#imports'
+import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'LeaveWorkspaceModal',
@@ -39,6 +39,10 @@ export default {
       type: Object,
       required: true,
     },
+  },
+  setup() {
+    const nuxtApp = useNuxtApp()
+    return { nuxtApp }
   },
   data() {
     return {
@@ -57,7 +61,7 @@ export default {
         await this.$store.dispatch('workspace/leave', this.workspace)
         if (selected) {
           await this.$router.push({ name: 'dashboard' })
-          await pageFinished()
+          await pageFinished(this.nuxtApp)
           await nextTick()
         }
         this.hide()

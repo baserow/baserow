@@ -70,6 +70,9 @@
             "
           ></ViewSortOrder>
         </div>
+        <div v-if="contextWarning" class="sortings__warning">
+          {{ contextWarning }}
+        </div>
       </div>
       <div
         v-if="view.sortings.length < availableFieldsLength && !disableSort"
@@ -114,6 +117,10 @@ export default {
   components: { ViewSortOrder },
   mixins: [context],
   props: {
+    database: {
+      type: Object,
+      required: true,
+    },
     fields: {
       type: Array,
       required: true,
@@ -130,6 +137,11 @@ export default {
       type: Boolean,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   emits: ['changed'],
   computed: {
@@ -138,6 +150,18 @@ export default {
     },
     availableFields() {
       return this.fields.filter((f) => this.isFieldAvailable(f))
+    },
+    contextWarning() {
+      const ownershipType = this.$registry.get(
+        'viewOwnershipType',
+        this.view.ownership_type
+      )
+      return ownershipType.getSortContextWarning(
+        this.view,
+        this.fields,
+        this.database,
+        this.storePrefix
+      )
     },
   },
   methods: {

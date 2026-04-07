@@ -11,6 +11,9 @@ from rest_framework import serializers
 from baserow.api.utils import serialize_validation_errors_recursive
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
 from baserow.contrib.database.api.fields.serializers import FieldSerializer
+from baserow.contrib.database.api.tables.serializers import (
+    TableWithoutDataSyncSerializer,
+)
 from baserow.contrib.database.fields.field_filters import (
     FILTER_TYPE_AND,
     FILTER_TYPE_OR,
@@ -22,6 +25,7 @@ from baserow.contrib.database.views.models import (
     OWNERSHIP_TYPE_COLLABORATIVE,
     View,
     ViewDecoration,
+    ViewDefaultValue,
     ViewFilter,
     ViewFilterGroup,
     ViewGroupBy,
@@ -34,8 +38,10 @@ from baserow.contrib.database.views.registries import (
     view_ownership_type_registry,
     view_type_registry,
 )
+from baserow.contrib.database.views.view_ownership_types import (
+    CollaborativeViewOwnershipType,
+)
 
-from ..tables.serializers import TableWithoutDataSyncSerializer
 from .exceptions import FiltersParamValidationException
 
 
@@ -121,6 +127,15 @@ class FieldOptionsField(serializers.Field):
                 field_options = value.get_field_options(
                     self.create_if_missing, self.context.get("fields")
                 )
+            # `get_field_options` returns options for all fields in the table, but
+            # restricted views must hide options for fields the user can't access. The
+            # context fields list acts as an allow-list.
+            context_fields = self.context.get("fields")
+            if context_fields is not None:
+                allowed_field_ids = {f.id for f in context_fields}
+                field_options = [
+                    fo for fo in field_options if fo.field_id in allowed_field_ids
+                ]
             return {
                 field_options.field_id: self.serializer_class(field_options).data
                 for field_options in field_options
@@ -374,6 +389,24 @@ class CreateViewDecorationSerializer(serializers.ModelSerializer):
         }
 
 
+class ViewDefaultValueSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ViewDefaultValue
+        fields = (
+            "id",
+            "field",
+            "enabled",
+            "value",
+            "field_type",
+            "function",
+        )
+        extra_kwargs = {
+            "id": {"read_only": True},
+            "field_type": {"read_only": True},
+            "enabled": {"default": True},
+        }
+
+
 class ViewSerializer(serializers.ModelSerializer):
     type = serializers.SerializerMethodField()
     table = TableWithoutDataSyncSerializer()
@@ -385,6 +418,9 @@ class ViewSerializer(serializers.ModelSerializer):
     )
     decorations = ViewDecorationSerializer(
         many=True, source="viewdecoration_set", required=False
+    )
+    default_row_values = ViewDefaultValueSerializer(
+        many=True, source="view_default_values", required=False
     )
     show_logo = serializers.BooleanField(required=False)
     ownership_type = serializers.CharField()
@@ -405,6 +441,7 @@ class ViewSerializer(serializers.ModelSerializer):
             "sortings",
             "group_bys",
             "decorations",
+            "default_row_values",
             "filters_disabled",
             "public_view_has_password",
             "show_logo",
@@ -426,6 +463,7 @@ class ViewSerializer(serializers.ModelSerializer):
         context["include_sortings"] = kwargs.pop("sortings", False)
         context["include_decorations"] = kwargs.pop("decorations", False)
         context["include_group_bys"] = kwargs.pop("group_bys", False)
+        context["include_default_row_values"] = kwargs.pop("default_row_values", False)
         enhance_objects_by_view_ownership = kwargs.pop(
             "enhance_objects_by_view_ownership", True
         )
@@ -435,14 +473,33 @@ class ViewSerializer(serializers.ModelSerializer):
         # makes sure that the user only receives data about the view that they are
         # permitted to see, according to the ownership type.
         if enhance_objects_by_view_ownership and "user" in context:
+            # Build a set of field names that will actually appear in the
+            # response so that ownership types can skip unnecessary work (and
+            # queries) for fields that are not included.
+            includes = set()
+            if context.get("include_filters"):
+                includes.add("filters")
+            if context.get("include_sortings"):
+                includes.add("sortings")
+            if context.get("include_decorations"):
+                includes.add("decorations")
+            if context.get("include_group_bys"):
+                includes.add("group_bys")
+            if context.get("include_default_row_values"):
+                includes.add("default_row_values")
+
             if isinstance(instance, list):
                 instance = view_ownership_type_registry.prepare_views_of_different_types_for_user(
-                    context["user"], instance
+                    context["user"],
+                    instance,
+                    includes=includes,
                 )
             else:
                 instance = (
                     view_ownership_type_registry.prepare_views_of_different_types_for_user(
-                        context["user"], [instance]
+                        context["user"],
+                        [instance],
+                        includes=includes,
                     )
                 )[0]
         super().__init__(instance, *args, **kwargs)
@@ -465,6 +522,9 @@ class ViewSerializer(serializers.ModelSerializer):
 
         if not self.context["include_group_bys"]:
             self.fields.pop("group_bys", None)
+
+        if not self.context.get("include_default_row_values"):
+            self.fields.pop("default_row_values", None)
 
         return super().to_representation(instance)
 
@@ -605,6 +665,7 @@ class PublicViewSerializer(serializers.ModelSerializer):
     sortings = serializers.SerializerMethodField()
     group_bys = serializers.SerializerMethodField()
     show_logo = serializers.BooleanField(required=False)
+    ownership_type = serializers.SerializerMethodField()
 
     @extend_schema_field(PublicViewSortSerializer(many=True))
     def get_sortings(self, instance):
@@ -632,6 +693,13 @@ class PublicViewSerializer(serializers.ModelSerializer):
     def get_type(self, instance):
         return view_type_registry.get_by_model(instance.specific_class).type
 
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_ownership_type(self, instance):
+        # The publicly shared view does not need to know which view ownership type is
+        # publicly shared. However, it does need to have this value in order to work
+        # correctly, so we can always expose the collaborative type.
+        return CollaborativeViewOwnershipType.type
+
     class Meta:
         model = View
         fields = (
@@ -646,6 +714,7 @@ class PublicViewSerializer(serializers.ModelSerializer):
             "slug",
             "show_logo",
             "allow_public_export",
+            "ownership_type",
         )
         extra_kwargs = {
             "id": {"read_only": True},

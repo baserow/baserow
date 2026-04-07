@@ -31,13 +31,17 @@ import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/stri
 import WorkspaceForm from './WorkspaceForm'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick } from '#imports'
+import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'CreateWorkspaceModal',
   components: { WorkspaceForm },
   mixins: [modal, error],
   emits: ['created'],
+  setup() {
+    const nuxtApp = useNuxtApp()
+    return { nuxtApp }
+  },
   data() {
     return {
       loading: false,
@@ -64,7 +68,7 @@ export default {
           name: 'workspace',
           params: { workspaceId: workspace.id },
         })
-        await pageFinished()
+        await pageFinished(this.nuxtApp)
         await nextTick()
         this.$emit('created')
         this.hide()

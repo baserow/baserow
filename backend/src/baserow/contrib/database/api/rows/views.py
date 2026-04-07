@@ -77,7 +77,10 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
     ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
 )
-from baserow.contrib.database.api.views.utils import serialize_single_row_metadata
+from baserow.contrib.database.api.views.utils import (
+    get_hidden_field_ids_for_view_user,
+    serialize_single_row_metadata,
+)
 from baserow.contrib.database.field_rules.collector import CascadeUpdatedRows
 from baserow.contrib.database.fields.exceptions import (
     FieldDataConstraintException,
@@ -129,6 +132,9 @@ from baserow.contrib.database.views.exceptions import (
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
+from baserow.contrib.database.views.operations import (
+    ReadAdjacentViewRowOperationType,
+)
 from baserow.core.action.registries import action_type_registry
 from baserow.core.db import atomic_with_retry_on_deadlock
 from baserow.core.exceptions import DeadlockException, UserNotInWorkspace
@@ -589,7 +595,9 @@ class RowsView(APIView):
         validation_serializer = get_row_serializer_class(
             model, user_field_names=user_field_names
         )
-        data = validate_data(validation_serializer, request_data)
+        data = validate_data(
+            validation_serializer, request_data, partial=True, return_validated=True
+        )
 
         before_id = query_params.get("before")
         before_row = (
@@ -609,14 +617,24 @@ class RowsView(APIView):
                 model=model,
                 before_row=before_row,
                 view=view,
-                user_field_names=user_field_names,
+                # user_field_names is False because validate_data with
+                # return_validated=True already maps user field names to internal field
+                # names via the serializer.
+                user_field_names=False,
                 send_webhook_events=send_webhook_events,
             )
         except ValidationError as e:
             raise RequestBodyValidationException(detail=e.message)
 
+        hidden_field_ids = (
+            get_hidden_field_ids_for_view_user(request.user, view) if view else None
+        )
         serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True, user_field_names=user_field_names
+            model,
+            RowSerializer,
+            is_response=True,
+            user_field_names=user_field_names,
+            exclude_field_ids=hidden_field_ids,
         )
         serializer = serializer_class(row)
 
@@ -840,8 +858,16 @@ class RowView(APIView):
         user_field_names = extract_user_field_names_from_params(request.GET)
         model = table.get_model()
         row = RowHandler().get_row(request.user, table, row_id, model, view=view)
+
+        hidden_field_ids = (
+            get_hidden_field_ids_for_view_user(request.user, view) if view else None
+        )
         serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True, user_field_names=user_field_names
+            model,
+            RowSerializer,
+            is_response=True,
+            user_field_names=user_field_names,
+            exclude_field_ids=hidden_field_ids,
         )
         serializer = serializer_class(row)
         response_data = serializer.data
@@ -1003,8 +1029,15 @@ class RowView(APIView):
         except ValidationError as exc:
             raise RequestBodyValidationException(detail=exc.message) from exc
 
+        hidden_field_ids = (
+            get_hidden_field_ids_for_view_user(request.user, view) if view else None
+        )
         serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True, user_field_names=user_field_names
+            model,
+            RowSerializer,
+            is_response=True,
+            user_field_names=user_field_names,
+            exclude_field_ids=hidden_field_ids,
         )
         serializer = serializer_class(row)
         return Response(serializer.data)
@@ -1368,8 +1401,15 @@ class BatchRowsView(APIView):
         except ValidationError as exc:
             raise RequestBodyValidationException(detail=exc.message)
 
+        hidden_field_ids = (
+            get_hidden_field_ids_for_view_user(request.user, view) if view else None
+        )
         response_row_serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True, user_field_names=user_field_names
+            model,
+            RowSerializer,
+            is_response=True,
+            user_field_names=user_field_names,
+            exclude_field_ids=hidden_field_ids,
         )
         response_serializer_class = get_batch_row_serializer_class(
             response_row_serializer_class
@@ -1521,8 +1561,15 @@ class BatchRowsView(APIView):
         except ValidationError as e:
             raise RequestBodyValidationException(detail=e.message)
 
+        hidden_field_ids = (
+            get_hidden_field_ids_for_view_user(request.user, view) if view else None
+        )
         response_row_serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True, user_field_names=user_field_names
+            model,
+            RowSerializer,
+            is_response=True,
+            user_field_names=user_field_names,
+            exclude_field_ids=hidden_field_ids,
         )
         response_serializer_class = get_batch_row_serializer_class(
             response_row_serializer_class
@@ -1739,14 +1786,6 @@ class RowAdjacentView(APIView):
         search_mode = query_params.get("search_mode")
 
         table = TableHandler().get_table(table_id)
-        CoreHandler().check_permissions(
-            request.user,
-            ReadAdjacentRowDatabaseRowOperationType.type,
-            workspace=table.database.workspace,
-            context=table,
-        )
-
-        model = table.get_model()
 
         if view_id is None:
             view = None
@@ -1754,6 +1793,17 @@ class RowAdjacentView(APIView):
             view = ViewHandler().get_view_as_user(
                 request.user, view_id, table_id=table.id
             )
+
+        RowHandler()._check_permissions_with_view_fallback(
+            ReadAdjacentRowDatabaseRowOperationType.type,
+            ReadAdjacentViewRowOperationType.type,
+            request.user,
+            table,
+            view,
+            [row_id],
+        )
+
+        model = table.get_model()
 
         adjacent_row = RowHandler().get_adjacent_row(
             model,
@@ -1768,8 +1818,15 @@ class RowAdjacentView(APIView):
         if adjacent_row is None:
             return Response(status=HTTP_204_NO_CONTENT)
 
+        hidden_field_ids = (
+            get_hidden_field_ids_for_view_user(request.user, view) if view else None
+        )
         serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True, user_field_names=user_field_names
+            model,
+            RowSerializer,
+            is_response=True,
+            user_field_names=user_field_names,
+            exclude_field_ids=hidden_field_ids,
         )
         serializer = serializer_class(adjacent_row)
 

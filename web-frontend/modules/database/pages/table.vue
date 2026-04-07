@@ -142,6 +142,7 @@ const table = computed(() => data.value?.table)
 const view = computed(() => data.value?.view)
 const fields = computed(() => data.value?.fields)
 const dataError = computed(() => data.value?.error)
+let realtimePage = null
 
 useHead(() => ({
   title:
@@ -156,15 +157,35 @@ useHead(() => ({
  */
 onMounted(() => {
   if (table.value) {
-    $realtime.subscribe('table', { table_id: table.value.id })
+    realtimePage = {
+      page: 'table',
+      params: { table_id: table.value.id },
+    }
+    if (view.value) {
+      const viewOwnershipType = $registry.get(
+        'viewOwnershipType',
+        view.value.ownership_type
+      )
+      const { page, params } = viewOwnershipType.enhanceRealtimePagePayload(
+        database.value,
+        table.value,
+        view.value,
+        realtimePage
+      )
+      realtimePage.page = page
+      realtimePage.params = params
+    }
+
+    $realtime.subscribe(realtimePage.page, realtimePage.params)
   }
   $store.dispatch('table/setLoading', false)
 })
 
 onBeforeUnmount(() => {
   if (table.value) {
-    $realtime.unsubscribe('table', { table_id: table.value.id })
+    $realtime.unsubscribe(realtimePage.page, realtimePage.params)
   }
+  realtimePage = null
 })
 
 /**

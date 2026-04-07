@@ -70,6 +70,9 @@
             :read-only="readOnly || dec.decoration._.loading"
             @select="selectValueProvider(dec.decoration, $event)"
           />
+          <div v-if="contextWarning" class="decorator-context__warning">
+            {{ contextWarning }}
+          </div>
         </div>
       </div>
       <div ref="addDecoratorLink" class="context__footer">
@@ -140,6 +143,11 @@ export default {
     readOnly: {
       type: Boolean,
       required: true,
+    },
+    contextWarning: {
+      type: String,
+      required: false,
+      default: null,
     },
   },
   methods: {

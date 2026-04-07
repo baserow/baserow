@@ -49,7 +49,7 @@ from django.db.models import (
 )
 from django.db.models.fields import NOT_PROVIDED
 from django.db.models.fields.related import ManyToManyField
-from django.db.models.functions import Cast, Coalesce, RowNumber
+from django.db.models.functions import Cast, Coalesce, Left, RowNumber
 
 from dateutil import parser
 from dateutil.parser import ParserError
@@ -279,7 +279,9 @@ class CollationSortMixin:
     def get_order(
         self, field, field_name, order_direction, sort_type, table_model=None
     ) -> OptionallyAnnotatedOrderBy:
-        field_expr = collate_expression(F(field_name))
+        from baserow.contrib.database.fields.constants import SORT_INDEX_TEXT_MAX_CHARS
+
+        field_expr = collate_expression(Left(F(field_name), SORT_INDEX_TEXT_MAX_CHARS))
 
         if order_direction == "ASC":
             field_order_by = field_expr.asc(nulls_first=True)
@@ -1128,6 +1130,14 @@ class DateFieldType(FieldType):
     _db_column_fields = ["date_include_time"]
     _can_have_db_index = True
     can_upsert = True
+
+    def get_supported_default_value_functions(self):
+        return ["now"]
+
+    def resolve_default_value_function(self, function_name, field):
+        if function_name == "now":
+            return datetime.now(tz=timezone.utc)
+        return super().resolve_default_value_function(function_name, field)
 
     def can_represent_date(self, field):
         return True
@@ -4385,6 +4395,12 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     ) -> int:
         return getattr(row, f"{field_name}_id")
 
+    def import_serialized_default_value(self, value, id_mapping):
+        if isinstance(value, int):
+            option_mapping = id_mapping.get("database_field_select_options", {})
+            return option_mapping.get(value, value)
+        return value
+
     def get_search_expression(
         self, field: SingleSelectField, queryset: QuerySet
     ) -> Expression:
@@ -4751,6 +4767,14 @@ class MultipleSelectFieldType(
             child=serializers.IntegerField(), required=False, allow_null=True
         ),
     }
+
+    def import_serialized_default_value(self, value, id_mapping):
+        if isinstance(value, list):
+            option_mapping = id_mapping.get("database_field_select_options", {})
+            return [
+                option_mapping.get(v, v) if isinstance(v, int) else v for v in value
+            ]
+        return value
 
     def init_field_data(self, field, model):
         if field.multiple_select_default:
@@ -7414,12 +7438,17 @@ class AutonumberFieldType(ReadOnlyFieldType):
             cursor.execute(
                 f"ALTER SEQUENCE {db_column}_seq OWNED BY {db_table}.{db_column};"
             )
-            # Set the sequence to the count of rows in the table, only if there
-            # is at least one row.
+            # Use COALESCE(MAX, COUNT) to set the sequence correctly in all
+            # cases: MAX handles gaps from deleted rows or imported data,
+            # COUNT is the fallback when the column is all NULLs (e.g. when
+            # creating a new autonumber field on an existing table).
             cursor.execute(
                 f"""
-                WITH count AS (SELECT COUNT(*) FROM {db_table})
-                SELECT setval('{db_column}_seq', count) FROM count WHERE count > 0;
+                WITH seq_val AS (
+                    SELECT COALESCE(MAX({db_column}), COUNT(*)) AS val
+                    FROM {db_table}
+                )
+                SELECT setval('{db_column}_seq', val) FROM seq_val WHERE val > 0;
                 """  # noqa: S608
             )
 

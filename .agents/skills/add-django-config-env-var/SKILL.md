@@ -1,6 +1,7 @@
 ---
-name: add-django-config-env-var
+name: Add Django Config Env Var
 description: Add a new environment variable for a Django setting in Baserow and propagate it to the few repo files that usually need it. Use this when a request says a config env var must be added in several places or references `INTEGRATION_LOCAL_BASEROW_PAGE_SIZE_LIMIT` as the pattern to follow.
+version: 1.0.0
 ---
 
 # Add Django Config Env Var
@@ -17,6 +18,7 @@ When adding a new setting, usually check these files:
 - `docker-compose.yml`
 - `docker-compose.no-caddy.yml`
 - `web-frontend/env-remap.mjs`
+- `docs/installation/configuration.md` — the canonical env-var reference table; add a row in the right section
 - Backend or frontend code that uses the setting
 - A focused test if behavior changes
 
@@ -44,7 +46,7 @@ MY_SETTING = int(os.getenv("BASEROW_MY_SETTING", 123))
 
 5. Add or update a targeted test if the setting changes behavior.
 
-6. Add the related documentation
+6. Add the related documentation in `docs/installation/configuration.md` — find the right section (e.g. Backend Configuration, Integration Configuration) and add a table row matching the format of the nearest existing entry.
 
 ## Quick Checklist
 
@@ -53,7 +55,7 @@ MY_SETTING = int(os.getenv("BASEROW_MY_SETTING", 123))
 3. Add the Nuxt remap if frontend code needs it
 4. Use `settings.<NAME>` in code
 5. Add a focused test if needed
-6. Add the documentation
+6. Add a row to `docs/installation/configuration.md`
 
 ## Guardrails
 

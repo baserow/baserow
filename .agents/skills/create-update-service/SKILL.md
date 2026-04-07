@@ -1,6 +1,7 @@
 ---
-name: create-update-service
-description: Allow to create or update Baserow Integrations and Services
+name: Integrations and Services
+description: Create or update Baserow integration types and service types in `contrib/integrations`. Use when adding a new ServiceType/IntegrationType subclass, registering one in `apps.py` or `plugin.js`, or updating an existing dispatch/auth flow.
+version: 1.0.0
 ---
 
 # Create Or Update Baserow Services And Integrations

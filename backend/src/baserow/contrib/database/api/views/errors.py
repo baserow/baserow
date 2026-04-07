@@ -129,3 +129,8 @@ ERROR_VIEW_DOES_NOT_SUPPORT_LISTING_ROWS = (
     HTTP_400_BAD_REQUEST,
     "This view type does not support listing rows.",
 )
+ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES = (
+    "ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES",
+    HTTP_400_BAD_REQUEST,
+    "This view type does not support setting default row values.",
+)

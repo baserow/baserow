@@ -1683,3 +1683,62 @@ def test_table_model_is_data_synced_table(enterprise_data_fixture):
 
     assert data_sync.table.is_data_synced_table
     assert not table_with_no_synced_table.is_data_synced_table
+
+
+@pytest.mark.django_db
+@pytest.mark.data_sync
+@override_settings(DEBUG=True)
+def test_sync_ensure_primary_field_always_exists(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+    source_text_field = enterprise_data_fixture.create_text_field(
+        table=source_table, name="Name", primary=True
+    )
+    source_model = source_table.get_model()
+    source_model.objects.create(**{f"field_{source_text_field.id}": "Row 1"})
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Synced",
+        type_name="local_baserow_table",
+        synced_properties=["id", f"field_{source_text_field.id}"],
+        source_table_id=source_table.id,
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    synced_fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    row_id_field = synced_fields[0]
+    name_field = synced_fields[1]
+
+    assert row_id_field.primary is True
+    assert name_field.primary is False
+
+    FieldHandler().change_primary_field(
+        user=user, table=data_sync.table, new_primary_field=name_field
+    )
+    row_id_field.refresh_from_db()
+    name_field.refresh_from_db()
+    assert row_id_field.primary is False
+    assert name_field.primary is True
+
+    FieldHandler().update_field(
+        user=user,
+        field=source_text_field,
+        new_type_name="formula",
+        formula="'constant'",
+    )
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    assert not data_sync.table.field_set.filter(id=name_field.id).exists()
+
+    row_id_field.refresh_from_db()
+    assert row_id_field.primary is True
+    assert data_sync.table.field_set.filter(primary=True).count() == 1

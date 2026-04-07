@@ -73,6 +73,9 @@
             "
           ></ViewSortOrder>
         </div>
+        <div v-if="contextWarning" class="group-bys__warning">
+          {{ contextWarning }}
+        </div>
       </div>
       <div
         v-if="view.group_bys.length < availableFieldsLength && !disableGroupBy"
@@ -117,6 +120,10 @@ export default {
   components: { ViewSortOrder },
   mixins: [context],
   props: {
+    database: {
+      type: Object,
+      required: true,
+    },
     fields: {
       type: Array,
       required: true,
@@ -133,6 +140,11 @@ export default {
       type: Boolean,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   emits: ['changed'],
   computed: {
@@ -144,6 +156,18 @@ export default {
     },
     availableFields() {
       return this.fields.filter((f) => this.isFieldAvailable(f))
+    },
+    contextWarning() {
+      const ownershipType = this.$registry.get(
+        'viewOwnershipType',
+        this.view.ownership_type
+      )
+      return ownershipType.getGroupByContextWarning(
+        this.view,
+        this.fields,
+        this.database,
+        this.storePrefix
+      )
     },
   },
   methods: {

@@ -36,6 +36,10 @@ class DeleteWorkspaceOperationType(WorkspaceCoreOperationType):
     type = "workspace.delete"
 
 
+class ExportWorkspaceOperationType(WorkspaceCoreOperationType):
+    type = "workspace.export"
+
+
 class RestoreWorkspaceOperationType(WorkspaceCoreOperationType):
     type = "workspace.restore"
 

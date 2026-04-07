@@ -224,6 +224,7 @@ export default {
         false,
         false,
         false,
+        false,
         false
       )
       // Because the field types are accessible for everyone, we only want to list

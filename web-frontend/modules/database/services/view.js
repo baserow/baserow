@@ -10,6 +10,7 @@ export default (client) => {
       includeSortings = false,
       includeGroupBys = false,
       includeDecorations = false,
+      includeDefaultRowValues = false,
       limit = null,
       type = null
     ) {
@@ -32,6 +33,10 @@ export default (client) => {
 
       if (includeDecorations) {
         include.push('decorations')
+      }
+
+      if (includeDefaultRowValues) {
+        include.push('default_row_values')
       }
 
       if (include.length > 0) {
@@ -60,7 +65,8 @@ export default (client) => {
       includeFilters = false,
       includeSortings = false,
       includeDecorations = false,
-      includeGroupBys = false
+      includeGroupBys = false,
+      includeDefaultRowValues = false
     ) {
       const config = {
         params: {},
@@ -80,6 +86,10 @@ export default (client) => {
 
       if (includeGroupBys) {
         include.push('group_bys')
+      }
+
+      if (includeDefaultRowValues) {
+        include.push('default_row_values')
       }
 
       if (include.length > 0) {
@@ -167,6 +177,9 @@ export default (client) => {
         addPublicAuthTokenHeader(config, publicAuthToken)
       }
       return client.get(`/database/views/${viewSlug}/row/${rowId}/`, config)
+    },
+    updateDefaultValues(viewId, items) {
+      return client.patch(`/database/views/${viewId}/default-values/`, items)
     },
   }
 }

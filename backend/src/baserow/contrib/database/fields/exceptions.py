@@ -355,3 +355,20 @@ class InvalidFieldConstraint(Exception):
 
 class InvalidPasswordFieldPassword(Exception):
     """Raised when the provided password field is invalid."""
+
+
+class InvalidDefaultValueFunction(Exception):
+    """Raised when an unsupported function is used for a default value."""
+
+    def __init__(self, unsupported_function=None, field_type=None, *args, **kwargs):
+        self.unsupported_function = unsupported_function
+        self.field_type = field_type
+        msg = (
+            f"Function '{unsupported_function}' is not supported by field type "
+            f"'{field_type}'."
+        )
+        super().__init__(
+            msg,
+            *args,
+            **kwargs,
+        )

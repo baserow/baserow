@@ -102,6 +102,50 @@ def test_create_builders_multiple(data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_application_applies_default_theme(data_fixture):
+    """Creating an application should apply the default 'baserow' theme."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    ctx = make_test_ctx(user, workspace)
+    builders = [BuilderItemCreate(name="My App", type="application")]
+    result = create_builders(ctx, builders=builders, thought="create app")
+
+    assert len(result["created_builders"]) == 1
+    app_id = result["created_builders"][0]["id"]
+
+    from baserow.contrib.builder.models import Builder
+
+    builder = Builder.objects.get(id=app_id)
+    # Baserow theme has primary_color="#4e5cfe"
+    assert builder.colorthemeconfigblock.primary_color == "#4e5cfe"
+
+
+@pytest.mark.django_db
+def test_create_application_applies_eclipse_theme(data_fixture):
+    """Creating an application with theme='eclipse' should apply the dark theme."""
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+
+    ctx = make_test_ctx(user, workspace)
+    builders = [
+        BuilderItemCreate(name="Dashboard", type="application", theme="eclipse")
+    ]
+    result = create_builders(ctx, builders=builders, thought="create dark app")
+
+    assert len(result["created_builders"]) == 1
+    app_id = result["created_builders"][0]["id"]
+
+    from baserow.contrib.builder.models import Builder
+
+    builder = Builder.objects.get(id=app_id)
+    # Eclipse theme should have different colors from baserow
+    assert builder.colorthemeconfigblock.primary_color != "#4e5cfe"
+
+
+@pytest.mark.django_db
 def test_create_database_ignores_theme(data_fixture):
     """Creating a database should not fail even though databases have no theme."""
 

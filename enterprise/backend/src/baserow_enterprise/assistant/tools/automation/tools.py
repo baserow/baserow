@@ -364,7 +364,6 @@ TOOL_FUNCTIONS = [
 automation_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)
 
 ROUTING_RULES = """\
-- Check list_* before create_* to avoid duplicates.
 - switch_mode: switch domain if task needs tools not in the current mode.
 - create_workflows: use {{ node.ref }} for node refs, $formula: prefix for dynamic field values.
 - add_nodes: insert/append nodes. Use list_nodes first to find existing node IDs."""

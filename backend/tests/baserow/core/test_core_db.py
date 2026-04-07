@@ -28,6 +28,7 @@ from baserow.core.db import (
     LockedAtomicTransaction,
     MultiFieldPrefetchQuerysetMixin,
     QuerySet,
+    get_approximate_row_count,
     specific_iterator,
     specific_queryset,
 )
@@ -701,3 +702,28 @@ def test_specific_iterator_skip_missing_specific_objects(data_fixture):
     mock_logger.error.assert_called_once_with(
         f"The specific object with id {field_without_specific.id} does not exist."
     )
+
+
+@pytest.mark.django_db
+def test_get_approximate_row_count_falls_back_to_exact_for_small_tables():
+    queryset = Workspace.objects.all()
+    count = get_approximate_row_count(queryset)
+    assert count == queryset.count()
+
+
+@pytest.mark.django_db
+def test_get_approximate_row_count_returns_estimate_above_threshold():
+    queryset = Workspace.objects.all()
+    with patch("baserow.core.db.APPROXIMATE_COUNT_THRESHOLD", 0):
+        count = get_approximate_row_count(queryset)
+    assert isinstance(count, int)
+    assert count >= 0
+
+
+@pytest.mark.django_db
+def test_get_approximate_row_count_works_with_filtered_queryset(data_fixture):
+    data_fixture.create_workspace(name="test_ws_1")
+    data_fixture.create_workspace(name="test_ws_2")
+    queryset = Workspace.objects.filter(name__startswith="test_ws_")
+    count = get_approximate_row_count(queryset)
+    assert count == 2

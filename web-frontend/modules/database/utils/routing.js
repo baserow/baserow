@@ -1,10 +1,8 @@
-import { useNuxtApp } from '#app'
-
 export const tableRouteResetViewIfNeeded = (
+  $router,
   params,
   name = 'database-table-row'
 ) => {
-  const { $router } = useNuxtApp()
   const current = $router.currentRoute.value
 
   if (

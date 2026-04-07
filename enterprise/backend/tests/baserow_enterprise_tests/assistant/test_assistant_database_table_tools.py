@@ -585,6 +585,8 @@ def test_generate_formula_documentation_completeness(data_fixture):
         "string_agg_many_to_many_values",
         "many_to_many_agg",
         "many_to_many_count",
+        "array_length",
+        "array_join_values",
     ]
 
     missing_functions = []

@@ -622,8 +622,24 @@ class DataSyncHandler:
 
         handler = FieldHandler()
 
+        unique_primary_field = next(
+            (ep.field for ep in enabled_properties if ep.unique_primary), None
+        )
+
         for data_sync_property_instance in properties_to_be_removed:
             field = data_sync_property_instance.field
+            # If we're about to delete the primary field, first move primary to the
+            # unique_primary field so the table is never left without one.
+            if (
+                field.primary
+                and unique_primary_field
+                and unique_primary_field.id != field.id
+            ):
+                handler.change_primary_field(
+                    user=user,
+                    table=data_sync.table,
+                    new_primary_field=unique_primary_field,
+                )
             data_sync_property_instance.delete()
             handler.delete_field(
                 user=user,
@@ -655,7 +671,6 @@ class DataSyncHandler:
                 data_sync.table,
                 [field_kwargs.pop("name")],
             )
-            print(new_name)
             field = handler.create_field(
                 user=user,
                 table=data_sync.table,

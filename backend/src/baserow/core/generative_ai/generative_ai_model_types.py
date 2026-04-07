@@ -1,37 +1,61 @@
+from __future__ import annotations
+
 import os
-import re
+from typing import TYPE_CHECKING, Any, Optional
 
 from django.conf import settings
 
-from baserow.core.generative_ai.exceptions import AIFileError, GenerativeAIPromptError
-from baserow.core.generative_ai.types import FileId
+from baserow.core.models import Workspace
 
-from .registries import GenerativeAIModelType, GenerativeAIWithFilesModelType
+from .registries import GenerativeAIModelType
+
+if TYPE_CHECKING:
+    from baserow_premium.fields.ai_file import AIFile
 
 
 class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
-    def get_api_key(self, workspace=None, settings_override=None):
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "api_key", settings_override)
             or settings.BASEROW_OPENAI_API_KEY
         )
 
-    def get_enabled_models(self, workspace=None, settings_override=None):
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> list[str]:
         workspace_models = self.get_workspace_setting(
             workspace, "models", settings_override
         )
         return workspace_models or settings.BASEROW_OPENAI_MODELS
 
-    def get_organization(self, workspace=None, settings_override=None):
+    def get_organization(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "organization", settings_override)
             or settings.BASEROW_OPENAI_ORGANIZATION
         )
 
-    def get_base_url(self, workspace=None, settings_override=None):
+    def get_base_url(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return None
 
-    def is_enabled(self, workspace=None, settings_override=None):
+    def is_enabled(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> bool:
         api_key = self.get_api_key(workspace, settings_override)
         return bool(api_key) and bool(
             self.get_enabled_models(
@@ -39,7 +63,137 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
             )
         )
 
-    def get_client(self, workspace=None, settings_override=None):
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        from openai import AsyncOpenAI
+        from pydantic_ai.models.openai import OpenAIResponsesModel
+        from pydantic_ai.providers.openai import OpenAIProvider
+
+        api_key = self.get_api_key(workspace, settings_override)
+        organization = self.get_organization(workspace, settings_override)
+        base_url = self.get_base_url(workspace, settings_override)
+        client = AsyncOpenAI(
+            api_key=api_key, organization=organization, base_url=base_url
+        )
+        return OpenAIResponsesModel(
+            model_name, provider=OpenAIProvider(openai_client=client)
+        )
+
+    def get_settings_serializer(self) -> type:
+        from baserow.api.generative_ai.serializers import BaseOpenAISettingsSerializer
+
+        return BaseOpenAISettingsSerializer
+
+
+class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
+    type = "openai"
+
+    def get_settings_serializer(self) -> type:
+        from baserow.api.generative_ai.serializers import OpenAISettingsSerializer
+
+        return OpenAISettingsSerializer
+
+    def get_base_url(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
+        return (
+            self.get_workspace_setting(workspace, "base_url", settings_override)
+            or settings.BASEROW_OPENAI_BASE_URL
+        )
+
+    supports_files = True
+
+    _EMBEDDABLE_EXTENSIONS = {".gif", ".jpg", ".jpeg", ".png", ".webp"}
+    _UPLOADABLE_EXTENSIONS = {
+        ".csv",
+        ".doc",
+        ".docx",
+        ".html",
+        ".json",
+        ".md",
+        ".pdf",
+        ".pptx",
+        ".txt",
+        ".tex",
+        ".xlsx",
+        ".xls",
+    }
+    _MAX_EMBED_PAYLOAD_BYTES = 45 * 1024 * 1024  # 50 MB minus some headroom
+    _MAX_EMBEDS_PER_REQUEST = 500
+
+    def _get_max_upload_bytes(self) -> int:
+        return (
+            min(512, settings.BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB) * 1024 * 1024
+        )
+
+    def prepare_files(
+        self,
+        files: list[AIFile],
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> list[AIFile]:
+        from loguru import logger
+        from pydantic_ai import BinaryContent, UploadedFile
+
+        embed_payload = 0
+        embed_count = 0
+        max_upload = self._get_max_upload_bytes()
+
+        for ai_file in files:
+            _, ext = os.path.splitext(ai_file.name)
+            ext = ext.lower()
+
+            try:
+                if ext in self._EMBEDDABLE_EXTENSIONS:
+                    if (
+                        embed_count >= self._MAX_EMBEDS_PER_REQUEST
+                        or embed_payload + ai_file.size > self._MAX_EMBED_PAYLOAD_BYTES
+                    ):
+                        continue
+                    data = ai_file.read_content()
+                    ai_file.content = BinaryContent(
+                        data=data,
+                        media_type=ai_file.mime_type,
+                        identifier=ai_file.original_name,
+                    )
+                    embed_payload += ai_file.size
+                    embed_count += 1
+
+                elif ext in self._UPLOADABLE_EXTENSIONS:
+                    if ai_file.size > max_upload:
+                        continue
+                    data = ai_file.read_content()
+                    file_id = self._upload_file(
+                        ai_file.name, data, workspace, settings_override
+                    )
+                    ai_file.provider_file_id = file_id
+                    ai_file.content = UploadedFile(
+                        file_id=file_id,
+                        provider_name="openai",
+                        media_type=ai_file.mime_type,
+                        identifier=ai_file.original_name,
+                    )
+            except Exception:
+                logger.warning(
+                    f"Skipping file {ai_file.name}: failed to read or upload."
+                )
+                continue
+
+        return [f for f in files if f.content is not None]
+
+    def _get_upload_client(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        """Return a sync OpenAI client for file upload/delete operations."""
+
         from openai import OpenAI
 
         api_key = self.get_api_key(workspace, settings_override)
@@ -47,185 +201,59 @@ class BaseOpenAIGenerativeAIModelType(GenerativeAIModelType):
         base_url = self.get_base_url(workspace, settings_override)
         return OpenAI(api_key=api_key, organization=organization, base_url=base_url)
 
-    def get_settings_serializer(self):
-        from baserow.api.generative_ai.serializers import BaseOpenAISettingsSerializer
-
-        return BaseOpenAISettingsSerializer
-
-    def prompt(
-        self, model, prompt, workspace=None, temperature=None, settings_override=None
-    ):
-        from openai import APIStatusError as OpenAIAPIStatusError
-        from openai import OpenAIError
-
-        try:
-            client = self.get_client(workspace, settings_override)
-            kwargs = {}
-            if temperature:
-                kwargs["temperature"] = temperature
-            chat_completion = client.chat.completions.create(
-                messages=[{"role": "user", "content": prompt}],
-                model=model,
-                stream=False,
-                **kwargs,
-            )
-        except (OpenAIError, OpenAIAPIStatusError) as exc:
-            raise GenerativeAIPromptError(str(exc)) from exc
-        return chat_completion.choices[0].message.content
-
-
-class OpenAIGenerativeAIModelType(
-    GenerativeAIWithFilesModelType, BaseOpenAIGenerativeAIModelType
-):
-    type = "openai"
-
-    def get_settings_serializer(self):
-        from baserow.api.generative_ai.serializers import OpenAISettingsSerializer
-
-        return OpenAISettingsSerializer
-
-    def get_base_url(self, workspace=None, settings_override=None):
-        return (
-            self.get_workspace_setting(workspace, "base_url", settings_override)
-            or settings.BASEROW_OPENAI_BASE_URL
+    def _upload_file(
+        self,
+        file_name: str,
+        file_bytes: bytes,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> str:
+        client = self._get_upload_client(workspace, settings_override)
+        uploaded = client.files.create(
+            file=(file_name, file_bytes), purpose="user_data"
         )
+        return uploaded.id
 
-    def is_file_compatible(self, file_name: str) -> bool:
-        # See supported files at:
-        # https://platform.openai.com/docs/assistants/tools/file-search/supported-files
-        supported_file_extensions = {
-            ".doc",
-            ".docx",
-            ".html",
-            ".json",
-            ".md",
-            ".pdf",
-            ".pptx",
-            ".txt",
-            ".tex",
-        }
+    def delete_file(
+        self,
+        ai_file: AIFile,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """Delete an uploaded file from OpenAI."""
 
-        _, ext = os.path.splitext(file_name)
-        if ext not in supported_file_extensions:
-            return False
-        return True
-
-    def get_max_file_size(self) -> int:
-        return min(512, settings.BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB)
-
-    def upload_file(self, file_name: str, file: bytes, workspace=None) -> FileId:
-        from openai import APIStatusError as OpenAIAPIStatusError
-        from openai import OpenAIError
-
-        try:
-            client = self.get_client(workspace=workspace)
-            openai_file = client.files.create(
-                file=(file_name, file, None), purpose="assistants"
-            )
-            return openai_file.id
-        except (OpenAIError, OpenAIAPIStatusError) as exc:
-            raise AIFileError(str(exc)) from exc
-
-    def delete_files(self, file_ids: list[FileId], workspace=None):
-        from openai import APIStatusError as OpenAIAPIStatusError
-        from openai import OpenAIError
-
-        try:
-            client = self.get_client(workspace=workspace)
-            for file_id in file_ids:
-                client.files.delete(file_id)
-        except (OpenAIError, OpenAIAPIStatusError) as exc:
-            raise AIFileError(str(exc)) from exc
-
-    def prompt_with_files(
-        self, model, prompt, file_ids: list[FileId], workspace=None, temperature=None
-    ):
-        from openai import APIStatusError as OpenAIAPIStatusError
-        from openai import OpenAIError
-
-        run, thread, assistant = None, None, None
-        try:
-            client = self.get_client(workspace)
-            kwargs = {}
-            if temperature:
-                kwargs["temperature"] = temperature
-
-            assistant = client.beta.assistants.create(
-                name="Assistant that have access to user files",
-                instructions="",
-                model=model,
-                tools=[{"type": "file_search"}],
-                **kwargs,
-            )
-            thread = client.beta.threads.create()
-            attachments = [
-                {"file_id": file_id, "tools": [{"type": "file_search"}]}
-                for file_id in file_ids
-            ]
-            message = client.beta.threads.messages.create(
-                thread_id=thread.id,
-                role="user",
-                content=prompt,
-                attachments=attachments,
-            )
-            run = client.beta.threads.runs.create_and_poll(
-                thread_id=thread.id,
-                assistant_id=assistant.id,
-                poll_interval_ms=2000,  # 2 seconds
-                timeout=60.0,  # 1 minute
-            )
-            if run.status == "completed":
-                messages = client.beta.threads.messages.list(thread_id=thread.id)
-                try:
-                    message = messages.data[0].content[0].text.value
-                except Exception:
-                    raise GenerativeAIPromptError(
-                        "The OpenAI model didn't respond with an answer."
-                    )
-
-                # remove references from the output
-                regex = r"【[0-9:]{1,}†source】"
-                message = re.sub(regex, "", message, 0)
-
-                return message
-            else:
-                raise GenerativeAIPromptError(
-                    "The OpenAI model didn't respond with an answer."
-                )
-        except (OpenAIError, OpenAIAPIStatusError) as exc:
-            raise GenerativeAIPromptError(str(exc)) from exc
-        finally:
-            if run and thread:
-                if run.status in [
-                    "queued",
-                    "in_progress",
-                    "requires_action",
-                    "incomplete",
-                ]:
-                    client.beta.threads.runs.cancel(run.id, thread_id=thread.id)
-            if thread:
-                # Deleting the thread should delete all messages within
-                client.beta.threads.delete(thread_id=thread.id)
-            if assistant:
-                client.beta.assistants.delete(assistant_id=assistant.id)
+        client = self._get_upload_client(workspace, settings_override)
+        client.files.delete(ai_file.provider_file_id)
 
 
 class AnthropicGenerativeAIModelType(GenerativeAIModelType):
     type = "anthropic"
 
-    def get_api_key(self, workspace=None, settings_override=None):
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "api_key", settings_override)
             or settings.BASEROW_ANTHROPIC_API_KEY
         )
 
-    def get_enabled_models(self, workspace=None, settings_override=None):
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> list[str]:
         workspace_models = self.get_workspace_setting(
             workspace, "models", settings_override
         )
         return workspace_models or settings.BASEROW_ANTHROPIC_MODELS
 
-    def is_enabled(self, workspace=None, settings_override=None):
+    def is_enabled(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> bool:
         api_key = self.get_api_key(workspace, settings_override)
         return bool(api_key) and bool(
             self.get_enabled_models(
@@ -233,60 +261,61 @@ class AnthropicGenerativeAIModelType(GenerativeAIModelType):
             )
         )
 
-    def get_client(self, workspace=None, settings_override=None):
-        from anthropic import Anthropic
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        from pydantic_ai.models.anthropic import AnthropicModel
+        from pydantic_ai.providers.anthropic import AnthropicProvider
 
         api_key = self.get_api_key(workspace, settings_override)
-        return Anthropic(api_key=api_key)
+        return AnthropicModel(model_name, provider=AnthropicProvider(api_key=api_key))
 
-    def get_settings_serializer(self):
+    def _prepare_model_settings(
+        self, temperature: Optional[float] = None
+    ) -> dict[str, Any]:
+        settings: dict[str, Any] = {}
+        if temperature is not None:
+            # Anthropic only accepts temperature up to 1.0
+            settings["temperature"] = min(temperature, 1)
+        return settings
+
+    def get_settings_serializer(self) -> type:
         from baserow.api.generative_ai.serializers import AnthropicSettingsSerializer
 
         return AnthropicSettingsSerializer
-
-    def prompt(
-        self, model, prompt, workspace=None, temperature=None, settings_override=None
-    ):
-        from anthropic import APIStatusError
-
-        try:
-            client = self.get_client(workspace, settings_override)
-            kwargs = {}
-            if temperature:
-                # Because some LLMs can have a temperature of 2, this is the maximum by
-                # default. We're changing it to a maximum of 1 because Anthropic only
-                # accepts 1.
-                kwargs["temperature"] = min(temperature, 1)
-            message = client.messages.create(
-                messages=[
-                    {"role": "user", "content": [{"type": "text", "text": prompt}]}
-                ],
-                model=model,
-                max_tokens=4096,
-                stream=False,
-                **kwargs,
-            )
-            return message.content[0].text
-        except APIStatusError as exc:
-            raise GenerativeAIPromptError(str(exc)) from exc
 
 
 class MistralGenerativeAIModelType(GenerativeAIModelType):
     type = "mistral"
 
-    def get_api_key(self, workspace=None, settings_override=None):
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "api_key", settings_override)
             or settings.BASEROW_MISTRAL_API_KEY
         )
 
-    def get_enabled_models(self, workspace=None, settings_override=None):
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> list[str]:
         workspace_models = self.get_workspace_setting(
             workspace, "models", settings_override
         )
         return workspace_models or settings.BASEROW_MISTRAL_MODELS
 
-    def is_enabled(self, workspace=None, settings_override=None):
+    def is_enabled(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> bool:
         api_key = self.get_api_key(workspace, settings_override)
         return bool(api_key) and bool(
             self.get_enabled_models(
@@ -294,72 +323,103 @@ class MistralGenerativeAIModelType(GenerativeAIModelType):
             )
         )
 
-    def get_client(self, workspace=None, settings_override=None):
-        from mistralai import Mistral
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        from pydantic_ai.models.mistral import MistralModel
+        from pydantic_ai.providers.mistral import MistralProvider
 
         api_key = self.get_api_key(workspace, settings_override)
-        return Mistral(api_key=api_key)
+        return MistralModel(model_name, provider=MistralProvider(api_key=api_key))
 
-    def get_settings_serializer(self):
+    def _prepare_model_settings(
+        self, temperature: Optional[float] = None
+    ) -> dict[str, Any]:
+        settings: dict[str, Any] = {}
+        if temperature is not None:
+            # Mistral only accepts temperature up to 1.0
+            settings["temperature"] = min(temperature, 1)
+        return settings
+
+    def get_settings_serializer(self) -> type:
         from baserow.api.generative_ai.serializers import MistralSettingsSerializer
 
         return MistralSettingsSerializer
-
-    def prompt(
-        self, model, prompt, workspace=None, temperature=None, settings_override=None
-    ):
-        from mistralai.models import HTTPValidationError, SDKError
-
-        try:
-            client = self.get_client(workspace, settings_override)
-            kwargs = {}
-            if temperature:
-                # Because some LLMs can have a temperature of 2, this is the maximum by
-                # default. We're changing it to a maximum of 1 because Mistral only
-                # accepts 1.
-                kwargs["temperature"] = min(temperature, 1)
-            response = client.chat.complete(
-                messages=[{"role": "user", "content": prompt}],
-                model=model,
-                **kwargs,
-            )
-            return response.choices[0].message.content
-        except (HTTPValidationError, SDKError) as exc:
-            raise GenerativeAIPromptError(str(exc)) from exc
 
 
 class OllamaGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
     type = "ollama"
 
-    def get_host(self, workspace=None, settings_override=None):
+    def get_host(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "host", settings_override)
             or settings.BASEROW_OLLAMA_HOST
         )
 
-    def get_api_key(self, workspace=None, settings_override=None):
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> str:
         return "ollama"
 
-    def get_organization(self, workspace=None, settings_override=None):
+    def get_organization(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> None:
         return None
 
-    def get_base_url(self, workspace=None, settings_override=None):
+    def get_base_url(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> str:
         host = self.get_host(workspace, settings_override)
         return f"{host}/v1"
 
-    def get_enabled_models(self, workspace=None, settings_override=None):
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> list[str]:
         workspace_models = self.get_workspace_setting(
             workspace, "models", settings_override
         )
         return workspace_models or settings.BASEROW_OLLAMA_MODELS
 
-    def is_enabled(self, workspace=None, settings_override=None):
+    def is_enabled(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> bool:
         host = self.get_host(workspace, settings_override)
         return bool(host) and bool(
             self.get_enabled_models(workspace, settings_override)
         )
 
-    def get_settings_serializer(self):
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.providers.ollama import OllamaProvider
+
+        host = self.get_host(workspace, settings_override)
+        return OpenAIChatModel(
+            model_name, provider=OllamaProvider(base_url=f"{host}/v1")
+        )
+
+    def get_settings_serializer(self) -> type:
         from baserow.api.generative_ai.serializers import OllamaSettingsSerializer
 
         return OllamaSettingsSerializer
@@ -372,31 +432,65 @@ class OpenRouterGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
 
     type = "openrouter"
 
-    def get_api_key(self, workspace=None, settings_override=None):
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "api_key", settings_override)
             or settings.BASEROW_OPENROUTER_API_KEY
         )
 
-    def get_enabled_models(self, workspace=None, settings_override=None):
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> list[str]:
         workspace_models = self.get_workspace_setting(
             workspace, "models", settings_override
         )
         return workspace_models or settings.BASEROW_OPENROUTER_MODELS
 
-    def get_organization(self, workspace=None, settings_override=None):
+    def get_organization(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
         return (
             self.get_workspace_setting(workspace, "organization", settings_override)
             or settings.BASEROW_OPENROUTER_ORGANIZATION
         )
 
-    def get_base_url(self, workspace=None, settings_override=None):
+    def get_base_url(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> str:
         return "https://openrouter.ai/api/v1"
 
-    def get_settings_serializer(self):
+    def get_ai_model(
+        self,
+        model_name: str,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Any:
+        from openai import AsyncOpenAI
+        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.providers.openrouter import OpenRouterProvider
+
+        api_key = self.get_api_key(workspace, settings_override)
+        organization = self.get_organization(workspace, settings_override)
+        client = AsyncOpenAI(
+            api_key=api_key,
+            organization=organization,
+            base_url="https://openrouter.ai/api/v1",
+        )
+        return OpenAIChatModel(
+            model_name, provider=OpenRouterProvider(openai_client=client)
+        )
+
+    def get_settings_serializer(self) -> type:
         from baserow.api.generative_ai.serializers import OpenRouterSettingsSerializer
 
         return OpenRouterSettingsSerializer
-
-    def is_file_compatible(self, file_name):
-        return False

@@ -18,36 +18,28 @@ class AIFieldOutputType(abc.ABC, Instance):
         used to do various Baserow operations like filtering, sorting, etc.
         """
 
-    def format_prompt(self, prompt: str, ai_field: "AIField"):
+    def get_choices(self, ai_field: "AIField"):
         """
-        Hook that can be used to change and format the provided prompt for this output
-        type. It accepts the original already resolved prompt and should return the
-        updated one.
+        Return a list of valid choice strings for constrained output, or None if
+        this output type doesn't use choice selection.
 
-        It can be used to include the format instructions of an output parser, for
-        example.
-
-        :param prompt: The resolved prompt provided by the user. This already contains
-            the resolved variables.
         :param ai_field: The AI field related to the output type.
-        :return: Should return the formatted prompt. This can include additional
-            information that can change the outcome of the prompt.
+        :return: A list of choice strings, or None.
         """
 
-        return prompt
+        return None
 
-    def parse_output(self, output: str, ai_field: "AIField"):
+    def resolve_choice(self, value, ai_field: "AIField"):
         """
-        Hook that can be used to parse the output of the generative AI prompt. If an
-        output parser formatting instructions are added in `format_prompt`, then this
-        hook can be used to parse it.
+        Map a choice string returned by prompt(output_choices=...) to the
+        appropriate field value (e.g. a SelectOption).
 
-        :param output: The text output of the generative AI.
+        :param value: The matched choice string, or None if no match.
         :param ai_field: The AI field related to the output type.
-        :return: Should return the parsed output.
+        :return: The resolved value.
         """
 
-        return output
+        return value
 
     def prepare_data_sync_value(self, value: Any, field: Field, metadata: dict) -> Any:
         """

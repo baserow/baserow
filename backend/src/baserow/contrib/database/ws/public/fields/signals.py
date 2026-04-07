@@ -10,6 +10,7 @@ from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.views.models import View
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.ws.fields.signals import RealtimeFieldMessages
+from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.ws.registries import page_registry
 
@@ -47,57 +48,90 @@ def _send_payload_to_public_views_where_field_not_hidden(
     )
 
 
+def _get_public_views_with_hidden_fields(
+    table_id: int,
+    field_ids: Optional[List[int]] = None,
+) -> List[Tuple[View, Set[int]]]:
+    """
+    Returns the public views for a table with their hidden field sets. Results
+    are cached in the request-scoped local_cache so that repeated calls for the
+    same table within a single request don't re-query.
+
+    :param table_id: The id of the table to get the views for.
+    :param field_ids: When provided, only calculate the hidden fields for these
+        field ids, otherwise calculate for all fields in the table.
+    :return: A list of (view, hidden_field_ids) tuples for all public views of the
+    """
+
+    def _fetch() -> List[Tuple[View, Set[int]]]:
+        nonlocal field_ids
+
+        views_qs = (
+            View.objects.filter(public=True, table_id=table_id)
+            .select_related("table__database__workspace")
+            .prefetch_related("table__field_set")
+        )
+
+        specific_views = specific_iterator(
+            views_qs,
+            per_content_type_queryset_hook=(
+                lambda model, queryset: view_type_registry.get_by_model(
+                    model
+                ).enhance_queryset(queryset)
+            ),
+        )
+        if not specific_views:
+            return []
+        elif not field_ids:
+            table = specific_views[0].table
+            field_ids = [f.id for f in table.field_set.all()]
+
+        result = []
+        for view in specific_views:
+            view = view.specific
+            view_type = view_type_registry.get_by_model(view)
+            if not view_type.when_shared_publicly_requires_realtime_events:
+                continue
+
+            hidden_field_ids = view_type.get_hidden_fields(view, field_ids)
+            result.append((view, hidden_field_ids))
+
+        return result
+
+    return local_cache.get(
+        f"public_views_with_hidden_fields_{table_id}_{field_ids}",
+        default=_fetch,
+    )
+
+
 def _get_views_where_field_visible_and_hidden_fields_in_view(
     field: Field,
     hidden_fields_field_ids_filter: Optional[Iterable[int]] = None,
 ) -> List[Tuple[View, Set[int]]]:
     """
-    Finds all views where field is visible and also attaches the set of fields which
-    are hidden in said view.
+    Finds all public views where field is visible, along with the set of hidden
+    field ids in each view.
 
-    :param field: All views where this field is visible will be returned.
-    :param hidden_fields_field_ids_filter: An optional filter which restricts the
-        calculation of whether a field is hidden or not in a returned view down to just
-        checking the fields in this iterable.
-    :return: A list of tuples where the first value is a view where field is visible
-        and the second is the set of field ids which are hidden in said view.
+    :param field: The field to check visibility for.
+    :param hidden_fields_field_ids_filter: When provided, restricts hidden field
+        calculation to just these field ids plus the field itself.
+    :return: A list of (view, hidden_field_ids) tuples for views where field is
+        visible.
     """
 
-    views_with_prefetched_fields = View.objects.filter(
-        public=True, table_id=field.table_id
-    ).prefetch_related("table__field_set")
-
-    specific_views = specific_iterator(
-        views_with_prefetched_fields,
-        per_content_type_queryset_hook=(
-            lambda model, queryset: view_type_registry.get_by_model(
-                model
-            ).enhance_queryset(queryset)
-        ),
+    field_ids = (
+        list({field.id, *hidden_fields_field_ids_filter})
+        if hidden_fields_field_ids_filter
+        else None
     )
-    if len(specific_views) == 0:
-        return []
-
-    if hidden_fields_field_ids_filter is None:
-        table = specific_views[0].table
-        all_field_ids = table.field_set.values_list("id", flat=True)
-        restrict_hidden_check_to_field_ids = all_field_ids
-    else:
-        restrict_hidden_check_to_field_ids = [field.id, *hidden_fields_field_ids_filter]
-
-    views_where_field_was_visible = []
-    for view in specific_views:
-        view = view.specific
-        view_type = view_type_registry.get_by_model(view)
-        if not view_type.when_shared_publicly_requires_realtime_events:
-            continue
-
-        hidden_field_ids = view_type.get_hidden_fields(
-            view, restrict_hidden_check_to_field_ids
-        )
-        if field.id not in hidden_field_ids:
-            views_where_field_was_visible.append((view, hidden_field_ids))
-    return views_where_field_was_visible
+    views_with_hidden = _get_public_views_with_hidden_fields(
+        field.table_id, field_ids=field_ids
+    )
+    return [
+        (view, hidden_field_ids)
+        for view, hidden_field_ids in views_with_hidden
+        if field.id not in hidden_field_ids
+    ]
 
 
 @receiver(field_signals.field_created)

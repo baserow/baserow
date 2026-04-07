@@ -210,12 +210,28 @@ const { data, status, pending, error, refresh, clear } = await useAsyncData(
     }
 
     const fieldData = {}
+    const tableIdsToRemove = []
 
     for (const i in database.tables) {
       const table = database.tables[i]
-      const { data } = await FieldService($client).fetchAll(table.id)
-      fieldData[table.id] = data
+      try {
+        const { data } = await FieldService($client).fetchAll(table.id)
+        fieldData[table.id] = data
+      } catch (error) {
+        // This can happen if the user does have access to list all the fields of a
+        // table, but can see the table because they have access to only a view, for
+        // example.
+        if (error.response?.data?.error === 'PERMISSION_DENIED') {
+          tableIdsToRemove.push(table.id)
+        } else {
+          throw error
+        }
+      }
     }
+
+    database.tables = database.tables.filter(
+      (table) => !tableIdsToRemove.includes(table.id)
+    )
 
     return { database, fieldData }
   }

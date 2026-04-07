@@ -53,7 +53,7 @@ export default {
       }
     },
     url() {
-      return tableRouteResetViewIfNeeded(this.params)
+      return tableRouteResetViewIfNeeded(this.$router, this.params)
     },
   },
   methods: {

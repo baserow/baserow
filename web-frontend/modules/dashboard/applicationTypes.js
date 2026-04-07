@@ -79,7 +79,7 @@ export class DashboardApplicationType extends ApplicationType {
           dashboardId: application.id,
         },
       })
-      await pageFinished()
+      await pageFinished(this.app)
       await nextTick()
     } catch (error) {
       if (error.name !== 'NavigationDuplicated') {

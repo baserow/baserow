@@ -1,4 +1,5 @@
 import contextlib
+import json
 import random
 import time
 from collections import defaultdict
@@ -20,7 +21,12 @@ from typing import (
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.db import DEFAULT_DB_ALIAS, OperationalError, connection, transaction
+from django.db import (
+    DEFAULT_DB_ALIAS,
+    OperationalError,
+    connection,
+    transaction,
+)
 from django.db.models import ForeignKey, ManyToManyField, Max, Model, Prefetch, QuerySet
 from django.db.models.functions import Collate
 from django.db.models.query import ModelIterable
@@ -35,6 +41,30 @@ from baserow.core.psycopg import is_deadlock_error, sql
 from .utils import find_intermediate_order
 
 ModelInstance = TypeVar("ModelInstance", bound=object)
+
+
+APPROXIMATE_COUNT_THRESHOLD = 50_000
+
+
+def get_approximate_row_count(queryset: QuerySet) -> int:
+    """
+    Uses Postgres EXPLAIN to estimate the row count for the given queryset.
+    If the estimate is below APPROXIMATE_COUNT_THRESHOLD, falls back to an
+    exact COUNT(*) since the cost is negligible for small result sets and
+    the planner estimate is unreliable at that scale.
+
+    :param queryset: The queryset to estimate the row count for.
+    :return: An estimate of the row count for the queryset.
+    """
+
+    queryset = queryset.order_by()
+    plan = json.loads(queryset.explain(format="json"))
+    estimate = int(plan[0]["Plan"]["Plan Rows"])
+
+    if estimate < APPROXIMATE_COUNT_THRESHOLD:
+        return queryset.count()
+
+    return estimate
 
 
 def get_database_dsn() -> str:

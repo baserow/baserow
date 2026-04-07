@@ -95,7 +95,7 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapGetters } from 'vuex'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick } from '#imports'
+import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'SidebarItemAutomation',
@@ -108,6 +108,10 @@ export default {
       type: Object,
       required: true,
     },
+  },
+  setup() {
+    const nuxtApp = useNuxtApp()
+    return { nuxtApp }
   },
   data() {
     return {
@@ -157,21 +161,21 @@ export default {
       }
       this.setLoading(automation, true)
       try {
-        await this.$nuxt.$router.push({
+        await this.$router.push({
           name: 'automation-workflow',
           params: {
             automationId: automation.id,
             workflowId: workflow.id,
           },
         })
-        await pageFinished()
+        await pageFinished(this.nuxtApp)
         await nextTick()
       } finally {
         this.setLoading(automation, false)
       }
     },
     resolveWorkflowHref(automation, workflow) {
-      const props = this.$nuxt.$router.resolve({
+      const props = this.$router.resolve({
         name: 'automation-workflow',
         params: {
           automationId: automation.id,

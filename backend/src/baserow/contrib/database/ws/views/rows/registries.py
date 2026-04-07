@@ -24,7 +24,7 @@ class ViewRealtimeRowsType(Instance):
             "instance."
         )
 
-    def broadcast(self, view, payload):
+    def broadcast(self, view, payload, user=None):
         """
         Called when a payload must be broadcasted to a view. The code should look like:
 
@@ -39,6 +39,8 @@ class ViewRealtimeRowsType(Instance):
         :param view: The view where to broadcast to.
         :param payload: The row created, updated, or deleted payload that must be
             broadcasted.
+        :param user: The user that triggered the event. When provided, the broadcast
+            can exclude the original sender so they don't receive their own event.
         """
 
         raise NotImplementedError(

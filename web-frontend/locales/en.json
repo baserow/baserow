@@ -169,7 +169,8 @@
     "formViewEditRowShareWarning": "Anyone with the shared link can edit rows via the {formNames} form through the publicly visible edit row link fields.|Anyone with the shared link can edit rows via the {formNames} forms through the publicly visible edit row link field.",
     "ai": "AI prompt",
     "multipleCollaboratorsDropdown": "Dropdown",
-    "multipleCollaboratorsCheckboxes": "Checkboxes"
+    "multipleCollaboratorsCheckboxes": "Checkboxes",
+    "defaultValueFunctionNow": "Current date"
   },
   "fieldErrors": {
     "invalidNumber": "Invalid number",
@@ -180,6 +181,7 @@
     "invalidPhoneNumber": "Invalid Phone Number",
     "invalidDuration": "Invalid format ({durationFormat}).",
     "overflowDuration": "Value is out of bounds.",
+    "higherThan": "Value is higher than {max}.",
     "maxChars": "Max {max} chars.",
     "minChars": "Min {min} chars."
   },
@@ -452,8 +454,6 @@
     "generativeAIDoesNotExistDescription": "The generative AI model does not exist.",
     "modelDoesNotBelongToTypeTitle": "The selected model does not belong to the AI Type",
     "modelDoesNotBelongToTypeDescription": "The selected model does not belong to the selected AI type.",
-    "outputParserTitle": "Wrong output",
-    "outputParserDescription": "The model responded with an incorrect output. Please try again.",
     "generateAIPromptTitle": "Prompt error",
     "generateAIPromptDescription": "Something was wrong with the constructed prompt.",
     "maxNumberOfPendingWorkspaceInvitesReachedTitle": "Max pending invites reached",
@@ -619,10 +619,14 @@
     "getImageWidthDescription": "Returns the image width from a single file returned from the index function.",
     "getImageHeightDescription": "Returns the image height from a single file returned from the index function.",
     "getIsImageDescription": "Returns if the single file returned from the index function is an image or not.",
-    "indexDescription": "Returns the file from a file field at the position provided by the second argument.",
+    "indexDescription": "Returns the element at the given 0-based position from an array value (for example from a lookup, file, or other array-typed field). Negative indices count from the end (-1 is last).",
     "secondsToDurationDescription": "Converts the number of seconds provided into a duration.",
     "durationToSecondsDescription": "Converts the duration provided into the corresponding number of seconds.",
-    "hasOptionDescription": "Returns true if the first argument is a multiple select field or a lookup to a single select field and the second argument is one of the options."
+    "hasOptionDescription": "Returns true if the first argument is a multiple select field or a lookup to a single select field and the second argument is one of the options.",
+    "arrayUniqueDescription": "Returns only the unique items from an array, removing duplicates while preserving the order of first occurrence.",
+    "arraySliceDescription": "Returns a sub-array starting at the given index (0-based, negative counts from end). Positive count takes elements forward, 0 means all remaining, negative count takes elements backward in reverse order.",
+    "firstDescription": "Returns the first element from an array value (for example from a lookup, file, or other array-typed field).",
+    "lastDescription": "Returns the last element from an array value (for example from a lookup, file, or other array-typed field)."
   },
   "functionnalGridViewFieldLinkRow": {
     "unnamed": "unnamed row {value}"

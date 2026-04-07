@@ -208,7 +208,7 @@ import SidebarDuplicateTableContextItem from '@baserow/modules/database/componen
 import SyncTableModal from '@baserow/modules/database/components/dataSync/SyncTableModal'
 import ConfigureDataSyncModal from '@baserow/modules/database/components/dataSync/ConfigureDataSyncModal.vue'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick } from '#imports'
+import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'SidebarItem',
@@ -228,6 +228,10 @@ export default {
       type: Object,
       required: true,
     },
+  },
+  setup() {
+    const nuxtApp = useNuxtApp()
+    return { nuxtApp }
   },
   data() {
     return {
@@ -322,7 +326,7 @@ export default {
           },
         })
         if (failure === undefined) {
-          await pageFinished()
+          await pageFinished(this.nuxtApp)
           await nextTick()
         }
       } finally {

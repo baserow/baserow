@@ -521,12 +521,10 @@ def test_get_row_serializer_with_user_field_names(
                         "value": "E",
                     },
                 ],
-                "formula_multiple_collaborators": unordered(
-                    [
-                        {"id": u2.id, "name": u2.first_name},
-                        {"id": u3.id, "name": u3.first_name},
-                    ]
-                ),
+                "formula_multiple_collaborators": [
+                    {"id": u2.id, "name": u2.first_name},
+                    {"id": u3.id, "name": u3.first_name},
+                ],
                 "formula_text": "test FORMULA",
                 "count": "3",
                 "rollup": "-122.222",
@@ -540,12 +538,10 @@ def test_get_row_serializer_with_user_field_names(
                 "multiple_collaborators_lookup": [
                     {
                         "id": 1,
-                        "value": unordered(
-                            [
-                                {"id": u2.id, "name": u2.first_name},
-                                {"id": u3.id, "name": u3.first_name},
-                            ]
-                        ),
+                        "value": [
+                            {"id": u2.id, "name": u2.first_name},
+                            {"id": u3.id, "name": u3.first_name},
+                        ],
                     },
                     {
                         "id": 2,
@@ -573,6 +569,12 @@ def test_get_row_serializer_with_user_field_names(
         )
     )
     test_result = json.loads(json.dumps(serializer_instance.data[0]))
+    expected_result["formula_multiple_collaborators"] = unordered(
+        expected_result["formula_multiple_collaborators"]
+    )
+    expected_result["multiple_collaborators_lookup"][0]["value"] = unordered(
+        expected_result["multiple_collaborators_lookup"][0]["value"]
+    )
     assert test_result == expected_result
 
 

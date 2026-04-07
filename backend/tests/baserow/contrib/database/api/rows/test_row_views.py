@@ -1,4 +1,6 @@
+import base64
 import json
+import os
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from unittest.mock import patch
@@ -21,6 +23,10 @@ from rest_framework.status import (
     HTTP_409_CONFLICT,
 )
 
+from baserow.contrib.database.api.rows.serializers import (
+    RowSerializer,
+    get_row_serializer_class,
+)
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.fields.registries import field_type_registry
@@ -29,6 +35,8 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.search.handler import ALL_SEARCH_MODES
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.tokens.handler import TokenHandler
+from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import OWNERSHIP_TYPE_COLLABORATIVE
 from baserow.core.action.handler import ActionHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.test_utils.helpers import (
@@ -4770,3 +4778,430 @@ def test_update_single_field_does_not_affect_others(api_client, data_fixture):
 
         # Update original_values for next iteration
         original_values[field_id] = updated_data[f"field_{field_id}"]
+
+
+@pytest.mark.django_db
+def test_create_row_with_view_default_values(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    ViewHandler().update_view_default_values(
+        user=user,
+        view=view,
+        items=[{"field": text_field.id, "enabled": True, "value": "api default"}],
+    )
+
+    # Create a row with the view context — no explicit field value.
+    response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id})
+        + f"?view={view.id}",
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[f"field_{text_field.id}"] == "api default"
+
+
+@pytest.mark.django_db
+def test_create_row_api_default_value_priority(api_client, data_fixture):
+    """Test priority: empty < field default < view default < user value via API."""
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(
+        table=table, text_default="field default"
+    )
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    # Set view default.
+    ViewHandler().update_view_default_values(
+        user=user,
+        view=view,
+        items=[{"field": text_field.id, "enabled": True, "value": "view default"}],
+    )
+
+    # 1. No view, no value -> field default
+    response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id}),
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[f"field_{text_field.id}"] == "field default"
+
+    # 2. With view, no value -> view default
+    response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id})
+        + f"?view={view.id}",
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[f"field_{text_field.id}"] == "view default"
+
+    # 3. With view, user value -> user value wins
+    response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id})
+        + f"?view={view.id}",
+        {f"field_{text_field.id}": "user value"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[f"field_{text_field.id}"] == "user value"
+
+
+@pytest.mark.django_db
+def test_batch_create_rows_with_view_default_values(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table)
+    number_field = data_fixture.create_number_field(table=table)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    ViewHandler().update_view_default_values(
+        user=user,
+        view=view,
+        items=[
+            {"field": text_field.id, "enabled": True, "value": "default text"},
+            {"field": number_field.id, "enabled": True, "value": 99},
+        ],
+    )
+
+    # Row 1: provides text, so only number should get the default.
+    # Row 2: provides number, so only text should get the default.
+    response = api_client.post(
+        reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+        + f"?view={view.id}",
+        {
+            "items": [
+                {f"field_{text_field.id}": "custom text"},
+                {f"field_{number_field.id}": 42},
+            ]
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    rows = response.json()["items"]
+
+    # Row 1: user-provided text, default number.
+    assert rows[0][f"field_{text_field.id}"] == "custom text"
+    assert rows[0][f"field_{number_field.id}"] == "99"
+
+    # Row 2: default text, user-provided number.
+    assert rows[1][f"field_{text_field.id}"] == "default text"
+    assert rows[1][f"field_{number_field.id}"] == "42"
+
+
+@pytest.mark.django_db
+def test_create_row_with_interesting_table_default_values(api_client, data_fixture):
+    table, user, row, _, context = setup_interesting_test_table(data_fixture)
+    token = data_fixture.generate_token(user)
+    view = data_fixture.create_grid_view(user=user, table=table)
+
+    model = table.get_model()
+    row = model.objects.all().enhance_by_fields().get(id=row.id)
+
+    # Serialize the existing row in response format, then convert to
+    # request format so we can set them as default values.
+    response_serializer = get_row_serializer_class(
+        model, RowSerializer, is_response=True
+    )
+    row_data = response_serializer(row).data
+
+    items = []
+    comparable_field_ids = []
+    input_values_by_field_name = {}
+    field_type_by_id = {}
+    for field_object in model.get_field_objects():
+        field = field_object["field"]
+        field_type = field_object["type"]
+        field_name = f"field_{field.id}"
+
+        if field.read_only or field_type.read_only:
+            continue
+
+        if field_name not in row_data:
+            continue
+
+        value = row_data[field_name]
+
+        # Convert response format → request format.
+        if isinstance(value, dict) and "id" in value and "value" in value:
+            value = value["id"]
+        elif isinstance(value, list) and value and isinstance(value[0], dict):
+            if "id" in value[0]:
+                value = [item["id"] for item in value]
+
+        items.append({"field": field.id, "enabled": True, "value": value})
+        input_values_by_field_name[field_name] = value
+        comparable_field_ids.append(field.id)
+        field_type_by_id[field.id] = field_type.type
+
+    assert len(items) > 0, "Expected at least some writable fields"
+
+    # Set the default values via the API.
+    patch_response = api_client.patch(
+        reverse("api:database:views:default_values", kwargs={"view_id": view.id}),
+        items,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert patch_response.status_code == HTTP_200_OK, patch_response.json()
+
+    # Verify the default values are returned correctly via the list views endpoint.
+    list_response = api_client.get(
+        reverse("api:database:views:list", kwargs={"table_id": table.id})
+        + "?include=default_row_values",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert list_response.status_code == HTTP_200_OK
+    view_data = next(v for v in list_response.json() if v["id"] == view.id)
+    stored_defaults = {dv["field"]: dv for dv in view_data["default_row_values"]}
+    for item in items:
+        field_id = item["field"]
+        assert field_id in stored_defaults, (
+            f"field_{field_id}: missing from view default_row_values"
+        )
+        stored = stored_defaults[field_id]
+        assert stored["enabled"] is True
+        assert stored["value"] == item["value"], (
+            f"field_{field_id}: stored value {stored['value']!r} != "
+            f"sent value {item['value']!r}"
+        )
+
+    # Create a new row without providing any field values.
+    create_response = api_client.post(
+        reverse("api:database:rows:list", kwargs={"table_id": table.id})
+        + f"?view={view.id}",
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert create_response.status_code == HTTP_200_OK, create_response.json()
+    created_row = create_response.json()
+
+    # Verify that every comparable field on the created row matches the
+    # default value that was set.
+    for field_id in comparable_field_ids:
+        field_name = f"field_{field_id}"
+        created_value = created_row[field_name]
+        sent_value = input_values_by_field_name[field_name]
+        ft = field_type_by_id[field_id]
+
+        # Password: response is a boolean indicating whether a password is set.
+        if ft == "password":
+            assert created_value is True, (
+                f"{field_name}: expected password to be set (True)"
+            )
+            continue
+
+        # File: compare by the sorted list of file names.
+        if ft == "file":
+            created_names = sorted(f["name"] for f in created_value)
+            sent_names = sorted(
+                f["name"] if isinstance(f, dict) else f for f in sent_value
+            )
+            assert created_names == sent_names, (
+                f"{field_name}: file names {created_names!r} != {sent_names!r}"
+            )
+            continue
+
+        # Single select: response is an object, input was an ID.
+        if isinstance(created_value, dict) and "id" in created_value:
+            created_value = created_value["id"]
+        # Multiple select / link row / multiple collaborators: response is a
+        # list of objects, input was a list of IDs.
+        elif (
+            isinstance(created_value, list)
+            and created_value
+            and isinstance(created_value[0], dict)
+            and "id" in created_value[0]
+        ):
+            created_value = sorted(item["id"] for item in created_value)
+            if isinstance(sent_value, list):
+                sent_value = sorted(sent_value)
+
+        assert created_value == sent_value, (
+            f"{field_name}: created row value {created_value!r} != "
+            f"default value {sent_value!r}"
+        )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_create_row_succeeds_when_legacy_view_index_exceeds_max_size(
+    api_client, data_fixture
+):
+    """
+    When a view has legacy indexes and a row insert would exceed the btree
+    maximum entry size, the indexes should be dropped, the insert should succeed,
+    and the index recreation should be scheduled.
+    """
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    long_text_field = data_fixture.create_long_text_field(user=user, table=table)
+
+    view_handler = ViewHandler()
+    grid_view = view_handler.create_view(
+        user=user,
+        table=table,
+        type_name="grid",
+        name="Test grid",
+        ownership_type=OWNERSHIP_TYPE_COLLABORATIVE,
+    )
+    grid_view_2 = view_handler.create_view(
+        user=user,
+        table=table,
+        type_name="grid",
+        name="Test grid 2",
+        ownership_type=OWNERSHIP_TYPE_COLLABORATIVE,
+    )
+
+    table_model = table.get_model()
+    view_handler.create_sort(
+        user=user, view=grid_view, field=long_text_field, order="ASC"
+    )
+    view_handler.create_sort(
+        user=user, view=grid_view_2, field=long_text_field, order="ASC"
+    )
+
+    table_name = table_model._meta.db_table
+    field_column = f"field_{long_text_field.id}"
+    legacy_index_name = f"legacy_idx_create_{table.id}"
+    legacy_index_name_2 = f"legacy_idx_create_{table.id}_2"
+
+    # Create "legacy" indexes
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f'CREATE INDEX "{legacy_index_name}" ON "{table_name}" '
+            f'("{field_column}", "order", "id") WHERE NOT "trashed"'
+        )
+        cursor.execute(
+            f'CREATE INDEX "{legacy_index_name_2}" ON "{table_name}" '
+            f'("{field_column}", "order", "id") WHERE NOT "trashed"'
+        )
+
+    grid_view.db_index_name = legacy_index_name
+    grid_view.save(update_fields=["db_index_name"])
+
+    grid_view_2.db_index_name = legacy_index_name_2
+    grid_view_2.save(update_fields=["db_index_name"])
+
+    large_text = base64.b64encode(os.urandom(8000)).decode("ascii")
+
+    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+
+    response = api_client.post(
+        url,
+        {f"field_{long_text_field.id}": large_text},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[f"field_{long_text_field.id}"] == large_text
+    assert table_model.objects.count() == 1
+
+    # The legacy indexes should have been dropped
+    grid_view.refresh_from_db()
+    assert grid_view.db_index_name is None
+
+    grid_view_2.refresh_from_db()
+    assert grid_view_2.db_index_name is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_update_row_succeeds_when_legacy_view_index_exceeds_max_size(
+    api_client, data_fixture
+):
+    """
+    When a view has legacy indexes and a row update would exceed the btree
+    maximum entry size, the indexes should be dropped, the update should
+    succeed, and the index recreation should be scheduled.
+    """
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    long_text_field = data_fixture.create_long_text_field(user=user, table=table)
+
+    view_handler = ViewHandler()
+    grid_view = view_handler.create_view(
+        user=user,
+        table=table,
+        type_name="grid",
+        name="Test grid",
+        ownership_type=OWNERSHIP_TYPE_COLLABORATIVE,
+    )
+    grid_view_2 = view_handler.create_view(
+        user=user,
+        table=table,
+        type_name="grid",
+        name="Test grid",
+        ownership_type=OWNERSHIP_TYPE_COLLABORATIVE,
+    )
+
+    table_model = table.get_model()
+    view_handler.create_sort(
+        user=user, view=grid_view, field=long_text_field, order="ASC"
+    )
+    view_handler.create_sort(
+        user=user, view=grid_view_2, field=long_text_field, order="ASC"
+    )
+
+    # Create a row with a small value first
+    row = table_model.objects.create(**{f"field_{long_text_field.id}": "small"})
+
+    table_name = table_model._meta.db_table
+    field_column = f"field_{long_text_field.id}"
+    legacy_index_name = f"legacy_idx_update_{table.id}"
+    legacy_index_name_2 = f"legacy_idx_update_{table.id}_2"
+
+    # Create "legacy" indexes
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f'CREATE INDEX "{legacy_index_name}" ON "{table_name}" '
+            f'("{field_column}", "order", "id") WHERE NOT "trashed"'
+        )
+        cursor.execute(
+            f'CREATE INDEX "{legacy_index_name_2}" ON "{table_name}" '
+            f'("{field_column}", "order", "id") WHERE NOT "trashed"'
+        )
+
+    grid_view.db_index_name = legacy_index_name
+    grid_view.save(update_fields=["db_index_name"])
+
+    grid_view_2.db_index_name = legacy_index_name_2
+    grid_view_2.save(update_fields=["db_index_name"])
+
+    large_text = base64.b64encode(os.urandom(8000)).decode("ascii")
+
+    url = reverse(
+        "api:database:rows:item",
+        kwargs={"table_id": table.id, "row_id": row.id},
+    )
+
+    response = api_client.patch(
+        url,
+        {f"field_{long_text_field.id}": large_text},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()[f"field_{long_text_field.id}"] == large_text
+    row.refresh_from_db()
+    assert getattr(row, f"field_{long_text_field.id}") == large_text
+
+    # The legacy indexes should have been dropped
+    grid_view.refresh_from_db()
+    assert grid_view.db_index_name is None
+
+    grid_view_2.refresh_from_db()
+    assert grid_view_2.db_index_name is None

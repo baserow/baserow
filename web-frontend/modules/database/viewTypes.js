@@ -83,6 +83,13 @@ export class ViewType extends Registerable {
     return false
   }
 
+  /**
+   * Indicates whether it is possible to set default row values for this view.
+   */
+  canSetDefaultValues() {
+    return true
+  }
+
   constructor(...args) {
     super(...args)
     this.type = this.getType()
@@ -92,6 +99,7 @@ export class ViewType extends Registerable {
     this.canSort = this.canSort()
     this.canGroupBy = this.canGroupBy()
     this.canShare = this.canShare()
+    this.canSetDefaultValues = this.canSetDefaultValues()
 
     if (this.type === null) {
       throw new Error('The type name of a view type must be set.')
@@ -1259,6 +1267,10 @@ export class FormViewType extends ViewType {
 
   canShare() {
     return true
+  }
+
+  canSetDefaultValues() {
+    return false
   }
 
   getPublicRoute() {

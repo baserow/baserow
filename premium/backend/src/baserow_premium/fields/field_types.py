@@ -34,10 +34,7 @@ from baserow.core.generative_ai.exceptions import (
     GenerativeAITypeDoesNotExist,
     ModelDoesNotBelongToType,
 )
-from baserow.core.generative_ai.registries import (
-    GenerativeAIWithFilesModelType,
-    generative_ai_model_type_registry,
-)
+from baserow.core.generative_ai.registries import generative_ai_model_type_registry
 from baserow_premium.api.fields.exceptions import (
     ERROR_GENERATIVE_AI_DOES_NOT_SUPPORT_FILE_FIELD,
 )
@@ -342,9 +339,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         models = ai_type.get_enabled_models(workspace=workspace)
         if model_type not in models:
             raise ModelDoesNotBelongToType(model_name=model_type)
-        if ai_file_field_id is not None and not isinstance(
-            ai_type, GenerativeAIWithFilesModelType
-        ):
+        if ai_file_field_id is not None and not ai_type.supports_files:
             raise GenerativeAITypeDoesNotSupportFileField()
 
     def get_field_dependencies(

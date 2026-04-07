@@ -98,6 +98,7 @@ export default {
           false,
           false,
           false,
+          false,
           false
         )
         views = data

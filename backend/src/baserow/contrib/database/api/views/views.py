@@ -3,6 +3,7 @@ from typing import Any, Dict
 
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.db import transaction
 from django.db.models import ObjectDoesNotExist
 
@@ -23,6 +24,7 @@ from baserow.api.decorators import (
     validate_query_parameters,
 )
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
+from baserow.api.exceptions import RequestBodyValidationException
 from baserow.api.pagination import PageNumberPagination
 from baserow.api.schemas import (
     CLIENT_SESSION_ID_SCHEMA_PARAMETER,
@@ -41,6 +43,7 @@ from baserow.api.utils import (
 from baserow.contrib.database.api.fields.errors import (
     ERROR_FIELD_DOES_NOT_EXIST,
     ERROR_FIELD_NOT_IN_TABLE,
+    ERROR_INVALID_DEFAULT_VALUE_FUNCTION,
 )
 from baserow.contrib.database.api.fields.serializers import LinkRowValueSerializer
 from baserow.contrib.database.api.rows.errors import ERROR_ROW_DOES_NOT_EXIST
@@ -54,11 +57,13 @@ from baserow.contrib.database.api.views.serializers import (
     CreateViewGroupBySerializer,
     PublicViewInfoSerializer,
     UpdateViewGroupBySerializer,
+    ViewDefaultValueSerializer,
     ViewGroupBySerializer,
 )
 from baserow.contrib.database.fields.exceptions import (
     FieldDoesNotExist,
     FieldNotInTable,
+    InvalidDefaultValueFunction,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import Field, LinkRowField
@@ -83,6 +88,7 @@ from baserow.contrib.database.views.actions import (
     RotateViewSlugActionType,
     UpdateDecorationActionType,
     UpdateViewActionType,
+    UpdateViewDefaultValuesActionType,
     UpdateViewFieldOptionsActionType,
     UpdateViewFilterActionType,
     UpdateViewFilterGroupActionType,
@@ -97,6 +103,7 @@ from baserow.contrib.database.views.exceptions import (
     ViewDecorationDoesNotExist,
     ViewDecorationNotSupported,
     ViewDoesNotExist,
+    ViewDoesNotSupportDefaultValues,
     ViewDoesNotSupportFieldOptions,
     ViewDoesNotSupportListingRows,
     ViewFilterDoesNotExist,
@@ -144,6 +151,7 @@ from .errors import (
     ERROR_VIEW_DECORATION_NOT_SUPPORTED,
     ERROR_VIEW_DECORATION_VALUE_PROVIDER_NOT_COMPATIBLE,
     ERROR_VIEW_DOES_NOT_EXIST,
+    ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES,
     ERROR_VIEW_DOES_NOT_SUPPORT_FIELD_OPTIONS,
     ERROR_VIEW_DOES_NOT_SUPPORT_LISTING_ROWS,
     ERROR_VIEW_FILTER_DOES_NOT_EXIST,
@@ -245,7 +253,7 @@ class ViewsView(APIView):
                 description=(
                     "A comma separated list of extra attributes to include on each "
                     "view in the response. The supported attributes are `filters`, "
-                    "`sortings` and `decorations`. "
+                    "`sortings`, `decorations`, `group_bys` and `default_row_values`. "
                     "For example `include=filters,sortings` will add the "
                     "attributes `filters` and `sortings` to every returned view, "
                     "containing a list of the views filters and sortings respectively."
@@ -278,9 +286,19 @@ class ViewsView(APIView):
         }
     )
     @validate_query_parameters(ListQueryParamatersSerializer)
-    @allowed_includes("filters", "sortings", "decorations", "group_bys")
+    @allowed_includes(
+        "filters", "sortings", "decorations", "group_bys", "default_row_values"
+    )
     def get(
-        self, request, table_id, query_params, filters, sortings, decorations, group_bys
+        self,
+        request,
+        table_id,
+        query_params,
+        filters,
+        sortings,
+        decorations,
+        group_bys,
+        default_row_values,
     ):
         """
         Responds with a list of serialized views that belong to the table if the user
@@ -303,6 +321,7 @@ class ViewsView(APIView):
             sortings,
             decorations,
             group_bys,
+            default_row_values,
             query_params["limit"],
         )
 
@@ -320,6 +339,7 @@ class ViewsView(APIView):
                 sortings=sortings,
                 decorations=decorations,
                 group_bys=group_bys,
+                default_row_values=default_row_values,
                 many=True,
             ).data
         return Response(serialized_views)
@@ -466,8 +486,19 @@ class ViewView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
         }
     )
-    @allowed_includes("filters", "sortings", "decorations", "group_bys")
-    def get(self, request, view_id, filters, sortings, decorations, group_bys):
+    @allowed_includes(
+        "filters", "sortings", "decorations", "group_bys", "default_row_values"
+    )
+    def get(
+        self,
+        request,
+        view_id,
+        filters,
+        sortings,
+        decorations,
+        group_bys,
+        default_row_values,
+    ):
         """Selects a single view and responds with a serialized version."""
 
         view = ViewHandler().get_view_as_user(request.user, view_id)
@@ -479,6 +510,7 @@ class ViewView(APIView):
             sortings=sortings,
             decorations=decorations,
             group_bys=group_bys,
+            default_row_values=default_row_values,
             context={"user": request.user},
         )
         return Response(serializer.data)
@@ -676,6 +708,7 @@ class DuplicateViewView(APIView):
             sortings=True,
             decorations=True,
             group_bys=True,
+            default_row_values=True,
             context={"user": request.user},
         )
         return Response(serializer.data)
@@ -2455,3 +2488,86 @@ class PublicViewGetRowView(APIView):
             row._meta.model, RowSerializer, is_response=True, field_ids=field_ids
         )
         return Response(serializer_class(row).data)
+
+
+class ViewDefaultValuesView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="view_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="Updates the default row values for the view with "
+                "the given id.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Database table views"],
+        operation_id="update_view_default_values",
+        description=(
+            "Updates the default row values for the specified view. Accepts a list of "
+            "default value objects, each specifying the field, whether the default is "
+            "enabled, an optional raw value, and an optional function name (e.g. "
+            "'now') for dynamic defaults."
+        ),
+        request=ViewDefaultValueSerializer(many=True),
+        responses={
+            200: ViewDefaultValueSerializer(many=True),
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES",
+                    "ERROR_INVALID_DEFAULT_VALUE_FUNCTION",
+                    "ERROR_FIELD_NOT_IN_TABLE",
+                ]
+            ),
+            404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+            ViewDoesNotSupportDefaultValues: ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES,
+            InvalidDefaultValueFunction: ERROR_INVALID_DEFAULT_VALUE_FUNCTION,
+            FieldNotInTable: ERROR_FIELD_NOT_IN_TABLE,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+        }
+    )
+    @transaction.atomic
+    def patch(self, request, view_id):
+        """Updates the default row values for the given view."""
+
+        items = validate_data(ViewDefaultValueSerializer, request.data, many=True)
+
+        handler = ViewHandler()
+        view = handler.get_view(view_id).specific
+
+        # Validate field values through the row serializer to ensure they are valid
+        # for the respective field types.
+        table = view.table
+        model = table.get_model()
+        validation_serializer = get_row_serializer_class(model)
+
+        raw_values = {}
+        for item in items:
+            field_id = item.get("field")
+            if field_id and item.get("value") is not None:
+                raw_values[f"field_{field_id}"] = item["value"]
+
+        if raw_values:
+            validate_data(validation_serializer, raw_values)
+
+        try:
+            records = action_type_registry.get(
+                UpdateViewDefaultValuesActionType.type
+            ).do(
+                user=request.user,
+                view=view,
+                items=items,
+            )
+        except ValidationError as e:
+            raise RequestBodyValidationException(detail=e.message)
+
+        return Response(ViewDefaultValueSerializer(records, many=True).data)

@@ -31,6 +31,16 @@ Examples: `just b test backend/tests/path/`, `just b test-coverage`, `just f tes
 
 Recent history favors short, imperative subjects, often with Conventional Commit prefixes such as `fix:`, `feat:`, and `chore(deps):`. Branch from `develop`, keep PRs focused, and link the related issue or discussion. Include a clear summary, note schema or env changes, attach screenshots for UI work, add a changelog entry when required, and make sure the relevant lint and test commands pass before opening the PR.
 
+## Project Skills
+
+Reusable skills live in `.agents/skills/`. Each subdirectory is a self-contained skill with a `SKILL.md` that describes when and how to apply it. Use these instead of re-deriving the same workflow from scratch.
+
+| Skill directory | When to use |
+|---|---|
+| `add-django-config-env-var` | Adding a new Django setting backed by an env var and propagating it to `base.py`, docker-compose files, `env-remap.mjs`, and `docs/installation/configuration.md` |
+| `write-frontend-unit-test` | Writing or fixing frontend unit tests in `web-frontend`, `premium/web-frontend`, or `enterprise/web-frontend` |
+| `create-update-service` | Creating or updating an integration type or service type in `contrib/integrations` |
+
 ## Security & Configuration Tips
 
 Do not commit secrets or local overrides. Use `.env.local` for development, keep production settings in the documented deploy configs, and report vulnerabilities privately via the contact path in `CONTRIBUTING.md` rather than opening a public issue.

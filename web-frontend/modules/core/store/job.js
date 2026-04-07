@@ -1,6 +1,5 @@
 import JobService from '@baserow/modules/core/services/job'
 import _ from 'lodash'
-import { useRuntimeConfig } from '#app'
 
 const FINISHED_STATES = ['finished', 'failed', 'cancelled']
 const STARTING_TIMEOUT_MS = 200
@@ -64,10 +63,8 @@ export const mutations = {
       state.items.splice(index, 1)
     }
   },
-  COMPUTE_NEXT_TIMEOUT_MS(state, unfinishedJobIds) {
+  COMPUTE_NEXT_TIMEOUT_MS(state, { unfinishedJobIds, maxTimeout }) {
     const newJobsToUpdate = !_.isEqual(unfinishedJobIds, state.lastUpdateJobIds)
-    const config = useRuntimeConfig()
-    const maxTimeout = config.public.baserowFrontendJobsPollingTimeoutMs
 
     if (unfinishedJobIds.length === 0) {
       // no unfinished jobs to update, so we can relax the refresh until
@@ -124,7 +121,8 @@ export const actions = {
     const unfinishedJobIds = unfinishedJobs
       ? unfinishedJobs.map((job) => job.id)
       : []
-    commit('COMPUTE_NEXT_TIMEOUT_MS', unfinishedJobIds)
+    const maxTimeout = this.$config.public.baserowFrontendJobsPollingTimeoutMs
+    commit('COMPUTE_NEXT_TIMEOUT_MS', { unfinishedJobIds, maxTimeout })
     const nextTimeoutInMs = state.nextTimeoutInMs
     // too many attempts for the same pending jobs, stop polling
     // at least until a new pending job is added

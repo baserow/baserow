@@ -21,6 +21,7 @@ export class ViewOwnershipPermissionManagerType extends PermissionManagerType {
       'database.table.view.update_field_options',
       'database.table.view.decoration.update',
       'database.table.view.decoration.delete',
+      'database.table.view.update_default_values',
     ]
     const { $store } = this.app
     const userId = $store.getters['auth/getUserId']

@@ -214,6 +214,7 @@ def test_view_updated_to_personal_signals(
             sortings=False,
             decorations=False,
             group_bys=False,
+            default_row_values=True,
         ).data
     )
 
@@ -257,6 +258,7 @@ def test_view_updated_to_collaborative_signals(
             sortings=True,
             decorations=True,
             group_bys=True,
+            default_row_values=True,
         ).data
     )
     assert call_args_to_users[0][1] == user.web_socket_id
@@ -275,6 +277,7 @@ def test_view_updated_to_collaborative_signals(
             sortings=False,
             decorations=False,
             group_bys=False,
+            default_row_values=True,
         ).data
     )
 
@@ -326,6 +329,7 @@ def test_broadcast_to_users_ownership_changed(
             sortings=False,
             decorations=False,
             group_bys=False,
+            default_row_values=True,
         ).data,
     }
 

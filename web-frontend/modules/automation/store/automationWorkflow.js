@@ -116,7 +116,7 @@ const actions = {
       // Redirect back to the dashboard because the workflow doesn't exist anymore.
       const router = useRouter()
       await router.push({ name: 'dashboard' })
-      await pageFinished()
+      await pageFinished(this.app)
       await nextTick()
       commit('UNSELECT')
     }

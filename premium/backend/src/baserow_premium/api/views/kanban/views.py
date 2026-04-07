@@ -26,6 +26,7 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
 )
 from baserow.contrib.database.api.views.utils import (
+    get_hidden_field_ids_for_view_user,
     get_public_view_authorization_token,
     parse_limit_linked_items_params,
 )
@@ -43,10 +44,11 @@ from baserow.contrib.database.views.exceptions import (
 )
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.operations import ListViewRowsOperationType
 from baserow.contrib.database.views.registries import view_type_registry
 from baserow.contrib.database.views.signals import view_loaded
+from baserow.contrib.database.views.utils import check_permissions_with_view_fallback
 from baserow.core.exceptions import UserNotInWorkspace
-from baserow.core.handler import CoreHandler
 from baserow_premium.api.views.errors import ERROR_INVALID_SELECT_OPTION_PARAMETER
 from baserow_premium.api.views.exceptions import InvalidSelectOptionParameter
 from baserow_premium.license.features import PREMIUM
@@ -176,11 +178,12 @@ class KanbanViewView(APIView):
                 PREMIUM, request.user, workspace
             )
 
-        CoreHandler().check_permissions(
-            request.user,
+        check_permissions_with_view_fallback(
             ListRowsDatabaseTableOperationType.type,
-            workspace=workspace,
-            context=view.table,
+            ListViewRowsOperationType.type,
+            request.user,
+            view.table,
+            view,
         )
         single_select_option_field = view.single_select_field
 
@@ -197,12 +200,17 @@ class KanbanViewView(APIView):
         ) = prepare_kanban_view_parameters(request)
 
         model = view.table.get_model()
+        hidden_field_ids = get_hidden_field_ids_for_view_user(request.user, view)
 
         limit_linked_items = parse_limit_linked_items_params(request)
         serializer_extra_kwargs = {"limit_linked_items": limit_linked_items}
 
         serializer_class = get_row_serializer_class(
-            model, RowSerializer, is_response=True, extra_kwargs=serializer_extra_kwargs
+            model,
+            RowSerializer,
+            is_response=True,
+            exclude_field_ids=hidden_field_ids,
+            extra_kwargs=serializer_extra_kwargs,
         )
         rows = get_rows_grouped_by_single_select_field(
             user=request.user,
@@ -226,7 +234,10 @@ class KanbanViewView(APIView):
 
         if field_options:
             view_type = view_type_registry.get_by_model(view)
-            context = {"fields": [o["field"] for o in model._field_objects.values()]}
+            fields = [o["field"] for o in model._field_objects.values()]
+            if hidden_field_ids is not None:
+                fields = [f for f in fields if f.id not in hidden_field_ids]
+            context = {"fields": fields}
             serializer_class = view_type.get_field_options_serializer_class(
                 create_if_missing=True
             )

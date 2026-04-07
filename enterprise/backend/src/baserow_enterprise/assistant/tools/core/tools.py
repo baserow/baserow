@@ -11,7 +11,7 @@ from baserow.core.actions import CreateApplicationActionType
 from baserow.core.service import CoreService
 from baserow_enterprise.assistant.deps import AgentMode, AssistantDeps
 
-from .types import BuilderItem, BuilderItemCreate, builder_type_registry
+from .types import BuilderItem, BuilderItemCreate, BuilderUpdate, builder_type_registry
 
 
 def list_builders(
@@ -101,6 +101,7 @@ def create_builders(
     RETURNS: List of created builders with id, name, type.
     DO NOT USE when: A builder with that name may already exist — check with list_builders first.
     HOW: Pick a unique, descriptive name. Check existing builders with list_builders to avoid duplicates.
+    THEME (applications only): Pick a theme matching the app purpose — baserow (clean light, default), eclipse (dark, dashboards/analytics), ivory (warm light, blogs/portfolios).
     """
 
     user = ctx.deps.user
@@ -169,5 +170,43 @@ def switch_mode(
     return f"Switched to {target.value} mode."
 
 
-TOOL_FUNCTIONS = [list_builders, create_builders, switch_mode]
+def update_builder(
+    ctx: RunContext[AssistantDeps],
+    update: Annotated[
+        BuilderUpdate, Field(description="Application settings to update.")
+    ],
+    thought: Annotated[
+        str, Field(description="Brief reasoning for calling this tool.")
+    ],
+) -> dict[str, Any]:
+    """\
+    Update an application's settings (name, login page, etc.).
+
+    WHEN to use: User wants to rename an application, set a login page, or change application-level settings.
+    WHAT it does: Updates the specified application's settings. Fields are type-specific.
+    RETURNS: Updated application info.
+    HOW: For setting a login page on a builder app, use setup_user_source first (which creates the login page), then call this if you need to change it.
+    """
+
+    from baserow.core.handler import CoreHandler
+
+    user = ctx.deps.user
+
+    app = CoreService().get_application(user, update.builder_id).specific
+    ctx.deps.tool_helpers.update_status(
+        _("Updating %(app_name)s...") % {"app_name": app.name}
+    )
+
+    update_kwargs = update.to_update_kwargs(app)
+    if update_kwargs:
+        CoreHandler().update_application(user, app, **update_kwargs)
+        app.refresh_from_db()
+
+    result: dict[str, Any] = {"id": app.id, "name": app.name}
+    if hasattr(app, "login_page_id"):
+        result["login_page_id"] = app.login_page_id
+    return result
+
+
+TOOL_FUNCTIONS = [list_builders, create_builders, update_builder, switch_mode]
 core_toolset = FunctionToolset(TOOL_FUNCTIONS, max_retries=3)

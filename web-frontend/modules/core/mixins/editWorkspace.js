@@ -1,13 +1,9 @@
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick } from '#imports'
 
 /**
- * Some helper method to modify workspaces used by the sidebar and dashboard.
+ * Some helper methods to modify workspaces used by the dashboard.
  */
 export default {
-  emits: ['selected'],
-
   methods: {
     setLoading(workspace, value) {
       this.$store.dispatch('workspace/setItemLoading', { workspace, value })
@@ -32,16 +28,6 @@ export default {
       }
 
       this.setLoading(workspace, false)
-    },
-    async selectWorkspace(workspace) {
-      await this.$store.dispatch('workspace/select', workspace)
-      await this.$router.push({
-        name: 'workspace',
-        params: { workspaceId: workspace.id },
-      })
-      await pageFinished()
-      await nextTick()
-      this.$emit('selected')
     },
   },
 }

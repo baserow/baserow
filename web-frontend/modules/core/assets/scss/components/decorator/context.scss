@@ -44,6 +44,14 @@
   margin-left: 12px;
 }
 
+.decorator-context__warning {
+  color: $palette-red-500;
+  max-width: 600px;
+  font-size: 13px;
+  line-height: 18px;
+  margin-top: 16px;
+}
+
 .decorator-context__decorator-header-trash-link {
   color: $color-neutral-500;
   display: flex;

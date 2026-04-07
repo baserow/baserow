@@ -23,6 +23,8 @@ def test_if_prompt_contains_all_formula_functions():
         "string_agg_many_to_many_values",
         "many_to_many_agg",
         "many_to_many_count",
+        "array_length",
+        "array_join_values",
     ]
 
     for function in formula_function_registry.registry.keys():

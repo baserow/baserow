@@ -1,3 +1,5 @@
+import base64
+import os
 from decimal import Decimal
 from unittest.mock import patch
 
@@ -22,6 +24,8 @@ from rest_framework.status import (
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import SelectOption
 from baserow.contrib.database.tokens.handler import TokenHandler
+from baserow.contrib.database.views.handler import ViewHandler
+from baserow.contrib.database.views.models import OWNERSHIP_TYPE_COLLABORATIVE
 from baserow.test_utils.helpers import AnyStr, is_dict_subset
 from tests.baserow.contrib.database.utils import get_deadlock_error
 
@@ -2810,3 +2814,175 @@ def test_batch_create_rows_single_select_default(api_client, data_fixture):
     row_2 = model.objects.get(pk=2)
     assert getattr(row_1, f"field_{option_field.id}").id == option_2.id
     assert getattr(row_2, f"field_{option_field.id}").id == option_1.id
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.api_rows
+def test_batch_create_rows_succeeds_when_legacy_view_index_exceeds_max_size(
+    api_client, data_fixture
+):
+    """
+    When a view has legacy indexes and a batch row insert would exceed the btree
+    maximum entry size, the indexes should be dropped, the insert should succeed,
+    and the index recreation should be scheduled.
+    """
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    long_text_field = data_fixture.create_long_text_field(user=user, table=table)
+
+    view_handler = ViewHandler()
+    grid_view = view_handler.create_view(
+        user=user,
+        table=table,
+        type_name="grid",
+        name="Test grid",
+        ownership_type=OWNERSHIP_TYPE_COLLABORATIVE,
+    )
+    grid_view_2 = view_handler.create_view(
+        user=user,
+        table=table,
+        type_name="grid",
+        name="Test grid",
+        ownership_type=OWNERSHIP_TYPE_COLLABORATIVE,
+    )
+
+    table_model = table.get_model()
+    view_handler.create_sort(
+        user=user, view=grid_view, field=long_text_field, order="ASC"
+    )
+    view_handler.create_sort(
+        user=user, view=grid_view_2, field=long_text_field, order="ASC"
+    )
+
+    table_name = table_model._meta.db_table
+    field_column = f"field_{long_text_field.id}"
+    legacy_index_name = f"legacy_idx_batch_create_{table.id}"
+    legacy_index_name_2 = f"legacy_idx_batch_create_{table.id}_2"
+
+    # Create "legacy" indexes
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f'CREATE INDEX "{legacy_index_name}" ON "{table_name}" '
+            f'("{field_column}", "order", "id") WHERE NOT "trashed"'
+        )
+        cursor.execute(
+            f'CREATE INDEX "{legacy_index_name_2}" ON "{table_name}" '
+            f'("{field_column}", "order", "id") WHERE NOT "trashed"'
+        )
+
+    grid_view.db_index_name = legacy_index_name
+    grid_view.save(update_fields=["db_index_name"])
+
+    grid_view_2.db_index_name = legacy_index_name_2
+    grid_view_2.save(update_fields=["db_index_name"])
+
+    large_text = base64.b64encode(os.urandom(8000)).decode("ascii")
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+
+    response = api_client.post(
+        url,
+        {"items": [{f"field_{long_text_field.id}": large_text}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["items"][0][f"field_{long_text_field.id}"] == large_text
+    assert table_model.objects.count() == 1
+
+    # The legacy indexes should have been dropped
+    grid_view.refresh_from_db()
+    assert grid_view.db_index_name is None
+
+    grid_view_2.refresh_from_db()
+    assert grid_view_2.db_index_name is None
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.api_rows
+def test_batch_update_rows_succeeds_when_legacy_view_index_exceeds_max_size(
+    api_client, data_fixture
+):
+    """
+    When a view has legacy indexes and a batch row update would exceed
+    the btree maximum entry size, the index should be dropped, the update should
+    succeed, and the index recreation should be scheduled.
+    """
+
+    user, jwt_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    long_text_field = data_fixture.create_long_text_field(user=user, table=table)
+
+    view_handler = ViewHandler()
+    grid_view = view_handler.create_view(
+        user=user,
+        table=table,
+        type_name="grid",
+        name="Test grid",
+        ownership_type=OWNERSHIP_TYPE_COLLABORATIVE,
+    )
+    grid_view_2 = view_handler.create_view(
+        user=user,
+        table=table,
+        type_name="grid",
+        name="Test grid",
+        ownership_type=OWNERSHIP_TYPE_COLLABORATIVE,
+    )
+
+    table_model = table.get_model()
+    view_handler.create_sort(
+        user=user, view=grid_view, field=long_text_field, order="ASC"
+    )
+    view_handler.create_sort(
+        user=user, view=grid_view_2, field=long_text_field, order="ASC"
+    )
+
+    # Create a row with a small value first.
+    row = table_model.objects.create(**{f"field_{long_text_field.id}": "small"})
+
+    table_name = table_model._meta.db_table
+    field_column = f"field_{long_text_field.id}"
+    legacy_index_name = f"legacy_idx_batch_update_{table.id}"
+    legacy_index_name_2 = f"legacy_idx_batch_update_{table.id}_2"
+
+    # Create "legacy" indexes
+    with connection.cursor() as cursor:
+        cursor.execute(
+            f'CREATE INDEX "{legacy_index_name}" ON "{table_name}" '
+            f'("{field_column}", "order", "id") WHERE NOT "trashed"'
+        )
+        cursor.execute(
+            f'CREATE INDEX "{legacy_index_name_2}" ON "{table_name}" '
+            f'("{field_column}", "order", "id") WHERE NOT "trashed"'
+        )
+
+    grid_view.db_index_name = legacy_index_name
+    grid_view.save(update_fields=["db_index_name"])
+
+    grid_view_2.db_index_name = legacy_index_name_2
+    grid_view_2.save(update_fields=["db_index_name"])
+
+    large_text = base64.b64encode(os.urandom(8000)).decode("ascii")
+
+    url = reverse("api:database:rows:batch", kwargs={"table_id": table.id})
+
+    response = api_client.patch(
+        url,
+        {"items": [{"id": row.id, f"field_{long_text_field.id}": large_text}]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {jwt_token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["items"][0][f"field_{long_text_field.id}"] == large_text
+    row.refresh_from_db()
+    assert getattr(row, f"field_{long_text_field.id}") == large_text
+
+    # The legacy indexes should have been dropped
+    grid_view.refresh_from_db()
+    assert grid_view.db_index_name is None
+
+    grid_view_2.refresh_from_db()
+    assert grid_view_2.db_index_name is None

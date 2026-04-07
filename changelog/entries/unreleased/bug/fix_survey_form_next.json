@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed survey form navigation with required fields",
+    "issue_origin": "github",
+    "issue_number": 3188,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-06"
+}

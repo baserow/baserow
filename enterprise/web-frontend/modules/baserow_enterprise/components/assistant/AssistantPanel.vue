@@ -189,6 +189,24 @@ export default {
               workspaceId: this.workspace.id,
             },
           })
+        } else if (newLocation.type === 'builder-page') {
+          waitFor(() => {
+            const builder = store.getters['application/get'](
+              newLocation.application_id
+            )
+            return (
+              builder &&
+              builder.pages.find((page) => page.id === newLocation.page_id)
+            )
+          }).then(() => {
+            router.push({
+              name: 'builder-page',
+              params: {
+                builderId: newLocation.application_id,
+                pageId: newLocation.page_id,
+              },
+            })
+          })
         } else if (newLocation.type === 'automation-workflow') {
           waitFor(() => {
             const automation = store.getters['application/get'](

@@ -103,6 +103,10 @@ export function populateView(view, registry) {
     view.decorations = []
   }
 
+  if (!Object.prototype.hasOwnProperty.call(view, 'default_row_values')) {
+    view.default_row_values = []
+  }
+
   return type.populate(view)
 }
 
@@ -348,6 +352,7 @@ export const actions = {
         true,
         true,
         true,
+        true,
         true
       )
       data.forEach((part, index, d) => {
@@ -515,6 +520,33 @@ export const actions = {
     })
   },
   /**
+   * Fetches the view from the server (without filters, sortings, decorations, or
+   * group_bys, but with default_row_values) and updates only the view properties
+   * and default values in the store without touching the existing filters, sorts, etc.
+   */
+  async refreshViewAndDefaultValues({ commit }, { view }) {
+    const { $client } = this
+    const { data } = await ViewService($client).get(
+      view.id,
+      false,
+      false,
+      false,
+      false,
+      true
+    )
+
+    // Only update the view properties and default_row_values. We don't want to
+    // overwrite filters, sortings, decorations, or group_bys that are already
+    // in the store.
+    const { filters, sortings, decorations, group_bys, ...viewValues } = data
+    commit('UPDATE_ITEM', {
+      id: view.id,
+      view,
+      values: viewValues,
+      repopulate: false,
+    })
+  },
+  /**
    * Duplicates an existing view.
    */
   async duplicate({ commit, dispatch }, view) {
@@ -547,8 +579,8 @@ export const actions = {
    */
   forceDelete({ commit, dispatch, getters, rootGetters }, view) {
     const { $registry, $client } = this
-    const router = useRouter()
-    const route = useRoute()
+    const router = this.$router
+    const route = this.$router.currentRoute.value
     // If the currently selected view is selected.
     if (view._.selected && view.id === getters.getSelectedId) {
       commit('UNSELECT')

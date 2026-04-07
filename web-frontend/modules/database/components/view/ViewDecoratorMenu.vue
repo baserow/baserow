@@ -37,6 +37,7 @@
           database.workspace.id
         )
       "
+      :context-warning="contextWarning"
       @changed="$emit('changed')"
     ></ViewDecoratorContext>
   </div>
@@ -69,6 +70,11 @@ export default {
       type: Boolean,
       required: true,
     },
+    storePrefix: {
+      type: String,
+      required: false,
+      default: '',
+    },
   },
   emits: ['changed'],
   computed: {
@@ -78,6 +84,25 @@ export default {
           .get('viewDecorator', type)
           .isDeactivated(this.database.workspace.id)
       }).length
+    },
+    contextWarning() {
+      const viewType = this.$registry.get('view', this.view.type)
+      const visibleFields = viewType.getVisibleFieldsInOrder(
+        this,
+        this.fields,
+        this.view,
+        this.storePrefix
+      )
+      const ownershipType = this.$registry.get(
+        'viewOwnershipType',
+        this.view.ownership_type
+      )
+      return ownershipType.getDecoratorContextWarning(
+        this.view,
+        this.fields,
+        this.database,
+        this.storePrefix
+      )
     },
   },
 }

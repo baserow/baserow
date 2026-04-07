@@ -218,6 +218,10 @@ class ViewOwnershipTypeDoesNotExist(InstanceTypeDoesNotExist):
     """
 
 
+class ViewDoesNotSupportDefaultValues(Exception):
+    """Raised when trying to set default values on a view that doesn't support it."""
+
+
 class InvalidAPIGroupedFiltersFormatException(ValueError):
     """
     Raised when the provided view filters format is invalid.

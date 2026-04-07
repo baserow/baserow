@@ -108,7 +108,7 @@ import DataSyncService from '@baserow/modules/database/services/dataSync'
 import { clone } from '@baserow/modules/core/utils/object'
 import dataSync from '@baserow/modules/database/mixins/dataSync'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick } from '#imports'
+import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'CreateDataSync',
@@ -125,6 +125,10 @@ export default {
     },
   },
   emits: ['hide'],
+  setup() {
+    const nuxtApp = useNuxtApp()
+    return { nuxtApp }
+  },
   data() {
     return {
       formValues: null,
@@ -241,7 +245,7 @@ export default {
           tableId: this.createdTable.id,
         },
       })
-      await pageFinished()
+      await pageFinished(this.nuxtApp)
       await nextTick()
       this.$emit('hide')
     },

@@ -77,10 +77,9 @@ from baserow.core.db import (
 from baserow.core.exceptions import (
     CannotCalculateIntermediateOrder,
     PermissionDenied,
-    PermissionException,
 )
 from baserow.core.handler import CoreHandler
-from baserow.core.psycopg import is_unique_violation_error, sql
+from baserow.core.psycopg import is_index_row_size_error, is_unique_violation_error, sql
 from baserow.core.registries import OperationType
 from baserow.core.telemetry.utils import baserow_trace_methods
 from baserow.core.trash.handler import TrashHandler
@@ -741,58 +740,13 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :return:
         """
 
-        table_check = PermissionCheck(
-            user,
-            table_operation,
-            context=table,
-        )
-        view_check = PermissionCheck(
-            user,
-            view_operation,
-            context=view,
+        from baserow.contrib.database.views.utils import (
+            check_permissions_with_view_fallback,
         )
 
-        checks = [table_check]
-        if view is not None:
-            checks.append(view_check)
-
-        # Check multiple permissions regardless because if a view is provided, we don't
-        # want to execute multiple queries in order to check if the permission check
-        # should fall back on the view.
-        check_results = CoreHandler().check_multiple_permissions(
-            checks,
-            workspace=table.database.workspace,
-            return_permissions_exceptions=True,
+        check_permissions_with_view_fallback(
+            table_operation, view_operation, user, table, view, row_ids
         )
-
-        if check_results[table_check] is True:
-            return
-
-        if (
-            view is not None
-            # Because the user wants to change rows in a specific table, we must make
-            # sure that the provided view belongs to that table. Otherwise, it would
-            # result in a security bug.
-            and view.table_id == table.id
-            # The view ownership type should also allow modifying rows directly in
-            # the view. The rows are provided because some additional permission
-            # checks might need to be done in order to make sure that the user is
-            # allowed to modify the provided rows.
-            and view_ownership_type_registry.get(view.ownership_type).can_modify_rows(
-                view,
-                row_ids,
-            )
-            and check_results[view_check] is True
-        ):
-            return
-
-        if isinstance(check_results[table_check], PermissionException):
-            raise check_results[table_check]
-
-        if isinstance(check_results[view_check], PermissionException):
-            raise check_results[view_check]
-
-        raise PermissionDenied(actor=user)
 
     def create_row(
         self,
@@ -844,7 +798,28 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if not values:
             values = {}
 
+        # Map user field names to internal field keys before permission checks
+        # so that hidden-field and write-permission checks can identify field IDs.
+        if user_field_names:
+            values = self.map_user_field_name_dict_to_internal(
+                model._field_objects, values
+            )
+            user_field_names = False
+
+        self._raise_if_values_contain_hidden_fields(user, view, [values])
         self._check_write_fields_values_permissions(user, model, [values])
+
+        # Apply view default values for fields not explicitly provided by the
+        # user. View defaults take priority over field-level defaults.
+        if view is not None:
+            from baserow.contrib.database.views.handler import ViewHandler
+
+            view_defaults = ViewHandler().get_view_default_values_for_row_creation(
+                view, model=model
+            )
+            for field_name, default_value in view_defaults.items():
+                if field_name not in values:
+                    values[field_name] = default_value
 
         return self.force_create_row(
             user,
@@ -936,12 +911,27 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         instance = model(**row_values)
         field_rules_handler.validate_row(instance)
 
+        def safe_save_instance():
+            try:
+                with transaction.atomic():
+                    instance.save(force_insert=True)
+                rows_created_counter.add(1)
+            except Exception as exc:
+                if is_unique_violation_error(exc):
+                    raise FieldDataConstraintException()
+                else:
+                    raise exc
+
         try:
-            instance.save(force_insert=True)
-            rows_created_counter.add(1)
+            safe_save_instance()
         except Exception as exc:
-            if is_unique_violation_error(exc):
-                raise FieldDataConstraintException()
+            if is_index_row_size_error(exc):
+                from baserow.contrib.database.views.handler import (
+                    ViewIndexingHandler,
+                )
+
+                ViewIndexingHandler.handle_index_row_size_error(model.baserow_table_id)
+                safe_save_instance()
             else:
                 raise exc
 
@@ -1133,6 +1123,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 updated_fields_by_name[field["name"]] = field["field"]
                 updated_fields.append(field["field"])
 
+        self._raise_if_values_contain_hidden_fields(user, view, [values])
         self._check_write_fields_values_permissions(user, model, [values])
 
         rows = [row]
@@ -1180,11 +1171,26 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             setattr(row, LAST_MODIFIED_BY_COLUMN_NAME, user if user.id else None)
             always_updated_fields.append(LAST_MODIFIED_BY_COLUMN_NAME)
 
+        def safe_save_row():
+            try:
+                with transaction.atomic():
+                    row.save(update_fields=update_row_fields + always_updated_fields)
+            except Exception as exc:
+                if is_unique_violation_error(exc):
+                    raise FieldDataConstraintException()
+                else:
+                    raise exc
+
         try:
-            row.save(update_fields=update_row_fields + always_updated_fields)
+            safe_save_row()
         except Exception as exc:
-            if is_unique_violation_error(exc):
-                raise FieldDataConstraintException()
+            if is_index_row_size_error(exc):
+                from baserow.contrib.database.views.handler import (
+                    ViewIndexingHandler,
+                )
+
+                ViewIndexingHandler.handle_index_row_size_error(model.baserow_table_id)
+                safe_save_row()
             else:
                 raise exc
         rows_updated_counter.add(1)
@@ -1389,21 +1395,35 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         rows = [row for (row, _) in rows_relationships]
 
-        try:
-            with transaction.atomic():
-                inserted_rows = model.objects.bulk_create(rows)
-        except Exception as exc:
-            inserted_rows = []
-            if is_unique_violation_error(exc):
-                if not generate_error_report:
-                    raise FieldDataConstraintException()
+        def safe_bulk_create():
+            try:
+                with transaction.atomic():
+                    return model.objects.bulk_create(rows)
+            except Exception as exc:
+                if is_unique_violation_error(exc):
+                    if not generate_error_report:
+                        raise FieldDataConstraintException()
 
-                for index, (row, _) in enumerate(rows_relationships):
-                    report[index] = {
-                        "non_field_errors": [
-                            "Row was not inserted due to conflicts or constraints"
-                        ]
-                    }
+                    for index, (row, _) in enumerate(rows_relationships):
+                        report[index] = {
+                            "non_field_errors": [
+                                "Row was not inserted due to conflicts or constraints"
+                            ]
+                        }
+                    return []
+                else:
+                    raise exc
+
+        try:
+            inserted_rows = safe_bulk_create()
+        except Exception as exc:
+            if is_index_row_size_error(exc):
+                from baserow.contrib.database.views.handler import (
+                    ViewIndexingHandler,
+                )
+
+                ViewIndexingHandler.handle_index_row_size_error(model.baserow_table_id)
+                inserted_rows = safe_bulk_create()
             else:
                 raise exc
 
@@ -1546,7 +1566,22 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if model is None:
             model = table.get_model()
 
+        self._raise_if_values_contain_hidden_fields(user, view, rows_values)
         self._check_write_fields_values_permissions(user, model, rows_values)
+
+        # Apply view default values for fields not explicitly provided by the user.
+        # View defaults take priority over field-level defaults.
+        if view is not None:
+            from baserow.contrib.database.views.handler import ViewHandler
+
+            view_defaults = ViewHandler().get_view_default_values_for_row_creation(
+                view, model=model
+            )
+            if view_defaults:
+                for row_values in rows_values:
+                    for field_name, default_value in view_defaults.items():
+                        if field_name not in row_values:
+                            row_values[field_name] = default_value
 
         return self.force_create_rows(
             user,
@@ -2160,6 +2195,34 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             )
         return unwritable_fields
 
+    def _raise_if_values_contain_hidden_fields(
+        self,
+        user: AbstractUser,
+        view: Optional["View"],
+        rows_values: List[Dict[str, Any]],
+    ) -> None:
+        """
+        Prevents editors from writing to fields they can't see. Without this,
+        an editor on a restricted view could modify hidden cell values by
+        including them in the request body.
+
+        :param rows_values: A list of dicts. The hidden field IDs are resolved once and
+            then checked against all provided dicts.
+        """
+
+        if view is None or not rows_values:
+            return
+        ownership_type = view_ownership_type_registry.get(view.ownership_type)
+        hidden_ids = ownership_type.get_hidden_field_ids_for_user(user, view)
+        if not hidden_ids:
+            return
+
+        for row_values in rows_values:
+            for key in row_values.keys():
+                field_id = get_field_id_from_field_key(key)
+                if field_id is not None and field_id in hidden_ids:
+                    raise PermissionDenied()
+
     def force_update_rows(
         self,
         user: AbstractUser,
@@ -2413,28 +2476,46 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 bulk_update_fields.append(field_name)
 
         if len(bulk_update_fields) > 0:
-            try:
-                model.objects.bulk_update(
-                    rows_to_update, bulk_update_fields, batch_size=2000
-                )
-            except Exception as exc:
-                if is_unique_violation_error(exc):
-                    if generate_error_report:
-                        for idx, row in enumerate(rows_to_update):
-                            report[idx] = {
-                                "non_field_errors": [
-                                    "Row was not updated due to conflicts or constraints"
-                                ]
-                            }
-                        return UpdatedRowsData(
-                            [],
-                            [],
-                            original_row_values_by_id,
-                            fields_metadata_by_row_id,
-                            report,
-                            [],
+
+            def safe_bulk_update():
+                try:
+                    with transaction.atomic():
+                        model.objects.bulk_update(
+                            rows_to_update, bulk_update_fields, batch_size=2000
                         )
-                    raise FieldDataConstraintException()
+                except Exception as exc:
+                    if is_unique_violation_error(exc):
+                        if generate_error_report:
+                            for idx, row in enumerate(rows_to_update):
+                                report[idx] = {
+                                    "non_field_errors": [
+                                        "Row was not updated due to conflicts or constraints"
+                                    ]
+                                }
+                            return UpdatedRowsData(
+                                [],
+                                [],
+                                original_row_values_by_id,
+                                fields_metadata_by_row_id,
+                                report,
+                                [],
+                            )
+                        raise FieldDataConstraintException()
+                    else:
+                        raise exc
+
+            try:
+                safe_bulk_update()
+            except Exception as exc:
+                if is_index_row_size_error(exc):
+                    from baserow.contrib.database.views.handler import (
+                        ViewIndexingHandler,
+                    )
+
+                    ViewIndexingHandler.handle_index_row_size_error(
+                        model.baserow_table_id
+                    )
+                    safe_bulk_update()
                 else:
                     raise exc
 
@@ -2585,6 +2666,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         if model is None:
             model = table.get_model()
 
+        self._raise_if_values_contain_hidden_fields(user, view, rows_values)
         self._check_write_fields_values_permissions(user, model, rows_values)
 
         return self.force_update_rows(
@@ -2637,7 +2719,9 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         return model.objects.filter(id__in=row_ids).enhance_by_fields()
 
     def get_rows_for_update(
-        self, model: GeneratedTableModel, row_ids: List[int]
+        self,
+        model: GeneratedTableModel,
+        row_ids: List[int],
     ) -> RowsForUpdate:
         """
         Get the rows to update. This method doesn't guarantee that the rows

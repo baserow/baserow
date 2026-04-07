@@ -134,7 +134,7 @@ import SettingsModal from '@baserow/modules/core/components/settings/SettingsMod
 import CreateWorkspaceModal from '@baserow/modules/core/components/workspace/CreateWorkspaceModal'
 import { escapeRegExp } from '@baserow/modules/core/utils/string'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick } from '#imports'
+import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'SidebarUserContext',
@@ -151,6 +151,10 @@ export default {
     },
   },
   emits: ['toggle-admin'],
+  setup() {
+    const nuxtApp = useNuxtApp()
+    return { nuxtApp }
+  },
   data() {
     return {
       logoffLoading: false,
@@ -221,7 +225,7 @@ export default {
       )
       try {
         await this.$router.push({ name: activatedAdminTypes[0].routeName })
-        await pageFinished()
+        await pageFinished(this.nuxtApp)
         await nextTick()
       } catch {}
     },
@@ -237,7 +241,7 @@ export default {
         name: 'workspace',
         params: { workspaceId: workspace.id },
       })
-      await pageFinished()
+      await pageFinished(this.nuxtApp)
       await nextTick()
       this.hide()
     },

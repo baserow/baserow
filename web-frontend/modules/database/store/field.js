@@ -14,7 +14,7 @@ export function populateField(field, registry) {
 export const state = () => ({
   types: {},
   loading: false,
-  loaded: false,
+  loaded: null,
   items: [],
 })
 
@@ -33,6 +33,8 @@ export const mutations = {
   },
   SET_LOADED(state, value) {
     state.loaded = value
+      ? { tableId: value.tableId, viewId: value.viewId }
+      : value
   },
   ADD_ITEM(state, item) {
     state.items.push(item)
@@ -71,18 +73,19 @@ export const actions = {
    * Fetches all the fields of a given table. The is mostly called when the user
    * selects a different table.
    */
-  async fetchAll({ commit, getters, dispatch }, table) {
+  async fetchAll({ commit, getters, dispatch }, { table, viewId = null }) {
     const { $registry, $client } = this
     commit('SET_LOADING', true)
-    commit('SET_LOADED', false)
     commit('UNSELECT', {})
 
     try {
-      const { data } = await FieldService($client).fetchAll(table.id)
+      const { data } = await FieldService($client).fetchAll(table.id, viewId)
       await dispatch('forceSetFields', { fields: data })
+      commit('SET_LOADED', { tableId: table.id, viewId })
     } catch (error) {
       commit('SET_ITEMS', [])
       commit('SET_LOADING', false)
+      commit('SET_LOADED', null)
 
       throw error
     }
@@ -96,7 +99,6 @@ export const actions = {
 
     commit('SET_ITEMS', fields)
     commit('SET_LOADING', false)
-    commit('SET_LOADED', true)
 
     return { fields }
   },
@@ -355,7 +357,14 @@ export const actions = {
 
 export const getters = {
   isLoaded(state) {
-    return state.loaded
+    return !!state.loaded
+  },
+  isLoadedFor: (state) => (tableId, viewId) => {
+    return (
+      !!state.loaded &&
+      state.loaded.tableId === tableId &&
+      state.loaded.viewId === viewId
+    )
   },
   get: (state) => (id) => {
     return state.items.find((item) => item.id === id)

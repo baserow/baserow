@@ -17,6 +17,7 @@
           read-only
           :view="view"
           :fields="sortableFields"
+          :database="database"
           @changed="handleSortingsChange"
         ></ViewSort>
       </div>
@@ -40,6 +41,8 @@ import ViewFilter from '@baserow/modules/database/components/view/ViewFilter'
 import ViewSort from '@baserow/modules/database/components/view/ViewSort'
 import ViewSearch from '@baserow/modules/database/components/view/ViewSearch'
 import { getFilters, getOrderBy } from '@baserow/modules/database/utils/view'
+import { GridViewType } from '@baserow/modules/database/viewTypes.js'
+import { CollaborativeViewOwnershipType } from '@baserow/modules/database/viewOwnershipTypes.js'
 
 export default {
   components: { ViewSearch, ViewSort, ViewFilter },
@@ -66,12 +69,17 @@ export default {
   data() {
     return {
       view: {
+        type: GridViewType.getType(),
+        ownership_type: CollaborativeViewOwnershipType.getType(),
         filters: [],
         sortings: [],
         filter_groups: [],
         filter_type: 'AND',
         filters_disabled: false,
-        _: { loading: false },
+        _: { loading: false, type: 'grid' },
+      },
+      database: {
+        workspace: { id: 0 },
       },
     }
   },

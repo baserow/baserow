@@ -246,6 +246,7 @@ class DatabaseApplicationType(ApplicationType):
                 "view_set__viewsort_set",
                 "view_set__viewgroupby_set",
                 "view_set__viewdecoration_set",
+                "view_set__view_default_values",
                 "data_sync__synced_properties",
                 Prefetch(
                     "field_rules", queryset=specific_queryset(FieldRule.objects.all())

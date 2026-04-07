@@ -41,7 +41,7 @@
 import ApplicationService from '@baserow/modules/core/services/application'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick } from '#imports'
+import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'WorkspaceInvitation',
@@ -52,6 +52,10 @@ export default {
     },
   },
   emits: ['invitation-accepted'],
+  setup() {
+    const nuxtApp = useNuxtApp()
+    return { nuxtApp }
+  },
   data() {
     return {
       rejectLoading: false,
@@ -118,7 +122,7 @@ export default {
             workspaceId: workspace.id,
           },
         })
-        await pageFinished()
+        await pageFinished(this.nuxtApp)
         await nextTick()
       } catch (error) {
         this.acceptLoading = false

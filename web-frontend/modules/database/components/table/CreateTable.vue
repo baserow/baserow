@@ -70,7 +70,7 @@ import TableForm from '@baserow/modules/database/components/table/TableForm'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import ImportErrorReport from '@baserow/modules/database/components/table/ImportErrorReport'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
-import { nextTick } from '#imports'
+import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'CreateTable',
@@ -87,6 +87,10 @@ export default {
     },
   },
   emits: ['hide'],
+  setup() {
+    const nuxtApp = useNuxtApp()
+    return { nuxtApp }
+  },
   data() {
     return {
       uploadProgressPercentage: 0,
@@ -296,7 +300,7 @@ export default {
           tableId: this.job.table_id,
         },
       })
-      await pageFinished()
+      await pageFinished(this.nuxtApp)
       await nextTick()
       this.$emit('hide')
     },

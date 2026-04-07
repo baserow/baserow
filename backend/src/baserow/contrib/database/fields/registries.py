@@ -69,6 +69,7 @@ from .exceptions import (
     FieldTypeAlreadyRegistered,
     FieldTypeDoesNotExist,
     IncompatibleField,
+    InvalidDefaultValueFunction,
     ReadOnlyFieldHasNoInternalDbValueError,
 )
 from .fields import DurationFieldUsingPostgresFormatting
@@ -236,6 +237,31 @@ class FieldType(
         if self._db_column_fields is not None:
             return self._db_column_fields
         return set(self.allowed_fields)
+
+    def get_supported_default_value_functions(self) -> list:
+        """
+        Returns a list of function names that this field type supports for view default
+        values. For example, a date field might support "now" to insert the current
+        timestamp at row creation time.
+
+        :return: A list of supported function name strings.
+        """
+
+        return []
+
+    def resolve_default_value_function(self, function_name: str, field: Field) -> Any:
+        """
+        Resolves a default value function to an actual value at row creation time. The
+        function_name must be one of the strings returned by
+        get_supported_default_value_functions().
+
+        :param function_name: The function name to resolve (e.g. "now").
+        :param field: The field instance.
+        :return: The resolved value.
+        :raises InvalidDefaultValueFunction: If the function is not supported.
+        """
+
+        raise InvalidDefaultValueFunction(function_name, self.type)
 
     def prepare_value_for_db(self, instance: Field, value: Any) -> Any:
         """
@@ -1226,6 +1252,23 @@ class FieldType(
         """
 
         setattr(row, field_name, value)
+
+    def import_serialized_default_value(
+        self,
+        value: Any,
+        id_mapping: Dict[str, Any],
+    ) -> Any:
+        """
+        Hook that is called just before the ViewDefaultValue.value is set when doing a
+        serialized import. Can be used to potentially remap IDs like for example with a
+        single select field.
+
+        :param value: The raw JSON default value to remap.
+        :param id_mapping: The map of exported ids to newly created ids.
+        :return: The value with remapped IDs.
+        """
+
+        return value
 
     def get_export_value(
         self, value: Any, field_object: "FieldObject", rich_value: bool = False

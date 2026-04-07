@@ -165,13 +165,17 @@ from baserow.contrib.database.views.operations import (
     DuplicateViewOperationType,
     ListAggregationsViewOperationType,
     ListViewDecorationOperationType,
+    ListViewFieldsOperationType,
     ListViewFilterOperationType,
     ListViewGroupByOperationType,
+    ListViewRowsOperationType,
     ListViewsOperationType,
     ListViewSortOperationType,
     OrderViewsOperationType,
+    ReadAdjacentViewRowOperationType,
     ReadAggregationsViewOperationType,
     ReadViewDecorationOperationType,
+    ReadViewDefaultValuesOperationType,
     ReadViewFieldOptionsOperationType,
     ReadViewFilterGroupOperationType,
     ReadViewFilterOperationType,
@@ -182,6 +186,7 @@ from baserow.contrib.database.views.operations import (
     ReadViewSortOperationType,
     RestoreViewOperationType,
     UpdateViewDecorationOperationType,
+    UpdateViewDefaultValuesOperationType,
     UpdateViewFieldOptionsOperationType,
     UpdateViewFilterGroupOperationType,
     UpdateViewFilterOperationType,
@@ -222,6 +227,7 @@ from baserow.core.operations import (
     DeleteWorkspaceOperationType,
     DeleteWorkspaceUserOperationType,
     DuplicateApplicationOperationType,
+    ExportWorkspaceOperationType,
     ListApplicationsWorkspaceOperationType,
     ListInvitationsWorkspaceOperationType,
     ListWorkspaceUsersWorkspaceOperationType,
@@ -338,49 +344,27 @@ default_roles[settings.BASEROW_PERSONAL_VIEW_LOWEST_ROLE_ALLOWED].append(
 # Note that the read only role can automatically be assigned to the user if they have a
 # role assigned on a higher scope. If the user for example has `NO_ACCESS` to a
 # database, but has been given `EDITOR` role to the table, then they will automatically
-# get the viewer role of the database. The individual endpoints or filter queryset
-# rules must prevent accidental data exposure.
+# get the read only role of the database. The individual endpoints or filter queryset
+# rules must prevent accidental data exposure. Only add operations related to
+# endpoints that filter items that the user does not have access to like listing
+# workspaces, listing applications, etc.
 default_roles[READ_ONLY_ROLE_UID].extend(
     default_roles[NO_ACCESS_ROLE_UID]
     + [
-        ReadWorkspaceOperationType,
-        ReadTeamOperationType,
         ListTeamsOperationType,
         ListApplicationsWorkspaceOperationType,
         ListTablesDatabaseTableOperationType,
+        ListViewsOperationType,
+        ReadWorkspaceOperationType,
         ReadApplicationOperationType,
         ReadDatabaseTableOperationType,
-        ListRowsDatabaseTableOperationType,
-        ReadViewOperationType,
-        ReadFieldOperationType,
-        ListViewSortOperationType,
-        ReadViewFieldOptionsOperationType,
-        ReadViewDecorationOperationType,
-        ListViewDecorationOperationType,
-        ListViewFilterOperationType,
-        ListViewsOperationType,
-        ListFieldsOperationType,
-        ListAggregationsViewOperationType,
-        ReadAggregationsViewOperationType,
-        ReadAdjacentRowDatabaseRowOperationType,
-        ListRowNamesDatabaseTableOperationType,
-        ReadViewFilterOperationType,
-        ReadViewsOrderOperationType,
-        ReadViewSortOperationType,
-        ListViewGroupByOperationType,
-        ReadViewGroupByOperationType,
-        ListBuilderWorkflowActionsPageOperationType,
-        ReadBuilderWorkflowActionOperationType,
-        ReadViewFilterGroupOperationType,
-        ReadWidgetOperationType,
-        ListWidgetsOperationType,
-        ListDashboardDataSourcesOperationType,
-        ReadDashboardDataSourceOperationType,
     ]
 )
 default_roles[VIEWER_ROLE_UID].extend(
     default_roles[READ_ONLY_ROLE_UID]
     + [
+        ListFieldsOperationType,
+        ReadFieldOperationType,
         ListenToAllRestrictedViewEventsOperationType,
         ListenToAllDatabaseTableEventsOperationType,
         ReadMCPEndpointOperationType,
@@ -393,6 +377,33 @@ default_roles[VIEWER_ROLE_UID].extend(
         DispatchDashboardDataSourceOperationType,
         ReadDatabaseRowOperationType,
         ReadViewRowOperationType,
+        ListViewFieldsOperationType,
+        ReadAdjacentRowDatabaseRowOperationType,
+        ReadAdjacentViewRowOperationType,
+        ListRowNamesDatabaseTableOperationType,
+        ReadTeamOperationType,
+        ReadViewOperationType,
+        ReadViewFieldOptionsOperationType,
+        ReadViewDecorationOperationType,
+        ListViewSortOperationType,
+        ListViewDecorationOperationType,
+        ListViewFilterOperationType,
+        ListAggregationsViewOperationType,
+        ReadAggregationsViewOperationType,
+        ReadViewFilterOperationType,
+        ReadViewsOrderOperationType,
+        ReadViewSortOperationType,
+        ListViewGroupByOperationType,
+        ReadViewGroupByOperationType,
+        ListBuilderWorkflowActionsPageOperationType,
+        ReadBuilderWorkflowActionOperationType,
+        ReadViewFilterGroupOperationType,
+        ReadWidgetOperationType,
+        ListWidgetsOperationType,
+        ListDashboardDataSourcesOperationType,
+        ReadDashboardDataSourceOperationType,
+        ListRowsDatabaseTableOperationType,
+        ListViewRowsOperationType,
     ]
 )
 default_roles[COMMENTER_ROLE_UID].extend(
@@ -422,6 +433,7 @@ default_roles[EDITOR_ROLE_UID].extend(
         CreateViewRowOperationType,
         UpdateViewRowOperationType,
         DeleteViewRowOperationType,
+        ReadViewDefaultValuesOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(
@@ -467,6 +479,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         ReadWebhookOperationType,
         OrderViewsOperationType,
         UpdateViewFieldOptionsOperationType,
+        UpdateViewDefaultValuesOperationType,
         CreateApplicationsWorkspaceOperationType,
         DeleteViewSortOperationType,
         UpdateViewSlugOperationType,
@@ -600,5 +613,6 @@ default_roles[ADMIN_ROLE_UID].extend(
         ListWorkspaceAuditLogEntriesOperationType,
         ReadRoleViewOperationType,
         UpdateRoleViewOperationType,
+        ExportWorkspaceOperationType,
     ]
 )
