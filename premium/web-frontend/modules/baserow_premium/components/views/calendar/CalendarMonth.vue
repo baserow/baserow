@@ -53,7 +53,7 @@ import {
   weekDaysShort,
 } from '@baserow/modules/core/utils/date'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import debounce from 'lodash/debounce'
+import { debounce } from 'lodash'
 
 export default {
   name: 'CalendarMonth',

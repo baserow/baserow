@@ -169,7 +169,7 @@
 </template>
 
 <script>
-import debounce from 'lodash/debounce'
+import { debounce } from 'lodash'
 import { mapGetters, mapState } from 'vuex'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import { notifyIf } from '@baserow/modules/core/utils/error'

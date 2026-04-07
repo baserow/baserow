@@ -1,4 +1,4 @@
-import debounce from 'lodash/debounce'
+import { debounce } from 'lodash'
 
 import dropdown from '@baserow/modules/core/mixins/dropdown'
 import { notifyIf } from '@baserow/modules/core/utils/error'

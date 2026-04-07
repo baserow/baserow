@@ -8,7 +8,10 @@ import { MockServer } from '@baserow/test/fixtures/mockServer'
 
 // Mock out debounce so we dont have to wait or simulate waiting for the various
 // debounces in the search functionality.
-vi.mock('lodash/debounce', () => ({ default: vi.fn((fn) => fn) }))
+vi.mock('lodash', async (importOriginal) => {
+  const actual = await importOriginal()
+  return { ...actual, debounce: vi.fn((fn) => fn) }
+})
 
 describe('User Admin Component Tests', () => {
   let testApp = null

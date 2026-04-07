@@ -84,7 +84,7 @@
 </template>
 
 <script>
-import debounce from 'lodash/debounce'
+import { debounce } from 'lodash'
 import merge from 'lodash/extend'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'

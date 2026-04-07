@@ -180,7 +180,7 @@
 </template>
 <script>
 import { mapGetters } from 'vuex'
-import debounce from 'lodash/debounce'
+import { debounce } from 'lodash'
 import moment from '@baserow/modules/core/moment'
 import {
   recycleSlots,

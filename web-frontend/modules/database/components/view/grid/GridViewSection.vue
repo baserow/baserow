@@ -164,7 +164,7 @@
 </template>
 
 <script>
-import debounce from 'lodash/debounce'
+import { debounce } from 'lodash'
 
 import GridViewHead from '@baserow/modules/database/components/view/grid/GridViewHead'
 import GridViewPlaceholder from '@baserow/modules/database/components/view/grid/GridViewPlaceholder'

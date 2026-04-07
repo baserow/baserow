@@ -33,7 +33,7 @@
 </template>
 
 <script>
-import debounce from 'lodash/debounce'
+import { debounce } from 'lodash'
 
 import context from '@baserow/modules/core/mixins/context'
 

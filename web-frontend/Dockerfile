@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:1.4
-ARG NODE_BASE_IMAGE="node:24.14.0-trixie-slim"
+ARG NODE_BASE_IMAGE="node:24.14.1-trixie-slim"
 ARG UID="9999"
 ARG GID="9999"
 

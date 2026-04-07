@@ -14,7 +14,7 @@
 </template>
 
 <script>
-import debounce from 'lodash/debounce'
+import { debounce } from 'lodash'
 
 /**
  * Will emit a `search-changed` event with the event object being the string of the

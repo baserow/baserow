@@ -51,7 +51,7 @@ import { VueFlow, useVueFlow } from '@vue-flow/core'
 import { Background } from '@vue-flow/background'
 import { Controls } from '@vue-flow/controls'
 import { ref, computed, watch, toRef, inject, onMounted } from 'vue'
-import debounce from 'lodash/debounce'
+import { debounce } from 'lodash'
 
 import WorkflowNode from '@baserow/modules/automation/components/workflow/WorkflowNode'
 import WorkflowAddNodeMenu from '@baserow/modules/automation/components/workflow/WorkflowAddNodeMenu'
