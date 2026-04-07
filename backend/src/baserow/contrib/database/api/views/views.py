@@ -390,9 +390,15 @@ class ViewsView(APIView):
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_REQUEST_BODY_VALIDATION",
                     "ERROR_FIELD_NOT_IN_TABLE",
+                    "ERROR_VIEW_OWNERSHIP_TYPE_INCOMPATIBLE_WITH_VIEW_TYPE",
                 ]
             ),
-            404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
+            404: get_error_schema(
+                [
+                    "ERROR_TABLE_DOES_NOT_EXIST",
+                    "ERROR_VIEW_OWNERSHIP_TYPE_DOES_NOT_EXIST",
+                ]
+            ),
         },
     )
     @transaction.atomic
