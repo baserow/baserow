@@ -840,3 +840,27 @@ def test_get_workflow_histories_with_node_histories(api_client, data_fixture):
     assert n_history_2["node_label"] == "My Action"
     assert n_history_2["iteration"] == 1
     assert n_history_2["result"] == {"created_row_id": 99}
+
+
+@pytest.mark.django_db
+def test_get_workflow_histories_has_success_and_fail_counts(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    data_fixture.create_automation_workflow_history(
+        workflow=workflow, status=HistoryStatusChoices.SUCCESS
+    )
+    data_fixture.create_automation_workflow_history(
+        workflow=workflow, status=HistoryStatusChoices.SUCCESS
+    )
+    data_fixture.create_automation_workflow_history(
+        workflow=workflow, status=HistoryStatusChoices.ERROR
+    )
+
+    url = reverse(API_URL_WORKFLOW_HISTORY, kwargs={"workflow_id": workflow.id})
+    response = api_client.get(url, **get_api_kwargs(token))
+
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert data["count"] == 3
+    assert data["success_count"] == 2
+    assert data["fail_count"] == 1
