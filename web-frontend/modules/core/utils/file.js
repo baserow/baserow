@@ -26,12 +26,10 @@ export function getFilesFromEvent(event) {
  * Converts an integer representing the amount of bytes to a human readable format.
  * Where for example 1024 will end up in 1KB.
  */
-export function formatFileSize($i18n, bytes) {
-  if (bytes === 0) return '0 ' + $i18n.t(`rowEditFieldFile.sizes.0`)
+export function formatFileSize($t, locale, bytes) {
+  if (bytes === 0) return '0 ' + $t(`rowEditFieldFile.sizes.0`)
   const k = 1024
   const i = Math.floor(Math.log(bytes) / Math.log(k))
-  const float = parseFloat((bytes / k ** i).toFixed(2)).toLocaleString(
-    $i18n.locale
-  )
-  return float + ' ' + $i18n.t(`rowEditFieldFile.sizes.${i}`)
+  const float = parseFloat((bytes / k ** i).toFixed(2)).toLocaleString(locale)
+  return float + ' ' + $t(`rowEditFieldFile.sizes.${i}`)
 }
