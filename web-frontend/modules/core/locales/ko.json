@@ -108,7 +108,9 @@
         "incorrectCredentialMessage": "제공된 이메일 주소나 비밀번호가 잘못되었습니다.",
         "inputRequired": "입력이 필요합니다.",
         "disabledPasswordProviderTitle": "비밀번호 인증이 비활성화되었습니다.",
-        "disabledPasswordProviderMessage": "다른 인증 제공자를 사용하세요."
+        "disabledPasswordProviderMessage": "다른 인증 제공자를 사용하세요.",
+        "captchaVerificationFailedTitle": "캡차 인증 실패",
+        "captchaVerificationFailedMessage": "캡차 인증에 실패했습니다. 다시 시도해 주세요."
     },
     "field": {
         "language": "언어",
@@ -600,7 +602,10 @@
                     "codeSnippet": "\n// 표준\nISO_8601\n\n// 일반 형식\n'YYYY-MM-DD',\n'YYYY-MM-DD hh:mm A',\n'YYYY-MM-DD HH:mm',\n\n// EU\n'DD/MM/YYYY', \n'DD/MM/YYYY hh:mm A', \n'DD/MM/YYYY HH:mm'\n\n// US\n'MM/DD/YYYY', \n'MM/DD/YYYY hh:mm A', \n'MM/DD/YYYY HH:mm'"
                 }
             }
-        }
+        },
+        "fields": "필드",
+        "rowEditableBy": "필드를 통해 행을 업데이트합니다",
+        "rowEditableByDescription": "이 표의 행은 다음 행 편집 필드를 통해 이 양식에서 업데이트할 수 있습니다:"
     },
     "job": {
         "statePending": "시작 대기 중...",
@@ -740,7 +745,9 @@
     },
     "formulaInputField": {
         "errorInvalidFormula": "공식이 유효하지 않습니다.",
-        "advancedFormulaMode": "고급 수식 모드"
+        "advancedFormulaMode": "고급 수식 모드",
+        "invalidFormulaTitle": "잘못된 수식입니다",
+        "invalidSyntax": "유효한 전문가용 공식이 아닙니다. 구문을 확인하십시오."
     },
     "dataExplorer": {
         "noMatchingNodesText": "일치하는 결과가 없습니다.",
@@ -1155,5 +1162,25 @@
         "errorEmailExistsMessage": "이미 해당 이메일 주소를 사용하는 계정이 존재하므로 이메일 변경을 요청할 수 없습니다.",
         "errorNotAllowedTitle": "이메일 변경은 허용되지 않습니다",
         "errorNotAllowedMessage": "귀하의 계정은 단일 로그인(SSO) 인증을 사용하고 있으므로 이메일 주소를 변경할 수 없습니다."
+    },
+    "formulaInputErrorContext": {
+        "viewFullError": "전체 오류 보기"
+    },
+    "formulaInputExplorerContext": {
+        "variables": "변수",
+        "functions": "함수",
+        "operators": "운영자",
+        "search": "검색",
+        "useRegularInputModalTitle": "이 필드에 일반 입력값을 사용하시겠습니까?",
+        "useSimpleInput": "기본 모드로 전환",
+        "useSimpleInputModalTitle": "기본 모드로 전환하시겠습니까?",
+        "useAdvancedInput": "전문가 모드로 전환",
+        "useAdvancedInputModalTitle": "전문가 모드로 전환하시겠습니까?",
+        "modalMessage": "다른 모드로 전환하면 현재 수식이 삭제됩니다. 계속하시겠습니까?"
+    },
+    "formulaParserErrors": {
+        "invalidArgCountMin": "'{funcType}' 함수는 최소 {minArgs}개의 인수를 필요로 합니다.",
+        "invalidArgCountExact": "'{funcType}' 함수는 정확히 {minArgs}개의 인수를 필요로 합니다.",
+        "invalidArgCountRange": "'{funcType}' 함수는 {minArgs}와 {maxArgs} 사이의 인수를 예상합니다."
     }
 }
