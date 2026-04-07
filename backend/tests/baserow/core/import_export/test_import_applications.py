@@ -244,7 +244,7 @@ def test_import_rejects_zipslip_traversal(data_fixture, use_tmp_media_root, tmp_
             resource=resource, content=content
         )
 
-    with pytest.raises((SuspiciousOperation, ImportExportResourceInvalidFile)):
+    with pytest.raises(ImportExportResourceInvalidFile):
         ImportExportHandler().import_workspace_applications(
             user=user,
             workspace=workspace,
@@ -267,29 +267,6 @@ def test_extract_files_rejects_files_not_in_manifest(tmp_path, use_tmp_media_roo
         with pytest.raises(ImportExportResourceInvalidFile, match="unexpected file"):
             ImportExportHandler().extract_files_from_zip(
                 extract_dir, zf, storage, allowed_files=["trusted.txt"]
-            )
-
-
-@pytest.mark.import_export_workspace
-@pytest.mark.django_db
-def test_extract_files_rejects_oversized_content(
-    tmp_path, settings, use_tmp_media_root
-):
-    settings.BASEROW_IMPORT_MAX_UNCOMPRESSED_SIZE = 100  # 100 bytes
-
-    zip_path = f"{tmp_path}/bomb_test.zip"
-    with zipfile.ZipFile(zip_path, "w") as zf:
-        zf.writestr("large_file.txt", "A" * 200)
-
-    storage = get_default_storage()
-
-    with zipfile.ZipFile(zip_path, "r") as zf:
-        with pytest.raises(ImportExportResourceInvalidFile, match="exceeds"):
-            ImportExportHandler().extract_files_from_zip(
-                "import_test/extract",
-                zf,
-                storage,
-                allowed_files=["large_file.txt"],
             )
 
 

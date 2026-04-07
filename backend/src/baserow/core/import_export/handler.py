@@ -998,10 +998,6 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             progress_builder, child_total=len(file_list)
         )
 
-        max_size = settings.BASEROW_IMPORT_MAX_UNCOMPRESSED_SIZE
-        total_bytes_written = 0
-        chunk_size = 4 * 1024 * 1024
-
         for file_info in file_list:
             if file_info.is_dir():
                 progress.increment()
@@ -1018,18 +1014,8 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
             with zip_file.open(file_info) as extracted_file:
-                chunks = []
-                while True:
-                    chunk = extracted_file.read(chunk_size)
-                    if not chunk:
-                        break
-                    total_bytes_written += len(chunk)
-                    if max_size and total_bytes_written > max_size:
-                        raise ImportExportResourceInvalidFile(
-                            "Uncompressed archive size exceeds the allowed limit."
-                        )
-                    chunks.append(chunk)
-                storage.save(extracted_file_path, ContentFile(b"".join(chunks)))
+                file_content = extracted_file.read()
+                storage.save(extracted_file_path, ContentFile(file_content))
 
             progress.increment()
 
