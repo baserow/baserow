@@ -123,13 +123,15 @@ class DatabaseApplicationType(ApplicationType):
         for table in tables:
             fields = table.field_set.all()
             serialized_fields = []
+            specific_fields = []
             for f in fields:
                 field = f.specific
+                specific_fields.append(field)
                 field_type = field_type_registry.get_by_model(field)
                 serialized_fields.append(field_type.export_serialized(field))
 
             table_cache: Dict[str, Any] = {
-                f"fields_by_id_{table.id}": {f.id: f for f in fields},
+                f"fields_by_id_{table.id}": {f.id: f for f in specific_fields},
             }
             workspace = table.get_root()
             if workspace is not None:

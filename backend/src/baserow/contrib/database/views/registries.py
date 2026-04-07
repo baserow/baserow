@@ -355,10 +355,10 @@ class ViewType(
             import/export process to customize how it works.
         :param id_mapping: The map of exported ids to newly created ids that must be
             updated when a new instance has been created.
+        :param cache: A cache to use for storing temporary data.
         :param files_zip: A zip file buffer where files related to the export can be
             extracted from.
         :param storage: The storage where the files can be copied to.
-        :param cache: A cache to use for storing temporary data.
         :return: The newly created view instance or None if the view is not allowed to
             be imported according to its ownership type or the imported view has an
             unknown ownership type.
@@ -580,7 +580,7 @@ class ViewType(
 
         default_values = view.view_default_values.all()
         if not default_values:
-            return []
+            return {}
 
         workspace_id = view.table.database.workspace_id
         table_id = view.table_id
