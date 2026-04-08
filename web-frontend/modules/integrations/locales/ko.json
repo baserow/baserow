@@ -299,7 +299,7 @@
         "supportDescription": "Slack 앱과 페어링하는 데 도움이 필요하면 아래 단계를 참조하세요.",
         "supportSetupHeading": "1. 앱 설정",
         "supportSetupDescription": "Slack 작업 공간 설정에 따라 새 Slack 앱을 생성할 수 있습니다. 그렇지 않은 경우 관리자가 대신 생성해야 합니다. 메시지를 작성할 수 있는 기존 앱을 재사용하는 경우 'Slack 앱과 페어링하기' 섹션으로 건너뛰세요.",
-        "supportSetupStep1": "워크스페이스의 {링크}로 이동하세요.",
+        "supportSetupStep1": "워크스페이스의 {link}로 이동하세요.",
         "supportSetupStep2": "새 앱을 만들고 '처음부터'를 선택한 후 이름을 입력하세요. 앱이 작동할 작업 공간을 선택하고 '만들기'를 클릭하세요.",
         "supportSetupStep3": "왼쪽 사이드바에서 'OAuth > 권한'으로 이동한 다음, '범위'까지 아래로 스크롤하여 '봇 토큰 범위' 아래에서 'OAuth 범위 추가'를 선택합니다.",
         "supportSetupStep4": "앱에서 메시지를 게시할 수 있도록 하려면 {scope} 스코프를 추가하세요.",
