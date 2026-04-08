@@ -1002,5 +1002,28 @@
     },
     "importWorkspaceForm": {
         "selectApplicationsToImport": "Zu importierende Anwendungen auswählen"
+    },
+    "workspaceSearch": {
+        "title": "Suche",
+        "searchEverything": "Suchen...",
+        "searching": "Wird gesucht...",
+        "noResults": "Keine Ergebnisse gefunden",
+        "noResultsSubtitle": "Wir konnten nichts finden, das „{searchTerm}“ entspricht",
+        "welcome": "Alles in Ihrem Workspace durchsuchen",
+        "welcomeSubtitle": "Verwenden Sie das Suchfeld oben, um Anwendungen, Tabellen, Felder und mehr zu finden",
+        "navigate": "Navigieren",
+        "select": "Auswählen",
+        "close": "Schließen",
+        "empty": "(leer)",
+        "types": {
+            "applications": "Anwendungen",
+            "tables": "Tabellen",
+            "fields": "Felder",
+            "rows": "Zeilen"
+        }
+    },
+    "action": {
+        "cancel": "Abbrechen",
+        "submit": "Senden"
     }
 }
