@@ -46,7 +46,9 @@
         "localBaserow": "Lokales Baserow",
         "localBaserowSummary": "Lokales Baserow - {name}, {username}",
         "localBaserowWarning": "Wenn Sie Ihr Konto autorisieren, hat jeder, der Bearbeitungsrechte für die Anwendung hat, vollen Zugriff auf die Daten, auf die auch Sie Zugriff haben. Es ist möglich, einen zweiten Benutzer zu erstellen, ihm die notwendigen Berechtigungen zu geben und stattdessen diesen zu verwenden.",
-        "smtp": "SMTP-E-Mail"
+        "smtp": "SMTP-E-Mail",
+        "slackBot": "Slack-Bot",
+        "ai": "AI"
     },
     "serviceType": {
         "localBaserowGetRow": "Einzelne Zeile abfragen",
@@ -88,7 +90,11 @@
         "errorNoAggregationTypeSelected": "Kein Aggregationstyp ausgewählt",
         "corePeriodic": "Periodischer Auslöser",
         "corePeriodicDescription": "Löst den Workflow in regelmäßigen Abständen zu festgelegten Zeitpunkten aus",
-        "corePeriodicErrorIntervalMissing": "Ein Intervall ist erforderlich."
+        "corePeriodicErrorIntervalMissing": "Ein Intervall ist erforderlich.",
+        "coreHTTPTrigger": "Einen HTTP-Request empfangen",
+        "coreHTTPTriggerDescription": "Wird ausgelöst, wenn ein HTTP-Request empfangen wird.",
+        "coreIteration": "Iterator",
+        "coreIterationDescription": "Über Elemente iterieren."
     },
     "userSourceType": {
         "localBaserow": "Baserow-Tabellen-Authentifizierung"
@@ -223,5 +229,13 @@
         "minutePlaceholder": "0-59",
         "dayOfMonthPlaceholder": "1-31",
         "minuteHelper": "Dieser Workflow wird jede Minute ausgeführt"
+    },
+    "aiIntegrationType": {
+        "inheritingWorkspace": "Übernimmt die KI-Einstellungen des Workspaces",
+        "overridingProviders": "Überschreibt {count} Anbieter | Überschreibt {count} Anbieter"
+    },
+    "slackBotIntegrationType": {
+        "slackBotSummary": "Slack-Bot",
+        "slackBotNoToken": "Slack-Bot – Nicht konfiguriert"
     }
 }
