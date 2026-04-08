@@ -1196,6 +1196,7 @@
         "ruleAlreadyExists": "La regla ya existe"
     },
     "fieldFormViewEditRowSubForm": {
-        "description": "Cada fila obtendrá un enlace único que abre este formulario precargado con los datos de esa fila. Ten en cuenta que todos con acceso de lectura a la tabla y al campo podrán editar la fila a través de la vista de formulario, incluidos los espectadores y visitantes de una vista compartida públicamente."
+        "description": "Cada fila obtendrá un enlace único que abre este formulario precargado con los datos de esa fila. Ten en cuenta que todos con acceso de lectura a la tabla y al campo podrán editar la fila a través de la vista de formulario, incluidos los espectadores y visitantes de una vista compartida públicamente.",
+        "notPublicWarning": "Esta vista de formulario no se comparte públicamente. El enlace de edición no funcionará hasta que el formulario se haga público."
     }
 }
