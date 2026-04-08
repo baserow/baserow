@@ -376,5 +376,17 @@
         "hour": "Ora",
         "minute": "Minuto",
         "second": "Secondo"
+    },
+    "enterpriseTwoWaySyncStrategyType": {
+        "realtimePushDescription": "Consente di modificare i valori delle celle direttamente in Baserow e li spinge in tempo reale alla fonte di sincronizzazione dei dati. Nota che le modifiche non vengono recuperate in tempo reale perché dipendono dall'azione di sincronizzazione (periodica) per completarsi. È altamente raccomandato creare backup del database PostgreSQL per evitare modifiche accidentali."
+    },
+    "hubspotContactsDataSync": {
+        "accessTokenHelper": "Per generare un token di accesso privato per l'app in HubSpot, clicca su Impostazioni nella barra superiore, naviga su Integrazioni > App Private e crea una nuova app privata. Assegna i seguenti ambiti: crm.objects.contacts.read, crm.schemas.contacts.read e crm.objects.custom.read. Infine, clicca su Crea app per generare il token."
+    },
+    "gitlabIssuesDataSync": {
+        "projectIdHelper": "L'ID del progetto da cui vuoi sincronizzare le issue. Può essere trovato andando alla tua pagina del progetto (ad esempio https://gitlab.com/baserow/baserow), cliccando sui tre punti nell'angolo in alto a destra e poi su 'Copy project ID: 12345678'."
+    },
+    "fileInputElementForm": {
+        "fileTypesHelper": "Scegli quali estensioni di file sono consentite (una per riga) dall'input file (ad esempio jpg, png, svg, pdf). Puoi specificare image/*, video/* o audio/* per consentire tutti i file di questi tipi. Lascia vuoto per permettere tutti i tipi di file."
     }
 }
