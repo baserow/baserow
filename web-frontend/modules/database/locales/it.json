@@ -641,7 +641,7 @@
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "Condividi link al tuo Base",
-        "airtableShareLinkDescription": "Per importare il tuo base Airtable, devi avere un link condiviso a tutto il base. In Airtable, clicca sul pulsante di condivisione in alto a destra dopo aver aperto il base. Dopodiché, devi scegliere l'opzione \"Accesso al base\". Nel modale di condivisione puoi cliccare su \"Crea un link condiviso a tutto il base\" e poi su \"Link privato di sola lettura\". Copia il link pubblico e incollalo nell'input sottostante.",
+        "airtableShareLinkDescription": "Per importare la tua base Airtable, devi avere un link condiviso per l'intera tua base. In Airtable, clicca sul pulsante Condividi nell'angolo in alto a destra dopo aver aperto la tua base. Dopo quello devi scegliere l'opzione 'Condividi tramite link'. Nella finestra di condivisione puoi cliccare sulla scheda 'Condividi pubblicamente' e poi su 'Abilita link della base condivisa'. Copia il link pubblico e incollalo nell'input qui sotto.",
         "airtableShareLinkBeta": "Nota che questa funzione è in beta: le tabelle, i campi (eccetto formula, ricerca e conteggio) e i dati saranno importati, le viste non saranno importate.",
         "airtableShareLinkPaste": "Incolla il link qui",
         "importButtonLabel": "Importa da Airtable",
@@ -1080,5 +1080,8 @@
     },
     "viewFieldConditionItem": {
         "filterMisconfigured": "Il campo a cui è associato questo filtro è stato eliminato."
+    },
+    "fieldFormViewEditRowSubForm": {
+        "description": "Ogni riga otterrà un link unico che apre questo modulo pre-compilato con i dati di quella riga. Nota che chiunque abbia accesso in lettura alla tabella e al campo sarà in grado di modificare la riga tramite la vista modulo, anche gli spettatori e i visitatori di una vista condivisa pubblicamente."
     }
 }
