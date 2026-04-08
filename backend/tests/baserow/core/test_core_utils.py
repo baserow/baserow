@@ -26,6 +26,7 @@ from baserow.core.utils import (
     get_baserow_saas_base_url,
     get_value_at_path,
     grouper,
+    is_hostname_safe,
     random_string,
     remove_duplicates,
     remove_invalid_surrogate_characters,
@@ -687,14 +688,14 @@ def test_get_all_ips():
     assert get_all_ips("::") == {"::"}
 
 
+def test_is_hostname_safe():
+    assert is_hostname_safe("12.33.56.1") is True
+
+    # Wildcard addresses are not considered safe
+    assert is_hostname_safe("0.0.0.0") is False  # noqa: S104
+    assert is_hostname_safe("::") is False
+
+
 def test_are_hostnames_same():
     assert are_hostnames_same("localhost", "localhost") is True
     assert are_hostnames_same("baserow.io", "localhost") is False
-
-    # Wildcard addresses should never be considered the same as any hostname
-    assert are_hostnames_same("0.0.0.0", "localhost") is True  # noqa: S104
-    assert are_hostnames_same("localhost", "0.0.0.0") is True  # noqa: S104
-    assert are_hostnames_same("::", "localhost") is True
-    assert are_hostnames_same("localhost", "::") is True
-    assert are_hostnames_same("0.0.0.0", "::") is True  # noqa: S104
-    assert are_hostnames_same("::", "0.0.0.0") is True  # noqa: S104

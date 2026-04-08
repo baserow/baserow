@@ -1204,6 +1204,21 @@ def get_all_ips(hostname: str) -> Set:
         return set()
 
 
+def is_hostname_safe(hostname: str) -> bool:
+    """
+    Checks if the hostname resolves to a problematic
+    address, e.g. a wildcard address (0.0.0.0 or ::).
+
+    :param hostname: The hostname to check.
+    :return: True if the hostname is safe.
+    """
+
+    ips = get_all_ips(hostname)
+    wildcard_ipv4 = "0.0.0.0"  # noqa: S104
+    wildcard_ipv6 = "::"
+    return wildcard_ipv4 not in ips and wildcard_ipv6 not in ips
+
+
 def are_hostnames_same(hostname1: str, hostname2: str) -> bool:
     """
     Resolves the IP addresses of both hostnames, and checks they resolve to the same IP
@@ -1217,16 +1232,6 @@ def are_hostnames_same(hostname1: str, hostname2: str) -> bool:
 
     ips1 = get_all_ips(hostname1)
     ips2 = get_all_ips(hostname2)
-
-    # If either resolves to a wildcard address,
-    # always consider them the same
-    wildcard_ipv4 = "0.0.0.0"  # noqa: S104
-    wildcard_ipv6 = "::"
-    if wildcard_ipv4 in ips1 or wildcard_ipv6 in ips1:
-        return True
-    if wildcard_ipv4 in ips2 or wildcard_ipv6 in ips2:
-        return True
-
     return not ips1.isdisjoint(ips2)
 
 
