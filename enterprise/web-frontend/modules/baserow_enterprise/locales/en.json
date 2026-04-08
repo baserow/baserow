@@ -802,10 +802,12 @@
     "restrictedDescription": "Editors and lower can only see the filtered data and visible fields. It's possible to manage the members."
   },
   "restrictedViewFilterContext": {
-    "matchTitle": "Default values match the filters",
+    "matchTitle": "Default view values match the filters",
     "matchSubtitle": "Editors will see the rows they create.",
     "mismatchTitle": "Default values don't match the filters",
-    "mismatchSubtitle": "Editors will be able to create rows but won't see them."
+    "mismatchSubtitle": "Editors will be able to create rows but won't see them.",
+    "removeDefaultValue": "Remove default value",
+    "removeDefaultValueHelper": "This field has a default value but no filter. You can remove it here, or manage all default values by clicking the three dots next to the view and then on \"Default row values\"."
   },
   "databaseStep": {
     "ai": "Kuma AI"

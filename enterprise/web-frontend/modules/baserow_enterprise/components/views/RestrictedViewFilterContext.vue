@@ -1,5 +1,5 @@
 <template>
-  <div v-if="filteredFields.length > 0" class="restricted-view-filter-context">
+  <div v-if="visibleFields.length > 0" class="restricted-view-filter-context">
     <Expandable card toggle-on-click>
       <template #header="{ expanded }">
         <div class="restricted-view-filter-context__head">
@@ -38,7 +38,7 @@
       </template>
       <div class="restricted-view-filter-context__body">
         <div
-          v-for="field in filteredFields"
+          v-for="field in visibleFields"
           :key="field.id"
           class="restricted-view-filter-context__field"
         >
@@ -85,6 +85,29 @@
               :all-fields-in-table="fields"
               @update="onFieldUpdate(field, $event)"
             />
+            <div
+              v-if="canRemoveDefaultValue(field)"
+              class="flex align-items-center margin-top-1"
+              style="--gap: 4px"
+            >
+              <a
+                class="restricted-view-filter-context__remove"
+                @click.prevent="removeDefaultValue(field)"
+              >
+                {{ $t('restrictedViewFilterContext.removeDefaultValue') }}
+              </a>
+              <HelpIcon
+                :tooltip="
+                  $t('restrictedViewFilterContext.removeDefaultValueHelper')
+                "
+                tooltip-content-type="plain"
+                :tooltip-content-classes="[
+                  'tooltip__content--expandable',
+                  'tooltip__content--expandable-plain-text',
+                ]"
+                icon="info-empty"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -97,6 +120,22 @@ import debounce from 'lodash/debounce'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { matchSearchFilters } from '@baserow/modules/database/utils/view'
 import ViewService from '@baserow/modules/database/services/view'
+import { clone } from '@baserow/modules/core/utils/object'
+
+/**
+ * Builds the API payload from a default_row_values snapshot, applying local
+ * overrides (value/mode changes and removals) on top.
+ */
+function buildPayload(baseItems, overrides, removedFieldIds) {
+  const itemsByFieldId = new Map(baseItems.map((item) => [item.field, item]))
+  for (const fieldId of removedFieldIds) {
+    itemsByFieldId.delete(fieldId)
+  }
+  for (const override of overrides) {
+    itemsByFieldId.set(override.field, override)
+  }
+  return Array.from(itemsByFieldId.values())
+}
 
 export default {
   name: 'RestrictedViewFilterContext',
@@ -121,10 +160,17 @@ export default {
   },
   data() {
     return {
+      // Local UI state derived from view.default_row_values.
       defaultViewRowValues: {},
       fieldModes: {},
-      oldDefaultViewRowValues: null,
-      oldFieldModes: null,
+      removedFieldIds: [],
+      // Snapshot of view.default_row_values taken before the first local edit
+      // in a batch. Used to revert if the in-flight request fails.
+      requestSnapshot: null,
+      // Snapshot taken when edits arrive while a request is in flight. If the
+      // in-flight request succeeds, this becomes the new requestSnapshot for
+      // the queued save.
+      pendingSnapshot: null,
       saving: false,
       saveQueued: false,
     }
@@ -137,9 +183,26 @@ export default {
       }
       return ids
     },
-    filteredFields() {
+    enabledDefaultFieldIds() {
+      const ids = new Set()
+      for (const item of this.view.default_row_values || []) {
+        if (item.enabled) {
+          ids.add(item.field)
+        }
+      }
+      return ids
+    },
+    // Fields that are either used in a filter or have an enabled default value,
+    // excluding fields the user has locally removed.
+    visibleFields() {
       return this.fields.filter((field) => {
-        if (!this.filteredFieldIds.has(field.id)) return false
+        if (this.removedFieldIds.includes(field.id)) return false
+        if (
+          !this.filteredFieldIds.has(field.id) &&
+          !this.enabledDefaultFieldIds.has(field.id)
+        ) {
+          return false
+        }
         const fieldType = this.$registry.get('field', field.type)
         return fieldType.canBeDefaultValue()
       })
@@ -148,7 +211,7 @@ export default {
     // so that matchSearchFilters can check them against the filters.
     resolvedDefaultViewRowValues() {
       const resolved = {}
-      for (const field of this.filteredFields) {
+      for (const field of this.visibleFields) {
         const name = `field_${field.id}`
         const mode = this.fieldModes[field.id]
         if (mode && mode !== 'static') {
@@ -174,7 +237,6 @@ export default {
   watch: {
     'view.default_row_values': {
       handler() {
-        // Don't overwrite local edits while a save is in flight or queued.
         if (!this.saving && !this.saveQueued) {
           this.parseDefaultValues()
         }
@@ -195,8 +257,6 @@ export default {
     this.debouncedSave = debounce(this.save, 400)
   },
   beforeUnmount() {
-    // Flush any pending debounced save so edits aren't lost when the filter context
-    // menu is removed.
     this.debouncedSave.flush()
   },
   methods: {
@@ -209,16 +269,22 @@ export default {
 
       const newValues = {}
       const newModes = {}
-      for (const field of this.filteredFields) {
+      for (const field of this.fields) {
+        if (
+          !this.filteredFieldIds.has(field.id) &&
+          !itemsByFieldId[field.id]?.enabled
+        ) {
+          continue
+        }
         const fieldType = this.$registry.get('field', field.type)
+        if (!fieldType.canBeDefaultValue()) continue
+
         const name = `field_${field.id}`
         newValues[name] = fieldType.getEmptyValue(field)
         newModes[field.id] = 'static'
 
         const item = itemsByFieldId[field.id]
-        if (!item || !item.enabled) {
-          continue
-        }
+        if (!item || !item.enabled) continue
 
         if (
           item.value != null &&
@@ -236,6 +302,7 @@ export default {
       }
       this.defaultViewRowValues = newValues
       this.fieldModes = newModes
+      this.removedFieldIds = []
     },
     getFieldComponent(field) {
       const fieldType = this.$registry.get('field', field.type)
@@ -245,24 +312,75 @@ export default {
       const fieldType = this.$registry.get('field', field.type)
       return fieldType.getSupportedDefaultValueFunctions()
     },
-    onModeChange(field, mode) {
-      if (!this.oldDefaultViewRowValues) {
-        this.oldDefaultViewRowValues = { ...this.defaultViewRowValues }
-        this.oldFieldModes = { ...this.fieldModes }
+    canRemoveDefaultValue(field) {
+      return (
+        !this.readOnly &&
+        !this.filteredFieldIds.has(field.id) &&
+        this.enabledDefaultFieldIds.has(field.id)
+      )
+    },
+    /**
+     * Takes a snapshot of view.default_row_values before the first local edit.
+     * If a request is already in flight, the snapshot goes into pendingSnapshot
+     * (so that a queued save can use it). Otherwise it goes into requestSnapshot.
+     */
+    snapshotBeforeEdit() {
+      if (this.saving) {
+        if (!this.pendingSnapshot) {
+          this.pendingSnapshot = clone(this.view.default_row_values || [])
+        }
+      } else if (!this.requestSnapshot) {
+        this.requestSnapshot = clone(this.view.default_row_values || [])
       }
+    },
+    removeDefaultValue(field) {
+      this.snapshotBeforeEdit()
+      this.removedFieldIds = [...this.removedFieldIds, field.id]
+      const newValues = { ...this.defaultViewRowValues }
+      delete newValues[`field_${field.id}`]
+      this.defaultViewRowValues = newValues
+      const newModes = { ...this.fieldModes }
+      delete newModes[field.id]
+      this.fieldModes = newModes
+      this.debouncedSave()
+    },
+    onModeChange(field, mode) {
+      this.snapshotBeforeEdit()
       this.fieldModes = { ...this.fieldModes, [field.id]: mode }
       this.debouncedSave()
     },
     onFieldUpdate(field, value) {
-      if (!this.oldDefaultViewRowValues) {
-        this.oldDefaultViewRowValues = { ...this.defaultViewRowValues }
-        this.oldFieldModes = { ...this.fieldModes }
-      }
+      this.snapshotBeforeEdit()
       this.defaultViewRowValues = {
         ...this.defaultViewRowValues,
         [`field_${field.id}`]: value,
       }
       this.debouncedSave()
+    },
+    /**
+     * Builds the list of local overrides from the current UI state for fields
+     * that are visible (not removed).
+     */
+    buildOverrides() {
+      return this.visibleFields.map((field) => {
+        const fieldType = this.$registry.get('field', field.type)
+        const mode = this.fieldModes[field.id]
+        const funcName = mode && mode !== 'static' ? mode : null
+
+        let value = null
+        if (!funcName) {
+          value = fieldType.prepareValueForUpdate(
+            field,
+            this.defaultViewRowValues[`field_${field.id}`]
+          )
+        }
+        return {
+          field: field.id,
+          enabled: true,
+          value,
+          function: funcName,
+        }
+      })
     },
     async save() {
       if (this.saving) {
@@ -271,39 +389,12 @@ export default {
       }
       this.saving = true
 
-      // Capture the local state we're about to send so we can detect if more
-      // edits arrived while the request was in flight.
-      const sentValues = { ...this.defaultViewRowValues }
-      const sentModes = { ...this.fieldModes }
+      const overrides = this.buildOverrides()
+      const removedIds = [...this.removedFieldIds]
+      const baseItems = clone(this.view.default_row_values || [])
 
       try {
-        // Preserve existing default values for non-filtered fields, only
-        // overwrite the entries for fields that are currently being filtered on.
-        const itemsByFieldId = new Map(
-          (this.view.default_row_values || []).map((item) => [item.field, item])
-        )
-        this.filteredFields.forEach((field) => {
-          const fieldType = this.$registry.get('field', field.type)
-          const mode = sentModes[field.id]
-          const funcName = mode !== 'static' ? mode : null
-
-          let value = null
-          if (!funcName) {
-            value = fieldType.prepareValueForUpdate(
-              field,
-              sentValues[`field_${field.id}`]
-            )
-          }
-
-          itemsByFieldId.set(field.id, {
-            field: field.id,
-            enabled: true,
-            value,
-            function: funcName,
-          })
-        })
-        const items = Array.from(itemsByFieldId.values())
-
+        const items = buildPayload(baseItems, overrides, removedIds)
         const { data } = await ViewService(this.$client).updateDefaultValues(
           this.view.id,
           items
@@ -313,24 +404,32 @@ export default {
           view: this.view,
           values: { default_row_values: data },
         })
-        // Wait for the watcher to flush so it doesn't overwrite local edits
-        // that arrived while the request was in flight.
         await this.$nextTick()
 
-        // If no further edits happened during the request, the snapshot is
-        // no longer needed. Otherwise keep it for the queued save.
-        if (!this.saveQueued) {
-          this.oldDefaultViewRowValues = null
-          this.oldFieldModes = null
+        if (this.saveQueued) {
+          // More edits arrived during the request. The pendingSnapshot
+          // becomes the requestSnapshot for the next save.
+          this.requestSnapshot = this.pendingSnapshot
+          this.pendingSnapshot = null
+        } else {
+          this.requestSnapshot = null
+          this.pendingSnapshot = null
+          this.removedFieldIds = []
         }
       } catch (err) {
-        if (this.oldDefaultViewRowValues) {
-          this.defaultViewRowValues = this.oldDefaultViewRowValues
-          this.fieldModes = this.oldFieldModes
-          this.oldDefaultViewRowValues = null
-          this.oldFieldModes = null
-        }
+        // Revert to the snapshot taken before the edits that triggered this
+        // save, cancel any queued save, and re-parse from it.
+        this.debouncedSave.cancel()
         this.saveQueued = false
+        if (this.requestSnapshot) {
+          await this.$store.dispatch('view/forceUpdate', {
+            view: this.view,
+            values: { default_row_values: this.requestSnapshot },
+          })
+        }
+        this.requestSnapshot = null
+        this.pendingSnapshot = null
+        this.parseDefaultValues()
         notifyIf(err, 'view')
       } finally {
         this.saving = false
