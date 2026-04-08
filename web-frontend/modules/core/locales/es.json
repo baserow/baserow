@@ -72,7 +72,9 @@
         "incorrectCredentialMessage": "La dirección de correo electrónico o la contraseña proporcionadas son incorrectas.",
         "inputRequired": "Se requiere entrada.",
         "disabledPasswordProviderTitle": "La autentificación por contraseña está deshabilitada.",
-        "disabledPasswordProviderMessage": "Utilice otro proveedor de autentificación."
+        "disabledPasswordProviderMessage": "Utilice otro proveedor de autentificación.",
+        "captchaVerificationFailedTitle": "Falló la verificación de Captcha",
+        "captchaVerificationFailedMessage": "La verificación de Captcha falló. Por favor, inténtalo de nuevo."
     },
     "field": {
         "language": "Idioma",
