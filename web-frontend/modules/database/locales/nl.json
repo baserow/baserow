@@ -1218,5 +1218,9 @@
     "rowEditFieldFormViewEditRow": {
         "copyLink": "Link kopiëren",
         "noFormView": "Geen formulier weergave geconfigureerd"
+    },
+    "gridViewFreezeHandle": {
+        "freeze": "0 kolommen vastzetten | 1 kolom vastzetten | {count} kolommen vastzetten",
+        "hoverHint": "Sleep om kolommen vast te zetten"
     }
 }
