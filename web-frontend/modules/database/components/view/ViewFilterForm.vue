@@ -110,6 +110,7 @@ export default {
   emits: ['changed'],
   computed: {
     filterContextComponent() {
+      if (!this.view.ownership_type) return null
       const ownershipType = this.$registry.get(
         'viewOwnershipType',
         this.view.ownership_type
