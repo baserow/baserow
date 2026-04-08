@@ -47,7 +47,8 @@
         "moveDown": "Verplaats omlaag",
         "moveRight": "Naar rechts",
         "moveLeft": "Naar links",
-        "selectParent": "Selecteer ouder"
+        "selectParent": "Selecteer ouder",
+        "drag": "Versleep om de volgorde te wijzigen"
     },
     "pageHeaderItemTypes": {
         "labelElements": "Elementen",
