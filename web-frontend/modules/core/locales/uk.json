@@ -97,7 +97,9 @@
         "incorrectCredentialMessage": "Надана електронна адреса або пароль неправильні.",
         "inputRequired": "Поле обов’язкове для заповнення.",
         "disabledPasswordProviderTitle": "Аутентифікація за паролем вимкнена.",
-        "disabledPasswordProviderMessage": "Будь ласка, скористайтеся іншим провайдером автентифікації."
+        "disabledPasswordProviderMessage": "Будь ласка, скористайтеся іншим провайдером автентифікації.",
+        "captchaVerificationFailedTitle": "Не вдалося пройти перевірку Captcha",
+        "captchaVerificationFailedMessage": "Перевірка captcha не вдалася. Будь ласка, спробуйте ще раз."
     },
     "field": {
         "language": "Мова",
@@ -479,7 +481,10 @@
                 }
             }
         },
-        "notifyUserOnSubmit": "Отримувати сповіщення під час надсилання"
+        "notifyUserOnSubmit": "Отримувати сповіщення під час надсилання",
+        "fields": "Поля",
+        "rowEditableBy": "Оновлювати рядки через поля",
+        "rowEditableByDescription": "Рядки в цій таблиці можна оновлювати через цю форму за допомогою таких полів редагування рядка:"
     },
     "job": {
         "statePending": "Очікування початку…",
@@ -937,7 +942,9 @@
     },
     "formulaInputField": {
         "errorInvalidFormula": "Формула недійсна.",
-        "advancedFormulaMode": "Розширений режим формул"
+        "advancedFormulaMode": "Розширений режим формул",
+        "invalidFormulaTitle": "Недійсна формула",
+        "invalidSyntax": "Некоректна експертна формула, будь ласка, перевірте синтаксис."
     },
     "dataExplorer": {
         "noMatchingNodesText": "Збігів не знайдено.",
@@ -1222,5 +1229,25 @@
     },
     "adminWorkspaces": {
         "title": "Робочі простори"
+    },
+    "formulaInputErrorContext": {
+        "viewFullError": "Переглянути повну помилку"
+    },
+    "formulaInputExplorerContext": {
+        "variables": "Змінні",
+        "functions": "Функції",
+        "operators": "Оператори",
+        "search": "Пошук",
+        "useRegularInputModalTitle": "Використовувати звичайне введення для цього поля?",
+        "useSimpleInput": "Перейти в базовий режим",
+        "useSimpleInputModalTitle": "Перейти в базовий режим?",
+        "useAdvancedInput": "Перейти в експертний режим",
+        "useAdvancedInputModalTitle": "Перейти в експертний режим?",
+        "modalMessage": "Перехід в інший режим очистить поточну формулу. Ви впевнені, що хочете продовжити?"
+    },
+    "formulaParserErrors": {
+        "invalidArgCountMin": "Функція «{funcType}» очікує щонайменше {minArgs} аргументів.",
+        "invalidArgCountExact": "Функція «{funcType}» очікує рівно {minArgs} аргументів.",
+        "invalidArgCountRange": "Функція «{funcType}» очікує від {minArgs} до {maxArgs} аргументів."
     }
 }
