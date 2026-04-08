@@ -69,7 +69,10 @@
               "
               class="simple-grid__cell-checkbox"
             >
-              <Checkbox :checked="selectedRows.includes(row.id)"></Checkbox>
+              <Checkbox
+                :checked="selectedRows.includes(row.id)"
+                @click.prevent
+              ></Checkbox>
             </div>
           </div>
           <div
