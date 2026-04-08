@@ -16,7 +16,8 @@
         "sortTabTitle": "Ordinamenti",
         "searchFieldPlaceHolder": "Inserisci un termine di ricerca...",
         "noTableChosenForFiltering": "Scegli una tabella per iniziare ad utilizzare i filtri delle sorgenti dati.",
-        "noTableChosenForSorting": "Scegli una tabella per iniziare ad utilizzare gli ordinamenti delle sorgenti dati."
+        "noTableChosenForSorting": "Scegli una tabella per iniziare ad utilizzare gli ordinamenti delle sorgenti dati.",
+        "defaultResultCountHelp": "Il numero predefinito di record che questa origine dati recupererà sulla tua pagina. Impostare il valore a 0, e utilizzarlo su un elemento collezione, migliorerà le prestazioni al caricamento della pagina recuperando i record solo quando l'elemento è paginato."
     },
     "localBaserowTableServiceConditionalForm": {
         "noCompatibleFilterTypesErrorTitle": "Nessun tipo di filtro compatibile",
@@ -41,7 +42,8 @@
     "integrationType": {
         "localBaserow": "Baserow locale",
         "localBaserowSummary": "Baserow locale - {name}, {surname}",
-        "localBaserowWarning": "L'autorizzazione del tuo account fornisce a chiunque abbia autorizzazioni di modifica per l'applicazione l'accesso completo ai dati a cui hai accesso. È possibile creare un secondo utente, fornire i permessi corretti e utilizzare quest'ultimo."
+        "localBaserowWarning": "L'autorizzazione del tuo account fornisce a chiunque abbia autorizzazioni di modifica per l'applicazione l'accesso completo ai dati a cui hai accesso. È possibile creare un secondo utente, fornire i permessi corretti e utilizzare quest'ultimo.",
+        "smtp": "Email SMTP"
     },
     "serviceType": {
         "localBaserowGetRow": "Leggi single Row",
@@ -83,5 +85,8 @@
         "noTableChosenForFiltering": "Scegli una tabella per iniziare ad usare i filtri.",
         "filterTabTitle": "Filtri",
         "searchTabTitle": "Cerca"
+    },
+    "slackBotForm": {
+        "supportSetupDescription": "A seconda delle impostazioni del tuo spazio di lavoro Slack, potresti essere in grado di creare una nuova app Slack. Altrimenti, un amministratore dovrà farlo per te. Se stai riutilizzando un'app esistente che può scrivere messaggi, salta alla sezione chiamata 'Pairing with your Slack app'."
     }
 }
