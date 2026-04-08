@@ -32,7 +32,7 @@
       ></GridViewRowIdentifierDropdown>
     </div>
     <GridViewFieldType
-      v-for="(field, index) in visibleFields"
+      v-for="field in visibleFields"
       :key="'field-type-' + field.id"
       :database="database"
       :table="table"

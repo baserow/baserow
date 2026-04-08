@@ -80,16 +80,20 @@
     ></div>
     <GridViewFreezeHandle
       v-if="
-        canFitFrozenColumns &&
-        !viewHasGroupBys &&
-        isEditable &&
-        allDraggableFields.length > 0
+        canFitFrozenColumns && !viewHasGroupBys && allDraggableFields.length > 0
       "
       :view="view"
       :database="database"
       :fields="fields"
       :field-options="fieldOptions"
-      :read-only="readOnly"
+      :read-only="
+        readOnly ||
+        !$hasPermission(
+          'database.table.view.update',
+          view,
+          database.workspace.id
+        )
+      "
       :row-details-width="gridViewRowDetailsWidth"
       :left-width="leftWidth"
       :get-field-width="getFieldWidth"
@@ -168,12 +172,18 @@
       @cell-selected="cellSelected"
     ></GridViewSection>
     <GridViewFieldDragging
-      v-if="isEditable"
       ref="crossSectionFieldDragging"
       :view="view"
       :fields="allDraggableFields"
       :offset="crossSectionDraggingOffset"
-      :read-only="!isEditable"
+      :read-only="
+        readOnly ||
+        !$hasPermission(
+          'database.table.view.update_field_options',
+          view,
+          database.workspace.id
+        )
+      "
       :store-prefix="storePrefix"
       :get-scroll-element="getCrossSectionScrollElement"
       :get-scrollable-element="getCrossSectionScrollableElement"
@@ -775,11 +785,7 @@ export default {
      * Delegates to the shared cross-section field dragging component.
      */
     startCrossSectionFieldDrag(field, event) {
-      if (
-        this.$refs.crossSectionFieldDragging &&
-        !field.primary &&
-        this.isEditable
-      ) {
+      if (this.$refs.crossSectionFieldDragging && !field.primary) {
         this.$refs.crossSectionFieldDragging.start(field, event)
       }
     },
@@ -1780,7 +1786,15 @@ export default {
         return
       }
 
-      const maxWidth = this.gridViewRowDetailsWidth + this.leftFieldsWidth + 300
+      const fieldOptions = this.fieldOptions
+      const sorted = this.fields
+        .slice()
+        .filter(filterVisibleFieldsFunction(fieldOptions))
+        .sort(sortFieldsByOrderAndIdFunction(fieldOptions, true))
+      const frozenWidth = sorted
+        .slice(0, this.frozenColumnCount)
+        .reduce((sum, field) => sum + this.getFieldWidth(field), 0)
+      const maxWidth = this.gridViewRowDetailsWidth + frozenWidth + 300
       this.canFitFrozenColumns = this.$refs.gridView.clientWidth > maxWidth
     },
     /**
