@@ -207,13 +207,14 @@
         "supportSetupHeading": "1. Налаштування застосунку",
         "supportSetupDescription": "Залежно від налаштувань вашого робочого простору Slack, ви можете створити новий застосунок Slack. В іншому випадку адміністратор повинен зробити це за вас. Якщо ви повторно використовуєте існуючий застосунок, який може надсилати повідомлення, перейдіть до розділу \"Підключення до вашого застосунку Slack\".",
         "supportSetupStep2": "Створіть новий застосунок, виберіть \"З нуля\" та введіть назву. Виберіть робочий простір, у якому повинен працювати ваш застосунок, і натисніть \"Створити\".",
-        "supportSetupStep3": "На лівій бічній панелі перейдіть до \"OAuth &amp; Permissions\", прокрутіть вниз до Scopes і в розділі \"Bot Token Scopes\" виберіть \"Add an OAuth Scope\".",
+        "supportSetupStep3": "На лівій бічній панелі перейдіть до \"OAuth Permissions\", прокрутіть вниз до Scopes і в розділі \"Bot Token Scopes\" виберіть \"Add an OAuth Scope\".",
         "supportPairingHeading": "2. Підключення до вашого застосунку Slack",
-        "supportPairingStep1": "Якщо ваш застосунок новий: перейдіть до \"Settings\" &gt; \"Install App\". Натисніть зелену кнопку, щоб встановити застосунок у ваш робочий простір.",
+        "supportPairingStep1": "Якщо ваш застосунок новий: перейдіть до \"Settings\" \"Install App\". Натисніть зелену кнопку, щоб встановити застосунок у ваш робочий простір.",
         "supportPairingStep2": "Скопіюйте ваш \"Bot User OAuth Token\" і збережіть його в полі \"Токен користувача бота\" у цій формі.",
-        "supportPairingStep3": "Нарешті, якщо ваш додаток новий: у Slack запросіть його до обраного каналу за допомогою команди &lt;pre&gt;/invite {'@'}yourAppName yourChannel&lt;/pre&gt;",
-        "supportSetupStep1": "Перейдіть до вашого робочого простору &lt;a href=\"https://api.slack.com/apps\" target=\"_blank\"&gt;.",
-        "supportSetupStep4": "Щоб дозволити вашому додатку надсилати повідомлення, додайте  &lt;pre&gt;chat:write&lt;/pre&gt; область."
+        "supportPairingStep3": "Нарешті, якщо ваш додаток новий: у Slack запросіть його до обраного каналу за допомогою {command}",
+        "supportSetupStep1": "Перейдіть до вашого робочого простору {link}.",
+        "supportSetupStep4": "Щоб дозволити вашому додатку надсилати повідомлення, додайте {scope} область.",
+        "supportSetupStep1Link": "Сторінка застосунків"
     },
     "slackWriteMessageServiceForm": {
         "alertMessage": "Ця дія повинна бути пов'язана із застосунком Slack. Дотримуйтесь інструкцій у спливаючому вікні інтеграцій, щоб почати.",
@@ -265,7 +266,9 @@
         "bodyTypePlain": "Звичайний текст",
         "bodyTypeHtml": "HTML",
         "body": "Тіло",
-        "bodyPlaceholder": "Вміст вашого листа..."
+        "bodyPlaceholder": "Вміст вашого листа...",
+        "smtpConfigurationMode": "Налаштування SMTP",
+        "useInstanceSmtpSettings": "Використовувати SMTP-сервер системи"
     },
     "coreIterationServiceForm": {
         "source": "Джерело",
