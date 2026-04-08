@@ -22,7 +22,8 @@
         "thursday": "Donnerstag",
         "friday": "Freitag",
         "saturday": "Samstag",
-        "sunday": "Sonntag"
+        "sunday": "Sonntag",
+        "value": "Wert"
     },
     "action": {
         "upload": "Hochladen",
