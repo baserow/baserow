@@ -110,12 +110,12 @@ export default {
   emits: ['changed'],
   computed: {
     filterContextComponent() {
-      if (!this.view.ownership_type) return null
+      if (!this.view.ownership_type || !this.database) return null
       const ownershipType = this.$registry.get(
         'viewOwnershipType',
         this.view.ownership_type
       )
-      return ownershipType.getFilterContextComponent()
+      return ownershipType.getFilterContextComponent(this.view, this.database)
     },
   },
   methods: {

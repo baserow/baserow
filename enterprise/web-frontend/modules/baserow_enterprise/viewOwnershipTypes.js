@@ -84,7 +84,16 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
     return !canListFields
   }
 
-  getFilterContextComponent() {
+  getFilterContextComponent(view, database) {
+    if (
+      !this.app.$hasPermission(
+        'database.table.view.update_default_values',
+        view,
+        database.workspace.id
+      )
+    ) {
+      return null
+    }
     return RestrictedViewFilterContext
   }
 
