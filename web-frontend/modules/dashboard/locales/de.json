@@ -1,1 +1,47 @@
-{}
+{
+    "dashboard": {
+        "descriptionPlaceholder": "Beschreibung"
+    },
+    "dashboardHeader": {
+        "doneEditing": "Bearbeitung abgeschlossen"
+    },
+    "emptyDashboard": {
+        "title": "Dieses Dashboard enthält keine Widgets",
+        "subtitle": "Beginnen Sie, indem Sie eines hinzufügen.",
+        "addWidget": "Widget hinzufügen"
+    },
+    "dashboardHeaderMenuItems": {
+        "editMode": "Bearbeitungsmodus"
+    },
+    "createWidgetModal": {
+        "title": "Neues Widget hinzufügen"
+    },
+    "widget": {
+        "fixConfiguration": "Konfiguration korrigieren"
+    },
+    "summaryWidget": {
+        "name": "Zusammenfassung"
+    },
+    "emptyDashboardSidebar": {
+        "title": "Kein Element ausgewählt",
+        "message": "Klicken Sie auf eines der Elemente, um Details anzuzeigen."
+    },
+    "widgetSettings": {
+        "title": "Titel",
+        "description": "Beschreibung"
+    },
+    "aggregateRowsDataSourceForm": {
+        "data": "Daten",
+        "sourceFieldLabel": "Quelle",
+        "viewFieldLabel": "Anzeigen",
+        "notSelected": "Nicht ausgewählt",
+        "aggregationFieldLabel": "Feld",
+        "aggregationTypeLabel": "Zusammenfassung"
+    },
+    "widgetContext": {
+        "delete": "Löschen"
+    },
+    "trashType": {
+        "widget": "Widget"
+    }
+}
