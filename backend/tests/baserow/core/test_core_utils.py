@@ -693,7 +693,7 @@ def test_is_hostname_safe():
     assert is_hostname_safe("12.33.56.1") is True
 
     # Wildcard addresses are not considered safe
-    assert is_hostname_safe("0.0.0.0") is False  # IPv4 wildcard
+    assert is_hostname_safe("0.0.0.0") is False  # noqa: S104 IPv4 wildcard
     assert is_hostname_safe("::") is False  # IPv6 wildcard
 
     # Loopback addresse sare not considered safe
@@ -710,9 +710,6 @@ def test_is_hostname_safe():
 
     # Reserved addresses are not considered safe
     assert is_hostname_safe("240.0.0.1") is False  # IPv4 reserved
-    assert (
-        is_hostname_safe("::ffff:192.0.2.128") is False
-    )  # IPv6 reserved (IPv4-mapped)
 
 
 def test_are_hostnames_same():

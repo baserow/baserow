@@ -1219,7 +1219,6 @@ def is_hostname_safe(hostname: str) -> bool:
     :return: True if all resolved IPs are safe.
     """
 
-
     ips = get_all_ips(hostname)
     if not ips:
         return False
