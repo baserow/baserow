@@ -832,7 +832,10 @@
         "emptyTitle": "Nog geen datascans",
         "emptyDescription": "Met een datascanner kunt u automatisch de hele instantie of specifieke workspaces scannen om te controleren of patronen (zoals IBAN's) of vooraf gedefinieerde tekst (zoals medische ID's) ergens worden gebruikt.",
         "emptyResultsTitle": "Geen resultaten gevonden",
-        "emptyResultsDescription": "Er zijn nog geen scanresultaten. Resultaten verschijnen hier zodra een datascan is uitgevoerd en er overeenkomsten zijn gevonden."
+        "emptyResultsDescription": "Er zijn nog geen scanresultaten. Resultaten verschijnen hier zodra een datascan is uitgevoerd en er overeenkomsten zijn gevonden.",
+        "wholeWordsLabel": "Bijpassend",
+        "wholeWordsCheckbox": "Alleen hele woorden zoeken",
+        "wholeWordsHelp": "Als deze optie is ingeschakeld, zoekt de scanner alleen naar volledige woorden of tokens. Zo komt 'DDDD' bijvoorbeeld overeen met '1234', maar niet met '12345'."
     },
     "deleteDataScanModal": {
         "title": "Datascan verwijderen",
