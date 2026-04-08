@@ -615,7 +615,9 @@
         "secondsToDurationDescription": "Convierte el número de segundos proporcionado en una duración.",
         "durationToSecondsDescription": "Convierte la duración proporcionada en el número de segundos correspondiente.",
         "arraySliceDescription": "Devuelve una subconjunto de matriz o `sub-array` comenzando en el índice dado (basado en 0, los negativos cuentan desde el final). Un conteo positivo toma elementos hacia adelante, 0 significa todos los restantes, un conteo negativo toma elementos hacia atrás en orden inverso.",
-        "firstDescription": "Devuelve el primer elemento de un valor de array (por ejemplo, de un lookup, archivo u otro campo de tipo array)."
+        "firstDescription": "Devuelve el primer elemento de un valor de matriz (por ejemplo, de una búsqueda, archivo u otro campo de tipo `array` o matriz).",
+        "lastDescription": "Devuelve el último elemento de un valor de matriz (por ejemplo, de una búsqueda, archivo u otro campo de tipo `array` o matriz).",
+        "arrayUniqueDescription": "Devuelve solo los elementos únicos de una matriz o `array`, eliminando duplicados mientras se preserva el orden de la primera aparición."
     },
     "functionnalGridViewFieldLinkRow": {
         "unnamed": "fila sin nombre {value}"
@@ -723,5 +725,11 @@
     "nodeExplorer": {
         "noResults": "No se encontraron resultados",
         "resetSearch": "Restablecer búsqueda"
+    },
+    "runtimeGetErrors": {
+        "invalidPath": "El argumento 'obtener' o 'get' '{path}' debe ser una ruta delimitada por puntos (ej. 'proveedor.propiedad').",
+        "missingProvider": "El argumento 'obtener' o 'get' '{path}' le falta su prefijo del proveedor de fórmulas.",
+        "invalidProviderPath": "El proveedor de fórmulas '{providerName}' encontró '{path}' como inválido.",
+        "unknownProvider": "El proveedor de fórmulas '{providerName}' no existe."
     }
 }
