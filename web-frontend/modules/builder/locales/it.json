@@ -583,7 +583,8 @@
         "rolesAllMembersOf": "Tutti i membri di {name}",
         "noRole": "Nessun ruolo",
         "errorFetchingRolesTitle": "Non riesco a leggere i ruoli utente",
-        "errorFetchingRolesMessage": "C'è stato un problema nel leggere i ruoli utente."
+        "errorFetchingRolesMessage": "C'è stato un problema nel leggere i ruoli utente.",
+        "visibilityConditionHelper": "Se il risultato di questa formula è vero, e la scelta del visitatore sopra è vera, l'elemento sarà visibile. Questa condizione influisce solo sulla visibilità dell'elemento. Per escludere i dati dalla risposta del server invece, usa l'opzione di filtraggio per ruolo utente sopra."
     },
     "generalSettings": {
         "titleOverview": "Generale",
@@ -854,5 +855,8 @@
         "extraBold": "Extra‑grassetto",
         "black": "Nero",
         "extraBlack": "Extra‑nero"
+    },
+    "sidePanelGuidedTourStep": {
+        "content": "**Tab Generale** – Configura l'elemento selezionato.\n\n**Tab Stile** – Personalizza padding, margini, bordi e altro.\n\n**Tab Visibilità** – Controlla chi può vedere questo elemento: utenti connessi, utenti disconnessi o ruoli specifici.\n\n**Tab Eventi** – Se l'elemento supporta azioni, configurale qui per interattività dinamica."
     }
 }
