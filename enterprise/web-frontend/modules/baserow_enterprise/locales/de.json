@@ -46,7 +46,8 @@
     },
     "adminType": {
         "AuditLog": "Audit-Log",
-        "Authentication": "Authentifizierung"
+        "Authentication": "Authentifizierung",
+        "DataScanner": "Daten-Scanner"
     },
     "auditLog": {
         "title": "Audit-Log",
@@ -406,5 +407,11 @@
     },
     "advanced": {
         "license": "Advanced"
+    },
+    "dataScanner": {
+        "title": "Daten-Scanner",
+        "scansTab": "Scans",
+        "resultsTab": "Ergebnisse",
+        "createScan": "Daten-Scanner erstellen"
     }
 }
