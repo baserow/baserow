@@ -98,7 +98,7 @@ export default defineNuxtPlugin({
   name: 'enterprise',
   dependsOn: ['premium', 'registry'],
   setup(nuxtApp) {
-    const { $registry, $store, $featureFlagIsEnabled } = nuxtApp
+    const { $registry, $store } = nuxtApp
 
     const context = { app: nuxtApp }
 
