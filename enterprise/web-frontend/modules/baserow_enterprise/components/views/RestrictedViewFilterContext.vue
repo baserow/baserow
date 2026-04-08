@@ -204,21 +204,28 @@ export default {
           return false
         }
         const fieldType = this.$registry.get('field', field.type)
-        return fieldType.canBeDefaultValue()
+        return !fieldType.isReadOnlyField(field) && fieldType.canBeDefaultValue()
       })
     },
     // Build a values object that resolves functions to their actual values,
-    // so that matchSearchFilters can check them against the filters.
+    // so that matchSearchFilters can check them against the filters. Includes
+    // all filtered fields (even read-only ones that aren't editable) so the
+    // filter matching doesn't hit undefined values.
     resolvedDefaultViewRowValues() {
       const resolved = {}
-      for (const field of this.visibleFields) {
+      for (const field of this.fields) {
+        if (!this.filteredFieldIds.has(field.id) && !this.fieldModes[field.id]) {
+          continue
+        }
         const name = `field_${field.id}`
         const mode = this.fieldModes[field.id]
         if (mode && mode !== 'static') {
           const fieldType = this.$registry.get('field', field.type)
           resolved[name] = fieldType.resolveDefaultValueFunction(mode, field)
         } else {
-          resolved[name] = this.defaultViewRowValues[name]
+          const fieldType = this.$registry.get('field', field.type)
+          resolved[name] =
+            this.defaultViewRowValues[name] ?? fieldType.getEmptyValue(field)
         }
       }
       return resolved
@@ -277,7 +284,8 @@ export default {
           continue
         }
         const fieldType = this.$registry.get('field', field.type)
-        if (!fieldType.canBeDefaultValue()) continue
+        if (fieldType.isReadOnlyField(field) || !fieldType.canBeDefaultValue())
+          continue
 
         const name = `field_${field.id}`
         newValues[name] = fieldType.getEmptyValue(field)
