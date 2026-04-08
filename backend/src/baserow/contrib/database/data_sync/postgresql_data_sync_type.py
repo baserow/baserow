@@ -160,7 +160,7 @@ class PostgreSQLDataSyncType(DataSyncType):
         connection = None
 
         if not is_hostname_safe(instance.postgresql_host):
-            raise SyncError("It's not allowed to connect to this hostname")
+            raise SyncError("It's not allowed to connect to this hostname.")
 
         baserow_postgresql_connection = (
             settings.BASEROW_PREVENT_POSTGRESQL_DATA_SYNC_CONNECTION_TO_DATABASE
