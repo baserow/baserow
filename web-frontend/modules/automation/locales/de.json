@@ -1,1 +1,77 @@
-{}
+{
+    "automationWorkflow": {
+        "title": "Workflow"
+    },
+    "automationWelcomeGuidedTourStep": {
+        "title": "Willkommen bei Baserow Automatisierungen!",
+        "content": "Machen wir eine kurze Tour. Sie sehen, wie Sie Trigger einrichten, Aktionen hinzufügen, Ihren Workflow testen und veröffentlichen — ganz ohne Programmierung."
+    },
+    "automationGraphGuidedTourStep": {
+        "title": "Verwalten Sie hier Ihren Workflow-Graphen",
+        "content": "Erstellen Sie hier einen Trigger und Aktionen, um festzulegen, was der Workflow tun soll. Wählen Sie einen Trigger oder eine Aktion aus, um ihn bzw. sie im Seitenpanel zu konfigurieren."
+    },
+    "automationTestRunGuidedTourStep": {
+        "title": "Testen Sie Ihren Workflow",
+        "content": "Wenn Sie bereit sind, starten Sie einen Testlauf, um Ihren Workflow in Aktion zu sehen. Der Trigger wird einmal ausgeführt, um eine vollständige Ausführung zu simulieren."
+    },
+    "automationHistoryGuidedTourStep": {
+        "title": "Workflow-Verlauf anzeigen",
+        "content": "Verwenden Sie das Verlaufsfenster, um vergangene Testläufe und veröffentlichte Ausführungen zu überprüfen. Es ist eine gute Möglichkeit, Fehler zu beheben oder Ergebnisse zu bestätigen."
+    },
+    "automationPublishGuidedTourStep": {
+        "title": "Veröffentlichen Sie Ihren Workflow",
+        "content": "Sobald Sie Ihre Konfiguration getestet und verfeinert haben, veröffentlichen Sie Ihren Workflow, um ihn zu aktivieren. Der Trigger wird dann automatisch nach Zeitplan ausgeführt."
+    },
+    "automationWorkflowStateGuidedTourStep": {
+        "title": "Workflow-Zustand steuern",
+        "content": "Von hier aus können Sie Ihren Workflow jederzeit pausieren oder fortsetzen. Sie haben stets die Kontrolle darüber, ob er aktiv oder deaktiviert ist."
+    },
+    "automationDocsGuidedTourStep": {
+        "title": "Dokumentation durchsuchen",
+        "content": "Wenn Sie einmal nicht weiterkommen oder mehr lernen möchten, klicken Sie auf die hervorgehobene Schaltfläche für ausführliche Anleitungen und FAQs zum Erstellen von Automatisierungen in Baserow."
+    },
+    "sidebarComponentAutomation": {
+        "createAutomationWorkflow": "Neuer Workflow"
+    },
+    "createAutomationWorkflowModal": {
+        "header": "Workflow erstellen",
+        "submit": "Workflow hinzufügen"
+    },
+    "automationWorkflowForm": {
+        "defaultName": "Workflow",
+        "nameTitle": "Name",
+        "nameSubtitle": "Eindeutiger Name des Workflows",
+        "namePlaceholder": "Namen eingeben..."
+    },
+    "duplicateAutomationWorkflowJobType": {
+        "name": "Automatisierungs-Workflow duplizieren",
+        "duplicating": "Duplizieren",
+        "duplicatedTitle": "Workflow dupliziert"
+    },
+    "trashType": {
+        "workflow": "Workflow",
+        "automation": "Automatisierung"
+    },
+    "generalSettings": {
+        "titleOverview": "Allgemein",
+        "nameLabel": "Name der Automatisierung",
+        "notificationLabel": "Benachrichtigungen",
+        "notificationCheckboxLabel": "Benachrichtigt werden, wenn diese Automatisierung fehlschlägt",
+        "cantUpdateAutomationTitle": "Automatisierung konnte nicht aktualisiert werden",
+        "cantUpdateAutomationDescription": "Entschuldigung, die Automatisierung konnte nicht aktualisiert werden."
+    },
+    "integrationSettings": {
+        "title": "Integrationen",
+        "noIntegrationMessage": "Sie haben noch keine Integrationen erstellt. Diese können hinzugefügt werden, indem Sie eine Datenquelle, Aktion oder Benutzer-Authentifizierung hinzufügen.",
+        "integrationMessage": "Sie können neue Integrationen erstellen, indem Sie eine Datenquelle, Aktion oder Benutzer-Authentifizierung hinzufügen."
+    },
+    "automationHeader": {
+        "startTestRun": "Testlauf starten",
+        "stopTestRun": "Testlauf stoppen",
+        "publishBtn": "Veröffentlichen",
+        "settingsBtn": "Einstellungen",
+        "historyBtn": "Verlauf",
+        "docsBtn": "Dokumentation",
+        "switchLabelDraft": "Entwurf"
+    }
+}
