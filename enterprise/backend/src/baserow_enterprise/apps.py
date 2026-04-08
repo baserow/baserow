@@ -343,7 +343,6 @@ class BaserowEnterpriseConfig(AppConfig):
         from baserow.contrib.database.ws.views.rows.registries import (
             view_realtime_rows_registry,
         )
-        from baserow.core.feature_flags import feature_flag_is_enabled
         from baserow.ws.registries import page_registry
         from baserow_enterprise.view_ownership_types import RestrictedViewOwnershipType
         from baserow_enterprise.ws.pages import RestrictedViewPageType
@@ -351,8 +350,7 @@ class BaserowEnterpriseConfig(AppConfig):
             RestrictedViewRealtimeRowsType,
         )
 
-        if feature_flag_is_enabled("view_permissions"):
-            view_ownership_type_registry.register(RestrictedViewOwnershipType())
+        view_ownership_type_registry.register(RestrictedViewOwnershipType())
 
         page_registry.register(RestrictedViewPageType())
         view_realtime_rows_registry.register(RestrictedViewRealtimeRowsType())

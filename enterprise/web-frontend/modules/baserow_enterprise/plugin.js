@@ -271,11 +271,9 @@ export default defineNuxtPlugin({
       new RealtimePushTwoWaySyncStrategyType(context)
     )
 
-    if ($featureFlagIsEnabled('view_permissions')) {
-      $registry.register(
-        'viewOwnershipType',
-        new RestrictedViewOwnershipType(context)
-      )
-    }
+    $registry.register(
+      'viewOwnershipType',
+      new RestrictedViewOwnershipType(context)
+    )
   },
 })
