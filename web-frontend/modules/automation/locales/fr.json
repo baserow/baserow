@@ -99,7 +99,9 @@
         "statusDisabled": "Désactivé par Baserow",
         "completedInSeconds": "Complété en {s} secondes.",
         "completedInLessThanSecond": "Complété en moins d'une seconde.",
-        "testRun": "Essai"
+        "testRun": "Essai",
+        "statusStarted": "En cours…",
+        "running": "S'exécute depuis {at}s"
     },
     "nodeType": {
         "triggerDeletionError": "Les déclencheurs ne peuvent être supprimés, seulement remplacés.",
