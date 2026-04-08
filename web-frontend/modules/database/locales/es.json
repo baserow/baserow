@@ -462,7 +462,8 @@
         "shareViewText": "El enlace privado compartible permite que cualquiera pueda ver los datos en esta vista.",
         "shareViewLinkTitle": "Crear un enlace privado",
         "notSharedYetText": "Permitir que cualquiera pueda ver los datos en esta vista o sincronizar eventos con su calendario externo.",
-        "createPrivateLink": "Crear un enlace privado"
+        "createPrivateLink": "Crear un enlace privado",
+        "shareViewWarningTitle": "Advertencia"
     },
     "viewSortContext": {
         "noSortTitle": "Todavía no has creado una clasificación",
@@ -1193,5 +1194,8 @@
         "ruleDoesNotExist": "La regla no existe",
         "ruleTypeDoesNotExist": "El tipo de regla no existe",
         "ruleAlreadyExists": "La regla ya existe"
+    },
+    "fieldFormViewEditRowSubForm": {
+        "description": "Cada fila obtendrá un enlace único que abre este formulario precargado con los datos de esa fila. Ten en cuenta que todos con acceso de lectura a la tabla y al campo podrán editar la fila a través de la vista de formulario, incluidos los espectadores y visitantes de una vista compartida públicamente."
     }
 }
