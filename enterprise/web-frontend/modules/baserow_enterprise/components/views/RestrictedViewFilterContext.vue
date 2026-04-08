@@ -204,7 +204,9 @@ export default {
           return false
         }
         const fieldType = this.$registry.get('field', field.type)
-        return !fieldType.isReadOnlyField(field) && fieldType.canBeDefaultValue()
+        return (
+          !fieldType.isReadOnlyField(field) && fieldType.canBeDefaultValue()
+        )
       })
     },
     // Build a values object that resolves functions to their actual values,
@@ -214,7 +216,10 @@ export default {
     resolvedDefaultViewRowValues() {
       const resolved = {}
       for (const field of this.fields) {
-        if (!this.filteredFieldIds.has(field.id) && !this.fieldModes[field.id]) {
+        if (
+          !this.filteredFieldIds.has(field.id) &&
+          !this.fieldModes[field.id]
+        ) {
           continue
         }
         const name = `field_${field.id}`
