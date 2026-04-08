@@ -614,7 +614,8 @@
         "hasOptionDescription": "Devuelve verdadero si el primer argumento es un campo de selección múltiple o una búsqueda en un campo de selección simple y el segundo argumento es una de las opciones.",
         "secondsToDurationDescription": "Convierte el número de segundos proporcionado en una duración.",
         "durationToSecondsDescription": "Convierte la duración proporcionada en el número de segundos correspondiente.",
-        "arraySliceDescription": "Devuelve una subconjunto de matriz o `sub-array` comenzando en el índice dado (basado en 0, los negativos cuentan desde el final). Un conteo positivo toma elementos hacia adelante, 0 significa todos los restantes, un conteo negativo toma elementos hacia atrás en orden inverso."
+        "arraySliceDescription": "Devuelve una subconjunto de matriz o `sub-array` comenzando en el índice dado (basado en 0, los negativos cuentan desde el final). Un conteo positivo toma elementos hacia adelante, 0 significa todos los restantes, un conteo negativo toma elementos hacia atrás en orden inverso.",
+        "firstDescription": "Devuelve el primer elemento de un valor de array (por ejemplo, de un lookup, archivo u otro campo de tipo array)."
     },
     "functionnalGridViewFieldLinkRow": {
         "unnamed": "fila sin nombre {value}"
