@@ -167,7 +167,8 @@
         "lastModifiedBy": "Ultima modifica di",
         "ai": "Prompt IA",
         "multipleCollaboratorsDropdown": "Menu",
-        "multipleCollaboratorsCheckboxes": "Checkbox"
+        "multipleCollaboratorsCheckboxes": "Checkbox",
+        "formViewEditRowShareWarning": "Chiunque abbia il link condiviso può modificare le righe tramite il modulo {formNames} attraverso i campi link per modificare la riga visibili pubblicamente.|Chiunque abbia il link condiviso può modificare le righe tramite i moduli {formNames} attraverso il campo link per modificare la riga visibile pubblicamente."
     },
     "fieldErrors": {
         "invalidNumber": "Numero non valido",
