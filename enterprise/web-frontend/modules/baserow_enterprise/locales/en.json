@@ -801,6 +801,12 @@
     "restricted": "Restricted",
     "restrictedDescription": "Editors and lower can only see the filtered data and visible fields. It's possible to manage the members."
   },
+  "restrictedViewFilterContext": {
+    "matchTitle": "Default values match the filters",
+    "matchSubtitle": "Editors will see the rows they create.",
+    "mismatchTitle": "Default values don't match the filters",
+    "mismatchSubtitle": "Editors will be able to create rows but won't see them."
+  },
   "databaseStep": {
     "ai": "Kuma AI"
   },

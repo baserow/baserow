@@ -33,7 +33,16 @@
       @delete-filter-group="deleteFilterGroup($event)"
       @update-filter="updateFilter($event)"
       @update-filter-type="updateFilterType(view, $event)"
-    />
+    >
+      <component
+        :is="filterContextComponent"
+        v-if="filterContextComponent"
+        :view="view"
+        :fields="fields"
+        :database="database"
+        :read-only="readOnly"
+      />
+    </ViewFieldConditionsForm>
     <div v-if="!disableFilter" class="context__footer">
       <ButtonText icon="iconoir-plus" @click.prevent="addFilter()">
         {{ $t('viewFilterContext.addFilter') }}</ButtonText
@@ -80,6 +89,10 @@ export default {
       type: Object,
       required: true,
     },
+    database: {
+      type: Object,
+      required: true,
+    },
     isPublicView: {
       type: Boolean,
       required: false,
@@ -95,6 +108,15 @@ export default {
     },
   },
   emits: ['changed'],
+  computed: {
+    filterContextComponent() {
+      const ownershipType = this.$registry.get(
+        'viewOwnershipType',
+        this.view.ownership_type
+      )
+      return ownershipType.getFilterContextComponent()
+    },
+  },
   methods: {
     sortableUid: ulid,
     async addFilter({ filterGroupId = null, parentGroupId = null } = {}) {

@@ -157,6 +157,15 @@ export class ViewOwnershipType extends Registerable {
   getDecoratorContextWarning(view, fields, visibleFields, database) {
     return null
   }
+
+  /**
+   * Returns a component to display below the filter form, or `null` if nothing extra
+   * is needed. This lets ownership types inject contextual UI (e.g. default-value
+   * warnings) into the filter context menu.
+   */
+  getFilterContextComponent() {
+    return null
+  }
 }
 
 export class CollaborativeViewOwnershipType extends ViewOwnershipType {

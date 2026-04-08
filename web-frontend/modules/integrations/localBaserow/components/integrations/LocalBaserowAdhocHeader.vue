@@ -7,6 +7,7 @@
           read-only
           :view="view"
           :fields="filterableFields"
+          :database="database"
           :disable-filter="false"
           @changed="handleFiltersChange"
         ></ViewFilter>
