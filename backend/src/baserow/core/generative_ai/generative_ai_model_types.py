@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Any, Optional
 
 from django.conf import settings
 
+from loguru import logger
+
 from baserow.core.models import Workspace
 
 from .registries import GenerativeAIModelType
@@ -124,12 +126,68 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         ".xlsx",
         ".xls",
     }
-    _MAX_EMBED_PAYLOAD_BYTES = 45 * 1024 * 1024  # 50 MB minus some headroom
+    # https://developers.openai.com/api/docs/guides/file-inputs
+    _MAX_EMBED_PAYLOAD_BYTES = 45 * 1024 * 1024  # 50 MB minus headroom
     _MAX_EMBEDS_PER_REQUEST = 500
+    # Below this limit, uploadable files are sent inline as BinaryContent.
+    _INLINE_UPLOAD_THRESHOLD_BYTES = 10 * 1024  # 10 KB
 
     def _get_max_upload_bytes(self) -> int:
         return (
             min(512, settings.BASEROW_OPENAI_UPLOADED_FILE_SIZE_LIMIT_MB) * 1024 * 1024
+        )
+
+    def _can_embed(self, file_size: int, embed_count: int, embed_payload: int) -> bool:
+        return (
+            embed_count < self._MAX_EMBEDS_PER_REQUEST
+            and embed_payload + file_size <= self._MAX_EMBED_PAYLOAD_BYTES
+        )
+
+    @staticmethod
+    def _embed(ai_file: "AIFile", data: bytes) -> None:
+        from pydantic_ai import BinaryContent
+
+        ai_file.content = BinaryContent(
+            data=data,
+            media_type=ai_file.mime_type,
+            identifier=ai_file.original_name,
+        )
+
+    @staticmethod
+    def _inline_text(ai_file: "AIFile", data: bytes) -> bool:
+        """Try to inline file content as TextContent. Returns False if the
+        content is not valid UTF-8."""
+
+        from pydantic_ai import TextContent
+
+        try:
+            text = data.decode("utf-8")
+        except (UnicodeDecodeError, ValueError):
+            return False
+        ai_file.content = TextContent(
+            content=(
+                f"[Content of file '{ai_file.original_name}']\n{text}\n[End of file]"
+            ),
+            metadata={"source": ai_file.original_name},
+        )
+        return True
+
+    def _upload(
+        self,
+        ai_file: "AIFile",
+        data: bytes,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> None:
+        from pydantic_ai import UploadedFile
+
+        file_id = self._upload_file(ai_file.name, data, workspace, settings_override)
+        ai_file.provider_file_id = file_id
+        ai_file.content = UploadedFile(
+            file_id=file_id,
+            provider_name="openai",
+            media_type=ai_file.mime_type,
+            identifier=ai_file.original_name,
         )
 
     def prepare_files(
@@ -138,9 +196,6 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
         workspace: Optional[Workspace] = None,
         settings_override: Optional[dict[str, Any]] = None,
     ) -> list[AIFile]:
-        from loguru import logger
-        from pydantic_ai import BinaryContent, UploadedFile
-
         embed_payload = 0
         embed_count = 0
         max_upload = self._get_max_upload_bytes()
@@ -151,17 +206,9 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
 
             try:
                 if ext in self._EMBEDDABLE_EXTENSIONS:
-                    if (
-                        embed_count >= self._MAX_EMBEDS_PER_REQUEST
-                        or embed_payload + ai_file.size > self._MAX_EMBED_PAYLOAD_BYTES
-                    ):
+                    if not self._can_embed(ai_file.size, embed_count, embed_payload):
                         continue
-                    data = ai_file.read_content()
-                    ai_file.content = BinaryContent(
-                        data=data,
-                        media_type=ai_file.mime_type,
-                        identifier=ai_file.original_name,
-                    )
+                    self._embed(ai_file, ai_file.read_content())
                     embed_payload += ai_file.size
                     embed_count += 1
 
@@ -169,20 +216,19 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
                     if ai_file.size > max_upload:
                         continue
                     data = ai_file.read_content()
-                    file_id = self._upload_file(
-                        ai_file.name, data, workspace, settings_override
-                    )
-                    ai_file.provider_file_id = file_id
-                    ai_file.content = UploadedFile(
-                        file_id=file_id,
-                        provider_name="openai",
-                        media_type=ai_file.mime_type,
-                        identifier=ai_file.original_name,
-                    )
-            except Exception:
-                logger.warning(
-                    f"Skipping file {ai_file.name}: failed to read or upload."
-                )
+
+                    if (
+                        ai_file.size <= self._INLINE_UPLOAD_THRESHOLD_BYTES
+                        and self._can_embed(ai_file.size, embed_count, embed_payload)
+                    ):
+                        if not self._inline_text(ai_file, data):
+                            self._embed(ai_file, data)
+                        embed_payload += ai_file.size
+                        embed_count += 1
+                    else:
+                        self._upload(ai_file, data, workspace, settings_override)
+            except Exception as exc:
+                logger.warning(f"Skipping file {ai_file.name}: {exc}")
                 continue
 
         return [f for f in files if f.content is not None]
