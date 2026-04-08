@@ -26,6 +26,7 @@ from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.generative_ai.exceptions import (
     GenerativeAIPromptError,
     ModelDoesNotBelongToType,
+    get_user_friendly_error_message,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import _empty_transaction_context
@@ -306,7 +307,7 @@ class GenerateAIValuesJobType(JobType):
                     rows=[row],
                     field=ai_field,
                     table=table,
-                    error_message=str(value_update.result),
+                    error_message=get_user_friendly_error_message(value_update.result),
                 )
                 return
 
@@ -409,7 +410,7 @@ class AIValueGenerator:
                 rows=[],
                 field=self.ai_field,
                 table=self.ai_field.table,
-                error_message=str(exc),
+                error_message=get_user_friendly_error_message(exc),
             )
             raise exc
 
@@ -464,9 +465,7 @@ class AIValueGenerator:
         """
 
         if self.error_msg:
-            raise GenerativeAIPromptError(
-                f"AI model responded with errors: {self.error_msg}"
-            )
+            raise GenerativeAIPromptError(self.error_msg)
 
     def process(self, rows: QuerySet[GeneratedTableModel]):
         """

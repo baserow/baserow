@@ -345,7 +345,11 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     def get_field_dependencies(
         self, field_instance: AIField, field_cache: "FieldCache"
     ) -> FieldDependencies:
-        field_ids = extract_field_id_dependencies(field_instance.ai_prompt["formula"])
+        field_ids = set(
+            extract_field_id_dependencies(field_instance.ai_prompt["formula"])
+        )
+        if field_instance.ai_file_field_id is not None:
+            field_ids.add(field_instance.ai_file_field_id)
         existing_field_ids = set(
             Field.objects.filter(id__in=field_ids).values_list("id", flat=True)
         )

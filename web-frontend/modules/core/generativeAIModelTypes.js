@@ -114,6 +114,10 @@ export class AnthropicModelType extends GenerativeAIModelType {
     return 20
   }
 
+  canPromptWithFiles() {
+    return true
+  }
+
   getMaxTemperature() {
     return 1
   }
@@ -148,6 +152,10 @@ export class MistralModelType extends GenerativeAIModelType {
     return 30
   }
 
+  canPromptWithFiles() {
+    return true
+  }
+
   getMaxTemperature() {
     return 1
   }
@@ -176,6 +184,10 @@ export class OllamaModelType extends GenerativeAIModelType {
         i18n.t('generativeAIModelType.ollamaModelsDescription')
       ),
     ]
+  }
+
+  canPromptWithFiles() {
+    return true
   }
 
   getOrder() {
@@ -217,6 +229,10 @@ export class OpenRouterModelType extends GenerativeAIModelType {
         i18n.t('generativeAIModelType.openRouterModelsDescription')
       ),
     ]
+  }
+
+  canPromptWithFiles() {
+    return true
   }
 
   getOrder() {
