@@ -157,7 +157,8 @@ class AIFieldHandler:
                     names = ", ".join(f.original_name for f in skipped)
                     message += (
                         f"\n\nNote: the following files were provided but could "
-                        f"not be included due to format or size limitations: "
+                        f"not be included due to format, size, or processing "
+                        f"limitations: "
                         f"{names}"
                     )
 

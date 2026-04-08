@@ -129,7 +129,7 @@ class OpenAIGenerativeAIModelType(BaseOpenAIGenerativeAIModelType):
     # https://developers.openai.com/api/docs/guides/file-inputs
     _MAX_EMBED_PAYLOAD_BYTES = 45 * 1024 * 1024  # 50 MB minus headroom
     _MAX_EMBEDS_PER_REQUEST = 500
-    # Below this limit, uploadable files are sent inline as BinaryContent.
+    # Below this limit, uploadable files are sent inline.
     _INLINE_UPLOAD_THRESHOLD_BYTES = 10 * 1024  # 10 KB
 
     def _get_max_upload_bytes(self) -> int:
