@@ -29,16 +29,9 @@
           <div v-if="currentCount === 0" class="row-comments__empty">
             <i class="row-comments__empty-icon iconoir-multi-bubble"></i>
             <div class="row-comments__empty-text">
-              <template
-                v-if="
-                  !$hasPermission(
-                    'database.table.create_comment',
-                    table,
-                    workspace.id
-                  )
-                "
-                >{{ $t('rowCommentSidebar.readOnlyNoComment') }}</template
-              >
+              <template v-if="!canCreateComments">{{
+                $t('rowCommentSidebar.readOnlyNoComment')
+              }}</template>
               <template v-else>
                 {{ $t('rowCommentSidebar.noComment') }}
               </template>
@@ -72,21 +65,13 @@
                     :workspace="workspace"
                     :can-edit="canEditComments"
                     :can-delete="canDeleteComments"
+                    :view-id="view ? view.id : null"
                   />
                 </div>
               </template>
             </InfiniteScroll>
           </div>
-          <div
-            v-if="
-              $hasPermission(
-                'database.table.create_comment',
-                table,
-                workspace.id
-              )
-            "
-            class="row-comments__foot"
-          >
+          <div v-if="canCreateComments" class="row-comments__foot">
             <RichTextEditor
               v-model="comment"
               editor-class="rich-text-editor__content--comment"
@@ -136,6 +121,11 @@ export default {
       required: true,
       type: Object,
     },
+    view: {
+      type: Object,
+      required: false,
+      default: null,
+    },
   },
   data() {
     return {
@@ -158,18 +148,49 @@ export default {
       totalCount: 'row_comments/getTotalCount',
       additionalUserData: 'auth/getAdditionalUserData',
     }),
+    canCreateComments() {
+      return (
+        this.$hasPermission(
+          'database.table.create_comment',
+          this.table,
+          this.database.workspace.id
+        ) ||
+        (this.view &&
+          this.$hasPermission(
+            'database.table.view.create_comment',
+            this.view,
+            this.database.workspace.id
+          ))
+      )
+    },
     canEditComments() {
-      return this.$hasPermission(
-        'database.table.update_comment',
-        this.table,
-        this.database.workspace.id
+      return (
+        this.$hasPermission(
+          'database.table.update_comment',
+          this.table,
+          this.database.workspace.id
+        ) ||
+        (this.view &&
+          this.$hasPermission(
+            'database.table.view.update_comment',
+            this.view,
+            this.database.workspace.id
+          ))
       )
     },
     canDeleteComments() {
-      return this.$hasPermission(
-        'database.table.delete_comment',
-        this.table,
-        this.database.workspace.id
+      return (
+        this.$hasPermission(
+          'database.table.delete_comment',
+          this.table,
+          this.database.workspace.id
+        ) ||
+        (this.view &&
+          this.$hasPermission(
+            'database.table.view.delete_comment',
+            this.view,
+            this.database.workspace.id
+          ))
       )
     },
     workspace() {
@@ -198,6 +219,7 @@ export default {
       try {
         const tableId = this.table.id
         const rowId = this.row.id
+        const viewId = this.view?.id
 
         // If the row is not an integer, it can mean that the row hasn't been created
         // in the backend yet. It's fine to not do anything then, because there are no
@@ -206,6 +228,7 @@ export default {
           await this.$store.dispatch('row_comments/fetchRowComments', {
             tableId,
             rowId,
+            viewId,
           })
         }
       } catch (e) {
@@ -214,14 +237,7 @@ export default {
     },
     async postComment() {
       const comment = this.comment
-      if (
-        !comment ||
-        !this.$hasPermission(
-          'database.table.create_comment',
-          this.table,
-          this.database.workspace.id
-        )
-      ) {
+      if (!comment || !this.canCreateComments) {
         return
       }
       try {
@@ -230,6 +246,7 @@ export default {
           tableId: this.table.id,
           rowId: this.row.id,
           message: comment,
+          viewId: this.view?.id,
         })
         this.$refs.infiniteScroll?.scrollToStart()
       } catch (e) {
@@ -241,6 +258,7 @@ export default {
         await this.$store.dispatch('row_comments/fetchNextSetOfComments', {
           tableId: this.table.id,
           rowId: this.row.id,
+          viewId: this.view?.id,
         })
       } catch (e) {
         notifyIf(e, 'application')

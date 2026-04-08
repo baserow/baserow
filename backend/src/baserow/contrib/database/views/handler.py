@@ -43,6 +43,7 @@ from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 from baserow.contrib.database.table.models import GeneratedTableModel, Table
 from baserow.contrib.database.views.exceptions import (
     ViewOwnershipTypeDoesNotExist,
+    ViewOwnershipTypeNotCompatibleWithViewType,
 )
 from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.operations import (
@@ -947,6 +948,12 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         workspace = table.database.workspace
 
+        if not view_ownership_type.is_compatible_with_view_type(view_type):
+            raise ViewOwnershipTypeNotCompatibleWithViewType(
+                ownership_type=view_ownership_type_str,
+                view_type=type_name,
+            )
+
         CoreHandler().check_permissions(
             user,
             view_ownership_type.get_operation_to_check_to_create_view().type,
@@ -1058,7 +1065,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             "database_field_select_options": MirrorDict(),
         }
         duplicated_view = view_type.import_serialized(
-            original_view.table, serialized, config, id_mapping
+            original_view.table, serialized, config, id_mapping, {}
         )
 
         if duplicated_view is None:

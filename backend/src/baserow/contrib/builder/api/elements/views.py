@@ -26,6 +26,7 @@ from baserow.contrib.builder.api.data_sources.errors import (
 )
 from baserow.contrib.builder.api.elements.errors import (
     ERROR_ELEMENT_DOES_NOT_EXIST,
+    ERROR_ELEMENT_MOVE_NOT_ALLOWED,
     ERROR_ELEMENT_NOT_IN_SAME_PAGE,
     ERROR_ELEMENT_PROPERTY_OPTIONS_NOT_UNIQUE,
     ERROR_ELEMENT_TYPE_DEACTIVATED,
@@ -37,19 +38,23 @@ from baserow.contrib.builder.api.elements.serializers import (
     MoveElementSerializer,
     UpdateElementSerializer,
 )
-from baserow.contrib.builder.api.pages.errors import ERROR_PAGE_DOES_NOT_EXIST
+from baserow.contrib.builder.api.pages.errors import (
+    ERROR_PAGE_DOES_NOT_EXIST,
+    ERROR_PAGE_NOT_IN_BUILDER,
+)
 from baserow.contrib.builder.application_types import BuilderApplicationType
 from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
 from baserow.contrib.builder.elements.exceptions import (
     CollectionElementPropertyOptionsNotUnique,
     ElementDoesNotExist,
+    ElementMoveNotAllowed,
     ElementNotInSamePage,
     ElementTypeDeactivated,
 )
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
-from baserow.contrib.builder.pages.exceptions import PageDoesNotExist
+from baserow.contrib.builder.pages.exceptions import PageDoesNotExist, PageNotInBuilder
 from baserow.contrib.builder.pages.handler import PageHandler
 
 
@@ -322,7 +327,8 @@ class MoveElementView(APIView):
     @map_exceptions(
         {
             ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
-            ElementNotInSamePage: ERROR_ELEMENT_NOT_IN_SAME_PAGE,
+            PageNotInBuilder: ERROR_PAGE_NOT_IN_BUILDER,
+            ElementMoveNotAllowed: ERROR_ELEMENT_MOVE_NOT_ALLOWED,
         }
     )
     @validate_body(MoveElementSerializer)
@@ -338,6 +344,8 @@ class MoveElementView(APIView):
         parent_element_id = data.get("parent_element_id", element.parent_element_id)
         place_in_container = data.get("place_in_container", element.place_in_container)
 
+        target_page_id = data.get("target_page_id", None)
+
         before = None
         if before_id is not None:
             before = ElementHandler().get_element(before_id)
@@ -346,8 +354,29 @@ class MoveElementView(APIView):
         if parent_element_id is not None:
             parent_element = ElementHandler().get_element(parent_element_id)
 
+        # If we have a before or a parent, we use the same page otherwise
+        # we use the page provided or the one from the element
+
+        try:
+            target_page = (
+                before.page
+                if before
+                else parent_element.page
+                if parent_element
+                else PageHandler().get_page(target_page_id)
+                if target_page_id
+                else element.page
+            )
+        except PageDoesNotExist as e:
+            raise PageNotInBuilder(target_page_id) from e
+
         moved_element = ElementService().move_element(
-            request.user, element, parent_element, place_in_container, before
+            request.user,
+            target_page,
+            element,
+            parent_element,
+            place_in_container,
+            before,
         )
 
         serializer = element_type_registry.get_serializer(

@@ -1,4 +1,5 @@
 import { ELEMENT_EVENTS, SHARE_TYPES } from '@baserow/modules/builder/enums'
+import _ from 'lodash'
 
 export const ContainerElementTypeMixin = (Base) =>
   class extends Base {
@@ -18,6 +19,107 @@ export const ContainerElementTypeMixin = (Base) =>
 
     get defaultPlaceInContainer() {
       throw new Error('Not implemented')
+    }
+
+    wrapMove({ builder, previousPage, page, element }, moveFn) {
+      const children = this.app.$store.getters['element/getChildren'](
+        previousPage,
+        element
+      )
+
+      const { $store, $registry } = this.app
+
+      for (const child of children) {
+        const childType = $registry.get('element', child.type)
+        childType.wrapMove(
+          {
+            builder,
+            previousPage: previousPage,
+            page,
+            element: child,
+          },
+          () => {
+            const clonedChild = _.clone(child)
+            clonedChild.page_id = page.id
+
+            $store.dispatch('element/forceDelete', {
+              builder,
+              page: previousPage,
+              elementId: child.id,
+            })
+            $store.dispatch('element/forceCreate', {
+              page,
+              element: clonedChild,
+            })
+          }
+        )
+      }
+
+      moveFn()
+    }
+
+    isDisallowedReason({
+      workspace,
+      builder,
+      page,
+      element,
+      parentElement,
+      beforeElement,
+      placeInContainer,
+      pagePlace,
+    }) {
+      const { $store, $registry } = this.app
+
+      if (parentElement && element) {
+        const elementPage = $store.getters['page/getById'](
+          builder,
+          element.page_id
+        )
+
+        const moveInsideItself = !!this.app.$store.getters[
+          'element/getAncestors'
+        ](page, parentElement, {
+          predicate: (ancestor) => ancestor.id === element.id,
+          includeSelf: true,
+        }).length
+
+        if (moveInsideItself) {
+          return this.app.$i18n.t('elementType.notAllowedLocation')
+        }
+
+        const elementChildren = this.app.$store.getters['element/getChildren'](
+          elementPage,
+          element
+        )
+
+        for (const child of elementChildren) {
+          const childType = $registry.get('element', child.type)
+          const isChildDisallowed = childType.isDisallowedReason({
+            workspace,
+            builder,
+            page,
+            element: child,
+            parentElement,
+            beforeElement,
+            placeInContainer,
+            pagePlace,
+          })
+          if (isChildDisallowed) {
+            return this.app.$i18n.t('elementType.notAllowedLocation')
+          }
+        }
+      }
+
+      return super.isDisallowedReason({
+        workspace,
+        builder,
+        page,
+        element,
+        parentElement,
+        beforeElement,
+        placeInContainer,
+        pagePlace,
+      })
     }
 
     /**
@@ -60,6 +162,36 @@ export const ContainerElementTypeMixin = (Base) =>
 export const CollectionElementTypeMixin = (Base) =>
   class extends Base {
     isCollectionElement = true
+
+    wrapMove({ builder, previousPage, page, element }, moveFn) {
+      moveFn()
+      const { $store } = this.app
+      /**
+       * When a collection element is moved across pages, its data source might no longer
+       * be reachable from the new page.
+       * In that case we reset it immediately in the store so the side panel reflects
+       * the available data sources without waiting for the server.
+       */
+      if (element.data_source_id) {
+        const sharedPage = $store.getters['page/getSharedPage'](builder)
+        const dataSource = this.app.$store.getters[
+          'dataSource/getPagesDataSourceById'
+        ]([page, sharedPage], element.data_source_id)
+
+        if (!dataSource) {
+          this.app.$store.commit('element/UPDATE_ITEM', {
+            builder,
+            page,
+            element,
+            values: {
+              data_source_id: null,
+              schema_property: null,
+              property_options: [],
+            },
+          })
+        }
+      }
+    }
 
     /**
      * A helper function responsible for returning this collection element's

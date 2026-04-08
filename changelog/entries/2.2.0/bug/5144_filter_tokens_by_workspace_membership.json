@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Filter tokens by workspace membership",
+    "issue_origin": "github",
+    "issue_number": 5144,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-04-08"
+}

@@ -1,12 +1,22 @@
 <template>
-  <div v-show="dragging && moved">
+  <div
+    v-show="dragging && moved"
+    class="grid-view__field-dragging-container"
+    :style="{
+      left: clipOffset + 'px',
+      right: '0',
+    }"
+  >
     <div
       class="grid-view__field-dragging"
-      :style="{ width: draggingWidth + 'px', left: draggingLeft + 'px' }"
+      :style="{
+        width: draggingWidth + 'px',
+        left: draggingLeft - clipOffset + 'px',
+      }"
     ></div>
     <div
       class="grid-view__field-target"
-      :style="{ left: targetLeft + 'px' }"
+      :style="{ left: targetLeft - clipOffset + 'px' }"
     ></div>
   </div>
 </template>
@@ -32,10 +42,6 @@ export default {
       required: false,
       default: 0,
     },
-    containerWidth: {
-      type: Number,
-      required: true,
-    },
     readOnly: {
       type: Boolean,
       required: true,
@@ -43,6 +49,16 @@ export default {
     getScrollElement: {
       type: Function,
       required: true,
+    },
+    getScrollableElement: {
+      type: Function,
+      required: false,
+      default: null,
+    },
+    frozenSectionWidth: {
+      type: Number,
+      required: false,
+      default: 0,
     },
   },
   emits: ['scroll'],
@@ -62,12 +78,17 @@ export default {
       mouseStartY: 0,
       // The horizontal scrollbar offset starting position.
       scrollStart: 0,
+      // The visual left position of the field at drag start (in grid coords).
+      initialVisualLeft: 0,
       // The width of the dragging animation, this is equal to the width of the field.
       draggingWidth: 0,
       // The position of the dragging animation.
       draggingLeft: 0,
       // The position of the target indicator where the field is going to be moved to.
       targetLeft: 0,
+      // The left offset of the clipping container. When scrolled, clips the frozen
+      // area so scrolled-out positions aren't visible behind frozen fields.
+      clipOffset: 0,
       // The mouse move event.
       lastMoveEvent: null,
       // Indicates if the user is auto scrolling at the moment.
@@ -83,6 +104,20 @@ export default {
     this.cancel()
   },
   methods: {
+    _getScrollableElement() {
+      return this.getScrollableElement
+        ? this.getScrollableElement()
+        : this.getScrollElement()
+    },
+    _contentToVisual(contentPos) {
+      if (
+        this.frozenSectionWidth > 0 &&
+        contentPos >= this.frozenSectionWidth
+      ) {
+        return contentPos - this._getScrollableElement().scrollLeft
+      }
+      return contentPos
+    },
     getFieldLeft(id) {
       let left = 0
       for (let i = 0; i < this.fields.length; i++) {
@@ -105,7 +140,10 @@ export default {
       this.moved = false
       this.mouseStartX = event.clientX
       this.mouseStartY = event.clientY
-      this.scrollStart = this.getScrollElement().scrollLeft
+      const scrollable = this._getScrollableElement()
+      this.scrollStart = scrollable.scrollLeft
+      const contentLeft = this.offset + this.getFieldLeft(field.id)
+      this.initialVisualLeft = this._contentToVisual(contentLeft)
       this.draggingLeft = 0
       this.targetLeft = 0
 
@@ -151,31 +189,32 @@ export default {
         }
       }
 
-      // This is the horizontally scrollable element.
+      // The positioning element for coordinate calculations (getBoundingClientRect).
       const element = this.getScrollElement()
+      // The element that actually scrolls horizontally.
+      const scrollable = this._getScrollableElement()
 
       this.draggingWidth = this.getFieldWidth(this.field)
+      this.clipOffset = scrollable.scrollLeft > 0 ? this.frozenSectionWidth : 0
 
-      // Calculate the left position of the dragging animation. This is the transparent
-      // overlay that has the same width as the field.
-      this.draggingLeft =
-        this.offset +
-        Math.min(
-          this.getFieldLeft(this.field.id) +
-            event.clientX -
-            this.mouseStartX +
-            this.getScrollElement().scrollLeft -
-            this.scrollStart,
-          this.containerWidth - this.draggingWidth
-        )
+      // The overlay is in the non-scrolling gridView container, so draggingLeft is
+      // the visual position directly. We anchor to the field's visual position at
+      // drag start and track mouse movement from there.
+      const unclampedLeft =
+        this.initialVisualLeft + event.clientX - this.mouseStartX
+      const visibleWidth = this.frozenSectionWidth + scrollable.clientWidth
+      this.draggingLeft = Math.min(
+        unclampedLeft,
+        visibleWidth - this.draggingWidth
+      )
 
-      // Calculate which after which field we want to place the field that is currently
-      // being dragged. This is named the target. We also calculate what position the
-      // field would have for visualisation purposes.
+      // Calculate which field we want to place the dragged field after. mouseLeft is
+      // in content-space (accounts for scroll) so it can be compared against the
+      // cumulative field widths in the loop.
       const mouseLeft =
         event.clientX -
         element.getBoundingClientRect().left +
-        element.scrollLeft
+        scrollable.scrollLeft
       let left = this.offset
       for (let i = 0; i < this.fields.length; i++) {
         const width = this.getFieldWidth(this.fields[i])
@@ -189,12 +228,12 @@ export default {
           this.targetFieldId = 0
           // The value 1 makes sure it is visible instead of falling outside of the
           // view port.
-          this.targetLeft = Math.max(this.offset, 1)
+          this.targetLeft = Math.max(this._contentToVisual(this.offset), 1)
           break
         }
         if (mouseLeft > leftHalf && mouseLeft < rightHalf) {
           this.targetFieldId = this.fields[i].id
-          this.targetLeft = left + width
+          this.targetLeft = this._contentToVisual(left + width)
           break
         }
         left += width
@@ -204,23 +243,27 @@ export default {
       // moving the element outside of the view port at the left or right side, we
       // might need to initiate that process.
       if (!this.autoScrolling || !startAutoScroll) {
-        const relativeLeft = this.draggingLeft - element.scrollLeft
-        const relativeRight = relativeLeft + this.getFieldWidth(this.field)
-        const maxScrollLeft = element.scrollWidth - element.clientWidth
+        const maxScrollLeft = scrollable.scrollWidth - scrollable.clientWidth
         let speed = 0
 
-        if (relativeLeft < 0 && element.scrollLeft > 0) {
-          // If the dragging animation falls out of the left side of the viewport we
-          // need to auto scroll to the left.
-          speed = -Math.ceil(Math.min(Math.abs(relativeLeft), 100) / 20)
+        if (
+          unclampedLeft < this.frozenSectionWidth &&
+          scrollable.scrollLeft > 0
+        ) {
+          // If the dragging animation enters the frozen area, auto scroll left.
+          speed = -Math.ceil(
+            Math.min(Math.abs(unclampedLeft - this.frozenSectionWidth), 100) /
+              20
+          )
         } else if (
-          relativeRight > element.clientWidth &&
-          element.scrollLeft < maxScrollLeft
+          unclampedLeft + this.draggingWidth > visibleWidth &&
+          scrollable.scrollLeft < maxScrollLeft
         ) {
           // If the dragging animation falls out of the right side of the viewport we
           // need to auto scroll to the right.
           speed = Math.ceil(
-            Math.min(relativeRight - element.clientWidth, 100) / 20
+            Math.min(unclampedLeft + this.draggingWidth - visibleWidth, 100) /
+              20
           )
         }
 

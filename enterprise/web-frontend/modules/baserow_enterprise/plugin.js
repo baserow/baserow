@@ -98,7 +98,7 @@ export default defineNuxtPlugin({
   name: 'enterprise',
   dependsOn: ['premium', 'registry'],
   setup(nuxtApp) {
-    const { $registry, $store, $featureFlagIsEnabled } = nuxtApp
+    const { $registry, $store } = nuxtApp
 
     const context = { app: nuxtApp }
 
@@ -271,11 +271,9 @@ export default defineNuxtPlugin({
       new RealtimePushTwoWaySyncStrategyType(context)
     )
 
-    if ($featureFlagIsEnabled('view_permissions')) {
-      $registry.register(
-        'viewOwnershipType',
-        new RestrictedViewOwnershipType(context)
-      )
-    }
+    $registry.register(
+      'viewOwnershipType',
+      new RestrictedViewOwnershipType(context)
+    )
   },
 })

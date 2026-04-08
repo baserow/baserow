@@ -55,9 +55,9 @@ class TokensView(APIView):
     def get(self, request):
         """Lists all the tokens of a user."""
 
-        tokens = Token.objects.filter(user=request.user).prefetch_related(
-            "tokenpermission_set"
-        )
+        tokens = Token.objects.filter(
+            user=request.user, workspace__workspaceuser__user=request.user
+        ).prefetch_related("tokenpermission_set")
         serializer = TokenSerializer(tokens, many=True)
         return Response(serializer.data)
 

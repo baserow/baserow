@@ -58,6 +58,10 @@ class RowCommentCreateSerializer(serializers.ModelSerializer):
         return value
 
 
+class RowCommentViewQueryParamsSerializer(serializers.Serializer):
+    view = serializers.IntegerField(required=False)
+
+
 class RowCommentsNotificationModeSerializer(serializers.Serializer):
     mode = serializers.ChoiceField(
         choices=ALL_ROW_COMMENT_NOTIFICATION_MODES,

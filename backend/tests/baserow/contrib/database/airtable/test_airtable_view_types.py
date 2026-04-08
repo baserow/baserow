@@ -262,6 +262,7 @@ def test_import_grid_view():
         "ownership_type": "collaborative",
         "public": False,
         "row_height_size": "medium",
+        "frozen_column_count": 1,
         "row_identifier_type": "count",
         "sortings": [],
         "type": "grid",

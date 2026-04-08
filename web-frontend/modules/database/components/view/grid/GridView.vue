@@ -22,15 +22,16 @@
       ref="left"
       class="grid-view__left"
       :visible-fields="leftFields"
+      :all-visible-fields="allVisibleFields"
       :all-fields-in-table="fields"
       :decorations-by-place="decorationsByPlace"
       :database="database"
       :table="table"
       :view="view"
-      :include-field-width-handles="false"
       :include-row-details="!viewHasGroupBys"
       :include-grid-view-identifier-dropdown="!viewHasGroupBys"
       :include-group-by="true"
+      :can-order-fields="frozenColumnCount > 1"
       :read-only="
         readOnly ||
         (!$hasPermission(
@@ -48,6 +49,7 @@
       :style="{ width: leftWidth + 'px' }"
       @refresh="$emit('refresh', $event)"
       @field-created="fieldCreated"
+      @field-dragging="startCrossSectionFieldDrag($event.field, $event.event)"
       @row-hover="setRowHover($event.row, $event.value)"
       @row-context="showRowContext($event.event, $event.row)"
       @row-dragging="rowDragStart"
@@ -76,17 +78,27 @@
       class="grid-view__divider"
       :style="{ left: leftWidth + 'px' }"
     ></div>
-    <HorizontalResize
-      v-if="primaryFieldIsSticky"
-      class="grid-view__divider-width"
-      :style="{ left: leftWidth + 'px' }"
-      :width="leftFieldsWidth"
-      :min="GRID_VIEW_MIN_FIELD_WIDTH"
-      @move="moveFieldWidth(leftFields[0], $event)"
-      @update="
-        updateFieldWidth(leftFields[0], view, database, readOnly, $event)
+    <GridViewFreezeHandle
+      v-if="
+        canFitFrozenColumns && !viewHasGroupBys && allDraggableFields.length > 0
       "
-    ></HorizontalResize>
+      :view="view"
+      :database="database"
+      :fields="fields"
+      :field-options="fieldOptions"
+      :read-only="
+        readOnly ||
+        !$hasPermission(
+          'database.table.view.update',
+          view,
+          database.workspace.id
+        )
+      "
+      :row-details-width="gridViewRowDetailsWidth"
+      :left-width="leftWidth"
+      :get-field-width="getFieldWidth"
+      @frozen-count-change="onFrozenCountDragChange"
+    ></GridViewFreezeHandle>
     <HorizontalResize
       v-else-if="viewHasGroupBys && leftFields.length === 0"
       class="grid-view__divider-width"
@@ -110,10 +122,10 @@
       ref="right"
       class="grid-view__right"
       :visible-fields="rightVisibleFields"
+      :all-visible-fields="allVisibleFields"
       :all-fields-in-table="fields"
       :decorations-by-place="decorationsByPlace"
       :database="database"
-      :primary-field-is-sticky="primaryFieldIsSticky"
       :table="table"
       :view="view"
       :include-row-details="viewHasGroupBys"
@@ -137,6 +149,7 @@
       :style="{ left: leftWidth + 'px' }"
       @refresh="$emit('refresh', $event)"
       @field-created="fieldCreated"
+      @field-dragging="startCrossSectionFieldDrag($event.field, $event.event)"
       @row-hover="setRowHover($event.row, $event.value)"
       @row-context="showRowContext($event.event, $event.row)"
       @add-row="addRow()"
@@ -158,6 +171,25 @@
       @scroll="scroll($event.pixelY, $event.pixelX)"
       @cell-selected="cellSelected"
     ></GridViewSection>
+    <GridViewFieldDragging
+      ref="crossSectionFieldDragging"
+      :view="view"
+      :fields="allDraggableFields"
+      :offset="crossSectionDraggingOffset"
+      :read-only="
+        readOnly ||
+        !$hasPermission(
+          'database.table.view.update_field_options',
+          view,
+          database.workspace.id
+        )
+      "
+      :store-prefix="storePrefix"
+      :get-scroll-element="getCrossSectionScrollElement"
+      :get-scrollable-element="getCrossSectionScrollableElement"
+      :frozen-section-width="leftWidth"
+      @scroll="scroll(0, $event.pixelX)"
+    ></GridViewFieldDragging>
     <GridViewRowDragging
       ref="rowDragging"
       :table="table"
@@ -418,6 +450,8 @@ import { mapGetters } from 'vuex'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import GridViewSection from '@baserow/modules/database/components/view/grid/GridViewSection'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
+import GridViewFieldDragging from '@baserow/modules/database/components/view/grid/GridViewFieldDragging'
+import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid/GridViewFreezeHandle'
 import GridViewRowDragging from '@baserow/modules/database/components/view/grid/GridViewRowDragging'
 import RowEditModal from '@baserow/modules/database/components/row/RowEditModal'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
@@ -444,6 +478,8 @@ export default {
   name: 'GridView',
   components: {
     HorizontalResize,
+    GridViewFieldDragging,
+    GridViewFreezeHandle,
     GridViewRowsAddContext,
     GridViewSection,
     GridViewRowDragging,
@@ -479,10 +515,9 @@ export default {
       selectedRow: null,
       deletingRow: false,
       showHiddenFieldsInRowModal: false,
-      // Indicates whether the first two columns have enough space to be usable. If
-      // not, the primary field is not sticky, so it's easier to view all data on for
-      // example a smartphone.
-      canFitInTwoColumns: true,
+      // Whether the frozen columns fit in the viewport with enough remaining
+      // space for the scrollable section. When false, frozen columns are disabled.
+      canFitFrozenColumns: true,
       // When a cell is selected, the component will be propagated and stored into this
       // array until it's unselected. Having these components here can be useful if a
       // global keyboard shortcut must be blocked if a single line text field cell is
@@ -528,22 +563,50 @@ export default {
     viewHasGroupBys() {
       return this.activeGroupBys.length > 0
     },
-    primaryFieldIsSticky() {
-      return this.canFitInTwoColumns && !this.viewHasGroupBys
+    frozenColumnCount() {
+      return this.view.frozen_column_count ?? 1
     },
+    hasFrozenColumns() {
+      return (
+        this.canFitFrozenColumns &&
+        !this.viewHasGroupBys &&
+        this.frozenColumnCount > 0
+      )
+    },
+    isEditable() {
+      return (
+        !this.readOnly &&
+        this.$hasPermission(
+          'database.table.view.update',
+          this.view,
+          this.database.workspace.id
+        )
+      )
+    },
+    /**
+     * Returns the fields that should be displayed in the frozen left section.
+     * Takes the first N *visible* fields in sort order (primary always first).
+     */
     leftFields() {
-      if (this.primaryFieldIsSticky) {
-        return this.fields.filter((field) => field.primary)
-      } else {
+      if (!this.hasFrozenColumns) {
         return []
       }
+      const fieldOptions = this.fieldOptions
+      const sorted = this.fields
+        .slice()
+        .filter(filterVisibleFieldsFunction(fieldOptions))
+        .sort(sortFieldsByOrderAndIdFunction(fieldOptions, true))
+      return sorted.slice(0, this.frozenColumnCount)
     },
+    /**
+     * Returns the fields that should be displayed in the scrollable right section.
+     */
     rightFields() {
-      if (this.primaryFieldIsSticky) {
-        return this.fields.filter((field) => !field.primary)
-      } else {
+      if (!this.hasFrozenColumns) {
         return this.fields
       }
+      const leftIds = new Set(this.leftFields.map((f) => f.id))
+      return this.fields.filter((f) => !leftIds.has(f.id))
     },
     leftFieldsWidth() {
       return this.leftFields.reduce(
@@ -557,6 +620,20 @@ export default {
         (this.viewHasGroupBys ? 0 : this.gridViewRowDetailsWidth) +
         // 100 must be replaced with the dynamic width
         this.activeGroupByWidth
+      )
+    },
+    /**
+     * All non-primary visible fields in order, used by the cross-section
+     * field dragging component when frozen columns > 1.
+     */
+    allDraggableFields() {
+      return this.allVisibleFields.filter((f) => !f.primary)
+    },
+    crossSectionDraggingOffset() {
+      const primary = this.fields.find((f) => f.primary)
+      return (
+        this.gridViewRowDetailsWidth +
+        (primary ? this.getFieldWidth(primary) : 0)
       )
     },
     activeSearchTerm() {
@@ -585,6 +662,12 @@ export default {
     fields() {
       // When a field is added or removed, we want to update the scrollbars.
       this.fieldsUpdated()
+    },
+    'view.frozen_column_count'() {
+      // When the frozen column count changes (e.g. real-time sync from another
+      // user), recalculate the viewport fit and update scrollbars. Use $nextTick
+      // so the DOM reflects the new leftWidth before scrollbar recalculates.
+      this.$nextTick(() => this.fieldsUpdated())
     },
     row: {
       deep: true,
@@ -682,6 +765,30 @@ export default {
     )
   },
   methods: {
+    onFrozenCountDragChange() {
+      // During drag we don't persist anything — the freeze handle component
+      // handles the optimistic save on mouseup.
+    },
+    /**
+     * Returns a non-scrolling element for the cross-section field dragging.
+     * The grid view container itself doesn't scroll horizontally, which is
+     * correct since the dragging operates across both sections.
+     */
+    getCrossSectionScrollElement() {
+      return this.$refs.gridView
+    },
+    getCrossSectionScrollableElement() {
+      return this.$refs.right.$el
+    },
+    /**
+     * Called when a non-primary field header is dragged in either section.
+     * Delegates to the shared cross-section field dragging component.
+     */
+    startCrossSectionFieldDrag(field, event) {
+      if (this.$refs.crossSectionFieldDragging && !field.primary) {
+        this.$refs.crossSectionFieldDragging.start(field, event)
+      }
+    },
     /**
      * Method to scroll viewport to a DOM element
      * Scroll direction can be limited to only one axis (both, vertical, horizontal)
@@ -738,7 +845,7 @@ export default {
 
       if (scrollDirection !== 'vertical') {
         const fieldPrimary = field.primary
-        if (elementLeft < 0 && (!this.primaryFieldIsSticky || !fieldPrimary)) {
+        if (elementLeft < 0 && (!this.hasFrozenColumns || !fieldPrimary)) {
           // If the field isn't visible in the viewport we need to scroll left in order
           // to show it.
           this.horizontalScroll(
@@ -747,7 +854,7 @@ export default {
           this.$refs.scrollbars.updateHorizontal()
         } else if (
           elementRight > horizontalContainerWidth &&
-          (!this.primaryFieldIsSticky || !fieldPrimary)
+          (!this.hasFrozenColumns || !fieldPrimary)
         ) {
           // If the field isn't visible in the viewport we need to scroll right in order
           // to show it.
@@ -836,7 +943,7 @@ export default {
 
       // When anything related to the fields has been updated, it could be that it
       // doesn't fit in two columns anymore. Calling this method checks that.
-      this.checkCanFitInTwoColumns()
+      this.checkCanFitFrozenColumns()
     },
     /**
      * Calls action in the store to refresh row directly from the backend - f. ex.
@@ -1671,32 +1778,30 @@ export default {
       }
     },
     /**
-     * This method figures out whether the first two columns have enough space to be
-     * usable using the primary field width. It updates the `canFitInTwoColumns`
-     * property accordingly.
+     * Checks whether the frozen columns fit in the viewport with at least 300px
+     * remaining for the scrollable section. Updates `canFitFrozenColumns`.
      */
-    checkCanFitInTwoColumns() {
-      // In some cases this method is called when the component hasn't fully been
-      // loaded. This will make sure we don't change the state before that initial load.
+    checkCanFitFrozenColumns() {
       if (!this.$refs.gridView) {
         return
       }
 
-      // We're using `allVisibleFields` because it shouldn't matter if the primary
-      // field is in the left or right section.
-      const primary = this.allVisibleFields.find((f) => f.primary)
-      const maxWidth =
-        this.gridViewRowDetailsWidth +
-        (primary ? this.getFieldWidth(primary) : 0) +
-        300
-
-      this.canFitInTwoColumns = this.$refs.gridView.clientWidth > maxWidth
+      const fieldOptions = this.fieldOptions
+      const sorted = this.fields
+        .slice()
+        .filter(filterVisibleFieldsFunction(fieldOptions))
+        .sort(sortFieldsByOrderAndIdFunction(fieldOptions, true))
+      const frozenWidth = sorted
+        .slice(0, this.frozenColumnCount)
+        .reduce((sum, field) => sum + this.getFieldWidth(field), 0)
+      const maxWidth = this.gridViewRowDetailsWidth + frozenWidth + 300
+      this.canFitFrozenColumns = this.$refs.gridView.clientWidth > maxWidth
     },
     /**
      * Event called when the grid view element window resizes.
      */
     onWindowResize() {
-      this.checkCanFitInTwoColumns()
+      this.checkCanFitFrozenColumns()
 
       // Update the window height to dynamically show the right amount of rows.
       const height = this.$refs.left.$refs.body.clientHeight

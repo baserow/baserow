@@ -232,7 +232,7 @@ const {
         await logOffAndReturnToLogin({ builder, store, redirect: navigateTo })
       } else if (
         error.response?.status === 404 &&
-        error.response?.data?.error === 'ERROR_PAGE_NOT_FOUND'
+        error.response?.data?.error === 'ERROR_PAGE_DOES_NOT_EXIST'
       ) {
         // This case is when you had a tab open on the site and the site has been
         // published in the meantime. Page IDs aren't valid anymore

@@ -79,6 +79,17 @@
         {{ $t('elementMenu.moveDown') }}
       </span>
     </a>
+    <a
+      class="element-preview__menu-item element-preview__menu-item--drag-handle"
+      :class="{ 'element-preview__menu-item--disabled': !canDrag }"
+      @mousedown.stop="canDrag && $emit('drag-handle-mousedown')"
+      @click.stop
+    >
+      <i class="iconoir-drag"></i>
+      <span class="element-preview__menu-item-description">
+        {{ $t('elementMenu.drag') }}
+      </span>
+    </a>
     <a class="element-preview__menu-item" @click="$emit('delete')">
       <i class="iconoir-bin"></i>
       <span class="element-preview__menu-item-description">
@@ -114,8 +125,19 @@ export default {
       required: false,
       default: () => [],
     },
+    canDrag: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
   },
-  emits: ['delete', 'duplicate', 'move', 'select-parent'],
+  emits: [
+    'delete',
+    'duplicate',
+    'move',
+    'select-parent',
+    'drag-handle-mousedown',
+  ],
   computed: {
     DIRECTIONS: () => DIRECTIONS,
   },

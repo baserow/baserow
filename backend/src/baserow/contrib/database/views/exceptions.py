@@ -222,6 +222,20 @@ class ViewDoesNotSupportDefaultValues(Exception):
     """Raised when trying to set default values on a view that doesn't support it."""
 
 
+class ViewOwnershipTypeNotCompatibleWithViewType(Exception):
+    """Raised when the ownership type is not compatible with the view type."""
+
+    def __init__(self, ownership_type="", view_type="", *args, **kwargs):
+        self.ownership_type = ownership_type
+        self.view_type = view_type
+        super().__init__(
+            f"The ownership type {ownership_type} is not compatible with "
+            f"view type {view_type}.",
+            *args,
+            **kwargs,
+        )
+
+
 class InvalidAPIGroupedFiltersFormatException(ValueError):
     """
     Raised when the provided view filters format is invalid.

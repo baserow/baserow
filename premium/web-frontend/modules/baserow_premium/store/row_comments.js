@@ -147,7 +147,7 @@ export const actions = {
    * Fetches the initial row comments to display for a given table and row. Resets any
    * existing comments entirely.
    */
-  async fetchRowComments({ commit }, { tableId, rowId }) {
+  async fetchRowComments({ commit }, { tableId, rowId, viewId = null }) {
     const { $client } = this
     commit('SET_LOADING', true)
     commit('SET_LOADED', false)
@@ -155,7 +155,7 @@ export const actions = {
       const { data } = await RowCommentService($client).fetchAll(
         tableId,
         rowId,
-        {}
+        { viewId }
       )
       commit('RESET_ROW_COMMENTS')
       commit('ADD_ROW_COMMENTS', { comments: data.results, loading: false })
@@ -169,7 +169,10 @@ export const actions = {
   /**
    * Fetches the next 10 comments from the server and adds them to the comments list.
    */
-  async fetchNextSetOfComments({ commit, state }, { tableId, rowId }) {
+  async fetchNextSetOfComments(
+    { commit, state },
+    { tableId, rowId, viewId = null }
+  ) {
     const { $client } = this
     commit('SET_LOADING', true)
     try {
@@ -178,7 +181,7 @@ export const actions = {
       const { data } = await RowCommentService($client).fetchAll(
         tableId,
         rowId,
-        { offset: state.currentCount }
+        { offset: state.currentCount, viewId }
       )
       commit('ADD_ROW_COMMENTS', { comments: data.results, loading: false })
       commit('SET_TOTAL_COUNT', data.count)
@@ -193,7 +196,7 @@ export const actions = {
   async postComment(
     { commit, state, rootGetters, dispatch },
 
-    { tableId, rowId, message }
+    { tableId, rowId, message, viewId = null }
   ) {
     const { $client } = this
     const temporaryId = state.nextTemporaryCommentId
@@ -219,7 +222,8 @@ export const actions = {
       const { data } = await RowCommentService($client).create(
         tableId,
         rowId,
-        message
+        message,
+        { viewId }
       )
       commit('REMOVE_ROW_COMMENT', temporaryId)
       dispatch('forceCreate', { rowComment: data })
@@ -242,7 +246,10 @@ export const actions = {
   /**
    * Update a comment content.
    */
-  async updateComment({ commit, getters }, { tableId, commentId, message }) {
+  async updateComment(
+    { commit, getters },
+    { tableId, commentId, message, viewId = null }
+  ) {
     const { $client } = this
     const comment = getters.getCommentById(commentId)
     const originalMessage = comment.message
@@ -255,7 +262,9 @@ export const actions = {
       edited: true,
     })
     try {
-      await RowCommentService($client).update(tableId, commentId, message)
+      await RowCommentService($client).update(tableId, commentId, message, {
+        viewId,
+      })
     } catch (e) {
       // Make sure we revert the comment if the update call failed.
       commit('UPDATE_ROW_COMMENT', {
@@ -284,7 +293,7 @@ export const actions = {
   /**
    * Delete a row comment.
    */
-  async deleteComment({ commit }, { tableId, commentId }) {
+  async deleteComment({ commit }, { tableId, commentId, viewId = null }) {
     const { $client } = this
     commit('SET_ROW_COMMENT_DELETED', {
       commentId,
@@ -294,7 +303,8 @@ export const actions = {
     try {
       const { data: rowComment } = await RowCommentService($client).delete(
         tableId,
-        commentId
+        commentId,
+        { viewId }
       )
       await decreaseCommentCountInViews(this, rowComment)
       commit('UPDATE_ROW_COMMENT', rowComment)
@@ -306,7 +316,7 @@ export const actions = {
   /**
    * Update the notification mode for comments on a row.
    */
-  async updateNotificationMode({ dispatch }, { table, row, mode }) {
+  async updateNotificationMode({ dispatch }, { table, row, mode, viewId }) {
     const { $client } = this
     const originalMode = row._.metadata.row_comments_notification_mode
 
@@ -319,7 +329,8 @@ export const actions = {
       await RowCommentService($client).updateNotificationMode(
         table.id,
         row.id,
-        mode
+        mode,
+        { viewId }
       )
     } catch (e) {
       await dispatch('forceUpdateNotificationMode', {

@@ -1115,6 +1115,10 @@
     "medium": "Medium",
     "large": "Large"
   },
+  "gridViewFreezeHandle": {
+    "freeze": "Freeze 0 columns | Freeze 1 column | Freeze {count} columns",
+    "hoverHint": "Drag to freeze columns"
+  },
   "configureDataSyncModal": {
     "title": "Data sync",
     "syncedFields": "Synced fields",

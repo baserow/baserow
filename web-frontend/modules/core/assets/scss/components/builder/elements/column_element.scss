@@ -3,13 +3,25 @@
   width: 100%;
   justify-content: space-between;
   gap: var(--space-between-columns);
-  align-items: var(--alignment);
+  align-items: stretch;
 }
 
 .column-element__column {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: var(--alignment);
   width: var(--column-width);
 }
 
 .column-element__element {
   width: 100%;
+}
+
+.column-element__column > .add-element-zone {
+  flex: 1;
+}
+
+.column-element__column > .add-element-zone--drag-active {
+  min-height: 24px;
 }

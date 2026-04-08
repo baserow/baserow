@@ -1,0 +1,9 @@
+{
+  "type": "feature",
+  "message": "Allow freezing (pinning) up to 4 columns on the left side of the grid view.",
+  "issue_origin": "github",
+  "issue_number": 2047,
+  "domain": "database",
+  "bullet_points": [],
+  "created_at": "2026-03-25"
+}

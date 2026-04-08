@@ -373,6 +373,41 @@ def test_publish_builder(mock_run_async_job, api_client, data_fixture):
     assert args[0][0] == response_json["id"]
 
 
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.core.jobs.handler.run_async_job")
+def test_publish_builder_max_job_count_exceeded(
+    mock_run_async_job, api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    data_fixture.create_builder_page(builder=builder, user=user)
+    domain = data_fixture.create_builder_custom_domain(
+        domain_name="test.getbaserow.io", builder=builder
+    )
+    url = reverse(
+        "api:builder:domains:publish",
+        kwargs={"domain_id": domain.id},
+    )
+
+    # Simulate publishing 2 builder apps. Since we're patching run_async_job,
+    # the jobs will never complete.
+    api_client.post(
+        url, {"domain_id": domain.id}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    api_client.post(
+        url, {"domain_id": domain.id}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    response = api_client.post(
+        url,
+        {"domain_id": domain.id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_MAX_JOB_COUNT_EXCEEDED"
+
+
 @pytest.mark.django_db
 def test_get_elements_of_public_builder(api_client, data_fixture):
     user = data_fixture.create_user()

@@ -33,15 +33,16 @@
         </div>
       </template>
       <AddElementZone
-        v-else-if="
-          mode === 'editing' &&
-          $hasPermission(
+        v-else-if="mode === 'editing'"
+        :disabled="
+          !$hasPermission(
             'builder.page.create_element',
             elementPage,
             workspace.id
           )
         "
-        :page="elementPage"
+        :place-in-container="`${columnIndex}`"
+        :parent-element="element"
         @add-element="showAddElementModal(columnIndex)"
       />
     </div>

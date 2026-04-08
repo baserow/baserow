@@ -4,6 +4,7 @@ import csv
 import hashlib
 import inspect
 import io
+import ipaddress
 import math
 import os
 import random
@@ -1202,6 +1203,42 @@ def get_all_ips(hostname: str) -> Set:
         return ips
     except socket.gaierror:
         return set()
+
+
+def is_hostname_safe(hostname: str) -> bool:
+    """
+    Checks if the hostname resolves only to safe addresses.
+
+    Unsafe addresses include:
+    - Wildcard (0.0.0.0, ::)
+    - Loopback (127.0.0.0/8, ::1)
+    - Link-local (169.254.0.0/16, fe80::/10)
+    - Reserved, multicast, etc.
+
+    :param hostname: The hostname to check.
+    :return: True if all resolved IPs are safe.
+    """
+
+    ips = get_all_ips(hostname)
+    if not ips:
+        return False
+
+    for ip in ips:
+        try:
+            ip_obj = ipaddress.ip_address(ip)
+        except ValueError:
+            return False
+
+        if (
+            ip_obj.is_unspecified  # wildcard
+            or ip_obj.is_loopback
+            or ip_obj.is_link_local
+            or ip_obj.is_multicast
+            or ip_obj.is_reserved
+        ):
+            return False
+
+    return True
 
 
 def are_hostnames_same(hostname1: str, hostname2: str) -> bool:

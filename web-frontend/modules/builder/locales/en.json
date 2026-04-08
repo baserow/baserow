@@ -186,6 +186,7 @@
     "formElement": "Form elements"
   },
   "elementMenu": {
+    "drag": "Drag to reorder",
     "moveUp": "Move up",
     "moveDown": "Move down",
     "moveLeft": "Move left",

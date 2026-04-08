@@ -147,7 +147,7 @@ export default {
       default: '',
     },
   },
-  emits: ['hide'],
+  emits: ['hide', 'unselected', 'selected'],
   data() {
     return {
       // Indicates if we're loading new rows.

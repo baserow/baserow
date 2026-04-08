@@ -93,6 +93,7 @@ def test_import_export_kanban_view(premium_data_fixture, tmpdir):
         serialized = kanban_field_type.export_serialized(
             kanban_view,
             ImportExportConfig(include_permission_data=False),
+            cache={},
             files_zip=files_zip,
             storage=storage,
         )
@@ -127,6 +128,7 @@ def test_import_export_kanban_view(premium_data_fixture, tmpdir):
             serialized,
             ImportExportConfig(include_permission_data=False),
             id_mapping,
+            {},
             files_zip,
             storage,
         )

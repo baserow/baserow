@@ -17,6 +17,7 @@ from baserow.api.decorators import (
     validate_body,
     validate_body_custom_fields,
 )
+from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
 from baserow.api.jobs.serializers import JobSerializer
 from baserow.api.schemas import CLIENT_SESSION_ID_SCHEMA_PARAMETER, get_error_schema
 from baserow.api.utils import (
@@ -49,6 +50,7 @@ from baserow.contrib.builder.domains.service import DomainService
 from baserow.contrib.builder.exceptions import BuilderDoesNotExist
 from baserow.contrib.builder.handler import BuilderHandler
 from baserow.core.exceptions import ApplicationDoesNotExist
+from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.registries import job_type_registry
 
 
@@ -331,6 +333,7 @@ class AsyncPublishDomainView(APIView):
             400: get_error_schema(
                 [
                     "ERROR_REQUEST_BODY_VALIDATION",
+                    "ERROR_MAX_JOB_COUNT_EXCEEDED",
                 ]
             ),
             404: get_error_schema(["ERROR_APPLICATION_DOES_NOT_EXIST"]),
@@ -341,6 +344,7 @@ class AsyncPublishDomainView(APIView):
         {
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
             DomainDoesNotExist: ERROR_DOMAIN_DOES_NOT_EXIST,
+            MaxJobCountExceeded: ERROR_MAX_JOB_COUNT_EXCEEDED,
         }
     )
     def post(self, request, domain_id: int):

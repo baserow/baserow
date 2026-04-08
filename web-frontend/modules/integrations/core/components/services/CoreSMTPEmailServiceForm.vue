@@ -115,11 +115,7 @@
     >
       <InjectedFormulaInput
         v-model="values.body"
-        :enabled-modes="
-          values.body_type === 'plain'
-            ? BASEROW_FORMULA_MODES
-            : ['raw', 'simple']
-        "
+        :enabled-modes="bodyFormulaMode"
         :placeholder="$t('smtpEmailForm.bodyPlaceholder')"
         textarea
       />
@@ -184,8 +180,10 @@ export default {
     }
   },
   computed: {
-    BASEROW_FORMULA_MODES() {
-      return BASEROW_FORMULA_MODES
+    bodyFormulaMode() {
+      return this.values.body_type !== 'html'
+        ? BASEROW_FORMULA_MODES
+        : ['raw', 'simple']
     },
     showInstanceSmtpOption() {
       return Boolean(this.service?.instance_smtp_settings_enabled)

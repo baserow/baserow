@@ -149,18 +149,6 @@ exports[`GridView component with decoration > Default component with first_cell 
         
       </div>
     </div>
-    <div
-      style="display: none;"
-    >
-      <div
-        class="grid-view__field-dragging"
-        style="width: 0px; left: 0px;"
-      />
-      <div
-        class="grid-view__field-target"
-        style="left: 0px;"
-      />
-    </div>
   </div>
   <div
     class="grid-view__divider"
@@ -427,18 +415,19 @@ exports[`GridView component with decoration > Default component with first_cell 
         
       </div>
     </div>
+  </div>
+  <div
+    class="grid-view__field-dragging-container"
+    style="left: 0px; right: 0px; display: none;"
+  >
     <div
-      style="display: none;"
-    >
-      <div
-        class="grid-view__field-dragging"
-        style="width: 0px; left: 0px;"
-      />
-      <div
-        class="grid-view__field-target"
-        style="left: 0px;"
-      />
-    </div>
+      class="grid-view__field-dragging"
+      style="width: 0px; left: 0px;"
+    />
+    <div
+      class="grid-view__field-target"
+      style="left: 0px;"
+    />
   </div>
   <div
     class="grid-view__row-dragging-container"
@@ -606,18 +595,6 @@ exports[`GridView component with decoration > Default component with row wrapper
         
         
       </div>
-    </div>
-    <div
-      style="display: none;"
-    >
-      <div
-        class="grid-view__field-dragging"
-        style="width: 0px; left: 0px;"
-      />
-      <div
-        class="grid-view__field-target"
-        style="left: 0px;"
-      />
     </div>
   </div>
   <div
@@ -893,18 +870,19 @@ exports[`GridView component with decoration > Default component with row wrapper
         
       </div>
     </div>
+  </div>
+  <div
+    class="grid-view__field-dragging-container"
+    style="left: 0px; right: 0px; display: none;"
+  >
     <div
-      style="display: none;"
-    >
-      <div
-        class="grid-view__field-dragging"
-        style="width: 0px; left: 0px;"
-      />
-      <div
-        class="grid-view__field-target"
-        style="left: 0px;"
-      />
-    </div>
+      class="grid-view__field-dragging"
+      style="width: 0px; left: 0px;"
+    />
+    <div
+      class="grid-view__field-target"
+      style="left: 0px;"
+    />
   </div>
   <div
     class="grid-view__row-dragging-container"
@@ -1064,18 +1042,6 @@ exports[`GridView component with decoration > Default component with unavailable
         
         
       </div>
-    </div>
-    <div
-      style="display: none;"
-    >
-      <div
-        class="grid-view__field-dragging"
-        style="width: 0px; left: 0px;"
-      />
-      <div
-        class="grid-view__field-target"
-        style="left: 0px;"
-      />
     </div>
   </div>
   <div
@@ -1343,18 +1309,19 @@ exports[`GridView component with decoration > Default component with unavailable
         
       </div>
     </div>
+  </div>
+  <div
+    class="grid-view__field-dragging-container"
+    style="left: 0px; right: 0px; display: none;"
+  >
     <div
-      style="display: none;"
-    >
-      <div
-        class="grid-view__field-dragging"
-        style="width: 0px; left: 0px;"
-      />
-      <div
-        class="grid-view__field-target"
-        style="left: 0px;"
-      />
-    </div>
+      class="grid-view__field-dragging"
+      style="width: 0px; left: 0px;"
+    />
+    <div
+      class="grid-view__field-target"
+      style="left: 0px;"
+    />
   </div>
   <div
     class="grid-view__row-dragging-container"

@@ -21,8 +21,9 @@ export default (client) => {
     delete(elementId) {
       return client.delete(`builder/element/${elementId}/`)
     },
-    move(elementId, beforeId, parentElementId, placeInContainer) {
+    move(targetPageId, elementId, beforeId, parentElementId, placeInContainer) {
       return client.patch(`builder/element/${elementId}/move/`, {
+        target_page_id: targetPageId,
         before_id: beforeId,
         parent_element_id: parentElementId,
         place_in_container: placeInContainer,

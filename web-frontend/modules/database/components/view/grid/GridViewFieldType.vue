@@ -282,7 +282,6 @@
         </li>
       </FieldContext>
       <HorizontalResize
-        v-if="includeFieldWidthHandles"
         class="grid-view__description-width"
         :width="width"
         :min="GRID_VIEW_MIN_FIELD_WIDTH"
@@ -330,10 +329,6 @@ export default {
     field: {
       type: Object,
       required: true,
-    },
-    includeFieldWidthHandles: {
-      type: Boolean,
-      required: false,
     },
     readOnly: {
       type: Boolean,

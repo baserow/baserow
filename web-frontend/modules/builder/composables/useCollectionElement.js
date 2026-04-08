@@ -265,7 +265,10 @@ export function useCollectionElement(props) {
   })
 
   useAsyncData(
-    () => `element-content-${unref(element).id}`,
+    // Include uid in the cache key so a cross-page move (which generates a new
+    // uid via populateElement) always triggers a fresh fetch instead of returning
+    // the stale Nuxt-cached result and leaving contentLoading stuck at true.
+    () => `element-content-${unref(element).id}-${unref(element)._.uid}`,
     async () => {
       const elType = unref(elementType)
       const el = unref(element)

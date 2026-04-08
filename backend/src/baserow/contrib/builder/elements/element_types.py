@@ -1912,7 +1912,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
         element: ChoiceElement,
         value: Union[List, str],
         dispatch_context: DispatchContext,
-    ) -> str:
+    ) -> str | List[str]:
         """
         Responsible for validating `ChoiceElement` form data. We handle
         this validation a little differently to ensure that if someone creates

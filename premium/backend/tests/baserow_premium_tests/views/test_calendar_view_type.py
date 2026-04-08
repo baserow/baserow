@@ -125,6 +125,7 @@ def test_calendar_view_import_export(premium_data_fixture, tmpdir):
         serialized = calendar_view_type.export_serialized(
             calendar_view,
             ImportExportConfig(include_permission_data=False),
+            cache={},
             files_zip=files_zip,
             storage=storage,
         )
@@ -154,6 +155,7 @@ def test_calendar_view_import_export(premium_data_fixture, tmpdir):
             serialized,
             ImportExportConfig(include_permission_data=False),
             id_mapping,
+            {},
             files_zip,
             storage,
         )

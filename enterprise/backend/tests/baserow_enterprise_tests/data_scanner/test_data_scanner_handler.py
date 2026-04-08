@@ -1,4 +1,3 @@
-import re
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -14,8 +13,13 @@ from baserow_enterprise.data_scanner.exceptions import (
 )
 from baserow_enterprise.data_scanner.handler import (
     DataScannerHandler,
+    _build_broad_token_regex,
+    _pattern_has_special_chars,
     convert_pattern_to_regex,
 )
+
+# _build_broad_token_regex and _pattern_has_special_chars are still used as
+# internal helpers in the handler. They are imported here for unit testing.
 from baserow_enterprise.data_scanner.models import (
     DataScan,
     DataScanListItem,
@@ -89,21 +93,23 @@ def test_convert_pattern_to_regex_trailing_backslash():
 
 
 @pytest.mark.data_scanner
-def test_extract_matching_token():
-    compiled = re.compile(r"[A-Za-z][A-Za-z][0-9][0-9]", re.IGNORECASE)
-
-    token = DataScannerHandler._extract_matching_token(
-        "'ab12':1 'something':2", compiled
-    )
-    assert token == "ab12"
+def test_pattern_has_special_chars():
+    assert _pattern_has_special_chars("DDDD\\-DD\\-DD") is True
+    assert _pattern_has_special_chars("DDDD\\.DD") is True
+    assert _pattern_has_special_chars("AADDDD") is False
+    assert _pattern_has_special_chars("\\N\\LDDAAAADDDDDDDDDD") is False
+    assert _pattern_has_special_chars("\\N\\L\\-DD") is True
 
 
 @pytest.mark.data_scanner
-def test_extract_matching_token_no_match_returns_raw():
-    compiled = re.compile(r"[A-Za-z][A-Za-z][0-9][0-9]", re.IGNORECASE)
+def test_build_broad_token_regex():
+    # For DDDD-DD-DD, the longest token fragment is DDDD -> [0-9]{4 chars}
+    broad = _build_broad_token_regex("DDDD\\-DD\\-DD")
+    assert broad == "[0-9][0-9][0-9][0-9]"
 
-    token = DataScannerHandler._extract_matching_token("'hello':1", compiled)
-    assert token == "'hello':1"
+    # For AA.DD, the longest is AA -> [A-Za-z][A-Za-z]
+    broad = _build_broad_token_regex("AA\\.DD")
+    assert broad == "[A-Za-z][A-Za-z]"
 
 
 @pytest.mark.data_scanner
@@ -1653,3 +1659,262 @@ def test_run_pattern_scan_excludes_trashed_field(
     scan.refresh_from_db()
     assert scan.last_error is None or scan.last_error == ""
     assert scan.results.count() == 0
+
+
+@pytest.mark.data_scanner
+def test_convert_pattern_to_regex_special_characters():
+    """
+    Escaped special characters like hyphens must be preserved in the
+    generated regex so that patterns like ``DDDD\\-DD\\-DD`` can match
+    values such as ``2021-01-01``.
+    """
+
+    regex = convert_pattern_to_regex("DDDD\\-DD\\-DD")
+    assert regex == "[0-9][0-9][0-9][0-9]\\-[0-9][0-9]\\-[0-9][0-9]"
+
+    import re
+
+    compiled = re.compile(regex, re.IGNORECASE)
+    assert compiled.search("2021-01-01") is not None
+    assert compiled.search("9999-12-31") is not None
+    assert compiled.search("not a date") is None
+
+
+@pytest.mark.data_scanner
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_run_pattern_scan_with_special_characters(
+    enterprise_data_fixture, populate_search_table
+):
+    """
+    A pattern containing escaped special characters (e.g. hyphens) must
+    match cell values in the actual user table even though tsvector
+    tokenization would strip those characters.
+    """
+
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user(is_staff=True)
+    table, fields, rows = enterprise_data_fixture.build_table(
+        user=user,
+        columns=[("Date", "text")],
+        rows=[
+            ["2021-01-01"],
+            ["not a date"],
+            ["1999-12-31"],
+        ],
+    )
+    field = fields[0]
+    populate_search_table(table, field, rows)
+
+    workspace = table.database.workspace
+    scan = DataScannerHandler.create_scan(
+        user=user,
+        name="Date Pattern Test",
+        scan_type="pattern",
+        pattern="DDDD\\-DD\\-DD",
+        scan_all_workspaces=False,
+        workspace_ids=[workspace.id],
+    )
+
+    DataScannerHandler.run_scan(scan.id)
+
+    scan.refresh_from_db()
+    assert scan.is_running is False
+    assert scan.last_error is None or scan.last_error == ""
+
+    results = list(
+        scan.results.order_by("row_id").values_list("row_id", "matched_value")
+    )
+    assert len(results) == 2
+    assert results[0][0] == rows[0].id
+    assert results[0][1] == "2021-01-01"
+    assert results[1][0] == rows[2].id
+    assert results[1][1] == "1999-12-31"
+
+
+@pytest.mark.data_scanner
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_run_pattern_scan_whole_words_true(
+    enterprise_data_fixture, populate_search_table
+):
+    """
+    When ``whole_words=True``, a pattern like ``DDDD`` must match ``1234``
+    but not ``12345`` or ``1234test``.
+    """
+
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user(is_staff=True)
+    table, fields, rows = enterprise_data_fixture.build_table(
+        user=user,
+        columns=[("Code", "text")],
+        rows=[
+            ["1234"],
+            ["12345"],
+            ["1234test"],
+            ["1234 test"],
+            ["test 1234 test"],
+        ],
+    )
+    populate_search_table(table, fields[0], rows)
+
+    workspace = table.database.workspace
+    scan = DataScannerHandler.create_scan(
+        user=user,
+        name="Whole Words Pattern",
+        scan_type="pattern",
+        pattern="DDDD",
+        whole_words=True,
+        scan_all_workspaces=False,
+        workspace_ids=[workspace.id],
+    )
+
+    DataScannerHandler.run_scan(scan.id)
+
+    scan.refresh_from_db()
+    assert scan.is_running is False
+    assert scan.last_error is None or scan.last_error == ""
+
+    matched_row_ids = set(scan.results.values_list("row_id", flat=True))
+    assert rows[0].id in matched_row_ids  # "1234" -> match
+    assert rows[1].id not in matched_row_ids  # "12345" -> no match
+    assert rows[2].id not in matched_row_ids  # "1234test" -> no match
+    assert rows[3].id in matched_row_ids  # "1234 test" -> match
+    assert rows[4].id in matched_row_ids  # "test 1234 test" -> match
+
+
+@pytest.mark.data_scanner
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_run_pattern_scan_whole_words_false(
+    enterprise_data_fixture, populate_search_table
+):
+    """
+    When ``whole_words=False``, a pattern like ``DDDD`` must also match
+    ``12345`` because ``1234`` is contained within it.
+    """
+
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user(is_staff=True)
+    table, fields, rows = enterprise_data_fixture.build_table(
+        user=user,
+        columns=[("Code", "text")],
+        rows=[
+            ["1234"],
+            ["12345"],
+            ["1234test"],
+        ],
+    )
+    populate_search_table(table, fields[0], rows)
+
+    workspace = table.database.workspace
+    scan = DataScannerHandler.create_scan(
+        user=user,
+        name="Partial Pattern",
+        scan_type="pattern",
+        pattern="DDDD",
+        whole_words=False,
+        scan_all_workspaces=False,
+        workspace_ids=[workspace.id],
+    )
+
+    DataScannerHandler.run_scan(scan.id)
+
+    scan.refresh_from_db()
+    assert scan.is_running is False
+    assert scan.last_error is None or scan.last_error == ""
+
+    matched_row_ids = set(scan.results.values_list("row_id", flat=True))
+    assert rows[0].id in matched_row_ids  # "1234" -> match
+    assert rows[1].id in matched_row_ids  # "12345" -> match (partial)
+    assert rows[2].id in matched_row_ids  # "1234test" -> match (partial)
+
+
+@pytest.mark.data_scanner
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_run_list_scan_correct_matched_value(
+    enterprise_data_fixture, populate_search_table
+):
+    """
+    When scanning for a list of values, the matched_value must correctly
+    identify which search term matched, even when the cell value is longer
+    than the search term (prefix matching).
+    """
+
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user(is_staff=True)
+    table, fields, rows = enterprise_data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["Fred"], ["Susan"], ["John"]],
+    )
+    field = fields[0]
+    workspace = table.database.workspace
+
+    populate_search_table(table, field, rows)
+
+    scan = DataScannerHandler.create_scan(
+        user=user,
+        name="Name List Scan",
+        scan_type="list_of_values",
+        list_items=["Fred", "Susan", "John"],
+        scan_all_workspaces=False,
+        workspace_ids=[workspace.id],
+        whole_words=False,
+    )
+
+    DataScannerHandler.run_scan(scan.id)
+
+    scan.refresh_from_db()
+    assert scan.is_running is False
+    assert scan.last_error is None or scan.last_error == ""
+
+    results = {r.row_id: r.matched_value for r in scan.results.all()}
+    assert results.get(rows[0].id) == "Fred"
+    assert results.get(rows[1].id) == "Susan"
+    assert results.get(rows[2].id) == "John"
+
+
+@pytest.mark.data_scanner
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_run_list_scan_whole_words_true(enterprise_data_fixture, populate_search_table):
+    """
+    When ``whole_words=True``, list-of-values scans must only match exact
+    tokens, not prefixes.
+    """
+
+    enterprise_data_fixture.enable_enterprise()
+    user = enterprise_data_fixture.create_user(is_staff=True)
+    table, fields, rows = enterprise_data_fixture.build_table(
+        user=user,
+        columns=[("Name", "text")],
+        rows=[["John"], ["Johnny"], ["Johnson"]],
+    )
+    field = fields[0]
+    workspace = table.database.workspace
+
+    populate_search_table(table, field, rows)
+
+    scan = DataScannerHandler.create_scan(
+        user=user,
+        name="Whole Words List",
+        scan_type="list_of_values",
+        list_items=["John"],
+        scan_all_workspaces=False,
+        workspace_ids=[workspace.id],
+        whole_words=True,
+    )
+
+    DataScannerHandler.run_scan(scan.id)
+
+    scan.refresh_from_db()
+    assert scan.is_running is False
+    assert scan.last_error is None or scan.last_error == ""
+
+    # Only exact match "John" should be found, not "Johnny" or "Johnson".
+    matched_row_ids = set(scan.results.values_list("row_id", flat=True))
+    assert rows[0].id in matched_row_ids
+    assert rows[1].id not in matched_row_ids
+    assert rows[2].id not in matched_row_ids

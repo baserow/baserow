@@ -1,3 +1,4 @@
+import BigNumber from 'bignumber.js'
 import { Registerable } from '@baserow/modules/core/registry'
 import TextElement from '@baserow/modules/builder/components/elements/components/TextElement'
 import HeadingElement from '@baserow/modules/builder/components/elements/components/HeadingElement'
@@ -181,6 +182,7 @@ export class ElementType extends Registerable {
    * Returns the reason why this element type is disallowed for the given location.
    * @param {Object} builder the current builder object
    * @param {Object} page the current page
+   * @param {Object} element optional element if we have one
    * @param {Object} parentElement the parent container element in which we want to
    *   add the element in if any.
    * @param {Object} beforeElement the element before which we want to add the element.
@@ -194,6 +196,7 @@ export class ElementType extends Registerable {
     workspace,
     builder,
     page: destinationPage,
+    element = null,
     parentElement,
     beforeElement,
     placeInContainer,
@@ -204,6 +207,15 @@ export class ElementType extends Registerable {
     }
     if (!parentElement) {
       const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
+
+      if (
+        destinationPage.id === sharedPage.id &&
+        pagePlace === PAGE_PLACES.CONTENT
+      ) {
+        // Content elements can never be root elements on the shared page — they
+        // are only allowed inside header/footer containers.
+        return this.app.$i18n.t('elementType.notAllowedLocation')
+      }
 
       if (pagePlace === PAGE_PLACES.HEADER) {
         if (beforeElement && beforeElement.page_id === sharedPage.id) {
@@ -458,6 +470,19 @@ export class ElementType extends Registerable {
    * @param page - The page the element belongs to
    */
   afterCreate(element, page) {}
+
+  /**
+   * A hook to wrap the move action of an element.
+   *
+   * @param builder - The builder containing the page and the element
+   * @param page - The page the element belonged to before
+   * @param page - The page the element now belongs to
+   * @param element - The element after the move
+   * @param moveFn - The callback to actually move the element
+   */
+  wrapMove({ builder, previousPage, page, element }, moveFn) {
+    moveFn()
+  }
 
   /**
    * A hook that is triggered right after an element is deleted.
@@ -1000,6 +1025,7 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
     workspace,
     builder,
     page,
+    element,
     parentElement,
     beforeElement,
     placeInContainer,
@@ -1020,6 +1046,7 @@ export class FormContainerElementType extends ContainerElementTypeMixin(
       workspace,
       builder,
       page,
+      element,
       parentElement,
       beforeElement,
       placeInContainer,
@@ -1095,6 +1122,7 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
     workspace,
     builder,
     page,
+    element,
     parentElement,
     beforeElement,
     placeInContainer,
@@ -1115,6 +1143,7 @@ export class ColumnElementType extends ContainerElementTypeMixin(ElementType) {
       workspace,
       builder,
       page,
+      element,
       parentElement,
       beforeElement,
       placeInContainer,
@@ -2306,14 +2335,21 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     workspace,
     builder,
     page,
+    element,
     parentElement,
     beforeElement,
     placeInContainer,
     pagePlace,
+    referencePagePlace,
   }) {
     if (parentElement) {
       // Can't be inserted inside another container
       return this.app.$i18n.t('elementType.notAllowedInsideContainer')
+    }
+
+    // Disallow drops when the cursor is hovering over a different page section (e.g. a footer zone).
+    if (referencePagePlace && referencePagePlace !== PAGE_PLACES.HEADER) {
+      return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
     }
 
     const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
@@ -2327,13 +2363,41 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
       return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
     }
 
-    if (page.id !== sharedPage.id) {
-      const orderedElements =
-        this.app.$store.getters['element/getElementsOrdered'](page)
-      // Can't be inserted after the first element of the page
-      if (beforeElement && beforeElement.id !== orderedElements[0].id) {
-        return this.app.$i18n.t('elementType.notAllowedUnlessTop')
+    if (page.id === sharedPage.id) {
+      // A header must only follow another header; filter to headers to avoid
+      // elements with lower order values being treated as the preceding element.
+      const rootHeaderElements = this.app.$store.getters[
+        'element/getElementsOrdered'
+      ](sharedPage).filter(
+        (e) =>
+          !e.parent_element_id &&
+          this.app.$registry.get('element', e.type).getPagePlace() ===
+            PAGE_PLACES.HEADER
+      )
+
+      // Find the last header before beforeElement's order position (or the last header if placing at end).
+      const precedingElement = beforeElement
+        ? rootHeaderElements
+            .slice()
+            .reverse()
+            .find((e) =>
+              new BigNumber(e.order).lt(new BigNumber(beforeElement.order))
+            ) || null
+        : (rootHeaderElements.at(-1) ?? null)
+
+      if (
+        precedingElement &&
+        this.app.$registry
+          .get('element', precedingElement.type)
+          .getPagePlace() !== PAGE_PLACES.HEADER
+      ) {
+        return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
       }
+    }
+
+    if (page.id !== sharedPage.id && pagePlace === PAGE_PLACES.HEADER) {
+      // A header element is being dragged to the current page content.
+      return this.app.$i18n.t('elementType.notAllowedLocation')
     }
     return null
   }
@@ -2384,14 +2448,21 @@ export class FooterElementType extends HeaderElementType {
     workspace,
     builder,
     page,
+    element,
     parentElement,
     beforeElement,
     placeInContainer,
     pagePlace,
+    referencePagePlace,
   }) {
     if (parentElement) {
       // Can't be inserted inside another container
       return this.app.$i18n.t('elementType.notAllowedInsideContainer')
+    }
+
+    // Disallow drops when the cursor is hovering over a different page section (e.g. a header zone).
+    if (referencePagePlace && referencePagePlace !== PAGE_PLACES.FOOTER) {
+      return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
     }
 
     const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
@@ -2400,15 +2471,40 @@ export class FooterElementType extends HeaderElementType {
       pagePlace &&
       pagePlace !== PAGE_PLACES.FOOTER
     ) {
-      // can't be inserted outside of header
+      // can't be inserted outside of footer
       return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
     }
 
-    if (page.id !== sharedPage.id) {
-      // Can't be inserted before the end of the page
-      if (beforeElement && beforeElement.page_id !== sharedPage.id) {
-        return this.app.$i18n.t('elementType.notAllowedUnlessBottom')
+    if (page.id === sharedPage.id) {
+      // A footer must only precede another footer; filter to footers to avoid
+      // elements with higher order values being treated as the next element.
+      const rootFooterElements = this.app.$store.getters[
+        'element/getElementsOrdered'
+      ](sharedPage).filter(
+        (e) =>
+          !e.parent_element_id &&
+          this.app.$registry.get('element', e.type).getPagePlace() ===
+            PAGE_PLACES.FOOTER
+      )
+
+      // Find the first footer at or after beforeElement's order position.
+      const nextFooterElement = beforeElement
+        ? rootFooterElements.find((e) =>
+            new BigNumber(e.order).gte(new BigNumber(beforeElement.order))
+          ) || null
+        : null
+
+      if (nextFooterElement && nextFooterElement.id !== beforeElement?.id) {
+        // There is a footer at or after `beforeElement`, but `beforeElement` itself
+        // is not a footer — inserting here would place the footer before non-footer
+        // content that still precedes another footer.
+        return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
       }
+    }
+
+    if (page.id !== sharedPage.id && pagePlace === PAGE_PLACES.FOOTER) {
+      // A footer element is being dragged to the current page content.
+      return this.app.$i18n.t('elementType.notAllowedLocation')
     }
     return null
   }

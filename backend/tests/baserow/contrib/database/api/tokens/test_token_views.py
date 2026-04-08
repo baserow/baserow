@@ -80,6 +80,35 @@ def test_list_tokens(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_list_tokens_excludes_tokens_for_workspaces_user_left(api_client, data_fixture):
+    user, jwt_token = data_fixture.create_user_and_token()
+    workspace_1 = data_fixture.create_workspace(user=user)
+    workspace_2 = data_fixture.create_workspace(user=user)
+    token_1 = data_fixture.create_token(user=user, workspace=workspace_1)
+    data_fixture.create_token(user=user, workspace=workspace_2)
+
+    url = reverse("api:database:tokens:list")
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {jwt_token}")
+    assert response.status_code == HTTP_200_OK
+    assert len(response.json()) == 2
+
+    workspace_2.workspaceuser_set.filter(user=user).delete()
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {jwt_token}")
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert len(response_json) == 1
+    assert response_json[0]["id"] == token_1.id
+
+    data_fixture.create_user_workspace(user=user, workspace=workspace_2)
+
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {jwt_token}")
+    assert response.status_code == HTTP_200_OK
+    assert len(response.json()) == 2
+
+
+@pytest.mark.django_db
 def test_create_token(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     workspace_1 = data_fixture.create_workspace(user=user)

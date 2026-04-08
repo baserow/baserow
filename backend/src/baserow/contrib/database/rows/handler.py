@@ -667,7 +667,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         return {row.id: str(row) for row in queryset}
 
     # noinspection PyMethodMayBeStatic
-    def has_row(self, user, table, row_id, raise_error=False, model=None):
+    def has_row(self, user, table, row_id, raise_error=False, model=None, view=None):
         """
         Checks if a row with the given id exists and is not trashed in the table.
 
@@ -676,30 +676,28 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         do a much more efficient query to check only if the row exists or not.
 
         :param user: The user of whose behalf the row is being checked.
-        :type user: User
         :param table: The table where the row must be checked in.
-        :type table: Table
         :param row_id: The id of the row that must be checked.
-        :type row_id: int
         :param raise_error: Whether or not to raise an Exception if the row does not
             exist or just return a boolean instead.
-        :type raise_error: bool
         :param model: If the correct model has already been generated it can be
             provided so that it does not have to be generated for a second time.
-        :type model: Model
+        :param view: Optionally provide view, if the row is checked in the view.
+            This can result in different permissions checks.
         :raises RowDoesNotExist: When the row with the provided id does not exist
             and raise_error is set to True.
         :raises UserNotInWorkspace: If the user does not belong to the workspace.
         :return: If raise_error is False then a boolean indicating if the row does or
             does not exist.
-        :rtype: bool
         """
 
-        CoreHandler().check_permissions(
-            user,
+        self._check_permissions_with_view_fallback(
             ReadDatabaseRowOperationType.type,
-            workspace=table.database.workspace,
-            context=table,
+            ReadViewRowOperationType.type,
+            user,
+            table,
+            view,
+            [row_id],
         )
 
         if model is None:

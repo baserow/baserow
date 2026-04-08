@@ -840,6 +840,7 @@ class DatabaseConfig(AppConfig):
             CreateViewFilterOperationType,
             CreateViewGroupByOperationType,
             CreateViewOperationType,
+            CreateViewRowCommentOperationType,
             CreateViewRowOperationType,
             CreateViewSortOperationType,
             DeleteViewDecorationOperationType,
@@ -847,6 +848,7 @@ class DatabaseConfig(AppConfig):
             DeleteViewFilterOperationType,
             DeleteViewGroupByOperationType,
             DeleteViewOperationType,
+            DeleteViewRowCommentOperationType,
             DeleteViewRowOperationType,
             DeleteViewSortOperationType,
             DuplicateViewOperationType,
@@ -867,16 +869,19 @@ class DatabaseConfig(AppConfig):
             ReadViewFilterOperationType,
             ReadViewGroupByOperationType,
             ReadViewOperationType,
+            ReadViewRowCommentsOperationType,
             ReadViewRowOperationType,
             ReadViewsOrderOperationType,
             ReadViewSortOperationType,
             RestoreViewOperationType,
+            RestoreViewRowCommentOperationType,
             UpdateViewDecorationOperationType,
             UpdateViewFilterGroupOperationType,
             UpdateViewFilterOperationType,
             UpdateViewGroupByOperationType,
             UpdateViewOperationType,
             UpdateViewPublicOperationType,
+            UpdateViewRowCommentOperationType,
             UpdateViewRowOperationType,
             UpdateViewSlugOperationType,
             UpdateViewSortOperationType,
@@ -897,6 +902,11 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(CreateViewRowOperationType())
         operation_type_registry.register(UpdateViewRowOperationType())
         operation_type_registry.register(DeleteViewRowOperationType())
+        operation_type_registry.register(ReadViewRowCommentsOperationType())
+        operation_type_registry.register(CreateViewRowCommentOperationType())
+        operation_type_registry.register(UpdateViewRowCommentOperationType())
+        operation_type_registry.register(DeleteViewRowCommentOperationType())
+        operation_type_registry.register(RestoreViewRowCommentOperationType())
         operation_type_registry.register(CreateTableDatabaseTableOperationType())
         operation_type_registry.register(ListTablesDatabaseTableOperationType())
         operation_type_registry.register(OrderTablesDatabaseTableOperationType())

@@ -22,6 +22,7 @@ from rest_framework.fields import CharField
 from rest_framework.serializers import Serializer
 
 from baserow.contrib.database.fields.field_filters import OptionallyAnnotatedQ
+from baserow.core.db import specific_iterator
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Workspace, WorkspaceUser
@@ -230,7 +231,7 @@ class ViewType(
         self,
         view: "View",
         import_export_config: ImportExportConfig,
-        cache: Optional[Dict] = None,
+        cache: Dict,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Dict[str, Any]:
@@ -338,6 +339,7 @@ class ViewType(
         serialized_values: Dict[str, Any],
         import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Any],
+        cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Optional["View"]:
@@ -353,6 +355,7 @@ class ViewType(
             import/export process to customize how it works.
         :param id_mapping: The map of exported ids to newly created ids that must be
             updated when a new instance has been created.
+        :param cache: A cache to use for storing temporary data.
         :param files_zip: A zip file buffer where files related to the export can be
             extracted from.
         :param storage: The storage where the files can be copied to.
@@ -549,6 +552,7 @@ class ViewType(
                 id_mapping,
                 files_zip,
                 storage,
+                cache,
             )
 
         for (
@@ -564,20 +568,44 @@ class ViewType(
         """
         Exports the default row values for the given view as a serialized dict.
         Uses the prefetched ``view_default_values`` related manager when
-        available to avoid extra queries during batch exports. The raw JSON
-        value is exported as-is since it is already serializable.
+        available. Field objects are looked up from
+        ``cache["fields_by_id_{table_id}"]``, which is lazily populated using
+        ``specific_iterator`` if not already set by the caller. The value is
+        passed through the field type's ``export_serialized_default_value``
+        hook so that internal IDs can be converted to portable representations.
         """
+
+        from baserow.contrib.database.fields.models import Field
+        from baserow.contrib.database.fields.registries import field_type_registry
 
         default_values = view.view_default_values.all()
         if not default_values:
-            return None
+            return {}
+
+        workspace_id = view.table.database.workspace_id
+        table_id = view.table_id
+        cache_key = f"fields_by_id_{table_id}"
+        if cache_key not in cache:
+            cache[cache_key] = {
+                f.id: f
+                for f in specific_iterator(Field.objects.filter(table_id=table_id))
+            }
+        fields_by_id = cache[cache_key]
 
         serialized_values = {}
         for default_value in default_values:
+            value = default_value.value
+            field = fields_by_id.get(default_value.field_id)
+            if field is not None and value is not None:
+                field_type = field_type_registry.get_by_model(field.specific_class)
+                value = field_type.export_serialized_default_value(
+                    value, field, workspace_id, cache
+                )
+
             serialized_values[str(default_value.field_id)] = {
                 "field_id": default_value.field_id,
                 "enabled": default_value.enabled,
-                "value": default_value.value,
+                "value": value,
                 "function": default_value.function,
                 "field_type": default_value.field_type,
             }
@@ -592,6 +620,7 @@ class ViewType(
         id_mapping,
         files_zip,
         storage,
+        cache,
     ):
         """
         Imports the default row values from a serialized dict using
@@ -603,6 +632,7 @@ class ViewType(
 
         from baserow.contrib.database.views.models import ViewDefaultValue
 
+        workspace_id = table.database.workspace_id
         model = table.get_model()
         records = []
 
@@ -621,7 +651,9 @@ class ViewType(
 
             value = default_value_data.get("value")
             if value is not None:
-                value = field_type.import_serialized_default_value(value, id_mapping)
+                value = field_type.import_serialized_default_value(
+                    value, id_mapping, workspace_id, cache
+                )
 
             records.append(
                 ViewDefaultValue(
@@ -1492,6 +1524,17 @@ class ViewOwnershipType(Instance):
 
         return "table", None
 
+    def is_compatible_with_view_type(self, view_type: ViewType) -> bool:
+        """
+        Returns whether this ownership type is compatible with the given view type.
+        Subclasses can override this to prevent certain combinations.
+
+        :param view_type: The view type instance.
+        :return: True if compatible, False otherwise.
+        """
+
+        return True
+
     def before_form_view_submitted(self, form, request):
         """
         Called before a form view of this ownership type is submitted. Can be used
@@ -1623,6 +1666,31 @@ class ViewOwnershipType(Instance):
         """
 
         return set()
+
+    def get_users_to_notify_for_row_comment(
+        self,
+        table: "Table",
+        row_id: int,
+        users: List["AbstractUser"],
+    ) -> List["AbstractUser"]:
+        """
+        Returns users from `users` who should receive a notification about a new
+        comment on the given row. This is used for users who do not have table-level
+        comment-read permission but might have view-level access via this ownership
+        type.
+
+        The base implementation returns an empty list. Ownership types that grant
+        view-level access (e.g. restricted views) should override this to check whether
+        the row is visible in any of their views and whether the users have the
+        appropriate view-level permission.
+
+        :param table: The table the comment belongs to.
+        :param row_id: The id of the commented row.
+        :param users: Users to check for view-level access.
+        :return: The subset of `users` that should also be notified.
+        """
+
+        return []
 
     def enhance_list_fields_queryset(
         self, user: "AbstractUser", view: "View", queryset: django_models.QuerySet

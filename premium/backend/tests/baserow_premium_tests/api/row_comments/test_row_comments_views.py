@@ -621,11 +621,21 @@ def test_perm_deleting_a_trashed_table_with_comments_cleans_up_the_rows(
     assert RowComment.objects.first().row_id == other_rows[0].id
 
 
+def _mock_check_multiple_permissions(checks, workspace=None, **kwargs):
+    return {check: True for check in checks}
+
+
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-@patch("baserow.core.handler.CoreHandler.check_permissions")
+@patch(
+    "baserow.core.handler.CoreHandler.check_multiple_permissions",
+    side_effect=_mock_check_multiple_permissions,
+)
 def test_getting_row_comments_executes_fixed_number_of_queries(
-    mock_check_permissions, premium_data_fixture, api_client, django_assert_num_queries
+    mock_check_multiple_permissions,
+    premium_data_fixture,
+    api_client,
+    django_assert_num_queries,
 ):
     user, token = premium_data_fixture.create_user_and_token(
         first_name="Test User", has_active_premium_license=True

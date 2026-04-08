@@ -43,16 +43,12 @@
             </div>
           </template>
           <template v-if="elements.length === 0">
-            <CallToAction
-              class="page-preview__empty"
-              icon="baserow-icon-plus"
-              icon-color="neutral"
-              icon-size="large"
-              icon-rounded
-              @click="$refs.addElementModal.show()"
-            >
-              {{ $t('pagePreview.emptyMessage') }}
-            </CallToAction>
+            <AddElementZone
+              class="add-element-zone--full-height"
+              :page="currentPage"
+              :label="$t('pagePreview.emptyMessage')"
+              @add-element="$refs.addElementModal.show()"
+            />
           </template>
           <template v-else>
             <div
@@ -136,6 +132,7 @@ import { DIRECTIONS, PAGE_PLACES } from '@baserow/modules/builder/enums'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal.vue'
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider.vue'
 import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
+import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
 
 export default {
   name: 'PagePreview',
@@ -145,10 +142,11 @@ export default {
     ElementPreview,
     PreviewNavigationBar,
     BuilderToasts,
+    AddElementZone,
   },
   inject: ['builder', 'currentPage', 'workspace'],
   provide() {
-    return { pageTopData: this.pageTop }
+    return { pageTopData: this.pageTop, dndContext: this.dndState }
   },
   data() {
     return {
@@ -161,6 +159,11 @@ export default {
       showElementId: false,
       // Used as reactive provided pageTop value for ElementPreview
       pageTop: { value: 140 },
+
+      dndState: {
+        draggedElement: null,
+        dropTargetId: null,
+      },
     }
   },
   computed: {

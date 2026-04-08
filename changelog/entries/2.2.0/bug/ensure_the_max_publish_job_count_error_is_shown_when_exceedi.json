@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Ensure the max publish job count error is shown when exceeding the limit for publishing an Automation Workflow.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-04-01"
+}

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Ensure that the correct error is shown when exceeding the max publish job count.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-03-30"
+}

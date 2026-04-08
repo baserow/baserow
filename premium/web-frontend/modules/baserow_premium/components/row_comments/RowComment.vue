@@ -109,6 +109,11 @@ export default {
       type: Boolean,
       required: true,
     },
+    viewId: {
+      type: Number,
+      required: false,
+      default: null,
+    },
   },
   emits: ['stop-edit'],
   data() {
@@ -245,6 +250,7 @@ export default {
           tableId: this.comment.table_id,
           commentId: this.comment.id,
           message: this.message,
+          viewId: this.viewId,
         })
       } catch (error) {
         notifyIf(error, 'application')
@@ -261,6 +267,7 @@ export default {
           tableId: this.comment.table_id,
           rowId: this.comment.row_id,
           commentId: this.comment.id,
+          viewId: this.viewId,
         })
       } catch (error) {
         notifyIf(error, 'application')

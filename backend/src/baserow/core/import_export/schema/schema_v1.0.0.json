@@ -161,16 +161,16 @@
           }
         }
       }
+    },
+    "checksums": {
+      "type": "object",
+      "patternProperties": {
+        ".*": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
     }
   },
-  "checksums": {
-    "type": "object",
-    "patternProperties": {
-      ".*": {
-        "type": "string"
-      }
-    },
-    "additionalProperties": false
-  },
-  "required": ["version", "configuration", "applications",  "checksums"]
+  "required": ["version", "configuration", "applications", "checksums"]
 }

@@ -51,6 +51,16 @@ export class ViewOwnershipType extends Registerable {
   }
 
   /**
+   * Returns whether this ownership type is compatible with the given view type.
+   * Subclasses can override this to prevent certain combinations.
+   *
+   * @param {Object|string} viewType - A ViewType instance.
+   */
+  isCompatibleWithViewType(viewType) {
+    return true
+  }
+
+  /**
    * The order in which workspaces of diff. view ownership
    * types appear in the list views.
    */

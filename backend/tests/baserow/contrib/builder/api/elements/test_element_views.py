@@ -12,6 +12,7 @@ from rest_framework.status import (
 from baserow.contrib.builder.elements.models import (
     ChoiceElementOption,
     Element,
+    HeaderElement,
     LinkElement,
 )
 
@@ -430,7 +431,7 @@ def test_move_element_before_not_in_same_page(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_ELEMENT_NOT_IN_SAME_PAGE"
+    assert response.json()["error"] == "ERROR_PAGE_NOT_IN_BUILDER"
 
 
 @pytest.mark.django_db
@@ -567,6 +568,161 @@ def test_can_move_element_inside_container(api_client, data_fixture):
 
     assert element_two.parent_element is None
     assert element_two.place_in_container is None
+
+
+@pytest.mark.django_db
+def test_move_element_returns_error_when_place_in_container_is_invalid(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    column_element = data_fixture.create_builder_column_element(
+        page=page, column_amount=2
+    )
+    child = data_fixture.create_builder_text_element(page=page)
+
+    url = reverse("api:builder:element:move", kwargs={"element_id": child.id})
+    response = api_client.patch(
+        url,
+        {
+            "parent_element_id": column_element.id,
+            "place_in_container": "9999",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert "place_in_container" in response.json()[0]
+
+
+@pytest.mark.django_db
+def test_move_element_with_before_returns_error_when_place_in_container_is_invalid(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    column_element = data_fixture.create_builder_column_element(
+        page=page, column_amount=2
+    )
+    first_child = data_fixture.create_builder_text_element(
+        page=page, parent_element=column_element, place_in_container="0"
+    )
+    second_child = data_fixture.create_builder_text_element(
+        page=page, parent_element=column_element, place_in_container="0"
+    )
+
+    url = reverse("api:builder:element:move", kwargs={"element_id": second_child.id})
+    response = api_client.patch(
+        url,
+        {
+            "before_id": first_child.id,
+            "parent_element_id": column_element.id,
+            "place_in_container": "9999",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert "place_in_container" in response.json()[0]
+
+    second_child.refresh_from_db()
+    assert second_child.parent_element_id == column_element.id
+    assert second_child.place_in_container == "0"
+
+
+@pytest.mark.django_db
+def test_move_element_to_other_page_container_returns_error_when_place_is_invalid(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    target_page = data_fixture.create_builder_page(user=user, builder=builder)
+    column_element = data_fixture.create_builder_column_element(
+        page=target_page, column_amount=2
+    )
+    child = data_fixture.create_builder_text_element(page=page)
+
+    url = reverse("api:builder:element:move", kwargs={"element_id": child.id})
+    response = api_client.patch(
+        url,
+        {
+            "parent_element_id": column_element.id,
+            "place_in_container": "9999",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert "place_in_container" in response.json()[0]
+
+    child.refresh_from_db()
+    assert child.page_id == page.id
+    assert child.parent_element_id is None
+    assert child.place_in_container is None
+
+
+@pytest.mark.django_db
+def test_move_element_to_shared_page_without_parent_is_invalid_for_regular_element(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    shared_page = builder.shared_page
+    element = data_fixture.create_builder_text_element(page=page)
+
+    url = reverse("api:builder:element:move", kwargs={"element_id": element.id})
+    response = api_client.patch(
+        url,
+        {
+            "target_page_id": shared_page.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+
+    element.refresh_from_db()
+    assert element.page_id == page.id
+    assert element.parent_element_id is None
+    assert element.place_in_container is None
+
+
+@pytest.mark.django_db
+def test_move_element_to_regular_page_without_parent_is_invalid_for_shared_element(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    shared_page = builder.shared_page
+    header = data_fixture.create_builder_element(
+        HeaderElement,
+        user=user,
+        page=shared_page,
+        share_type="all",
+    )
+
+    url = reverse("api:builder:element:move", kwargs={"element_id": header.id})
+    response = api_client.patch(
+        url,
+        {
+            "target_page_id": page.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+
+    header.refresh_from_db()
+    assert header.page_id == shared_page.id
+    assert header.parent_element_id is None
 
 
 @pytest.mark.django_db

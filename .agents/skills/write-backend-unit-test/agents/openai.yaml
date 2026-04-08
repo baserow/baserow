@@ -1,0 +1,4 @@
+interface:
+  display_name: "Write Backend Unit Test"
+  short_description: "Write Baserow backend pytest tests"
+  default_prompt: "Use $write-backend-unit-test to add or update a Baserow backend test using the repo's pytest, Django, and shared fixture patterns."

@@ -16,6 +16,7 @@
         :database="database"
         :table="table"
         :row="row"
+        :view="view"
       >
       </component>
     </template>
@@ -130,6 +131,7 @@
         :table="table"
         :database="database"
         :fields="allFieldsInTable"
+        :view="view"
         :read-only="readOnly"
       ></RowEditModalSidebar>
     </template>
@@ -276,8 +278,12 @@ export default {
       const allSidebarTypes = this.$registry.getOrderedList('rowModalSidebar')
       return allSidebarTypes.filter(
         (type) =>
-          type.isDeactivated(this.database, this.table, this.readOnly) ===
-            false && type.getComponent()
+          type.isDeactivated(
+            this.database,
+            this.table,
+            this.readOnly,
+            this.view
+          ) === false && type.getComponent()
       )
     },
     hasRightSidebar() {

@@ -19,7 +19,7 @@ export class RowModalSidebarType extends Registerable {
   /**
    * Whether the sidebar component should be shown
    */
-  isDeactivated(database, table, readOnly) {
+  isDeactivated(database, table, readOnly, view) {
     return false
   }
 
@@ -57,7 +57,7 @@ export class HistoryRowModalSidebarType extends RowModalSidebarType {
     return RowHistorySidebar
   }
 
-  isDeactivated(database, table, readOnly) {
+  isDeactivated(database, table, readOnly, view) {
     const hasPermissions = this.app.$hasPermission(
       'database.table.read_row_history',
       table,

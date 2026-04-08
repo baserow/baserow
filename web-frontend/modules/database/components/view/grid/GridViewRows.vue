@@ -15,8 +15,8 @@
       :row="row"
       :rendered-fields="renderedFields"
       :visible-fields="visibleFields"
+      :all-visible-fields="allVisibleFields"
       :all-fields-in-table="allFieldsInTable"
-      :primary-field-is-sticky="primaryFieldIsSticky"
       :field-widths="fieldWidths"
       :include-row-details="includeRowDetails"
       :include-group-by="includeGroupBy"
@@ -77,6 +77,10 @@ export default {
       type: Array,
       required: true,
     },
+    allVisibleFields: {
+      type: Array,
+      required: true,
+    },
     /**
      * All the fields in the table, regardless of the visibility, or whether they
      * should be rendered.
@@ -115,11 +119,6 @@ export default {
     workspaceId: {
       type: Number,
       required: true,
-    },
-    primaryFieldIsSticky: {
-      type: Boolean,
-      required: false,
-      default: () => true,
     },
     rowsAtEndOfGroups: {
       type: Set,

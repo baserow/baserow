@@ -1,5 +1,78 @@
 # Changelog
 
+## Released 2.2.0
+
+### New features
+* [Database] Add the `array_unique` formula function to deduplicate lookup arrays. [#2326](https://gitlab.com/baserow/baserow/-/issues/2326)
+* [Builder] Allow to drag and drop element on the page [#3634](https://github.com/baserow/baserow/issues/3634)
+* [Database] Introduced restricted view ownership type for view-level permissions. [#3673](https://github.com/baserow/baserow/issues/3673)
+* [Automation] Support automation templates [#3871](https://github.com/baserow/baserow/issues/3871)
+* [Core] Improved Baserow formula function argument validation. [#4532](https://github.com/baserow/baserow/issues/4532)
+* [Database] Add the `array_slice` formula function to extract sub-arrays from lookup arrays. [#5053](https://gitlab.com/baserow/baserow/-/issues/5053)
+* [Database] Add instance wide data scanner.
+* [Database] Introduced field type that can edit a row via a form view. [#2287](https://github.com/baserow/baserow/issues/2287)
+* [Database] Allow freezing (pinning) up to 4 columns on the left side of the grid view. [#2047](https://github.com/baserow/baserow/issues/2047)
+* [Database] Generalize the `index` formula to work with any array type (not just file fields) and add `first` and `last` convenience functions. [#5065](https://gitlab.com/baserow/baserow/-/issues/5065)
+* [Core] Introduced optional Cloudflare Turnstile captcha during signup.
+
+### Bug fixes
+* [Database] Fix index max size error for view sort indexes [#2040](https://github.com/baserow/baserow/issues/2040)
+* [Database] Fix public view with hidden group by field [#4858](https://github.com/baserow/baserow/issues/4858)
+* [Core] Switch to insecure alternative for UUID generation when on insecure context like HTTP [#4905](https://github.com/baserow/baserow/issues/4905)
+* [Database] Rating field now doesn't accept 0 as a valid value in form views when the field is required [#4985](https://github.com/baserow/baserow/issues/4985)
+* [Database] Fix DatatypeMismatch on bulk insert for tables with formula fields [#4992](https://github.com/baserow/baserow/issues/4992)
+* [Database] Fix AIField generation for mistral API provider [#4994](https://github.com/baserow/baserow/issues/4994)
+* [Automation] Fixed a bug that prevented reordering workflows in an automation. [#4995](https://github.com/baserow/baserow/issues/4995)
+* [Automation] Removed a constraint that forced unique workflow names. [#4995](https://github.com/baserow/baserow/issues/4995)
+* [Integration] Allow advanced formula for JSON body content of HTTP request node [#5002](https://github.com/baserow/baserow/issues/5002)
+* [Database] Fix error when changing filter type on link row fields [#5014](https://github.com/baserow/baserow/issues/5014)
+* [Database] Fix group by counts for link row field [#5047](https://github.com/baserow/baserow/issues/5047)
+* [Core] Fix [nuxt] instance unavailable errors [#5063](https://github.com/baserow/baserow/issues/5063)
+* [Database] Ensure primary field always exists on sync table [#5088](https://github.com/baserow/baserow/issues/5088)
+* [Database] Fix autonumber sequence [#5115](https://github.com/baserow/baserow/issues/5115)
+* [Core] Filter tokens by workspace membership [#5144](https://github.com/baserow/baserow/issues/5144)
+* [Database] Fixed slow cleanup of row history table by adding a database index.
+* [Builder] Data source context was not reset after a data source creation
+* [Automation] Ensure known service errors are logged as warnings to reduce error monitoring noise.
+* [Builder] Ensure that the correct error is shown when exceeding the max publish job count.
+* [Builder] Ensure the correct error is shown when a page is not found.
+* [Automation] Ensure the max publish job count error is shown when exceeding the limit for publishing an Automation Workflow.
+* [Automation] Fix bad previous node result inside an iteration
+* [Core] Fix date localization not working with non english languages
+* [Database] Fix linked row modal checkbox
+* [Automation] Fix race condition in loop handling
+* [Database] Fix bug where it was not possible to open the row edit modal if the user did not have access to the related table.
+* [Database] Fixed survey form navigation with required fields [#3188](https://github.com/baserow/baserow/issues/3188)
+* [Integration] Fix the wrong from address changed by the email backend
+* [Automation] Fixed a bug that caused a crash when trying to view an Automation's settings in development mode.
+* [Builder] Fixed a bug where a broken List Rows data source could cause a crash.
+* [Builder] Fixed a bug where an unknown timezone could cause a data source dispatch to fail.
+* [Automation] Fixed a bug where automation workflow history entries were being deleted for running workflows.
+* [Automation] Fixed a bug where node simulation errors weren't immediately shown.
+* [Builder] Fixed a bug where reopening the Publish modal while the builder is still publishing can cause an error.
+* [Builder] Fixed a crash when fetching custom code for a non-existent builder ID.
+* [Builder] Fixed an unhandled error when a user source user logs out and their refresh token is already expired.
+* [Integration] Fixed the Slack Bot Form's translations to use the correct placeholders.
+* [Database] Forbid wildcard addresses in Postgres data sync
+* [Automation] Resolved a bug which prevented certain Baserow field types from being used after a row-change trigger.
+* [Database] Resolved an issue which caused AI field formulas to appear twice in the UI.
+
+### Refactors
+* [Database] Filter out unactionable AxiosErrors from sentry [#5008](https://github.com/baserow/baserow/issues/5008)
+* [Core] Silence defined error codes in Sentry [#5011](https://github.com/baserow/baserow/issues/5011)
+* [Core] Add affected users count to frontend sentry reports [#5028](https://github.com/baserow/baserow/issues/5028)
+* [Core] Harden workspace import ZIP extraction against malformed archives [#5111](https://github.com/baserow/baserow/issues/5111)
+* [Core] Replace udspy with pydantic-ai
+* [Database] Optimized table deletion (trash) by batching field operations.
+* [Core] refactor MCP tools; share AI Assistant capabilities
+* [Database] Removed the use of `advocate` for the Jira data sync so that a connection can be made to the local network.
+* [Database] Replace LangChain with pydantic-ai for the AI field and the AI prompt node
+* [Core] Use Postgres EXPLAIN-based approximate count for audit log pagination to avoid expensive COUNT(*) on large tables.
+
+### Breaking API changes
+* [Integration] Instance SMTP configuration is used by default to send e-mails with the `Send email` action. Set `BASEROW_INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS=false` env var to disable this behaviour. [#4999](https://github.com/baserow/baserow/issues/4999)
+
+
 ## Released 2.1.6
 
 ### Bug fixes

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Allow advanced formula for JSON body content of HTTP request node",
+    "issue_origin": "github",
+    "issue_number": 5002,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-04-08"
+}

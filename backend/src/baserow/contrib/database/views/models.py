@@ -594,6 +594,9 @@ class GridView(View):
         max_length=10,
         db_default="small",
     )
+    # Number of frozen (pinned) columns including the primary field. Max defined in
+    # the serializer.
+    frozen_column_count = models.PositiveSmallIntegerField(default=1, db_default=1)
 
 
 class GridViewFieldOptionsManager(models.Manager):

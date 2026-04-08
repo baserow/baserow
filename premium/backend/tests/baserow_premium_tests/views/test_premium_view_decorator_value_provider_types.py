@@ -117,7 +117,7 @@ def test_import_export_grid_view_w_decorator(data_fixture):
 
     grid_view_type = view_type_registry.get("grid")
     serialized = grid_view_type.export_serialized(
-        grid_view, ImportExportConfig(include_permission_data=False), None, None, None
+        grid_view, ImportExportConfig(include_permission_data=False), {}, None, None
     )
     imported_grid_view = grid_view_type.import_serialized(
         grid_view.table,

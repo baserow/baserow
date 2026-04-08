@@ -1,13 +1,17 @@
 <template>
   <div :style="getStyleOverride('button')">
-    <div
-      v-if="
-        mode === 'editing' &&
-        children.length === 0 &&
-        $hasPermission('builder.page.create_element', currentPage, workspace.id)
-      "
-    >
-      <AddElementZone @add-element="showAddElementModal"></AddElementZone>
+    <div v-if="mode === 'editing' && children.length === 0">
+      <AddElementZone
+        :disabled="
+          !$hasPermission(
+            'builder.page.create_element',
+            currentPage,
+            workspace.id
+          )
+        "
+        :parent-element="element"
+        @add-element="showAddElementModal"
+      ></AddElementZone>
       <AddElementModal
         ref="addElementModal"
         :page="elementPage"

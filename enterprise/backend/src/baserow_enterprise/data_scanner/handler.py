@@ -1,7 +1,8 @@
 import re
 import traceback
+from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Callable, Optional
 
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.search import SearchQuery
@@ -12,6 +13,7 @@ from django.utils import timezone
 
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.search.handler import SearchHandler
+from baserow.contrib.database.search.models import AbstractSearchValue
 from baserow.contrib.database.table.models import Table
 from baserow.core.models import Workspace
 from baserow_enterprise.data_scanner.constants import (
@@ -35,6 +37,14 @@ from baserow_enterprise.data_scanner.tasks import run_data_scan
 from baserow_enterprise.features import DATA_SCANNER
 from baserow_premium.license.handler import LicenseHandler
 
+TOKEN_MAP = {
+    "A": "[A-Za-z]",
+    "D": "[0-9]",
+    "X": ".",
+}
+
+TOKEN_CHARS = {"A", "D", "X"}
+
 
 def convert_pattern_to_regex(pattern: str) -> str:
     """
@@ -44,17 +54,11 @@ def convert_pattern_to_regex(pattern: str) -> str:
     - `A` -> any letter `[A-Za-z]`
     - `D` -> any digit `[0-9]`
     - `X` -> any character `.`
-    - `\\c` -> literal character `c`
+    - ``\\c`` -> literal character ``c``
 
     :param pattern: The custom pattern string (e.g. `AADDAAAADDDDDDDDDD`).
     :return: A regex string equivalent.
     """
-
-    TOKEN_MAP = {
-        "A": "[A-Za-z]",
-        "D": "[0-9]",
-        "X": ".",
-    }
 
     parts: list[str] = []
     i = 0
@@ -71,6 +75,80 @@ def convert_pattern_to_regex(pattern: str) -> str:
             parts.append(re.escape(char))
             i += 1
     return "".join(parts)
+
+
+def _pattern_has_special_chars(pattern: str) -> bool:
+    """
+    Returns True if the pattern contains escaped literal characters that are not
+    alphanumeric (e.g. ``\\-``, ``\\.``). These characters are stripped during tsvector
+    tokenization so pattern matching against the search table requires a two-phase
+    approach.
+    """
+
+    i = 0
+    while i < len(pattern):
+        char = pattern[i]
+        if char == "\\" and i + 1 < len(pattern):
+            next_char = pattern[i + 1]
+            if not next_char.isalnum():
+                return True
+            i += 2
+        elif char in TOKEN_CHARS:
+            i += 1
+        else:
+            if not char.isalnum():
+                return True
+            i += 1
+    return False
+
+
+def _build_broad_token_regex(pattern: str) -> str:
+    """
+    Builds a broad regex that can match individual tsvector tokens. The pattern is
+    split on escaped special characters and unescaped non-alphanumeric literals, and
+    the longest resulting token-level regex fragment is returned. This is used as a
+    fast pre-filter on the search table before verifying against actual cell values.
+
+    For example ``DDDD\\-DD\\-DD`` yields token fragments ``[0-9]{4}``, ``[0-9]{2}``,
+    ``[0-9]{2}`` and returns the longest one: ``[0-9][0-9][0-9][0-9]``.
+    """
+
+    fragments: list[str] = []
+    current: list[str] = []
+    i = 0
+    while i < len(pattern):
+        char = pattern[i]
+        if char == "\\" and i + 1 < len(pattern):
+            next_char = pattern[i + 1]
+            if next_char.isalnum():
+                # Escaped alphanumeric literal – stays in the current token.
+                current.append(re.escape(next_char))
+            else:
+                # Escaped special char – token boundary.
+                if current:
+                    fragments.append("".join(current))
+                    current = []
+            i += 2
+        elif char in TOKEN_MAP:
+            current.append(TOKEN_MAP[char])
+            i += 1
+        else:
+            if char.isalnum():
+                current.append(re.escape(char))
+            else:
+                # Unescaped special char – token boundary.
+                if current:
+                    fragments.append("".join(current))
+                    current = []
+            i += 1
+
+    if current:
+        fragments.append("".join(current))
+
+    if not fragments:
+        return convert_pattern_to_regex(pattern)
+
+    return max(fragments, key=len)
 
 
 def _check_data_scanner_access(user: AbstractUser) -> None:
@@ -101,6 +179,7 @@ class DataScannerHandler:
         list_items: Optional[list[str]] = None,
         source_table_id: Optional[int] = None,
         source_field_id: Optional[int] = None,
+        whole_words: bool = True,
     ) -> DataScan:
         """
         Creates a new data scan configuration.
@@ -116,6 +195,7 @@ class DataScannerHandler:
         :param list_items: Values to match when scan_type is `list_of_values`.
         :param source_table_id: Source table ID when scan_type is `list_table`.
         :param source_field_id: Source field ID when scan_type is `list_table`.
+        :param whole_words: When True, only match whole words/tokens.
         :return: The newly created DataScan instance.
         """
 
@@ -127,6 +207,7 @@ class DataScannerHandler:
             pattern=pattern,
             frequency=frequency,
             scan_all_workspaces=scan_all_workspaces,
+            whole_words=whole_words,
             created_by=user,
             source_table_id=source_table_id
             if scan_type == SCAN_TYPE_LIST_TABLE
@@ -180,6 +261,7 @@ class DataScannerHandler:
             "scan_all_workspaces",
             "source_table_id",
             "source_field_id",
+            "whole_words",
         ]
         for field_name in simple_fields:
             if field_name in kwargs:
@@ -380,8 +462,26 @@ class DataScannerHandler:
 
             if scan.scan_type == SCAN_TYPE_PATTERN:
                 regex = convert_pattern_to_regex(scan.pattern)
-                pre_computed["regex"] = regex
-                pre_computed["compiled"] = re.compile(regex, re.IGNORECASE)
+                has_special = _pattern_has_special_chars(scan.pattern)
+                pre_computed["has_special_chars"] = has_special
+
+                if has_special:
+                    # The full regex cannot be matched against tsvector text because
+                    # tokenization strips special characters. Use a broad token-level
+                    # regex for the search table pre-filter and the full regex for
+                    # verification against actual cell values.
+                    broad_regex = _build_broad_token_regex(scan.pattern)
+                    pre_computed["broad_regex"] = broad_regex
+
+                if scan.whole_words:
+                    # PostgreSQL POSIX word boundaries
+                    pre_computed["pg_regex"] = r"\m" + regex + r"\M"
+                    pre_computed["compiled"] = re.compile(
+                        r"\b" + regex + r"\b", re.IGNORECASE
+                    )
+                else:
+                    pre_computed["pg_regex"] = regex
+                    pre_computed["compiled"] = re.compile(regex, re.IGNORECASE)
 
             elif scan.scan_type == SCAN_TYPE_LIST_OF_VALUES:
                 pre_computed["values"] = list(
@@ -433,38 +533,25 @@ class DataScannerHandler:
                     )
 
                     if scan.scan_type == SCAN_TYPE_PATTERN:
-                        matches = (
-                            search_model.objects.annotate(
-                                text_value=Cast("value", TextField())
-                            )
-                            .filter(text_value__iregex=pre_computed["regex"])
-                            .values_list("field_id", "row_id", "text_value")
+                        new_results_count += DataScannerHandler._run_pattern_scan(
+                            scan,
+                            search_model,
+                            pre_computed,
+                            now,
+                            trashed_field_ids,
                         )
-                        new_results_count += (
-                            DataScannerHandler._process_pattern_matches(
-                                scan,
-                                matches,
-                                pre_computed["compiled"],
-                                now,
-                                trashed_field_ids,
-                            )
-                        )
-                    elif scan.scan_type == SCAN_TYPE_LIST_OF_VALUES:
+                    elif scan.scan_type in (
+                        SCAN_TYPE_LIST_OF_VALUES,
+                        SCAN_TYPE_LIST_TABLE,
+                    ):
+                        exclude_table_id = pre_computed.get("exclude_table_id")
                         new_results_count += DataScannerHandler._run_list_scan(
                             scan,
                             search_model,
                             pre_computed["values"],
                             now,
                             trashed_field_ids,
-                        )
-                    elif scan.scan_type == SCAN_TYPE_LIST_TABLE:
-                        new_results_count += DataScannerHandler._run_list_scan(
-                            scan,
-                            search_model,
-                            pre_computed["values"],
-                            now,
-                            trashed_field_ids,
-                            exclude_table_id=pre_computed["exclude_table_id"],
+                            exclude_table_id=exclude_table_id,
                         )
 
             scan.results.filter(last_identified_on__lt=now).delete()
@@ -492,6 +579,55 @@ class DataScannerHandler:
             )
 
     @staticmethod
+    def _run_pattern_scan(
+        scan: DataScan,
+        search_model: "AbstractSearchValue",
+        pre_computed: dict,
+        now: datetime,
+        trashed_field_ids: set[int],
+    ) -> int:
+        """
+        Runs a pattern scan against the workspace search tables. The search table is
+        used as a fast pre-filter to find candidate rows, then actual cell values are
+        looked up via ``get_search_expression`` to verify matches.
+
+        For patterns with special characters (e.g. hyphens) a broad token-level regex
+        is used for the pre-filter because tsvector tokenization strips those
+        characters.
+
+        :param scan: The scan being executed.
+        :param search_model: The Django model for the workspace search table.
+        :param pre_computed: Dict with `pg_regex`, `compiled`, `has_special_chars`, and
+            optionally `broad_regex`.
+        :param now: The current timestamp used for result bookkeeping.
+        :param trashed_field_ids: Set of field IDs to exclude.
+        :return: The number of newly created results.
+        """
+
+        compiled_regex = pre_computed["compiled"]
+        has_special = pre_computed["has_special_chars"]
+        search_regex = (
+            pre_computed["broad_regex"] if has_special else pre_computed["pg_regex"]
+        )
+
+        candidates = list(
+            search_model.objects.annotate(text_value=Cast("value", TextField()))
+            .filter(text_value__iregex=search_regex)
+            .values_list("field_id", "row_id")
+        )
+
+        def match_fn(value: str) -> Optional[str]:
+            m = compiled_regex.search(value)
+            return m.group(0) if m else None
+
+        all_matches = DataScannerHandler._verify_candidates(
+            candidates, match_fn, trashed_field_ids
+        )
+        return DataScannerHandler._bulk_upsert_results(
+            scan, all_matches, now, trashed_field_ids
+        )
+
+    @staticmethod
     def _run_list_scan(
         scan: DataScan,
         search_model,
@@ -502,8 +638,8 @@ class DataScannerHandler:
     ) -> int:
         """
         Searches the workspace search table for rows matching any of the given
-        values using PostgreSQL full-text search. Processes values in batches
-        and bulk-upserts results.
+        values using PostgreSQL full-text search, then verifies matches against
+        actual cell values via ``get_search_expression``.
 
         :param scan: The scan being executed.
         :param search_model: The Django model for the workspace search table.
@@ -525,126 +661,173 @@ class DataScannerHandler:
                 )
             )
 
-        all_matches: list[tuple[int, int, str]] = []
+        # Collect candidate (field_id, row_id) pairs from the search table.
+        all_candidates: list[tuple[int, int]] = []
         batch_size = 100
         for i in range(0, len(values), batch_size):
             batch = values[i : i + batch_size]
 
-            # Build a list of (sanitized_query, original_value) pairs, skipping values
-            # that produce an empty sanitized string.
-            sanitized_pairs: list[tuple[str, str]] = []
+            sanitized_parts: list[str] = []
             for search_value in batch:
-                sanitized = SearchHandler.escape_postgres_query(search_value)
+                sanitized = DataScannerHandler._escape_list_value(
+                    search_value, whole_words=scan.whole_words
+                )
                 if sanitized:
-                    sanitized_pairs.append((sanitized, search_value))
+                    sanitized_parts.append(sanitized)
 
-            if not sanitized_pairs:
+            if not sanitized_parts:
                 continue
 
-            # Combine all sanitized values into a single OR tsquery so we
-            # execute one database query per batch instead of one per value.
-            # Each individual tsquery is wrapped in parentheses to preserve
-            # the phrase (<->) operator precedence within each value.
-            combined_raw = " | ".join(f"({s})" for s, _ in sanitized_pairs)
+            combined_raw = " | ".join(f"({s})" for s in sanitized_parts)
             combined_query = SearchQuery(
                 combined_raw,
                 search_type="raw",
                 config=SearchHandler.search_config(),
             )
-            matches = (
-                search_model.objects.filter(value=combined_query)
-                .annotate(text_value=Cast("value", TextField()))
-                .values_list("field_id", "row_id", "text_value")
-            )
-            for field_id, row_id, text_value in matches:
-                if field_id in excluded_field_ids:
-                    continue
-                matched_value = DataScannerHandler._find_list_match(
-                    text_value, sanitized_pairs
-                )
-                all_matches.append((field_id, row_id, matched_value))
+            for field_id, row_id in search_model.objects.filter(
+                value=combined_query
+            ).values_list("field_id", "row_id"):
+                if field_id not in excluded_field_ids:
+                    all_candidates.append((field_id, row_id))
 
+        # Build match function: find which list value matches the cell.
+        if scan.whole_words:
+            # Whole-word matching: the search value must appear as a complete word in
+            # the cell. We use regex word boundaries for this.
+            word_patterns = [
+                (v, re.compile(r"\b" + re.escape(v) + r"\b", re.IGNORECASE))
+                for v in values
+            ]
+
+            def match_fn(cell_value: str) -> Optional[str]:
+                for original, pattern in word_patterns:
+                    if pattern.search(cell_value):
+                        return original
+                return None
+        else:
+            values_pairs = [(v, v.lower()) for v in values]
+
+            def match_fn(cell_value: str) -> Optional[str]:
+                cell_lower = cell_value.lower()
+                for original, lower_v in values_pairs:
+                    if lower_v in cell_lower:
+                        return original
+                return None
+
+        all_matches = DataScannerHandler._verify_candidates(
+            all_candidates, match_fn, trashed_field_ids
+        )
         return DataScannerHandler._bulk_upsert_results(
             scan, all_matches, now, trashed_field_ids
         )
 
     @staticmethod
-    def _find_list_match(
-        tsvector_text: str,
-        sanitized_pairs: list[tuple[str, str]],
-    ) -> str:
-        """
-        Given a tsvector text representation and the list of (sanitized_query,
-        original_value) pairs used to build the combined OR query, determines which
-        original value matched. Extracts tokens from the tsvector and checks which
-        query's terms are all present.
-
-        :param tsvector_text: The text representation of a tsvector value.
-        :param sanitized_pairs: List of (sanitized_query, original_value).
-        :return: The original value that matched, or the first value as
-            fallback.
-        """
-
-        tokens = {m.group(1) for m in re.finditer(r"'([^']*)'", tsvector_text)}
-        for sanitized, original in sanitized_pairs:
-            # Extract bare terms from the sanitized tsquery, stripping dollar-quoting,
-            # positional operators, and wildcards.
-            terms = re.findall(r"\$\$([^$]+)\$\$", sanitized)
-            if terms and all(term.lower() in tokens for term in terms):
-                return original
-        return sanitized_pairs[0][1]
-
-    @staticmethod
-    def _extract_matching_token(tsvector_text: str, compiled_regex: re.Pattern) -> str:
-        """
-        Extracts the first matching token from a tsvector text representation.
-
-        A tsvector cast to text looks like `'nl23ingb0001234321':2 'test':1,3`.
-        Each token is a single-quoted string followed by `:` and position info.
-        We test each token against the compiled pattern regex and return the
-        first match. The token is already lowercased by PostgreSQL.
-
-        :param tsvector_text: The text representation of a tsvector value.
-        :param compiled_regex: A compiled regex to match tokens against.
-        :return: The first matching token, or the raw tsvector_text as fallback.
-        """
-
-        for m in re.finditer(r"'([^']*)'", tsvector_text):
-            token = m.group(1)
-            if compiled_regex.search(token):
-                return token
-        return tsvector_text
-
-    @staticmethod
-    def _process_pattern_matches(
-        scan: DataScan,
-        matches,
-        compiled_regex: re.Pattern,
-        now: datetime,
+    def _verify_candidates(
+        candidates: list[tuple[int, int]],
+        match_fn: Callable[[str], Optional[str]],
         trashed_field_ids: set[int],
-    ) -> int:
+    ) -> list[tuple[int, int, str]]:
         """
-        Processes raw pattern matches from the database and bulk-upserts results.
+        Given ``(field_id, row_id)`` candidate pairs from a search-table pre-filter,
+        looks up actual cell values using each field type's `get_search_expression` and
+        applies *match_fn* to determine true matches.
 
-        :param scan: The scan being executed.
-        :param matches: An iterable of (field_id, row_id, text_value) tuples.
-        :param compiled_regex: The compiled pattern regex.
-        :param now: The current timestamp used for result bookkeeping.
-        :param trashed_field_ids: Set of field IDs to exclude because the
-            field, table, or database is trashed.
-        :return: The number of newly created results.
+        :param candidates: List of (field_id, row_id) pairs.
+        :param match_fn: Receives a cell's string value and returns the
+            matched substring/value on success, or ``None`` to skip.
+        :param trashed_field_ids: Set of field IDs to exclude.
+        :return: List of (field_id, row_id, matched_value) triples.
         """
+
+        candidates = [
+            (fid, rid) for fid, rid in candidates if fid not in trashed_field_ids
+        ]
+        if not candidates:
+            return []
+
+        candidate_field_ids = {field_id for field_id, _ in candidates}
+        tables = Table.objects.filter(field__id__in=candidate_field_ids).distinct()
+
+        # Build a field_id → (table, row_ids) index by iterating tables and checking
+        # which candidate field_ids belong to each table's model.
+        candidate_map: dict[int, set[int]] = defaultdict(set)
+        for field_id, row_id in candidates:
+            candidate_map[field_id].add(row_id)
 
         all_matches: list[tuple[int, int, str]] = []
-        for field_id, row_id, text_value in matches:
-            matched = DataScannerHandler._extract_matching_token(
-                text_value, compiled_regex
-            )
-            all_matches.append((field_id, row_id, matched))
+        for table in tables:
+            model = table.get_model()
+            table_field_ids = candidate_field_ids & set(model._field_objects.keys())
+            if not table_field_ids:
+                continue
 
-        return DataScannerHandler._bulk_upsert_results(
-            scan, all_matches, now, trashed_field_ids
-        )
+            row_ids: set[int] = set()
+            candidate_set: set[tuple[int, int]] = set()
+            for field_id in table_field_ids:
+                for row_id in candidate_map[field_id]:
+                    row_ids.add(row_id)
+                    candidate_set.add((field_id, row_id))
+
+            qs = model.objects.filter(id__in=row_ids)
+
+            annotation_to_field_id: dict[str, int] = {}
+            annotations = {}
+            for field_id in table_field_ids:
+                field_object = model._field_objects.get(field_id)
+                if field_object is None:
+                    continue
+                field = field_object["field"]
+                field_type = field_object["type"]
+                annotation_name = f"_scan_f{field_id}"
+                # Adding the field specific `get_search_expression` as annotation gives
+                # us the full searchable string as text, which is exactly what we want
+                # to use for the verification of the match.
+                annotations[annotation_name] = field_type.get_search_expression(
+                    field, qs
+                )
+                annotation_to_field_id[annotation_name] = field_id
+
+            if not annotations:
+                continue
+
+            annotation_names = list(annotation_to_field_id.keys())
+            rows = qs.annotate(**annotations).values_list("id", *annotation_names)
+
+            for row_data in rows:
+                row_id = row_data[0]
+                for i, annotation_name in enumerate(annotation_names):
+                    field_id = annotation_to_field_id[annotation_name]
+                    if (field_id, row_id) not in candidate_set:
+                        continue
+                    value = row_data[i + 1]
+                    if value is None:
+                        continue
+                    matched = match_fn(str(value))
+                    if matched is not None:
+                        all_matches.append((field_id, row_id, matched))
+
+        return all_matches
+
+    @staticmethod
+    def _escape_list_value(value: str, whole_words: bool = True) -> str:
+        """
+        Escapes a search value for use in a PostgreSQL tsquery. When `whole_words` is
+        True the trailing `:*` prefix wildcard is omitted so that only exact token
+        matches are returned.
+
+        :param value: The raw search value.
+        :param whole_words: When True, do not add the `:*` wildcard.
+        :return: A sanitized tsquery fragment, or an empty string.
+        """
+
+        text = SearchHandler.escape_query(value)
+        if not text or not text.strip():
+            return ""
+        words = text.strip().split()
+        parts = " <-> ".join(f"$${w}$$" for w in words)
+        if not whole_words:
+            parts = f"{parts}:*"
+        return parts
 
     @staticmethod
     def _bulk_upsert_results(

@@ -1253,10 +1253,34 @@ class FieldType(
 
         setattr(row, field_name, value)
 
+    def export_serialized_default_value(
+        self,
+        value: Any,
+        field: "Field",
+        workspace_id: int,
+        cache: Dict,
+    ) -> Any:
+        """
+        Hook that is called when exporting a ViewDefaultValue.value during a
+        serialized export. Can be used to convert internal IDs to portable
+        representations (e.g. user IDs to email addresses).
+
+        :param value: The raw JSON default value to export.
+        :param field: The field instance the default value belongs to.
+        :param workspace_id: The ID of the workspace being exported.
+        :param cache: A cache dict shared across the export to avoid repeated
+            queries.
+        :return: The portable representation of the value.
+        """
+
+        return value
+
     def import_serialized_default_value(
         self,
         value: Any,
         id_mapping: Dict[str, Any],
+        workspace_id: int,
+        cache: Dict,
     ) -> Any:
         """
         Hook that is called just before the ViewDefaultValue.value is set when doing a
@@ -1265,6 +1289,9 @@ class FieldType(
 
         :param value: The raw JSON default value to remap.
         :param id_mapping: The map of exported ids to newly created ids.
+        :param workspace_id: The ID of the workspace being imported into.
+        :param cache: A cache dict shared across the import to avoid repeated
+            queries.
         :return: The value with remapped IDs.
         """
 

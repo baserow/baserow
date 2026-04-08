@@ -26,6 +26,7 @@ from baserow.core.utils import (
     get_baserow_saas_base_url,
     get_value_at_path,
     grouper,
+    is_hostname_safe,
     random_string,
     remove_duplicates,
     remove_invalid_surrogate_characters,
@@ -683,6 +684,32 @@ def test_remove_duplicates():
 
 def test_get_all_ips():
     assert get_all_ips("localhost") == {"127.0.0.1", "::1"}
+    assert get_all_ips("0.0.0.0") == {"0.0.0.0"}  # noqa: S104
+    assert get_all_ips("::") == {"::"}
+
+
+def test_is_hostname_safe():
+    # Public address (should be safe)
+    assert is_hostname_safe("12.33.56.1") is True
+
+    # Wildcard addresses are not considered safe
+    assert is_hostname_safe("0.0.0.0") is False  # noqa: S104 IPv4 wildcard
+    assert is_hostname_safe("::") is False  # IPv6 wildcard
+
+    # Loopback addresse sare not considered safe
+    assert is_hostname_safe("127.0.0.1") is False  # IPv4 loopback
+    assert is_hostname_safe("::1") is False  # IPv6 loopback
+
+    # Link-local addresses are not considered safe
+    assert is_hostname_safe("169.254.1.1") is False  # IPv4 link-local
+    assert is_hostname_safe("fe80::1") is False  # IPv6 link-local
+
+    # Multicast addresses are not considered safe
+    assert is_hostname_safe("224.0.0.1") is False  # IPv4 multicast
+    assert is_hostname_safe("ff02::1") is False  # IPv6 multicast
+
+    # Reserved addresses are not considered safe
+    assert is_hostname_safe("240.0.0.1") is False  # IPv4 reserved
 
 
 def test_are_hostnames_same():

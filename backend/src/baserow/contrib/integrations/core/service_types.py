@@ -724,8 +724,6 @@ class CoreSMTPEmailServiceType(CoreServiceType):
     def _instance_smtp_is_available(self) -> bool:
         return bool(
             settings.INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS
-            and getattr(settings, "CELERY_EMAIL_BACKEND", None)
-            == "django.core.mail.backends.smtp.EmailBackend"
             and getattr(settings, "EMAIL_HOST", "")
         )
 
@@ -855,7 +853,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 else resolved_values["from_email"]
             )
             connection = get_connection(
-                backend=settings.CELERY_EMAIL_BACKEND,
+                backend="django.core.mail.backends.smtp.EmailBackend",
                 host=smtp_integration.host,
                 port=smtp_integration.port,
                 username=smtp_integration.username,
