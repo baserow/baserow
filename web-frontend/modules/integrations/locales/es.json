@@ -201,14 +201,15 @@
         "supportHeading": "¿Necesitas ayuda?",
         "supportDescription": "Si necesitas cualquier asistencia para conectar tu aplicación Slack, por favor consulta los pasos a continuación.",
         "supportSetupHeading": "1. Configuración de la aplicación",
-        "supportSetupStep1": "Navega a la &lt;a href=\"https://api.slack.com/apps\" target=\"_blank\"&gt;página de aplicaciones&lt;/a&gt; de tu espacio de trabajo.",
+        "supportSetupStep1": "Navega a {link} de tu espacio de trabajo.",
         "supportSetupStep2": "Crea una nueva aplicación, elige «Desde cero» e ingresa un nombre. Selecciona el espacio de trabajo en el que tu aplicación debe operar y haz clic en «Crear».",
-        "supportSetupStep3": "En la barra lateral izquierda, navega a «OAuth &amp; Permisos», desplázate hacia abajo hasta «Permisos» y, bajo «Permisos del token de bot», selecciona «Añadir un permiso OAuth».",
-        "supportSetupStep4": "Para permitir que tu aplicación publique mensajes, añade el alcance &lt;pre&gt;chat:write&lt;/pre&gt;.",
+        "supportSetupStep3": "En la barra lateral izquierda, navega a «OAuth > Permisos», desplázate hacia abajo hasta «Permisos» y, bajo «Permisos del token de bot», selecciona «Añadir un permiso OAuth».",
+        "supportSetupStep4": "Para permitir que tu aplicación publique mensajes, añade el alcance {scope}.",
         "supportPairingHeading": "2. Conexión de tu aplicación Slack",
-        "supportPairingStep1": "Si tu aplicación es nueva: navega a «Configuración» &gt; «Instalar aplicación». Haz clic en el botón verde para instalar la aplicación en tu espacio de trabajo.",
+        "supportPairingStep1": "Si tu aplicación es nueva: navega a «Configuración» > «Instalar aplicación». Haz clic en el botón verde para instalar la aplicación en tu espacio de trabajo.",
         "supportPairingStep2": "Copia tu «Token OAuth de usuario bot» y almacénalo en el campo «Token de usuario bot» de este formulario.",
-        "supportPairingStep3": "Finalmente, si tu aplicación es nueva: en Slack, invita tu aplicación al canal que hayas elegido con &lt;pre&gt;/invite {'@'}nombreDeTuApp nombreDeTuCanal&lt;/pre&gt;"
+        "supportPairingStep3": "Finalmente, si tu aplicación es nueva: en Slack, invita tu aplicación al canal que hayas elegido con",
+        "supportSetupStep1Link": "página de aplicaciones"
     },
     "coreHTTPRequestServiceForm": {
         "httpMethod": "Método HTTP",
@@ -274,7 +275,9 @@
         "bodyTypePlain": "Texto plano",
         "bodyTypeHtml": "HTML",
         "body": "Contenido",
-        "bodyPlaceholder": "Tu contenido de correo…"
+        "bodyPlaceholder": "Tu contenido de correo…",
+        "smtpConfigurationMode": "Configuración SMTP",
+        "useInstanceSmtpSettings": "Usa el servidor SMTP de la instancia"
     },
     "routerForm": {
         "defaultEdgeLabelLabel": "Etiqueta de rama predeterminada",
@@ -324,7 +327,7 @@
     "localBaserowUpsertRowServiceForm": {
         "noTableSelectedMessage": "Elige una tabla para comenzar a configurar tus campos.",
         "noWritableFields": "Esta tabla no contiene campos editables.",
-        "fieldMappingPlaceholderArray": "Elige un valor de `array`, por ejemplo: [42]",
+        "fieldMappingPlaceholderArray": "Elige un valor de `array` o matriz, por ejemplo: [42]",
         "fieldMappingPlaceholderString": "Elige un valor de cadena, por ejemplo: \\'baserow\\'",
         "fieldMappingPlaceholderNumber": "Elige un valor numérico, por ejemplo: 42",
         "fieldMappingPlaceholderBoolean": "Elige un valor booleano, por ejemplo: «verdadero»",
