@@ -4,5 +4,8 @@
     },
     "dashboardHeader": {
         "doneEditing": "Fatto la modifica"
+    },
+    "emptyDashboard": {
+        "title": "Questa dashboard non ha nessun widget"
     }
 }
