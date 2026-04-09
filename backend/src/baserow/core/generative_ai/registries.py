@@ -36,7 +36,7 @@ class FileHandler:
     _MAX_EMBEDS_PER_REQUEST = 500
     _INLINE_UPLOAD_THRESHOLD_BYTES = 10 * 1024  # 10 KB
 
-    def _can_embed(
+    def _has_embed_budget(
         self, file_size: int, embed_count: int, embed_payload_size: int
     ) -> bool:
         """
@@ -71,7 +71,7 @@ class FileHandler:
         return (
             ext in self._INLINEABLE_EXTENSIONS
             and size <= self._INLINE_UPLOAD_THRESHOLD_BYTES
-            and self._can_embed(size, embed_count, embed_payload_size)
+            and self._has_embed_budget(size, embed_count, embed_payload_size)
         )
 
     def _can_embed_file(
@@ -88,7 +88,7 @@ class FileHandler:
             has room.
         """
 
-        return ext in self._EMBEDDABLE_EXTENSIONS and self._can_embed(
+        return ext in self._EMBEDDABLE_EXTENSIONS and self._has_embed_budget(
             size, embed_count, embed_payload_size
         )
 
@@ -150,8 +150,8 @@ class FileHandler:
         settings_override: Optional[dict[str, Any]] = None,
     ) -> None:
         """
-        Upload a file via the provider API. Override in subclasses that
-        support file uploads. Sets ``ai_file.content`` and
+        Upload a file via the provider API. Must be overridden by subclasses
+        that declare ``_UPLOADABLE_EXTENSIONS``. Sets ``ai_file.content`` and
         ``ai_file.provider_file_id`` on success.
 
         :param ai_file: The file to upload.
@@ -159,7 +159,10 @@ class FileHandler:
         :param settings_override: Optional provider settings override.
         """
 
-        pass
+        raise NotImplementedError(
+            f"{type(self).__name__} declares _UPLOADABLE_EXTENSIONS but does "
+            f"not implement _upload()"
+        )
 
     def prepare_files(
         self,
@@ -216,15 +219,18 @@ class FileHandler:
         settings_override: Optional[dict[str, Any]] = None,
     ) -> None:
         """
-        Delete a single uploaded file from the provider. Override in
-        subclasses that upload files.
+        Delete a single uploaded file from the provider. Must be overridden
+        by subclasses that upload files (i.e. that set ``provider_file_id``
+        during ``_upload``).
 
         :param ai_file: The file to delete.
         :param workspace: The workspace for settings resolution.
         :param settings_override: Optional provider settings override.
         """
 
-        pass
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement delete_file()"
+        )
 
     def cleanup_files(
         self,
@@ -288,7 +294,10 @@ class GenerativeAIModelType(Instance):
         """
 
         if self.file_handler is None:
-            return []
+            raise NotImplementedError(
+                f"{type(self).__name__} does not support files. "
+                f"Check supports_files before calling prepare_files()."
+            )
         return self.file_handler.prepare_files(files, workspace, settings_override)
 
     def cleanup_files(
@@ -307,8 +316,12 @@ class GenerativeAIModelType(Instance):
         :param settings_override: Optional provider settings override.
         """
 
-        if self.file_handler is not None:
-            self.file_handler.cleanup_files(files, workspace, settings_override)
+        if self.file_handler is None:
+            raise NotImplementedError(
+                f"{type(self).__name__} does not support files. "
+                f"Check supports_files before calling cleanup_files()."
+            )
+        self.file_handler.cleanup_files(files, workspace, settings_override)
 
     def get_workspace_setting(
         self,

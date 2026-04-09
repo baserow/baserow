@@ -143,8 +143,8 @@ class AIFieldHandler:
         # 3. Prepare files, call AI, cleanup
         ai_files: list[AIFile] = []
         use_files = (
-            ai_field.ai_file_field_id is not None
-            and generative_ai_model_type.supports_files
+            generative_ai_model_type.supports_files
+            and ai_field.ai_file_field_id is not None
         )
         try:
             if use_files:
