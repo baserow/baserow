@@ -180,10 +180,11 @@ class FieldRuleHandler:
         self, rule_type_name: str, in_data: dict, primary_key_value: int | None = None
     ) -> FieldRule:
         """
-        Creates a rule of a given type after checking permissions.
+        Creates a rule of a given type after checking rule-type preconditions.
 
         Delegates to `can_create_rule` on the rule type (which may raise if
-        the required license is missing) and then to `force_create_rule`.
+        the required feature or license is unavailable) and then to
+        `force_create_rule`.
 
         :param rule_type_name: registered rule type name.
         :param in_data: a dictionary with all rule params.

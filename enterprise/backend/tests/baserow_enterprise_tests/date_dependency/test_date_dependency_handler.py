@@ -108,10 +108,10 @@ def test_date_dependency_import_rule_without_license(data_fixture):
         "end_date_field_id": end_date_field.id,
         "duration_field_id": duration_field.id,
         "dependency_linkrow_field_id": None,
-        "dependency_type": "predecessors",
-        "dependency_link_type": "end-to-start",
+        "dependency_linkrow_role": "predecessors",
+        "dependency_connection_type": "end-to-start",
         "dependency_buffer_type": "fixed",
-        "dependency_buffer": 0.0,
+        "dependency_buffer": 0,
     }
     id_mapping = {
         f.id: f.id for f in [start_date_field, end_date_field, duration_field]
