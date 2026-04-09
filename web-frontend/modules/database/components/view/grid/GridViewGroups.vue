@@ -1,4 +1,9 @@
 <template>
+  <!--
+    `rowsTop - rowsStartIndex * rowHeight` anchors the groups layer at the
+    buffer start using the same offset pattern as GridViewRows.translateY.
+    Collapses to `bufferStartIndex * rowHeight` when uncapped.
+  -->
   <div
     class="grid-view__groups"
     :style="{
@@ -69,11 +74,6 @@ export default {
     rowsStartIndex() {
       return this.$store.getters[
         `${this.storePrefix}view/grid/getRowsStartIndex`
-      ]
-    },
-    bufferStartIndex() {
-      return this.$store.getters[
-        `${this.storePrefix}view/grid/getBufferStartIndex`
       ]
     },
     activeGroupBys() {

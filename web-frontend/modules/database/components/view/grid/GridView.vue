@@ -1,7 +1,7 @@
 <template>
   <div
     ref="gridView"
-    v-scroll="scroll"
+    v-scroll="wheelScroll"
     class="grid-view"
     :class="[
       {
@@ -453,6 +453,12 @@ import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 import GridViewFieldDragging from '@baserow/modules/database/components/view/grid/GridViewFieldDragging'
 import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid/GridViewFreezeHandle'
 import GridViewRowDragging from '@baserow/modules/database/components/view/grid/GridViewRowDragging'
+import {
+  MAX_SAFE_SCROLL_HEIGHT,
+  mapScrollPosition,
+  virtualToRealScrollTop,
+  compensateScrollTop,
+} from '@baserow/modules/database/utils/virtualScrolling'
 import RowEditModal from '@baserow/modules/database/components/row/RowEditModal'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import {
@@ -473,11 +479,6 @@ import {
   GRID_VIEW_MULTI_SELECT_CHECKBOX,
   GRID_VIEW_MULTI_SELECT_AREA,
 } from '@baserow/modules/database/constants'
-import {
-  MAX_SAFE_SCROLL_HEIGHT,
-  realToVirtualScrollTop,
-  virtualToRealScrollTop,
-} from '@baserow/modules/database/utils/gridScrollMapping'
 
 export default {
   name: 'GridView',
@@ -532,9 +533,8 @@ export default {
       // submitting multiple refresh requests at the same time.
       refreshingRow: false,
       resizeObserver: null,
-      // Stores the exact (non-rounded) virtual scroll position so that
-      // scroll compensation during resize doesn't accumulate rounding
-      // errors from integer DOM scrollTop values.
+      // Exact float virtual scroll position; used by compensation math so
+      // it doesn't accumulate rounding drift from integer DOM scrollTop.
       lastVirtualScrollTop: null,
     }
   },
@@ -663,6 +663,39 @@ export default {
     },
   },
   watch: {
+    rowCount(newCount, oldCount) {
+      // In capped mode a count change shifts the scale factor; without
+      // compensation the visible rows jump at the next scrollTop mapping.
+      if (newCount === oldCount) return
+      if (this.lastVirtualScrollTop === null) return
+
+      const storePrefix = this.storePrefix + 'view/grid/'
+      const rowHeight = this.$store.getters[storePrefix + 'getRowHeight']
+      const windowHeight = this.$store.getters[storePrefix + 'getWindowHeight']
+      const oldVirtualHeight = oldCount * rowHeight
+      const newVirtualHeight = newCount * rowHeight
+      const wasCapped = oldVirtualHeight > MAX_SAFE_SCROLL_HEIGHT
+      const isCapped = newVirtualHeight > MAX_SAFE_SCROLL_HEIGHT
+
+      if (!wasCapped && !isCapped) return
+
+      let newScrollTop
+      if (!isCapped) {
+        // Capped → uncapped: under the new 1:1 mapping, lastVirtualScrollTop
+        // is the real scrollTop we want. Clamp to the new range.
+        const maxReal = Math.max(0, newVirtualHeight - windowHeight)
+        newScrollTop = Math.min(this.lastVirtualScrollTop, maxReal)
+      } else {
+        newScrollTop = compensateScrollTop(
+          this.lastVirtualScrollTop,
+          newVirtualHeight,
+          windowHeight
+        )
+      }
+
+      this.commitCompensatedScrollTop(newScrollTop)
+      this.$store.dispatch(storePrefix + 'visibleByScrollTop')
+    },
     fieldOptions: {
       deep: true,
       handler() {
@@ -712,37 +745,6 @@ export default {
           })
         }
       },
-    },
-    rowCount(newCount, oldCount) {
-      if (newCount === oldCount) return
-      const storePrefix = this.storePrefix + 'view/grid/'
-      const rowHeight = this.$store.getters[storePrefix + 'getRowHeight']
-      const windowHeight = this.$store.getters[storePrefix + 'getWindowHeight']
-      const newVirtualHeight = newCount * rowHeight
-      // Only compensate when the scale factor is active (virtual height
-      // exceeds the browser-safe cap). Below the cap the mapping is 1:1
-      // and no compensation is needed.
-      if (
-        newVirtualHeight <= MAX_SAFE_SCROLL_HEIGHT ||
-        this.lastVirtualScrollTop === null
-      ) {
-        return
-      }
-
-      const newPlaceholder = Math.min(newVirtualHeight, MAX_SAFE_SCROLL_HEIGHT)
-      const newScrollTop = virtualToRealScrollTop(
-        this.lastVirtualScrollTop,
-        newPlaceholder,
-        newVirtualHeight,
-        windowHeight
-      )
-      // Update DOM and state synchronously so that any subsequent
-      // visibleByScrollTop call (e.g. from a fetch triggered by the
-      // same row-count change) uses the compensated value.
-      this.$refs.left.$refs.body.scrollTop = newScrollTop
-      this.$refs.right.$refs.body.scrollTop = newScrollTop
-      this.$store.commit(storePrefix + 'SET_SCROLL_TOP', newScrollTop)
-      this.$store.dispatch(storePrefix + 'visibleByScrollTop')
     },
     'view.row_height_size'(value, oldValue) {
       if (value === oldValue) {
@@ -808,43 +810,113 @@ export default {
     )
   },
   methods: {
+    onFrozenCountDragChange() {
+      // During drag we don't persist anything — the freeze handle component
+      // handles the optimistic save on mouseup.
+    },
+    getCrossSectionScrollElement() {
+      return this.$refs.gridView
+    },
+    getCrossSectionScrollableElement() {
+      return this.$refs.right.$el
+    },
+    startCrossSectionFieldDrag(field, event) {
+      if (this.$refs.crossSectionFieldDragging && !field.primary) {
+        this.$refs.crossSectionFieldDragging.start(field, event)
+      }
+    },
     /**
-     * Scrolls the horizontal viewport so a cell element is visible.
-     * Vertical scrolling is handled by scrollToRowIndex() which uses
-     * virtual-coordinate mapping (required for the scroll scale factor
-     * with large tables).
+     * Method to scroll viewport to a DOM element
+     * Scroll direction can be limited to only one axis (both, vertical, horizontal)
      */
-    scrollCellHorizontallyIntoView(element, field) {
+    scrollToCellElement(element, scrollDirection = 'both', field) {
+      const verticalContainer = this.$refs.right.$refs.body
       const horizontalContainer = this.$refs.right.$el
+      const verticalContainerRect = verticalContainer.getBoundingClientRect()
       const horizontalContainerRect =
         horizontalContainer.getBoundingClientRect()
       const elementRect = element.getBoundingClientRect()
+      const elementTop = elementRect.top - verticalContainerRect.top
+      const elementBottom = elementRect.bottom - verticalContainerRect.top
       const elementLeft = elementRect.left - horizontalContainerRect.left
       const elementRight = elementRect.right - horizontalContainerRect.left
-      this.scrollHorizontallyIntoView({ elementLeft, elementRight, field })
+      this.scrollToElementRect(
+        { elementTop, elementBottom, elementLeft, elementRight },
+        scrollDirection,
+        field
+      )
     },
     /**
-     * Scrolls the horizontal container so that the element defined by
-     * elementLeft/elementRight is visible, with 20px padding.
+     * Method to scroll viewport to a DOM element defined by its rectangle
+     * Scroll direction can be limited to only one axis (both, vertical, horizontal)
      */
-    scrollHorizontallyIntoView({ elementLeft, elementRight, field }) {
+    scrollToElementRect(
+      { elementTop, elementBottom, elementLeft, elementRight },
+      scrollDirection = 'both',
+      field
+    ) {
+      const verticalContainer = this.$refs.right.$refs.body
       const horizontalContainer = this.$refs.right.$el
+      const verticalContainerHeight = verticalContainer.clientHeight
       const horizontalContainerWidth = horizontalContainer.clientWidth
-      const fieldPrimary = field.primary
-      if (elementLeft < 0 && (!this.hasFrozenColumns || !fieldPrimary)) {
-        this.horizontalScroll(elementLeft + horizontalContainer.scrollLeft - 20)
-        this.$refs.scrollbars.updateHorizontal()
-      } else if (
-        elementRight > horizontalContainerWidth &&
-        (!this.hasFrozenColumns || !fieldPrimary)
-      ) {
-        this.horizontalScroll(
-          elementRight +
-            horizontalContainer.scrollLeft -
-            horizontalContainerWidth +
-            20
+
+      if (scrollDirection !== 'horizontal') {
+        // Compute the target in virtual space and inverse-map back: in
+        // capped mode a real-px delta over/undershoots by maxVirtual/maxReal.
+        const storePrefix = this.storePrefix + 'view/grid/'
+        const placeholderHeight =
+          this.$store.getters[storePrefix + 'getPlaceholderHeight']
+        const count = this.$store.getters[storePrefix + 'getCount']
+        const rowHeight = this.$store.getters[storePrefix + 'getRowHeight']
+        const virtualHeight = count * rowHeight
+        const { virtualScrollTop } = mapScrollPosition(
+          verticalContainer.scrollTop,
+          placeholderHeight,
+          virtualHeight,
+          verticalContainerHeight
         )
-        this.$refs.scrollbars.updateHorizontal()
+        let targetVirtual = null
+        if (elementTop < 0) {
+          targetVirtual = virtualScrollTop + elementTop - 20
+        } else if (elementBottom > verticalContainerHeight) {
+          targetVirtual =
+            virtualScrollTop + elementBottom - verticalContainerHeight + 20
+        }
+        if (targetVirtual !== null) {
+          const targetReal = virtualToRealScrollTop(
+            targetVirtual,
+            placeholderHeight,
+            virtualHeight,
+            verticalContainerHeight
+          )
+          this.verticalScroll(targetReal)
+          this.$refs.scrollbars.updateVertical()
+        }
+      }
+
+      if (scrollDirection !== 'vertical') {
+        const fieldPrimary = field.primary
+        if (elementLeft < 0 && (!this.hasFrozenColumns || !fieldPrimary)) {
+          // If the field isn't visible in the viewport we need to scroll left in order
+          // to show it.
+          this.horizontalScroll(
+            elementLeft + horizontalContainer.scrollLeft - 20
+          )
+          this.$refs.scrollbars.updateHorizontal()
+        } else if (
+          elementRight > horizontalContainerWidth &&
+          (!this.hasFrozenColumns || !fieldPrimary)
+        ) {
+          // If the field isn't visible in the viewport we need to scroll right in order
+          // to show it.
+          this.horizontalScroll(
+            elementRight +
+              horizontalContainer.scrollLeft -
+              horizontalContainer.clientWidth +
+              20
+          )
+          this.$refs.scrollbars.updateHorizontal()
+        }
       }
     },
     duplicateSelectedRow(event, selectedRow) {
@@ -999,7 +1071,10 @@ export default {
       return this.$refs.right.$refs.body
     },
     /**
-     * Called when a user scrolls without using the scrollbar.
+     * Real-pixel delta scroll. Auto-scroll (v-auto-scroll, row/field
+     * dragging) calls this directly; wheel input uses `wheelScroll` to
+     * apply capped-mode scaling. Small 1–6 px/tick auto-scroll speeds
+     * would otherwise compress to sub-pixel values in capped mode.
      */
     scroll(pixelY, pixelX) {
       const $rightBody = this.$refs.right.$refs.body
@@ -1014,75 +1089,43 @@ export default {
       this.$refs.scrollbars.update()
     },
     /**
-     * Scrolls the viewport so that the given absolute row index is visible,
-     * using virtual-coordinate mapping that works correctly with the scroll
-     * scale factor for large tables. This must be used instead of DOM-based
-     * scrolling (getBoundingClientRect) for vertical scrolling because
-     * visibleByScrollTop repositions the row container after each scroll,
-     * making DOM coordinates stale.
+     * v-scroll handler (wheel / trackpad / touch). Deltas are "virtual-
+     * intent" — the user thinks in rows, not real px — so scale down by
+     * maxReal/maxVirtual in capped mode to keep rows-per-tick constant.
      */
-    scrollToRowIndex(rowIndex) {
+    wheelScroll(pixelY, pixelX) {
+      let scaledPixelY = pixelY
       const storePrefix = this.storePrefix + 'view/grid/'
-      const rowHeight = this.$store.getters[storePrefix + 'getRowHeight']
-      const placeholderHeight =
-        this.$store.getters[storePrefix + 'getPlaceholderHeight']
-      const windowHeight = this.$store.getters[storePrefix + 'getWindowHeight']
       const count = this.$store.getters[storePrefix + 'getCount']
-      const verticalContainer = this.$refs.right.$refs.body
-      const currentScrollTop = verticalContainer.scrollTop
-      const virtualHeight = count * rowHeight
-      const virtualScrollTop = realToVirtualScrollTop(
-        currentScrollTop,
-        placeholderHeight,
-        virtualHeight,
-        windowHeight
-      )
-      const elementTop = rowIndex * rowHeight - virtualScrollTop
-      const elementBottom = elementTop + rowHeight
-      const verticalContainerHeight = verticalContainer.clientHeight
-      // Use rowHeight as padding so the cell has a full row of breathing room
-      // from the viewport edge after scrolling. This prevents partially-visible
-      // cells from breaking navigation on the next key press.
-      const scrollPadding = rowHeight
-
-      if (elementTop < scrollPadding) {
-        const targetVirtual = Math.max(0, rowIndex * rowHeight - scrollPadding)
-        const targetReal = virtualToRealScrollTop(
-          targetVirtual,
-          placeholderHeight,
-          virtualHeight,
-          windowHeight
+      const rowHeight = this.$store.getters[storePrefix + 'getRowHeight']
+      if (count * rowHeight > MAX_SAFE_SCROLL_HEIGHT) {
+        const $rightBody = this.$refs.right.$refs.body
+        const { maxRealScroll, maxVirtualScroll } = mapScrollPosition(
+          $rightBody.scrollTop,
+          this.$store.getters[storePrefix + 'getPlaceholderHeight'],
+          count * rowHeight,
+          $rightBody.clientHeight
         )
-        this.verticalScroll(targetReal)
-        this.$refs.scrollbars.updateVertical()
-      } else if (elementBottom > verticalContainerHeight - scrollPadding) {
-        let targetReal
-        if (rowIndex >= count - 1) {
-          // For the last row, scroll to the DOM maximum so the add-row
-          // element and its bottom padding are fully visible — matching
-          // what manual scrolling shows.
-          targetReal = verticalContainer.scrollHeight - verticalContainerHeight
-        } else {
-          const targetVirtual =
-            rowIndex * rowHeight +
-            rowHeight -
-            verticalContainerHeight +
-            scrollPadding
-          targetReal = virtualToRealScrollTop(
-            targetVirtual,
-            placeholderHeight,
-            virtualHeight,
-            windowHeight
-          )
-        }
-        // Only scroll forward. If the user has already scrolled past this
-        // point (e.g. manually scrolled to the bottom), don't snap back —
-        // the row is already visible.
-        if (targetReal > currentScrollTop) {
-          this.verticalScroll(targetReal)
-          this.$refs.scrollbars.updateVertical()
+        if (maxVirtualScroll > 0) {
+          scaledPixelY = pixelY * (maxRealScroll / maxVirtualScroll)
         }
       }
+      this.scroll(scaledPixelY, pixelX)
+    },
+    /**
+     * Writes a compensated scrollTop to DOM + store and nudges the custom
+     * scrollbar thumb. The RAF-cancel ordering is load-bearing: a stale
+     * frame would overwrite `rowsTop` one paint later. Callers dispatch
+     * `visibleByScrollTop` themselves (or rely on `setWindowHeight`).
+     */
+    commitCompensatedScrollTop(newScrollTop) {
+      const storePrefix = this.storePrefix + 'view/grid/'
+      this.$store.dispatch(storePrefix + 'cancelPendingVisibleScrollTop')
+      this.$refs.left.$refs.body.scrollTop = newScrollTop
+      this.$refs.right.$refs.body.scrollTop = newScrollTop
+      this.$store.commit(storePrefix + 'SET_SCROLL_TOP', newScrollTop)
+      // Scrollbars don't listen to native scroll events.
+      this.$refs.scrollbars?.updateVertical()
     },
     /**
      * Called when the user scrolls vertically. The scroll offset of both the left and
@@ -1094,21 +1137,19 @@ export default {
       this.$refs.right.$refs.body.scrollTop = top
 
       const scrollTop = this.$refs.left.$refs.body.scrollTop
-      // Track exact virtual scroll position for scroll compensation
-      // during resize, avoiding rounding drift from integer DOM scrollTop.
       const storePrefix = this.storePrefix + 'view/grid/'
       const placeholderHeight =
         this.$store.getters[storePrefix + 'getPlaceholderHeight']
       const count = this.$store.getters[storePrefix + 'getCount']
       const rowHeight = this.$store.getters[storePrefix + 'getRowHeight']
       const windowHeight = this.$store.getters[storePrefix + 'getWindowHeight']
-      const virtualHeight = count * rowHeight
-      this.lastVirtualScrollTop = realToVirtualScrollTop(
+      const { virtualScrollTop } = mapScrollPosition(
         scrollTop,
         placeholderHeight,
-        virtualHeight,
+        count * rowHeight,
         windowHeight
       )
+      this.lastVirtualScrollTop = virtualScrollTop
 
       this.$store.dispatch(
         this.storePrefix + 'view/grid/fetchByScrollTopDelayed',
@@ -1342,20 +1383,8 @@ export default {
         this.selectedCellComponents.push(component)
       }
 
-      // Use virtual-coordinate scrolling for vertical axis. DOM-based
-      // coordinates (getBoundingClientRect) become stale after
-      // visibleByScrollTop repositions the row container, causing incorrect
-      // scroll offsets for large tables with a scroll scale factor.
-      const rowIndex = this.$store.getters[
-        this.storePrefix + 'view/grid/getRowIndexById'
-      ](row.id)
-      if (rowIndex !== -1) {
-        this.scrollToRowIndex(rowIndex)
-      }
-
-      // Use DOM-based scrolling for horizontal axis (no scale factor needed).
       const element = component.$el
-      this.scrollCellHorizontallyIntoView(element, field)
+      this.scrollToCellElement(element, 'both', field)
       this.$store.dispatch(this.storePrefix + 'view/grid/addRowSelectedBy', {
         row,
         field,
@@ -1457,21 +1486,6 @@ export default {
 
       if (nextFieldId === -1 || nextRowId === -1) {
         return
-      }
-
-      // For vertical navigation, scroll to the target row BEFORE selecting it.
-      // This ensures visibleByScrollTop updates the rendered row set so the
-      // target cell component exists in the DOM when setSelectedCell fires.
-      // Without this, the @selected event may never fire if the target row is
-      // outside the current rendered slice.
-      if (direction === 'below' || direction === 'above') {
-        const nextRowIndex =
-          this.$store.getters[this.storePrefix + 'view/grid/getRowIndexById'](
-            nextRowId
-          )
-        if (nextRowIndex !== -1) {
-          this.scrollToRowIndex(nextRowIndex)
-        }
       }
 
       this.$store.dispatch(
@@ -1654,6 +1668,7 @@ export default {
           return
         }
         const field = this.$store.getters['field/get'](fieldId)
+        const verticalContainer = this.$refs.right.$refs.body
         const horizontalContainer = this.$refs.right.$el
         const visibleFieldOptions = this.$store.getters[
           this.storePrefix + 'view/grid/getOrderedVisibleFieldOptions'
@@ -1677,18 +1692,59 @@ export default {
             break
           }
         }
+        const rowHeight =
+          this.$store.getters[this.storePrefix + 'view/grid/getRowHeight']
         const elementLeft = elementRight - this.getFieldWidth(field)
 
-        // Handle vertical scrolling using virtual-coordinate mapping.
+        // Compute the vertical target in virtual space and inverse-map.
+        // Rows sit at `rowIndex*rowHeight - virtualScrollTop`, so a
+        // screen-relative real-px form (like the horizontal branch below
+        // uses) gives the wrong target once the placeholder is capped.
         if (scrollDirection !== 'horizontal') {
-          this.scrollToRowIndex(rowIndex)
+          const placeholderHeight =
+            this.$store.getters[
+              this.storePrefix + 'view/grid/getPlaceholderHeight'
+            ]
+          const count =
+            this.$store.getters[this.storePrefix + 'view/grid/getCount']
+          const viewportHeight = verticalContainer.clientHeight
+          const { virtualScrollTop, maxRealScroll, maxVirtualScroll } =
+            mapScrollPosition(
+              verticalContainer.scrollTop,
+              placeholderHeight,
+              count * rowHeight,
+              viewportHeight
+            )
+          const rowTopVirtual = rowIndex * rowHeight
+          const rowBottomVirtual = rowTopVirtual + rowHeight
+          let targetVirtual = virtualScrollTop
+          if (rowTopVirtual < virtualScrollTop + 20) {
+            targetVirtual = rowTopVirtual - 20
+          } else if (
+            rowBottomVirtual >
+            virtualScrollTop + viewportHeight - 20
+          ) {
+            targetVirtual = rowBottomVirtual - viewportHeight + 20
+          }
+          if (targetVirtual !== virtualScrollTop && maxVirtualScroll > 0) {
+            const targetReal =
+              (targetVirtual / maxVirtualScroll) * maxRealScroll
+            this.verticalScroll(targetReal)
+            this.$refs.scrollbars.updateVertical()
+          }
         }
 
-        // Handle horizontal scrolling directly (no scaling needed for
-        // horizontal positions). elementLeft/elementRight are relative to
-        // the horizontal container's left edge.
         if (scrollDirection !== 'vertical') {
-          this.scrollHorizontallyIntoView({ elementLeft, elementRight, field })
+          this.scrollToElementRect(
+            {
+              elementTop: 0,
+              elementBottom: 0,
+              elementLeft,
+              elementRight,
+            },
+            'horizontal',
+            field
+          )
         }
 
         return
@@ -1709,60 +1765,6 @@ export default {
 
         if (event.key === 'Backspace' || event.key === 'Delete') {
           this.clearValuesFromMultipleCellSelection()
-        }
-      }
-
-      // If a cell was selected but has scrolled off-screen (the cell component
-      // was destroyed and its keyboard listener removed), pressing an arrow key
-      // should scroll back to the selected cell so the user can continue
-      // navigating from where they left off.
-      if (
-        arrowKeys.includes(key) &&
-        !shiftKey &&
-        !this.$store.getters[
-          this.storePrefix + 'view/grid/isMultiSelectActive'
-        ] &&
-        this.selectedCellComponents.length === 0
-      ) {
-        const rowIndex =
-          this.$store.getters[
-            this.storePrefix + 'view/grid/getMultiSelectStartRowIndex'
-          ]
-        if (rowIndex >= 0) {
-          event.preventDefault()
-          this.scrollToRowIndex(rowIndex)
-
-          // Force an immediate (non-throttled) fetch so the rows around the
-          // selected cell are loaded from the server. This is needed when the
-          // user has scrolled far enough that the buffer no longer contains
-          // the selected row.
-          const scrollTop = this.$refs.right.$refs.body.scrollTop
-          await this.$store.dispatch(
-            this.storePrefix + 'view/grid/fetchByScrollTop',
-            { scrollTop, fields: this.fields }
-          )
-          const fieldIndex =
-            this.$store.getters[
-              this.storePrefix + 'view/grid/getMultiSelectStartFieldIndex'
-            ]
-          const visibleFieldOptions = this.$store.getters[
-            this.storePrefix + 'view/grid/getOrderedVisibleFieldOptions'
-          ](this.fields)
-          const fieldEntry = visibleFieldOptions[fieldIndex]
-          const rowId =
-            this.$store.getters[this.storePrefix + 'view/grid/getRowIdByIndex'](
-              rowIndex
-            )
-          if (rowId !== -1 && fieldEntry) {
-            this.$store.dispatch(
-              this.storePrefix + 'view/grid/setSelectedCell',
-              {
-                rowId,
-                fieldId: parseInt(fieldEntry[0]),
-                fields: this.fields,
-              }
-            )
-          }
         }
       }
     },
@@ -1953,41 +1955,29 @@ export default {
       this.checkCanFitFrozenColumns()
 
       // Update the window height to dynamically show the right amount of rows.
-      const height = this.$refs.left.$refs.body.clientHeight
       const storePrefix = this.storePrefix + 'view/grid/'
-      const oldWindowHeight =
-        this.$store.getters[storePrefix + 'getWindowHeight']
+      const newHeight = this.$refs.left.$refs.body.clientHeight
+      const oldHeight = this.$store.getters[storePrefix + 'getWindowHeight']
 
-      // When the scale factor is active and the window height changes,
-      // compensate scrollTop so the view doesn't visually jump. We use
-      // the stored exact virtual scroll position (lastVirtualScrollTop)
-      // to avoid accumulated rounding drift from integer DOM scrollTop
-      // values during continuous resize. Both DOM and state must be
-      // updated synchronously BEFORE setWindowHeight runs, because
-      // setWindowHeight → visibleByScrollTop reads state.scrollTop.
-      if (height !== oldWindowHeight) {
+      // Compensate synchronously before `setWindowHeight` dispatches
+      // visibleByScrollTop — a windowHeight change shifts the capped-mode
+      // scale factor, and visibleByScrollTop reads state.scrollTop.
+      if (newHeight !== oldHeight && this.lastVirtualScrollTop !== null) {
         const count = this.$store.getters[storePrefix + 'getCount']
         const rowHeight = this.$store.getters[storePrefix + 'getRowHeight']
         const virtualHeight = count * rowHeight
 
-        if (
-          virtualHeight > MAX_SAFE_SCROLL_HEIGHT &&
-          this.lastVirtualScrollTop !== null
-        ) {
-          const newPlaceholder = Math.min(virtualHeight, MAX_SAFE_SCROLL_HEIGHT)
-          const newScrollTop = virtualToRealScrollTop(
+        if (virtualHeight > MAX_SAFE_SCROLL_HEIGHT) {
+          const newScrollTop = compensateScrollTop(
             this.lastVirtualScrollTop,
-            newPlaceholder,
             virtualHeight,
-            height
+            newHeight
           )
-          this.$refs.left.$refs.body.scrollTop = newScrollTop
-          this.$refs.right.$refs.body.scrollTop = newScrollTop
-          this.$store.commit(storePrefix + 'SET_SCROLL_TOP', newScrollTop)
+          this.commitCompensatedScrollTop(newScrollTop)
         }
       }
 
-      this.$store.dispatch(storePrefix + 'setWindowHeight', height)
+      this.$store.dispatch(storePrefix + 'setWindowHeight', newHeight)
     },
     /**
      * Called when the user right clicks after selecting multiple cells.

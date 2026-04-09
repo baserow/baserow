@@ -162,6 +162,8 @@ import { getCardHeight } from '@baserow/modules/database/utils/card'
 import {
   recycleSlots,
   orderSlots,
+  mapScrollPosition,
+  MAX_SAFE_SCROLL_HEIGHT,
 } from '@baserow/modules/database/utils/virtualScrolling'
 import {
   sortFieldsByOrderAndIdFunction,
@@ -219,6 +221,7 @@ export default {
       dragAndDropCloneClass: 'gallery-view__card--dragging-clone',
       // Event handler and observer references for cleanup
       scrollEvent: null,
+      wheelEvent: null,
       resizeObserver: null,
     }
   },
@@ -367,6 +370,49 @@ export default {
     }
     this.$refs.scroll.addEventListener('scroll', this.scrollEvent)
 
+    // Wheel interceptor in capped mode only. Scales the delta down by
+    // the capped-mode compression factor so one wheel tick advances the
+    // same number of cards as in an uncapped gallery. OS/browser wheel
+    // event batching (Linux libinput, macOS) produces many sub-events
+    // per physical click, so sync scrollTop writes read as smooth.
+    this.wheelEvent = (event) => {
+      const el = this.$refs.scroll
+      if (!el) return
+      const containerHeight = el.clientHeight
+      const cardsPerRow = Math.min(
+        Math.max(Math.floor(el.clientWidth / this.minimumCardWidth), 1),
+        20
+      )
+      const totalRows = Math.ceil(this.allRows.length / cardsPerRow)
+      const virtualHeight =
+        totalRows * (this.cardHeight + this.gutterSize) + this.gutterSize
+      if (virtualHeight <= MAX_SAFE_SCROLL_HEIGHT) return
+
+      event.preventDefault()
+
+      // Firefox emits DOM_DELTA_LINE; ×10 to approximate pixels.
+      const DOM_DELTA_LINE = 1
+      const deltaY =
+        event.deltaMode === DOM_DELTA_LINE ? event.deltaY * 10 : event.deltaY
+
+      const placeholderHeight = Math.min(virtualHeight, MAX_SAFE_SCROLL_HEIGHT)
+      const { maxRealScroll, maxVirtualScroll } = mapScrollPosition(
+        el.scrollTop,
+        placeholderHeight,
+        virtualHeight,
+        containerHeight
+      )
+      const scaledDelta =
+        maxVirtualScroll > 0
+          ? deltaY * (maxRealScroll / maxVirtualScroll)
+          : deltaY
+
+      el.scrollTop += scaledDelta
+    }
+    this.$refs.scroll.addEventListener('wheel', this.wheelEvent, {
+      passive: false,
+    })
+
     if (this.row !== null) {
       this.populateAndEditRow(this.row)
     }
@@ -377,6 +423,7 @@ export default {
     }
     if (this.$refs.scroll) {
       this.$refs.scroll.removeEventListener('scroll', this.scrollEvent)
+      this.$refs.scroll.removeEventListener('wheel', this.wheelEvent)
     }
   },
   methods: {
@@ -411,29 +458,44 @@ export default {
       const cardHeight = this.cardHeight
       const cardWidth = (containerWidth - gutterSize) / cardsPerRow - gutterSize
       const totalRows = Math.ceil(this.allRows.length / cardsPerRow)
-      const height = totalRows * (cardHeight + gutterSize) + gutterSize
+      const virtualHeight = totalRows * (cardHeight + gutterSize) + gutterSize
+      // Cap the placeholder — Firefox breaks at ~17.9M px. When capped the
+      // placeholder is smaller than the virtual content; `mapScrollPosition`
+      // projects scrollTop back into the full virtual row space.
+      const height = Math.min(virtualHeight, MAX_SAFE_SCROLL_HEIGHT)
 
       this.cardWidth = cardWidth
       this.height = height
 
       const scrollTop = el.scrollTop
+      const { virtualScrollTop, maxRealScroll } = mapScrollPosition(
+        scrollTop,
+        height,
+        virtualHeight,
+        containerHeight
+      )
       const minimumCardsToRender =
         (Math.ceil(containerHeight / (cardHeight + gutterSize)) + 1) *
         cardsPerRow
       const startIndex =
-        Math.floor(scrollTop / (cardHeight + gutterSize)) * cardsPerRow
+        Math.floor(virtualScrollTop / (cardHeight + gutterSize)) * cardsPerRow
       const endIndex = startIndex + minimumCardsToRender
       const visibleRows = this.allRows.slice(startIndex, endIndex)
 
+      // Keep `top` viewport-sized by subtracting virtualScrollTop — the raw
+      // absolute position in virtual space would exceed Firefox's transform
+      // limit for the last rows of a big capped table.
       const getPosition = (row, positionInVisible) => {
         const positionInAll = startIndex + positionInVisible
+        const absoluteTop =
+          gutterSize +
+          Math.floor(positionInAll / cardsPerRow) * (gutterSize + cardHeight)
         return {
           left:
             gutterSize +
             (positionInAll % cardsPerRow) * (gutterSize + cardWidth),
           top:
-            gutterSize +
-            Math.floor(positionInAll / cardsPerRow) * (gutterSize + cardHeight),
+            Math.min(scrollTop, maxRealScroll) + absoluteTop - virtualScrollTop,
         }
       }
       recycleSlots(this.buffer, visibleRows, getPosition, minimumCardsToRender)

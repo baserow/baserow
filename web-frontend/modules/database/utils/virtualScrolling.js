@@ -1,3 +1,75 @@
+// Firefox caps CSS element heights at ~17.9M px, Chrome at ~33.5M. 10M is
+// below both — placeholders above this need the capped-placeholder mapping.
+export const MAX_SAFE_SCROLL_HEIGHT = 10_000_000
+
+/**
+ * Maps a real (capped) scrollTop into the full virtual row space. Collapses
+ * to 1:1 when the placeholder is not capped.
+ */
+export const mapScrollPosition = (
+  scrollTop,
+  placeholderHeight,
+  virtualHeight,
+  windowHeight
+) => {
+  if (placeholderHeight <= windowHeight || virtualHeight <= windowHeight) {
+    return { virtualScrollTop: 0, maxRealScroll: 0, maxVirtualScroll: 0 }
+  }
+  const maxRealScroll = placeholderHeight - windowHeight
+  const maxVirtualScroll = virtualHeight - windowHeight
+  // Clamp both ends: iOS rubber-band can momentarily surface a negative
+  // scrollTop, and callers may pass out-of-range values.
+  const scrollFraction = Math.max(0, Math.min(scrollTop / maxRealScroll, 1))
+  const virtualScrollTop = scrollFraction * maxVirtualScroll
+  return { virtualScrollTop, maxRealScroll, maxVirtualScroll }
+}
+
+/**
+ * Inverse of mapScrollPosition. Collapses to 1:1 when not capped.
+ */
+export const virtualToRealScrollTop = (
+  virtualScrollTop,
+  placeholderHeight,
+  virtualHeight,
+  windowHeight
+) => {
+  if (placeholderHeight <= windowHeight || virtualHeight <= windowHeight) {
+    return 0
+  }
+  const maxRealScroll = placeholderHeight - windowHeight
+  const maxVirtualScroll = virtualHeight - windowHeight
+  const fraction = Math.max(0, Math.min(virtualScrollTop / maxVirtualScroll, 1))
+  return fraction * maxRealScroll
+}
+
+/**
+ * Computes a new real scrollTop that preserves the user's virtual position
+ * across a row count / row height / window height change.
+ *
+ * `lastVirtualScrollTop` must be the exact float recorded at the last
+ * scroll event, not a re-projection from a stale scrollTop — otherwise
+ * rounding drift accumulates across consecutive compensations.
+ */
+export const compensateScrollTop = (
+  lastVirtualScrollTop,
+  newVirtualHeight,
+  newWindowHeight
+) => {
+  const newPlaceholder = Math.min(newVirtualHeight, MAX_SAFE_SCROLL_HEIGHT)
+  const maxReal = Math.max(0, newPlaceholder - newWindowHeight)
+  // Explicit ceiling so writes to `el.scrollTop` don't silently browser-clamp
+  // past what the store records (would desync DOM and store).
+  return Math.min(
+    virtualToRealScrollTop(
+      lastVirtualScrollTop,
+      newPlaceholder,
+      newVirtualHeight,
+      newWindowHeight
+    ),
+    maxReal
+  )
+}
+
 /**
  * This helper method will create an array of slots, where every slot contains one of
  * the provided `items`. Every slot has a unique `id` and when the items change, the

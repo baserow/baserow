@@ -30,15 +30,14 @@ import {
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
 import {
+  MAX_SAFE_SCROLL_HEIGHT,
+  mapScrollPosition,
+} from '@baserow/modules/database/utils/virtualScrolling'
+import {
   GRID_VIEW_MULTI_SELECT_AREA,
   GRID_VIEW_MULTI_SELECT_CHECKBOX,
   LINKED_ITEMS_LOAD_ALL,
 } from '@baserow/modules/database/constants'
-import {
-  MAX_SAFE_SCROLL_HEIGHT,
-  getMiddleRowIndex,
-  realToVirtualScrollTop,
-} from '@baserow/modules/database/utils/gridScrollMapping'
 
 const ORDER_STEP = '1'
 const ORDER_STEP_BEFORE = '0.00000000000000000001'
@@ -791,6 +790,21 @@ const fireScrollTop = {
   distance: 0,
 }
 
+// In capped mode `rowsTop` depends on scrollTop (see visibleByScrollTop),
+// so we must coalesce via RAF and dispatch once per paint frame against
+// the latest scrollTop. Keyed per store instance — `page/view/grid` and
+// `template/view/grid` share this module but must not share RAF state,
+// otherwise one store's callback would run against the other's `dispatch`.
+const visibleRafByDispatch = new WeakMap()
+const getVisibleRaf = (dispatch) => {
+  let entry = visibleRafByDispatch.get(dispatch)
+  if (!entry) {
+    entry = { handle: null, scrollTop: 0 }
+    visibleRafByDispatch.set(dispatch, entry)
+  }
+  return entry
+}
+
 const createAndUpdateRowQueue = new GroupTaskQueue()
 
 // Contains the last row request to be able to cancel it.
@@ -820,19 +834,18 @@ export const actions = {
     const gridId = getters.getLastGridId
     const view = rootGetters['view/get'](getters.getLastGridId)
 
-    // Calculate what the middle row index of the visible window based on the scroll
-    // top. Use fraction-based mapping to ensure the full scroll range maps to the
-    // full virtual range, so bottom rows are always reachable.
-    const placeholderHeight = getters.getPlaceholderHeight
-    const virtualHeight = getters.getCount * getters.getRowHeight
-    const countIndex = getters.getCount - 1
-    const middleRowIndex = getMiddleRowIndex(
+    const { virtualScrollTop } = mapScrollPosition(
       scrollTop,
-      placeholderHeight,
-      virtualHeight,
-      windowHeight,
-      getters.getRowHeight,
-      getters.getCount
+      getters.getPlaceholderHeight,
+      getters.getCount * getters.getRowHeight,
+      windowHeight
+    )
+
+    const middle = virtualScrollTop + windowHeight / 2
+    const countIndex = getters.getCount - 1
+    const middleRowIndex = Math.min(
+      Math.max(Math.ceil(middle / getters.getRowHeight) - 1, 0),
+      countIndex
     )
 
     // Calculate the start and end index of the rows that are visible to the user in
@@ -947,6 +960,7 @@ export const actions = {
             const metadata = extractRowMetadata(data, row.id)
             populateRow(row, metadata, false)
           })
+          const oldCount = getters.getCount
           commit('ADD_ROWS', {
             rows: data.results,
             prependToRows: prependToBuffer,
@@ -956,7 +970,15 @@ export const actions = {
             bufferLimit,
           })
           commit('UPDATE_GROUP_BY_METADATA', data.group_by_metadata || {})
-          dispatch('visibleByScrollTop')
+          // On a capped-mode count change, the GridView `rowCount` watcher
+          // dispatches with a compensated scrollTop; skip here to avoid
+          // committing rowsTop against the pre-compensation value.
+          const countChanged = data.count !== oldCount
+          const capped =
+            getters.getCount * getters.getRowHeight > MAX_SAFE_SCROLL_HEIGHT
+          if (!(capped && countChanged)) {
+            dispatch('visibleByScrollTop')
+          }
           dispatch('updateSearch', { fields })
           lastRequest = null
           fireScrollTop.processing = false
@@ -985,23 +1007,20 @@ export const actions = {
     }
 
     const windowHeight = getters.getWindowHeight
-    const placeholderHeight = getters.getPlaceholderHeight
-    const virtualHeight = getters.getCount * getters.getRowHeight
-    const virtualScrollTop = realToVirtualScrollTop(
+
+    const { virtualScrollTop, maxRealScroll } = mapScrollPosition(
       scrollTop,
-      placeholderHeight,
-      virtualHeight,
+      getters.getPlaceholderHeight,
+      getters.getCount * getters.getRowHeight,
       windowHeight
     )
-    const maxRealScroll = Math.max(placeholderHeight - windowHeight, 1)
 
-    const middleRowIndex = getMiddleRowIndex(
-      scrollTop,
-      placeholderHeight,
-      virtualHeight,
-      windowHeight,
-      getters.getRowHeight,
-      getters.getCount
+    const middle = virtualScrollTop + windowHeight / 2
+    const countIndex = getters.getCount - 1
+
+    const middleRowIndex = Math.min(
+      Math.max(Math.ceil(middle / getters.getRowHeight) - 1, 0),
+      countIndex
     )
 
     // Calculate the start and end index of the rows that are visible to the user in
@@ -1028,18 +1047,13 @@ export const actions = {
         getters.getBufferStartIndex
       ) - getters.getBufferStartIndex
 
-    // Calculate the top position of the html element that contains all the rows.
-    // This element will be placed over the placeholder at the correct position.
-    // We position relative to scrollTop so rows always appear correctly in the
-    // viewport, regardless of the scale factor. We cap scrollTop at maxRealScroll
-    // so that when the user scrolls past the data area (into the add-row /
-    // padding region), the rows freeze in place and don't extend past the
-    // placeholder, which would cover the add-row element.
-    const virtualTop =
+    // Keep translateY viewport-sized: absolute row positions in virtual
+    // space exceed Firefox's ~17.9M px transform limit.
+    const absoluteTop =
       Math.min(visibleStartIndex, getters.getBufferEndIndex) *
       getters.getRowHeight
     const top =
-      Math.min(scrollTop, maxRealScroll) + virtualTop - virtualScrollTop
+      Math.min(scrollTop, maxRealScroll) + absoluteTop - virtualScrollTop
 
     // If the index changes from what we already have we can commit the new indexes
     // to the state.
@@ -1060,14 +1074,24 @@ export const actions = {
    * of calls. Therefore it will dispatch the related actions, but only every 100
    * milliseconds to prevent calling the actions who do a lot of calculating a lot.
    */
-  fetchByScrollTopDelayed({ dispatch }, { scrollTop, fields }) {
-    cancelAnimationFrame(fireScrollTop.rafId)
-    fireScrollTop.rafId = requestAnimationFrame(() => {
-      dispatch('visibleByScrollTop', scrollTop)
-    })
-
+  fetchByScrollTopDelayed({ dispatch, getters }, { scrollTop, fields }) {
     const { $registry, $client, $i18n, $config } = this
     const now = Date.now()
+
+    // Capped mode: the rows layer drifts between throttled fetch ticks
+    // unless rowsTop updates every paint frame.
+    const isCapped =
+      getters.getCount * getters.getRowHeight > MAX_SAFE_SCROLL_HEIGHT
+    if (isCapped) {
+      const raf = getVisibleRaf(dispatch)
+      raf.scrollTop = scrollTop
+      if (raf.handle === null) {
+        raf.handle = requestAnimationFrame(() => {
+          raf.handle = null
+          dispatch('visibleByScrollTop', raf.scrollTop)
+        })
+      }
+    }
 
     const fire = (scrollTop) => {
       fireScrollTop.distance = scrollTop
@@ -1076,6 +1100,11 @@ export const actions = {
         scrollTop,
         fields,
       })
+      // Uncapped: rowsTop only changes with visible indices, so throttled
+      // ticks are enough. Capped mode handles it via the RAF above.
+      if (!isCapped) {
+        dispatch('visibleByScrollTop', scrollTop)
+      }
     }
 
     const distance = Math.abs(scrollTop - fireScrollTop.distance)
@@ -1109,6 +1138,8 @@ export const actions = {
     fireScrollTop.distance = 0
     fireScrollTop.last = Date.now()
     fireScrollTop.processing = false
+    // Previous view's pending RAF would fire against the new table.
+    dispatch('cancelPendingVisibleScrollTop')
 
     commit('SET_SEARCH', {
       activeSearchTerm: '',
@@ -1618,7 +1649,23 @@ export const actions = {
     commit('DELETE_FIELD_OPTIONS', fieldId)
     dispatch('correctMultiSelect')
   },
+  /**
+   * Must be called before every compensated-scrollTop write (view switch,
+   * resize, remote count change) — a stale RAF would otherwise overwrite
+   * `rowsTop` one paint later.
+   */
+  cancelPendingVisibleScrollTop({ dispatch }) {
+    const raf = getVisibleRaf(dispatch)
+    if (raf.handle !== null) {
+      cancelAnimationFrame(raf.handle)
+      raf.handle = null
+    }
+    raf.scrollTop = 0
+  },
   setWindowHeight({ dispatch, commit, getters }, value) {
+    // Drops any RAF scheduled against the pre-resize scrollTop. See
+    // cancelPendingVisibleScrollTop.
+    dispatch('cancelPendingVisibleScrollTop')
     commit('SET_WINDOW_HEIGHT', value)
     commit('SET_ROW_PADDING', Math.ceil(value / getters.getRowHeight / 2))
     dispatch('visibleByScrollTop')
@@ -3675,6 +3722,7 @@ export const getters = {
     return state.rows.length
   },
   getPlaceholderHeight(state) {
+    // Capped at MAX_SAFE_SCROLL_HEIGHT — see virtualScrolling.js.
     return Math.min(state.count * state.rowHeight, MAX_SAFE_SCROLL_HEIGHT)
   },
   getRowPadding(state) {
@@ -3712,6 +3760,16 @@ export const getters = {
   },
   getWindowHeight(state) {
     return state.windowHeight
+  },
+  getVirtualScrollTop(state, getters) {
+    // Equals state.scrollTop when the placeholder is not capped.
+    const { virtualScrollTop } = mapScrollPosition(
+      state.scrollTop,
+      getters.getPlaceholderHeight,
+      state.count * state.rowHeight,
+      state.windowHeight
+    )
+    return virtualScrollTop
   },
   getAllFieldOptions(state) {
     return state.fieldOptions

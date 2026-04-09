@@ -5,7 +5,7 @@ import {
   ContainsViewFilterType,
 } from '@baserow/modules/database/viewFilters'
 import { clone } from '@baserow/modules/core/utils/object'
-import { MAX_SAFE_SCROLL_HEIGHT } from '@baserow/modules/database/utils/gridScrollMapping'
+import { MAX_SAFE_SCROLL_HEIGHT } from '@baserow/modules/database/utils/virtualScrolling'
 
 import { createStore } from 'vuex'
 
@@ -95,83 +95,134 @@ describe('Grid view store', () => {
     expect(store.getters['grid/getRowsEndIndex']).toBe(6)
   })
 
-  test('visibleByScrollTop with large row count (capped placeholder height)', async () => {
-    const rowHeight = 33
-    const count = 500000
-    const virtualHeight = count * rowHeight // 16,500,000
-    const placeholderHeight = MAX_SAFE_SCROLL_HEIGHT // 10,000,000
-    const windowHeight = 600
-    const bufferSize = 100
-
-    // Create a buffer of rows near the start
-    const rows = []
-    for (let i = 0; i < bufferSize; i++) {
-      rows.push({ id: i + 1, order: `${i + 1}.00` })
-    }
-
-    const state = Object.assign(gridStore.state(), {
-      rowPadding: 16,
-      rowHeight,
-      bufferStartIndex: 0,
-      bufferLimit: bufferSize,
-      bufferRequestSize: 40,
-      rows,
-      count,
-      windowHeight,
+  test('RAF scroll state is isolated between module instances (page vs template)', async () => {
+    // The `gridStore` module is registered under two prefixes in prod —
+    // `page/view/grid` and `template/view/grid`. The RAF bookkeeping must
+    // be keyed per-instance, otherwise one store's queued callback will
+    // run against the other's `dispatch` and mis-route `visibleByScrollTop`.
+    const twoInstanceStore = testApp.createStore({
+      modules: {
+        pageGrid: gridStore,
+        templateGrid: gridStore,
+      },
     })
 
+    const cappedState = (lastGridId) =>
+      Object.assign(gridStore.state(), {
+        rowPadding: 1,
+        bufferStartIndex: 0,
+        bufferLimit: 10,
+        bufferRequestSize: 10,
+        rows: new Array(10).fill(null).map((_, i) => ({
+          id: i + 1,
+          order: `${i + 1}.00`,
+        })),
+        count: 1_000_000,
+        rowHeight: 33,
+        windowHeight: 500,
+        lastGridId,
+      })
+    twoInstanceStore.replaceState({
+      ...twoInstanceStore.state,
+      pageGrid: cappedState(1),
+      templateGrid: cappedState(2),
+    })
+
+    const rafCallbacks = []
+    const rafSpy = vi
+      .spyOn(window, 'requestAnimationFrame')
+      .mockImplementation((cb) => {
+        const handle = rafCallbacks.length + 1
+        rafCallbacks.push({ handle, cb })
+        return handle
+      })
+    // Use fake timers so the setTimeout branch of fetchByScrollTopDelayed
+    // never fires `fetchByScrollTop` (which would hit the network layer).
+    vi.useFakeTimers()
+
+    try {
+      await twoInstanceStore.dispatch('pageGrid/fetchByScrollTopDelayed', {
+        scrollTop: 1_000_000,
+        fields: [],
+      })
+      await twoInstanceStore.dispatch('templateGrid/fetchByScrollTopDelayed', {
+        scrollTop: 2_000_000,
+        fields: [],
+      })
+
+      // Per-instance isolation: each store scheduled its own RAF. A shared
+      // module-scoped handle would leave this at 1.
+      expect(rafCallbacks).toHaveLength(2)
+
+      // Fire both RAFs; each should route to its own store's
+      // `visibleByScrollTop` with its own scrollTop.
+      rafCallbacks.forEach(({ cb }) => cb())
+
+      expect(twoInstanceStore.state.pageGrid.scrollTop).toBe(1_000_000)
+      expect(twoInstanceStore.state.templateGrid.scrollTop).toBe(2_000_000)
+    } finally {
+      vi.useRealTimers()
+      rafSpy.mockRestore()
+    }
+  })
+
+  test('getPlaceholderHeight caps at MAX_SAFE_SCROLL_HEIGHT for large tables', async () => {
+    const smallState = Object.assign(gridStore.state(), {
+      count: 100,
+      rowHeight: 33,
+    })
+    store.replaceState({ ...store.state, grid: smallState })
+    expect(store.getters['grid/getPlaceholderHeight']).toBe(3_300)
+
+    const largeState = Object.assign(gridStore.state(), {
+      count: 1_000_000,
+      rowHeight: 33,
+    })
+    store.replaceState({ ...store.state, grid: largeState })
+    expect(store.getters['grid/getPlaceholderHeight']).toBe(
+      MAX_SAFE_SCROLL_HEIGHT
+    )
+  })
+
+  test('visibleByScrollTop drifts across a count change in capped mode (compensation happens at component layer)', async () => {
+    // This test documents the store-level behavior that the GridView.vue
+    // `rowCount` watcher is responsible for compensating: when the count
+    // changes while scrollTop stays fixed and the placeholder is capped,
+    // `visibleByScrollTop` will recompute the visible index range based
+    // on the new scale factor, producing a different window. The
+    // component-level compensation rewrites scrollTop first so the
+    // visible rows stay anchored.
+    const state = Object.assign(gridStore.state(), {
+      rowPadding: 8,
+      bufferStartIndex: 499_000,
+      bufferLimit: 2_000,
+      bufferRequestSize: 100,
+      // A sparsely populated buffer is enough — visibleByScrollTop only
+      // looks at indices and the row array length for slicing.
+      rows: new Array(2_000).fill(null).map((_, i) => ({
+        id: 499_000 + i,
+        order: `${499_000 + i}.00`,
+      })),
+      count: 1_000_000,
+      rowHeight: 33,
+      windowHeight: 500,
+      scrollTop: 5_000_000,
+    })
     store.replaceState({ ...store.state, grid: state })
 
-    // Verify the placeholder height is capped
-    expect(store.getters['grid/getPlaceholderHeight']).toBe(placeholderHeight)
+    await store.dispatch('grid/visibleByScrollTop', 5_000_000)
+    const startBefore = store.getters['grid/getRowsStartIndex']
 
-    // scrollTop=0 → rowsStartIndex near 0
-    await store.dispatch('grid/visibleByScrollTop', 0)
-    expect(store.getters['grid/getRowsStartIndex']).toBe(0)
+    // Simulate a remote insert of 100 rows without touching scrollTop.
+    store.state.grid.count = 1_000_100
+    await store.dispatch('grid/visibleByScrollTop', 5_000_000)
+    const startAfter = store.getters['grid/getRowsStartIndex']
 
-    // scrollTop at max → should map to the end of the buffer
-    const maxRealScroll = placeholderHeight - windowHeight
-    // Move buffer to the end of the table
-    const endRows = []
-    const endBufferStart = count - bufferSize
-    for (let i = 0; i < bufferSize; i++) {
-      endRows.push({
-        id: endBufferStart + i + 1,
-        order: `${endBufferStart + i + 1}.00`,
-      })
-    }
-    store.state.grid.bufferStartIndex = endBufferStart
-    store.state.grid.rows = endRows
-
-    await store.dispatch('grid/visibleByScrollTop', maxRealScroll)
-    expect(store.getters['grid/getRowsEndIndex']).toBe(bufferSize)
-
-    // Intermediate scroll position maps proportionally.
-    // At midReal the middleRowIndex ≈ 249999 (middle of 500k rows), so
-    // place the buffer around that region so visible indices are meaningful.
-    const midReal = maxRealScroll / 2
-    const midBufferStart = 249950
-    const midRows = []
-    for (let i = 0; i < bufferSize; i++) {
-      midRows.push({
-        id: midBufferStart + i + 1,
-        order: `${midBufferStart + i + 1}.00`,
-      })
-    }
-    store.state.grid.bufferStartIndex = midBufferStart
-    store.state.grid.rows = midRows
-
-    await store.dispatch('grid/visibleByScrollTop', midReal)
-    const startIndex = store.getters['grid/getRowsStartIndex']
-    const endIndex = store.getters['grid/getRowsEndIndex']
-    // The visible window should fall within the buffer and cover
-    // 2 * rowPadding + 1 = 33 rows (the store centres on middleRowIndex
-    // and extends rowPadding rows in each direction).
-    const rowPadding = 16
-    const visibleRows = endIndex - startIndex
-    expect(visibleRows).toBe(2 * rowPadding + 1)
-    expect(startIndex).toBeGreaterThanOrEqual(0)
-    expect(endIndex).toBeLessThanOrEqual(bufferSize)
+    // Without compensation, the visible window shifts because the scale
+    // factor changes. If a future refactor collapses this drift into the
+    // store itself, this assertion can be flipped — but for now it
+    // documents the contract: the store drifts, the component corrects.
+    expect(startAfter).not.toBe(startBefore)
   })
 
   test('createdNewRow', async () => {

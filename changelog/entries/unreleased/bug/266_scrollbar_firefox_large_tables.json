@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix grid and gallery view scrolling in Firefox (and Chrome) with very large tables by capping the placeholder height and mapping the scroll position into the virtual row space.",
+    "issue_origin": "gitlab",
+    "issue_number": 266,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-10"
+}

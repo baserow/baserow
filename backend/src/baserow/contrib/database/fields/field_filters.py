@@ -168,10 +168,13 @@ class FilterBuilder:
             self._q_filters
         )
 
-        # When using OR conditions in filters that involve joined tables, the SQL query
-        # may produce duplicate rows because multiple join paths can match the same
-        # record. Applying distinct() ensures we return only unique results.
-        return filtered_queryset.distinct()
+        # OR conditions across joined tables can produce duplicate rows. Only
+        # apply distinct() when joins exist — without joins it forces Postgres
+        # to hash-dedupe every column across the whole table (e.g. the paginator
+        # COUNT(*) wraps it in `COUNT(*) FROM (SELECT DISTINCT <cols> …)`).
+        if len(filtered_queryset.query.alias_map) > 1:
+            filtered_queryset = filtered_queryset.distinct()
+        return filtered_queryset
 
     def get_filters_and_annotations(self) -> Tuple[Q, Dict[str, Any]]:
         """
