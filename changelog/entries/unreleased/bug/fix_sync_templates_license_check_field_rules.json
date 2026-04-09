@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix template sync failing when importing enterprise field rules without a license.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-09"
+}

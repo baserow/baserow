@@ -154,6 +154,16 @@ class FieldRuleType(ModelInstanceMixin, CustomFieldsInstanceMixin, Instance, ABC
 
         return rule_data
 
+    def can_create_rule(self, table: Table) -> None:
+        """
+        Called before creating a new rule to check if the rule can be created.
+
+        Raises an exception if the rule cannot be created (e.g. missing license).
+        Does nothing by default.
+
+        :param table: the table for which the rule is being created
+        """
+
     def prepare_values_for_create(self, table, in_data: dict) -> dict:
         """
         Called before creating a new rule. Resulting dict should contain
