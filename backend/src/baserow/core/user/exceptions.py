@@ -38,6 +38,10 @@ class ResetPasswordDisabledError(Exception):
     """Raised when a password reset is attempted but the password reset is disabled."""
 
 
+class ResetPasswordTokenAlreadyUsed(Exception):
+    """Raised when a password reset token has already been used."""
+
+
 class DeactivatedUserException(Exception):
     pass
 
