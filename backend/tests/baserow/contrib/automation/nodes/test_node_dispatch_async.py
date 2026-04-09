@@ -1459,7 +1459,8 @@ def test_dispatch_node_iterator_with_no_rows(data_fixture):
 
 
 @pytest.mark.django_db
-def test_dispatch_node_with_deleted_node(data_fixture):
+@patch(f"{NODE_HANDLER_PATH}.logger")
+def test_dispatch_node_with_deleted_node(mock_logger, data_fixture):
     """
     In the rare case where a node is deleted between the time a dispatch
     is queued and when the task actually runs, we should handle this
@@ -1476,3 +1477,8 @@ def test_dispatch_node_with_deleted_node(data_fixture):
 
     result = AutomationNodeHandler().dispatch_node(action_node_id, history.id)
     assert result is None
+    expected_error = (
+        f"Node with ID {action_node_id} was not found. The node was likely "
+        "deleted before the task was executed."
+    )
+    mock_logger.warning.assert_called_once_with(expected_error)
