@@ -172,8 +172,7 @@ export default {
     },
     getProviderSettings(providerType) {
       const modelType = this.$registry.get('generativeAIModel', providerType)
-      const settings = modelType?.getSettings()
-      return Array.isArray(settings) ? settings : []
+      return modelType ? modelType.getSettings() : []
     },
     isProviderOverridden(providerType) {
       return this.providerOverrides[providerType] || false

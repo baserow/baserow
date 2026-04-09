@@ -21,6 +21,10 @@ export class GenerativeAIModelType extends Registerable {
   getMaxTemperature() {
     return 2
   }
+
+  getSettings() {
+    return []
+  }
 }
 
 const modelSettings = (label, description) => ({
