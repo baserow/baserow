@@ -201,7 +201,7 @@ class FieldRuleHandler:
         self, rule_type_name: str, in_data: dict, primary_key_value: int | None = None
     ) -> FieldRule:
         """
-        Creates a rule of a given type without checking permissions.
+        Creates a rule of a given type without checking rule-type preconditions.
 
         This method creates an instance of a field rule. Field rule type is provided
         in `rule_type_name` param. Each field rule type should validate additional
