@@ -5,6 +5,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from celery.canvas import Signature
+from loguru import logger
 
 from baserow.config.celery import app
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
@@ -84,12 +85,18 @@ def clear_old_automation_history():
 
     handler = AutomationWorkflowHandler()
     for workflow in AutomationWorkflow.objects.all():
-        # If we have history entries that are too old it probably means
-        # something went wrong with Celery so we mark these entries as failed.
-        handler._mark_failure_for_timed_out_history(workflow)
+        try:
+            # If we have history entries that are too old it probably means
+            # something went wrong with Celery so we mark these entries as failed.
+            handler._mark_failure_for_timed_out_history(workflow)
 
-        # We remove old history entries to avoid storing too many entries.
-        handler._clear_old_history(workflow)
+            # We remove old history entries to avoid storing too many entries.
+            handler._clear_old_history(workflow)
+        except Exception as e:
+            logger.exception(
+                f"Failed to clean up history for workflow {workflow.id}: {e}",
+                workflow_id=workflow.id,
+            )
 
 
 @app.on_after_finalize.connect
