@@ -129,6 +129,7 @@
 .formula-input-field__view-full-error {
   margin-left: 5px;
 }
+
 // Paren match highlight on hover (disabled for no-arg functions)
 .formula-input-field__paren-highlight:not([data-no-args='true']) {
   &.formula-input-field__parenthesis {
