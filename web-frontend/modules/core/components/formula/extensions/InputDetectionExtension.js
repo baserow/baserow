@@ -94,6 +94,7 @@ export const InputDetectionExtension = Extension.create({
     // ── Opening parenthesis ───────────────────────────────────────────
 
     function handleOpenParen(view, from, to) {
+      if (isInsideStringLiteral(view.state.doc, from)) return false
       return tryFunctionOpen(view, from, to) || handleGroupOpen(view, from, to)
     }
 
