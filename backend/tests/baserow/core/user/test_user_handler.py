@@ -356,10 +356,11 @@ def test_reset_password(data_fixture):
     with freeze_time("2020-01-01 12:00"):
         token = signer.dumps([user.id, UserHandler._get_password_state_hash(user)])
 
-    with freeze_time("2020-01-01 14:00"):
+    with freeze_time("2020-01-01 14:01"):
         with pytest.raises(SignatureExpired):
             handler.reset_password(token, valid_password)
-            assert not user.check_password(valid_password)
+
+        assert not user.check_password(valid_password)
 
     with freeze_time("2020-01-01 12:30"):
         user = handler.reset_password(token, valid_password)

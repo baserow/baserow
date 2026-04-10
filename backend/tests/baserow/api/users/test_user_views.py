@@ -660,7 +660,7 @@ def test_password_reset(data_fixture, client):
     with freeze_time("2020-01-01 12:00"):
         token = signer.dumps([user.id, UserHandler._get_password_state_hash(user)])
 
-    with freeze_time("2020-01-01 14:00"):
+    with freeze_time("2020-01-01 15:00"):
         response = client.post(
             reverse("api:user:reset_password"),
             {"token": token, "password": valid_password},
