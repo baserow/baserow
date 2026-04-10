@@ -1107,14 +1107,10 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # another execution
         self.reset_workflow_temporary_states(original_workflow)
 
-        # If we have history entries that are too old it probably means something
-        # went wrong with Celery so we mark these entries as failed.
-        self._mark_failure_for_timed_out_history(original_workflow)
-
-        # We remove old history entries to avoid storing too many entries.
-        self._clear_old_history(original_workflow)
-
-        self._check_too_many_errors(workflow)
+        if self._check_too_many_errors(workflow):
+            raise AutomationWorkflowTooManyErrors(
+                "The workflow was disabled due to too many consecutive errors."
+            )
 
         self._check_is_rate_limited(workflow)
 
