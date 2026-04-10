@@ -86,10 +86,6 @@ def clear_old_automation_history():
     handler = AutomationWorkflowHandler()
     for workflow in AutomationWorkflow.objects.all():
         try:
-            # If we have history entries that are too old it probably means
-            # something went wrong with Celery so we mark these entries as failed.
-            handler._mark_failure_for_timed_out_history(workflow)
-
             # We remove old history entries to avoid storing too many entries.
             handler._clear_old_history(workflow)
         except Exception as e:

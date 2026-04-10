@@ -37,52 +37,6 @@ def test_old_automation_history_entries_are_deleted(data_fixture):
     assert workflow_a.workflow_histories.filter(id=recent_history.id).exists()
 
 
-@override_settings(AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1)
-@pytest.mark.django_db
-def test_clear_old_automation_history_marks_timed_out_entries(data_fixture):
-    workflow = data_fixture.create_automation_workflow()
-
-    with freeze_time("2026-04-10 11:00:00"):
-        timed_out_history = data_fixture.create_automation_workflow_history(
-            workflow=workflow, status=HistoryStatusChoices.STARTED
-        )
-
-    with freeze_time("2026-04-10 12:30:00"):
-        running_history = data_fixture.create_automation_workflow_history(
-            workflow=workflow, status=HistoryStatusChoices.STARTED
-        )
-
-    with freeze_time("2026-04-10 13:00:00"):
-        clear_old_automation_history()
-
-    timed_out_history.refresh_from_db()
-    running_history.refresh_from_db()
-
-    assert timed_out_history.status == HistoryStatusChoices.ERROR
-    assert timed_out_history.message == "This workflow took too long and was timed out."
-    assert running_history.status == HistoryStatusChoices.STARTED
-
-
-@override_settings(
-    AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1,
-    AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS=7,
-)
-@pytest.mark.django_db
-def test_clear_old_automation_history_marks_timeout_before_cleanup(data_fixture):
-    workflow = data_fixture.create_automation_workflow()
-
-    with freeze_time("2026-04-10 12:00:00"):
-        old_history = data_fixture.create_automation_workflow_history(
-            workflow=workflow, status=HistoryStatusChoices.STARTED
-        )
-
-    # After 8 days, the history should be both timed out and old.
-    with freeze_time("2026-04-18 12:00:00"):
-        clear_old_automation_history()
-
-    assert not workflow.workflow_histories.filter(id=old_history.id).exists()
-
-
 @override_settings(AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS=7)
 @pytest.mark.django_db
 def test_clear_old_automation_history_continues_on_error(data_fixture):
@@ -97,16 +51,20 @@ def test_clear_old_automation_history_continues_on_error(data_fixture):
             workflow=workflow_b, status=HistoryStatusChoices.SUCCESS
         )
 
-    def side_effect(workflow):
+    original_method = AutomationWorkflowHandler._clear_old_history
+
+    def side_effect(self, workflow):
         """Simulate an error when trying to clean-up workflow_a."""
         if workflow.id == workflow_a.id:
             raise Exception("unexpected error")
+        return original_method(self, workflow)
 
     with patch.object(
         AutomationWorkflowHandler,
-        "_mark_failure_for_timed_out_history",
+        "_clear_old_history",
         side_effect=side_effect,
-    ) as MockHandler:
+        autospec=True,
+    ):
         with freeze_time("2026-04-10 12:00:00"):
             clear_old_automation_history()
 
