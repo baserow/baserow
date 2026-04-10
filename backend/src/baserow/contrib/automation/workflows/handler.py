@@ -1083,7 +1083,8 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 now = timezone.now()
 
                 AutomationHistoryHandler().create_workflow_history(
-                    original_workflow,
+                    original_workflow=original_workflow,
+                    workflow=workflow,
                     is_test_run=original_workflow == workflow,
                     started_on=now,
                     completed_on=now,

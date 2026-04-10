@@ -20,10 +20,15 @@ class AutomationHistory(models.Model):
 
 
 class AutomationWorkflowHistory(AutomationHistory):
-    workflow = models.ForeignKey(
+    original_workflow = models.ForeignKey(
         "automation.AutomationWorkflow",
         on_delete=models.CASCADE,
         related_name="workflow_histories",
+    )
+    workflow = models.ForeignKey(
+        "automation.AutomationWorkflow",
+        on_delete=models.CASCADE,
+        related_name="snapshot_workflow_histories",
     )
     simulate_until_node = models.ForeignKey(
         "automation.AutomationNode",

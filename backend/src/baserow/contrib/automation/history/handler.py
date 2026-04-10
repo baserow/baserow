@@ -31,7 +31,7 @@ class AutomationHistoryHandler:
             base_queryset = AutomationWorkflowHistory.objects.all()
 
         return base_queryset.filter(
-            workflow=workflow,
+            original_workflow=workflow,
             simulate_until_node__isnull=True,
         ).prefetch_related(
             Prefetch(
@@ -69,6 +69,7 @@ class AutomationHistoryHandler:
 
     def create_workflow_history(
         self,
+        original_workflow: AutomationWorkflow,
         workflow: AutomationWorkflow,
         started_on: datetime,
         is_test_run: bool,
@@ -82,6 +83,7 @@ class AutomationHistoryHandler:
 
         return AutomationWorkflowHistory.objects.create(
             workflow=workflow,
+            original_workflow=original_workflow,
             started_on=started_on,
             is_test_run=is_test_run,
             simulate_until_node=simulate_until_node,
