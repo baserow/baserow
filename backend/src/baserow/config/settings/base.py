@@ -283,6 +283,12 @@ for key, value in os.environ.items():
 
         DATABASE_READ_REPLICAS.append(db_key)
 
+# Enable connection health checks for all database connections. This makes Django
+# verify that a database connection is still usable before each request/task, which
+# prevents "connection already closed" errors when connections are dropped by the
+# server, a load balancer, or a connection pooler.
+for _db_key in DATABASES:
+    DATABASES[_db_key].setdefault("CONN_HEALTH_CHECKS", True)
 
 DATABASE_ROUTERS = ["baserow.config.db_routers.ReadReplicaRouter"]
 
