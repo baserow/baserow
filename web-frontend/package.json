@@ -80,7 +80,7 @@
     "@zip.js/zip.js": "^2.8.14",
     "antlr4": "4.9.3",
     "async-mutex": "0.4.0",
-    "axios": "1.13.5",
+    "axios": "1.15.0",
     "bignumber.js": "9.1.1",
     "chart.js": "3.9.1",
     "chartjs-adapter-moment": "1.0.1",
