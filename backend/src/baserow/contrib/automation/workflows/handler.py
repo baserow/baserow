@@ -809,9 +809,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
     def _get_histories_for_current_workflow_version(self, workflow: AutomationWorkflow):
         original_workflow = workflow.get_original()
-        histories = AutomationHistoryHandler().get_workflow_histories(
-            original_workflow
-        )
+        histories = AutomationHistoryHandler().get_workflow_histories(original_workflow)
 
         if workflow != original_workflow:
             histories = histories.filter(started_on__gte=workflow.created_on)
@@ -832,7 +830,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             return False
 
         now = timezone.now()
-        largest_window_seconds = max(window_seconds for _, window_seconds in rate_limits)
+        largest_window_seconds = max(
+            window_seconds for _, window_seconds in rate_limits
+        )
         oldest_start_window = now - timedelta(seconds=largest_window_seconds)
         history_windows = list(
             self._get_histories_for_current_workflow_version(workflow)
@@ -848,8 +848,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             start_window = now - timedelta(seconds=window_seconds)
             if (
                 sum(
-                    started_on >= start_window
-                    or status == HistoryStatusChoices.STARTED
+                    started_on >= start_window or status == HistoryStatusChoices.STARTED
                     for started_on, status in history_windows
                 )
                 >= max_runs
