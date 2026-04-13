@@ -1384,6 +1384,39 @@ def test_create_ai_field_auto_doesnt_update_user_if_set(premium_data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.field_ai
+def test_import_serialized_ai_field_missing_ai_generative_ai_type(premium_data_fixture):
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    premium_data_fixture.register_fake_generate_ai_type()
+    premium_data_fixture.create_text_field(
+        table=table, order=0, name="text", primary=True
+    )
+    ai_field = premium_data_fixture.create_ai_field(
+        table=table,
+        order=1,
+        name="ai",
+        ai_generative_ai_type="missing",
+        ai_generative_ai_model="test_1",
+        ai_prompt="Tell me a joke",
+    )
+    field_type = field_type_registry.get_by_model(ai_field)
+    serialized = field_type.export_serialized(ai_field)
+
+    imported_field = field_type.import_serialized(
+        table,
+        serialized,
+        ImportExportConfig(include_permission_data=False),
+        id_mapping={},
+        deferred_fk_update_collector=DeferredForeignKeyUpdater(),
+    )
+
+    imported_field = AIField.objects.get(id=imported_field.id)
+    assert imported_field.ai_generative_ai_type is None
+    assert imported_field.ai_generative_ai_model == "test_1"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
 def test_import_serialized_ai_field_with_auto_update_user(premium_data_fixture):
     user = premium_data_fixture.create_user()
     table = premium_data_fixture.create_database_table(user=user)

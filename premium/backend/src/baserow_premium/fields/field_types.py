@@ -29,6 +29,7 @@ from baserow.contrib.database.fields.field_types import (
 from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import BaserowFormulaType
+from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.generative_ai.exceptions import (
     GenerativeAITypeDoesNotExist,
@@ -508,6 +509,14 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             serialized_values = serialized_values.copy()
             serialized_values.pop("ai_auto_update_user_id", None)
             serialized_values["ai_auto_update"] = False
+
+        ai_type = serialized_values.get("ai_generative_ai_type")
+        if ai_type is not None:
+            try:
+                generative_ai_model_type_registry.get(ai_type)
+            except InstanceTypeDoesNotExist:
+                serialized_values["ai_generative_ai_type"] = None
+
         return super().import_serialized(
             table,
             serialized_values,
