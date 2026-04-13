@@ -1,5 +1,4 @@
 import logging
-import os
 import sys
 
 from celery import signals
@@ -43,7 +42,7 @@ def setup_logging():
 
     # A slightly customized default loguru format which includes the process id.
     loguru_format = (
-        f"<magenta>{os.getpid()}|</magenta>"
+        "<magenta>{process}|</magenta>"
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green>|"
         "<level>{level}</level>|"
         "<cyan>{name}</cyan>:"
