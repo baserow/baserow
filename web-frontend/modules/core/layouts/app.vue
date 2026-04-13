@@ -140,6 +140,11 @@ function keyDown(event) {
       ['input', 'textarea', 'select'].includes(el.tagName.toLowerCase()) ||
       el.isContentEditable
 
+    // When a whiteboard is open, let tldraw handle its own undo/redo.
+    if (route.name === 'whiteboard-application') {
+      return
+    }
+
     if (!avoid) {
       const actionName = event.shiftKey ? 'undoRedo/redo' : 'undoRedo/undo'
       store.dispatch(actionName, { showLoadingToast: true }).catch(notifyIf)

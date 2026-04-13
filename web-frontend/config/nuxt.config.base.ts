@@ -26,6 +26,7 @@ function baserowModuleConfig(
     `./modules/database/module.js`,
     `./modules/dashboard/module.js`,
     `./modules/builder/module.js`,
+    `./modules/whiteboard/module.js`,
     `./modules/automation/module.js`,
     `./modules/integrations/module.js`,
   ]
@@ -111,6 +112,7 @@ export default defineNuxtConfig({
     ],
     ssr: {
       noExternal: ['vue-chartjs', 'chart.js'],
+      external: ['react', 'react-dom', 'tldraw'],
     },
     server: {
       sourcemapIgnoreList: (sourcePath) => sourcePath.includes('node_modules'),
@@ -125,7 +127,7 @@ export default defineNuxtConfig({
     },
     optimizeDeps: {
       // Pre-bundle moment-guess to avoid missing source map warning
-      include: ['moment-guess'],
+      include: ['moment-guess', 'react', 'react-dom', 'tldraw'],
     },
   },
   buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
