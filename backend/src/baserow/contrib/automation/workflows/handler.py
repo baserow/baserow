@@ -856,13 +856,10 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
     def clear_old_history(self) -> None:
         """
-        Clear any old history entries related to the workflow.
+        Clears any old history entries across all workflows.
 
-        It will delete any history entries that are older than MAX_HISTORY_DAYS and only
-        keep the most recent MAX_HISTORY_ENTRIES entries.
-
-        TODO: refactor this once https://github.com/baserow/baserow/pull/5166
-            is merged in.
+        It will delete any history entries that are older than MAX_HISTORY_DAYS
+        and only keep the most recent MAX_HISTORY_ENTRIES entries.
         """
 
         # Delete all history entries older than max days
