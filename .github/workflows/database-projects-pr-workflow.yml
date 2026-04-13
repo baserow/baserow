@@ -86,7 +86,7 @@ jobs:
                       }
                     }
                     closingIssuesReferences(first: 10) {
-                      nodes { id, number }
+                      nodes { id, number, repository { owner { login }, name } }
                     }
                   }
                 }
@@ -272,23 +272,34 @@ jobs:
             // UPDATE LINKED ISSUES
             // ============================================================
 
-            const linkedIssues = pr.closingIssuesReferences.nodes;
+            // Filter to issues in this repo only (closingIssuesReferences can include cross-repo issues)
+            const linkedIssues = pr.closingIssuesReferences.nodes.filter(issue => {
+              const isLocal = issue.repository.owner.login === context.repo.owner
+                && issue.repository.name === context.repo.repo;
+              if (!isLocal) console.log(`  Skipping cross-repo issue #${issue.number} (${issue.repository.owner.login}/${issue.repository.name})`);
+              return isLocal;
+            });
 
             // Resolve milestone if configured and PR was merged
             let milestoneNumber = null;
             const milestoneName = process.env.MILESTONE_NAME;
             if (pr.merged && milestoneName && linkedIssues.length > 0) {
-              const milestones = await github.rest.issues.listMilestones({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                state: 'open',
-              });
-              const milestone = milestones.data.find(m => m.title === milestoneName);
-              if (milestone) {
-                milestoneNumber = milestone.number;
-                console.log(`Will set milestone "${milestoneName}" (${milestoneNumber}) on linked issues`);
-              } else {
-                console.log(`Warning: milestone "${milestoneName}" not found, skipping milestone assignment`);
+              try {
+                const milestones = await github.paginate(github.rest.issues.listMilestones, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'open',
+                  per_page: 100,
+                });
+                const milestone = milestones.find(m => m.title === milestoneName);
+                if (milestone) {
+                  milestoneNumber = milestone.number;
+                  console.log(`Will set milestone "${milestoneName}" (${milestoneNumber}) on linked issues`);
+                } else {
+                  console.log(`Warning: milestone "${milestoneName}" not found, skipping milestone assignment`);
+                }
+              } catch (e) {
+                console.log(`Warning: failed to resolve milestone "${milestoneName}": ${e.message}`);
               }
             }
 
@@ -299,13 +310,18 @@ jobs:
                 await updateField(itemId, fieldOptions.status.id, fieldOptions.status[status]);
 
                 if (milestoneNumber) {
-                  await github.rest.issues.update({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    issue_number: issue.number,
-                    milestone: milestoneNumber,
-                  });
-                  console.log(`  Issue #${issue.number} → ${status}, milestone "${milestoneName}"`);
+                  try {
+                    await github.rest.issues.update({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: issue.number,
+                      milestone: milestoneNumber,
+                    });
+                    console.log(`  Issue #${issue.number} → ${status}, milestone "${milestoneName}"`);
+                  } catch (e) {
+                    console.log(`  Warning: failed to set milestone on #${issue.number}: ${e.message}`);
+                    console.log(`  Issue #${issue.number} → ${status}`);
+                  }
                 } else {
                   console.log(`  Issue #${issue.number} → ${status}`);
                 }
