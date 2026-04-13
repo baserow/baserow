@@ -1218,5 +1218,9 @@
     },
     "editRowLink": {
         "editRow": "Editar fila"
+    },
+    "gridViewFreezeHandle": {
+        "hoverHint": "Arrastrar para congelar columnas",
+        "freeze": "Congelar 0 columnas | Congelar 1 columna |"
     }
 }
