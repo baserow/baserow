@@ -103,6 +103,12 @@
         <a class="context__menu-item-link" @click="openDefaultValuesModal()">
           <i class="context__menu-item-icon iconoir-settings"></i>
           {{ $t('viewContext.defaultRowValues') }}
+          <Badge
+            v-if="enabledDefaultRowValues.length >= 1"
+            color="neutral"
+            size="small"
+            >{{ enabledDefaultRowValues.length }}</Badge
+          >
         </a>
       </li>
       <li
@@ -244,6 +250,11 @@ export default {
           []
         )
         .filter((component) => component !== null)
+    },
+    enabledDefaultRowValues() {
+      return this.view.default_row_values.filter(
+        (defaultRowValue) => defaultRowValue.enabled
+      )
     },
   },
   methods: {
