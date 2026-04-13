@@ -26,7 +26,6 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowTooManyErrors,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-from baserow.core.cache import global_cache
 from baserow.core.trash.handler import TrashHandler
 from tests.baserow.contrib.automation.history.utils import assert_history
 
@@ -506,8 +505,7 @@ def test_check_is_rate_limited_returns_none_if_empty_cache(data_fixture):
 
 
 @override_settings(
-    AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
-    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=5,
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((5, 5),),
 )
 @pytest.mark.django_db
 def test_check_is_rate_limited_returns_none_if_below_limit(data_fixture):
@@ -515,19 +513,18 @@ def test_check_is_rate_limited_returns_none_if_below_limit(data_fixture):
 
     with freeze_time("2025-08-01 14:00:00"):
         for _ in range(4):
-            result = AutomationWorkflowHandler()._check_is_rate_limited(
-                original_workflow
+            data_fixture.create_automation_workflow_history(
+                workflow=original_workflow,
+                status=HistoryStatusChoices.SUCCESS,
             )
-            assert result is False
 
-        # This 5th attempt shouldn't be rate limited
+        # The next attempt shouldn't be rate limited.
         result = AutomationWorkflowHandler()._check_is_rate_limited(original_workflow)
         assert result is False
 
 
 @override_settings(
-    AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
-    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=5,
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((5, 5),),
 )
 @pytest.mark.django_db
 def test_check_is_rate_limited_returns_none_if_cache_expires(data_fixture):
@@ -535,24 +532,20 @@ def test_check_is_rate_limited_returns_none_if_cache_expires(data_fixture):
 
     with freeze_time("2025-08-01 14:00:00"):
         for _ in range(5):
-            result = AutomationWorkflowHandler()._check_is_rate_limited(
-                original_workflow
+            data_fixture.create_automation_workflow_history(
+                workflow=original_workflow,
+                status=HistoryStatusChoices.SUCCESS,
             )
-            assert result is False
 
     # 6 seconds after the first/initial cache entry
     with freeze_time("2025-08-01 14:00:06"):
-        # The next 5 requests should not be rate limited
-        for _ in range(5):
-            result = AutomationWorkflowHandler()._check_is_rate_limited(
-                original_workflow
-            )
-            assert result is False
+        assert AutomationWorkflowHandler()._check_is_rate_limited(original_workflow) is (
+            False
+        )
 
 
 @override_settings(
-    AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
-    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=5,
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((5, 5),),
 )
 @pytest.mark.django_db
 def test_check_is_rate_limited_raises_if_above_limit(data_fixture):
@@ -560,24 +553,21 @@ def test_check_is_rate_limited_raises_if_above_limit(data_fixture):
 
     with freeze_time("2025-08-01 14:00:00"):
         for _ in range(5):
-            result = AutomationWorkflowHandler()._check_is_rate_limited(
-                original_workflow
+            data_fixture.create_automation_workflow_history(
+                workflow=original_workflow,
+                status=HistoryStatusChoices.SUCCESS,
             )
-            assert result is False
 
-        # This 6th attempt should be rate limited
-        assert (
-            AutomationWorkflowHandler()._check_is_rate_limited(original_workflow)
-            is True
+        assert AutomationWorkflowHandler()._check_is_rate_limited(original_workflow) is (
+            True
         )
 
 
 @override_settings(
-    AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
-    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=2,
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((2, 5),),
 )
 @pytest.mark.django_db
-def test_check_is_rate_limited_returns_true_if_too_many_started_workflows(
+def test_check_is_rate_limited_returns_true_if_too_many_histories_in_window(
     data_fixture,
 ):
     original_workflow = data_fixture.create_automation_workflow()
@@ -587,7 +577,7 @@ def test_check_is_rate_limited_returns_true_if_too_many_started_workflows(
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
 
-    for _ in range(3):
+    for _ in range(2):
         data_fixture.create_automation_workflow_history(
             workflow=original_workflow, status=HistoryStatusChoices.STARTED
         )
@@ -599,10 +589,39 @@ def test_check_is_rate_limited_returns_true_if_too_many_started_workflows(
         )
 
 
+@override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((2, 5), (4, 60)),
+)
+@pytest.mark.django_db
+def test_check_is_rate_limited_returns_true_for_multiple_time_frames(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2025-08-01 14:00:00"):
+        for _ in range(3):
+            data_fixture.create_automation_workflow_history(
+                workflow=original_workflow,
+                status=HistoryStatusChoices.SUCCESS,
+            )
+
+    with freeze_time("2025-08-01 14:00:10"):
+        assert AutomationWorkflowHandler()._check_is_rate_limited(original_workflow) is (
+            False
+        )
+
+    with freeze_time("2025-08-01 14:00:30"):
+        data_fixture.create_automation_workflow_history(
+            workflow=original_workflow,
+            status=HistoryStatusChoices.STARTED,
+        )
+        assert AutomationWorkflowHandler()._check_is_rate_limited(original_workflow) is (
+            True
+        )
+
+
 @pytest.mark.django_db
 @override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((2, 5),),
     AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS=5,
-    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=2,
 )
 @patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
 def test_workflow_rate_limiter_is_checked_before_starting_celery_task(
@@ -1109,9 +1128,8 @@ def test_async_start_workflow_with_simulate_until_node_and_error_creates_no_hist
 
 @pytest.mark.django_db
 @override_settings(
-    AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=4,
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((2, 4),),
     AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS=2,
-    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=2,
     AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS=2,
 )
 @patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
@@ -1211,9 +1229,8 @@ def test_async_start_workflow_queues_celery_task_on_commit(
 
 @pytest.mark.django_db
 @override_settings(
-    AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS=30,
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((2, 30),),
     AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS=30,
-    AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS=2,
 )
 def test_check_is_rate_limited_ignores_runs_before_latest_publish(data_fixture):
     original_workflow = data_fixture.create_automation_workflow()
@@ -1225,16 +1242,6 @@ def test_check_is_rate_limited_ignores_runs_before_latest_publish(data_fixture):
                 workflow=original_workflow,
                 status=HistoryStatusChoices.STARTED,
             )
-        global_cache.update(
-            handler._get_rate_limit_cache_key(original_workflow),
-            lambda _: [
-                datetime.datetime(2026, 3, 10, 10, 0, 0, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2026, 3, 10, 10, 0, 1, tzinfo=datetime.timezone.utc),
-                datetime.datetime(2026, 3, 10, 10, 0, 2, tzinfo=datetime.timezone.utc),
-            ],
-            default_value=lambda: [],
-            timeout=30,
-        )
 
     with freeze_time("2026-03-10 12:00:00"):
         published_workflow = handler.publish(original_workflow)

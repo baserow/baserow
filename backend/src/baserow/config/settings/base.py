@@ -834,7 +834,9 @@ AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS = int(
 )
 _automation_workflow_rate_limit_values = [
     int(value.strip())
-    for value in os.getenv("BASEROW_AUTOMATION_WORKFLOW_RATE_LIMITS", "").split(",")
+    for value in os.getenv(
+        "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMITS", "20,5,30,60,120,3600"
+    ).split(",")
     if value.strip()
 ]
 if len(_automation_workflow_rate_limit_values) % 2 != 0:
