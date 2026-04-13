@@ -829,16 +829,33 @@ INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = str_to_bool(
 AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(
     os.getenv("BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT", 100)
 )
-AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS = int(
-    os.getenv("BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS", 10)
+_legacy_workflow_rate_limit_max_runs = os.getenv(
+    "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS"
 )
-_automation_workflow_rate_limit_values = [
-    int(value.strip())
-    for value in os.getenv(
-        "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMITS", "20,5,30,60,120,3600"
-    ).split(",")
-    if value.strip()
-]
+_legacy_workflow_rate_limit_window_seconds = os.getenv(
+    "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS"
+)
+_automation_workflow_rate_limits_env = os.getenv(
+    "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMITS"
+)
+
+if _automation_workflow_rate_limits_env is not None:
+    _automation_workflow_rate_limit_values = [
+        int(value.strip())
+        for value in _automation_workflow_rate_limits_env.split(",")
+        if value.strip()
+    ]
+elif (
+    _legacy_workflow_rate_limit_max_runs is not None
+    or _legacy_workflow_rate_limit_window_seconds is not None
+):
+    _automation_workflow_rate_limit_values = [
+        int(_legacy_workflow_rate_limit_max_runs or 10),
+        int(_legacy_workflow_rate_limit_window_seconds or 5),
+    ]
+else:
+    _automation_workflow_rate_limit_values = [20, 5, 30, 60, 120, 3600]
+
 if len(_automation_workflow_rate_limit_values) % 2 != 0:
     raise ImproperlyConfigured(
         "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMITS must contain an even number of "
@@ -852,13 +869,10 @@ AUTOMATION_WORKFLOW_RATE_LIMITS = tuple(
     )
     for index in range(0, len(_automation_workflow_rate_limit_values), 2)
 )
-AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS = int(
-    os.getenv("BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS", 5)
-)
 AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS = int(
     os.getenv(
         "BASEROW_AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS",
-        AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS,
+        _legacy_workflow_rate_limit_window_seconds or 5,
     )
 )
 AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS = int(
