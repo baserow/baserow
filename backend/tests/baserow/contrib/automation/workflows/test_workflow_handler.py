@@ -561,9 +561,12 @@ def test_check_is_rate_limited_raises_if_above_limit(data_fixture):
                 status=HistoryStatusChoices.SUCCESS,
             )
 
-        assert (
+        with pytest.raises(AutomationWorkflowRateLimited) as exc:
             AutomationWorkflowHandler()._check_is_rate_limited(original_workflow)
-            is True
+
+        assert str(exc.value) == (
+            "The workflow was rate limited due to too many recent or unfinished "
+            "runs. Limit exceeded: 5 runs in 5 seconds."
         )
 
 
@@ -587,9 +590,12 @@ def test_check_is_rate_limited_returns_true_if_too_many_histories_in_window(
         )
 
     with freeze_time("2025-08-01 14:00:00"):
-        assert (
+        with pytest.raises(AutomationWorkflowRateLimited) as exc:
             AutomationWorkflowHandler()._check_is_rate_limited(published_workflow)
-            is True
+
+        assert str(exc.value) == (
+            "The workflow was rate limited due to too many recent or unfinished "
+            "runs. Limit exceeded: 2 runs in 5 seconds."
         )
 
 
@@ -617,9 +623,12 @@ def test_check_is_rate_limited_returns_true_for_multiple_time_frames(data_fixtur
             workflow=original_workflow,
             status=HistoryStatusChoices.STARTED,
         )
-        assert (
+        with pytest.raises(AutomationWorkflowRateLimited) as exc:
             AutomationWorkflowHandler()._check_is_rate_limited(original_workflow)
-            is True
+
+        assert str(exc.value) == (
+            "The workflow was rate limited due to too many recent or unfinished "
+            "runs. Limit exceeded: 4 runs in 60 seconds."
         )
 
 
@@ -638,10 +647,13 @@ def test_check_is_rate_limited_uses_a_single_query_for_multiple_windows(data_fix
             )
 
         with CaptureQueriesContext(connection) as queries:
-            assert (
+            with pytest.raises(AutomationWorkflowRateLimited) as exc:
                 AutomationWorkflowHandler()._check_is_rate_limited(original_workflow)
-                is True
-            )
+
+        assert str(exc.value) == (
+            "The workflow was rate limited due to too many recent or unfinished "
+            "runs. Limit exceeded: 2 runs in 5 seconds."
+        )
 
     assert len(queries) == 1
 
@@ -667,7 +679,8 @@ def test_workflow_rate_limiter_is_checked_before_starting_celery_task(
 
         handler = AutomationWorkflowHandler()
         rate_limited_error = (
-            "The workflow was rate limited due to too many recent or unfinished runs."
+            "The workflow was rate limited due to too many recent or unfinished "
+            "runs. Limit exceeded: 2 runs in 5 seconds."
         )
 
         with django_capture_on_commit_callbacks(execute=True):
@@ -703,7 +716,8 @@ def test_async_start_workflow_creates_rate_limited_history_once_until_cache_rese
     published_workflow.automation.save()
 
     mock_before_run.side_effect = AutomationWorkflowRateLimited(
-        "The workflow was rate limited due to too many recent or unfinished runs."
+        "The workflow was rate limited due to too many recent or unfinished runs. "
+        "Limit exceeded: 2 runs in 5 seconds."
     )
 
     handler = AutomationWorkflowHandler()
@@ -719,7 +733,8 @@ def test_async_start_workflow_creates_rate_limited_history_once_until_cache_rese
         original_workflow,
         1,
         "error",
-        "The workflow was rate limited due to too many recent or unfinished runs.",
+        "The workflow was rate limited due to too many recent or unfinished runs. "
+        "Limit exceeded: 2 runs in 5 seconds.",
     )
     mock_celery_task.delay.assert_not_called()
 
@@ -1210,16 +1225,19 @@ def test_async_start_workflow_rate_limited_runs_eventually_disable_workflow(
 
     assert histories[2].status == HistoryStatusChoices.ERROR
     assert histories[2].message == (
-        "The workflow was rate limited due to too many recent or unfinished runs."
+        "The workflow was rate limited due to too many recent or unfinished runs. "
+        "Limit exceeded: 2 runs in 4 seconds."
     )
     assert histories[3].status == HistoryStatusChoices.ERROR
     assert histories[3].message == (
-        "The workflow was rate limited due to too many recent or unfinished runs."
+        "The workflow was rate limited due to too many recent or unfinished runs. "
+        "Limit exceeded: 2 runs in 4 seconds."
     )
 
     assert histories[4].status == HistoryStatusChoices.ERROR
     assert histories[4].message == (
-        "The workflow was rate limited due to too many recent or unfinished runs."
+        "The workflow was rate limited due to too many recent or unfinished runs. "
+        "Limit exceeded: 2 runs in 4 seconds."
     )
 
     assert histories[5].status == HistoryStatusChoices.DISABLED

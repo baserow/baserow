@@ -823,6 +823,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         The histories are fetched once for the largest configured window and each
         smaller window is evaluated in Python to avoid issuing one COUNT query per
         configured rate limit.
+
+        Raises AutomationWorkflowRateLimited when the workflow exceeds one of the
+        configured rate limits.
         """
 
         rate_limits = settings.AUTOMATION_WORKFLOW_RATE_LIMITS
@@ -853,7 +856,11 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 )
                 >= max_runs
             ):
-                return True
+                raise AutomationWorkflowRateLimited(
+                    "The workflow was rate limited due to too many recent or "
+                    f"unfinished runs. Limit exceeded: {max_runs} runs in "
+                    f"{window_seconds} seconds."
+                )
 
         return False
 
@@ -907,12 +914,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 "The workflow was disabled due to too many consecutive errors."
             )
 
-        if self._check_is_rate_limited(workflow):
-            # Early return if we had too many execution during a short amount of time
-            raise AutomationWorkflowRateLimited(
-                "The workflow was rate limited due to too many recent or unfinished "
-                "runs."
-            )
+        self._check_is_rate_limited(workflow)
 
     def async_start_workflow(
         self,
