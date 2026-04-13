@@ -6,7 +6,6 @@ from django.utils import translation
 from baserow.contrib.builder.elements.exceptions import (
     ElementDoesNotExist,
     ElementNotInSamePage,
-    ElementMoveNotAllowed,
 )
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
@@ -196,8 +195,6 @@ class ElementService:
             new_element, reference_element, position, instance_output
         )
 
-        element_type.after_create(new_element, kwargs)
-
         element_created.send(
             self,
             element=new_element,
@@ -296,6 +293,14 @@ class ElementService:
                 f"The reference element {reference_element_id} doesn't exist"
             ) from e
 
+        # Check we are on the same builder.
+        if target_page.builder != element.page.builder:
+            raise PageNotInBuilder()
+
+        # Validate the reference element's place (e.g. if a `place_in_container` is
+        # provided that is too large for the number this container supports), then
+        # check the position/reference element combination is valid.
+        element_type.validate_place(target_page, reference_element, place_in_container)
         self._check_position(target_page, reference_element, position)
 
         # Check if the type has any before-move requirements.
@@ -315,7 +320,9 @@ class ElementService:
             else None
         )
 
-        target_page.get_graph().move(element, reference_element, position, place_in_container)
+        target_page.get_graph().move(
+            element, reference_element, position, place_in_container
+        )
 
         element_moved.send(
             self,

@@ -9,6 +9,7 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.builder.elements.element_types import HeaderElementType
 from baserow.contrib.builder.elements.models import (
     ChoiceElementOption,
     Element,
@@ -577,7 +578,7 @@ def test_move_element_returns_error_when_place_in_container_is_invalid(
     response = api_client.patch(
         url,
         {
-            "parent_element_id": column_element.id,
+            "reference_element_id": column_element.id,
             "place_in_container": "9999",
         },
         format="json",
@@ -585,7 +586,7 @@ def test_move_element_returns_error_when_place_in_container_is_invalid(
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert "place_in_container" in response.json()[0]
+    assert response.json() == ["place_in_container can at most be 1, (9999, was given)"]
 
 
 @pytest.mark.django_db
@@ -598,26 +599,32 @@ def test_move_element_with_before_returns_error_when_place_in_container_is_inval
         page=page, column_amount=2
     )
     first_child = data_fixture.create_builder_text_element(
-        page=page, parent_element=column_element, place_in_container="0"
+        page=page,
+        place_in_container="0",
+        reference_element=column_element,
+        position=GraphPointPosition.CHILD,
     )
     second_child = data_fixture.create_builder_text_element(
-        page=page, parent_element=column_element, place_in_container="0"
+        page=page,
+        place_in_container="0",
+        reference_element=column_element,
+        position=GraphPointPosition.CHILD,
     )
 
     url = reverse("api:builder:element:move", kwargs={"element_id": second_child.id})
     response = api_client.patch(
         url,
         {
-            "before_id": first_child.id,
-            "parent_element_id": column_element.id,
             "place_in_container": "9999",
+            "position": GraphPointPosition.CHILD,
+            "reference_element_id": column_element.id,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert "place_in_container" in response.json()[0]
+    assert response.json() == ["place_in_container can at most be 1, (9999, was given)"]
 
     second_child.refresh_from_db()
     assert second_child.parent_element_id == column_element.id
@@ -641,7 +648,7 @@ def test_move_element_to_other_page_container_returns_error_when_place_is_invali
     response = api_client.patch(
         url,
         {
-            "parent_element_id": column_element.id,
+            "reference_element_id": column_element.id,
             "place_in_container": "9999",
         },
         format="json",
@@ -649,12 +656,12 @@ def test_move_element_to_other_page_container_returns_error_when_place_is_invali
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert "place_in_container" in response.json()[0]
+    assert response.json() == ["place_in_container can at most be 1, (9999, was given)"]
 
     child.refresh_from_db()
     assert child.page_id == page.id
     assert child.parent_element_id is None
-    assert child.place_in_container is None
+    assert child.place_in_container == ''
 
 
 @pytest.mark.django_db
@@ -682,7 +689,7 @@ def test_move_element_to_shared_page_without_parent_is_invalid_for_regular_eleme
     element.refresh_from_db()
     assert element.page_id == page.id
     assert element.parent_element_id is None
-    assert element.place_in_container is None
+    assert element.place_in_container == ''
 
 
 @pytest.mark.django_db
@@ -694,7 +701,7 @@ def test_move_element_to_regular_page_without_parent_is_invalid_for_shared_eleme
     page = data_fixture.create_builder_page(user=user, builder=builder)
     shared_page = builder.shared_page
     header = data_fixture.create_builder_element(
-        HeaderElement,
+        HeaderElementType,
         user=user,
         page=shared_page,
         share_type="all",

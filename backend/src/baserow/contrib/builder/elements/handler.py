@@ -499,7 +499,6 @@ class ElementHandler:
         element_type = element_type_registry.get_by_model(element)
 
         serialized = element_type.export_serialized(element)
-        del serialized["place_in_container"]
 
         element_duplicated = element_type.import_serialized(
             element.page, serialized, id_mapping

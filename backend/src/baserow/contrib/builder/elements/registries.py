@@ -93,7 +93,7 @@ class ElementType(
 
         from baserow.contrib.builder.elements.handler import ElementHandler
 
-        parent_element_id = getattr(instance, "parent_element_id", None)
+        reference_element_id = getattr(instance, "reference_element_id", None)
 
         if instance:
             place_in_container = values.get(
@@ -104,10 +104,10 @@ class ElementType(
             place_in_container = values.get("place_in_container", None)
             page = values["page"]
 
-        if parent_element_id is not None:
+        if reference_element_id is not None:
             # Validate the place for this element
-            parent_element = ElementHandler().get_element(parent_element_id)
-            self.validate_place(page, parent_element, place_in_container)
+            reference_element = ElementHandler().get_element(reference_element_id)
+            self.validate_place(page, reference_element, place_in_container)
         elif getattr(self, "is_multi_page_element", False) != page.shared:
             raise ValidationError(
                 "This element type can't be added as root of a "

@@ -339,7 +339,7 @@ class MoveElementView(APIView):
 
         element = ElementHandler().get_element_for_update(element_id)
         reference_element_id = data.get("reference_element_id")
-        target_page_id = data.get("target_page_id", None)
+        target_page_id = data.pop("target_page_id", None)
 
         reference_element = None
         if reference_element_id is not None:
@@ -356,10 +356,12 @@ class MoveElementView(APIView):
         except PageDoesNotExist as e:
             raise PageNotInBuilder(target_page_id) from e
 
-        moved_element = ElementService().move_element(request.user, element, target_page, **data)
+        element_move = ElementService().move_element(
+            request.user, target_page, element, **data
+        )
 
         serializer = element_type_registry.get_serializer(
-            moved_element, ElementSerializer
+            element_move.element, ElementSerializer
         )
         return Response(serializer.data)
 

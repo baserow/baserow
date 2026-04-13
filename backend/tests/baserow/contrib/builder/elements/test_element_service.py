@@ -392,6 +392,7 @@ def test_move_element_end_of_page(data_fixture):
 
     ElementService().move_element(
         user,
+        page,
         element1,
         element1.place_in_container,
         element3.id,
@@ -424,6 +425,7 @@ def test_move_element_before(data_fixture):
 
     ElementService().move_element(
         user,
+        page,
         element3,
         element3.place_in_container,
         element2.id,
@@ -473,6 +475,7 @@ def test_moving_elements_inside_container(data_fixture):
 
     ElementService().move_element(
         user,
+        page,
         element_inside_container_two,
         element_inside_container_two.place_in_container,
         element_inside_container_one.id,
