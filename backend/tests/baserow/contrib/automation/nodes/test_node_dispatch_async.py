@@ -292,7 +292,7 @@ def test_dispatch_node_dispatches_trigger(data_fixture):
     assert node_history.status == HistoryStatusChoices.SUCCESS
 
     node_result = AutomationNodeResult.objects.get(node_history=node_history)
-    assert node_result.iteration == 0
+    assert node_result.iteration_path == ""
     assert node_result.result == workflow_history.event_payload
 
     assert_dispatches_next_node(result, (action_node, workflow_history, None))
@@ -344,7 +344,7 @@ def test_dispatch_node_dispatches_action_create_row(data_fixture):
     assert node_history.status == HistoryStatusChoices.SUCCESS
 
     node_result = AutomationNodeResult.objects.get(node_history=node_history)
-    assert node_result.iteration == 0
+    assert node_result.iteration_path == ""
     assert node_result.result == {
         action_table_field.name: "Apple",
         "id": AnyInt(),
@@ -611,7 +611,7 @@ def test_dispatch_node_dispatches_action_simulation(
     assert node_history.status == HistoryStatusChoices.SUCCESS
 
     node_result = AutomationNodeResult.objects.get(node_history=node_history)
-    assert node_result.iteration == 0
+    assert node_result.iteration_path == ""
     assert node_result.result == {
         "results": [
             {
@@ -923,12 +923,19 @@ def test_dispatch_node_dispatches_test_run(
     assert workflow_history.status == HistoryStatusChoices.STARTED
 
     # Make sure all nodes have a history and node result
-    for node in [
-        trigger_node,
-        iterator_node,
-        iterator_child_1_node,
-        iterator_child_2_node,
-    ]:
+    for node in [trigger_node, iterator_node]:
+        for node_history in AutomationNodeHistory.objects.filter(
+            workflow_history=workflow_history,
+            node=node,
+        ):
+            assert node_history.message == ""
+            assert node_history.status == HistoryStatusChoices.SUCCESS
+
+            node_result = AutomationNodeResult.objects.get(node_history=node_history)
+            assert node_result.iteration_path == ""
+            assert len(node_result.result) > 0
+
+    for node in [iterator_child_1_node, iterator_child_2_node]:
         for index, node_history in enumerate(
             AutomationNodeHistory.objects.filter(
                 workflow_history=workflow_history,
@@ -939,7 +946,7 @@ def test_dispatch_node_dispatches_test_run(
             assert node_history.status == HistoryStatusChoices.SUCCESS
 
             node_result = AutomationNodeResult.objects.get(node_history=node_history)
-            assert node_result.iteration == index
+            assert node_result.iteration_path == str(index)
             assert len(node_result.result) > 0
 
     # Ensure workflow history is exists for test runs
@@ -1010,7 +1017,7 @@ def test_dispatch_node_dispatches_action_update_row(data_fixture):
     assert node_history.status == HistoryStatusChoices.SUCCESS
 
     node_result = AutomationNodeResult.objects.get(node_history=node_history)
-    assert node_result.iteration == 0
+    assert node_result.iteration_path == ""
     assert node_result.result == {
         action_table_field.name: "Apple",
         "id": AnyInt(),
@@ -1057,7 +1064,7 @@ def test_dispatch_node_dispatches_action_delete_row(data_fixture):
     assert node_history.status == HistoryStatusChoices.SUCCESS
 
     node_result = AutomationNodeResult.objects.get(node_history=node_history)
-    assert node_result.iteration == 0
+    assert node_result.iteration_path == ""
     assert node_result.result == {}
 
 
@@ -1142,7 +1149,7 @@ def test_dispatch_node_dispatches_action_router(data_fixture):
     assert node_history.status == HistoryStatusChoices.SUCCESS
 
     node_result = AutomationNodeResult.objects.get(node_history=node_history)
-    assert node_result.iteration == 0
+    assert node_result.iteration_path == ""
     assert node_result.result == {
         action_table_field.name: "Cherry",
         "id": AnyInt(),

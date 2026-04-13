@@ -16,7 +16,7 @@
     <MemberAssignmentModal
       ref="memberAssignmentModal"
       :members="uninvitedUserSubjects"
-      @invite="storeSelectedUsers"
+      @select="storeSelectedUsers"
     />
   </Modal>
 </template>

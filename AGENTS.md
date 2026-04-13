@@ -40,6 +40,7 @@ Reusable skills live in `.agents/skills/`. Each subdirectory is a self-contained
 | `add-django-config-env-var` | Adding a new Django setting backed by an env var and propagating it to `base.py`, docker-compose files, `env-remap.mjs`, and `docs/installation/configuration.md` |
 | `write-frontend-unit-test` | Writing or fixing frontend unit tests in `web-frontend`, `premium/web-frontend`, or `enterprise/web-frontend` |
 | `create-update-service` | Creating or updating an integration type or service type in `contrib/integrations` |
+| `create-in-app-notification` | Creating or updating a Baserow in-app notification for an event, including backend and frontend registration, target routing data, and duplicate-prevention behavior |
 
 ## Security & Configuration Tips
 

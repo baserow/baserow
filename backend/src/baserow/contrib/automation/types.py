@@ -12,6 +12,7 @@ class AutomationWorkflowDict(TypedDict):
     nodes: List[AutomationNodeDict]
     state: WorkflowState
     graph: dict
+    notification_recipient_emails: List[str]
 
 
 class AutomationDict(TypedDict):

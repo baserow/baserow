@@ -60,6 +60,8 @@ from baserow.core.utils import (
     Progress,
     extract_allowed,
     find_unused_name,
+    set_allowed_m2m_fields,
+    split_attrs_and_m2m_fields,
 )
 
 WORKFLOW_HISTORY_RATE_LIMIT_CACHE_PREFIX = "automation_workflow_history_{}"
@@ -69,7 +71,12 @@ tracer = trace.get_tracer(__name__)
 
 
 class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
-    allowed_fields = ["name", "allow_test_run_until", "state"]
+    allowed_fields = [
+        "name",
+        "allow_test_run_until",
+        "state",
+        "notification_recipients",
+    ]
 
     def get_workflow(
         self,
@@ -193,7 +200,17 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         :return: A dict of prepared values.
         """
 
-        return {key: getattr(workflow, key) for key in self.allowed_fields}
+        prepared_values = {}
+        for key in self.allowed_fields:
+            if key == "notification_recipients":
+                prepared_values[key] = list(
+                    workflow.notification_recipients.order_by("id").values_list(
+                        "id", flat=True
+                    )
+                )
+            else:
+                prepared_values[key] = getattr(workflow, key)
+        return prepared_values
 
     def update_workflow(
         self, workflow: AutomationWorkflow, **kwargs
@@ -210,6 +227,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         original_workflow_values = self.export_prepared_values(workflow)
 
         allowed_values = extract_allowed(kwargs, self.allowed_fields)
+        attr_fields, m2m_fields = split_attrs_and_m2m_fields(
+            self.allowed_fields, workflow
+        )
 
         # The state is a special value that should only be set on the
         # published workflow, if available.
@@ -219,10 +239,11 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 published_workflow.state = WorkflowState(state)
                 published_workflow.save(update_fields=["state"])
 
-        for key, value in allowed_values.items():
+        for key, value in extract_allowed(allowed_values, attr_fields).items():
             setattr(workflow, key, value)
 
         workflow.save()
+        set_allowed_m2m_fields(allowed_values, m2m_fields, workflow)
 
         new_workflow_values = self.export_prepared_values(workflow)
 
@@ -286,7 +307,16 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         automation = workflow.automation
 
-        exported_workflow = self.export_workflow(workflow)
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            exclude_sensitive_data=False,
+            is_duplicate=True,
+        )
+
+        exported_workflow = self.export_workflow(
+            workflow, import_export_config=import_export_config
+        )
 
         # Set a unique name for the workflow to import back as a new one.
         exported_workflow["name"] = self.find_unused_workflow_name(
@@ -298,13 +328,6 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         id_mapping = defaultdict(lambda: MirrorDict())
         id_mapping["automation_workflows"] = MirrorDict()
-
-        import_export_config = ImportExportConfig(
-            include_permission_data=True,
-            reduce_disk_space_usage=False,
-            exclude_sensitive_data=False,
-            is_duplicate=True,
-        )
 
         new_workflow_clone = self.import_workflow(
             automation,
@@ -342,6 +365,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
     def export_workflow(
         self,
         workflow: AutomationWorkflow,
+        import_export_config: Optional[ImportExportConfig] = None,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict[str, any]] = None,
@@ -350,6 +374,8 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         Serializes the given workflow.
 
         :param workflow: The AutomationWorkflow instance to serialize.
+        :param import_export_config: provides configuration options for the
+            import/export process to customize how it works.
         :param files_zip: A zip file to store files in necessary.
         :param storage: Storage to use.
         :param cache: A cache to use for storing temporary data.
@@ -370,6 +396,16 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             nodes=serialized_nodes,
             state=workflow.state,
             graph=workflow.graph,
+            # Keep user emails only on duplication
+            notification_recipient_emails=(
+                []
+                if not getattr(import_export_config, "is_duplicate", False)
+                else list(
+                    workflow.notification_recipients.order_by("id").values_list(
+                        "email", flat=True
+                    )
+                )
+            ),
         )
 
     def _ops_count_for_import_workflow(
@@ -496,7 +532,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress: Optional[ChildProgressBuilder] = None,
-        cache: Optional[Dict[str, any]] = None,
+        cache: Optional[Dict[str, Any]] = None,
     ) -> AutomationWorkflow:
         """
         Creates an instance of AutomationWorkflow using the serialized version
@@ -532,7 +568,6 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         serialized_workflow: Dict[str, Any],
         id_mapping: Dict[str, Dict[int, int]],
         progress: Optional[ChildProgressBuilder] = None,
-        *args: Any,
         **kwargs: Any,
     ):
         if "automation_workflows" not in id_mapping:
@@ -545,6 +580,13 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             state=serialized_workflow["state"] or WorkflowState.DRAFT,
             graph=serialized_workflow.get("graph", {}),
         )
+        if recipient_emails := serialized_workflow.get(
+            "notification_recipient_emails", []
+        ):
+            workspace = workflow_instance.get_original().automation.workspace
+            workflow_instance.notification_recipients.set(
+                workspace.users.filter(email__in=recipient_emails)
+            )
 
         id_mapping["automation_workflows"][serialized_workflow["id"]] = (
             workflow_instance.id
@@ -618,6 +660,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Manually set the published status for the newly created workflow.
         exported_automation["workflows"][0]["state"] = WorkflowState.LIVE
+        exported_automation["published_from"] = workflow
 
         progress_builder = None
         if progress:
@@ -636,9 +679,6 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             progress_builder=progress_builder,
         )
 
-        duplicate_automation.published_from = workflow
-        duplicate_automation.save(update_fields=["published_from"])
-
         self._invalidate_workflow_caches(workflow)
 
         return duplicate_automation.workflows.first()
@@ -656,6 +696,15 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         workflow.save(update_fields=["state"])
         original_workflow.state = WorkflowState.DISABLED
         original_workflow.save(update_fields=["state"])
+
+        if workflow != original_workflow:
+            from baserow.contrib.automation.notification_types import (
+                WorkflowDisabledNotificationType,
+            )
+
+            transaction.on_commit(
+                lambda: WorkflowDisabledNotificationType.notify_recipients(workflow)
+            )
 
         automation_workflow_updated.send(self, user=None, workflow=original_workflow)
 
@@ -866,28 +915,63 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
     def _check_too_many_errors(self, workflow: AutomationWorkflow) -> bool:
         """
-        Checks if the given workflow has too many consecutive errors. If so,
-        raises AutomationWorkflowTooManyErrors.
+        Checks if the given workflow has too many recent or consecutive errors.
+        If so, raises AutomationWorkflowTooManyErrors.
         """
 
-        original_workflow = workflow.get_original()
-
-        if original_workflow == workflow:
-            # We don't want to rate limit a test execution or a simulation
+        # Only check for live (published) workflows
+        if not workflow.automation.published_from_id:
             return False
 
         max_errors = settings.AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS
+        error_limits = settings.AUTOMATION_WORKFLOW_ERROR_LIMITS
 
-        statuses = (
-            self._get_histories_for_current_workflow_version(workflow)
-            .exclude(status=HistoryStatusChoices.STARTED)
-            .order_by("-started_on")
-            .values_list("status", flat=True)[: max_errors + 1]
+        now = timezone.now()
+
+        # Single query for all checks
+        qs = self._get_histories_for_current_workflow_version(workflow).exclude(
+            status=HistoryStatusChoices.STARTED
         )
 
-        return (
-            len([s for s in statuses if s == HistoryStatusChoices.ERROR]) > max_errors
-        )
+        if error_limits:
+            oldest_start_window = now - timedelta(
+                seconds=max(window_seconds for _, window_seconds in error_limits)
+            )
+            qs = qs.filter(started_on__gte=oldest_start_window)
+
+        histories = list(qs.order_by("-started_on").values_list("started_on", "status"))
+
+        # Consecutive errors check
+        if (
+            len(
+                [
+                    s
+                    for _, s in histories[: max_errors + 1]
+                    if s == HistoryStatusChoices.ERROR
+                ]
+            )
+            > max_errors
+        ):
+            raise AutomationWorkflowTooManyErrors(
+                "The workflow was disabled due to too many consecutive errors. "
+                f"Limit exceeded: {max_errors} consecutive errors."
+            )
+
+        if not error_limits:
+            return False
+
+        # Time-window errors check
+        error_timestamps = [t for t, s in histories if s == HistoryStatusChoices.ERROR]
+        for max_errors_limit, window_seconds in error_limits:
+            start_window = now - timedelta(seconds=window_seconds)
+            if sum(t >= start_window for t in error_timestamps) > max_errors_limit:
+                raise AutomationWorkflowTooManyErrors(
+                    "The workflow was disabled due to too many recent errors. "
+                    f"Limit exceeded: {max_errors_limit} errors in "
+                    f"{window_seconds} seconds."
+                )
+
+        return False
 
     def before_run(self, workflow: AutomationWorkflow) -> None:
         """
@@ -909,10 +993,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # We remove old history entries to avoid storing too many entries.
         self._clear_old_history(original_workflow)
 
-        if self._check_too_many_errors(workflow):
-            raise AutomationWorkflowTooManyErrors(
-                "The workflow was disabled due to too many consecutive errors."
-            )
+        self._check_too_many_errors(workflow)
 
         self._check_is_rate_limited(workflow)
 

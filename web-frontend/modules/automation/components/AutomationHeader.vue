@@ -126,9 +126,10 @@
         </Button>
       </div>
     </div>
-    <AutomationSettingsModal
-      ref="automationSettingsModal"
+    <WorkflowSettingsModal
+      ref="workflowSettingsModal"
       :automation="automation"
+      :workflow="workflow"
     />
   </header>
 </template>
@@ -137,17 +138,17 @@
 import { useStore } from 'vuex'
 import moment from '@baserow/modules/core/moment'
 import { getUserTimeZone } from '@baserow/modules/core/utils/date'
-import { defineComponent, ref, computed } from 'vue'
+import { defineComponent, ref, computed, inject } from 'vue'
 import { HistoryEditorSidePanelType } from '@baserow/modules/automation/editorSidePanelTypes'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { WORKFLOW_STATES } from '@baserow/modules/automation/components/enums'
 
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
-import AutomationSettingsModal from '@baserow/modules/automation/components/settings/AutomationSettingsModal'
+import WorkflowSettingsModal from '@baserow/modules/automation/components/settings/WorkflowSettingsModal'
 
 export default defineComponent({
   name: 'AutomationHeader',
-  components: { AutomationSettingsModal },
+  components: { WorkflowSettingsModal },
   props: {
     automation: {
       type: Object,
@@ -283,14 +284,15 @@ export default defineComponent({
       isPublishing.value = false
     }
 
-    const automationSettingsModal = ref(null)
+    const workflowSettingsModal = ref(null)
     const openSettingsModal = () => {
-      automationSettingsModal.value.show()
+      workflowSettingsModal.value.show()
     }
 
     return {
       isDev,
       debug,
+      workflow,
       statusSwitch,
       debugClick,
       historyClick,
@@ -303,11 +305,10 @@ export default defineComponent({
       isPublishing,
       isPaused,
       isDisabled,
-      workflow,
       activeSidePanel,
       testRunDisabled,
       openSettingsModal,
-      automationSettingsModal,
+      workflowSettingsModal,
     }
   },
 })

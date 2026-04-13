@@ -857,6 +857,9 @@ _legacy_workflow_rate_limit_window_seconds = os.getenv(
 _automation_workflow_rate_limits_env = os.getenv(
     "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMITS"
 )
+_automation_workflow_error_limits_env = os.getenv(
+    "BASEROW_AUTOMATION_WORKFLOW_ERROR_LIMITS"
+)
 
 if _automation_workflow_rate_limits_env is not None:
     _automation_workflow_rate_limit_values = [
@@ -893,6 +896,28 @@ AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS = int(
         "BASEROW_AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS",
         _legacy_workflow_rate_limit_window_seconds or 5,
     )
+)
+if _automation_workflow_error_limits_env is not None:
+    _automation_workflow_error_limit_values = [
+        int(value.strip())
+        for value in _automation_workflow_error_limits_env.split(",")
+        if value.strip()
+    ]
+else:
+    _automation_workflow_error_limit_values = [20, 300]
+
+if len(_automation_workflow_error_limit_values) % 2 != 0:
+    raise ImproperlyConfigured(
+        "BASEROW_AUTOMATION_WORKFLOW_ERROR_LIMITS must contain an even number of "
+        "comma-separated integers formatted as max_errors,window_seconds pairs."
+    )
+
+AUTOMATION_WORKFLOW_ERROR_LIMITS = tuple(
+    (
+        _automation_workflow_error_limit_values[index],
+        _automation_workflow_error_limit_values[index + 1],
+    )
+    for index in range(0, len(_automation_workflow_error_limit_values), 2)
 )
 AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS", 5)

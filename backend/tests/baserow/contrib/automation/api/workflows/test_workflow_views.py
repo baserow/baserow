@@ -51,6 +51,7 @@ def test_create_workflow(api_client, data_fixture):
         "automation_id": AnyInt(),
         "id": AnyInt(),
         "name": name,
+        "notification_recipient_ids": [user.id],
         "order": AnyInt(),
         "state": "draft",
         "published_on": None,
@@ -143,6 +144,7 @@ def test_read_workflow(api_client, data_fixture):
         "state": "draft",
         "published_on": None,
         "graph": {"0": trigger.id, str(trigger.id): {}},
+        "notification_recipient_ids": [],
     }
 
 
@@ -158,6 +160,48 @@ def test_update_workflow(api_client, data_fixture):
 
     assert response.status_code == HTTP_200_OK
     assert response.json()["name"] == "test-updated"
+
+
+@pytest.mark.django_db
+def test_update_workflow_notification_recipients(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user, name="test")
+    recipient = data_fixture.create_user(workspace=workflow.automation.workspace)
+
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
+    response = api_client.patch(
+        url,
+        {"notification_recipient_ids": [recipient.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["notification_recipient_ids"] == [recipient.id]
+
+
+@pytest.mark.django_db
+def test_update_workflow_rejects_non_workspace_notification_recipient(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user, name="test")
+    recipient = data_fixture.create_user()
+
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
+    response = api_client.patch(
+        url,
+        {"notification_recipient_ids": [recipient.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "notification_recipient_ids": [
+            "All notification recipients must belong to the workflow workspace."
+        ],
+    }
 
 
 @pytest.mark.django_db
@@ -365,6 +409,7 @@ def test_duplicate_workflow(api_client, data_fixture):
             "automation_id": automation.id,
             "id": workflow.id,
             "name": "test",
+            "notification_recipient_ids": [],
             "order": AnyInt(),
             "state": "draft",
             "published_on": None,

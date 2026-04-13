@@ -16,6 +16,7 @@ from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandl
 class AutomationWorkflowSerializer(serializers.ModelSerializer):
     published_on = serializers.SerializerMethodField()
     state = serializers.SerializerMethodField()
+    notification_recipient_ids = serializers.SerializerMethodField()
 
     class Meta:
         model = AutomationWorkflow
@@ -29,6 +30,7 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
             "published_on",
             "state",
             "graph",
+            "notification_recipient_ids",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -47,6 +49,14 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
         published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
         return published_workflow.state if published_workflow else WorkflowState.DRAFT
 
+    @extend_schema_field(serializers.ListField(child=serializers.IntegerField()))
+    def get_notification_recipient_ids(self, obj):
+        """
+        Use the prefetched recipients.
+        """
+
+        return sorted((recipient.id for recipient in obj.notification_recipients.all()))
+
 
 class CreateAutomationWorkflowSerializer(serializers.ModelSerializer):
     class Meta:
@@ -62,10 +72,23 @@ class UpdateAutomationWorkflowSerializer(serializers.ModelSerializer):
             f"{ALLOW_TEST_RUN_MINUTES} minutes."
         ),
     )
+    notification_recipient_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        required=False,
+        help_text=(
+            "The user IDs of the workspace members that should receive "
+            "notifications related to this workflow."
+        ),
+    )
 
     class Meta:
         model = AutomationWorkflow
-        fields = ("name", "allow_test_run", "state")
+        fields = (
+            "name",
+            "allow_test_run",
+            "state",
+            "notification_recipient_ids",
+        )
         extra_kwargs = {
             "name": {"required": False},
         }

@@ -2,6 +2,8 @@ from typing import List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
+from rest_framework import serializers
+
 from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
@@ -32,6 +34,37 @@ from baserow.core.utils import ChildProgressBuilder, Progress
 class AutomationWorkflowService:
     def __init__(self):
         self.handler: AutomationWorkflowHandler = AutomationWorkflowHandler()
+
+    def _validate_notification_recipients(self, workspace, notification_recipient_ids):
+        if notification_recipient_ids is None:
+            return None
+
+        recipients = list(
+            workspace.users.filter(id__in=notification_recipient_ids).order_by("id")
+        )
+        if len(recipients) != len(set(notification_recipient_ids)):
+            raise serializers.ValidationError(
+                {
+                    "notification_recipient_ids": [
+                        "All notification recipients must belong to the workflow "
+                        "workspace."
+                    ]
+                }
+            )
+        return recipients
+
+    def _map_notification_recipient_ids(self, workspace, values):
+        values = values.copy()
+        notification_recipient_ids = values.pop("notification_recipient_ids", None)
+        if notification_recipient_ids is None:
+            return values
+
+        recipients = self._validate_notification_recipients(
+            workspace, notification_recipient_ids
+        )
+        if recipients is not None:
+            values["notification_recipients"] = recipients
+        return values
 
     def get_workflow(self, user: AbstractUser, workflow_id: int) -> AutomationWorkflow:
         """
@@ -83,6 +116,7 @@ class AutomationWorkflowService:
         user: AbstractUser,
         automation_id: int,
         name: str,
+        notification_recipient_ids=None,
     ) -> AutomationWorkflow:
         """
         Returns a new instance of AutomationWorkflow.
@@ -103,6 +137,14 @@ class AutomationWorkflowService:
         )
 
         workflow = self.handler.create_workflow(automation, name)
+        recipients = self._validate_notification_recipients(
+            automation.workspace,
+            [user.id]
+            if notification_recipient_ids is None
+            else notification_recipient_ids,
+        )
+        if recipients is not None:
+            workflow.notification_recipients.set(recipients)
 
         automation_workflow_created.send(self, workflow=workflow, user=user)
 
@@ -154,6 +196,10 @@ class AutomationWorkflowService:
             UpdateAutomationWorkflowOperationType.type,
             workspace=workflow.automation.workspace,
             context=workflow,
+        )
+
+        kwargs = self._map_notification_recipient_ids(
+            workflow.automation.workspace, kwargs
         )
 
         updated_workflow = self.handler.update_workflow(workflow, **kwargs)
@@ -283,6 +329,8 @@ class AutomationWorkflowService:
         published_workflow = self.handler.publish(workflow, progress)
 
         automation_workflow_published.send(self, user=user, workflow=published_workflow)
+
+        return published_workflow
 
     def toggle_test_run(
         self,

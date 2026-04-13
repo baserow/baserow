@@ -11,11 +11,9 @@
     <div class="col col-6 align-right">
       <Button
         type="primary"
-        :disabled="!inviteEnabled"
-        @click="inviteEnabled ? $emit('invite') : null"
-        >{{
-          $t('memberAssignmentModalFooter.invite', { selectedMembersCount })
-        }}
+        :disabled="!selectEnabled"
+        @click="selectEnabled ? $emit('select') : null"
+        >{{ actionLabel }}
       </Button>
     </div>
   </div>
@@ -38,14 +36,32 @@ export default {
       required: false,
       default: false,
     },
+    buttonLabel: {
+      type: String,
+      required: false,
+      default: null,
+    },
+    allowEmptySelection: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
-  emits: ['invite', 'toggle-select-all'],
+  emits: ['select', 'toggle-select-all'],
   computed: {
     toggleEnabled() {
       return this.filteredMembersCount !== 0
     },
-    inviteEnabled() {
-      return this.selectedMembersCount !== 0
+    selectEnabled() {
+      return this.allowEmptySelection || this.selectedMembersCount !== 0
+    },
+    actionLabel() {
+      return (
+        this.buttonLabel ??
+        this.$t('memberAssignmentModalFooter.invite', {
+          selectedMembersCount: this.selectedMembersCount,
+        })
+      )
     },
     getToggleLabel() {
       return this.allFilteredMembersSelected
