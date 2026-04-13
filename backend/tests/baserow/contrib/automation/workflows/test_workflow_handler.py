@@ -652,21 +652,21 @@ def test_check_is_rate_limited_uses_a_single_query_for_multiple_windows(data_fix
 def test_workflow_rate_limiter_is_checked_before_starting_celery_task(
     mock_celery_task, data_fixture, django_capture_on_commit_callbacks
 ):
-    user = data_fixture.create_user()
-
-    original_workflow = data_fixture.create_automation_workflow(user=user)
-    published_workflow = data_fixture.create_automation_workflow(
-        state=WorkflowState.LIVE, user=user
-    )
-    published_workflow.automation.published_from = original_workflow
-    published_workflow.automation.save()
-
-    handler = AutomationWorkflowHandler()
-    rate_limited_error = (
-        "The workflow was rate limited due to too many recent or unfinished runs."
-    )
-
     with freeze_time("2026-01-26 13:00:00"):
+        user = data_fixture.create_user()
+
+        original_workflow = data_fixture.create_automation_workflow(user=user)
+        published_workflow = data_fixture.create_automation_workflow(
+            state=WorkflowState.LIVE, user=user
+        )
+        published_workflow.automation.published_from = original_workflow
+        published_workflow.automation.save()
+
+        handler = AutomationWorkflowHandler()
+        rate_limited_error = (
+            "The workflow was rate limited due to too many recent or unfinished runs."
+        )
+
         with django_capture_on_commit_callbacks(execute=True):
             # First 2 calls should queue workflow runs
             handler.async_start_workflow(published_workflow)
