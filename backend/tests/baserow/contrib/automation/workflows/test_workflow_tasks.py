@@ -110,3 +110,55 @@ def test_clear_old_automation_history_excludes_started_from_count_cleanup(data_f
     # entry is STARTED, so it is not deleted.
     assert workflow.workflow_histories.filter(id=history_started.id).exists()
     assert workflow.workflow_histories.count() == 3
+
+
+@override_settings(AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS=7)
+@pytest.mark.django_db
+def test_clear_old_automation_history_deletes_entries_older_than_max_days(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2026-04-01 12:00:00"):
+        old_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.SUCCESS
+        )
+
+    with freeze_time("2026-04-07 12:00:00"):
+        recent_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.SUCCESS
+        )
+
+    with freeze_time("2026-04-10 12:00:00"):
+        clear_old_automation_history()
+
+    # This should be deleted, since it's more than 7 days since creation.
+    assert not workflow.workflow_histories.filter(id=old_history.id).exists()
+    # This is only 3 days since creation, so it shouldn't be deleted.
+    assert workflow.workflow_histories.filter(id=recent_history.id).exists()
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS=2,
+    AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=2,
+)
+@pytest.mark.django_db
+def test_clear_old_automation_history_keeps_entries_within_both_limits(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2026-04-01 12:00:00"):
+        history_1 = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.SUCCESS
+        )
+
+    with freeze_time("2026-04-01 13:00:00"):
+        history_2 = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.SUCCESS
+        )
+
+    with freeze_time("2026-04-02 12:00:00"):
+        clear_old_automation_history()
+
+    # The histories are under both date and count limits, so are kept.
+    assert (
+        workflow.workflow_histories.filter(id__in=[history_1.id, history_2.id]).count()
+        == 2
+    )
