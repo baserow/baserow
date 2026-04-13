@@ -11,6 +11,7 @@ env:
   REVIEW_AWAITING: 'Awaiting'
   REVIEW_FEEDBACK: 'Feedback'
   REVIEW_MERGE: 'Merge'
+  MILESTONE_NAME: ${{ vars.DATABASE_CURRENT_MILESTONE }}
 
 on:
   pull_request:
@@ -272,12 +273,42 @@ jobs:
             // ============================================================
 
             const linkedIssues = pr.closingIssuesReferences.nodes;
+
+            // Resolve milestone if configured and PR was merged
+            let milestoneNumber = null;
+            const milestoneName = process.env.MILESTONE_NAME;
+            if (pr.merged && milestoneName && linkedIssues.length > 0) {
+              const milestones = await github.rest.issues.listMilestones({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open',
+              });
+              const milestone = milestones.data.find(m => m.title === milestoneName);
+              if (milestone) {
+                milestoneNumber = milestone.number;
+                console.log(`Will set milestone "${milestoneName}" (${milestoneNumber}) on linked issues`);
+              } else {
+                console.log(`Warning: milestone "${milestoneName}" not found, skipping milestone assignment`);
+              }
+            }
+
             if (linkedIssues.length > 0) {
               console.log(`Updating ${linkedIssues.length} linked issue(s)...`);
               for (const issue of linkedIssues) {
                 const itemId = await ensureInProject(issue.id);
                 await updateField(itemId, fieldOptions.status.id, fieldOptions.status[status]);
-                console.log(`  Issue #${issue.number} → ${status}`);
+
+                if (milestoneNumber) {
+                  await github.rest.issues.update({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    milestone: milestoneNumber,
+                  });
+                  console.log(`  Issue #${issue.number} → ${status}, milestone "${milestoneName}"`);
+                } else {
+                  console.log(`  Issue #${issue.number} → ${status}`);
+                }
               }
             }
 
