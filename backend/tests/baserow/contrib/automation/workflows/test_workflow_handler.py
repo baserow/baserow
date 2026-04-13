@@ -1405,3 +1405,144 @@ def test_clear_old_history_excludes_started_workflows_max_days(data_fixture):
 
     assert workflow.workflow_histories.filter(id=history_1.id).exists() is True
     assert workflow.workflow_histories.filter(id=history_2.id).exists() is False
+
+
+@pytest.mark.django_db
+def test_would_create_loop_no_context(data_fixture):
+    """No automation_context means no loop — normal trigger."""
+
+    workflow = data_fixture.create_automation_workflow()
+    assert AutomationWorkflowHandler().would_create_loop(workflow, None) is False
+
+
+@override_settings(AUTOMATION_WORKFLOW_MAX_CHAIN_DEPTH=3)
+@pytest.mark.django_db
+def test_would_create_loop_detects_self_loop(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    context = {"depth": 1, "workflow_chain": [workflow.id]}
+
+    assert AutomationWorkflowHandler().would_create_loop(workflow, context) is True
+
+
+@override_settings(AUTOMATION_WORKFLOW_MAX_CHAIN_DEPTH=3)
+@pytest.mark.django_db
+def test_would_create_loop_detects_cross_workflow_loop(data_fixture):
+    workflow_a = data_fixture.create_automation_workflow()
+    workflow_b = data_fixture.create_automation_workflow()
+
+    context = {"depth": 2, "workflow_chain": [workflow_a.id, workflow_b.id]}
+
+    assert AutomationWorkflowHandler().would_create_loop(workflow_a, context) is True
+
+
+@override_settings(AUTOMATION_WORKFLOW_MAX_CHAIN_DEPTH=2)
+@pytest.mark.django_db
+def test_would_create_loop_detects_depth_exceeded(data_fixture):
+    workflow_a = data_fixture.create_automation_workflow()
+    workflow_b = data_fixture.create_automation_workflow()
+    workflow_c = data_fixture.create_automation_workflow()
+
+    context = {"depth": 2, "workflow_chain": [workflow_a.id, workflow_b.id]}
+
+    assert AutomationWorkflowHandler().would_create_loop(workflow_c, context) is True
+
+
+@override_settings(AUTOMATION_WORKFLOW_MAX_CHAIN_DEPTH=3)
+@pytest.mark.django_db
+def test_would_create_loop_allows_legitimate_chain(data_fixture):
+    workflow_a = data_fixture.create_automation_workflow()
+    workflow_b = data_fixture.create_automation_workflow()
+
+    context = {"depth": 1, "workflow_chain": [workflow_a.id]}
+
+    # workflow_b is not in the chain, depth (1) < max (3)
+    assert AutomationWorkflowHandler().would_create_loop(workflow_b, context) is False
+
+
+@pytest.mark.django_db
+@patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
+def test_async_start_workflow_persists_automation_context(
+    mock_celery_task, data_fixture, django_capture_on_commit_callbacks
+):
+    user = data_fixture.create_user()
+    original_workflow = data_fixture.create_automation_workflow(user=user)
+    published_workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE, user=user
+    )
+    published_workflow.automation.published_from = original_workflow
+    published_workflow.automation.save()
+
+    automation_context = {
+        "depth": 1,
+        "workflow_chain": [999],
+    }
+
+    with django_capture_on_commit_callbacks(execute=True):
+        AutomationWorkflowHandler().async_start_workflow(
+            published_workflow,
+            automation_context=automation_context,
+        )
+
+    history = AutomationWorkflowHistory.objects.filter(
+        workflow=original_workflow,
+    ).first()
+    assert history is not None
+    assert history.automation_context == automation_context
+
+
+def test_build_automation_signal_params_returns_none_for_non_automation_context():
+    from baserow.contrib.integrations.local_baserow.service_types import (
+        _build_automation_signal_params,
+    )
+    from baserow.core.services.dispatch_context import DispatchContext
+
+    ctx = MagicMock(spec=DispatchContext)
+    assert _build_automation_signal_params(ctx) is None
+
+
+def test_build_automation_signal_params_initial_context():
+    from baserow.contrib.automation.automation_dispatch_context import (
+        AutomationDispatchContext,
+    )
+    from baserow.contrib.integrations.local_baserow.service_types import (
+        AUTOMATION_SIGNAL_CONTEXT_KEY,
+        _build_automation_signal_params,
+    )
+
+    ctx = MagicMock(spec=AutomationDispatchContext)
+    ctx.automation_context = None
+    mock_workflow = MagicMock()
+    mock_workflow.get_original.return_value.id = 42
+    ctx.workflow = mock_workflow
+
+    result = _build_automation_signal_params(ctx)
+    assert result == {
+        AUTOMATION_SIGNAL_CONTEXT_KEY: {
+            "depth": 1,
+            "workflow_chain": [42],
+        }
+    }
+
+
+def test_build_automation_signal_params_chained_context():
+    from baserow.contrib.automation.automation_dispatch_context import (
+        AutomationDispatchContext,
+    )
+    from baserow.contrib.integrations.local_baserow.service_types import (
+        AUTOMATION_SIGNAL_CONTEXT_KEY,
+        _build_automation_signal_params,
+    )
+
+    ctx = MagicMock(spec=AutomationDispatchContext)
+    ctx.automation_context = {"depth": 1, "workflow_chain": [10]}
+    mock_workflow = MagicMock()
+    mock_workflow.get_original.return_value.id = 20
+    ctx.workflow = mock_workflow
+
+    result = _build_automation_signal_params(ctx)
+    assert result == {
+        AUTOMATION_SIGNAL_CONTEXT_KEY: {
+            "depth": 2,
+            "workflow_chain": [10, 20],
+        }
+    }

@@ -1746,6 +1746,44 @@ class LocalBaserowGetRowUserServiceType(
         return DispatchResult(data=serialized_row)
 
 
+AUTOMATION_SIGNAL_CONTEXT_KEY = "automation_context"
+
+
+def _build_automation_signal_params(
+    dispatch_context: "DispatchContext",
+) -> Optional[Dict[str, Any]]:
+    """
+    Build signal_params carrying automation chain context through row signals,
+    enabling downstream triggers to detect and block loops.
+
+    Returns None if the dispatch_context is not an automation context.
+    """
+
+    from baserow.contrib.automation.automation_dispatch_context import (
+        AutomationDispatchContext,
+    )
+
+    if not isinstance(dispatch_context, AutomationDispatchContext):
+        return None
+
+    workflow_id = dispatch_context.workflow.get_original().id
+    existing = getattr(dispatch_context, "automation_context", None)
+
+    if existing:
+        depth = existing["depth"] + 1
+        chain = existing["workflow_chain"] + [workflow_id]
+    else:
+        depth = 1
+        chain = [workflow_id]
+
+    return {
+        AUTOMATION_SIGNAL_CONTEXT_KEY: {
+            "depth": depth,
+            "workflow_chain": chain,
+        }
+    }
+
+
 class LocalBaserowUpsertRowServiceType(
     LocalBaserowTableServiceSpecificRowMixin, LocalBaserowTableServiceType
 ):
@@ -2132,6 +2170,8 @@ class LocalBaserowUpsertRowServiceType(
 
         model = table.get_model()
 
+        signal_params = _build_automation_signal_params(dispatch_context)
+
         if row_id:
             try:
                 (row,) = UpdateRowsActionType.do(
@@ -2139,6 +2179,7 @@ class LocalBaserowUpsertRowServiceType(
                     table,
                     rows_values=[{**row_values, "id": row_id}],
                     model=model,
+                    signal_params=signal_params,
                 ).updated_rows
             except RowDoesNotExist as exc:
                 raise ServiceImproperlyConfiguredDispatchException(
@@ -2155,6 +2196,7 @@ class LocalBaserowUpsertRowServiceType(
                     table=table,
                     rows_values=[row_values],
                     model=model,
+                    signal_params=signal_params,
                 )
             except CannotCreateRowsInTable as exc:
                 raise ServiceImproperlyConfiguredDispatchException(
@@ -2298,10 +2340,16 @@ class LocalBaserowDeleteRowServiceType(
         row_id: Optional[int] = resolved_values.get("row_id", None)
         model = table.get_model()
 
+        signal_params = _build_automation_signal_params(dispatch_context)
+
         if row_id:
             try:
                 DeleteRowsActionType.do(
-                    integration.authorized_user, table, [row_id], model=model
+                    integration.authorized_user,
+                    table,
+                    [row_id],
+                    model=model,
+                    signal_params=signal_params,
                 )
             except RowDoesNotExist as exc:
                 raise DoesNotExist(f"The row with id {row_id} does not exist.") from exc
@@ -2372,10 +2420,13 @@ class LocalBaserowRowsSignalServiceType(
 
             return self._prepare_result(local_model, data_to_process)
 
+        automation_context = kwargs.get(AUTOMATION_SIGNAL_CONTEXT_KEY, None)
+
         self._process_event(
             self.model_class.objects.filter(table=table),
             get_data,
             user=user,
+            automation_context=automation_context,
         )
 
     def _signal_receiver(self, *args, **kwargs):

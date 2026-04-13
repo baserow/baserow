@@ -45,6 +45,16 @@ class AutomationWorkflowHistory(AutomationHistory):
         help_text="Event payload received by the workflow.",
     )
 
+    automation_context = models.JSONField(
+        db_default=None,
+        null=True,
+        blank=True,
+        help_text=(
+            "Tracks the automation chain context (depth and workflow IDs) "
+            "to detect and prevent loops across Celery task boundaries."
+        ),
+    )
+
 
 class AutomationNodeHistory(AutomationHistory):
     workflow_history = models.ForeignKey(

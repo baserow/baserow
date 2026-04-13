@@ -343,6 +343,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
         services: Iterable[Service],
         event_payload: Dict | None | Callable = None,
         user: Optional[AbstractUser] = None,
+        automation_context: Optional[Dict] = None,
     ):
         from baserow.contrib.automation.workflows.handler import (
             AutomationWorkflowHandler,
@@ -367,6 +368,12 @@ class AutomationNodeTriggerType(AutomationNodeType):
         service_map = {service.id: service for service in services}
 
         for trigger in triggers:
+            workflow = trigger.workflow
+            handler = AutomationWorkflowHandler()
+
+            if handler.would_create_loop(workflow.get_original(), automation_context):
+                continue
+
             # If we've received a callable payload, call it with the specific service,
             # this can give us a payload that is specific to the trigger's service.
             service_payload = (
@@ -375,14 +382,14 @@ class AutomationNodeTriggerType(AutomationNodeType):
                 else event_payload
             )
 
-            workflow = trigger.workflow
-            AutomationWorkflowHandler().async_start_workflow(
+            handler.async_start_workflow(
                 workflow,
                 service_payload,
+                automation_context=automation_context,
             )
 
             # We don't want subsequent events to trigger a new test run
-            AutomationWorkflowHandler().reset_workflow_temporary_states(workflow)
+            handler.reset_workflow_temporary_states(workflow)
 
 
 class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):

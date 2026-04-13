@@ -901,6 +901,31 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             len([s for s in statuses if s == HistoryStatusChoices.ERROR]) > max_errors
         )
 
+    def would_create_loop(
+        self,
+        workflow: AutomationWorkflow,
+        automation_context: Optional[Dict],
+    ) -> bool:
+        """
+        Checks whether executing this workflow would create a loop or
+        exceed the maximum automation chain depth.
+
+        :param workflow: The original workflow to check.
+        :param automation_context: The chain context from the triggering signal,
+            containing depth and workflow_chain.
+        :return: True if executing the workflow would create a loop.
+        """
+
+        if not automation_context:
+            return False
+
+        max_depth = settings.AUTOMATION_WORKFLOW_MAX_CHAIN_DEPTH
+        workflow_id = workflow.id
+        depth = automation_context.get("depth", 0)
+        chain = automation_context.get("workflow_chain", [])
+
+        return workflow_id in chain or depth >= max_depth
+
     def before_run(self, workflow: AutomationWorkflow) -> None:
         """
         Runs pre-flight checks  and actions before a workflow is allowed to run.
@@ -937,12 +962,15 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         self,
         workflow: AutomationWorkflow,
         event_payload: Optional[List[Dict]] = None,
+        automation_context: Optional[Dict] = None,
     ) -> None:
         """
         Runs the provided workflow in a celery task.
 
         :param workflow: The AutomationWorkflow ID that should be executed.
         :param event_payload: The payload from the action.
+        :param automation_context: The chain context from a triggering automation,
+            used to detect and prevent loops.
         """
 
         error = None
@@ -1015,6 +1043,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             is_test_run=is_test_run,
             event_payload=event_payload,
             simulate_until_node=simulate_until_node,
+            automation_context=automation_context,
         )
 
         transaction.on_commit(

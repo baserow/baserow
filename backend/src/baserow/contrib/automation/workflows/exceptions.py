@@ -37,3 +37,9 @@ class AutomationWorkflowTooManyErrors(AutomationWorkflowBeforeRunError):
     """When the workflow has too many consecutive errors."""
 
     pass
+
+
+class AutomationWorkflowLoopDetected(AutomationWorkflowBeforeRunError):
+    """When executing the workflow would create a loop or exceed max chain depth."""
+
+    pass

@@ -232,6 +232,7 @@ class CreateRowsActionType(UndoableActionType):
         view: Optional[View] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
         send_webhook_events: bool = True,
+        signal_params: Optional[Dict] = None,
     ) -> List[GeneratedTableModel]:
         """
         Creates rows for a given table with the provided values if the user
@@ -251,6 +252,7 @@ class CreateRowsActionType(UndoableActionType):
             provided so that it does not have to be generated for a second time.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
+        :param signal_params: Additional parameters that are added to the signal.
         :return: The created list of rows instances.
         """
 
@@ -267,6 +269,7 @@ class CreateRowsActionType(UndoableActionType):
             view=view,
             model=model,
             send_webhook_events=send_webhook_events,
+            signal_params=signal_params,
         )
         rows = created_rows.created_rows
 
@@ -553,6 +556,7 @@ class DeleteRowsActionType(UndoableActionType):
         model: Optional[Type[GeneratedTableModel]] = None,
         view: Optional[View] = None,
         send_webhook_events: bool = True,
+        signal_params: Optional[Dict] = None,
     ):
         """
         Deletes rows of the given table with the given row_ids.
@@ -569,6 +573,7 @@ class DeleteRowsActionType(UndoableActionType):
             This can result in different permissions checks.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
+        :param signal_params: Additional parameters that are added to the signal.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         """
 
@@ -585,6 +590,7 @@ class DeleteRowsActionType(UndoableActionType):
             model=model,
             view=view,
             send_webhook_events=send_webhook_events,
+            signal_params=signal_params,
         )
 
         workspace = table.database.workspace
@@ -969,6 +975,7 @@ class UpdateRowsActionType(UndoableActionType):
         model: Optional[Type[GeneratedTableModel]] = None,
         view: Optional[View] = None,
         send_webhook_events: bool = True,
+        signal_params: Optional[Dict] = None,
     ) -> UpdatedRowsData:
         """
         Updates field values in batch based on provided rows with the new values.
@@ -987,6 +994,7 @@ class UpdateRowsActionType(UndoableActionType):
             This can result in different permissions checks.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
+        :param signal_params: Additional parameters that are added to the signal.
         :return: The updated rows.
         """
 
@@ -999,6 +1007,7 @@ class UpdateRowsActionType(UndoableActionType):
             model=model,
             view=view,
             send_webhook_events=send_webhook_events,
+            signal_params=signal_params,
         )
         updated_rows = result.updated_rows
 

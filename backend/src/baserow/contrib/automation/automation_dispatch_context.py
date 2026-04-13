@@ -44,6 +44,9 @@ class AutomationDispatchContext(DispatchContext):
         self.workflow = workflow
         self.history = history
         self.simulate_until_node = simulate_until_node
+        self.automation_context: Optional[Dict] = (
+            getattr(history, "automation_context", None) if history else None
+        )
         self.current_iterations: Dict[int, int] = {}
 
         if current_iterations:

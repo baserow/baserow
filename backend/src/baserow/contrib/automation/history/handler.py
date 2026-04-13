@@ -68,6 +68,7 @@ class AutomationHistoryHandler:
         status: HistoryStatusChoices = HistoryStatusChoices.STARTED,
         completed_on: Optional[datetime] = None,
         message: str = "",
+        automation_context: Optional[Dict] = None,
     ) -> AutomationWorkflowHistory:
         """Creates a history entry for a Workflow run."""
 
@@ -80,6 +81,7 @@ class AutomationHistoryHandler:
             status=status,
             completed_on=completed_on,
             message=message,
+            automation_context=automation_context,
         )
 
     def create_node_history(
