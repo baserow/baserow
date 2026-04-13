@@ -21,6 +21,9 @@ local test runs.
 # Set your API key (Groq example — works with any pydantic-ai provider)
 export GROQ_API_KEY=gsk_...
 
+# Suppress noisy framework-level log messages (Celery task registration, etc.)
+export BASEROW_BACKEND_LOG_LEVEL=WARNING
+
 # Run all evals with the default model (groq:openai/gpt-oss-120b)
 just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
   -m eval -v
