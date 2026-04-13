@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from celery.canvas import Signature, chain
@@ -808,28 +808,52 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         return WORKFLOW_HISTORY_RATE_LIMIT_CACHE_PREFIX.format(original_workflow.id)
 
     def _get_histories_for_current_workflow_version(self, workflow: AutomationWorkflow):
+        original_workflow = workflow.get_original()
         histories = AutomationHistoryHandler().get_workflow_histories(
-            workflow.get_original()
+            original_workflow
         )
 
-        if workflow != workflow.get_original():
+        if workflow != original_workflow:
             histories = histories.filter(started_on__gte=workflow.created_on)
 
         return histories
 
     def _check_is_rate_limited(self, workflow: AutomationWorkflow) -> bool:
-        """Counts workflow histories against the configured rate limit windows."""
+        """
+        Checks workflow histories against the configured rate limit windows.
+
+        The histories are fetched once for the largest configured window and each
+        smaller window is evaluated in Python to avoid issuing one COUNT query per
+        configured rate limit.
+        """
 
         rate_limits = settings.AUTOMATION_WORKFLOW_RATE_LIMITS
         if not rate_limits:
             return False
 
-        histories = self._get_histories_for_current_workflow_version(workflow)
         now = timezone.now()
+        largest_window_seconds = max(window_seconds for _, window_seconds in rate_limits)
+        oldest_start_window = now - timedelta(seconds=largest_window_seconds)
+        history_windows = list(
+            self._get_histories_for_current_workflow_version(workflow)
+            .filter(
+                Q(started_on__gte=oldest_start_window)
+                | Q(status=HistoryStatusChoices.STARTED)
+            )
+            .order_by()
+            .values_list("started_on", "status")
+        )
 
         for max_runs, window_seconds in rate_limits:
             start_window = now - timedelta(seconds=window_seconds)
-            if histories.filter(started_on__gte=start_window).count() >= max_runs:
+            if (
+                sum(
+                    started_on >= start_window
+                    or status == HistoryStatusChoices.STARTED
+                    for started_on, status in history_windows
+                )
+                >= max_runs
+            ):
                 return True
 
         return False

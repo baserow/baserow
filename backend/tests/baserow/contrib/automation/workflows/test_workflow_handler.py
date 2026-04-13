@@ -1,6 +1,8 @@
 import datetime
 from unittest.mock import MagicMock, patch
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.db.utils import IntegrityError
 from django.test import override_settings
 
@@ -616,6 +618,29 @@ def test_check_is_rate_limited_returns_true_for_multiple_time_frames(data_fixtur
         assert AutomationWorkflowHandler()._check_is_rate_limited(original_workflow) is (
             True
         )
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_RATE_LIMITS=((2, 5), (4, 60), (10, 3600)),
+)
+@pytest.mark.django_db
+def test_check_is_rate_limited_uses_a_single_query_for_multiple_windows(data_fixture):
+    original_workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2025-08-01 14:00:00"):
+        for _ in range(4):
+            data_fixture.create_automation_workflow_history(
+                workflow=original_workflow,
+                status=HistoryStatusChoices.SUCCESS,
+            )
+
+        with CaptureQueriesContext(connection) as queries:
+            assert (
+                AutomationWorkflowHandler()._check_is_rate_limited(original_workflow)
+                is True
+            )
+
+    assert len(queries) == 1
 
 
 @pytest.mark.django_db
