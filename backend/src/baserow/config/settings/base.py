@@ -832,6 +832,24 @@ AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(
 AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS", 10)
 )
+_automation_workflow_rate_limit_values = [
+    int(value.strip())
+    for value in os.getenv("BASEROW_AUTOMATION_WORKFLOW_RATE_LIMITS", "").split(",")
+    if value.strip()
+]
+if len(_automation_workflow_rate_limit_values) % 2 != 0:
+    raise ImproperlyConfigured(
+        "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMITS must contain an even number of "
+        "comma-separated integers formatted as max_runs,window_seconds pairs."
+    )
+
+AUTOMATION_WORKFLOW_RATE_LIMITS = tuple(
+    (
+        _automation_workflow_rate_limit_values[index],
+        _automation_workflow_rate_limit_values[index + 1],
+    )
+    for index in range(0, len(_automation_workflow_rate_limit_values), 2)
+)
 AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS", 5)
 )
