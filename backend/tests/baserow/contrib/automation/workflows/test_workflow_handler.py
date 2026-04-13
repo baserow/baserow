@@ -498,7 +498,7 @@ def test_trashing_workflow_deletes_published_workflow(data_fixture):
 
 
 @pytest.mark.django_db
-def test_check_is_rate_limited_returns_none_if_empty_cache(data_fixture):
+def test_check_is_rate_limited_returns_false_if_no_history_entry(data_fixture):
     original_workflow = data_fixture.create_automation_workflow()
 
     with freeze_time("2025-08-01 14:00:00"):
@@ -529,7 +529,7 @@ def test_check_is_rate_limited_returns_none_if_below_limit(data_fixture):
     AUTOMATION_WORKFLOW_RATE_LIMITS=((5, 5),),
 )
 @pytest.mark.django_db
-def test_check_is_rate_limited_returns_none_if_cache_expires(data_fixture):
+def test_check_is_rate_limited_returns_false_if_workflow_history_too_old(data_fixture):
     original_workflow = data_fixture.create_automation_workflow()
 
     with freeze_time("2025-08-01 14:00:00"):
@@ -539,11 +539,12 @@ def test_check_is_rate_limited_returns_none_if_cache_expires(data_fixture):
                 status=HistoryStatusChoices.SUCCESS,
             )
 
-    # 6 seconds after the first/initial cache entry
+    # 6 seconds after the first/initial history entry
     with freeze_time("2025-08-01 14:00:06"):
-        assert AutomationWorkflowHandler()._check_is_rate_limited(
-            original_workflow
-        ) is (False)
+        assert (
+            AutomationWorkflowHandler()._check_is_rate_limited(original_workflow)
+            is False
+        )
 
 
 @override_settings(
@@ -560,9 +561,10 @@ def test_check_is_rate_limited_raises_if_above_limit(data_fixture):
                 status=HistoryStatusChoices.SUCCESS,
             )
 
-        assert AutomationWorkflowHandler()._check_is_rate_limited(
-            original_workflow
-        ) is (True)
+        assert (
+            AutomationWorkflowHandler()._check_is_rate_limited(original_workflow)
+            is True
+        )
 
 
 @override_settings(
@@ -615,9 +617,10 @@ def test_check_is_rate_limited_returns_true_for_multiple_time_frames(data_fixtur
             workflow=original_workflow,
             status=HistoryStatusChoices.STARTED,
         )
-        assert AutomationWorkflowHandler()._check_is_rate_limited(
-            original_workflow
-        ) is (True)
+        assert (
+            AutomationWorkflowHandler()._check_is_rate_limited(original_workflow)
+            is True
+        )
 
 
 @override_settings(

@@ -854,7 +854,7 @@ elif (
         int(_legacy_workflow_rate_limit_window_seconds or 5),
     ]
 else:
-    _automation_workflow_rate_limit_values = [10, 5, 20, 60, 100, 3600]
+    _automation_workflow_rate_limit_values = [10, 5, 30, 60 * 5, 100, 60 * 60]
 
 if len(_automation_workflow_rate_limit_values) % 2 != 0:
     raise ImproperlyConfigured(
