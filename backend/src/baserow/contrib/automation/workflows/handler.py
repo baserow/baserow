@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import transaction
-from django.db.models import Q, QuerySet
+from django.db.models import Q, OuterRef, QuerySet, Subquery
 from django.utils import timezone
 
 from celery.canvas import Signature, chain
@@ -854,7 +854,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 # except if we are updating the trigger sample data by itself
                 self.async_start_workflow(workflow)
 
-    def _clear_old_history(self, original_workflow: AutomationWorkflow) -> None:
+    def clear_old_history(self) -> None:
         """
         Clear any old history entries related to the workflow.
 
@@ -865,21 +865,29 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             is merged in.
         """
 
+        # Delete all history entries older than max days
         oldest_history_date = timezone.now() - timedelta(
             days=settings.AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS
         )
-        original_workflow.workflow_histories.exclude(
+        AutomationWorkflowHistory.objects.exclude(
             status=HistoryStatusChoices.STARTED
         ).filter(started_on__lt=oldest_history_date).delete()
 
-        history_ids_to_keep = list(
-            original_workflow.workflow_histories.order_by("-started_on").values_list(
-                "id", flat=True
-            )[: settings.AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES]
+        # Delete all history entries older than max entries
+        max_entries = settings.AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES
+        cutoff_date = Subquery(
+            AutomationWorkflowHistory.objects.filter(
+                workflow_id=OuterRef("workflow_id")
+            )
+            .order_by("-started_on")
+            # A Subquery must return a single value, so we return
+            # the started_on of the oldest history entry from the
+            # latest max_entries entries.
+            .values("started_on")[max_entries - 1 : max_entries]
         )
-        original_workflow.workflow_histories.exclude(
+        AutomationWorkflowHistory.objects.exclude(
             status=HistoryStatusChoices.STARTED
-        ).exclude(id__in=history_ids_to_keep).delete()
+        ).filter(started_on__lt=cutoff_date).delete()
 
         # Clean up published automations that no longer have any history entries
         active_published = self.get_published_workflow(
