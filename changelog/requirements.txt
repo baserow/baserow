@@ -3,6 +3,6 @@ black==26.3.1
 flake8==7.0.0
 isort==5.13.2
 pygit2==1.14.1
-pytest==8.1.1
+pytest==9.0.3
 typer==0.12.3
 pyfakefs==5.4.1
