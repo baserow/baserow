@@ -379,13 +379,13 @@ class BaserowFormulaNumberType(
     can_group_by = True
     can_have_db_index = True
 
-    @staticmethod
-    def get_serializer_field_names():
-        return ["number_negative"]
+    @classmethod
+    def get_serializer_field_names(cls):
+        return super().get_serializer_field_names() + ["number_negative"]
 
-    @staticmethod
-    def get_serializer_field_overrides():
-        return {
+    @classmethod
+    def get_serializer_field_overrides(cls):
+        return super().get_serializer_field_overrides() | {
             "number_negative": serializers.BooleanField(
                 required=False, read_only=True, default=True
             ),
