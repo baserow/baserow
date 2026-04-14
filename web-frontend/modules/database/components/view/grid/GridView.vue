@@ -632,6 +632,7 @@ export default {
     crossSectionDraggingOffset() {
       const primary = this.fields.find((f) => f.primary)
       return (
+        this.activeGroupByWidth +
         this.gridViewRowDetailsWidth +
         (primary ? this.getFieldWidth(primary) : 0)
       )
