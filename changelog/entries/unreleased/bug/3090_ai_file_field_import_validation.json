@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "AI file field is now validated during import",
+    "issue_origin": "github",
+    "issue_number": 3090,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-14"
+}

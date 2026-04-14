@@ -26,7 +26,7 @@ from baserow.contrib.database.fields.field_types import (
     CollationSortMixin,
     SelectOptionBaseFieldType,
 )
-from baserow.contrib.database.fields.models import Field, LinkRowField
+from baserow.contrib.database.fields.models import Field, FileField, LinkRowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import BaserowFormulaType
 from baserow.core.formula.serializers import FormulaSerializerField
@@ -511,11 +511,17 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             serialized_values["ai_auto_update"] = False
 
         ai_type = serialized_values.get("ai_generative_ai_type")
+        generative_ai_type = None
         if ai_type is not None:
             try:
-                generative_ai_model_type_registry.get(ai_type)
+                generative_ai_type = generative_ai_model_type_registry.get(ai_type)
             except GenerativeAITypeDoesNotExist:
                 serialized_values["ai_generative_ai_type"] = None
+
+        ai_file_field_id = serialized_values.get("ai_file_field_id")
+        if generative_ai_type is not None and ai_file_field_id is not None:
+            if not generative_ai_type.supports_files:
+                serialized_values["ai_file_field_id"] = None
 
         return super().import_serialized(
             table,
@@ -533,9 +539,23 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     ):
         save = False
         if field.ai_file_field_id:
-            field.ai_file_field_id = id_mapping["database_fields"][
+            mapped_ai_file_field_id = id_mapping["database_fields"][
                 field.ai_file_field_id
             ]
+            table_model = field_cache.get_model(field.table)
+
+            try:
+                file_field_object = table_model.get_field_object_by_id(
+                    mapped_ai_file_field_id
+                )
+                file_field = file_field_object.get("field")
+            except ValueError:
+                file_field = None
+
+            if isinstance(file_field, FileField):
+                field.ai_file_field_id = mapped_ai_file_field_id
+            else:
+                field.ai_file_field_id = None
             save = True
 
         if field.ai_prompt:
