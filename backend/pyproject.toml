@@ -152,6 +152,9 @@ dev = [
     "build",
     "rust-just>=1.46.0",
 ]
+changelog = [
+    "typer==0.24.1",
+]
 
 [tool.hatch.metadata]
 allow-direct-references = true

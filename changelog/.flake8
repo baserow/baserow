@@ -1,9 +1,0 @@
-[flake8]
-extend-ignore = E203, W503, F541, E501
-max-doc-length = 88
-per-file-ignores =
-    tests/*: F841
-exclude =
-    .git,
-    __pycache__,
-

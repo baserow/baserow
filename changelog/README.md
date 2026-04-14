@@ -2,27 +2,12 @@
 This util allows you to generate changelog entries without causing merge conflicts.
 
 ## Getting started
-### Setup environment
-Go into the `changelog` folder and run the following commands
 
-#### Create virtual environment
-```shell
-python3 -m venv venv
-```
-
-#### Activate environment
-```shell
-source venv/bin/activate
-```
-
-#### Install dependencies
-```shell
-python3 -m pip install -r requirements.txt
-```
+All changelog commands run from the repo root via `just`:
 
 ### Add a new entry
 ```shell
-python3 ./src/changelog.py add
+just changelog add
 ```
 The command will ask you for the required information to create a new changelog entry.
 
@@ -33,7 +18,7 @@ your workflow.
 
 ### Make a release
 ```shell
-python3 ./src/changelog.py release <name-of-the-release>
+just changelog release <name-of-the-release>
 ```
 
 The command will do the following:
@@ -46,7 +31,7 @@ After you made a release you can move the `changelog.md` file to the root of the
 ## Additional commands
 ### Purge
 ```shell
-python3 ./src/changelog.py purge
+just changelog purge
 ```
 
 This command will delete:
@@ -58,7 +43,7 @@ Be careful when running `purge` since it will delete these files permanently!
 
 ### Generate
 ```shell
-python3 ./src/changelog.py generate
+just changelog generate
 ```
 This command will generate a new `changelog.md` file without making a new release.
 
@@ -97,4 +82,4 @@ via the CLI.
 ### What should I do if I need to make changes to an existing release?
 If you have generated a new release, and you notice afterwards that you meant to change
 one of the entries before making the release you can change the content of the changelog
-entry in the JSON file directly and then run `python3 ./src/changelog.py generate`
+entry in the JSON file directly and then run `just changelog generate`
