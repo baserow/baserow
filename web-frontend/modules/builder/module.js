@@ -14,7 +14,7 @@ export default defineNuxtModule({
     name: '@baserow/builder',
     configKey: 'builder',
     compatibility: {
-      nuxt: '^3.0.0',
+      nuxt: '^4.0.0',
     },
   },
   dependsOn: ['core'],

@@ -46,7 +46,7 @@ export default defineNuxtModule({
     name: '@baserow/dashboard',
     configKey: 'dashboard',
     compatibility: {
-      nuxt: '^3.0.0',
+      nuxt: '^4.0.0',
     },
   },
   async setup(options, nuxt) {

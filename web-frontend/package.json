@@ -33,8 +33,8 @@
   "dependencies": {
     "@nuxtjs/i18n": "10.2.4",
     "@sentry/node": "10.47.0",
-    "@sentry/nuxt": "10.46.0",
-    "@sentry/vue": "10.46.0",
+    "@sentry/nuxt": "10.47.0",
+    "@sentry/vue": "10.47.0",
     "@tiptap/core": "^3.13.0",
     "@tiptap/extension-blockquote": "^3.13.0",
     "@tiptap/extension-bold": "^3.13.0",
@@ -102,7 +102,7 @@
     "moment-guess": "^1.2.4",
     "moment-timezone": "0.5.43",
     "normalize.css": "^8.0.1",
-    "nuxt": "^3.21.2",
+    "nuxt": "^4.4.2",
     "papaparse": "5.4.1",
     "path-to-regexp": "8.4.0",
     "posthog-js": "^1.232.4",
@@ -122,9 +122,9 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
-    "@nuxt/eslint": "^1.12.1",
-    "@nuxt/test-utils": "^3.21.0",
-    "@nuxtjs/storybook": "latest",
+    "@nuxt/eslint": "^1.15.2",
+    "@nuxt/test-utils": "^4.0.2",
+    "@nuxtjs/storybook": "9.0.1",
     "@storybook/addon-designs": "^11.1.0",
     "@storybook/addon-docs": "^9.1.16",
     "@storybook/addon-links": "^9.1.16",

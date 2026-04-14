@@ -22,7 +22,10 @@ import {
 } from '@baserow/modules/builder/enums'
 
 describe('elementTypes tests', () => {
-  const testApp = useNuxtApp()
+  let testApp
+  beforeAll(() => {
+    testApp = useNuxtApp()
+  })
   const contextBlankParam = { page: { parameters: { id: '' } } }
 
   const misconfiguredOpenPageWorkflowActionPage = {
