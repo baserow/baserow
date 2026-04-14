@@ -1,4 +1,6 @@
 import json
+import subprocess
+from unittest.mock import patch
 
 from src.changelog_entry import BugChangelogEntry
 from src.handler import MAXIMUM_FILE_NAME_MESSAGE_LENGTH, ChangelogHandler
@@ -162,3 +164,32 @@ def test_is_release_name_unique(fs):
 
     assert ChangelogHandler().is_release_name_unique("exists") is False
     assert ChangelogHandler().is_release_name_unique("not exists") is True
+
+
+def test_get_issue_number_numeric_branch():
+    result = subprocess.CompletedProcess(args=[], returncode=0, stdout="123-my-feature\n")
+    with patch("src.handler.which", return_value="/usr/bin/git"), patch(
+        "src.handler.subprocess.run", return_value=result
+    ):
+        assert ChangelogHandler.get_issue_number() == 123
+
+
+def test_get_issue_number_non_numeric_branch():
+    result = subprocess.CompletedProcess(args=[], returncode=0, stdout="feature-branch\n")
+    with patch("src.handler.which", return_value="/usr/bin/git"), patch(
+        "src.handler.subprocess.run", return_value=result
+    ):
+        assert ChangelogHandler.get_issue_number() is None
+
+
+def test_get_issue_number_git_not_found():
+    with patch("src.handler.which", return_value=None):
+        assert ChangelogHandler.get_issue_number() is None
+
+
+def test_get_issue_number_git_fails():
+    with patch("src.handler.which", return_value="/usr/bin/git"), patch(
+        "src.handler.subprocess.run",
+        side_effect=subprocess.CalledProcessError(128, "git"),
+    ):
+        assert ChangelogHandler.get_issue_number() is None

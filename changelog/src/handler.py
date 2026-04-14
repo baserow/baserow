@@ -262,7 +262,7 @@ class ChangelogHandler:
                 check=True,
             ).stdout.strip()
             return int(branch.split("-")[0])
-        except (subprocess.CalledProcessError, ValueError):
+        except (OSError, subprocess.CalledProcessError, ValueError):
             return None
 
     def write_release_meta_data(self, name: str):
