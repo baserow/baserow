@@ -29,7 +29,6 @@ from baserow.contrib.database.fields.field_types import (
 from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import BaserowFormulaType
-from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.generative_ai.exceptions import (
     GenerativeAITypeDoesNotExist,
@@ -336,10 +335,11 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         self, ai_output_type, ai_type, model_type, ai_file_field_id, workspace=None
     ):
         ai_field_output_registry.get(ai_output_type)
-        ai_type = generative_ai_model_type_registry.get(ai_type)
-        models = ai_type.get_enabled_models(workspace=workspace)
-        if model_type not in models:
-            raise ModelDoesNotBelongToType(model_name=model_type)
+        if ai_type is not None:
+            ai_type = generative_ai_model_type_registry.get(ai_type)
+            models = ai_type.get_enabled_models(workspace=workspace)
+            if model_type not in models:
+                raise ModelDoesNotBelongToType(model_name=model_type)
         if ai_file_field_id is not None and not ai_type.supports_files:
             raise GenerativeAITypeDoesNotSupportFileField()
 
@@ -514,7 +514,7 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         if ai_type is not None:
             try:
                 generative_ai_model_type_registry.get(ai_type)
-            except InstanceTypeDoesNotExist:
+            except GenerativeAITypeDoesNotExist:
                 serialized_values["ai_generative_ai_type"] = None
 
         return super().import_serialized(
