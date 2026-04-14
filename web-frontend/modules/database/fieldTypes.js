@@ -1403,7 +1403,7 @@ export class LinkRowFieldType extends FieldType {
     return RowCardFieldLinkRow
   }
 
-  getGroupByComponent() {
+  getGroupByComponent(field) {
     return GridViewGroupValueLinkRow
   }
 
