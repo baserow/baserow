@@ -114,7 +114,7 @@ baserow = "baserow.manage:main"
 [dependency-groups]
 dev = [
     "ruff>=0.8.0",
-    "pytest==8.4.2",
+    "pytest==9.0.3",
     "pytest-django==4.12.0",
     "pytest-env==1.2.0",
     "pytest-asyncio==1.3.0",
