@@ -771,15 +771,12 @@ def test_admin_getting_view_users_only_runs_two_queries_instead_of_n(
         first_name="Test1",
         is_staff=True,
     )
-    # The JWT user cache saves 1 query on subsequent requests (user+profile
-    # already cached in Redis from the first request).
-    fixed_queries_cold = 7
-    fixed_queries_warm = 6
+    fixed_num_of_queries_unrelated_to_number_of_rows = 7
 
     for i in range(10):
         data_fixture.create_user_workspace()
 
-    with django_assert_num_queries(fixed_queries_cold):
+    with django_assert_num_queries(fixed_num_of_queries_unrelated_to_number_of_rows):
         response = api_client.get(
             reverse("api:admin:users:list"),
             format="json",
@@ -792,7 +789,7 @@ def test_admin_getting_view_users_only_runs_two_queries_instead_of_n(
     for i in range(10):
         data_fixture.create_user_workspace()
 
-    with django_assert_num_queries(fixed_queries_warm):
+    with django_assert_num_queries(fixed_num_of_queries_unrelated_to_number_of_rows):
         response = api_client.get(
             reverse("api:admin:users:list"),
             format="json",

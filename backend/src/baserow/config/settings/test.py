@@ -112,6 +112,10 @@ CACHES = {
 # Look into tests.baserow.api.test_api_utils.py if you need to test the throttle
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
 
+# Disable the JWT user cache so every request hits the DB. This ensures
+# query-count assertions remain stable and predictable.
+BASEROW_JWT_USER_CACHE_TTL = 0
+
 
 BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = 10
 BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = 300

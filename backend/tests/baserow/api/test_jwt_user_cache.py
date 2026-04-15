@@ -8,8 +8,11 @@ from baserow.core.user.cache import (
     set_cached_user,
 )
 
+_CACHE_ON = override_settings(BASEROW_JWT_USER_CACHE_TTL=30)
+
 
 @pytest.mark.django_db
+@_CACHE_ON
 def test_set_and_get_cached_user(data_fixture):
     user = data_fixture.create_user()
 
@@ -34,6 +37,7 @@ def test_caching_disabled_when_ttl_is_zero(data_fixture):
 
 
 @pytest.mark.django_db
+@_CACHE_ON
 def test_invalidate_cached_user(data_fixture):
     user = data_fixture.create_user()
     set_cached_user(user)
@@ -44,6 +48,7 @@ def test_invalidate_cached_user(data_fixture):
 
 
 @pytest.mark.django_db
+@_CACHE_ON
 def test_signal_invalidates_cache_on_user_save(data_fixture):
     user = data_fixture.create_user()
     set_cached_user(user)
@@ -56,6 +61,7 @@ def test_signal_invalidates_cache_on_user_save(data_fixture):
 
 
 @pytest.mark.django_db
+@_CACHE_ON
 def test_signal_invalidates_cache_on_profile_save(data_fixture):
     user = data_fixture.create_user()
     set_cached_user(user)
@@ -68,6 +74,7 @@ def test_signal_invalidates_cache_on_profile_save(data_fixture):
 
 
 @pytest.mark.django_db
+@_CACHE_ON
 def test_signal_invalidates_cache_on_deactivation(data_fixture):
     user = data_fixture.create_user()
     set_cached_user(user)
@@ -79,6 +86,7 @@ def test_signal_invalidates_cache_on_deactivation(data_fixture):
 
 
 @pytest.mark.django_db
+@_CACHE_ON
 def test_cached_user_profile_accessible_without_extra_query(data_fixture):
     from django.db import connection
 
@@ -97,6 +105,7 @@ def test_cached_user_profile_accessible_without_extra_query(data_fixture):
 
 
 @pytest.mark.django_db
+@_CACHE_ON
 def test_get_user_uses_cache_on_second_call(data_fixture):
     from django.db import connection
 
@@ -148,6 +157,7 @@ def test_get_user_always_hits_db_when_cache_disabled(data_fixture):
 
 
 @pytest.mark.django_db
+@_CACHE_ON
 def test_password_change_invalidates_cache_and_rejects_old_token(
     api_client, data_fixture
 ):
