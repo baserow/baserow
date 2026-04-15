@@ -49,7 +49,7 @@ from baserow.core.signals import (
 )
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import generate_hash, get_baserow_saas_base_url
-from baserow.throttling import rate_limit
+from baserow.throttling.handler import rate_limit
 
 from ..telemetry.utils import baserow_trace_methods
 from .emails import (

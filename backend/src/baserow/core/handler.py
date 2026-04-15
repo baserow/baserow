@@ -24,6 +24,7 @@ from loguru import logger
 from opentelemetry import trace
 from tqdm import tqdm
 
+from baserow.core.cache import global_cache
 from baserow.core.db import specific_queryset
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
@@ -140,7 +141,7 @@ class ApplicationUpdatedResult:
     updated_app_allowed_values: Dict[str, Any]
 
 
-class CoreHandler(metaclass=baserow_trace_methods(tracer)):
+class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context")):
     default_create_allowed_fields = ["name", "init_with_data"]
     default_update_allowed_fields = ["name"]
 
@@ -153,18 +154,28 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
 
         clear_current_workspace_id()
 
+    _SETTINGS_CACHE_KEY = "core_handler_settings"
+
     def get_settings(self):
         """
         Returns a settings model instance containing all the admin configured settings.
+        The result is cached globally in Redis via ``global_cache`` so that
+        repeated calls across requests don't hit the DB. The cache is
+        invalidated explicitly in ``update_settings``.
 
         :return: The settings instance.
         :rtype: Settings
         """
 
-        try:
-            return Settings.objects.all().select_related("co_branding_logo")[:1].get()
-        except Settings.DoesNotExist:
-            return Settings.objects.create()
+        def _fetch():
+            try:
+                return (
+                    Settings.objects.all().select_related("co_branding_logo")[:1].get()
+                )
+            except Settings.DoesNotExist:
+                return Settings.objects.create()
+
+        return global_cache.get(self._SETTINGS_CACHE_KEY, default=_fetch, timeout=60)
 
     def update_settings(self, user, settings_instance=None, **kwargs):
         """
@@ -206,6 +217,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         settings_instance.save()
+
+        global_cache.invalidate(self._SETTINGS_CACHE_KEY)
+
         return settings_instance
 
     def check_multiple_permissions(

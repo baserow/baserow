@@ -25,6 +25,12 @@ class JSONWebTokenAuthentication(JWTAuthentication):
         except KeyError:
             raise InvalidToken(_("Token contained no recognizable user identification"))
 
+        from baserow.core.user.cache import get_cached_user, set_cached_user
+
+        cached = get_cached_user(user_id)
+        if cached is not None:
+            return cached
+
         try:
             user = self.user_model.objects.select_related("profile").get(
                 **{jwt_settings.USER_ID_FIELD: user_id}
@@ -33,6 +39,8 @@ class JSONWebTokenAuthentication(JWTAuthentication):
             raise exceptions.AuthenticationFailed(
                 _("User not found"), code="user_not_found"
             )
+
+        set_cached_user(user)
         return user
 
     def authenticate(self, request):

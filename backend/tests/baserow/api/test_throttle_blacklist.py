@@ -1,0 +1,227 @@
+from django.http import HttpResponse
+from django.test import RequestFactory
+from django.test.utils import CaptureQueriesContext, override_settings
+
+import pytest
+from rest_framework.status import HTTP_429_TOO_MANY_REQUESTS
+
+from baserow.throttling.blacklist import (
+    _token_key,
+    blacklist_ip,
+    blacklist_token,
+    is_ip_blacklisted,
+    is_token_blacklisted,
+)
+from baserow.throttling.middleware import ThrottleBlacklistMiddleware
+
+
+def test_blacklist_key_is_sha256_hex():
+    key = _token_key("my-secret-token")
+    assert key.startswith("throttle_bl:")
+    # SHA-256 hex digest is 64 chars
+    assert len(key) == len("throttle_bl:") + 64
+    # Token itself must not appear in the key
+    assert "my-secret-token" not in key
+
+
+def test_blacklist_and_check():
+    assert not is_token_blacklisted("token-abc")
+
+    blacklist_token("token-abc", wait_seconds=10.0)
+    assert is_token_blacklisted("token-abc")
+
+    assert not is_token_blacklisted("token-xyz")
+
+
+def test_blacklist_different_tokens_are_independent():
+    blacklist_token("token-1", wait_seconds=5.0)
+    assert is_token_blacklisted("token-1")
+    assert not is_token_blacklisted("token-2")
+
+
+def _make_middleware():
+    """Build the middleware with a dummy downstream that returns 200."""
+
+    def ok_response(request):
+        return HttpResponse(status=200)
+
+    return ThrottleBlacklistMiddleware(ok_response)
+
+
+def test_middleware_rejects_blacklisted_token():
+    middleware = _make_middleware()
+    blacklist_token("the-token", wait_seconds=60)
+
+    factory = RequestFactory()
+    request = factory.get("/api/workspaces/", HTTP_AUTHORIZATION="JWT the-token")
+
+    response = middleware(request)
+
+    assert response.status_code == HTTP_429_TOO_MANY_REQUESTS
+    assert b"ERROR_THROTTLED" in response.content
+
+
+def test_middleware_allows_non_blacklisted_token():
+    middleware = _make_middleware()
+
+    factory = RequestFactory()
+    request = factory.get("/api/workspaces/", HTTP_AUTHORIZATION="JWT clean-token")
+
+    response = middleware(request)
+    assert response.status_code == 200
+
+
+def test_middleware_ignores_non_jwt_requests():
+    middleware = _make_middleware()
+
+    factory = RequestFactory()
+    request = factory.get("/api/workspaces/")
+
+    response = middleware(request)
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_middleware_zero_db_queries_on_blacklist_hit(data_fixture):
+    """The whole point: a blacklisted token triggers zero DB queries."""
+
+    middleware = _make_middleware()
+    blacklist_token("db-test-token", wait_seconds=60)
+
+    factory = RequestFactory()
+    request = factory.get("/api/workspaces/", HTTP_AUTHORIZATION="JWT db-test-token")
+
+    from django.db import connection
+
+    with CaptureQueriesContext(connection) as ctx:
+        response = middleware(request)
+
+    assert response.status_code == HTTP_429_TOO_MANY_REQUESTS
+    assert len(ctx.captured_queries) == 0
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT=30)
+def test_throttle_populates_blacklist_on_deny(data_fixture):
+    """When the throttle denies a request, the token is blacklisted."""
+
+    import time
+
+    from rest_framework.test import APIRequestFactory
+
+    from baserow.throttling.handler import ConcurrentUserRequestsThrottle
+
+    user = data_fixture.create_user()
+    token_str = f"fake-token-{user.id}"
+
+    # Build a realistic DRF request (matching existing throttle test pattern)
+    factory = APIRequestFactory()
+    request = factory.get("/api/workspaces/", HTTP_AUTHORIZATION=f"JWT {token_str}")
+    request.user = user
+
+    class DummyDjangoRequest:
+        def __init__(self):
+            self.path = "/api/workspaces/"
+            self.user = user
+            self.META = {"HTTP_AUTHORIZATION": f"JWT {token_str}"}
+
+    request._request = DummyDjangoRequest()
+
+    ConcurrentUserRequestsThrottle.timer = lambda s: time.time()
+    ConcurrentUserRequestsThrottle.rate = 1
+
+    throttle = ConcurrentUserRequestsThrottle()
+
+    # First request is allowed
+    assert throttle.allow_request(request, None)
+    assert not is_token_blacklisted(token_str)
+
+    # Second concurrent request is denied → should blacklist the token
+    throttle2 = ConcurrentUserRequestsThrottle()
+    throttle2.allow_request(request, None)
+
+    assert is_token_blacklisted(token_str)
+
+
+# --- IP blacklist tests ---
+
+
+def test_ip_blacklist_and_check():
+    assert not is_ip_blacklisted("192.168.1.1")
+
+    blacklist_ip("192.168.1.1", wait_seconds=10.0)
+    assert is_ip_blacklisted("192.168.1.1")
+    assert not is_ip_blacklisted("192.168.1.2")
+
+
+@override_settings(BASEROW_THROTTLE_IP_BLACKLIST_ENABLED=True)
+def test_middleware_rejects_blacklisted_ip_for_anonymous_request():
+    middleware = _make_middleware()
+    blacklist_ip("10.0.0.1", wait_seconds=60)
+
+    factory = RequestFactory()
+    # REMOTE_ADDR is how Django exposes the client IP
+    request = factory.get("/api/workspaces/", REMOTE_ADDR="10.0.0.1")
+
+    response = middleware(request)
+    assert response.status_code == HTTP_429_TOO_MANY_REQUESTS
+    assert b"ERROR_THROTTLED" in response.content
+
+
+@override_settings(BASEROW_THROTTLE_IP_BLACKLIST_ENABLED=True)
+def test_middleware_allows_non_blacklisted_ip():
+    middleware = _make_middleware()
+    blacklist_ip("10.0.0.1", wait_seconds=60)
+
+    factory = RequestFactory()
+    request = factory.get("/api/workspaces/", REMOTE_ADDR="10.0.0.2")
+
+    response = middleware(request)
+    assert response.status_code == 200
+
+
+@override_settings(BASEROW_THROTTLE_IP_BLACKLIST_ENABLED=False)
+def test_middleware_skips_ip_check_when_disabled():
+    middleware = _make_middleware()
+    blacklist_ip("10.0.0.1", wait_seconds=60)
+
+    factory = RequestFactory()
+    request = factory.get("/api/workspaces/", REMOTE_ADDR="10.0.0.1")
+
+    response = middleware(request)
+    assert response.status_code == 200
+
+
+@override_settings(BASEROW_THROTTLE_IP_BLACKLIST_ENABLED=True)
+def test_middleware_ip_check_does_not_apply_to_jwt_requests():
+    """JWT requests use the token blacklist, not the IP blacklist."""
+
+    middleware = _make_middleware()
+    blacklist_ip("10.0.0.1", wait_seconds=60)
+
+    factory = RequestFactory()
+    request = factory.get(
+        "/api/workspaces/",
+        REMOTE_ADDR="10.0.0.1",
+        HTTP_AUTHORIZATION="JWT some-clean-token",
+    )
+
+    # IP is blacklisted but this is a JWT request — should pass
+    response = middleware(request)
+    assert response.status_code == 200
+
+
+@override_settings(BASEROW_THROTTLE_IP_BLACKLIST_ENABLED=True)
+def test_middleware_uses_x_forwarded_for_header():
+    middleware = _make_middleware()
+    blacklist_ip("203.0.113.50", wait_seconds=60)
+
+    factory = RequestFactory()
+    request = factory.get(
+        "/api/workspaces/",
+        REMOTE_ADDR="10.0.0.1",  # proxy IP
+        HTTP_X_FORWARDED_FOR="203.0.113.50, 70.41.3.18",
+    )
+
+    response = middleware(request)
+    assert response.status_code == HTTP_429_TOO_MANY_REQUESTS

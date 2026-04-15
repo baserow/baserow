@@ -147,7 +147,6 @@ def _setup_celery_metrics():
 def _setup_standard_backend_instrumentation():
     from opentelemetry.instrumentation.botocore import BotocoreInstrumentor
     from opentelemetry.instrumentation.celery import CeleryInstrumentor
-    from opentelemetry.instrumentation.redis import RedisInstrumentor
     from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
     if is_psycopg3:
@@ -159,7 +158,6 @@ def _setup_standard_backend_instrumentation():
 
     BotocoreInstrumentor().instrument()
     PsycopgInstrumentor().instrument()
-    RedisInstrumentor().instrument()
     RequestsInstrumentor().instrument()
     CeleryInstrumentor().instrument()
 

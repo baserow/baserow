@@ -18,7 +18,7 @@ from baserow.core.user.actions import (
     UpdateUserActionType,
 )
 from baserow.core.user.handler import UserHandler
-from baserow.throttling_types import RateLimit
+from baserow.throttling.types import RateLimit
 from baserow_enterprise.audit_log.models import AuditLogEntry
 
 

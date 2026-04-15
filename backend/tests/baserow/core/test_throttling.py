@@ -5,7 +5,9 @@ from django.core.cache import cache
 import pytest
 from freezegun import freeze_time
 
-from baserow.throttling import RateLimit, RateLimitExceededException, rate_limit
+from baserow.throttling.exceptions import RateLimitExceededException
+from baserow.throttling.handler import rate_limit
+from baserow.throttling.types import RateLimit
 
 throttled_fn_name = "throttled_function"
 throttled_fn_2_name = "throttled_function_2"

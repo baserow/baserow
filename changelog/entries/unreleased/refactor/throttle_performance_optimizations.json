@@ -1,0 +1,17 @@
+{
+    "type": "refactor",
+    "message": "Optimize rate limiting performance: cache JWT user lookups in Redis, add token blacklist middleware for instant 429 rejection, cache CoreHandler.get_settings per-request, remove OTel tracing overhead from throttle, and reorganize throttling code into a dedicated package.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "backend",
+    "bullet_points": [
+        "Cache authenticated user+profile in Redis (configurable via BASEROW_JWT_USER_CACHE_TTL) to eliminate per-request DB query",
+        "Add ThrottleBlacklistMiddleware that rejects previously throttled tokens before auth/DRF runs (zero DB queries)",
+        "Support optional IP-based blacklisting for anonymous requests (BASEROW_THROTTLE_IP_BLACKLIST_ENABLED)",
+        "Cache CoreHandler.get_settings() per-request to avoid redundant DB queries within the same request",
+        "Remove OpenTelemetry tracing from ConcurrentUserRequestsThrottle and CoreHandler.clear_context",
+        "Add configurable BASEROW_CONN_MAX_AGE for database connection reuse",
+        "Suppress django.request WARNING logs under heavy throttling (BASEROW_DJANGO_REQUEST_LOG_LEVEL)"
+    ],
+    "created_at": "2026-04-15"
+}

@@ -16,7 +16,7 @@ from baserow.core.auth_provider.models import AuthProviderModel
 from baserow.core.models import Template, User
 from baserow.core.registries import auth_provider_type_registry
 from baserow.core.user.handler import UserHandler
-from baserow.throttling import rate_limit
+from baserow.throttling.handler import rate_limit
 
 
 class CreateUserActionType(ActionType):

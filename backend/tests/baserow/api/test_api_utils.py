@@ -29,7 +29,7 @@ from baserow.core.registry import (
     ModelInstanceMixin,
     Registry,
 )
-from baserow.throttling import (
+from baserow.throttling.handler import (
     BASEROW_CONCURRENCY_THROTTLE_REQUEST_ID,
     ConcurrentUserRequestsThrottle,
 )
@@ -497,7 +497,7 @@ def test_concurrent_user_requests_does_not_throttle_staff_users(data_fixture):
 @override_settings(
     MIDDLEWARE=[
         *settings.MIDDLEWARE,
-        "baserow.middleware.ConcurrentUserRequestsMiddleware",
+        "baserow.throttling.middleware.ConcurrentUserRequestsMiddleware",
     ],
 )
 @patch("baserow.throttling.ConcurrentUserRequestsThrottle.on_request_processed")

@@ -24,7 +24,7 @@ from baserow.config.settings.utils import (
     try_int,
 )
 from baserow.core.telemetry.utils import otel_is_enabled
-from baserow.throttling_types import RateLimit
+from baserow.throttling.types import RateLimit
 from baserow.version import VERSION
 
 # A comma separated list of feature flags used to enable in-progress or not ready
@@ -283,11 +283,14 @@ for key, value in os.environ.items():
 
         DATABASE_READ_REPLICAS.append(db_key)
 
+BASEROW_CONN_MAX_AGE = int(os.getenv("BASEROW_CONN_MAX_AGE", 0))
+
 # Enable connection health checks for all database connections. This makes Django
 # verify that a database connection is still usable before each request/task, which
 # prevents "connection already closed" errors when connections are dropped by the
 # server, a load balancer, or a connection pooler.
 for _db_key in DATABASES:
+    DATABASES[_db_key].setdefault("CONN_MAX_AGE", BASEROW_CONN_MAX_AGE)
     DATABASES[_db_key].setdefault("CONN_HEALTH_CHECKS", True)
 
 DATABASE_ROUTERS = ["baserow.config.db_routers.ReadReplicaRouter"]
@@ -401,9 +404,6 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "baserow.api.openapi.AutoSchema",
 }
 
-# Limits the number of concurrent requests per user.
-# If BASEROW_MAX_CONCURRENT_USER_REQUESTS is not set, then the default value of -1
-# will be used which means the throttling is disabled.
 BASEROW_MAX_CONCURRENT_USER_REQUESTS = int(
     os.getenv("BASEROW_MAX_CONCURRENT_USER_REQUESTS", "") or -1
 )
@@ -417,13 +417,21 @@ if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
         "concurrent_user_requests": BASEROW_MAX_CONCURRENT_USER_REQUESTS
     }
 
+    # ThrottleBlacklist runs early (after CORS) to return 429s with proper headers.
+    MIDDLEWARE.insert(1, "baserow.throttling.middleware.ThrottleBlacklistMiddleware")
+
     MIDDLEWARE += [
-        "baserow.middleware.ConcurrentUserRequestsMiddleware",
+        "baserow.throttling.middleware.ConcurrentUserRequestsMiddleware",
     ]
 
-# The maximum number of seconds that a request can be throttled for.
 BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT = int(
-    os.getenv("BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT", 30)
+    os.getenv("BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT", 60)
+)
+
+BASEROW_JWT_USER_CACHE_TTL = int(os.getenv("BASEROW_JWT_USER_CACHE_TTL", 60))
+
+BASEROW_THROTTLE_IP_BLACKLIST_ENABLED = (
+    os.getenv("BASEROW_THROTTLE_IP_BLACKLIST_ENABLED", "false").lower() == "true"
 )
 
 PUBLIC_VIEW_AUTHORIZATION_HEADER = "Baserow-View-Authorization"
@@ -1254,6 +1262,12 @@ LOGGING = {
             "handlers": ["console"],
             "level": BASEROW_BACKEND_DATABASE_LOG_LEVEL,
             "propagate": True,
+        },
+        # Default to ERROR to suppress 429 spam under heavy throttling.
+        "django.request": {
+            "handlers": ["console"],
+            "level": os.getenv("BASEROW_DJANGO_REQUEST_LOG_LEVEL", "ERROR"),
+            "propagate": False,
         },
     },
     "root": {

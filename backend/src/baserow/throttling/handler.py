@@ -8,15 +8,13 @@ from django.core.cache import cache
 
 from django_redis import get_redis_connection
 from loguru import logger
-from opentelemetry import trace
 from rest_framework.throttling import SimpleRateThrottle
 
-from baserow.core.telemetry.utils import baserow_trace_methods
-from baserow.throttling_types import RateLimit
+from baserow.throttling.blacklist import blacklist_token
+from baserow.throttling.exceptions import RateLimitExceededException
+from baserow.throttling.types import RateLimit
 
 BASEROW_CONCURRENCY_THROTTLE_REQUEST_ID = "baserow_concurrency_throttle_request_id"
-
-tracer = trace.get_tracer(__name__)
 
 # Slightly modified version of
 # https://gist.github.com/ptarjan/e38f45f2dfe601419ca3af937fff574d
@@ -56,9 +54,7 @@ def _get_redis_cli():
     return get_redis_connection("default")
 
 
-class ConcurrentUserRequestsThrottle(
-    SimpleRateThrottle, metaclass=baserow_trace_methods(tracer)
-):
+class ConcurrentUserRequestsThrottle(SimpleRateThrottle):
     """
     Limits the number of concurrent requests made by a given user.
     """
@@ -79,10 +75,9 @@ class ConcurrentUserRequestsThrottle(
         )
 
     @classmethod
-    def _log(cls, request, log_msg, request_id=None, *args, **kwargs):
+    def _log(cls, request, log_msg, request_id=None, **kwargs):
         logger.debug(
-            "{{path={path},user_id={user_id},req_id={request_id}}} %s" % log_msg,
-            *args,
+            "{{path={path},user_id={user_id},req_id={request_id}}} " + log_msg,
             path=request.path,
             user_id=request.user.id if request.user.is_authenticated else None,
             request_id=str(request_id),
@@ -139,6 +134,7 @@ class ConcurrentUserRequestsThrottle(
             setattr(django_request, BASEROW_CONCURRENCY_THROTTLE_REQUEST_ID, request_id)
             log_msg = "ALLOWING: as count={count} < limit={limit}"
         else:
+            self._blacklist_token(request, wait)
             self._wait = wait
             log_msg = "DENYING: as count={count} >= limit={limit}. Wait {wait} secs"
 
@@ -147,6 +143,15 @@ class ConcurrentUserRequestsThrottle(
         )
 
         return bool(allowed)
+
+    @staticmethod
+    def _blacklist_token(request, wait: float) -> None:
+        """Write the bearer token hash to the blacklist so the middleware
+        can reject subsequent requests without running auth or throttle."""
+
+        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
+        if auth_header.startswith("JWT "):
+            blacklist_token(auth_header[4:], wait)
 
     @classmethod
     def on_request_processed(cls, request):
@@ -158,12 +163,6 @@ class ConcurrentUserRequestsThrottle(
 
     def wait(self):
         return self._wait
-
-
-class RateLimitExceededException(Exception):
-    """Raised when rate limit is exceeded."""
-
-    pass
 
 
 def rate_limit(rate: RateLimit, key: str, raise_exception: bool = True):
