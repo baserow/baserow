@@ -26,7 +26,7 @@ from baserow.contrib.database.fields.field_types import (
     CollationSortMixin,
     SelectOptionBaseFieldType,
 )
-from baserow.contrib.database.fields.models import Field, FileField, LinkRowField
+from baserow.contrib.database.fields.models import Field, LinkRowField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.formula import BaserowFormulaType
 from baserow.core.formula.serializers import FormulaSerializerField
@@ -549,10 +549,12 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
                     mapped_ai_file_field_id
                 )
                 file_field = file_field_object.get("field")
+                field_type = file_field_object.get("type")
             except ValueError:
                 file_field = None
+                field_type = None
 
-            if isinstance(file_field, FileField):
+            if field_type and field_type.can_represent_files(file_field):
                 field.ai_file_field_id = mapped_ai_file_field_id
             else:
                 field.ai_file_field_id = None

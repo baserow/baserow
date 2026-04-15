@@ -11,6 +11,7 @@ from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NO
 from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import FileField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils.deferred_foreign_key_updater import (
     DeferredForeignKeyUpdater,
@@ -23,7 +24,6 @@ from baserow.core.db import specific_iterator
 from baserow.core.registries import ImportExportConfig
 from baserow_premium.fields.field_types import AIFieldType
 from baserow_premium.fields.models import AIField
-from baserow_premium.views.models import FileField
 
 
 @pytest.mark.django_db
@@ -1521,7 +1521,7 @@ def test_import_serialized_ai_field_file_field_not_in_correct_table(
     premium_data_fixture.create_text_field(
         table=table, order=0, name="text", primary=True
     )
-    file_field_wrong_table = premium_data_fixture.create_text_field(
+    file_field_wrong_table = premium_data_fixture.create_file_field(
         table=table_2, order=0, name="file", primary=True
     )
     ai_field = premium_data_fixture.create_ai_field(
