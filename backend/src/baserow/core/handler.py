@@ -24,7 +24,6 @@ from loguru import logger
 from opentelemetry import trace
 from tqdm import tqdm
 
-from baserow.core.cache import global_cache
 from baserow.core.db import specific_queryset
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
@@ -154,30 +153,18 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
         clear_current_workspace_id()
 
-    _SETTINGS_CACHE_KEY = "core_handler_settings"
-
     def get_settings(self):
         """
         Returns a settings model instance containing all the admin configured settings.
-        The result is cached per-request via ``local_cache`` so that the
-        multiple calls within a single request (serializers, permission
-        managers, etc.) don't each hit the DB.
 
         :return: The settings instance.
         :rtype: Settings
         """
 
-        from baserow.core.cache import local_cache
-
-        def _fetch():
-            try:
-                return (
-                    Settings.objects.all().select_related("co_branding_logo")[:1].get()
-                )
-            except Settings.DoesNotExist:
-                return Settings.objects.create()
-
-        return local_cache.get(self._SETTINGS_CACHE_KEY, _fetch)
+        try:
+            return Settings.objects.all().select_related("co_branding_logo")[:1].get()
+        except Settings.DoesNotExist:
+            return Settings.objects.create()
 
     def update_settings(self, user, settings_instance=None, **kwargs):
         """
@@ -219,9 +206,6 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         )
 
         settings_instance.save()
-
-        global_cache.invalidate(self._SETTINGS_CACHE_KEY)
-
         return settings_instance
 
     def check_multiple_permissions(
