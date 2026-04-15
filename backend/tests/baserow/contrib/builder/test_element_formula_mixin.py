@@ -92,13 +92,17 @@ def test_element_formula_generator_mixin(
         element_type.simple_formula_fields, formula_generator_fixture["formula_1"]
     )
     exported_element = data_fixture.create_builder_element(
-        element_cls,
+        element_type,
         **simple_formula_fields,
     )
     serialized_element = element_type().export_serialized(exported_element)
 
+    target_page = formula_generator_fixture["page"]
+    target_page.graph = exported_element.page.graph
+    target_page.save(update_fields=["graph"])
+
     [imported_element] = PageHandler().import_elements(
-        formula_generator_fixture["page"],
+        target_page,
         [serialized_element],
         formula_generator_fixture["id_mapping"],
     )

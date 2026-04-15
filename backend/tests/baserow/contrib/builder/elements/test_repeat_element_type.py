@@ -14,6 +14,7 @@ from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.utils import MirrorDict
 
 
@@ -47,13 +48,20 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
         "visibility": Page.VISIBILITY_TYPES.ALL.value,
         "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
         "roles": [],
+        "graph": {
+            "0": 23,
+            "23": {"children": {"": [24]}},
+            "24": {"children": {"0": [29]}},
+            "29": {"next": {"": [290]}},
+            "290": {"next": {"": [291]}},
+            "291": {},
+        },
         "elements": [
             {
                 "id": 23,
                 "order": "1.00000000000000000000",
                 "type": "repeat",
-                "parent_element_id": None,
-                "place_in_container": None,
+                "place_in_container": "",
                 "visibility": "all",
                 "data_source_id": 3,
                 "items_per_page": 20,
@@ -66,8 +74,7 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
                 "id": 24,
                 "order": "1.00000000000000000000",
                 "type": "column",
-                "parent_element_id": 23,
-                "place_in_container": None,
+                "place_in_container": "",
                 "visibility": "all",
                 "column_amount": 3,
                 "column_gap": 20,
@@ -79,7 +86,6 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
                 "id": 29,
                 "order": "1.00000000000000000000",
                 "type": "button",
-                "parent_element_id": 24,
                 "place_in_container": "0",
                 "visibility": "all",
                 "value": "get('current_record.field_424')",
@@ -93,7 +99,6 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
                 "id": 290,
                 "order": "2.00000000000000000000",
                 "type": "heading",
-                "parent_element_id": 24,
                 "place_in_container": "0",
                 "visibility": "all",
                 "value": "get('current_record.field_424')",
@@ -104,7 +109,6 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
                 "id": 291,
                 "order": "3.00000000000000000000",
                 "type": "link",
-                "parent_element_id": 24,
                 "place_in_container": "0",
                 "visibility": "all",
                 "value": "get('current_record.field_424')",
@@ -214,7 +218,8 @@ def test_extract_properties_includes_schema_property_for_nested_collection(
     child_repeat = data_fixture.create_builder_repeat_element(
         page=page,
         data_source=None,
-        parent_element_id=parent_repeat.id,
+        reference_element_id=parent_repeat.id,
+        position=GraphPointPosition.CHILD,
         schema_property=multiple_select_field.db_column,
     )
     formula_context = ElementHandler().get_import_context_addition(

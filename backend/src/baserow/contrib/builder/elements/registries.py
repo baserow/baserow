@@ -23,7 +23,7 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.formula.types import BaserowFormulaObject
-from baserow.core.graph.types import GraphPointPositionType
+from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
@@ -79,7 +79,14 @@ class ElementType(
 
         return False
 
-    def prepare_value_for_db(self, values: Dict, instance: Optional[Element] = None):
+    def prepare_value_for_db(
+        self,
+        values: Dict,
+        instance: Optional[Element] = None,
+        reference_element_id: int | None = None,
+        position: GraphPointPositionType = None,
+        place_in_container: str = "",
+    ):
         """
         This function allows you to hook into the moment an element is created or
         updated. If the element is updated `instance` will be defined, and you can use
@@ -88,26 +95,23 @@ class ElementType(
 
         :param values: The values that are being updated
         :param instance: (optional) The existing instance that is being updated
+        :param place_in_container: The place inside a container element, if any.
         :return:
         """
 
-        from baserow.contrib.builder.elements.handler import ElementHandler
-
-        reference_element_id = getattr(instance, "reference_element_id", None)
-
         if instance:
-            place_in_container = values.get(
-                "place_in_container", instance.place_in_container
-            )
             page = values.get("page", instance.page)
+            if not place_in_container:
+                place_in_container = instance.place_in_container
         else:
-            place_in_container = values.get("place_in_container", None)
             page = values["page"]
 
         if reference_element_id is not None:
             # Validate the place for this element
+            from baserow.contrib.builder.elements.handler import ElementHandler
+
             reference_element = ElementHandler().get_element(reference_element_id)
-            self.validate_place(page, reference_element, place_in_container)
+            self.validate_place(page, reference_element, place_in_container, position)
         elif getattr(self, "is_multi_page_element", False) != page.shared:
             raise ValidationError(
                 "This element type can't be added as root of a "
@@ -122,30 +126,49 @@ class ElementType(
         page: Page,
         reference_element: Optional[ElementSubClass],
         place_in_container: str,
+        position: GraphPointPositionType = None,
     ):
         """
-        Validates the page/parent_element/place_in_container for this element.
-        Can be overridden to change the behaviour.
+        Validates the page/reference_element/place_in_container for this element.
+        Can be overridden to change the behavior.
 
         :param page: the page we want to add/move the element to.
         :param reference_element: the element reference, if any.
         :param place_in_container: the place in container in the parent.
+        :param position: the position we are referencing alongside `reference_element`.
         :raises ValidationError: if the element place is disallowed.
         """
 
-        if reference_element:
-            if self.type not in [
-                e.type for e in reference_element.get_type().child_types_allowed
-            ]:
+        reference_type = reference_element.get_type() if reference_element else None
+        if reference_type and reference_type.is_container:
+            if self.type not in [e.type for e in reference_type.child_types_allowed]:
                 raise ValidationError(
-                    f"Container of type {reference_element.get_type().type} can't have "
+                    f"Container of type {reference_type.type} can't have "
                     f"child of type {self.type}"
                 )
 
-            # If we have a parent, we validate the place is accepted by this container.
-            reference_element.get_type().validate_place_in_container(
-                place_in_container, reference_element
-            )
+            # We know the reference is a container, but are we actively trying
+            # to validate the place of the element as a child of this container?
+            if position == GraphPointPosition.CHILD:
+                reference_type.validate_place_in_container(
+                    place_in_container, reference_element
+                )
+
+    def after_import(
+        self,
+        instance: ElementSubClass,
+        id_mapping: Dict[str, Any],
+        import_context: Dict[str, Any],
+    ):
+        """
+        This hook is called after all elements have been created but before
+        graph migration. Used for post-processing that needs import context
+        (e.g. property options, collection field formulas).
+
+        :param instance: The imported element instance.
+        :param id_mapping: A map of old->new id per data type.
+        :param import_context: Context dict with data_source_id, schema_property, etc.
+        """
 
     def after_create(self, instance: ElementSubClass, values: Dict):
         """

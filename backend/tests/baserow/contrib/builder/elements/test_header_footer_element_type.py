@@ -6,6 +6,7 @@ from baserow.contrib.builder.elements.element_types import (
 )
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.registries import element_type_registry
+from baserow.contrib.builder.elements.service import ElementService
 
 
 def test_header_footer_child_types_allowed():
@@ -32,16 +33,19 @@ def test_header_footer_child_types_allowed():
     "element_type", [HeaderElementType.type, FooterElementType.type]
 )
 def test_header_footer_prepare_value_for_db(data_fixture, element_type):
-    page = data_fixture.create_builder_page()
-    page1 = data_fixture.create_builder_page(builder=page.builder)
-    page2 = data_fixture.create_builder_page(builder=page.builder)
-    page3 = data_fixture.create_builder_page(builder=page.builder)
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(builder=builder)
+    page1 = data_fixture.create_builder_page(builder=builder)
+    page2 = data_fixture.create_builder_page(builder=builder)
+    page3 = data_fixture.create_builder_page(builder=builder)
     page4 = data_fixture.create_builder_page()
     shared_page = page.builder.shared_page
 
     element_type = element_type_registry.get(element_type)
 
-    created_element = ElementHandler().create_element(
+    created_element = ElementService().create_element(
+        user,
         element_type,
         page=shared_page,
         share_type="only",
@@ -52,7 +56,8 @@ def test_header_footer_prepare_value_for_db(data_fixture, element_type):
         [page1.id, page2.id]
     )
 
-    updated_element = ElementHandler().update_element(
+    updated_element = ElementService().update_element(
+        user,
         created_element,
         pages=[page1, page4, shared_page],
     )

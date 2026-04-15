@@ -66,9 +66,8 @@ def test_create_table_element_with_fields(data_fixture):
     fields = list(created_element.fields.all())
 
     assert len(fields) == 2
-
-    fields[0].name == "Field 1"
-    fields[1].name == "Field 2"
+    assert fields[0].name == "Field 1"
+    assert fields[1].name == "Field 2"
 
 
 @pytest.mark.django_db

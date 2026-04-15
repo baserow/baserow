@@ -10,6 +10,7 @@ import pytest
 
 from baserow.api.exceptions import RequestBodyValidationException
 from baserow.contrib.builder.elements.mixins import CollectionElementTypeMixin
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 
@@ -75,7 +76,8 @@ def test_import_context_addition_sets_schema_property(data_fixture):
     inner_repeat = data_fixture.create_builder_repeat_element(
         page=page,
         data_source=None,
-        parent_element_id=outer_repeat.id,
+        reference_element_id=outer_repeat.id,
+        position=GraphPointPosition.CHILD,
         schema_property="field_123",
     )
     assert CollectionElementTypeMixin().import_context_addition(outer_repeat) == {
@@ -149,7 +151,14 @@ def test_mixin_prepare_value_for_db():
     """Test the base implementation of prepare_values()."""
 
     class Base:
-        def prepare_value_for_db(self, values, instance=None):
+        def prepare_value_for_db(
+            self,
+            values,
+            instance=None,
+            reference_element_id=None,
+            position=None,
+            place_in_container="",
+        ):
             return values
 
     class Test(CollectionElementTypeMixin, Base):

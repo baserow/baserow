@@ -39,6 +39,13 @@ class MockGraphPoint(GraphPointMixin):
         return self.model
 
 
+def make_point(pid: int, model: MockGraphModel) -> MockGraphPoint:
+    """Create a MockGraphPoint, register it on the model, and return it."""
+    p = MockGraphPoint(pid, model)
+    model.points[pid] = p
+    return p
+
+
 def make_graph_model(graph: dict) -> MockGraphModel:
     """Build a MockGraphModel, registering a MockGraphPoint for every non-"0" key."""
     model = MockGraphModel(graph)

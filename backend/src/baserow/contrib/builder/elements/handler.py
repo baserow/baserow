@@ -37,7 +37,7 @@ from baserow.contrib.builder.workflow_actions.registries import (
 )
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
-from baserow.core.graph.types import GraphPointPosition
+from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import MirrorDict, extract_allowed
 
@@ -46,8 +46,6 @@ old_element_type_map = {"dropdown": "choice"}
 
 class ElementHandler:
     allowed_fields_create = [
-        "parent_element_id",
-        "place_in_container",
         "visibility",
         "visibility_condition",
         "css_classes",
@@ -334,6 +332,9 @@ class ElementHandler:
         self,
         element_type: ElementType,
         page: Page,
+        reference_element_id: int | None = None,
+        position: GraphPointPositionType = "south",
+        place_in_container: str = "",
         **kwargs,
     ) -> Element:
         """
@@ -341,6 +342,9 @@ class ElementHandler:
 
         :param element_type: The type of the element.
         :param page: The page the element exists in.
+        :param reference_element_id: The element reference element for the position.
+        :param position: The position relative to the reference element.
+        :param place_in_container: The place inside a container element, if any.
         :param kwargs: Additional attributes of the element.
         :raises CannotCalculateIntermediateOrder: If it's not possible to find an
             intermediate order. The full order of the element of the page must be
@@ -355,7 +359,12 @@ class ElementHandler:
             kwargs, self.allowed_fields_create + element_type.allowed_fields
         )
         allowed_values["page"] = page
-        allowed_values = element_type.prepare_value_for_db(allowed_values)
+        allowed_values = element_type.prepare_value_for_db(
+            allowed_values,
+            reference_element_id=reference_element_id,
+            position=position,
+            place_in_container=place_in_container,
+        )
 
         model_class = cast(Element, element_type.model_class)
         element = model_class(**allowed_values)

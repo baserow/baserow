@@ -18,8 +18,7 @@ from typing import (
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db.models import IntegerField, Q, QuerySet
-from django.db.models.functions import Cast
+from django.db.models import Q, QuerySet
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -31,7 +30,6 @@ from baserow.contrib.builder.api.elements.serializers import (
 )
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
-from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
     CollectionElementTypeMixin,
     CollectionElementWithFieldsTypeMixin,
@@ -108,6 +106,7 @@ from baserow.core.formula.validator import (
     ensure_numeric,
     ensure_string_or_integer,
 )
+from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.registry import Instance, T
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_files.handler import UserFileHandler
@@ -187,13 +186,6 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
         places_removed = list(range(column_amount, instance.column_amount))
 
         return [str(place) for place in places_removed]
-
-    def apply_order_by_children(self, queryset: QuerySet[Element]) -> QuerySet[Element]:
-        return queryset.annotate(
-            place_in_container_as_int=Cast(
-                "place_in_container", output_field=IntegerField()
-            )
-        ).order_by("place_in_container_as_int", "order")
 
     def validate_place_in_container(
         self, place_in_container: str, instance: ColumnElement
@@ -579,16 +571,15 @@ class RecordSelectorElementType(
         import_formula: Callable[[str, Dict[str, Any]], str],
         **kwargs: Dict[str, Any],
     ) -> Set[Instance]:
-        # We need to import the option_name_suffix formula separately because
-        # it uses a different import_context
+        # Import the option_name_suffix formula. The import context
+        # (data_source_id etc.) is already passed via **kwargs by the caller.
         updated_models = super().import_formulas(
             instance, id_mapping, import_formula, **kwargs
         )
-        formula_context = ElementHandler().get_import_context_addition(instance.id)
         instance.option_name_suffix = import_formula(
             instance.option_name_suffix,
             id_mapping,
-            **(kwargs | formula_context),
+            **kwargs,
         )
         updated_models.add(instance)
         return updated_models
@@ -918,7 +909,12 @@ class NavigationElementManager:
         """
 
     def prepare_value_for_db(
-        self, values: Dict, instance: Optional[LinkElement] = None
+        self,
+        values: Dict,
+        instance: Optional[LinkElement] = None,
+        reference_element_id: int | None = None,
+        position: GraphPointPositionType = None,
+        place_in_container: str = "",
     ):
         """
         set the type of the element for the prepare_value_for_db method in case we're
@@ -939,7 +935,9 @@ class NavigationElementManager:
 
             self._raise_if_path_params_are_invalid(page_params, page)
 
-        return ElementType.prepare_value_for_db(self, values, instance)
+        return ElementType.prepare_value_for_db(
+            self, values, instance, reference_element_id, position, place_in_container
+        )
 
     def _raise_if_path_params_are_invalid(self, path_params: List, page: Page) -> None:
         """
@@ -1092,10 +1090,15 @@ class LinkElementType(ElementType):
         }
 
     def prepare_value_for_db(
-        self, values: Dict, instance: Optional[LinkElement] = None
+        self,
+        values: Dict,
+        instance: Optional[LinkElement] = None,
+        reference_element_id: int | None = None,
+        position: GraphPointPositionType = None,
+        place_in_container: str = "",
     ):
         return NavigationElementManager(self.type).prepare_value_for_db(
-            values, instance
+            values, instance, reference_element_id, position, place_in_container
         )
 
 

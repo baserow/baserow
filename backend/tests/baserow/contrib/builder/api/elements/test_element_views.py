@@ -13,7 +13,6 @@ from baserow.contrib.builder.elements.element_types import HeaderElementType
 from baserow.contrib.builder.elements.models import (
     ChoiceElementOption,
     Element,
-    HeaderElement,
     LinkElement,
 )
 from baserow.core.graph.types import GraphPointPosition
@@ -580,6 +579,7 @@ def test_move_element_returns_error_when_place_in_container_is_invalid(
         {
             "reference_element_id": column_element.id,
             "place_in_container": "9999",
+            "position": GraphPointPosition.CHILD,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -650,6 +650,7 @@ def test_move_element_to_other_page_container_returns_error_when_place_is_invali
         {
             "reference_element_id": column_element.id,
             "place_in_container": "9999",
+            "position": GraphPointPosition.CHILD,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -661,7 +662,7 @@ def test_move_element_to_other_page_container_returns_error_when_place_is_invali
     child.refresh_from_db()
     assert child.page_id == page.id
     assert child.parent_element_id is None
-    assert child.place_in_container == ''
+    assert child.place_in_container == ""
 
 
 @pytest.mark.django_db
@@ -689,7 +690,7 @@ def test_move_element_to_shared_page_without_parent_is_invalid_for_regular_eleme
     element.refresh_from_db()
     assert element.page_id == page.id
     assert element.parent_element_id is None
-    assert element.place_in_container == ''
+    assert element.place_in_container == ""
 
 
 @pytest.mark.django_db
@@ -835,6 +836,9 @@ def test_child_type_not_allowed_validation(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == [
+        "Container of type form_container can't have child of type form_container"
+    ]
 
 
 @pytest.mark.django_db

@@ -4,7 +4,7 @@ from typing import Self
 from django.db import models
 
 from baserow.core.cache import local_cache
-from baserow.core.graph.handler import BaseGraphHandler
+from baserow.core.graph.handler import BaseGraphHandler, GraphMode
 from baserow.core.graph.types import GraphPointPosition, SerializedGraph
 
 
@@ -25,7 +25,7 @@ class GraphModelMixin(models.Model):
     def get_graph_handler(self):
         raise NotImplementedError("Subclasses must implement get_graph_handler method.")
 
-    def get_graph(self) -> BaseGraphHandler:
+    def get_graph(self, mode: GraphMode = GraphMode.GRAPH_POINT) -> BaseGraphHandler:
         """
         Returns the graph. Use the same graph instance related to the model
         ID regardless of the model instance.
@@ -33,8 +33,8 @@ class GraphModelMixin(models.Model):
 
         handler = self.get_graph_handler()
         return local_cache.get(
-            f"cached_graph_{self.id}",
-            lambda: handler(self),
+            f"cached_graph_{self.id}_{mode.value}",
+            lambda: handler(self, mode),
         )
 
     def print_graph(self, message=None, original=False):
@@ -178,13 +178,13 @@ class GraphPointMixin:
     def is_nested_point(self) -> bool:
         """
         Returns True if the point is nested in the graph. A nested point is a point
-        that is not at the root level of the graph, but is a child of another point.
+        that is not at the root level of the graph, but is a child of another point
+        (or a sibling within a container's next chain).
 
         :return: True if the point is nested.
         """
 
-        reference_point_id, position, output = self._get_graph().get_position(self)
-        return position == "child"
+        return len(self.get_parent_points()) > 0
 
     def get_previous_points(self) -> list[Self]:
         """

@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 from decimal import Decimal
+from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 from baserow.core.graph.exceptions import (
@@ -26,6 +27,11 @@ def _replace(list_, item_to_replace, replacement):
         + (replacement if isinstance(replacement, list) else [replacement])
         + list_[index + 1 :]
     )
+
+
+class GraphMode(Enum):
+    GRAPH_ID = "GRAPH_ID"
+    GRAPH_POINT = "GRAPH_POINT"
 
 
 class BaseGraphHandler(ABC):
@@ -90,8 +96,11 @@ class BaseGraphHandler(ABC):
     does_not_exist_exception = GraphPointDoesNotExist
     base_point_class: Type["GraphPointMixin"] = None
 
-    def __init__(self, instance: GraphModelInstance):
+    def __init__(
+        self, instance: GraphModelInstance, mode: GraphMode = GraphMode.GRAPH_POINT
+    ):
         self.instance = instance
+        self.mode = mode
 
     @property
     def graph(self) -> SerializedGraph:
@@ -322,6 +331,14 @@ class BaseGraphHandler(ABC):
 
         return search_last(self.graph["0"])
 
+    def append(self, point: GraphPoint) -> None:
+        """
+        Insert a point at the end of the default edge chain.
+        """
+
+        ref, position, output = self.get_last_position()
+        self.insert(point, ref, position, output)
+
     def get_position(self, point: GraphPoint) -> GraphPointPositionTriplet:
         """
         Return the position of the given point in the graph as a triplet of
@@ -440,12 +457,15 @@ class BaseGraphHandler(ABC):
         ]
 
     def get_children(
-        self, point: GraphPoint, output: str | None = None
-    ) -> List[GraphPoint]:
+        self,
+        point: GraphPoint | int,
+        output: str | None = None,
+    ) -> List[GraphPoint] | List[int]:
         """
         Get the children of the given point.
 
-        :param point: The point to get the children from.
+        :param point: The point (a model instance, or the ID of the point) to
+            get the children from.
         :param output: The edge/place to get children for. If `None`, returns
             children from all edges.
         :return: A list of children of the given point.
@@ -477,22 +497,27 @@ class BaseGraphHandler(ABC):
                 return current
             current = str(next_ids[0])
 
-    def _get_chain_elements(self, first_id: str | int) -> List[GraphPoint]:
+    def _get_chain_elements(self, first_id: str | int) -> List[GraphPoint] | List[int]:
         """
         Collect all graph points reachable via the default next[""] chain from
         first_id, in order.
 
+        Returns model instances in GRAPH_POINT mode, or integer IDs in GRAPH_ID mode.
+
         :param first_id: The starting point ID.
-        :return: Ordered list of all points in the chain.
+        :return: Ordered list of all points (or IDs) in the chain.
         """
 
-        elements = []
+        result = []
         current = str(first_id)
         while current:
-            elements.append(self.get_point(int(current)))
+            if self.mode == GraphMode.GRAPH_ID:
+                result.append(int(current))
+            else:
+                result.append(self.get_point(int(current)))
             next_ids = self.graph.get(current, {}).get("next", {}).get("", [])
             current = str(next_ids[0]) if next_ids else None
-        return elements
+        return result
 
     def merge_children_into_place(
         self,
@@ -561,16 +586,37 @@ class BaseGraphHandler(ABC):
         :return: A list of siblings of the given point.
         """
 
-        # Only consider it a "sibling" relationship if this point is a child
-        parent_point_id, position, edge_key = self.get_position(point)
-        if position != "child":
+        # Walk back through the ancestry to find the nearest container parent.
+        # Elements chained via next[""] inside a container have position "south",
+        # so we can't just check the direct position — we need to find the
+        # container and edge via get_previous_positions.
+        previous_positions = self.get_previous_positions(point)
+        if not previous_positions:
             return []
 
-        parent_info = self.get_info(parent_point_id)
-        children_dict = self._get_children_dict(parent_info)
-        children_on_same_edge = children_dict.get(edge_key, [])
+        # Find the nearest "child" position in the ancestry — that tells us
+        # which container and edge this point belongs to.
+        container_point_id = None
+        edge_key = None
+        for prev_point, position, output in reversed(previous_positions):
+            if position == "child":
+                container_point_id = prev_point
+                edge_key = output
+                break
 
-        return [self.get_point(pid) for pid in children_on_same_edge if pid != point.id]
+        if container_point_id is None:
+            return []
+
+        # Get all children on the same edge (following next[""] chains)
+        container_info = self.get_info(container_point_id)
+        children_dict = self._get_children_dict(container_info)
+        head_ids = children_dict.get(edge_key, [])
+
+        all_on_edge = []
+        for head_id in head_ids:
+            all_on_edge.extend(self._get_chain_elements(head_id))
+
+        return [p for p in all_on_edge if p.id != point.id]
 
     def insert(
         self,
@@ -642,26 +688,30 @@ class BaseGraphHandler(ABC):
             return
 
         if position == "south":
-            if output in self.get_info(reference_point).get("next", {}):
-                new_next = self.get_info(reference_point)["next"][output]
+            # Next chains always use the default edge (""), regardless of the
+            # output/place parameter. The output is only meaningful for "child"
+            # position where it indicates the place in the container.
+            if "" in self.get_info(reference_point).get("next", {}):
+                new_next = self.get_info(reference_point)["next"][""]
 
-            self.get_info(reference_point).setdefault("next", {})[output] = [point.id]
+            self.get_info(reference_point).setdefault("next", {})[""] = [point.id]
 
         elif position == "child":
             ref_info = self.get_info(reference_point)
             children_dict = self._get_children_dict(ref_info)
 
             if output in children_dict:
-                # There's already a first child in this slot
-                # The OLD child should point to the NEW child (append to end)
-                old_first_child_id = children_dict[output][0]
-                self.get_info(old_first_child_id).setdefault("next", {})[""] = [
-                    point.id
-                ]
-
-            # Don't update the children - keep the first child as-is
-            # (unless there was no child, then set this as the first)
-            if output not in children_dict:
+                # Follow the next[""] chain from the first child to find the
+                # last element in the chain, then append the new point there.
+                current_id = children_dict[output][0]
+                while True:
+                    next_ids = self.get_info(current_id).get("next", {}).get("", [])
+                    if not next_ids:
+                        break
+                    current_id = next_ids[0]
+                self.get_info(current_id).setdefault("next", {})[""] = [point.id]
+            else:
+                # No children yet in this slot — set as the first child.
                 self._set_children(ref_info, output, [point.id])
 
         if new_next:
@@ -816,9 +866,11 @@ class BaseGraphHandler(ABC):
                             "": [map_point(nid) for nid in children]
                         }
                     else:
-                        # New format: migrate each edge
+                        # New format: children edge keys are place names (e.g. "0",
+                        # "1") that are static and don't need remapping — only `next`
+                        # edge keys are output UIDs that need remapping.
                         migrated[str(map_point(key))]["children"] = {
-                            map_output(edge_key): [map_point(nid) for nid in nids]
+                            edge_key: [map_point(nid) for nid in nids]
                             for edge_key, nids in children.items()
                         }
 

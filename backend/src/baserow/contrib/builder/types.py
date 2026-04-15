@@ -2,6 +2,7 @@ from typing import List, Optional, TypedDict
 
 from baserow.contrib.builder.pages.types import PagePathParams, PageQueryParams
 from baserow.core.formula import BaserowFormulaObject
+from baserow.core.graph.types import SerializedGraph
 from baserow.core.integrations.types import IntegrationDictSubClass
 from baserow.core.services.types import ServiceDictSubClass
 from baserow.core.user_sources.types import UserSourceDictSubClass
@@ -55,6 +56,8 @@ class PageDict(TypedDict):
     name: str
     order: int
     path: str
+    shared: bool
+    graph: SerializedGraph
     path_params: PagePathParams
     query_params: PageQueryParams
     elements: List[ElementDict]

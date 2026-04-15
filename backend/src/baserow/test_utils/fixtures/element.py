@@ -21,7 +21,6 @@ from baserow.contrib.builder.elements.element_types import (
 )
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import (
-    CollectionField,
     MenuItemElement,
 )
 from baserow.core.cache import local_cache
@@ -56,9 +55,8 @@ class ElementFixtures:
         return self.create_builder_element(RatingElementType, user, page, **kwargs)
 
     def create_builder_table_element(self, user=None, page=None, **kwargs):
-        fields = kwargs.pop(
-            "fields",
-            deepcopy(
+        if "fields" not in kwargs:
+            kwargs["fields"] = deepcopy(
                 [
                     {
                         "name": "Field 1",
@@ -76,26 +74,14 @@ class ElementFixtures:
                         "config": {"value": "get('test3')"},
                     },
                 ]
-            ),
-        )
+            )
 
         if "data_source" not in kwargs:
             kwargs["data_source"] = (
                 self.create_builder_local_baserow_list_rows_data_source(page=page)
             )
 
-        element = self.create_builder_element(TableElementType, user, page, **kwargs)
-
-        if fields:
-            created_fields = CollectionField.objects.bulk_create(
-                [
-                    CollectionField(**field, order=index)
-                    for index, field in enumerate(fields)
-                ]
-            )
-            element.fields.add(*created_fields)
-
-        return element
+        return self.create_builder_element(TableElementType, user, page, **kwargs)
 
     def create_builder_button_element(self, user=None, page=None, **kwargs):
         return self.create_builder_element(ButtonElementType, user, page, **kwargs)

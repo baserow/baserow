@@ -2,21 +2,10 @@ import pytest
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.builder.elements.element_types import (
-    ButtonElementType,
-    CheckboxElementType,
-    ChoiceElementType,
     ColumnElementType,
-    HeadingElementType,
-    IFrameElementType,
-    ImageElementType,
-    InputTextElementType,
-    LinkElementType,
-    TableElementType,
-    TextElementType,
 )
-from baserow.contrib.builder.elements.handler import ElementHandler
-from baserow.contrib.builder.elements.models import Element
 from baserow.core.db import specific_iterator
+from baserow.core.graph.types import GraphPointPosition
 from baserow_enterprise.builder.elements.element_types import AuthFormElementType
 
 
@@ -53,27 +42,6 @@ def test_get_places_in_container_removed(data_fixture):
 
 
 @pytest.mark.django_db
-def test_apply_order_by_children(data_fixture):
-    column_element = data_fixture.create_builder_column_element(column_amount=20)
-    first_element = data_fixture.create_builder_heading_element(
-        reference_element=column_element, place_in_container="0"
-    )
-    last_element = data_fixture.create_builder_text_element(
-        reference_element=column_element, place_in_container="11"
-    )
-    middle_element = data_fixture.create_builder_text_element(
-        reference_element=column_element, place_in_container="5"
-    )
-
-    queryset = Element.objects.filter(parent_element=column_element)
-    queryset_ordered = ColumnElementType().apply_order_by_children(queryset)
-
-    ids_ordered = [element.id for element in queryset_ordered]
-
-    assert ids_ordered == [first_element.id, middle_element.id, last_element.id]
-
-
-@pytest.mark.django_db
 def test_validate_place_in_container(data_fixture):
     column_element = data_fixture.create_builder_column_element(column_amount=2)
 
@@ -94,71 +62,72 @@ def test_column_element_type_can_have_children(data_fixture):
     """
 
     page = data_fixture.create_builder_page()
-    container = ElementHandler().create_element(ColumnElementType(), page=page)
-    element_inside_container_one = ElementHandler().create_element(
-        HeadingElementType(),
+    container = data_fixture.create_builder_column_element(page=page)
+    element_inside_container_one = data_fixture.create_builder_heading_element(
         page=page,
-        parent_element_id=container.id,
+        reference_element=container,
+        position=GraphPointPosition.CHILD,
         place_in_container="1",
     )
-    element_inside_container_two = ElementHandler().create_element(
-        TextElementType(),
+    element_inside_container_two = data_fixture.create_builder_text_element(
         page=page,
-        parent_element_id=container.id,
+        reference_element=container,
+        position=GraphPointPosition.CHILD,
         place_in_container="1",
     )
-    element_inside_container_three = ElementHandler().create_element(
-        ImageElementType(),
+    element_inside_container_three = data_fixture.create_builder_image_element(
         page=page,
-        parent_element_id=container.id,
+        reference_element=container,
+        position=GraphPointPosition.CHILD,
         place_in_container="1",
     )
-    element_inside_container_four = ElementHandler().create_element(
-        IFrameElementType(),
+    element_inside_container_four = data_fixture.create_builder_iframe_element(
         page=page,
-        parent_element_id=container.id,
+        reference_element=container,
+        position=GraphPointPosition.CHILD,
         place_in_container="1",
     )
-    element_inside_container_five = ElementHandler().create_element(
-        LinkElementType(),
+    element_inside_container_five = data_fixture.create_builder_link_element(
         page=page,
-        parent_element_id=container.id,
+        reference_element=container,
+        position=GraphPointPosition.CHILD,
         place_in_container="1",
     )
-    element_inside_container_six = ElementHandler().create_element(
-        ButtonElementType(),
+    element_inside_container_six = data_fixture.create_builder_button_element(
         page=page,
-        parent_element_id=container.id,
+        reference_element=container,
+        position=GraphPointPosition.CHILD,
         place_in_container="1",
     )
-    element_inside_container_seven = ElementHandler().create_element(
-        TableElementType(),
+    element_inside_container_seven = data_fixture.create_builder_table_element(
         page=page,
-        parent_element_id=container.id,
+        reference_element=container,
+        position=GraphPointPosition.CHILD,
         place_in_container="1",
     )
-    element_inside_container_eight = ElementHandler().create_element(
-        InputTextElementType(),
+    element_inside_container_eight = data_fixture.create_builder_input_text_element(
         page=page,
-        parent_element_id=container.id,
+        reference_element=container,
+        position=GraphPointPosition.CHILD,
         place_in_container="1",
     )
-    element_inside_container_nine = ElementHandler().create_element(
-        ChoiceElementType(),
+    element_inside_container_nine = data_fixture.create_builder_choice_element(
         page=page,
-        parent_element_id=container.id,
+        reference_element=container,
+        position=GraphPointPosition.CHILD,
         place_in_container="1",
     )
-    element_inside_container_ten = ElementHandler().create_element(
-        CheckboxElementType(),
+    element_inside_container_ten = data_fixture.create_builder_checkbox_element(
         page=page,
-        parent_element_id=container.id,
+        reference_element=container,
+        position=GraphPointPosition.CHILD,
         place_in_container="1",
     )
-    element_inside_container_eleven = ElementHandler().create_element(
-        AuthFormElementType(),
+    element_inside_container_eleven = data_fixture.create_builder_element(
+        AuthFormElementType,
         page=page,
-        parent_element_id=container.id,
+        reference_element=container,
+        position=GraphPointPosition.CHILD,
         place_in_container="1",
     )
 
@@ -178,9 +147,7 @@ def test_column_element_type_can_have_children(data_fixture):
     assert not container.is_nested_point
     assert element_inside_container_one.is_nested_point
     assert element_inside_container_two.is_nested_point
-    assert list(
-        specific_iterator(element_inside_container_one.get_sibling_points())
-    ) == [
+    assert element_inside_container_one.get_sibling_points() == [
         element_inside_container_two,
         element_inside_container_three,
         element_inside_container_four,

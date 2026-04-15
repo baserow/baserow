@@ -129,6 +129,12 @@ class CreateElementSerializer(serializers.ModelSerializer):
         allow_blank=True,
         help_text="The position of the new element relative to the reference element.",
     )
+    place_in_container = serializers.CharField(
+        required=False,
+        allow_null=False,
+        default="",
+        help_text="The place in the container.",
+    )
     style_background_file = UserFileField(
         allow_null=True,
         help_text="The background image file",
@@ -143,6 +149,7 @@ class CreateElementSerializer(serializers.ModelSerializer):
         fields = (
             "type",
             "reference_element_id",
+            "position",
             "place_in_container",
             "css_classes",
             "visibility",

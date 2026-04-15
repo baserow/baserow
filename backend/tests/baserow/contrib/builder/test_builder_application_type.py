@@ -201,6 +201,11 @@ def test_builder_application_export(data_fixture):
         "path": page2.path,
         "path_params": page2.path_params,
         "query_params": [],
+        "graph": {
+            "0": element3.id,
+            str(element3.id): {"next": {"": [element4.id]}},
+            str(element4.id): {},
+        },
         "visibility": Page.VISIBILITY_TYPES.ALL.value,
         "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
         "roles": [],
@@ -247,9 +252,6 @@ def test_builder_application_export(data_fixture):
             {
                 "id": element3.id,
                 "type": "heading",
-                "order": str(element3.order),
-                "parent_element_id": None,
-                "place_in_container": None,
                 "visibility": "all",
                 "visibility_condition": BaserowFormulaObject(
                     formula="",
@@ -292,7 +294,6 @@ def test_builder_application_export(data_fixture):
                 "type": "table",
                 "schema_property": None,
                 "button_load_more_label": element4.button_load_more_label,
-                "order": str(element4.order),
                 "roles": [],
                 "role_type": "allow_all",
                 "orientation": {
@@ -300,8 +301,6 @@ def test_builder_application_export(data_fixture):
                     "tablet": "horizontal",
                     "desktop": "horizontal",
                 },
-                "parent_element_id": None,
-                "place_in_container": None,
                 "css_classes": "",
                 "visibility": "all",
                 "visibility_condition": BaserowFormulaObject(
@@ -369,6 +368,7 @@ def test_builder_application_export(data_fixture):
                 "path_params": shared_page.path_params,
                 "query_params": [],
                 "shared": True,
+                "graph": {},
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
                 "roles": [],
@@ -402,6 +402,15 @@ def test_builder_application_export(data_fixture):
                 "path_params": page1.path_params,
                 "query_params": [],
                 "shared": False,
+                "graph": {
+                    "0": element1.id,
+                    str(element1.id): {"next": {"": [element2.id]}},
+                    str(element2.id): {"next": {"": [element_container.id]}},
+                    str(element_container.id): {
+                        "next": {"": [element_inside_container.id]}
+                    },
+                    str(element_inside_container.id): {},
+                },
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
                 "roles": [],
@@ -440,9 +449,6 @@ def test_builder_application_export(data_fixture):
                     {
                         "id": element1.id,
                         "type": "heading",
-                        "order": str(element1.order),
-                        "parent_element_id": None,
-                        "place_in_container": None,
                         "css_classes": "",
                         "visibility": "all",
                         "visibility_condition": BaserowFormulaObject(
@@ -483,9 +489,6 @@ def test_builder_application_export(data_fixture):
                     {
                         "id": element2.id,
                         "type": "text",
-                        "order": str(element2.order),
-                        "parent_element_id": None,
-                        "place_in_container": None,
                         "css_classes": "",
                         "visibility": "all",
                         "visibility_condition": BaserowFormulaObject(
@@ -526,8 +529,6 @@ def test_builder_application_export(data_fixture):
                     {
                         "id": element_container.id,
                         "type": "column",
-                        "parent_element_id": None,
-                        "place_in_container": None,
                         "css_classes": "",
                         "visibility": "all",
                         "visibility_condition": BaserowFormulaObject(
@@ -560,7 +561,6 @@ def test_builder_application_export(data_fixture):
                         "style_background_mode": "fill",
                         "style_width": "normal",
                         "style_width_child": "normal",
-                        "order": str(element_container.order),
                         "column_amount": 3,
                         "column_gap": 50,
                         "alignment": "top",
@@ -570,8 +570,6 @@ def test_builder_application_export(data_fixture):
                     {
                         "id": element_inside_container.id,
                         "type": "text",
-                        "parent_element_id": element_container.id,
-                        "place_in_container": "0",
                         "css_classes": "",
                         "visibility": "all",
                         "visibility_condition": BaserowFormulaObject(
@@ -604,7 +602,6 @@ def test_builder_application_export(data_fixture):
                         "style_background_mode": "fill",
                         "style_width": "normal",
                         "style_width_child": "normal",
-                        "order": str(element_inside_container.order),
                         "value": element_inside_container.value,
                         "roles": [],
                         "role_type": "allow_all",
@@ -787,12 +784,14 @@ PAGE_2_IMPORT_REFERENCE = {
     "visibility": Page.VISIBILITY_TYPES.ALL.value,
     "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
     "roles": [],
+    "graph": {
+        "0": 997,
+        "997": {},
+    },
     "elements": [
         {
             "id": 997,
             "type": "heading",
-            "parent_element_id": None,
-            "place_in_container": None,
             "style_background": "none",
             "style_background_color": "#ffffffff",
             "style_border_bottom_color": "border",
@@ -854,6 +853,15 @@ IMPORT_REFERENCE = {
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {
+                "0": 998,
+                "998": {"next": {"": [999]}},
+                "999": {"next": {"": [1000]}},
+                "1000": {"next": {"": [500]}},
+                "500": {"children": {"0": [501], "1": [502]}},
+                "501": {},
+                "502": {},
+            },
             "workflow_actions": [
                 {
                     "id": 123,
@@ -870,8 +878,6 @@ IMPORT_REFERENCE = {
                 {
                     "id": 998,
                     "type": "heading",
-                    "parent_element_id": None,
-                    "place_in_container": None,
                     "style_background": "none",
                     "style_background_color": "#ffffffff",
                     "style_border_bottom_color": "border",
@@ -889,8 +895,6 @@ IMPORT_REFERENCE = {
                 {
                     "id": 999,
                     "type": "text",
-                    "parent_element_id": None,
-                    "place_in_container": None,
                     "style_background": "none",
                     "style_background_color": "#ffffffff",
                     "style_border_bottom_color": "border",
@@ -907,8 +911,6 @@ IMPORT_REFERENCE = {
                 {
                     "id": 1000,
                     "type": "table",
-                    "parent_element_id": None,
-                    "place_in_container": None,
                     "style_background": "none",
                     "style_background_color": "#ffffffff",
                     "style_border_bottom_color": "border",
@@ -952,8 +954,6 @@ IMPORT_REFERENCE = {
                 {
                     "id": 502,
                     "type": "text",
-                    "parent_element_id": 500,
-                    "place_in_container": "1",
                     "style_background": "none",
                     "style_background_color": "#ffffffff",
                     "style_border_bottom_color": "border",
@@ -972,8 +972,6 @@ IMPORT_REFERENCE = {
                 {
                     "id": 500,
                     "type": "column",
-                    "parent_element_id": None,
-                    "place_in_container": None,
                     "style_background": "none",
                     "style_background_color": "#ffffffff",
                     "style_border_bottom_color": "border",
@@ -994,8 +992,6 @@ IMPORT_REFERENCE = {
                 {
                     "id": 501,
                     "type": "text",
-                    "parent_element_id": 500,
-                    "place_in_container": "0",
                     "style_background": "none",
                     "style_background_color": "#ffffffff",
                     "style_border_bottom_color": "border",
@@ -1159,12 +1155,12 @@ def test_builder_application_import(data_fixture):
     assert button_config_block.button_hover_background_color == "#ccccccff"
 
     [
+        container_element,
         element1,
-        element_inside_container,
-        element_inside_container2,
         element2,
         table_element,
-        container_element,
+        element_inside_container,
+        element_inside_container2,
     ] = specific_iterator(page1.element_set.all())
 
     assert isinstance(element1, HeadingElement)
@@ -1200,12 +1196,14 @@ IMPORT_REFERENCE_COMPLEX = {
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {
+                "0": 997,
+                "997": {},
+            },
             "elements": [
                 {
                     "id": 997,
                     "type": "heading",
-                    "parent_element_id": None,
-                    "place_in_container": None,
                     "style_background": "none",
                     "style_background_color": "#ffffffff",
                     "style_border_bottom_color": "border",
@@ -1516,8 +1514,12 @@ def test_builder_application_imports_correct_default_roles(data_fixture):
     ]
 
     # Save the single element back to the list. We only need one element
-    # to test.
+    # to test. Update the graph to match so migrate_graph can remap all IDs.
     first_page["elements"] = [serialized_element]
+    first_page["graph"] = {
+        "0": serialized_element["id"],
+        str(serialized_element["id"]): {},
+    }
     serialized_values["pages"] = [first_page]
 
     config = ImportExportConfig(include_permission_data=True)

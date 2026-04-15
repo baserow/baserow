@@ -4,6 +4,7 @@ from baserow.contrib.builder.elements.mixins import (
     CollectionElementTypeMixin,
     ContainerElementTypeMixin,
 )
+from baserow.core.graph.types import GraphPointPosition
 
 
 @pytest.mark.django_db
@@ -15,23 +16,35 @@ def test_after_move_updates_descendants_page_ids_recursively(data_fixture):
 
     outer_container = data_fixture.create_builder_form_container_element(page=page)
     outer_text = data_fixture.create_builder_text_element(
-        page=page, parent_element=outer_container
+        page=page, reference_element=outer_container, position=GraphPointPosition.CHILD
     )
     column_container = data_fixture.create_builder_column_element(
-        page=page, parent_element=outer_container, column_amount=1
+        page=page,
+        reference_element=outer_container,
+        position=GraphPointPosition.CHILD,
+        column_amount=1,
     )
     column_text = data_fixture.create_builder_text_element(
-        page=page, parent_element=column_container, place_in_container="0"
+        page=page,
+        reference_element=column_container,
+        position=GraphPointPosition.CHILD,
+        place_in_container="0",
     )
     inner_container = data_fixture.create_builder_form_container_element(
-        page=page, parent_element=column_container, place_in_container="0"
+        page=page,
+        reference_element=column_container,
+        position=GraphPointPosition.CHILD,
+        place_in_container="0",
     )
     inner_text = data_fixture.create_builder_text_element(
-        page=page, parent_element=inner_container
+        page=page, reference_element=inner_container, position=GraphPointPosition.CHILD
     )
 
     outer_container.page = target_page
     outer_container.save(update_fields=["page"])
+
+    target_page.graph = page.graph
+    target_page.save(update_fields=["graph"])
 
     ContainerElementTypeMixin().after_move(outer_container)
 

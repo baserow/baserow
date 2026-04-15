@@ -1,9 +1,7 @@
 from typing import Any, Dict, List, Optional, Tuple, Type
-from zipfile import ZipFile
 
-from django.core.files.storage import Storage
 from django.db import IntegrityError
-from django.db.models import Q, QuerySet
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
@@ -40,6 +38,7 @@ from baserow.contrib.builder.elements.types import (
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.types import ElementDict
+from baserow.core.graph.handler import GraphMode
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.registries import service_type_registry
@@ -113,18 +112,13 @@ class ContainerElementTypeMixin:
 
         return []
 
-    def apply_order_by_children(self, queryset: QuerySet[Element]) -> QuerySet[Element]:
-        """
-        Defines the order of the children inside the container.
-
-        :param queryset: The queryset that the order is applied to.
-        :return: A queryset with the order applied to
-        """
-
-        return queryset.order_by("place_in_container", "order")
-
     def prepare_value_for_db(
-        self, values: Dict, instance: Optional[ContainerElement] = None
+        self,
+        values: Dict,
+        instance: Optional[ContainerElement] = None,
+        reference_element_id: int | None = None,
+        position: GraphPointPositionType = None,
+        place_in_container: str = "",
     ):
         if instance is not None:  # This is an update operation
             places_removed = self.get_places_in_container_removed(values, instance)
@@ -136,7 +130,9 @@ class ContainerElementTypeMixin:
 
                 elements_moved.send(self, page=instance.page, elements=instances_moved)
 
-        return super().prepare_value_for_db(values, instance)
+        return super().prepare_value_for_db(
+            values, instance, reference_element_id, position, place_in_container
+        )
 
     def validate_place_in_container(
         self, place_in_container: str, instance: ContainerElement
@@ -157,12 +153,13 @@ class ContainerElementTypeMixin:
         page (pun intended).
         """
 
-        target_page_id = instance.page_id
-        parent_ids = [instance.id]
-
-        for child in Element.objects.filter(parent_element_id__in=parent_ids).all():
-            if child.page_id != target_page_id:
-                child.page_id = target_page_id
+        target_page = instance.page
+        children = Element.objects.only("page_id").filter(
+            pk__in=target_page.get_graph(GraphMode.GRAPH_ID).get_children(instance)
+        )
+        for child in children:
+            if child.page_id != target_page.id:
+                child.page_id = target_page.id
                 child.save()
 
             child.get_type().after_move(child.specific)
@@ -314,7 +311,12 @@ class CollectionElementTypeMixin:
         }
 
     def prepare_value_for_db(
-        self, values: Dict, instance: Optional[CollectionElementSubClass] = None
+        self,
+        values: Dict,
+        instance: Optional[CollectionElementSubClass] = None,
+        reference_element_id: int | None = None,
+        position: GraphPointPositionType = None,
+        place_in_container: str = "",
     ):
         if "data_source_id" in values:
             data_source_id = values.pop("data_source_id")
@@ -388,7 +390,9 @@ class CollectionElementTypeMixin:
                     }
                 )
 
-        return super().prepare_value_for_db(values, instance)
+        return super().prepare_value_for_db(
+            values, instance, reference_element_id, position, place_in_container
+        )
 
     def serialize_property(
         self,
@@ -492,7 +496,8 @@ class CollectionElementTypeMixin:
         **kwargs,
     ) -> CollectionElementSubClass:
         """
-        Responsible for creating the property options from the serialized values.
+        Responsible for creating the collection element instance and stashing
+        property options for deferred processing in after_import.
 
         :param serialized_values: The serialized values of the element.
         :param id_mapping: A dictionary containing the mapping of the old and new ids.
@@ -514,22 +519,43 @@ class CollectionElementTypeMixin:
             **kwargs,
         )
 
+        # Stash on the instance for after_import — no cache dict needed.
+        instance._deferred_property_options = property_options_values
+
+        return instance
+
+    def after_import(
+        self,
+        instance: CollectionElementSubClass,
+        id_mapping: Dict[str, Any],
+        import_context: Dict[str, Any],
+    ):
+        """
+        Post-processing that runs after all elements are created.
+        Processes property options and schema property mapping using
+        the provided import context (no graph traversal needed).
+
+        :param instance: The already-created element instance.
+        :param id_mapping: A map of old->new id per data type.
+        :param import_context: Context dict with data_source_id, schema_property, etc.
+        """
+
+        property_options_values = getattr(instance, "_deferred_property_options", None)
+        if property_options_values is None:
+            return
+
+        del instance._deferred_property_options
+
+        data_source_id = import_context.get("data_source_id")
         service = None
-        import_context = ElementHandler().get_import_context_addition(instance.id)
-        if import_context["data_source_id"]:
-            data_source = DataSourceHandler().get_data_source(
-                import_context["data_source_id"]
-            )
+        if data_source_id:
+            data_source = DataSourceHandler().get_data_source(data_source_id)
             service = data_source.service.specific
 
-        # If we have a data source set, we'll find out what its service type is, and
-        # use it to map the `schema_property` and `property_options` value `field_id`
-        # to the new ID.
         service_type = service_type_registry.get_by_model(service) if service else None
 
         if service_type:
-            # Use the service type to convert the `schema_property`
-            # value if it's present in the ID mapping.
+            # Map the schema_property to the new ID.
             if instance.schema_property:
                 imported_schema_property = service_type.import_property_name(
                     instance.schema_property, id_mapping
@@ -538,29 +564,24 @@ class CollectionElementTypeMixin:
                     instance.schema_property = imported_schema_property
                     instance.save(update_fields=["schema_property"])
 
-            # Use the service type to convert the `property_options` list's
-            # `schema_property` value if they're present in the ID mapping.
+            # Map property_options schema_property values to new IDs.
             property_options = []
             for po in property_options_values:
                 imported_field_dbname = service_type.import_property_name(
                     po["schema_property"], id_mapping
                 )
-                # Trashed fields won't be included in the deserialized
-                # property options, we'll skip it altogether.
+                # Trashed fields won't be included — skip them.
                 if imported_field_dbname is not None:
                     property_options.append(
                         {**po, "schema_property": imported_field_dbname}
                     )
 
-            # Create property options
             options = [
                 CollectionElementPropertyOptions(**po, element=instance)
                 for po in property_options
             ]
             CollectionElementPropertyOptions.objects.bulk_create(options)
             instance.property_options.add(*options)
-
-        return instance
 
     def extract_properties(self, instance: Element, **kwargs) -> Dict[int, List[str]]:
         """
@@ -753,44 +774,61 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
             **kwargs,
         )
 
-        import_field_context = ElementHandler().get_import_context_addition(
-            instance.id, cache.get("imported_element_map")
-        )
-
-        fields = [
+        # Create fields immediately — they don't need import context.
+        created_fields = [
             collection_field_type_registry.get(f["type"]).import_serialized(
-                f, id_mapping, **(kwargs | import_field_context)
+                f, id_mapping, **kwargs
             )
             for f in fields
         ]
 
-        # Add the field order
-        for i, f in enumerate(fields):
+        for i, f in enumerate(created_fields):
             f.order = i
 
-        # Create fields
-        created_fields = CollectionField.objects.bulk_create(fields)
-
+        CollectionField.objects.bulk_create(created_fields)
         instance.fields.add(*created_fields)
 
         return instance
 
-    def import_serialized(
+    def after_import(
         self,
-        page: Any,
-        serialized_values: Dict[str, Any],
-        id_mapping: Dict[str, Dict[int, int]],
-        files_zip: ZipFile | None = None,
-        storage: Storage | None = None,
-        cache: Dict[str, Any] | None = None,
-        **kwargs,
-    ) -> ElementSubClass:
+        instance,
+        id_mapping: Dict[str, Any],
+        import_context: Dict[str, Any],
+    ):
         """
-        This method is overridden to ensure that the import_context contains
-        the data sources and correctly imports formulas.
+        Post-processing that runs after all elements are created.
+        Imports collection field formulas and handles property options
+        via the parent mixin.
+
+        :param instance: The already-created element instance.
+        :param id_mapping: A map of old->new id per data type.
+        :param import_context: Context dict with data_source_id, schema_property, etc.
         """
 
-        # Import the element itself
+        # Run the parent mixin's after_import first (property options)
+        super().after_import(instance, id_mapping, import_context)
+
+        # Import the collection field formulas
+        for collection_field in instance.fields.all():
+            collection_field.get_type().import_formulas(
+                collection_field,
+                id_mapping,
+                import_formula,
+                **import_context,
+            )
+            collection_field.save()
+
+    def import_serialized(
+        self,
+        page,
+        serialized_values,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
         created_instance = super().import_serialized(
             page,
             serialized_values,
@@ -801,24 +839,20 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
             **kwargs,
         )
 
-        # For collection fields, import_context should include the current element
-        import_context = ElementHandler().get_import_context_addition(
-            created_instance.id,
-            element_map=cache.get("imported_element_map", None) if cache else None,
-        )
-
-        # Import the collection field formulas
-        updated_models = []
-        for collection_field in created_instance.fields.all():
-            collection_field.get_type().import_formulas(
-                collection_field,
-                id_mapping,
-                import_formula,
-                **(kwargs | import_context),
-            )
-            updated_models.append(collection_field)
-
-        [m.save() for m in updated_models]
+        # Direct call (no cache) — handle post-processing immediately.
+        # When called via import_elements with a cache, after_import
+        # is called separately after all elements are created.
+        if cache is None:
+            # Build import context from the instance's own attributes.
+            # We can't traverse the graph here because the newly created
+            # element hasn't been added to the page graph yet.
+            specific = created_instance.specific
+            import_context = {}
+            if getattr(specific, "data_source_id", None):
+                import_context["data_source_id"] = specific.data_source_id
+            if getattr(specific, "schema_property", None) is not None:
+                import_context["schema_property"] = specific.schema_property
+            self.after_import(created_instance, id_mapping, import_context)
 
         return created_instance
 

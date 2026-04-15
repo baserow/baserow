@@ -125,30 +125,30 @@ def test_elements_moved_when_column_is_removed(api_client, data_fixture):
     column_element_column_0 = data_fixture.create_builder_text_element(
         user=user,
         page=page,
-        parent_element_id=column.id,
         place_in_container="0",
-        order=22,
+        reference_elemenrt_id=column.id,
+        position=GraphPointPosition.CHILD,
     )
     column_element_column_1 = data_fixture.create_builder_text_element(
         user=user,
         page=page,
-        parent_element_id=column.id,
         place_in_container="1",
-        order=4,
+        reference_elemenrt_id=column.id,
+        position=GraphPointPosition.CHILD,
     )
     column_element_column_1_1 = data_fixture.create_builder_text_element(
         user=user,
         page=page,
-        parent_element_id=column.id,
         place_in_container="1",
-        order=5,
+        reference_elemenrt_id=column.id,
+        position=GraphPointPosition.CHILD,
     )
     column_element_column_2 = data_fixture.create_builder_text_element(
         user=user,
         page=page,
-        parent_element_id=column.id,
         place_in_container="2",
-        order=1,
+        reference_elemenrt_id=column.id,
+        position=GraphPointPosition.CHILD,
     )
 
     url = reverse("api:builder:element:item", kwargs={"element_id": column.id})
@@ -213,6 +213,7 @@ def test_moving_an_element_to_new_column_appends_element(api_client, data_fixtur
         url,
         {
             "reference_element_id": column_element.id,
+            "position": GraphPointPosition.CHILD,
             "place_in_container": "1",
         },
         format="json",
@@ -240,7 +241,8 @@ def test_column_element_invalid_child_in_container_on_move(api_client, data_fixt
     response = api_client.patch(
         url,
         {
-            "parent_element_id": column_element.id,
+            "reference_element_id": column_element.id,
+            "position": GraphPointPosition.CHILD,
             "place_in_container": "9999",
         },
         format="json",
@@ -248,7 +250,7 @@ def test_column_element_invalid_child_in_container_on_move(api_client, data_fixt
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert "place_in_container" in response.json()[0]
+    assert response.json() == ["place_in_container can at most be 1, (9999, was given)"]
 
 
 @pytest.mark.django_db
@@ -265,7 +267,8 @@ def test_column_element_invalid_child_in_container_on_create(api_client, data_fi
         url,
         {
             "type": "text",
-            "parent_element_id": column_element.id,
+            "reference_element_id": column_element.id,
+            "position": GraphPointPosition.CHILD,
             "place_in_container": "9999",
         },
         format="json",
@@ -273,4 +276,4 @@ def test_column_element_invalid_child_in_container_on_create(api_client, data_fi
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert "place_in_container" in response.json()[0]
+    assert response.json() == ["place_in_container can at most be 1, (9999, was given)"]

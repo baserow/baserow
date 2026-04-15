@@ -557,6 +557,7 @@ class PageHandler:
             name=page.name,
             order=page.order,
             path=page.path,
+            graph=page.graph,
             path_params=page.path_params,
             query_params=page.query_params,
             shared=page.shared,
@@ -591,7 +592,7 @@ class PageHandler:
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress: Optional[ChildProgressBuilder] = None,
-        cache: Optional[Dict[str, any]] = None,
+        cache: Optional[Dict[str, Any]] = None,
     ):
         """
         Import multiple pages at once. Especially useful when we have dependencies
@@ -649,7 +650,6 @@ class PageHandler:
                 progress=progress,
                 cache=cache,
             )
-            page_instance.get_graph().migrate_graph(id_mapping)
 
         for page_instance, serialized_page in imported_pages:
             self.import_workflow_actions(
@@ -737,6 +737,7 @@ class PageHandler:
                 visibility=serialized_page.get("visibility", Page.VISIBILITY_TYPES.ALL),
                 role_type=serialized_page.get("role_type", Page.ROLE_TYPES.ALLOW_ALL),
                 roles=serialized_page.get("roles", []),
+                graph=serialized_page.get("graph", {}),
             )
 
         id_mapping["builder_pages"][serialized_page["id"]] = page_instance.id
@@ -789,8 +790,13 @@ class PageHandler:
         cache: Optional[Dict[str, any]] = None,
     ):
         """
-        Import all page elements, dealing with the potential incorrect order regarding
-        element hierarchy: the parents need to be imported first.
+        Import all page elements following the three-phase pattern
+        (mirroring automation's import_nodes):
+
+        Phase 1: Create all elements (DB records + sub-objects like fields)
+        Phase 2: migrate_graph() — graph now has new IDs
+        Phase 3: Post-processing (property options, field formulas, element
+                 formulas) — can safely use parent_element_id / import context
 
         :param page: the page the elements should belong to.
         :param serialized_elements: the list of serialized elements.
@@ -803,14 +809,9 @@ class PageHandler:
         :return: the newly created instance list.
         """
 
-        # For element we can have a hierarchy and we can have a parent element that is
-        # needs to be created before the child element.
-        # That why we are iterating until all elements are created.
+        # ── Phase 1: Create all elements ─────────────────────────────
         imported_elements = []
 
-        # Sort the serialized elements so that we import:
-        # Containers first
-        # Everything else after that.
         def element_priority_sort(element_to_sort):
             return element_type_registry.get(
                 element_to_sort["type"]
@@ -820,15 +821,24 @@ class PageHandler:
             serialized_elements, key=element_priority_sort, reverse=True
         )
 
-        # True if we have imported at least one element on last iteration
+        def _find_parent_point(target_point_id: int) -> int | None:
+            for point_id, info in page.graph.items():
+                if point_id == "0" or not isinstance(info, dict):
+                    continue
+                children = info.get("children", {})
+                if isinstance(children, list):
+                    children = {"": children}
+                for child_ids in children.values():
+                    if target_point_id in child_ids:
+                        return int(point_id)
+            return None
+
         was_imported = True
         while was_imported:
             was_imported = False
 
             for serialized_element in prioritized_elements:
-                parent_element_id = serialized_element["parent_element_id"]
-                # check that the element has not already been imported in a
-                # previous pass or if the parent doesn't exist yet.
+                parent_element_id = _find_parent_point(serialized_element["id"])
                 if serialized_element["id"] not in id_mapping.get(
                     "builder_page_elements", {}
                 ) and (
@@ -850,29 +860,43 @@ class PageHandler:
                     if progress:
                         progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
-        # Now that all elements have been imported, loop back over them
-        # and start import their formulas. We do this because formulas can
-        # reference one another, so we need the full set of elements to be
-        # imported before we can safely import the formulas without running
-        # into issues of missing referenced elements in `id_mapping`.
+        # ── Phase 2: Migrate graph ───────────────────────────────────
+        # Graph now has new IDs, so parent_element_id works.
+        page.get_graph().migrate_graph(id_mapping)
+
+        # If any imported element is still absent from the graph (e.g. when
+        # import_elements is called directly on a page whose graph was not
+        # pre-populated from serialized data), append it so that graph
+        # traversals like parent_element_id work correctly in Phase 3.
+        graph = page.get_graph()
+        for element in imported_elements:
+            if str(element.id) not in graph.graph:
+                graph.append(element)
+
+        # ── Phase 3: Post-processing ────────────────────────────────
+        # Now that the graph is populated with new IDs, we can safely
+        # use get_import_context_addition which traverses parent_element_id.
+        element_map = {e.id: e for e in imported_elements}
+
         updated_models = set()
-        for elt in imported_elements:
-            import_context = {}
-            if elt.parent_element_id:
-                import_context = ElementHandler().get_import_context_addition(
-                    elt.parent_element_id,
-                    element_map=cache.get("imported_element_map", None)
-                    if cache
-                    else None,
-                )
-            updated_models = updated_models | elt.get_type().import_formulas(
-                elt,
+        for element in imported_elements:
+            element_type = element.get_type()
+
+            import_context = ElementHandler().get_import_context_addition(
+                element.id, element_map=element_map
+            )
+
+            element_type.after_import(element, id_mapping, import_context)
+
+            updated_models |= element_type.import_formulas(
+                element,
                 id_mapping,
                 import_formula,
                 **import_context,
             )
 
-        [m.save() for m in updated_models]
+        for m in updated_models:
+            m.save()
 
         return imported_elements
 

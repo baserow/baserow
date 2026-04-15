@@ -139,7 +139,7 @@ class ElementService:
         element_type: ElementType,
         page: Page,
         reference_element_id: int | None = None,
-        position: GraphPointPositionType = "south",  # south, child
+        position: GraphPointPositionType = "south",
         **kwargs,
     ) -> Element:
         """
@@ -181,7 +181,14 @@ class ElementService:
 
         try:
             with translation.override(user.profile.language):
-                new_element = self.handler.create_element(element_type, page, **kwargs)
+                new_element = self.handler.create_element(
+                    element_type,
+                    page,
+                    position=position,
+                    reference_element_id=reference_element_id,
+                    place_in_container=instance_output,
+                    **kwargs,
+                )
         except CannotCalculateIntermediateOrder:
             self.recalculate_full_orders(user, page)
             # If the `find_intermediate_order` fails with a
@@ -191,9 +198,12 @@ class ElementService:
             # so that we can then can find the fraction any many more after.
             new_element = self.handler.create_element(element_type, page, **kwargs)
 
-        page.get_graph().insert(
-            new_element, reference_element, position, instance_output
-        )
+        if reference_element is None:
+            page.get_graph().append(new_element)
+        else:
+            page.get_graph().insert(
+                new_element, reference_element, position, instance_output
+            )
 
         element_created.send(
             self,
@@ -300,7 +310,9 @@ class ElementService:
         # Validate the reference element's place (e.g. if a `place_in_container` is
         # provided that is too large for the number this container supports), then
         # check the position/reference element combination is valid.
-        element_type.validate_place(target_page, reference_element, place_in_container)
+        element_type.validate_place(
+            target_page, reference_element, place_in_container, position
+        )
         self._check_position(target_page, reference_element, position)
 
         # Check if the type has any before-move requirements.
