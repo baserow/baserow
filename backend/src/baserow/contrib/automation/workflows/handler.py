@@ -905,6 +905,31 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             completed_on=now,
         )
 
+    def build_node_id_mapping(
+        self,
+        source_workflow: AutomationWorkflow,
+        target_workflow: AutomationWorkflow,
+    ) -> Dict[int, int]:
+        """
+        Build a mapping from draft node IDs to snapshot node IDs by
+        the order of nodes.
+
+        We can assume the ordering is safe because the export/import process
+        ensures the nodes are created in order.
+        """
+
+        source_node_ids = list(
+            source_workflow.automation_workflow_nodes.order_by("id").values_list(
+                "id", flat=True
+            )
+        )
+        target_node_ids = list(
+            target_workflow.automation_workflow_nodes.order_by("id").values_list(
+                "id", flat=True
+            )
+        )
+        return dict(zip(source_node_ids, target_node_ids))
+
     def create_history_snapshot(
         self, workflow: AutomationWorkflow
     ) -> Tuple[AutomationWorkflow, Dict[int, int]]:
@@ -922,7 +947,10 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # If the snapshot exists and the workflow hasn't been updated since,
         # use that existing snapshot's workflow.
         if latest_snapshot and latest_snapshot.created_on >= workflow.updated_on:
-            return latest_snapshot.workflows.first(), {}
+            snapshot_workflow = latest_snapshot.workflows.first()
+            return snapshot_workflow, self.build_node_id_mapping(
+                workflow, snapshot_workflow
+            )
 
         # Otherwise, create a new snapshot by publishing
         import_export_config = ImportExportConfig(
@@ -1182,13 +1210,11 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Map simulate_until_node to the snapshot node
         snapshot_simulate_until_node = None
-        if simulate_until_node and node_id_mapping:
-            if snapshot_node_id := node_id_mapping.get(simulate_until_node.id):
-                snapshot_simulate_until_node = snapshot_workflow.get_graph().get_node(
-                    snapshot_node_id
-                )
-        elif simulate_until_node:
-            snapshot_simulate_until_node = simulate_until_node
+        if simulate_until_node:
+            snapshot_node_id = node_id_mapping[simulate_until_node.id]
+            snapshot_simulate_until_node = snapshot_workflow.get_graph().get_node(
+                snapshot_node_id
+            )
 
         history = AutomationHistoryHandler().create_workflow_history(
             original_workflow=original_workflow,

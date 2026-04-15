@@ -401,10 +401,32 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         Returns True if a signal was sent, False otherwise.
         """
 
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+
         if simulate_until_node and simulate_until_node.id == node.id:
-            node.service.specific.refresh_from_db(fields=["sample_data"])
-            automation_node_updated.send(self, user=None, node=node)
+            snapshot_service = node.service.specific
+            snapshot_service.refresh_from_db(fields=["sample_data"])
+
+            # A node is dispatched from a snapshot, so the sample data must
+            # be saved to the draft node's service. Also, the signal must
+            # be sent to the draft node.
+            original_workflow = node.workflow.get_original()
+            if original_workflow.id != node.workflow.id:
+                snapshot_to_draft = AutomationWorkflowHandler().build_node_id_mapping(
+                    node.workflow, original_workflow
+                )
+                draft_node = self.get_node(snapshot_to_draft[node.id])
+                draft_service = draft_node.service.specific
+                draft_service.sample_data = snapshot_service.sample_data
+                draft_service.save(update_fields=["sample_data"])
+                automation_node_updated.send(self, user=None, node=draft_node)
+            else:
+                automation_node_updated.send(self, user=None, node=node)
+
             return True
+
         return False
 
     def dispatch_node(
