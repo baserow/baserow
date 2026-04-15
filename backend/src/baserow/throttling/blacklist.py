@@ -40,7 +40,10 @@ def blacklist_ip(ip: str, wait_seconds: float) -> None:
 
 def is_token_blacklisted(raw_token: str) -> int | None:
     """
-    Return the remaining TTL hint (seconds) if blacklisted, else ``None``.
+    Return the original wait time (seconds) if blacklisted, else ``None``.
+
+    The value is the TTL set at blacklist time — it does not decrease as the
+    key ages.  It is used as a ``Retry-After`` hint, not an exact countdown.
     """
 
     return cache.get(_token_key(raw_token))
@@ -48,7 +51,7 @@ def is_token_blacklisted(raw_token: str) -> int | None:
 
 def is_ip_blacklisted(ip: str) -> int | None:
     """
-    Return the remaining TTL hint (seconds) if blacklisted, else ``None``.
+    Return the original wait time (seconds) if blacklisted, else ``None``.
     """
 
     return cache.get(_ip_key(ip))

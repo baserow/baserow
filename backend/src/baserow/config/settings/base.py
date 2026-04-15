@@ -417,8 +417,9 @@ if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
         "concurrent_user_requests": BASEROW_MAX_CONCURRENT_USER_REQUESTS
     }
 
-    # ThrottleBlacklist runs early (after CORS) to return 429s with proper headers.
-    MIDDLEWARE.insert(1, "baserow.throttling.middleware.ThrottleBlacklistMiddleware")
+    # ThrottleBlacklist runs early, but after CORS and SecurityMiddleware, so
+    # 429 responses still include security and CORS headers.
+    MIDDLEWARE.insert(2, "baserow.throttling.middleware.ThrottleBlacklistMiddleware")
 
     MIDDLEWARE += [
         "baserow.throttling.middleware.ConcurrentUserRequestsMiddleware",
@@ -428,7 +429,7 @@ BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT = int(
     os.getenv("BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT", 60)
 )
 
-BASEROW_JWT_USER_CACHE_TTL = int(os.getenv("BASEROW_JWT_USER_CACHE_TTL", 60))
+BASEROW_JWT_USER_CACHE_TTL = int(os.getenv("BASEROW_JWT_USER_CACHE_TTL", 30))
 
 BASEROW_THROTTLE_IP_BLACKLIST_ENABLED = (
     os.getenv("BASEROW_THROTTLE_IP_BLACKLIST_ENABLED", "false").lower() == "true"

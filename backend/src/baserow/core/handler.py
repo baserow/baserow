@@ -159,9 +159,9 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
     def get_settings(self):
         """
         Returns a settings model instance containing all the admin configured settings.
-        The result is cached globally in Redis via ``global_cache`` so that
-        repeated calls across requests don't hit the DB. The cache is
-        invalidated explicitly in ``update_settings``.
+        The result is cached per-request via ``local_cache`` so that the
+        multiple calls within a single request (serializers, permission
+        managers, etc.) don't each hit the DB.
 
         :return: The settings instance.
         :rtype: Settings
