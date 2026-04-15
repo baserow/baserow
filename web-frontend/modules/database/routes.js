@@ -31,13 +31,7 @@ export const routes = [
       },
     ],
   },
-  // TODO MIG Is this necessary?
-  {
-    name: 'database-root',
-    path: '',
-    file: path.resolve(__dirname, 'pages/root.vue'),
-    children: [],
-  },
+
   // These redirect exist because the original api docs path was `/api/docs`, but
   // they have been renamed.
   {

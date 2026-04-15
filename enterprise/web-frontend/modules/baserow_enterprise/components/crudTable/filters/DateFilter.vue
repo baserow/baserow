@@ -84,10 +84,6 @@ export default {
       copy: '',
       dateString: '',
       dateObject: '',
-      datePickerLang: {
-        en: {},
-        fr: {},
-      },
     }
   },
   created() {

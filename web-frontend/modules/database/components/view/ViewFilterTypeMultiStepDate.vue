@@ -81,7 +81,6 @@ import {
   getDateMomentFormat,
   getDateHumanReadableFormat,
 } from '@baserow/modules/database/utils/date'
-// TODO MIG import { en, fr } from 'vuejs-datepicker/dist/locale'
 import filterTypeMultiStepDateInput from '@baserow/modules/database/mixins/filterTypeMultiStepDateInput'
 import { useDatePickerLanguage } from '@baserow/modules/core/composables/useDatePickerLanguage'
 
@@ -100,10 +99,6 @@ export default {
       daysAgoValue: '',
       dateString: '',
       dateObject: null,
-      datePickerLang: {
-        en: {},
-        fr: {},
-      },
     }
   },
   computed: {

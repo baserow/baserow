@@ -217,11 +217,6 @@ export const actions = {
     if (getters.getSelectedId === table.id) {
       return { database, table }
     }
-    // TODO MIG This feature was used only by the database application
-    // Was removed because it was accessing the nuxtApp from the
-    // selectWorkspaceDatabaseTable middleware when the context is not yet
-    // initialized.
-    //await dispatch('application/clearChildrenSelected', null, { root: true })
 
     await dispatch('forceSelect', { database, table })
     return { database, table }
