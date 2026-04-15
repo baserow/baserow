@@ -615,7 +615,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             if ids_to_delete := [
                 a.id
                 for a in published_automations[:-1]
-                # Exclude any automations have any history entries
+                # Exclude any automations that have any history entries
                 if not AutomationWorkflowHistory.objects.filter(
                     workflow__automation=a
                 ).exists()

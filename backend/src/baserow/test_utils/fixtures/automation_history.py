@@ -42,6 +42,7 @@ class AutomationHistoryFixtures:
         )
 
         history = AutomationHistoryHandler().create_workflow_history(
+            original_workflow=original_workflow,
             workflow=original_workflow,
             started_on=started_on,
             is_test_run=is_test_run,

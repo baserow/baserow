@@ -10,9 +10,12 @@ from baserow.contrib.automation.history.models import (
 
 class AutomationWorkflowHistoryFixtures:
     def create_automation_workflow_history(self, user=None, **kwargs):
+        if "original_workflow" not in kwargs:
+            kwargs["original_workflow"] = kwargs["workflow"]
+
         if "workflow" not in kwargs:
             user = user or self.create_user()
-            kwargs["workflow"] = self.create_automation_workflow(user=user, **kwargs)
+            kwargs["workflow"] = self.create_automation_workflow(user=user)
 
         if "started_on" not in kwargs:
             kwargs["started_on"] = timezone.now()

@@ -836,7 +836,9 @@ def test_async_start_workflow_creates_rate_limited_history_once_until_cache_rese
         handler.async_start_workflow(published_workflow)
         handler.async_start_workflow(published_workflow)
 
-    histories = AutomationWorkflowHistory.objects.filter(workflow=original_workflow)
+    histories = AutomationWorkflowHistory.objects.filter(
+        original_workflow=original_workflow
+    )
     assert histories.count() == 1
     assert_history(
         original_workflow,
@@ -850,7 +852,9 @@ def test_async_start_workflow_creates_rate_limited_history_once_until_cache_rese
     with freeze_time("2026-01-26 13:00:06"):
         handler.async_start_workflow(published_workflow)
 
-    histories = AutomationWorkflowHistory.objects.filter(workflow=original_workflow)
+    histories = AutomationWorkflowHistory.objects.filter(
+        original_workflow=original_workflow
+    )
     assert histories.count() == 2
 
 
@@ -1439,12 +1443,13 @@ def test_async_start_workflow_with_simulate_until_node(
     workflow.refresh_from_db()
     history = workflow.workflow_histories.get()
 
+    snapshot_trigger = history.workflow.get_trigger()
+    assert history.simulate_until_node_id == snapshot_trigger.id
     assert workflow.simulate_until_node is None
     assert history.is_test_run is True
-    assert history.simulate_until_node_id == trigger.id
 
     mock_start_workflow_celery_task.delay.assert_called_once_with(
-        workflow.id, history.id
+        history.workflow_id, history.id
     )
 
 
@@ -1513,9 +1518,9 @@ def test_async_start_workflow_rate_limited_runs_eventually_disable_workflow(
         AutomationWorkflowHandler().async_start_workflow(published_workflow)
 
     histories = list(
-        AutomationWorkflowHistory.objects.filter(workflow=original_workflow).order_by(
-            "started_on", "id"
-        )
+        AutomationWorkflowHistory.objects.filter(
+            original_workflow=original_workflow
+        ).order_by("started_on", "id")
     )
 
     assert len(histories) == 6
@@ -1572,7 +1577,7 @@ def test_async_start_workflow_queues_celery_task_on_commit(
 
     mock_on_commit.call_args.args[0]()
     mock_start_workflow_celery_task.delay.assert_called_once_with(
-        workflow.id, history.id
+        history.workflow_id, history.id
     )
 
 

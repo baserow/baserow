@@ -7,13 +7,13 @@ def assert_history(
     """Helper to test AutomationWorkflowHistory objects."""
 
     histories = list(
-        AutomationWorkflowHistory.objects.filter(workflow=workflow).order_by(
+        AutomationWorkflowHistory.objects.filter(original_workflow=workflow).order_by(
             "started_on", "id"
         )
     )
     assert len(histories) == expected_count
     if expected_count > 0:
         history = histories[history_index]
-        assert history.workflow == workflow
+        assert history.original_workflow == workflow
         assert history.status == expected_status
         assert history.message == expected_msg

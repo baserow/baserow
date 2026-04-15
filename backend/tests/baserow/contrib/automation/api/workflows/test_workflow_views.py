@@ -731,6 +731,7 @@ def test_get_workflow_histories_query_count(data_fixture, django_assert_num_quer
     def _create_histories(count):
         for _ in range(count):
             workflow_history = handler.create_workflow_history(
+                original_workflow=workflow,
                 workflow=workflow,
                 started_on=timezone.now(),
                 is_test_run=False,
