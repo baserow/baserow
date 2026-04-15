@@ -1,7 +1,7 @@
 <template>
-  <!-- TODO MIG component :is="getComponent()" v-if="getComponent()" /-->
   <!-- must be in sync with modules/baserow_enterprise/components/EnterpriseLogo.vue -->
-  <div class="logo">
+  <component :is="getComponent()" v-if="getComponent()"></component>
+  <div v-else class="logo">
     <img
       src="@baserow/modules/core/static/img/logo.svg?url"
       v-bind="$attrs"
