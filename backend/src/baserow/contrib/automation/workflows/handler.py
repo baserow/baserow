@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import timedelta
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from zipfile import ZipFile
 
 from django.conf import settings
@@ -905,6 +905,57 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             completed_on=now,
         )
 
+    def create_history_snapshot(
+        self, workflow: AutomationWorkflow
+    ) -> Tuple[AutomationWorkflow, Dict[int, int]]:
+        """
+        Create a snapshot of the draft workflow by publishing the workflow.
+
+        The snapshot's workflow is used by the history, which decouples the
+        history's workflow from the draft or published workflow.
+        """
+
+        latest_snapshot = (
+            Automation.objects.filter(published_from=workflow).order_by("-id").first()
+        )
+
+        # If the snapshot exists and the workflow hasn't been updated since,
+        # use that existing snapshot's workflow.
+        if latest_snapshot and latest_snapshot.created_on >= workflow.updated_on:
+            return latest_snapshot.workflows.first(), {}
+
+        # Otherwise, create a new snapshot by publishing
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            exclude_sensitive_data=False,
+            is_publishing=True,
+        )
+        default_storage = get_default_storage()
+        application_type = workflow.automation.get_type()
+        exported_automation = application_type.export_serialized(
+            workflow.automation,
+            import_export_config,
+            None,
+            default_storage,
+            workflows=[workflow],
+        )
+        id_mapping = {"import_workspace_id": workflow.automation.workspace.id}
+        snapshot_automation = application_type.import_serialized(
+            None,
+            exported_automation,
+            import_export_config,
+            id_mapping,
+            None,
+            default_storage,
+        )
+        snapshot_automation.published_from = workflow
+        snapshot_automation.save(update_fields=["published_from"])
+
+        return snapshot_automation.workflows.first(), id_mapping.get(
+            "automation_workflow_nodes", {}
+        )
+
     def _get_workflow_history_rate_limit_cache_key(
         self, original_workflow: AutomationWorkflow
     ) -> str:
@@ -1121,16 +1172,35 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # testing it.
         is_test_run = original_workflow == workflow
 
+        # For test runs, use a history snapshot so that the history
+        # points to snapshot nodes instead of draft nodes.
+        if is_test_run:
+            snapshot_workflow, node_id_mapping = self.create_history_snapshot(workflow)
+        else:
+            snapshot_workflow = workflow
+            node_id_mapping = {}
+
+        # Map simulate_until_node to the snapshot node
+        snapshot_simulate_until_node = None
+        if simulate_until_node and node_id_mapping:
+            if snapshot_node_id := node_id_mapping.get(simulate_until_node.id):
+                snapshot_simulate_until_node = snapshot_workflow.get_graph().get_node(
+                    snapshot_node_id
+                )
+        elif simulate_until_node:
+            snapshot_simulate_until_node = simulate_until_node
+
         history = AutomationHistoryHandler().create_workflow_history(
-            original_workflow,
+            original_workflow=original_workflow,
+            workflow=snapshot_workflow,
             started_on=timezone.now(),
             is_test_run=is_test_run,
             event_payload=event_payload,
-            simulate_until_node=simulate_until_node,
+            simulate_until_node=snapshot_simulate_until_node,
         )
 
         transaction.on_commit(
-            lambda: start_workflow_celery_task.delay(workflow.id, history.id)
+            lambda: start_workflow_celery_task.delay(snapshot_workflow.id, history.id)
         )
 
     def start_workflow(
