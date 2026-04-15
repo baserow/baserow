@@ -167,6 +167,8 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         :rtype: Settings
         """
 
+        from baserow.core.cache import local_cache
+
         def _fetch():
             try:
                 return (
@@ -175,7 +177,7 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
             except Settings.DoesNotExist:
                 return Settings.objects.create()
 
-        return global_cache.get(self._SETTINGS_CACHE_KEY, default=_fetch, timeout=60)
+        return local_cache.get(self._SETTINGS_CACHE_KEY, _fetch)
 
     def update_settings(self, user, settings_instance=None, **kwargs):
         """
