@@ -76,7 +76,7 @@ class AutomationNodeHistory(AutomationHistory):
     )
 
     class Meta(AutomationHistory.Meta):
-        ordering = ("started_on",)
+        ordering = ("started_on", "id")
         indexes = [
             models.Index(fields=["workflow_history", "node"]),
         ]
