@@ -612,8 +612,15 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         if len(published_automations) > 1:
             # Delete all but the last published automation
-            ids_to_delete = [a.id for a in published_automations[:-1]]
-            Automation.objects.filter(id__in=ids_to_delete).delete()
+            if ids_to_delete := [
+                a.id
+                for a in published_automations[:-1]
+                # Exclude any automations have any history entries
+                if not AutomationWorkflowHistory.objects.filter(
+                    workflow__automation=a
+                ).exists()
+            ]:
+                Automation.objects.filter(id__in=ids_to_delete).delete()
 
         # Disable the last published workflow
         if published_workflow := published_automations[-1].workflows.first():
@@ -821,6 +828,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         It will delete any history entries that are older than MAX_HISTORY_DAYS and only
         keep the most recent MAX_HISTORY_ENTRIES entries.
+
+        TODO: refactor this once https://github.com/baserow/baserow/pull/5166
+            is merged in.
         """
 
         oldest_history_date = timezone.now() - timedelta(
@@ -838,6 +848,20 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         original_workflow.workflow_histories.exclude(
             status=HistoryStatusChoices.STARTED
         ).exclude(id__in=history_ids_to_keep).delete()
+
+        # Clean up published automations that no longer have any history entries
+        active_published = (
+            Automation.objects.filter(published_from=original_workflow)
+            .order_by("-id")
+            .first()
+        )
+        empty_published = Automation.objects.filter(
+            published_from=original_workflow
+        ).exclude(workflows__snapshot_workflow_histories__isnull=False)
+        if active_published:
+            empty_published = empty_published.exclude(id=active_published.id)
+
+        empty_published.delete()
 
     def _mark_failure_for_timed_out_history(
         self, original_workflow: AutomationWorkflow
