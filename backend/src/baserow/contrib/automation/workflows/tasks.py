@@ -79,7 +79,7 @@ def handle_workflow_dispatch_done(
         )
 
 @app.task(queue="automation_workflow")
-def clear_old_automation_history():
+def automation_periodic_cleanup():
     from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
     handler = AutomationWorkflowHandler()
@@ -93,5 +93,5 @@ def setup_periodic_automation_tasks(sender, **kwargs):
         timedelta(
             minutes=settings.AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES
         ),
-        clear_old_automation_history.s(),
+        automation_periodic_cleanup.s(),
     )

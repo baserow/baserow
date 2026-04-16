@@ -4,12 +4,12 @@ import pytest
 from freezegun import freeze_time
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
-from baserow.contrib.automation.workflows.tasks import clear_old_automation_history
+from baserow.contrib.automation.workflows.tasks import automation_periodic_cleanup
 
 
 @override_settings(AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=2)
 @pytest.mark.django_db
-def test_clear_old_automation_history_keeps_max_entries_per_workflow(data_fixture):
+def test_automation_periodic_cleanup_keeps_max_entries_per_workflow(data_fixture):
     workflow_a = data_fixture.create_automation_workflow()
     workflow_b = data_fixture.create_automation_workflow()
 
@@ -32,7 +32,7 @@ def test_clear_old_automation_history_keeps_max_entries_per_workflow(data_fixtur
         )
 
     with freeze_time("2026-04-15 12:00:00"):
-        clear_old_automation_history()
+        automation_periodic_cleanup()
 
     # Since workflow_a had 3 entries and max is 2, the oldest entry is deleted.
     assert not workflow_a.workflow_histories.filter(id=workflow_a_history_1.id).exists()
@@ -50,7 +50,7 @@ def test_clear_old_automation_history_keeps_max_entries_per_workflow(data_fixtur
     AUTOMATION_WORKFLOW_TIMEOUT_HOURS=73,
 )
 @pytest.mark.django_db
-def test_clear_old_automation_history_excludes_started_from_date_cleanup(data_fixture):
+def test_automation_periodic_cleanup_excludes_started_from_date_cleanup(data_fixture):
     workflow = data_fixture.create_automation_workflow()
 
     with freeze_time("2026-04-13 12:00:00"):
@@ -70,7 +70,7 @@ def test_clear_old_automation_history_excludes_started_from_date_cleanup(data_fi
         )
 
     with freeze_time("2026-04-16 12:00:00"):
-        clear_old_automation_history()
+        automation_periodic_cleanup()
 
     # Although both history entries are older than max_days,
     # entries with status=STARTED should be excluded from deletion.
@@ -95,7 +95,7 @@ def test_clear_old_automation_history_excludes_started_from_date_cleanup(data_fi
     AUTOMATION_WORKFLOW_TIMEOUT_HOURS=73,
 )
 @pytest.mark.django_db
-def test_clear_old_automation_history_excludes_started_from_count_cleanup(data_fixture):
+def test_automation_periodic_cleanup_excludes_started_from_count_cleanup(data_fixture):
     workflow = data_fixture.create_automation_workflow()
 
     with freeze_time("2026-04-13 12:00:00"):
@@ -112,7 +112,7 @@ def test_clear_old_automation_history_excludes_started_from_count_cleanup(data_f
         )
 
     with freeze_time("2026-04-15 12:00:00"):
-        clear_old_automation_history()
+        automation_periodic_cleanup()
 
     # There are 3 history entries. Even though max_entries is 2, the oldest
     # entry is STARTED, so it is not deleted.
@@ -122,7 +122,7 @@ def test_clear_old_automation_history_excludes_started_from_count_cleanup(data_f
 
 @override_settings(AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS=7)
 @pytest.mark.django_db
-def test_clear_old_automation_history_deletes_entries_older_than_max_days(data_fixture):
+def test_automation_periodic_cleanup_deletes_entries_older_than_max_days(data_fixture):
     workflow = data_fixture.create_automation_workflow()
 
     with freeze_time("2026-04-01 12:00:00"):
@@ -136,7 +136,7 @@ def test_clear_old_automation_history_deletes_entries_older_than_max_days(data_f
         )
 
     with freeze_time("2026-04-10 12:00:00"):
-        clear_old_automation_history()
+        automation_periodic_cleanup()
 
     # This should be deleted, since it's more than 7 days since creation.
     assert not workflow.workflow_histories.filter(id=old_history.id).exists()
@@ -149,7 +149,7 @@ def test_clear_old_automation_history_deletes_entries_older_than_max_days(data_f
     AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=2,
 )
 @pytest.mark.django_db
-def test_clear_old_automation_history_keeps_entries_within_both_limits(data_fixture):
+def test_automation_periodic_cleanup_keeps_entries_within_both_limits(data_fixture):
     workflow = data_fixture.create_automation_workflow()
 
     with freeze_time("2026-04-01 12:00:00"):
@@ -163,7 +163,7 @@ def test_clear_old_automation_history_keeps_entries_within_both_limits(data_fixt
         )
 
     with freeze_time("2026-04-02 12:00:00"):
-        clear_old_automation_history()
+        automation_periodic_cleanup()
 
     # The histories are under both date and count limits, so are kept.
     assert (
@@ -174,7 +174,7 @@ def test_clear_old_automation_history_keeps_entries_within_both_limits(data_fixt
 
 @override_settings(AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1)
 @pytest.mark.django_db
-def test_clear_old_automation_history_marks_timed_out_entries(data_fixture):
+def test_automation_periodic_cleanup_marks_timed_out_entries(data_fixture):
     workflow = data_fixture.create_automation_workflow()
 
     with freeze_time("2026-04-10 11:00:00"):
@@ -188,7 +188,7 @@ def test_clear_old_automation_history_marks_timed_out_entries(data_fixture):
         )
 
     with freeze_time("2026-04-10 13:00:00"):
-        clear_old_automation_history()
+        automation_periodic_cleanup()
 
     timed_out_history.refresh_from_db()
     running_history.refresh_from_db()
@@ -203,7 +203,7 @@ def test_clear_old_automation_history_marks_timed_out_entries(data_fixture):
     AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS=7,
 )
 @pytest.mark.django_db
-def test_clear_old_automation_history_marks_timeout_before_cleanup(data_fixture):
+def test_automation_periodic_cleanup_marks_timeout_before_cleanup(data_fixture):
     workflow = data_fixture.create_automation_workflow()
 
     with freeze_time("2026-04-10 12:00:00"):
@@ -212,6 +212,6 @@ def test_clear_old_automation_history_marks_timeout_before_cleanup(data_fixture)
         )
 
     with freeze_time("2026-04-18 12:00:00"):
-        clear_old_automation_history()
+        automation_periodic_cleanup()
 
     assert not workflow.workflow_histories.filter(id=old_history.id).exists()
