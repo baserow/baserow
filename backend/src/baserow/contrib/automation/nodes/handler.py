@@ -205,10 +205,6 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
 
         node.save()
 
-        # Updating the workflow's updated_on is important for
-        # the history snapshot.
-        node.workflow.save(update_fields=["updated_on"])
-
         return node
 
     def duplicate_node(self, source_node: AutomationNode) -> AutomationNode:

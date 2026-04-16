@@ -1,5 +1,4 @@
 import pytest
-from freezegun import freeze_time
 
 from baserow.contrib.automation.nodes.exceptions import AutomationNodeDoesNotExist
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
@@ -90,32 +89,6 @@ def test_update_node(data_fixture):
     updated_node = AutomationNodeHandler().update_node(node, label="foo result")
 
     assert updated_node.label == "foo result"
-
-
-@pytest.mark.django_db
-def test_update_node_updates_workflow_updated_on(data_fixture):
-    """
-    When a node is updated, we need to also ensure the workflow's updated_on
-    is updated.
-
-    This is useful to know if the workflow has changed, e.g. the history
-    snapshot checks if a workflow has changed to decide whether to create
-    a new snapshot or use the last one.
-    """
-
-    user = data_fixture.create_user()
-
-    with freeze_time("2025-04-10 12:00:00"):
-        node = data_fixture.create_automation_node(user=user)
-
-    workflow = node.workflow
-    workflow_updated_on = workflow.updated_on
-
-    with freeze_time("2025-04-10 12:00:01"):
-        updated_node = AutomationNodeHandler().update_node(node, label="foo result")
-
-    workflow.refresh_from_db()
-    assert workflow.updated_on > workflow_updated_on
 
 
 @pytest.mark.django_db

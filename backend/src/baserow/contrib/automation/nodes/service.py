@@ -196,6 +196,9 @@ class AutomationNodeService:
 
         workflow.get_graph().insert(new_node, reference_node, position, output)
 
+        # Update the workflow's updated_on for the history snapshot.
+        workflow.save(update_fields=["updated_on"])
+
         automation_node_created.send(
             self,
             node=new_node,
@@ -242,6 +245,9 @@ class AutomationNodeService:
         # Update the node itself.
         updated_node = self.handler.update_node(node, **prepared_values)
 
+        # Update the workflow's updated_on for the history snapshot.
+        node.workflow.save(update_fields=["updated_on"])
+
         # Now export the 'new' node values, since everything has been updated.
         new_node_values = node_type.export_prepared_values(node)
 
@@ -285,6 +291,9 @@ class AutomationNodeService:
             node,
         )
 
+        # Update the workflow's updated_on for the history snapshot.
+        workflow.save(update_fields=["updated_on"])
+
         automation_node_deleted.send(
             self,
             workflow=workflow,
@@ -324,6 +333,9 @@ class AutomationNodeService:
         duplicated_node = self.handler.duplicate_node(source_node)
 
         workflow.get_graph().insert(duplicated_node, source_node, "south", "")
+
+        # Update the workflow's updated_on for the history snapshot.
+        workflow.save(update_fields=["updated_on"])
 
         automation_node_created.send(
             self,

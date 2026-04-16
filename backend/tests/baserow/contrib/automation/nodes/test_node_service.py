@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+from freezegun import freeze_time
 
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
@@ -755,3 +756,114 @@ def test_move_node_invalid_reference_node(data_fixture: Fixtures):
         )
 
     assert exc.value.args[0] == f"The reference node {action2.id} can't have child"
+
+
+@pytest.mark.django_db
+def test_update_node_updates_workflow_updated_on(data_fixture):
+    """
+    When a node is updated, we need to also ensure the workflow's updated_on
+    is updated.
+
+    This is useful to know if the workflow has changed, e.g. the history
+    snapshot checks if a workflow has changed to decide whether to create
+    a new snapshot or use the last one.
+    """
+
+    user = data_fixture.create_user()
+
+    with freeze_time("2025-04-10 12:00:00"):
+        node = data_fixture.create_automation_node(user=user)
+
+    workflow = node.workflow
+    workflow_updated_on = workflow.updated_on
+
+    with freeze_time("2025-04-10 12:00:01"):
+        AutomationNodeService().update_node(user, node.id, label="foo result")
+
+    workflow.refresh_from_db()
+    assert workflow.updated_on > workflow_updated_on
+
+
+@pytest.mark.django_db
+def test_create_node_updates_workflow_updated_on(data_fixture):
+    """
+    When a node is created, we need to also ensure the workflow's updated_on
+    is updated.
+
+    This is useful to know if the workflow has changed, e.g. the history
+    snapshot checks if a workflow has changed to decide whether to create
+    a new snapshot or use the last one.
+    """
+
+    user = data_fixture.create_user()
+
+    with freeze_time("2025-04-10 12:00:00"):
+        node = data_fixture.create_automation_node(user=user)
+
+    workflow = node.workflow
+    workflow_updated_on = workflow.updated_on
+
+    with freeze_time("2025-04-10 12:00:01"):
+        AutomationNodeService().create_node(
+            user,
+            node_type=automation_node_type_registry.get("local_baserow_create_row"),
+            workflow=workflow,
+            reference_node_id=node.id,
+            position="south",
+            output="",
+        )
+
+    workflow.refresh_from_db()
+    assert workflow.updated_on > workflow_updated_on
+
+
+@pytest.mark.django_db
+def test_duplicate_node_updates_workflow_updated_on(data_fixture):
+    """
+    When a node is duplicated, we need to also ensure the workflow's updated_on
+    is updated.
+
+    This is useful to know if the workflow has changed, e.g. the history
+    snapshot checks if a workflow has changed to decide whether to create
+    a new snapshot or use the last one.
+    """
+
+    user = data_fixture.create_user()
+
+    with freeze_time("2025-04-10 12:00:00"):
+        node = data_fixture.create_local_baserow_create_row_action_node(user=user)
+
+    workflow = node.workflow
+    workflow_updated_on = workflow.updated_on
+
+    with freeze_time("2025-04-10 12:00:01"):
+        AutomationNodeService().duplicate_node(user, node.id)
+
+    workflow.refresh_from_db()
+    assert workflow.updated_on > workflow_updated_on
+
+
+@pytest.mark.django_db
+def test_delete_node_updates_workflow_updated_on(data_fixture):
+    """
+    When a node is deleted, we need to also ensure the workflow's updated_on
+    is updated.
+
+    This is useful to know if the workflow has changed, e.g. the history
+    snapshot checks if a workflow has changed to decide whether to create
+    a new snapshot or use the last one.
+    """
+
+    user = data_fixture.create_user()
+
+    with freeze_time("2025-04-10 12:00:00"):
+        node = data_fixture.create_automation_node(user=user)
+
+    workflow = node.workflow
+    workflow_updated_on = workflow.updated_on
+
+    with freeze_time("2025-04-10 12:00:01"):
+        AutomationNodeService().delete_node(user, node.id)
+
+    workflow.refresh_from_db()
+    assert workflow.updated_on > workflow_updated_on
