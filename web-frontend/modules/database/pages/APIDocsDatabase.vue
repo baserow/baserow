@@ -7,7 +7,7 @@
       <a
         ref="databasesToggle"
         class="api-docs__switch"
-        @click.prevent="databasesOpen.value = !databasesOpen.value"
+        @click.prevent="databasesOpen = !databasesOpen"
       >
         <i class="api-docs__switch-icon iconoir-db"></i>
         {{ $t('apiDocsDatabase.pageTitle', database) }}
