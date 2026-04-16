@@ -481,6 +481,64 @@ class BaseGraphHandler(ABC):
                 result.extend(self._get_chain_elements(cid))
         return result
 
+    @classmethod
+    def generate_parent_map_cache_key(cls, graph_model_id: int) -> str:
+        return f"parent_map_{graph_model_id}"
+
+    @staticmethod
+    def build_parent_map(graph: SerializedGraph | None) -> Dict[int, int]:
+        """
+        Build and return a mapping of `{child_id: parent_id}` for all points
+        that are direct children (or chained via `next[""]`) of a container,
+        given a raw graph dict.
+
+        This static method is the canonical implementation; the instance method
+        `get_parent_map` delegates to it with `self.graph`.
+
+        :param graph: A raw serialized graph dict (maybe `None`).
+        :return: A dict mapping each child point ID (int) to its parent
+            point ID (int).
+        """
+
+        parent_map: Dict[int, int] = {}
+        for str_id, info in (graph or {}).items():
+            if str_id == "0" or not isinstance(info, dict):
+                continue
+            node_id = int(str_id)
+
+            # Inline _get_children_dict logic so this can be a static method.
+            children = info.get("children")
+            if children is None:
+                children_dict = {}
+            elif isinstance(children, list):
+                children_dict = {"": children} if children else {}
+            else:
+                children_dict = children
+
+            for child_ids in children_dict.values():
+                for chain_head in child_ids:
+                    current_id = chain_head
+                    while current_id is not None:
+                        parent_map[int(current_id)] = node_id
+                        child_info = (graph or {}).get(str(current_id), {})
+                        next_ids = child_info.get("next", {}).get("", [])
+                        current_id = next_ids[0] if next_ids else None
+        return parent_map
+
+    def get_parent_map(self) -> Dict[int, int]:
+        """
+        Build and return a mapping of `{child_id: parent_id}` for all points
+        that are direct children (or chained via `next[""]`) of a container.
+
+        Walks the `next[""]` chains within each children place so that all
+        points in a chain share the same parent container.
+
+        :return: A dict mapping each child point ID (int) to its parent
+            point ID (int).
+        """
+
+        return self.build_parent_map(self.graph)
+
     def _get_chain_tail_id(self, first_id: str | int) -> str:
         """
         Follow the default next[""] chain from first_id and return the string ID of

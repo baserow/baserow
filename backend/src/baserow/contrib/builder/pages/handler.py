@@ -43,6 +43,7 @@ from baserow.contrib.builder.workflow_actions.handler import (
 )
 from baserow.core.cache import global_cache
 from baserow.core.exceptions import IdDoesNotExist
+from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_sources.user_source_user import UserSourceUser
@@ -787,7 +788,7 @@ class PageHandler:
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         progress: Optional[ChildProgressBuilder] = None,
-        cache: Optional[Dict[str, any]] = None,
+        cache: Optional[Dict[str, Any]] = None,
     ):
         """
         Import all page elements following the three-phase pattern
@@ -821,24 +822,14 @@ class PageHandler:
             serialized_elements, key=element_priority_sort, reverse=True
         )
 
-        def _find_parent_point(target_point_id: int) -> int | None:
-            for point_id, info in page.graph.items():
-                if point_id == "0" or not isinstance(info, dict):
-                    continue
-                children = info.get("children", {})
-                if isinstance(children, list):
-                    children = {"": children}
-                for child_ids in children.values():
-                    if target_point_id in child_ids:
-                        return int(point_id)
-            return None
+        parent_map = BaseGraphHandler.build_parent_map(page.graph)
 
         was_imported = True
         while was_imported:
             was_imported = False
 
             for serialized_element in prioritized_elements:
-                parent_element_id = _find_parent_point(serialized_element["id"])
+                parent_element_id = parent_map.get(serialized_element["id"])
                 if serialized_element["id"] not in id_mapping.get(
                     "builder_page_elements", {}
                 ) and (

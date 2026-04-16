@@ -225,6 +225,47 @@ def test_append_permutations():
     assert model.graph["3"] == {}
 
 
+def test_get_parent_map_permutations():
+    model = make_graph_model({})
+    graph = model.get_graph()
+
+    # Empty graph — no containers, no children
+    assert graph.get_parent_map() == {}
+
+    # Add a flat chain: 1 → 2 → 3 (no children) — still empty
+    p1 = make_point(1, model)
+    graph.insert(p1, None, "south", output="")
+    p2 = make_point(2, model)
+    graph.insert(p2, p1, "south", output="")
+    p3 = make_point(3, model)
+    graph.insert(p3, p2, "south", output="")
+    assert graph.get_parent_map() == {}
+
+    # Insert p4 as child of p2 in place "0" — p4 maps to p2
+    p4 = make_point(4, model)
+    graph.insert(p4, p2, "child", output="0")
+    assert graph.get_parent_map() == {4: 2}
+
+    # Chain p5 south of p4 (still under p2) — p5 also maps to p2
+    p5 = make_point(5, model)
+    graph.insert(p5, p2, "child", output="0")
+    assert graph.get_parent_map() == {4: 2, 5: 2}
+
+    # Add p6 as child of p2 in a different place "1"
+    p6 = make_point(6, model)
+    graph.insert(p6, p2, "child", output="1")
+    assert graph.get_parent_map() == {4: 2, 5: 2, 6: 2}
+
+    # Add p7 as child of p4 (nested) — p7 maps to p4, not p2
+    p7 = make_point(7, model)
+    graph.insert(p7, p4, "child", output="")
+    assert graph.get_parent_map() == {4: 2, 5: 2, 6: 2, 7: 4}
+
+    # None graph — should return empty without raising
+    model.graph = None
+    assert graph.get_parent_map() == {}
+
+
 def test_graph_handler_get_order_map(graph_model_fixture):
     model = graph_model_fixture
     assert BaseGraphHandler.get_order_map(model.graph) == {

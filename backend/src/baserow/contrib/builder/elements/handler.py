@@ -21,6 +21,9 @@ from baserow.contrib.builder.elements.exceptions import (
     ElementTypeDeactivated,
 )
 from baserow.contrib.builder.elements.models import ContainerElement, Element
+from baserow.contrib.builder.elements.permission_manager import (
+    ElementVisibilityPermissionManager,
+)
 from baserow.contrib.builder.elements.registries import (
     ElementType,
     ElementTypeSubClass,
@@ -37,6 +40,7 @@ from baserow.contrib.builder.workflow_actions.registries import (
 )
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
+from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import MirrorDict, extract_allowed
@@ -48,6 +52,8 @@ class ElementHandler:
     allowed_fields_create = [
         "visibility",
         "visibility_condition",
+        "role_type",
+        "roles",
         "css_classes",
         "styles",
         "style_border_top_color",
@@ -310,12 +316,8 @@ class ElementHandler:
         """
 
         queryset = base_queryset if base_queryset is not None else Element.objects.all()
-
-        queryset = queryset.filter(page__builder=builder)
-
-        elements = self._query_elements(queryset, specific=specific)
-
-        return elements
+        queryset = queryset.filter(page__builder=builder).select_related("page")
+        return self._query_elements(queryset, specific=specific)
 
     def invalidate_element_cache(self, page: Page):
         """
@@ -327,6 +329,7 @@ class ElementHandler:
 
         local_cache.delete(self._get_elements_cache_key(page, True))
         local_cache.delete(self._get_elements_cache_key(page, False))
+        local_cache.delete(BaseGraphHandler.generate_parent_map_cache_key(page.id))
 
     def create_element(
         self,
@@ -373,6 +376,9 @@ class ElementHandler:
         element_type.after_create(element, kwargs)
 
         self.invalidate_element_cache(page)
+        ElementVisibilityPermissionManager.invalidate_page_element_visibility_cache(
+            page.id
+        )
 
         return element
 
@@ -384,6 +390,10 @@ class ElementHandler:
         """
 
         element.get_type().before_delete(element)
+
+        ElementVisibilityPermissionManager.invalidate_page_element_visibility_cache(
+            element.page_id
+        )
 
         element.delete()
 
@@ -417,6 +427,10 @@ class ElementHandler:
             setattr(element, key, new_value)
 
         element.save()
+
+        ElementVisibilityPermissionManager.invalidate_page_element_visibility_cache(
+            element.page_id
+        )
 
         element.get_type().after_update(element, kwargs, element_changes)
 

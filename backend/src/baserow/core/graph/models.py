@@ -184,7 +184,7 @@ class GraphPointMixin:
         :return: True if the point is nested.
         """
 
-        return len(self.get_parent_points()) > 0
+        return self.id in self._get_parent_map()
 
     def get_previous_points(self) -> list[Self]:
         """
@@ -222,33 +222,49 @@ class GraphPointMixin:
 
         return self._get_graph().get_siblings(self)
 
-    def get_parent_point(self) -> Self | None:
+    def _get_parent_map(self) -> dict[int, int]:
         """
-        A convenience method which uses `get_parent_points` to
-        return the first parent, or `None`.
+        Returns the cached ``{child_id: parent_id}`` mapping for every point
+        on this point's parent model (page/workflow). The map is built once
+        per parent model per request and stored in ``local_cache`` so that
+        all points on the same page/workflow share a single traversal.
         """
 
-        point_ancestry = self.get_parent_points()
-        return point_ancestry[-1] if point_ancestry else None
+        parent_model = self.get_parent()
+        return local_cache.get(
+            BaseGraphHandler.generate_parent_map_cache_key(parent_model.id),
+            lambda: BaseGraphHandler.build_parent_map(self._get_graph().graph),
+        )
+
+    def get_parent_point(self) -> Self | None:
+        """
+        Returns the direct parent container point, or ``None`` if this point
+        has no parent.  Uses the cached parent map for an O(1) lookup instead
+        of a full graph traversal.
+        """
+
+        parent_id = self._get_parent_map().get(self.id)
+        if parent_id is None:
+            return None
+        return self._get_graph().get_point(parent_id)
 
     def get_parent_points(self) -> list[Self]:
         """
-        Returns the ancestors of this point which are the container points
-        that contain the current point instance.
+        Returns the ancestor container points that contain this point, ordered
+        from outermost to innermost (direct parent last).  Uses the cached
+        parent map so the chain is resolved with O(depth) dict lookups rather
+        than a full graph traversal per element.
         """
 
-        def _get_default():
-            return [
-                position[0]
-                for position in self._get_graph().get_previous_positions(self)
-                if position[1] == GraphPointPosition.CHILD
-            ]
-
-        parent_model = self.get_parent()  # Page/Workflow, not a point.
-        return local_cache.get(
-            f"core_graph_{parent_model.id}_get_parent_points_{self.id}",
-            _get_default,
-        )
+        parent_map = self._get_parent_map()
+        graph = self._get_graph()
+        ancestors: list[Self] = []
+        current_id = parent_map.get(self.id)
+        while current_id is not None:
+            ancestors.append(graph.get_point(current_id))
+            current_id = parent_map.get(current_id)
+        ancestors.reverse()  # outermost first
+        return ancestors
 
     def get_next_points(self, output_uid: str | None = None) -> list[Self]:
         """

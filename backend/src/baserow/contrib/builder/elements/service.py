@@ -16,6 +16,9 @@ from baserow.contrib.builder.elements.operations import (
     ReadElementOperationType,
     UpdateElementOperationType,
 )
+from baserow.contrib.builder.elements.permission_manager import (
+    ElementVisibilityPermissionManager,
+)
 from baserow.contrib.builder.elements.registries import ElementType
 from baserow.contrib.builder.elements.signals import (
     element_created,
@@ -32,8 +35,10 @@ from baserow.contrib.builder.elements.types import (
 )
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
+from baserow.core.cache import local_cache
 from baserow.core.exceptions import CannotCalculateIntermediateOrder
 from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
+from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.handler import CoreHandler
 
@@ -334,6 +339,13 @@ class ElementService:
 
         target_page.get_graph().move(
             element, reference_element, position, place_in_container
+        )
+
+        local_cache.delete(
+            BaseGraphHandler.generate_parent_map_cache_key(target_page.id)
+        )
+        ElementVisibilityPermissionManager.invalidate_page_element_visibility_cache(
+            target_page.id
         )
 
         element_moved.send(
