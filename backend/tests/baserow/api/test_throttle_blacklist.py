@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.http import HttpResponse
 from django.test import RequestFactory
 from django.test.utils import CaptureQueriesContext, override_settings
@@ -39,6 +41,14 @@ def test_blacklist_different_tokens_are_independent():
     blacklist_token("token-1")
     assert is_token_blacklisted("token-1")
     assert not is_token_blacklisted("token-2")
+
+
+def test_blacklist_returns_remaining_ttl():
+    with patch("baserow.throttling.blacklist.time.time", return_value=100):
+        blacklist_token("token-remaining", ttl=7)
+
+    with patch("baserow.throttling.blacklist.time.time", return_value=103.1):
+        assert is_token_blacklisted("token-remaining") == 4
 
 
 def test_throttle_handler_import_path_is_valid():
@@ -120,8 +130,6 @@ def test_middleware_zero_db_queries_on_blacklist_hit(data_fixture):
 def test_throttle_populates_blacklist_on_deny(data_fixture):
     """When the throttle denies a request, the token is blacklisted."""
 
-    import time
-
     from rest_framework.test import APIRequestFactory
 
     from baserow.throttling.handler import ConcurrentUserRequestsThrottle
@@ -142,7 +150,7 @@ def test_throttle_populates_blacklist_on_deny(data_fixture):
 
     request._request = DummyDjangoRequest()
 
-    ConcurrentUserRequestsThrottle.timer = lambda s: time.time()
+    ConcurrentUserRequestsThrottle.timer = lambda s: 1000
     ConcurrentUserRequestsThrottle.rate = 1
 
     throttle = ConcurrentUserRequestsThrottle()
@@ -155,7 +163,8 @@ def test_throttle_populates_blacklist_on_deny(data_fixture):
     throttle2 = ConcurrentUserRequestsThrottle()
     throttle2.allow_request(request, None)
 
-    assert is_token_blacklisted(token_str) == 7
+    assert throttle2.wait() == 30
+    assert is_token_blacklisted(token_str) == 30
 
     ConcurrentUserRequestsThrottle.on_request_processed(request._request)
 

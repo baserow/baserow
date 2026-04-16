@@ -1,3 +1,4 @@
+import math
 import time
 from collections import deque
 from functools import wraps
@@ -139,7 +140,8 @@ class ConcurrentUserRequestsThrottle(SimpleRateThrottle):
             setattr(django_request, BASEROW_CONCURRENCY_THROTTLE_REQUEST_ID, request_id)
             log_msg = "ALLOWING: as count={count} < limit={limit}"
         else:
-            self._blacklist(request)
+            wait = max(1, math.ceil(wait))
+            self._blacklist(request, ttl=wait)
             self._wait = wait
             log_msg = "DENYING: as count={count} >= limit={limit}. Wait {wait} secs"
 
@@ -150,13 +152,13 @@ class ConcurrentUserRequestsThrottle(SimpleRateThrottle):
         return bool(allowed)
 
     @classmethod
-    def _blacklist(cls, request) -> None:
+    def _blacklist(cls, request, ttl: int | None = None) -> None:
         token = get_auth_token(request)
         if token:
-            blacklist_token(token)
+            blacklist_token(token, ttl=ttl)
         elif not request.user.is_authenticated:
             ip = cls._get_ip(request)
-            blacklist_ip(ip)
+            blacklist_ip(ip, ttl=ttl)
 
     @classmethod
     def on_request_processed(cls, request):

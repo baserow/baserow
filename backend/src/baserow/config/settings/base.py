@@ -288,12 +288,13 @@ for key, value in os.environ.items():
 # open their own connections and persistent ones can exhaust the pool.
 BASEROW_CONN_MAX_AGE = int(os.getenv("BASEROW_CONN_MAX_AGE", 0))
 
-# Enable connection health checks for all database connections. This makes Django
-# verify that a database connection is still usable before each request/task, which
-# prevents "connection already closed" errors when connections are dropped by the
-# server, a load balancer, or a connection pooler.
+# Apply the configured connection reuse timeout consistently to every database.
+# Also enable connection health checks by default so Django verifies that a
+# connection is still usable before each request/task, which prevents
+# "connection already closed" errors when connections are dropped by the server,
+# a load balancer, or a connection pooler.
 for _db_key in DATABASES:
-    DATABASES[_db_key].setdefault("CONN_MAX_AGE", BASEROW_CONN_MAX_AGE)
+    DATABASES[_db_key]["CONN_MAX_AGE"] = BASEROW_CONN_MAX_AGE
     DATABASES[_db_key].setdefault("CONN_HEALTH_CHECKS", True)
 
 DATABASE_ROUTERS = ["baserow.config.db_routers.ReadReplicaRouter"]
@@ -436,7 +437,9 @@ BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT = int(
     os.getenv("BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT", 30)
 )
 
-BASEROW_THROTTLE_BLACKLIST_TTL = int(os.getenv("BASEROW_THROTTLE_BLACKLIST_TTL", 10))
+BASEROW_THROTTLE_BLACKLIST_TTL = max(
+    1, int(os.getenv("BASEROW_THROTTLE_BLACKLIST_TTL", 10))
+)
 
 BASEROW_JWT_USER_CACHE_TTL = int(os.getenv("BASEROW_JWT_USER_CACHE_TTL", 30))
 

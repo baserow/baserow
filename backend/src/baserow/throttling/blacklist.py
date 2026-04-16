@@ -8,6 +8,8 @@ so that repeat offenders are rejected with zero DB or DRF overhead.
 """
 
 import hashlib
+import math
+import time
 
 from django.conf import settings
 from django.core.cache import cache
@@ -24,35 +26,34 @@ def _ip_key(ip: str) -> str:
     return _IP_PREFIX + ip
 
 
-def get_blacklist_ttl() -> int:
-    return max(1, settings.BASEROW_THROTTLE_BLACKLIST_TTL)
+def _remaining_ttl(expires_at: float) -> int | None:
+    remaining = math.ceil(expires_at - time.time())
+    return remaining if remaining > 0 else None
 
 
 def blacklist_token(raw_token: str, ttl: int | None = None) -> None:
-    ttl = ttl or get_blacklist_ttl()
-    cache.set(_token_key(raw_token), ttl, timeout=ttl)
+    ttl = ttl or settings.BASEROW_THROTTLE_BLACKLIST_TTL
+    cache.set(_token_key(raw_token), time.time() + ttl, timeout=ttl)
 
 
 def blacklist_ip(ip: str, ttl: int | None = None) -> None:
-    ttl = ttl or get_blacklist_ttl()
-    cache.set(_ip_key(ip), ttl, timeout=ttl)
+    ttl = ttl or settings.BASEROW_THROTTLE_BLACKLIST_TTL
+    cache.set(_ip_key(ip), time.time() + ttl, timeout=ttl)
 
 
 def is_token_blacklisted(raw_token: str) -> int | None:
-    """Return the blacklist TTL if blacklisted, else ``None``.
+    """Return the remaining blacklist TTL if blacklisted, else ``None``."""
 
-    The stored value is the TTL at blacklist time (it does not tick down).
-    Used as a ``Retry-After`` hint, not an exact countdown.
-    """
-
-    return cache.get(_token_key(raw_token))
+    expires_at = cache.get(_token_key(raw_token))
+    if expires_at is None:
+        return None
+    return _remaining_ttl(expires_at)
 
 
 def is_ip_blacklisted(ip: str) -> int | None:
-    """Return the blacklist TTL if blacklisted, else ``None``.
+    """Return the remaining blacklist TTL if blacklisted, else ``None``."""
 
-    The stored value is the TTL at blacklist time (it does not tick down).
-    Used as a ``Retry-After`` hint, not an exact countdown.
-    """
-
-    return cache.get(_ip_key(ip))
+    expires_at = cache.get(_ip_key(ip))
+    if expires_at is None:
+        return None
+    return _remaining_ttl(expires_at)

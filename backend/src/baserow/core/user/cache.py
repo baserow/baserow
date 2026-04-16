@@ -42,4 +42,11 @@ def set_cached_user(user: AbstractUser) -> None:
 
 
 def invalidate_cached_user(user_id: int) -> None:
+    """
+    Invalidate the cached User instance for the given user ID.  No-op when the
+    cache TTL is 0 or negative.
+    """
+
+    if settings.BASEROW_JWT_USER_CACHE_TTL <= 0:
+        return
     cache.delete(_cache_key(user_id))
