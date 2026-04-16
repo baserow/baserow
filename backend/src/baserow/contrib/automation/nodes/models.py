@@ -129,7 +129,7 @@ class AutomationNode(
 
         return [
             position[0]
-            for position in self.workflow.get_graph().get_previous_positions(self) or []
+            for position in self.workflow.get_graph().get_previous_positions(self)
             if position[1] == "child"
         ]
 
