@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Replace placeholder example data in the JSON and XML import dialogs with clearer contact records so users can see a typical table import format",
+    "issue_origin": "github",
+    "issue_number": 2953,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-16"
+}
