@@ -1681,17 +1681,12 @@ def test_async_start_workflow_unexpected_error_creates_history(
 
 @override_settings(AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1)
 @pytest.mark.django_db
-def test_before_run_marks_timed_out_started_history_as_failed(data_fixture):
-    original_workflow = data_fixture.create_automation_workflow()
-    published_workflow = data_fixture.create_automation_workflow(
-        state=WorkflowState.LIVE
-    )
-    published_workflow.automation.published_from = original_workflow
-    published_workflow.automation.save()
+def test_mark_failure_for_timed_out_history(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
 
-    with freeze_time("2026-03-10 10:00:00"):
+    with freeze_time("2026-04-16 12:00:00"):
         timed_out_history = data_fixture.create_automation_workflow_history(
-            workflow=original_workflow,
+            workflow=workflow,
             status=HistoryStatusChoices.STARTED,
         )
         node_history = AutomationNodeHistory.objects.create(
@@ -1701,8 +1696,8 @@ def test_before_run_marks_timed_out_started_history_as_failed(data_fixture):
             status=HistoryStatusChoices.STARTED,
         )
 
-    with freeze_time("2026-03-10 12:00:00"):
-        AutomationWorkflowHandler().before_run(published_workflow)
+    with freeze_time("2026-04-16 13:00:01"):
+        AutomationWorkflowHandler().mark_failure_for_timed_out_history()
 
     error_message = "This workflow took too long and was timed out."
 

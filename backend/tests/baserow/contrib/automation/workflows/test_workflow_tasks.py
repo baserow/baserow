@@ -44,7 +44,11 @@ def test_clear_old_automation_history_keeps_max_entries_per_workflow(data_fixtur
     assert workflow_b.workflow_histories.filter(id=workflow_b_history_1.id).exists()
 
 
-@override_settings(AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS=1)
+@override_settings(
+    AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS=1,
+    # Little over 3 days
+    AUTOMATION_WORKFLOW_TIMEOUT_HOURS=73,
+)
 @pytest.mark.django_db
 def test_clear_old_automation_history_excludes_started_from_date_cleanup(data_fixture):
     workflow = data_fixture.create_automation_workflow()
@@ -85,7 +89,11 @@ def test_clear_old_automation_history_excludes_started_from_date_cleanup(data_fi
     )
 
 
-@override_settings(AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=2)
+@override_settings(
+    AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=2,
+    # Little over 3 days
+    AUTOMATION_WORKFLOW_TIMEOUT_HOURS=73,
+)
 @pytest.mark.django_db
 def test_clear_old_automation_history_excludes_started_from_count_cleanup(data_fixture):
     workflow = data_fixture.create_automation_workflow()
@@ -162,3 +170,48 @@ def test_clear_old_automation_history_keeps_entries_within_both_limits(data_fixt
         workflow.workflow_histories.filter(id__in=[history_1.id, history_2.id]).count()
         == 2
     )
+
+
+@override_settings(AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1)
+@pytest.mark.django_db
+def test_clear_old_automation_history_marks_timed_out_entries(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2026-04-10 11:00:00"):
+        timed_out_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.STARTED
+        )
+
+    with freeze_time("2026-04-10 12:30:00"):
+        running_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.STARTED
+        )
+
+    with freeze_time("2026-04-10 13:00:00"):
+        clear_old_automation_history()
+
+    timed_out_history.refresh_from_db()
+    running_history.refresh_from_db()
+
+    assert timed_out_history.status == HistoryStatusChoices.ERROR
+    assert timed_out_history.message == "This workflow took too long and was timed out."
+    assert running_history.status == HistoryStatusChoices.STARTED
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_TIMEOUT_HOURS=1,
+    AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS=7,
+)
+@pytest.mark.django_db
+def test_clear_old_automation_history_marks_timeout_before_cleanup(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2026-04-10 12:00:00"):
+        old_history = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.STARTED
+        )
+
+    with freeze_time("2026-04-18 12:00:00"):
+        clear_old_automation_history()
+
+    assert not workflow.workflow_histories.filter(id=old_history.id).exists()

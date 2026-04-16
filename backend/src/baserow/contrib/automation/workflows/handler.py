@@ -887,12 +887,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         ).filter(started_on__lt=cutoff_date).delete()
 
         # Clean up published automations that no longer have any history entries
-        active_published = self.get_published_workflow(
-            original_workflow, with_cache=False
-        )
         empty_published = (
             Automation.objects.filter(
-                published_from=original_workflow,
+                published_from__isnull=False,
             )
             .exclude(workflows__cloned_workflow_histories__isnull=False)
             # _ensure_published_for_run() is called to potentially create a
@@ -903,14 +900,19 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 created_on__gte=timezone.now() - timedelta(seconds=5),
             )
         )
-        if active_published:
-            empty_published = empty_published.exclude(id=active_published.automation_id)
+
+        # Exclude any automation that is currently the active published workflow
+        active_published_ids = list(
+            AutomationWorkflow.objects.filter(
+                state=WorkflowState.LIVE,
+            ).values_list("automation_id", flat=True)
+        )
+        if active_published_ids:
+            empty_published = empty_published.exclude(id__in=active_published_ids)
 
         empty_published.delete()
 
-    def _mark_failure_for_timed_out_history(
-        self, original_workflow: AutomationWorkflow
-    ) -> None:
+    def mark_failure_for_timed_out_history(self) -> None:
         """
         If an history entry is still not finished after a certain duration, this execution
         is marked as failed.
@@ -924,7 +926,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         error = "This workflow took too long and was timed out."
 
         workflow_history_ids = list(
-            original_workflow.workflow_histories.filter(
+            AutomationWorkflowHistory.objects.filter(
                 status=HistoryStatusChoices.STARTED,
                 started_on__lt=max_history_date,
             ).values_list("id", flat=True)
@@ -1111,10 +1113,6 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # If we don't come from an event, we need to reset the states to prevent
         # another execution
         self.reset_workflow_temporary_states(original_workflow)
-
-        # If we have history entries that are too old it probably means
-        # something went wrong with Celery so we mark these entries as failed.
-        self._mark_failure_for_timed_out_history(original_workflow)
 
         if self._check_too_many_errors(workflow):
             raise AutomationWorkflowTooManyErrors(

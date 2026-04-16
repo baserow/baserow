@@ -82,7 +82,9 @@ def handle_workflow_dispatch_done(
 def clear_old_automation_history():
     from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 
-    AutomationWorkflowHandler().clear_old_history()
+    handler = AutomationWorkflowHandler()
+    handler.mark_failure_for_timed_out_history()
+    handler.clear_old_history()
 
 
 @app.on_after_finalize.connect
