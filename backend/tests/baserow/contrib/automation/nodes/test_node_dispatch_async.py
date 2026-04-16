@@ -11,6 +11,7 @@ from baserow.contrib.automation.history.models import (
     AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.tasks import handle_workflow_dispatch_done
 from baserow.core.services.exceptions import UnexpectedDispatchException
 from baserow.test_utils.helpers import AnyInt, AnyStr
@@ -1501,3 +1502,41 @@ def test_dispatch_node_with_deleted_node(mock_logger, data_fixture):
         "deleted before the task was executed."
     )
     mock_logger.warning.assert_called_once_with(expected_error)
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
+def test_dispatch_node_simulation_copies_sample_data_to_draft_node(
+    mock_automation_node_updated,
+    data_fixture,
+):
+    data = create_workflow(data_fixture)
+    workflow = data["workflow"]
+    trigger_node = data["trigger_node"]
+
+    snapshot_workflow, node_id_mapping = (
+        AutomationWorkflowHandler().create_history_snapshot(workflow)
+    )
+    snapshot_trigger = snapshot_workflow.get_trigger()
+
+    workflow_history = data_fixture.create_automation_workflow_history(
+        original_workflow=workflow,
+        workflow=snapshot_workflow,
+        simulate_until_node=snapshot_trigger,
+        is_test_run=True,
+    )
+
+    assert trigger_node.service.specific.sample_data is None
+    AutomationNodeHandler().dispatch_node(
+        snapshot_trigger.id,
+        history_id=workflow_history.id,
+    )
+
+    # Ensure the sample_data is saved to the draft node's service
+    trigger_node.service.specific.refresh_from_db()
+    assert trigger_node.service.specific.sample_data is not None
+
+    # Ensure a signal is sent for the draft node
+    mock_automation_node_updated.send.assert_called_once_with(
+        ANY, user=None, node=trigger_node
+    )

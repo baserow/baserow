@@ -1779,3 +1779,61 @@ def test_clear_old_history_excludes_started_workflows_max_days(data_fixture):
 
     assert workflow.workflow_histories.filter(id=history_1.id).exists() is True
     assert workflow.workflow_histories.filter(id=history_2.id).exists() is False
+
+
+@pytest.mark.django_db
+def test_create_history_snapshot_creates_new_snapshot(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    trigger = workflow.get_trigger()
+
+    snapshot_workflow, node_id_mapping = (
+        AutomationWorkflowHandler().create_history_snapshot(workflow)
+    )
+
+    # Ensure that the snapshot workflow is a new workflow
+    assert snapshot_workflow.id != workflow.id
+    assert snapshot_workflow.automation.published_from == workflow
+
+    # Ensure the node mapping is correct
+    snapshot_trigger = snapshot_workflow.get_trigger()
+    assert node_id_mapping[trigger.id] == snapshot_trigger.id
+
+
+@pytest.mark.django_db
+def test_create_history_snapshot_reuses_existing_snapshot(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    trigger = workflow.get_trigger()
+
+    handler = AutomationWorkflowHandler()
+    snapshot_workflow_1, mapping_1 = handler.create_history_snapshot(workflow)
+    snapshot_workflow_2, mapping_2 = handler.create_history_snapshot(workflow)
+
+    # When the workflow hasn't changed, the same snapshot should be returned
+    assert snapshot_workflow_1.id == snapshot_workflow_2.id
+
+    # Node mapping should be correct
+    snapshot_trigger = snapshot_workflow_2.get_trigger()
+    assert mapping_2[trigger.id] == snapshot_trigger.id
+
+
+@pytest.mark.django_db
+def test_create_history_snapshot_creates_new_after_workflow_update(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+
+    handler = AutomationWorkflowHandler()
+
+    with freeze_time("2026-04-16 12:00:00"):
+        snapshot_workflow_1, _ = handler.create_history_snapshot(workflow)
+
+    # Update the workflow's timestamp to trigger a new snapshot
+    with freeze_time("2026-04-16 12:01:00"):
+        workflow.save(update_fields=["updated_on"])
+
+    snapshot_workflow_2, mapping_2 = handler.create_history_snapshot(workflow)
+
+    # Because the workflow was updated, a new snapshot should be created
+    assert snapshot_workflow_1.id != snapshot_workflow_2.id
+
+    trigger = workflow.get_trigger()
+    snapshot_trigger = snapshot_workflow_2.get_trigger()
+    assert mapping_2[trigger.id] == snapshot_trigger.id
