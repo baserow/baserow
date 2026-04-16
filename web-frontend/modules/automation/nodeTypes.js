@@ -832,7 +832,7 @@ export class CoreRouterNodeType extends ActionNodeTypeMixin(
         condition: '',
         label:
           node.service.default_edge_label ||
-          this.app.$i18n.t('nodeType.routerDefaultEdgeLabelFallback'),
+          this.app.$i18n.t('nodeType.defaultEdgeLabelFallback'),
       },
     ]
   }

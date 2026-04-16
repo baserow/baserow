@@ -230,10 +230,9 @@ const nodeTypeLabel = computed(() => {
   const nodeHistory = props.nodeHistories[0]
   const baseLabel = nodeHistory.node_label || nodeType.value.name
   const result = nodeHistory.result
-  if (nodeHistory.node_type === 'router') {
-    // When a Router node fails, the result is empty (no node result)
-    // we therefore need to check if edge label exists.
-    return `${baseLabel} (${result.edge?.label ?? ''})`
+  if (result.edge) {
+    // Show which branch was taken.
+    return `${baseLabel} (${result.edge?.label || app.$i18n.t('nodeType.defaultEdgeLabelFallback')})`
   }
   return baseLabel
 })
