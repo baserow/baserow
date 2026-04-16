@@ -182,7 +182,7 @@
     <SampleDataModal
       v-if="!hasChildren"
       ref="nodeResultModal"
-      :sample-data="nodeHistories[0].result"
+      :sample-data="nodeResultData"
       :title="nodeTypeLabel"
     />
   </div>
@@ -236,6 +236,20 @@ const nodeTypeLabel = computed(() => {
     return `${baseLabel} (${result.edge?.label ?? ''})`
   }
   return baseLabel
+})
+
+const nodeResultData = computed(() => {
+  // Since the SampleDataModal is only shown for final nodes (not nodes with
+  // children), the history will only ever have just one result.
+  const result = props.nodeHistories[0].result
+
+  if (result?._error) {
+    return result._error
+  }
+  if (nodeType.value.serviceType.returnsList && result?.results) {
+    return result.results
+  }
+  return result
 })
 
 const hasDescendantError = (nodeId) => {
