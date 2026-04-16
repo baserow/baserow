@@ -283,6 +283,9 @@ for key, value in os.environ.items():
 
         DATABASE_READ_REPLICAS.append(db_key)
 
+# Default 0 = new connection per request; each runs a locale-setting query.
+# Increase in WSGI to save those round-trips. In ASGI be careful: async tasks
+# open their own connections and persistent ones can exhaust the pool.
 BASEROW_CONN_MAX_AGE = int(os.getenv("BASEROW_CONN_MAX_AGE", 0))
 
 # Enable connection health checks for all database connections. This makes Django
@@ -410,24 +413,30 @@ BASEROW_MAX_CONCURRENT_USER_REQUESTS = int(
 
 if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
     REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = [
-        "baserow.throttling.ConcurrentUserRequestsThrottle",
+        "baserow.throttling.handler.ConcurrentUserRequestsThrottle",
     ]
 
     REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
         "concurrent_user_requests": BASEROW_MAX_CONCURRENT_USER_REQUESTS
     }
 
-    # ThrottleBlacklist runs early, but after CORS and SecurityMiddleware, so
+    # ThrottleBlacklist runs early, but after SecurityMiddleware, so
     # 429 responses still include security and CORS headers.
-    MIDDLEWARE.insert(2, "baserow.throttling.middleware.ThrottleBlacklistMiddleware")
+    _security_idx = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
+    MIDDLEWARE.insert(
+        _security_idx + 1,
+        "baserow.throttling.middleware.ThrottleBlacklistMiddleware",
+    )
 
     MIDDLEWARE += [
         "baserow.throttling.middleware.ConcurrentUserRequestsMiddleware",
     ]
 
 BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT = int(
-    os.getenv("BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT", 60)
+    os.getenv("BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT", 30)
 )
+
+BASEROW_THROTTLE_BLACKLIST_TTL = int(os.getenv("BASEROW_THROTTLE_BLACKLIST_TTL", 10))
 
 BASEROW_JWT_USER_CACHE_TTL = int(os.getenv("BASEROW_JWT_USER_CACHE_TTL", 30))
 

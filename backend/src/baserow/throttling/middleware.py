@@ -5,7 +5,10 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 
 from rest_framework import status
 
-from baserow.throttling.blacklist import is_ip_blacklisted, is_token_blacklisted
+from baserow.api.sessions import get_user_remote_ip_address_from_request
+
+from .blacklist import is_ip_blacklisted, is_token_blacklisted
+from .utils import get_auth_token
 
 
 class ThrottleBlacklistMiddleware:
@@ -26,30 +29,22 @@ class ThrottleBlacklistMiddleware:
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]):
         self.get_response = get_response
         if settings.BASEROW_THROTTLE_IP_BLACKLIST_ENABLED:
-            from baserow.api.sessions import get_user_remote_ip_address_from_request
-
-            self._get_ip = get_user_remote_ip_address_from_request
-            self._check_anonymous = self._check_ip
+            self._check_anonymous = lambda request: is_ip_blacklisted(
+                get_user_remote_ip_address_from_request(request)
+            )
         else:
-            self._check_anonymous = self._noop
+            self._check_anonymous = lambda request: None
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
-        auth_header = request.META.get("HTTP_AUTHORIZATION", "")
-        if auth_header.startswith("JWT "):
-            ttl = is_token_blacklisted(auth_header[4:])
-            if ttl is not None:
-                return self._throttled_response(ttl)
-        elif self._check_anonymous(request):
-            return self._throttled_response()
-        return self.get_response(request)
+        if token := get_auth_token(request):
+            throttle_time = is_token_blacklisted(token)
+        else:
+            throttle_time = self._check_anonymous(request)
 
-    def _check_ip(self, request: HttpRequest) -> bool:
-        ip = self._get_ip(request)
-        return bool(ip and is_ip_blacklisted(ip))
-
-    @staticmethod
-    def _noop(request: HttpRequest) -> bool:
-        return False
+        if throttle_time is None:
+            return self.get_response(request)
+        else:
+            return self._throttled_response(throttle_time)
 
     @staticmethod
     def _throttled_response(retry_after: int | None = None) -> JsonResponse:

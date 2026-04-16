@@ -87,6 +87,18 @@ def test_signal_invalidates_cache_on_deactivation(data_fixture):
 
 @pytest.mark.django_db
 @_CACHE_ON
+def test_signal_invalidates_cache_on_user_delete(data_fixture):
+    user = data_fixture.create_user()
+    set_cached_user(user)
+    assert get_cached_user(user.id) is not None
+
+    user.delete()
+
+    assert get_cached_user(user.id) is None
+
+
+@pytest.mark.django_db
+@_CACHE_ON
 def test_cached_user_profile_accessible_without_extra_query(data_fixture):
     from django.db import connection
 
@@ -159,28 +171,31 @@ def test_get_user_always_hits_db_when_cache_disabled(data_fixture):
 @pytest.mark.django_db
 @_CACHE_ON
 def test_password_change_invalidates_cache_and_rejects_old_token(
-    api_client, data_fixture
+    data_fixture, api_request_factory
 ):
     from freezegun import freeze_time
+    from rest_framework.exceptions import AuthenticationFailed
 
+    from baserow.api.authentication import JSONWebTokenAuthentication
     from baserow.core.user.cache import get_cached_user
     from baserow.core.user.handler import UserHandler
 
     with freeze_time("2020-01-01 12:00:00"):
         user, token = data_fixture.create_user_and_token(password="oldpass")
 
+    auth = JSONWebTokenAuthentication()
+
     # Warm the cache by making an authenticated request
     with freeze_time("2020-01-01 12:00:01"):
         from django.shortcuts import reverse
 
-        from rest_framework.status import HTTP_200_OK
-
-        response = api_client.get(
-            reverse("api:workspaces:list"),
-            format="json",
+        request = api_request_factory.get(
+            reverse("api:user:account"),
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
-        assert response.status_code == HTTP_200_OK
+
+        authenticated_user, _ = auth.authenticate(request)
+        assert authenticated_user.id == user.id
         assert get_cached_user(user.id) is not None
 
     # Change password — should invalidate cache
@@ -190,11 +205,52 @@ def test_password_change_invalidates_cache_and_rejects_old_token(
 
     # Old token should be rejected (even after cache is re-populated)
     with freeze_time("2020-01-01 12:00:03"):
-        from rest_framework.status import HTTP_401_UNAUTHORIZED
-
-        response = api_client.get(
-            reverse("api:workspaces:list"),
-            format="json",
+        request = api_request_factory.get(
+            reverse("api:user:account"),
             HTTP_AUTHORIZATION=f"JWT {token}",
         )
-        assert response.status_code == HTTP_401_UNAUTHORIZED
+
+        with pytest.raises(AuthenticationFailed):
+            auth.authenticate(request)
+
+
+@pytest.mark.django_db
+@_CACHE_ON
+def test_user_delete_invalidates_cache_and_rejects_old_token(
+    data_fixture, api_request_factory
+):
+    from freezegun import freeze_time
+    from rest_framework.exceptions import AuthenticationFailed
+
+    from baserow.api.authentication import JSONWebTokenAuthentication
+    from baserow.core.user.cache import get_cached_user
+
+    with freeze_time("2020-01-01 12:00:00"):
+        user, token = data_fixture.create_user_and_token(password="oldpass")
+
+    auth = JSONWebTokenAuthentication()
+
+    with freeze_time("2020-01-01 12:00:01"):
+        from django.shortcuts import reverse
+
+        request = api_request_factory.get(
+            reverse("api:user:account"),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+        authenticated_user, _ = auth.authenticate(request)
+        assert authenticated_user.id == user.id
+        assert get_cached_user(user.id) is not None
+
+    with freeze_time("2020-01-01 12:00:02"):
+        user.delete()
+        assert get_cached_user(user.id) is None
+
+    with freeze_time("2020-01-01 12:00:03"):
+        request = api_request_factory.get(
+            reverse("api:user:account"),
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+
+        with pytest.raises(AuthenticationFailed):
+            auth.authenticate(request)

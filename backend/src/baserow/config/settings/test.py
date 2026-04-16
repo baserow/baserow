@@ -116,6 +116,9 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
 # query-count assertions remain stable and predictable.
 BASEROW_JWT_USER_CACHE_TTL = 0
 
+# Tests should not inherit the anonymous IP blacklist from any local env.
+BASEROW_THROTTLE_IP_BLACKLIST_ENABLED = False
+
 
 BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = 10
 BUILDER_DISPATCH_ACTION_CACHE_TTL_SECONDS = 300
