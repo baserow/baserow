@@ -389,8 +389,7 @@ class WorkspaceInvitation(
     message = models.TextField(
         default="",
         max_length=250,
-        help_text="An optional message that the invitor can provide. This will be "
-        "visible to the receiver of the invitation.",
+        help_text="Deprecated legacy field retained for compatibility. This message is not exposed to invitation recipients.",
     )
 
     def get_parent(self):
