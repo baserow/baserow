@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix rollup and count fields crashing when a stale in-memory relation points to a deleted field during formula recalculation.",
+    "issue_origin": "github",
+    "issue_number": 5214,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-17"
+}
