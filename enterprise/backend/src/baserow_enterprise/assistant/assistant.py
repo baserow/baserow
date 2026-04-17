@@ -39,6 +39,7 @@ from baserow_enterprise.assistant.model_profiles import (
     get_model_settings,
     get_model_string,
 )
+from baserow_enterprise.assistant.plan_context import get_workspace_plan_tier
 from baserow_enterprise.assistant.retrying_model import RetryingModel
 from baserow_enterprise.assistant.telemetry import (
     PosthogTracingCallback,
@@ -134,6 +135,7 @@ class Assistant:
             user=self._user,
             workspace=self._workspace,
             tool_helpers=self._tool_helpers,
+            workspace_plan=get_workspace_plan_tier(self._user, self._workspace),
         )
         self._toolset, db_m, app_m, auto_m, explain_m = (
             assistant_tool_registry.build_toolset(

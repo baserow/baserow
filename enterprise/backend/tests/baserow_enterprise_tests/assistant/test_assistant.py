@@ -7,6 +7,7 @@ from asgiref.sync import async_to_sync
 from pydantic_ai.messages import PartStartEvent
 from pydantic_ai.messages import TextPart as PaiTextPart
 
+from baserow_enterprise.assistant.agents import dynamic_plan_context
 from baserow_enterprise.assistant.assistant import (
     Assistant,
     compact_message_history,
@@ -14,6 +15,7 @@ from baserow_enterprise.assistant.assistant import (
 )
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.models import AssistantChat, AssistantChatMessage
+from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
 from baserow_enterprise.assistant.types import (
     AiMessage,
     AiMessageChunk,
@@ -306,6 +308,35 @@ class TestCompactMessageHistory:
 
         compacted = compact_message_history(messages)
         assert len(compacted) == 2
+
+
+@pytest.mark.django_db
+class TestAssistantPlanContext:
+    @patch("baserow_enterprise.assistant.assistant.get_workspace_plan_tier")
+    def test_assistant_initializes_workspace_plan(
+        self, mock_get_workspace_plan_tier, enterprise_data_fixture
+    ):
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Test Chat"
+        )
+        mock_get_workspace_plan_tier.return_value = "premium"
+
+        assistant = Assistant(chat)
+
+        mock_get_workspace_plan_tier.assert_called_once_with(user, workspace)
+        assert assistant._deps.workspace_plan == "premium"
+
+    def test_dynamic_plan_context_injects_workspace_plan(self):
+        ctx = MagicMock()
+        ctx.deps.workspace_plan = "advanced"
+
+        assert dynamic_plan_context(ctx) == "\n<plan>advanced</plan>"
+
+    def test_agent_system_prompt_includes_grounding_guardrail(self):
+        assert "Use `search_user_docs` first" in AGENT_SYSTEM_PROMPT
+        assert "Never invent plan names" in AGENT_SYSTEM_PROMPT
 
 
 @pytest.mark.django_db

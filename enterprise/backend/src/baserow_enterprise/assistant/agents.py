@@ -32,6 +32,13 @@ def dynamic_mode(ctx) -> str:
 
 
 @main_agent.instructions
+def dynamic_plan_context(ctx) -> str:
+    """Inject the current workspace plan tier into the system prompt."""
+
+    return f"\n<plan>{ctx.deps.workspace_plan}</plan>"
+
+
+@main_agent.instructions
 def dynamic_current_task(ctx) -> str:
     """Pin the original user request as immutable context."""
 

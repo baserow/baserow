@@ -16,6 +16,7 @@ from pydantic_ai.usage import UsageLimits
 
 from baserow_enterprise.assistant.agents import main_agent
 from baserow_enterprise.assistant.deps import AssistantDeps, ToolHelpers
+from baserow_enterprise.assistant.plan_context import get_workspace_plan_tier
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.types import (
     ApplicationUIContext,
@@ -209,6 +210,7 @@ def create_eval_assistant(user, workspace, max_iters=15, model=None):
         user=user,
         workspace=workspace,
         tool_helpers=tool_helpers,
+        workspace_plan=get_workspace_plan_tier(user, workspace),
     )
 
     # Build the single-agent toolset (navigation + core + database + automation)

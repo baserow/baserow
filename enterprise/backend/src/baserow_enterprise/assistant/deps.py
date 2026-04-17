@@ -120,6 +120,7 @@ class AssistantDeps:
     workspace: "Workspace"
     tool_helpers: ToolHelpers
     mode: AgentMode = AgentMode.DATABASE
+    workspace_plan: str = "free"
     sources: list[str] = field(default_factory=list)
     dynamic_tools: list[Tool] = field(default_factory=list)
     database_manifest: str = ""
