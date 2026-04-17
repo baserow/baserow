@@ -964,7 +964,7 @@ def test_dashboard(data_fixture, client):
         invitation_1.invited_by.first_name
     )
     assert response_json["workspace_invitations"][0]["workspace"] == "Test1"
-    assert response_json["workspace_invitations"][0]["message"] == invitation_1.message
+    assert "message" not in response_json["workspace_invitations"][0]
     assert "created_on" in response_json["workspace_invitations"][0]
 
 

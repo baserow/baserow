@@ -1,0 +1,9 @@
+{
+    "type": "breaking_change",
+    "message": "Workspace invitations no longer support custom messages, and the `BASEROW_MAX_PENDING_WORKSPACE_INVITES` env var has been removed.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-04-17"
+}

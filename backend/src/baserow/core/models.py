@@ -385,8 +385,9 @@ class WorkspaceInvitation(
         help_text="The permissions that the user is going to get within the workspace "
         "after accepting the invitation.",
     )
+    # TODO ZDM: Remove this field in a future migration (no longer used)
     message = models.TextField(
-        blank=True,
+        default="",
         max_length=250,
         help_text="An optional message that the invitor can provide. This will be "
         "visible to the receiver of the invitation.",

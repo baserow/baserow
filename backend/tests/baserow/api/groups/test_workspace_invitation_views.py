@@ -1,5 +1,4 @@
 from django.shortcuts import reverse
-from django.test.utils import override_settings
 
 import pytest
 from freezegun import freeze_time
@@ -30,14 +29,12 @@ def test_list_workspace_invitations(api_client, data_fixture):
             invited_by=user_1,
             email="test3@test.nl",
             permissions="MEMBER",
-            message="Test bericht 1",
         )
     invitation_2 = data_fixture.create_workspace_invitation(
         workspace=workspace_1,
         invited_by=user_1,
         email="test4@test.nl",
         permissions="ADMIN",
-        message="Test bericht 2",
     )
 
     response = api_client.get(
@@ -81,7 +78,6 @@ def test_list_workspace_invitations(api_client, data_fixture):
     assert response_json[0]["workspace"] == invitation_1.workspace_id
     assert response_json[0]["email"] == "test3@test.nl"
     assert response_json[0]["permissions"] == "MEMBER"
-    assert response_json[0]["message"] == "Test bericht 1"
     assert response_json[0]["created_on"] == "2020-01-02T12:00:00Z"
     assert response_json[1]["id"] == invitation_2.id
 
@@ -101,7 +97,6 @@ def test_create_workspace_invitation(api_client, data_fixture):
         {
             "email": "test@test.nl",
             "permissions": "ADMIN",
-            "message": "Test",
             "base_url": "http://localhost:3000/invite",
         },
         format="json",
@@ -118,7 +113,6 @@ def test_create_workspace_invitation(api_client, data_fixture):
         {
             "email": "test@test.nl",
             "permissions": "ADMIN",
-            "message": "Test",
             "base_url": "http://localhost:3000/invite",
         },
         format="json",
@@ -135,7 +129,6 @@ def test_create_workspace_invitation(api_client, data_fixture):
         {
             "email": user_3.email,
             "permissions": "ADMIN",
-            "message": "Test",
             "base_url": "http://localhost:3000/invite",
         },
         format="json",
@@ -152,7 +145,6 @@ def test_create_workspace_invitation(api_client, data_fixture):
         {
             "email": "test@test.nl",
             "permissions": "ADMIN",
-            "message": "Test",
             "base_url": "http://localhost:3000/invite",
         },
         format="json",
@@ -169,7 +161,6 @@ def test_create_workspace_invitation(api_client, data_fixture):
         {
             "email": "test@test.nl",
             "permissions": "ADMIN",
-            "message": "Test",
             "base_url": "http://test.nl:3000/invite",
         },
         format="json",
@@ -179,6 +170,8 @@ def test_create_workspace_invitation(api_client, data_fixture):
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response_json["error"] == "ERROR_HOSTNAME_IS_NOT_ALLOWED"
 
+    # Custom messages are no longer supported: any `message` in the request body is
+    # silently ignored and neither persisted nor returned.
     response = api_client.post(
         reverse(
             "api:workspaces:invitations:list", kwargs={"workspace_id": workspace_1.id}
@@ -199,7 +192,8 @@ def test_create_workspace_invitation(api_client, data_fixture):
     assert response_json["workspace"] == invitation.workspace_id
     assert response_json["email"] == "test0@test.nl"
     assert response_json["permissions"] == "ADMIN"
-    assert response_json["message"] == "Test"
+    assert invitation.message == ""
+    assert "message" not in response_json
     assert "created_on" in response_json
 
     response = api_client.post(
@@ -209,93 +203,12 @@ def test_create_workspace_invitation(api_client, data_fixture):
         {
             "email": "test2@test.nl",
             "permissions": "ADMIN",
-            "message": "",
-            "base_url": "http://localhost:3000/invite",
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token_1}",
-    )
-    response_json = response.json()
-    assert response.status_code == HTTP_200_OK
-    assert response_json["message"] == ""
-
-    response = api_client.post(
-        reverse(
-            "api:workspaces:invitations:list", kwargs={"workspace_id": workspace_1.id}
-        ),
-        {
-            "email": "test2@test.nl",
-            "permissions": "ADMIN",
-            "base_url": "http://localhost:3000/invite",
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token_1}",
-    )
-    response_json = response.json()
-    assert response.status_code == HTTP_200_OK
-    assert response_json["message"] == ""
-
-    message = ""
-    for i in range(WorkspaceInvitation._meta.get_field("message").max_length + 1):
-        message += str(i % 10)
-
-    response = api_client.post(
-        reverse(
-            "api:workspaces:invitations:list", kwargs={"workspace_id": workspace_1.id}
-        ),
-        {
-            "email": "test2@test.nl",
-            "permissions": "ADMIN",
-            "base_url": "http://localhost:3000/invite",
-            "message": message,
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token_1}",
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
-
-
-@pytest.mark.django_db
-@override_settings(BASEROW_MAX_PENDING_WORKSPACE_INVITES=1)
-def test_create_workspace_invitation_max_pending(api_client, data_fixture):
-    user_1, token_1 = data_fixture.create_user_and_token(email="test1@test.nl")
-    workspace_1 = data_fixture.create_workspace(user=user_1)
-
-    response = api_client.post(
-        reverse(
-            "api:workspaces:invitations:list", kwargs={"workspace_id": workspace_1.id}
-        ),
-        {
-            "email": "test@test.nl",
-            "permissions": "ADMIN",
-            "message": "Test",
             "base_url": "http://localhost:3000/invite",
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token_1}",
     )
     assert response.status_code == HTTP_200_OK
-
-    response = api_client.post(
-        reverse(
-            "api:workspaces:invitations:list", kwargs={"workspace_id": workspace_1.id}
-        ),
-        {
-            "email": "test2@test.nl",
-            "permissions": "ADMIN",
-            "message": "Test",
-            "base_url": "http://localhost:3000/invite",
-        },
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token_1}",
-    )
-    response_json = response.json()
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert (
-        response_json["error"]
-        == "ERROR_MAX_NUMBER_OF_PENDING_WORKSPACE_INVITES_REACHED"
-    )
 
 
 @pytest.mark.django_db
@@ -315,7 +228,6 @@ def test_get_workspace_invitation(api_client, data_fixture):
         workspace=workspace_1,
         email="test0@test.nl",
         permissions="ADMIN",
-        message="TEst",
     )
 
     response = api_client.get(
@@ -363,7 +275,6 @@ def test_get_workspace_invitation(api_client, data_fixture):
     assert response_json["workspace"] == invitation.workspace_id
     assert response_json["email"] == invitation.email
     assert response_json["permissions"] == invitation.permissions
-    assert response_json["message"] == invitation.message
     assert "created_on" in response_json
 
 
@@ -384,7 +295,6 @@ def test_update_workspace_invitation(api_client, data_fixture):
         workspace=workspace_1,
         email="test0@test.nl",
         permissions="ADMIN",
-        message="TEst",
     )
 
     response = api_client.patch(
@@ -436,7 +346,6 @@ def test_update_workspace_invitation(api_client, data_fixture):
     assert response_json["workspace"] == invitation.workspace_id
     assert response_json["email"] == invitation.email
     assert response_json["permissions"] == "MEMBER"
-    assert response_json["message"] == invitation.message
     assert "created_on" in response_json
 
     response = api_client.patch(
@@ -447,7 +356,6 @@ def test_update_workspace_invitation(api_client, data_fixture):
         {
             "email": "should.be@ignored.nl",
             "permissions": "ADMIN",
-            "message": "Should be ignored",
             "base_url": "http://should.be.ignored:3000/invite",
         },
         HTTP_AUTHORIZATION=f"JWT {token_1}",
@@ -458,7 +366,6 @@ def test_update_workspace_invitation(api_client, data_fixture):
     assert response_json["workspace"] == invitation.workspace_id
     assert response_json["email"] == invitation.email
     assert response_json["permissions"] == "ADMIN"
-    assert response_json["message"] == invitation.message
 
 
 @pytest.mark.django_db
@@ -478,7 +385,6 @@ def test_delete_workspace_invitation(api_client, data_fixture):
         workspace=workspace_1,
         email="test0@test.nl",
         permissions="ADMIN",
-        message="TEst",
     )
 
     response = api_client.delete(
@@ -534,7 +440,6 @@ def test_accept_workspace_invitation(api_client, data_fixture):
         workspace=workspace_1,
         email="test1@test.nl",
         permissions="ADMIN",
-        message="Test",
     )
 
     response = api_client.post(
@@ -586,7 +491,6 @@ def test_reject_workspace_invitation(api_client, data_fixture):
         workspace=workspace_1,
         email="test1@test.nl",
         permissions="ADMIN",
-        message="Test",
     )
 
     response = api_client.post(
@@ -626,8 +530,10 @@ def test_reject_workspace_invitation(api_client, data_fixture):
 @pytest.mark.django_db
 def test_get_workspace_invitation_by_token(api_client, data_fixture):
     data_fixture.create_user(email="test1@test.nl")
+    # `message` is a deprecated column kept on the model; even when a legacy row
+    # still has a value, the API must not expose it.
     invitation = data_fixture.create_workspace_invitation(
-        email="test0@test.nl", permissions="ADMIN", message="TEst"
+        email="test0@test.nl", permissions="ADMIN", message="Legacy message"
     )
     invitation_2 = data_fixture.create_workspace_invitation(
         email="test1@test.nl",
@@ -665,7 +571,7 @@ def test_get_workspace_invitation_by_token(api_client, data_fixture):
     assert response_json["invited_by"] == invitation.invited_by.first_name
     assert response_json["workspace"] == invitation.workspace.name
     assert response_json["email"] == invitation.email
-    assert response_json["message"] == invitation.message
+    assert "message" not in response_json
     assert response_json["email_exists"] is False
     assert "created_on" in response_json
 
@@ -691,14 +597,12 @@ def test_when_workspace_is_trashed_so_is_invitation(data_fixture, api_client):
         invited_by=user_1,
         email="test4@test.nl",
         permissions="ADMIN",
-        message="Test bericht 2",
     )
     trashed_invitation = data_fixture.create_workspace_invitation(
         workspace=trashed_workspace,
         invited_by=user_1,
         email="test4@test.nl",
         permissions="ADMIN",
-        message="Test bericht 2",
     )
     # Put the trashed_workspace in the trash
     CoreHandler().delete_workspace_by_id(user_1, trashed_workspace.id)

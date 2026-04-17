@@ -78,20 +78,6 @@
           </div>
         </FormGroup>
       </div>
-      <div class="col col-12 margin-top-2 margin-bottom-2">
-        <FormGroup :error="v$.values.message.$error">
-          <FormInput
-            ref="message"
-            v-model="v$.values.message.$model"
-            :error="v$.values.message.$error"
-            :placeholder="$t('workspaceInviteForm.optionalMessagePlaceholder')"
-          ></FormInput>
-
-          <template #error>
-            {{ v$.values.message.$errors[0]?.$message }}
-          </template>
-        </FormGroup>
-      </div>
       <slot></slot>
     </div>
   </form>
@@ -99,11 +85,9 @@
 
 <script>
 import { useVuelidate } from '@vuelidate/core'
-import { required, email, maxLength, helpers } from '@vuelidate/validators'
+import { required, email, helpers } from '@vuelidate/validators'
 
 import form from '@baserow/modules/core/mixins/form'
-
-const MESSAGE_MAX_LENGTH = 250
 
 export default {
   name: 'WorkspaceInviteForm',
@@ -123,14 +107,10 @@ export default {
       values: {
         email: '',
         permissions: '',
-        message: '',
       },
     }
   },
   computed: {
-    messageMaxLength() {
-      return MESSAGE_MAX_LENGTH
-    },
     roles() {
       return this.workspace._.roles.filter((role) => role.isVisible)
     },
@@ -178,14 +158,6 @@ export default {
           email: helpers.withMessage(
             this.$t('workspaceInviteForm.errorInvalidEmail'),
             email
-          ),
-        },
-        message: {
-          maxLength: helpers.withMessage(
-            this.$t('workspaceInviteForm.errorTooLongMessage', {
-              amount: this.messageMaxLength,
-            }),
-            maxLength(MESSAGE_MAX_LENGTH)
           ),
         },
         permissions: {},

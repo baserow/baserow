@@ -112,12 +112,6 @@ export default {
           true
         ),
         new CrudTableColumn(
-          'message',
-          this.$t('membersSettings.invitesTable.columns.message'),
-          SimpleField,
-          true
-        ),
-        new CrudTableColumn(
           'permissions',
           this.$t('membersSettings.invitesTable.columns.role'),
           MemberRoleField,

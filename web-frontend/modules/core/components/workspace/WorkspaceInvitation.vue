@@ -9,10 +9,6 @@
       }}</template
     >
 
-    <p v-if="invitation.message !== ''" class="quote">
-      "{{ invitation.message }}"
-    </p>
-
     <template #actions>
       <Button
         type="primary"

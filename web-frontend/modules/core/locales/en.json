@@ -301,9 +301,7 @@
   },
   "workspaceInviteForm": {
     "invitationFormTitle": "Invite by email",
-    "optionalMessagePlaceholder": "Optional message",
     "errorInvalidEmail": "Please enter a valid e-mail address.",
-    "errorTooLongMessage": "Messages are limited to {amount} characters.",
     "additionalRoles": "Additional roles"
   },
   "workspaceContext": {
@@ -758,7 +756,6 @@
       "title": "{invitesAmount} Pending invites in {workspaceName}",
       "columns": {
         "email": "Email",
-        "message": "Message",
         "role": "Default role"
       },
       "actions": {

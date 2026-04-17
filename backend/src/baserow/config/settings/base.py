@@ -1186,12 +1186,6 @@ BASEROW_USER_LOG_ENTRY_CLEANUP_INTERVAL_MINUTES = int(
 BASEROW_USER_LOG_ENTRY_RETENTION_DAYS = int(
     os.getenv("BASEROW_USER_LOG_ENTRY_RETENTION_DAYS", 61)
 )
-# The maximum number of pending invites that a workspace can have. If `0` then
-# unlimited invites are allowed, which is the default value.
-BASEROW_MAX_PENDING_WORKSPACE_INVITES = int(
-    os.getenv("BASEROW_MAX_PENDING_WORKSPACE_INVITES", 0)
-)
-
 BASEROW_IMPORT_EXPORT_RESOURCE_CLEANUP_INTERVAL_MINUTES = int(
     os.getenv("BASEROW_IMPORT_EXPORT_RESOURCE_CLEANUP_INTERVAL_MINUTES", 5)
 )
