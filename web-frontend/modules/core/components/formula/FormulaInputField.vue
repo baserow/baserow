@@ -1,6 +1,10 @@
 <template>
   <div ref="formulaInputRoot">
-    <div class="formula-input-field__editor" @click="handleEditorClick">
+    <div
+      ref="formulaEditorSurface"
+      class="formula-input-field__editor"
+      @click="handleEditorClick"
+    >
       <EditorContent
         :id="forInput"
         ref="editor"
@@ -13,9 +17,9 @@
     </div>
 
     <FormulaInputErrorContext
-      v-if="isFocused && !readOnly && isFormulaInvalid"
-      ref="formulaInputErrorContext"
+      :visible="showErrorContext"
       :formula-error-context="formulaErrorContext"
+      :target="$refs.formulaEditorSurface"
       @mousedown="onContextMouseDown"
     />
 
@@ -233,6 +237,9 @@ export default {
     }
   },
   computed: {
+    showErrorContext() {
+      return this.isFocused && !this.readOnly && this.isFormulaInvalid
+    },
     isFormulaEmpty() {
       if (!this.editor) return true
       const formula = this.toFormula(this.wrapperContent)
@@ -316,10 +323,10 @@ export default {
           },
           getRootEl: () => this.$el,
           getContextEl: () => this.$refs.formulaInputExplorerContext?.$el,
-          showContextMenu: () => {
+          showExplorerContextMenu: () => {
             this.$nextTick(() => {
               if (!this.isFocused) return
-              this.positionAndShowContext()
+              this.positionAndShowExplorerContext()
             })
           },
           hideContextMenu: () => {
@@ -544,7 +551,7 @@ export default {
     onContextMouseDown() {
       this.editor?.commands.handleContextMouseDown()
     },
-    positionAndShowContext() {
+    positionAndShowExplorerContext() {
       let config
       switch (this.contextPosition) {
         case 'left':

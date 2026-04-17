@@ -7,9 +7,10 @@ const contextManagementPluginKey = new PluginKey('contextManagement')
 /**
  * @name ContextManagementExtension
  * @description Manages the visibility and positioning of the formula input's
- * context menu (the data explorer and function list). It handles focus and blur
- * events to automatically show or hide the context menu. It also provides commands
- * to control the menu programmatically and reposition it based on the surrounding UI.
+ * explorer context menu (data explorer and function list). It handles focus and blur
+ * events to show or hide that menu, and repositions it when the document changes.
+ *
+ * Validation error UI is owned by the Vue host, not this extension.
  *
  * This extension is fully decoupled from Vue: it interacts with the host
  * component exclusively through the callback/accessor options listed below.
@@ -31,8 +32,8 @@ export const ContextManagementExtension = Extension.create({
       getRootEl: () => null,
       getContextEl: () => null,
 
-      // Context menu display — the host decides positioning.
-      showContextMenu: () => {},
+      // Explorer context menu — the host decides positioning.
+      showExplorerContextMenu: () => {},
       hideContextMenu: () => {},
     }
   },
@@ -52,7 +53,7 @@ export const ContextManagementExtension = Extension.create({
           const { isFocused } = this.options.getState()
           if (!isFocused) return false
 
-          this.options.showContextMenu()
+          this.options.showExplorerContextMenu()
           return true
         },
       showContext:
@@ -64,7 +65,7 @@ export const ContextManagementExtension = Extension.create({
           this.options.setFocused(true)
 
           editor.commands.unselectNode()
-          this.options.showContextMenu()
+          this.options.showExplorerContextMenu()
 
           const rootEl = this.options.getRootEl()
           if (rootEl) {
