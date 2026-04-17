@@ -170,11 +170,9 @@ export default {
       this.addingElementType = elementType.getType()
 
       let beforeId = this.beforeId
-      let position = beforeId ? 'north' : 'south'
       let destinationPage
 
       if (this.parentElementId) {
-        position = 'child'
         // The page must be the same as the parent one
         destinationPage =
           this.parentElement.page_id === this.currentPage.id
@@ -200,9 +198,9 @@ export default {
           builder: this.builder,
           page: destinationPage,
           elementType: elementType.getType(),
-          referenceElement: beforeId || this.parentElementId,
-          position,
+          beforeId,
           values: {
+            parent_element_id: this.parentElementId,
             place_in_container: this.placeInContainer,
           },
         })

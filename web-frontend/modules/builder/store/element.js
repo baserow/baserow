@@ -261,8 +261,7 @@ const actions = {
       builder,
       page,
       elementType: elementTypeName,
-      referenceElement = null,
-      position = null,
+      beforeId = null,
       values = null,
       forceCreate = true,
     }
@@ -273,8 +272,7 @@ const actions = {
     const { data: element } = await ElementService($client).create(
       page.id,
       elementTypeName,
-      referenceElement,
-      position,
+      beforeId,
       updatedValues
     )
 

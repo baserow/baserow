@@ -67,7 +67,6 @@ class ElementSerializer(serializers.ModelSerializer):
             "id",
             "page_id",
             "type",
-            "place_in_container",
             "css_classes",
             "visibility",
             "visibility_condition",
@@ -98,6 +97,10 @@ class ElementSerializer(serializers.ModelSerializer):
             "style_width_child",
             "role_type",
             "roles",
+            # TODO: remove, compat fields for testing
+            "order",
+            "parent_element_id",
+            "place_in_container",
         )
         extra_kwargs = {
             "id": {"read_only": True},
