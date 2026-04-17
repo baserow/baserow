@@ -360,6 +360,30 @@ const workspaceInvitations = computed(
   () => $store.getters['auth/getWorkspaceInvitations']
 )
 
+const dashboardWorkspaceUsageReady = computed(() => {
+  if (!selectedWorkspace.value) {
+    return false
+  }
+
+  const usageData = workspaceComponentArguments.value?.usageData
+  console.log('Dashboard workspace usage data:', usageData)
+
+  if (Array.isArray(usageData)) {
+    return usageData.some((usage) => {
+      return (
+        usage?.workspace?.id === selectedWorkspace.value.id ||
+        usage?.id === selectedWorkspace.value.id
+      )
+    })
+  }
+
+  if (usageData && typeof usageData === 'object') {
+    return Boolean(usageData[selectedWorkspace.value.id])
+  }
+
+  return false
+})
+
 const getAllOfWorkspace = (ws) =>
   $store.getters['application/getAllOfWorkspace'](ws)
 
@@ -373,17 +397,26 @@ const dashboardHelpComponents = computed(() =>
     .filter((c) => c !== null)
 )
 
-const dashboardWorkspaceRowUsageComponent = computed(() =>
-  Object.values($registry.getAll('plugin'))
-    .map((p) => p.getDashboardWorkspaceRowUsageComponent())
-    .filter((c) => c !== null)
-)
+const dashboardWorkspaceRowUsageComponent = computed(() => {
 
-const dashboardWorkspacePlanBadge = computed(() =>
-  Object.values($registry.getAll('plugin'))
+  if (!dashboardWorkspaceUsageReady.value) {
+    return []
+  }
+
+  return Object.values($registry.getAll('plugin'))
+  .map((p) => p.getDashboardWorkspaceRowUsageComponent())
+  .filter((c) => c !== null)
+})
+
+const dashboardWorkspacePlanBadge = computed(() => {
+  if (!dashboardWorkspaceUsageReady.value) {
+    return []
+  }
+
+  return Object.values($registry.getAll('plugin'))
     .map((p) => p.getDashboardWorkspacePlanBadge())
     .filter((c) => c !== null)
-)
+})
 
 const resourceLinksComponents = computed(() =>
   Object.values($registry.getAll('plugin'))

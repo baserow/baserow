@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix workspace dashboard crashes when dashboard usage components render before usage data for the selected workspace is available.",
+    "issue_origin": "github",
+    "issue_number": 5219,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-04-17"
+}
