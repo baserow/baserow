@@ -215,7 +215,10 @@ export const InputDetectionExtension = Extension.create({
         }
       }
 
-      if (stackTop === 'function') {
+      // Insert a new closing paren only when the opener doesn't have its
+      // closer yet. If parens are already balanced (e.g. typing ')' at an
+      // argument position inside `if(|, , )`), skip to avoid duplicates.
+      if (stackTop === 'function' && !areParensBalanced(doc, 'function')) {
         const tr = state.tr
         const closingNode =
           state.schema.nodes['function-closing-paren'].create()
@@ -228,7 +231,7 @@ export const InputDetectionExtension = Extension.create({
         return true
       }
 
-      if (stackTop === 'group') {
+      if (stackTop === 'group' && !areParensBalanced(doc, 'group')) {
         const tr = state.tr
         const closingNode = state.schema.nodes['group-closing-paren'].create()
         tr.replaceWith(from, to, closingNode)
@@ -238,7 +241,16 @@ export const InputDetectionExtension = Extension.create({
         return true
       }
 
-      return false
+      // Fallback: insert a group-closing-paren so ')' is always highlighted
+      // in mauve — whether typed standalone, inside a balanced function, or
+      // inside a balanced group.
+      const tr = state.tr
+      const closingNode = state.schema.nodes['group-closing-paren'].create()
+      tr.replaceWith(from, to, closingNode)
+      const cursorPos = from + 1
+      tr.setSelection(TextSelection.near(tr.doc.resolve(cursorPos)))
+      view.dispatch(tr)
+      return true
     }
 
     // ── Comma ─────────────────────────────────────────────────────────
