@@ -6,6 +6,10 @@ from django.core.files.storage import Storage
 from django.db import IntegrityError
 from django.db.models import QuerySet
 
+from baserow.contrib.builder.compat.graph_migrator import (
+    ElementToMigrate,
+    PageGraphMigrator,
+)
 from baserow.contrib.builder.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.handler import ElementHandler
@@ -642,6 +646,23 @@ class PageHandler:
             )
 
         for page_instance, serialized_page in imported_pages:
+            if not serialized_page.get("graph"):
+                # Old export format: the serialized page has no graph, but
+                # individual elements carry parent_element_id / place_in_container
+                # / order. Build the graph from those fields so that
+                # import_elements can use it for ordering and parent lookups.
+                elements_to_migrate = [
+                    ElementToMigrate(
+                        id=e["id"],
+                        order=e["order"],
+                        parent_element_id=e.get("parent_element_id"),
+                        place_in_container=e.get("place_in_container") or "",
+                    )
+                    for e in serialized_page.get("elements", [])
+                ]
+                page_instance.graph = PageGraphMigrator(elements_to_migrate).to_graph()
+                page_instance.save(update_fields=["graph"])
+
             self.import_elements(
                 page_instance,
                 serialized_page["elements"],
