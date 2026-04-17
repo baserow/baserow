@@ -2,6 +2,9 @@
   height: 24px;
   display: inline-block;
   vertical-align: top;
+  user-select: none;
+  -moz-user-select: none;
+  caret-color: transparent;
 }
 
 .function-formula-component__name {

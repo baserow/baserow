@@ -4,6 +4,9 @@
   white-space: normal;
   user-select: none;
   cursor: default;
+  user-select: none;
+  -moz-user-select: none;
+  caret-color: transparent;
 }
 
 .operator-formula-component__symbol {
