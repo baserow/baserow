@@ -397,6 +397,13 @@ export default {
         )
       )
     },
+    canUpdateField() {
+      return this.$hasPermission(
+        'database.table.field.update',
+        this.field,
+        this.database.workspace.id
+      )
+    },
     synced() {
       if (!this.table.data_sync) {
         return false
@@ -431,7 +438,10 @@ export default {
       this.$refs.context.hide()
     },
     async handleQuickEdit() {
-      if (this.readOnly) return false
+      if (this.readOnly || !this.canUpdateField || !this.$refs.context) {
+        return false
+      }
+
       await this.$refs.context.toggle(
         this.$refs.quickEditLink,
         'bottom',
