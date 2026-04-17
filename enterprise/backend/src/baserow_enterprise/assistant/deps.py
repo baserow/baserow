@@ -13,6 +13,7 @@ if TYPE_CHECKING:
     from baserow_enterprise.assistant.tools.navigation.types import (
         AnyNavigationRequestType,
     )
+    from baserow_premium.license.registries import LicenseType
 
 
 class AgentMode(str, Enum):
@@ -120,7 +121,7 @@ class AssistantDeps:
     workspace: "Workspace"
     tool_helpers: ToolHelpers
     mode: AgentMode = AgentMode.DATABASE
-    workspace_plan: str = "free"
+    license_tier: "LicenseType | None" = None
     sources: list[str] = field(default_factory=list)
     dynamic_tools: list[Tool] = field(default_factory=list)
     database_manifest: str = ""

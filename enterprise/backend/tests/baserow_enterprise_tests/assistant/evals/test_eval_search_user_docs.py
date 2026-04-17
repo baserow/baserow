@@ -136,9 +136,8 @@ SEARCH_DOCS_CASES = [
     ),
     pytest.param(
         (
-            "I'm trying to combine the first name and last name columns "
-            "into one, but I want to make sure it's uppercase. Can you tell me how to "
-            "write that formula?"
+            "What would a formula look like that combines a first name and last name field "
+            "into a full name field?"
         ),
         ["formula", "understanding-formulas"],
         ["concat", "upper", "formula"],

@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Give Kuma the current workspace plan in its context and steer uncertain feature or plan questions to docs search.",
+    "message": "Give Kuma the current license tier in its context and steer uncertain feature or plan questions to docs search.",
     "issue_origin": "github",
     "issue_number": 5210,
     "domain": "core",

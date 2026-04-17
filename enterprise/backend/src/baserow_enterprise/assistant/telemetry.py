@@ -36,6 +36,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from opentelemetry.sdk.trace import ReadableSpan, SpanProcessor, TracerProvider
+from opentelemetry.sdk.trace.sampling import ALWAYS_ON
 from opentelemetry.trace import SpanKind
 
 from baserow.core.posthog import get_posthog_client
@@ -461,7 +462,8 @@ def setup_instrumentation():
 
     from pydantic_ai import Agent, InstrumentationSettings
 
-    tracer_provider = TracerProvider()
+    # Prevent environment OTEL_TRACES_SAMPLER config from dropping assistant traces.
+    tracer_provider = TracerProvider(sampler=ALWAYS_ON)
     tracer_provider.add_span_processor(PosthogSpanProcessor())
 
     Agent.instrument_all(

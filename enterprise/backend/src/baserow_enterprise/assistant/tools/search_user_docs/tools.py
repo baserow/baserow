@@ -221,17 +221,15 @@ async def _search_user_docs_impl(
             if len(sources) >= 3:
                 break
 
-    # Only fallback to available URLs if reliability is high AND we have a
-    # real answer. Don't populate sources if the model indicated no relevant
-    # docs were found.
-    nothing_found = "nothing found" in prediction.answer.lower()
-    if not sources and prediction.reliability > 0.8 and not nothing_found:
+    # Fallback to available URLs if the model didn't cite sources.
+    if not sources:
         sources = list(available_urls)[:3]
 
     # Override reliability to 0 if the model explicitly said nothing was
     # found. The model sometimes returns high reliability for "nothing
     # found" answers, which is semantically incorrect - we want reliability
     # to reflect whether we actually found useful information.
+    nothing_found = "nothing found" in prediction.answer.lower()
     reliability = 0.0 if nothing_found else prediction.reliability
 
     if reliability >= 0.7:
@@ -242,7 +240,8 @@ async def _search_user_docs_impl(
         reliability_note = (
             "PARTIAL MATCH: Some relevant information was found, but the "
             "documentation may not fully cover this topic. Supplement with "
-            "general knowledge but warn the user that details may be incomplete."
+            "general knowledge if you're confident it is accurate and up to date, "
+            "but warn the user that details may be incomplete."
         )
     else:
         reliability_note = (

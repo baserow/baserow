@@ -32,10 +32,14 @@ def dynamic_mode(ctx) -> str:
 
 
 @main_agent.instructions
-def dynamic_plan_context(ctx) -> str:
-    """Inject the current workspace plan tier into the system prompt."""
+def dynamic_license_tier(ctx) -> str:
+    """Inject the active workspace license tier and its paid features."""
 
-    return f"\n<plan>{ctx.deps.workspace_plan}</plan>"
+    lt = ctx.deps.license_tier
+    if lt is None:
+        return "\n<license_tier>free</license_tier>"
+    features = ",".join(sorted(lt.features))
+    return f"\n<license_tier>{lt.type}</license_tier>\n<features>{features}</features>"
 
 
 @main_agent.instructions
