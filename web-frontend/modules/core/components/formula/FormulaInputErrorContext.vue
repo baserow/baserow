@@ -35,9 +35,9 @@ export default {
     },
   },
   watch: {
-    display: {
-      handler(visible) {
-        if (visible) {
+    visible: {
+      handler(isVisible) {
+        if (isVisible) {
           this.show(this.target)
         } else {
           this.hide()
