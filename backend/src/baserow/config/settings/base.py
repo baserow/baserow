@@ -1374,6 +1374,10 @@ if SENTRY_DSN:
     from sentry_sdk.integrations.django import DjangoIntegration
     from sentry_sdk.scrubber import DEFAULT_DENYLIST, EventScrubber
 
+    from baserow.core.sentry import (
+        drop_expected_asyncio_websocket_ping_timeout_events,
+    )
+
     # Exclude integrations whose module-level imports are incompatible:
     # - pydantic_ai: sentry-sdk patches ToolManager._call_tool which was
     #   removed in pydantic-ai >= 1.x (now execute_tool_call)
@@ -1390,6 +1394,7 @@ if SENTRY_DSN:
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration(signals_spans=False, middleware_spans=False)],
         send_default_pii=False,
+        before_send=drop_expected_asyncio_websocket_ping_timeout_events,
         event_scrubber=EventScrubber(recursive=True, denylist=SENTRY_DENYLIST),
         environment=os.getenv("SENTRY_ENVIRONMENT", ""),
     )
