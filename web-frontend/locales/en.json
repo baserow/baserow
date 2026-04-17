@@ -221,6 +221,9 @@
     "password": "A write-only field that holds a hashed password. The value will be `null` if not set, or `true` if it has been set. It accepts a string to set it.",
     "formViewEditRow": "A read-only field that generates a unique, signed URL allowing the row to be edited through the linked form view."
   },
+  "fieldAutonumberSubForm": {
+    "duplicateWarning": "This field may contain duplicate values from before the upgrade. Uniqueness will be enforced automatically once duplicates are resolved."
+  },
   "fieldConstraint": {
     "uniqueWithEmpty": "Unique with empty"
   },

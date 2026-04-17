@@ -48,6 +48,23 @@ def test_fill_table_rows_empty_table(data_fixture, test_limit):
 
 
 @pytest.mark.django_db
+def test_fill_table_rows_populates_autonumber_fields(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    autonumber_field = data_fixture.create_autonumber_field(user=user, table=table)
+
+    call_command("fill_table_rows", table.id, 10)
+
+    model = table.get_model()
+    values = list(
+        model.objects.order_by(f"field_{autonumber_field.id}").values_list(
+            f"field_{autonumber_field.id}", flat=True
+        )
+    )
+    assert values == list(range(1, 11))
+
+
+@pytest.mark.django_db
 @pytest.mark.parametrize("test_limit", [5, 10])
 def test_fill_table_rows_no_empty_table(data_fixture, test_limit):
     """

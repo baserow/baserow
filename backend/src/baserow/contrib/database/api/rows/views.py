@@ -41,6 +41,7 @@ from baserow.contrib.database.api.constants import (
     SEARCH_MODE_API_PARAM,
 )
 from baserow.contrib.database.api.fields.errors import (
+    ERROR_FAILED_TO_LOCK_FIELD_DUE_TO_CONFLICT,
     ERROR_FIELD_DATA_CONSTRAINT,
     ERROR_FIELD_DOES_NOT_EXIST,
     ERROR_FILTER_FIELD_NOT_FOUND,
@@ -83,6 +84,7 @@ from baserow.contrib.database.api.views.utils import (
 )
 from baserow.contrib.database.field_rules.collector import CascadeUpdatedRows
 from baserow.contrib.database.fields.exceptions import (
+    FailedToLockFieldDueToConflict,
     FieldDataConstraintException,
     FieldDoesNotExist,
     FilterFieldNotFound,
@@ -572,6 +574,7 @@ class RowsView(APIView):
             CannotCreateRowsInTable: ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
             FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
+            FailedToLockFieldDueToConflict: ERROR_FAILED_TO_LOCK_FIELD_DUE_TO_CONFLICT,
         }
     )
     @atomic_with_retry_on_deadlock()
@@ -1351,6 +1354,7 @@ class BatchRowsView(APIView):
             CannotCreateRowsInTable: ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
             FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
+            FailedToLockFieldDueToConflict: ERROR_FAILED_TO_LOCK_FIELD_DUE_TO_CONFLICT,
         }
     )
     @atomic_with_retry_on_deadlock()

@@ -312,30 +312,6 @@ class DurationField(models.DurationField):
         return super().to_python(value)
 
 
-class IntegerFieldWithSequence(models.IntegerField):
-    """
-    This field is similar to the `SerialField` but it uses a `integer` db_type
-    instead of a `serial` one. This is needed in the autonumber field because
-    the `bulk_update` operation will try to cast the result to the field type,
-    but it's not possible to cast to `serial` because `serial` is not really a
-    type. For more info, look at Postgres data types docs,
-    connection.features.requires_casted_case_in_updates and
-    django.db.models.query.QuerySet.bulk_update.
-    Note that the sequence must be created manually.
-    """
-
-    db_returning = True
-
-    def pre_save(self, model_instance, add):
-        if add and not getattr(model_instance, self.name):
-            return RawSQL(  # nosec
-                f"nextval('{self.name}_seq'::regclass)",
-                (),
-            )
-        else:
-            return super().pre_save(model_instance, add)
-
-
 class DurationFieldUsingPostgresFormatting(models.DurationField):
     def to_python(self, value):
         return value

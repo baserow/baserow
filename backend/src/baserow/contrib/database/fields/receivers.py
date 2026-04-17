@@ -5,11 +5,11 @@ from django.dispatch import receiver
 from baserow.contrib.database.fields.periodic_field_update_handler import (
     PeriodicFieldUpdateHandler,
 )
-from baserow.contrib.database.fields.signals import field_updated
+from baserow.contrib.database.fields.signals import field_restored, field_updated
 from baserow.contrib.database.rows import signals as row_signals
 from baserow.contrib.database.views import signals as view_signals
 
-from .models import LinkRowField
+from .models import AutonumberField, LinkRowField
 
 
 @receiver([view_signals.view_loaded, row_signals.rows_loaded])
@@ -61,3 +61,15 @@ def clear_link_row_limit_selection_view_when_view_is_deleted(
             related_fields=link_rows[1:],
             user=None,
         )
+
+
+@receiver(field_restored)
+def backfill_autonumber_after_restore(sender, field, **kwargs):
+    if not isinstance(field, AutonumberField):
+        return
+
+    from baserow.contrib.database.fields.registries import field_type_registry
+
+    field_type = field_type_registry.get_by_model(field)
+    model = field.table.get_model()
+    field_type.after_data_restore(field, model)

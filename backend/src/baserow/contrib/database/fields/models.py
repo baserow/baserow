@@ -948,7 +948,8 @@ class UUIDField(Field):
 
 
 class AutonumberField(Field):
-    pass
+    last_value = models.IntegerField(default=0)
+    is_unique_constraint_applied = models.BooleanField(default=False)
 
 
 class PasswordField(Field):

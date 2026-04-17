@@ -9,6 +9,7 @@ from math import ceil
 from typing import List, Tuple
 
 from django.core.management.base import BaseCommand
+from django.db import transaction
 from django.db.models import Max
 from django.db.models.fields.related import ForeignKey
 
@@ -327,9 +328,10 @@ def create_many_to_many_relations(model, rows):
 
 
 def bulk_create_rows(model, rows):
-    created_rows = model.objects.bulk_create(
-        [row for (row, _) in rows], batch_size=1000
-    )
+    row_instances = [row for (row, _) in rows]
+    with transaction.atomic():
+        RowHandler._prepare_rows_for_insert(model, row_instances)
+        created_rows = model.objects.bulk_create(row_instances, batch_size=1000)
     create_many_to_many_relations(model, rows)
     return created_rows
 

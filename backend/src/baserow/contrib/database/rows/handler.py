@@ -236,6 +236,17 @@ class RowM2MChangeTracker:
 
 
 class RowHandler(metaclass=baserow_trace_methods(tracer)):
+    @staticmethod
+    def _prepare_rows_for_insert(model, rows):
+        """
+        Let each field type prepare row values before INSERT.
+        Sorted by field.id to ensure deterministic lock ordering.
+        Must be called inside the transaction that will INSERT the rows.
+        """
+
+        for fo in sorted(model._field_objects.values(), key=lambda f: f["field"].id):
+            fo["type"].prepare_rows_for_insert(fo["field"], rows)
+
     def prepare_values(self, fields, values):
         """
         Prepares a set of values so that they can be created or updated in the database.
@@ -912,6 +923,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         def safe_save_instance():
             try:
                 with transaction.atomic():
+                    self._prepare_rows_for_insert(model, [instance])
                     instance.save(force_insert=True)
                 rows_created_counter.add(1)
             except Exception as exc:
@@ -1396,6 +1408,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         def safe_bulk_create():
             try:
                 with transaction.atomic():
+                    self._prepare_rows_for_insert(model, rows)
                     return model.objects.bulk_create(rows)
             except Exception as exc:
                 if is_unique_violation_error(exc):

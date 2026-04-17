@@ -797,6 +797,9 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
                 using=DEFAULT_DB_ALIAS
             )
 
+        if after_schema_change_callback:
+            kwargs["_has_pending_data_restore"] = True
+
         to_field_type.after_update(
             old_field,
             field,
@@ -811,6 +814,7 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
 
         if after_schema_change_callback:
             after_schema_change_callback(field)
+            to_field_type.after_data_restore(field, to_model)
 
         field_cache.cache_model_fields(to_model)
 
@@ -961,7 +965,11 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         progress.increment()
 
         if duplicate_data and field_type.keep_data_on_duplication:
+            new_field_type = field_type_registry.get_by_model(new_field)
+            model = new_field.table.get_model()
+            new_field_type.before_data_restore(new_field, model)
             FieldDataBackupHandler.duplicate_field_data(field, new_field)
+            new_field_type.after_data_restore(new_field, model)
         progress.increment()
 
         return new_field, updated_fields

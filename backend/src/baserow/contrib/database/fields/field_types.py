@@ -23,12 +23,13 @@ from typing import (
 from zipfile import ZipFile
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.contrib.postgres.aggregates import ArrayAgg, JSONBAgg, StringAgg
 from django.core.exceptions import ValidationError
 from django.core.files.storage import Storage
-from django.db import OperationalError, connection, models
+from django.db import IntegrityError, OperationalError, connection, models
 from django.db.models import (
     Case,
     CharField,
@@ -149,6 +150,7 @@ from baserow.core.db import (
     CombinedForeignKeyAndManyToManyMultipleFieldPrefetch,
     collate_expression,
     specific_queryset,
+    sql,
 )
 from baserow.core.expressions import DateTrunc
 from baserow.core.fields import SyncedDateTimeField
@@ -182,6 +184,7 @@ from .exceptions import (
     AllProvidedMultipleSelectValuesMustBeSelectOption,
     AllProvidedValuesMustBeIntegersOrStrings,
     DateForceTimezoneOffsetValueError,
+    FailedToLockFieldDueToConflict,
     FieldDoesNotExist,
     IncompatiblePrimaryFieldTypeError,
     InvalidCountThroughField,
@@ -208,7 +211,6 @@ from .fields import (
     BaserowExpressionField,
     BaserowLastModifiedField,
     FormViewEditRowURLSerializerField,
-    IntegerFieldWithSequence,
     MultipleSelectManyToManyField,
     SingleSelectForeignKey,
     SyncedUserForeignKeyField,
@@ -7309,13 +7311,25 @@ class AutonumberFieldType(ReadOnlyFieldType):
     """
     Autonumber fields automatically generate unique and incremented numbers for
     each record. Autonumbers can be helpful when you need a unique identifier
-    for each record or when using a formula in the primary field
+    for each record or when using a formula in the primary field.
+
+    Uses a transactional counter (last_value on AutonumberField model) instead
+    of PostgreSQL sequences. Counter increment and row INSERT share the same
+    transaction, so rollback reverts both — gap-free by construction.
     """
 
     type = "autonumber"
     model_class = AutonumberField
     can_be_in_form_view = False
     keep_data_on_duplication = True
+    serializer_field_names = ["is_unique_constraint_applied"]
+    serializer_field_overrides = {
+        "is_unique_constraint_applied": serializers.BooleanField(
+            read_only=True,
+            required=False,
+            help_text="Whether a UNIQUE constraint is applied to this autonumber field.",
+        ),
+    }
     request_serializer_field_names = ["view_id"]
     request_serializer_field_overrides = {
         "view_id": serializers.IntegerField(
@@ -7327,7 +7341,12 @@ class AutonumberFieldType(ReadOnlyFieldType):
     _can_have_db_index = True
 
     def get_serializer_field(self, instance, **kwargs):
-        return serializers.IntegerField(required=False, **kwargs)
+        return serializers.IntegerField(
+            required=False,
+            min_value=0,
+            max_value=2**31 - 1,
+            **kwargs,
+        )
 
     def get_serializer_help_text(self, instance):
         return (
@@ -7335,17 +7354,202 @@ class AutonumberFieldType(ReadOnlyFieldType):
         )
 
     def get_model_field(self, instance, **kwargs):
-        return IntegerFieldWithSequence(null=True, db_index=instance.db_index, **kwargs)
+        return models.IntegerField(null=True, db_index=instance.db_index, **kwargs)
 
-    def after_rows_imported(
-        self,
-        field: FormulaField,
-        update_collector: Optional[FieldUpdateCollector] = None,
-        field_cache: Optional["FieldCache"] = None,
-        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
-    ):
-        # Create the sequence so that rows can start being automatically numbered.
-        self.create_field_sequence(field, field.table.get_model(), connection)
+    def increment_counter(self, field_id, count=1):
+        """
+        Atomically increment the counter by *count*. Returns ``(start, end)``
+        inclusive range of allocated values.  Row-level lock on
+        ``database_autonumberfield`` is held until COMMIT.
+
+        Uses ``lock_timeout`` when ``BASEROW_NOWAIT_FOR_LOCKS`` is set to
+        prevent indefinite blocking under contention.
+
+        Raises ``FailedToLockFieldDueToConflict`` if the lock cannot be
+        acquired within the timeout.
+        """
+
+        try:
+            with connection.cursor() as cursor:
+                if getattr(settings, "BASEROW_NOWAIT_FOR_LOCKS", False):
+                    cursor.execute("SET LOCAL lock_timeout = '5s'")
+                cursor.execute(
+                    "UPDATE database_autonumberfield "
+                    "SET last_value = last_value + %s "
+                    "WHERE field_ptr_id = %s "
+                    "RETURNING last_value",
+                    [count, field_id],
+                )
+                row = cursor.fetchone()
+                if row is None:
+                    raise FieldDoesNotExist(
+                        f"AutonumberField with field_ptr_id={field_id} does not exist."
+                    )
+                (top,) = row
+            return top - count + 1, top
+        except OperationalError as e:
+            if "lock timeout" in str(e) or "could not obtain lock" in str(e):
+                raise FailedToLockFieldDueToConflict() from e
+            raise
+
+    def align_counter(self, field, model=None, force=False):
+        """
+        Set counter to MAX(column) so next insert continues from the right
+        value.  Used after bulk renumber or import.
+
+        When *force* is True the counter is set to exactly MAX(column),
+        ignoring the current last_value.  Use this after a data restore
+        where the column contents have been replaced entirely.
+        """
+
+        if model is None:
+            model = field.table.get_model()
+        tbl = sql.Identifier(model._meta.db_table)
+        col = sql.Identifier(field.db_column)
+        with connection.cursor() as cursor:
+            if force:
+                cursor.execute(
+                    sql.SQL(
+                        "UPDATE database_autonumberfield "
+                        "SET last_value = COALESCE("
+                        "  (SELECT MAX({col}) FROM {tbl}), 0"
+                        ") WHERE field_ptr_id = %s"
+                    ).format(col=col, tbl=tbl),
+                    [field.id],
+                )
+            else:
+                cursor.execute(
+                    sql.SQL(
+                        "UPDATE database_autonumberfield "
+                        "SET last_value = GREATEST(last_value, COALESCE("
+                        "  (SELECT MAX({col}) FROM {tbl}), 0"
+                        ")) WHERE field_ptr_id = %s"
+                    ).format(col=col, tbl=tbl),
+                    [field.id],
+                )
+
+    def try_apply_unique_constraint(self, field, model):
+        """
+        Apply a UNIQUE constraint if no duplicate values exist.
+        If index creation fails (e.g. concurrent duplicate insert),
+        the field remains without the constraint — it will be retried
+        on the next reconciliation.
+        """
+
+        if field.is_unique_constraint_applied:
+            return
+
+        tbl = sql.Identifier(model._meta.db_table)
+        col = sql.Identifier(field.db_column)
+        idx_name = f"{field.db_column}_unique"
+        idx = sql.Identifier(idx_name)
+
+        with connection.cursor() as cursor:
+            # Check for an existing index with this name. If it exists and
+            # is valid we can just set the flag and return. If it exists but
+            # is INVALID (left by a failed CONCURRENTLY attempt), drop it
+            # first — IF NOT EXISTS would silently skip an invalid index.
+            cursor.execute(
+                "SELECT i.indisvalid FROM pg_index i "
+                "JOIN pg_class c ON c.oid = i.indexrelid "
+                "WHERE c.relname = %s",
+                [idx_name],
+            )
+            existing = cursor.fetchone()
+            if existing is not None:
+                if existing[0]:
+                    field.is_unique_constraint_applied = True
+                    field.save(update_fields=["is_unique_constraint_applied"])
+                    return
+                else:
+                    cursor.execute(
+                        sql.SQL("DROP INDEX IF EXISTS {idx}").format(idx=idx)
+                    )
+
+            cursor.execute(
+                sql.SQL(
+                    "SELECT EXISTS("
+                    "  SELECT 1 FROM {tbl} "
+                    "  WHERE {col} IS NOT NULL "
+                    "  GROUP BY {col} HAVING COUNT(*) > 1"
+                    ")"
+                ).format(tbl=tbl, col=col)
+            )
+            (has_dupes,) = cursor.fetchone()
+            if has_dupes:
+                return
+
+            concurrently = (
+                sql.SQL("CONCURRENTLY ")
+                if not connection.in_atomic_block
+                else sql.SQL("")
+            )
+            try:
+                cursor.execute(
+                    sql.SQL(
+                        "CREATE UNIQUE INDEX {concurrently}{idx} "
+                        "ON {tbl} ({col}) "
+                        "WHERE {col} IS NOT NULL"
+                    ).format(concurrently=concurrently, idx=idx, tbl=tbl, col=col)
+                )
+            except (OperationalError, IntegrityError):
+                logger.warning(
+                    "Could not create unique index for field %s, will retry later.",
+                    field.id,
+                )
+                return
+
+        field.is_unique_constraint_applied = True
+        field.save(update_fields=["is_unique_constraint_applied"])
+
+    def drop_unique_constraint(self, field, model, save=True):
+        if not field.is_unique_constraint_applied:
+            return
+
+        idx = sql.Identifier(f"{field.db_column}_unique")
+
+        with connection.cursor() as cursor:
+            cursor.execute(sql.SQL("DROP INDEX IF EXISTS {idx}").format(idx=idx))
+
+        field.is_unique_constraint_applied = False
+        if save:
+            field.save(update_fields=["is_unique_constraint_applied"])
+
+    def backfill_nulls(self, field, model=None):
+        """
+        Assign sequential values to any NULL rows, continuing from last_value.
+        Counter increment and row UPDATE run in a single statement to avoid
+        TOCTOU races with concurrent inserts.
+        """
+
+        if model is None:
+            model = field.table.get_model()
+        tbl = sql.Identifier(model._meta.db_table)
+        col = sql.Identifier(field.db_column)
+
+        with connection.cursor() as cursor:
+            cursor.execute(
+                sql.SQL(
+                    "WITH null_rows AS ("
+                    '  SELECT id, ROW_NUMBER() OVER (ORDER BY "order", id) AS rn '
+                    "  FROM {tbl} WHERE {col} IS NULL"
+                    "), "
+                    "null_count AS ("
+                    "  SELECT COALESCE(MAX(rn), 0) AS cnt FROM null_rows"
+                    "), "
+                    "counter AS ("
+                    "  UPDATE database_autonumberfield "
+                    "  SET last_value = last_value + (SELECT cnt FROM null_count) "
+                    "  WHERE field_ptr_id = %s AND (SELECT cnt FROM null_count) > 0 "
+                    "  RETURNING last_value - (SELECT cnt FROM null_count) + 1 AS start_val"
+                    ") "
+                    "UPDATE {tbl} AS t "
+                    "SET {col} = null_rows.rn + counter.start_val - 1 "
+                    "FROM null_rows, counter "
+                    "WHERE t.id = null_rows.id"
+                ).format(tbl=tbl, col=col),
+                [field.id],
+            )
 
     def _extract_view_from_field_kwargs(self, user, field_kwargs):
         view_id = field_kwargs.get("view_id", None)
@@ -7358,8 +7562,9 @@ class AutonumberFieldType(ReadOnlyFieldType):
         self._extract_view_from_field_kwargs(user, field_kwargs)
 
     def after_create(self, field, model, user, connection, before, field_kwargs):
-        self.create_field_sequence(field, model, connection)
         self.update_rows_with_field_sequence(field, field_kwargs.get("view", None))
+        self.align_counter(field, model)
+        self.try_apply_unique_constraint(field, model)
 
     def before_update(self, from_field, to_field_values, user, field_kwargs):
         self._extract_view_from_field_kwargs(user, field_kwargs)
@@ -7379,7 +7584,7 @@ class AutonumberFieldType(ReadOnlyFieldType):
         to_autonumber = isinstance(to_field, self.model_class)
 
         if from_autonumber and not to_autonumber:
-            self.drop_field_sequence(from_field, to_model, connection)
+            self.drop_unique_constraint(from_field, from_model, save=False)
 
     def after_update(
         self,
@@ -7396,10 +7601,45 @@ class AutonumberFieldType(ReadOnlyFieldType):
         if isinstance(to_field, self.model_class) and not isinstance(
             from_field, self.model_class
         ):
-            self.create_field_sequence(to_field, to_model, connection)
+            if to_field_kwargs.get("_has_pending_data_restore"):
+                return
             self.update_rows_with_field_sequence(
                 to_field, to_field_kwargs.get("view", None)
             )
+            self.align_counter(to_field, to_model)
+            self.try_apply_unique_constraint(to_field, to_model)
+        elif (
+            isinstance(to_field, self.model_class)
+            and isinstance(from_field, self.model_class)
+            and not to_field.is_unique_constraint_applied
+        ):
+            self.try_apply_unique_constraint(to_field, to_model)
+
+    def after_rows_imported(
+        self,
+        field: FormulaField,
+        update_collector: Optional[FieldUpdateCollector] = None,
+        field_cache: Optional["FieldCache"] = None,
+        via_path_to_starting_table: Optional[List[LinkRowField]] = None,
+    ):
+        model = field.table.get_model()
+        self.after_data_restore(field, model)
+
+    def prepare_rows_for_insert(self, field, rows):
+        rows_needing = [r for r in rows if getattr(r, field.db_column, None) is None]
+        if not rows_needing:
+            return
+        start, _ = self.increment_counter(field.id, len(rows_needing))
+        for i, row in enumerate(rows_needing):
+            setattr(row, field.db_column, start + i)
+
+    def before_data_restore(self, field, model):
+        self.drop_unique_constraint(field, model)
+
+    def after_data_restore(self, field, model):
+        self.align_counter(field, model, force=True)
+        self.backfill_nulls(field, model)
+        self.try_apply_unique_constraint(field, model)
 
     def prepare_value_for_db(self, instance: Field, value):
         raise ValidationError(
@@ -7444,81 +7684,25 @@ class AutonumberFieldType(ReadOnlyFieldType):
         qs = table_model.objects_and_trash.annotate(
             row_nr=Window(expression=RowNumber(), order_by=order_bys),
         ).values("id", "row_nr")
-        sql, params = qs.query.get_compiler(connection=connection).as_sql()
+        qs_sql, params = qs.query.get_compiler(connection=connection).as_sql()
+        tbl = sql.Identifier(table_model._meta.db_table)
+        col = sql.Identifier(field.db_column)
 
         with connection.cursor() as cursor:
             cursor.execute(
-                f"""
-                WITH ordered AS ({sql})
-                UPDATE {table_model._meta.db_table} AS t
-                SET {field.db_column} = ordered.row_nr
-                FROM ordered
-                WHERE t.id = ordered.id;
-                """,  # noqa: S608
+                sql.SQL(
+                    "WITH ordered AS ({qs_sql}) "
+                    "UPDATE {tbl} AS t "
+                    "SET {col} = ordered.row_nr "
+                    "FROM ordered "
+                    "WHERE t.id = ordered.id"
+                ).format(qs_sql=sql.SQL(qs_sql), tbl=tbl, col=col),
                 params,
             )
 
-    def create_field_sequence(
-        self, field: Field, model: "GeneratedTableModel", connection
-    ):
-        """
-        Create a sequence and set the default value to the next value in the
-        sequence for the given field. The sequence is needed to make sure that
-        the autonumber field is unique and incremented.
-
-        :param field: The field to create the sequence for.
-        :param model: The model of the table that the field belongs to.
-        :param connection: The connection to use for the queries.
-        """
-
-        db_table = model._meta.db_table
-        db_column = field.db_column
-
-        with connection.cursor() as cursor:
-            cursor.execute(f"CREATE SEQUENCE IF NOT EXISTS {db_column}_seq;")
-            cursor.execute(
-                f"ALTER TABLE {db_table} ALTER COLUMN {db_column} SET DEFAULT nextval('{db_column}_seq');"
-            )
-            cursor.execute(
-                f"ALTER SEQUENCE {db_column}_seq OWNED BY {db_table}.{db_column};"
-            )
-            # Use COALESCE(MAX, COUNT) to set the sequence correctly in all
-            # cases: MAX handles gaps from deleted rows or imported data,
-            # COUNT is the fallback when the column is all NULLs (e.g. when
-            # creating a new autonumber field on an existing table).
-            cursor.execute(
-                f"""
-                WITH seq_val AS (
-                    SELECT COALESCE(MAX({db_column}), COUNT(*)) AS val
-                    FROM {db_table}
-                )
-                SELECT setval('{db_column}_seq', val) FROM seq_val WHERE val > 0;
-                """  # noqa: S608
-            )
-
-    def drop_field_sequence(
-        self, field: Field, model: "GeneratedTableModel", connection
-    ):
-        """
-        Drop the sequence for the given autonumber field.
-
-        :param field: The field to drop the sequence for.
-        :param model: The model of the table that the field belongs to.
-        :param connection: The connection to use for the queries.
-        """
-
-        db_table = model._meta.db_table
-        db_column = field.db_column
-
-        with connection.cursor() as cursor:
-            cursor.execute(
-                f"ALTER TABLE {db_table} ALTER COLUMN {db_column} DROP DEFAULT;"
-            )
-            cursor.execute(f"DROP SEQUENCE IF EXISTS {db_column}_seq;")
-
     def to_baserow_formula_type(self, field: NumberField) -> BaserowFormulaType:
         return BaserowFormulaNumberType(
-            number_decimal_places=0, requires_refresh_after_insert=True
+            number_decimal_places=0, requires_refresh_after_insert=False
         )
 
     def from_baserow_formula_type(

@@ -14,7 +14,10 @@ from baserow.api.schemas import get_error_schema
 from baserow.api.user_files.errors import ERROR_FILE_SIZE_TOO_LARGE, ERROR_INVALID_FILE
 from baserow.api.user_files.serializers import UserFileSerializer
 from baserow.api.utils import validate_data
-from baserow.contrib.database.api.fields.errors import ERROR_FIELD_DATA_CONSTRAINT
+from baserow.contrib.database.api.fields.errors import (
+    ERROR_FAILED_TO_LOCK_FIELD_DUE_TO_CONFLICT,
+    ERROR_FIELD_DATA_CONSTRAINT,
+)
 from baserow.contrib.database.api.rows.errors import (
     ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
     ERROR_ROW_DOES_NOT_EXIST,
@@ -28,7 +31,10 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_DOES_NOT_EXIST,
 )
 from baserow.contrib.database.api.views.utils import get_public_view_authorization_token
-from baserow.contrib.database.fields.exceptions import FieldDataConstraintException
+from baserow.contrib.database.fields.exceptions import (
+    FailedToLockFieldDueToConflict,
+    FieldDataConstraintException,
+)
 from baserow.contrib.database.fields.models import (
     FileField,
     LongTextField,
@@ -142,6 +148,7 @@ class SubmitFormViewView(APIView):
             NoAuthorizationToPubliclySharedView: ERROR_NO_PERMISSION_TO_PUBLICLY_SHARED_FORM,
             CannotCreateRowsInTable: ERROR_CANNOT_CREATE_ROWS_IN_TABLE,
             FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
+            FailedToLockFieldDueToConflict: ERROR_FAILED_TO_LOCK_FIELD_DUE_TO_CONFLICT,
         }
     )
     @transaction.atomic

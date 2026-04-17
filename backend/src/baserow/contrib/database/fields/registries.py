@@ -372,6 +372,47 @@ class FieldType(
 
         return values_by_row
 
+    def prepare_rows_for_insert(
+        self, field: Field, rows: List["GeneratedTableModel"]
+    ) -> None:
+        """
+        Called inside the INSERT transaction, before rows are saved to the
+        database.  Field types that need to assign computed values in bulk
+        (e.g. autonumber counters) should override this method.
+
+        :param field: The field instance.
+        :param rows: Row model instances about to be inserted.
+        """
+
+    def before_data_restore(
+        self,
+        field: Field,
+        model: "GeneratedTableModel",
+    ) -> None:
+        """
+        Called before external data is written into the field's column, e.g. before
+        undo/redo data restore or field duplication. Field types that maintain
+        derived constraints can override this to prepare for the incoming data.
+
+        :param field: The field instance.
+        :param model: The generated table model.
+        """
+
+    def after_data_restore(
+        self,
+        field: Field,
+        model: "GeneratedTableModel",
+    ) -> None:
+        """
+        Called after external data has been written into the field's column,
+        e.g. after undo/redo data restore or field duplication.  Field types
+        that maintain derived state (counters, constraints) should override
+        this to reconcile.
+
+        :param field: The field instance.
+        :param model: The generated table model.
+        """
+
     def enhance_queryset(
         self, queryset: QuerySet, field: Field, name: str, **kwargs
     ) -> QuerySet:
