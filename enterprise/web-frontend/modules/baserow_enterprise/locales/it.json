@@ -388,5 +388,9 @@
     },
     "fileInputElementForm": {
         "fileTypesHelper": "Scegli quali estensioni di file sono consentite (una per riga) dall'input file (ad esempio jpg, png, svg, pdf). Puoi specificare image/*, video/* o audio/* per consentire tutti i file di questi tipi. Lascia vuoto per permettere tutti i tipi di file."
+    },
+    "dataScanner": {
+        "wholeWordsCheckbox": "Riconosci solo parole intere",
+        "wholeWordsHelp": "Quando è attiva, la funzione di scansione rileva solo parole o token completi. Ad esempio, 'DDDD' corrisponde a '1234' ma non a '12345'."
     }
 }
