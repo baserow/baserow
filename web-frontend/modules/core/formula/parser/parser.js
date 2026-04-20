@@ -10,7 +10,7 @@ import { BaserowFormulaParserError } from '@baserow/modules/core/formula/parser/
  * @param formula
  * @return {*} The resulting antlr4 parse tree of the formula
  */
-export default function parseBaserowFormula(formula) {
+export default function parseBaserowFormula(formula, throwOnError = true) {
   const chars = new antlr4.InputStream(formula)
   const lexer = new BaserowFormulaLexer(chars)
   const tokens = new antlr4.CommonTokenStream(lexer)
@@ -19,7 +19,9 @@ export default function parseBaserowFormula(formula) {
   // noinspection JSUnusedLocalSymbols
   parser.addErrorListener({
     syntaxError: (recognizer, offendingSymbol, line, column, msg, err) => {
-      throw new BaserowFormulaParserError(offendingSymbol, line, column, msg)
+      if (throwOnError) {
+        throw new BaserowFormulaParserError(offendingSymbol, line, column, msg)
+      }
     },
   })
   parser.buildParseTrees = true
