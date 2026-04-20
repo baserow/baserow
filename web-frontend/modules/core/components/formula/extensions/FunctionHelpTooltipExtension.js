@@ -9,7 +9,7 @@ export const FunctionHelpTooltipExtension = Extension.create({
   addOptions() {
     return {
       functionDefinitions: {},
-      selector: '.function-name-highlight',
+      selector: '.function-formula-component',
       showDelay: 120,
       hideDelay: 60,
       onShowTooltip: null,
