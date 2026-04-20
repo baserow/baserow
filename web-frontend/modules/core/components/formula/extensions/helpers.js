@@ -105,3 +105,96 @@ export function buildParenStack(doc, wrapperStart, pos) {
 
   return stack
 }
+
+export function buildDetailedParenStack(doc, wrapperStart, pos, functionNames) {
+  const stack = []
+  const lowerFns = new Set(
+    (functionNames || []).map((n) => (n || '').toLowerCase())
+  )
+  const trailingIdentifier = /[A-Za-z_][A-Za-z0-9_]*$/
+
+  doc.nodesBetween(wrapperStart, pos, (node, nodePos) => {
+    if (nodePos >= pos) return false
+
+    if (node.type.name === 'function-formula-component') {
+      stack.push({
+        kind: 'function',
+        node,
+        nodeStart: nodePos,
+        nodeEnd: nodePos + node.nodeSize,
+      })
+    } else if (node.type.name === 'group-opening-paren') {
+      stack.push({ kind: 'group' })
+    } else if (
+      node.type.name === 'function-closing-paren' ||
+      node.type.name === 'group-closing-paren'
+    ) {
+      stack.pop()
+    } else if (node.isText && node.text) {
+      for (let i = 0; i < node.text.length; i++) {
+        if (nodePos + i >= pos) break
+        const ch = node.text[i]
+        if (ch === '(') {
+          const match = node.text.slice(0, i).match(trailingIdentifier)
+          if (match && lowerFns.has(match[0].toLowerCase())) {
+            stack.push({
+              kind: 'text-function',
+              functionName: match[0],
+              functionStart: nodePos + i - match[0].length,
+              parenEnd: nodePos + i + 1,
+            })
+          } else {
+            stack.push({ kind: 'group' })
+          }
+        } else if (ch === ')') {
+          stack.pop()
+        }
+      }
+    }
+  })
+
+  return stack
+}
+
+/**
+ * Returns the description of the top-most unclosed opener when it is a
+ * text `(` preceded by a known function name. Returns `null` otherwise
+ * — including when the top opener is a proper `function-formula-component`
+ * / `group-opening-paren` node, or a plain-text `(` that isn't preceded
+ * by a function identifier.
+ *
+ * Typical use: on a typed ')', decide whether to upgrade a pasted
+ * `funcName(` text fragment into proper highlighted function nodes
+ * instead of closing it as a generic group.
+ */
+export function findPendingTextFunctionOpen(
+  doc,
+  wrapperStart,
+  pos,
+  functionNames
+) {
+  const stack = buildDetailedParenStack(doc, wrapperStart, pos, functionNames)
+  const top = stack.length > 0 ? stack[stack.length - 1] : null
+  return top && top.kind === 'text-function' ? top : null
+}
+
+/**
+ * Returns info about the innermost unclosed `function-formula-component`
+ * node when it sits at the top of the opener stack at `pos`. Returns
+ * `null` when the top opener is not a proper function node (group,
+ * text-function) or when no opener is pending.
+ *
+ * Typical use: on a typed ')', inherit the function's `hasNoArgs`
+ * attribute onto the new `function-closing-paren` so styling stays
+ * consistent with the `tryFunctionOpen` flow.
+ */
+export function findInnermostUnclosedFunctionNode(
+  doc,
+  wrapperStart,
+  pos,
+  functionNames
+) {
+  const stack = buildDetailedParenStack(doc, wrapperStart, pos, functionNames)
+  const top = stack.length > 0 ? stack[stack.length - 1] : null
+  return top && top.kind === 'function' ? top : null
+}

@@ -70,6 +70,7 @@ import {
 import { NodeSelectionExtension } from '@baserow/modules/core/components/formula/extensions/NodeSelectionExtension'
 import { ContextManagementExtension } from '@baserow/modules/core/components/formula/extensions/ContextManagementExtension'
 import { InputDetectionExtension } from '@baserow/modules/core/components/formula/extensions/InputDetectionExtension'
+import { FunctionDowngradeExtension } from '@baserow/modules/core/components/formula/extensions/FunctionDowngradeExtension'
 import {
   createClipboardTextSerializer,
   createPasteHandler,
@@ -370,6 +371,7 @@ export default {
             operators: this.formulaRegistry.operators,
           })
         )
+        extensions.push(FunctionDowngradeExtension)
         extensions.push(ParenMatchHighlightExtension)
       }
 

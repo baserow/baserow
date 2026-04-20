@@ -5,6 +5,8 @@ import {
   buildParenStack,
   getTextBeforeCursor,
   findNextNonZWSNode,
+  findInnermostUnclosedFunctionNode,
+  findPendingTextFunctionOpen,
   zwsTextNode,
 } from '@baserow/modules/core/components/formula/extensions/helpers'
 
@@ -215,13 +217,55 @@ export const InputDetectionExtension = Extension.create({
         }
       }
 
+      // When the nearest unclosed `(` is a plain-text `(` preceded by a
+      // known function name (typically coming from pasted-but-unparseable
+      // content like `...+month(`), promote it to a proper function node
+      // and close it with a function-closing-paren — so the whole call
+      // becomes highlighted once the user closes it.
+      const wrapperStart = getWrapperStart(doc, from)
+      if (wrapperStart !== null) {
+        const pending = findPendingTextFunctionOpen(
+          doc,
+          wrapperStart,
+          from,
+          functionNames
+        )
+        if (pending) {
+          return upgradeTextFunctionOnClose(view, pending, from, to)
+        }
+      }
+
       // Insert a new closing paren only when the opener doesn't have its
       // closer yet. If parens are already balanced (e.g. typing ')' at an
       // argument position inside `if(|, , )`), skip to avoid duplicates.
       if (stackTop === 'function' && !areParensBalanced(doc, 'function')) {
+        // Mirror the `tryFunctionOpen` behaviour: if the unclosed opener
+        // is a 0-arg function and nothing (beyond ZWS) sits between it
+        // and the typed ')', tag the closing paren with `noArgs: true`
+        // so styling (tight spacing, paren-highlight) stays consistent.
+        const innermost =
+          wrapperStart !== null
+            ? findInnermostUnclosedFunctionNode(
+                doc,
+                wrapperStart,
+                from,
+                functionNames
+              )
+            : null
+        let isNoArgsCall = false
+        if (innermost && innermost.node?.attrs?.hasNoArgs) {
+          const between = doc
+            .textBetween(innermost.nodeEnd, from, '\uFFFD')
+            .replace(/\u200B/g, '')
+          isNoArgsCall = between.length === 0
+        }
+
         const tr = state.tr
-        const closingNode =
-          state.schema.nodes['function-closing-paren'].create()
+        const closingNode = state.schema.nodes['function-closing-paren'].create(
+          {
+            noArgs: isNoArgsCall,
+          }
+        )
         tr.replaceWith(from, to, closingNode)
         const cursorPos = from + 1
         tr.setSelection(
@@ -249,6 +293,59 @@ export const InputDetectionExtension = Extension.create({
       tr.replaceWith(from, to, closingNode)
       const cursorPos = from + 1
       tr.setSelection(TextSelection.near(tr.doc.resolve(cursorPos)))
+      view.dispatch(tr)
+      return true
+    }
+
+    function upgradeTextFunctionOnClose(view, pending, from, to) {
+      const { state } = view
+      const { doc, schema } = state
+      const { functionName, functionStart, parenEnd } = pending
+      const functionDef = functionDefinitions[functionName.toLowerCase()]
+      const minArgs = functionDef?.signature?.minArgs || 0
+
+      // Treat the call as a no-args invocation only when the function
+      // takes no arguments AND nothing (beyond ZWS markers) sits between
+      // the `(` and the typed `)`. `\uFFFD` stands in for any atom node
+      // between those positions, keeping the check robust against
+      // already-parsed content like operator components.
+      const betweenText = doc
+        .textBetween(parenEnd, from, '\uFFFD')
+        .replace(/\u200B/g, '')
+      const isNoArgsCall = minArgs === 0 && betweenText.length === 0
+
+      const tr = state.tr
+
+      // Apply the higher-position replacement first so positions below
+      // remain stable while we build the transaction.
+      tr.replaceWith(
+        from,
+        to,
+        Fragment.from([
+          schema.nodes['function-closing-paren'].create({
+            noArgs: isNoArgsCall,
+          }),
+          zwsTextNode(schema),
+        ])
+      )
+      tr.replaceWith(
+        functionStart,
+        parenEnd,
+        Fragment.from([
+          zwsTextNode(schema),
+          schema.nodes['function-formula-component'].create({
+            functionName,
+            hasNoArgs: isNoArgsCall,
+          }),
+        ])
+      )
+
+      // Place the cursor right after the closing paren (before its
+      // trailing ZWS). `to` maps forward through both replacements to
+      // that position in the final document.
+      const cursorPos = tr.mapping.map(to, 1)
+      tr.setSelection(TextSelection.near(tr.doc.resolve(cursorPos)))
+
       view.dispatch(tr)
       return true
     }

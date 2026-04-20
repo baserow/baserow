@@ -10,6 +10,8 @@ import {
   getTextBeforeCursor,
   findNextNonZWSNode,
   buildParenStack,
+  findInnermostUnclosedFunctionNode,
+  findPendingTextFunctionOpen,
 } from '@baserow/modules/core/components/formula/extensions/helpers'
 
 const FunctionFormulaComponent = Node.create({
@@ -460,5 +462,323 @@ describe('buildParenStack', () => {
     const { doc } = editor.state
     const stack = buildParenStack(doc, 1, 8)
     expect(stack).toEqual([])
+  })
+})
+
+// ── findPendingTextFunctionOpen ────────────────────────────────────
+
+describe('findPendingTextFunctionOpen', () => {
+  let editor
+
+  afterEach(() => {
+    editor?.destroy()
+  })
+
+  const FUNCTION_NAMES = ['month', 'year', 'concat', 'today']
+
+  it('returns null for an empty document', () => {
+    editor = createEditor('<p></p>')
+    const { doc } = editor.state
+    expect(findPendingTextFunctionOpen(doc, 1, 1, FUNCTION_NAMES)).toBeNull()
+  })
+
+  it('returns null when there are no unclosed parens', () => {
+    editor = createEditor('<p>month(x)</p>')
+    const { doc } = editor.state
+    expect(findPendingTextFunctionOpen(doc, 1, 10, FUNCTION_NAMES)).toBeNull()
+  })
+
+  it('returns descriptor for an unclosed `funcName(` in text', () => {
+    editor = createEditor('<p>month(</p>')
+    const { doc } = editor.state
+    // Positions: 1=m, 2=o, 3=n, 4=t, 5=h, 6=(, cursor at 7
+    const result = findPendingTextFunctionOpen(doc, 1, 7, FUNCTION_NAMES)
+    expect(result).toMatchObject({
+      kind: 'text-function',
+      functionName: 'month',
+      functionStart: 1,
+      parenEnd: 7,
+    })
+  })
+
+  it('matches case-insensitively against the known function list', () => {
+    editor = createEditor('<p>MONTH(</p>')
+    const { doc } = editor.state
+    const result = findPendingTextFunctionOpen(doc, 1, 7, FUNCTION_NAMES)
+    expect(result).toMatchObject({
+      kind: 'text-function',
+      functionName: 'MONTH',
+    })
+  })
+
+  it('returns null when the `(` is preceded by an unknown identifier', () => {
+    editor = createEditor('<p>foobar(</p>')
+    const { doc } = editor.state
+    expect(findPendingTextFunctionOpen(doc, 1, 8, FUNCTION_NAMES)).toBeNull()
+  })
+
+  it('returns null for a bare plain-text `(` (no preceding identifier)', () => {
+    editor = createEditor('<p>(hello</p>')
+    const { doc } = editor.state
+    expect(findPendingTextFunctionOpen(doc, 1, 7, FUNCTION_NAMES)).toBeNull()
+  })
+
+  it('returns null when the top opener is a proper function node', () => {
+    editor = createEditor({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'function-formula-component',
+              attrs: { functionName: 'year', hasNoArgs: false },
+            },
+          ],
+        },
+      ],
+    })
+    const { doc } = editor.state
+    expect(findPendingTextFunctionOpen(doc, 1, 2, FUNCTION_NAMES)).toBeNull()
+  })
+
+  it('returns null when the top opener is a proper group-opening-paren', () => {
+    editor = createEditor({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'group-opening-paren' },
+            { type: 'text', text: 'x' },
+          ],
+        },
+      ],
+    })
+    const { doc } = editor.state
+    expect(findPendingTextFunctionOpen(doc, 1, 3, FUNCTION_NAMES)).toBeNull()
+  })
+
+  it('returns descriptor when the unclosed `funcName(` is nested after a closed proper group', () => {
+    // `(year(x)) + month(`
+    editor = createEditor({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'group-opening-paren' },
+            {
+              type: 'function-formula-component',
+              attrs: { functionName: 'year', hasNoArgs: false },
+            },
+            { type: 'text', text: 'x' },
+            { type: 'function-closing-paren' },
+            { type: 'group-closing-paren' },
+            { type: 'text', text: ' + month(' },
+          ],
+        },
+      ],
+    })
+    const { doc } = editor.state
+    // Cursor at end of document
+    const end = doc.content.size - 1
+    const result = findPendingTextFunctionOpen(doc, 1, end, FUNCTION_NAMES)
+    expect(result).toMatchObject({
+      kind: 'text-function',
+      functionName: 'month',
+    })
+  })
+
+  it('ignores matched text parens before the pending `funcName(`', () => {
+    // `(1+2)+month(`: the leading group is closed, only month is pending
+    editor = createEditor('<p>(1+2)+month(</p>')
+    const { doc } = editor.state
+    const end = doc.content.size - 1
+    const result = findPendingTextFunctionOpen(doc, 1, end, FUNCTION_NAMES)
+    expect(result).toMatchObject({
+      kind: 'text-function',
+      functionName: 'month',
+    })
+  })
+
+  it('returns null when an outer bare `(` is still the top unclosed opener', () => {
+    // `(month(x)`: month is closed, the leading `(` is still pending but it
+    // is a bare group paren, not a function one, so we do not upgrade.
+    editor = createEditor('<p>(month(x)</p>')
+    const { doc } = editor.state
+    const end = doc.content.size - 1
+    expect(findPendingTextFunctionOpen(doc, 1, end, FUNCTION_NAMES)).toBeNull()
+  })
+
+  it('identifies the deepest pending text function when two are nested', () => {
+    // `concat(month(` — both are pending, top of stack is month.
+    editor = createEditor('<p>concat(month(</p>')
+    const { doc } = editor.state
+    const end = doc.content.size - 1
+    const result = findPendingTextFunctionOpen(doc, 1, end, FUNCTION_NAMES)
+    expect(result).toMatchObject({
+      kind: 'text-function',
+      functionName: 'month',
+    })
+  })
+})
+
+// ── findInnermostUnclosedFunctionNode ──────────────────────────────
+
+describe('findInnermostUnclosedFunctionNode', () => {
+  let editor
+
+  afterEach(() => {
+    editor?.destroy()
+  })
+
+  const FUNCTION_NAMES = ['month', 'year', 'concat', 'today']
+
+  it('returns null for an empty document', () => {
+    editor = createEditor('<p></p>')
+    const { doc } = editor.state
+    expect(
+      findInnermostUnclosedFunctionNode(doc, 1, 1, FUNCTION_NAMES)
+    ).toBeNull()
+  })
+
+  it('returns descriptor for an unclosed `function-formula-component`', () => {
+    editor = createEditor({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'function-formula-component',
+              attrs: { functionName: 'today', hasNoArgs: true },
+            },
+          ],
+        },
+      ],
+    })
+    const { doc } = editor.state
+    const result = findInnermostUnclosedFunctionNode(doc, 1, 2, FUNCTION_NAMES)
+    expect(result).toMatchObject({
+      kind: 'function',
+      nodeStart: 1,
+      nodeEnd: 2,
+    })
+    expect(result.node.attrs.functionName).toBe('today')
+    expect(result.node.attrs.hasNoArgs).toBe(true)
+  })
+
+  it('returns null when the function is already closed', () => {
+    editor = createEditor({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'function-formula-component',
+              attrs: { functionName: 'today', hasNoArgs: true },
+            },
+            { type: 'function-closing-paren' },
+          ],
+        },
+      ],
+    })
+    const { doc } = editor.state
+    expect(
+      findInnermostUnclosedFunctionNode(doc, 1, 3, FUNCTION_NAMES)
+    ).toBeNull()
+  })
+
+  it('returns null when the top opener is a group-opening-paren', () => {
+    editor = createEditor({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'group-opening-paren' },
+            { type: 'text', text: 'x' },
+          ],
+        },
+      ],
+    })
+    const { doc } = editor.state
+    expect(
+      findInnermostUnclosedFunctionNode(doc, 1, 3, FUNCTION_NAMES)
+    ).toBeNull()
+  })
+
+  it('returns null when the top opener is a text-function (plain text `funcName(`)', () => {
+    editor = createEditor('<p>month(</p>')
+    const { doc } = editor.state
+    expect(
+      findInnermostUnclosedFunctionNode(doc, 1, 7, FUNCTION_NAMES)
+    ).toBeNull()
+  })
+
+  it('returns the innermost unclosed function when nested inside a closed group', () => {
+    // `(x) + today(` — outer group closed, today is the innermost unclosed.
+    editor = createEditor({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'group-opening-paren' },
+            { type: 'text', text: 'x' },
+            { type: 'group-closing-paren' },
+            { type: 'text', text: ' + ' },
+            {
+              type: 'function-formula-component',
+              attrs: { functionName: 'today', hasNoArgs: true },
+            },
+          ],
+        },
+      ],
+    })
+    const { doc } = editor.state
+    const end = doc.content.size - 1
+    const result = findInnermostUnclosedFunctionNode(
+      doc,
+      1,
+      end,
+      FUNCTION_NAMES
+    )
+    expect(result).toMatchObject({ kind: 'function' })
+    expect(result.node.attrs.functionName).toBe('today')
+    expect(result.node.attrs.hasNoArgs).toBe(true)
+  })
+
+  it('returns null when a group is still open above the unclosed function', () => {
+    // `(today(` — top of the stack is the inner function, but it's after
+    // the bare group. The innermost is the function itself, so a
+    // descriptor is returned; we treat the group case separately.
+    editor = createEditor({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            { type: 'group-opening-paren' },
+            {
+              type: 'function-formula-component',
+              attrs: { functionName: 'today', hasNoArgs: true },
+            },
+          ],
+        },
+      ],
+    })
+    const { doc } = editor.state
+    const end = doc.content.size - 1
+    const result = findInnermostUnclosedFunctionNode(
+      doc,
+      1,
+      end,
+      FUNCTION_NAMES
+    )
+    expect(result).toMatchObject({ kind: 'function' })
+    expect(result.node.attrs.functionName).toBe('today')
   })
 })
