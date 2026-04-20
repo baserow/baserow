@@ -1260,6 +1260,8 @@ def test_async_start_workflow_queues_celery_task_on_commit(
 ):
     workflow = data_fixture.create_automation_workflow()
 
+    mock_on_commit.reset_mock()
+
     AutomationWorkflowHandler().async_start_workflow(workflow)
 
     history = workflow.workflow_histories.get()

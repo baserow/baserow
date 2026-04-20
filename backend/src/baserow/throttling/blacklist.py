@@ -32,16 +32,16 @@ def _remaining_ttl(expires_at: float) -> int | None:
 
 
 def blacklist_token(raw_token: str, ttl: int | None = None) -> None:
-    ttl = ttl or settings.BASEROW_THROTTLE_BLACKLIST_TTL
+    ttl = ttl or settings.BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS
     cache.set(_token_key(raw_token), time.time() + ttl, timeout=ttl)
 
 
 def blacklist_ip(ip: str, ttl: int | None = None) -> None:
-    ttl = ttl or settings.BASEROW_THROTTLE_BLACKLIST_TTL
+    ttl = ttl or settings.BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS
     cache.set(_ip_key(ip), time.time() + ttl, timeout=ttl)
 
 
-def is_token_blacklisted(raw_token: str) -> int | None:
+def get_token_cooldown_time(raw_token: str) -> int | None:
     """Return the remaining blacklist TTL if blacklisted, else ``None``."""
 
     expires_at = cache.get(_token_key(raw_token))

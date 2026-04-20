@@ -114,10 +114,14 @@ REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
 
 # Disable the JWT user cache so every request hits the DB. This ensures
 # query-count assertions remain stable and predictable.
-BASEROW_JWT_USER_CACHE_TTL = 0
+BASEROW_USER_CACHE_TTL_SECONDS = 0
 
-# Tests should not inherit the anonymous IP blacklist from any local env.
-BASEROW_THROTTLE_IP_BLACKLIST_ENABLED = False
+# Tests should not inherit the anonymous IP throttle from any local env.
+BASEROW_THROTTLE_IP_ENABLED = False
+
+# Default TTL used by tests that call blacklist_token / blacklist_ip without
+# specifying one explicitly. Individual tests can still override this.
+BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS = 10
 
 
 BUILDER_PUBLICLY_USED_PROPERTIES_CACHE_TTL_SECONDS = 10

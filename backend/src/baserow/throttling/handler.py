@@ -1,4 +1,3 @@
-import math
 import time
 from collections import deque
 from functools import wraps
@@ -11,6 +10,7 @@ from django_redis import get_redis_connection
 from loguru import logger
 from rest_framework.throttling import SimpleRateThrottle
 
+from baserow.api.exceptions import ThrottledAPIException
 from baserow.api.sessions import get_user_remote_ip_address_from_request
 
 from .blacklist import blacklist_ip, blacklist_token
@@ -30,7 +30,6 @@ local timestamp = tonumber(ARGV[2])
 local request_id = ARGV[3]
 local timeout = tonumber(ARGV[4])
 local old_request_cutoff = timestamp - timeout
-local wait = 0
 
 local count = redis.call("zcard", key)
 local allowed = count < max_concurrent_requests
@@ -45,12 +44,9 @@ end
 
 if allowed then
   redis.call("zadd", key, timestamp, request_id)
-else
-    local first = redis.call("zrange", key, 0, 0, "WITHSCORES")
-    wait = tonumber(first[2]) - old_request_cutoff
 end
 
-return { allowed, count, wait }
+return { allowed, count }
 """
 
 
@@ -60,9 +56,9 @@ def _get_redis_cli():
 
 class ConcurrentUserRequestsThrottle(SimpleRateThrottle):
     """
-    Limits the number of concurrent requests made by a given user or IP address.
-    When the limit is exceeded, the token or IP is blacklisted for a short time
-    to prevent further abuse and reduce load on the system.  See
+    Limits the number of concurrent requests made by a given user or IP address. When
+    the limit is exceeded and the blacklist is enabled, the token or IP is blacklisted
+    for a short time to prevent further abuse and reduce load on the system.  See
     ``ThrottleBlacklistMiddleware`` and ``baserow.throttling.blacklist``.
     """
 
@@ -77,7 +73,7 @@ class ConcurrentUserRequestsThrottle(SimpleRateThrottle):
     @classmethod
     def _init_redis_cli(cls):
         cls.redis_cli = _get_redis_cli()
-        cls.incr_concurrent_requests_count_if_allowed = cls.redis_cli.register_script(
+        cls.is_allowed = cls.redis_cli.register_script(
             incr_concurrent_requests_count_if_allowed_lua_script
         )
 
@@ -101,14 +97,30 @@ class ConcurrentUserRequestsThrottle(SimpleRateThrottle):
 
     @classmethod
     def get_cache_key(cls, request, view=None) -> str | None:
+        """
+        Return a unique cache key for the given request, or ``None`` if the request
+        should be exempt from throttling:
+
+        - Staff users are always exempt.
+
+        - if the user is authenticated, the key is base on the user ID, so all tokens
+          for the same user share the same concurrency limit.
+
+        - If the user is anonymous and IP-based throttling is enabled, the key is based
+          on the client IP.
+
+        - If the user is anonymous and IP-based throttling is disabled, ``None`` is
+          returned to skip throttling.
+        """
+
         user = request.user
 
-        if user.is_staff:  # staff users are never throttled
-            return None
-
         if user.is_authenticated:
-            ident = user.id  # same identifier for any user token
-        elif settings.BASEROW_THROTTLE_IP_BLACKLIST_ENABLED:
+            if user.is_staff:  # Don't throttle staff users
+                return None
+
+            ident = str(user.id)
+        elif settings.BASEROW_THROTTLE_IP_ENABLED:
             ident = cls._get_ip(request)
         else:
             return None
@@ -117,10 +129,9 @@ class ConcurrentUserRequestsThrottle(SimpleRateThrottle):
 
     def allow_request(self, request, view):
         profile = getattr(request.user, "profile", None)
-        if profile is not None and profile.concurrency_limit:
-            limit = profile.concurrency_limit
-        else:
-            limit = self.num_requests
+        limit = (
+            profile and getattr(profile, "concurrency_limit", None) or self.num_requests
+        )
 
         if limit <= 0 or (cache_key := self.get_cache_key(request)) is None:
             self._debug(request, "ALLOWING: throttling skipped")
@@ -131,32 +142,59 @@ class ConcurrentUserRequestsThrottle(SimpleRateThrottle):
         request_id = str(uuid4())
 
         args = [limit, timestamp, request_id, self.duration]
-        allowed, count, wait = self.incr_concurrent_requests_count_if_allowed(
-            [cache_key], args
-        )
+        allowed, count = self.is_allowed([cache_key], args)
 
-        if allowed:
-            django_request = request._request
-            setattr(django_request, BASEROW_CONCURRENCY_THROTTLE_REQUEST_ID, request_id)
-            log_msg = "ALLOWING: as count={count} < limit={limit}"
-        else:
-            wait = max(1, math.ceil(wait))
-            self._blacklist(request, ttl=wait)
-            self._wait = wait
-            log_msg = "DENYING: as count={count} >= limit={limit}. Wait {wait} secs"
+        if not allowed:
+            self._raise_deny_exc(request, request_id, count, limit)
 
+        return self._allow(request, request_id, count, limit)
+
+    def _allow(self, request, request_id, count, limit):
+        django_request = request._request
+        # Needed to remove request from sorted set in on_request_processed when done.
+        setattr(django_request, BASEROW_CONCURRENCY_THROTTLE_REQUEST_ID, request_id)
         self._debug(
-            request, log_msg, request_id=request_id, count=count, limit=limit, wait=wait
+            request,
+            "ALLOWING: as count={count} < limit={limit}",
+            request_id=request_id,
+            count=count,
+            limit=limit,
+        )
+        return True
+
+    def _raise_deny_exc(self, request, request_id, count, limit):
+        """
+        Raise ThrottledAPIException to reject the request. When the blacklist
+        is enabled (BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS > 0) the caller is
+        also blacklisted for that cooldown, and the cooldown is surfaced as
+        the Retry-After hint; otherwise no Retry-After is emitted since a
+        concurrency slot may free up at any moment.
+        """
+
+        cooldown = settings.BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS
+        if cooldown > 0:
+            self._blacklist(request, ttl=cooldown)
+        else:
+            cooldown = None
+
+        self._wait = cooldown
+        self._debug(
+            request,
+            "DENYING: as count={count} >= limit={limit}. Cooldown {wait} secs",
+            request_id=request_id,
+            count=count,
+            limit=limit,
+            wait=cooldown,
         )
 
-        return bool(allowed)
+        raise ThrottledAPIException(wait=cooldown)
 
     @classmethod
     def _blacklist(cls, request, ttl: int | None = None) -> None:
         token = get_auth_token(request)
         if token:
             blacklist_token(token, ttl=ttl)
-        elif not request.user.is_authenticated:
+        else:
             ip = cls._get_ip(request)
             blacklist_ip(ip, ttl=ttl)
 

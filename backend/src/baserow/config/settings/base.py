@@ -408,9 +408,17 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "baserow.api.openapi.AutoSchema",
 }
 
+# Throttling / rate-limiting — see docs/installation/configuration.md
 BASEROW_MAX_CONCURRENT_USER_REQUESTS = int(
     os.getenv("BASEROW_MAX_CONCURRENT_USER_REQUESTS", "") or -1
 )
+BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT = int(
+    os.getenv("BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT", 180)
+)
+BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS = int(
+    os.getenv("BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS", "") or -1
+)
+BASEROW_THROTTLE_IP_ENABLED = str_to_bool(os.getenv("BASEROW_THROTTLE_IP_ENABLED", ""))
 
 if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
     REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = [
@@ -421,31 +429,21 @@ if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
         "concurrent_user_requests": BASEROW_MAX_CONCURRENT_USER_REQUESTS
     }
 
-    # ThrottleBlacklist runs early, but after SecurityMiddleware, so
-    # 429 responses still include security and CORS headers.
-    _security_idx = MIDDLEWARE.index("django.middleware.security.SecurityMiddleware")
-    MIDDLEWARE.insert(
-        _security_idx + 1,
-        "baserow.throttling.middleware.ThrottleBlacklistMiddleware",
-    )
+    if BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS > 0:
+        # Insert after SecurityMiddleware so 429s still get security/CORS headers.
+        _security_idx = MIDDLEWARE.index(
+            "django.middleware.security.SecurityMiddleware"
+        )
+        MIDDLEWARE.insert(
+            _security_idx + 1,
+            "baserow.throttling.middleware.ThrottleBlacklistMiddleware",
+        )
 
     MIDDLEWARE += [
         "baserow.throttling.middleware.ConcurrentUserRequestsMiddleware",
     ]
 
-BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT = int(
-    os.getenv("BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT", 30)
-)
-
-BASEROW_THROTTLE_BLACKLIST_TTL = max(
-    1, int(os.getenv("BASEROW_THROTTLE_BLACKLIST_TTL", 10))
-)
-
-BASEROW_JWT_USER_CACHE_TTL = int(os.getenv("BASEROW_JWT_USER_CACHE_TTL", 30))
-
-BASEROW_THROTTLE_IP_BLACKLIST_ENABLED = (
-    os.getenv("BASEROW_THROTTLE_IP_BLACKLIST_ENABLED", "false").lower() == "true"
-)
+BASEROW_USER_CACHE_TTL_SECONDS = int(os.getenv("BASEROW_USER_CACHE_TTL_SECONDS", 60))
 
 PUBLIC_VIEW_AUTHORIZATION_HEADER = "Baserow-View-Authorization"
 

@@ -12,8 +12,8 @@ from baserow.throttling.blacklist import (
     _token_key,
     blacklist_ip,
     blacklist_token,
+    get_token_cooldown_time,
     is_ip_blacklisted,
-    is_token_blacklisted,
 )
 from baserow.throttling.middleware import ThrottleBlacklistMiddleware
 
@@ -27,20 +27,20 @@ def test_blacklist_key_is_sha256_hex():
     assert "my-secret-token" not in key
 
 
-@override_settings(BASEROW_THROTTLE_BLACKLIST_TTL=7)
+@override_settings(BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS=7)
 def test_blacklist_and_check():
-    assert not is_token_blacklisted("token-abc")
+    assert not get_token_cooldown_time("token-abc")
 
     blacklist_token("token-abc")
-    assert is_token_blacklisted("token-abc") == 7
+    assert get_token_cooldown_time("token-abc") == 7
 
-    assert not is_token_blacklisted("token-xyz")
+    assert not get_token_cooldown_time("token-xyz")
 
 
 def test_blacklist_different_tokens_are_independent():
     blacklist_token("token-1")
-    assert is_token_blacklisted("token-1")
-    assert not is_token_blacklisted("token-2")
+    assert get_token_cooldown_time("token-1")
+    assert not get_token_cooldown_time("token-2")
 
 
 def test_blacklist_returns_remaining_ttl():
@@ -48,7 +48,7 @@ def test_blacklist_returns_remaining_ttl():
         blacklist_token("token-remaining", ttl=7)
 
     with patch("baserow.throttling.blacklist.time.time", return_value=103.1):
-        assert is_token_blacklisted("token-remaining") == 4
+        assert get_token_cooldown_time("token-remaining") == 4
 
 
 def test_throttle_handler_import_path_is_valid():
@@ -80,7 +80,7 @@ def test_middleware_rejects_blacklisted_token():
     response = middleware(request)
 
     assert response.status_code == HTTP_429_TOO_MANY_REQUESTS
-    assert b"ERROR_THROTTLED" in response.content
+    assert b"Request was throttled." in response.content
 
 
 def test_middleware_allows_non_blacklisted_token():
@@ -125,13 +125,14 @@ def test_middleware_zero_db_queries_on_blacklist_hit(data_fixture):
 @pytest.mark.django_db
 @override_settings(
     BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT=30,
-    BASEROW_THROTTLE_BLACKLIST_TTL=7,
+    BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS=7,
 )
 def test_throttle_populates_blacklist_on_deny(data_fixture):
     """When the throttle denies a request, the token is blacklisted."""
 
     from rest_framework.test import APIRequestFactory
 
+    from baserow.api.exceptions import ThrottledAPIException
     from baserow.throttling.handler import ConcurrentUserRequestsThrottle
 
     user = data_fixture.create_user()
@@ -157,14 +158,17 @@ def test_throttle_populates_blacklist_on_deny(data_fixture):
 
     # First request is allowed
     assert throttle.allow_request(request, None)
-    assert not is_token_blacklisted(token_str)
+    assert not get_token_cooldown_time(token_str)
 
-    # Second concurrent request is denied → should blacklist the token
+    # Second concurrent request is denied → raises and blacklists the token
+    # with the fixed cooldown (BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS).
     throttle2 = ConcurrentUserRequestsThrottle()
-    throttle2.allow_request(request, None)
+    with pytest.raises(ThrottledAPIException) as exc_info:
+        throttle2.allow_request(request, None)
 
-    assert throttle2.wait() == 30
-    assert is_token_blacklisted(token_str) == 30
+    assert exc_info.value.wait == 7
+    assert throttle2.wait() == 7
+    assert get_token_cooldown_time(token_str) == 7
 
     ConcurrentUserRequestsThrottle.on_request_processed(request._request)
 
@@ -172,7 +176,7 @@ def test_throttle_populates_blacklist_on_deny(data_fixture):
 # --- IP blacklist tests ---
 
 
-@override_settings(BASEROW_THROTTLE_BLACKLIST_TTL=9)
+@override_settings(BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS=9)
 def test_ip_blacklist_and_check():
     assert not is_ip_blacklisted("192.168.1.1")
 
@@ -181,7 +185,7 @@ def test_ip_blacklist_and_check():
     assert not is_ip_blacklisted("192.168.1.2")
 
 
-@override_settings(BASEROW_THROTTLE_IP_BLACKLIST_ENABLED=True)
+@override_settings(BASEROW_THROTTLE_IP_ENABLED=True)
 def test_middleware_rejects_blacklisted_ip_for_anonymous_request():
     middleware = _make_middleware()
     blacklist_ip("10.0.0.1")
@@ -192,10 +196,10 @@ def test_middleware_rejects_blacklisted_ip_for_anonymous_request():
 
     response = middleware(request)
     assert response.status_code == HTTP_429_TOO_MANY_REQUESTS
-    assert b"ERROR_THROTTLED" in response.content
+    assert b"Request was throttled." in response.content
 
 
-@override_settings(BASEROW_THROTTLE_IP_BLACKLIST_ENABLED=True)
+@override_settings(BASEROW_THROTTLE_IP_ENABLED=True)
 def test_middleware_allows_non_blacklisted_ip():
     middleware = _make_middleware()
     blacklist_ip("10.0.0.1")
@@ -207,7 +211,7 @@ def test_middleware_allows_non_blacklisted_ip():
     assert response.status_code == 200
 
 
-@override_settings(BASEROW_THROTTLE_IP_BLACKLIST_ENABLED=False)
+@override_settings(BASEROW_THROTTLE_IP_ENABLED=False)
 def test_middleware_skips_ip_check_when_disabled():
     middleware = _make_middleware()
     blacklist_ip("10.0.0.1")
@@ -219,7 +223,7 @@ def test_middleware_skips_ip_check_when_disabled():
     assert response.status_code == 200
 
 
-@override_settings(BASEROW_THROTTLE_IP_BLACKLIST_ENABLED=True)
+@override_settings(BASEROW_THROTTLE_IP_ENABLED=True)
 def test_middleware_ip_check_does_not_apply_to_jwt_requests():
     """JWT requests use the token blacklist, not the IP blacklist."""
 
@@ -238,7 +242,7 @@ def test_middleware_ip_check_does_not_apply_to_jwt_requests():
     assert response.status_code == 200
 
 
-@override_settings(BASEROW_THROTTLE_IP_BLACKLIST_ENABLED=True)
+@override_settings(BASEROW_THROTTLE_IP_ENABLED=True)
 def test_middleware_uses_x_forwarded_for_header():
     middleware = _make_middleware()
     blacklist_ip("203.0.113.50")
@@ -254,7 +258,7 @@ def test_middleware_uses_x_forwarded_for_header():
     assert response.status_code == HTTP_429_TOO_MANY_REQUESTS
 
 
-@override_settings(BASEROW_THROTTLE_IP_BLACKLIST_ENABLED=True)
+@override_settings(BASEROW_THROTTLE_IP_ENABLED=True)
 def test_middleware_does_not_blacklist_anonymous_ip_after_non_429_response():
     middleware = _make_middleware(status_code=200)
 
@@ -267,7 +271,7 @@ def test_middleware_does_not_blacklist_anonymous_ip_after_non_429_response():
     assert not is_ip_blacklisted("198.51.100.11")
 
 
-@override_settings(BASEROW_THROTTLE_IP_BLACKLIST_ENABLED=True)
+@override_settings(BASEROW_THROTTLE_IP_ENABLED=True)
 def test_middleware_does_not_blacklist_ip_for_jwt_429_response():
     middleware = _make_middleware(status_code=HTTP_429_TOO_MANY_REQUESTS)
 
@@ -284,7 +288,7 @@ def test_middleware_does_not_blacklist_ip_for_jwt_429_response():
     assert not is_ip_blacklisted("198.51.100.12")
 
 
-@override_settings(BASEROW_THROTTLE_IP_BLACKLIST_ENABLED=False)
+@override_settings(BASEROW_THROTTLE_IP_ENABLED=False)
 def test_middleware_does_not_blacklist_anonymous_ip_when_disabled():
     middleware = _make_middleware(status_code=HTTP_429_TOO_MANY_REQUESTS)
 

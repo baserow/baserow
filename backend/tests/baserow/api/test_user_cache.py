@@ -1,14 +1,22 @@
+from django.db import connection
+from django.shortcuts import reverse
 from django.test.utils import CaptureQueriesContext, override_settings
 
 import pytest
+from freezegun import freeze_time
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework_simplejwt.tokens import AccessToken
 
+from baserow.api.authentication import JSONWebTokenAuthentication
 from baserow.core.user.cache import (
     get_cached_user,
     invalidate_cached_user,
     set_cached_user,
 )
+from baserow.core.user.handler import UserHandler
 
-_CACHE_ON = override_settings(BASEROW_JWT_USER_CACHE_TTL=30)
+_CACHE_ON = override_settings(BASEROW_USER_CACHE_TTL_SECONDS=30)
+_CACHE_OFF = override_settings(BASEROW_USER_CACHE_TTL_SECONDS=0)
 
 
 @pytest.mark.django_db
@@ -28,7 +36,7 @@ def test_set_and_get_cached_user(data_fixture):
 
 
 @pytest.mark.django_db
-@override_settings(BASEROW_JWT_USER_CACHE_TTL=0)
+@_CACHE_OFF
 def test_caching_disabled_when_ttl_is_zero(data_fixture):
     user = data_fixture.create_user()
 
@@ -49,50 +57,62 @@ def test_invalidate_cached_user(data_fixture):
 
 @pytest.mark.django_db
 @_CACHE_ON
-def test_signal_invalidates_cache_on_user_save(data_fixture):
+def test_signal_invalidates_cache_on_user_save(
+    data_fixture, django_capture_on_commit_callbacks
+):
     user = data_fixture.create_user()
     set_cached_user(user)
     assert get_cached_user(user.id) is not None
 
-    user.first_name = "Changed"
-    user.save()
+    with django_capture_on_commit_callbacks(execute=True):
+        user.first_name = "Changed"
+        user.save()
 
     assert get_cached_user(user.id) is None
 
 
 @pytest.mark.django_db
 @_CACHE_ON
-def test_signal_invalidates_cache_on_profile_save(data_fixture):
+def test_signal_invalidates_cache_on_profile_save(
+    data_fixture, django_capture_on_commit_callbacks
+):
     user = data_fixture.create_user()
     set_cached_user(user)
     assert get_cached_user(user.id) is not None
 
-    user.profile.concurrency_limit = 5
-    user.profile.save()
+    with django_capture_on_commit_callbacks(execute=True):
+        user.profile.concurrency_limit = 5
+        user.profile.save()
 
     assert get_cached_user(user.id) is None
 
 
 @pytest.mark.django_db
 @_CACHE_ON
-def test_signal_invalidates_cache_on_deactivation(data_fixture):
+def test_signal_invalidates_cache_on_deactivation(
+    data_fixture, django_capture_on_commit_callbacks
+):
     user = data_fixture.create_user()
     set_cached_user(user)
 
-    user.is_active = False
-    user.save()
+    with django_capture_on_commit_callbacks(execute=True):
+        user.is_active = False
+        user.save()
 
     assert get_cached_user(user.id) is None
 
 
 @pytest.mark.django_db
 @_CACHE_ON
-def test_signal_invalidates_cache_on_user_delete(data_fixture):
+def test_signal_invalidates_cache_on_user_delete(
+    data_fixture, django_capture_on_commit_callbacks
+):
     user = data_fixture.create_user()
     set_cached_user(user)
     assert get_cached_user(user.id) is not None
 
-    user.delete()
+    with django_capture_on_commit_callbacks(execute=True):
+        user.delete()
 
     assert get_cached_user(user.id) is None
 
@@ -100,8 +120,6 @@ def test_signal_invalidates_cache_on_user_delete(data_fixture):
 @pytest.mark.django_db
 @_CACHE_ON
 def test_cached_user_profile_accessible_without_extra_query(data_fixture):
-    from django.db import connection
-
     user = data_fixture.create_user()
     set_cached_user(user)
 
@@ -119,12 +137,6 @@ def test_cached_user_profile_accessible_without_extra_query(data_fixture):
 @pytest.mark.django_db
 @_CACHE_ON
 def test_get_user_uses_cache_on_second_call(data_fixture):
-    from django.db import connection
-
-    from rest_framework_simplejwt.tokens import AccessToken
-
-    from baserow.api.authentication import JSONWebTokenAuthentication
-
     user = data_fixture.create_user()
     token = AccessToken.for_user(user)
     auth = JSONWebTokenAuthentication()
@@ -144,14 +156,8 @@ def test_get_user_uses_cache_on_second_call(data_fixture):
 
 
 @pytest.mark.django_db
-@override_settings(BASEROW_JWT_USER_CACHE_TTL=0)
+@_CACHE_OFF
 def test_get_user_always_hits_db_when_cache_disabled(data_fixture):
-    from django.db import connection
-
-    from rest_framework_simplejwt.tokens import AccessToken
-
-    from baserow.api.authentication import JSONWebTokenAuthentication
-
     user = data_fixture.create_user()
     token = AccessToken.for_user(user)
     auth = JSONWebTokenAuthentication()
@@ -171,15 +177,8 @@ def test_get_user_always_hits_db_when_cache_disabled(data_fixture):
 @pytest.mark.django_db
 @_CACHE_ON
 def test_password_change_invalidates_cache_and_rejects_old_token(
-    data_fixture, api_request_factory
+    data_fixture, api_request_factory, django_capture_on_commit_callbacks
 ):
-    from freezegun import freeze_time
-    from rest_framework.exceptions import AuthenticationFailed
-
-    from baserow.api.authentication import JSONWebTokenAuthentication
-    from baserow.core.user.cache import get_cached_user
-    from baserow.core.user.handler import UserHandler
-
     with freeze_time("2020-01-01 12:00:00"):
         user, token = data_fixture.create_user_and_token(password="oldpass")
 
@@ -187,8 +186,6 @@ def test_password_change_invalidates_cache_and_rejects_old_token(
 
     # Warm the cache by making an authenticated request
     with freeze_time("2020-01-01 12:00:01"):
-        from django.shortcuts import reverse
-
         request = api_request_factory.get(
             reverse("api:user:account"),
             HTTP_AUTHORIZATION=f"JWT {token}",
@@ -200,7 +197,8 @@ def test_password_change_invalidates_cache_and_rejects_old_token(
 
     # Change password — should invalidate cache
     with freeze_time("2020-01-01 12:00:02"):
-        UserHandler().change_password(user, "oldpass", "newpass123")
+        with django_capture_on_commit_callbacks(execute=True):
+            UserHandler().change_password(user, "oldpass", "newpass123")
         assert get_cached_user(user.id) is None
 
     # Old token should be rejected (even after cache is re-populated)
@@ -217,22 +215,14 @@ def test_password_change_invalidates_cache_and_rejects_old_token(
 @pytest.mark.django_db
 @_CACHE_ON
 def test_user_delete_invalidates_cache_and_rejects_old_token(
-    data_fixture, api_request_factory
+    data_fixture, api_request_factory, django_capture_on_commit_callbacks
 ):
-    from freezegun import freeze_time
-    from rest_framework.exceptions import AuthenticationFailed
-
-    from baserow.api.authentication import JSONWebTokenAuthentication
-    from baserow.core.user.cache import get_cached_user
-
     with freeze_time("2020-01-01 12:00:00"):
         user, token = data_fixture.create_user_and_token(password="oldpass")
 
     auth = JSONWebTokenAuthentication()
 
     with freeze_time("2020-01-01 12:00:01"):
-        from django.shortcuts import reverse
-
         request = api_request_factory.get(
             reverse("api:user:account"),
             HTTP_AUTHORIZATION=f"JWT {token}",
@@ -243,7 +233,8 @@ def test_user_delete_invalidates_cache_and_rejects_old_token(
         assert get_cached_user(user.id) is not None
 
     with freeze_time("2020-01-01 12:00:02"):
-        user.delete()
+        with django_capture_on_commit_callbacks(execute=True):
+            user.delete()
         assert get_cached_user(user.id) is None
 
     with freeze_time("2020-01-01 12:00:03"):

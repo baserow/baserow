@@ -14,7 +14,10 @@ from rest_framework.serializers import CharField
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 from rest_framework.test import APIRequestFactory
 
-from baserow.api.exceptions import QueryParameterValidationException
+from baserow.api.exceptions import (
+    QueryParameterValidationException,
+    ThrottledAPIException,
+)
 from baserow.api.registries import RegisteredException, api_exception_registry
 from baserow.api.utils import (
     get_serializer_class,
@@ -444,7 +447,10 @@ def create_dummy_request(user, path="/api/user/dashboard"):
     return request
 
 
-@override_settings(BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT=30)
+@override_settings(
+    BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT=30,
+    BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS=7,
+)
 @pytest.mark.django_db
 def test_concurrent_user_requests_throttle_non_staff_authenticated_users(data_fixture):
     user = data_fixture.create_user()
@@ -457,8 +463,10 @@ def test_concurrent_user_requests_throttle_non_staff_authenticated_users(data_fi
 
     with freeze_time("2023-03-30 00:00:01"):
         throttle = ConcurrentUserRequestsThrottle()
-        assert not throttle.allow_request(create_dummy_request(user), None)
-        assert throttle.wait() == 29
+        with pytest.raises(ThrottledAPIException) as exc_info:
+            throttle.allow_request(create_dummy_request(user), None)
+        assert exc_info.value.wait == 7
+        assert throttle.wait() == 7
 
     # once the timeout is over, the user should be able to make a new request
     request = create_dummy_request(user)
@@ -474,6 +482,37 @@ def test_concurrent_user_requests_throttle_non_staff_authenticated_users(data_fi
         throttle = ConcurrentUserRequestsThrottle()
         throttle.timer = lambda: time.time()
         assert throttle.allow_request(request, None)
+
+
+@override_settings(
+    BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT=30,
+    BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS=0,
+)
+@pytest.mark.django_db
+def test_concurrent_throttle_denies_without_retry_after_when_blacklist_disabled(
+    data_fixture,
+):
+    """
+    With the blacklist off the throttle still raises, but without a
+    Retry-After hint — a concurrency slot can free up at any moment, so any
+    time estimate would be a lie.
+    """
+
+    user = data_fixture.create_user()
+    ConcurrentUserRequestsThrottle.timer = lambda s: time.time()
+    ConcurrentUserRequestsThrottle.rate = 1
+
+    with freeze_time("2023-03-30 00:00:00"):
+        throttle = ConcurrentUserRequestsThrottle()
+        assert throttle.allow_request(create_dummy_request(user), None)
+
+    with freeze_time("2023-03-30 00:00:01"):
+        throttle = ConcurrentUserRequestsThrottle()
+        with pytest.raises(ThrottledAPIException) as exc_info:
+            throttle.allow_request(create_dummy_request(user), None)
+        assert exc_info.value.wait is None
+        assert str(exc_info.value.detail) == "Request was throttled."
+        assert throttle.wait() is None
 
 
 @pytest.mark.django_db
@@ -568,11 +607,13 @@ def test_can_set_throttle_per_user_profile_custom_limit(data_fixture):
 
     with freeze_time("2023-03-30 00:00:01"):
         throttle = ConcurrentUserRequestsThrottle()
-        assert not throttle.allow_request(create_dummy_request(user), None)
+        with pytest.raises(ThrottledAPIException):
+            throttle.allow_request(create_dummy_request(user), None)
 
     with freeze_time("2023-03-30 00:00:02"):
         throttle = ConcurrentUserRequestsThrottle()
-        assert not throttle.allow_request(create_dummy_request(user), None)
+        with pytest.raises(ThrottledAPIException):
+            throttle.allow_request(create_dummy_request(user), None)
 
 
 @pytest.mark.django_db

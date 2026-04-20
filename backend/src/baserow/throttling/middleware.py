@@ -1,13 +1,16 @@
 from typing import Callable
 
 from django.conf import settings
-from django.http import HttpRequest, HttpResponse, JsonResponse
+from django.http import HttpRequest, HttpResponse
 
-from rest_framework import status
-
+from baserow.api.exceptions import (
+    ThrottledAPIException,
+    api_exception_to_json_response,
+)
 from baserow.api.sessions import get_user_remote_ip_address_from_request
+from baserow.throttling.handler import ConcurrentUserRequestsThrottle
 
-from .blacklist import is_ip_blacklisted, is_token_blacklisted
+from .blacklist import get_token_cooldown_time, is_ip_blacklisted
 from .utils import get_auth_token
 
 
@@ -21,14 +24,14 @@ class ThrottleBlacklistMiddleware:
     every request.  A hit returns 429 immediately, skipping JWT validation,
     DB/cache lookups, DRF view initialisation, permissions, and serializers.
 
-    When ``BASEROW_THROTTLE_IP_BLACKLIST_ENABLED`` is ``True``, anonymous
-    requests (no ``Authorization`` header) are also checked against an
-    IP-based blacklist.
+    When ``BASEROW_THROTTLE_IP_ENABLED`` is ``True``, anonymous requests
+    (no ``Authorization`` header) are also checked against an IP-based
+    blacklist.
     """
 
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]):
         self.get_response = get_response
-        if settings.BASEROW_THROTTLE_IP_BLACKLIST_ENABLED:
+        if settings.BASEROW_THROTTLE_IP_ENABLED:
             self._check_anonymous = lambda request: is_ip_blacklisted(
                 get_user_remote_ip_address_from_request(request)
             )
@@ -37,27 +40,15 @@ class ThrottleBlacklistMiddleware:
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
         if token := get_auth_token(request):
-            throttle_time = is_token_blacklisted(token)
+            cooldown = get_token_cooldown_time(token)
         else:
-            throttle_time = self._check_anonymous(request)
+            cooldown = self._check_anonymous(request)
 
-        if throttle_time is None:
-            return self.get_response(request)
-        else:
-            return self._throttled_response(throttle_time)
+        if cooldown is not None:
+            # Use the same response format returned by ConcurrentUserRequestsThrottle
+            return api_exception_to_json_response(ThrottledAPIException(wait=cooldown))
 
-    @staticmethod
-    def _throttled_response(retry_after: int | None = None) -> JsonResponse:
-        response = JsonResponse(
-            {
-                "error": "ERROR_THROTTLED",
-                "detail": "Request was throttled. Try again later.",
-            },
-            status=status.HTTP_429_TOO_MANY_REQUESTS,
-        )
-        if retry_after is not None:
-            response["Retry-After"] = retry_after
-        return response
+        return self.get_response(request)
 
 
 class ConcurrentUserRequestsMiddleware:
@@ -71,8 +62,7 @@ class ConcurrentUserRequestsMiddleware:
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
-        from baserow.throttling.handler import ConcurrentUserRequestsThrottle
-
-        response = self.get_response(request)
-        ConcurrentUserRequestsThrottle.on_request_processed(request)
-        return response
+        try:
+            return self.get_response(request)
+        finally:
+            ConcurrentUserRequestsThrottle.on_request_processed(request)
