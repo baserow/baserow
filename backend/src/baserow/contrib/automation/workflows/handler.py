@@ -605,7 +605,12 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         self, workflow: AutomationWorkflow
     ) -> None:
         published_automations = list(
-            Automation.objects.filter(published_from=workflow).order_by("id")
+            Automation.objects.filter(published_from=workflow)
+            # History clones should not be cleaned up when publishing
+            # a workflow; clone cleanup is handled by the history cleanup
+            # in _clear_old_history().
+            .exclude(workflows__state=WorkflowState.HISTORY_CLONE)
+            .order_by("id")
         )
         if not published_automations:
             return
@@ -972,7 +977,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             cloned_workflow = latest_clone.workflows.first()
             node_id_mapping = self.build_node_id_mapping(workflow, cloned_workflow)
         else:
-            cloned_automation, id_mapping = self._clone_workflow(workflow)
+            cloned_automation, id_mapping = self._clone_workflow(
+                workflow, WorkflowState.HISTORY_CLONE
+            )
             cloned_workflow = cloned_automation.workflows.first()
             node_id_mapping = id_mapping.get("automation_workflow_nodes", {})
 
