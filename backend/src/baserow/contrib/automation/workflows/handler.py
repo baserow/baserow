@@ -630,8 +630,8 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
     def _clone_workflow(
         self,
         workflow: AutomationWorkflow,
-        state: WorkflowState | None,
-        progress: Progress | None,
+        state: WorkflowState | None = None,
+        progress: Progress | None = None,
     ) -> Tuple[Automation, Dict]:
         """
         Creates a clone of the workflow's automation via the export/import process.
@@ -950,13 +950,15 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         )
         return dict(zip(source_node_ids, target_node_ids))
 
-    def create_history_clone(
-        self, workflow: AutomationWorkflow
-    ) -> Tuple[AutomationWorkflow, Dict[int, int]]:
+    def _ensure_published_for_run(
+        self,
+        workflow: AutomationWorkflow,
+        simulate_until_node: AutomationNode | None = None,
+    ) -> Tuple[AutomationWorkflow, AutomationNode | None]:
         """
-        Create a clone of the draft workflow by publishing the workflow.
+        Ensure an up-to-date cloned automation exists for test runs
 
-        The clone's workflow is used by the history, which decouples the
+        The cloned workflow is used by the history, which decouples the
         history's workflow from the draft or published workflow.
         """
 
@@ -968,16 +970,20 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # use that existing clone's workflow.
         if latest_clone and latest_clone.created_on >= workflow.updated_on:
             cloned_workflow = latest_clone.workflows.first()
-            return cloned_workflow, self.build_node_id_mapping(
-                workflow, cloned_workflow
+            node_id_mapping = self.build_node_id_mapping(workflow, cloned_workflow)
+        else:
+            cloned_automation, id_mapping = self._clone_workflow(workflow)
+            cloned_workflow = cloned_automation.workflows.first()
+            node_id_mapping = id_mapping.get("automation_workflow_nodes", {})
+
+        cloned_simulate_until_node = None
+        if simulate_until_node:
+            cloned_node_id = node_id_mapping[simulate_until_node.id]
+            cloned_simulate_until_node = cloned_workflow.get_graph().get_node(
+                cloned_node_id
             )
 
-        # Otherwise, create a new clone
-        cloned_automation, id_mapping = self._clone_workflow(workflow)
-
-        return cloned_automation.workflows.first(), id_mapping.get(
-            "automation_workflow_nodes", {}
-        )
+        return cloned_workflow, cloned_simulate_until_node
 
     def _get_workflow_history_rate_limit_cache_key(
         self, original_workflow: AutomationWorkflow
@@ -1183,7 +1189,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 AutomationHistoryHandler().create_workflow_history(
                     original_workflow=original_workflow,
                     workflow=workflow,
-                    is_test_run=original_workflow == workflow,
+                    is_test_run=workflow.is_original(),
                     started_on=now,
                     completed_on=now,
                     message=error,
@@ -1193,35 +1199,26 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         # If the currently running workflow is an unpublished workflow then we are
         # testing it.
-        is_test_run = original_workflow == workflow
+        is_test_run = workflow.is_original()
 
         # For test runs, use a history clone so that the history
         # points to cloned nodes instead of draft nodes.
         if is_test_run:
-            cloned_workflow, node_id_mapping = self.create_history_clone(workflow)
-        else:
-            cloned_workflow = workflow
-            node_id_mapping = {}
-
-        # Map simulate_until_node to the cloned node
-        cloned_simulate_until_node = None
-        if simulate_until_node:
-            cloned_node_id = node_id_mapping[simulate_until_node.id]
-            cloned_simulate_until_node = cloned_workflow.get_graph().get_node(
-                cloned_node_id
+            workflow, simulate_until_node = self._ensure_published_for_run(
+                workflow, simulate_until_node
             )
 
         history = AutomationHistoryHandler().create_workflow_history(
             original_workflow=original_workflow,
-            workflow=cloned_workflow,
+            workflow=workflow,
             started_on=timezone.now(),
             is_test_run=is_test_run,
             event_payload=event_payload,
-            simulate_until_node=cloned_simulate_until_node,
+            simulate_until_node=simulate_until_node,
         )
 
         transaction.on_commit(
-            lambda: start_workflow_celery_task.delay(cloned_workflow.id, history.id)
+            lambda: start_workflow_celery_task.delay(workflow.id, history.id)
         )
 
     def start_workflow(

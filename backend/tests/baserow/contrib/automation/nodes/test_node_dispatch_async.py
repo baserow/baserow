@@ -1514,10 +1514,9 @@ def test_dispatch_node_simulation_copies_sample_data_to_draft_node(
     workflow = data["workflow"]
     trigger_node = data["trigger_node"]
 
-    cloned_workflow, node_id_mapping = AutomationWorkflowHandler().create_history_clone(
-        workflow
+    cloned_workflow, cloned_trigger = (
+        AutomationWorkflowHandler()._ensure_published_for_run(workflow, trigger_node)
     )
-    cloned_trigger = cloned_workflow.get_trigger()
 
     workflow_history = data_fixture.create_automation_workflow_history(
         original_workflow=workflow,
