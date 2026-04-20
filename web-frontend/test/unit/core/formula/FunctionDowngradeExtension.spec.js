@@ -276,6 +276,57 @@ describe('FunctionDowngradeExtension', () => {
     expect(editor.state.doc.textContent).toBe('month(')
   })
 
+  it('downgrades the inner function when its own closer is removed (nested)', () => {
+    // `concat(if(...),"lorem ipsum")` — we remove the INNER closer (the one
+    // that was paired with `if(`). The outer `concat(...)` stays fully
+    // balanced because its own closer is untouched, so it must remain
+    // highlighted while `if(` becomes plain text.
+    editor = createEditor({
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'function-formula-component',
+              attrs: { functionName: 'concat', hasNoArgs: false },
+            },
+            {
+              type: 'function-formula-component',
+              attrs: { functionName: 'if', hasNoArgs: false },
+            },
+            { type: 'text', text: '5>2,"yes","no"' },
+            { type: 'function-closing-paren' }, // inner (if)
+            { type: 'text', text: ',"lorem ipsum"' },
+            { type: 'function-closing-paren' }, // outer (concat)
+          ],
+        },
+      ],
+    })
+
+    // Remove only the first function-closing-paren (inner, matches `if`).
+    let innerClosePos = -1
+    let innerCloseSize = 0
+    editor.state.doc.descendants((node, pos) => {
+      if (innerClosePos === -1 && node.type.name === 'function-closing-paren') {
+        innerClosePos = pos
+        innerCloseSize = node.nodeSize
+      }
+    })
+    editor.view.dispatch(
+      editor.state.tr.delete(innerClosePos, innerClosePos + innerCloseSize)
+    )
+
+    const out = serialise(editor)
+    // concat must stay highlighted (its own closer is still there).
+    expect(out).toContain('FN{concat}')
+    // if must be downgraded to plain text.
+    expect(out).not.toContain('FN{if}')
+    expect(out).toMatch(/if\(/)
+    // Exactly one closer remains — the one paired with concat.
+    expect((out.match(/\)/g) || []).length).toBe(1)
+  })
+
   it('preserves a dangling group-opening-paren (not a function concern)', () => {
     // The extension is function-specific: a bare unclosed group
     // (legitimately produced by the tolerant parser on pastes like
