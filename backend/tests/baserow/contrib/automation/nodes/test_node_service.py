@@ -765,8 +765,8 @@ def test_update_node_updates_workflow_updated_on(data_fixture):
     is updated.
 
     This is useful to know if the workflow has changed, e.g. the history
-    snapshot checks if a workflow has changed to decide whether to create
-    a new snapshot or use the last one.
+    clone checks if a workflow has changed to decide whether to create
+    a new clone or use the last one.
     """
 
     user = data_fixture.create_user()
@@ -791,8 +791,8 @@ def test_create_node_updates_workflow_updated_on(data_fixture):
     is updated.
 
     This is useful to know if the workflow has changed, e.g. the history
-    snapshot checks if a workflow has changed to decide whether to create
-    a new snapshot or use the last one.
+    clone checks if a workflow has changed to decide whether to create
+    a new clone or use the last one.
     """
 
     user = data_fixture.create_user()
@@ -824,8 +824,8 @@ def test_duplicate_node_updates_workflow_updated_on(data_fixture):
     is updated.
 
     This is useful to know if the workflow has changed, e.g. the history
-    snapshot checks if a workflow has changed to decide whether to create
-    a new snapshot or use the last one.
+    clone checks if a workflow has changed to decide whether to create
+    a new clone or use the last one.
     """
 
     user = data_fixture.create_user()
@@ -850,8 +850,8 @@ def test_delete_node_updates_workflow_updated_on(data_fixture):
     is updated.
 
     This is useful to know if the workflow has changed, e.g. the history
-    snapshot checks if a workflow has changed to decide whether to create
-    a new snapshot or use the last one.
+    clone checks if a workflow has changed to decide whether to create
+    a new clone or use the last one.
     """
 
     user = data_fixture.create_user()

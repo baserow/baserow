@@ -1514,21 +1514,21 @@ def test_dispatch_node_simulation_copies_sample_data_to_draft_node(
     workflow = data["workflow"]
     trigger_node = data["trigger_node"]
 
-    snapshot_workflow, node_id_mapping = (
-        AutomationWorkflowHandler().create_history_snapshot(workflow)
+    cloned_workflow, node_id_mapping = AutomationWorkflowHandler().create_history_clone(
+        workflow
     )
-    snapshot_trigger = snapshot_workflow.get_trigger()
+    cloned_trigger = cloned_workflow.get_trigger()
 
     workflow_history = data_fixture.create_automation_workflow_history(
         original_workflow=workflow,
-        workflow=snapshot_workflow,
-        simulate_until_node=snapshot_trigger,
+        workflow=cloned_workflow,
+        simulate_until_node=cloned_trigger,
         is_test_run=True,
     )
 
     assert trigger_node.service.specific.sample_data is None
     AutomationNodeHandler().dispatch_node(
-        snapshot_trigger.id,
+        cloned_trigger.id,
         history_id=workflow_history.id,
     )
 

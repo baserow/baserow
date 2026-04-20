@@ -627,6 +627,63 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             published_workflow.state = WorkflowState.DISABLED
             published_workflow.save(update_fields=["state"])
 
+    def _clone_workflow(
+        self,
+        workflow: AutomationWorkflow,
+        state: WorkflowState | None,
+        progress: Progress | None,
+    ) -> Tuple[Automation, Dict]:
+        """
+        Creates a clone of the workflow's automation via the export/import process.
+
+        :param workflow: The workflow to clone.
+        :param state: An optional WorkflowState to assign; defaults to draft.
+        :param progress: An optional progress tracker.
+        :return: The cloned Automation and the id_mapping dict.
+        """
+
+        import_export_config = ImportExportConfig(
+            include_permission_data=True,
+            reduce_disk_space_usage=False,
+            exclude_sensitive_data=False,
+            is_publishing=True,
+        )
+        default_storage = get_default_storage()
+        application_type = workflow.automation.get_type()
+
+        exported_automation = application_type.export_serialized(
+            workflow.automation,
+            import_export_config,
+            None,
+            default_storage,
+            workflows=[workflow],
+        )
+
+        if state:
+            exported_automation["workflows"][0]["state"] = state
+
+        progress_builder = None
+        if progress:
+            progress.increment(by=50)
+            progress_builder = progress.create_child_builder(represents_progress=50)
+
+        id_mapping = {"import_workspace_id": workflow.automation.workspace.id}
+
+        cloned_automation = application_type.import_serialized(
+            None,
+            exported_automation,
+            import_export_config,
+            id_mapping,
+            None,
+            default_storage,
+            progress_builder=progress_builder,
+        )
+
+        cloned_automation.published_from = workflow
+        cloned_automation.save(update_fields=["published_from"])
+
+        return cloned_automation, id_mapping
+
     def publish(
         self,
         workflow: AutomationWorkflow,
@@ -649,52 +706,15 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # Make sure we are the only process to update the automation workflow
         # to prevent race conditions.
         workflow = self.get_workflow(workflow.id, for_update=True)
-
         self.clean_up_previously_published_automations(workflow)
 
-        import_export_config = ImportExportConfig(
-            include_permission_data=True,
-            reduce_disk_space_usage=False,
-            exclude_sensitive_data=False,
-            is_publishing=True,
+        cloned_automation, id_mapping = self._clone_workflow(
+            workflow, WorkflowState.LIVE, progress
         )
-        default_storage = get_default_storage()
-        application_type = workflow.automation.get_type()
-
-        exported_automation = application_type.export_serialized(
-            workflow.automation,
-            import_export_config,
-            None,
-            default_storage,
-            workflows=[workflow],
-        )
-
-        # Manually set the published status for the newly created workflow.
-        exported_automation["workflows"][0]["state"] = WorkflowState.LIVE
-
-        progress_builder = None
-        if progress:
-            progress.increment(by=50)
-            progress_builder = progress.create_child_builder(represents_progress=50)
-
-        id_mapping = {"import_workspace_id": workflow.automation.workspace.id}
-
-        duplicate_automation = application_type.import_serialized(
-            None,
-            exported_automation,
-            import_export_config,
-            id_mapping,
-            None,
-            default_storage,
-            progress_builder=progress_builder,
-        )
-
-        duplicate_automation.published_from = workflow
-        duplicate_automation.save(update_fields=["published_from"])
 
         self._invalidate_workflow_caches(workflow)
 
-        return duplicate_automation.workflows.first()
+        return cloned_automation.workflows.first()
 
     def disable_workflow(self, workflow: AutomationWorkflow) -> None:
         """
@@ -857,7 +877,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         )
         empty_published = Automation.objects.filter(
             published_from=original_workflow
-        ).exclude(workflows__snapshot_workflow_histories__isnull=False)
+        ).exclude(workflows__cloned_workflow_histories__isnull=False)
         if active_published:
             empty_published = empty_published.exclude(id=active_published.id)
 
@@ -911,7 +931,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         target_workflow: AutomationWorkflow,
     ) -> Dict[int, int]:
         """
-        Build a mapping from draft node IDs to snapshot node IDs by
+        Build a mapping from draft node IDs to cloned node IDs by
         the order of nodes.
 
         We can assume the ordering is safe because the export/import process
@@ -930,57 +950,32 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         )
         return dict(zip(source_node_ids, target_node_ids))
 
-    def create_history_snapshot(
+    def create_history_clone(
         self, workflow: AutomationWorkflow
     ) -> Tuple[AutomationWorkflow, Dict[int, int]]:
         """
-        Create a snapshot of the draft workflow by publishing the workflow.
+        Create a clone of the draft workflow by publishing the workflow.
 
-        The snapshot's workflow is used by the history, which decouples the
+        The clone's workflow is used by the history, which decouples the
         history's workflow from the draft or published workflow.
         """
 
-        latest_snapshot = (
+        latest_clone = (
             Automation.objects.filter(published_from=workflow).order_by("-id").first()
         )
 
-        # If the snapshot exists and the workflow hasn't been updated since,
-        # use that existing snapshot's workflow.
-        if latest_snapshot and latest_snapshot.created_on >= workflow.updated_on:
-            snapshot_workflow = latest_snapshot.workflows.first()
-            return snapshot_workflow, self.build_node_id_mapping(
-                workflow, snapshot_workflow
+        # If the clone exists and the workflow hasn't been updated since,
+        # use that existing clone's workflow.
+        if latest_clone and latest_clone.created_on >= workflow.updated_on:
+            cloned_workflow = latest_clone.workflows.first()
+            return cloned_workflow, self.build_node_id_mapping(
+                workflow, cloned_workflow
             )
 
-        # Otherwise, create a new snapshot by publishing
-        import_export_config = ImportExportConfig(
-            include_permission_data=True,
-            reduce_disk_space_usage=False,
-            exclude_sensitive_data=False,
-            is_publishing=True,
-        )
-        default_storage = get_default_storage()
-        application_type = workflow.automation.get_type()
-        exported_automation = application_type.export_serialized(
-            workflow.automation,
-            import_export_config,
-            None,
-            default_storage,
-            workflows=[workflow],
-        )
-        id_mapping = {"import_workspace_id": workflow.automation.workspace.id}
-        snapshot_automation = application_type.import_serialized(
-            None,
-            exported_automation,
-            import_export_config,
-            id_mapping,
-            None,
-            default_storage,
-        )
-        snapshot_automation.published_from = workflow
-        snapshot_automation.save(update_fields=["published_from"])
+        # Otherwise, create a new clone
+        cloned_automation, id_mapping = self._clone_workflow(workflow)
 
-        return snapshot_automation.workflows.first(), id_mapping.get(
+        return cloned_automation.workflows.first(), id_mapping.get(
             "automation_workflow_nodes", {}
         )
 
@@ -1200,33 +1195,33 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # testing it.
         is_test_run = original_workflow == workflow
 
-        # For test runs, use a history snapshot so that the history
-        # points to snapshot nodes instead of draft nodes.
+        # For test runs, use a history clone so that the history
+        # points to cloned nodes instead of draft nodes.
         if is_test_run:
-            snapshot_workflow, node_id_mapping = self.create_history_snapshot(workflow)
+            cloned_workflow, node_id_mapping = self.create_history_clone(workflow)
         else:
-            snapshot_workflow = workflow
+            cloned_workflow = workflow
             node_id_mapping = {}
 
-        # Map simulate_until_node to the snapshot node
-        snapshot_simulate_until_node = None
+        # Map simulate_until_node to the cloned node
+        cloned_simulate_until_node = None
         if simulate_until_node:
-            snapshot_node_id = node_id_mapping[simulate_until_node.id]
-            snapshot_simulate_until_node = snapshot_workflow.get_graph().get_node(
-                snapshot_node_id
+            cloned_node_id = node_id_mapping[simulate_until_node.id]
+            cloned_simulate_until_node = cloned_workflow.get_graph().get_node(
+                cloned_node_id
             )
 
         history = AutomationHistoryHandler().create_workflow_history(
             original_workflow=original_workflow,
-            workflow=snapshot_workflow,
+            workflow=cloned_workflow,
             started_on=timezone.now(),
             is_test_run=is_test_run,
             event_payload=event_payload,
-            simulate_until_node=snapshot_simulate_until_node,
+            simulate_until_node=cloned_simulate_until_node,
         )
 
         transaction.on_commit(
-            lambda: start_workflow_celery_task.delay(snapshot_workflow.id, history.id)
+            lambda: start_workflow_celery_task.delay(cloned_workflow.id, history.id)
         )
 
     def start_workflow(

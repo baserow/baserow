@@ -1443,8 +1443,8 @@ def test_async_start_workflow_with_simulate_until_node(
     workflow.refresh_from_db()
     history = workflow.workflow_histories.get()
 
-    snapshot_trigger = history.workflow.get_trigger()
-    assert history.simulate_until_node_id == snapshot_trigger.id
+    cloned_trigger = history.workflow.get_trigger()
+    assert history.simulate_until_node_id == cloned_trigger.id
     assert workflow.simulate_until_node is None
     assert history.is_test_run is True
 
@@ -1782,58 +1782,58 @@ def test_clear_old_history_excludes_started_workflows_max_days(data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_history_snapshot_creates_new_snapshot(data_fixture):
+def test_create_history_clone_creates_new_clone(data_fixture):
     workflow = data_fixture.create_automation_workflow()
     trigger = workflow.get_trigger()
 
-    snapshot_workflow, node_id_mapping = (
-        AutomationWorkflowHandler().create_history_snapshot(workflow)
+    cloned_workflow, node_id_mapping = AutomationWorkflowHandler().create_history_clone(
+        workflow
     )
 
-    # Ensure that the snapshot workflow is a new workflow
-    assert snapshot_workflow.id != workflow.id
-    assert snapshot_workflow.automation.published_from == workflow
+    # Ensure that the cloned workflow is a new workflow
+    assert cloned_workflow.id != workflow.id
+    assert cloned_workflow.automation.published_from == workflow
 
     # Ensure the node mapping is correct
-    snapshot_trigger = snapshot_workflow.get_trigger()
-    assert node_id_mapping[trigger.id] == snapshot_trigger.id
+    cloned_trigger = cloned_workflow.get_trigger()
+    assert node_id_mapping[trigger.id] == cloned_trigger.id
 
 
 @pytest.mark.django_db
-def test_create_history_snapshot_reuses_existing_snapshot(data_fixture):
+def test_create_history_clone_reuses_existing_clone(data_fixture):
     workflow = data_fixture.create_automation_workflow()
     trigger = workflow.get_trigger()
 
     handler = AutomationWorkflowHandler()
-    snapshot_workflow_1, mapping_1 = handler.create_history_snapshot(workflow)
-    snapshot_workflow_2, mapping_2 = handler.create_history_snapshot(workflow)
+    cloned_workflow_1, mapping_1 = handler.create_history_clone(workflow)
+    cloned_workflow_2, mapping_2 = handler.create_history_clone(workflow)
 
-    # When the workflow hasn't changed, the same snapshot should be returned
-    assert snapshot_workflow_1.id == snapshot_workflow_2.id
+    # When the workflow hasn't changed, the same clone should be returned
+    assert cloned_workflow_1.id == cloned_workflow_2.id
 
     # Node mapping should be correct
-    snapshot_trigger = snapshot_workflow_2.get_trigger()
-    assert mapping_2[trigger.id] == snapshot_trigger.id
+    cloned_trigger = cloned_workflow_2.get_trigger()
+    assert mapping_2[trigger.id] == cloned_trigger.id
 
 
 @pytest.mark.django_db
-def test_create_history_snapshot_creates_new_after_workflow_update(data_fixture):
+def test_create_history_clone_creates_new_after_workflow_update(data_fixture):
     workflow = data_fixture.create_automation_workflow()
 
     handler = AutomationWorkflowHandler()
 
     with freeze_time("2026-04-16 12:00:00"):
-        snapshot_workflow_1, _ = handler.create_history_snapshot(workflow)
+        cloned_workflow_1, _ = handler.create_history_clone(workflow)
 
-    # Update the workflow's timestamp to trigger a new snapshot
+    # Update the workflow's timestamp to trigger a new clone
     with freeze_time("2026-04-16 12:01:00"):
         workflow.save(update_fields=["updated_on"])
 
-    snapshot_workflow_2, mapping_2 = handler.create_history_snapshot(workflow)
+    cloned_workflow_2, mapping_2 = handler.create_history_clone(workflow)
 
-    # Because the workflow was updated, a new snapshot should be created
-    assert snapshot_workflow_1.id != snapshot_workflow_2.id
+    # Because the workflow was updated, a new clone should be created
+    assert cloned_workflow_1.id != cloned_workflow_2.id
 
     trigger = workflow.get_trigger()
-    snapshot_trigger = snapshot_workflow_2.get_trigger()
-    assert mapping_2[trigger.id] == snapshot_trigger.id
+    cloned_trigger = cloned_workflow_2.get_trigger()
+    assert mapping_2[trigger.id] == cloned_trigger.id
