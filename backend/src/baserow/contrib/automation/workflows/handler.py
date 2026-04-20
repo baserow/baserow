@@ -876,12 +876,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Clean up published automations that no longer have any history entries
         active_published = (
-            Automation.objects.filter(
-                published_from=original_workflow,
-                # Only include live workflows, as history clones
-                # could have a higher ID.
-                workflows__state=WorkflowState.LIVE,
-            )
+            Automation.objects.filter(published_from=original_workflow)
             .order_by("-id")
             .first()
         )

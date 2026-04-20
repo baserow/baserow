@@ -1925,6 +1925,8 @@ def test_clear_old_history_deletes_orphaned_automations(data_fixture):
     )
     clone_automation_id = cloned_workflow.automation_id
 
+    handler.publish(workflow)
+
     with freeze_time("2026-04-20 12:00:00"):
         data_fixture.create_automation_workflow_history(
             original_workflow=workflow,
