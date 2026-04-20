@@ -966,7 +966,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         simulate_until_node: AutomationNode | None = None,
     ) -> Tuple[AutomationWorkflow, AutomationNode | None]:
         """
-        Ensure an up-to-date cloned automation exists for test runs
+        Ensure an up-to-date cloned automation exists for test runs.
 
         The cloned workflow is used by the history, which decouples the
         history's workflow from the draft or published workflow.
