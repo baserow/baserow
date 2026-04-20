@@ -9,3 +9,4 @@ class WorkflowState(models.TextChoices):
     LIVE = "live"
     PAUSED = "paused"
     DISABLED = "disabled"
+    HISTORY_CLONE = "history_clone"
