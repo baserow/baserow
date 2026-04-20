@@ -112,9 +112,9 @@ CACHES = {
 # Look into tests.baserow.api.test_api_utils.py if you need to test the throttle
 REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = []
 
-# Disable the JWT user cache so every request hits the DB. This ensures
-# query-count assertions remain stable and predictable.
-BASEROW_USER_CACHE_TTL_SECONDS = 0
+# Disable object caches (users, tokens, settings, licenses) so every request
+# hits the DB. This ensures query-count assertions remain stable and predictable.
+BASEROW_CACHE_TTL_SECONDS = 0
 
 # Tests should not inherit the anonymous IP throttle from any local env.
 BASEROW_THROTTLE_IP_ENABLED = False

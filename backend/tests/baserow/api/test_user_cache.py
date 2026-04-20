@@ -15,8 +15,8 @@ from baserow.core.user.cache import (
 )
 from baserow.core.user.handler import UserHandler
 
-_CACHE_ON = override_settings(BASEROW_USER_CACHE_TTL_SECONDS=30)
-_CACHE_OFF = override_settings(BASEROW_USER_CACHE_TTL_SECONDS=0)
+_CACHE_ON = override_settings(BASEROW_CACHE_TTL_SECONDS=30)
+_CACHE_OFF = override_settings(BASEROW_CACHE_TTL_SECONDS=0)
 
 
 @pytest.mark.django_db

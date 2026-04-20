@@ -443,7 +443,7 @@ if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
         "baserow.throttling.middleware.ConcurrentUserRequestsMiddleware",
     ]
 
-BASEROW_USER_CACHE_TTL_SECONDS = int(os.getenv("BASEROW_USER_CACHE_TTL_SECONDS", 60))
+BASEROW_CACHE_TTL_SECONDS = int(os.getenv("BASEROW_CACHE_TTL_SECONDS", 0))
 
 PUBLIC_VIEW_AUTHORIZATION_HEADER = "Baserow-View-Authorization"
 

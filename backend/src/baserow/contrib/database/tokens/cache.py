@@ -19,22 +19,22 @@ def _cache_key(token_key: str) -> str:
 
 
 def get_cached_token(token_key: str) -> Token | None:
-    if settings.BASEROW_USER_CACHE_TTL_SECONDS <= 0:
+    if settings.BASEROW_CACHE_TTL_SECONDS <= 0:
         return None
     return cache.get(_cache_key(token_key))
 
 
 def set_cached_token(token: Token, ttl: int | None = None) -> None:
-    if settings.BASEROW_USER_CACHE_TTL_SECONDS <= 0:
+    if settings.BASEROW_CACHE_TTL_SECONDS <= 0:
         return
     cache.set(
         _cache_key(token.key),
         token,
-        timeout=ttl or settings.BASEROW_USER_CACHE_TTL_SECONDS,
+        timeout=ttl or settings.BASEROW_CACHE_TTL_SECONDS,
     )
 
 
 def invalidate_cached_token(token_key: str) -> None:
-    if settings.BASEROW_USER_CACHE_TTL_SECONDS <= 0:
+    if settings.BASEROW_CACHE_TTL_SECONDS <= 0:
         return
     cache.delete(_cache_key(token_key))

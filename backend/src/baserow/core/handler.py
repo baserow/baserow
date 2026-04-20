@@ -24,6 +24,7 @@ from loguru import logger
 from opentelemetry import trace
 from tqdm import tqdm
 
+from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
@@ -153,32 +154,40 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
 
         clear_current_workspace_id()
 
-    def get_settings(self):
+    def get_settings(self) -> Settings:
         """
         Returns a settings model instance containing all the admin configured settings.
+        The result is cached in Redis and invalidated by a ``post_save`` receiver
+        on the ``Settings`` model (see ``baserow.core.receivers``).
 
         :return: The settings instance.
-        :rtype: Settings
         """
 
-        try:
-            return Settings.objects.all().select_related("co_branding_logo")[:1].get()
-        except Settings.DoesNotExist:
-            return Settings.objects.create()
+        cached = get_cached_settings()
+        if cached is not None:
+            return cached
 
-    def update_settings(self, user, settings_instance=None, **kwargs):
+        try:
+            instance = (
+                Settings.objects.all().select_related("co_branding_logo")[:1].get()
+            )
+        except Settings.DoesNotExist:
+            instance = Settings.objects.create()
+
+        set_cached_settings(instance)
+        return instance
+
+    def update_settings(
+        self, user: User, settings_instance: Optional[Settings] = None, **kwargs
+    ) -> Settings:
         """
         Updates one or more setting values if the user has staff permissions.
 
         :param user: The user on whose behalf the settings are updated.
-        :type user: User
         :param settings_instance: If already fetched, the settings instance can be
             provided to avoid fetching the values for a second time.
-        :type settings_instance: Settings
         :param kwargs: An dict containing the settings that need to be updated.
-        :type kwargs: dict
         :return: The update settings instance.
-        :rtype: Settings
         """
 
         CoreHandler().check_permissions(

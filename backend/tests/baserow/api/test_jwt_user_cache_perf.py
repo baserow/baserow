@@ -38,11 +38,11 @@ def test_perf_cached_vs_uncached(data_fixture):
     token = AccessToken.for_user(user)
     auth = JSONWebTokenAuthentication()
 
-    with override_settings(BASEROW_USER_CACHE_TTL_SECONDS=30):
+    with override_settings(BASEROW_CACHE_TTL_SECONDS=30):
         invalidate_cached_user(user.id)
         avg_cached = _bench(auth, token)
 
-    with override_settings(BASEROW_USER_CACHE_TTL_SECONDS=0):
+    with override_settings(BASEROW_CACHE_TTL_SECONDS=0):
         invalidate_cached_user(user.id)
         avg_uncached = _bench(auth, token)
 

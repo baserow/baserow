@@ -8,6 +8,7 @@ class BaserowPremiumConfig(AppConfig):
 
     def ready(self):
         # noinspection PyUnresolvedReferences
+        import baserow_premium.license.receivers  # noqa: F401
         import baserow_premium.row_comments.receivers  # noqa: F401
         from baserow.core.registries import application_type_registry
         from baserow_premium.api.user.user_data_types import ActiveLicensesDataType

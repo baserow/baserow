@@ -3,7 +3,8 @@ from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
-from baserow.core.models import UserProfile
+from baserow.core.cache import invalidate_cached_settings
+from baserow.core.models import Settings, UserProfile
 from baserow.core.user.cache import invalidate_cached_user
 
 
@@ -27,3 +28,8 @@ def invalidate_user_cache_on_user_delete(sender, instance, **kwargs):
 @receiver(post_delete, sender=UserProfile, dispatch_uid="cache_profile_delete")
 def invalidate_user_cache_on_profile_delete(sender, instance, **kwargs):
     transaction.on_commit(lambda: invalidate_cached_user(instance.user_id))
+
+
+@receiver(post_save, sender=Settings, dispatch_uid="cache_settings_save")
+def invalidate_settings_cache_on_save(sender, **kwargs):
+    transaction.on_commit(invalidate_cached_settings)

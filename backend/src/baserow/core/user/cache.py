@@ -21,7 +21,7 @@ def get_cached_user(user_id: int) -> AbstractUser | None:
     cache miss or when caching is disabled.
     """
 
-    if settings.BASEROW_USER_CACHE_TTL_SECONDS <= 0:
+    if settings.BASEROW_CACHE_TTL_SECONDS <= 0:
         return None
     return cache.get(_cache_key(user_id))
 
@@ -32,12 +32,12 @@ def set_cached_user(user: AbstractUser) -> None:
     cache TTL is 0 or negative.
     """
 
-    if settings.BASEROW_USER_CACHE_TTL_SECONDS <= 0:
+    if settings.BASEROW_CACHE_TTL_SECONDS <= 0:
         return
     cache.set(
         _cache_key(user.id),
         user,
-        timeout=settings.BASEROW_USER_CACHE_TTL_SECONDS,
+        timeout=settings.BASEROW_CACHE_TTL_SECONDS,
     )
 
 
@@ -47,6 +47,6 @@ def invalidate_cached_user(user_id: int) -> None:
     cache TTL is 0 or negative.
     """
 
-    if settings.BASEROW_USER_CACHE_TTL_SECONDS <= 0:
+    if settings.BASEROW_CACHE_TTL_SECONDS <= 0:
         return
     cache.delete(_cache_key(user_id))

@@ -1,6 +1,6 @@
 {
     "type": "refactor",
-    "message": "Optimize rate limiting: cache JWT user lookups, add token blacklist middleware, remove OTel tracing overhead, and reorganize throttling code.",
+    "message": "Optimize rate limiting: cache user and settings lookups and reorganize throttling code.",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "core",
