@@ -621,7 +621,10 @@ export default {
       }
 
       try {
-        const tree = parseBaserowFormula(disambiguateMinusOperator(formula), false)
+        const tree = parseBaserowFormula(
+          disambiguateMinusOperator(formula),
+          false
+        )
         const functionCollection = new RuntimeFunctionCollection(this.$registry)
         const result = new ToTipTapVisitor(functionCollection, this.mode).visit(
           tree

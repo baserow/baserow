@@ -20,8 +20,7 @@ const isErrorOrMissingNode = (node) => {
 }
 
 /** Character-stream start index for a rule context or terminal node. */
-const startIndexOf = (node) =>
-  node?.start?.start ?? node?.symbol?.start ?? -1
+const startIndexOf = (node) => node?.start?.start ?? node?.symbol?.start ?? -1
 
 /** Character-stream stop index for a rule context or terminal node. */
 const stopIndexOf = (node) => node?.stop?.stop ?? node?.symbol?.stop ?? -1
