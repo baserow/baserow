@@ -25,7 +25,7 @@
     <RichTextEditor
       :editable="false"
       :mentionable-users="workspace.users"
-      :value="notification.data.message"
+      :model-value="notification.data.message"
     />
   </nuxt-link>
 </template>
