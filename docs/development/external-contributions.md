@@ -22,7 +22,7 @@ For each PR, assess these criteria. The combination drives the decision — not 
 | Criterion | Assessment |
 |-----------|-----------|
 | **Type** | Bug fix / feature / task (small or large) |
-| **Size** | Small (< 10 LOUC) / medium (10-100) / large (> 100). LOUC = lines of useful code, excluding tests, comments, translations, docs |
+| **Size** | Small (< 10 LOUC) / medium (10-100) / large (> 100). LOUC = lines of useful code, excluding tests, comments, translations, docs and boilerplate |
 | **Complexity** | Trivial / moderate / touches high-risk area |
 | **Utility** | Addresses known need / nice-to-have / not aligned with roadmap |
 | **Approach** | Approved in issue / sound / needs rework / fundamentally wrong |
