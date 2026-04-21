@@ -273,9 +273,6 @@ class ElementType(
         if "builder_element_event_uids" not in id_mapping:
             id_mapping["builder_element_event_uids"] = {}
 
-        # importing an OLD export -> migrate the three fields to the new page graph
-        # importing a new export/duplication/publishing -> look at workflow migrate graph
-
         existing_roles = cache.get("existing_roles", {}).get(page.builder.id)
         if not existing_roles:
             existing_roles = UserSourceHandler().get_all_roles_for_application(

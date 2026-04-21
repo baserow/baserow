@@ -126,28 +126,28 @@ def test_elements_moved_when_column_is_removed(api_client, data_fixture):
         user=user,
         page=page,
         place_in_container="0",
-        reference_elemenrt_id=column.id,
+        reference_element_id=column.id,
         position=GraphPointPosition.CHILD,
     )
     column_element_column_1 = data_fixture.create_builder_text_element(
         user=user,
         page=page,
         place_in_container="1",
-        reference_elemenrt_id=column.id,
+        reference_element_id=column.id,
         position=GraphPointPosition.CHILD,
     )
     column_element_column_1_1 = data_fixture.create_builder_text_element(
         user=user,
         page=page,
         place_in_container="1",
-        reference_elemenrt_id=column.id,
+        reference_element_id=column.id,
         position=GraphPointPosition.CHILD,
     )
     column_element_column_2 = data_fixture.create_builder_text_element(
         user=user,
         page=page,
         place_in_container="2",
-        reference_elemenrt_id=column.id,
+        reference_element_id=column.id,
         position=GraphPointPosition.CHILD,
     )
 
