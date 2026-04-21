@@ -38,15 +38,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AlterField(
             model_name="automationworkflowhistory",
-            name="original_workflow",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="workflow_histories",
-                to="automation.automationworkflow",
-            ),
-        ),
-        migrations.AlterField(
-            model_name="automationworkflowhistory",
             name="workflow",
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.CASCADE,

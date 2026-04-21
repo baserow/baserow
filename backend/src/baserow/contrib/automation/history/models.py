@@ -24,6 +24,9 @@ class AutomationWorkflowHistory(AutomationHistory):
         "automation.AutomationWorkflow",
         on_delete=models.CASCADE,
         related_name="workflow_histories",
+        # TODO ZDM: Make non-nullable after next release and add backfill
+        # migration. See: https://github.com/baserow/baserow/issues/5236
+        null=True,
     )
     workflow = models.ForeignKey(
         "automation.AutomationWorkflow",
