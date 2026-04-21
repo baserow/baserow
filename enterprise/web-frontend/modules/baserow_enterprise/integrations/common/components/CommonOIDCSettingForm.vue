@@ -81,7 +81,6 @@ export default {
       if (!this.userSource.type) {
         return []
       }
-
       const userSourceType = this.$registry.get(
         'userSource',
         this.userSource.type
