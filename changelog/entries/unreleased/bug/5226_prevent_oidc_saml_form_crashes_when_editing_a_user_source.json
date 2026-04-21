@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "prevent OIDC/SAML form crashes when editing a user source in the application builder",
+  "issue_origin": "github",
+  "issue_number": 5226,
+  "domain": "builder",
+  "bullet_points": [],
+  "created_at": "2026-04-21"
+}
