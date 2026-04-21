@@ -100,9 +100,6 @@ export default {
   },
   computed: {
     relayStateUrls() {
-      if (!this.userSource.application_id) {
-        return []
-      }
       return this.authProviderType.getRelayStateUrls(this.userSource)
     },
     acsUrl() {
