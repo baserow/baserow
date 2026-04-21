@@ -1,0 +1,15 @@
+{
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "builder": "dockerfile",
+    "dockerfile": "Dockerfile"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "startCommand": "python manage.py migrate && gunicorn baserow.config.wsgi --bind 0.0.0.0:$PORT"
+  },
+  "plugins": [
+    "postgres",
+    "redis"
+  ]
+}

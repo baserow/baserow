@@ -1,0 +1,15 @@
+[build]
+builder = "dockerfile"
+dockerfile = "Dockerfile"
+
+[deploy]
+startCommand = "python backend/src/baserow/manage.py migrate && python backend/src/baserow/manage.py runserver 0.0.0.0:8000"
+numReplicas = 1
+
+[[services]]
+name = "postgres"
+provider = "postgres"
+
+[[services]]
+name = "redis"
+provider = "redis"
