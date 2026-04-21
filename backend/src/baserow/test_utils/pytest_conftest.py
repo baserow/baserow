@@ -3,6 +3,7 @@ import contextlib
 import os
 import sys
 import threading
+import uuid
 from contextlib import ExitStack, contextmanager
 from datetime import date, datetime
 from decimal import Decimal
@@ -38,6 +39,7 @@ from baserow.core.context import clear_current_workspace_id
 from baserow.core.exceptions import PermissionDenied
 from baserow.core.jobs.registries import job_type_registry
 from baserow.core.permission_manager import CorePermissionManagerType
+from baserow.core.psycopg import is_psycopg3, psycopg
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.utils import ServiceAdhocRefinements
 from baserow.core.trash.trash_types import WorkspaceTrashableItemType
@@ -217,6 +219,41 @@ def environ():
     yield os.environ
     for key, value in original_env.items():
         os.environ[key] = value
+
+
+@pytest.fixture()
+def temporary_database():
+    """
+    Creates a temporary PostgreSQL database with a unique name,
+    yields its name, and drops it on teardown.
+    """
+
+    settings = connection.settings_dict
+    db_name = f"test_tmp_{uuid.uuid4().hex[:10]}"
+
+    def _connect_autocommit():
+        conn = psycopg.connect(
+            host=settings["HOST"],
+            port=settings["PORT"],
+            dbname=settings["NAME"],
+            user=settings["USER"],
+            password=settings["PASSWORD"],
+        )
+        if is_psycopg3:
+            conn.autocommit = True
+        else:
+            conn.set_isolation_level(0)  # ISOLATION_LEVEL_AUTOCOMMIT
+        return conn
+
+    admin_conn = _connect_autocommit()
+    admin_conn.cursor().execute(f"CREATE DATABASE {db_name}")
+    admin_conn.close()
+    try:
+        yield db_name
+    finally:
+        cleanup_conn = _connect_autocommit()
+        cleanup_conn.cursor().execute(f"DROP DATABASE IF EXISTS {db_name}")
+        cleanup_conn.close()
 
 
 @pytest.fixture()
