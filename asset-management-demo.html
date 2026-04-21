@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asset Management System - Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .header h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5em;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1em;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+            transform: translateY(-2px);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .card h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h3 {
+            color: #667eea;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .asset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .asset-card {
+            background: #f8f9ff;
+            border: 2px solid #e0e7ff;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .asset-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.2);
+            transform: translateY(-5px);
+        }
+
+        .asset-icon {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .asset-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .asset-size {
+            color: #999;
+            font-size: 0.9em;
+        }
+
+        .feature-list {
+            list-style: none;
+        }
+
+        .feature-list li {
+            padding: 10px 0;
+            color: #666;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+
+        .feature-list li:before {
+            content: "✓";
+            color: #667eea;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .api-section {
+            background: #1e1e2e;
+            color: #a0aec0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+        }
+
+        .api-section code {
+            color: #81c784;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            color: #333;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 2em;
+            cursor: pointer;
+            color: #999;
+            padding: 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-btn:hover {
+            color: #333;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        .form-group input,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-family: inherit;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            color: #999;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .tab-btn.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Asset Management System</h1>
+            <p>Complete file management, versioning, and sharing solution for Baserow</p>
+            <div class="controls">
+                <button class="btn-primary" onclick="showModal('uploadModal')">📤 Upload Asset</button>
+                <button class="btn-primary" onclick="showModal('categoryModal')">📁 New Category</button>
+                <button class="btn-secondary" onclick="showStats()">📊 View Stats</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <!-- Assets Section -->
+            <div class="card">
+                <h2>📦 Assets</h2>
+                <div class="asset-grid" id="assetGrid">
+                    <div class="asset-card" onclick="viewAsset('Sample Document')">
+                        <div class="asset-icon">📄</div>
+                        <div class="asset-name">Sample Document</div>
+                        <div class="asset-size">2.5 MB</div>
+                    </div>
+                    <div class="asset-card" onclick="viewAsset('Photo 2024')">
+                        <div class="asset-icon">🖼️</div>
+                        <div class="asset-name">Photo 2024</div>
+                        <div class="asset-size">5.2 MB</div>
+                    </div>
+                    <div class="asset-card" onclick="viewAsset('Video File')">
+                        <div class="asset-icon">🎬</div>
+                        <div class="asset-name">Video File</div>
+                        <div class="asset-size">125 MB</div>
+                    </div>
+                    <div class="asset-card" onclick="viewAsset('Data Export')">
+                        <div class="asset-icon">📊</div>
+                        <div class="asset-name">Data Export</div>
+                        <div class="asset-size">1.8 MB</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Features Section -->
+            <div class="card">
+                <h2>✨ Features</h2>
+                <div class="tab-buttons">
+                    <button class="tab-btn active" onclick="switchTab(event, 'features')">Features</button>
+                    <button class="tab-btn" onclick="switchTab(event, 'api')">API</button>
+                </div>
+
+                <div id="features" class="tab-content active">
+                    <ul class="feature-list">
+                        <li>📁 File Upload & Storage</li>
+                        <li>📚 Version History</li>
+                        <li>🔄 Rollback Versions</li>
+                        <li>👥 Role-Based Access (Viewer, Editor, Owner)</li>
+                        <li>🔗 Shareable Links</li>
+                        <li>🔐 Password Protection</li>
+                        <li>⏰ Expiration Dates</li>
+                        <li>📊 Activity Tracking</li>
+                        <li>🏷️ Tags & Categories</li>
+                        <li>📈 Download/View Counting</li>
+                    </ul>
+                </div>
+
+                <div id="api" class="tab-content">
+                    <h3>REST API Endpoints</h3>
+                    <div class="api-section">
+GET /api/workspaces/{id}/assets/<br>
+POST /api/workspaces/{id}/assets/<br>
+GET /api/workspaces/{id}/assets/{id}/<br>
+PUT /api/workspaces/{id}/assets/{id}/<br>
+DELETE /api/workspaces/{id}/assets/{id}/<br>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Section -->
+        <div class="card" style="grid-column: 1 / -1;">
+            <h2>📈 System Statistics</h2>
+            <div class="stats">
+                <div class="stat-box">
+                    <div class="stat-number">42</div>
+                    <div class="stat-label">Total Assets</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">128</div>
+                    <div class="stat-label">Versions Created</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">15</div>
+                    <div class="stat-label">Shared Links</div>
+                </div>
+                <div class="stat-box">
+                    <div class="stat-number">892</div>
+                    <div class="stat-label">Total Downloads</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Database Models Info -->
+        <div class="card" style="grid-column: 1 / -1;">
+            <h2>🗄️ Database Models</h2>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 15px; margin-top: 15px;">
+                <div style="background: #f8f9ff; padding: 15px; border-radius: 8px;">
+                    <h3 style="color: #667eea;">Asset</h3>
+                    <p style="color: #666; font-size: 0.9em;">Main file storage with metadata, versioning, and activity tracking</p>
+                </div>
+                <div style="background: #f8f9ff; padding: 15px; border-radius: 8px;">
+                    <h3 style="color: #667eea;">AssetCategory</h3>
+                    <p style="color: #666; font-size: 0.9em;">Organize assets with custom colors, icons, and descriptions</p>
+                </div>
+                <div style="background: #f8f9ff; padding: 15px; border-radius: 8px;">
+                    <h3 style="color: #667eea;">AssetVersion</h3>
+                    <p style="color: #666; font-size: 0.9em;">Complete version history with change logs and rollback</p>
+                </div>
+                <div style="background: #f8f9ff; padding: 15px; border-radius: 8px;">
+                    <h3 style="color: #667eea;">AssetPermission</h3>
+                    <p style="color: #666; font-size: 0.9em;">Role-based access control (Viewer, Editor, Owner)</p>
+                </div>
+                <div style="background: #f8f9ff; padding: 15px; border-radius: 8px;">
+                    <h3 style="color: #667eea;">AssetShare</h3>
+                    <p style="color: #666; font-size: 0.9em;">Shareable links with password, expiration, access levels</p>
+                </div>
+                <div style="background: #f8f9ff; padding: 15px; border-radius: 8px;">
+                    <h3 style="color: #667eea;">AssetActivity</h3>
+                    <p style="color: #666; font-size: 0.9em;">Audit trail of all operations (create, update, delete, share)</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Code Repository -->
+        <div class="card" style="grid-column: 1 / -1; margin-top: 30px;">
+            <h2>💻 Source Code</h2>
+            <p style="color: #666; margin-bottom: 15px;">The asset management system is fully implemented in the Baserow repository:</p>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div style="background: #f8f9ff; padding: 15px; border-radius: 8px;">
+                    <h3 style="color: #667eea; margin-bottom: 10px;">📂 Backend</h3>
+                    <p style="color: #666; font-size: 0.9em; line-height: 1.6;">
+                        <strong>Path:</strong> backend/src/baserow/core/asset_management/<br>
+                        <strong>Models:</strong> 7 Django models<br>
+                        <strong>Handlers:</strong> Business logic layer<br>
+                        <strong>API:</strong> REST endpoints with DRF<br>
+                        <strong>Tests:</strong> Unit tests with pytest
+                    </p>
+                </div>
+                <div style="background: #f8f9ff; padding: 15px; border-radius: 8px;">
+                    <h3 style="color: #667eea; margin-bottom: 10px;">🎨 Frontend</h3>
+                    <p style="color: #666; font-size: 0.9em; line-height: 1.6;">
+                        <strong>Path:</strong> web-frontend/modules/asset-management/<br>
+                        <strong>Framework:</strong> Vue 3 + Nuxt<br>
+                        <strong>Store:</strong> Pinia state management<br>
+                        <strong>Components:</strong> Grid, modals, sidebars<br>
+                        <strong>Styling:</strong> SCSS with BEM
+                    </p>
+                </div>
+            </div>
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #f0f0f0;">
+                <p style="color: #666; margin-bottom: 10px;"><strong>📌 GitHub PR:</strong></p>
+                <a href="https://github.com/alaskaryahya1-glitch/baserow/pull/1" target="_blank" style="display: inline-block; background: #667eea; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">
+                    View Full Implementation on GitHub →
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upload Modal -->
+    <div id="uploadModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📤 Upload Asset</h2>
+                <button class="close-btn" onclick="closeModal('uploadModal')">✕</button>
+            </div>
+            <div class="form-group">
+                <label>File Name</label>
+                <input type="text" placeholder="Enter file name">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea placeholder="Optional description"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Category</label>
+                <input type="text" placeholder="Select category">
+            </div>
+            <button class="btn-primary" style="width: 100%; margin-top: 20px;" onclick="closeModal('uploadModal')">Upload</button>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div id="categoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📁 Create Category</h2>
+                <button class="close-btn" onclick="closeModal('categoryModal')">✕</button>
+            </div>
+            <div class="form-group">
+                <label>Category Name</label>
+                <input type="text" placeholder="Enter category name">
+            </div>
+            <div class="form-group">
+                <label>Description</label>
+                <textarea placeholder="Optional description"></textarea>
+            </div>
+            <button class="btn-primary" style="width: 100%; margin-top: 20px;" onclick="closeModal('categoryModal')">Create</button>
+        </div>
+    </div>
+
+    <script>
+        function showModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        function viewAsset(name) {
+            alert(`Viewing asset: ${name}\n\nFeatures:\n✓ View details\n✓ Download\n✓ Manage versions\n✓ Share with others\n✓ Set permissions`);
+        }
+
+        function showStats() {
+            alert('System Statistics:\n\n📦 42 Total Assets\n📚 128 Versions\n🔗 15 Shared Links\n📥 892 Downloads\n✓ 99.9% Uptime');
+        }
+
+        function switchTab(e, tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName).classList.add('active');
+            e.target.classList.add('active');
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            if (event.target.classList.contains('modal')) {
+                event.target.classList.remove('active');
+            }
+        }
+    </script>
+</body>
+</html>
