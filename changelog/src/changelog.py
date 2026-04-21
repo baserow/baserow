@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+
 import os
 import shutil
 from pathlib import Path
@@ -19,36 +20,56 @@ default_path = str(Path(os.path.dirname(__file__)).parent)
 
 
 @app.command()
-def add(working_dir: Optional[str] = typer.Option(default=default_path)):
-    domain_type = typer.prompt(
+def add(
+    working_dir: Optional[str] = typer.Option(default=default_path),
+    domain: Optional[str] = typer.Option(None, "--domain", help="Domain type"),
+    entry_type: Optional[str] = typer.Option(
+        None, "--type", help="Changelog entry type"
+    ),
+    issue: Optional[str] = typer.Option(None, "--issue", help="Issue number"),
+    message: Optional[str] = typer.Option(
+        None, "--message", "--title", help="Changelog message"
+    ),
+):
+    domain_type = domain or typer.prompt(
         "Domain",
         type=Choice(list(domain_types.keys())),
         default=DatabaseDomain.type,
     )
-    changelog_type = typer.prompt(
+    if domain_type not in domain_types:
+        raise typer.BadParameter(
+            f"must be one of: {', '.join(domain_types.keys())}", param_hint="--domain"
+        )
+
+    changelog_type = entry_type or typer.prompt(
         "Type of changelog",
         type=Choice(list(changelog_entry_types.keys())),
         default=BugChangelogEntry.type,
     )
-    issue_number = typer.prompt(
+    if changelog_type not in changelog_entry_types:
+        raise typer.BadParameter(
+            f"must be one of: {', '.join(changelog_entry_types.keys())}",
+            param_hint="--type",
+        )
+    issue_number = issue if issue is not None else typer.prompt(
         "Issue number", type=str, default=ChangelogHandler.get_issue_number() or ""
     )
+    final_message = message or typer.prompt("Message", default="")
 
-    message = typer.prompt("Message", default="")
-
-    if issue_number.isdigit():
+    if str(issue_number).isdigit():
         issue_number = int(issue_number)
 
     if issue_number == "":
         issue_number = None
 
-    ChangelogHandler(working_dir).add_entry(
+    path = ChangelogHandler(working_dir).add_entry(
         domain_type,
         changelog_type,
-        message,
+        final_message,
         issue_number=issue_number,
         issue_origin="github",  # All new changelogs originate from GitHub
     )
+    typer.echo(path)
 
 
 @app.command()

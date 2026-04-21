@@ -1180,6 +1180,12 @@ env-clear:
 changelog *args:
     cd backend && uv run --group changelog python ../changelog/src/changelog.py {{ args }}
 
+# Add a changelog entry non-interactively
+[group('5 - utilities')]
+[doc("Add changelog entry: just changelog-add <domain> <type> <issue> <message>")]
+changelog-add domain type issue message:
+    cd backend && uv run --group changelog python ../changelog/src/changelog.py add --domain={{domain}} --type={{type}} --issue={{issue}} --message="{{message}}"
+
 # Run changelog tests
 [group('4 - testing')]
 [doc("Run changelog unit tests")]
