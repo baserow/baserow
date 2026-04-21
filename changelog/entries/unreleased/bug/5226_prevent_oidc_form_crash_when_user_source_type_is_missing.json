@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "prevent OIDC form crash when user source type is missing",
+    "issue_origin": "github",
+    "issue_number": 5226,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-04-21"
+}
