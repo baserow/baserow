@@ -31,13 +31,23 @@ def _remaining_ttl(expires_at: float) -> int | None:
     return remaining if remaining > 0 else None
 
 
+def _resolve_ttl(ttl: int | None) -> int | None:
+    if ttl is None:
+        ttl = settings.BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS
+    return ttl if ttl > 0 else None
+
+
 def blacklist_token(raw_token: str, ttl: int | None = None) -> None:
-    ttl = ttl or settings.BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS
+    ttl = _resolve_ttl(ttl)
+    if ttl is None:
+        return
     cache.set(_token_key(raw_token), time.time() + ttl, timeout=ttl)
 
 
 def blacklist_ip(ip: str, ttl: int | None = None) -> None:
-    ttl = ttl or settings.BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS
+    ttl = _resolve_ttl(ttl)
+    if ttl is None:
+        return
     cache.set(_ip_key(ip), time.time() + ttl, timeout=ttl)
 
 

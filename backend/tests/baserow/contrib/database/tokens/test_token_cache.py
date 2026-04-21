@@ -5,6 +5,8 @@ import pytest
 
 from baserow.contrib.database.api.tokens.authentications import TokenAuthentication
 from baserow.contrib.database.tokens.cache import (
+    _cache_key,
+    cache,
     get_cached_token,
     invalidate_cached_token,
     set_cached_token,
@@ -31,6 +33,25 @@ def test_set_and_get_cached_token(data_fixture):
     assert cached.id == token.id
     assert cached.user_id == user.id
     assert cached.workspace_id == workspace.id
+
+
+@pytest.mark.django_db
+@_CACHE_ON
+def test_cached_token_omits_auth_secrets(data_fixture):
+    import pickle
+
+    user = data_fixture.create_user(password="passwordhashcanary")
+    workspace = data_fixture.create_workspace(user=user)
+    token = data_fixture.create_token(user=user, workspace=workspace)
+    invalidate_cached_token(token.key)
+
+    TokenHandler().get_by_key(key=token.key)
+
+    cached = cache.get(_cache_key(token.key))
+    assert cached is not None
+    payload = pickle.dumps(cached)
+    assert token.key.encode() not in payload
+    assert user.password.encode() not in payload
 
 
 @pytest.mark.django_db

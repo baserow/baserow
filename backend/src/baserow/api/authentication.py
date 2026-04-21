@@ -31,8 +31,11 @@ class JSONWebTokenAuthentication(JWTAuthentication):
             return cached
 
         try:
-            user = self.user_model.objects.select_related("profile").get(
-                **{jwt_settings.USER_ID_FIELD: user_id}
+            # defer the password so we don't cache it
+            user = (
+                self.user_model.objects.select_related("profile")
+                .defer("password")
+                .get(**{jwt_settings.USER_ID_FIELD: user_id})
             )
         except self.user_model.DoesNotExist:
             raise exceptions.AuthenticationFailed(

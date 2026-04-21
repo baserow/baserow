@@ -2255,7 +2255,6 @@ def test_formula_number_type_without_decimal_places(data_fixture):
 
 
 @pytest.mark.django_db
-@pytest.mark.retry(3)
 def test_can_export_import_database_with_broken_via_dependency(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)

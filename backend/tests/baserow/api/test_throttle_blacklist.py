@@ -51,6 +51,18 @@ def test_blacklist_returns_remaining_ttl():
         assert get_token_cooldown_time("token-remaining") == 4
 
 
+def test_blacklist_token_noops_when_ttl_is_zero():
+    blacklist_token("token-zero", ttl=0)
+
+    assert get_token_cooldown_time("token-zero") is None
+
+
+def test_blacklist_ip_noops_when_ttl_is_negative():
+    blacklist_ip("192.168.1.9", ttl=-1)
+
+    assert is_ip_blacklisted("192.168.1.9") is None
+
+
 def test_throttle_handler_import_path_is_valid():
     from baserow.throttling.handler import ConcurrentUserRequestsThrottle
 

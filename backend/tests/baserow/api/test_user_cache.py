@@ -136,6 +136,22 @@ def test_cached_user_profile_accessible_without_extra_query(data_fixture):
 
 @pytest.mark.django_db
 @_CACHE_ON
+def test_cached_user_omits_password_hash(data_fixture):
+    import pickle
+
+    user = data_fixture.create_user(password="passwordhashcanary")
+    invalidate_cached_user(user.id)
+    token = AccessToken.for_user(user)
+
+    JSONWebTokenAuthentication().get_user(token)
+
+    cached = get_cached_user(user.id)
+    assert cached is not None
+    assert user.password.encode() not in pickle.dumps(cached)
+
+
+@pytest.mark.django_db
+@_CACHE_ON
 def test_get_user_uses_cache_on_second_call(data_fixture):
     user = data_fixture.create_user()
     token = AccessToken.for_user(user)

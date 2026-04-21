@@ -53,8 +53,10 @@ class TokenHandler:
             return cached
 
         try:
-            token = Token.objects.select_related("workspace", "user__profile").get(
-                key=key
+            token = (
+                Token.objects.select_related("workspace", "user__profile")
+                .defer("user__password")
+                .get(key=key)
             )
         except Token.DoesNotExist:
             raise TokenDoesNotExist(f"The token with key {key} does not exist.")
