@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     "health_check.contrib.psutil",
     "health_check.contrib.s3boto3_storage",
     "baserow.core",
+    "baserow.core.asset_management",
     "baserow.api",
     "baserow.ws",
     "baserow.contrib.database",
