@@ -1,5 +1,11 @@
 <template>
-  <div v-if="!workflowHistoryItems.length" class="history-side-panel__empty">
+  <div v-if="loading" class="history-side-panel__empty">
+    <div class="loading"></div>
+  </div>
+  <div
+    v-else-if="!workflowHistoryItems.length"
+    class="history-side-panel__empty"
+  >
     <Icon
       class="history-side-panel__empty-icon"
       icon="baserow-icon-automation"
@@ -57,6 +63,9 @@ import WorkflowHistory from '@baserow/modules/automation/components/workflow/sid
 const store = useStore()
 
 const workflow = inject('workflow')
+
+const loading = ref(false)
+
 const history = computed(() => {
   return store.getters['automationHistory/getWorkflowHistory']()
 })
@@ -65,10 +74,15 @@ const workflowHistoryItems = computed(() => {
   return history.value?.results || []
 })
 
-const refreshData = () => {
-  return store.dispatch('automationHistory/fetchWorkflowHistory', {
-    workflowId: workflow.value.id,
-  })
+const refreshData = async () => {
+  loading.value = true
+  try {
+    await store.dispatch('automationHistory/fetchWorkflowHistory', {
+      workflowId: workflow.value.id,
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(() => {
