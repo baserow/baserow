@@ -266,6 +266,55 @@ def test_get_parent_map_permutations():
     assert graph.get_parent_map() == {}
 
 
+def test_get_children_permutations():
+    model = make_graph_model({})
+    graph = model.get_graph()
+
+    # Empty graph — no point has children
+    p1 = make_point(1, model)
+    graph.insert(p1, None, "south", output="")
+    assert graph.get_children(p1) == []
+
+    # Flat chain only — siblings are not children
+    p2 = make_point(2, model)
+    graph.insert(p2, p1, "south", output="")
+    p3 = make_point(3, model)
+    graph.insert(p3, p2, "south", output="")
+    assert graph.get_children(p1) == []
+
+    # Single child in place "0" — first_only=False returns the same as first_only=True
+    p4 = make_point(4, model)
+    graph.insert(p4, p1, "child", output="0")
+    assert graph.get_children(p1) == [p4]
+    assert graph.get_children(p1, first_only=True) == [p4]
+    assert graph.get_children(p1, output="0") == [p4]
+    assert graph.get_children(p1, output="1") == []  # wrong slot
+
+    # Chain p5 south of p4 (same slot "0") — first_only=False follows the chain
+    p5 = make_point(5, model)
+    graph.insert(p5, p1, "child", output="0")
+    assert graph.get_children(p1, first_only=False) == [p4, p5]
+    assert graph.get_children(p1, first_only=True) == [p4]  # only entry-point
+    assert graph.get_children(p1, output="0", first_only=False) == [p4, p5]
+    assert graph.get_children(p1, output="0", first_only=True) == [p4]
+
+    # Second slot "1" with its own child p6
+    p6 = make_point(6, model)
+    graph.insert(p6, p1, "child", output="1")
+    # No output filter — both slots included
+    assert graph.get_children(p1, first_only=False) == [p4, p5, p6]
+    assert graph.get_children(p1, first_only=True) == [p4, p6]
+    # Per-slot filtering still works
+    assert graph.get_children(p1, output="0", first_only=False) == [p4, p5]
+    assert graph.get_children(p1, output="1") == [p6]
+
+    # Nested container: p4 has its own child p7 — get_children(p1) does NOT descend
+    p7 = make_point(7, model)
+    graph.insert(p7, p4, "child", output="")
+    assert graph.get_children(p4) == [p7]
+    assert p7 not in graph.get_children(p1)  # children of p1 don't include p7
+
+
 def test_graph_handler_get_order_map(graph_model_fixture):
     model = graph_model_fixture
     assert BaseGraphHandler.get_order_map(model.graph) == {

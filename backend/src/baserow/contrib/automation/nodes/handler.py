@@ -127,15 +127,20 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         local_cache.delete(self._get_node_cache_key(workflow, True))
         local_cache.delete(self._get_node_cache_key(workflow, False))
 
-    def get_children(self, node: AutomationNode) -> List[AutomationNode]:
+    def get_children(
+        self, node: AutomationNode, first_only: bool = False
+    ) -> List[AutomationNode]:
         """
-        Returns the direct children of the given node.
+        Returns the children of the given node.
 
         :param node: The parent node.
+        :param first_only: When True, return only the entry-point child of each
+            edge/slot without following the next[""] chain. Use this when the
+            caller handles chaining via get_next_points itself.
         :return: A list of node instances that are the children of the given node.
         """
 
-        return node.workflow.get_graph().get_children(node)
+        return node.workflow.get_graph().get_children(node, first_only=first_only)
 
     def get_node(
         self, node_id: int, base_queryset: Optional[QuerySet] = None
@@ -520,7 +525,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         to_chain = []
-        if children := node.get_children():
+        if children := node.get_children(first_only=True):
             node_data = dispatch_result.data["results"]
 
             # For simulations, we only need the first iteration.

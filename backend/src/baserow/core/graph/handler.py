@@ -460,6 +460,7 @@ class BaseGraphHandler(ABC):
         self,
         point: GraphPoint | int,
         output: str | None = None,
+        first_only: bool = False,
     ) -> List[GraphPoint] | List[int]:
         """
         Get the children of the given point.
@@ -468,6 +469,9 @@ class BaseGraphHandler(ABC):
             get the children from.
         :param output: The edge/place to get children for. If `None`, returns
             children from all edges.
+        :param first_only: When True, return only the entry-point child of each
+            edge/slot without following the next[""] chain within slots. Use this
+            when the caller will handle chaining via get_next_points itself.
         :return: A list of children of the given point.
         """
 
@@ -478,7 +482,10 @@ class BaseGraphHandler(ABC):
             if output is not None and edge_key != output:
                 continue
             for cid in child_ids:
-                result.extend(self._get_chain_elements(cid))
+                if first_only:
+                    result.append(self.get_point(cid))
+                else:
+                    result.extend(self._get_chain_elements(cid))
         return result
 
     @classmethod
@@ -746,13 +753,10 @@ class BaseGraphHandler(ABC):
             return
 
         if position == "south":
-            # Next chains always use the default edge (""), regardless of the
-            # output/place parameter. The output is only meaningful for "child"
-            # position where it indicates the place in the container.
-            if "" in self.get_info(reference_point).get("next", {}):
-                new_next = self.get_info(reference_point)["next"][""]
+            if output in self.get_info(reference_point).get("next", {}):
+                new_next = self.get_info(reference_point)["next"][output]
 
-            self.get_info(reference_point).setdefault("next", {})[""] = [point.id]
+            self.get_info(reference_point).setdefault("next", {})[output] = [point.id]
 
         elif position == "child":
             ref_info = self.get_info(reference_point)
@@ -947,7 +951,7 @@ class BaseGraphHandler(ABC):
             label = self.get_point(point_id).graph_point_label
 
             while used_label.setdefault(label, point_id) != point_id:
-                label += f"-{point_id}"
+                label += "-"
 
             return label
 

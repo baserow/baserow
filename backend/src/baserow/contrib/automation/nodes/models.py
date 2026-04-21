@@ -104,14 +104,14 @@ class AutomationNode(
 
         return {node.service_id: str(out) for [node, _, out] in previous_positions}
 
-    def get_children(self):
+    def get_children(self, first_only: bool = False):
         """
-        Returns the direct children of this node if any.
+        Returns the children of this node if any.
         """
 
         from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 
-        return AutomationNodeHandler().get_children(self)
+        return AutomationNodeHandler().get_children(self, first_only=first_only)
 
     def graph_point_edge_label(self, uid: str) -> str:
         edges = self.service.get_type().get_edges(self.service.specific)
