@@ -78,6 +78,10 @@ export default {
   computed: {
     ...mapGetters({ domains: 'domain/getDomains' }),
     callbacks() {
+      if (!this.userSource.type) {
+        return []
+      }
+
       const userSourceType = this.$registry.get(
         'userSource',
         this.userSource.type
