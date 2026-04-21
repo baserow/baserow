@@ -112,7 +112,10 @@ class ElementType(
 
             reference_element = ElementHandler().get_element(reference_element_id)
             self.validate_place(page, reference_element, place_in_container, position)
-        elif getattr(self, "is_multi_page_element", False) != page.shared:
+        elif (
+            instance is None
+            and getattr(self, "is_multi_page_element", False) != page.shared
+        ):
             raise ValidationError(
                 "This element type can't be added as root of a "
                 f"{'an unshared' if self.is_multi_page_element else 'the shared'} "

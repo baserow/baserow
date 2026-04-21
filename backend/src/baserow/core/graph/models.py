@@ -103,7 +103,7 @@ class GraphPointMixin:
         :return: A label which we can show in `labeled_graph`.
         """
 
-        if hasattr(self, "label"):
+        if hasattr(self, "label") and self.label:
             return self.label
         else:
             return self.get_type().type
@@ -227,7 +227,7 @@ class GraphPointMixin:
         Returns the cached ``{child_id: parent_id}`` mapping for every point
         on this point's parent model (page/workflow). The map is built once
         per parent model per request and stored in ``local_cache`` so that
-        all points on the same page/workflow share a single traversal.
+        all points on the same page/workflow share a single traversal.q
         """
 
         parent_model = self.get_parent()

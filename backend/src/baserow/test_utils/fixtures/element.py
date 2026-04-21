@@ -24,6 +24,7 @@ from baserow.contrib.builder.elements.models import (
     MenuItemElement,
 )
 from baserow.core.cache import local_cache
+from baserow.core.graph.types import GraphPointPosition
 
 
 class ElementFixtures:
@@ -159,7 +160,14 @@ class ElementFixtures:
         # The element is placed at the end of the graph if no position is provided
         reference_element = kwargs.pop("reference_element", last_reference_element)
         position = kwargs.pop("position", last_position)
-        output = kwargs.pop("place_in_container", last_output)
+        place_in_container = kwargs.pop("place_in_container", None)
+        # For "child" positions, the output determines the container slot.
+        # For all other positions (south/north), the graph edge is always "".
+        output = (
+            place_in_container
+            if position == GraphPointPosition.CHILD and place_in_container is not None
+            else last_output
+        )
 
         with local_cache.context():  # We make sure the cache is empty
             created_element = ElementHandler().create_element(

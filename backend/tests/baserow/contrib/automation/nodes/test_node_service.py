@@ -72,7 +72,7 @@ def test_create_node_as_child(mocked_signal, data_fixture: Fixtures):
         {
             "0": "local_baserow_rows_created",
             "local_baserow_create_row": {},
-            "iterator": {"children": ["local_baserow_create_row"]},
+            "iterator": {"children": {"": ["local_baserow_create_row"]}},
             "local_baserow_rows_created": {"next": {"": ["iterator"]}},
         }
     )
@@ -572,7 +572,7 @@ def test_move_node_in_container(data_fixture: Fixtures):
             "0": "local_baserow_rows_created",
             "local_baserow_rows_created": {"next": {"": ["action1"]}},
             "action1": {"next": {"": ["iterator"]}},
-            "iterator": {"children": ["action3"], "next": {"": ["action2"]}},
+            "iterator": {"children": {"": ["action3"]}, "next": {"": ["action2"]}},
             "action3": {},
             "action2": {"next": {"": ["action4"]}},
             "action4": {},
@@ -605,7 +605,7 @@ def test_move_node_outside_of_container(data_fixture: Fixtures):
             "0": "local_baserow_rows_created",
             "local_baserow_rows_created": {"next": {"": ["action1"]}},
             "action1": {"next": {"": ["iterator"]}},
-            "iterator": {"children": ["action2"], "next": {"": ["action3"]}},
+            "iterator": {"children": {"": ["action2"]}, "next": {"": ["action3"]}},
             "action2": {},
             "action3": {"next": {"": ["action4"]}},
             "action4": {},

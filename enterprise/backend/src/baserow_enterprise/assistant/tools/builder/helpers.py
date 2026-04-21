@@ -385,8 +385,24 @@ def create_element(
         except ElementDoesNotExist:
             pass
 
+    parent_element_id = kwargs.pop("parent_element_id", None)
+    if parent_element_id is not None:
+        reference_element_id = parent_element_id
+        position = "child"
+    elif before is not None:
+        reference_element_id = before.id
+        position = "north"
+    else:
+        reference_element_id = None
+        position = "south"
+
     element = ElementService().create_element(
-        user, element_type, target_page, before=before, **kwargs
+        user,
+        element_type,
+        target_page,
+        reference_element_id=reference_element_id,
+        position=position,
+        **kwargs,
     )
 
     action_pairs = element_create.post_create(user, element, target_page)
@@ -436,9 +452,31 @@ def move_element(
 
     place = element_move.place_in_container or ""
 
-    return ElementService().move_element(
-        user, element.page, element, parent, place, before=before
+    if parent is not None:
+        position = "child"
+        reference_element_id = parent.id
+    elif before is not None:
+        position = "north"
+        reference_element_id = before.id
+    else:
+        # before_id=None means "move to end" — append after the current last element.
+        from baserow.core.cache import local_cache
+
+        element.page.refresh_from_db()
+        with local_cache.context():
+            last_ref, _, _ = element.page.get_graph().get_last_position()
+
+        if last_ref is not None and last_ref.id == element.id:
+            # Already at the end — no-op.
+            return element
+
+        position = "south"
+        reference_element_id = last_ref.id if last_ref is not None else None
+
+    element_move_result = ElementService().move_element(
+        user, element.page, element, place, reference_element_id, position
     )
+    return element_move_result.element
 
 
 def update_element(
@@ -516,7 +554,8 @@ def _ensure_child_menu(
             user,
             menu_type,
             header_element.page,
-            parent_element_id=header_element.id,
+            reference_element_id=header_element.id,
+            position="child",
             menu_items=menu_items_orm,
         )
 
