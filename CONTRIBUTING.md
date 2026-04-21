@@ -17,10 +17,11 @@ PRs without a corresponding issue will be closed.
 
 Any PR that adds new functionality or changes existing behavior — no matter how small — requires prior approval.
 
-1. **Open a feature request issue** using the [feature request template](https://github.com/baserow/baserow/issues/new?template=feature_request.yml)
-2. Describe what you want to build, why and your proposed approach
-3. **Wait for explicit approval** from a maintainer before writing code
-4. Open your PR referencing the approved issue
+1. Check [existing issues](https://github.com/baserow/baserow/issues) first — if an approved issue for the feature already exists, reference it in your PR instead of opening a new one. Only open a new feature request if no matching issue exists.
+2. **Open a feature request issue** using the [feature request template](https://github.com/baserow/baserow/issues/new?template=feature_request.yml)
+3. Describe what you want to build, why and your proposed approach
+4. **Wait for explicit approval** from a maintainer before writing code
+5. Open your PR referencing the approved issue
 
 PRs for features without an approved issue will be closed. This isn't about gatekeeping — it's about making sure you don't invest time in something that won't be merged.
 

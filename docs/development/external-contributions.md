@@ -140,37 +140,9 @@ Hi,
 Closing this PR due to inactivity. If you'd like to pick this up again, feel free to reopen it or submit a new PR.
 ```
 
-## "We'll finish it" flow
-
-This can be triggered two ways:
-1. The **contributor asks** us to finish their PR
-2. We **proactively offer** when the PR is promising but needs more work than the contributor can deliver
-
-### When to accept
-
-- The feature/fix is something we actually want
-- The existing code is good enough to build on (not a full rewrite)
-- We have capacity to finish it in a reasonable timeframe
-
-### When to decline
-
-- The PR requires a near-complete rewrite
-- The feature isn't aligned with our priorities
-- We don't have capacity right now
-
 ### How to credit
 
 - Mention the contributor by name in the changelog entry
 - Include them in release notes as a contributor
 - Use co-author in the commit if we build on their code directly
 
-### No guarantees
-
-We don't commit to finishing every PR that's offered. If it's not the right time or requires too many changes, we decline politely and explain why.
-
-## General principles
-
-- **Impact vs. cost**: prioritize PRs where the value is high relative to the review effort
-- **Push back early**: it's better to close quickly with clear guidance than to let a PR linger for months
-- **Don't leave PRs undecided**: triage within a week, respond within two. Silence is worse than a "no"
-- **When in doubt, ask the tech lead**
