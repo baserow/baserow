@@ -124,7 +124,7 @@ export function getValueAtPath(context, path) {
     }
 
     if (obj === null || obj === undefined) {
-      throw new Error(`Path '${path}' not found in context '${obj}'`)
+      return null
     }
 
     if (first in obj) {
