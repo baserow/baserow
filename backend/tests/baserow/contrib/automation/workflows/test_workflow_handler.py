@@ -1574,8 +1574,12 @@ def test_async_start_workflow_rate_limited_runs_eventually_disable_workflow(
 @pytest.mark.django_db
 @patch(f"{WORKFLOWS_MODULE}.handler.transaction.on_commit")
 @patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
+@patch(f"{WORKFLOWS_MODULE}.handler.automation_workflow_dispatch_started")
 def test_async_start_workflow_queues_celery_task_on_commit(
-    mock_start_workflow_celery_task, mock_on_commit, data_fixture
+    mock_automation_workflow_dispatch_started,
+    mock_start_workflow_celery_task,
+    mock_on_commit,
+    data_fixture,
 ):
     workflow = data_fixture.create_automation_workflow()
 
@@ -1593,6 +1597,10 @@ def test_async_start_workflow_queues_celery_task_on_commit(
     mock_on_commit.call_args.args[0]()
     mock_start_workflow_celery_task.delay.assert_called_once_with(
         history.workflow_id, history.id
+    )
+    mock_automation_workflow_dispatch_started.send.assert_called_once_with(
+        sender=None,
+        workflow_history=history,
     )
 
 

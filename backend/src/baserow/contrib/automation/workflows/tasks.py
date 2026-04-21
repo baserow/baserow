@@ -8,6 +8,9 @@ from baserow.config.celery import app
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
+from baserow.contrib.automation.workflows.signals import (
+    automation_workflow_dispatch_done,
+)
 from baserow.core.db import atomic_with_retry_on_deadlock
 
 
@@ -54,7 +57,6 @@ def handle_workflow_dispatch_done(
         AutomationWorkflowHistory.objects.filter(
             id=history_id, simulate_until_node_id=simulate_until_node_id
         ).delete()
-
     else:
         # Only update the history if it's still started.
         # If the workflow history was marked as failed by a specific node, we
@@ -65,4 +67,10 @@ def handle_workflow_dispatch_done(
         ).update(
             status=HistoryStatusChoices.SUCCESS,
             completed_on=timezone.now(),
+        )
+
+        history = AutomationWorkflowHistory.objects.get(id=history_id)
+        automation_workflow_dispatch_done.send(
+            sender=None,
+            workflow_history=history,
         )

@@ -20,6 +20,7 @@ TRIGGER_NODE_TYPE_PATH = (
     "baserow.contrib.automation.nodes.node_types.LocalBaserowRowsCreatedNodeTriggerType"
 )
 NODE_HANDLER_PATH = "baserow.contrib.automation.nodes.handler"
+TASKS_PATH = "baserow.contrib.automation.workflows.tasks"
 
 
 def assert_dispatches_next_node(result, *expected_tasks):
@@ -296,6 +297,7 @@ def test_dispatch_node_dispatches_trigger(data_fixture):
     )
 
     handle_workflow_dispatch_done(history_id=workflow_history.id)
+
     workflow_history.refresh_from_db()
     assert workflow_history.message == ""
     assert workflow_history.status == HistoryStatusChoices.SUCCESS
@@ -1538,4 +1540,46 @@ def test_dispatch_node_simulation_copies_sample_data_to_draft_node(
     # Ensure a signal is sent for the draft node
     mock_automation_node_updated.send.assert_called_once_with(
         ANY, user=None, node=trigger_node
+    )
+
+
+@pytest.mark.django_db
+@patch(f"{TASKS_PATH}.automation_workflow_dispatch_done")
+def test_handle_workflow_dispatch_done_sends_signal_on_success(
+    mock_dispatch_done_signal, data_fixture
+):
+    data = create_workflow(data_fixture)
+    workflow_history = data["workflow_history"]
+    assert workflow_history.status == HistoryStatusChoices.STARTED
+
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.SUCCESS
+    mock_dispatch_done_signal.send.assert_called_once()
+    assert (
+        mock_dispatch_done_signal.send.call_args.kwargs["workflow_history"].id
+        == workflow_history.id
+    )
+
+
+@pytest.mark.django_db
+@patch(f"{TASKS_PATH}.automation_workflow_dispatch_done")
+def test_handle_workflow_dispatch_done_sends_signal_on_error(
+    mock_dispatch_done_signal, data_fixture
+):
+    data = create_workflow(data_fixture)
+    workflow_history = data["workflow_history"]
+    workflow_history.status = HistoryStatusChoices.ERROR
+    workflow_history.message = "Node failed"
+    workflow_history.save()
+
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    mock_dispatch_done_signal.send.assert_called_once()
+    assert (
+        mock_dispatch_done_signal.send.call_args.kwargs["workflow_history"].id
+        == workflow_history.id
     )

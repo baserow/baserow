@@ -45,7 +45,10 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowTooManyErrors,
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
-from baserow.contrib.automation.workflows.signals import automation_workflow_updated
+from baserow.contrib.automation.workflows.signals import (
+    automation_workflow_dispatch_started,
+    automation_workflow_updated,
+)
 from baserow.contrib.automation.workflows.tasks import (
     handle_workflow_dispatch_done,
     start_workflow_celery_task,
@@ -1222,6 +1225,11 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             is_test_run=is_test_run,
             event_payload=event_payload,
             simulate_until_node=simulate_until_node,
+        )
+
+        automation_workflow_dispatch_started.send(
+            sender=None,
+            workflow_history=history,
         )
 
         transaction.on_commit(

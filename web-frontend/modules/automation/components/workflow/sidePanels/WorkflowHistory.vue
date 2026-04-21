@@ -1,5 +1,5 @@
 <template>
-  <Expandable :toggle-on-click="item.status !== 'started'">
+  <Expandable toggle-on-click>
     <template #header="{ expanded }">
       <div class="workflow-history__divider"></div>
       <div class="workflow-history__header">
@@ -15,7 +15,6 @@
           {{ humanCompletedDate }}
         </span>
         <Icon
-          v-if="item.completed_on"
           :icon="
             expanded ? 'iconoir-nav-arrow-down' : 'iconoir-nav-arrow-right'
           "
@@ -25,21 +24,31 @@
     </template>
 
     <template #default>
-      <div
-        v-if="!item.node_histories.length && item.message"
-        class="workflow-history__message"
-      >
-        {{ item.message }}
-      </div>
-      <NodeHistory
-        v-for="nodeId in rootNodeIds"
-        v-else
-        :key="nodeId"
-        :node-id="nodeId"
-        :node-histories="nodeHistoriesByNode[nodeId] || []"
-        :child-node-histories-by-parent="childNodeHistoriesByParent"
-        :depth="0"
-      />
+      <template v-if="item.status !== 'started'">
+        <div
+          v-if="!item.node_histories.length && item.message"
+          class="workflow-history__message"
+        >
+          {{ item.message }}
+        </div>
+        <NodeHistory
+          v-for="nodeId in rootNodeIds"
+          v-else
+          :key="nodeId"
+          :node-id="nodeId"
+          :node-histories="nodeHistoriesByNode[nodeId] || []"
+          :child-node-histories-by-parent="childNodeHistoriesByParent"
+          :depth="0"
+        />
+        <div class="workflow-history__run-time">
+          {{ totalRunTimeMessage }}
+        </div>
+      </template>
+      <template v-else>
+        <div class="workflow-history__run-time">
+          {{ totalRunTimeMessage }}
+        </div>
+      </template>
     </template>
   </Expandable>
 </template>
@@ -61,6 +70,28 @@ const props = defineProps({
     required: true,
   },
 })
+
+const now = ref(new Date())
+let timer = null
+
+onUnmounted(() => {
+  if (timer) clearInterval(timer)
+})
+
+watch(
+  () => props.item.status,
+  (status) => {
+    if (status === 'started') {
+      timer = setInterval(() => {
+        now.value = new Date()
+      }, 1000)
+    } else if (timer) {
+      clearInterval(timer)
+      timer = null
+    }
+  },
+  { immediate: true }
+)
 
 const statusTitle = computed(() => {
   switch (props.item.status) {
@@ -158,6 +189,30 @@ const historyIconPath = computed(() => {
       return historyFailedIcon
     default:
       return historyDisabledIcon
+  }
+})
+
+const totalRunTimeMessage = computed(() => {
+  const start = new Date(props.item.started_on)
+
+  if (props.item.status === 'started') {
+    const deltaMs = now.value - start
+    const deltaSeconds = deltaMs / 1000
+    return app.$i18n.t('historySidePanel.running', {
+      at: Math.floor(deltaSeconds),
+    })
+  } else {
+    const end = new Date(props.item.completed_on)
+
+    const deltaMs = end - start
+    if (deltaMs < 1000) {
+      return app.$i18n.t('historySidePanel.completedInLessThanSecond')
+    } else {
+      const deltaSeconds = deltaMs / 1000
+      return app.$i18n.t('historySidePanel.completedInSeconds', {
+        s: Math.floor(deltaSeconds),
+      })
+    }
   }
 })
 </script>
