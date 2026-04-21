@@ -406,20 +406,18 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             cloned_service.refresh_from_db(fields=["sample_data"])
 
             # A node is dispatched from a clone, so the sample data must
-            # be saved to the draft node's service. Also, the signal must
-            # be sent to the draft node.
+            # be saved to the draft node's service.
             original_workflow = node.workflow.get_original()
-            if original_workflow.id != node.workflow.id:
-                cloned_to_draft = AutomationWorkflowHandler().build_node_id_mapping(
-                    node.workflow, original_workflow
-                )
-                draft_node = self.get_node(cloned_to_draft[node.id])
-                draft_service = draft_node.service.specific
-                draft_service.sample_data = cloned_service.sample_data
-                draft_service.save(update_fields=["sample_data"])
-                automation_node_updated.send(self, user=None, node=draft_node)
-            else:
-                automation_node_updated.send(self, user=None, node=node)
+            cloned_to_draft = AutomationWorkflowHandler().build_node_id_mapping(
+                node.workflow, original_workflow
+            )
+            draft_node = self.get_node(cloned_to_draft[node.id])
+            draft_service = draft_node.service.specific
+            draft_service.sample_data = cloned_service.sample_data
+            draft_service.save(update_fields=["sample_data"])
+
+            # The signal must be sent to the draft node.
+            automation_node_updated.send(self, user=None, node=draft_node)
 
             return True
 
