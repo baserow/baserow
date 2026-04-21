@@ -26,6 +26,15 @@ export default class NodeGraphHandler {
     return this.graph[node]
   }
 
+  // Returns a flat array of child IDs regardless of whether children is stored
+  // in the legacy array format [id, ...] or the new dict format {"": [id, ...]}.
+  _getChildrenIds(nodeInfo) {
+    const children = nodeInfo?.children
+    if (!children) return []
+    if (Array.isArray(children)) return children
+    return Object.values(children).flat()
+  }
+
   hasNodes() {
     return Boolean(this.getFirstNode())
   }
@@ -38,7 +47,7 @@ export default class NodeGraphHandler {
   }
 
   getChildren(targetNode) {
-    return (this.getInfo(targetNode)?.children || [])
+    return this._getChildrenIds(this.getInfo(targetNode))
       .map((id) => this.getNode(id))
       .filter((node) => node)
   }
@@ -76,7 +85,7 @@ export default class NodeGraphHandler {
         break
 
       case 'child':
-        nextNodes = this.getInfo(referenceNode)?.children || []
+        nextNodes = this._getChildrenIds(this.getInfo(referenceNode))
         if (nextNodes.length > 0) {
           return this.getNode(nextNodes[0])
         }
@@ -114,7 +123,7 @@ export default class NodeGraphHandler {
         }
       }
 
-      if (nodeInfo.children?.length) {
+      if (this._getChildrenIds(nodeInfo).length) {
         nextPositions.push([nodeId, 'child', ''])
       }
 
@@ -150,7 +159,7 @@ export default class NodeGraphHandler {
         }
       }
       if (value.children) {
-        if (value.children.includes(node.id)) {
+        if (this._getChildrenIds(value).includes(node.id)) {
           const parentNode = this.getNode(nodeId)
           return [parentNode, 'child', '']
         }
@@ -228,7 +237,7 @@ export default class NodeGraphHandler {
         break
       case 'child':
         previousReferenceNodeInfo.children = replace(
-          previousReferenceNodeInfo.children,
+          this._getChildrenIds(previousReferenceNodeInfo),
           node.id,
           Object.values(nodeInfo.next || {}).flat()
         )
