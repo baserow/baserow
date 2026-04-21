@@ -28,6 +28,7 @@ from .user import urls as user_urls
 from .user_files import urls as user_files_urls
 from .user_sources import urls as user_source_urls
 from .workspaces import urls as workspace_urls
+from baserow.core.asset_management.api import urls as asset_management_urls
 
 app_name = "baserow.api"
 
@@ -56,6 +57,7 @@ urlpatterns = (
         path("search/", include(search_urls, namespace="search")),
         path("admin/", include(admin_urls, namespace="admin")),
         path("mcp/", include(mcp_urls, namespace="mcp")),
+        path("", include(asset_management_urls, namespace="asset_management")),
         path(
             "",
             include(integrations_urls, namespace="integrations"),
