@@ -41,8 +41,13 @@ class Migration(migrations.Migration):
             name="workflow",
             field=models.ForeignKey(
                 on_delete=django.db.models.deletion.CASCADE,
-                related_name="snapshot_workflow_histories",
+                related_name="cloned_workflow_histories",
                 to="automation.automationworkflow",
             ),
+        ),
+        migrations.AlterField(
+            model_name='automationworkflow',
+            name='state',
+            field=models.CharField(choices=[('draft', 'Draft'), ('live', 'Live'), ('paused', 'Paused'), ('disabled', 'Disabled'), ('history_clone', 'History Clone')], db_default='draft', default='draft', max_length=20),
         ),
     ]
