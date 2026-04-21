@@ -26,6 +26,11 @@
         @blur="handleTimeBlur($event)"
       />
     </div>
+    <i
+      v-if="dateInputValue"
+      class="ab-datetime-picker__clear button-icon__icon iconoir-cancel"
+      @click="clearValue"
+    />
     <Context
       ref="dateContext"
       :hide-on-click-outside="true"
@@ -245,6 +250,13 @@ export default {
     handleTimeBlur(event) {
       this.updateTime(event.target.value)
       this.$refs.timeContext.hide()
+    },
+    clearValue() {
+      this.$refs.dateContext.hide()
+      if (this.includeTime) {
+        this.$refs.timeContext.hide()
+      }
+      this.$emit('update:modelValue', null)
     },
   },
 }

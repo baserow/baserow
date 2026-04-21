@@ -8,6 +8,17 @@
     var(--input-horizontal-padding, 12px);
 }
 
+.ab-datetime-picker__clear {
+  cursor: pointer;
+  color: var(--input-text-color, $black);
+  flex-shrink: 0;
+  margin-left: auto;
+
+  &:hover {
+    opacity: 0.7;
+  }
+}
+
 .ab-datetime-picker__input {
   &.ab-input {
     border: none;

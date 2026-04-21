@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Add 'clear' button to the date input element.",
+    "issue_origin": "github",
+    "issue_number": 5202,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-04-21"
+}
