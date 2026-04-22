@@ -336,8 +336,12 @@ def test_update_rows_process_update_entries(mock, data_fixture):
 
     mock.reset_mock()
     SearchHandler.process_search_data_updates(table)
-    # Both fields fit in a single chunk, so one batched call with field_row_ids.
+    # Both fields fit in a single chunk, so one batched call with field_ids and
+    # row_ids.
     assert mock.call_count == 1
+    assert mock.call_args[0][0] == table
+    assert set(mock.call_args[1]["field_ids"]) == {text_field.id, formula_field.id}
+    assert set(mock.call_args[1]["row_ids"]) == {1, 2}
 
     assert PendingSearchValueUpdate.objects.count() == 0
 

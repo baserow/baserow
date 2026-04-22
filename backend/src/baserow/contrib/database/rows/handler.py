@@ -240,12 +240,15 @@ class RowM2MChangeTracker:
 class RowHandler(metaclass=baserow_trace_methods(tracer)):
     def _should_use_full_field_search_update_for_import(
         self,
-        existing_row_count: int,
         changed_rows: int,
+        model: GeneratedTableModel,
     ) -> bool:
-        return (
-            changed_rows > LARGE_IMPORT_SEARCH_UPDATE_MIN_CHANGED_ROWS
-            or changed_rows >= existing_row_count * LARGE_IMPORT_SEARCH_UPDATE_THRESHOLD
+        if changed_rows > LARGE_IMPORT_SEARCH_UPDATE_MIN_CHANGED_ROWS:
+            return True
+
+        existing_row_count = model.objects.count()
+        return changed_rows >= (
+            existing_row_count * LARGE_IMPORT_SEARCH_UPDATE_THRESHOLD
         )
 
     def prepare_values(self, fields, values):
@@ -2075,8 +2078,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         changed_rows = len(rows_values_to_create) + len(rows_values_to_update)
         full_field_search_update = self._should_use_full_field_search_update_for_import(
-            existing_row_count=model.objects.count(),
-            changed_rows=changed_rows,
+            changed_rows, model
         )
 
         created_rows, creation_report = self.force_create_rows_by_batch(
