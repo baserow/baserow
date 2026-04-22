@@ -464,6 +464,46 @@ def test_publish_cleans_up_old_workflows(data_fixture):
 
 
 @pytest.mark.django_db
+def test_publish_disables_live_workflow(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+
+    # Publish the workflow
+    published = handler.publish(workflow)
+    data_fixture.create_automation_workflow_history(
+        original_workflow=workflow,
+        workflow=published,
+        status=HistoryStatusChoices.SUCCESS,
+    )
+    assert published.state == WorkflowState.LIVE
+
+    # Edit the draft to force _ensure_published_for_run to create a new clone
+    workflow.refresh_from_db()
+    workflow.save()
+
+    # Create a history clone to simulate a test run
+    history_clone_automation, _ = handler._clone_workflow(
+        workflow, WorkflowState.HISTORY_CLONE
+    )
+    history_clone_workflow = history_clone_automation.workflows.first()
+
+    # The history clone should be the newest automation
+    assert history_clone_automation.id > published.automation.id
+
+    # The previously published workflow should now be disabled
+    new_published = handler.publish(workflow)
+    published.refresh_from_db()
+    assert published.state == WorkflowState.DISABLED
+
+    # Make sure the newly published workflow is live
+    assert new_published.state == WorkflowState.LIVE
+
+    # The history clone should be unaffected
+    history_clone_workflow.refresh_from_db()
+    assert history_clone_workflow.state == WorkflowState.HISTORY_CLONE
+
+
+@pytest.mark.django_db
 def test_publish_only_exports_specific_workflow(data_fixture):
     """
     In the event that an Automation app has multiple workflows, when

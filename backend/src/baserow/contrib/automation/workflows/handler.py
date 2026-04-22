@@ -608,12 +608,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         self, workflow: AutomationWorkflow
     ) -> None:
         published_automations = list(
-            Automation.objects.filter(published_from=workflow)
-            # History clones should not be cleaned up when publishing
-            # a workflow; clone cleanup is handled by the history cleanup
-            # in _clear_old_history().
-            .exclude(workflows__state=WorkflowState.HISTORY_CLONE)
-            .order_by("id")
+            Automation.objects.filter(published_from=workflow).order_by("id")
         )
         if not published_automations:
             return
@@ -630,10 +625,11 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             ]:
                 Automation.objects.filter(id__in=ids_to_delete).delete()
 
-        # Disable the last published workflow
-        if published_workflow := published_automations[-1].workflows.first():
-            published_workflow.state = WorkflowState.DISABLED
-            published_workflow.save(update_fields=["state"])
+        # Disable any live workflows
+        AutomationWorkflow.objects.filter(
+            automation__published_from=workflow,
+            state=WorkflowState.LIVE,
+        ).update(state=WorkflowState.DISABLED)
 
     def _clone_workflow(
         self,
