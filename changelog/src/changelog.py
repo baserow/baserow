@@ -18,37 +18,40 @@ app = typer.Typer()
 # Parent directory
 default_path = str(Path(os.path.dirname(__file__)).parent)
 
+DOMAIN_TYPES = list(domain_types.keys())
+ENTRY_TYPES = list(changelog_entry_types.keys())
+
 
 @app.command()
 def add(
     working_dir: Optional[str] = typer.Option(default=default_path),
-    domain: Optional[str] = typer.Option(None, "--domain", help="Domain type"),
+    domain: Optional[str] = typer.Option(None, "--domain", help=f"The module domain this changelog pertains to. One of: {', '.join(DOMAIN_TYPES)}."),
     entry_type: Optional[str] = typer.Option(
-        None, "--type", help="Changelog entry type"
+        None, "--type", help=f"The entry type this changelog is. One of: {', '.join(ENTRY_TYPES)}.",
     ),
-    issue: Optional[str] = typer.Option(None, "--issue", help="Issue number"),
+    issue: Optional[str] = typer.Option(None, "--issue", help="The GitHub issue ID. Defaults to finding it through the branch name prefix."),
     message: Optional[str] = typer.Option(
-        None, "--message", "--title", help="Changelog message"
+        None, "--message", help="The changelog message. Describe in non-technical language what the bug, feature or refactor accomplishes."
     ),
 ):
     domain_type = domain or typer.prompt(
         "Domain",
-        type=Choice(list(domain_types.keys())),
+        type=Choice(DOMAIN_TYPES),
         default=DatabaseDomain.type,
     )
-    if domain_type not in domain_types:
+    if domain_type not in DOMAIN_TYPES:
         raise typer.BadParameter(
-            f"must be one of: {', '.join(domain_types.keys())}", param_hint="--domain"
+            f"must be one of: {', '.join(DOMAIN_TYPES)}", param_hint="--domain"
         )
 
     changelog_type = entry_type or typer.prompt(
         "Type of changelog",
-        type=Choice(list(changelog_entry_types.keys())),
+        type=Choice(ENTRY_TYPES),
         default=BugChangelogEntry.type,
     )
-    if changelog_type not in changelog_entry_types:
+    if changelog_type not in ENTRY_TYPES:
         raise typer.BadParameter(
-            f"must be one of: {', '.join(changelog_entry_types.keys())}",
+            f"must be one of: {', '.join(ENTRY_TYPES)}",
             param_hint="--type",
         )
     issue_number = issue if issue is not None else typer.prompt(
