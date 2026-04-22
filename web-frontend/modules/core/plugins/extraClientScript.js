@@ -4,7 +4,8 @@ export default defineNuxtPlugin(() => {
   if (!import.meta.client) return
 
   const runtimeConfig = useRuntimeConfig()
-  if (!runtimeConfig.public.baserowExtraClientScriptEnabled) return
+  const enabled = runtimeConfig.public.baserowExtraClientScriptEnabled
+  if (enabled !== true && enabled !== 'true') return
 
   const nuxtApp = useNuxtApp()
   const router = useRouter()
