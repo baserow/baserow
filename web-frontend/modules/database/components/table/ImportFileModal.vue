@@ -99,6 +99,7 @@
             class="import-modal__preview"
             :rows="previewImportData"
             :fields="sortedFields"
+            :field-options="importFieldOptions"
           />
         </Tab>
         <Tab :title="$t('importFileModal.filePreview')">
@@ -106,6 +107,7 @@
             class="import-modal__preview"
             :rows="previewFileData"
             :fields="fileFields"
+            :field-options="fileFieldOptions"
           />
         </Tab>
       </Tabs>
@@ -292,6 +294,16 @@ export default {
         id: uuid(),
         order: index,
       }))
+    },
+    importFieldOptions() {
+      return Object.fromEntries(
+        this.sortedFields.map((field) => [field.id, { hidden: false }])
+      )
+    },
+    fileFieldOptions() {
+      return Object.fromEntries(
+        this.fileFields.map((field) => [field.id, { hidden: false }])
+      )
     },
     /**
      * All writable fields.
