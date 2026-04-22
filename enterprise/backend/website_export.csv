@@ -1909,6 +1909,26 @@ When you manually reorder rows, your custom order persists until you apply autom
 
 Control how much space each field occupies horizontally to optimize your view for the data you're working with.
 
+Width adjustments save per view, so different Grid views of the same table can have different column widths optimized for their specific purposes.
+
+### Freeze columns
+
+When working with wide tables containing dozens of fields, it can be difficult to keep track of which row you are looking at as you scroll horizontally. Baserow allows you to freeze up to four columns on the left side of your Grid view.
+
+These columns stay frozen in place, ensuring that key information remains permanently visible while you scroll through the rest of your dataset.
+
+#### **How to freeze a column**
+
+By default, you already have at least one pinned [primary field][5]. You will see a thick vertical divider separating pinned columns from the rest of the table. Click and hold a column divider, then drag it to the left side of that divider to freeze it.
+
+#### **How to unpin a column**
+
+To unpin a column and return it to the scrollable area of your table, click and drag the column header to the right side of the pinned column divider.
+
+#### **Change the order of columns**
+
+You can freeze a column using drag and drop. Click and drag the column headers of your pinned columns to rearrange them, just as you would with standard columns.
+
 ### Resize individual columns
 
 1. Hover over the **dividing line** between field headers
@@ -1918,12 +1938,6 @@ Control how much space each field occupies horizontally to optimize your view fo
 5. Release to set the new width
 
 ![Adjusting column width in Grid view](https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/28a7e27d781acc3f58d382bc7dd915fb420edaa1.webp)
-
-### Auto-fit column width
-
-**Double-click** the dividing line between headers to automatically resize the column to fit its content perfectly.
-
-Width adjustments save per view, so different Grid views of the same table can have different column widths optimized for their specific purposes.
 
 ## Field summaries
 
@@ -1939,41 +1953,17 @@ Learn more: [Field summaries](/user-docs/footer-aggregation)
 
 The toolbar at the top of Grid view provides quick access to common operations:
 
-**[Filter](/user-docs/filters-in-baserow)** - Show only records matching specific conditions
-
-**[Sort](/user-docs/view-customization)** - Order rows by field values automatically
-
-**[Group](/user-docs/group-rows-in-baserow)** - Organize rows into collapsible sections
-
-**[Hide fields](/user-docs/field-customization)** - Control which columns appear
-
-**[Row height](/user-docs/navigating-row-configurations)** - Adjust row size (short, medium, tall, extra tall)
-
-**[Share view](/user-docs/public-sharing)** - Generate public links or embed codes
-
-**[Row colors](/user-docs/row-coloring)** - Apply conditional formatting
+ - **[Filter](/user-docs/filters-in-baserow)** - Show only records matching specific conditions
+ - **[Sort](/user-docs/view-customization)** - Order rows by field values automatically
+ - **[Group](/user-docs/group-rows-in-baserow)** - Organize rows into collapsible sections
+ - **[Hide fields](/user-docs/field-customization)** - Control which columns appear
+ - **[Row height](/user-docs/navigating-row-configurations)** - Adjust row size (short, medium, tall, extra tall)
+ - **[Share view](/user-docs/public-sharing)** - Generate public links or embed codes
+ - **[Row colors](/user-docs/row-coloring)** - Apply conditional formatting
 
 ## Grid view keyboard shortcuts
 
 Speed up your workflow with keyboard shortcuts:
-
-**Navigation:**
-- **Tab** - Move to next cell (right)
-- **Shift + Tab** - Move to previous cell (left)
-- **Enter** - Move to cell below
-- **Shift + Enter** - Move to cell above
-- **Arrow keys** - Navigate in any direction
-
-**Editing:**
-- **Double-click** or **Enter** - Start editing cell
-- **Esc** - Cancel editing without saving
-- **Ctrl/Cmd + C** - Copy cell content
-- **Ctrl/Cmd + V** - Paste into cell
-
-**Selection:**
-- **Shift + Click** - Select multiple rows
-- **Ctrl/Cmd + Click** - Add individual rows to selection
-- **Ctrl/Cmd + A** - Select all visible rows
 
 Learn more: [Keyboard shortcuts](/user-docs/baserow-keyboard-shortcuts)
 
@@ -2029,6 +2019,14 @@ Export is only available from the Grid view menu (⋮) next to the view name. Ot
 
 Row height (short, medium, tall, extra tall) affects vertical space and how much text displays in cells. Configure it from the view menu. Column width affects horizontal space per field and adjusts by dragging field header borders. Both settings save per view independently.
 
+### How many columns can I freeze?
+
+You can pin a maximum of **4 columns** per view. This limit ensures that you still have enough screen space to view and horizontally scroll through the rest of your unpinned data.
+
+### Does freezing a column affect other users?
+
+Freezing is a view-level setting. If you freeze a column in a **Collaborative view**, it will remain for all users who access that view. If you freeze it in a **Personal view**, it will only affect your screen.
+
 ## Related resources
 
 ### View basics
@@ -2067,7 +2065,8 @@ Still need help? If you're looking for something else, please feel free to make 
   [1]: https://baserow.io/user-docs/navigating-row-configurations
   [2]: https://baserow.io/user-docs/how-to-make-new-rows
   [3]: https://baserow.io/user-docs/export-tables
-  [4]: https://baserow.io/user-docs/paste-data-into-baserow-table",view,baserow_user_docs,https://baserow.io/user-docs/guide-to-grid-view
+  [4]: https://baserow.io/user-docs/paste-data-into-baserow-table
+  [5]: https://baserow.io/user-docs/primary-field",view,baserow_user_docs,https://baserow.io/user-docs/guide-to-grid-view
 14,Gallery view,guide-to-gallery-view,Baserow gallery view guide: Organize your data,"# Gallery view
 
 Gallery view transforms your data into visual cards with cover images and customizable field layouts, making it ideal for portfolios, product catalogs, and any data where visuals matter.
@@ -5171,6 +5170,8 @@ Remove a field and all its data from your table. Deleted fields move to the tras
 
 Change column width in Grid View for optimal data visibility. See the [Grid View guide][9] for width adjustment instructions.
 
+[Freezing fields][10] allows you to lock columns to the left side of the screen so they remain visible while scrolling horizontally.
+
 ### How to reorder fields
 
 Change field positions to organize logically related fields together.
@@ -5194,7 +5195,7 @@ You can also reorder fields when viewing the [row detail panel][8] by dragging f
 
 ### How to group by a field
 
-Organize rows into collapsible sections based on field values for categorical analysis. Grouping works only in [Grid View][10] and creates hierarchical organization. Add multiple group levels to create nested categorization. Learn more about [grouping strategies][11].
+Organize rows into collapsible sections based on field values for categorical analysis. Grouping works only in [Grid View][11] and creates hierarchical organization. Add multiple group levels to create nested categorization. Learn more about [grouping strategies][12].
 
 **To group by a field:**
 
@@ -5208,11 +5209,11 @@ Organize rows into collapsible sections based on field values for categorical an
 
 ### Field value constraints
 
-Field value constraints are data quality rules that Baserow enforces automatically when users create or update rows. Learn more about [field constraints][12].
+Field value constraints are data quality rules that Baserow enforces automatically when users create or update rows. Learn more about [field constraints][13].
 
 ### Field index
 
-Field indexes are database optimization structures that improve query performance by creating organized reference tables for specific fields. Learn more about the [field index][13].
+Field indexes are database optimization structures that improve query performance by creating organized reference tables for specific fields. Learn more about the [field index][14].
 
 ## Frequently asked questions
 
@@ -5245,9 +5246,9 @@ Field configurations like sorts, filters, and grouping apply only to the current
 - [Fields overview][1] - Learn about all available field types
 - [Create a field][2] - Add new fields to your tables
 - [Primary field][4] - Understand the special first field
-- [Sorting, filtering, and grouping][14] - Master view customization
+- [Sorting, filtering, and grouping][15] - Master view customization
 - [Data recovery][5] - Restore deleted fields and data
-- [Grid View guide][10] - Learn about Grid View-specific features
+- [Grid View guide][11] - Learn about Grid View-specific features
 
 ---
 
@@ -5268,11 +5269,12 @@ Still need help? If you're looking for something else, please feel free to make 
   [7]: /user-docs/file-field
   [8]: /user-docs/enlarging-rows
   [9]: /user-docs/guide-to-grid-view#adjust-the-width-of-a-field
-  [10]: /user-docs/guide-to-grid-view
-  [11]: /user-docs/group-rows-in-baserow
-  [12]: https://baserow.io/user-docs/field-value-constraints
-  [13]: https://baserow.io/user-docs/field-indexes
-  [14]: /user-docs/view-customization",,baserow_user_docs,https://baserow.io/user-docs/field-customization
+  [10]: https://baserow.io/user-docs/guide-to-grid-view#adjust-column-width
+  [11]: /user-docs/guide-to-grid-view
+  [12]: /user-docs/group-rows-in-baserow
+  [13]: https://baserow.io/user-docs/field-value-constraints
+  [14]: https://baserow.io/user-docs/field-indexes
+  [15]: /user-docs/view-customization",field,baserow_user_docs,https://baserow.io/user-docs/field-customization
 30,Primary field,primary-field,Baserow primary field,"# Understanding the primary field in Baserow
 
 The primary field in Baserow is your table's identity column; the name or identifier that represents each row throughout your database, in relationships, forms, and integrations, making it the most important field design decision in your table.
@@ -14826,6 +14828,28 @@ Combine shortcuts into sequences for common tasks:
 
 > Don't try to memorize every shortcut at once. Start with the essential shortcuts and use them consistently for a week. Once they become automatic, add a few more to your repertoire.
 
+## Grid view keyboard shortcuts
+
+Speed up your workflow with keyboard shortcuts:
+
+**Navigation:**
+- **Tab** - Move to next cell (right)
+- **Shift + Tab** - Move to previous cell (left)
+- **Enter** - Move to cell below
+- **Shift + Enter** - Move to cell above
+- **Arrow keys** - Navigate in any direction
+
+**Editing:**
+- **Double-click** or **Enter** - Start editing cell
+- **Esc** - Cancel editing without saving
+- **Ctrl/Cmd + C** - Copy cell content
+- **Ctrl/Cmd + V** - Paste into cell
+
+**Selection:**
+- **Shift + Click** - Select multiple rows
+- **Ctrl/Cmd + Click** - Add individual rows to selection
+- **Ctrl/Cmd + A** - Select all visible rows
+
 ## Frequently asked questions
 
 ### Do keyboard shortcuts work on all devices?
@@ -14888,7 +14912,7 @@ Still need help? If you're looking for something else, please feel free to make 
 [7]: /user-docs/baserow-basics
 [8]: /user-docs/how-to-get-started-with-baserow
 [9]: /user-docs/set-up-baserow
-[10]: /user-docs/learn-baserow-basic-concepts",,baserow_user_docs,https://baserow.io/user-docs/baserow-keyboard-shortcuts
+[10]: /user-docs/learn-baserow-basic-concepts",getting started,baserow_user_docs,https://baserow.io/user-docs/baserow-keyboard-shortcuts
 126,Personal views,personal-views,Baserow: Creating personal views,"# Personal views
 
 Personal views are private views visible only to you. Create custom filters, sorts, and configurations for your individual workflow without disrupting shared team views.
@@ -15909,7 +15933,7 @@ Unique functionality for specific needs:
 |------------|-------------------|-------------|
 | [File][25] | Upload documents/images | Product photos, contracts, attachments |
 | [AI prompt][26] | AI-generated content | Summaries, translations, content generation |
-
+| [Edit row link][27] | Edit existing rows | Update existing records through a pre-filled form |
 
 
 ## Understand computed fields
@@ -15933,25 +15957,25 @@ Common computed field types include [Formula fields][19], [Lookup fields][16], [
 
 ## Field operations and customization
 
-Each [field can be configured][27] to match your specific needs:
+Each [field can be configured][28] to match your specific needs:
 
- - **[Sorting][27]:** Arrange rows by field values (A-Z, newest first, highest to lowest)
- - **[Filtering][28]:** Show only rows matching specific field criteria
- - **[Grouping][29]:** Organize rows into collapsible sections by field values
- - **Pinning**: Lock columns to the left side of the screen so they remain visible while scrolling horizontally.
- - **[Hiding][27]:** Control field visibility per view without deleting data
- - **[Descriptions][30]:** Add explanatory text to help users understand field purpose
+ - **[Sorting][28]:** Arrange rows by field values (A-Z, newest first, highest to lowest)
+ - **[Filtering][29]:** Show only rows matching specific field criteria
+ - **[Grouping][30]:** Organize rows into collapsible sections by field values
+ - **[Freezing][31]**: Lock columns to the left side of the screen so they remain visible while scrolling horizontally.
+ - **[Hiding][28]:** Control field visibility per view without deleting data
+ - **[Descriptions][32]:** Add explanatory text to help users understand field purpose
 
 These operations are view-specific; customize each view differently without affecting others or your underlying data.
 
-![Fields option in Baserow][31]
+![Fields option in Baserow][33]
 
 
 ## Frequently asked questions
 
 ### Can I change a field type after creating it?
 
-Yes, you can convert most field types through the [field configuration][27] menu. Baserow attempts to preserve data during conversion (e.g., numbers to text works seamlessly), but some conversions may result in data loss (e.g., text to number drops non-numeric values). Always review after conversion.
+Yes, you can convert most field types through the [field configuration][28] menu. Baserow attempts to preserve data during conversion (e.g., numbers to text works seamlessly), but some conversions may result in data loss (e.g., text to number drops non-numeric values). Always review after conversion.
 
 ### What's the difference between single-line text and long text?
 
@@ -15975,16 +15999,16 @@ Baserow doesn't impose a strict field limit, but practical performance considera
 
 ### Can I make a field required/mandatory? 
 
-You cannot currently mark a field as required at the database table level. However, you can make fields required in the [Form View][32] to ensure users submit mandatory data.
+You cannot currently mark a field as required at the database table level. However, you can make fields required in the [Form View][34] to ensure users submit mandatory data.
 
 ## Related content
 
-- [Create a field][30] - Step-by-step field creation guide
-- [Field configuration options][27] - Customize field behavior and appearance
+- [Create a field][32] - Step-by-step field creation guide
+- [Field configuration options][28] - Customize field behavior and appearance
 - [Link-to-table field][15] - Create relationships between tables
 - [Formula field reference][19] - Learn formula syntax and functions
-- [Working with timezones][33] - Understand date/time field behavior
-- [Field summaries][34] - Add calculations to field footers
+- [Working with timezones][35] - Understand date/time field behavior
+- [Field summaries][36] - Add calculations to field footers
 
 ---
 
@@ -16020,14 +16044,16 @@ Still need help? If you're looking for something else, please feel free to make 
   [24]: /user-docs/duration-field
   [25]: /user-docs/file-field
   [26]: /user-docs/ai-field
-  [27]: /user-docs/field-customization
-  [28]: /user-docs/filters-in-baserow
-  [29]: https://baserow.io/user-docs/group-rows-in-baserow
-  [30]: /user-docs/adding-a-field
-  [31]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/d0aeed55-5b39-4a09-9701-7b24b6c826c4/Fields%20option%20in%20Baserow.jpg
-  [32]: https://baserow.io/user-docs/guide-to-creating-forms-in-baserow
-  [33]: /user-docs/working-with-timezones
-  [34]: /user-docs/footer-aggregation",field,baserow_user_docs,https://baserow.io/user-docs/baserow-field-overview
+  [27]: /user-docs/edit-rows-via-form
+  [28]: /user-docs/field-customization
+  [29]: /user-docs/filters-in-baserow
+  [30]: /user-docs/group-rows-in-baserow
+  [31]: https://baserow.io/user-docs/guide-to-grid-view#adjust-column-width
+  [32]: /user-docs/adding-a-field
+  [33]: https://baserow-backend-production20240528124524339000000001.s3.amazonaws.com/pagedown-uploads/d0aeed55-5b39-4a09-9701-7b24b6c826c4/Fields%20option%20in%20Baserow.jpg
+  [34]: https://baserow.io/user-docs/guide-to-creating-forms-in-baserow
+  [35]: /user-docs/working-with-timezones
+  [36]: /user-docs/footer-aggregation",field,baserow_user_docs,https://baserow.io/user-docs/baserow-field-overview
 133,Create fields,adding-a-field,Create a Baserow field for your table,"# How to create fields in Baserow
 
 Creating fields in Baserow is the foundation of database design; defining your data structure determines what information you can capture, how you organize records, and what insights you can extract from your tables.
@@ -27994,7 +28020,13 @@ Learn more: [Publishing and Managing Workflows][5]
 
 ### Workflow history
 
-The History tab logs all workflow executions, both successful and failed. Use this log to monitor workflow performance, debug issues when automations fail, track when workflows executed and what data they processed
+The History tab provides a chronological log of all workflow executions. Use this log to monitor performance and maintain your automations.
+
+ - Execution Status: See whether a workflow run was successful or failed.
+ - Execution Time: View the exact timestamp of when the workflow was triggered.
+ - Error Messaging: If a workflow fails, Baserow provides a descriptive error message within the history record to help you identify which step caused the issue.
+
+To view specific data outputs and node-level processing results, use the Test Workflow modal during the configuration phase. 
 
 ## How to build and manage workflows
 
