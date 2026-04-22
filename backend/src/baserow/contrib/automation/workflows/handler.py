@@ -1177,7 +1177,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # testing it.
         is_test_run = workflow.is_original()
 
-        # For test runs, use a history clone so that the history
+        # For test runs, use a test clone so that the history
         # points to cloned nodes instead of draft nodes.
         if is_test_run and simulate_until_node is None:
             workflow = self._ensure_published_for_run(workflow)

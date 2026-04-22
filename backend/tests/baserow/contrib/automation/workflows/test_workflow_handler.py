@@ -487,7 +487,7 @@ def test_publish_disables_live_workflow(data_fixture):
     workflow.refresh_from_db()
     workflow.save()
 
-    # Create a history clone to simulate a test run
+    # Create a test clone to simulate a test run
     test_clone_automation, _ = handler._clone_workflow(
         workflow, WorkflowState.TEST_CLONE
     )

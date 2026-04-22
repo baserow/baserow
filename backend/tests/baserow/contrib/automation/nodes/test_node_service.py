@@ -763,7 +763,7 @@ def test_move_node_invalid_reference_node(data_fixture: Fixtures):
 def test_update_node_updates_workflow_dirty_cache(data_fixture):
     """
     When a node is updated, the workflow's dirty cache flag should be set
-    so that the history clone knows to create a new clone instead of
+    so that the test clone knows to create a new clone instead of
     reusing the last one.
     """
 
@@ -783,7 +783,7 @@ def test_update_node_updates_workflow_dirty_cache(data_fixture):
 def test_create_node_updates_workflow_dirty_cache(data_fixture):
     """
     When a node is created, the workflow's dirty cache flag should be set
-    so that the history clone knows to create a new clone instead of
+    so that the test clone knows to create a new clone instead of
     reusing the last one.
     """
 
@@ -811,7 +811,7 @@ def test_create_node_updates_workflow_dirty_cache(data_fixture):
 def test_duplicate_node_updates_workflow_dirty_cache(data_fixture):
     """
     When a node is duplicated, the workflow's dirty cache flag should be set
-    so that the history clone knows to create a new clone instead of
+    so that the test clone knows to create a new clone instead of
     reusing the last one.
     """
 
@@ -831,7 +831,7 @@ def test_duplicate_node_updates_workflow_dirty_cache(data_fixture):
 def test_delete_node_updates_workflow_dirty_cache(data_fixture):
     """
     When a node is deleted, the workflow's dirty cache flag should be set
-    so that the history clone knows to create a new clone instead of
+    so that the test clone knows to create a new clone instead of
     reusing the last one.
     """
 
