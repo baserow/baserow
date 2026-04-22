@@ -48,6 +48,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='automationworkflow',
             name='state',
-            field=models.CharField(choices=[('draft', 'Draft'), ('live', 'Live'), ('paused', 'Paused'), ('disabled', 'Disabled'), ('history_clone', 'History Clone')], db_default='draft', default='draft', max_length=20),
+            field=models.CharField(choices=[('draft', 'Draft'), ('live', 'Live'), ('paused', 'Paused'), ('disabled', 'Disabled'), ('test_clone', 'Test Clone')], db_default='draft', default='draft', max_length=20),
         ),
     ]

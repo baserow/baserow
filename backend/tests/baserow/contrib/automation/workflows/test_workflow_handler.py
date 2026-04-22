@@ -435,13 +435,13 @@ def test_publish_cleans_up_old_workflows(data_fixture):
     workflow = data_fixture.create_automation_workflow()
     handler = AutomationWorkflowHandler()
 
-    history_clone_automation, _ = handler._clone_workflow(
-        workflow, WorkflowState.HISTORY_CLONE
+    test_clone_automation, _ = handler._clone_workflow(
+        workflow, WorkflowState.TEST_CLONE
     )
-    history_clone_workflow = history_clone_automation.workflows.first()
+    test_clone_workflow = test_clone_automation.workflows.first()
     data_fixture.create_automation_workflow_history(
         original_workflow=workflow,
-        workflow=history_clone_workflow,
+        workflow=test_clone_workflow,
         status=HistoryStatusChoices.SUCCESS,
     )
 
@@ -461,12 +461,12 @@ def test_publish_cleans_up_old_workflows(data_fixture):
     # The latest published workflow should be active
     assert published_4.is_published is True
 
-    # The history clone should still exist and the state should still be correct
-    history_clone_workflow.refresh_from_db()
+    # The test clone should still exist and the state should still be correct
+    test_clone_workflow.refresh_from_db()
     assert AutomationWorkflow.objects_and_trash.filter(
-        id=history_clone_workflow.id
+        id=test_clone_workflow.id
     ).exists()
-    assert history_clone_workflow.state == WorkflowState.HISTORY_CLONE
+    assert test_clone_workflow.state == WorkflowState.TEST_CLONE
 
 
 @pytest.mark.django_db
@@ -488,13 +488,13 @@ def test_publish_disables_live_workflow(data_fixture):
     workflow.save()
 
     # Create a history clone to simulate a test run
-    history_clone_automation, _ = handler._clone_workflow(
-        workflow, WorkflowState.HISTORY_CLONE
+    test_clone_automation, _ = handler._clone_workflow(
+        workflow, WorkflowState.TEST_CLONE
     )
-    history_clone_workflow = history_clone_automation.workflows.first()
+    test_clone_workflow = test_clone_automation.workflows.first()
 
-    # The history clone should be the newest automation
-    assert history_clone_automation.id > published.automation.id
+    # The test clone should be the newest automation
+    assert test_clone_automation.id > published.automation.id
 
     # The previously published workflow should now be disabled
     new_published = handler.publish(workflow)
@@ -504,9 +504,9 @@ def test_publish_disables_live_workflow(data_fixture):
     # Make sure the newly published workflow is live
     assert new_published.state == WorkflowState.LIVE
 
-    # The history clone should be unaffected
-    history_clone_workflow.refresh_from_db()
-    assert history_clone_workflow.state == WorkflowState.HISTORY_CLONE
+    # The test clone should be unaffected
+    test_clone_workflow.refresh_from_db()
+    assert test_clone_workflow.state == WorkflowState.TEST_CLONE
 
 
 @pytest.mark.django_db
@@ -1862,7 +1862,7 @@ def test_ensure_published_for_run_creates_new_clone(data_fixture):
     # Ensure that the cloned workflow is a new workflow
     assert cloned_workflow.id != workflow.id
     assert cloned_workflow.automation.published_from == workflow
-    assert cloned_workflow.state == WorkflowState.HISTORY_CLONE
+    assert cloned_workflow.state == WorkflowState.TEST_CLONE
 
     # Ensure the trigger is correct
     assert cloned_trigger.id != trigger.id
@@ -2003,7 +2003,7 @@ def test_clear_old_history_deletes_orphaned_automations(data_fixture):
 
 @pytest.mark.django_db
 @patch(f"{WORKFLOWS_MODULE}.handler.start_workflow_celery_task")
-def test_async_start_workflow_test_run_creates_history_clone(
+def test_async_start_workflow_test_run_creates_test_clone(
     mock_start_workflow_celery_task, data_fixture, django_capture_on_commit_callbacks
 ):
     """
@@ -2023,7 +2023,7 @@ def test_async_start_workflow_test_run_creates_history_clone(
     assert history.is_test_run is True
     assert history.workflow_id != workflow.id
     assert history.workflow.automation.published_from == workflow
-    assert history.workflow.state == WorkflowState.HISTORY_CLONE
+    assert history.workflow.state == WorkflowState.TEST_CLONE
 
     mock_start_workflow_celery_task.delay.assert_called_once_with(
         history.workflow_id, history.id

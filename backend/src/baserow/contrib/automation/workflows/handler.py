@@ -982,7 +982,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             node_id_mapping = self.build_node_id_mapping(workflow, cloned_workflow)
         else:
             cloned_automation, id_mapping = self._clone_workflow(
-                workflow, WorkflowState.HISTORY_CLONE
+                workflow, WorkflowState.TEST_CLONE
             )
             cloned_workflow = cloned_automation.workflows.first()
             node_id_mapping = id_mapping.get("automation_workflow_nodes", {})
