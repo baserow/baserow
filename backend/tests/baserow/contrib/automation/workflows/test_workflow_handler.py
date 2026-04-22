@@ -1853,62 +1853,42 @@ def test_clear_old_history_excludes_started_workflows_max_days(data_fixture):
 @pytest.mark.django_db
 def test_ensure_published_for_run_creates_new_clone(data_fixture):
     workflow = data_fixture.create_automation_workflow()
-    trigger = workflow.get_trigger()
 
-    cloned_workflow, cloned_trigger = (
-        AutomationWorkflowHandler()._ensure_published_for_run(workflow, trigger)
-    )
+    cloned_workflow = AutomationWorkflowHandler()._ensure_published_for_run(workflow)
 
     # Ensure that the cloned workflow is a new workflow
     assert cloned_workflow.id != workflow.id
     assert cloned_workflow.automation.published_from == workflow
     assert cloned_workflow.state == WorkflowState.TEST_CLONE
 
-    # Ensure the trigger is correct
-    assert cloned_trigger.id != trigger.id
-    assert cloned_trigger.id == cloned_workflow.get_trigger().id
-
 
 @pytest.mark.django_db
 def test_ensure_published_for_reuses_existing_clone(data_fixture):
     workflow = data_fixture.create_automation_workflow()
-    trigger = workflow.get_trigger()
 
     handler = AutomationWorkflowHandler()
-    cloned_workflow_1, cloned_trigger_1 = handler._ensure_published_for_run(
-        workflow, trigger
-    )
-    cloned_workflow_2, cloned_trigger_2 = handler._ensure_published_for_run(
-        workflow, trigger
-    )
+    cloned_workflow_1 = handler._ensure_published_for_run(workflow)
+    cloned_workflow_2 = handler._ensure_published_for_run(workflow)
 
-    # When the workflow hasn't changed, the same clone should be returned
     assert cloned_workflow_1.id == cloned_workflow_2.id
-
-    # Ensure the trigger is correct
-    assert cloned_trigger_1.id == cloned_trigger_2.id
 
 
 @pytest.mark.django_db
 def test_ensure_published_for_run_creates_new_after_workflow_update(data_fixture):
     workflow = data_fixture.create_automation_workflow()
-    trigger = workflow.get_trigger()
 
     handler = AutomationWorkflowHandler()
 
-    cloned_workflow_1, _ = handler._ensure_published_for_run(workflow, trigger)
+    cloned_workflow_1 = handler._ensure_published_for_run(workflow)
 
     # Set the dirty flag to trigger a new clone
     cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
     global_cache.update(cache_key, lambda _: True)
 
-    cloned_workflow_2, cloned_trigger_2 = handler._ensure_published_for_run(
-        workflow, trigger
-    )
+    cloned_workflow_2 = handler._ensure_published_for_run(workflow)
 
     # Because the workflow was updated, a new clone should be created
-    assert cloned_trigger_2.id != trigger.id
-    assert cloned_trigger_2.id == cloned_workflow_2.get_trigger().id
+    assert cloned_workflow_1.id != cloned_workflow_2.id
 
 
 @pytest.mark.django_db
@@ -1919,14 +1899,11 @@ def test_ensure_published_for_run_reuses_live_automation(data_fixture):
     """
 
     workflow = data_fixture.create_automation_workflow()
-    trigger = workflow.get_trigger()
 
     handler = AutomationWorkflowHandler()
     published_workflow = handler.publish(workflow)
 
-    cloned_workflow, cloned_trigger = handler._ensure_published_for_run(
-        workflow, trigger
-    )
+    cloned_workflow = handler._ensure_published_for_run(workflow)
 
     assert cloned_workflow.automation_id == published_workflow.automation_id
 
@@ -1973,9 +1950,7 @@ def test_clear_old_history_deletes_orphaned_automations(data_fixture):
     workflow = data_fixture.create_automation_workflow()
     handler = AutomationWorkflowHandler()
 
-    cloned_workflow, _ = handler._ensure_published_for_run(
-        workflow, workflow.get_trigger()
-    )
+    cloned_workflow = handler._ensure_published_for_run(workflow)
     clone_automation_id = cloned_workflow.automation_id
 
     handler.publish(workflow)

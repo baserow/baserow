@@ -11,7 +11,6 @@ from baserow.contrib.automation.history.models import (
     AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
-from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.tasks import handle_workflow_dispatch_done
 from baserow.core.services.exceptions import UnexpectedDispatchException
 from baserow.test_utils.helpers import AnyInt, AnyStr
@@ -1516,20 +1515,16 @@ def test_dispatch_node_simulation_copies_sample_data_to_draft_node(
     workflow = data["workflow"]
     trigger_node = data["trigger_node"]
 
-    cloned_workflow, cloned_trigger = (
-        AutomationWorkflowHandler()._ensure_published_for_run(workflow, trigger_node)
-    )
-
     workflow_history = data_fixture.create_automation_workflow_history(
         original_workflow=workflow,
-        workflow=cloned_workflow,
-        simulate_until_node=cloned_trigger,
+        workflow=workflow,
+        simulate_until_node=trigger_node,
         is_test_run=True,
     )
 
     assert trigger_node.service.specific.sample_data is None
     AutomationNodeHandler().dispatch_node(
-        cloned_trigger.id,
+        trigger_node.id,
         history_id=workflow_history.id,
     )
 

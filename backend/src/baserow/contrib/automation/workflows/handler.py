@@ -931,36 +931,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             completed_on=now,
         )
 
-    def build_node_id_mapping(
-        self,
-        source_workflow: AutomationWorkflow,
-        target_workflow: AutomationWorkflow,
-    ) -> Dict[int, int]:
-        """
-        Build a mapping from draft node IDs to cloned node IDs by
-        the order of nodes.
-
-        We can assume the ordering is safe because the export/import process
-        ensures the nodes are created in order.
-        """
-
-        source_node_ids = list(
-            source_workflow.automation_workflow_nodes.order_by("id").values_list(
-                "id", flat=True
-            )
-        )
-        target_node_ids = list(
-            target_workflow.automation_workflow_nodes.order_by("id").values_list(
-                "id", flat=True
-            )
-        )
-        return dict(zip(source_node_ids, target_node_ids))
-
     def _ensure_published_for_run(
-        self,
-        workflow: AutomationWorkflow,
-        simulate_until_node: AutomationNode | None = None,
-    ) -> Tuple[AutomationWorkflow, AutomationNode | None]:
+        self, workflow: AutomationWorkflow
+    ) -> AutomationWorkflow:
         """
         Ensure an up-to-date cloned automation exists for test runs.
 
@@ -979,23 +952,14 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # use that existing clone's workflow.
         if latest_clone and not is_dirty:
             cloned_workflow = latest_clone.workflows.first()
-            node_id_mapping = self.build_node_id_mapping(workflow, cloned_workflow)
         else:
-            cloned_automation, id_mapping = self._clone_workflow(
+            cloned_automation, _ = self._clone_workflow(
                 workflow, WorkflowState.TEST_CLONE
             )
             cloned_workflow = cloned_automation.workflows.first()
-            node_id_mapping = id_mapping.get("automation_workflow_nodes", {})
             global_cache.invalidate(is_dirty_key)
 
-        cloned_simulate_until_node = None
-        if simulate_until_node:
-            cloned_node_id = node_id_mapping[simulate_until_node.id]
-            cloned_simulate_until_node = cloned_workflow.get_graph().get_node(
-                cloned_node_id
-            )
-
-        return cloned_workflow, cloned_simulate_until_node
+        return cloned_workflow
 
     def _get_workflow_history_rate_limit_cache_key(
         self, original_workflow: AutomationWorkflow
@@ -1215,10 +1179,8 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         # For test runs, use a history clone so that the history
         # points to cloned nodes instead of draft nodes.
-        if is_test_run:
-            workflow, simulate_until_node = self._ensure_published_for_run(
-                workflow, simulate_until_node
-            )
+        if is_test_run and simulate_until_node is None:
+            workflow = self._ensure_published_for_run(workflow)
 
         history = AutomationHistoryHandler().create_workflow_history(
             original_workflow=original_workflow,
