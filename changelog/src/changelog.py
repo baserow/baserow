@@ -29,10 +29,10 @@ def add(
     entry_type: Optional[str] = typer.Option(
         None, "--type", help=f"The entry type this changelog is. One of: {', '.join(ENTRY_TYPES)}.",
     ),
-    issue: Optional[str] = typer.Option(None, "--issue", help="The GitHub issue ID. Defaults to finding it through the branch name prefix."),
     message: Optional[str] = typer.Option(
         None, "--message", help="The changelog message. Describe in non-technical language what the bug, feature or refactor accomplishes."
     ),
+    issue: Optional[str] = typer.Option(None, "--issue", help="The GitHub issue ID. Defaults to finding it through the branch name prefix."),
 ):
     domain_type = domain or typer.prompt(
         "Domain",

@@ -1180,11 +1180,11 @@ env-clear:
 changelog *args:
     cd backend && uv run --group changelog python ../changelog/src/changelog.py {{ args }}
 
-# Add a changelog entry non-interactively
+# Add a changelog entry non-interactively as an agent
 [group('5 - utilities')]
-[doc("Add changelog entry: just changelog-add <domain> <type> <issue> <message>")]
-changelog-add domain type issue message:
-    cd backend && uv run --group changelog python ../changelog/src/changelog.py add --domain={{domain}} --type={{type}} --issue={{issue}} --message="{{message}}"
+[doc("Agent add changelog entry: just changelog-agent-add <domain> <type> <message>")]
+changelog-agent-add domain type message:
+    cd backend && uv run --group changelog python ../changelog/src/changelog.py add --domain={{domain}} --type={{type}} --message="{{message}}"  --issue=''
 
 # Run changelog tests
 [group('4 - testing')]
