@@ -368,7 +368,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         import_export_config: Optional[ImportExportConfig] = None,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
-        cache: Optional[Dict[str, any]] = None,
+        cache: Optional[Dict[str, Any]] = None,
     ) -> AutomationWorkflowDict:
         """
         Serializes the given workflow.
@@ -580,10 +580,11 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             state=serialized_workflow["state"] or WorkflowState.DRAFT,
             graph=serialized_workflow.get("graph", {}),
         )
-        if recipient_emails := serialized_workflow.get(
-            "notification_recipient_emails", []
-        ):
-            workspace = workflow_instance.get_original().automation.workspace
+        if (
+            recipient_emails := serialized_workflow.get(
+                "notification_recipient_emails", []
+            )
+        ) and (workspace := workflow_instance.get_original().automation.workspace):
             workflow_instance.notification_recipients.set(
                 workspace.users.filter(email__in=recipient_emails)
             )
@@ -660,7 +661,6 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         # Manually set the published status for the newly created workflow.
         exported_automation["workflows"][0]["state"] = WorkflowState.LIVE
-        exported_automation["published_from"] = workflow
 
         progress_builder = None
         if progress:
@@ -678,6 +678,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             default_storage,
             progress_builder=progress_builder,
         )
+
+        duplicate_automation.published_from = workflow
+        duplicate_automation.save(update_fields=["published_from"])
 
         self._invalidate_workflow_caches(workflow)
 
@@ -942,16 +945,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         histories = list(qs.order_by("-started_on").values_list("started_on", "status"))
 
         # Consecutive errors check
-        if (
-            len(
-                [
-                    s
-                    for _, s in histories[: max_errors + 1]
-                    if s == HistoryStatusChoices.ERROR
-                ]
-            )
-            > max_errors
-        ):
+        latest_statuses = [status for _, status in histories[: max_errors + 1]]
+        latest_error_count = latest_statuses.count(HistoryStatusChoices.ERROR)
+        if latest_error_count > max_errors:
             raise AutomationWorkflowTooManyErrors(
                 "The workflow was disabled due to too many consecutive errors. "
                 f"Limit exceeded: {max_errors} consecutive errors."

@@ -32,7 +32,7 @@ import {
   DuplicateAutomationWorkflowJobType,
   PublishAutomationWorkflowJobType,
 } from '@baserow/modules/automation/jobTypes'
-import { WorkflowDisabledNotificationType } from '@baserow/modules/automation/notificationTypes'
+import { WorkflowDisabledNotificationType } from '@baserow/modules/automation/notificationTypes.jsx'
 import {
   HistoryEditorSidePanelType,
   NodeEditorSidePanelType,

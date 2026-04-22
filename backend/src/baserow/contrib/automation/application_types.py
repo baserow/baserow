@@ -210,10 +210,6 @@ class AutomationApplicationType(ApplicationType):
             progress.create_child_builder(represents_progress=100),
         )
 
-        # Extra fields
-        application.published_from = serialized_values.get("published_from", None)
-        application.save(update_fields=["published_from"])
-
         automation = application.specific
 
         if not serialized_integrations:

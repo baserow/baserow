@@ -80,7 +80,7 @@ class AutomationWorkflow(
     notification_recipients = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         blank=True,
-        related_name="automation_workflows_notifications",
+        related_name="automation_notification_workflows",
         help_text=(
             "The workspace users that should receive notifications related to "
             "this workflow."

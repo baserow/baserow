@@ -20,6 +20,7 @@ from baserow.api.serializers import get_example_pagination_serializer_class
 from baserow.contrib.automation.api.workflows.errors import (
     ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
     ERROR_AUTOMATION_WORKFLOW_NOT_IN_AUTOMATION,
+    ERROR_AUTOMATION_WORKFLOW_NOTIFICATION_RECIPIENTS_INVALID,
 )
 from baserow.contrib.automation.api.workflows.serializers import (
     AutomationWorkflowHistorySerializer,
@@ -37,6 +38,7 @@ from baserow.contrib.automation.workflows.actions import (
 )
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
+    AutomationWorkflowNotificationRecipientsInvalid,
     AutomationWorkflowNotInAutomation,
 )
 from baserow.contrib.automation.workflows.job_types import (
@@ -72,6 +74,7 @@ class AutomationWorkflowsView(APIView):
             200: AutomationWorkflowSerializer,
             400: get_error_schema(
                 [
+                    "ERROR_AUTOMATION_WORKFLOW_NOTIFICATION_RECIPIENTS_INVALID",
                     "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
@@ -82,6 +85,9 @@ class AutomationWorkflowsView(APIView):
     @map_exceptions(
         {
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
+            AutomationWorkflowNotificationRecipientsInvalid: (
+                ERROR_AUTOMATION_WORKFLOW_NOTIFICATION_RECIPIENTS_INVALID
+            ),
         }
     )
     @validate_body(CreateAutomationWorkflowSerializer, return_validated=True)
@@ -147,6 +153,7 @@ class AutomationWorkflowView(APIView):
             200: AutomationWorkflowSerializer,
             400: get_error_schema(
                 [
+                    "ERROR_AUTOMATION_WORKFLOW_NOTIFICATION_RECIPIENTS_INVALID",
                     "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
@@ -163,6 +170,9 @@ class AutomationWorkflowView(APIView):
         {
             ApplicationDoesNotExist: ERROR_APPLICATION_DOES_NOT_EXIST,
             AutomationWorkflowDoesNotExist: ERROR_AUTOMATION_WORKFLOW_DOES_NOT_EXIST,
+            AutomationWorkflowNotificationRecipientsInvalid: (
+                ERROR_AUTOMATION_WORKFLOW_NOTIFICATION_RECIPIENTS_INVALID
+            ),
         }
     )
     @validate_body(UpdateAutomationWorkflowSerializer, return_validated=True)

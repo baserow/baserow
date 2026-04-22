@@ -1,4 +1,5 @@
 import { NotificationType } from '@baserow/modules/core/notificationTypes'
+import Icon from '@baserow/modules/core/components/Icon'
 import WorkflowDisabledNotification from '@baserow/modules/automation/components/notifications/WorkflowDisabledNotification'
 
 export class WorkflowDisabledNotificationType extends NotificationType {
@@ -7,7 +8,14 @@ export class WorkflowDisabledNotificationType extends NotificationType {
   }
 
   getIconComponent() {
-    return null
+    return () => (
+      <Icon
+        class="notification-panel__notification-automation-icon"
+        icon="baserow-icon-automation"
+        type="secondary"
+        size="large"
+      />
+    )
   }
 
   getContentComponent() {

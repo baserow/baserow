@@ -116,7 +116,7 @@ const rules = computed(() => ({
       required: helpers.withMessage(t('error.requiredField'), required),
       maxLength: helpers.withMessage(
         t('error.maxLength', { max: 255 }),
-        maxLength(225)
+        maxLength(255)
       ),
     },
   },

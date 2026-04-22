@@ -2,12 +2,13 @@ from typing import List, Optional
 
 from django.contrib.auth.models import AbstractUser
 
-from rest_framework import serializers
-
 from baserow.contrib.automation.handler import AutomationHandler
 from baserow.contrib.automation.models import Automation, AutomationWorkflow
 from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
 from baserow.contrib.automation.operations import OrderAutomationWorkflowsOperationType
+from baserow.contrib.automation.workflows.exceptions import (
+    AutomationWorkflowNotificationRecipientsInvalid,
+)
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.operations import (
     CreateAutomationWorkflowOperationType,
@@ -43,13 +44,8 @@ class AutomationWorkflowService:
             workspace.users.filter(id__in=notification_recipient_ids).order_by("id")
         )
         if len(recipients) != len(set(notification_recipient_ids)):
-            raise serializers.ValidationError(
-                {
-                    "notification_recipient_ids": [
-                        "All notification recipients must belong to the workflow "
-                        "workspace."
-                    ]
-                }
+            raise AutomationWorkflowNotificationRecipientsInvalid(
+                "All notification recipients must belong to the workflow workspace."
             )
         return recipients
 
@@ -124,6 +120,8 @@ class AutomationWorkflowService:
         :param user: The user trying to create the workflow.
         :param automation_id: The automation workflow belongs to.
         :param name: The name of the workflow.
+        :param notification_recipient_ids: The ids of the user recipient of the
+          workflow notifications.
         :return: The newly created AutomationWorkflow instance.
         """
 

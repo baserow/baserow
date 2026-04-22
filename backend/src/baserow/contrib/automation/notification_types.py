@@ -36,7 +36,7 @@ class WorkflowDisabledNotificationType(NotificationType):
     ) -> List[NotificationRecipient]:
         original_workflow = workflow.get_original()
         recipients = list(
-            workflow.notification_recipients.filter(
+            original_workflow.notification_recipients.filter(
                 profile__to_be_deleted=False,
                 is_active=True,
             ).select_related("profile")

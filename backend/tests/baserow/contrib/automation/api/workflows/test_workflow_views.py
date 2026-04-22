@@ -198,9 +198,8 @@ def test_update_workflow_rejects_non_workspace_notification_recipient(
 
     assert response.status_code == HTTP_400_BAD_REQUEST
     assert response.json() == {
-        "notification_recipient_ids": [
-            "All notification recipients must belong to the workflow workspace."
-        ],
+        "error": "ERROR_AUTOMATION_WORKFLOW_NOTIFICATION_RECIPIENTS_INVALID",
+        "detail": "All notification recipients must belong to the workflow workspace.",
     }
 
 

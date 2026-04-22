@@ -148,6 +148,62 @@ def test_export_workflow_excludes_notification_recipients_when_not_duplicating(
     assert exported_workflow["notification_recipient_emails"] == []
 
 
+@pytest.mark.django_db
+def test_exported_workflow_import_maps_notification_recipients_to_target_workspace(
+    data_fixture,
+):
+    source_workspace = data_fixture.create_workspace()
+    target_workspace = data_fixture.create_workspace()
+
+    shared_recipient = data_fixture.create_user(
+        email="shared-recipient@example.com", workspace=source_workspace
+    )
+    source_only_recipient = data_fixture.create_user(
+        email="source-only-recipient@example.com", workspace=source_workspace
+    )
+    target_only_user = data_fixture.create_user(
+        email="target-only-user@example.com", workspace=target_workspace
+    )
+    data_fixture.create_user_workspace(
+        workspace=target_workspace, user=shared_recipient
+    )
+
+    source_automation = data_fixture.create_automation_application(
+        workspace=source_workspace
+    )
+    source_workflow = data_fixture.create_automation_workflow(
+        automation=source_automation,
+        create_trigger=False,
+    )
+    source_workflow.notification_recipients.add(shared_recipient, source_only_recipient)
+
+    exported_workflow = AutomationWorkflowHandler().export_workflow(
+        source_workflow,
+        import_export_config=ImportExportConfig(
+            include_permission_data=True,
+            is_duplicate=True,
+        ),
+    )
+
+    assert exported_workflow["notification_recipient_emails"] == [
+        shared_recipient.email,
+        source_only_recipient.email,
+    ]
+
+    target_automation = data_fixture.create_automation_application(
+        workspace=target_workspace
+    )
+
+    imported_workflow = AutomationWorkflowHandler().import_workflow(
+        target_automation,
+        exported_workflow,
+        {},
+    )
+
+    assert list(imported_workflow.notification_recipients.all()) == [shared_recipient]
+    assert target_only_user not in imported_workflow.notification_recipients.all()
+
+
 @patch(f"{TRASH_TYPES_PATH}.automation_workflow_deleted")
 @pytest.mark.django_db
 def test_delete_workflow(workflow_deleted_mock, data_fixture):
@@ -842,7 +898,7 @@ def test_disable_workflow_notifies_selected_recipients(data_fixture):
     )
     published_workflow.automation.published_from = original_workflow
     published_workflow.automation.save()
-    published_workflow.notification_recipients.add(recipient_1, recipient_2)
+    original_workflow.notification_recipients.add(recipient_1, recipient_2)
 
     AutomationWorkflowHandler().disable_workflow(published_workflow)
 

@@ -21,6 +21,12 @@ For direct package-manager use, backend commands run through `uv` and frontend c
 
 Python targets Python 3.14, uses 4-space indentation, and is formatted and linted with Ruff (`ruff check`, `ruff format`) with an 88-character line length. Follow existing Django app/module naming and keep new tests in `test_*.py` or `*_test.py` files. Frontend code uses ESLint, Stylelint, and Prettier; SCSS should follow BEM-style naming already used in `web-frontend/modules`.
 
+## Technology Stack
+
+Backend code uses Django, Django REST Framework, Celery, PostgreSQL, Redis, and pytest/pytest-django. Python dependencies are managed with `uv`.
+
+Frontend code uses Vue 3, Nuxt 3, Vuex, Vite, Vitest, Storybook, SCSS, ESLint, Stylelint, Prettier, and `yarn`. Render functions must use Vue 3 semantics, for example importing `h` from `vue` instead of expecting `render(h)` to receive it. JSX-bearing frontend files must use a `.jsx` or `.tsx` extension so Vite can parse them.
+
 ## Testing Guidelines
 
 Backend tests use `pytest` with `pytest-django`; frontend tests use `vitest`; browser flows live in `e2e-tests/`. Add unit tests for backend changes and targeted frontend tests for component or store behavior. 

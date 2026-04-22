@@ -1,12 +1,12 @@
 from unittest.mock import patch
 
 import pytest
-from rest_framework import serializers
 
-from baserow.contrib.automation.models import Automation, AutomationWorkflow
+from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
+    AutomationWorkflowNotificationRecipientsInvalid,
     AutomationWorkflowNotInAutomation,
 )
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
@@ -86,7 +86,7 @@ def test_create_workflow_rejects_non_workspace_notification_recipients(data_fixt
     automation = data_fixture.create_automation_application(user=user)
     recipient = data_fixture.create_user()
 
-    with pytest.raises(serializers.ValidationError) as exc:
+    with pytest.raises(AutomationWorkflowNotificationRecipientsInvalid) as exc:
         AutomationWorkflowService().create_workflow(
             user,
             automation.id,
@@ -94,11 +94,9 @@ def test_create_workflow_rejects_non_workspace_notification_recipients(data_fixt
             notification_recipient_ids=[recipient.id],
         )
 
-    assert exc.value.detail == {
-        "notification_recipient_ids": [
-            "All notification recipients must belong to the workflow workspace."
-        ]
-    }
+    assert str(exc.value) == (
+        "All notification recipients must belong to the workflow workspace."
+    )
 
 
 @patch(f"{SERVICES_PATH}.automation_workflow_deleted")
@@ -194,16 +192,14 @@ def test_update_workflow_rejects_non_workspace_notification_recipients(data_fixt
     workflow = data_fixture.create_automation_workflow(automation=automation)
     recipient = data_fixture.create_user()
 
-    with pytest.raises(serializers.ValidationError) as exc:
+    with pytest.raises(AutomationWorkflowNotificationRecipientsInvalid) as exc:
         AutomationWorkflowService().update_workflow(
             user, workflow.id, notification_recipient_ids=[recipient.id]
         )
 
-    assert exc.value.detail == {
-        "notification_recipient_ids": [
-            "All notification recipients must belong to the workflow workspace."
-        ]
-    }
+    assert str(exc.value) == (
+        "All notification recipients must belong to the workflow workspace."
+    )
 
 
 @patch(f"{SERVICES_PATH}.automation_workflows_reordered")
@@ -325,16 +321,15 @@ def test_publish_workflow(mock_signal, data_fixture):
     workflow = data_fixture.create_automation_workflow(automation=automation)
 
     service = AutomationWorkflowService()
-    service.publish(user, workflow, Progress(0))
+    published_workflow = service.publish(user, workflow, Progress(0))
 
     workflow.refresh_from_db()
     assert workflow.state == WorkflowState.DRAFT
 
-    published_automation = Automation.objects.get(published_from=workflow)
+    published_automation = published_workflow.automation
     assert published_automation.automation.workspace is None
     assert published_automation.workflows.count() == 1
 
-    published_workflow = published_automation.workflows.first()
     assert published_workflow.state == WorkflowState.LIVE
 
     mock_signal.send.assert_called_once_with(

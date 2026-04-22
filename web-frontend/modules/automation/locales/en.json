@@ -71,7 +71,7 @@
     "cantUpdateWorkflowDescription": "Sorry, could not update the workflow."
   },
   "workflowDisabledNotification": {
-    "body": "{name} workflow was disabled."
+    "body": "The {name} workflow was disabled."
   },
   "integrationSettings": {
     "title": "Integrations",
