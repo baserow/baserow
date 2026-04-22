@@ -1,7 +1,6 @@
 from unittest.mock import patch
 
 import pytest
-from freezegun import freeze_time
 
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
@@ -12,6 +11,8 @@ from baserow.contrib.automation.nodes.models import LocalBaserowCreateRowActionN
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
+from baserow.contrib.automation.workflows.constants import WORKFLOW_DIRTY_CACHE_KEY
+from baserow.core.cache import global_cache
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.fixtures import Fixtures
@@ -759,111 +760,88 @@ def test_move_node_invalid_reference_node(data_fixture: Fixtures):
 
 
 @pytest.mark.django_db
-def test_update_node_updates_workflow_updated_on(data_fixture):
+def test_update_node_updates_workflow_dirty_cache(data_fixture):
     """
-    When a node is updated, we need to also ensure the workflow's updated_on
-    is updated.
-
-    This is useful to know if the workflow has changed, e.g. the history
-    clone checks if a workflow has changed to decide whether to create
-    a new clone or use the last one.
+    When a node is updated, the workflow's dirty cache flag should be set
+    so that the history clone knows to create a new clone instead of
+    reusing the last one.
     """
 
     user = data_fixture.create_user()
+    node = data_fixture.create_automation_node(user=user)
 
-    with freeze_time("2025-04-10 12:00:00"):
-        node = data_fixture.create_automation_node(user=user)
+    cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(node.workflow.id)
 
-    workflow = node.workflow
-    workflow_updated_on = workflow.updated_on
+    assert global_cache.get(cache_key, default=False) is False
 
-    with freeze_time("2025-04-10 12:00:01"):
-        AutomationNodeService().update_node(user, node.id, label="foo result")
+    AutomationNodeService().update_node(user, node.id, label="foo label")
 
-    workflow.refresh_from_db()
-    assert workflow.updated_on > workflow_updated_on
+    assert global_cache.get(cache_key, default=False) is True
 
 
 @pytest.mark.django_db
-def test_create_node_updates_workflow_updated_on(data_fixture):
+def test_create_node_updates_workflow_dirty_cache(data_fixture):
     """
-    When a node is created, we need to also ensure the workflow's updated_on
-    is updated.
-
-    This is useful to know if the workflow has changed, e.g. the history
-    clone checks if a workflow has changed to decide whether to create
-    a new clone or use the last one.
+    When a node is created, the workflow's dirty cache flag should be set
+    so that the history clone knows to create a new clone instead of
+    reusing the last one.
     """
 
     user = data_fixture.create_user()
-
-    with freeze_time("2025-04-10 12:00:00"):
-        node = data_fixture.create_automation_node(user=user)
-
+    node = data_fixture.create_automation_node(user=user)
     workflow = node.workflow
-    workflow_updated_on = workflow.updated_on
 
-    with freeze_time("2025-04-10 12:00:01"):
-        AutomationNodeService().create_node(
-            user,
-            node_type=automation_node_type_registry.get("local_baserow_create_row"),
-            workflow=workflow,
-            reference_node_id=node.id,
-            position="south",
-            output="",
-        )
+    cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
 
-    workflow.refresh_from_db()
-    assert workflow.updated_on > workflow_updated_on
+    assert global_cache.get(cache_key, default=False) is False
+
+    AutomationNodeService().create_node(
+        user,
+        node_type=automation_node_type_registry.get("local_baserow_create_row"),
+        workflow=workflow,
+        reference_node_id=node.id,
+        position="south",
+        output="",
+    )
+
+    assert global_cache.get(cache_key, default=False) is True
 
 
 @pytest.mark.django_db
-def test_duplicate_node_updates_workflow_updated_on(data_fixture):
+def test_duplicate_node_updates_workflow_dirty_cache(data_fixture):
     """
-    When a node is duplicated, we need to also ensure the workflow's updated_on
-    is updated.
-
-    This is useful to know if the workflow has changed, e.g. the history
-    clone checks if a workflow has changed to decide whether to create
-    a new clone or use the last one.
+    When a node is duplicated, the workflow's dirty cache flag should be set
+    so that the history clone knows to create a new clone instead of
+    reusing the last one.
     """
 
     user = data_fixture.create_user()
+    node = data_fixture.create_local_baserow_create_row_action_node(user=user)
 
-    with freeze_time("2025-04-10 12:00:00"):
-        node = data_fixture.create_local_baserow_create_row_action_node(user=user)
+    cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(node.workflow.id)
 
-    workflow = node.workflow
-    workflow_updated_on = workflow.updated_on
+    assert global_cache.get(cache_key, default=False) is False
 
-    with freeze_time("2025-04-10 12:00:01"):
-        AutomationNodeService().duplicate_node(user, node.id)
+    AutomationNodeService().duplicate_node(user, node.id)
 
-    workflow.refresh_from_db()
-    assert workflow.updated_on > workflow_updated_on
+    assert global_cache.get(cache_key, default=False) is True
 
 
 @pytest.mark.django_db
-def test_delete_node_updates_workflow_updated_on(data_fixture):
+def test_delete_node_updates_workflow_dirty_cache(data_fixture):
     """
-    When a node is deleted, we need to also ensure the workflow's updated_on
-    is updated.
-
-    This is useful to know if the workflow has changed, e.g. the history
-    clone checks if a workflow has changed to decide whether to create
-    a new clone or use the last one.
+    When a node is deleted, the workflow's dirty cache flag should be set
+    so that the history clone knows to create a new clone instead of
+    reusing the last one.
     """
 
     user = data_fixture.create_user()
+    node = data_fixture.create_automation_node(user=user)
 
-    with freeze_time("2025-04-10 12:00:00"):
-        node = data_fixture.create_automation_node(user=user)
+    cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(node.workflow.id)
 
-    workflow = node.workflow
-    workflow_updated_on = workflow.updated_on
+    assert global_cache.get(cache_key, default=False) is False
 
-    with freeze_time("2025-04-10 12:00:01"):
-        AutomationNodeService().delete_node(user, node.id)
+    AutomationNodeService().delete_node(user, node.id)
 
-    workflow.refresh_from_db()
-    assert workflow.updated_on > workflow_updated_on
+    assert global_cache.get(cache_key, default=False) is True

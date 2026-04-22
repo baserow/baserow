@@ -35,6 +35,7 @@ from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.types import AutomationWorkflowDict
 from baserow.contrib.automation.workflows.constants import (
     ALLOW_TEST_RUN_MINUTES,
+    WORKFLOW_DIRTY_CACHE_KEY,
     WorkflowState,
 )
 from baserow.contrib.automation.workflows.exceptions import (
@@ -149,6 +150,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         global_cache.invalidate(
             self._get_workflow_history_rate_limit_cache_key(original_workflow)
         )
+        global_cache.invalidate(WORKFLOW_DIRTY_CACHE_KEY.format(original_workflow.id))
 
     def get_workflows(
         self, automation: Automation, base_queryset: Optional[QuerySet] = None
@@ -970,9 +972,12 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             Automation.objects.filter(published_from=workflow).order_by("-id").first()
         )
 
+        is_dirty_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+        is_dirty = global_cache.get(is_dirty_key, default=False)
+
         # If the clone exists and the workflow hasn't been updated since,
         # use that existing clone's workflow.
-        if latest_clone and latest_clone.created_on >= workflow.updated_on:
+        if latest_clone and not is_dirty:
             cloned_workflow = latest_clone.workflows.first()
             node_id_mapping = self.build_node_id_mapping(workflow, cloned_workflow)
         else:
@@ -981,6 +986,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             )
             cloned_workflow = cloned_automation.workflows.first()
             node_id_mapping = id_mapping.get("automation_workflow_nodes", {})
+            global_cache.invalidate(is_dirty_key)
 
         cloned_simulate_until_node = None
         if simulate_until_node:

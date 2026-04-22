@@ -34,7 +34,9 @@ from baserow.contrib.automation.nodes.types import (
     ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
+from baserow.contrib.automation.workflows.constants import WORKFLOW_DIRTY_CACHE_KEY
 from baserow.contrib.automation.workflows.signals import automation_workflow_updated
+from baserow.core.cache import global_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.trash.handler import TrashHandler
@@ -196,8 +198,8 @@ class AutomationNodeService:
 
         workflow.get_graph().insert(new_node, reference_node, position, output)
 
-        # Update the workflow's updated_on for the history clone.
-        workflow.save(update_fields=["updated_on"])
+        cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+        global_cache.update(cache_key, lambda _: True)
 
         automation_node_created.send(
             self,
@@ -245,11 +247,11 @@ class AutomationNodeService:
         # Update the node itself.
         updated_node = self.handler.update_node(node, **prepared_values)
 
-        # Update the workflow's updated_on for the history clone.
-        node.workflow.save(update_fields=["updated_on"])
-
         # Now export the 'new' node values, since everything has been updated.
         new_node_values = node_type.export_prepared_values(node)
+
+        cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(node.workflow.id)
+        global_cache.update(cache_key, lambda _: True)
 
         automation_node_updated.send(self, user=user, node=updated_node)
 
@@ -291,8 +293,8 @@ class AutomationNodeService:
             node,
         )
 
-        # Update the workflow's updated_on for the history clone.
-        workflow.save(update_fields=["updated_on"])
+        cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+        global_cache.update(cache_key, lambda _: True)
 
         automation_node_deleted.send(
             self,
@@ -334,8 +336,8 @@ class AutomationNodeService:
 
         workflow.get_graph().insert(duplicated_node, source_node, "south", "")
 
-        # Update the workflow's updated_on for the history clone.
-        workflow.save(update_fields=["updated_on"])
+        cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+        global_cache.update(cache_key, lambda _: True)
 
         automation_node_created.send(
             self,

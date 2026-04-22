@@ -10,3 +10,6 @@ class WorkflowState(models.TextChoices):
     PAUSED = "paused"
     DISABLED = "disabled"
     HISTORY_CLONE = "history_clone"
+
+
+WORKFLOW_DIRTY_CACHE_KEY = "wa_workflow_dirty_{}"

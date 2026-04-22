@@ -21,6 +21,7 @@ from baserow.contrib.automation.nodes.node_types import (
 )
 from baserow.contrib.automation.workflows.constants import (
     ALLOW_TEST_RUN_MINUTES,
+    WORKFLOW_DIRTY_CACHE_KEY,
     WorkflowState,
 )
 from baserow.contrib.automation.workflows.exceptions import (
@@ -31,7 +32,7 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowTooManyErrors,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-from baserow.core.cache import local_cache
+from baserow.core.cache import local_cache, global_cache
 from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
@@ -438,6 +439,11 @@ def test_publish_cleans_up_old_workflows(data_fixture):
         workflow, WorkflowState.HISTORY_CLONE
     )
     history_clone_workflow = history_clone_automation.workflows.first()
+    data_fixture.create_automation_workflow_history(
+        original_workflow=workflow,
+        workflow=history_clone_workflow,
+        status=HistoryStatusChoices.SUCCESS,
+    )
 
     published_1 = handler.publish(workflow)
     published_2 = handler.publish(workflow)
@@ -1890,12 +1896,11 @@ def test_ensure_published_for_run_creates_new_after_workflow_update(data_fixture
 
     handler = AutomationWorkflowHandler()
 
-    with freeze_time("2026-04-16 12:00:00"):
-        cloned_workflow_1, _ = handler._ensure_published_for_run(workflow, trigger)
+    cloned_workflow_1, _ = handler._ensure_published_for_run(workflow, trigger)
 
-    # Update the workflow's timestamp to trigger a new clone
-    with freeze_time("2026-04-16 12:01:00"):
-        workflow.save(update_fields=["updated_on"])
+    # Set the dirty flag to trigger a new clone
+    cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+    global_cache.update(cache_key, lambda _: True)
 
     cloned_workflow_2, cloned_trigger_2 = handler._ensure_published_for_run(
         workflow, trigger
