@@ -48,7 +48,10 @@
     <DataSourceCreateEditModal
       :key="modalKey"
       ref="dataSourceCreateEditModal"
+      :data-source-id="currentDataSourceId"
+      @data-source-created="currentDataSourceId = $event.id"
       @updated="onDataSourceUpdated"
+      @hidden="currentDataSourceId = null"
     />
   </div>
 </template>
@@ -84,6 +87,7 @@ export default {
   data() {
     return {
       modalKey: 0,
+      currentDataSourceId: null,
     }
   },
   computed: {
@@ -112,8 +116,11 @@ export default {
         : this.$t('integrationsCommon.singleRow')
       return `${dataSource.name} (${suffix})`
     },
-    openDataSourceModal() {
-      this.$refs.dataSourceCreateEditModal.show()
+    async openDataSourceModal() {
+      this.currentDataSourceId = null
+      this.modalKey++
+      await this.$nextTick()
+      this.$refs.dataSourceCreateEditModal?.show()
     },
     /**
      * When a data source is updated (i.e. the user has created the record,
