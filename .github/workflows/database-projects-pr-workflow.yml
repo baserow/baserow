@@ -11,6 +11,7 @@ env:
   REVIEW_AWAITING: 'Awaiting'
   REVIEW_FEEDBACK: 'Feedback'
   REVIEW_MERGE: 'Merge'
+  MILESTONE_NAME: ${{ vars.DATABASE_CURRENT_MILESTONE }}
 
 on:
   pull_request:
@@ -85,7 +86,7 @@ jobs:
                       }
                     }
                     closingIssuesReferences(first: 10) {
-                      nodes { id, number }
+                      nodes { id, number, repository { owner { login }, name } }
                     }
                   }
                 }
@@ -271,13 +272,74 @@ jobs:
             // UPDATE LINKED ISSUES
             // ============================================================
 
-            const linkedIssues = pr.closingIssuesReferences.nodes;
+            // Filter to issues in this repo only (closingIssuesReferences can include cross-repo issues)
+            const linkedIssues = pr.closingIssuesReferences.nodes.filter(issue => {
+              const isLocal = issue.repository.owner.login === context.repo.owner
+                && issue.repository.name === context.repo.repo;
+              if (!isLocal) console.log(`  Skipping cross-repo issue #${issue.number} (${issue.repository.owner.login}/${issue.repository.name})`);
+              return isLocal;
+            });
+
+            // Resolve milestone if configured and PR was merged
+            let milestoneNumber = null;
+            const milestoneName = process.env.MILESTONE_NAME;
+            if (pr.merged && milestoneName) {
+              try {
+                const milestones = await github.paginate(github.rest.issues.listMilestones, {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  state: 'open',
+                  per_page: 100,
+                });
+                const milestone = milestones.find(m => m.title === milestoneName);
+                if (milestone) {
+                  milestoneNumber = milestone.number;
+                  console.log(`Will set milestone "${milestoneName}" (${milestoneNumber}) on linked issues`);
+                } else {
+                  console.log(`Warning: milestone "${milestoneName}" not found, skipping milestone assignment`);
+                }
+              } catch (e) {
+                console.log(`Warning: failed to resolve milestone "${milestoneName}": ${e.message}`);
+              }
+            }
+
             if (linkedIssues.length > 0) {
               console.log(`Updating ${linkedIssues.length} linked issue(s)...`);
               for (const issue of linkedIssues) {
                 const itemId = await ensureInProject(issue.id);
                 await updateField(itemId, fieldOptions.status.id, fieldOptions.status[status]);
-                console.log(`  Issue #${issue.number} → ${status}`);
+
+                if (milestoneNumber) {
+                  try {
+                    await github.rest.issues.update({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: issue.number,
+                      milestone: milestoneNumber,
+                    });
+                    console.log(`  Issue #${issue.number} → ${status}, milestone "${milestoneName}"`);
+                  } catch (e) {
+                    console.log(`  Warning: failed to set milestone on #${issue.number}: ${e.message}`);
+                    console.log(`  Issue #${issue.number} → ${status}`);
+                  }
+                } else {
+                  console.log(`  Issue #${issue.number} → ${status}`);
+                }
+              }
+            }
+
+            // If no linked issues, set milestone on the PR itself
+            if (linkedIssues.length === 0 && milestoneNumber) {
+              try {
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: prNumber,
+                  milestone: milestoneNumber,
+                });
+                console.log(`No linked issues — set milestone "${milestoneName}" on PR #${prNumber}`);
+              } catch (e) {
+                console.log(`Warning: failed to set milestone on PR #${prNumber}: ${e.message}`);
               }
             }
 

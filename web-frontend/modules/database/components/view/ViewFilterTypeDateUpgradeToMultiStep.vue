@@ -12,7 +12,6 @@
 
 <script>
 import filterTypeDateInput from '@baserow/modules/database/mixins/filterTypeDateInput'
-// TODO MIG import { en, fr } from 'vuejs-datepicker/dist/locale'
 
 export default {
   name: 'ViewFilterTypeDateUpgradeToMultiStep',
@@ -24,10 +23,6 @@ export default {
       loading: false,
       dateString: '',
       dateObject: '',
-      datePickerLang: {
-        en: {},
-        fr: {},
-      },
     }
   },
   mounted() {

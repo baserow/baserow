@@ -134,6 +134,7 @@ export default {
      * the correct position.
      */
     start(field, event) {
+      event.preventDefault()
       this.field = field
       this.targetFieldId = field.id
       this.dragging = true

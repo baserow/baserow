@@ -20,7 +20,7 @@
               <div class="margin-bottom-1">
                 <strong>{{ getProviderName(providerType.type) }}</strong>
               </div>
-              <div>
+              <div v-if="hasConfigurableIntegrationSettings(providerType.type)">
                 <a @click="toggle">
                   <template v-if="expanded">{{
                     $t('generativeAIWorkspaceSettings.hideSettings')
@@ -215,6 +215,9 @@ export default {
       return {
         ai_settings: serializedSettings,
       }
+    },
+    hasConfigurableIntegrationSettings(providerType) {
+      return this.getProviderSettings(providerType).length > 0
     },
   },
   validations() {

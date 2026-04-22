@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any, Dict, List, Optional
 from zipfile import ZipFile
 
@@ -7,7 +7,7 @@ from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.files.storage import Storage
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 
 from celery.canvas import Signature, chain
@@ -62,7 +62,6 @@ from baserow.core.utils import (
     find_unused_name,
 )
 
-WORKFLOW_RATE_LIMIT_CACHE_PREFIX = "automation_workflow_{}"
 WORKFLOW_HISTORY_RATE_LIMIT_CACHE_PREFIX = "automation_workflow_history_{}"
 AUTOMATION_WORKFLOW_CACHE_LOCK_SECONDS = 5
 
@@ -134,7 +133,6 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         original_workflow = workflow.get_original()
 
         global_cache.invalidate(f"wa_published_workflow_{original_workflow.id}")
-        global_cache.invalidate(self._get_rate_limit_cache_key(original_workflow))
         global_cache.invalidate(
             self._get_workflow_history_rate_limit_cache_key(original_workflow)
         )
@@ -804,75 +802,65 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             message="This workflow took too long and was timed out.",
         )
 
-    def _get_rate_limit_cache_key(self, original_workflow: AutomationWorkflow) -> str:
-        return WORKFLOW_RATE_LIMIT_CACHE_PREFIX.format(original_workflow.id)
-
     def _get_workflow_history_rate_limit_cache_key(
         self, original_workflow: AutomationWorkflow
     ) -> str:
         return WORKFLOW_HISTORY_RATE_LIMIT_CACHE_PREFIX.format(original_workflow.id)
 
     def _get_histories_for_current_workflow_version(self, workflow: AutomationWorkflow):
-        histories = AutomationHistoryHandler().get_workflow_histories(
-            workflow.get_original()
-        )
+        original_workflow = workflow.get_original()
+        histories = AutomationHistoryHandler().get_workflow_histories(original_workflow)
 
-        if workflow != workflow.get_original():
+        if workflow != original_workflow:
             histories = histories.filter(started_on__gte=workflow.created_on)
 
         return histories
 
     def _check_is_rate_limited(self, workflow: AutomationWorkflow) -> bool:
-        """Uses a global cache key to track recent runs for the given workflow."""
+        """
+        Checks workflow histories against the configured rate limit windows.
 
-        original_workflow = workflow.get_original()
+        The histories are fetched once for the largest configured window and each
+        smaller window is evaluated in Python to avoid issuing one COUNT query per
+        configured rate limit.
 
-        cache_key = self._get_rate_limit_cache_key(original_workflow)
-        rate_cache_timeout = (
-            settings.AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS
-        )
+        Raises AutomationWorkflowRateLimited when the workflow exceeds one of the
+        configured rate limits.
+        """
+
+        rate_limits = settings.AUTOMATION_WORKFLOW_RATE_LIMITS
+        if not rate_limits:
+            return False
 
         now = timezone.now()
-
-        def update_last_run_cache(previous_last_runs):
-            """
-            Given a list of recent workflow run timestamps, determines whether
-            the workflow run should be rate limited. If so, raises the
-            AutomationWorkflowRateLimited error.
-            """
-            start_window = now - timedelta(
-                seconds=settings.AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS
-            )
-
-            # Keep only past runs that are in the window
-            runs_in_window = [
-                timestamp
-                for timestamp in previous_last_runs
-                if isinstance(timestamp, datetime) and timestamp > start_window
-            ]
-
-            runs_in_window.append(now)
-
-            return runs_in_window
-
-        runs_in_window = global_cache.update(
-            cache_key,
-            update_last_run_cache,
-            default_value=lambda: [],
-            timeout=rate_cache_timeout,
+        largest_window_seconds = max(
+            window_seconds for _, window_seconds in rate_limits
         )
-
-        if len(runs_in_window) > settings.AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS:
-            return True
-
-        started_workflows = (
+        oldest_start_window = now - timedelta(seconds=largest_window_seconds)
+        history_windows = list(
             self._get_histories_for_current_workflow_version(workflow)
-            .filter(status=HistoryStatusChoices.STARTED)
-            .count()
+            .filter(
+                Q(started_on__gte=oldest_start_window)
+                | Q(status=HistoryStatusChoices.STARTED)
+            )
+            .order_by()
+            .values_list("started_on", "status")
         )
 
-        if started_workflows > settings.AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS:
-            return True
+        for max_runs, window_seconds in rate_limits:
+            start_window = now - timedelta(seconds=window_seconds)
+            if (
+                sum(
+                    started_on >= start_window or status == HistoryStatusChoices.STARTED
+                    for started_on, status in history_windows
+                )
+                >= max_runs
+            ):
+                raise AutomationWorkflowRateLimited(
+                    "The workflow was rate limited due to too many recent or "
+                    f"unfinished runs. Limit exceeded: {max_runs} runs in "
+                    f"{window_seconds} seconds."
+                )
 
         return False
 
@@ -926,12 +914,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 "The workflow was disabled due to too many consecutive errors."
             )
 
-        if self._check_is_rate_limited(workflow):
-            # Early return if we had too many execution during a short amount of time
-            raise AutomationWorkflowRateLimited(
-                "The workflow was rate limited due to too many recent or unfinished "
-                "runs."
-            )
+        self._check_is_rate_limited(workflow)
 
     def async_start_workflow(
         self,

@@ -30,6 +30,7 @@ from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.errors import (
     BAD_TOKEN_SIGNATURE,
     ERROR_HOSTNAME_IS_NOT_ALLOWED,
+    ERROR_RESET_PASSWORD_TOKEN_USED,
     EXPIRED_TOKEN_SIGNATURE,
 )
 from baserow.api.schemas import get_error_schema
@@ -82,6 +83,7 @@ from baserow.core.user.exceptions import (
     InvalidVerificationToken,
     RefreshTokenAlreadyBlacklisted,
     ResetPasswordDisabledError,
+    ResetPasswordTokenAlreadyUsed,
     UserAlreadyExist,
     UserIsLastAdmin,
     UserNotFound,
@@ -434,6 +436,7 @@ class ResetPasswordView(APIView):
                     "BAD_TOKEN_SIGNATURE",
                     "EXPIRED_TOKEN_SIGNATURE",
                     "ERROR_USER_NOT_FOUND",
+                    "ERROR_RESET_PASSWORD_TOKEN_USED",
                     "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
@@ -448,6 +451,7 @@ class ResetPasswordView(APIView):
             SignatureExpired: EXPIRED_TOKEN_SIGNATURE,
             UserNotFound: ERROR_USER_NOT_FOUND,
             ResetPasswordDisabledError: ERROR_DISABLED_RESET_PASSWORD,
+            ResetPasswordTokenAlreadyUsed: ERROR_RESET_PASSWORD_TOKEN_USED,
         }
     )
     @validate_body(ResetPasswordBodyValidationSerializer)

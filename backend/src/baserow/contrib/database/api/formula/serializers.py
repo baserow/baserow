@@ -19,7 +19,7 @@ class TypeFormulaResultSerializer(serializers.ModelSerializer):
         model = FormulaField
         fields = list(
             set(FormulaFieldType.serializer_field_names)
-            - {"available_collaborators", "select_options"}
+            - {"available_collaborators", "select_options", "number_negative"}
         )
 
 

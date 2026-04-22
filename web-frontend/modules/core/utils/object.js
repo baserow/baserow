@@ -111,12 +111,12 @@ export function isPromise(p) {
 /**
  * Get the value at `path` of `obj`, similar to Lodash `get` function.
  *
- * @param {Object} obj The object that holds the value
+ * @param {Object} context The object that holds the value
  * @param {string | Array[string]} path The path to the value or a list with the path parts
- * @param {any} defaultValue The value to return if the path is not found
- * @return {Object} The value held by the path
+ * @param {any} defaultValue The value to return if the path is not found (defaults to `null`)
+ * @return {Object} The value held by the path, or `defaultValue` if not found
  */
-export function getValueAtPath(context, path) {
+export function getValueAtPath(context, path, defaultValue = null) {
   function _getValueAtPath(obj, keys) {
     const [first, ...rest] = keys
     if (first === undefined || first === null) {
@@ -124,13 +124,18 @@ export function getValueAtPath(context, path) {
     }
 
     if (obj === null || obj === undefined) {
-      throw new Error(`Path '${path}' not found in context '${obj}'`)
+      return defaultValue
     }
 
     if (first in obj) {
       return _getValueAtPath(obj[first], rest)
     }
     if (Array.isArray(obj) && first === '*') {
+      // When wildcarding an empty array with no remaining path parts,
+      // return an empty list (mirrors the backend's `get_value_at_path`).
+      if (obj.length === 0 && rest.length === 0) {
+        return []
+      }
       const results = obj
         // Call recursively this function transforming the `*` in the path in a list
         // of indexes present in the object, e.g:
@@ -139,10 +144,9 @@ export function getValueAtPath(context, path) {
         // Remove empty results
         // Note: Don't exclude false values such as booleans, empty strings, etc.
         .filter((result) => result !== null && result !== undefined)
-      // Return null in case there are no results
-      return results.length ? results : null
+      return results.length ? results : defaultValue
     }
-    return null
+    return defaultValue
   }
   const keys = typeof path === 'string' ? _.toPath(path) : path
   return _getValueAtPath(context, keys)

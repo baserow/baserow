@@ -25,6 +25,22 @@ class ResetPasswordEmail(BaseEmailMessage):
         return context
 
 
+class PasswordChangedEmail(BaseEmailMessage):
+    template_name = "baserow/core/user/password_changed.html"
+
+    def __init__(self, user, *args, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def get_subject(self):
+        return _("Password changed - Baserow")
+
+    def get_context(self):
+        context = super().get_context()
+        context.update(user=self.user)
+        return context
+
+
 class AccountDeletionScheduled(BaseEmailMessage):
     template_name = "baserow/core/user/account_deletion_scheduled.html"
 

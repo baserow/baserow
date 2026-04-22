@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix field drag-and-drop placeholder being offset by the group-by column width when a group by is active.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-14"
+}

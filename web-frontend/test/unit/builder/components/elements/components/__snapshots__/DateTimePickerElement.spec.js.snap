@@ -37,6 +37,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
             <div>
               <!--v-if-->
             </div>
+            <!--v-if-->
           </div>
           
           <!--v-if-->
@@ -90,6 +91,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
             <div>
               <!--v-if-->
             </div>
+            <!--v-if-->
           </div>
           
           <!--v-if-->
@@ -143,6 +145,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
             <div>
               <!--v-if-->
             </div>
+            <!--v-if-->
           </div>
           
           <!--v-if-->
@@ -201,6 +204,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
                 value=""
               />
             </div>
+            <!--v-if-->
           </div>
           
           <!--v-if-->
@@ -259,6 +263,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
                 value=""
               />
             </div>
+            <!--v-if-->
           </div>
           
           <!--v-if-->
@@ -317,6 +322,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
                 value=""
               />
             </div>
+            <!--v-if-->
           </div>
           
           <!--v-if-->
@@ -375,6 +381,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
                 value=""
               />
             </div>
+            <!--v-if-->
           </div>
           
           <!--v-if-->
@@ -433,6 +440,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
                 value=""
               />
             </div>
+            <!--v-if-->
           </div>
           
           <!--v-if-->
@@ -491,6 +499,7 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
                 value=""
               />
             </div>
+            <!--v-if-->
           </div>
           
           <!--v-if-->

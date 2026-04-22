@@ -9,11 +9,6 @@
         <strong>{{ workspace_name }}</strong>.
       {% endblocktrans %}
     </mj-text>
-    <mj-raw><!-- htmlmin:ignore -->{% if invitation.message %}<!-- htmlmin:ignore --></mj-raw>
-      <mj-text mj-class="text">
-        "{{ invitation.message }}"
-      </mj-text>
-    <mj-raw><!-- htmlmin:ignore -->{% endif %}<!-- htmlmin:ignore --></mj-raw>
     <mj-button mj-class="button" href="{{ public_accept_url }}">
       {% trans "Accept invitation" %}
     </mj-button>

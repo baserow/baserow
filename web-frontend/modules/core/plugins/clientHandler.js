@@ -159,15 +159,6 @@ export class ClientErrorMap {
         $i18n.t('clientHandler.modelDoesNotBelongToTypeTitle'),
         $i18n.t('clientHandler.modelDoesNotBelongToTypeDescription')
       ),
-      ERROR_MAX_NUMBER_OF_PENDING_WORKSPACE_INVITES_REACHED:
-        new ResponseErrorMessage(
-          $i18n.t(
-            'clientHandler.maxNumberOfPendingWorkspaceInvitesReachedTitle'
-          ),
-          $i18n.t(
-            'clientHandler.maxNumberOfPendingWorkspaceInvitesReachedDescription'
-          )
-        ),
       ERROR_FIELD_IS_ALREADY_PRIMARY: new ResponseErrorMessage(
         $i18n.t('clientHandler.fieldIsAlreadyPrimaryTitle'),
         $i18n.t('clientHandler.fieldIsAlreadyPrimaryDescription')

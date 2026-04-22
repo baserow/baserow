@@ -301,9 +301,7 @@
   },
   "workspaceInviteForm": {
     "invitationFormTitle": "Invite by email",
-    "optionalMessagePlaceholder": "Optional message",
     "errorInvalidEmail": "Please enter a valid e-mail address.",
-    "errorTooLongMessage": "Messages are limited to {amount} characters.",
     "additionalRoles": "Additional roles"
   },
   "workspaceContext": {
@@ -554,6 +552,7 @@
     "title": "Reset password",
     "newPassword": "New password",
     "repeatNewPassword": "Repeat new password",
+    "repeatPasswordPlaceholder": "Repeat your new password",
     "submit": "Change password",
     "changed": "Password changed",
     "message": "You can now login to Baserow using your new password.",
@@ -561,6 +560,8 @@
     "errorInvalidLinkMessage": "Could not reset the password because the link is invalid.",
     "errorLinkExpiredTitle": "Link expired",
     "errorLinkExpiredMessage": "The password reset link has expired. Please request another one.",
+    "errorLinkAlreadyUsedTitle": "Link already used",
+    "errorLinkAlreadyUsedMessage": "This password reset link has already been used. Please request a new one.",
     "disabled": "Reset Password is disabled",
     "disabledMessage": "It's not possible to reset the password because it has been disabled."
   },
@@ -755,7 +756,6 @@
       "title": "{invitesAmount} Pending invites in {workspaceName}",
       "columns": {
         "email": "Email",
-        "message": "Message",
         "role": "Default role"
       },
       "actions": {

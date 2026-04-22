@@ -47,11 +47,6 @@ import DeleteWebhookModal from '@baserow/modules/database/components/webhook/Del
 import WebhookService from '@baserow/modules/database/services/webhook'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 
-/*const {
-  ResponseErrorMessage,
-} = require('@baserow/modules/core/plugins/clientHandler')
-TODO MIG*/
-
 export default {
   name: 'UpdateWebhook',
   components: { WebhookForm, DeleteWebhookModal },

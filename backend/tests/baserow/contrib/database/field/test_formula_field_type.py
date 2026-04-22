@@ -1451,6 +1451,7 @@ def test_updating_formula_field_doesnt_reset_all_fields(data_fixture, api_client
         "formula_type": "date",
         "nullable": True,
         "number_decimal_places": None,
+        "number_negative": True,
     }
     actual = {key: value for key, value in response.json().items() if key in expected}
     assert actual == expected

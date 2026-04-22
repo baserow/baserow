@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
             name='core_notifi_created_06e5e6_idx',
         ),
         migrations.RunSQL(
-            sql='CREATE INDEX CONCURRENTLY "core_notifi_created_7f4b88_idx" ON "core_notification" ("created_on" DESC, "id" DESC)',
+            sql='CREATE INDEX CONCURRENTLY IF NOT EXISTS "core_notifi_created_7f4b88_idx" ON "core_notification" ("created_on" DESC, "id" DESC)',
             reverse_sql='DROP INDEX IF EXISTS "core_notifi_created_7f4b88_idx"',
             state_operations=[
                 migrations.AddIndex(
@@ -41,7 +41,7 @@ class Migration(migrations.Migration):
             ],
         ),
         migrations.RunSQL(
-            sql='CREATE INDEX CONCURRENTLY "core_notifi_created_4b2233_idx" ON "core_notificationrecipient" ("created_on" DESC, "id" DESC)',
+            sql='CREATE INDEX CONCURRENTLY IF NOT EXISTS "core_notifi_created_4b2233_idx" ON "core_notificationrecipient" ("created_on" DESC, "id" DESC)',
             reverse_sql='DROP INDEX IF EXISTS "core_notifi_created_4b2233_idx"',
             state_operations=[
                 migrations.AddIndex(

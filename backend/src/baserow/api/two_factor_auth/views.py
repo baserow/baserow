@@ -49,8 +49,9 @@ from baserow.core.two_factor_auth.registries import (
     TOTPAuthProviderType,
     two_factor_auth_type_registry,
 )
-from baserow.throttling import RateLimitExceededException, rate_limit
-from baserow.throttling_types import RateLimit
+from baserow.throttling.exceptions import RateLimitExceededException
+from baserow.throttling.handler import rate_limit
+from baserow.throttling.types import RateLimit
 
 
 class ConfigureTwoFactorAuthView(APIView):

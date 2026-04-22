@@ -18,7 +18,7 @@ from baserow.core.user.actions import (
     UpdateUserActionType,
 )
 from baserow.core.user.handler import UserHandler
-from baserow.throttling_types import RateLimit
+from baserow.throttling.types import RateLimit
 from baserow_enterprise.audit_log.models import AuditLogEntry
 
 
@@ -133,7 +133,7 @@ def test_send_reset_user_password_action_type(data_fixture, mailoutbox):
 def test_reset_user_password_action_type(data_fixture):
     user = data_fixture.create_user(password="12345678")
     signer = UserHandler().get_reset_password_signer()
-    user_session = signer.dumps(user.id)
+    user_session = signer.dumps([user.id, UserHandler._get_password_state_hash(user)])
     user = action_type_registry.get(ResetUserPasswordActionType.type).do(
         user_session, "12345678"
     )

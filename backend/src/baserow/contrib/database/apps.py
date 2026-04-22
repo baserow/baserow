@@ -1181,6 +1181,7 @@ class DatabaseConfig(AppConfig):
         import baserow.contrib.database.search.receivers  # noqa: F403, F401
         import baserow.contrib.database.search.tasks  # noqa: F401
         import baserow.contrib.database.table.receivers  # noqa: F401
+        import baserow.contrib.database.tokens.receivers  # noqa: F401
         import baserow.contrib.database.views.receivers  # noqa: F401
         import baserow.contrib.database.views.tasks  # noqa: F401
         from baserow.contrib.database.fields.models import SelectOption

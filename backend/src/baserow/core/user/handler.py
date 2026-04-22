@@ -1,3 +1,5 @@
+import hashlib
+import hmac as hmac_module
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple
 from urllib.parse import urljoin, urlparse
@@ -14,7 +16,7 @@ from django.utils import translation
 from django.utils.translation import gettext as _
 
 import requests
-from itsdangerous import URLSafeSerializer, URLSafeTimedSerializer
+from itsdangerous import BadSignature, URLSafeSerializer, URLSafeTimedSerializer
 from loguru import logger
 from opentelemetry import trace
 from requests.exceptions import RequestException
@@ -47,7 +49,7 @@ from baserow.core.signals import (
 )
 from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import generate_hash, get_baserow_saas_base_url
-from baserow.throttling import rate_limit
+from baserow.throttling.handler import rate_limit
 
 from ..telemetry.utils import baserow_trace_methods
 from .emails import (
@@ -55,6 +57,7 @@ from .emails import (
     AccountDeletionCanceled,
     AccountDeletionScheduled,
     ChangeEmailConfirmationEmail,
+    PasswordChangedEmail,
     ResetPasswordEmail,
 )
 from .exceptions import (
@@ -68,6 +71,7 @@ from .exceptions import (
     PasswordDoesNotMatchValidation,
     RefreshTokenAlreadyBlacklisted,
     ResetPasswordDisabledError,
+    ResetPasswordTokenAlreadyUsed,
     UserAlreadyExist,
     UserIsLastAdmin,
     UserNotFound,
@@ -373,6 +377,29 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
 
         return user
 
+    @staticmethod
+    def _get_password_state_hash(user: AbstractUser) -> str:
+        """
+        Generates a hash based on a piece of the user's password hash and last
+        password change timestamp. It also uses the SECRET_KEY and the user's
+        email to make sure the hash is unique for each user and each password
+        change. This avoids the possibility of a password reset token being used
+        multiple times, or from different email addresses for the same user.
+
+        :param user: The user for which to generate the hash.
+        :return: The generated hash to include in the password reset token
+            payload.
+        """
+
+        last_change = user.profile.last_password_change
+        last_change_str = last_change.isoformat() if last_change else ""
+        message = f"{user.password[-30:]}{last_change_str}"
+        return hmac_module.new(
+            f"{user.email}-{settings.SECRET_KEY}".encode(),
+            message.encode(),
+            hashlib.sha256,
+        ).hexdigest()
+
     def get_reset_password_signer(self) -> URLSafeTimedSerializer:
         """
         Instantiates the password reset serializer that can dump and load values.
@@ -417,12 +444,12 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
             )
 
         signer = self.get_reset_password_signer()
-        signed_user_id = signer.dumps(user.id)
+        signed_token = signer.dumps([user.id, self._get_password_state_hash(user)])
 
         if not base_url.endswith("/"):
             base_url += "/"
 
-        reset_url = urljoin(base_url, signed_user_id)
+        reset_url = urljoin(base_url, signed_token)
 
         with translation.override(user.profile.language):
             email = ResetPasswordEmail(user, reset_url, to=[user.email])
@@ -446,27 +473,51 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
             raise ResetPasswordDisabledError("Reset password is disabled.")
 
         signer = self.get_reset_password_signer()
-        user_id = signer.loads(token, max_age=settings.RESET_PASSWORD_TOKEN_MAX_AGE)
+        payload = signer.loads(token, max_age=settings.RESET_PASSWORD_TOKEN_MAX_AGE)
 
-        user = self.get_active_user(user_id=user_id)
+        if not isinstance(payload, list) or len(payload) != 2:
+            raise BadSignature("Invalid token format")
 
-        try:
-            validate_password(password, user)
-        except ValidationError as e:
-            raise PasswordDoesNotMatchValidation(e.messages)
+        user_id, password_state_hash = payload
 
-        user.set_password(password)
-        user.save()
+        with transaction.atomic():
+            user = (
+                User.objects.select_for_update()
+                .filter(is_active=True, id=user_id)
+                .first()
+            )
 
-        # Update the last password change timestamp to invalidate old authentication
-        # tokens.
-        user.profile.last_password_change = datetime.now(tz=timezone.utc)
-        user.profile.email_verified = True
-        user.profile.save()
+            if user is None:
+                raise UserNotFound(
+                    "The user with the provided parameters is not found."
+                )
+
+            if not hmac_module.compare_digest(
+                password_state_hash, self._get_password_state_hash(user)
+            ):
+                raise ResetPasswordTokenAlreadyUsed(
+                    "The password reset link has already been used."
+                )
+
+            try:
+                validate_password(password, user)
+            except ValidationError as e:
+                raise PasswordDoesNotMatchValidation(e.messages)
+
+            user.set_password(password)
+            user.save()
+
+            # last_password_change is used to invalidate old JWT tokens.
+            user.profile.last_password_change = datetime.now(tz=timezone.utc)
+            user.profile.email_verified = True
+            user.profile.save()
 
         user_password_changed.send(
             self, user=user, ignore_web_socket_id=getattr(user, "web_socket_id", None)
         )
+
+        with translation.override(user.profile.language):
+            PasswordChangedEmail(user, to=[user.email]).send()
 
         return user
 
@@ -499,14 +550,16 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         user.set_password(new_password)
         user.save()
 
-        # Update the last password change timestamp to invalidate old authentication
-        # tokens.
+        # last_password_change is used to invalidate old JWT tokens.
         user.profile.last_password_change = datetime.now(tz=timezone.utc)
         user.profile.save()
 
         user_password_changed.send(
             self, user=user, ignore_web_socket_id=getattr(user, "web_socket_id", None)
         )
+
+        with translation.override(user.profile.language):
+            PasswordChangedEmail(user, to=[user.email]).send()
 
         return user
 

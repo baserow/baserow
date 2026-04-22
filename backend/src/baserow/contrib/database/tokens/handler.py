@@ -1,10 +1,17 @@
 from typing import List, Union
 
+from django.db import transaction
+
 from rest_framework.request import Request
 
 from baserow.contrib.database.exceptions import DatabaseDoesNotBelongToGroup
 from baserow.contrib.database.models import Database, Table
 from baserow.contrib.database.table.exceptions import TableDoesNotBelongToGroup
+from baserow.contrib.database.tokens.cache import (
+    get_cached_token,
+    invalidate_cached_token,
+    set_cached_token,
+)
 from baserow.contrib.database.tokens.constants import (
     TOKEN_OPERATION_TYPES,
     TOKEN_TO_OPERATION_MAP,
@@ -41,11 +48,20 @@ class TokenHandler:
         :rtype: Token
         """
 
+        cached = get_cached_token(key)
+        if cached is not None:
+            return cached
+
         try:
-            token = Token.objects.select_related("workspace", "user").get(key=key)
+            token = (
+                Token.objects.select_related("workspace", "user__profile")
+                .defer("user__password")
+                .get(key=key)
+            )
         except Token.DoesNotExist:
             raise TokenDoesNotExist(f"The token with key {key} does not exist.")
 
+        set_cached_token(token)
         return token
 
     def get_token(self, user, token_id, base_queryset=None):
@@ -161,8 +177,14 @@ class TokenHandler:
                 "The user is not authorized to rotate the key."
             )
 
+        old_key = token.key
+
         token.key = self.generate_unique_key()
         token.save()
+
+        # The post_save signal invalidates the new key; the old one still points
+        # to the now-stale cached token and must be evicted separately.
+        transaction.on_commit(lambda: invalidate_cached_token(old_key))
 
         return token
 

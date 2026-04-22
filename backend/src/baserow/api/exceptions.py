@@ -1,7 +1,25 @@
 from django.conf import settings
+from django.http import JsonResponse
 
 from rest_framework import status
-from rest_framework.exceptions import APIException, ValidationError
+from rest_framework.exceptions import APIException, Throttled, ValidationError
+
+
+def api_exception_to_json_response(exc: APIException) -> JsonResponse:
+    """
+    Serialize a DRF ``APIException`` the same way DRF's default
+    ``exception_handler`` does, for use in Django middleware that runs before
+    the DRF view and therefore outside the handler's reach.
+    """
+
+    detail = exc.detail
+    data = detail if isinstance(detail, (list, dict)) else {"detail": str(detail)}
+    response = JsonResponse(data, status=exc.status_code, safe=False)
+    if getattr(exc, "auth_header", None):
+        response["WWW-Authenticate"] = exc.auth_header
+    if getattr(exc, "wait", None):
+        response["Retry-After"] = "%d" % exc.wait
+    return response
 
 
 class RequestBodyValidationException(APIException):
@@ -24,6 +42,10 @@ class QueryParameterValidationException(APIException):
             {"error": "ERROR_QUERY_PARAMETER_VALIDATION", "detail": detail}, code=code
         )
         self.status_code = 400
+
+
+class ThrottledAPIException(Throttled):
+    pass
 
 
 class InvalidClientSessionIdAPIException(APIException):

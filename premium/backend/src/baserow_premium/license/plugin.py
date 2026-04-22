@@ -6,6 +6,10 @@ from django.db.models import Q, QuerySet
 
 from baserow.core.cache import local_cache
 from baserow.core.models import Workspace
+from baserow_premium.license.cache import (
+    get_cached_instance_wide_licenses,
+    set_cached_instance_wide_licenses,
+)
 from baserow_premium.license.exceptions import InvalidLicenseError
 from baserow_premium.license.models import License
 from baserow_premium.license.registries import LicenseType, SeatUsageSummary
@@ -148,6 +152,15 @@ class LicensePlugin:
     def _get_active_instance_wide_licenses(
         self, user_id: Optional[int]
     ) -> Generator[License, None, None]:
+        # When no specific user is requested, the result is shared across
+        # requests and cached in Redis to skip the DB query and RSA verify.
+        use_shared_cache = user_id is None and not self.cache_queries
+        if use_shared_cache:
+            cached = get_cached_instance_wide_licenses()
+            if cached is not None:
+                yield from cached
+                return
+
         if self.cache_queries and user_id in self.queried_licenses_per_user:
             available_licenses = self.queried_licenses_per_user[user_id]
         else:
@@ -163,12 +176,22 @@ class LicensePlugin:
                 _get_available_licenses,
             )
 
+        active_licenses = []
         for available_license in available_licenses:
             try:
                 if available_license.is_active:
-                    yield available_license
+                    active_licenses.append(available_license)
             except InvalidLicenseError:
                 pass
+
+        if use_shared_cache:
+            # Prime ``payload`` so consumers of the cached list don't re-run
+            # RSA signature verification after an unpickle.
+            for lic in active_licenses:
+                _ = lic.payload
+            set_cached_instance_wide_licenses(active_licenses)
+
+        yield from active_licenses
 
         if self.cache_queries:
             self.queried_licenses_per_user[user_id] = available_licenses

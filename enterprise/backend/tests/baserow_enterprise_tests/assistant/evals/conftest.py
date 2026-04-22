@@ -1,21 +1,12 @@
 import asyncio
 import logging
 import os
-import sys
 
 from django.conf import settings
 
 import pytest
-from loguru import logger
 
 from baserow.config.settings.test import TEST_ENV_VARS
-
-# Suppress DEBUG-level loguru output during evals.  Baserow's cache layer logs
-# every cache hit/miss at DEBUG, which floods the output when using -s.  Agent
-# message history is printed via print() and is captured by pytest: it appears
-# in the failure report automatically without needing -s.
-logger.remove()
-logger.add(sys.stderr, level="WARNING")
 
 # Expose API keys from TEST_ENV_FILE to os.environ so that LLM provider
 # SDKs (which read os.getenv() at import/construction time) can find them.

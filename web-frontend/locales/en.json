@@ -456,8 +456,6 @@
     "modelDoesNotBelongToTypeDescription": "The selected model does not belong to the selected AI type.",
     "generateAIPromptTitle": "Prompt error",
     "generateAIPromptDescription": "Something was wrong with the constructed prompt.",
-    "maxNumberOfPendingWorkspaceInvitesReachedTitle": "Max pending invites reached",
-    "maxNumberOfPendingWorkspaceInvitesReachedDescription": "You've reached the maximum number of pending invites for this workspace. Please let invitees accept the invite or cancel existing ones to continue.",
     "fieldIsAlreadyPrimaryTitle": "Field is already primary",
     "fieldIsAlreadyPrimaryDescription": "The chose new primary field is already the primary field.",
     "incompatiblePrimaryFieldTypeTitle": "Field is not compatible",

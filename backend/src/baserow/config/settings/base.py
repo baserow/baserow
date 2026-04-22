@@ -24,7 +24,7 @@ from baserow.config.settings.utils import (
     try_int,
 )
 from baserow.core.telemetry.utils import otel_is_enabled
-from baserow.throttling_types import RateLimit
+from baserow.throttling.types import RateLimit
 from baserow.version import VERSION
 
 # A comma separated list of feature flags used to enable in-progress or not ready
@@ -283,11 +283,18 @@ for key, value in os.environ.items():
 
         DATABASE_READ_REPLICAS.append(db_key)
 
-# Enable connection health checks for all database connections. This makes Django
-# verify that a database connection is still usable before each request/task, which
-# prevents "connection already closed" errors when connections are dropped by the
-# server, a load balancer, or a connection pooler.
+# Default 0 = new connection per request; each runs a locale-setting query.
+# Increase in WSGI to save those round-trips. In ASGI be careful: async tasks
+# open their own connections and persistent ones can exhaust the pool.
+BASEROW_CONN_MAX_AGE = int(os.getenv("BASEROW_CONN_MAX_AGE", 0))
+
+# Apply the configured connection reuse timeout consistently to every database.
+# Also enable connection health checks by default so Django verifies that a
+# connection is still usable before each request/task, which prevents
+# "connection already closed" errors when connections are dropped by the server,
+# a load balancer, or a connection pooler.
 for _db_key in DATABASES:
+    DATABASES[_db_key]["CONN_MAX_AGE"] = BASEROW_CONN_MAX_AGE
     DATABASES[_db_key].setdefault("CONN_HEALTH_CHECKS", True)
 
 DATABASE_ROUTERS = ["baserow.config.db_routers.ReadReplicaRouter"]
@@ -401,30 +408,42 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "baserow.api.openapi.AutoSchema",
 }
 
-# Limits the number of concurrent requests per user.
-# If BASEROW_MAX_CONCURRENT_USER_REQUESTS is not set, then the default value of -1
-# will be used which means the throttling is disabled.
+# Throttling / rate-limiting — see docs/installation/configuration.md
 BASEROW_MAX_CONCURRENT_USER_REQUESTS = int(
     os.getenv("BASEROW_MAX_CONCURRENT_USER_REQUESTS", "") or -1
 )
+BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT = int(
+    os.getenv("BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT", 180)
+)
+BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS = int(
+    os.getenv("BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS", "") or -1
+)
+BASEROW_THROTTLE_IP_ENABLED = str_to_bool(os.getenv("BASEROW_THROTTLE_IP_ENABLED", ""))
 
 if BASEROW_MAX_CONCURRENT_USER_REQUESTS > 0:
     REST_FRAMEWORK["DEFAULT_THROTTLE_CLASSES"] = [
-        "baserow.throttling.ConcurrentUserRequestsThrottle",
+        "baserow.throttling.handler.ConcurrentUserRequestsThrottle",
     ]
 
     REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = {
         "concurrent_user_requests": BASEROW_MAX_CONCURRENT_USER_REQUESTS
     }
 
+    if BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS > 0:
+        # Insert after SecurityMiddleware so 429s still get security/CORS headers.
+        _security_idx = MIDDLEWARE.index(
+            "django.middleware.security.SecurityMiddleware"
+        )
+        MIDDLEWARE.insert(
+            _security_idx + 1,
+            "baserow.throttling.middleware.ThrottleBlacklistMiddleware",
+        )
+
     MIDDLEWARE += [
-        "baserow.middleware.ConcurrentUserRequestsMiddleware",
+        "baserow.throttling.middleware.ConcurrentUserRequestsMiddleware",
     ]
 
-# The maximum number of seconds that a request can be throttled for.
-BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT = int(
-    os.getenv("BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT", 30)
-)
+BASEROW_CACHE_TTL_SECONDS = int(os.getenv("BASEROW_CACHE_TTL_SECONDS", 0))
 
 PUBLIC_VIEW_AUTHORIZATION_HEADER = "Baserow-View-Authorization"
 
@@ -807,7 +826,7 @@ if BASEROW_EXTRA_PUBLIC_URLS:
             EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES.append(hostname)
 
 FROM_EMAIL = os.getenv("FROM_EMAIL", "no-reply@localhost")
-RESET_PASSWORD_TOKEN_MAX_AGE = 60 * 60 * 48  # 48 hours
+RESET_PASSWORD_TOKEN_MAX_AGE = 60 * 60 * 2  # 2 hours
 CHANGE_EMAIL_TOKEN_MAX_AGE = 60 * 60 * 12  # 12 hours
 
 ROW_PAGE_SIZE_LIMIT = int(os.getenv("BASEROW_ROW_PAGE_SIZE_LIMIT", 200))
@@ -829,16 +848,50 @@ INTEGRATION_ALLOW_SMTP_SERVICE_TO_USE_INSTANCE_SETTINGS = str_to_bool(
 AUTOMATION_HISTORY_PAGE_SIZE_LIMIT = int(
     os.getenv("BASEROW_AUTOMATION_HISTORY_PAGE_SIZE_LIMIT", 100)
 )
-AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS = int(
-    os.getenv("BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS", 10)
+_legacy_workflow_rate_limit_max_runs = os.getenv(
+    "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_MAX_RUNS"
 )
-AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS = int(
-    os.getenv("BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS", 5)
+_legacy_workflow_rate_limit_window_seconds = os.getenv(
+    "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS"
+)
+_automation_workflow_rate_limits_env = os.getenv(
+    "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMITS"
+)
+
+if _automation_workflow_rate_limits_env is not None:
+    _automation_workflow_rate_limit_values = [
+        int(value.strip())
+        for value in _automation_workflow_rate_limits_env.split(",")
+        if value.strip()
+    ]
+elif (
+    _legacy_workflow_rate_limit_max_runs is not None
+    or _legacy_workflow_rate_limit_window_seconds is not None
+):
+    _automation_workflow_rate_limit_values = [
+        int(_legacy_workflow_rate_limit_max_runs or 10),
+        int(_legacy_workflow_rate_limit_window_seconds or 5),
+    ]
+else:
+    _automation_workflow_rate_limit_values = [10, 5, 30, 60 * 5, 100, 60 * 60]
+
+if len(_automation_workflow_rate_limit_values) % 2 != 0:
+    raise ImproperlyConfigured(
+        "BASEROW_AUTOMATION_WORKFLOW_RATE_LIMITS must contain an even number of "
+        "comma-separated integers formatted as max_runs,window_seconds pairs."
+    )
+
+AUTOMATION_WORKFLOW_RATE_LIMITS = tuple(
+    (
+        _automation_workflow_rate_limit_values[index],
+        _automation_workflow_rate_limit_values[index + 1],
+    )
+    for index in range(0, len(_automation_workflow_rate_limit_values), 2)
 )
 AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS = int(
     os.getenv(
         "BASEROW_AUTOMATION_WORKFLOW_HISTORY_RATE_LIMIT_CACHE_EXPIRY_SECONDS",
-        AUTOMATION_WORKFLOW_RATE_LIMIT_CACHE_EXPIRY_SECONDS,
+        _legacy_workflow_rate_limit_window_seconds or 5,
     )
 )
 AUTOMATION_WORKFLOW_MAX_CONSECUTIVE_ERRORS = int(
@@ -851,7 +904,7 @@ AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS = int(
     os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS", 30)
 )
 AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES = int(
-    os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES", 50)
+    os.getenv("BASEROW_AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES", 200)
 )
 
 TRASH_PAGE_SIZE_LIMIT = 200  # How many trash entries can be requested at once.
@@ -1152,12 +1205,6 @@ BASEROW_USER_LOG_ENTRY_CLEANUP_INTERVAL_MINUTES = int(
 BASEROW_USER_LOG_ENTRY_RETENTION_DAYS = int(
     os.getenv("BASEROW_USER_LOG_ENTRY_RETENTION_DAYS", 61)
 )
-# The maximum number of pending invites that a workspace can have. If `0` then
-# unlimited invites are allowed, which is the default value.
-BASEROW_MAX_PENDING_WORKSPACE_INVITES = int(
-    os.getenv("BASEROW_MAX_PENDING_WORKSPACE_INVITES", 0)
-)
-
 BASEROW_IMPORT_EXPORT_RESOURCE_CLEANUP_INTERVAL_MINUTES = int(
     os.getenv("BASEROW_IMPORT_EXPORT_RESOURCE_CLEANUP_INTERVAL_MINUTES", 5)
 )
@@ -1220,6 +1267,12 @@ LOGGING = {
             "handlers": ["console"],
             "level": BASEROW_BACKEND_DATABASE_LOG_LEVEL,
             "propagate": True,
+        },
+        # Default to ERROR to suppress 429 spam under heavy throttling.
+        "django.request": {
+            "handlers": ["console"],
+            "level": os.getenv("BASEROW_DJANGO_REQUEST_LOG_LEVEL", "ERROR"),
+            "propagate": False,
         },
     },
     "root": {

@@ -7,6 +7,8 @@
 </template>
 
 <script>
+import baserowLogo from '@baserow/modules/core/static/img/logo.svg?url'
+
 export default {
   name: 'EnterpriseLogo',
   methods: {
@@ -15,7 +17,6 @@ export default {
       return !!settings.co_branding_logo
     },
     getLogoUrl(parent) {
-      const baserowLogo = require('@baserow/modules/core/static/img/logo.svg?url')
       const settings = this.$store.getters['settings/get']
       if (settings.co_branding_logo) {
         return settings.co_branding_logo.url

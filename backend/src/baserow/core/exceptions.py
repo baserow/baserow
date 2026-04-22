@@ -76,13 +76,6 @@ class WorkspaceUserAlreadyExists(Exception):
     """
 
 
-class MaxNumberOfPendingWorkspaceInvitesReached(Exception):
-    """
-    Raised when the maximum number of pending workspace invites has been reached.
-    This value is configurable via the `BASEROW_MAX_PENDING_WORKSPACE_INVITES` setting.
-    """
-
-
 class WorkspaceUserIsLastAdmin(Exception):
     """
     Raised when the last admin of the workspace tries to leave it. This will leave the

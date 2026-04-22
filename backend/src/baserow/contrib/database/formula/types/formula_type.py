@@ -139,7 +139,7 @@ class BaserowFormulaType(abc.ABC):
         return cls.all_fields()
 
     @classmethod
-    def get_serializer_field_overrides(cls) -> List[str]:
+    def get_serializer_field_overrides(cls) -> dict[str, any]:
         return {}
 
     @property

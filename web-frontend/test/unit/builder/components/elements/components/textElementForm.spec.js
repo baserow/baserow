@@ -4,8 +4,6 @@ import TextElementForm from '@baserow/modules/builder/components/elements/compon
 import { mountSuspended } from '@nuxt/test-utils/runtime'
 import { h } from 'vue'
 
-// TODO MIG move that to builder folder
-
 describe('TextElementForm', () => {
   let wrapper
 

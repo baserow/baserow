@@ -21,6 +21,21 @@ export class GenerativeAIModelType extends Registerable {
   getMaxTemperature() {
     return 2
   }
+
+  /**
+   * Returns an array of objects that define the settings for workspace
+   * Generative AI and integration overrides. The array can be empty if
+   * the model type is not configurable.
+   *
+   * Each setting object in the array describes a form field. See
+   * `modelSettings` for a full example. A setting may only define
+   * a subset of the properties.
+   *
+   * @returns {Array<Object>} An array of setting objects. Can be empty.
+   */
+  getSettings() {
+    return []
+  }
 }
 
 const modelSettings = (label, description) => ({

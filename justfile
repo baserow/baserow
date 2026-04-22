@@ -1174,6 +1174,18 @@ env-clear:
         echo "echo 'No .env.local found'"
     fi
 
+# Run changelog command (e.g., just changelog add, just changelog release 2.3.0)
+[group('5 - utilities')]
+[doc("Changelog: just changelog <add|release|generate|purge>")]
+changelog *args:
+    cd backend && uv run --group changelog python ../changelog/src/changelog.py {{ args }}
+
+# Run changelog tests
+[group('4 - testing')]
+[doc("Run changelog unit tests")]
+changelog-test *args:
+    cd backend && PYTHONPATH="../changelog/src:../changelog:${PYTHONPATH:-}" uv run --group changelog --group dev pytest ../changelog/tests/ {{ args }}
+
 # =============================================================================
 # CI Docker Image Testing
 # =============================================================================

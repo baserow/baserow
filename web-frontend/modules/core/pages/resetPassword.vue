@@ -55,6 +55,7 @@
               :error="v$.account.passwordConfirm.$error"
               type="password"
               size="large"
+              :placeholder="$t('resetPassword.repeatPasswordPlaceholder')"
               @blur="v$.account.passwordConfirm.$touch"
             >
             </FormInput>
@@ -194,6 +195,10 @@ export default {
           EXPIRED_TOKEN_SIGNATURE: new ResponseErrorMessage(
             this.$t('resetPassword.errorLinkExpiredTitle'),
             this.$t('resetPassword.errorLinkExpiredMessage')
+          ),
+          ERROR_RESET_PASSWORD_TOKEN_USED: new ResponseErrorMessage(
+            this.$t('resetPassword.errorLinkAlreadyUsedTitle'),
+            this.$t('resetPassword.errorLinkAlreadyUsedMessage')
           ),
         })
       }

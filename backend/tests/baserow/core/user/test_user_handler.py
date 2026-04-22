@@ -31,6 +31,7 @@ from baserow.core.user.exceptions import (
     PasswordDoesNotMatchValidation,
     RefreshTokenAlreadyBlacklisted,
     ResetPasswordDisabledError,
+    ResetPasswordTokenAlreadyUsed,
     UserAlreadyExist,
     UserIsLastAdmin,
     UserNotFound,
@@ -304,8 +305,8 @@ def test_send_reset_password_email(data_fixture, mailoutbox):
     end_url_index = html_body.index('"', start_url_index)
     token = html_body[start_url_index + len(search_url) : end_url_index]
 
-    user_id = signer.loads(token)
-    assert user_id == user.id
+    payload = signer.loads(token)
+    assert payload == [user.id, UserHandler._get_password_state_hash(user)]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -344,27 +345,82 @@ def test_reset_password(data_fixture):
         assert not user.check_password(valid_password)
 
     with freeze_time("2020-01-01 12:00"):
-        token = signer.dumps(9999)
+        token = signer.dumps([9999, "x"])
 
-    with freeze_time("2020-01-02 12:00"):
+    with freeze_time("2020-01-01 12:30"):
         with pytest.raises(UserNotFound):
             handler.reset_password(token, valid_password)
-            assert not user.check_password(valid_password)
+
+        assert not user.check_password(valid_password)
 
     with freeze_time("2020-01-01 12:00"):
-        token = signer.dumps(user.id)
+        token = signer.dumps([user.id, UserHandler._get_password_state_hash(user)])
 
-    with freeze_time("2020-01-04 12:00"):
+    with freeze_time("2020-01-01 14:01"):
         with pytest.raises(SignatureExpired):
             handler.reset_password(token, valid_password)
-            assert not user.check_password(valid_password)
 
-    with freeze_time("2020-01-02 12:00"):
+        assert not user.check_password(valid_password)
+
+    with freeze_time("2020-01-01 12:30"):
         user = handler.reset_password(token, valid_password)
         assert user.check_password(valid_password)
         assert user.profile.last_password_change == datetime(
-            2020, 1, 2, 12, 00, tzinfo=timezone.utc
+            2020, 1, 1, 12, 30, tzinfo=timezone.utc
         )
+
+
+@pytest.mark.django_db
+def test_reset_password_token_reuse_fails(data_fixture):
+    user = data_fixture.create_user(email="test@localhost")
+    handler = UserHandler()
+
+    signer = handler.get_reset_password_signer()
+    token = signer.dumps([user.id, UserHandler._get_password_state_hash(user)])
+
+    handler.reset_password(token, "thisIsAValidPassword")
+
+    with pytest.raises(ResetPasswordTokenAlreadyUsed):
+        handler.reset_password(token, "anotherValidPassword")
+
+
+@pytest.mark.django_db
+def test_reset_password_old_format_token_rejected(data_fixture):
+    user = data_fixture.create_user(email="test@localhost")
+    handler = UserHandler()
+
+    signer = handler.get_reset_password_signer()
+    token = signer.dumps(user.id)
+
+    with pytest.raises(BadSignature):
+        handler.reset_password(token, "thisIsAValidPassword")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_reset_password_sends_password_changed_email(data_fixture, mailoutbox):
+    user = data_fixture.create_user(email="test@localhost")
+    handler = UserHandler()
+
+    signer = handler.get_reset_password_signer()
+    token = signer.dumps([user.id, UserHandler._get_password_state_hash(user)])
+
+    handler.reset_password(token, "thisIsAValidPassword")
+
+    assert len(mailoutbox) == 1
+    assert mailoutbox[0].subject == "Password changed - Baserow"
+    assert "test@localhost" in mailoutbox[0].to
+
+
+@pytest.mark.django_db(transaction=True)
+def test_change_password_sends_password_changed_email(data_fixture, mailoutbox):
+    user = data_fixture.create_user(email="test@localhost", password="oldPassword1")
+    handler = UserHandler()
+
+    handler.change_password(user, "oldPassword1", "newPassword1")
+
+    assert len(mailoutbox) == 1
+    assert mailoutbox[0].subject == "Password changed - Baserow"
+    assert "test@localhost" in mailoutbox[0].to
 
 
 @pytest.mark.django_db
@@ -374,7 +430,7 @@ def test_reset_password_invalid_new_password(data_fixture, invalid_password):
     handler = UserHandler()
 
     signer = handler.get_reset_password_signer()
-    token = signer.dumps(user.id)
+    token = signer.dumps([user.id, UserHandler._get_password_state_hash(user)])
 
     with pytest.raises(PasswordDoesNotMatchValidation):
         handler.reset_password(token, invalid_password)
@@ -386,7 +442,7 @@ def test_reset_password_reset_password_disabled(data_fixture):
     handler = UserHandler()
 
     signer = handler.get_reset_password_signer()
-    token = signer.dumps(user.id)
+    token = signer.dumps([user.id, UserHandler._get_password_state_hash(user)])
 
     CoreHandler().update_settings(user, allow_reset_password=False)
 

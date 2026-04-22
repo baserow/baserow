@@ -10,7 +10,7 @@
       @submitted="inviteSubmitted"
     >
       <template #default>
-        <div class="col col-12 align-right">
+        <div class="col col-12 align-right margin-top-2">
           <Button
             type="primary"
             :loading="inviteLoading"
