@@ -15,7 +15,7 @@ from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.models import Database
 from baserow.contrib.database.operations import CreateTableDatabaseTableOperationType
 from baserow.contrib.database.rows.handler import RowHandler
-from baserow.contrib.database.rows.types import CreatedRowsData
+from baserow.contrib.database.rows.types import CreatedRowsData, UpdatedRowsData
 from baserow.contrib.database.search.handler import SearchHandler
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.table.operations import UpdateDatabaseTableOperationType
@@ -43,8 +43,56 @@ from .models import DataSync, DataSyncSyncedProperty
 from .operations import SyncTableOperationType
 from .registries import data_sync_type_registry, two_way_sync_strategy_type_registry
 
+LARGE_DATA_SYNC_SEARCH_UPDATE_MIN_CHANGED_ROWS = 10_000
+LARGE_DATA_SYNC_SEARCH_UPDATE_THRESHOLD = 0.5
+
 
 class DataSyncHandler:
+    def _schedule_search_updates_after_sync(
+        self,
+        data_sync: DataSync,
+        enabled_properties: QuerySet[DataSyncSyncedProperty],
+        existing_row_count: int,
+        created_rows: CreatedRowsData,
+        updated_rows: UpdatedRowsData,
+        row_ids_to_delete: list[int],
+    ) -> None:
+        changed_rows_count = (
+            len(created_rows.created_rows)
+            + len(updated_rows.updated_rows)
+            + len(row_ids_to_delete)
+        )
+        if changed_rows_count == 0:
+            return
+
+        search_fields = [p.field for p in enabled_properties]
+        full_field_search_update = (
+            len(row_ids_to_delete) > 0
+            or changed_rows_count > LARGE_DATA_SYNC_SEARCH_UPDATE_MIN_CHANGED_ROWS
+            or changed_rows_count
+            >= existing_row_count * LARGE_DATA_SYNC_SEARCH_UPDATE_THRESHOLD
+        )
+
+        if full_field_search_update:
+            SearchHandler.schedule_update_search_data(
+                data_sync.table, fields=search_fields
+            )
+            return
+
+        row_ids_to_refresh = {row.id for row in created_rows.created_rows} | {
+            row.id for row in updated_rows.updated_rows
+        }
+        if created_rows.cascade_update:
+            row_ids_to_refresh.update(created_rows.cascade_update.row_ids)
+        if updated_rows.cascade_update:
+            row_ids_to_refresh.update(updated_rows.cascade_update.row_ids)
+
+        SearchHandler.schedule_update_search_data(
+            data_sync.table,
+            fields=search_fields,
+            row_ids=sorted(row_ids_to_refresh),
+        )
+
     def get_data_sync(
         self, data_sync_id: int, base_queryset: Optional[QuerySet] = None
     ) -> DataSync:
@@ -473,8 +521,9 @@ class DataSyncHandler:
             )
         progress.increment(by=10)  # makes the total `80`
 
+        updated_rows = UpdatedRowsData([], [], {}, {}, None, [], None)
         if len(rows_to_update) > 0:
-            RowHandler().update_rows(
+            updated_rows = RowHandler().update_rows(
                 user=user,
                 table=data_sync.table,
                 rows_values=rows_to_update,
@@ -500,20 +549,14 @@ class DataSyncHandler:
             )
         progress.increment(by=10)  # makes the total `100`
 
-        if (
-            len(rows_to_create) > 0
-            or len(rows_to_update) > 0
-            or len(row_ids_to_delete) > 0
-        ):
-            # No need to include this in the progress as it triggers a celery task
-            row_ids = [r["id"] for r in rows_to_update] + [
-                r.id for r in created_rows.created_rows
-            ]
-            SearchHandler.schedule_update_search_data(
-                data_sync.table,
-                fields=[p.field for p in enabled_properties],
-                row_ids=row_ids,
-            )
+        self._schedule_search_updates_after_sync(
+            data_sync=data_sync,
+            enabled_properties=enabled_properties,
+            existing_row_count=len(existing_rows_queryset),
+            created_rows=created_rows,
+            updated_rows=updated_rows,
+            row_ids_to_delete=row_ids_to_delete,
+        )
 
     def set_data_sync_synced_properties(
         self,

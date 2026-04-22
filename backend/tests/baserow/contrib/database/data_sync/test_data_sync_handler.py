@@ -70,6 +70,22 @@ LOCATION:Amsterdam
 END:VEVENT
 END:VCALENDAR"""
 
+
+def _mock_ical_rows(count, updated_index=None):
+    rows = []
+    for index in range(count):
+        summary = f"Test event {index}"
+        if updated_index is not None and index == updated_index:
+            summary = f"{summary} updated"
+        rows.append(
+            {
+                "uid": f"event-{index}",
+                "summary": summary,
+            }
+        )
+    return rows
+
+
 ICAL_FEED_WITH_ONE_ITEMS_WITHOUT_DTEND = """BEGIN:VCALENDAR
 VERSION:2.0
 PRODID:-//ical.marudot.com//iCal Event Maker
@@ -653,6 +669,103 @@ def test_sync_data_sync_table_create_update_delete_row(data_fixture):
         2024, 9, 1, 9, 0, tzinfo=timezone.utc
     )
     assert getattr(sync_3_rows[0], f"field_{fields['summary'].id}") == "Test event 0"
+
+
+@pytest.mark.django_db
+@responses.activate
+@patch(
+    "baserow.contrib.database.data_sync.handler.SearchHandler.schedule_update_search_data"
+)
+def test_sync_data_sync_table_large_change_uses_full_field_search_update(
+    mock_schedule_update_search_data, data_fixture
+):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS,
+    )
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "summary"],
+        ical_url="https://baserow.io/ical.ics",
+    )
+
+    with patch.object(
+        ICalCalendarDataSyncType,
+        "get_all_rows",
+        return_value=_mock_ical_rows(20),
+    ):
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    args, kwargs = mock_schedule_update_search_data.call_args
+    assert args == (data_sync.table,)
+    assert "fields" in kwargs
+    assert "row_ids" not in kwargs
+
+
+@pytest.mark.django_db
+@responses.activate
+@patch(
+    "baserow.contrib.database.data_sync.handler.SearchHandler.schedule_update_search_data"
+)
+def test_sync_data_sync_table_small_change_uses_row_specific_search_update(
+    mock_schedule_update_search_data, data_fixture
+):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS,
+    )
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "summary"],
+        ical_url="https://baserow.io/ical.ics",
+    )
+
+    with patch.object(
+        ICalCalendarDataSyncType,
+        "get_all_rows",
+        return_value=_mock_ical_rows(20),
+    ):
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    uid_field = DataSyncSyncedProperty.objects.get(
+        data_sync=data_sync, key="uid"
+    ).field_id
+    model = data_sync.table.get_model()
+    changed_row_id = model.objects.values_list("id", flat=True).get(
+        **{f"field_{uid_field}": "event-5"}
+    )
+
+    mock_schedule_update_search_data.reset_mock()
+
+    with patch.object(
+        ICalCalendarDataSyncType,
+        "get_all_rows",
+        return_value=_mock_ical_rows(20, updated_index=5),
+    ):
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    args, kwargs = mock_schedule_update_search_data.call_args
+    assert args == (data_sync.table,)
+    assert "fields" in kwargs
+    assert kwargs["row_ids"] == [changed_row_id]
 
 
 @pytest.mark.django_db

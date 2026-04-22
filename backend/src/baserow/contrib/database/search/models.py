@@ -21,10 +21,6 @@ class PendingSearchValueUpdate(models.Model):
         serialize=False,
         verbose_name="ID",
     )
-    # DEPRECATED: Remove this FK in future versions. Use `field_id` instead.
-    table = models.ForeignKey(
-        "database.Table", on_delete=models.CASCADE, related_name="+", null=True
-    )
     field_id = models.IntegerField(
         help_text="The ID of the field to update.",
     )
@@ -59,15 +55,9 @@ class PendingSearchValueUpdate(models.Model):
                 name="pendingsearchvaluedeletion_idx",
                 condition=models.Q(deletion_workspace_id__isnull=False),
             ),
-            # This speeds up `field_id__in=[... many field IDS...]`.
             models.Index(
                 name="pendingsearchvaluedeletion_ord",
                 fields=["-updated_on"],
-            ),
-            # This speeds up `field_id__in=[... few field IDS...]`.
-            models.Index(
-                name="pendingsearchvaluedeletion_frd",
-                fields=["field_id", "-updated_on"],
             ),
         ]
 

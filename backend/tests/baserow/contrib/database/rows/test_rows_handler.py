@@ -1057,6 +1057,68 @@ def test_import_rows(
 
 
 @pytest.mark.django_db
+@patch(
+    "baserow.contrib.database.search.handler.SearchHandler.schedule_update_search_data"
+)
+def test_import_rows_large_change_uses_full_field_search_update(
+    mock_schedule_update_search_data, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", order=1)
+
+    rows, report = RowHandler().import_rows(
+        user=user,
+        table=table,
+        data=[["Tesla"]],
+        send_realtime_update=False,
+    )
+
+    assert len(rows) == 1
+    assert report == {}
+    args, kwargs = mock_schedule_update_search_data.call_args
+    assert args == (table,)
+    assert kwargs == {}
+
+
+@pytest.mark.django_db
+@patch(
+    "baserow.contrib.database.search.handler.SearchHandler.schedule_update_search_data"
+)
+def test_import_rows_small_change_keeps_row_specific_search_update(
+    mock_schedule_update_search_data, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(table=table, name="Name", order=1)
+    handler = RowHandler()
+
+    handler.create_rows(
+        user=user,
+        table=table,
+        rows_values=[{f"field_{name_field.id}": f"Car {i}"} for i in range(20)],
+        send_realtime_update=False,
+        send_webhook_events=False,
+    )
+
+    mock_schedule_update_search_data.reset_mock()
+
+    rows, report = handler.import_rows(
+        user=user,
+        table=table,
+        data=[["New car"]],
+        send_realtime_update=False,
+    )
+
+    assert len(rows) == 1
+    assert report == {}
+    args, kwargs = mock_schedule_update_search_data.call_args
+    assert args == (table,)
+    assert "fields" in kwargs
+    assert kwargs["row_ids"] == [rows[0].id]
+
+
+@pytest.mark.django_db
 def test_import_rows_with_read_only_field(
     data_fixture,
 ):
