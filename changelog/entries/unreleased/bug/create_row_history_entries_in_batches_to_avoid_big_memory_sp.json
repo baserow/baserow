@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Create row history entries in batches to avoid memory spikes",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-22"
+}
