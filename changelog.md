@@ -1,5 +1,47 @@
 # Changelog
 
+## Released 2.2.1
+
+### New features
+* [Builder] Add 'clear' button to the date input element. [#5202](https://github.com/baserow/baserow/issues/5202)
+* [Database] Add file attachment support for Anthropic, Mistral and other AI field providers [#5154](https://github.com/baserow/baserow/issues/5154)
+
+### Bug fixes
+* [Database] AI file field is now validated during import [#3090](https://github.com/baserow/baserow/issues/3090)
+* [Database] Exclude autonumber sequences from schema dump to prevent restore failure [#3855](https://github.com/baserow/baserow/issues/3855)
+* [Database] Fix negative sign in formula output disappearing when a cell is selected [#4323](https://github.com/baserow/baserow/issues/4323)
+* [Database] Fix AI field not correctly handling small text files [#5082](https://github.com/baserow/baserow/issues/5082)
+* [Core] Fix import workspace crashes on retry after failed backend import [#5140](https://github.com/baserow/baserow/issues/5140)
+* [Database] Fix import of unknown ai generative types [#5163](https://github.com/baserow/baserow/issues/5163)
+* [Database] Fix notification panel crash when a periodic_data_sync_deactivated notification is rendered [#5171](https://github.com/baserow/baserow/issues/5171)
+* [Database] Fix link-row group-by crash in grid view with more than 20 linked items [#5184](https://github.com/baserow/baserow/issues/5184)
+* [Builder] prevent OIDC/SAML form crashes when editing a user source in the application builder [#5226](https://github.com/baserow/baserow/issues/5226)
+* [Core] Fix RichTextEditor display in row comment notifications [#5230](https://github.com/baserow/baserow/issues/5230)
+* [Core] Add database connection health check.
+* [Database] Create row history entries in batches to avoid memory spikes
+* [Integration] Ensure Local Baserow Upsert integration handles field constraint errors.
+* [Database] Fix the database API docs page crashing when opening the database list from the header. [#5212](https://github.com/baserow/baserow/issues/5212)
+* [Database] Fix database filters crashing when select option cells are temporarily null during row evaluation. [#5217](https://github.com/baserow/baserow/issues/5217)
+* [Core] Custom enterprise logo can be set again
+* [Database] Fix field drag-and-drop placeholder being offset by the group-by column width when a group by is active.
+* [Database] Fix grid field quick edit crashing when the field update context is unavailable because the user lacks field update permission. [#5216](https://github.com/baserow/baserow/issues/5216)
+* [Database] fix import preview
+* [Core] Fix password reset tokens not being invalidated after use, allowing persistent account takeover. Tokens are now single-use, token expiry reduced to 1 hour, and a confirmation email is sent on every password change. [#5165](https://github.com/baserow/baserow/issues/5165)
+* [Database] Fix rollup and count fields crashing when a stale in-memory relation points to a deleted field during formula recalculation. [#5214](https://github.com/baserow/baserow/issues/5214)
+* [Core] Make concurrent index migrations idempotent so they can be re-run after a partial failure.
+* [Database] Fix template sync failing when importing enterprise field rules without a license.
+* [Automation] Fixed a bug that caused a crash due to a race condition that could happen if a node is deleted while it is being dispatched.
+* [Builder] Fixes if() formulas in the Application Builder silently rendering nothing when the condition references an empty field
+* [Integration] Improved error handling for the AI Form.
+
+### Refactors
+* [Automation] Improve rate limiting to support multiple time frames
+* [Core] Optimize rate limiting: cache user and settings lookups and reorganize throttling code.
+
+### Breaking API changes
+* [Core] Workspace invitations no longer support custom messages, and the `BASEROW_MAX_PENDING_WORKSPACE_INVITES` env var has been removed.
+
+
 ## Released 2.2.0
 
 ### New features
