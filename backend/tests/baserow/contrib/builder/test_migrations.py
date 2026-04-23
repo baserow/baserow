@@ -1,3 +1,8 @@
+import random
+import time
+
+from django.db import connection
+
 import pytest
 
 from baserow.test_utils.helpers import is_dict_subset
@@ -665,3 +670,154 @@ def test_0068_migrate_element_hierarchy_to_graph(migrator, teardown_table_metada
     assert rollback_text_2_column_1.parent_element_id is rollback_column.id
     assert rollback_text_column_2.parent_element_id is rollback_column.id
     assert rollback_text_column_3.parent_element_id is rollback_column.id
+
+
+@pytest.mark.once_per_day_in_ci
+def test_0068_migrate_element_hierarchy_to_graph_performance(
+    migrator, teardown_table_metadata
+):
+    migrate_from = [("builder", "0067_slackwritemessageworkflowaction")]
+    migrate_to = [("builder", "0068_migrate_element_hierarchy_to_graph")]
+
+    old_state = migrator.migrate(migrate_from)
+
+    ContentType = old_state.apps.get_model("contenttypes", "ContentType")
+    Workspace = old_state.apps.get_model("core", "Workspace")
+    Application = old_state.apps.get_model("core", "Application")
+    Builder = old_state.apps.get_model("builder", "Builder")
+    Page = old_state.apps.get_model("builder", "Page")
+    # The migration reads builder_element only (not MTI sub-tables), so we only
+    # need the base Element model. Skipping ColumnElement/TextElement sub-table
+    # inserts halves the element write count without affecting migration output.
+    Element = old_state.apps.get_model("builder", "element")
+
+    builder_ct = ContentType.objects.get_for_model(Builder)
+    column_ct = ContentType.objects.get_for_model(
+        old_state.apps.get_model("builder", "ColumnElement")
+    )
+    text_ct = ContentType.objects.get_for_model(
+        old_state.apps.get_model("builder", "TextElement")
+    )
+
+    # 2 sibling containers per page, each with 6 children = 14 elements per page.
+    # This matches the production ratio of ~13.75 elements/page (209k elements / 152k pages).
+    container_specs = [
+        {"column_amount": 3, "places": [("0", 2), ("1", 2), ("2", 2)]},
+        {"column_amount": 2, "places": [("0", 3), ("1", 3)]},
+    ]
+
+    # weights=[174, 776, 50] → mean 0.876 pages/workspace, matching production ratio
+    # (152k pages / 174k workspaces). ~17% builders have 0 pages, ~78% have 1, ~5% have 2.
+    rng = random.Random(0)
+    num_workspaces = 17_359
+
+    page_counts = [
+        rng.choices([0, 1, 2], weights=[174, 776, 50])[0] for _ in range(num_workspaces)
+    ]
+
+    # Bulk create workspaces
+    workspaces = Workspace.objects.bulk_create(
+        [Workspace(name=f"Workspace {i}") for i in range(num_workspaces)]
+    )
+
+    # Bulk create Application rows (MTI parent of Builder)
+    applications = Application.objects.bulk_create(
+        [
+            Application(
+                order=1, name=f"Builder {i}", workspace=ws, content_type=builder_ct
+            )
+            for i, ws in enumerate(workspaces)
+        ]
+    )
+
+    # Insert Builder rows directly — Django forbids bulk_create on MTI child models
+    with connection.cursor() as cursor:
+        cursor.executemany(
+            "INSERT INTO builder_builder (application_ptr_id) VALUES (%s)",
+            [(app.id,) for app in applications],
+        )
+
+    # Bulk create Pages
+    page_records = []
+    for app, count in zip(applications, page_counts):
+        for j in range(count):
+            page_records.append(
+                Page(
+                    order=j + 1,
+                    builder_id=app.id,
+                    name=f"Page {j}",
+                    path=f"/{app.id}/{j}",
+                )
+            )
+    pages = Page.objects.bulk_create(page_records)
+    page_ids = [p.pk for p in pages]
+
+    # Bulk create base Element rows for containers (one pass, preserving order so we
+    # can index into col_elements by page_idx * n_specs + col_idx below)
+    col_element_records = [
+        Element(page=page, content_type=column_ct, order=col_order)
+        for page in pages
+        for col_order, _spec in enumerate(container_specs, start=1)
+    ]
+    col_elements = Element.objects.bulk_create(col_element_records)
+
+    n_specs = len(container_specs)
+    with connection.cursor() as cursor:
+        cursor.executemany(
+            "INSERT INTO builder_columnelement"
+            " (element_ptr_id, column_amount, column_gap, alignment) VALUES (%s, %s, %s, %s)",
+            [
+                (
+                    col_elements[i].id,
+                    container_specs[i % n_specs]["column_amount"],
+                    20,
+                    "top",
+                )
+                for i in range(len(col_elements))
+            ],
+        )
+
+    # Bulk create base Element rows for leaf text elements
+    text_element_records = []
+    for page_idx, page in enumerate(pages):
+        for col_idx, spec in enumerate(container_specs):
+            col_el = col_elements[page_idx * n_specs + col_idx]
+            for place, count in spec["places"]:
+                for order in range(1, count + 1):
+                    text_element_records.append(
+                        Element(
+                            page=page,
+                            content_type=text_ct,
+                            order=order,
+                            parent_element_id=col_el.id,
+                            place_in_container=place,
+                        )
+                    )
+    text_elements = Element.objects.bulk_create(text_element_records)
+
+    with connection.cursor() as cursor:
+        cursor.executemany(
+            "INSERT INTO builder_textelement (element_ptr_id, value, format) VALUES (%s, %s, %s)",
+            [(e.id, "", "plain") for e in text_elements],
+        )
+
+    total_pages = len(page_ids)
+    total_elements = total_pages * 14
+
+    start = time.perf_counter()
+    new_state = migrator.migrate(migrate_to)
+    elapsed = time.perf_counter() - start
+
+    print(f"\n[PERF] 0068_migrate_element_hierarchy_to_graph:")
+    print(
+        f"  {num_workspaces} workspaces · {total_pages} pages · {total_elements} elements"
+    )
+    print(f"  Total duration:    {elapsed:.3f}s")
+    print(f"  Avg per page:      {elapsed / total_pages * 1000:.2f}ms")
+    print(f"  Avg per workspace: {elapsed / num_workspaces * 1000:.2f}ms")
+
+    Page = new_state.apps.get_model("builder", "Page")
+    migrated = Page.objects.filter(pk__in=page_ids)
+    assert all(p.graph for p in migrated), (
+        "All pages must have a non-empty graph after migration"
+    )

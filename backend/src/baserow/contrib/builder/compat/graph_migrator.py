@@ -15,7 +15,7 @@ class ElementToMigrate(TypedDict):
 
 class PageGraphMigrator:
     def __init__(self, elements: List[ElementToMigrate]):
-        self.elements = elements
+        self.elements = sorted(elements, key=lambda e: e["order"])
 
     @classmethod
     def serialize_page_elements(
