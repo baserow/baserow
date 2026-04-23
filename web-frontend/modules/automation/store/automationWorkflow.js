@@ -6,7 +6,6 @@ import { generateHash } from '@baserow/modules/core/utils/hashing'
 import { AUTOMATION_ACTION_SCOPES } from '@baserow/modules/automation/utils/undoRedoConstants'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
-import _ from 'lodash'
 
 export function populateAutomationWorkflow(workflow) {
   return {
