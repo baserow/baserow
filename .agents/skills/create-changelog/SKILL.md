@@ -1,6 +1,6 @@
 ---
 name: create-changelog
-description: Generate a changelog entry for the current Git branch by inspecting changed files, classifying the domain and type, writing a short public-friendly message, and running `just changelog-agent-add` after the user confirms. Use this skill whenever the user asks to "create a changelog", "add a changelog entry", "changelog this branch", "write changelog", or otherwise signals they want to record what their branch changes — even if they don't mention `just` or the exact command.
+description: Generate a changelog entry for the current Git branch by inspecting changed files, classifying the domain and type, writing a short public-friendly message, and running `just changelog add` after the user confirms. Use this skill whenever the user asks to "create a changelog", "add a changelog entry", "changelog this branch", "write changelog", or otherwise signals they want to record what their branch changes — even if they don't mention `just` or the exact command.
 ---
 
 # create-changelog
@@ -8,10 +8,8 @@ description: Generate a changelog entry for the current Git branch by inspecting
 Create a changelog entry for the work on the current Git branch. The entry is registered by running:
 
 ```
-just changelog-agent-add {domain} {type} {message}
+just changelog add --domain {domain} --type {type} --message '{message}'
 ```
-
-The empty string between `{type}` and `{message}` is an optional field that this skill always leaves blank.
 
 ## Workflow
 
@@ -100,7 +98,7 @@ Message: <message>
 Follow with a one- or two-sentence rationale explaining *why* you picked that domain and type (e.g. "7 of 9 changed files are under `builder/`, and the branch adds a new step type, so I called it a new feature.") and then the full command that will be run:
 
 ```
-just changelog-agent-add <domain> <type> '<message>'
+just changelog add --domain <domain> --type <type> --message '<message>'
 ```
 
 Ask the user to confirm, or to tell you what to change. If they ask for changes, redo whichever steps are affected and present an updated proposal — don't run the command until the user explicitly confirms.
@@ -110,10 +108,12 @@ Ask the user to confirm, or to tell you what to change. If they ask for changes,
 Once the user confirms, run the command:
 
 ```bash
-just changelog-agent-add <domain> <type> '<message>'
+just changelog add --domain <domain> --type <type> --message '<message>'
 ```
 
 Wrap the message in single quotes so apostrophes, spaces, and punctuation pass through correctly. If the message itself contains a single quote, close-escape-open it (`'\''`) or rewrite the message to avoid it — preferably the latter, since changelog messages rarely need apostrophes.
+
+The issue number is automatically extracted from the branch name (e.g. a branch named `1234-fix-something` yields issue `1234`). If no issue number is found in the branch name, the entry is created without one.
 
 Show the command's output to the user and confirm it succeeded. If `just` errors (for example, the arguments aren't accepted), surface the error and offer to adjust and retry.
 

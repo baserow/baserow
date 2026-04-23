@@ -54,10 +54,18 @@ def add(
             f"must be one of: {', '.join(ENTRY_TYPES)}",
             param_hint="--type",
         )
-    issue_number = issue if issue is not None else typer.prompt(
-        "Issue number", type=str, default=ChangelogHandler.get_issue_number() or ""
-    )
+    if issue is not None:
+        issue_number = issue
+    elif domain is not None and entry_type is not None and message is not None:
+        issue_number = ChangelogHandler.get_issue_number() or ""
+    else:
+        issue_number = typer.prompt(
+            "Issue number", type=str, default=ChangelogHandler.get_issue_number() or ""
+        )
     final_message = message or typer.prompt("Message", default="")
+
+    if issue_number and not str(issue_number).isdigit():
+        raise typer.BadParameter("must be a numeric GitHub issue ID", param_hint="--issue")
 
     if str(issue_number).isdigit():
         issue_number = int(issue_number)

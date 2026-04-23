@@ -1175,16 +1175,11 @@ env-clear:
     fi
 
 # Run changelog command (e.g., just changelog add, just changelog release 2.3.0)
+[positional-arguments]
 [group('5 - utilities')]
 [doc("Changelog: just changelog <add|release|generate|purge>")]
 changelog *args:
-    cd backend && uv run --group changelog python ../changelog/src/changelog.py {{ args }}
-
-# Add a changelog entry non-interactively as an agent
-[group('5 - utilities')]
-[doc("Agent add changelog entry: just changelog-agent-add <domain> <type> <message>")]
-changelog-agent-add domain type message:
-    cd backend && uv run --group changelog python ../changelog/src/changelog.py add --domain={{domain}} --type={{type}} --message="{{message}}"  --issue=''
+    cd backend && uv run --group changelog python ../changelog/src/changelog.py "$@"
 
 # Run changelog tests
 [group('4 - testing')]
