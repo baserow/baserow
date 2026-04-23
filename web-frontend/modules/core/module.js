@@ -86,7 +86,6 @@ export default defineNuxtModule({
         mediaUrl: 'http://localhost:4000/media/',
         sentryDsn: '',
         sentryEnvironment: '',
-        baserowExtraClientScriptEnabled: '',
       }
     )
 
@@ -136,7 +135,6 @@ export default defineNuxtModule({
     addPlugin(resolve('plugins/routeMounted.js'))
     addPlugin(resolve('plugins/storeRegister.js'))
     addPlugin(resolve('plugins/isWebFrontendHostname.js'))
-    addPlugin(resolve('plugins/extraClientScript.js'))
 
     addRouteMiddleware({
       name: 'authentication',
