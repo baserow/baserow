@@ -242,7 +242,7 @@ class GraphPointMixin:
         Returns the cached ``{child_id: parent_id}`` mapping for every point
         on this point's parent model (page/workflow). The map is built once
         per parent model per request and stored in ``local_cache`` so that
-        all points on the same page/workflow share a single traversal.q
+        all points on the same page/workflow share a single traversal.
         """
 
         parent_model = self.get_parent()
