@@ -1251,7 +1251,7 @@ def test_toggle_test_mode_on(
 
     frozen_time = "2025-06-04 11:00"
     with freeze_time(frozen_time):
-        AutomationWorkflowHandler().toggle_test_run(workflow)
+        AutomationWorkflowHandler().toggle_test_run(workflow, None)
 
     workflow.refresh_from_db()
 
@@ -1276,7 +1276,7 @@ def test_toggle_test_mode_on_immediate(
 
     frozen_time = "2025-06-04 11:00"
     with freeze_time(frozen_time):
-        AutomationWorkflowHandler().toggle_test_run(workflow)
+        AutomationWorkflowHandler().toggle_test_run(workflow, None)
 
     workflow.refresh_from_db()
 
@@ -1300,7 +1300,7 @@ def test_toggle_test_mode_off(
         trigger_type=LocalBaserowRowsCreatedNodeTriggerType.type,
     )
 
-    AutomationWorkflowHandler().toggle_test_run(workflow)
+    AutomationWorkflowHandler().toggle_test_run(workflow, None)
 
     workflow.refresh_from_db()
 

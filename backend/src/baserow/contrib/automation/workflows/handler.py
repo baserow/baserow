@@ -797,7 +797,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             automation_workflow_updated.send(self, user=None, workflow=workflow)
 
     def toggle_test_run(
-        self, workflow: AutomationWorkflow, simulate_until_node: bool = None
+        self,
+        workflow: AutomationWorkflow,
+        simulate_until_node: AutomationNode | None,
     ):
         """
         Trigger a test run if none is in progress or cancel the planned run. If the
@@ -818,10 +820,10 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         if simulate_until_node is None:  # Full test
             AutomationWorkflowHandler().set_workflow_temporary_states(workflow)
             if workflow.can_immediately_be_tested():
+                workflow_to_run = self._ensure_published_for_run(workflow)
                 # If the service related to the trigger can immediately be tested
                 # we immediately trigger the workflow run
-                self.async_start_workflow(workflow)
-
+                self.async_start_workflow(workflow_to_run)
         else:
             AutomationWorkflowHandler().set_workflow_temporary_states(
                 workflow, simulate_until_node=simulate_until_node
@@ -1173,14 +1175,16 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 )
             return
 
-        # If the currently running workflow is an unpublished workflow then we are
-        # testing it.
-        is_test_run = workflow.is_original()
-
-        # For test runs, use a test clone so that the history
-        # points to cloned nodes instead of draft nodes.
-        if is_test_run and simulate_until_node is None:
+        # Test runs that are triggered by a listener (e.g. Rows created)
+        # don't go through the toggle_test_run() path and are instead directly
+        # called by node type's on_event() with the draft wokrflow. We
+        # therefore need to create the clone for the history.
+        if workflow.is_original() and simulate_until_node is None:
             workflow = self._ensure_published_for_run(workflow)
+
+        is_test_run = (
+            workflow.is_original() or workflow.state == WorkflowState.TEST_CLONE
+        )
 
         history = AutomationHistoryHandler().create_workflow_history(
             original_workflow=original_workflow,
