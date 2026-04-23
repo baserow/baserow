@@ -24,7 +24,6 @@ from baserow.contrib.builder.elements.signals import (
     element_created,
     element_deleted,
     element_moved,
-    element_orders_recalculated,
     element_updated,
     elements_created,
 )
@@ -36,7 +35,6 @@ from baserow.contrib.builder.elements.types import (
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.cache import local_cache
-from baserow.core.exceptions import CannotCalculateIntermediateOrder
 from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.types import GraphPointPositionType
@@ -184,24 +182,15 @@ class ElementService:
         # Verify the combination of the reference element, and the position.
         self._check_position(page, reference_element, position)
 
-        try:
-            with translation.override(user.profile.language):
-                new_element = self.handler.create_element(
-                    element_type,
-                    page,
-                    position=position,
-                    reference_element_id=reference_element_id,
-                    place_in_container=instance_output,
-                    **kwargs,
-                )
-        except CannotCalculateIntermediateOrder:
-            self.recalculate_full_orders(user, page)
-            # If the `find_intermediate_order` fails with a
-            # `CannotCalculateIntermediateOrder`, it means that it's not possible
-            # calculate an intermediate fraction. Therefore, must reset all the
-            # orders of the elements (while respecting their original order),
-            # so that we can then can find the fraction any many more after.
-            new_element = self.handler.create_element(element_type, page, **kwargs)
+        with translation.override(user.profile.language):
+            new_element = self.handler.create_element(
+                element_type,
+                page,
+                position=position,
+                reference_element_id=reference_element_id,
+                place_in_container=instance_output,
+                **kwargs,
+            )
 
         if reference_element is None:
             page.get_graph().append(new_element)
@@ -276,8 +265,7 @@ class ElementService:
         position: GraphPointPositionType,
     ) -> ElementMove:
         """
-        Moves an element in the page before another element. If the `before` element is
-        omitted the element is moved at the end of the page.
+        Moves an element in the page at the place defined by the position triplet.
 
         :param user: The user who is moving the element.
         :param target_page: The page this element will move to.
@@ -363,16 +351,6 @@ class ElementService:
             previous_reference_element=previous_reference_element,
         )
 
-    def recalculate_full_orders(self, user: AbstractUser, page: Page):
-        """
-        Recalculates the order to whole numbers of all elements of the given page and
-        send a signal.
-        """
-
-        self.handler.recalculate_full_orders(page)
-
-        element_orders_recalculated.send(self, page=page)
-
     def duplicate_element(
         self, user: AbstractUser, element: Element
     ) -> ElementsAndWorkflowActions:
@@ -395,16 +373,9 @@ class ElementService:
             context=page,
         )
 
-        try:
-            elements_and_workflow_actions_duplicated = self.handler.duplicate_element(
-                element
-            )
-        except CannotCalculateIntermediateOrder:
-            self.recalculate_full_orders(user, element.page)
-            element.refresh_from_db()
-            elements_and_workflow_actions_duplicated = self.handler.duplicate_element(
-                element
-            )
+        elements_and_workflow_actions_duplicated = self.handler.duplicate_element(
+            element
+        )
 
         elements_created.send(
             self,

@@ -16,8 +16,7 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.object_scopes import BuilderPageObjectScopeType
 from baserow.core.graph.types import GraphPointPosition
-from baserow.core.utils import generate_hash
-from baserow.ws.tasks import broadcast_to_group, broadcast_to_permitted_users
+from baserow.ws.tasks import broadcast_to_permitted_users
 
 
 @receiver(element_signals.element_created)
@@ -127,23 +126,6 @@ def element_deleted(sender, page: Page, element_id: int, user: AbstractUser, **k
                 "type": "element_deleted",
                 "element_id": element_id,
                 "page_id": page.id,
-            },
-            getattr(user, "web_socket_id", None),
-        )
-    )
-
-
-@receiver(element_signals.element_orders_recalculated)
-def element_orders_recalculated(
-    sender, page: Page, user: AbstractUser = None, **kwargs
-):
-    transaction.on_commit(
-        lambda: broadcast_to_group.delay(
-            page.builder.workspace_id,
-            {
-                "type": "element_orders_recalculated",
-                # A user might also not have access to the page itself
-                "page_id": generate_hash(page.id),
             },
             getattr(user, "web_socket_id", None),
         )

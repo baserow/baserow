@@ -322,7 +322,7 @@ class ElementHandler:
     def invalidate_element_cache(self, page: Page):
         """
         Invalidates the element cache. To be used when we add or remove an
-        element from the graph.
+        element from the page (and from the graph).
 
         :param page: The target page cache.
         """
@@ -349,9 +349,6 @@ class ElementHandler:
         :param position: The position relative to the reference element.
         :param place_in_container: The place inside a container element, if any.
         :param kwargs: Additional attributes of the element.
-        :raises CannotCalculateIntermediateOrder: If it's not possible to find an
-            intermediate order. The full order of the element of the page must be
-            recalculated in this case before calling this method again.
         :return: The created element.
         """
 
@@ -459,16 +456,6 @@ class ElementHandler:
             container_element, places, new_place_in_container
         )
 
-    def recalculate_full_orders(
-        self,
-        page: Page,
-    ):
-        """
-        Recalculates the order to whole numbers of all elements of the given page.
-        """
-
-        Element.recalculate_full_orders(queryset=Element.objects.filter(page=page))
-
     def get_element_workflow_actions(
         self, element: Element
     ) -> Iterable[BuilderWorkflowAction]:
@@ -504,7 +491,7 @@ class ElementHandler:
         self,
         element: Element,
         id_mapping,
-        reference_element: Element = None,
+        reference_element: Element | None = None,
         position: GraphPointPosition = GraphPointPosition.SOUTH,
     ) -> ElementsAndWorkflowActions:
         """

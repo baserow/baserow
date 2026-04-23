@@ -227,7 +227,7 @@ class GraphPointMixin:
         Returns the cached ``{child_id: parent_id}`` mapping for every point
         on this point's parent model (page/workflow). The map is built once
         per parent model per request and stored in ``local_cache`` so that
-        all points on the same page/workflow share a single traversal.q
+        all points on the same page/workflow share a single traversal.
         """
 
         parent_model = self.get_parent()
@@ -239,7 +239,7 @@ class GraphPointMixin:
     def get_parent_point(self) -> Self | None:
         """
         Returns the direct parent container point, or ``None`` if this point
-        has no parent.  Uses the cached parent map for an O(1) lookup instead
+        has no parent. Uses the cached parent map for an O(1) lookup instead
         of a full graph traversal.
         """
 
@@ -251,7 +251,7 @@ class GraphPointMixin:
     def get_parent_points(self) -> list[Self]:
         """
         Returns the ancestor container points that contain this point, ordered
-        from outermost to innermost (direct parent last).  Uses the cached
+        from outermost to innermost (direct parent last). Uses the cached
         parent map so the chain is resolved with O(depth) dict lookups rather
         than a full graph traversal per element.
         """

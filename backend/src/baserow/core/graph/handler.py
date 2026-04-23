@@ -194,7 +194,8 @@ class BaseGraphHandler(ABC):
         self, point_info: Dict[str, Any]
     ) -> Dict[str, List[int | str]]:
         """
-        Get the children as a dict, normalizing from the legacy array format if needed.
+        For backwards compatibility, get the children as a dict,
+        normalizing from the legacy array format if needed.
 
         Supports both formats:
         - Legacy: {"children": [7, 8]} -> {"": [7, 8]}
