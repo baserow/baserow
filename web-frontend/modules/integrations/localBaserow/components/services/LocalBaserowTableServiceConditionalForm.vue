@@ -36,7 +36,7 @@
           class="filters__value--formula-input"
           :placeholder="
             $t(
-              'localBaserowTableServiceConditionalForm.formulaFilterInputPlaceholder'
+              'localBaserowTableServiceConditionalForm.expressionFilterInputPlaceholder'
             )
           "
           @input="
@@ -58,7 +58,9 @@
           "
           :title="
             !filter.value_is_formula
-              ? $t('localBaserowTableServiceConditionalForm.useFormulaForValue')
+              ? $t(
+                  'localBaserowTableServiceConditionalForm.useExpressionForValue'
+                )
               : $t('localBaserowTableServiceConditionalForm.useDefaultForValue')
           "
           class="filters__value--formula-toggle"

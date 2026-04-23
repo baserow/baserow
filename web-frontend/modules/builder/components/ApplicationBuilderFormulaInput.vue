@@ -106,9 +106,9 @@ const nodesHierarchy = computed(() => {
 })
 
 /**
- * Extract the formula string from the value object, the FormulaInputField
- * component only needs the formula string itself.
- * @returns {String} The formula string.
+ * Extract the expression string from the value object, the FormulaInputField
+ * component only needs the expression string itself.
+ * @returns {String} The expression string.
  */
 const formulaStr = computed(() => {
   return currentValue.value.formula
@@ -142,9 +142,9 @@ const dataExplorerLoading = computed(() => {
 })
 
 /**
- * When `FormulaInputField` emits a new formula string, we need to emit the
- * entire value object with the updated formula string.
- * @param {String} newFormulaStr The new formula string.
+ * When `FormulaInputField` emits a new expression string, we need to emit the
+ * entire value object with the updated expression string.
+ * @param {String} newFormulaStr The new expression string.
  */
 const updatedFormulaStr = (newFormulaStr) => {
   emit('input', {

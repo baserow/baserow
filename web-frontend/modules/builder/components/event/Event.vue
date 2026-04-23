@@ -68,7 +68,7 @@
           This value will change after an action is ordered, thus triggering the
           rendering engine, which can be useful when we want instant visual
           feedback.
-          One example would be to highlight formulas that become invalid after
+          One example would be to highlight expressions that become invalid after
           action ordering.
         -->
       <WorkflowAction
