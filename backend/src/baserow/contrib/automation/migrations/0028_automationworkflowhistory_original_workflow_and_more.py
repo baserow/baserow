@@ -14,14 +14,10 @@ def backfill_original_workflow(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("automation", "0026_alter_automationworkflow_unique_together"),
+        ("automation", "0027_alter_automationnodehistory_options_and_more"),
     ]
 
     operations = [
-        migrations.AlterModelOptions(
-            name="automationnodehistory",
-            options={"ordering": ("started_on", "id")},
-        ),
         migrations.AddField(
             model_name="automationworkflowhistory",
             name="original_workflow",

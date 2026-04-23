@@ -32,7 +32,7 @@ from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowTooManyErrors,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
-from baserow.core.cache import local_cache, global_cache
+from baserow.core.cache import global_cache, local_cache
 from baserow.core.notifications.models import Notification, NotificationRecipient
 from baserow.core.registries import ImportExportConfig
 from baserow.core.trash.handler import TrashHandler
