@@ -12,14 +12,9 @@ const getUrls = (raw) =>
     .map((value) => value.trim())
     .filter(Boolean)
 
-const hasFeature = (nuxtApp, feature, forSpecificWorkspace) =>
-  Object.values(nuxtApp.$registry.getAll('plugin')).some((plugin) =>
-    plugin.hasFeature(feature, forSpecificWorkspace)
-  )
-
 const bootstrapScript = (config) => `
 window.__baserow = window.__baserow || {};
-window.__baserow.config = ${JSON.stringify(config)};
+window.__baserow.config = ${JSON.stringify(config).replace(/</g, '\\u003c')};
 window.__baserow._queuedHooks = window.__baserow._queuedHooks || [];
 window.__baserow.hook = function(name, fn) {
   window.__baserow._queuedHooks.push([name, fn]);
@@ -51,7 +46,7 @@ export default defineNuxtRouteMiddleware(async () => {
     await store.dispatch('settings/load')
   }
 
-  if (!hasFeature(nuxtApp, EnterpriseFeatures.ENTERPRISE_SETTINGS)) {
+  if (!nuxtApp.$hasFeature(EnterpriseFeatures.ENTERPRISE_SETTINGS)) {
     return
   }
 
