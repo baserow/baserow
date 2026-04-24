@@ -1,5 +1,7 @@
 import { expect, test } from "../baserowTest";
 import { createDatabase } from "../../fixtures/database/database";
+import { createTable } from "../../fixtures/database/table";
+import { createField } from "../../fixtures/database/field";
 
 /**
  * Generate a large CSV string so the import job takes long enough
@@ -119,5 +121,95 @@ test.describe("Table import job restore after reload", () => {
     await expect(
       modalAfterReload.getByRole("button", { name: "Add table" })
     ).toBeVisible({ timeout: 5000 });
+  });
+
+  test("CSV import into existing table restores running job after reload", async ({
+    page,
+    workspacePage,
+  }) => {
+    test.setTimeout(60000);
+
+    await workspacePage.goto();
+    const existingDb = await createDatabase(
+      workspacePage.user,
+      "ExistingImportDb",
+      workspacePage.workspace
+    );
+    const table = await createTable(workspacePage.user, "Target", existingDb);
+    // Add an extra text field so we have something to map CSV columns to
+    // (the primary "Name" field is auto-created)
+    await createField(workspacePage.user, "Email", "text", {}, table)
+
+    // Navigate to the table
+    await workspacePage.goto();
+    await page.getByTitle("ExistingImportDb").click();
+    await page.getByText("Target").click();
+
+    // Open the view context menu (the vertical dots icon in the view header)
+    // and click "Import file"
+    await page.locator(".header__filter-link .baserow-icon-more-vertical").click();
+    await page.getByText("Import file").click();
+
+    // The import-file modal should appear
+    const modal = page
+      .locator(".modal__box")
+      .filter({ hasText: "Import into Target" });
+    await expect(modal).toBeVisible();
+
+    // Select "CSV file" importer
+    await modal
+      .locator(".choice-items__link")
+      .filter({ hasText: "CSV file" })
+      .click();
+
+    // Upload a large CSV
+    const csvContent2 = generateLargeCsv(5000);
+    const csvBuffer = Buffer.from(csvContent2, "utf-8");
+    const fileInput = modal.locator('input[type="file"]');
+    await fileInput.setInputFiles({
+      name: "existing-import.csv",
+      mimeType: "text/csv",
+      buffer: csvBuffer,
+    });
+
+    // Wait for the file to be parsed and the field mapping to show
+    await expect(modal.getByText("existing-import.csv")).toBeVisible({
+      timeout: 15000,
+    });
+
+    // Click Import
+    await modal.getByRole("button", { name: "Import" }).click();
+
+    // Wait for the progress bar to appear
+    await expect(modal.locator(".progress-bar")).toBeVisible({
+      timeout: 30000,
+    });
+
+    // Reload while the import is running
+    await page.reload();
+
+    // After reload, navigate back to the table and reopen the import modal
+    await page.getByTitle("ExistingImportDb").click();
+    await page.getByText("Target").click();
+
+    await page
+      .locator(".header__filter-link .baserow-icon-more-vertical")
+      .click();
+    await page.getByText("Import file").click();
+
+    const modalAfterReload = page
+      .locator(".modal__box")
+      .filter({ hasText: "Import into Target" });
+    await expect(modalAfterReload).toBeVisible();
+
+    // The cancel button should be visible (meaning the running job was restored)
+    const cancelButton = modalAfterReload.getByRole("button", {
+      name: "Cancel",
+    });
+    await expect(cancelButton).toBeVisible({ timeout: 10000 });
+
+    // Cancel and verify the job stops
+    await cancelButton.click();
+    await expect(cancelButton).toBeHidden({ timeout: 10000 });
   });
 });
