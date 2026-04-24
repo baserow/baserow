@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from operator import attrgetter
 from typing import TYPE_CHECKING, Optional
 
+from django.db.models import Max
+
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
@@ -9,6 +11,13 @@ from baserow.ws.registries import PageType, page_registry
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
+
+    from baserow.ws.types import (
+        BroadcastToChannelGroupMessage,
+        BroadcastToUsersIndividualPayloadsMessage,
+        BroadcastToUsersMessage,
+        ForceDisconnectMessage,
+    )
 
 
 @dataclass
@@ -157,6 +166,11 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         """
         Processes incoming messages.
         """
+        msg_type = content.get("type", "")
+
+        if msg_type == "realtime_subscribe":
+            await self._realtime_subscribe(content)
+            return
 
         if "page" in content:
             await self._add_page_scope(content)
@@ -330,9 +344,131 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
                     }
                     await self._remove_page_scope(content, send_confirmation=True)
 
+    async def _replay_missed_events(
+        self,
+        channel_group_names: list[tuple[str, str]],
+        last_seen_id: int,
+        previous_web_socket_id: Optional[str],
+    ) -> Optional[int]:
+        """
+        Attempt to replay missed events through existing consumer handlers.
+
+        Returns the latest replayed event id on success, or ``None`` if
+        replay is not possible (degraded path).
+        """
+
+        from baserow.ws.models import RealtimeEvent
+        from baserow.ws.realtime_updates import get_replay_events
+
+        events = await database_sync_to_async(get_replay_events)(
+            self.scope["user"].id,
+            channel_group_names,
+            last_seen_id,
+            previous_web_socket_id,
+        )
+        if events is None:
+            return None
+
+        if not events:
+            latest = await database_sync_to_async(
+                lambda: RealtimeEvent.objects.aggregate(m=Max("id"))["m"]
+            )()
+            return latest if latest is not None else last_seen_id
+
+        for event in events:
+            event_type = event.payload.get("type", "")
+            if event_type.startswith("broadcast_to_"):
+                handler = getattr(self, event_type, None)
+                if handler is not None:
+                    self._inject_replay_event_id(event)
+                    await handler(event.payload)
+
+        return events[-1].id
+
+    @staticmethod
+    def _inject_replay_event_id(event):
+        """
+        Inject ``RealtimeEvent.id`` as ``realtime_update_id`` into the
+        payload dicts so the frontend can advance its high-water mark
+        per replayed event (same as normal delivery).
+        """
+
+        event_id = event.id
+        inner = event.payload.get("payload")
+        if isinstance(inner, dict):
+            inner["realtime_update_id"] = event_id
+        payload_map = event.payload.get("payload_map")
+        if isinstance(payload_map, dict):
+            for user_payload in payload_map.values():
+                if isinstance(user_payload, dict):
+                    user_payload["realtime_update_id"] = event_id
+
+    async def _realtime_subscribe(self, content: dict):
+        """
+        On every websocket open the frontend sends this message with the active
+        workspace. It either baselines the client (``last_seen_id`` is null) or
+        checks whether anything was broadcast to the user's subscribed channel
+        groups by another ``web_socket_id`` since ``last_seen_id``.
+        Authentication is required; unauthorized requests are silently dropped.
+        """
+
+        from baserow.config.settings.utils import try_int
+        from baserow.ws.realtime_updates import (
+            check_realtime_events,
+            get_channel_group_names,
+        )
+
+        user = self.scope.get("user")
+        if user is None or not getattr(user, "is_authenticated", False):
+            return
+
+        workspace_id = try_int(content.get("workspace_id"))
+
+        raw_last_seen = content.get("last_seen_id")
+        last_seen_id = try_int(raw_last_seen) if raw_last_seen is not None else None
+        if last_seen_id is not None and last_seen_id <= 0:
+            last_seen_id = None
+        previous_web_socket_id = content.get("previous_web_socket_id")
+        if previous_web_socket_id is not None and not isinstance(
+            previous_web_socket_id, str
+        ):
+            previous_web_socket_id = None
+
+        pages = self.scope.get("pages", SubscribedPages())
+        channel_group_names = get_channel_group_names(pages)
+
+        if last_seen_id is not None:
+            replayed_up_to = await self._replay_missed_events(
+                channel_group_names, last_seen_id, previous_web_socket_id
+            )
+            if replayed_up_to is not None:
+                all_categories = {cat for _, cat in channel_group_names}
+                await self.send_json(
+                    {
+                        "type": "realtime_subscribe_result",
+                        "workspace_id": workspace_id,
+                        "updates": {cat: False for cat in all_categories},
+                        "current_latest_id": replayed_up_to,
+                    }
+                )
+                return
+
+        updates, current_latest_id = await database_sync_to_async(
+            check_realtime_events
+        )(user.id, channel_group_names, last_seen_id, previous_web_socket_id)
+
+        await self.send_json(
+            {
+                "type": "realtime_subscribe_result",
+                "workspace_id": workspace_id,
+                "updates": updates,
+                "current_latest_id": current_latest_id,
+            }
+        )
+
     # Event handlers
 
-    async def force_disconnect_users(self, event):
+    async def force_disconnect_users(self, event: "ForceDisconnectMessage"):
         """
         Closes the connection with this user if their user id is in the provided
         list.
@@ -355,7 +491,7 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
             await self.send_json({"type": "force_disconnect"})
             return await self.close()
 
-    async def broadcast_to_users(self, event):
+    async def broadcast_to_users(self, event: "BroadcastToUsersMessage"):
         """
         Broadcasts a message to all the users that are in the provided user_ids list.
         Optionally the ignore_web_socket_id is ignored because that is often the
@@ -365,7 +501,6 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
 
         :param event: The event containing the payload, user ids and the web socket
             id that must be ignored.
-        :type event: dict
         """
 
         web_socket_id = self.scope["web_socket_id"]
@@ -380,7 +515,9 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         if shouldnt_ignore and (self.scope["user"].id in user_ids or send_to_all_users):
             await self.send_json(payload)
 
-    async def broadcast_to_users_individual_payloads(self, event):
+    async def broadcast_to_users_individual_payloads(
+        self, event: "BroadcastToUsersIndividualPayloadsMessage"
+    ):
         """
         Accepts a payload mapping and sends the payload as JSON if the user_id of the
         consumer is part of the mapping provided
@@ -402,13 +539,12 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         if shouldnt_ignore and user_id in payload_map:
             await self.send_json(payload_map[user_id])
 
-    async def broadcast_to_group(self, event):
+    async def broadcast_to_group(self, event: "BroadcastToChannelGroupMessage"):
         """
         Broadcasts a message to all the users that are in the provided group name.
 
         :param event: The event containing the payload, group name and the web socket
             id that must be ignored.
-        :type event: dict
         """
 
         web_socket_id = self.scope["web_socket_id"]

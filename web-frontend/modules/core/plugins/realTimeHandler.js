@@ -2,6 +2,11 @@ import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
 import { useRuntimeConfig } from '#imports'
 
+const RECONNECT_BASE_DELAY = 1000
+const RECONNECT_MAX_DELAY = 30000
+const RECONNECT_MAX_ATTEMPTS = 10
+const RECONNECT_JITTER = 1000
+
 export class RealTimeHandler {
   constructor(context) {
     this.context = context
@@ -16,7 +21,50 @@ export class RealTimeHandler {
     this.subscribedToPages = true
     this.lastToken = null
     this.authenticationSuccess = true
+    this.authResponseReceived = false
+    this.unloading = false
+
+    // Realtime-updates state. The frontend tracks the highest
+    // `realtime_update_id` it has observed for the active workspace and
+    // the previous connection's web_socket_id so it can ask the server, on
+    // reconnect, whether any events from other clients were broadcast while
+    // it was offline.
+    this.lastSeenRealtimeUpdateId = null
+    this.lastSeenWorkspaceId = null
+    this.currentWebSocketId = null
+    this.previousWebSocketId = null
+
     this.registerCoreEvents()
+
+    this._onPageHide = () => {
+      this.unloading = true
+    }
+    this._onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        this.unloading = false
+      }
+      if (
+        document.visibilityState === 'visible' &&
+        !this.connected &&
+        this.reconnect
+      ) {
+        clearTimeout(this.reconnectTimeout)
+        this.connect(true, this.anonymous)
+      }
+    }
+
+    if (import.meta.client) {
+      window.addEventListener('beforeunload', this._onPageHide)
+      window.addEventListener('pagehide', this._onPageHide)
+      document.addEventListener('visibilitychange', this._onVisibilityChange)
+
+      // Re-subscribe when the active workspace changes.
+      this.context.store.subscribe((mutation) => {
+        if (mutation.type === 'workspace/SET_SELECTED') {
+          this._onActiveWorkspaceChanged()
+        }
+      })
+    }
   }
 
   /**
@@ -34,25 +82,35 @@ export class RealTimeHandler {
     const jwtToken = this.context.store.getters['auth/token']
     const token = anonymous ? jwtToken || 'anonymous' : jwtToken
 
-    // If the user is already connected to the web socket, we don't have to do
-    // anything.
-    if (this.connected) {
+    if (
+      this.socket &&
+      (this.socket.readyState === WebSocket.CONNECTING ||
+        this.socket.readyState === WebSocket.OPEN)
+    ) {
       return
     }
 
-    // Stop connecting if we have already tried more than 10 times, if we do not have
-    // an authentication token or if the server has already responded with a failed
-    // authentication error and the token has not changed.
+    if (this.socket) {
+      this.socket.onclose = null
+      this.socket = null
+    }
+
+    // Stop if max attempts reached, no token, or server already rejected
+    // this token (avoid retrying with the same bad token).
     if (
-      this.attempts > 10 ||
+      this.attempts >= RECONNECT_MAX_ATTEMPTS ||
       token === null ||
-      (!this.authenticationSuccess && token === this.lastToken)
+      (this.authResponseReceived &&
+        !this.authenticationSuccess &&
+        token === this.lastToken)
     ) {
       this.context.store.dispatch('toast/setFailedConnecting', true)
+      this.context.store.dispatch('toast/setReconnecting', false)
       return
     }
 
     this.lastToken = token
+    this.authResponseReceived = false
 
     // The web socket url is the same as the PUBLIC_BACKEND_URL apart from the
     // protocol.
@@ -64,12 +122,13 @@ export class RealTimeHandler {
 
     this.socket = new WebSocket(`${url}?jwt_token=${token}`)
     this.socket.onopen = () => {
-      this.context.store.dispatch('toast/setConnecting', false)
       this.connected = true
       this.attempts = 0
+      this.authenticationSuccess = true
 
-      // If the client needs to be subscribed to a page we can do that directly
-      // after connecting.
+      this.context.store.dispatch('toast/setFailedConnecting', false)
+      this.context.store.dispatch('toast/setReconnecting', false)
+
       if (!this.subscribedToPages) {
         this.subscribeToPages()
       }
@@ -88,6 +147,8 @@ export class RealTimeHandler {
         return
       }
 
+      this._advanceLastSeenRealtimeUpdateId(data)
+
       if (
         Object.prototype.hasOwnProperty.call(data, 'type') &&
         Object.prototype.hasOwnProperty.call(this.events, data.type)
@@ -98,39 +159,44 @@ export class RealTimeHandler {
       }
     }
 
-    /**
-     * When the connection closes we want to reconnect immediately because we don't
-     * want to miss any important real time updates. After the first attempt we want to
-     * delay retry with 5 seconds.
-     */
     this.socket.onclose = () => {
       this.connected = false
       // By default the user not subscribed to a page a.k.a `null`, so if the current
       // page is already null we can mark it as subscribed.
       this.subscribedToPages = this.pages.length === 0
+      // Stash the just-closed web_socket_id so the next subscribe can tell
+      // the server "this is me, do not flag my own changes as updates I
+      // missed". Clear the cached id to avoid sending a stale one before
+      // the new authentication message arrives.
+      if (this.currentWebSocketId !== null) {
+        this.previousWebSocketId = this.currentWebSocketId
+        this.currentWebSocketId = null
+      }
       this.delayedReconnect()
     }
   }
 
   /**
-   * If reconnecting is enabled then a timeout is created that will try to connect
-   * to the backend one more time.
+   * Schedules a reconnection attempt with exponential backoff and jitter.
    */
   delayedReconnect() {
-    if (!this.reconnect) {
+    if (!this.reconnect || this.unloading) {
       return
     }
 
+    clearTimeout(this.reconnectTimeout)
     this.attempts++
-    this.context.store.dispatch('toast/setConnecting', true)
+    this.context.store.dispatch('toast/setReconnecting', true)
 
-    this.reconnectTimeout = setTimeout(
-      () => {
-        this.connect(true, this.anonymous)
-      },
-      // After the first try, we want to try again every 5 seconds.
-      this.attempts > 1 ? 5000 : 0
+    const delay = Math.min(
+      RECONNECT_BASE_DELAY * Math.pow(2, this.attempts - 1) +
+        Math.floor(Math.random() * RECONNECT_JITTER),
+      RECONNECT_MAX_DELAY
     )
+
+    this.reconnectTimeout = setTimeout(() => {
+      this.connect(true, this.anonymous)
+    }, delay)
   }
 
   /**
@@ -214,16 +280,90 @@ export class RealTimeHandler {
    * navigating to another page that doesn't require updates.
    */
   disconnect() {
-    if (this.connected) {
+    if (this.socket) {
+      this.socket.onclose = null
       this.socket.close()
+      this.socket = null
     }
 
-    this.context.store.dispatch('toast/setConnecting', false)
     this.context.store.dispatch('toast/setFailedConnecting', false)
+    this.context.store.dispatch('toast/setReconnecting', false)
+    this.context.store.dispatch('toast/setWorkspaceStale', false)
     clearTimeout(this.reconnectTimeout)
     this.reconnect = false
     this.attempts = 0
     this.connected = false
+    this.lastSeenRealtimeUpdateId = null
+    this.lastSeenWorkspaceId = null
+    this.currentWebSocketId = null
+    this.previousWebSocketId = null
+  }
+
+  /**
+   * Returns the id of the currently active workspace, or null if no workspace
+   * is selected.
+   */
+  _getActiveWorkspaceId() {
+    const workspace = this.context.store.getters['workspace/getSelected']
+    if (!workspace || !workspace.id) return null
+    return workspace.id
+  }
+
+  /**
+   * Sends ``realtime_subscribe`` for the currently active workspace.
+   * On initial connect ``last_seen_id`` and ``previous_web_socket_id`` are both
+   * null, asking the server only for a baseline. On reconnect, both are
+   * populated so the server can answer whether anything new happened while we
+   * were offline.
+   */
+  _sendRealtimeSubscribe(workspaceId) {
+    if (
+      !this.socket ||
+      this.socket.readyState !== WebSocket.OPEN ||
+      !workspaceId
+    ) {
+      return
+    }
+    const isSameWorkspace = this.lastSeenWorkspaceId === workspaceId
+    const lastSeenId = isSameWorkspace ? this.lastSeenRealtimeUpdateId : null
+    const previousId = isSameWorkspace ? this.previousWebSocketId : null
+    this.lastSeenWorkspaceId = workspaceId
+    this.socket.send(
+      JSON.stringify({
+        type: 'realtime_subscribe',
+        workspace_id: workspaceId,
+        last_seen_id: lastSeenId,
+        previous_web_socket_id: previousId,
+      })
+    )
+  }
+
+  _onActiveWorkspaceChanged() {
+    // Switching workspaces re-baselines: the new workspace has its own id
+    // space so we drop the cached high-water mark. Any pending "workspace
+    // stale" toast belonged to the previous workspace and is irrelevant in
+    // the new context.
+    const newWorkspaceId = this._getActiveWorkspaceId()
+    if (newWorkspaceId === this.lastSeenWorkspaceId) {
+      return
+    }
+    this.lastSeenRealtimeUpdateId = null
+    this.lastSeenWorkspaceId = null
+    this.context.store.dispatch('toast/setWorkspaceStale', false)
+    this._sendRealtimeSubscribe(newWorkspaceId)
+  }
+
+  _advanceLastSeenRealtimeUpdateId(data) {
+    if (
+      data &&
+      typeof data === 'object' &&
+      typeof data.realtime_update_id === 'number'
+    ) {
+      const current = this.lastSeenRealtimeUpdateId
+      if (current === null || data.realtime_update_id > current) {
+        this.lastSeenRealtimeUpdateId = data.realtime_update_id
+      }
+    }
   }
 
   /**
@@ -240,16 +380,47 @@ export class RealTimeHandler {
    * Registers all the core event handlers, which is for the workspaces and applications.
    */
   registerCoreEvents() {
-    // When the authentication is successful we want to store the web socket id in
-    // auth store. Every AJAX request will include the web socket id as header, this
-    // way the backend knows that this client does not has to receive the event
-    // because we already know about the change.
+    // web_socket_id is stored in auth so every AJAX request includes it as a
+    // header — the backend uses it to skip echoing the event back to the
+    // originating client.
     this.registerEvent('authentication', ({ store }, data) => {
       store.dispatch('auth/setWebSocketId', data.web_socket_id)
 
-      // Store if the authentication was successful in order to prevent retries that
-      // will fail.
       this.authenticationSuccess = data.success
+      this.authResponseReceived = true
+
+      if (data.success) {
+        this.currentWebSocketId = data.web_socket_id
+        const workspaceId = this._getActiveWorkspaceId()
+        if (workspaceId) {
+          this._sendRealtimeSubscribe(workspaceId)
+        }
+      }
+    })
+
+    this.registerEvent('realtime_subscribe_result', ({ store }, data) => {
+      // Ignore results for a workspace that is no longer active (the user
+      // may have switched workspaces while the response was in flight).
+      if (data.workspace_id !== this._getActiveWorkspaceId()) {
+        return
+      }
+      const previous = this.lastSeenRealtimeUpdateId
+      const hasUpdates =
+        data.updates &&
+        typeof data.updates === 'object' &&
+        Object.values(data.updates).some(Boolean)
+      const showToast =
+        hasUpdates &&
+        typeof data.current_latest_id === 'number' &&
+        (previous === null || data.current_latest_id > previous)
+      this.lastSeenRealtimeUpdateId = Math.max(
+        data.current_latest_id,
+        previous ?? 0
+      )
+      this.previousWebSocketId = null
+      if (showToast) {
+        store.dispatch('toast/setWorkspaceStale', true)
+      }
     })
 
     this.registerEvent('user_data_updated', ({ store }, data) => {

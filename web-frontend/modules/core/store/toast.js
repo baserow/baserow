@@ -2,8 +2,8 @@ import { uuid } from '@baserow/modules/core/utils/string'
 import { UNDO_REDO_STATES } from '@baserow/modules/core/utils/undoRedoConstants'
 
 export const state = () => ({
-  connecting: false,
   failedConnecting: false,
+  reconnecting: false,
   authorizationError: false,
   userSessionExpired: false,
   userPasswordChanged: false,
@@ -13,6 +13,7 @@ export const state = () => ({
   // See UNDO_REDO_STATES for all possible values.
   undoRedoState: UNDO_REDO_STATES.HIDDEN,
   permissionsUpdated: false,
+  workspaceStale: false,
   items: [],
 })
 
@@ -24,11 +25,11 @@ export const mutations = {
     const index = state.items.indexOf(toast)
     state.items.splice(index, 1)
   },
-  SET_CONNECTING(state, value) {
-    state.connecting = value
-  },
   SET_FAILED_CONNECTING(state, value) {
     state.failedConnecting = value
+  },
+  SET_RECONNECTING(state, value) {
+    state.reconnecting = !!value
   },
   SET_AUTHORIZATION_ERROR(state, value) {
     state.authorizationError = value
@@ -53,6 +54,9 @@ export const mutations = {
   },
   SET_USER_PASSWORD_CHANGED(state, value) {
     state.userPasswordChanged = value
+  },
+  SET_WORKSPACE_STALE(state, value) {
+    state.workspaceStale = value
   },
 }
 
@@ -90,17 +94,17 @@ export const actions = {
   remove({ commit }, toast) {
     commit('REMOVE', toast)
   },
-  setConnecting({ commit }, value) {
+  setFailedConnecting({ commit }, value) {
+    if (value) {
+      commit('SET_RECONNECTING', false)
+    }
+    commit('SET_FAILED_CONNECTING', value)
+  },
+  setReconnecting({ commit }, value) {
     if (value) {
       commit('SET_FAILED_CONNECTING', false)
     }
-    commit('SET_CONNECTING', value)
-  },
-  setFailedConnecting({ commit }, value) {
-    if (value) {
-      commit('SET_CONNECTING', false)
-    }
-    commit('SET_FAILED_CONNECTING', value)
+    commit('SET_RECONNECTING', value)
   },
   setAuthorizationError({ commit }, value) {
     commit('SET_AUTHORIZATION_ERROR', value)
@@ -126,13 +130,18 @@ export const actions = {
   setPermissionsUpdated({ commit }, value) {
     commit('SET_PERMISSIONS_UPDATED', value)
   },
+  setWorkspaceStale({ commit }, value) {
+    commit('SET_WORKSPACE_STALE', value)
+  },
   userLoggedOut({ commit }) {
-    // Add any toasts here that should be closed when the user logs out
     commit('SET_PERMISSIONS_UPDATED', false)
     commit('SET_COPYING', false)
     commit('SET_PASTING', false)
     commit('SET_CLEARING', false)
     commit('SET_UNDO_REDO_STATE', UNDO_REDO_STATES.HIDDEN)
+    commit('SET_RECONNECTING', false)
+    commit('SET_FAILED_CONNECTING', false)
+    commit('SET_WORKSPACE_STALE', false)
   },
 }
 

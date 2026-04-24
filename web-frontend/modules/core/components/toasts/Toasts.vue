@@ -2,13 +2,14 @@
   <div>
     <div class="toasts__container-top">
       <PermissionsUpdatedToast v-if="permissionsUpdated" />
-      <ConnectingToast v-if="connecting"></ConnectingToast>
       <UserSessionExpiredToast
         v-if="isUserSessionExpired"
       ></UserSessionExpiredToast>
       <UserPasswordChangedToast
         v-if="isUserPasswordChanged"
       ></UserPasswordChangedToast>
+      <WorkspaceStaleToast v-if="workspaceStale && !reconnecting" />
+      <ConnectingToast v-if="reconnecting" />
       <FailedConnectingToast v-if="failedConnecting"></FailedConnectingToast>
       <AuthorizationErrorToast v-if="unauthorized"></AuthorizationErrorToast>
       <Toast
@@ -25,7 +26,6 @@
     </div>
 
     <div class="toasts__container-bottom">
-      <!-- Bottom toasts-->
       <UndoRedoToast
         v-if="undoRedoIsNotHidden"
         :state="undoRedoState"
@@ -58,11 +58,13 @@ import UserPasswordChangedToast from '@baserow/modules/core/components/toasts/Us
 import UndoRedoToast from '@baserow/modules/core/components/toasts/UndoRedoToast'
 import { UNDO_REDO_STATES } from '@baserow/modules/core/utils/undoRedoConstants'
 import PermissionsUpdatedToast from '@baserow/modules/core/components/toasts/PermissionsUpdatedToast'
+import WorkspaceStaleToast from '@baserow/modules/core/components/toasts/WorkspaceStaleToast'
 
 export default {
   name: 'Toasts',
   components: {
     PermissionsUpdatedToast,
+    WorkspaceStaleToast,
     RestoreToast,
     Toast,
     ConnectingToast,
@@ -87,8 +89,8 @@ export default {
     },
     ...mapState({
       unauthorized: (state) => state.toast.authorizationError,
-      connecting: (state) => state.toast.connecting,
       failedConnecting: (state) => state.toast.failedConnecting,
+      reconnecting: (state) => state.toast.reconnecting,
       copying: (state) => state.toast.copying,
       pasting: (state) => state.toast.pasting,
       clearing: (state) => state.toast.clearing,
@@ -97,6 +99,7 @@ export default {
       isUserSessionExpired: (state) => state.toast.userSessionExpired,
       isUserPasswordChanged: (state) => state.toast.userPasswordChanged,
       permissionsUpdated: (state) => state.toast.permissionsUpdated,
+      workspaceStale: (state) => state.toast.workspaceStale,
     }),
     ...mapGetters({ isAuthenticated: 'auth/isAuthenticated' }),
   },
