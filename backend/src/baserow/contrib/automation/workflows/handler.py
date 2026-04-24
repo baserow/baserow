@@ -820,10 +820,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         if simulate_until_node is None:  # Full test
             AutomationWorkflowHandler().set_workflow_temporary_states(workflow)
             if workflow.can_immediately_be_tested():
-                workflow_to_run = self._ensure_published_for_run(workflow)
                 # If the service related to the trigger can immediately be tested
                 # we immediately trigger the workflow run
-                self.async_start_workflow(workflow_to_run)
+                self.async_start_workflow(workflow)
         else:
             AutomationWorkflowHandler().set_workflow_temporary_states(
                 workflow, simulate_until_node=simulate_until_node
@@ -1118,13 +1117,16 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         history_status = HistoryStatusChoices.ERROR
         create_history_entry = True
 
-        original_workflow = workflow.get_original()
-
         simulate_until_node = (
             workflow.get_graph().get_node(workflow.simulate_until_node_id)
             if workflow.simulate_until_node_id
             else None
         )
+
+        if workflow.is_original() and simulate_until_node is None:
+            workflow = self._ensure_published_for_run(workflow)
+
+        original_workflow = workflow.get_original()
 
         try:
             self.before_run(workflow)
@@ -1160,6 +1162,10 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         except Exception as e:
             error = f"Unknown exception: {str(e)}"
 
+        is_test_run = (
+            workflow.is_original() or workflow.state == WorkflowState.TEST_CLONE
+        )
+
         if error:
             if create_history_entry and simulate_until_node is None:
                 now = timezone.now()
@@ -1167,24 +1173,13 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 AutomationHistoryHandler().create_workflow_history(
                     original_workflow=original_workflow,
                     workflow=workflow,
-                    is_test_run=workflow.is_original(),
+                    is_test_run=is_test_run,
                     started_on=now,
                     completed_on=now,
                     message=error,
                     status=history_status,
                 )
             return
-
-        # Test runs that are triggered by a listener (e.g. Rows created)
-        # don't go through the toggle_test_run() path and are instead directly
-        # called by node type's on_event() with the draft wokrflow. We
-        # therefore need to create the clone for the history.
-        if workflow.is_original() and simulate_until_node is None:
-            workflow = self._ensure_published_for_run(workflow)
-
-        is_test_run = (
-            workflow.is_original() or workflow.state == WorkflowState.TEST_CLONE
-        )
 
         history = AutomationHistoryHandler().create_workflow_history(
             original_workflow=original_workflow,
