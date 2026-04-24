@@ -462,7 +462,8 @@
     "importError": "Something went wrong during the file import",
     "stateRowCreation": "Importing...",
     "statePreValidation": "Validating data...",
-    "stateCreateTable": "Creating table..."
+    "stateCreateTable": "Creating table...",
+    "importingTable": "Importing table \"{name}\"..."
   },
   "importErrorReport": {
     "reportTitleFailure": "Failing rows",
@@ -1113,7 +1114,8 @@
     "error": "Something went wrong during the sync",
     "autoAddLabel": "Auto add new properties",
     "autoAddHelper": "Automatically adds and synchronizes newly available properties from the data source into the Baserow table. Note that in order for this to work, all properties must be synced.",
-    "twoWaySyncLabel": "Two-way sync"
+    "twoWaySyncLabel": "Two-way sync",
+    "syncing": "Syncing data..."
   },
   "syncTableModal": {
     "title": "Sync {name}",

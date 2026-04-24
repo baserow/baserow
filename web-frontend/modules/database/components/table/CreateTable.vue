@@ -1,20 +1,47 @@
 <template>
   <div>
-    <TableForm
-      ref="tableForm"
-      class="margin-top-3 margin-bottom-2"
-      :default-name="getDefaultName()"
-      @submitted="submitted"
-    >
-      <component
-        :is="importerComponent"
-        :disabled="importInProgress"
-        @changed="reset()"
-        @header="onHeader($event)"
-        @data="onData($event)"
-        @get-data="onGetData($event)"
+    <template v-if="restoredFromStore">
+      <div class="margin-top-3 margin-bottom-2">
+        <FormGroup
+          v-if="job.name"
+          :label="$t('createTable.importingTable', { name: job.name })"
+          small-label
+        />
+        <div v-if="job.importer_type" class="margin-bottom-1">
+          <span class="import-modal__restored-badge">
+            {{ restoredImporterName }}
+          </span>
+          <span v-if="job.original_file_name" class="margin-left-1">
+            {{ job.original_file_name }}
+          </span>
+        </div>
+      </div>
+    </template>
+    <template v-else>
+      <TableForm
+        ref="tableForm"
+        class="margin-top-3 margin-bottom-2"
+        :default-name="getDefaultName()"
+        @submitted="submitted"
+      >
+        <component
+          :is="importerComponent"
+          ref="importerRef"
+          :disabled="importInProgress"
+          @changed="reset()"
+          @header="onHeader($event)"
+          @data="onData($event)"
+          @get-data="onGetData($event)"
+        />
+      </TableForm>
+
+      <SimpleGrid
+        v-if="dataLoaded"
+        class="import-modal__preview margin-bottom-2"
+        :rows="previewFileData"
+        :fields="fileFields"
       />
-    </TableForm>
+    </template>
 
     <ImportErrorReport :job="job" :error="error"></ImportErrorReport>
 
@@ -28,16 +55,26 @@
 
     <div v-if="!hasErrors" class="modal-progress__actions">
       <ProgressBar
-        v-if="(importInProgress || jobHasSucceeded) && showProgressBar"
+        v-if="(importInProgress || jobIsFinished) && showProgressBar"
         :value="progressPercentage"
         :status="humanReadableState"
       />
       <div class="align-right">
         <Button
+          v-if="jobIsRunning"
+          type="secondary"
+          size="large"
+          :loading="cancelLoading"
+          @click="cancelJob"
+        >
+          {{ $t('action.cancel') }}
+        </Button>
+        <Button
+          v-else-if="!restoredFromStore"
           type="primary"
           size="large"
-          :loading="importInProgress || jobHasSucceeded"
-          :disabled="importInProgress || jobHasSucceeded"
+          :loading="importInProgress || jobIsFinished"
+          :disabled="importInProgress || jobIsFinished"
           @click="$refs.tableForm.submit()"
         >
           {{ $t('createTable.addButton') }}
@@ -59,7 +96,7 @@
 
 <script>
 import error from '@baserow/modules/core/mixins/error'
-import jobProgress from '@baserow/modules/core/mixins/jobProgress'
+import job from '@baserow/modules/core/mixins/job'
 import TableService from '@baserow/modules/database/services/table'
 import {
   uuid,
@@ -70,13 +107,14 @@ import TableForm from '@baserow/modules/database/components/table/TableForm'
 
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import ImportErrorReport from '@baserow/modules/database/components/table/ImportErrorReport'
+import { FileImportJobType } from '@baserow/modules/database/jobTypes'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'CreateTable',
   components: { ImportErrorReport, TableForm, SimpleGrid },
-  mixins: [error, jobProgress],
+  mixins: [error, job],
   props: {
     database: {
       type: Object,
@@ -87,13 +125,14 @@ export default {
       required: true,
     },
   },
-  emits: ['hide'],
+  emits: ['hide', 'import-in-progress'],
   setup() {
     const nuxtApp = useNuxtApp()
     return { nuxtApp }
   },
   data() {
     return {
+      restoredFromStore: false,
       uploadProgressPercentage: 0,
       importState: null,
       showProgressBar: false,
@@ -105,6 +144,14 @@ export default {
     }
   },
   computed: {
+    restoredImporterName() {
+      if (!this.job?.importer_type) return ''
+      try {
+        return this.$registry.get('importer', this.job.importer_type).getName()
+      } catch {
+        return this.job.importer_type
+      }
+    },
     isTableCreated() {
       if (!this.job?.table_id) {
         return false
@@ -164,7 +211,12 @@ export default {
       }
     },
     importInProgress() {
-      return this.state !== null && !this.jobIsFinished && !this.error.visible
+      return (
+        this.state !== null &&
+        !this.jobIsFinished &&
+        !this.jobHasFailed &&
+        !this.error.visible
+      )
     },
     importerComponent() {
       return this.chosenType === ''
@@ -191,12 +243,20 @@ export default {
       return this.job && Object.keys(this.job.report.failing_rows).length > 0
     },
   },
-  beforeUnmount() {
-    this.stopPollIfRunning()
+  watch: {
+    importInProgress: {
+      handler(value) {
+        this.$emit('import-in-progress', value)
+      },
+      immediate: true,
+    },
+  },
+  mounted() {
+    this.loadRunningJob()
   },
   methods: {
     hide() {
-      this.stopPollIfRunning()
+      // Called by CreateTableModal when the modal is hidden.
     },
     getDefaultName() {
       const excludeNames = this.database.tables.map((table) => table.name)
@@ -205,6 +265,7 @@ export default {
     },
     reset(full = true) {
       this.job = null
+      this.restoredFromStore = false
       this.uploadProgressPercentage = 0
       if (full) {
         this.header = []
@@ -263,6 +324,10 @@ export default {
 
       this.importState = 'uploading'
 
+      values.importer_type = this.chosenType
+      values.original_file_name =
+        this.$refs.importerRef?.values?.filename || ''
+
       const onUploadProgress = ({ loaded, total }) =>
         (this.uploadProgressPercentage = (loaded / total) * 100)
 
@@ -280,9 +345,9 @@ export default {
             onUploadProgress,
           }
         )
-        this.startJobPoller(job)
+        await this.createAndMonitorJob(job)
       } catch (error) {
-        this.stopPollAndHandleError(error, {
+        this.handleError(error, 'application', {
           ERROR_MAX_JOB_COUNT_EXCEEDED: new ResponseErrorMessage(
             this.$t('job.errorJobAlreadyRunningTitle'),
             this.$t('job.errorJobAlreadyRunningDescription')
@@ -310,7 +375,7 @@ export default {
       await nextTick()
       this.$emit('hide')
     },
-    async onJobDone() {
+    async onJobFinished() {
       // Let's add the table to the store...
       const { data: table } = await TableService(this.$client).get(
         this.job.table_id
@@ -326,21 +391,27 @@ export default {
       }
     },
     onJobFailed() {
-      const error = new ResponseErrorMessage(
-        this.$t('createTable.importError'),
-        this.job.human_readable_error
+      this.showError(
+        new ResponseErrorMessage(
+          this.$t('createTable.importError'),
+          this.job.human_readable_error
+        )
       )
-      this.stopPollAndHandleError(error)
     },
-    onJobPollingError(error) {
-      this.stopPollAndHandleError(error)
+    onJobCancelled() {
+      this.reset()
     },
-    stopPollAndHandleError(error, specificErrorMap = null) {
-      this.stopPollIfRunning()
-      if (error.handler) {
-        this.handleError(error, 'application', specificErrorMap)
-      } else {
-        this.showError(error)
+    loadRunningJob() {
+      const runningJob = this.$store.getters['job/getUnfinishedJobs'].find(
+        (j) =>
+          j.type === FileImportJobType.getType() &&
+          j.table_id === null &&
+          j.database_id === this.database.id
+      )
+      if (runningJob) {
+        this.job = runningJob
+        this.restoredFromStore = true
+        this.showProgressBar = true
       }
     },
   },

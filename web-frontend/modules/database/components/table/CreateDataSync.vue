@@ -1,5 +1,15 @@
 <template>
-  <div v-if="!loadedProperties">
+  <div v-if="restoredFromStore" class="margin-top-3 margin-bottom-3">
+    <p class="margin-bottom-2">{{ $t('createDataSync.syncing') }}</p>
+    <div class="modal-progress__actions">
+      <ProgressBar
+        v-if="jobIsRunning || jobIsFinished"
+        :value="job.progress_percentage"
+        :status="jobHumanReadableState"
+      />
+    </div>
+  </div>
+  <div v-else-if="!loadedProperties">
     <TableForm
       ref="tableForm"
       class="margin-top-3 margin-bottom-2"
@@ -34,7 +44,7 @@
           property.unique_primary ||
           autoAddNewProperties ||
           jobIsRunning ||
-          jobHasSucceeded
+          jobIsFinished
         "
         @input="toggleVisibleField(property.key)"
       >
@@ -51,7 +61,7 @@
         v-model="autoAddNewProperties"
         class="margin-top-2"
         small
-        :disabled="jobIsRunning || jobHasSucceeded"
+        :disabled="jobIsRunning || jobIsFinished"
       >
         {{ $t('createDataSync.autoAddLabel') }}</SwitchInput
       >
@@ -66,7 +76,7 @@
         v-model="twoWaySync"
         class="margin-top-2"
         small
-        :disabled="jobIsRunning || jobHasSucceeded || isTwoWaySyncDeactivated"
+        :disabled="jobIsRunning || jobIsFinished || isTwoWaySyncDeactivated"
         @click="clickTwoWaySync"
       >
         {{ $t('createDataSync.twoWaySyncLabel') }}
@@ -82,7 +92,7 @@
     <Error :error="error"></Error>
     <div class="modal-progress__actions margin-top-2">
       <ProgressBar
-        v-if="jobIsRunning || jobHasSucceeded"
+        v-if="jobIsRunning || jobIsFinished"
         :value="job.progress_percentage"
         :status="jobHumanReadableState"
       />
@@ -90,8 +100,8 @@
         <Button
           type="primary"
           size="large"
-          :disabled="creatingTable || jobIsRunning || jobHasSucceeded"
-          :loading="creatingTable || jobIsRunning || jobHasSucceeded"
+          :disabled="creatingTable || jobIsRunning || jobIsFinished"
+          :loading="creatingTable || jobIsRunning || jobIsFinished"
           @click="create"
         >
           {{ $t('createDataSync.create') }}
@@ -107,6 +117,7 @@ import { getNextAvailableNameInSequence } from '@baserow/modules/core/utils/stri
 import DataSyncService from '@baserow/modules/database/services/dataSync'
 import { clone } from '@baserow/modules/core/utils/object'
 import dataSync from '@baserow/modules/database/mixins/dataSync'
+import { SyncDataSyncTableJobType } from '@baserow/modules/database/jobTypes'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick, useNuxtApp } from '#imports'
 
@@ -124,13 +135,14 @@ export default {
       required: true,
     },
   },
-  emits: ['hide'],
+  emits: ['hide', 'import-in-progress'],
   setup() {
     const nuxtApp = useNuxtApp()
     return { nuxtApp }
   },
   data() {
     return {
+      restoredFromStore: false,
       formValues: null,
       properties: null,
       creatingTable: false,
@@ -164,6 +176,9 @@ export default {
       }
       return this.twoWaySyncStrategy.isDeactivated(this.database.workspace.id)
     },
+    syncInProgress() {
+      return this.creatingTable || this.jobIsRunning
+    },
     twoWaySyncDeactivatedModal() {
       if (!this.twoWaySyncStrategy) {
         return null
@@ -172,6 +187,12 @@ export default {
     },
   },
   watch: {
+    syncInProgress: {
+      handler(value) {
+        this.$emit('import-in-progress', value)
+      },
+      immediate: true,
+    },
     chosenType(newValue, oldValue) {
       if (newValue !== oldValue) {
         this.hideError()
@@ -185,9 +206,19 @@ export default {
       }
     },
   },
+  mounted() {
+    this.loadRunningJob()
+  },
   methods: {
-    hide() {
-      this.stopPollIfRunning()
+    hide() {},
+    loadRunningJob() {
+      const runningJob = this.$store.getters['job/getUnfinishedJobs'].find(
+        (j) => j.type === SyncDataSyncTableJobType.getType()
+      )
+      if (runningJob) {
+        this.job = runningJob
+        this.restoredFromStore = true
+      }
     },
     getDefaultName() {
       const excludeNames = this.database.tables.map((table) => table.name)
@@ -237,17 +268,25 @@ export default {
         this.creatingTable = false
       }
     },
-    async onJobDone() {
-      await this.$router.push({
-        name: 'database-table',
-        params: {
-          databaseId: this.database.id,
-          tableId: this.createdTable.id,
-        },
-      })
-      await pageFinished(this.nuxtApp)
-      await nextTick()
+    async onJobFinished() {
+      const tableId = this.createdTable?.id || this.job?.data_sync?.table_id
+      if (tableId) {
+        await this.$router.push({
+          name: 'database-table',
+          params: {
+            databaseId: this.database.id,
+            tableId,
+          },
+        })
+        await pageFinished(this.nuxtApp)
+        await nextTick()
+      }
+      this.restoredFromStore = false
       this.$emit('hide')
+    },
+    onJobCancelled() {
+      this.restoredFromStore = false
+      this.job = null
     },
     clickTwoWaySync() {
       if (this.isTwoWaySyncDeactivated) {

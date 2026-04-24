@@ -79,6 +79,25 @@ export class FileImportJobType extends JobType {
   getName() {
     return 'fileImport'
   }
+
+  isJobPartOfApplication(job, application) {
+    return job.database_id === application.id
+  }
+
+  async onJobDone(job) {
+    const { $store: store } = this.app
+    await store.dispatch('job/forceDelete', job)
+  }
+
+  async onJobFailed(job) {
+    const { $store: store } = this.app
+    await store.dispatch('job/forceDelete', job)
+  }
+
+  async onJobCancelled(job) {
+    const { $store: store } = this.app
+    await store.dispatch('job/forceDelete', job)
+  }
 }
 
 export class DuplicateFieldJobType extends JobType {

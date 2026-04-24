@@ -22,6 +22,7 @@ class DataSyncSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "type",
+            "table_id",
             "synced_properties",
             "last_sync",
             "last_error",

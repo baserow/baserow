@@ -5,8 +5,7 @@
     :right-sidebar-scrollable="true"
     :close-button="false"
     :can-close="!importInProgress"
-    @show=";[(importer = ''), reset()]"
-    @hide="stopPollIfRunning()"
+    @show="onShow"
   >
     <template #content>
       <div class="import-modal__header">
@@ -51,6 +50,7 @@
       <div class="margin-bottom-2">
         <component
           :is="importerComponent"
+          ref="importerRef"
           :disabled="importInProgress"
           @changed="reset()"
           @header="onHeader($event)"
@@ -120,13 +120,23 @@
         />
         <div class="align-right">
           <Button
+            v-if="jobIsRunning"
+            type="secondary"
+            size="large"
+            :loading="cancelLoading"
+            @click="cancelJob"
+          >
+            {{ $t('action.cancel') }}
+          </Button>
+          <Button
+            v-else
             type="primary"
             size="large"
-            :loading="importInProgress || (jobHasSucceeded && !isTableCreated)"
+            :loading="importInProgress || (jobIsFinished && !isTableCreated)"
             :disabled="
               importInProgress ||
               !canBeSubmitted ||
-              (jobHasSucceeded && !isTableCreated)
+              (jobIsFinished && !isTableCreated)
             "
             @click="submitted"
           >
@@ -196,7 +206,7 @@
 import { clone } from '@baserow/modules/core/utils/object'
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
-import jobProgress from '@baserow/modules/core/mixins/jobProgress'
+import job from '@baserow/modules/core/mixins/job'
 import TableService from '@baserow/modules/database/services/table'
 import {
   uuid,
@@ -207,13 +217,14 @@ import _ from 'lodash'
 
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import ImportErrorReport from '@baserow/modules/database/components/table/ImportErrorReport.vue'
+import { FileImportJobType } from '@baserow/modules/database/jobTypes'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'ImportFileModal',
   components: { ImportErrorReport, SimpleGrid },
-  mixins: [modal, error, jobProgress],
+  mixins: [modal, error, job],
   props: {
     database: {
       type: Object,
@@ -409,7 +420,12 @@ export default {
       }
     },
     importInProgress() {
-      return this.state !== null && !this.jobIsDone && !this.error.visible
+      return (
+        this.state !== null &&
+        !this.jobIsFinished &&
+        !this.jobHasFailed &&
+        !this.error.visible
+      )
     },
     importerTypes() {
       return this.$registry.getAll('importer')
@@ -438,9 +454,6 @@ export default {
     hasErrors() {
       return this.job && Object.keys(this.job.report.failing_rows).length > 0
     },
-  },
-  beforeUnmount() {
-    this.stopPollIfRunning()
   },
   methods: {
     getDefaultName() {
@@ -624,11 +637,16 @@ export default {
           {
             onUploadProgress,
           },
-          importConfiguration.upsert_fields ? importConfiguration : null
+          importConfiguration.upsert_fields ? importConfiguration : null,
+          {
+            importer_type: this.importer,
+            original_file_name:
+              this.$refs.importerRef?.values?.filename || '',
+          }
         )
-        this.startJobPoller(job)
+        await this.createAndMonitorJob(job)
       } catch (error) {
-        this.stopPollAndHandleError(error, {
+        this.handleError(error, 'application', {
           ERROR_MAX_JOB_COUNT_EXCEEDED: new ResponseErrorMessage(
             this.$t('job.errorJobAlreadyRunningTitle'),
             this.$t('job.errorJobAlreadyRunningDescription')
@@ -657,7 +675,7 @@ export default {
       await nextTick()
       this.hide()
     },
-    onJobDone() {
+    onJobFinished() {
       this.$bus.$emit('table-refresh', {
         tableId: this.job.table_id,
       })
@@ -666,21 +684,28 @@ export default {
       }
     },
     onJobFailed() {
-      const error = new ResponseErrorMessage(
-        this.$t('importFileModal.importError'),
-        this.job.human_readable_error
+      this.showError(
+        new ResponseErrorMessage(
+          this.$t('importFileModal.importError'),
+          this.job.human_readable_error
+        )
       )
-      this.stopPollAndHandleError(error)
     },
-    onJobPollingError(error) {
-      this.stopPollAndHandleError(error)
+    onJobCancelled() {
+      this.reset()
     },
-    stopPollAndHandleError(error, specificErrorMap = null) {
-      this.stopPollIfRunning()
-      if (error.handler) {
-        this.handleError(error, 'application', specificErrorMap)
-      } else {
-        this.showError(error)
+    onShow() {
+      this.importer = ''
+      this.reset()
+      this.loadRunningJob()
+    },
+    loadRunningJob() {
+      const runningJob = this.$store.getters['job/getUnfinishedJobs'].find(
+        (j) => j.type === FileImportJobType.getType() && j.table_id === this.table?.id
+      )
+      if (runningJob) {
+        this.job = runningJob
+        this.showProgressBar = true
       }
     },
   },

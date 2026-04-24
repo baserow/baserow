@@ -1,7 +1,7 @@
 <template>
   <Modal
     ref="modal"
-    @show="setChosenType('')"
+    @show="onShow"
     @hidden="callCreateComponentHide()"
   >
     <template #content>
@@ -21,8 +21,11 @@
             <li>
               <a
                 class="choice-items__link"
-                :class="{ active: chosenType === '' }"
-                @click="setChosenType('')"
+                :class="{
+                  active: chosenType === '',
+                  disabled: importInProgress,
+                }"
+                @click="!importInProgress && setChosenType('')"
               >
                 <i class="choice-items__icon iconoir-copy"></i>
                 <span>{{ $t('createTableModal.newTable') }}</span>
@@ -35,8 +38,11 @@
             <li v-for="instance in importerTypes" :key="instance.type">
               <a
                 class="choice-items__link"
-                :class="{ active: chosenType === instance.type }"
-                @click="setChosenType(instance.type)"
+                :class="{
+                  active: chosenType === instance.type,
+                  disabled: importInProgress,
+                }"
+                @click="!importInProgress && setChosenType(instance.type)"
               >
                 <i class="choice-items__icon" :class="instance.iconClass"></i>
                 <span> {{ instance.getName() }}</span>
@@ -52,7 +58,8 @@
               :active="chosenType === instance.type"
               :data-sync-type="instance"
               :database="database"
-              @selected="setChosenType(instance.type)"
+              :disabled="importInProgress"
+              @selected="!importInProgress && setChosenType(instance.type)"
             ></DataSyncTypeChoice>
           </ul>
         </FormGroup>
@@ -64,6 +71,7 @@
         :chosen-type="chosenType"
         :database="database"
         @hide="hide()"
+        @import-in-progress="importInProgress = $event"
       ></CreateTable>
       <CreateDataSync
         v-else
@@ -71,6 +79,7 @@
         :chosen-type="chosenType"
         :database="database"
         @hide="hide()"
+        @import-in-progress="importInProgress = $event"
       ></CreateDataSync>
     </template>
   </Modal>
@@ -81,6 +90,10 @@ import modal from '@baserow/modules/core/mixins/modal'
 import CreateTable from '@baserow/modules/database/components/table/CreateTable'
 import CreateDataSync from '@baserow/modules/database/components/table/CreateDataSync'
 import DataSyncTypeChoice from '@baserow/modules/database/components/dataSync/DataSyncTypeChoice.vue'
+import {
+  FileImportJobType,
+  SyncDataSyncTableJobType,
+} from '@baserow/modules/database/jobTypes'
 
 export default {
   name: 'CreateTableModal',
@@ -95,6 +108,7 @@ export default {
   data() {
     return {
       chosenType: '',
+      importInProgress: false,
     }
   },
   computed: {
@@ -112,6 +126,35 @@ export default {
     },
   },
   methods: {
+    onShow() {
+      const runningType = this.getRunningJobType()
+      this.setChosenType(runningType || '')
+    },
+    getRunningJobType() {
+      const jobs = this.$store.getters['job/getUnfinishedJobs']
+      const dbId = this.database.id
+
+      // Check for a running file import (new table creation)
+      const fileImport = jobs.find(
+        (j) =>
+          j.type === FileImportJobType.getType() &&
+          j.table_id === null &&
+          j.database_id === dbId
+      )
+      if (fileImport) {
+        return fileImport.importer_type || ''
+      }
+
+      // Check for a running data sync (max_count=1, so at most one per user)
+      const dataSync = jobs.find(
+        (j) => j.type === SyncDataSyncTableJobType.getType()
+      )
+      if (dataSync) {
+        return dataSync.data_sync?.type || ''
+      }
+
+      return null
+    },
     callCreateComponentHide() {
       this.$refs.createComponent.hide()
     },
