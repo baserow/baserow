@@ -1,9 +1,5 @@
 <template>
-  <Modal
-    ref="modal"
-    @show="onShow"
-    @hidden="callCreateComponentHide()"
-  >
+  <Modal ref="modal" @show="onShow" @hidden="callCreateComponentHide()">
     <template #content>
       <div class="import-modal__header">
         <h2 class="import-modal__title">

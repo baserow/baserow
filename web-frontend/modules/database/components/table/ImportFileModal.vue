@@ -50,9 +50,14 @@
         </FormGroup>
       </div>
 
-      <div v-if="restoredFromStore && job?.original_file_name" class="margin-bottom-2">
+      <div
+        v-if="restoredFromStore && job?.original_file_name"
+        class="margin-bottom-2"
+      >
         <p>
-          {{ $t('importFileModal.restoredFile', { name: job.original_file_name }) }}
+          {{
+            $t('importFileModal.restoredFile', { name: job.original_file_name })
+          }}
         </p>
       </div>
 
@@ -660,8 +665,7 @@ export default {
           importConfiguration.upsert_fields ? importConfiguration : null,
           {
             importer_type: this.importer,
-            original_file_name:
-              this.$refs.importerRef?.values?.filename || '',
+            original_file_name: this.$refs.importerRef?.values?.filename || '',
           }
         )
         await this.createAndMonitorJob(job)

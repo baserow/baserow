@@ -330,8 +330,7 @@ export default {
       this.importState = 'uploading'
 
       values.importer_type = this.chosenType
-      values.original_file_name =
-        this.$refs.importerRef?.values?.filename || ''
+      values.original_file_name = this.$refs.importerRef?.values?.filename || ''
 
       const onUploadProgress = ({ loaded, total }) =>
         (this.uploadProgressPercentage = (loaded / total) * 100)

@@ -893,6 +893,8 @@ def test_get_data_sync(enterprise_data_fixture, api_client):
     assert response_json == {
         "id": data_sync.id,
         "type": "gitlab_issues",
+        "table_id": data_sync.table_id,
+        "database_id": data_sync.table.database_id,
         "synced_properties": [
             {
                 "field_id": data_sync.table.field_set.all().first().id,

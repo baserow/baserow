@@ -1313,6 +1313,8 @@ def test_get_data_sync(enterprise_data_fixture, api_client):
     assert response_json == {
         "id": data_sync.id,
         "type": "jira_issues",
+        "table_id": data_sync.table_id,
+        "database_id": data_sync.table.database_id,
         "synced_properties": [
             {
                 "field_id": data_sync.table.field_set.all().first().id,
@@ -1370,6 +1372,8 @@ def test_create_data_sync_personal_access_token(enterprise_data_fixture, api_cli
     assert response_json == {
         "id": data_sync_id,
         "type": "jira_issues",
+        "table_id": data_sync.table_id,
+        "database_id": data_sync.table.database_id,
         "synced_properties": [
             {
                 "field_id": data_sync.table.field_set.all().first().id,
