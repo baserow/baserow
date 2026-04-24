@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('database', '0208_gridview_frozen_column_count'),
+        ('database', '0209_optimize_pending_search_value_update'),
     ]
 
     operations = [
