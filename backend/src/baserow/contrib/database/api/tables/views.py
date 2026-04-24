@@ -568,6 +568,7 @@ class AsyncTableImportView(APIView):
             "file_import",
             data=data,
             table=table,
+            database=table.database,
             configuration=configuration,
             importer_type=importer_type,
             original_file_name=original_file_name,

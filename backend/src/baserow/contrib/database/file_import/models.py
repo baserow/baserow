@@ -55,7 +55,7 @@ class FileImportJob(JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds
         max_length=32,
         default="",
         blank=True,
-        help_text="The importer type used to parse the file (e.g. csv, json, xml, paste).",
+        help_text="The frontend importer identifier used to parse the file.",
     )
     original_file_name = models.CharField(
         max_length=255,

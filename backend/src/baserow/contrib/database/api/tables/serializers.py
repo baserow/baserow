@@ -122,7 +122,7 @@ class TableCreateSerializer(serializers.ModelSerializer):
         max_length=32,
         required=False,
         default="",
-        help_text="The importer type used (e.g. csv, json, xml, paste).",
+        help_text="The frontend importer identifier used to parse the file.",
     )
     original_file_name = serializers.CharField(
         max_length=255,
@@ -166,7 +166,7 @@ class TableImportSerializer(serializers.Serializer):
         max_length=32,
         required=False,
         default="",
-        help_text="The importer type used (e.g. csv, json, xml, paste).",
+        help_text="The frontend importer identifier used to parse the file.",
     )
     original_file_name = serializers.CharField(
         max_length=255,

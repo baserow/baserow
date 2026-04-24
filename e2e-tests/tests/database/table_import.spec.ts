@@ -26,14 +26,13 @@ test.describe("Table import job restore after reload", () => {
     // Increase timeout — large CSV upload + import takes time
     test.setTimeout(60000);
 
-    await workspacePage.goto();
-    const database = await createDatabase(
+    // Create the database first, then navigate — avoids double goto which
+    // can cause NS_BINDING_ABORTED errors on Firefox.
+    await createDatabase(
       workspacePage.user,
       "ImportTestDb",
       workspacePage.workspace
     );
-
-    // Navigate to the workspace so the database appears in the sidebar
     await workspacePage.goto();
     await page.getByTitle("ImportTestDb").click();
 
@@ -129,7 +128,8 @@ test.describe("Table import job restore after reload", () => {
   }) => {
     test.setTimeout(60000);
 
-    await workspacePage.goto();
+    // Create everything via API first, then navigate once — avoids double
+    // goto which can cause NS_BINDING_ABORTED errors on Firefox.
     const existingDb = await createDatabase(
       workspacePage.user,
       "ExistingImportDb",
@@ -138,9 +138,8 @@ test.describe("Table import job restore after reload", () => {
     const table = await createTable(workspacePage.user, "Target", existingDb);
     // Add an extra text field so we have something to map CSV columns to
     // (the primary "Name" field is auto-created)
-    await createField(workspacePage.user, "Email", "text", {}, table)
+    await createField(workspacePage.user, "Email", "text", {}, table);
 
-    // Navigate to the table
     await workspacePage.goto();
     await page.getByTitle("ExistingImportDb").click();
     await page.getByText("Target").click();
