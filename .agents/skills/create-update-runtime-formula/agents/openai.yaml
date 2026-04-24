@@ -1,0 +1,4 @@
+interface:
+    display_name: 'Runtime Formulas'
+    short_description: 'Create or update Baserow Runtime Formulas'
+    default_prompt: 'Use $create-update-runtime-formula to create or update Baserow Runtime Formulas.'
