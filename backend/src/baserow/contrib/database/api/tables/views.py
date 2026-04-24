@@ -367,6 +367,8 @@ class AsyncCreateTableView(APIView):
             name=data["name"],
             data=data["data"],
             first_row_header=data["first_row_header"],
+            importer_type=data.get("importer_type", ""),
+            original_file_name=data.get("original_file_name", ""),
             sync=True if data["data"] is None else False,
         )
 
@@ -558,6 +560,8 @@ class AsyncTableImportView(APIView):
             context=table,
         )
         configuration = data.get("configuration")
+        importer_type = data.get("importer_type", "")
+        original_file_name = data.get("original_file_name", "")
         data = data["data"]
         file_import_job = JobHandler().create_and_start_job(
             request.user,
@@ -565,6 +569,8 @@ class AsyncTableImportView(APIView):
             data=data,
             table=table,
             configuration=configuration,
+            importer_type=importer_type,
+            original_file_name=original_file_name,
         )
 
         serializer = job_type_registry.get_serializer(file_import_job, JobSerializer)

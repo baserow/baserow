@@ -51,6 +51,18 @@ class FileImportJob(JobWithUserIpAddress, JobWithWebsocketId, JobWithUndoRedoIds
     first_row_header = models.BooleanField(
         default=False, help_text="Is the first row of the provided data the header?"
     )
+    importer_type = models.CharField(
+        max_length=32,
+        default="",
+        blank=True,
+        help_text="The importer type used to parse the file (e.g. csv, json, xml, paste).",
+    )
+    original_file_name = models.CharField(
+        max_length=255,
+        default="",
+        blank=True,
+        help_text="The original name of the uploaded file.",
+    )
     report = models.JSONField(
         default=default_report,
         help_text="The import error report.",
