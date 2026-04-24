@@ -132,8 +132,13 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         def _get_published_workflow(
             workflow: AutomationWorkflow,
         ) -> Optional[AutomationWorkflow]:
-            latest_published = workflow.published_to.order_by("-id").first()
-            return latest_published.workflows.first() if latest_published else None
+            latest_published = (
+                AutomationWorkflow.objects.exclude(state=WorkflowState.TEST_CLONE)
+                .filter(automation__published_from=workflow)
+                .order_by("-automation__id")
+                .first()
+            )
+            return latest_published
 
         if with_cache:
             return local_cache.get(
@@ -877,16 +882,14 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         ).exclude(id__in=history_ids_to_keep).delete()
 
         # Clean up published automations that no longer have any history entries
-        active_published = (
-            Automation.objects.filter(published_from=original_workflow)
-            .order_by("-id")
-            .first()
+        active_published = self.get_published_workflow(
+            original_workflow, with_cache=False
         )
         empty_published = Automation.objects.filter(
             published_from=original_workflow
         ).exclude(workflows__cloned_workflow_histories__isnull=False)
         if active_published:
-            empty_published = empty_published.exclude(id=active_published.id)
+            empty_published = empty_published.exclude(id=active_published.automation_id)
 
         empty_published.delete()
 
@@ -943,7 +946,11 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         """
 
         latest_clone = (
-            Automation.objects.filter(published_from=workflow).order_by("-id").first()
+            AutomationWorkflow.objects.filter(
+                state=WorkflowState.TEST_CLONE, automation__published_from=workflow
+            )
+            .order_by("-automation__id")
+            .first()
         )
 
         is_dirty_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
@@ -951,8 +958,8 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         # If the clone exists and the workflow hasn't been updated since,
         # use that existing clone's workflow.
-        if latest_clone and not is_dirty:
-            cloned_workflow = latest_clone.workflows.first()
+        if not is_dirty and latest_clone:
+            cloned_workflow = latest_clone
         else:
             cloned_automation, _ = self._clone_workflow(
                 workflow, WorkflowState.TEST_CLONE
@@ -1123,6 +1130,10 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             else None
         )
 
+        is_test_run = (
+            workflow.is_original() or workflow.state == WorkflowState.TEST_CLONE
+        )
+
         if workflow.is_original() and simulate_until_node is None:
             workflow = self._ensure_published_for_run(workflow)
 
@@ -1161,10 +1172,6 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             error = str(e)
         except Exception as e:
             error = f"Unknown exception: {str(e)}"
-
-        is_test_run = (
-            workflow.is_original() or workflow.state == WorkflowState.TEST_CLONE
-        )
 
         if error:
             if create_history_entry and simulate_until_node is None:

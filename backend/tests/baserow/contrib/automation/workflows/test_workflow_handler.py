@@ -575,6 +575,27 @@ def test_get_published_workflow_returns_workflow(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_published_workflow_ignores_newer_test_clone(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+
+    published_workflow = handler.publish(workflow)
+    test_clone_automation, _ = handler._clone_workflow(
+        workflow, WorkflowState.TEST_CLONE
+    )
+    test_clone_workflow = test_clone_automation.workflows.first()
+
+    # Sanity check that the newer clone would win without the TEST_CLONE exclusion.
+    assert test_clone_automation.id > published_workflow.automation.id
+    assert test_clone_workflow.state == WorkflowState.TEST_CLONE
+
+    result = handler.get_published_workflow(workflow, with_cache=False)
+
+    assert result == published_workflow
+    assert result != test_clone_workflow
+
+
+@pytest.mark.django_db
 def test_update_workflow_correctly_pauses_published_workflow(data_fixture):
     user = data_fixture.create_user()
     automation = data_fixture.create_automation_application(user=user)
@@ -1863,17 +1884,6 @@ def test_ensure_published_for_run_creates_new_clone(data_fixture):
 
 
 @pytest.mark.django_db
-def test_ensure_published_for_reuses_existing_clone(data_fixture):
-    workflow = data_fixture.create_automation_workflow()
-
-    handler = AutomationWorkflowHandler()
-    cloned_workflow_1 = handler._ensure_published_for_run(workflow)
-    cloned_workflow_2 = handler._ensure_published_for_run(workflow)
-
-    assert cloned_workflow_1.id == cloned_workflow_2.id
-
-
-@pytest.mark.django_db
 def test_ensure_published_for_run_creates_new_after_workflow_update(data_fixture):
     workflow = data_fixture.create_automation_workflow()
 
@@ -1892,20 +1902,50 @@ def test_ensure_published_for_run_creates_new_after_workflow_update(data_fixture
 
 
 @pytest.mark.django_db
-def test_ensure_published_for_run_reuses_live_automation(data_fixture):
+def test_ensure_published_for_run_reuse_automation(data_fixture):
     """
-    If a published automation exists and is still fresh (no edits to draft
+    If a cloned automation exists and is still fresh (no edits to draft
     since publish), we should reuse it rather than creating a new clone.
     """
 
     workflow = data_fixture.create_automation_workflow()
 
     handler = AutomationWorkflowHandler()
-    published_workflow = handler.publish(workflow)
 
     cloned_workflow = handler._ensure_published_for_run(workflow)
 
-    assert cloned_workflow.automation_id == published_workflow.automation_id
+    second_cloned_workflow = handler._ensure_published_for_run(workflow)
+
+    assert cloned_workflow.automation_id == second_cloned_workflow.automation_id
+
+
+@pytest.mark.django_db
+def test_ensure_published_for_run_ignores_published_workflow_states(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+
+    published_workflow = handler.publish(workflow)
+    clone = handler._ensure_published_for_run(workflow)
+    second_clone = handler._ensure_published_for_run(workflow)
+
+    assert published_workflow.state == WorkflowState.LIVE
+    assert clone.id != published_workflow.id
+    assert clone.state == WorkflowState.TEST_CLONE
+    assert clone.automation.published_from == workflow
+    assert second_clone.id == clone.id
+
+    handler.update_workflow(workflow, state=WorkflowState.PAUSED)
+    published_workflow.refresh_from_db()
+
+    clone_after = handler._ensure_published_for_run(workflow)
+    second_clone_after = handler._ensure_published_for_run(workflow)
+
+    assert published_workflow.state == WorkflowState.PAUSED
+    assert clone_after.id == clone.id
+    assert clone_after.id != published_workflow.id
+    assert clone_after.state == WorkflowState.TEST_CLONE
+    assert clone_after.automation.published_from == workflow
+    assert second_clone_after.id == clone_after.id
 
 
 @pytest.mark.django_db
@@ -1974,6 +2014,25 @@ def test_clear_old_history_deletes_orphaned_automations(data_fixture):
         handler._clear_old_history(workflow)
 
     assert not Automation.objects.filter(id=clone_automation_id).exists()
+
+
+@pytest.mark.django_db
+def test_clear_old_history_keeps_live_published_automation_when_newer_test_clone_exists(
+    data_fixture,
+):
+    workflow = data_fixture.create_automation_workflow()
+    handler = AutomationWorkflowHandler()
+
+    published_workflow = handler.publish(workflow)
+    test_clone_workflow = handler._ensure_published_for_run(workflow)
+
+    assert test_clone_workflow.automation_id != published_workflow.automation_id
+    assert test_clone_workflow.automation_id > published_workflow.automation_id
+
+    handler._clear_old_history(workflow)
+
+    assert Automation.objects.filter(id=published_workflow.automation_id).exists()
+    assert not Automation.objects.filter(id=test_clone_workflow.automation_id).exists()
 
 
 @pytest.mark.django_db
