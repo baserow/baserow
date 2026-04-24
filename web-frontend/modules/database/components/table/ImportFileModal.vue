@@ -712,6 +712,7 @@ export default {
       )
     },
     onJobCancelled() {
+      this.importer = ''
       this.reset()
     },
     onShow() {
