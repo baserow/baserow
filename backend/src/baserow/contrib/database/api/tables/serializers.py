@@ -133,7 +133,13 @@ class TableCreateSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Table
-        fields = ("name", "data", "first_row_header", "importer_type", "original_file_name")
+        fields = (
+            "name",
+            "data",
+            "first_row_header",
+            "importer_type",
+            "original_file_name",
+        )
         extra_kwargs = {
             "data": {"required": False},
             "first_row_header": {"required": False},

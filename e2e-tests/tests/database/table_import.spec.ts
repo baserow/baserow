@@ -103,8 +103,21 @@ test.describe("Table import job restore after reload", () => {
     ).toBeVisible({ timeout: 10000 });
 
     // A progress bar or cancel button should be visible (job still running)
+    const cancelButton = modalAfterReload.getByRole("button", {
+      name: "Cancel",
+    });
+    await expect(cancelButton).toBeVisible({ timeout: 5000 });
+
+    // Click cancel and verify the job is cancelled
+    await cancelButton.click();
+
+    // The cancel button should disappear (job is no longer running)
+    await expect(cancelButton).toBeHidden({ timeout: 10000 });
+
+    // The modal should now show the normal create-table form again
+    // (meaning the job was cleared and the restored state was reset)
     await expect(
-      modalAfterReload.getByRole("button", { name: "Cancel" })
+      modalAfterReload.getByRole("button", { name: "Add table" })
     ).toBeVisible({ timeout: 5000 });
   });
 });

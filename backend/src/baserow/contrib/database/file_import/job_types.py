@@ -50,7 +50,7 @@ BATCH_SIZE = 1024
 class FileImportJobType(JobType):
     type = "file_import"
     model_class = FileImportJob
-    max_count = 10
+    max_count = 3
     request_serializer_field_names = []
     request_serializer_field_overrides = {}
 
@@ -116,10 +116,9 @@ class FileImportJobType(JobType):
         :raises MaxJobCountExceeded: If a conflicting job is already running.
         """
 
-        running_jobs = (
-            FileImportJob.objects.filter(user_id=job.user.id)
-            .is_pending_or_running()
-        )
+        running_jobs = FileImportJob.objects.filter(
+            user_id=job.user.id
+        ).is_pending_or_running()
 
         if len(running_jobs) >= self.max_count:
             raise MaxJobCountExceeded(
