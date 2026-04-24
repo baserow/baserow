@@ -6,6 +6,7 @@ import pytest
 from freezegun import freeze_time
 
 from baserow.core.formula.runtime_formula_types import (
+    RuntimeAbs,
     RuntimeAdd,
     RuntimeAnd,
     RuntimeAt,
@@ -974,6 +975,58 @@ def test_runtime_round_validate_type_of_args(arg, expected):
 )
 def test_runtime_round_validate_number_of_args(args, expected):
     result = RuntimeRound().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([5], 5),
+        ([-5], 5),
+        ([0], 0),
+        ([-3.14], 3.14),
+        ([3.14], 3.14),
+        (["23.45"], 23.45),
+        (["-23.45"], 23.45),
+    ],
+)
+def test_runtime_abs_execute(args, expected):
+    parsed_args = RuntimeAbs().parse_args(args)
+    result = RuntimeAbs().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "arg,expected",
+    [
+        ("23.34", None),
+        (123, None),
+        (123.45, None),
+        (None, None),
+        ("foo", "foo"),
+        ({}, {}),
+        ([], []),
+        (
+            datetime(year=2025, month=11, day=6, hour=12, minute=30),
+            datetime(year=2025, month=11, day=6, hour=12, minute=30),
+        ),
+    ],
+)
+def test_runtime_abs_validate_type_of_args(arg, expected):
+    result = RuntimeAbs().validate_type_of_args([arg])
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["foo"], True),
+        (["foo", "bar"], False),
+    ],
+)
+def test_runtime_abs_validate_number_of_args(args, expected):
+    result = RuntimeAbs().validate_number_of_args(args)
     assert result is expected
 
 

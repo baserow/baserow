@@ -1,4 +1,5 @@
 import {
+  RuntimeAbs,
   RuntimeAdd,
   RuntimeAnd,
   RuntimeCapitalize,
@@ -702,6 +703,53 @@ describe('RuntimeRound', () => {
     { args: ['foo', 'bar', 'baz'], expected: false },
   ])('validates number of args', ({ args, expected }) => {
     const formulaType = new RuntimeRound()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+})
+
+describe('RuntimeAbs', () => {
+  test.each([
+    { args: [5], expected: 5 },
+    { args: [-5], expected: 5 },
+    { args: [0], expected: 0 },
+    { args: [-3.14], expected: 3.14 },
+    { args: [3.14], expected: 3.14 },
+    { args: ['23.45'], expected: 23.45 },
+    { args: ['-23.45'], expected: 23.45 },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeAbs()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toBe(expected)
+  })
+
+  test.each([
+    // Number types are allowed
+    { args: ['23.34'], expected: undefined },
+    { args: [123], expected: undefined },
+    { args: [123.45], expected: undefined },
+    // Other types are invalid
+    { args: ['foo'], expected: 'foo' },
+    { args: [true], expected: true },
+    { args: [{}], expected: {} },
+    { args: [[]], expected: [] },
+    {
+      args: [new Date(2025, 10, 6, 12, 30)],
+      expected: new Date(2025, 10, 6, 12, 30),
+    },
+  ])('validates type of args', ({ args, expected }) => {
+    const formulaType = new RuntimeAbs()
+    const result = formulaType.validateTypeOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: true },
+    { args: ['foo', 'bar'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeAbs()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })

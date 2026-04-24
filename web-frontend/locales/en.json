@@ -666,6 +666,7 @@
     "lowerDescription": "Converts the argument to lower case.",
     "capitalizeDescription": "Capitalizes the argument's first letter.",
     "roundDescription": "Rounds the first argument to the number of decimal places specified by the second argument.",
+    "absDescription": "Returns the absolute value of the argument.",
     "evenDescription": "Return true if the argument is even, false otherwise.",
     "oddDescription": "Return true if the argument is odd, false otherwise.",
     "dateTimeDescription": "Formats the date time argument using the format and timezone arguments. If the timezone is left blank, it will default to the browser's timezone.",

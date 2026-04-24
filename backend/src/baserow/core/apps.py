@@ -36,6 +36,7 @@ class CoreConfig(AppConfig):
 
         from baserow.core.formula.registries import formula_runtime_function_registry
         from baserow.core.formula.runtime_formula_types import (
+            RuntimeAbs,
             RuntimeAdd,
             RuntimeAnd,
             RuntimeAt,
@@ -101,6 +102,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeLower())
         formula_runtime_function_registry.register(RuntimeCapitalize())
         formula_runtime_function_registry.register(RuntimeRound())
+        formula_runtime_function_registry.register(RuntimeAbs())
         formula_runtime_function_registry.register(RuntimeIsEven())
         formula_runtime_function_registry.register(RuntimeIsOdd())
         formula_runtime_function_registry.register(RuntimeDateTimeFormat())
