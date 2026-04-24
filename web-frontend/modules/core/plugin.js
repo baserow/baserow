@@ -84,6 +84,7 @@ import {
   RuntimeLower,
   RuntimeCapitalize,
   RuntimeRound,
+  RuntimeAbs,
   RuntimeIsEven,
   RuntimeIsOdd,
   RuntimeDateTimeFormat,
@@ -257,6 +258,7 @@ export default defineNuxtPlugin({
     registry.register('runtimeFormulaFunction', new RuntimeLower(context))
     registry.register('runtimeFormulaFunction', new RuntimeCapitalize(context))
     registry.register('runtimeFormulaFunction', new RuntimeRound(context))
+    registry.register('runtimeFormulaFunction', new RuntimeAbs(context))
     registry.register('runtimeFormulaFunction', new RuntimeIsEven(context))
     registry.register('runtimeFormulaFunction', new RuntimeIsOdd(context))
     registry.register(

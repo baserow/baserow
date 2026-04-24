@@ -1153,6 +1153,46 @@ export class RuntimeRound extends RuntimeFormulaFunction {
   }
 }
 
+export class RuntimeAbs extends RuntimeFormulaFunction {
+  static getType() {
+    return 'abs'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.NUMBER
+  }
+
+  get args() {
+    return [new NumberBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, [n]) {
+    return Math.abs(n)
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.absDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: 'abs(-5)',
+        result: '5',
+      },
+      {
+        formula: 'abs(3.14)',
+        result: '3.14',
+      },
+    ]
+  }
+}
+
 export class RuntimeIsEven extends RuntimeFormulaFunction {
   static getType() {
     return 'is_even'

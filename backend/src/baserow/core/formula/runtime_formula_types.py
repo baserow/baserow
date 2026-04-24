@@ -238,6 +238,15 @@ class RuntimeRound(RuntimeFormulaFunction):
         return round(args[0], decimal_places)
 
 
+class RuntimeAbs(RuntimeFormulaFunction):
+    type = "abs"
+
+    args = [NumberBaserowRuntimeFormulaArgumentType()]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return abs(args[0])
+
+
 class RuntimeIsEven(RuntimeFormulaFunction):
     type = "is_even"
 
