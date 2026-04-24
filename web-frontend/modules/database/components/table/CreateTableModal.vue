@@ -142,7 +142,11 @@ export default {
           j.database_id === dbId
       )
       if (fileImport) {
-        return fileImport.importer_type || ''
+        const type = fileImport.importer_type || ''
+        if (type && this.$registry.exists('importer', type)) {
+          return type
+        }
+        return ''
       }
 
       // Check for a running data sync (max_count=1, so at most one per user)
@@ -150,7 +154,11 @@ export default {
         (j) => j.type === SyncDataSyncTableJobType.getType()
       )
       if (dataSync) {
-        return dataSync.data_sync?.type || ''
+        const type = dataSync.data_sync?.type || ''
+        if (type && this.$registry.exists('dataSync', type)) {
+          return type
+        }
+        return ''
       }
 
       return null

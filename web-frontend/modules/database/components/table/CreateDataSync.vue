@@ -153,16 +153,18 @@ export default {
   },
   computed: {
     dataSyncType() {
-      return this.chosenType === ''
-        ? null
-        : this.$registry.get('dataSync', this.chosenType)
+      if (this.chosenType === '') return null
+      try {
+        return this.$registry.get('dataSync', this.chosenType)
+      } catch {
+        return null
+      }
     },
     dataSyncComponent() {
-      return this.chosenType === ''
-        ? null
-        : this.$registry.get('dataSync', this.chosenType).getFormComponent()
+      return this.dataSyncType ? this.dataSyncType.getFormComponent() : null
     },
     twoWaySyncStrategy() {
+      if (!this.dataSyncType) return null
       const strategy = this.dataSyncType.getTwoWayDataSyncStrategy()
       if (!strategy) {
         return null

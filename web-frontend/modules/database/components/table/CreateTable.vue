@@ -219,9 +219,14 @@ export default {
       )
     },
     importerComponent() {
-      return this.chosenType === ''
-        ? null
-        : this.$registry.get('importer', this.chosenType).getFormComponent()
+      if (this.chosenType === '') return null
+      try {
+        return this.$registry
+          .get('importer', this.chosenType)
+          .getFormComponent()
+      } catch {
+        return null
+      }
     },
     humanReadableState() {
       switch (this.state) {
