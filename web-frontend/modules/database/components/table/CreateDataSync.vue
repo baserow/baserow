@@ -215,7 +215,9 @@ export default {
     hide() {},
     loadRunningJob() {
       const runningJob = this.$store.getters['job/getUnfinishedJobs'].find(
-        (j) => j.type === SyncDataSyncTableJobType.getType()
+        (j) =>
+          j.type === SyncDataSyncTableJobType.getType() &&
+          j.data_sync?.database_id === this.database.id
       )
       if (runningJob) {
         this.job = runningJob

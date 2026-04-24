@@ -489,7 +489,8 @@
     "upsertTooltip": "Match existing rows using a unique field to overwrite data with imported values.",
     "stateRowCreation": "Importing...",
     "statePreValidation": "Validating data...",
-    "stateCreateTable": "Creating table..."
+    "stateCreateTable": "Creating table...",
+    "restoredFile": "Importing file \"{name}\"..."
   },
   "formulaAdvancedEditContext": {
     "textAreaFormulaInputPlaceholder": "Click to edit the formula",

@@ -29,8 +29,11 @@
             <li v-for="importerType in importerTypes" :key="importerType.type">
               <a
                 class="choice-items__link"
-                :class="{ active: importer === importerType.type }"
-                @click=";[(importer = importerType.type), reset()]"
+                :class="{
+                  active: importer === importerType.type,
+                  disabled: importInProgress || restoredFromStore,
+                }"
+                @click="onImporterClick(importerType.type)"
               >
                 <i
                   class="choice-items__icon"
@@ -47,7 +50,13 @@
         </FormGroup>
       </div>
 
-      <div class="margin-bottom-2">
+      <div v-if="restoredFromStore && job?.original_file_name" class="margin-bottom-2">
+        <p>
+          {{ $t('importFileModal.restoredFile', { name: job.original_file_name }) }}
+        </p>
+      </div>
+
+      <div v-if="!restoredFromStore" class="margin-bottom-2">
         <component
           :is="importerComponent"
           ref="importerRef"
@@ -249,6 +258,7 @@ export default {
   data() {
     return {
       importer: '',
+      restoredFromStore: false,
       uploadProgressPercentage: 0,
       importState: null,
       showProgressBar: false,
@@ -463,6 +473,7 @@ export default {
     },
     reset(full = true) {
       this.job = null
+      this.restoredFromStore = false
       this.uploadProgressPercentage = 0
       if (full) {
         this.header = []
@@ -473,6 +484,15 @@ export default {
         this.dataLoaded = false
       }
       this.hideError()
+    },
+    onImporterClick(type) {
+      // Don't let the user change the importer while a job is in progress
+      // or a running job is being restored.
+      if (this.importInProgress || this.restoredFromStore) {
+        return
+      }
+      this.importer = type
+      this.reset()
     },
     onData({ header, previewData }) {
       this.header = header
@@ -701,11 +721,22 @@ export default {
     },
     loadRunningJob() {
       const runningJob = this.$store.getters['job/getUnfinishedJobs'].find(
-        (j) => j.type === FileImportJobType.getType() && j.table_id === this.table?.id
+        (j) =>
+          j.type === FileImportJobType.getType() &&
+          j.table_id === this.table?.id
       )
       if (runningJob) {
         this.job = runningJob
+        this.restoredFromStore = true
         this.showProgressBar = true
+        // Restore the importer type if it's still registered; otherwise the
+        // modal shows just the progress bar + file name.
+        if (
+          runningJob.importer_type &&
+          this.$registry.exists('importer', runningJob.importer_type)
+        ) {
+          this.importer = runningJob.importer_type
+        }
       }
     },
   },

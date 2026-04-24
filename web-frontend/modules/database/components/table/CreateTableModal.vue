@@ -149,9 +149,11 @@ export default {
         return ''
       }
 
-      // Check for a running data sync (max_count=1, so at most one per user)
+      // Check for a running data sync scoped to this database
       const dataSync = jobs.find(
-        (j) => j.type === SyncDataSyncTableJobType.getType()
+        (j) =>
+          j.type === SyncDataSyncTableJobType.getType() &&
+          j.data_sync?.database_id === dbId
       )
       if (dataSync) {
         const type = dataSync.data_sync?.type || ''
