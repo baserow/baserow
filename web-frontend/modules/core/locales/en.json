@@ -450,6 +450,12 @@
     "content": "Real-time updates could not be reestablished. Please refresh to continue.",
     "action": "Refresh page"
   },
+  "workspaceStaleToast": {
+    "title": "Too many changes",
+    "content": "Too many changes occurred while you were away. Refresh to see the latest data.",
+    "action": "Refresh data",
+    "dismiss": "Dismiss"
+  },
   "authorizationErrorToast": {
     "title": "Authorization error",
     "content": "It looks like you do not have the permissions to see this resource.",

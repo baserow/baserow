@@ -1,6 +1,13 @@
+from datetime import timedelta
 from typing import Any, Dict, Iterable, List, Optional
 
+from django.conf import settings
+
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
+
 from baserow.config.celery import app
+from baserow.ws.types import PayloadMap
 
 
 @app.task(bind=True)
@@ -15,9 +22,6 @@ def force_disconnect_users(
     :param ignore_web_socket_ids: An optional list of web socket id which will
         not be sent the payload if provided.
     """
-
-    from asgiref.sync import async_to_sync
-    from channels.layers import get_channel_layer
 
     channel_layer = get_channel_layer()
     async_to_sync(send_message_to_channel_group)(
@@ -57,8 +61,8 @@ async def send_message_to_channel_group(
 def broadcast_to_users(
     self,
     user_ids: List[int],
-    payload: Dict[Any, Any],
-    ignore_web_socket_id: Optional[int] = None,
+    payload: Dict[str, Any],
+    ignore_web_socket_id: Optional[str] = None,
     send_to_all_users: bool = False,
 ):
     """
@@ -75,20 +79,22 @@ def broadcast_to_users(
         be respected.
     """
 
-    from asgiref.sync import async_to_sync
-    from channels.layers import get_channel_layer
+    from baserow.ws.realtime_updates import record_realtime_event
 
     channel_layer = get_channel_layer()
+    full_message = {
+        "type": "broadcast_to_users",
+        "user_ids": user_ids,
+        "payload": payload,
+        "ignore_web_socket_id": ignore_web_socket_id,
+        "send_to_all_users": send_to_all_users,
+    }
+    event_id = record_realtime_event("users", full_message)
+    payload["realtime_update_id"] = event_id
     async_to_sync(send_message_to_channel_group)(
         channel_layer,
         "users",
-        {
-            "type": "broadcast_to_users",
-            "user_ids": user_ids,
-            "payload": payload,
-            "ignore_web_socket_id": ignore_web_socket_id,
-            "send_to_all_users": send_to_all_users,
-        },
+        full_message,
     )
 
 
@@ -99,8 +105,8 @@ def broadcast_to_permitted_users(
     operation_type: str,
     scope_name: str,
     scope_id: int,
-    payload: Dict[str, any],
-    ignore_web_socket_id: Optional[int] = None,
+    payload: Dict[str, Any],
+    ignore_web_socket_id: Optional[str] = None,
 ):
     """
     This task will broadcast a websocket message to all the users that are permitted
@@ -159,12 +165,13 @@ def broadcast_to_permitted_users(
         )
     ]
 
+    payload.setdefault("workspace_id", workspace_id)
     broadcast_to_users(user_ids, payload, ignore_web_socket_id=ignore_web_socket_id)
 
 
 @app.task(bind=True)
 def broadcast_to_users_individual_payloads(
-    self, payload_map: Dict[str, any], ignore_web_socket_id: Optional[int] = None
+    self, payload_map: PayloadMap, ignore_web_socket_id: Optional[str] = None
 ):
     """
     This task will broadcast different payloads to different users by just using one
@@ -177,35 +184,37 @@ def broadcast_to_users_individual_payloads(
         made the change request.
     """
 
-    from asgiref.sync import async_to_sync
-    from channels.layers import get_channel_layer
+    from baserow.ws.realtime_updates import record_realtime_event
 
     channel_layer = get_channel_layer()
+    full_message = {
+        "type": "broadcast_to_users_individual_payloads",
+        "payload_map": payload_map,
+        "ignore_web_socket_id": ignore_web_socket_id,
+    }
+    event_id = record_realtime_event("users", full_message)
+    for inner_payload in payload_map.values():
+        if isinstance(inner_payload, dict):
+            inner_payload["realtime_update_id"] = event_id
     async_to_sync(send_message_to_channel_group)(
         channel_layer,
         "users",
-        {
-            "type": "broadcast_to_users_individual_payloads",
-            "payload_map": payload_map,
-            "ignore_web_socket_id": ignore_web_socket_id,
-        },
+        full_message,
     )
 
 
 @app.task(bind=True)
 def broadcast_many_to_channel_group(
     self,
-    payloads: list[tuple[str, dict]],
+    payloads: list[tuple[str, Dict[str, Any]]],
     ignore_web_socket_id: str | None = None,
     exclude_user_ids: list[int] | None = None,
 ):
     """
-    Broadcasts a list of JSON payloads to all the users within the channel workspace
-     having the provided name for each payload.
+    Broadcasts a list of JSON payloads to all the users within the channel group
+    having the provided name for each payload.
 
-    :param payloads: A list of pairs: channel workspace and payload dictionary
-        containing data that must be broadcast. Each pair can be sent to a different
-        channel group.
+    :param payloads: A list of ``(channel_group_name, payload)`` tuples.
     :param ignore_web_socket_id: The web socket id to which messages must not be
         sent. This is normally the web socket id that has originally made the change
         request.
@@ -213,80 +222,99 @@ def broadcast_many_to_channel_group(
         receiving messages.
     """
 
-    from asgiref.sync import async_to_sync
-    from channels.layers import get_channel_layer
+    from baserow.ws.realtime_updates import record_realtime_events_bulk
+
+    full_messages = []
+    for channel_group_name, payload in payloads:
+        full_messages.append(
+            (
+                channel_group_name,
+                payload,
+                {
+                    "type": "broadcast_to_group",
+                    "payload": payload,
+                    "ignore_web_socket_id": ignore_web_socket_id,
+                    "exclude_user_ids": exclude_user_ids,
+                },
+            )
+        )
+
+    event_ids = record_realtime_events_bulk(
+        [
+            (channel_group_name, full_message)
+            for channel_group_name, _, full_message in full_messages
+        ]
+    )
 
     channel_layer = get_channel_layer()
-    for channel_group_name, payload in payloads:
+    for event_id, (channel_group_name, payload, full_message) in zip(
+        event_ids, full_messages
+    ):
+        payload["realtime_update_id"] = event_id
         async_to_sync(send_message_to_channel_group)(
             channel_layer,
             channel_group_name,
-            {
-                "type": "broadcast_to_group",
-                "payload": payload,
-                "ignore_web_socket_id": ignore_web_socket_id,
-                "exclude_user_ids": exclude_user_ids,
-            },
+            full_message,
         )
 
 
 @app.task(bind=True)
 def broadcast_to_channel_group(
     self,
-    channel_group_name,
-    payload,
-    ignore_web_socket_id=None,
-    exclude_user_ids=None,
+    channel_group_name: str,
+    payload: Dict[str, Any],
+    ignore_web_socket_id: Optional[str] = None,
+    exclude_user_ids: Optional[List[int]] = None,
 ):
     """
-    Broadcasts a JSON payload all the users within the channel group having the
+    Broadcasts a JSON payload to all users within the channel group having the
     provided name.
 
     :param channel_group_name: The name of the channel group where the payload must be
         broadcast to.
-    :type workspace: str
     :param payload: A dictionary object containing the payload that must be broadcast.
-    :type payload: dict
     :param ignore_web_socket_id: The web socket id to which the message must not be
         sent. This is normally the web socket id that has originally made the change
         request.
-    :type ignore_web_socket_id: str
     :param exclude_user_ids: A list of User ids which should be excluded from
         receiving the message.
-    :type exclude_user_ids: Optional[list]
     """
 
-    from asgiref.sync import async_to_sync
-    from channels.layers import get_channel_layer
+    from baserow.ws.realtime_updates import record_realtime_event
 
     channel_layer = get_channel_layer()
+    full_message = {
+        "type": "broadcast_to_group",
+        "payload": payload,
+        "ignore_web_socket_id": ignore_web_socket_id,
+        "exclude_user_ids": exclude_user_ids,
+    }
+    event_id = record_realtime_event(channel_group_name, full_message)
+    payload["realtime_update_id"] = event_id
     async_to_sync(send_message_to_channel_group)(
         channel_layer,
         channel_group_name,
-        {
-            "type": "broadcast_to_group",
-            "payload": payload,
-            "ignore_web_socket_id": ignore_web_socket_id,
-            "exclude_user_ids": exclude_user_ids,
-        },
+        full_message,
     )
 
 
 @app.task(bind=True)
-def broadcast_to_group(self, workspace_id, payload, ignore_web_socket_id=None):
+def broadcast_to_group(
+    self,
+    workspace_id: int,
+    payload: Dict[str, Any],
+    ignore_web_socket_id: Optional[str] = None,
+):
     """
     Broadcasts a JSON payload to all users that are in provided workspace (Workspace
     model) id.
 
     :param workspace_id: The message will only be broadcast to the users within the
         provided workspace id.
-    :type workspace_id: int
     :param payload: A dictionary object containing the payload that must be broadcast.
-    :type payload: dict
     :param ignore_web_socket_id: The web socket id to which the message must not be
         sent. This is normally the web socket id that has originally made the change
         request.
-    :type ignore_web_socket_id: str
     """
 
     from baserow.core.models import WorkspaceUser
@@ -300,12 +328,16 @@ def broadcast_to_group(self, workspace_id, payload, ignore_web_socket_id=None):
     if len(user_ids) == 0:
         return
 
+    payload.setdefault("workspace_id", workspace_id)
     broadcast_to_users(user_ids, payload, ignore_web_socket_id)
 
 
 @app.task(bind=True)
 def broadcast_to_groups(
-    self, workspace_ids: Iterable[int], payload: dict, ignore_web_socket_id: str = None
+    self,
+    workspace_ids: Iterable[int],
+    payload: Dict[str, Any],
+    ignore_web_socket_id: Optional[str] = None,
 ):
     """
     Broadcasts a JSON payload to all users that are in the provided workspaces.
@@ -334,7 +366,7 @@ def broadcast_to_groups(
 
 @app.task(bind=True)
 def broadcast_application_created(
-    self, application_id: int, ignore_web_socket_id: Optional[int] = None
+    self, application_id: int, ignore_web_socket_id: Optional[str] = None
 ):
     """
     This task is called when an application is created. We made this a task instead of
@@ -387,6 +419,32 @@ def broadcast_application_created(
         payload_map[str(user_id)] = {
             "type": "application_created",
             "application": application_serialized,
+            "workspace_id": workspace.id,
         }
 
     broadcast_to_users_individual_payloads(payload_map, ignore_web_socket_id)
+
+
+@app.task(bind=True)
+def cleanup_old_realtime_events(self):
+    """
+    Periodic task that trims ``ws_realtime_events`` by retention age.
+    """
+
+    from baserow.ws.realtime_updates import (
+        cleanup_old_realtime_events as _cleanup,
+    )
+
+    _cleanup(settings.BASEROW_REALTIME_EVENTS_RETENTION_HOURS)
+
+
+@app.on_after_finalize.connect
+def setup_periodic_ws_realtime_events_cleanup(sender, **kwargs):
+    from baserow.ws.realtime_updates import (
+        REALTIME_EVENTS_CLEANUP_INTERVAL_MINUTES,
+    )
+
+    sender.add_periodic_task(
+        timedelta(minutes=REALTIME_EVENTS_CLEANUP_INTERVAL_MINUTES),
+        cleanup_old_realtime_events.s(),
+    )

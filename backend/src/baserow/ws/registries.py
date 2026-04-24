@@ -126,14 +126,16 @@ class PageType(Instance):
         :return:
         """
 
-        broadcast_many_to_channel_group.delay(
-            [
+        prepared: list[tuple[str, dict]] = []
+        for group_kw, payload in payloads_with_groups:
+            prepared.append(
                 (
                     self.get_group_name(**group_kw),
                     payload,
                 )
-                for group_kw, payload in payloads_with_groups
-            ],
+            )
+        broadcast_many_to_channel_group.delay(
+            prepared,
             ignore_web_socket_id,
             exclude_user_ids,
         )

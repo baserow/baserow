@@ -55,6 +55,7 @@ def test_table_page_get_permission_channel_group_name():
 
 
 @patch("baserow.ws.registries.broadcast_to_channel_group")
+@pytest.mark.django_db
 @pytest.mark.websockets
 def test_table_page_broadcast(mock_broadcast_to_channel_group):
     table_page = page_registry.get("table")

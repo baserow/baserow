@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Improve websocket management when the connection is lost",
+    "issue_origin": "github",
+    "issue_number": 1924,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-05-18"
+}
