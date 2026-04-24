@@ -38,6 +38,7 @@ from baserow.contrib.database.table.exceptions import (
     InvalidInitialTableData,
 )
 from baserow.core.action.registries import action_type_registry
+from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.registries import JobType
 
 from .models import FileImportJob
@@ -49,7 +50,7 @@ BATCH_SIZE = 1024
 class FileImportJobType(JobType):
     type = "file_import"
     model_class = FileImportJob
-    max_count = 1
+    max_count = 10
     request_serializer_field_names = []
     request_serializer_field_overrides = {}
 
@@ -73,6 +74,8 @@ class FileImportJobType(JobType):
         "name",
         "table_id",
         "first_row_header",
+        "importer_type",
+        "original_file_name",
         "report",
     ]
 
@@ -89,8 +92,57 @@ class FileImportJobType(JobType):
             max_length=255, required=False, help_text="The name of the new table."
         ),
         "first_row_header": serializers.BooleanField(required=False, default=False),
+        "importer_type": serializers.CharField(
+            max_length=32,
+            required=False,
+            default="",
+            help_text="The importer type used (e.g. csv, json, xml, paste).",
+        ),
+        "original_file_name": serializers.CharField(
+            max_length=255,
+            required=False,
+            default="",
+            help_text="The original name of the uploaded file.",
+        ),
         "report": ReportSerializer(help_text="Import error report."),
     }
+
+    def can_schedule_or_raise(self, job: FileImportJob):
+        """
+        Limits concurrent file imports to 1 per table (existing table import) or
+        1 per database (new table creation, i.e. table_id is null).
+
+        :param job: The job instance that is going to be scheduled.
+        :raises MaxJobCountExceeded: If a conflicting job is already running.
+        """
+
+        running_jobs = (
+            FileImportJob.objects.filter(user_id=job.user.id)
+            .is_pending_or_running()
+        )
+
+        if len(running_jobs) >= self.max_count:
+            raise MaxJobCountExceeded(
+                f"You can only launch {self.max_count} {self.type} job(s) at "
+                "the same time."
+            )
+
+        if job.table_id is not None:
+            for running_job in running_jobs:
+                if running_job.table_id == job.table_id:
+                    raise MaxJobCountExceeded(
+                        f"A {self.type} job is already running for this table."
+                    )
+        else:
+            for running_job in running_jobs:
+                if (
+                    running_job.table_id is None
+                    and running_job.database_id == job.database_id
+                ):
+                    raise MaxJobCountExceeded(
+                        f"A {self.type} job is already creating a new table "
+                        "in this database."
+                    )
 
     def prepare_values(self, values, user):
         """
