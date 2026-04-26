@@ -476,7 +476,8 @@
     "csv": "Import a CSV file",
     "paste": "Paste table data",
     "xml": "Import an XML file",
-    "json": "Import a JSON file"
+    "json": "Import a JSON file",
+    "excel": "Import an Excel file"
   },
   "apiDocs": {
     "intro": "Introduction",
