@@ -311,9 +311,9 @@ export class DataSourceContextDataProviderType extends DataProviderType {
             .getContextDataSchema(dataSource)
 
           if (dsSchema) {
-            dsSchema.order = index
+            return [dataSource.id, { ...dsSchema, order: index }]
           }
-          return [dataSource.id, dsSchema]
+          return [dataSource.id, null]
         })
         .filter(([, schema]) => schema)
     )

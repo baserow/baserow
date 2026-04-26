@@ -83,37 +83,53 @@ provide('mode', mode)
 provide('formulaComponent', ApplicationBuilderFormulaInput)
 provide('applicationContext', applicationContext)
 
-watch(dataSources, () => {
-  $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
-    page: props.page,
-    data: dispatchContext.value,
-    mode,
-  })
-})
-
-watch(sharedDataSources, () => {
-  $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
-    page: sharedPage.value,
-    data: dispatchContext.value,
-  })
-})
-
-watch(dispatchContext, (newCtx, oldCtx) => {
-  if (!_.isEqual(newCtx, oldCtx)) {
+watch(
+  dataSources,
+  () => {
     $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
       page: props.page,
-      data: newCtx,
+      data: dispatchContext.value,
       mode,
     })
-  }
-})
+  },
+  { deep: true }
+)
 
-watch(applicationDispatchContext, (newCtx, oldCtx) => {
-  if (!_.isEqual(newCtx, oldCtx)) {
+watch(
+  sharedDataSources,
+  () => {
     $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
       page: sharedPage.value,
-      data: newCtx,
+      data: dispatchContext.value,
     })
-  }
-})
+  },
+  { deep: true }
+)
+
+watch(
+  dispatchContext,
+  (newCtx, oldCtx) => {
+    if (!_.isEqual(newCtx, oldCtx)) {
+      $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
+        page: props.page,
+        data: newCtx,
+        mode,
+      })
+    }
+  },
+  { deep: true }
+)
+
+watch(
+  applicationDispatchContext,
+  (newCtx, oldCtx) => {
+    if (!_.isEqual(newCtx, oldCtx)) {
+      $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
+        page: sharedPage.value,
+        data: newCtx,
+      })
+    }
+  },
+  { deep: true }
+)
 </script>
