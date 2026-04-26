@@ -23,6 +23,7 @@
       class="import-modal__preview margin-bottom-2"
       :rows="previewFileData"
       :fields="fileFields"
+      :field-options="fileFieldOptions"
     />
 
     <div v-if="!hasErrors" class="modal-progress__actions">
@@ -117,6 +118,11 @@ export default {
         id: uuid(),
         order: index,
       }))
+    },
+    fileFieldOptions() {
+      return Object.fromEntries(
+        this.fileFields.map((field) => [field.id, { hidden: false }])
+      )
     },
     previewFileData() {
       return this.previewData.map((row) => {

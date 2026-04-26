@@ -55,6 +55,7 @@
       v-if="dataLoaded"
       :rows="previewFileData"
       :fields="fileFields"
+      :field-options="fileFieldOptions"
       :border="true"
     />
   </div>
@@ -102,6 +103,11 @@ export default {
         id: uuid(),
         order: index,
       }))
+    },
+    fileFieldOptions() {
+      return Object.fromEntries(
+        this.fileFields.map((field) => [field.id, { hidden: false }])
+      )
     },
     previewFileData() {
       return this.previewData.map((row) => {
