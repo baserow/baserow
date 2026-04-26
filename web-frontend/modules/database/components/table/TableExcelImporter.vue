@@ -103,6 +103,7 @@ import { useRuntimeConfig } from '#imports'
 
 import form from '@baserow/modules/core/mixins/form'
 import importer from '@baserow/modules/database/mixins/importer'
+import { ExcelParser } from '@baserow/modules/database/utils/excel'
 
 export default {
   name: 'TableExcelImporter',
@@ -209,8 +210,6 @@ export default {
 
       try {
         if (this.parser === null) {
-          const { ExcelParser } =
-            await import('@baserow/modules/database/utils/excel')
           const parser = new ExcelParser()
           this.sheetNames = parser.parse(this.rawData)
           if (this.sheetNames.length === 0) {
