@@ -885,9 +885,19 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         active_published = self.get_published_workflow(
             original_workflow, with_cache=False
         )
-        empty_published = Automation.objects.filter(
-            published_from=original_workflow
-        ).exclude(workflows__cloned_workflow_histories__isnull=False)
+        empty_published = (
+            Automation.objects.filter(
+                published_from=original_workflow,
+            )
+            .exclude(workflows__cloned_workflow_histories__isnull=False)
+            # _ensure_published_for_run() is called to potentially create a
+            # test clone just before calling before_run(). We need to
+            # ensure the newly created clone isn't deleted prematurely.
+            .exclude(
+                workflows__state=WorkflowState.TEST_CLONE,
+                created_on__gte=timezone.now() - timedelta(seconds=5),
+            )
+        )
         if active_published:
             empty_published = empty_published.exclude(id=active_published.automation_id)
 
