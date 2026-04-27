@@ -18,12 +18,6 @@ from .models import Element
 User = get_user_model()
 
 
-# For now there can be up to three levels of nested elements.
-# E.g. a RepeatElement might contain a ColumnElement, which might contain a
-# HeadingElement.
-# However, later this number could be dynamic depending on the page itself.
-MAX_ELEMENT_NESTING_DEPTH = 3
-
 ELEMENT_VISIBILITY_CACHE_KEY_PREFIX = "element_visibility"
 ELEMENT_VISIBILITY_CACHE_TTL_SECONDS = 60 * 60  # 1 hour
 
