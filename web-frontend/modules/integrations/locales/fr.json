@@ -173,8 +173,8 @@
     },
     "serviceRefinementForms": {
         "filterTabTitle": "Filtre | 1 filtre | {count} filtres",
-        "sortTabTitle": "Spell | 1 Spell | {count} Spells",
-        "searchTabTitle": "Trier | 1 tri | {count} tris",
+        "sortTabTitle": "Trier | 1 Tri | {count} Tris",
+        "searchTabTitle": "Recherche | 1 recherche | {count} recherches",
         "searchFieldPlaceHolder": "Entrez une recherche...",
         "noTableChosenForFiltering": "Choisissez une table pour commencer à utiliser les filtres de source de données.",
         "noTableChosenForSorting": "Choisissez une table pour commencer à utiliser les tris de sources de données.",
