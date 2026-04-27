@@ -13,6 +13,9 @@ from baserow.contrib.builder.compat.graph_migrator import (
 from baserow.contrib.builder.constants import IMPORT_SERIALIZED_IMPORTING
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.handler import ElementHandler
+from baserow.contrib.builder.elements.permission_manager import (
+    ElementVisibilityPermissionManager,
+)
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.types import ElementDictSubClass
 from baserow.contrib.builder.formula_importer import import_formula
@@ -109,6 +112,11 @@ class PageHandler:
             builder, name="__shared__", path="__shared__", shared=True
         )
 
+    def invalidate_page_cache(self, page):
+        ElementVisibilityPermissionManager.invalidate_builder_element_visibility_cache(
+            page.builder_id
+        )
+
     def create_page(
         self,
         builder: Builder,
@@ -155,6 +163,8 @@ class PageHandler:
                 raise PagePathNotUnique(path=path, builder_id=builder.id)
             raise e
 
+        self.invalidate_page_cache(page)
+
         return page
 
     def delete_page(self, page: Page):
@@ -168,6 +178,8 @@ class PageHandler:
             raise SharedPageIsReadOnly()
 
         page.delete()
+
+        self.invalidate_page_cache(page)
 
     def update_page(self, page: Page, **kwargs) -> Page:
         """
@@ -213,6 +225,8 @@ class PageHandler:
             if is_unique_violation_error(e) and "path" in e.args[0]:
                 raise PagePathNotUnique(path=page.path, builder_id=page.builder_id)
             raise e
+
+        self.invalidate_page_cache(page)
 
         return page
 
@@ -763,6 +777,8 @@ class PageHandler:
             )
 
         id_mapping["builder_pages"][serialized_page["id"]] = page_instance.id
+
+        self.invalidate_page_cache(page_instance)
 
         progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 

@@ -96,7 +96,7 @@ class BuilderWorkflowActionService:
         user_workflow_actions = CoreHandler().filter_queryset(
             user,
             ListBuilderWorkflowActionsPageOperationType.type,
-            BuilderWorkflowAction.objects.all(),
+            BuilderWorkflowAction.objects.filter(element__page=page),
             workspace=page.builder.workspace,
         )
 
@@ -120,7 +120,7 @@ class BuilderWorkflowActionService:
         user_workflow_actions = CoreHandler().filter_queryset(
             user,
             ListBuilderWorkflowActionsPageOperationType.type,
-            BuilderWorkflowAction.objects.all(),
+            BuilderWorkflowAction.objects.filter(element__page__builder=builder),
             workspace=builder.workspace,
         )
 

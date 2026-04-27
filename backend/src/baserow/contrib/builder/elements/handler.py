@@ -298,25 +298,61 @@ class ElementHandler:
             )
         return _get_elements()
 
+    def _get_builder_elements_cache_key(self, builder_id: int, specific: bool) -> str:
+        return f"ab_get_{builder_id}_builder_elements_{specific}"
+
     def get_builder_elements(
         self,
-        builder: Builder,
+        builder: Builder | int,
         base_queryset: Optional[QuerySet] = None,
         specific: bool = True,
+        use_cache: bool = True,
     ) -> Union[QuerySet[Element], Iterable[Element]]:
         """
         Gets all the elements of a given builder.
 
-        :param builder: The builder that holds the pages that hold the elements.
+        :param builder: The builder (or builder Id) that holds the pages that hold
+          the elements.
         :param base_queryset: The base queryset to use to build the query.
         :param specific: Whether to return the generic elements or the specific
             instances.
         :return: The elements of that builder.
         """
 
-        queryset = base_queryset if base_queryset is not None else Element.objects.all()
-        queryset = queryset.filter(page__builder=builder).select_related("page")
-        return self._query_elements(queryset, specific=specific)
+        def _get_elements():
+            queryset = (
+                base_queryset if base_queryset is not None else Element.objects.all()
+            )
+            queryset = queryset.filter(page__builder=builder).select_related(
+                "page__builder__workspace"
+            )
+            elements = self._query_elements(queryset, specific=specific)
+
+            if use_cache and not base_queryset:
+                # We populate the per page cache with the result
+                elements_per_page = defaultdict(list)
+                grouped_elements = []
+                for element in elements:
+                    grouped_elements.append(element)
+                    elements_per_page[element.page].append(element)
+
+                for page, page_elements in elements_per_page.items():
+                    local_cache.get(
+                        self._get_elements_cache_key(page, specific),
+                        page_elements,
+                    )
+
+            return elements
+
+        if use_cache and not base_queryset:
+            return local_cache.get(
+                self._get_builder_elements_cache_key(
+                    builder.id if not isinstance(builder, int) else builder, specific
+                ),
+                _get_elements,
+            )
+
+        return _get_elements()
 
     def invalidate_element_cache(self, page: Page):
         """
@@ -329,8 +365,8 @@ class ElementHandler:
         local_cache.delete(self._get_elements_cache_key(page, True))
         local_cache.delete(self._get_elements_cache_key(page, False))
         local_cache.delete(BaseGraphHandler.generate_parent_map_cache_key(page.id))
-        ElementVisibilityPermissionManager.invalidate_page_element_visibility_cache(
-            page.id
+        ElementVisibilityPermissionManager.invalidate_builder_element_visibility_cache(
+            page.builder_id
         )
 
     def create_element(

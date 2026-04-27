@@ -82,7 +82,7 @@ class ElementService:
         user_elements = CoreHandler().filter_queryset(
             user,
             ListElementsPageOperationType.type,
-            Element.objects.all(),
+            Element.objects.filter(page=page),
             workspace=page.builder.workspace,
         )
 
@@ -102,7 +102,7 @@ class ElementService:
         user_elements = CoreHandler().filter_queryset(
             user,
             ListElementsPageOperationType.type,
-            Element.objects.all(),
+            Element.objects.filter(page__builder=builder),
             workspace=builder.workspace,
         )
 

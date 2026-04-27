@@ -1,5 +1,3 @@
-from typing import Any
-
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Q, QuerySet
@@ -11,7 +9,6 @@ from baserow.contrib.builder.workflow_actions.operations import (
     ListBuilderWorkflowActionsPageOperationType,
 )
 from baserow.core.cache import global_cache
-from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.registries import PermissionManagerType
 from baserow.core.subjects import AnonymousUserSubjectType
 from baserow.core.user_sources.subjects import UserSourceUserSubjectType
@@ -114,246 +111,120 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
         return result
 
     @classmethod
-    def _get_visibility_version_cache_key(cls, page_id: int) -> str:
+    def _get_visibility_version_cache_key(cls, builder_id: int) -> str:
         """
-        Returns the version-tracking key used to invalidate all per-actor
-        visibility caches for a given page at once.
+        Returns the version-tracking key used to invalidate all per-role
+        visibility caches for a given builder at once.
 
-        :param page_id: The ID of the page whose version key to return.
-        :return: The cache key string for the page's current version counter.
+        :param builder_id: The ID of the builder whose version key to return.
+        :return: The cache key string for the builder's current version counter.
         """
 
-        return f"{ELEMENT_VISIBILITY_CACHE_KEY_PREFIX}_version_{page_id}"
+        return f"{ELEMENT_VISIBILITY_CACHE_KEY_PREFIX}_version_{builder_id}"
 
     @classmethod
-    def _get_visibility_cache_key(cls, actor: Any, page_id: int) -> str:
+    def _get_visibility_cache_key(cls, role: str | None, builder_id: int) -> str:
         """
-        Returns the per-actor cache key for the set of element IDs that are
-        invisible to `actor` on the given page.
+        Returns the per-role cache key for the set of element IDs that are
+        invisible to `role` in the given builder.
 
         Anonymous actors and authenticated actors share no key — and
         authenticated actors with different roles each get their own key —
         so that cached results are never mixed across actor types.
 
-        :param actor: The actor whose visibility cache key to compute. May be
-            an `AnonymousUser`, a `UserSourceUser`, or a Django `User`.
-        :param page_id: The ID of the page.
-        :return: The cache key string for this actor/page combination.
+        :param role: The role whose visibility cache key to compute. May be
+            None or a string.
+        :param builder_id: The ID of the builder.
+        :return: The cache key string for this role/builder combination.
         """
 
-        is_authenticated = getattr(actor, "is_authenticated", False)
-        role = getattr(actor, "role", "") if is_authenticated else ""
+        is_authenticated = role is not None
         auth_segment = f"auth_{role}" if is_authenticated else "anon"
-        return f"{ELEMENT_VISIBILITY_CACHE_KEY_PREFIX}_{page_id}_{auth_segment}"
+        return f"{ELEMENT_VISIBILITY_CACHE_KEY_PREFIX}_{builder_id}_{auth_segment}"
 
     @classmethod
-    def invalidate_page_element_visibility_cache(cls, page_id: int) -> None:
+    def invalidate_builder_element_visibility_cache(cls, builder_id: int) -> None:
         """
-        Bumps the version counter for `page_id`, causing every per-actor
-        cache entry for that page to miss on the next read. Call this whenever
-        an element on the page is created, updated, moved, or deleted.
+        Invalidate cache for `builder_id`, causing every per-role
+        cache entry for that builder to miss on the next read. Call this whenever
+        an element in the builder is created, updated, moved, or deleted.
 
-        :param page_id: The ID of the page whose cache entries to invalidate.
+        :param builder_id: The ID of the builder whose cache entries to invalidate.
         """
 
         global_cache.invalidate(
-            invalidate_key=cls._get_visibility_version_cache_key(page_id)
+            invalidate_key=cls._get_visibility_version_cache_key(builder_id)
         )
 
-    def _should_exclude_element(
-        self,
-        actor: Any,
-        element_id: int,
-        element_map: dict[int, dict],
-        parent_map: dict[int, int],
-    ) -> bool:
+    def is_element_hidden(self, element, role, cache=None):
         """
-        Returns `True` if `element_id` — or any of its ancestors up to
-        `MAX_ELEMENT_NESTING_DEPTH` levels — is invisible to `actor`
-        according to visibility type and role configuration.
-
-        For authenticated actors an element is excluded when its
-        `visibility` is `NOT_LOGGED`, when `role_type` is
-        `ALLOW_ALL_EXCEPT` and the actor's role is in the roles list, or
-        when `role_type` is `DISALLOW_ALL_EXCEPT` and the actor's role is
-        *not* in the roles list. For anonymous actors an element is excluded
-        only when its `visibility` is `LOGGED_IN`.
-
-        :param actor: The actor whose visibility is being evaluated.
-        :param element_id: The ID of the element to check.
-        :param element_map: Mapping of element ID → element value dict
-            (keys: `id`, `visibility`, `role_type`, `roles`).
-        :param parent_map: Mapping of child element ID → parent element ID,
-            as returned by `BaseGraphHandler.get_parent_map()`.
-        :return: `True` if the element should be excluded from the queryset.
+        Return whether `element` is hidden for the given `role`, including any
+        visibility restrictions inherited from parent elements.
         """
 
-        is_authenticated = getattr(actor, "is_authenticated", False)
-        current_id = element_id
-        depth = 0
+        cache = cache if cache is not None else {}
 
-        while current_id is not None and depth <= MAX_ELEMENT_NESTING_DEPTH:
-            elem = element_map.get(current_id)
-            if elem is None:
-                break
+        if element.id in cache:
+            return cache[element.id]
 
-            if is_authenticated:
-                if elem["visibility"] == Element.VISIBILITY_TYPES.NOT_LOGGED:
-                    return True
-                if elem[
-                    "role_type"
-                ] == Element.ROLE_TYPES.ALLOW_ALL_EXCEPT and actor.role in (
-                    elem["roles"] or []
-                ):
-                    return True
-                if elem[
-                    "role_type"
-                ] == Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT and actor.role not in (
-                    elem["roles"] or []
-                ):
-                    return True
-            else:
-                if elem["visibility"] == Element.VISIBILITY_TYPES.LOGGED_IN:
-                    return True
+        is_authenticated = role is not None
+        roles = element.roles or []
 
-            current_id = parent_map.get(current_id)
-            depth += 1
+        if is_authenticated:
+            if element.visibility == Element.VISIBILITY_TYPES.NOT_LOGGED:
+                cache[element.id] = True
+                return True
 
+            if (
+                element.role_type == Element.ROLE_TYPES.ALLOW_ALL_EXCEPT
+                and role in roles
+            ):
+                cache[element.id] = True
+                return True
+
+            if (
+                element.role_type == Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT
+                and role not in roles
+            ):
+                cache[element.id] = True
+                return True
+        else:
+            return element.visibility == Element.VISIBILITY_TYPES.LOGGED_IN
+
+        for parent in element.get_parent_points():
+            if self.is_element_hidden(parent, role, cache):
+                cache[element.id] = True
+                return True
+
+        cache[element.id] = False
         return False
 
-    def _compute_excluded_element_ids(self, actor: Any, page: Page) -> frozenset[int]:
+    def get_hidden_element_ids(self, role, builder_ids):
         """
-        Queries all elements for `page`, builds the ancestor map from the
-        page graph, and returns the frozenset of element IDs invisible to
-        `actor`.
-
-        This is the uncached computation; call `_get_excluded_element_ids`
-        to benefit from the global cache.
-
-        :param actor: The actor whose visibility is being evaluated.
-        :param page: The page whose elements are being filtered.
-        :return: Frozenset of element IDs that `actor` is not allowed to see.
+        Returns the hidden element IDs for the provided builder IDs.
         """
 
-        elements = list(
-            Element.objects.filter(page=page).values(
-                "id", "visibility", "role_type", "roles"
-            )
-        )
-        element_map = {e["id"]: e for e in elements}
-        parent_map = BaseGraphHandler.build_parent_map(page.graph)
-        return frozenset(
-            eid
-            for eid in element_map
-            if self._should_exclude_element(actor, eid, element_map, parent_map)
-        )
+        from baserow.contrib.builder.elements.handler import ElementHandler
 
-    def _get_excluded_element_ids(self, actor: Any, page: Page) -> frozenset[int]:
-        """
-        Returns the cached frozenset of element IDs on `page` that are
-        invisible to `actor`, computing and caching the result on a miss.
+        builder_ids = list(builder_ids)
+        hidden_ids = []
 
-        The cache is invalidated via `invalidate_page_element_visibility_cache`
-        whenever elements on the page change.
+        for builder_id in builder_ids:
+            cache_key = self._get_visibility_cache_key(role, builder_id)
+            invalidate_key = self._get_visibility_version_cache_key(builder_id)
 
-        :param actor: The actor whose visibility is being evaluated.
-        :param page: The page whose elements are being filtered.
-        :return: Frozenset of element IDs that `actor` is not allowed to see.
-        """
-
-        return global_cache.get(
-            self._get_visibility_cache_key(actor, page.id),
-            default=lambda: self._compute_excluded_element_ids(actor, page),
-            invalidate_key=self._get_visibility_version_cache_key(page.id),
-            timeout=ELEMENT_VISIBILITY_CACHE_TTL_SECONDS,
-        )
-
-    def _get_excluded_ids_for_element_queryset(
-        self, actor: Any, queryset: QuerySet
-    ) -> set[int]:
-        """
-        Fetches all elements for the pages referenced by `queryset` in a single
-        combined query (including each page's graph via JOIN), then computes and
-        returns the union of excluded element IDs across those pages for `actor`.
-
-        Results are cached per-page in `global_cache` so that a subsequent call
-        from `_get_excluded_ids_for_action_queryset` can benefit from cache hits.
-
-        :param actor: The actor whose visibility is being evaluated.
-        :param queryset: An `Element` queryset, already filtered by page
-            visibility. Its `page_id` values determine which pages to check.
-        :return: Set of element IDs that `actor` is not allowed to see.
-        """
-
-        # Single query: fetch all elements for the affected pages, annotated
-        # with the page's graph so get_parent_map() needs no extra DB round-trips.
-        all_elements = list(
-            Element.objects.filter(
-                page_id__in=queryset.values("page_id").distinct()
-            ).values("id", "visibility", "role_type", "roles", "page_id", "page__graph")
-        )
-
-        if not all_elements:
-            return set()
-
-        # Group elements by page_id.
-        by_page: dict[int, dict] = {}
-        for elem in all_elements:
-            pid = elem["page_id"]
-            if pid not in by_page:
-                by_page[pid] = {"graph": elem["page__graph"], "elements": []}
-            by_page[pid]["elements"].append(elem)
-
-        excluded: set[int] = set()
-        for page_id, data in by_page.items():
-            element_map = {e["id"]: e for e in data["elements"]}
-            parent_map = BaseGraphHandler.build_parent_map(data["graph"])
-            page_excluded = frozenset(
-                eid
-                for eid in element_map
-                if self._should_exclude_element(actor, eid, element_map, parent_map)
-            )
-            # Store the result in the per-page global cache so that the
-            # action queryset helper can benefit from cache hits.  On a
-            # cache miss the pre-computed frozenset is stored directly; on
-            # a hit the cached value is returned and used (ensuring the
-            # element and action steps stay consistent with each other).
-            excluded |= global_cache.get(
-                self._get_visibility_cache_key(actor, page_id),
-                default=page_excluded,
-                invalidate_key=self._get_visibility_version_cache_key(page_id),
-                timeout=ELEMENT_VISIBILITY_CACHE_TTL_SECONDS,
+            hidden_ids.extend(
+                global_cache.get(
+                    cache_key,
+                    invalidate_key=invalidate_key,
+                    default=lambda builder_id=builder_id: [
+                        e.id for e in ElementHandler().get_builder_elements(builder_id)
+                    ],
+                    timeout=ELEMENT_VISIBILITY_CACHE_TTL_SECONDS,
+                )
             )
 
-        return excluded
-
-    def _get_excluded_ids_for_action_queryset(
-        self, actor: Any, queryset: QuerySet
-    ) -> set[int]:
-        """
-        Collects the distinct elements referenced by the workflow-action
-        `queryset`, groups them by page, and returns the set of element IDs
-        that `actor` cannot see — which in turn blocks the linked actions.
-
-        :param actor: The actor whose visibility is being evaluated.
-        :param queryset: A `BuilderWorkflowAction` queryset, already filtered
-            by page visibility. Its `element_id` values are examined.
-        :return: Set of element IDs (not action IDs) that `actor` cannot see.
-        """
-
-        elements = Element.objects.filter(
-            id__in=queryset.values("element_id").distinct()
-        ).select_related("page")
-
-        page_to_elem_ids: dict[Any, set[int]] = {}
-        for element in elements:
-            page_to_elem_ids.setdefault(element.page, set()).add(element.id)
-
-        excluded: set[int] = set()
-        for page, elem_ids in page_to_elem_ids.items():
-            page_excluded = self._get_excluded_element_ids(actor, page)
-            excluded |= elem_ids & page_excluded
-        return excluded
+        return hidden_ids
 
     def exclude_elements_with_page_visibility(
         self,
@@ -385,16 +256,32 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
     ):
         """Filters out invisible elements and their workflow actions."""
 
+        actor_role = (
+            getattr(actor, "role", None)
+            if getattr(actor, "is_authenticated", False)
+            else None
+        )
+
         if operation_name == ListElementsPageOperationType.type:
             queryset = self.exclude_elements_with_page_visibility(queryset, actor)
-            excluded_ids = self._get_excluded_ids_for_element_queryset(actor, queryset)
+
+            builder_ids = set(
+                list(queryset.values_list("page__builder_id", flat=True).distinct())
+            )
+            excluded_ids = self.get_hidden_element_ids(actor_role, builder_ids)
+
             return queryset.exclude(id__in=excluded_ids)
 
         elif operation_name == ListBuilderWorkflowActionsPageOperationType.type:
             queryset = self.exclude_elements_with_page_visibility(queryset, actor)
-            excluded_element_ids = self._get_excluded_ids_for_action_queryset(
-                actor, queryset
+            builder_ids = set(
+                list(
+                    queryset.values_list(
+                        "element__page__builder_id", flat=True
+                    ).distinct()
+                )
             )
+            excluded_element_ids = self.get_hidden_element_ids(actor_role, builder_ids)
             return queryset.exclude(element_id__in=excluded_element_ids)
 
         return queryset
