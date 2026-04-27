@@ -106,7 +106,6 @@ from baserow.core.formula.validator import (
     ensure_numeric,
     ensure_string_or_integer,
 )
-from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.registry import Instance, T
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_files.handler import UserFileHandler
@@ -909,12 +908,7 @@ class NavigationElementManager:
         """
 
     def prepare_value_for_db(
-        self,
-        values: Dict,
-        instance: Optional[LinkElement] = None,
-        reference_element_id: int | None = None,
-        position: GraphPointPositionType = None,
-        place_in_container: str = "",
+        self, values: Dict, instance: Optional[LinkElement] = None
     ):
         """
         set the type of the element for the prepare_value_for_db method in case we're
@@ -935,9 +929,7 @@ class NavigationElementManager:
 
             self._raise_if_path_params_are_invalid(page_params, page)
 
-        return ElementType.prepare_value_for_db(
-            self, values, instance, reference_element_id, position, place_in_container
-        )
+        return ElementType.prepare_value_for_db(self, values, instance)
 
     def _raise_if_path_params_are_invalid(self, path_params: List, page: Page) -> None:
         """
@@ -1090,15 +1082,10 @@ class LinkElementType(ElementType):
         }
 
     def prepare_value_for_db(
-        self,
-        values: Dict,
-        instance: Optional[LinkElement] = None,
-        reference_element_id: int | None = None,
-        position: GraphPointPositionType = None,
-        place_in_container: str = "",
+        self, values: Dict, instance: Optional[LinkElement] = None
     ):
         return NavigationElementManager(self.type).prepare_value_for_db(
-            values, instance, reference_element_id, position, place_in_container
+            values, instance
         )
 
 

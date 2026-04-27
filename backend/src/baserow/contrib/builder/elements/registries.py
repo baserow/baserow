@@ -83,14 +83,7 @@ class ElementType(
 
         return False
 
-    def prepare_value_for_db(
-        self,
-        values: Dict,
-        instance: Optional[Element] = None,
-        reference_element_id: int | None = None,
-        position: GraphPointPositionType = None,
-        place_in_container: str = "",
-    ):
+    def prepare_value_for_db(self, values: Dict, instance: Optional[Element] = None):
         """
         This function allows you to hook into the moment an element is created or
         updated. If the element is updated `instance` will be defined, and you can use
@@ -98,25 +91,13 @@ class ElementType(
         implementation of this hook.
 
         :param values: The values that are being updated
-        :param instance: (optional) The existing instance that is being updated
-        :param place_in_container: The place inside a container element, if any.
-        :return:
+        :param instance: The existing instance that is being updated
+        :return: Values that should be used for the update or creation of the element.
         """
 
-        if instance:
-            page = values.get("page", instance.page)
-            if not place_in_container:
-                place_in_container = instance.place_in_container
-        else:
-            page = values["page"]
+        page = values.get("page", instance.page) if instance else values["page"]
 
-        if reference_element_id is not None:
-            # Validate the place for this element
-            from baserow.contrib.builder.elements.handler import ElementHandler
-
-            reference_element = ElementHandler().get_element(reference_element_id)
-            self.validate_place(page, reference_element, place_in_container, position)
-        elif (
+        if (
             instance is None
             and getattr(self, "is_multi_page_element", False) != page.shared
         ):
@@ -131,7 +112,7 @@ class ElementType(
     def validate_place(
         self,
         page: Page,
-        reference_element: Optional[ElementSubClass],
+        reference_element: ElementSubClass,
         place_in_container: str,
         position: GraphPointPositionType = None,
     ):
@@ -140,26 +121,25 @@ class ElementType(
         Can be overridden to change the behavior.
 
         :param page: the page we want to add/move the element to.
-        :param reference_element: the element reference, if any.
+        :param reference_element: the element reference.
         :param place_in_container: the place in container in the parent.
         :param position: the position we are referencing alongside `reference_element`.
         :raises ValidationError: if the element place is disallowed.
         """
 
-        reference_type = reference_element.get_type() if reference_element else None
-        if reference_type and reference_type.is_container:
-            if self.type not in [e.type for e in reference_type.child_types_allowed]:
-                raise ValidationError(
-                    f"Container of type {reference_type.type} can't have "
-                    f"child of type {self.type}"
-                )
+        reference_type = reference_element.get_type()
+        if self.type not in [e.type for e in reference_type.child_types_allowed]:
+            raise ValidationError(
+                f"Container of type {reference_type.type} can't have "
+                f"child of type {self.type}"
+            )
 
-            # We know the reference is a container, but are we actively trying
-            # to validate the place of the element as a child of this container?
-            if position == GraphPointPosition.CHILD:
-                reference_type.validate_place_in_container(
-                    place_in_container, reference_element
-                )
+        # We know the reference is a container, but are we actively trying
+        # to validate the place of the element as a child of this container?
+        if position == GraphPointPosition.CHILD:
+            reference_type.validate_place_in_container(
+                place_in_container, reference_element
+            )
 
     def after_import(
         self,
@@ -212,28 +192,6 @@ class ElementType(
             so implementations can still look up children even after the graph has
             been mutated.
         """
-
-    def before_create(
-        self,
-        page: Page,
-        reference_element: Element | None,
-        position: GraphPointPositionType,
-        place_in_container: str,
-    ):
-        """
-        This function allows you to hook into the moment an element is created or
-        updated. If the element is updated `instance` will be defined, and you can use
-        `instance` to extract any context data that might be required for the
-        implementation of this hook.
-
-        :param page: The page on which the element is being created.
-        :param reference_element: the element we're referencing.
-        :param position: The position we are referencing
-        :param place_in_container: the place in container in the parent.
-        """
-
-        # Validate the place for this element
-        self.validate_place(page, reference_element, place_in_container)
 
     def before_delete(self, instance: ElementSubClass):
         """

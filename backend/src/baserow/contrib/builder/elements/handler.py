@@ -85,7 +85,6 @@ class ElementHandler:
 
     allowed_fields_update = [
         "parent_element_id",
-        "place_in_container",  # TODO: remove
         "css_classes",
         "visibility",
         "visibility_condition",
@@ -362,12 +361,7 @@ class ElementHandler:
             kwargs, self.allowed_fields_create + element_type.allowed_fields
         )
         allowed_values["page"] = page
-        allowed_values = element_type.prepare_value_for_db(
-            allowed_values,
-            reference_element_id=reference_element.id if reference_element else None,
-            position=position,
-            place_in_container=place_in_container,
-        )
+        allowed_values = element_type.prepare_value_for_db(allowed_values)
 
         model_class = cast(Element, element_type.model_class)
         element = model_class(**allowed_values)

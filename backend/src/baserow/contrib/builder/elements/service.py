@@ -110,9 +110,11 @@ class ElementService:
 
     def _check_position(
         self,
+        element_type: ElementType,
         page: Page,
         reference_element: Element | None,
         position: GraphPointPositionType,
+        place_in_container: str = "",
     ):
         """
         Validates the position.
@@ -120,6 +122,11 @@ class ElementService:
 
         if reference_element is None:
             return
+
+        if reference_element.get_type().is_container:
+            element_type.validate_place(
+                page, reference_element, place_in_container, position
+            )
 
         if reference_element.page_id != page.id:
             raise ElementNotInSamePage(
@@ -161,7 +168,7 @@ class ElementService:
 
         # We currently only support one value for the output, other than
         # a blank string, and that's the place inside a container.
-        instance_output = kwargs.pop("place_in_container", "")
+        output = kwargs.pop("place_in_container", "")
 
         try:
             reference_element = (
@@ -174,8 +181,8 @@ class ElementService:
                 f"The reference element {reference_element_id} doesn't exist"
             ) from e
 
-        # Verify the combination of the reference element, and the position.
-        self._check_position(page, reference_element, position)
+        # Confirm the position triplet is valid for this reference.
+        self._check_position(element_type, page, reference_element, position, output)
 
         with translation.override(user.profile.language):
             new_element = self.handler.create_element(
@@ -183,16 +190,14 @@ class ElementService:
                 page,
                 position=position,
                 reference_element=reference_element,
-                place_in_container=instance_output,
+                place_in_container=output,
                 **kwargs,
             )
 
         if reference_element is None:
             page.get_graph().append(new_element)
         else:
-            page.get_graph().insert(
-                new_element, reference_element, position, instance_output
-            )
+            page.get_graph().insert(new_element, reference_element, position, output)
 
         element_created.send(
             self,
@@ -295,13 +300,10 @@ class ElementService:
         if target_page.builder != element.page.builder:
             raise PageNotInBuilder()
 
-        # Validate the reference element's place (e.g. if a `place_in_container` is
-        # provided that is too large for the number this container supports), then
-        # check the position/reference element combination is valid.
-        element_type.validate_place(
-            target_page, reference_element, place_in_container, position
+        # Confirm the position triplet is valid for this reference.
+        self._check_position(
+            element_type, target_page, reference_element, position, place_in_container
         )
-        self._check_position(target_page, reference_element, position)
 
         # Check if the type has any before-move requirements.
         element_type.before_move(element, reference_element, position)

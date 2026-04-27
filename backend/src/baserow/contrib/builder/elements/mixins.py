@@ -113,12 +113,7 @@ class ContainerElementTypeMixin:
         return []
 
     def prepare_value_for_db(
-        self,
-        values: Dict,
-        instance: Optional[ContainerElement] = None,
-        reference_element_id: int | None = None,
-        position: GraphPointPositionType = None,
-        place_in_container: str = "",
+        self, values: Dict, instance: Optional[ContainerElement] = None
     ):
         if instance is not None:  # This is an update operation
             places_removed = self.get_places_in_container_removed(values, instance)
@@ -130,9 +125,7 @@ class ContainerElementTypeMixin:
 
                 elements_moved.send(self, page=instance.page, elements=instances_moved)
 
-        return super().prepare_value_for_db(
-            values, instance, reference_element_id, position, place_in_container
-        )
+        return super().prepare_value_for_db(values, instance)
 
     def validate_place_in_container(
         self, place_in_container: str, instance: ContainerElement
@@ -315,12 +308,7 @@ class CollectionElementTypeMixin:
         }
 
     def prepare_value_for_db(
-        self,
-        values: Dict,
-        instance: Optional[CollectionElementSubClass] = None,
-        reference_element_id: int | None = None,
-        position: GraphPointPositionType = None,
-        place_in_container: str = "",
+        self, values: Dict, instance: Optional[CollectionElementSubClass] = None
     ):
         if "data_source_id" in values:
             data_source_id = values.pop("data_source_id")
@@ -394,9 +382,7 @@ class CollectionElementTypeMixin:
                     }
                 )
 
-        return super().prepare_value_for_db(
-            values, instance, reference_element_id, position, place_in_container
-        )
+        return super().prepare_value_for_db(values, instance)
 
     def serialize_property(
         self,

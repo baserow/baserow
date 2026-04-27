@@ -151,14 +151,7 @@ def test_mixin_prepare_value_for_db():
     """Test the base implementation of prepare_values()."""
 
     class Base:
-        def prepare_value_for_db(
-            self,
-            values,
-            instance=None,
-            reference_element_id=None,
-            position=None,
-            place_in_container="",
-        ):
+        def prepare_value_for_db(self, values, instance=None):
             return values
 
     class Test(CollectionElementTypeMixin, Base):

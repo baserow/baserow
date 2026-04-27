@@ -14,7 +14,6 @@ from baserow.core.formula.types import (
     BaserowFormula,
     BaserowFormulaObject,
 )
-from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_sources.handler import UserSourceHandler
 from baserow_enterprise.builder.elements.models import AuthFormElement, FileInputElement
@@ -75,12 +74,7 @@ class AuthFormElementType(ElementType):
         return overrides
 
     def prepare_value_for_db(
-        self,
-        values: Dict,
-        instance: Optional[AuthFormElement] = None,
-        reference_element_id: int | None = None,
-        position: GraphPointPositionType = None,
-        place_in_container: str = "",
+        self, values: Dict, instance: Optional[AuthFormElement] = None
     ):
         if "user_source_id" in values:
             user_source_id = values.pop("user_source_id")
@@ -107,9 +101,7 @@ class AuthFormElementType(ElementType):
             else:
                 values["user_source"] = None
 
-        return super().prepare_value_for_db(
-            values, instance, reference_element_id, position, place_in_container
-        )
+        return super().prepare_value_for_db(values, instance)
 
     def deserialize_property(
         self,
