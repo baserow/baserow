@@ -749,8 +749,7 @@ def test_get_workflow_histories_query_count(data_fixture, django_assert_num_quer
     _create_histories(3)
     local_cache.clear()
 
-    expected_queries = 10
-    with django_assert_num_queries(expected_queries):
+    with django_assert_num_queries(4):
         queryset = handler.get_workflow_histories(workflow)
         queryset.aggregate(
             success_count=Count("id", filter=Q(status=HistoryStatusChoices.SUCCESS)),
@@ -761,7 +760,7 @@ def test_get_workflow_histories_query_count(data_fixture, django_assert_num_quer
     _create_histories(3)
     local_cache.clear()
 
-    with django_assert_num_queries(expected_queries):
+    with django_assert_num_queries(4):
         queryset = handler.get_workflow_histories(workflow)
         queryset.aggregate(
             success_count=Count("id", filter=Q(status=HistoryStatusChoices.SUCCESS)),

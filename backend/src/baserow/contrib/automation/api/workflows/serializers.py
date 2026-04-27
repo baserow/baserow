@@ -151,7 +151,7 @@ class AutomationNodeHistorySerializer(AutomationHistorySerializer):
 
     @extend_schema_field(OpenApiTypes.INT)
     def get_parent_node_id(self, obj):
-        parent_nodes = obj.node.get_parent_nodes()
+        parent_nodes = obj.node.get_parent_points()
         if not parent_nodes:
             return None
         return parent_nodes[-1].id
