@@ -1990,7 +1990,9 @@ def test_clear_old_history_deletes_orphaned_automations(data_fixture):
     workflow = data_fixture.create_automation_workflow()
     handler = AutomationWorkflowHandler()
 
-    cloned_workflow = handler._ensure_published_for_run(workflow)
+    with freeze_time("2026-04-20 11:00:00"):
+        cloned_workflow = handler._ensure_published_for_run(workflow)
+
     clone_automation_id = cloned_workflow.automation_id
 
     handler.publish(workflow)
@@ -2023,13 +2025,15 @@ def test_clear_old_history_keeps_live_published_automation_when_newer_test_clone
     workflow = data_fixture.create_automation_workflow()
     handler = AutomationWorkflowHandler()
 
-    published_workflow = handler.publish(workflow)
-    test_clone_workflow = handler._ensure_published_for_run(workflow)
+    with freeze_time("2026-04-27 12:00:00"):
+        published_workflow = handler.publish(workflow)
+        test_clone_workflow = handler._ensure_published_for_run(workflow)
 
     assert test_clone_workflow.automation_id != published_workflow.automation_id
     assert test_clone_workflow.automation_id > published_workflow.automation_id
 
-    handler._clear_old_history(workflow)
+    with freeze_time("2026-04-27 12:01:00"):
+        handler._clear_old_history(workflow)
 
     assert Automation.objects.filter(id=published_workflow.automation_id).exists()
     assert not Automation.objects.filter(id=test_clone_workflow.automation_id).exists()
