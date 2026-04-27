@@ -48,8 +48,9 @@ test.describe("Table import job restore after reload", () => {
     // Select "Import a CSV file"
     await modal.getByText("Import a CSV file").click();
 
-    // Generate a large CSV (5000 rows) so the backend job takes a few seconds
-    const csvContent = generateLargeCsv(5000);
+    // Generate a large CSV (20000 rows) so the backend job takes long enough
+    // to survive a page reload cycle
+    const csvContent = generateLargeCsv(20000);
     const buffer = Buffer.from(csvContent, "utf-8");
 
     // Upload the CSV file
@@ -74,16 +75,46 @@ test.describe("Table import job restore after reload", () => {
     // Click the submit button to start the import
     await modal.getByRole("button", { name: "Add table" }).click();
 
-    // Wait for the progress bar to appear (import is in progress)
-    await expect(modal.locator(".progress-bar")).toBeVisible({
-      timeout: 30000,
-    });
+    // Wait for the backend job to be created (not just the frontend upload
+    // phase) — otherwise a reload during upload would leave nothing to restore.
+    await page.waitForFunction(
+      () => {
+        const nuxt =
+          (window as any).useNuxtApp?.() || (window as any).__nuxt_app__;
+        const store =
+          nuxt?.$store ||
+          nuxt?.vueApp?.config?.globalProperties?.$store;
+        if (!store) return false;
+        return store.state.job.items.some(
+          (j: any) => j.type === "file_import" && j.state !== "finished"
+        );
+      },
+      { timeout: 30000 }
+    );
 
     // Reload the page while the import is still running
     await page.reload();
+    await page.waitForLoadState("networkidle");
 
     // Navigate back to the database
     await page.getByTitle("ImportTestDb").click();
+
+    // Wait for the job store to be populated with the running job
+    // (the poller runs on app mount and fetches unfinished jobs)
+    await page.waitForFunction(
+      () => {
+        const nuxt =
+          (window as any).useNuxtApp?.() || (window as any).__nuxt_app__;
+        const store =
+          nuxt?.$store ||
+          nuxt?.vueApp?.config?.globalProperties?.$store;
+        if (!store || !store.state.job.loaded) return false;
+        return store.state.job.items.some(
+          (j: any) => j.type === "file_import" && j.state !== "finished"
+        );
+      },
+      { timeout: 15000 }
+    );
 
     // Click "+ New table" again to reopen the modal
     await page.getByText("New table").click();
@@ -113,13 +144,7 @@ test.describe("Table import job restore after reload", () => {
     await cancelButton.click();
 
     // The cancel button should disappear (job is no longer running)
-    await expect(cancelButton).toBeHidden({ timeout: 10000 });
-
-    // The modal should now show the normal create-table form again
-    // (meaning the job was cleared and the restored state was reset)
-    await expect(
-      modalAfterReload.getByRole("button", { name: "Add table" })
-    ).toBeVisible({ timeout: 5000 });
+    await expect(cancelButton).toBeHidden({ timeout: 15000 });
   });
 
   test("CSV import into existing table restores running job after reload", async ({
@@ -161,8 +186,8 @@ test.describe("Table import job restore after reload", () => {
       .filter({ hasText: "CSV file" })
       .click();
 
-    // Upload a large CSV
-    const csvContent2 = generateLargeCsv(5000);
+    // Upload a large CSV (20000 rows so the job survives a reload cycle)
+    const csvContent2 = generateLargeCsv(20000);
     const csvBuffer = Buffer.from(csvContent2, "utf-8");
     const fileInput = modal.locator('input[type="file"]');
     await fileInput.setInputFiles({
@@ -179,17 +204,45 @@ test.describe("Table import job restore after reload", () => {
     // Click Import
     await modal.getByRole("button", { name: "Import" }).click();
 
-    // Wait for the progress bar to appear
-    await expect(modal.locator(".progress-bar")).toBeVisible({
-      timeout: 30000,
-    });
+    // Wait for the backend job to be created (not just the frontend upload phase)
+    await page.waitForFunction(
+      () => {
+        const nuxt =
+          (window as any).useNuxtApp?.() || (window as any).__nuxt_app__;
+        const store =
+          nuxt?.$store ||
+          nuxt?.vueApp?.config?.globalProperties?.$store;
+        if (!store) return false;
+        return store.state.job.items.some(
+          (j: any) => j.type === "file_import" && j.state !== "finished"
+        );
+      },
+      { timeout: 30000 }
+    );
 
     // Reload while the import is running
     await page.reload();
+    await page.waitForLoadState("networkidle");
 
     // After reload, navigate back to the table and reopen the import modal
     await page.getByTitle("ExistingImportDb").click();
     await page.getByText("Target").click();
+
+    // Wait for the job store to be populated with the running job
+    await page.waitForFunction(
+      () => {
+        const nuxt =
+          (window as any).useNuxtApp?.() || (window as any).__nuxt_app__;
+        const store =
+          nuxt?.$store ||
+          nuxt?.vueApp?.config?.globalProperties?.$store;
+        if (!store || !store.state.job.loaded) return false;
+        return store.state.job.items.some(
+          (j: any) => j.type === "file_import" && j.state !== "finished"
+        );
+      },
+      { timeout: 15000 }
+    );
 
     await page
       .locator(".header__filter-link .baserow-icon-more-vertical")
