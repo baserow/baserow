@@ -1114,10 +1114,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         # another execution
         self.reset_workflow_temporary_states(original_workflow)
 
-        if self._check_too_many_errors(workflow):
-            raise AutomationWorkflowTooManyErrors(
-                "The workflow was disabled due to too many consecutive errors."
-            )
+        self._check_too_many_errors(workflow)
 
         self._check_is_rate_limited(workflow)
 

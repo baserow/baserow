@@ -13,7 +13,6 @@ from baserow.contrib.automation.history.models import AutomationWorkflowHistory
 from baserow.contrib.automation.workflows.signals import (
     automation_workflow_dispatch_done,
 )
-from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.db import atomic_with_retry_on_deadlock
 
 
@@ -77,6 +76,7 @@ def handle_workflow_dispatch_done(
             sender=None,
             workflow_history=history,
         )
+
 
 @app.task(queue="automation_workflow")
 def automation_periodic_cleanup():
