@@ -4,7 +4,12 @@ import pytest
 from freezegun import freeze_time
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.workflows.constants import (
+    WORKFLOW_DIRTY_CACHE_KEY,
+)
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.tasks import automation_periodic_cleanup
+from baserow.core.cache import global_cache
 
 
 @override_settings(AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=2)
@@ -215,3 +220,56 @@ def test_automation_periodic_cleanup_marks_timeout_before_cleanup(data_fixture):
         automation_periodic_cleanup()
 
     assert not workflow.workflow_histories.filter(id=old_history.id).exists()
+
+
+@override_settings(AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=2)
+@pytest.mark.django_db
+def test_automation_periodic_cleanup_max_entries_with_different_clones(data_fixture):
+    """
+    Since every test run can create a new clone (if workflow is dirty),
+    history entries will have different workflow_ids but the same
+    original_workflow_id. Therefore the max entries cleanup should group
+    by original_workflow_id.
+    """
+
+    handler = AutomationWorkflowHandler()
+    original_workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2026-04-27 12:00:00"):
+        clone_1 = handler._ensure_published_for_run(original_workflow)
+        data_fixture.create_automation_workflow_history(
+            original_workflow=original_workflow,
+            workflow=clone_1,
+            status=HistoryStatusChoices.SUCCESS,
+        )
+
+    with freeze_time("2026-04-28 12:00:00"):
+        global_cache.update(
+            WORKFLOW_DIRTY_CACHE_KEY.format(original_workflow.id), lambda _: True
+        )
+        clone_2 = handler._ensure_published_for_run(original_workflow)
+        data_fixture.create_automation_workflow_history(
+            original_workflow=original_workflow,
+            workflow=clone_2,
+            status=HistoryStatusChoices.SUCCESS,
+        )
+
+    with freeze_time("2026-04-29 12:00:00"):
+        global_cache.update(
+            WORKFLOW_DIRTY_CACHE_KEY.format(original_workflow.id), lambda _: True
+        )
+        clone_3 = handler._ensure_published_for_run(original_workflow)
+        data_fixture.create_automation_workflow_history(
+            original_workflow=original_workflow,
+            workflow=clone_3,
+            status=HistoryStatusChoices.SUCCESS,
+        )
+
+    assert clone_1.id != clone_2.id
+    assert clone_2.id != clone_3.id
+    assert original_workflow.workflow_histories.count() == 3
+
+    with freeze_time("2026-04-30 12:00:00"):
+        automation_periodic_cleanup()
+
+    assert original_workflow.workflow_histories.count() == 2

@@ -874,7 +874,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         max_entries = settings.AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES
         cutoff_date = Subquery(
             AutomationWorkflowHistory.objects.filter(
-                workflow_id=OuterRef("workflow_id")
+                original_workflow_id=OuterRef("original_workflow_id")
             )
             .order_by("-started_on")
             # A Subquery must return a single value, so we return
