@@ -2,9 +2,10 @@ from decimal import Decimal
 from typing import Self
 
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from baserow.core.cache import local_cache
-from baserow.core.graph.handler import BaseGraphHandler, GraphMode
+from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.types import GraphPointPosition, SerializedGraph
 
 
@@ -25,7 +26,7 @@ class GraphModelMixin(models.Model):
     def get_graph_handler(self):
         raise NotImplementedError("Subclasses must implement get_graph_handler method.")
 
-    def get_graph(self, mode: GraphMode = GraphMode.GRAPH_POINT) -> BaseGraphHandler:
+    def get_graph(self) -> BaseGraphHandler:
         """
         Returns the graph. Use the same graph instance related to the model
         ID regardless of the model instance.
@@ -33,8 +34,8 @@ class GraphModelMixin(models.Model):
 
         handler = self.get_graph_handler()
         return local_cache.get(
-            f"cached_graph_{self.id}_{mode.value}",
-            lambda: handler(self, mode),
+            f"cached_graph_{self.id}",
+            lambda: handler(self),
         )
 
     def print_graph(self, message=None, original=False):
@@ -160,7 +161,7 @@ class GraphPointMixin:
             with the given uid.
         """
 
-        return ""
+        return _("Unlabeled")
 
     @property
     def is_root_point(self) -> bool:

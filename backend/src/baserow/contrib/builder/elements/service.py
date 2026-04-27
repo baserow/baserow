@@ -16,9 +16,6 @@ from baserow.contrib.builder.elements.operations import (
     ReadElementOperationType,
     UpdateElementOperationType,
 )
-from baserow.contrib.builder.elements.permission_manager import (
-    ElementVisibilityPermissionManager,
-)
 from baserow.contrib.builder.elements.registries import ElementType
 from baserow.contrib.builder.elements.signals import (
     element_created,
@@ -34,9 +31,7 @@ from baserow.contrib.builder.elements.types import (
 )
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
-from baserow.core.cache import local_cache
 from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
-from baserow.core.graph.handler import BaseGraphHandler
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.handler import CoreHandler
 
@@ -187,7 +182,7 @@ class ElementService:
                 element_type,
                 page,
                 position=position,
-                reference_element_id=reference_element_id,
+                reference_element=reference_element,
                 place_in_container=instance_output,
                 **kwargs,
             )
@@ -311,13 +306,15 @@ class ElementService:
         # Check if the type has any before-move requirements.
         element_type.before_move(element, reference_element, position)
 
+        source_graph = element.page.get_graph()
+
         # We extract the current element position
         # to restore it if we undo the operation.
         [
             previous_reference_element_id,
             previous_position,
             previous_output,
-        ] = target_page.get_graph().get_position(element)
+        ] = source_graph.get_position(element)
 
         previous_reference_element = (
             self.handler.get_element(previous_reference_element_id)
@@ -325,16 +322,23 @@ class ElementService:
             else None
         )
 
-        target_page.get_graph().move(
-            element, reference_element, position, place_in_container
+        source_graph.move(
+            element,
+            reference_element,
+            position,
+            place_in_container,
+            target_graph=target_page.get_graph(),
         )
 
-        local_cache.delete(
-            BaseGraphHandler.generate_parent_map_cache_key(target_page.id)
-        )
-        ElementVisibilityPermissionManager.invalidate_page_element_visibility_cache(
-            target_page.id
-        )
+        if target_page.id != element.page.id:
+            element.page = target_page
+            element.save(update_fields=["page"])
+
+        # Check if the type has any after-move logic. Pass source_graph so `after_move`
+        # can look up children even though the graph has already been mutated.
+        element_type.after_move(element, source_graph)
+
+        self.handler.invalidate_element_cache(element.page)
 
         element_moved.send(
             self,

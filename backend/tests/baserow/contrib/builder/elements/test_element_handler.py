@@ -504,7 +504,7 @@ def test_get_ancestors(data_fixture, django_assert_num_queries):
     # 2: fetch the specific column types.
     # 3: fetch the specific heading type.
     with django_assert_num_queries(4):
-        ancestors = ElementHandler().get_ancestors(child.id, page)
+        ancestors = ElementHandler().get_ancestors(child, page)
 
     assert len(ancestors) == 3
     assert ancestors == [parent, grandparent, great_grandparent]
@@ -513,7 +513,7 @@ def test_get_ancestors(data_fixture, django_assert_num_queries):
     # Add a predicate to only return ancestors with a column_amount of 1.
     with django_assert_num_queries(0):
         ancestors = ElementHandler().get_ancestors(
-            child.id, page, predicate=lambda el: getattr(el, "column_amount", 0) == 1
+            child, page, predicate=lambda el: getattr(el, "column_amount", 0) == 1
         )
 
     assert len(ancestors) == 1
@@ -535,15 +535,15 @@ def test_get_first_ancestor_of_type(data_fixture, django_assert_num_queries):
         position=GraphPointPosition.CHILD,
     )
 
-    with django_assert_num_queries(7):
+    with django_assert_num_queries(4):
         nearest_column_ancestor = ElementHandler().get_first_ancestor_of_type(
-            child.id, ColumnElementType
+            child, ColumnElementType
         )
 
     assert nearest_column_ancestor.specific == grandparent
 
     nearest_column_ancestor = ElementHandler().get_first_ancestor_of_type(
-        grandparent.id, ColumnElementType
+        grandparent, ColumnElementType
     )
 
     assert nearest_column_ancestor.specific == grandparent

@@ -1,14 +1,12 @@
 import pytest
 
-from baserow.contrib.builder.elements.mixins import (
-    CollectionElementTypeMixin,
-    ContainerElementTypeMixin,
-)
+from baserow.contrib.builder.elements.mixins import CollectionElementTypeMixin
+from baserow.contrib.builder.elements.service import ElementService
 from baserow.core.graph.types import GraphPointPosition
 
 
 @pytest.mark.django_db
-def test_after_move_updates_descendants_page_ids_recursively(data_fixture):
+def test_move_container_element_updates_child_page_ids_recursively(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(user=user, builder=builder)
@@ -40,13 +38,14 @@ def test_after_move_updates_descendants_page_ids_recursively(data_fixture):
         page=page, reference_element=inner_container, position=GraphPointPosition.CHILD
     )
 
-    outer_container.page = target_page
-    outer_container.save(update_fields=["page"])
-
-    target_page.graph = page.graph
-    target_page.save(update_fields=["graph"])
-
-    ContainerElementTypeMixin().after_move(outer_container)
+    ElementService().move_element(
+        user,
+        target_page,
+        outer_container,
+        place_in_container="",
+        reference_element_id=None,
+        position=GraphPointPosition.SOUTH,
+    )
 
     for element in [
         outer_container,

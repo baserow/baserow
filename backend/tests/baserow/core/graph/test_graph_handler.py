@@ -315,6 +315,63 @@ def test_get_children_permutations():
     assert p7 not in graph.get_children(p1)  # children of p1 don't include p7
 
 
+def test_move_with_same_target_graph_is_equivalent_to_plain_move():
+    """
+    Passing target_graph=self is equivalent to a plain move().
+    """
+
+    model = make_graph_model({})
+    graph = model.get_graph()
+
+    p1 = make_point(1, model)
+    p2 = make_point(2, model)
+    p3 = make_point(3, model)
+    graph.insert(p1, None, "south")
+    graph.insert(p2, p1, "south")
+    graph.insert(p3, p2, "south")
+    # Chain: root → p1 → p2 → p3
+
+    graph.move(p1, p3, "south", target_graph=graph)
+
+    # root → p2 → p3 → p1
+    assert model.graph["0"] == 2
+    assert model.graph["2"]["next"][""] == [3]
+    assert model.graph["3"]["next"][""] == [1]
+
+
+def test_move_with_target_graph_removes_from_source_inserts_into_target():
+    """
+    Cross-graph move: point leaves the source graph and appears in the target graph.
+
+    remove(keep_info=True) is used so the source entry (including children info)
+    stays intact for post-move traversal (e.g. after_move hooks).
+    """
+
+    source_model = make_graph_model({})
+    source_graph = source_model.get_graph()
+    target_model = make_graph_model({})
+    target_graph = target_model.get_graph()
+
+    p1 = make_point(1, source_model)
+    p2 = make_point(2, source_model)
+    p3 = make_point(3, source_model)
+
+    # Source: root → p1 → p2; p1 has child p3 in slot "0"
+    source_graph.insert(p1, None, "south")
+    source_graph.insert(p2, p1, "south")
+    source_graph.insert(p3, p1, "child", output="0")
+
+    source_graph.move(p1, None, "south", target_graph=target_graph)
+
+    # Source: p2 is now the root; p1's entry is preserved with its children info
+    assert source_model.graph["0"] == 2
+    assert "1" in source_model.graph
+    assert source_model.graph["1"]["children"]["0"] == [3]
+
+    # Target: p1 is at the root
+    assert target_model.graph["0"] == 1
+
+
 def test_graph_handler_get_order_map(graph_model_fixture):
     model = graph_model_fixture
     assert BaseGraphHandler.get_order_map(model.graph) == {

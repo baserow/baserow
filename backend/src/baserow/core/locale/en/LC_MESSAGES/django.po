@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-16 21:52+0000\n"
+"POT-Creation-Date: 2026-04-24 08:32+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -242,7 +242,11 @@ msgstr ""
 msgid "Decimal number"
 msgstr ""
 
-#: src/baserow/core/handler.py:2187 src/baserow/core/user/handler.py:271
+#: src/baserow/core/graph/models.py:164
+msgid "Unlabeled"
+msgstr ""
+
+#: src/baserow/core/handler.py:2196 src/baserow/core/user/handler.py:275
 #, python-format
 msgid "%(name)s's workspace"
 msgstr ""
@@ -342,6 +346,7 @@ msgstr[1] ""
 #: src/baserow/core/templates/baserow/core/user/account_deletion_cancelled.html:184
 #: src/baserow/core/templates/baserow/core/user/account_deletion_scheduled.html:189
 #: src/baserow/core/templates/baserow/core/user/change_email_confirmation.html:207
+#: src/baserow/core/templates/baserow/core/user/password_changed.html:189
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:207
 #: src/baserow/core/templates/baserow/core/workspace_invitation.html:209
 msgid ""
@@ -427,6 +432,23 @@ msgstr ""
 
 #: src/baserow/core/templates/baserow/core/user/email_pending_verification.html:192
 msgid "Confirm"
+msgstr ""
+
+#: src/baserow/core/templates/baserow/core/user/password_changed.html:173
+msgid "Password changed"
+msgstr ""
+
+#: src/baserow/core/templates/baserow/core/user/password_changed.html:178
+#, python-format
+msgid ""
+"The password for your account (%(username)s) on Baserow "
+"(%(baserow_embedded_share_hostname)s) has been successfully changed."
+msgstr ""
+
+#: src/baserow/core/templates/baserow/core/user/password_changed.html:183
+msgid ""
+"If you did not make this change, please contact your administrator "
+"immediately to secure your account."
 msgstr ""
 
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:173
@@ -638,18 +660,22 @@ msgstr ""
 msgid "Reset password - Baserow"
 msgstr ""
 
-#: src/baserow/core/user/emails.py:37
+#: src/baserow/core/user/emails.py:36
+msgid "Password changed - Baserow"
+msgstr ""
+
+#: src/baserow/core/user/emails.py:53
 msgid "Account deletion scheduled - Baserow"
 msgstr ""
 
-#: src/baserow/core/user/emails.py:56
+#: src/baserow/core/user/emails.py:72
 msgid "Account permanently deleted - Baserow"
 msgstr ""
 
-#: src/baserow/core/user/emails.py:74
+#: src/baserow/core/user/emails.py:90
 msgid "Account deletion cancelled - Baserow"
 msgstr ""
 
-#: src/baserow/core/user/emails.py:94
+#: src/baserow/core/user/emails.py:110
 msgid "Confirm email address change - Baserow"
 msgstr ""

@@ -218,7 +218,7 @@ def test_extract_properties_includes_schema_property_for_nested_collection(
     child_repeat = data_fixture.create_builder_repeat_element(
         page=page,
         data_source=None,
-        reference_element_id=parent_repeat.id,
+        reference_element=parent_repeat,
         position=GraphPointPosition.CHILD,
         schema_property=multiple_select_field.db_column,
     )

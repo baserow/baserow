@@ -36,9 +36,9 @@ from baserow.contrib.builder.elements.types import (
     ElementSubClass,
 )
 from baserow.contrib.builder.formula_importer import import_formula
+from baserow.contrib.builder.pages.graph_handler import PageGraphHandler
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.types import ElementDict
-from baserow.core.graph.handler import GraphMode
 from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.registries import service_type_registry
@@ -65,7 +65,7 @@ class ContainerElementTypeMixin:
         Check the container node is not moved inside itself.
         """
 
-        if element in reference_element.get_parent_points():
+        if reference_element and element in reference_element.get_parent_points():
             raise ElementNotMovable("A container element cannot be moved inside itself")
 
         super().before_move(element, reference_element, position)
@@ -147,7 +147,9 @@ class ContainerElementTypeMixin:
 
         return True
 
-    def after_move(self, instance: ElementSubClass):
+    def after_move(
+        self, instance: ElementSubClass, source_graph: PageGraphHandler = None
+    ):
         """
         If the instance page has changed, we ensure that all children are on the same
         page (pun intended).
@@ -155,14 +157,14 @@ class ContainerElementTypeMixin:
 
         target_page = instance.page
         children = Element.objects.only("page_id").filter(
-            pk__in=target_page.get_graph(GraphMode.GRAPH_ID).get_children(instance)
+            pk__in=[c.id for c in source_graph.get_children(instance)]
         )
         for child in children:
             if child.page_id != target_page.id:
                 child.page_id = target_page.id
                 child.save()
 
-            child.get_type().after_move(child.specific)
+            child.get_type().after_move(child.specific, source_graph)
 
 
 class CollectionElementTypeMixin:
@@ -242,7 +244,9 @@ class CollectionElementTypeMixin:
                     raise CollectionElementPropertyOptionsNotUnique()
                 raise e
 
-    def after_move(self, element: ElementSubClass):
+    def after_move(
+        self, element: ElementSubClass, source_graph: PageGraphHandler = None
+    ):
         """
         Unlink the data source if we moved to shared page and the data source isn't
         on shared page.

@@ -249,19 +249,19 @@ test-coverage: _check-dev
 
 # Run builder tests
 [group('3 - testing')]
-test-builder: _check-dev
+test-builder *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    {{ _pytest }} tests/baserow/contrib/integrations tests/baserow/contrib/builder
+    {{ _pytest }} tests/baserow/contrib/integrations tests/baserow/contrib/builder {{ ARGS }}
 
 # Run automation tests
 [group('3 - testing')]
-test-automation: _check-dev
+test-automation *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    {{ _pytest }} tests/baserow/contrib/integrations tests/baserow/contrib/automation
+    {{ _pytest }} tests/baserow/contrib/integrations tests/baserow/contrib/automation {{ ARGS }}
 
 # Regenerate CI test durations
 [group('3 - testing')]

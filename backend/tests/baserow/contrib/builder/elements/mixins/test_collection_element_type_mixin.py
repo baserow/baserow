@@ -76,7 +76,7 @@ def test_import_context_addition_sets_schema_property(data_fixture):
     inner_repeat = data_fixture.create_builder_repeat_element(
         page=page,
         data_source=None,
-        reference_element_id=outer_repeat.id,
+        reference_element=outer_repeat,
         position=GraphPointPosition.CHILD,
         schema_property="field_123",
     )

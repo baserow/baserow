@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from decimal import Decimal
-from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 from baserow.core.graph.exceptions import (
@@ -27,11 +26,6 @@ def _replace(list_, item_to_replace, replacement):
         + (replacement if isinstance(replacement, list) else [replacement])
         + list_[index + 1 :]
     )
-
-
-class GraphMode(Enum):
-    GRAPH_ID = "GRAPH_ID"
-    GRAPH_POINT = "GRAPH_POINT"
 
 
 class BaseGraphHandler(ABC):
@@ -96,11 +90,8 @@ class BaseGraphHandler(ABC):
     does_not_exist_exception = GraphPointDoesNotExist
     base_point_class: Type["GraphPointMixin"] = None
 
-    def __init__(
-        self, instance: GraphModelInstance, mode: GraphMode = GraphMode.GRAPH_POINT
-    ):
+    def __init__(self, instance: GraphModelInstance):
         self.instance = instance
-        self.mode = mode
 
     @property
     def graph(self) -> SerializedGraph:
@@ -577,10 +568,7 @@ class BaseGraphHandler(ABC):
         result = []
         current = str(first_id)
         while current:
-            if self.mode == GraphMode.GRAPH_ID:
-                result.append(int(current))
-            else:
-                result.append(self.get_point(int(current)))
+            result.append(self.get_point(int(current)))
             next_ids = self.graph.get(current, {}).get("next", {}).get("", [])
             current = str(next_ids[0]) if next_ids else None
         return result
@@ -875,10 +863,13 @@ class BaseGraphHandler(ABC):
         reference_point: GraphPoint | None,
         position: GraphPointPositionType,
         output: str = "",
+        target_graph: Optional["BaseGraphHandler"] = None,
     ):
         """
         Move a point to another position. The point will be removed from its current
-        position and inserted at the new position.
+        position and inserted at the new position. When `target_graph` is supplied the
+        point is removed from this graph and inserted into `target_graph` instead —
+        useful for cross-graph moves.
 
         :param point_to_move: The point to move.
         :param reference_point: The point used as reference for the new position.
@@ -886,11 +877,13 @@ class BaseGraphHandler(ABC):
         :param position: The direction relative to the reference point for the
             new position.
         :param output: The output of the reference point to use for the new position.
+        :param target_graph: If provided, insert the point into this graph instead of
+            self. Defaults to None (same-graph move).
         """
 
         output = str(output)  # When it's a UUID
         self.remove(point_to_move, keep_info=True)
-        self.insert(point_to_move, reference_point, position, output)
+        (target_graph or self).insert(point_to_move, reference_point, position, output)
 
     def migrate_graph(self, id_mapping: Dict[str, Any]):
         """

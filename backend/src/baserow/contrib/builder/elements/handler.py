@@ -33,6 +33,7 @@ from baserow.contrib.builder.elements.types import (
     ElementForUpdate,
     ElementsAndWorkflowActions,
 )
+from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.builder.workflow_actions.registries import (
@@ -84,7 +85,7 @@ class ElementHandler:
 
     allowed_fields_update = [
         "parent_element_id",
-        "place_in_container",
+        "place_in_container",  # TODO: remove
         "css_classes",
         "visibility",
         "visibility_condition",
@@ -162,7 +163,7 @@ class ElementHandler:
 
     def get_ancestors(
         self,
-        element_id: int,
+        element: Element,
         page: Page,
         use_element_cache: bool = True,
         predicate: Optional[Callable[[Element], bool]] = None,
@@ -172,7 +173,7 @@ class ElementHandler:
         results are cached in the dispatch context to avoid multiple queries in
         the same HTTP request.
 
-        :param element_id: The ID of the element.
+        :param element: The element we want to query.
         :param page: The page that holds the elements.
         :param use_element_cache: Whether to use the cached elements on the page or not.
         :param predicate: An optional predicate to filter the ancestors.
@@ -186,7 +187,7 @@ class ElementHandler:
             # (which call _get_graph() → self.page) don't trigger extra queries.
             element.page = page
             grouped_elements[element.id] = element
-        element = grouped_elements[element_id]
+        element = grouped_elements[element.id]
 
         ancestry = []
         while element.parent_element_id is not None:
@@ -200,22 +201,21 @@ class ElementHandler:
 
     def get_first_ancestor_of_type(
         self,
-        element_id: int,
+        element: Element,
         target_type: Type[ElementTypeSubClass],
     ) -> Optional[Element]:
         """
         Returns the first ancestor of the given type belonging to this element.
 
-        :param element_id: The ID of the element.
+        :param element: The element we want to query.
         :param target_type: The type of the element to find.
         :return: The first ancestor of the given type or None if not found.
         """
 
-        element = ElementHandler().get_element(element_id)
         if isinstance(element.get_type(), target_type):
             return element
 
-        for ancestor in self.get_ancestors(element_id, element.page):
+        for ancestor in self.get_ancestors(element, element.page):
             if isinstance(ancestor.get_type(), target_type):
                 return ancestor
 
@@ -301,7 +301,7 @@ class ElementHandler:
 
     def get_builder_elements(
         self,
-        builder: List[Page],
+        builder: Builder,
         base_queryset: Optional[QuerySet] = None,
         specific: bool = True,
     ) -> Union[QuerySet[Element], Iterable[Element]]:
@@ -321,8 +321,8 @@ class ElementHandler:
 
     def invalidate_element_cache(self, page: Page):
         """
-        Invalidates the element cache. To be used when we add or remove an
-        element from the page (and from the graph).
+        Invalidates the element, graph parent and visibility cache. To be used when we
+        add or remove an element from the page (and from the graph).
 
         :param page: The target page cache.
         """
@@ -330,12 +330,15 @@ class ElementHandler:
         local_cache.delete(self._get_elements_cache_key(page, True))
         local_cache.delete(self._get_elements_cache_key(page, False))
         local_cache.delete(BaseGraphHandler.generate_parent_map_cache_key(page.id))
+        ElementVisibilityPermissionManager.invalidate_page_element_visibility_cache(
+            page.id
+        )
 
     def create_element(
         self,
         element_type: ElementType,
         page: Page,
-        reference_element_id: int | None = None,
+        reference_element: Element | None = None,
         position: GraphPointPositionType = "south",
         place_in_container: str = "",
         **kwargs,
@@ -345,7 +348,7 @@ class ElementHandler:
 
         :param element_type: The type of the element.
         :param page: The page the element exists in.
-        :param reference_element_id: The element reference element for the position.
+        :param reference_element: The element reference element for the position.
         :param position: The position relative to the reference element.
         :param place_in_container: The place inside a container element, if any.
         :param kwargs: Additional attributes of the element.
@@ -361,7 +364,7 @@ class ElementHandler:
         allowed_values["page"] = page
         allowed_values = element_type.prepare_value_for_db(
             allowed_values,
-            reference_element_id=reference_element_id,
+            reference_element_id=reference_element.id if reference_element else None,
             position=position,
             place_in_container=place_in_container,
         )
@@ -373,9 +376,6 @@ class ElementHandler:
         element_type.after_create(element, kwargs)
 
         self.invalidate_element_cache(page)
-        ElementVisibilityPermissionManager.invalidate_page_element_visibility_cache(
-            page.id
-        )
 
         return element
 
@@ -388,11 +388,9 @@ class ElementHandler:
 
         element.get_type().before_delete(element)
 
-        ElementVisibilityPermissionManager.invalidate_page_element_visibility_cache(
-            element.page_id
-        )
-
         element.delete()
+
+        self.invalidate_element_cache(element.page)
 
     def update_element(self, element: ElementForUpdate, **kwargs) -> Element:
         """
@@ -425,9 +423,7 @@ class ElementHandler:
 
         element.save()
 
-        ElementVisibilityPermissionManager.invalidate_page_element_visibility_cache(
-            element.page_id
-        )
+        self.invalidate_element_cache(element.page)
 
         element.get_type().after_update(element, kwargs, element_changes)
 

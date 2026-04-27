@@ -1,6 +1,7 @@
 import uuid
 from abc import ABC, abstractmethod
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     Generator,
@@ -45,6 +46,9 @@ from .types import ElementDictSubClass, ElementSubClass
 BUILDER_PAGE_ELEMENTS = "builder_page_elements"
 ELEMENT_IDS_PROCESSED_FOR_ROLES = "_element_ids_processed_for_roles"
 EXISTING_USER_SOURCE_ROLES = "_existing_user_source_roles"
+
+if TYPE_CHECKING:
+    from baserow.contrib.builder.pages.graph_handler import PageGraphHandler
 
 
 class ElementType(
@@ -197,11 +201,16 @@ class ElementType(
             element prior to `after_update` being called.
         """
 
-    def after_move(self, instance: ElementSubClass):
+    def after_move(
+        self, instance: ElementSubClass, source_graph: "PageGraphHandler" = None
+    ):
         """
         This hook is called right after the element has been moved successfully.
 
         :param instance: Moved instance.
+        :param source_graph: The graph the element lived in before the move. Passed
+            so implementations can still look up children even after the graph has
+            been mutated.
         """
 
     def before_create(
