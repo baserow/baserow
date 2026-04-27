@@ -281,7 +281,10 @@
         "errorLinkExpiredMessage": "El enlace de restablecimiento de contraseña ha caducado. Solicite otro.",
         "disabled": "El restablecimiento de la contraseña está desactivado",
         "disabledMessage": "No es posible restablecer la contraseña porque ha sido desactivada.",
-        "message": "Ya puede iniciar sesión en Baserow con su nueva contraseña."
+        "message": "Ya puede iniciar sesión en Baserow con su nueva contraseña.",
+        "repeatPasswordPlaceholder": "Repite tu nueva contraseña",
+        "errorLinkAlreadyUsedTitle": "Enlace ya utilizado",
+        "errorLinkAlreadyUsedMessage": "Este enlace de restablecimiento de contraseña ya ha sido utilizado. Por favor, solicita uno nuevo."
     },
     "signup": {
         "headTitle": "Crear una cuenta",
