@@ -83,6 +83,7 @@ provide('mode', mode)
 provide('formulaComponent', ApplicationBuilderFormulaInput)
 provide('applicationContext', applicationContext)
 
+// Watchers
 watch(
   dataSources,
   () => {
@@ -108,11 +109,11 @@ watch(
 
 watch(
   dispatchContext,
-  (newCtx, oldCtx) => {
-    if (!_.isEqual(newCtx, oldCtx)) {
+  (newDispatchContext, oldDispatchContext) => {
+    if (!_.isEqual(newDispatchContext, oldDispatchContext)) {
       $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
         page: props.page,
-        data: newCtx,
+        data: newDispatchContext,
         mode,
       })
     }
@@ -122,11 +123,11 @@ watch(
 
 watch(
   applicationDispatchContext,
-  (newCtx, oldCtx) => {
-    if (!_.isEqual(newCtx, oldCtx)) {
+  (newDispatchContext, oldDispatchContext) => {
+    if (!_.isEqual(newDispatchContext, oldDispatchContext)) {
       $store.dispatch('dataSourceContent/debouncedFetchPageDataSourceContent', {
         page: sharedPage.value,
-        data: newCtx,
+        data: newDispatchContext,
       })
     }
   },
