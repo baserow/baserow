@@ -25,6 +25,13 @@ class BaserowRuntimeFormulaArgumentType:
         return value
 
     def get_error_message(self, value) -> Optional[str]:
+        """
+        This function should return a specific human-friendly error message
+        if the value for the type is invalid.
+
+        Defaults to returning None.
+        """
+
         return None
 
 

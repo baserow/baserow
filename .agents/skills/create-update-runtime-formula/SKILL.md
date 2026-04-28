@@ -62,6 +62,13 @@ When creating a new runtime formula type, consider whether a new argument type i
 
 Note that the constructor can accept kwargs, such as `cast_to_int` for `NumberBaserowRuntimeFormulaType`. E.g. `RuntimeRound` uses `optional=True, cast_to_int=True`.
 
+All argument types must implement both `test()` and `parse()`. The `get_error_message()` method is special, which is described next.
+
+##### `get_error_message()`
+When an argument type can return a useful human-readable error message, this method should be overridden to return an error message.
+
+E.g. the `TimezoneBaserowRuntimeFormulaArgumentType` argument type overrides `get_error_message()` to return a human-readable error message when the timezone value is invalid.
+
 ### Register the Runtime Formula Type
 
 After creating a new runtime formula type, it must be imported and registered in `backend/src/baserow/core/apps.py`.
@@ -74,6 +81,9 @@ For new runtime formula types, tests should be added in `test_runtime_formula_ty
 - The `execute()` method returns the expected result.
 - The `validate_type_of_args()` correctly validates various possible inputs, and either returns `None` to indicate that the argument is allowed, or returns the same argument back to indicate it is an invalid argument.
 - The `validate_number_of_args()` method returns a bool where `True` indicates the number of arguments are valid, and `False` otherwise.
+- If the argument type's `get_error_message()` is overridden:
+  - A relevant test for the argument type's method should be added to `test_argument_types.py`.
+  - A relevant test for the runtime formula type should be added to `test_runtime_formula_types.py`.
 
 ## Frontend Checklist
 
@@ -147,6 +157,13 @@ The most permissive argument type is `AnyBaserowRuntimeFormulaArgumentType`, whi
 
 When creating a new runtime formula type, consider whether a new argument type is necessary or whether an existing argument type is already available that satisfies the requirements. If a new type is created for the backend, the frontend will likely also need a new type.
 
+All argument types must implement both `test()` and `parse()`. The `getErrorMessage()` method is special, which is described next.
+
+##### `getErrorMessage()`
+When an argument type can return a useful human-readable error message, this method should be overridden with a key defined in the `runtimeFormulaTypeErrors` translation key.
+
+E.g. the `TimezoneBaserowRuntimeFormulaArgumentType` argument type overrides `getErrorMessage()` to return a human-readable error message when the timezone value is invalid.
+
 ### Register the Runtime Formula Type
 
 After creating a new runtime formula type, it must be imported and registered in `web-frontend/modules/core/plugin.js`.
@@ -158,7 +175,9 @@ Add the new runtime formula to the `fns` array.
 For new runtime formula types, tests should be added in `runtimeFormulaTypes.spec.js`. Notice that existing tests ensure that:
 - The entire runtime formula type's tests are grouped by a `describe()` scope.
 - The `execute()`, `validateTypeOfArgs()`, and `validateNumberOfArgs()` are tested with parameterized tests, similar to the corresponding backend tests.
-
+- If the argument type's `getErrorMessage()` is overridden:
+  - A relevant test for the argument type's method should be added to `runtimeFormulaArgumentTypes.spec.js`.
+  - A relevant test for the runtime formula type should be added to `runtimeFormulaTypes.spec.js`.
 
 ## How to Implement
 

@@ -37,7 +37,7 @@ export class BaserowRuntimeFormulaArgumentType {
 
   /**
    * This function returns a specific human-friendly error message if the
-   * value for the type is invalid. Default to returning null.
+   * value for the type is invalid. Defaults to returning null.
    * @param value - The value that is incorrect.
    * @param i18n - The i18n instance.
    * @returns {string|null} - The human-friendly error message.
