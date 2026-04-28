@@ -10,6 +10,7 @@ from baserow.api.decorators import map_exceptions, validate_body
 from baserow.api.schemas import get_error_schema
 from baserow.contrib.database.api.tokens.authentications import TokenAuthentication
 from baserow.core.user_files.exceptions import (
+    ActiveContentBlockedUserFileError,
     FileSizeTooLargeError,
     FileURLCouldNotBeReached,
     InvalidFileStreamError,
@@ -49,6 +50,7 @@ class UploadFileView(APIView):
         {
             InvalidFileStreamError: ERROR_INVALID_FILE,
             FileSizeTooLargeError: ERROR_FILE_SIZE_TOO_LARGE,
+            ActiveContentBlockedUserFileError: ERROR_INVALID_FILE,
         }
     )
     def post(self, request):
@@ -93,6 +95,7 @@ class UploadViaURLView(APIView):
             FileSizeTooLargeError: ERROR_FILE_SIZE_TOO_LARGE,
             FileURLCouldNotBeReached: ERROR_FILE_URL_COULD_NOT_BE_REACHED,
             InvalidFileURLError: ERROR_INVALID_FILE_URL,
+            ActiveContentBlockedUserFileError: ERROR_INVALID_FILE,
         }
     )
     @validate_body(UserFileUploadViaURLRequestSerializer)

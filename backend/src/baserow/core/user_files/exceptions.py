@@ -15,6 +15,10 @@ class FileSizeTooLargeError(Exception):
         super().__init__(*args, **kwargs)
 
 
+class ActiveContentBlockedUserFileError(Exception):
+    """Raised when the file upload active content policy blocks a file."""
+
+
 class FileURLCouldNotBeReached(Exception):
     """
     Raised when the provided URL could not be reached or points to an internal

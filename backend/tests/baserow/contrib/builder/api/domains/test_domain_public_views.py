@@ -646,6 +646,7 @@ def test_ask_public_builder_domain_exists(api_client, data_fixture):
 @override_settings(
     PUBLIC_BACKEND_HOSTNAME="backend.localhost",
     PUBLIC_WEB_FRONTEND_HOSTNAME="web-frontend.localhost",
+    MEDIA_URL_HOSTNAME="media.localhost",
 )
 def test_ask_public_builder_domain_exists_with_public_backend_and_web_frontend_domains(
     api_client, data_fixture
@@ -659,6 +660,10 @@ def test_ask_public_builder_domain_exists_with_public_backend_and_web_frontend_d
     assert response.status_code == 200
 
     url = reverse("api:builder:domains:ask_exists") + "?domain=web-frontend.localhost"
+    response = api_client.get(url)
+    assert response.status_code == 200
+
+    url = reverse("api:builder:domains:ask_exists") + "?domain=media.localhost"
     response = api_client.get(url)
     assert response.status_code == 200
 

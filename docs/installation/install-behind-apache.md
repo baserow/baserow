@@ -180,11 +180,14 @@ ProxyPreserveHost On
 # Replace with your sub domain
 ServerName example.localhost
 
-# Serve user uploaded files and add the Content-Disposition header when the filename
-# query param is set.
+# Serve user uploaded files with download and sandboxing headers.
+RewriteRule ^/media/.* - [E=IS_MEDIA:1]
 RewriteCond %{QUERY_STRING} (?:^|&)dl=([^&]+)
 RewriteRule ^/media/.* - [E=FILENAME:%1]
+Header set "Content-Disposition" "attachment" env=IS_MEDIA
 Header set "Content-Disposition" "attachment; filename=\"%{FILENAME}e\"" env=FILENAME
+Header set "X-Content-Type-Options" "nosniff" env=IS_MEDIA
+Header set "Content-Security-Policy" "sandbox; default-src 'none'; script-src 'none'; object-src 'none'; base-uri 'none'" env=IS_MEDIA
 ProxyPass /media !
 Alias /media /var/www
 <Directory "/var/www/">
@@ -229,4 +232,3 @@ them (you are getting 403 denied errors when accessing the files) then:
   your Apache user by running `cd /var/web && chmod 755 *`.
 * Fix any file permissions found inside the `/var/web` sub-folders to be readable by
   your Apache user.
-

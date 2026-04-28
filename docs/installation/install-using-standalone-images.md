@@ -54,9 +54,12 @@ images:
   * Redirect `/api/` and `/ws/` requests to the backend gunicorn service without 
     dropping these prefixes.
   * Serve the files in the `/baserow/media` folder in the backend gunicorn service 
-    (share with your proxy using a volume) at the `/media` endpoint. Ensure 
-    that requests with a `dl` query parameter have a `Content-disposition` header added
-    with the value of `attachment; filename=THE_DL_QUERY_PARAM_VALUE` 
+    (share with your proxy using a volume) at the `/media` endpoint. Ensure all media
+    responses have `Content-Disposition: attachment`,
+    `X-Content-Type-Options: nosniff`, and
+    `Content-Security-Policy: sandbox; default-src 'none'; script-src 'none'; object-src 'none'; base-uri 'none'`.
+    Requests with a `dl` query parameter can use
+    `Content-Disposition: attachment; filename=THE_DL_QUERY_PARAM_VALUE`.
   * Send all other requests to the web-frontend service.
 * You must provide all email related environment variables to both the backend and 
   celery-worker services. This is because the `celery-worker` service is the one 

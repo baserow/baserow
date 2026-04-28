@@ -61,6 +61,11 @@ Create a new `baserow.conf` in `/etc/nginx/sites-available/` with the following 
 > your particular Baserow deployment.
 
 ```
+map $arg_dl $baserow_media_content_disposition {
+    default "attachment; filename=$arg_dl";
+    "" "attachment";
+}
+
 server {
     server_name baserow.example.com;
 
@@ -168,9 +173,9 @@ server {
     }
 
     location /media/ {
-        if ($arg_dl) {
-            add_header Content-disposition "attachment; filename=$arg_dl";
-        }
+        add_header Content-Disposition $baserow_media_content_disposition always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Content-Security-Policy "sandbox; default-src 'none'; script-src 'none'; object-src 'none'; base-uri 'none'" always;
         # TODO Change to your media folder location!
         alias /var/www/;
     }
@@ -207,4 +212,3 @@ them (you are getting 403 denied errors when accessing the files) then:
   your Nginx user by running `cd /var/web && chmod 755 *`.
 * Fix any file permissions found inside the `/var/web` sub-folders to be readable by
   your Nginx user.
-
