@@ -7,6 +7,7 @@ from baserow.core.formula.argument_types import (
     DictBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
+    TimezoneBaserowRuntimeFormulaArgumentType,
 )
 
 
@@ -175,3 +176,15 @@ def test_dict_test_method(value, expected):
 )
 def test_dict_parse_method(value, expected):
     assert DictBaserowRuntimeFormulaArgumentType().parse(value) == expected
+
+
+def test_base_argument_type_get_error_message_returns_none():
+    from baserow.core.formula.argument_types import BaserowRuntimeFormulaArgumentType
+
+    assert BaserowRuntimeFormulaArgumentType().get_error_message("foo") is None
+
+
+def test_timezone_get_error_message_returns_human_readable_string():
+    arg_type = TimezoneBaserowRuntimeFormulaArgumentType()
+    message = arg_type.get_error_message("Europe/Foo")
+    assert "'Europe/Foo' is not a valid timezone" in message

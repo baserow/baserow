@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 from freezegun import freeze_time
 
+from baserow.core.formula import BaserowFormulaSyntaxError
 from baserow.core.formula.runtime_formula_types import (
     RuntimeAbs,
     RuntimeAdd,
@@ -1188,6 +1189,14 @@ def test_runtime_datetime_format_validate_type_of_args(arg, expected):
 def test_runtime_datetime_format_validate_number_of_args(args, expected):
     result = RuntimeDateTimeFormat().validate_number_of_args(args)
     assert result is expected
+
+
+def test_runtime_datetime_format_validate_args_raises_human_readable_error():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeDateTimeFormat().validate_args(
+            [datetime(2025, 11, 6, 12, 30), "YYYY-MM-DD", "Europe/Foo"]
+        )
+    assert "'Europe/Foo' is not a valid timezone" in str(exc_info.value)
 
 
 @pytest.mark.parametrize(
