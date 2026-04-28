@@ -127,6 +127,14 @@ class JobType(
         This method is do nothing by default.
         """
 
+    def on_cancelled(self, job: AnyJob):
+        """
+        Called after a job has been cancelled and its state saved. Runs outside the
+        main transaction context, so any database changes made here are kept.
+
+        :param job: The specific instance of the related job instance.
+        """
+
     def on_error(self, job: AnyJob, error: Exception):
         """
         This method gives the possibility to change the job after an exception has

@@ -7,6 +7,17 @@
         :value="job.progress_percentage"
         :status="jobHumanReadableState"
       />
+      <div class="align-right">
+        <Button
+          v-if="jobIsRunning"
+          type="secondary"
+          size="large"
+          :loading="cancelLoading"
+          @click="cancelJob"
+        >
+          {{ $t('action.cancel') }}
+        </Button>
+      </div>
     </div>
   </div>
   <div v-else-if="!loadedProperties">
@@ -98,10 +109,20 @@
       />
       <div class="align-right">
         <Button
+          v-if="jobIsRunning"
+          type="secondary"
+          size="large"
+          :loading="cancelLoading"
+          @click="cancelJob"
+        >
+          {{ $t('action.cancel') }}
+        </Button>
+        <Button
+          v-else
           type="primary"
           size="large"
-          :disabled="creatingTable || jobIsRunning || jobIsFinished"
-          :loading="creatingTable || jobIsRunning || jobIsFinished"
+          :disabled="creatingTable || jobIsFinished"
+          :loading="creatingTable || jobIsFinished"
           @click="create"
         >
           {{ $t('createDataSync.create') }}
@@ -217,7 +238,8 @@ export default {
       const runningJob = this.$store.getters['job/getUnfinishedJobs'].find(
         (j) =>
           j.type === SyncDataSyncTableJobType.getType() &&
-          j.data_sync?.database_id === this.database.id
+          j.data_sync?.database_id === this.database.id &&
+          j.data_sync?.last_sync === null
       )
       if (runningJob) {
         this.job = runningJob
@@ -289,6 +311,18 @@ export default {
       this.$emit('hide')
     },
     onJobCancelled() {
+      // Optimistically delete the table since the backend may take time to cancel the job
+      const tableId = this.job.data_sync?.table_id
+      if (!tableId) return
+
+      const table = this.database.tables.find((t) => t.id === tableId)
+      if (!table) return
+
+      this.$store.dispatch('table/forceDelete', {
+        database: this.database,
+        table,
+      })
+
       this.restoredFromStore = false
       this.job = null
     },

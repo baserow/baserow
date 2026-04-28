@@ -1,5 +1,6 @@
 from django.core.exceptions import ValidationError
 
+from loguru import logger
 from rest_framework import serializers
 
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
@@ -17,10 +18,12 @@ from baserow.contrib.database.data_sync.exceptions import (
 from baserow.contrib.database.db.atomic import (
     read_repeatable_read_single_table_transaction,
 )
+from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.db import transaction_atomic
-from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
 from baserow.core.handler import CoreHandler
+from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.registries import JobType
 
 from .actions import SyncDataSyncTableActionType
@@ -37,7 +40,7 @@ def validation_error_to_human_readable_string(e):
 class SyncDataSyncTableJobType(JobType):
     type = "sync_data_sync_table"
     model_class = SyncDataSyncTableJob
-    max_count = 1
+    max_count = 3
 
     api_exceptions_map = {
         DataSyncDoesNotExist: ERROR_DATA_SYNC_DOES_NOT_EXIST,
@@ -59,6 +62,41 @@ class SyncDataSyncTableJobType(JobType):
     serializer_field_overrides = {
         "data_sync": DataSyncSerializer(read_only=True),
     }
+
+    def can_schedule_or_raise(self, job: SyncDataSyncTableJob) -> None:
+        """
+        Limits concurrent data syncs to ``max_count`` per user overall, and at
+        most one running job per individual data sync.
+
+        :param job: The job instance that is going to be scheduled.
+        :raises MaxJobCountExceeded: If a conflicting job is already running.
+        """
+
+        running_jobs = SyncDataSyncTableJob.objects.filter(
+            user_id=job.user.id
+        ).is_pending_or_running()
+
+        if len(running_jobs) >= self.max_count:
+            raise MaxJobCountExceeded(
+                f"You can only launch {self.max_count} {self.type} job(s) at "
+                "the same time."
+            )
+
+        if job.data_sync_id is not None:
+            for running_job in running_jobs:
+                if running_job.data_sync_id == job.data_sync_id:
+                    raise MaxJobCountExceeded(
+                        f"A {self.type} job is already running for this data sync."
+                    )
+
+    def on_cancelled(self, job: SyncDataSyncTableJob) -> None:
+        if job.data_sync and job.data_sync.last_sync is None:
+            try:
+                TableHandler().delete_table(job.user, job.data_sync.table)
+            except (ValueError, PermissionDenied) as e:
+                logger.warning(
+                    f"Failed to delete table for cancelled job {job.id}: {e}"
+                )
 
     def transaction_atomic_context(self, job: "SyncDataSyncTableJob"):
         # If the job doesn't exist, the job won't be executed, so we can start a normal

@@ -2,11 +2,9 @@
   <div>
     <template v-if="restoredFromStore">
       <div class="margin-top-3 margin-bottom-2">
-        <FormGroup
-          v-if="job.name"
-          :label="$t('createTable.importingTable', { name: job.name })"
-          small-label
-        />
+        <label v-if="job.name" class="control__label control__label--small">
+          {{ $t('createTable.importingTable', { name: job.name }) }}
+        </label>
         <div v-if="job.importer_type" class="margin-bottom-1">
           <span class="import-modal__restored-badge">
             {{ restoredImporterName }}
@@ -26,6 +24,7 @@
       >
         <component
           :is="importerComponent"
+          :key="importerKey"
           ref="importerRef"
           :disabled="importInProgress"
           @changed="reset()"
@@ -141,6 +140,7 @@ export default {
       getData: null,
       previewData: [],
       dataLoaded: false,
+      importerKey: 0,
     }
   },
   computed: {
@@ -404,6 +404,8 @@ export default {
     },
     onJobCancelled() {
       this.reset()
+      // Force to recreate the importer component for a new import
+      this.importerKey++
     },
     loadRunningJob() {
       const runningJob = this.$store.getters['job/getUnfinishedJobs'].find(

@@ -45,6 +45,7 @@ def run_async_job(self, job_id: int):
             # at the end.
             job.set_state_cancelled()
             job.save()
+            job_type.on_cancelled(job)
         except BaseException as e:
             # BaseException allows catching SystemExit exceptions and all other possible
             # exceptions to set the job state in a failed state.
