@@ -40,6 +40,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeMultiply,
     RuntimeNotEqual,
     RuntimeNow,
+    RuntimeNull,
     RuntimeOr,
     RuntimeRandomBool,
     RuntimeRandomFloat,
@@ -2415,4 +2416,22 @@ def test_runtime_to_array_validate_type_of_args(args, expected):
 )
 def test_runtime_to_array_validate_number_of_args(args, expected):
     result = RuntimeToArray().validate_number_of_args(args)
+    assert result is expected
+
+
+def test_runtime_null_execute():
+    parsed_args = RuntimeNull().parse_args([])
+    result = RuntimeNull().execute({}, parsed_args)
+    assert result is None
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], True),
+        (["foo"], False),
+    ],
+)
+def test_runtime_null_validate_number_of_args(args, expected):
+    result = RuntimeNull().validate_number_of_args(args)
     assert result is expected
