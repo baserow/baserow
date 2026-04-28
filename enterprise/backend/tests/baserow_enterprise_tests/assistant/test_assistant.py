@@ -338,6 +338,24 @@ class TestAssistantLicenseTier:
             "\n<license_tier>advanced</license_tier>\n<features>rbac,sso</features>"
         )
 
+    def test_dynamic_license_tier_normalizes_internal_enterprise_type(self):
+        ctx = MagicMock()
+        ctx.deps.license_tier = MagicMock(
+            type="enterprise_without_support", features=["sso", "rbac"]
+        )
+
+        assert dynamic_license_tier(ctx) == (
+            "\n<license_tier>enterprise</license_tier>\n<features>rbac,sso</features>"
+        )
+
+    def test_dynamic_license_tier_renders_free_for_unknown_type(self):
+        ctx = MagicMock()
+        ctx.deps.license_tier = MagicMock(type="unknown", features=["sso", "rbac"])
+
+        assert dynamic_license_tier(ctx) == (
+            "\n<license_tier>free</license_tier>\n<features>rbac,sso</features>"
+        )
+
     def test_dynamic_license_tier_renders_free_when_no_license(self):
         ctx = MagicMock()
         ctx.deps.license_tier = None

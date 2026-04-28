@@ -170,6 +170,9 @@ async def _search_user_docs_impl(
 ) -> dict[str, Any]:
     """Inner implementation of search_user_docs, separated for error handling."""
 
+    from baserow_enterprise.assistant.model_profiles import get_model_string
+    from baserow_enterprise.assistant.retrying_model import _resolve_model
+
     @sync_to_async
     def _search(question: str) -> list[KnowledgeBaseChunk]:
         chunks = KnowledgeBaseHandler().search(question, 15)
@@ -198,39 +201,35 @@ async def _search_user_docs_impl(
         f"Question: {question}\n\n"
         f"Documentation context (source URL -> content):\n{context}"
     )
-    from baserow_enterprise.assistant.model_profiles import get_model_string
-    from baserow_enterprise.assistant.retrying_model import _resolve_model
 
     agent_result = await search_docs_agent.run(
         prompt, model=_resolve_model(get_model_string())
     )
     prediction = agent_result.output
 
-    sources = []
-    available_urls = {chunk.source_document.source_url for chunk in relevant_chunks}
-    for url in prediction.sources:
-        # somehow LLMs sometimes return sources as objects
-        if isinstance(url, dict) and "url" in url:
-            url = url["url"]
-
-        if not isinstance(url, str):
-            continue
-
-        if url in available_urls and url not in sources:
-            sources.append(url)
-            if len(sources) >= 3:
-                break
-
-    # Fallback to available URLs if the model didn't cite sources.
-    if not sources:
-        sources = list(available_urls)[:3]
-
-    # Override reliability to 0 if the model explicitly said nothing was
-    # found. The model sometimes returns high reliability for "nothing
-    # found" answers, which is semantically incorrect - we want reliability
-    # to reflect whether we actually found useful information.
+    # Force reliability to 0 if model says nothing was found.
     nothing_found = "nothing found" in prediction.answer.lower()
     reliability = 0.0 if nothing_found else prediction.reliability
+
+    sources = []
+    available_urls = {chunk.source_document.source_url for chunk in relevant_chunks}
+    if not nothing_found:
+        for url in prediction.sources:
+            # somehow LLMs sometimes return sources as objects
+            if isinstance(url, dict) and "url" in url:
+                url = url["url"]
+
+            if not isinstance(url, str):
+                continue
+
+            if url in available_urls and url not in sources:
+                sources.append(url)
+                if len(sources) >= 3:
+                    break
+
+        # Fallback to available URLs if the model didn't cite sources.
+        if not sources:
+            sources = list(available_urls)[:3]
 
     if reliability >= 0.7:
         reliability_note = (
