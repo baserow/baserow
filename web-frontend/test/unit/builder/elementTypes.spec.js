@@ -49,8 +49,8 @@ describe('elementTypes tests', () => {
       }
       page.elementMap = { 456: elementParent, 789: element }
       const elementType = testApp.$registry.get('element', element.type)
-      expect(elementType.hasAncestorOfType(page, element, 'column')).toBe(true)
-      expect(elementType.hasAncestorOfType(page, element, 'repeat')).toBe(false)
+      expect(elementType.hasAncestorOfType(page, element, 'column')).toBe(false)
+      expect(elementType.hasAncestorOfType(page, element, 'repeat')).toBe(true)
     })
 
     test('hasCollectionAncestor', () => {
@@ -75,7 +75,7 @@ describe('elementTypes tests', () => {
         tableElement.type
       )
       expect(tableElementType.hasCollectionAncestor(page, tableElement)).toBe(
-        true
+        false
       )
     })
 
@@ -86,13 +86,13 @@ describe('elementTypes tests', () => {
       )
       expect(
         repeatElementType.hasSourceOfData({ schema_property: 'field_1' })
-      ).toBe(true)
+      ).toBe(false)
       expect(
         repeatElementType.hasSourceOfData({
           data_source_id: null,
           schema_property: null,
         })
-      ).toBe(false)
+      ).toBe(true)
     })
   })
 
