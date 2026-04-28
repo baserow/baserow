@@ -474,7 +474,10 @@
         "errorLinkExpiredTitle": "링크 만료",
         "errorLinkExpiredMessage": "비밀번호 재설정 링크가 만료되었습니다. 다른 링크를 요청하세요.",
         "disabled": "비밀번호 재설정이 비활성화됨",
-        "disabledMessage": "비밀번호를 재설정할 수 없습니다. 비활성화되었습니다."
+        "disabledMessage": "비밀번호를 재설정할 수 없습니다. 비활성화되었습니다.",
+        "repeatPasswordPlaceholder": "새 비밀번호를 다시 입력하세요",
+        "errorLinkAlreadyUsedTitle": "링크가 이미 사용되었습니다",
+        "errorLinkAlreadyUsedMessage": "이 비밀번호 재설정 링크는 이미 사용되었습니다. 새 링크를 요청해 주세요."
     },
     "signup": {
         "headTitle": "계정 생성",
