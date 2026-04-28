@@ -80,7 +80,6 @@ class AutomationWorkflow(
 
     allow_test_run_until = models.DateTimeField(null=True, blank=True)
 
-    graph = models.JSONField(default=dict, help_text="Contains the node graph.")
     notification_recipients = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         blank=True,
