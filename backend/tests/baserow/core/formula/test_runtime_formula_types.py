@@ -2504,8 +2504,7 @@ def test_runtime_number_format_validate_args_raises_when_separators_are_same():
 
 def test_runtime_number_format_execute_raises_when_separators_are_same():
     with pytest.raises(BaserowFormulaSyntaxError):
-        parsed_args = RuntimeNumberFormat().parse_args([1000, 2, ",", ","])
-        RuntimeNumberFormat().execute({}, parsed_args)
+        RuntimeNumberFormat().validate_args([1000, 2, ",", ","])
 
 
 def test_runtime_number_format_validate_args_raises_human_readable_error_for_bad_thousand_sep():

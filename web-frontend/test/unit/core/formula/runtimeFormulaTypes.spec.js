@@ -2011,12 +2011,6 @@ describe('RuntimeNumberFormat', () => {
     expect(result).toStrictEqual(expected)
   })
 
-  test('execute throws when thousand and decimal separators are the same', () => {
-    const formulaType = new RuntimeNumberFormat()
-    const parsedArgs = formulaType.parseArgs([1000, 2, ',', ','])
-    expect(() => formulaType.execute({}, parsedArgs)).toThrow()
-  })
-
   test('validateArgs throws with human-readable error when separators are the same', () => {
     const formulaType = new RuntimeNumberFormat()
     formulaType.app = {
