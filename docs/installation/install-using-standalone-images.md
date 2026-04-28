@@ -55,8 +55,7 @@ images:
     dropping these prefixes.
   * Serve the files in the `/baserow/media` folder in the backend gunicorn service 
     (share with your proxy using a volume) at the `/media` endpoint. Ensure all media
-    responses have `Content-Disposition: attachment`,
-    `X-Content-Type-Options: nosniff`, and
+    responses have `X-Content-Type-Options: nosniff` and
     `Content-Security-Policy: sandbox; default-src 'none'; script-src 'none'; object-src 'none'; base-uri 'none'`.
     Requests with a `dl` query parameter can use
     `Content-Disposition: attachment; filename=THE_DL_QUERY_PARAM_VALUE`.

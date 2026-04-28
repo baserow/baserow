@@ -184,7 +184,6 @@ ServerName example.localhost
 RewriteRule ^/media/.* - [E=IS_MEDIA:1]
 RewriteCond %{QUERY_STRING} (?:^|&)dl=([^&]+)
 RewriteRule ^/media/.* - [E=FILENAME:%1]
-Header set "Content-Disposition" "attachment" env=IS_MEDIA
 Header set "Content-Disposition" "attachment; filename=\"%{FILENAME}e\"" env=FILENAME
 Header set "X-Content-Type-Options" "nosniff" env=IS_MEDIA
 Header set "Content-Security-Policy" "sandbox; default-src 'none'; script-src 'none'; object-src 'none'; base-uri 'none'" env=IS_MEDIA

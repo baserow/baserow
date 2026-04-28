@@ -63,7 +63,7 @@ Create a new `baserow.conf` in `/etc/nginx/sites-available/` with the following 
 ```
 map $arg_dl $baserow_media_content_disposition {
     default "attachment; filename=$arg_dl";
-    "" "attachment";
+    "" "";
 }
 
 server {

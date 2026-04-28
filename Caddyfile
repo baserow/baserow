@@ -11,7 +11,6 @@
         @downloads {
             query dl=*
         }
-        header Content-Disposition "attachment"
         header @downloads Content-Disposition "attachment; filename={query.dl}"
         header X-Content-Type-Options "nosniff"
         header Content-Security-Policy "sandbox; default-src 'none'; script-src 'none'; object-src 'none'; base-uri 'none'"
