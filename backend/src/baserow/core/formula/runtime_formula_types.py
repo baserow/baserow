@@ -12,9 +12,11 @@ from baserow.core.formula.argument_types import (
     ArrayOfNumbersBaserowRuntimeFormulaArgumentType,
     BooleanBaserowRuntimeFormulaArgumentType,
     DateTimeBaserowRuntimeFormulaArgumentType,
+    DecimalSeparatorBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
+    ThousandSeparatorBaserowRuntimeFormulaArgumentType,
     TimezoneBaserowRuntimeFormulaArgumentType,
 )
 from baserow.core.formula.registries import RuntimeFormulaFunction
@@ -628,3 +630,45 @@ class RuntimeNull(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return None
+
+
+class RuntimeNumberFormat(RuntimeFormulaFunction):
+    type = "number_format"
+
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(),
+        NumberBaserowRuntimeFormulaArgumentType(optional=True, cast_to_int=True),
+        ThousandSeparatorBaserowRuntimeFormulaArgumentType(optional=True),
+        DecimalSeparatorBaserowRuntimeFormulaArgumentType(optional=True),
+    ]
+
+    def validate_args(self, args, validation_context=None):
+        super().validate_args(args, validation_context)
+        if len(args) >= 4 and args[2] == args[3]:
+            raise BaserowFormulaSyntaxError(
+                "The thousand separator and decimal separator cannot be the same."
+            )
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        value = args[0]
+        decimal_places = max(int(args[1]), 0) if len(args) > 1 else 0
+        thousand_sep = args[2] if len(args) > 2 else ","
+        decimal_sep = args[3] if len(args) > 3 else "."
+
+        is_negative = value < 0
+        abs_value = abs(value)
+        formatted = f"{abs_value:,.{decimal_places}f}"
+
+        if decimal_places > 0:
+            int_part, dec_part = formatted.split(".")
+        else:
+            int_part = formatted
+            dec_part = None
+
+        int_part = int_part.replace(",", thousand_sep)
+        result = int_part if dec_part is None else int_part + decimal_sep + dec_part
+
+        if is_negative:
+            result = "-" + result
+
+        return result

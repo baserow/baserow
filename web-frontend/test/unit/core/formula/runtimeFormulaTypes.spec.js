@@ -48,6 +48,7 @@ import {
   RuntimeAt,
   RuntimeToArray,
   RuntimeNull,
+  RuntimeNumberFormat,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 import { expect } from 'vitest'
 
@@ -1959,5 +1960,99 @@ describe('RuntimeNull', () => {
     const formulaType = new RuntimeNull()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
+  })
+})
+
+describe('RuntimeNumberFormat', () => {
+  test.each([
+    { args: [1000000], expected: '1,000,000' },
+    { args: [1000000, 2], expected: '1,000,000.00' },
+    { args: [1000000, 2, ' ', ','], expected: '1 000 000,00' },
+    { args: [1000000, 2, '.', ','], expected: '1.000.000,00' },
+    { args: [212590.18, 2], expected: '212,590.18' },
+    { args: [212590.18, 2, ' '], expected: '212 590.18' },
+    { args: [212590.18, 2, ' ', ','], expected: '212 590,18' },
+    { args: [-1234567.89, 2], expected: '-1,234,567.89' },
+    { args: [1000, 0, ''], expected: '1000' },
+    { args: [1000, 3], expected: '1,000.000' },
+    { args: [0, 2], expected: '0.00' },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeNumberFormat()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toEqual(expected)
+  })
+
+  test.each([
+    { args: [1000], expected: undefined },
+    { args: [1000, 2], expected: undefined },
+    { args: [1000, 2, ','], expected: undefined },
+    { args: [1000, 2, ' ', ','], expected: undefined },
+    { args: ['foo'], expected: 'foo' },
+    { args: [1000, 'bar'], expected: 'bar' },
+    { args: [1000, 2, ';'], expected: ';' },
+    { args: [1000, 2, ',', ';'], expected: ';' },
+  ])('validates type of args', ({ args, expected }) => {
+    const formulaType = new RuntimeNumberFormat()
+    const result = formulaType.validateTypeOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: [1000], expected: true },
+    { args: [1000, 2], expected: true },
+    { args: [1000, 2, ','], expected: true },
+    { args: [1000, 2, ',', '.'], expected: true },
+    { args: [1000, 2, ',', '.', 'extra'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeNumberFormat()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test('execute throws when thousand and decimal separators are the same', () => {
+    const formulaType = new RuntimeNumberFormat()
+    const parsedArgs = formulaType.parseArgs([1000, 2, ',', ','])
+    expect(() => formulaType.execute({}, parsedArgs)).toThrow()
+  })
+
+  test('validateArgs throws with human-readable error when separators are the same', () => {
+    const formulaType = new RuntimeNumberFormat()
+    formulaType.app = {
+      $i18n: {
+        t: (key) =>
+          'The thousand separator and decimal separator cannot be the same.',
+      },
+    }
+    expect(() => formulaType.validateArgs([1000, 2, ',', ','])).toThrow(
+      'The thousand separator and decimal separator cannot be the same.'
+    )
+  })
+
+  test('validateArgs throws with human-readable error for invalid thousand separator', () => {
+    const formulaType = new RuntimeNumberFormat()
+    formulaType.app = {
+      $i18n: {
+        t: (key, params) =>
+          `'${params.value}' is not a valid thousand separator.`,
+      },
+    }
+    expect(() => formulaType.validateArgs([1000, 2, ';'])).toThrow(
+      "';' is not a valid thousand separator."
+    )
+  })
+
+  test('validateArgs throws with human-readable error for invalid decimal separator', () => {
+    const formulaType = new RuntimeNumberFormat()
+    formulaType.app = {
+      $i18n: {
+        t: (key, params) =>
+          `'${params.value}' is not a valid decimal separator.`,
+      },
+    }
+    expect(() => formulaType.validateArgs([1000, 2, ',', ';'])).toThrow(
+      "';' is not a valid decimal separator."
+    )
   })
 })

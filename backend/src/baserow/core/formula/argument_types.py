@@ -13,6 +13,9 @@ from baserow.core.formula.validator import (
     ensure_string,
 )
 
+VALID_THOUSAND_SEPARATORS = {",", ".", " ", ""}
+VALID_DECIMAL_SEPARATORS = {",", "."}
+
 
 class BaserowRuntimeFormulaArgumentType:
     def __init__(self, optional: Optional[bool] = False):
@@ -152,3 +155,39 @@ class ArrayOfNumbersBaserowRuntimeFormulaArgumentType(
     def parse(self, value):
         value = ensure_array(value)
         return [ensure_numeric(item) for item in value]
+
+
+class ThousandSeparatorBaserowRuntimeFormulaArgumentType(
+    BaserowRuntimeFormulaArgumentType
+):
+    def test(self, value):
+        if not isinstance(value, str):
+            return False
+        return value in VALID_THOUSAND_SEPARATORS
+
+    def parse(self, value):
+        return ensure_string(value)
+
+    def get_error_message(self, value) -> Optional[str]:
+        return (
+            f"'{value}' is not a valid thousand separator. "
+            f"Valid options are: ',', '.', ' ', or '' (empty string)."
+        )
+
+
+class DecimalSeparatorBaserowRuntimeFormulaArgumentType(
+    BaserowRuntimeFormulaArgumentType
+):
+    def test(self, value):
+        if not isinstance(value, str):
+            return False
+        return value in VALID_DECIMAL_SEPARATORS
+
+    def parse(self, value):
+        return ensure_string(value)
+
+    def get_error_message(self, value) -> Optional[str]:
+        return (
+            f"'{value}' is not a valid decimal separator. "
+            f"Valid options are: ',' or '.'."
+        )
