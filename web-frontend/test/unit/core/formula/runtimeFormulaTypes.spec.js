@@ -894,6 +894,19 @@ describe('RuntimeDateTimeFormat', () => {
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })
+
+  test('validateArgs throws human-readable error', () => {
+    const formulaType = new RuntimeDateTimeFormat({
+      app: {
+        $i18n: {
+          t: (key, params) => `'${params.value}' is not a valid timezone.`,
+        },
+      },
+    })
+    expect(() =>
+      formulaType.validateArgs([new Date(2025, 10, 6), 'YYYY', 'Europe/Foo'])
+    ).toThrow("'Europe/Foo' is not a valid timezone.")
+  })
 })
 
 describe('RuntimeDay', () => {

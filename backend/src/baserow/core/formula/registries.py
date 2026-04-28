@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, TypeVar
 
 from baserow.core.formula.argument_types import BaserowRuntimeFormulaArgumentType
 from baserow.core.formula.parser.exceptions import (
+    BaserowFormulaSyntaxError,
     FormulaFunctionTypeDoesNotExist,
     InvalidFormulaArgumentType,
 )
@@ -81,6 +82,10 @@ class RuntimeFormulaFunction(ABC, Instance):
 
         invalid_arg = self.validate_type_of_args(args)
         if invalid_arg:
+            if self.args:
+                index = list(args).index(invalid_arg)
+                if message := self.args[index].get_error_message(invalid_arg):
+                    raise BaserowFormulaSyntaxError(message)
             raise InvalidFormulaArgumentType(self, invalid_arg)
 
     def validate_number_of_args(self, args: FormulaArgs) -> bool:

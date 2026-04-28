@@ -24,6 +24,9 @@ class BaserowRuntimeFormulaArgumentType:
     def parse(self, value):
         return value
 
+    def get_error_message(self, value) -> Optional[str]:
+        return None
+
 
 class NumberBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
     def __init__(self, *args, **kwargs):
@@ -105,6 +108,13 @@ class TimezoneBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentTyp
 
     def parse(self, value):
         return ensure_string(value)
+
+    def get_error_message(self, value) -> Optional[str]:
+        return (
+            f"'{value}' is not a valid timezone. "
+            f"Please use a valid IANA timezone name "
+            f"(e.g. 'Europe/Amsterdam')."
+        )
 
 
 class AnyBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):

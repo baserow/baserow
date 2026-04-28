@@ -525,6 +525,9 @@ export default {
           title: this.$t('formulaInputField.invalidFormulaTitle'),
           message: validationResult.errors[0],
         }
+        this.$nextTick(() => {
+          this.editor.commands.repositionContext()
+        })
       } else {
         this.$emit('input', formula)
       }

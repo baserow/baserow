@@ -34,6 +34,17 @@ export class BaserowRuntimeFormulaArgumentType {
   parse(value) {
     return value
   }
+
+  /**
+   * This function returns a specific human-friendly error message if the
+   * value for the type is invalid. Default to returning null.
+   * @param value - The value that is incorrect.
+   * @param i18n - The i18n instance.
+   * @returns {string|null} - The human-friendly error message.
+   */
+  getErrorMessage(value, i18n) {
+    return null
+  }
 }
 
 export class NumberBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
@@ -176,6 +187,10 @@ export class TimezoneBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFor
 
   parse(value) {
     return ensureString(value)
+  }
+
+  getErrorMessage(value, i18n) {
+    return i18n.t('runtimeFormulaTypeErrors.invalidTimezone', { value })
   }
 }
 

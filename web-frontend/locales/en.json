@@ -707,6 +707,9 @@
     "categoryDate": "Date",
     "categoryCondition": "Condition"
   },
+  "runtimeFormulaTypeErrors": {
+    "invalidTimezone": "'{value}' is not a valid timezone. Use a valid IANA timezone (e.g. 'Europe/Amsterdam')."
+  },
   "runtimeGetErrors": {
     "invalidPath": "The 'get' argument '{path}' must be a dot-delimited path (e.g., 'provider.property').",
     "missingProvider": "The 'get' argument '{path}' is missing its formula provider prefix.",

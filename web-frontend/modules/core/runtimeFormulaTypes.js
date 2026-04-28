@@ -88,6 +88,16 @@ export class RuntimeFormulaFunction extends Registerable {
   validateArgs(args, { ctx = null, validationContext = {} } = {}) {
     const invalidArg = this.validateTypeOfArgs(args)
     if (invalidArg) {
+      if (this.args) {
+        const index = args.indexOf(invalidArg)
+        const message = this.args[index].getErrorMessage(
+          invalidArg,
+          this.app.$i18n
+        )
+        if (message) {
+          throw new InvalidFormulaArgument(this.getType(), message)
+        }
+      }
       throw new InvalidFormulaArgumentType(this, invalidArg)
     }
   }
