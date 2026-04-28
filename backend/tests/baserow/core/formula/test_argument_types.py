@@ -4,9 +4,11 @@ import pytest
 
 from baserow.core.formula.argument_types import (
     DateTimeBaserowRuntimeFormulaArgumentType,
+    DecimalSeparatorBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
+    ThousandSeparatorBaserowRuntimeFormulaArgumentType,
     TimezoneBaserowRuntimeFormulaArgumentType,
 )
 
@@ -188,3 +190,49 @@ def test_timezone_get_error_message_returns_human_readable_string():
     arg_type = TimezoneBaserowRuntimeFormulaArgumentType()
     message = arg_type.get_error_message("Europe/Foo")
     assert "'Europe/Foo' is not a valid timezone" in message
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (",", True),
+        (".", True),
+        (" ", True),
+        ("", True),
+        (";", False),
+        ("|", False),
+        ("_", False),
+        (1, False),
+        (None, False),
+    ],
+)
+def test_thousand_separator_test_method(value, expected):
+    assert ThousandSeparatorBaserowRuntimeFormulaArgumentType().test(value) == expected
+
+
+def test_thousand_separator_get_error_message_returns_human_readable_string():
+    arg_type = ThousandSeparatorBaserowRuntimeFormulaArgumentType()
+    message = arg_type.get_error_message(";")
+    assert "';' is not a valid thousand separator" in message
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (",", True),
+        (".", True),
+        (" ", False),
+        ("", False),
+        (";", False),
+        (1, False),
+        (None, False),
+    ],
+)
+def test_decimal_separator_test_method(value, expected):
+    assert DecimalSeparatorBaserowRuntimeFormulaArgumentType().test(value) == expected
+
+
+def test_decimal_separator_get_error_message_returns_human_readable_string():
+    arg_type = DecimalSeparatorBaserowRuntimeFormulaArgumentType()
+    message = arg_type.get_error_message(";")
+    assert "';' is not a valid decimal separator" in message

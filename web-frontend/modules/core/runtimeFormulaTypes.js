@@ -9,6 +9,8 @@ import {
   AnyBaserowRuntimeFormulaArgumentType,
   ArrayBaserowRuntimeFormulaArgumentType,
   ArrayOfNumbersBaserowRuntimeFormulaArgumentType,
+  ThousandSeparatorBaserowRuntimeFormulaArgumentType,
+  DecimalSeparatorBaserowRuntimeFormulaArgumentType,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
   InvalidFormulaArgument,
@@ -2572,6 +2574,93 @@ export class RuntimeNull extends RuntimeFormulaFunction {
       {
         formula: 'null()',
         result: 'null',
+      },
+    ]
+  }
+}
+
+export class RuntimeNumberFormat extends RuntimeFormulaFunction {
+  static getType() {
+    return 'number_format'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.NUMBER
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType(),
+      new NumberBaserowRuntimeFormulaArgumentType({
+        optional: true,
+        castToInt: true,
+      }),
+      new ThousandSeparatorBaserowRuntimeFormulaArgumentType({
+        optional: true,
+      }),
+      new DecimalSeparatorBaserowRuntimeFormulaArgumentType({ optional: true }),
+    ]
+  }
+
+  validateArgs(args, { ctx = null, validationContext = {} } = {}) {
+    super.validateArgs(args, { ctx, validationContext })
+    if (args.length >= 4 && args[2] === args[3]) {
+      const { $i18n } = this.app
+      throw new InvalidFormulaArgument(
+        this.getType(),
+        $i18n.t('runtimeFormulaTypeErrors.sameSeparators')
+      )
+    }
+  }
+
+  execute(context, args) {
+    const value = args[0]
+    const decimalPlaces = args.length > 1 ? Math.max(Math.trunc(args[1]), 0) : 0
+    const thousandSep = args.length > 2 ? args[2] : ','
+    const decimalSep = args.length > 3 ? args[3] : '.'
+
+    const isNegative = value < 0
+    const absValue = Math.abs(value)
+    const formatted = absValue.toFixed(decimalPlaces)
+
+    let intPart, decPart
+    if (decimalPlaces > 0) {
+      ;[intPart, decPart] = formatted.split('.')
+    } else {
+      intPart = formatted
+      decPart = undefined
+    }
+
+    intPart = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, thousandSep)
+    let result =
+      decPart !== undefined ? intPart + decimalSep + decPart : intPart
+
+    if (isNegative) result = '-' + result
+    return result
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.numberFormatDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: 'number_format(1000000)',
+        result: "'1,000,000'",
+      },
+      {
+        formula: 'number_format(1000000, 2)',
+        result: "'1,000,000.00'",
+      },
+      {
+        formula: "number_format(1000000, 2, ' ', ',')",
+        result: "'1 000 000,00'",
       },
     ]
   }

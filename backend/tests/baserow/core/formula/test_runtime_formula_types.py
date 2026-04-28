@@ -41,6 +41,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeNotEqual,
     RuntimeNow,
     RuntimeNull,
+    RuntimeNumberFormat,
     RuntimeOr,
     RuntimeRandomBool,
     RuntimeRandomFloat,
@@ -2435,3 +2436,85 @@ def test_runtime_null_execute():
 def test_runtime_null_validate_number_of_args(args, expected):
     result = RuntimeNull().validate_number_of_args(args)
     assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([1000000], "1,000,000"),
+        ([1000000, 2], "1,000,000.00"),
+        ([1000000, 2, " ", ","], "1 000 000,00"),
+        ([1000000, 2, ".", ","], "1.000.000,00"),
+        ([212590.18, 2], "212,590.18"),
+        ([212590.18, 2, " "], "212 590.18"),
+        ([212590.18, 2, " ", ","], "212 590,18"),
+        ([-1234567.89, 2], "-1,234,567.89"),
+        ([1000, 0, ""], "1000"),
+        ([1000, 3], "1,000.000"),
+        ([0, 2], "0.00"),
+    ],
+)
+def test_runtime_number_format_execute(args, expected):
+    parsed_args = RuntimeNumberFormat().parse_args(args)
+    result = RuntimeNumberFormat().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([1000], None),
+        ([1000, 2], None),
+        ([1000, 2, ","], None),
+        ([1000, 2, " ", ","], None),
+        (["foo"], "foo"),
+        ([1000, "bar"], "bar"),
+        ([1000, 2, ";"], ";"),
+        ([1000, 2, ",", ";"], ";"),
+    ],
+)
+def test_runtime_number_format_validate_type_of_args(args, expected):
+    result = RuntimeNumberFormat().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        ([1000], True),
+        ([1000, 2], True),
+        ([1000, 2, ","], True),
+        ([1000, 2, ",", "."], True),
+        ([1000, 2, ",", ".", "extra"], False),
+    ],
+)
+def test_runtime_number_format_validate_number_of_args(args, expected):
+    result = RuntimeNumberFormat().validate_number_of_args(args)
+    assert result is expected
+
+
+def test_runtime_number_format_validate_args_raises_when_separators_are_same():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeNumberFormat().validate_args([1000, 2, ",", ","])
+    assert "thousand separator and decimal separator cannot be the same" in str(
+        exc_info.value
+    )
+
+
+def test_runtime_number_format_execute_raises_when_separators_are_same():
+    with pytest.raises(BaserowFormulaSyntaxError):
+        parsed_args = RuntimeNumberFormat().parse_args([1000, 2, ",", ","])
+        RuntimeNumberFormat().execute({}, parsed_args)
+
+
+def test_runtime_number_format_validate_args_raises_human_readable_error_for_bad_thousand_sep():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeNumberFormat().validate_args([1000, 2, ";"])
+    assert "';' is not a valid thousand separator" in str(exc_info.value)
+
+
+def test_runtime_number_format_validate_args_raises_human_readable_error_for_bad_decimal_sep():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeNumberFormat().validate_args([1000, 2, ",", ";"])
+    assert "';' is not a valid decimal separator" in str(exc_info.value)

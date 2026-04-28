@@ -8,6 +8,9 @@ import {
 } from '@baserow/modules/core/utils/validator'
 import moment from '@baserow/modules/core/moment'
 
+const VALID_THOUSAND_SEPARATORS = new Set([',', '.', ' ', ''])
+const VALID_DECIMAL_SEPARATORS = new Set([',', '.'])
+
 export class BaserowRuntimeFormulaArgumentType {
   constructor({ optional = false } = {}) {
     this.optional = optional
@@ -201,5 +204,37 @@ export class AnyBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaA
 
   parse(value) {
     return value
+  }
+}
+
+export class ThousandSeparatorBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    if (typeof value !== 'string') return false
+    return VALID_THOUSAND_SEPARATORS.has(value)
+  }
+
+  parse(value) {
+    return ensureString(value)
+  }
+
+  getErrorMessage(value, i18n) {
+    return i18n.t('runtimeFormulaTypeErrors.invalidThousandSeparator', {
+      value,
+    })
+  }
+}
+
+export class DecimalSeparatorBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    if (typeof value !== 'string') return false
+    return VALID_DECIMAL_SEPARATORS.has(value)
+  }
+
+  parse(value) {
+    return ensureString(value)
+  }
+
+  getErrorMessage(value, i18n) {
+    return i18n.t('runtimeFormulaTypeErrors.invalidDecimalSeparator', { value })
   }
 }
