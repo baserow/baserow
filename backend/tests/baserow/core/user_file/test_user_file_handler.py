@@ -336,7 +336,7 @@ def test_upload_user_file_active_content_block_policy_uses_mime_type(
     user = data_fixture.create_user()
     storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
     file = SimpleUploadedFile(
-        "active-content", b"<html></html>", content_type="text/html"
+        "active-content.txt", b"<html></html>", content_type="text/html"
     )
 
     with pytest.raises(ActiveContentBlockedUserFileError):

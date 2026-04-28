@@ -61,6 +61,42 @@ class UserFileHandler:
     def _is_active_content_mime_type(self, mime_type: str) -> bool:
         return mime_type.lower() in ACTIVE_CONTENT_MIME_TYPES
 
+    def _resolve_mime_type_and_active_content(
+        self, file_name: str, extension: str, stream
+    ) -> tuple[str, bool]:
+        """
+        Resolves the MIME type for an uploaded file and decides whether it should be
+        treated as active content.
+
+        Both the filename-derived MIME type and the client-supplied `content_type` are
+        checked independently against the active-content blocklist so that a malicious
+        client cannot bypass the gate by pairing an innocuous extension with a dangerous
+        Content-Type header (or vice versa).
+
+        :param file_name: The name of the uploaded file.
+        :param extension: The file extension of the uploaded file.
+        :param stream: The file content stream of the uploaded file, which may have a
+            `content_type` attribute.
+        :return: A tuple of the resolved MIME type and whether the file is considered
+            active content.
+        """
+
+        guessed_mime_type = mimetypes.guess_type(file_name)[0]
+        uploaded_mime_type = getattr(stream, "content_type", None)
+        mime_type = guessed_mime_type or uploaded_mime_type or MIME_TYPE_UNKNOWN
+        is_active_content = (
+            self._is_active_content_extension(extension)
+            or (
+                guessed_mime_type is not None
+                and self._is_active_content_mime_type(guessed_mime_type)
+            )
+            or (
+                uploaded_mime_type is not None
+                and self._is_active_content_mime_type(uploaded_mime_type)
+            )
+        )
+        return mime_type, is_active_content
+
     def _neutralize_active_content(self, user_file: UserFile) -> UserFile:
         user_file.mime_type = MIME_TYPE_UNKNOWN
         user_file.is_image = False
@@ -289,14 +325,9 @@ class UserFileHandler:
         stream_hash = sha256_hash(stream)
         file_name = truncate_middle(file_name, 64)
         extension = pathlib.Path(file_name).suffix[1:].lower()
-        mime_type = (
-            mimetypes.guess_type(file_name)[0]
-            or getattr(stream, "content_type", None)
-            or MIME_TYPE_UNKNOWN
+        mime_type, is_active_content = self._resolve_mime_type_and_active_content(
+            file_name, extension, stream
         )
-        is_active_content = self._is_active_content_extension(
-            extension
-        ) or self._is_active_content_mime_type(mime_type)
 
         if is_active_content and settings.FILE_UPLOAD_ACTIVE_CONTENT_POLICY == "block":
             raise ActiveContentBlockedUserFileError(

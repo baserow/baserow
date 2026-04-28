@@ -45,8 +45,12 @@
     }
 
     @is_baserow_media {
+        path /media/*
         expression `
-            "{$MEDIA_URL:}".contains({http.request.host})
+            "{$MEDIA_URL:}".startsWith("http://" + {http.request.host} + "/") ||
+            "{$MEDIA_URL:}".startsWith("https://" + {http.request.host} + "/") ||
+            "{$MEDIA_URL:}".startsWith("http://" + {http.request.host} + ":") ||
+            "{$MEDIA_URL:}".startsWith("https://" + {http.request.host} + ":")
         `
     }
 
