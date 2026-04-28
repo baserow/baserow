@@ -205,7 +205,7 @@ x-backend-variables:
 
 services:
   backend:
-    image: baserow/backend:2.2.1
+    image: baserow/backend:2.2.2
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
@@ -220,7 +220,7 @@ services:
       local:
 
   web-frontend:
-    image: baserow/web-frontend:2.2.1
+    image: baserow/web-frontend:2.2.2
     restart: unless-stopped
     ports:
       - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
@@ -272,7 +272,7 @@ services:
       local:
 
   celery:
-    image: baserow/backend:2.2.1
+    image: baserow/backend:2.2.2
     restart: unless-stopped
     environment:
       <<: *backend-variables
@@ -293,7 +293,7 @@ services:
       local:
 
   celery-export-worker:
-    image: baserow/backend:2.2.1
+    image: baserow/backend:2.2.2
     restart: unless-stopped
     command: celery-exportworker
     environment:
@@ -314,7 +314,7 @@ services:
       local:
 
   celery-beat-worker:
-    image: baserow/backend:2.2.1
+    image: baserow/backend:2.2.2
     restart: unless-stopped
     command: celery-beat
     environment:
