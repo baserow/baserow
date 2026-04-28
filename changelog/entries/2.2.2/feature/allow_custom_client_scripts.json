@@ -1,6 +1,8 @@
 {
     "type": "feature",
     "message": "Allow self-hosted operators to inject custom client-side scripts via environment variables.",
+    "issue_origin": "github",
+    "issue_number": null,
     "domain": "core",
     "bullet_points": [],
     "created_at": "2026-04-21"

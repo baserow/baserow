@@ -1,5 +1,21 @@
 # Changelog
 
+## Released 2.2.2
+
+### New features
+* [Automation] Send notification when a workflow is disabled [#5186](https://github.com/baserow/baserow/issues/5186)
+* [Core] Allow self-hosted operators to inject custom client-side scripts via environment variables.
+
+### Bug fixes
+* [Builder] Resolved a bug which prevented users from creating data sources from the data source dropdown's footer. [#5118](https://github.com/baserow/baserow/issues/5118)
+* [Core] Give Kuma the current license tier in its context and steer uncertain feature or plan questions to docs search. [#5210](https://github.com/baserow/baserow/issues/5210)
+* [Core] Hardened user uploaded media serving and neutralized active-content file uploads by default.
+* [Builder] stop infinite `/dispatch-data-sources/` refetch loop in page editor
+
+### Refactors
+* [Automation] Optimize Automation History clean-up by moving it to a separate periodic task.
+
+
 ## Released 2.2.1
 
 ### New features
