@@ -619,3 +619,12 @@ class RuntimeToArray(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return ensure_array(args[0])
+
+
+class RuntimeNull(RuntimeFormulaFunction):
+    type = "null"
+
+    args = []
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return None

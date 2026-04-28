@@ -47,6 +47,7 @@ import {
   RuntimeAvg,
   RuntimeAt,
   RuntimeToArray,
+  RuntimeNull,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 import { expect } from 'vitest'
 
@@ -1938,6 +1939,24 @@ describe('RuntimeToArray', () => {
     { args: ['foo', 'bar'], expected: false },
   ])('validates number of args', ({ args, expected }) => {
     const formulaType = new RuntimeToArray()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+})
+
+describe('RuntimeNull', () => {
+  test('execute returns null', () => {
+    const formulaType = new RuntimeNull()
+    const parsedArgs = formulaType.parseArgs([])
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toBeNull()
+  })
+
+  test.each([
+    { args: [], expected: true },
+    { args: ['foo'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeNull()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })

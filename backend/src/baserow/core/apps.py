@@ -69,6 +69,7 @@ class CoreConfig(AppConfig):
             RuntimeMultiply,
             RuntimeNotEqual,
             RuntimeNow,
+            RuntimeNull,
             RuntimeOr,
             RuntimeRandomBool,
             RuntimeRandomFloat,
@@ -134,6 +135,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeAvg())
         formula_runtime_function_registry.register(RuntimeAt())
         formula_runtime_function_registry.register(RuntimeToArray())
+        formula_runtime_function_registry.register(RuntimeNull())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,

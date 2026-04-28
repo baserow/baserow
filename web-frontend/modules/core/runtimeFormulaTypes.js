@@ -2540,3 +2540,39 @@ export class RuntimeToArray extends RuntimeFormulaFunction {
     ]
   }
 }
+
+export class RuntimeNull extends RuntimeFormulaFunction {
+  static getType() {
+    return 'null'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.TEXT
+  }
+
+  get args() {
+    return []
+  }
+
+  execute(context, args) {
+    return null
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.nullDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: 'null()',
+        result: 'null',
+      },
+    ]
+  }
+}
