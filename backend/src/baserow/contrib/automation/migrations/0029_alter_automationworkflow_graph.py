@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('automation', '0026_alter_automationworkflow_unique_together'),
+        ('automation', '0028_automationworkflowhistory_original_workflow_and_more'),
     ]
 
     operations = [
