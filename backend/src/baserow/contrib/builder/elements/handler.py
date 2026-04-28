@@ -291,7 +291,7 @@ class ElementHandler:
             queryset = base_queryset.filter(page=page)
             return self._query_elements(queryset, specific=specific)
 
-        if use_cache and not base_queryset:
+        if use_cache and base_queryset is None:
             return local_cache.get(
                 self._get_elements_cache_key(page, specific),
                 _get_elements,
@@ -328,7 +328,7 @@ class ElementHandler:
             )
             elements = self._query_elements(queryset, specific=specific)
 
-            if use_cache and not base_queryset:
+            if use_cache and base_queryset is None:
                 # We populate the per page cache with the result
                 elements_per_page = defaultdict(list)
                 grouped_elements = []
@@ -344,7 +344,7 @@ class ElementHandler:
 
             return elements
 
-        if use_cache and not base_queryset:
+        if use_cache and base_queryset is None:
             return local_cache.get(
                 self._get_builder_elements_cache_key(
                     builder.id if not isinstance(builder, int) else builder, specific

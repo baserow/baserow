@@ -163,35 +163,34 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
 
         is_authenticated = role is not None
         roles = element.roles or []
+        result = False
 
         if is_authenticated:
             if element.visibility == Element.VISIBILITY_TYPES.NOT_LOGGED:
-                cache[element.id] = True
-                return True
+                result = True
 
-            if (
+            elif (
                 element.role_type == Element.ROLE_TYPES.ALLOW_ALL_EXCEPT
                 and role in roles
             ):
-                cache[element.id] = True
-                return True
+                result = True
 
-            if (
+            elif (
                 element.role_type == Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT
                 and role not in roles
             ):
-                cache[element.id] = True
-                return True
+                result = True
         else:
-            return element.visibility == Element.VISIBILITY_TYPES.LOGGED_IN
+            if element.visibility == Element.VISIBILITY_TYPES.LOGGED_IN:
+                result = True
 
         for parent in element.get_parent_points():
             if self.is_element_hidden(parent, role, cache):
-                cache[element.id] = True
-                return True
+                result = True
+                break
 
-        cache[element.id] = False
-        return False
+        cache[element.id] = result
+        return result
 
     def get_hidden_element_ids(self, role, builder_ids):
         """
@@ -202,6 +201,7 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
 
         builder_ids = list(builder_ids)
         hidden_ids = []
+        cache = {}
 
         for builder_id in builder_ids:
             cache_key = self._get_visibility_cache_key(role, builder_id)
@@ -212,7 +212,9 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
                     cache_key,
                     invalidate_key=invalidate_key,
                     default=lambda builder_id=builder_id: [
-                        e.id for e in ElementHandler().get_builder_elements(builder_id)
+                        e.id
+                        for e in ElementHandler().get_builder_elements(builder_id)
+                        if self.is_element_hidden(e, role, cache)
                     ],
                     timeout=ELEMENT_VISIBILITY_CACHE_TTL_SECONDS,
                 )
@@ -235,10 +237,10 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
 
         return queryset.exclude(
             page__role_type=Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
-            page__roles__contains=actor.role,
+            page__roles__contains=[actor.role],
         ).exclude(
             Q(page__role_type=Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT)
-            & ~Q(page__roles__contains=actor.role),
+            & ~Q(page__roles__contains=[actor.role]),
         )
 
     def filter_queryset(
@@ -269,11 +271,7 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
         elif operation_name == ListBuilderWorkflowActionsPageOperationType.type:
             queryset = self.exclude_elements_with_page_visibility(queryset, actor)
             builder_ids = set(
-                list(
-                    queryset.values_list(
-                        "element__page__builder_id", flat=True
-                    ).distinct()
-                )
+                list(queryset.values_list("page__builder_id", flat=True).distinct())
             )
             excluded_element_ids = self.get_hidden_element_ids(actor_role, builder_ids)
             return queryset.exclude(element_id__in=excluded_element_ids)
