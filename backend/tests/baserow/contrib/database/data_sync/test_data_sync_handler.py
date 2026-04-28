@@ -1966,6 +1966,38 @@ def test_on_cancelled_trashes_table_on_first_sync(send_mock, data_fixture):
 
 @pytest.mark.django_db
 @patch("baserow.contrib.database.table.signals.table_created.send")
+@patch("baserow.contrib.database.data_sync.job_types.logger")
+@patch("baserow.contrib.database.data_sync.job_types.TableHandler.delete_table")
+def test_on_cancelled_logs_table_cleanup_errors(
+    delete_table_mock, logger_mock, send_mock, data_fixture
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "summary"],
+        ical_url="https://baserow.io",
+    )
+
+    delete_table_mock.side_effect = RuntimeError("delete failed")
+
+    job = SyncDataSyncTableJob.objects.create(user=user, data_sync=data_sync)
+    job_type = SyncDataSyncTableJobType()
+    job_type.on_cancelled(job)
+
+    delete_table_mock.assert_called_once_with(user, data_sync.table)
+    logger_mock.exception.assert_called_once_with(
+        f"Failed to delete table for cancelled data sync job {job.id}."
+    )
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.table.signals.table_created.send")
 @responses.activate
 def test_on_cancelled_does_not_trash_table_after_successful_sync(
     send_mock, data_fixture

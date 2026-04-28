@@ -21,7 +21,7 @@ from baserow.contrib.database.db.atomic import (
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.action.registries import action_type_registry
 from baserow.core.db import transaction_atomic
-from baserow.core.exceptions import PermissionDenied, UserNotInWorkspace
+from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.registries import JobType
@@ -93,9 +93,9 @@ class SyncDataSyncTableJobType(JobType):
         if job.data_sync and job.data_sync.last_sync is None:
             try:
                 TableHandler().delete_table(job.user, job.data_sync.table)
-            except (ValueError, PermissionDenied) as e:
-                logger.warning(
-                    f"Failed to delete table for cancelled job {job.id}: {e}"
+            except Exception:
+                logger.exception(
+                    f"Failed to delete table for cancelled data sync job {job.id}."
                 )
 
     def transaction_atomic_context(self, job: "SyncDataSyncTableJob"):

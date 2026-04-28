@@ -23,13 +23,17 @@ def run_async_job(self, job_id: int):
     from baserow.core.jobs.models import Job
 
     job = Job.objects.select_related("user", "content_type").get(id=job_id).specific
+    job_type = job_type_registry.get_by_model(job)
     if job.cancelled:
+        try:
+            job_type.on_cancelled(job)
+        finally:
+            job.clear_job_cache()
         return  # Job cancelled before it started. No need to run it.
 
     with setup_user_in_baggage_and_spans(job.user):
         setup_user_in_sentry(job.user)
 
-        job_type = job_type_registry.get_by_model(job)
         job.set_state_started()
         job.save()
 
