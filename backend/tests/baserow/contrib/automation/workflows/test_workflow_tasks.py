@@ -12,7 +12,10 @@ from baserow.contrib.automation.workflows.tasks import automation_periodic_clean
 from baserow.core.cache import global_cache
 
 
-@override_settings(AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=2)
+@override_settings(
+    AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=2,
+    AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS=0,
+)
 @pytest.mark.django_db
 def test_automation_periodic_cleanup_keeps_max_entries_per_workflow(data_fixture):
     workflow_a = data_fixture.create_automation_workflow()
