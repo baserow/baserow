@@ -253,9 +253,7 @@ _dev-start:
     echo "Starting Baserow local development environment..."
     echo ""
 
-    # Start docker services (redis, db, mailhog, otel-collector).
-    # Scale storybook=0: native `just storybook` below already binds :6006; optional profile
-    # would otherwise start the Docker storybook too (stale node_modules volume, port fight).
+    # Start docker services (redis, db, mailhog, otel-collector)
     echo "==> Starting Docker services (redis, db, mailhog, otel-collector)..."
     just dc-dev up -d --scale backend=0 --scale web-frontend=0 --scale celery=0 --scale celery-beat-worker=0 --scale celery-export-worker=0 --scale storybook=0
 
