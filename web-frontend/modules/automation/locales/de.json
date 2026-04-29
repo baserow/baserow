@@ -60,6 +60,19 @@
         "cantUpdateAutomationTitle": "Automatisierung konnte nicht aktualisiert werden",
         "cantUpdateAutomationDescription": "Entschuldigung, die Automatisierung konnte nicht aktualisiert werden."
     },
+    "workflowGeneralSettings": {
+        "titleOverview": "Workflow-Einstellungen",
+        "nameLabel": "Workflow-Name",
+        "workflowDisabledRecipientsLabel": "Benachrichtigungsempfänger",
+        "workflowDisabledRecipientsHelp": "Diese Mitglieder des Arbeitsbereichs erhalten eine In-App-Benachrichtigung, wenn dieser Workflow automatisch deaktiviert wird.",
+        "selectWorkflowDisabledRecipients": "Empfänger auswählen",
+        "noWorkflowDisabledRecipients": "Keine Empfänger ausgewählt.",
+        "cantUpdateWorkflowTitle": "Workflow konnte nicht aktualisiert werden",
+        "cantUpdateWorkflowDescription": "Der Workflow konnte leider nicht aktualisiert werden."
+    },
+    "workflowDisabledNotification": {
+        "body": "Der Workflow {name} wurde deaktiviert."
+    },
     "integrationSettings": {
         "title": "Integrationen",
         "noIntegrationMessage": "Sie haben noch keine Integrationen erstellt. Diese können hinzugefügt werden, indem Sie eine Datenquelle, Aktion oder Benutzer-Authentifizierung hinzufügen.",
@@ -72,6 +85,118 @@
         "settingsBtn": "Einstellungen",
         "historyBtn": "Verlauf",
         "docsBtn": "Dokumentation",
-        "switchLabelDraft": "Entwurf"
+        "switchLabelDraft": "Entwurf",
+        "switchLabelDisabled": "Deaktiviert",
+        "switchLabelPaused": "Pausiert",
+        "switchLabelLive": "Aktiv",
+        "lastPublished": "Zuletzt veröffentlicht"
+    },
+    "dataProviderType": {
+        "currentIteration": "Aktuelle Iteration",
+        "item": "Element",
+        "previousNode": "Vorheriger Knoten"
+    },
+    "nodeSidePanel": {
+        "labelTitle": "Beschriftung"
+    },
+    "historySidePanel": {
+        "title": "Verlauf",
+        "noRunsTitle": "Noch keine Ausführungen",
+        "noRunsDescription": "Sobald dieser Workflow ausgeführt wurde, werden die Ergebnisse hier angezeigt.",
+        "statusStarted": "Wird ausgeführt...",
+        "statusSuccess": "Erfolgreich ausgeführt",
+        "statusError": "Ausführung fehlgeschlagen",
+        "statusSuccessBadge": "Abgeschlossen",
+        "statusErrorBadge": "Fehlgeschlagen",
+        "statusDisabled": "Von Baserow deaktiviert",
+        "successfulRuns": "Erfolgreiche Ausführungen",
+        "completedInSeconds": "Abgeschlossen in {s} Sekunden.",
+        "completedInLessThanSecond": "Abgeschlossen in weniger als 1 Sekunde.",
+        "running": "Läuft seit {at}s",
+        "failedRuns": "Fehlgeschlagene Ausführungen",
+        "errorHideDetails": "Details ausblenden",
+        "errorShowDetails": "Details anzeigen",
+        "runNumber": "Ausführung {n}",
+        "runCount": "{n} Ausführungen",
+        "testRun": "Test",
+        "showResult": "Ergebnis anzeigen"
+    },
+    "nodeType": {
+        "triggerDeletionError": "Auslöser können nicht gelöscht, sondern nur ersetzt werden.",
+        "localBaserowRowsCreatedLabel": "Zeilen werden in {tableName} erstellt",
+        "localBaserowRowsUpdatedLabel": "Zeilen werden in {tableName} aktualisiert",
+        "localBaserowRowsDeletedLabel": "Zeilen werden in {tableName} gelöscht",
+        "localBaserowCreateRowLabel": "Eine Zeile in {tableName} erstellen",
+        "localBaserowUpdateRowLabel": "Eine Zeile in {tableName} aktualisieren",
+        "localBaserowDeleteRowLabel": "Eine Zeile in {tableName} löschen",
+        "localBaserowGetRowLabel": "Eine Zeile in {tableName} lesen",
+        "localBaserowListRowsLabel": "Zeilen in {tableName} auflisten",
+        "localBaserowAggregateRowsLabel": "Zeilen in {tableName} zusammenfassen",
+        "httpRequestLabel": "Eine HTTP-Anfrage senden",
+        "smtpEmailLabel": "Eine E-Mail senden",
+        "routerLabel": "Einem von {edgeCount} Zweigen folgen",
+        "iterationLabel": "Über Elemente iterieren",
+        "defaultEdgeLabelFallback": "Standard",
+        "routerWithOutputNodesDeleteError": "Kann nicht gelöscht werden, bis seine {outputCount} Ausgangsknoten entfernt wurden.",
+        "routerWithOutputNodesReplaceError": "Kann nicht ersetzt werden, bis seine {outputCount} Ausgangsknoten entfernt wurden.",
+        "iteratorWithChildrenNodesDeleteError": "Kann nicht gelöscht werden, bis seine untergeordneten Knoten entfernt wurden.",
+        "iteratorWithChildrenNodesReplaceError": "Kann nicht ersetzt werden, bis seine untergeordneten Knoten entfernt wurden.",
+        "periodicTriggerLabel": "Periodischer Auslöser",
+        "aiAgent": "KI-Prompt",
+        "slackWriteMessageName": "Slack-Nachricht senden",
+        "slackWriteMessageLabel": "Nachricht an #{channel} senden"
+    },
+    "workflowNode": {
+        "actionDelete": "Löschen",
+        "actionReplace": "Ersetzen",
+        "actionDuplicate": "Duplizieren",
+        "actionConfigure": "Konfigurieren",
+        "beforeLabelTrigger": "Startet wenn",
+        "beforeLabelAction": "Dann",
+        "beforeLabelCondition": "Wenn die Bedingung erfüllt ist",
+        "beforeLabelConditionDefault": "Wenn keine Bedingung erfüllt ist",
+        "beforeLabelRepeat": "Für jedes Element",
+        "moreEdit": "Bearbeiten",
+        "moreReplace": "Ersetzen",
+        "nodeOptions": "Knoten-Optionen",
+        "displayLabelDebug": "ID: {id} | Vorher: {previousNodeId} | {outputUid}",
+        "moreDuplicate": "Duplizieren"
+    },
+    "workflowAddNode": {
+        "displayTitle": "Automatisierungsknoten erstellen"
+    },
+    "workflowNodeContext": {
+        "searchPlaceholderTrigger": "Auslöser suchen...",
+        "searchPlaceholderActions": "Aktionen suchen...",
+        "noResults": "Keine Ergebnisse gefunden"
+    },
+    "serviceType": {
+        "periodicTrigger": "Periodischer Auslöser",
+        "periodicTriggerDescription": "Löst den Workflow regelmäßig in festgelegten Intervallen aus",
+        "periodicTriggerTriggeredAt": "Ausgelöst um",
+        "errorIntervalMissing": "Ein Intervall ist erforderlich.",
+        "coreHTTPTrigger": "HTTP-Auslöser",
+        "coreHTTPTriggerDescription": "HTTP-Anfragen empfangen, um Workflows auszulösen"
+    },
+    "workflowEditor": {
+        "chooseEvent": "Ereignis auswählen..."
+    },
+    "simulateDispatch": {
+        "sampleDataLabel": "Ausgabe",
+        "triggerNodeAwaitingEvent": "Der Knoten wartet. Bitte lösen Sie das Ereignis manuell aus, um die Nutzlast zu füllen und den Test abzuschließen.",
+        "simulationInProgress": "Knoten-Test wird ausgeführt...",
+        "errorNodeNotConfigured": "Der Knoten muss konfiguriert werden, bevor er getestet werden kann.",
+        "errorPreviousNodeNotConfigured": "Der vorherige Knoten \"{node}\" muss konfiguriert werden.",
+        "errorPreviousNodesNotTested": "Der vorherige Knoten \"{node}\" muss zuerst getestet werden.",
+        "buttonLabelTest": "Ereignis testen",
+        "buttonLabelTestAgain": "Ereignis erneut testen",
+        "testNodeDescription": "Testen Sie dieses Ereignis, um sicherzustellen, dass die Konfiguration korrekt ist. Die Daten aus diesem Test können in späteren Schritten verwendet werden.",
+        "buttonLabelShowPayload": "Nutzlast anzeigen",
+        "buttonLabelShowError": "Fehler anzeigen",
+        "sampleDataModalTitle": "Nutzlast für {nodeLabel}",
+        "sampleDataModalSubTitle": "JSON-Nutzlast",
+        "sampleDataCopy": "Kopieren",
+        "errorOccurred": "Ein Fehler ist aufgetreten...",
+        "sampleDataCopied": "Nutzlast in die Zwischenablage kopiert"
     }
 }

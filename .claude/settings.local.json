@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(docker exec baserow-backend-1:*)",
-      "Bash(docker exec baserow-web-frontend-1:*)",
-      "Bash(docker restart baserow-web-frontend-1:*)"
-    ]
-  }
-}

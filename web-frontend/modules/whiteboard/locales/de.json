@@ -2,10 +2,10 @@
   "applicationType": {
     "whiteboard": "Whiteboard",
     "whiteboards": "Whiteboards",
-    "whiteboardDesc": "A collaborative whiteboard powered by tldraw.",
+    "whiteboardDesc": "Ein kollaboratives Whiteboard auf Basis von tldraw.",
     "whiteboardDefaultName": "Whiteboard"
   },
   "whiteboardPage": {
-    "loading": "Loading whiteboard..."
+    "loading": "Whiteboard wird geladen..."
   }
 }
