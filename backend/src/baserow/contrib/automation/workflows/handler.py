@@ -859,7 +859,10 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         Clears any old history entries across all workflows.
 
         It will delete any history entries that are older than MAX_HISTORY_DAYS
-        and only keep the most recent MAX_HISTORY_ENTRIES entries.
+        and only keep the most recent MAX_HISTORY_ENTRIES entries, but only for
+        entries older than MIN_RETENTION_DAYS. This ensures that recent history
+        is always preserved for investigation, even when a workflow is misbehaving
+        (e.g. running in a tight loop) and the MAX_ENTRIES limit is exceeded.
         """
 
         # Delete all history entries older than max days
@@ -870,8 +873,14 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
             status=HistoryStatusChoices.STARTED
         ).filter(started_on__lt=oldest_history_date).delete()
 
-        # Delete all history entries older than max entries
+        # Delete history entries beyond max entries, but only if they are also
+        # older than min retention days. Entries within the retention window are
+        # always kept regardless of count, so that recent history is available
+        # for investigation even when a workflow runs excessively.
         max_entries = settings.AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES
+        recent_threshold = timezone.now() - timedelta(
+            days=settings.AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS
+        )
         cutoff_date = Subquery(
             AutomationWorkflowHistory.objects.filter(
                 original_workflow_id=OuterRef("original_workflow_id")
@@ -884,7 +893,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         )
         AutomationWorkflowHistory.objects.exclude(
             status=HistoryStatusChoices.STARTED
-        ).filter(started_on__lt=cutoff_date).delete()
+        ).filter(
+            Q(started_on__lt=cutoff_date) & Q(started_on__lt=recent_threshold),
+        ).delete()
 
         # Clean up published automations that no longer have any history entries
         empty_published = (

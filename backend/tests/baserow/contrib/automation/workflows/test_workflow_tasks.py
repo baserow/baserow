@@ -152,6 +152,7 @@ def test_automation_periodic_cleanup_deletes_entries_older_than_max_days(data_fi
 @override_settings(
     AUTOMATION_WORKFLOW_HISTORY_MAX_DAYS=2,
     AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=2,
+    AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS=0,
 )
 @pytest.mark.django_db
 def test_automation_periodic_cleanup_keeps_entries_within_both_limits(data_fixture):
@@ -273,3 +274,79 @@ def test_automation_periodic_cleanup_max_entries_with_different_clones(data_fixt
         automation_periodic_cleanup()
 
     assert original_workflow.workflow_histories.count() == 2
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=2,
+    AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS=2,
+)
+@pytest.mark.django_db
+def test_automation_periodic_cleanup_recent_entries_protected_from_count_cleanup(
+    data_fixture,
+):
+    """
+    Entries within MIN_RETENTION_DAYS are never deleted by MAX_ENTRIES, even when
+    the workflow has more entries than the limit. This ensures that history from a
+    misbehaving workflow (e.g. a tight loop) is preserved for investigation.
+    """
+
+    workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2026-04-29 10:00:00"):
+        history_1 = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.SUCCESS
+        )
+    with freeze_time("2026-04-29 11:00:00"):
+        history_2 = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.SUCCESS
+        )
+    with freeze_time("2026-04-29 12:00:00"):
+        history_3 = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.SUCCESS
+        )
+
+    # Run cleanup on the same day — all 3 entries are within MIN_RETENTION_DAYS=2,
+    # so none should be deleted despite exceeding MAX_ENTRIES=2.
+    with freeze_time("2026-04-29 13:00:00"):
+        automation_periodic_cleanup()
+
+    assert workflow.workflow_histories.filter(id=history_1.id).exists()
+    assert workflow.workflow_histories.filter(id=history_2.id).exists()
+    assert workflow.workflow_histories.filter(id=history_3.id).exists()
+
+
+@override_settings(
+    AUTOMATION_WORKFLOW_HISTORY_MAX_ENTRIES=2,
+    AUTOMATION_WORKFLOW_HISTORY_MIN_RETENTION_DAYS=2,
+    # Disable timeout so STARTED entries from old dates aren't marked as errors.
+    AUTOMATION_WORKFLOW_TIMEOUT_HOURS=9999,
+)
+@pytest.mark.django_db
+def test_automation_periodic_cleanup_old_entries_beyond_count_are_deleted(data_fixture):
+    """
+    Entries older than MIN_RETENTION_DAYS that exceed MAX_ENTRIES are deleted normally.
+    """
+
+    workflow = data_fixture.create_automation_workflow()
+
+    with freeze_time("2026-04-25 10:00:00"):
+        history_1 = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.SUCCESS
+        )
+    with freeze_time("2026-04-25 11:00:00"):
+        history_2 = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.SUCCESS
+        )
+    with freeze_time("2026-04-25 12:00:00"):
+        history_3 = data_fixture.create_automation_workflow_history(
+            workflow=workflow, status=HistoryStatusChoices.SUCCESS
+        )
+
+    # Run cleanup 4 days later — all entries are older than MIN_RETENTION_DAYS=2,
+    # so the oldest entry should be deleted to enforce MAX_ENTRIES=2.
+    with freeze_time("2026-04-29 12:00:00"):
+        automation_periodic_cleanup()
+
+    assert not workflow.workflow_histories.filter(id=history_1.id).exists()
+    assert workflow.workflow_histories.filter(id=history_2.id).exists()
+    assert workflow.workflow_histories.filter(id=history_3.id).exists()
