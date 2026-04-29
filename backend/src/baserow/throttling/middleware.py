@@ -7,7 +7,7 @@ from baserow.api.exceptions import (
     ThrottledAPIException,
     api_exception_to_json_response,
 )
-from baserow.api.sessions import get_user_remote_ip_address_from_request
+from baserow.core.utils import get_user_remote_ip_address_from_request
 from baserow.throttling.handler import ConcurrentUserRequestsThrottle
 
 from .blacklist import get_token_cooldown_time, is_ip_blacklisted
