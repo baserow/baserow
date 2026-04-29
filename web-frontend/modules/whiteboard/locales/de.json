@@ -1,5 +1,30 @@
 {
   "whiteboardPage": {
-    "loading": "Loading whiteboard"
+    "loading": "Whiteboard wird geladen"
+  },
+  "whiteboardComments": {
+    "toolbarComment": "Kommentar",
+    "toolbarShowResolved": "Erledigte anzeigen",
+    "newComment": "Neuer Kommentar",
+    "thread": "Diskussion",
+    "resolve": "Erledigen",
+    "resolving": "Wird erledigt…",
+    "reopen": "Wieder öffnen",
+    "post": "Veröffentlichen",
+    "save": "Speichern",
+    "edited": "bearbeitet",
+    "unknownAuthor": "Unbekannt",
+    "placeholderNew": "Kommentar hinzufügen, erwähnen mit {'@'}",
+    "placeholderReply": "Antworten… erwähnen mit {'@'}",
+    "placeholderEdit": "Kommentar bearbeiten",
+    "confirmDelete": "Diesen Kommentar löschen?"
+  },
+  "whiteboardCommentMentionNotification": {
+    "title": "{sender} hat dich in {whiteboard} erwähnt.",
+    "deletedUser": "gelöschter Benutzer"
+  },
+  "whiteboardCommentReplyNotification": {
+    "title": "{sender} hat auf eine Diskussion in {whiteboard} geantwortet.",
+    "deletedUser": "gelöschter Benutzer"
   }
 }

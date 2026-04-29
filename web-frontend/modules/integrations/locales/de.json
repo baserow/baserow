@@ -1,63 +1,33 @@
 {
-    "localBaserowGetRowForm": {
-        "rowFieldHelpText": "Wert leer lassen, um die erste Zeile abzufragen.",
-        "rowFieldLabel": "Row-ID",
-        "invalidFormula": "Die Formel ist ungültig",
-        "rowFieldPlaceHolder": "Wählen Sie eine Row-ID",
-        "searchFieldPlaceHolder": "Geben Sie einen Suchbegriff ein...",
-        "filterTabTitle": "Filter",
-        "searchTabTitle": "Suche",
-        "noTableChosenForSorting": "Wählen Sie eine Tabelle um die Datenquellen-Sortierung zu verwenden.",
-        "noTableChosenForFiltering": "Wählen Sie eine Tabelle, um die Datenquellen-Filter zu nutzen."
-    },
-    "localBaserowTableServiceConditionalForm": {
-        "noCompatibleFilterTypesErrorTitle": "Keine kompatiblen Filterarten",
-        "noCompatibleFilterTypesErrorMessage": "Keine Ihrer Felder hat kompatible Filterarten",
-        "noFilterText": "Datenquellen-Filter ermöglichen Ihnen, nur die Zeilen einer Baserow-Tabelle anzuzeigen, auf welche die Bedingungen zutreffen.",
-        "relatedFieldNotFound": "Das Bezugsfeld wurde nicht gefunden.",
-        "filterTypeNotFound": "Die Filterart ist nicht kompatibel.",
-        "addFilter": "Zusätzliche Filter hinzufügen",
-        "noFilterTitle": "Sie haben bisher keinen Datenquellen-Filter erstellt",
-        "formulaFilterInputPlaceholder": "Text eingeben...",
-        "useFormulaForValue": "Eine Formel für diesen Filter verwenden",
-        "useDefaultForValue": "Standardfilter für dieses Feld verwenden"
-    },
-    "localBaserowTableServiceSortForm": {
-        "noTableChosenForSorting": "Wählen Sie eine Tabelle, um die Datenquellen-Sortierung zu verwenden.",
-        "noSortText": "Sortierung ermöglicht Ihnen, Zeilen nach einem Feld zu sortieren.",
-        "noSortTitle": "Sie haben noch keine Datenquellen-Sortierung erstellt",
-        "thenBy": "und nach",
-        "addSort": "Zusätzliche Sortierung hinzufügen",
-        "sortBy": "Sortieren nach",
-        "sortMisconfigured": "Das Feld, zu dem diese Sortierung gehört, wurde verworfen."
-    },
-    "dataProviderType": {
-        "dataSource": "Datenquelle",
-        "pageParameter": "Parameter"
-    },
-    "localBaserowTableSelector": {
-        "tableFieldLabel": "Tabelle",
-        "viewFieldLabel": "Ansicht",
-        "chooseNoView": "Nicht ausgewählt",
-        "databaseFieldLabel": "Datenbank",
-        "dataSyncedTableDescription": "Tabelle mit synchronisierten Daten"
+    "integrationsCommon": {
+        "singleRow": "Einzelne Zeile",
+        "multipleRows": "Mehrere Zeilen"
     },
     "integrationType": {
         "localBaserow": "Lokales Baserow",
-        "localBaserowSummary": "Lokales Baserow - {name}, {username}",
-        "localBaserowWarning": "Wenn Sie Ihr Konto autorisieren, hat jeder, der Bearbeitungsrechte für die Anwendung hat, vollen Zugriff auf die Daten, auf die auch Sie Zugriff haben. Es ist möglich, einen zweiten Benutzer zu erstellen, ihm die notwendigen Berechtigungen zu geben und stattdessen diesen zu verwenden.",
         "smtp": "SMTP-E-Mail",
         "slackBot": "Slack-Bot",
         "ai": "AI"
     },
+    "localBaserowIntegrationType": {
+        "localBaserowSummary": "Lokales Baserow - {name}, {username}",
+        "localBaserowNoUser": "Lokales Baserow - Nicht konfiguriert",
+        "localBaserowWarning": "Wenn Sie Ihr Konto autorisieren, hat jeder mit Bearbeitungsrechten für die Anwendung auch vollen Zugriff auf die Daten, auf welche Sie Zugriff haben. Es ist möglich einen zweiten Benutzer zu erstellen, diesem die passenden Berechtigungen zu geben und stattdessen diesen zu verwenden."
+    },
+    "aiIntegrationType": {
+        "inheritingWorkspace": "Übernimmt die KI-Einstellungen des Workspaces",
+        "overridingProviders": "Überschreibt {count} Anbieter | Überschreibt {count} Anbieter"
+    },
+    "slackBotIntegrationType": {
+        "slackBotSummary": "Slack-Bot",
+        "slackBotNoToken": "Slack-Bot – Nicht konfiguriert"
+    },
     "serviceType": {
         "localBaserowGetRow": "Einzelne Zeile abfragen",
-        "localBaserowListRows": "Mehrere Zeilen auflisten",
-        "localBaserowAggregateRows": "Feld zusammenfassen",
-        "misconfigured": "Fehlkonfiguriert",
-        "trashedField": "Verworfenes Feld",
         "localBaserowGetRowDescription": "Eine einzelne Zeile aus einer Baserow-Tabelle lesen.",
+        "localBaserowListRows": "Mehrere Zeilen auflisten",
         "localBaserowListRowsDescription": "Liest mehrere Zeilen aus einer Baserow-Tabelle.",
+        "localBaserowAggregateRows": "Feld zusammenfassen",
         "localBaserowAggregateRowsDescription": "Fasst ein Feld in einer Baserow-Tabelle zusammen.",
         "localBaserowCreateRow": "Eine Zeile erstellen",
         "localBaserowCreateRowDescription": "Erstellt eine neue Zeile in einer Baserow-Tabelle.",
@@ -71,6 +41,8 @@
         "localBaserowRowsUpdatedDescription": "Wird ausgelöst, wenn Zeilen in einer Baserow-Tabelle aktualisiert werden.",
         "localBaserowRowsDeleted": "Zeilen werden gelöscht",
         "localBaserowRowsDeletedDescription": "Wird ausgelöst, wenn Zeilen in einer Baserow-Tabelle gelöscht werden.",
+        "coreHTTPTrigger": "Einen HTTP-Request empfangen",
+        "coreHTTPTriggerDescription": "Wird ausgelöst, wenn ein HTTP-Request empfangen wird.",
         "coreHTTPRequest": "Eine HTTP-Anfrage senden",
         "coreHTTPRequestDescription": "Sendet eine HTTP-Anfrage an einen angegebenen Endpunkt.",
         "coreSMTPEmail": "E-Mail versenden",
@@ -80,8 +52,12 @@
         "coreRouterEdgeConditionRequired": "Eine Zweigbedingung ist erforderlich.",
         "coreRouterDescription": "Leitet den Workflow basierend auf einer Bedingung zum nächsten Zweig weiter.",
         "coreSMTPEmailDescription": "Sendet eine E-Mail unter Verwendung der SMTP-Konfiguration.",
+        "coreIteration": "Iterator",
+        "coreIterationDescription": "Über Elemente iterieren.",
         "errorFromEmailMissing": "Fehlende E-Mail-Eigenschaft \"From\"",
         "errorToEmailsMissing": "Fehlende E-Mail-Eigenschaft \"To\"",
+        "misconfigured": "Fehlkonfiguriert",
+        "trashedField": "Verworfenes Feld",
         "errorUrlMissing": "Fehlende URL-Eigenschaft",
         "errorNoTableSelected": "Keine Tabelle ausgewählt",
         "errorFilterInError": "Mindestens ein Filter ist falsch konfiguriert",
@@ -91,10 +67,19 @@
         "corePeriodic": "Periodischer Auslöser",
         "corePeriodicDescription": "Löst den Workflow in regelmäßigen Abständen zu festgelegten Zeitpunkten aus",
         "corePeriodicErrorIntervalMissing": "Ein Intervall ist erforderlich.",
-        "coreHTTPTrigger": "Einen HTTP-Request empfangen",
-        "coreHTTPTriggerDescription": "Wird ausgelöst, wenn ein HTTP-Request empfangen wird.",
-        "coreIteration": "Iterator",
-        "coreIterationDescription": "Über Elemente iterieren."
+        "errorIterationSourceMissing": "Quelleigenschaft fehlt",
+        "aiAgent": "KI-Prompt",
+        "aiAgentDescription": "Führt KI-Prompts mit den konfigurierten generativen KI-Modellen aus.",
+        "errorNoIntegrationSelected": "Keine Integration ausgewählt",
+        "errorNoAIProviderSelected": "Kein KI-Anbieter ausgewählt",
+        "errorNoAIModelSelected": "Kein KI-Modell ausgewählt",
+        "errorNoPromptProvided": "Kein Prompt angegeben",
+        "errorNoChoicesProvided": "Keine Auswahlmöglichkeiten für den Ausgabetyp \"Auswahl\" angegeben",
+        "slackWriteMessage": "Slack-Nachricht senden",
+        "slackWriteMessageDescription": "Sendet eine Nachricht an einen bestimmten Slack-#Kanal",
+        "slackWriteMessageMissingChannel": "Ein Kanal ist erforderlich.",
+        "slackWriteMessageMissingMessage": "Eine Nachricht ist erforderlich.",
+        "slackWriteMessageMissingIntegration": "Keine Slack-Integration ausgewählt."
     },
     "userSourceType": {
         "localBaserow": "Baserow-Tabellen-Authentifizierung"
@@ -103,34 +88,51 @@
         "user": "Benutzer",
         "userMessage": "Mit dieser Verbindung autorisieren Sie die Anwendung, Ihr Konto zu verwenden, um Änderungen in Ihrem lokalen Baserow-Arbeitsbereich vorzunehmen."
     },
+    "aiForm": {
+        "description": "Konfigurieren Sie die KI-Anbietereinstellungen für diese Integration. Standardmäßig werden die KI-Einstellungen des Arbeitsbereichs übernommen.",
+        "workspaceSettingsTitle": "KI-Einstellungen des Arbeitsbereichs",
+        "workspaceSettingsDescription": "Diese Integration übernimmt standardmäßig die KI-Anbietereinstellungen aus Ihrem Arbeitsbereich. Sie können einzelne Anbieter unten überschreiben.",
+        "overrideWorkspaceSettings": "Arbeitsbereichseinstellungen für diesen Anbieter überschreiben",
+        "inherited": "Übernommen",
+        "overridden": "Überschrieben"
+    },
+    "aiAgentServiceForm": {
+        "integrationLabel": "Integration",
+        "providerLabel": "KI-Anbieter",
+        "providerPlaceholder": "KI-Anbieter auswählen...",
+        "modelLabel": "KI-Modell",
+        "modelPlaceholder": "Modell auswählen...",
+        "outputTypeLabel": "Ausgabetyp",
+        "outputTypeHelp": "Legen Sie fest, wie die KI ihre Antwort formatieren soll. Wenn Sie Auswahlmöglichkeiten definieren, zwingen Sie das Modell, nur mit einer dieser Möglichkeiten zu antworten.",
+        "outputTypeText": "Text",
+        "outputTypeChoice": "Auswahl",
+        "temperatureLabel": "Temperatur",
+        "temperaturePlaceholder": "z. B. 0,7",
+        "temperatureHelp": "Steuert die Zufälligkeit. Niedrigere Werte (0–0,3) sind fokussierter und deterministischer. Höhere Werte (0,7–2,0) sind kreativer und vielfältiger.",
+        "promptLabel": "Prompt",
+        "promptPlaceholder": "Geben Sie hier Ihren Prompt ein...",
+        "choicesLabel": "Auswahlmöglichkeiten",
+        "choicePlaceholder": "Geben Sie eine Auswahlmöglichkeit ein...",
+        "addChoice": "Auswahlmöglichkeit hinzufügen",
+        "choicesRequired": "Mindestens eine Auswahlmöglichkeit ist erforderlich"
+    },
+    "localBaserowGetRowForm": {
+        "rowFieldLabel": "Row-ID",
+        "invalidFormula": "Die Formel ist ungültig",
+        "rowFieldPlaceHolder": "Wählen Sie eine Row-ID",
+        "rowFieldHelpText": "Wert leer lassen, um die erste Zeile abzufragen.",
+        "searchFieldPlaceHolder": "Geben Sie einen Suchbegriff ein...",
+        "noTableChosenForFiltering": "Wählen Sie eine Tabelle, um die Datenquellen-Filter zu nutzen.",
+        "noTableChosenForSorting": "Wählen Sie eine Tabelle um die Datenquellen-Sortierung zu verwenden."
+    },
     "localBaserowListRowsForm": {
-        "sortTabTitle": "Sortiert",
-        "searchTabTitle": "Suche",
-        "filterTabTitle": "Filter",
-        "noTableChosenForSorting": "Wählen Sie eine Tabelle um die Datenquellen-Sortierung zu nutzen.",
         "searchFieldPlaceHolder": "Geben Sie einen Suchbegriff ein...",
         "noTableChosenForFiltering": "Wählen Sie eine Tabelle um die Filter der Datenquelle nutzen zu können.",
+        "noTableChosenForSorting": "Wählen Sie eine Tabelle um die Datenquellen-Sortierung zu nutzen.",
         "advancedConfig": "Erweitert",
         "defaultResultCount": "Standardanzahl der Ergebnisse",
         "defaultResultCountHelp": "Die Standardanzahl der Datensätze, die diese Datenquelle auf Ihrer Seite abruft. Wenn Sie den Wert auf 0 setzen und ihn für ein Sammelelement verwenden, wird die Leistung beim Laden der Seite verbessert, da die Datensätze nur abgerufen werden, wenn das Element paginiert ist.",
         "defaultResultCountPlaceholder": "Standardwert..."
-    },
-    "localBaserowIntegrationType": {
-        "localBaserowSummary": "Lokales Baserow - {name}, {username}",
-        "localBaserowNoUser": "Lokales Baserow - Nicht konfiguriert",
-        "localBaserowWarning": "Wenn Sie Ihr Konto autorisieren, hat jeder mit Bearbeitungsrechten für die Anwendung auch vollen Zugriff auf die Daten, auf welche Sie Zugriff haben. Es ist möglich einen zweiten Benutzer zu erstellen, diesem die passenden Berechtigungen zu geben und stattdessen diesen zu verwenden."
-    },
-    "integrationsCommon": {
-        "singleRow": "Einzelne Zeile",
-        "multipleRows": "Mehrere Zeilen"
-    },
-    "localBaserowAggregateRowsForm": {
-        "filterTabTitle": "Filter",
-        "searchTabTitle": "Suche",
-        "aggregationFieldLabel": "Feld",
-        "aggregationTypeLabel": "Aggregierung",
-        "searchFieldPlaceHolder": "Geben Sie einen Suchbegriff ein...",
-        "noTableChosenForFiltering": "Wählen Sie eine Tabelle, um mit der Verwendung von Datenquellenfiltern zu beginnen."
     },
     "serviceRefinementForms": {
         "filterTabTitle": "Filter | 1 Filter | {count} Filter",
@@ -140,6 +142,38 @@
         "noTableChosenForFiltering": "Wählen Sie eine Tabelle aus, um mit der Verwendung von Datenquellen-Filtern zu beginnen.",
         "noTableChosenForSorting": "Wählen Sie eine Tabelle aus, um mit der Verwendung von Datenquellen-Sortierungen zu beginnen.",
         "refinements": "Verfeinerungen"
+    },
+    "localBaserowAggregateRowsForm": {
+        "aggregationFieldLabel": "Feld",
+        "aggregationTypeLabel": "Aggregierung",
+        "searchFieldPlaceHolder": "Geben Sie einen Suchbegriff ein...",
+        "noTableChosenForFiltering": "Wählen Sie eine Tabelle, um mit der Verwendung von Datenquellenfiltern zu beginnen."
+    },
+    "localBaserowTableServiceConditionalForm": {
+        "addFilter": "Zusätzliche Filter hinzufügen",
+        "noFilterTitle": "Sie haben bisher keinen Datenquellen-Filter erstellt",
+        "noFilterText": "Datenquellen-Filter ermöglichen Ihnen, nur die Zeilen einer Baserow-Tabelle anzuzeigen, auf welche die Bedingungen zutreffen.",
+        "relatedFieldNotFound": "Das Bezugsfeld wurde nicht gefunden.",
+        "filterTypeNotFound": "Die Filterart ist nicht kompatibel.",
+        "noCompatibleFilterTypesErrorTitle": "Keine kompatiblen Filterarten",
+        "noCompatibleFilterTypesErrorMessage": "Keine Ihrer Felder hat kompatible Filterarten",
+        "textFilterInputPlaceholder": "Text eingeben...",
+        "formulaFilterInputPlaceholder": "Text eingeben...",
+        "useFormulaForValue": "Eine Formel für diesen Filter verwenden",
+        "useDefaultForValue": "Standardfilter für dieses Feld verwenden"
+    },
+    "localBaserowTableServiceSortForm": {
+        "noSortTitle": "Sie haben noch keine Datenquellen-Sortierung erstellt",
+        "noSortText": "Sortierung ermöglicht Ihnen, Zeilen nach einem Feld zu sortieren.",
+        "sortBy": "Sortieren nach",
+        "thenBy": "und nach",
+        "addSort": "Zusätzliche Sortierung hinzufügen",
+        "noTableChosenForSorting": "Wählen Sie eine Tabelle, um die Datenquellen-Sortierung zu verwenden.",
+        "sortMisconfigured": "Das Feld, zu dem diese Sortierung gehört, wurde verworfen."
+    },
+    "dataProviderType": {
+        "dataSource": "Datenquelle",
+        "pageParameter": "Parameter"
     },
     "coreHTTPRequestServiceForm": {
         "httpMethod": "HTTP-Methode",
@@ -164,6 +198,41 @@
         "nameFieldInvalid": "Der Name darf nur alphanumerische Zeichen, Bindestriche oder Unterstriche enthalten und darf nicht mit einem Bindestrich oder einem Unterstrich beginnen.",
         "timeout": "Zeitlimit"
     },
+    "slackBotForm": {
+        "tokenLabel": "Bot-Benutzer-Token",
+        "tokenPlaceholder": "xoxb-1234-...",
+        "tokenMustStartWith": "Das Token muss mit \"xoxb-\" beginnen",
+        "supportHeading": "Benötigen Sie Hilfe?",
+        "supportDescription": "Wenn Sie Unterstützung beim Verbinden Ihrer Slack-App benötigen, beachten Sie bitte die folgenden Schritte.",
+        "supportSetupHeading": "1. App einrichten",
+        "supportSetupDescription": "Abhängig von den Einstellungen Ihres Slack-Arbeitsbereichs können Sie möglicherweise eine neue Slack-App erstellen. Andernfalls muss dies ein Administrator für Sie übernehmen. Wenn Sie eine bestehende App wiederverwenden, die Nachrichten schreiben kann, können Sie zum Abschnitt \"Verbinden mit Ihrer Slack-App\" springen.",
+        "supportSetupStep1": "Navigieren Sie zur {link} Ihres Arbeitsbereichs.",
+        "supportSetupStep1Link": "Apps-Seite",
+        "supportSetupStep2": "Erstellen Sie eine neue App, wählen Sie \"From scratch\" und geben Sie einen Namen ein. Wählen Sie den Arbeitsbereich aus, in dem Ihre App arbeiten soll, und klicken Sie auf \"Create\".",
+        "supportSetupStep3": "Navigieren Sie in der linken Seitenleiste zu \"OAuth > Permissions\", scrollen Sie zu \"Scopes\" und wählen Sie unter \"Bot Token Scopes\" die Option \"Add an OAuth Scope\".",
+        "supportSetupStep4": "Damit Ihre App Nachrichten posten kann, fügen Sie den Bereich {scope} hinzu.",
+        "supportPairingHeading": "2. Verbinden mit Ihrer Slack-App",
+        "supportPairingStep1": "Falls Ihre App neu ist: Navigieren Sie zu \"Settings\" > \"Install App\". Klicken Sie auf den grünen Button, um die App in Ihrem Arbeitsbereich zu installieren.",
+        "supportPairingStep2": "Kopieren Sie Ihr \"Bot User OAuth Token\" und tragen Sie es in das Feld \"Bot-Benutzer-Token\" in diesem Formular ein.",
+        "supportPairingStep3": "Falls Ihre App neu ist: Laden Sie Ihre App in Slack mit {command} in den gewünschten Kanal ein."
+    },
+    "slackWriteMessageServiceForm": {
+        "alertMessage": "Diese Aktion muss mit einer Slack-App verknüpft werden. Bitte folgen Sie der Anleitung im Integrationen-Popup, um zu beginnen.",
+        "integrationLabel": "Integration",
+        "channelLabel": "Kanal",
+        "channelPlaceholder": "Kanalnamen eingeben",
+        "messageLabel": "Nachricht",
+        "messagePlaceholder": "Nachricht eingeben...",
+        "channelNoPrefix": "Entfernen Sie das \"#\" vor dem Kanalnamen."
+    },
+    "localBaserowTableSelector": {
+        "viewFieldLabel": "Ansicht",
+        "tableFieldLabel": "Tabelle",
+        "chooseNoView": "Nicht ausgewählt",
+        "databaseFieldLabel": "Datenbank",
+        "oneWayDataSyncedTableDescription": "Einseitig synchronisiert",
+        "twoWayDataSyncedTableDescription": "Beidseitig synchronisiert"
+    },
     "smtpIntegrationType": {
         "smtpSummary": "SMTP - {host}:{port}"
     },
@@ -179,6 +248,8 @@
         "passwordPlaceholder": "swordfish"
     },
     "smtpEmailForm": {
+        "smtpConfigurationMode": "SMTP-Konfiguration",
+        "useInstanceSmtpSettings": "SMTP-Server der Instanz verwenden",
         "integrationDropdownLabel": "Integration",
         "fromEmail": "Absender-E-Mailadresse",
         "fromEmailPlaceholder": "absender{'@'}beispiel.de",
@@ -197,6 +268,10 @@
         "bodyTypeHtml": "HTML",
         "body": "Body",
         "bodyPlaceholder": "Ihr E-Mailinhalt..."
+    },
+    "coreIterationServiceForm": {
+        "source": "Quelle",
+        "sourcePlaceholder": "Quelle auswählen..."
     },
     "routerForm": {
         "defaultEdgeLabelLabel": "Standard-Zweigbezeichnung",
@@ -217,25 +292,42 @@
         "intervalLabel": "Intervall",
         "intervalHelper": "Wählen Sie aus, wie oft dieser Workflow ausgeführt werden soll",
         "everyMinute": "Jede Minute",
+        "everyMinuteDefault": "Alle angegebenen Minuten",
         "everyHour": "Jede Stunde",
         "everyDay": "Jeden Tag",
         "everyWeek": "Jede Woche",
         "everyMonth": "Jeden Monat",
         "hour": "Stunde",
         "minute": "Minute",
+        "minuteFrequency": "Alle Minuten",
         "dayOfWeek": "Wochentag",
         "dayOfMonth": "Tag eines Monats",
         "hourPlaceholder": "0-23",
         "minutePlaceholder": "0-59",
+        "minuteFrequencyPlaceholder": "15",
         "dayOfMonthPlaceholder": "1-31",
-        "minuteHelper": "Dieser Workflow wird jede Minute ausgeführt"
+        "minuteHelper": "Dieser Workflow wird jede Minute ausgeführt",
+        "hourHelper": "Dieser Workflow wird jede Stunde zur angegebenen Minute in Ihrer lokalen Zeitzone ({timezone}) ausgeführt",
+        "dayHelper": "Dieser Workflow wird jeden Tag zur angegebenen Uhrzeit in Ihrer lokalen Zeitzone ({timezone}) ausgeführt",
+        "weekHelper": "Dieser Workflow wird jede Woche am angegebenen Tag und zur angegebenen Uhrzeit in Ihrer lokalen Zeitzone ({timezone}) ausgeführt",
+        "monthHelper": "Dieser Workflow wird jeden Monat am angegebenen Tag und zur angegebenen Uhrzeit in Ihrer lokalen Zeitzone ({timezone}) ausgeführt",
+        "deactivatedTitle": "Periodischer Trigger deaktiviert",
+        "deactivatedText": "Dieser periodische Trigger wurde aufgrund aufeinanderfolgender Fehler automatisch deaktiviert."
     },
-    "aiIntegrationType": {
-        "inheritingWorkspace": "Übernimmt die KI-Einstellungen des Workspaces",
-        "overridingProviders": "Überschreibt {count} Anbieter | Überschreibt {count} Anbieter"
+    "localBaserowServiceForm": {
+        "integrationDropdownLabel": "Integration",
+        "rowIdLabel": "Zeilen-ID",
+        "rowIdPlaceholder": "Eine einzelne Zeilen-ID auswählen"
     },
-    "slackBotIntegrationType": {
-        "slackBotSummary": "Slack-Bot",
-        "slackBotNoToken": "Slack-Bot – Nicht konfiguriert"
+    "localBaserowUpsertRowServiceForm": {
+        "fieldMappingPlaceholderArray": "Wählen Sie einen Array-Wert, z. B. [42]",
+        "fieldMappingPlaceholderString": "Wählen Sie einen Zeichenkettenwert, z. B. \\'baserow\\'",
+        "fieldMappingPlaceholderNumber": "Wählen Sie einen Zahlenwert, z. B. 42",
+        "fieldMappingPlaceholderBoolean": "Wählen Sie einen booleschen Wert, z. B. true",
+        "fieldMappingPlaceholderDate": "Wählen Sie einen Datumswert, z. B. 2025-07-25",
+        "fieldMappingPlaceholderDecimal": "Wählen Sie einen Dezimalwert, z. B. 3,14",
+        "fieldMappingPlaceholderDuration": "Wählen Sie einen Dauerwert, z. B. 1:23:40",
+        "noTableSelectedMessage": "Wählen Sie eine Tabelle aus, um Ihre Felder zu konfigurieren.",
+        "noWritableFields": "Diese Tabelle enthält keine beschreibbaren Felder."
     }
 }

@@ -5,8 +5,8 @@
         },
         "viewType": {
             "kanban": "Kanban",
-            "calendar": "Kalender",
-            "timeline": "Zeitleiste"
+            "timeline": "Zeitleiste",
+            "calendar": "Kalender"
         },
         "exporterType": {
             "json": "Nach JSON exportieren",
@@ -15,6 +15,10 @@
             "file": "Dateien exportieren"
         },
         "deactivated": "Verfügbar in der Premium-Version"
+    },
+    "paidFeaturesModal": {
+        "description": "Diese Funktion ist nur mit einem {plan}-Abonnement verfügbar. Um darauf zuzugreifen, aktualisieren Sie bitte Ihr Konto, indem Sie ein Abonnement abschließen. Klicken Sie auf die Schaltfläche unten, um unsere Preisoptionen zu sehen.",
+        "viewPricing": "Preismodelle anzeigen"
     },
     "rowCommentSidebar": {
         "onlyPremium": "Zeilenkommentare sind in der Premium-Version verfügbar.",
@@ -29,14 +33,29 @@
         "anonymous": "Anonym",
         "creating": "Erstellen",
         "updating": "Aktualisierung",
-        "commentTrashed": "Dieser Kommentar wurde gelöscht.",
         "deleting": "löschen",
         "created": "erstellt",
-        "errorUserNotCommentAuthorTitle": "Kann nicht aktualisiert oder gelöscht werden.",
         "edited": "bearbeitet",
+        "commentTrashed": "Dieser Kommentar wurde gelöscht.",
+        "errorUserNotCommentAuthorTitle": "Kann nicht aktualisiert oder gelöscht werden.",
         "errorUserNotCommentAuthor": "Nur der Autor des Kommentars kann ihn aktualisieren oder löschen.",
         "errorInvalidCommentMentionTitle": "Ungültige Erwähnung",
         "errorInvalidCommentMention": "Der erwähnte Benutzer existiert nicht."
+    },
+    "rowCommentContext": {
+        "edit": "Kommentar bearbeiten",
+        "delete": "Kommentar löschen"
+    },
+    "rowCommentMentionNotification": {
+        "title": "{sender} hat Sie in Zeile {row} in {table} erwähnt",
+        "deletedUser": "Gelöschter Benutzer"
+    },
+    "rowCommentNotification": {
+        "title": "{sender} hat einen Kommentar in Tabelle {table}, Zeile {row} geschrieben",
+        "deletedUser": "Gelöschter Benutzer"
+    },
+    "trashType": {
+        "row_comment": "Zeilenkommentar"
     },
     "registerLicenseModal": {
         "titleRegisterLicense": "Eine Lizenz registrieren",
@@ -69,6 +88,12 @@
     "tableXMLExporter": {
         "encoding": "Kodierung"
     },
+    "tableExcelExporter": {
+        "includeHeader": "Feldnamen als Überschrift einfügen"
+    },
+    "tableFileExporter": {
+        "organizeFiles": "Dateien nach Zeilen-ID gruppieren"
+    },
     "kanbanViewStackContext": {
         "createCard": "Karte erstellen",
         "editStack": "Stapel bearbeiten",
@@ -88,20 +113,96 @@
         "title": "Feld gruppieren",
         "chooseField": "Nach welchem einzelnen Feld sollen die Karten gestapelt werden?"
     },
+    "kanbanView": {
+        "addStack": "Stapel hinzurüfen"
+    },
     "kanbanViewStack": {
         "uncategorized": "Unkategorisiert",
-        "tryAgain": "Erneut versuchen",
-        "new": "Neu"
+        "tryAgain": "Erneut versuchen"
+    },
+    "calendarViewType": {
+        "sharedViewText": "Erlauben Sie jedem, die Daten in dieser Ansicht zu sehen, oder synchronisieren Sie Ereignisse mit Ihrem externen Kalender.",
+        "sharedViewEnableSyncToExternalCalendar": "In einen externen Kalender synchronisieren",
+        "sharedViewDisableSyncToExternalCalendar": "Externen Sync deaktivieren",
+        "sharedViewDescription": "Fügen Sie diesen Link in ihre Kalenderanwendung ein",
+        "sharedViewTitle": "In einen externen Kalender synchronisieren"
+    },
+    "calendarViewHeader": {
+        "displayBy": "Anzeige nach",
+        "displayedBy": "Angezeigt durch das Feld \"{fieldName}\"",
+        "labels": "Beschriftungen"
+    },
+    "timelineViewHeader": {
+        "dateSettings": "Datumseinstellungen",
+        "labels": "Labels"
+    },
+    "selectDateFieldContext": {
+        "save": "Speichern"
+    },
+    "timelineDateSettingsForm": {
+        "startDateField": "Startdatum",
+        "endDateField": "Enddatum",
+        "noCompatibleDateFields": "In der Tabelle fehlen Datumsfelder. Bitte erstellen Sie in der Tabelle zunächst ein Start- und ein End-Datumsfeld.",
+        "incompatibleFieldsErrorTitle": "Inkompatible Felder",
+        "incompatibleFieldsErrorMessage": "Die Felder sind nicht miteinander kompatibel. Bitte wählen Sie zwei gültige Datumsfelder in der Tabelle aus, die dieselben Einstellungen für „Zeit einschließen“ und dieselbe Zeitzone für alle Mitwirkenden verwenden.",
+        "forceTimezone": "{timezone}",
+        "includeTime": "Datum und Zeit",
+        "dateOnly": "Nur Datum"
+    },
+    "timelineTimescaleContext": {
+        "hour": "Stunde",
+        "day": "Tag",
+        "week": "Woche",
+        "month": "Monat",
+        "quarter": "Quartal",
+        "year": "Jahr",
+        "disabledTooltip": "Diese Option ist nur für Datumsfelder verfügbar, bei denen „Zeit einschließen“ aktiviert ist."
+    },
+    "initTimelineViewSettings": {
+        "settings": "Datumseinstellungen"
+    },
+    "viewDateSelector": {
+        "today": "Heute"
+    },
+    "calendarMonthDay": {
+        "hiddenRowsCount": "0 | 1 mehr... | {hiddenRowsCount} mehr..."
+    },
+    "calendarMonthDayExpanded": {
+        "tryAgain": "Erneut versuchen"
+    },
+    "timelineGridRow": {
+        "days": "0 | 1 Tag | {count} Tage"
+    },
+    "premiumFeatures": {
+        "rowComments": "Zeilenkommentare",
+        "rowCommentsContent": "Arbeiten Sie direkt in Ihrer Tabelle zusammen. Fügen Sie Kommentare zu einzelnen Zeilen hinzu, erwähnen Sie Teammitglieder und behalten Sie den Kontext der Unterhaltung im Blick.",
+        "kanbanView": "Kanban-Ansicht",
+        "kanbanViewContent": "Organisieren Sie Ihre Daten visuell auf einem Kanban-Board. Karten werden anhand eines einzigen Auswahlfeldes in Stapeln gruppiert und Sie können sie ganz einfach per Drag & Drop zwischen den Stapeln verschieben.",
+        "calendarView": "Kalenderansicht",
+        "calendarViewContent": "Zeigen Sie Ihre Zeilen ganz einfach in einem Kalender an, indem Sie ein Datumsfeld Ihrer Wahl verwenden. Perfekt, um Termine, Ereignisse und Zeitpläne gesammelt im Blick zu behalten.",
+        "timelineView": "Zeitleisten-Ansicht",
+        "timelineViewContent": "Zeigen Sie Zeilen entlang einer horizontalen Zeitachse anhand von Start- und Enddaten an. Ideal für die Projektplanung und Roadmaps.",
+        "exports": "JSON- und XML-Export",
+        "exportsContent": "Exportieren Sie Ihre Daten ganz einfach in weitere Formate wie Excel, JSON und XML oder laden Sie alle Dateien aus einer Tabelle als Massendownload herunter – ideal für Backups, Berichte und die Weitergabe an andere.",
+        "rowColoring": "Zeilenfärbung",
+        "rowColoringContent": "Markieren Sie Zeilen mit Farben basierend auf einem einzelnen Auswahlfeld oder benutzerdefinierten Bedingungen. Dadurch lassen sich Muster und Prioritäten leichter erkennen.",
+        "rowNotifications": "Zeilenbenachrichtigungen",
+        "rowNotificationsContent": "Bleiben Sie mit anpassbaren Zeilenkommentar-Benachrichtigungen auf dem Laufenden. Wählen Sie zwischen Benachrichtigungen für alle Kommentare oder nur für Kommentare, in denen Sie erwähnt werden.",
+        "surveyForm": "Umfrageformular",
+        "surveyFormContent": "Sammeln Sie Frage für Frage Antworten im Umfragemodus. Eine vereinfachte Version der Formularansicht, optimiert für Fokus und Benutzerfreundlichkeit.",
+        "publicLogoRemoval": "Entfernung des öffentlichen Logos",
+        "publicLogoRemovalContent": "Entfernen Sie das Baserow-Logo aus öffentlichen Ansichten, um Ihren geteilten Inhalten ein klareres, markengerechteres Erscheinungsbild zu verleihen.",
+        "personalViews": "Persönliche Ansichten",
+        "personalViewsContent": "Erstellen Sie Ansichten, die nur der Autor sehen kann. So haben Sie Raum zum Experimentieren und Filtern und Sortieren von Daten, ohne den Arbeitsbereich anderer zu beeinträchtigen.",
+        "aiFeatures": "KI-Feld",
+        "aiFeaturesContent": "Nutzen Sie KI, um Ihre Arbeitsabläufe zu automatisieren und zu verbessern. Mit dem KI-Eingabefeldtyp können Sie Texte, Zusammenfassungen oder Erkenntnisse direkt in Zellen generieren, basierend auf dynamischen Eingabeaufforderungen, die auf andere Felder verweisen können. Unabhängig davon können Sie die KI auch bitten, Formeln für Sie zu erstellen.",
+        "chartWidget": "Diagramm-Widget",
+        "chartWidgetContent": "Visualisieren Sie Ihre Daten mit Diagrammen auf Dashboards. Verwenden Sie beliebige Tabellen als Datenquelle, fügen Sie mehrere Reihen hinzu und gruppieren oder sortieren Sie nach Feldern mit umfangreichen Zusammenfassungsoptionen."
     },
     "licenses": {
         "titleNoLicenses": "Keine Lizenzen gefunden",
         "titleLicenses": "Lizenzen",
         "noLicensesDescription": "Auf Ihrer Baserow-Instanz sind noch keine Lizenzen registriert. Mit einer Premium-Lizenz haben Sie sofortigen Zugriff auf alle zusätzlichen Funktionen. Wenn Sie bereits eine Lizenz besitzen, können Sie diese hier registrieren. Alternativ können Sie eine Lizenz erwerben, indem Sie auf die Schaltfläche unten klicken.",
-        "rowComments": "Kommentare zur Zeile",
-        "kanbanView": "Kanban-Ansicht",
-        "exports": "JSON- und XML-Export",
-        "admin": "Administrationsfunktionen",
-        "rowColoring": "Zeilenfarbe",
         "getLicense": "Eine Lizenz erwerben",
         "baserowInstanceId": "Ihre Baserow-Instanz-ID lautet:",
         "registerLicense": "Lizenz registrieren",
@@ -110,7 +211,6 @@
         "expired": "Abgelaufen",
         "validity": "Gültig von {start} bis {end}",
         "seats": "Sitze",
-        "premiumFeatures": "Premium-Funktionen",
         "applicationUsers": "Anwendungsbenutzer"
     },
     "license": {
@@ -132,18 +232,20 @@
         "lastCheckDescription": "Die Lizenz wird in regelmäßigen Abständen auf Änderungen geprüft. Wenn Sie zum Beispiel Ihre Lizenz erneuert oder aktualisiert haben, werden die Änderungen nach der Prüfung aktiv.",
         "checkNow": "jetzt prüfen",
         "seats": "Sitze (amount of users)",
+        "applicationUsers": "Anwendungsbenutzer",
+        "applicationUsersDescription": "Die Gesamtanzahl der Anwendungsbenutzer in veröffentlichten Application-Builder-Datenquellen.",
         "licensedTo": "Lizenziert für",
-        "premiumFeatures": "Premium-Funktionen",
         "applications": "Anwendungen/Datenbanken",
         "unlimited": "Unbegrenzt",
         "rowUsage": "Zeilenverwendung",
         "storeUsage": "Speicherverbrauch",
         "disconnectLicense": "Lizenz trennen",
         "disconnectDescription": "Wenn Sie diese Lizenz trennen, während sie aktiv ist, haben die zugehörigen Benutzer keinen Zugriff mehr auf den Plan. Damit wird die Lizenz effektiv entfernt. Bitte kontaktieren Sie unser Support-Team unter {contact}, wenn Sie diese Lizenz in einer anderen selbst gehosteten Instanz verwenden möchten.",
-        "contactSalesMoreSeats": "Kontaktieren Sie den Vertrieb für weitere Plätze",
         "moreSeatsNeededTitle": "Mehr Sitze erforderlich",
+        "contactSalesMoreSeats": "Kontaktieren Sie den Vertrieb für weitere Plätze",
         "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} bezahlte Plätze und {free_users_count} freie Plätze in Benutzung",
         "premiumFeatureName": "Premium",
+        "advancedFeatureName": "Erweitert",
         "enterpriseFeatureName": "Enterprise",
         "supportFeatureName": "Support"
     },
@@ -161,17 +263,17 @@
         "conditionalColor": "Bedingungen",
         "conditionalColorDescription": "Färbe Zeilen wenn sie die Bedingungen erfüllen"
     },
-    "conditionalColorValueProviderForm": {
-        "addColor": "Farbe hinzufügen",
-        "addCondition": "Bedingung hinzufügen",
-        "colorAlwaysApply": "Sie können Bedingungen hinzufügen, indem Sie auf den Button \"Bedingung hinzufügen\" klicken.",
-        "addConditionGroup": "Bedingungsgruppe hinzufügen",
-        "colorAlwaysApplyTitle": "Diese Farbe wird standardmäßig angewendet.",
-        "deleteColor": "Farbe löschen",
-        "title": "Farben"
-    },
     "singleSelectColorValueProviderForm": {
         "chooseAColor": "Welches Einzelauswahlfeld soll zum färben der Zeile verwendet werden?"
+    },
+    "conditionalColorValueProviderForm": {
+        "addCondition": "Bedingung hinzufügen",
+        "addConditionGroup": "Bedingungsgruppe hinzufügen",
+        "colorAlwaysApplyTitle": "Diese Farbe wird standardmäßig angewendet.",
+        "colorAlwaysApply": "Sie können Bedingungen hinzufügen, indem Sie auf den Button \"Bedingung hinzufügen\" klicken.",
+        "addColor": "Farbe hinzufügen",
+        "deleteColor": "Farbe löschen",
+        "title": "Farben"
     },
     "redirectToBaserowModal": {
         "title": "Weiterleitung zu https://baserow.io",
@@ -183,42 +285,10 @@
         "premium": "Premium",
         "premiumDescription": "Ihr Konto hat Zugang zu den Premium-Funktionen account-übergreifend"
     },
-    "premiumFeatures": {
-        "rowComments": "Zeilenkommentare",
-        "kanbanView": "Kanban-Ansicht",
-        "exports": "JSON- und XML-Export",
-        "admin": "Admin-Funktionalität",
-        "rowColoring": "Zeilenfärbung",
-        "surveyForm": "Umfrageformular",
-        "publicLogoRemoval": "Entfernung des öffentlichen Logos",
-        "personalViews": "Persönliche Ansichten",
-        "calendarView": "Kalenderansicht",
-        "aiFeatures": "KI-Feld",
-        "timelineView": "Zeitleisten-Ansicht",
-        "rowCommentsContent": "Arbeiten Sie direkt in Ihrer Tabelle zusammen. Fügen Sie Kommentare zu einzelnen Zeilen hinzu, erwähnen Sie Teammitglieder und behalten Sie den Kontext der Unterhaltung im Blick.",
-        "kanbanViewContent": "Organisieren Sie Ihre Daten visuell auf einem Kanban-Board. Karten werden anhand eines einzigen Auswahlfeldes in Stapeln gruppiert und Sie können sie ganz einfach per Drag & Drop zwischen den Stapeln verschieben.",
-        "calendarViewContent": "Zeigen Sie Ihre Zeilen ganz einfach in einem Kalender an, indem Sie ein Datumsfeld Ihrer Wahl verwenden. Perfekt, um Termine, Ereignisse und Zeitpläne gesammelt im Blick zu behalten.",
-        "timelineViewContent": "Zeigen Sie Zeilen entlang einer horizontalen Zeitachse anhand von Start- und Enddaten an. Ideal für die Projektplanung und Roadmaps.",
-        "exportsContent": "Exportieren Sie Ihre Daten ganz einfach in weitere Formate wie Excel, JSON und XML oder laden Sie alle Dateien aus einer Tabelle als Massendownload herunter – ideal für Backups, Berichte und die Weitergabe an andere.",
-        "rowColoringContent": "Markieren Sie Zeilen mit Farben basierend auf einem einzelnen Auswahlfeld oder benutzerdefinierten Bedingungen. Dadurch lassen sich Muster und Prioritäten leichter erkennen.",
-        "rowNotifications": "Zeilenbenachrichtigungen",
-        "rowNotificationsContent": "Bleiben Sie mit anpassbaren Zeilenkommentar-Benachrichtigungen auf dem Laufenden. Wählen Sie zwischen Benachrichtigungen für alle Kommentare oder nur für Kommentare, in denen Sie erwähnt werden.",
-        "surveyFormContent": "Sammeln Sie Frage für Frage Antworten im Umfragemodus. Eine vereinfachte Version der Formularansicht, optimiert für Fokus und Benutzerfreundlichkeit.",
-        "publicLogoRemovalContent": "Entfernen Sie das Baserow-Logo aus öffentlichen Ansichten, um Ihren geteilten Inhalten ein klareres, markengerechteres Erscheinungsbild zu verleihen.",
-        "personalViewsContent": "Erstellen Sie Ansichten, die nur der Autor sehen kann. So haben Sie Raum zum Experimentieren und Filtern und Sortieren von Daten, ohne den Arbeitsbereich anderer zu beeinträchtigen.",
-        "aiFeaturesContent": "Nutzen Sie KI, um Ihre Arbeitsabläufe zu automatisieren und zu verbessern. Mit dem KI-Eingabefeldtyp können Sie Texte, Zusammenfassungen oder Erkenntnisse direkt in Zellen generieren, basierend auf dynamischen Eingabeaufforderungen, die auf andere Felder verweisen können. Unabhängig davon können Sie die KI auch bitten, Formeln für Sie zu erstellen.",
-        "chartWidget": "Diagramm-Widget",
-        "chartWidgetContent": "Visualisieren Sie Ihre Daten mit Diagrammen auf Dashboards. Verwenden Sie beliebige Tabellen als Datenquelle, fügen Sie mehrere Reihen hinzu und gruppieren oder sortieren Sie nach Feldern mit umfangreichen Zusammenfassungsoptionen."
-    },
-    "premiumModal": {
-        "description": "Ihr Konto hat keinen Zugang zu den Premium-Funktionen. Führen Sie ein Upgrade auf die Premium-Version durch, um {name} nutzen zu können. Sie können Ihr Konto erweitern, indem Sie eine Lizenz erwerben. Klicken Sie auf den Knopf unten, um die Preise zu sehen.",
-        "title": "Führen Sie ein Upgrade durch, um {name} zu verwenden",
-        "viewPricing": "Preise anzeigen"
-    },
     "formViewModeType": {
         "survey": "Umfrage",
-        "onlyForPremium": "Verfügbar in der Premium-Version",
-        "surveyDescription": "Ein Feld ist gleichzeitig sichtbar."
+        "surveyDescription": "Ein Feld ist gleichzeitig sichtbar.",
+        "onlyForPremium": "Verfügbar in der Premium-Version"
     },
     "formViewModePreviewSurvey": {
         "orderFields": "Felder Sortieren",
@@ -227,56 +297,31 @@
     },
     "shareLinkOptions": {
         "baserowLogo": {
-            "premiumModalName": "Entfernung des öffentlichen Logos",
-            "label": "Baserow-Logo in öffentlicher Ansicht ausblenden"
+            "label": "Baserow-Logo in öffentlicher Ansicht ausblenden",
+            "premiumModalName": "Entfernung des öffentlichen Logos"
         },
         "allowPublicExportLabel": "Export der geteilten Ansicht zulassen"
     },
     "viewsContext": {
         "personal": "Persönlich"
     },
-    "calendarViewHeader": {
-        "displayBy": "Anzeige nach",
-        "labels": "Beschriftungen",
-        "displayedBy": "Angezeigt durch das Feld \"{fieldName}\""
-    },
-    "calendarDateSelector": {
-        "today": "Heute"
-    },
-    "calendarMonthDayExpanded": {
-        "tryAgain": "Erneut versuchen"
+    "dateFieldSelectForm": {
+        "dateField": "Welches Feld möchten Sie für diese Ansicht nutzen?",
+        "noCompatibleDateFields": "Es gibt keine Datumsfelder in dieser Tabelle, bitte erstellen Sie zuerst eines."
     },
     "selectDateFieldModal": {
-        "save": "Speichern",
-        "chooseDateField": "Wählen Sie Datumsfeld"
-    },
-    "dateFieldSelectForm": {
-        "noCompatibleDateFields": "Es gibt keine Datumsfelder in dieser Tabelle, bitte erstellen Sie zuerst eines.",
-        "dateField": "Welches Feld möchten Sie für diese Ansicht nutzen?"
-    },
-    "calendarMonthDay": {
-        "hiddenRowsCount": "0 | 1 mehr... | {hiddenRowsCount} mehr..."
-    },
-    "rowCommentMentionNotification": {
-        "title": "{sender} hat Sie in Zeile {row} in {table} erwähnt",
-        "deletedUser": "Gelöschter Benutzer"
-    },
-    "trashType": {
-        "row_comment": "Zeilenkommentar"
-    },
-    "rowCommentContext": {
-        "delete": "Kommentar löschen",
-        "edit": "Kommentar bearbeiten"
-    },
-    "rowCommentNotification": {
-        "title": "{sender} hat einen Kommentar in Tabelle {table}, Zeile {row} geschrieben",
-        "deletedUser": "Gelöschter Benutzer"
+        "chooseDateField": "Wählen Sie Datumsfeld",
+        "save": "Speichern"
     },
     "RowEditModalCommentNotificationMode": {
-        "modeMentionsDesc": "Sie werden nur benachrichtigt, wenn Sie erwähnt werden.",
-        "modeAllDesc": "Sie erhalten Benachrichtigungen für alle Kommentare in dieser Zeile.",
         "modeMentionsTitle": "Nur Erwähnungen",
-        "modeAllTitle": "Alle Kommentare"
+        "modeMentionsDesc": "Sie werden nur benachrichtigt, wenn Sie erwähnt werden.",
+        "modeAllTitle": "Alle Kommentare",
+        "modeAllDesc": "Sie erhalten Benachrichtigungen für alle Kommentare in dieser Zeile."
+    },
+    "premiumFieldType": {
+        "ai": "KI-Eingabeaufforderung",
+        "aiDescription": "Ein schreibgeschütztes Feld, das den von KI generierten Text auf der Grundlage der Feld-Eingabeaufforderung enthält."
     },
     "functionalGridViewFieldAI": {
         "generate": "Generieren"
@@ -285,26 +330,28 @@
         "generate": "Generieren",
         "regenerate": "Erneut generieren"
     },
+    "fieldAISubForm": {
+        "prompt": "Eingabeaufforderung",
+        "promptPlaceholder": "Was ist Baserow?",
+        "premiumFeature": "Das KI-Feld ist eine Premium-Funktion",
+        "emptyFileField": "Kein",
+        "fileFieldHelp": "Die erste kompatible Datei im Feld wird als Wissensbasis für die Eingabeaufforderung verwendet. Die Datei muss eine Textdatei mit einer unterstützten Dateierweiterung wie .txt, .md, .pdf oder .docx sein.",
+        "outputType": "Ausgabetyp",
+        "outputTypeTooltip": "Wählen Sie Ihr gewünschtes Ausgabeformat, um das LLM bei der Generierung von Antworten zu unterstützen, die Ihren gewünschten Optionen entsprechen.",
+        "outputTypeChangedWarning": "Löscht die generierten Zellenwerte.",
+        "autoUpdate": "Automatische Aktualisierung",
+        "autoUpdateHelp": "Wenn aktiviert, wird der KI-Feldwert automatisch neu generiert, sobald eines der im Prompt referenzierten Felder aktualisiert wird.",
+        "autoUpdateDescription": "Neu generieren, wenn sich referenzierte Felder ändern"
+    },
     "rowEditFieldAI": {
         "generate": "Generieren",
         "createRowBefore": "Der KI-Wert kann nach der Erstellung der Zeile generiert werden."
     },
-    "fieldAISubForm": {
-        "prompt": "Eingabeaufforderung",
-        "premiumFeature": "Das KI-Feld ist eine Premium-Funktion",
-        "promptPlaceholder": "Was ist Baserow?",
-        "emptyFileField": "Kein",
-        "fileFieldHelp": "Die erste kompatible Datei im Feld wird als Wissensbasis für die Eingabeaufforderung verwendet. Die Datei muss eine Textdatei mit einer unterstützten Dateierweiterung wie .txt, .md, .pdf oder .docx sein."
-    },
-    "premiumFieldType": {
-        "ai": "KI-Eingabeaufforderung",
-        "aiDescription": "Ein schreibgeschütztes Feld, das den von KI generierten Text auf der Grundlage der Feld-Eingabeaufforderung enthält."
-    },
     "aiFormulaModal": {
-        "labelDescription": "Beschreiben Sie die Formel, die Sie erstellen möchten",
-        "description": "Beachten Sie, dass die generierten Formeln möglicherweise nicht immer wie erwartet funktionieren. Wir erstellen eine Eingabeaufforderung für das Modell und wir laden die Ausgabe in die Formeleingabe. Dies funktioniert am besten mit einem Viel-Parameter-Modell wie gpt-4-turbo-preview.",
         "title": "Formel mittels KI generieren",
+        "description": "Beachten Sie, dass die generierten Formeln möglicherweise nicht immer wie erwartet funktionieren. Wir erstellen eine Eingabeaufforderung für das Modell und wir laden die Ausgabe in die Formeleingabe. Dies funktioniert am besten mit einem Viel-Parameter-Modell wie gpt-4-turbo-preview.",
         "label": "Eingabeaufforderung",
+        "labelDescription": "Beschreiben Sie die Formel, die Sie erstellen möchten",
         "generate": "Generieren",
         "noModels": "In Ihrer Baserow-Instanz und Ihrem Arbeitsbereich sind keine KI-Modelle konfiguriert. Klicken Sie auf die drei Punkte neben Ihrem Arbeitsbereich und dann auf Einstellungen, um sie zu konfigurieren."
     },
@@ -312,59 +359,51 @@
         "generateWithAI": "Mittels KI generieren",
         "featureName": "Formel mittels KI generieren"
     },
-    "calendarViewType": {
-        "sharedViewDescription": "Fügen Sie diesen Link in ihre Kalenderanwendung ein",
-        "sharedViewText": "Erlauben Sie jedem, die Daten in dieser Ansicht zu sehen, oder synchronisieren Sie Ereignisse mit Ihrem externen Kalender.",
-        "sharedViewEnableSyncToExternalCalendar": "In einen externen Kalender synchronisieren",
-        "sharedViewDisableSyncToExternalCalendar": "Externen Sync deaktivieren",
-        "sharedViewTitle": "In einen externen Kalender synchronisieren"
+    "aiOutputType": {
+        "text": "Text",
+        "textDescription": "Generiert freien Text basierend auf dem Prompt.",
+        "choice": "Auswahl",
+        "choiceDescription": "Wählt nur eine der Feldoptionen aus."
     },
-    "timelineViewHeader": {
-        "dateSettings": "Datumseinstellungen",
-        "labels": "Labels"
+    "publicViewExport": {
+        "export": "Exportieren"
     },
-    "selectDateFieldContext": {
-        "save": "Speichern"
+    "chart": {
+        "true": "wahr",
+        "false": "falsch",
+        "other": "Andere"
     },
-    "timelineDateSettingsForm": {
-        "startDateField": "Startdatum",
-        "endDateField": "Enddatum",
-        "noCompatibleDateFields": "In der Tabelle fehlen Datumsfelder. Bitte erstellen Sie in der Tabelle zunächst ein Start- und ein End-Datumsfeld.",
-        "forceTimezone": "{timezone}",
-        "includeTime": "Datum und Zeit",
-        "incompatibleFieldsErrorTitle": "Inkompatible Felder",
-        "incompatibleFieldsErrorMessage": "Die Felder sind nicht miteinander kompatibel. Bitte wählen Sie zwei gültige Datumsfelder in der Tabelle aus, die dieselben Einstellungen für „Zeit einschließen“ und dieselbe Zeitzone für alle Mitwirkenden verwenden.",
-        "dateOnly": "Nur Datum"
+    "generateAIValuesModal": {
+        "title": "Alle KI-Werte generieren",
+        "noPreviousJobs": "Keine vorherigen Jobs",
+        "started": "Gestartet",
+        "finished": "Abgeschlossen",
+        "running": "Wird ausgeführt",
+        "failed": "Fehlgeschlagen",
+        "cancelled": "Abgebrochen",
+        "pending": "Ausstehend",
+        "view": "Ansicht: {name}",
+        "table": "Tabelle: Alle Zeilen",
+        "deletedView": "Ansicht: ID {viewId} (gelöscht)",
+        "rows": "Zeilen: {count} Zeilen",
+        "autoUpdate": "Automatische Aktualisierung: referenzierte Felder geändert"
     },
-    "initTimelineViewSettings": {
-        "settings": "Datumseinstellungen"
+    "generateAIValuesForm": {
+        "scopeLabel": "Geltungsbereich",
+        "entireTable": "Gesamte Tabelle",
+        "skipPopulated": "Nur Werte für leere Zellen generieren",
+        "warningTitle": "Warnung zur Token-Nutzung",
+        "warningMessage": "Das Generieren aller KI-Werte verbraucht API-Tokens und kann je nach Anzahl der Zeilen erhebliche Zeit in Anspruch nehmen."
     },
-    "viewDateSelector": {
-        "today": "Heute"
+    "generateAIValuesFormFooter": {
+        "generate": "Mit KI generieren",
+        "close": "Schließen"
     },
-    "timelineGridRow": {
-        "days": "0 | 1 Tag | {count} Tage"
+    "jobType": {
+        "generateAIValues": "KI-Feldwerte neu generieren"
     },
-    "timelineTimescaleContext": {
-        "month": "Monat",
-        "quarter": "Quartal",
-        "hour": "Stunde",
-        "day": "Tag",
-        "week": "Woche",
-        "year": "Jahr",
-        "disabledTooltip": "Diese Option ist nur für Datumsfelder verfügbar, bei denen „Zeit einschließen“ aktiviert ist."
-    },
-    "tableExcelExporter": {
-        "includeHeader": "Feldnamen als Überschrift einfügen"
-    },
-    "paidFeaturesModal": {
-        "description": "Diese Funktion ist nur mit einem {plan}-Abonnement verfügbar. Um darauf zuzugreifen, aktualisieren Sie bitte Ihr Konto, indem Sie ein Abonnement abschließen. Klicken Sie auf die Schaltfläche unten, um unsere Preisoptionen zu sehen.",
-        "viewPricing": "Preismodelle anzeigen"
-    },
-    "kanbanView": {
-        "addStack": "Stapel hinzurüfen"
-    },
-    "tableFileExporter": {
-        "organizeFiles": "Dateien nach Zeilen-ID gruppieren"
+    "viewOwnershipType": {
+        "personal": "Persönlich",
+        "personalDescription": "Nur Sie können die Ansicht sehen."
     }
 }
