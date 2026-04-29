@@ -2426,7 +2426,7 @@ class BaserowCount(OneArgumentBaserowFunction):
         if BaserowGetFileCount().can_accept_arg(arg):
             return BaserowGetFileCount()(arg)
 
-        if isinstance(arg.expression_type, BaserowFormulaArrayType):
+        if isinstance(arg.expression_type, BaserowFormulaArrayType) and not arg.many:
             return BaserowArrayLength()(arg)
 
         return arg.expression_type.count(func_call, arg).with_valid_type(
