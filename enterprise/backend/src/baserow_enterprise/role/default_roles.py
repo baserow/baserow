@@ -88,6 +88,10 @@ from baserow.contrib.dashboard.widgets.operations import (
     RestoreWidgetOperationType,
     UpdateWidgetOperationType,
 )
+from baserow.contrib.whiteboard.operations import (
+    ReadWhiteboardOperationType,
+    UpdateWhiteboardContentOperationType,
+)
 from baserow.contrib.database.airtable.operations import (
     RunAirtableImportJobOperationType,
 )
@@ -405,6 +409,7 @@ default_roles[VIEWER_ROLE_UID].extend(
         ReadViewFilterGroupOperationType,
         ReadWidgetOperationType,
         ListWidgetsOperationType,
+        ReadWhiteboardOperationType,
         ListDashboardDataSourcesOperationType,
         ReadDashboardDataSourceOperationType,
         ListRowsDatabaseTableOperationType,
@@ -562,6 +567,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         UpdateWidgetOperationType,
         DeleteWidgetOperationType,
         RestoreWidgetOperationType,
+        UpdateWhiteboardContentOperationType,
         CreateDashboardDataSourceOperationType,
         DeleteDashboardDataSourceOperationType,
         UpdateDashboardDataSourceOperationType,

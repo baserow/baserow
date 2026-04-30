@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:docs.excalidraw.com)",
+      "Bash(grep -E \"test_.*\\\\.py$\")",
+      "WebFetch(domain:www.npmjs.com)",
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:medium.com)"
+    ]
+  }
+}

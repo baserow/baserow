@@ -2,6 +2,7 @@ import path from 'node:path'
 import { defineNuxtConfig } from 'nuxt/config'
 import svgLoader from 'vite-svg-loader'
 import { nodePolyfills } from 'vite-plugin-node-polyfills'
+import react from '@vitejs/plugin-react'
 import { locales } from './locales.js'
 import pkg from '../package.json'
 
@@ -27,6 +28,7 @@ function baserowModuleConfig(
     `./modules/dashboard/module.js`,
     `./modules/builder/module.js`,
     `./modules/automation/module.js`,
+    `./modules/whiteboard/module.js`,
     `./modules/integrations/module.js`,
   ]
 
@@ -97,7 +99,17 @@ export default defineNuxtConfig({
         },
       },
     },
+    // Files matching `.react.jsx` / `.react.tsx` are React components (we
+    // mount one for Excalidraw); everything else with a `.jsx` extension
+    // is Vue JSX. Tell each plugin which set of files to claim so the two
+    // JSX transforms never fight over the same file.
+    vueJsx: {
+      exclude: /\.react\.[jt]sx$/,
+    },
     plugins: [
+      react({
+        include: /\.react\.[jt]sx$/,
+      }),
       nodePolyfills({
         include: ['util'],
         // ✅ prevent "process already declared" in Nitro/Node

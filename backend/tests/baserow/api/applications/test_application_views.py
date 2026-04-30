@@ -16,6 +16,7 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.database.models import Database
+from baserow.contrib.whiteboard.models import Whiteboard
 from baserow.core.job_types import DuplicateApplicationJobType
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.models import Template
@@ -286,6 +287,27 @@ def test_create_application(api_client, data_fixture):
     assert response_json["id"] == database.id
     assert response_json["name"] == database.name
     assert response_json["order"] == database.order
+
+
+@pytest.mark.django_db
+def test_create_whiteboard_application(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+
+    response = api_client.post(
+        reverse("api:applications:list", kwargs={"workspace_id": workspace.id}),
+        {"name": "My board", "type": "whiteboard"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["type"] == "whiteboard"
+    assert response_json["name"] == "My board"
+
+    whiteboard = Whiteboard.objects.get(id=response_json["id"])
+    assert whiteboard.workspace_id == workspace.id
+    assert whiteboard.content == {}
 
 
 @pytest.mark.django_db
