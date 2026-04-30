@@ -2346,7 +2346,7 @@ def test_count_formula_for_link_row_field_with_null_values(data_fixture):
 def test_count_formula_for_link_row_field_with_array_primary_field(data_fixture):
     """
     A links to B, and B's primary field is a lookup array through a B to C link.
-    count(field('A to B link')) must count linked B rows, not each B row's inner
+    count(field('<link field>')) must count linked B rows, not each B row's inner
     primary lookup array length (github issue #5276)
     """
 
@@ -2391,6 +2391,57 @@ def test_count_formula_for_link_row_field_with_array_primary_field(data_fixture)
         rows_values=[
             {link_b_to_c.db_column: [rows_c[0].id]},
             {link_b_to_c.db_column: [rows_c[1].id]},
+        ],
+        model=table_b.get_model(),
+    ).created_rows
+    row_a = row_handler.force_create_rows(
+        user=user,
+        table=table_a,
+        rows_values=[{link_a_to_b.db_column: [row.id for row in rows_b]}],
+        model=table_a.get_model(),
+    ).created_rows[0]
+
+    assert getattr(row_a, count_formula.db_column) == 2
+
+
+@pytest.mark.django_db
+def test_count_formula_for_link_row_field_with_file_primary_field(data_fixture):
+    """
+    A links to B, and B's primary field is a file field. count(field('<link field>'))
+    must count linked B rows, not each B row's primary file count.
+    """
+
+    user = data_fixture.create_user()
+
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+    table_b_primary = table_b.field_set.get(primary=True)
+    table_b_primary.primary = False
+    table_b_primary.save()
+
+    primary_b = data_fixture.create_file_field(
+        table=table_b, name="Files", primary=True
+    )
+    count_formula = data_fixture.create_formula_field(
+        table=table_a,
+        name="Count",
+        formula=f"count(field('{link_a_to_b.name}'))",
+    )
+
+    user_file_1 = data_fixture.create_user_file()
+    user_file_2 = data_fixture.create_user_file()
+    user_file_3 = data_fixture.create_user_file()
+    row_handler = RowHandler()
+    rows_b = row_handler.force_create_rows(
+        user=user,
+        table=table_b,
+        rows_values=[
+            {
+                primary_b.db_column: [
+                    {"name": user_file_1.name},
+                    {"name": user_file_2.name},
+                ]
+            },
+            {primary_b.db_column: [{"name": user_file_3.name}]},
         ],
         model=table_b.get_model(),
     ).created_rows

@@ -2423,7 +2423,7 @@ class BaserowCount(OneArgumentBaserowFunction):
         func_call: BaserowFunctionCall[UnTyped],
         arg: BaserowExpression[BaserowFormulaValidType],
     ) -> BaserowExpression[BaserowFormulaType]:
-        if BaserowGetFileCount().can_accept_arg(arg):
+        if BaserowGetFileCount().can_accept_arg(arg) and not arg.many:
             return BaserowGetFileCount()(arg)
 
         if isinstance(arg.expression_type, BaserowFormulaArrayType) and not arg.many:
