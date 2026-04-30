@@ -22,6 +22,16 @@ export default {
       type: Object,
       required: true,
     },
+    // VIEWER and COMMENTER roles can read the scene but not modify it.
+    // When read-only we hand Excalidraw `viewModeEnabled` so the
+    // editing toolbar disappears and every mutating action is blocked,
+    // and we skip the autosave / broadcast / image-upload pipeline so
+    // the read-only viewer never tries to PUT or POST.
+    readOnly: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   data() {
     return {
@@ -100,8 +110,13 @@ export default {
         },
         files: initialContent.files || {},
       },
-      onChange: this._handleSceneChange,
-      onPointerUpdate: this._handlePointerUpdate,
+      viewModeEnabled: this.readOnly,
+      // Read-only viewers don't broadcast or autosave; the editing
+      // pipelines are wired to no-ops so onChange / onPointerUpdate
+      // events from Excalidraw (which still fire for hover/selection)
+      // can't sneak a PUT or POST through.
+      onChange: this.readOnly ? () => {} : this._handleSceneChange,
+      onPointerUpdate: this.readOnly ? () => {} : this._handlePointerUpdate,
     })
 
     // Excalidraw ships its own undo/redo for Cmd/Ctrl+Z and
@@ -116,7 +131,9 @@ export default {
       'keydown',
       this._stopUndoRedoPropagation
     )
-    window.addEventListener('beforeunload', this._flushOnUnload)
+    if (!this.readOnly) {
+      window.addEventListener('beforeunload', this._flushOnUnload)
+    }
   },
   beforeUnmount() {
     if (this.$refs.container) {
@@ -129,10 +146,12 @@ export default {
       this.controller.unmount()
       this.controller = null
     }
-    if (this._debouncedAutosave?.flush) {
+    if (!this.readOnly && this._debouncedAutosave?.flush) {
       this._debouncedAutosave.flush()
     }
-    window.removeEventListener('beforeunload', this._flushOnUnload)
+    if (!this.readOnly) {
+      window.removeEventListener('beforeunload', this._flushOnUnload)
+    }
   },
   created() {
     this._debouncedAutosave = debounce(

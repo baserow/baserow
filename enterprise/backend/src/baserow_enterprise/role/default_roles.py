@@ -449,6 +449,10 @@ default_roles[EDITOR_ROLE_UID].extend(
         UpdateViewRowOperationType,
         DeleteViewRowOperationType,
         ReadViewDefaultValuesOperationType,
+        # Whiteboard scenes are data, not structure (an EDITOR can edit
+        # rows in a database, so the equivalent for whiteboards is being
+        # able to edit the scene). VIEWER/COMMENTER stay read-only.
+        UpdateWhiteboardContentOperationType,
     ]
 )
 default_roles[BUILDER_ROLE_UID].extend(
@@ -567,7 +571,6 @@ default_roles[BUILDER_ROLE_UID].extend(
         UpdateWidgetOperationType,
         DeleteWidgetOperationType,
         RestoreWidgetOperationType,
-        UpdateWhiteboardContentOperationType,
         CreateDashboardDataSourceOperationType,
         DeleteDashboardDataSourceOperationType,
         UpdateDashboardDataSourceOperationType,

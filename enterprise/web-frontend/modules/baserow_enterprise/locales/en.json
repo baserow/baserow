@@ -326,6 +326,10 @@
     "label": "Manage members",
     "additionalRoles": "Additional roles"
   },
+  "memberRolesWhiteboardContextItem": {
+    "label": "Manage members",
+    "additionalRoles": "Additional roles"
+  },
   "memberRolesTableContexItem": {
     "label": "Manage members",
     "additionalRoles": "Additional roles"

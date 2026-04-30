@@ -3,6 +3,7 @@
     <ExcalidrawCollab
       v-if="whiteboard && contentLoaded"
       :whiteboard="whiteboard"
+      :read-only="readOnly"
     />
   </div>
 </template>
@@ -27,7 +28,7 @@ definePageMeta({
 
 const store = useStore()
 const route = useRoute()
-const { $realtime } = useNuxtApp()
+const { $realtime, $hasPermission } = useNuxtApp()
 
 const { data, error: fetchError } = await useAsyncData(
   `whiteboard-data-${route.params.whiteboardId}`,
@@ -60,6 +61,19 @@ const whiteboard = computed(() => data.value?.whiteboard)
 const contentLoaded = computed(() => {
   const loadedId = store.getters['whiteboardApplication/getWhiteboardId']
   return loadedId != null && loadedId === whiteboard.value?.id
+})
+
+// VIEWER and COMMENTER roles only have `whiteboard.read`; EDITOR and
+// above also have `whiteboard.update_content`. Drive Excalidraw's
+// view-mode and our broadcast/autosave wiring off this single check so
+// the editor opens read-only for users who can't modify the scene.
+const readOnly = computed(() => {
+  if (!whiteboard.value) return true
+  return !$hasPermission(
+    'whiteboard.update_content',
+    whiteboard.value,
+    whiteboard.value.workspace.id
+  )
 })
 
 useHead(() => ({

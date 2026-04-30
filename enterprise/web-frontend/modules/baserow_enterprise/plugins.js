@@ -2,6 +2,7 @@ import { BaserowPlugin } from '@baserow/modules/core/plugins'
 import ChatwootSupportSidebarWorkspace from '@baserow_enterprise/components/ChatwootSupportSidebarWorkspace'
 import AuditLogSidebarWorkspace from '@baserow_enterprise/components/AuditLogSidebarWorkspace'
 import MemberRolesDatabaseContextItem from '@baserow_enterprise/components/member-roles/MemberRolesDatabaseContextItem'
+import MemberRolesWhiteboardContextItem from '@baserow_enterprise/components/member-roles/MemberRolesWhiteboardContextItem'
 import MemberRolesTableContextItem from '@baserow_enterprise/components/member-roles/MemberRolesTableContextItem'
 import MemberRolesViewContextItem from '@baserow_enterprise/components/member-roles/MemberRolesViewContextItem'
 import EnterpriseFeatures from '@baserow_enterprise/features'
@@ -10,6 +11,7 @@ import EnterpriseSettings from '@baserow_enterprise/components/EnterpriseSetting
 import EnterpriseSettingsOverrideDashboardHelp from '@baserow_enterprise/components/EnterpriseSettingsOverrideDashboardHelp'
 import EnterpriseLogo from '@baserow_enterprise/components/EnterpriseLogo'
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
+import { WhiteboardApplicationType } from '@baserow/modules/whiteboard/applicationTypes'
 import AssistantSidebarItem from '@baserow_enterprise/components/assistant/AssistantSidebarItem'
 import AssistantPanel from '@baserow_enterprise/components/assistant/AssistantPanel'
 import DateDependencyMenuItem from '@baserow_enterprise/components/dateDependency/DateDependencyMenuItem'
@@ -39,11 +41,12 @@ export class EnterprisePlugin extends BaserowPlugin {
       application,
       workspace.id
     )
-    if (
-      hasReadRolePermission &&
-      application.type === DatabaseApplicationType.getType()
-    ) {
-      additionalComponents.push(MemberRolesDatabaseContextItem)
+    if (hasReadRolePermission) {
+      if (application.type === DatabaseApplicationType.getType()) {
+        additionalComponents.push(MemberRolesDatabaseContextItem)
+      } else if (application.type === WhiteboardApplicationType.getType()) {
+        additionalComponents.push(MemberRolesWhiteboardContextItem)
+      }
     }
     return additionalComponents
   }
