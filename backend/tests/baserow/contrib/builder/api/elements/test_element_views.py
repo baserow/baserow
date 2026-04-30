@@ -101,6 +101,128 @@ def test_get_elements(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_element_north_position(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    data_fixture.create_builder_heading_element(page=page)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "heading",
+            "position": "north",
+            "reference_element_id": page.get_graph().graph["0"],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "heading",
+            "heading": {"next": {"": ["heading-"]}},
+            "heading-": {},
+        }
+    )
+
+
+@pytest.mark.django_db
+def test_create_element_south_position(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    existing = data_fixture.create_builder_heading_element(page=page)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "heading",
+            "position": "south",
+            "reference_element_id": existing.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "heading",
+            "heading": {"next": {"": ["heading-"]}},
+            "heading-": {},
+        }
+    )
+
+
+@pytest.mark.django_db
+def test_create_elements_in_container_slot_ordering(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    column = data_fixture.create_builder_column_element(page=page, column_amount=3)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+
+    # Add heading_a as the first child of slot '0'
+    resp_a = api_client.post(
+        url,
+        {
+            "type": "heading",
+            "position": GraphPointPosition.CHILD,
+            "reference_element_id": column.id,
+            "place_in_container": "0",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert resp_a.status_code == HTTP_200_OK
+    id_a = resp_a.json()["id"]
+
+    # Insert heading_b before heading_a
+    resp_b = api_client.post(
+        url,
+        {
+            "type": "heading",
+            "position": GraphPointPosition.NORTH,
+            "reference_element_id": id_a,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert resp_b.status_code == HTTP_200_OK
+
+    # Insert heading_c after heading_a
+    resp_c = api_client.post(
+        url,
+        {
+            "type": "heading",
+            "position": GraphPointPosition.SOUTH,
+            "reference_element_id": id_a,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert resp_c.status_code == HTTP_200_OK
+
+    # Verify order in slot '0': heading_b → heading_a → heading_c
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "column",
+            "column": {"children": {"": ["heading"]}},
+            "heading": {"next": {"": ["heading-"]}},
+            "heading-": {"next": {"": ["heading--"]}},
+            "heading--": {},
+        }
+    )
+
+
+@pytest.mark.django_db
 def test_create_element(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
@@ -108,7 +230,11 @@ def test_create_element(api_client, data_fixture):
     url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
     response = api_client.post(
         url,
-        {"type": "heading"},
+        {
+            "type": "heading",
+            "place_in_container": "",
+            "position": GraphPointPosition.SOUTH,
+        },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -785,22 +911,27 @@ def test_duplicate_element(api_client, data_fixture):
 
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
-    page.refresh_from_db(fields=["graph"])
+
     assert len(response_json["elements"]) == 2
     duplicated_container = response_json["elements"][0]
     duplicated_heading = response_json["elements"][1]
-    assert page.graph == {
-        "0": container.id,
-        str(container.id): {
-            "next": {"": [duplicated_container["id"]]},
-            "children": {"1": [heading.id]},
-        },
-        str(heading.id): {},
+    assert response_json["graph_additions"] == {
         str(duplicated_container["id"]): {
             "children": {"1": [duplicated_heading["id"]]}
         },
         str(duplicated_heading["id"]): {},
     }
+
+    page.refresh_from_db(fields=["graph"])
+    page.assert_reference(
+        {
+            "0": "column",
+            "column": {"next": {"": ["column-"]}, "children": {"": ["heading"]}},
+            "heading": {},
+            "column-": {"children": {"": ["heading-"]}},
+            "heading-": {},
+        }
+    )
 
 
 @pytest.mark.django_db

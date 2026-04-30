@@ -416,11 +416,17 @@ class ElementHandler:
         :param element: The to-be-deleted element.
         """
 
+        page = element.page
         element.get_type().before_delete(element)
+
+        # Remove from the graph before the DB delete so the graph doesn't keep
+        # a stale reference. Children deleted by CASCADE are orphaned in the
+        # graph (no longer reachable from "0") but that is harmless.
+        page.get_graph().remove(element)
 
         element.delete()
 
-        self.invalidate_element_cache(element.page)
+        self.invalidate_element_cache(page)
 
     def update_element(self, element: ElementForUpdate, **kwargs) -> Element:
         """
@@ -540,7 +546,10 @@ class ElementHandler:
             element.page, serialized, id_mapping
         )
         page.get_graph().insert(
-            element_duplicated, reference_element, position, element.place_in_container
+            element_duplicated,
+            reference_element,
+            position,
+            element.place_in_container if position == GraphPointPosition.CHILD else "",
         )
 
         workflow_actions_duplicated = self._duplicate_workflow_actions_of_element(

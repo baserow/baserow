@@ -32,7 +32,7 @@ from baserow.contrib.builder.elements.types import (
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
-from baserow.core.graph.types import GraphPointPositionType
+from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.handler import CoreHandler
 
 if TYPE_CHECKING:
@@ -123,7 +123,10 @@ class ElementService:
         if reference_element is None:
             return
 
-        if reference_element.get_type().is_container:
+        if (
+            reference_element.get_type().is_container
+            and position == GraphPointPosition.CHILD
+        ):
             element_type.validate_place(
                 page, reference_element, place_in_container, position
             )

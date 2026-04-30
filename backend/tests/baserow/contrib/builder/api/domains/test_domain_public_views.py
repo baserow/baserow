@@ -162,6 +162,7 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {},
         },
         {
             "id": page.id,
@@ -173,6 +174,7 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {},
         },
         {
             "id": page2.id,
@@ -184,6 +186,7 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {},
         },
     ]
 
@@ -294,6 +297,7 @@ def test_get_public_builder_by_id(api_client, data_fixture):
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {},
         },
         {
             "id": page.id,
@@ -305,6 +309,7 @@ def test_get_public_builder_by_id(api_client, data_fixture):
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {},
         },
         {
             "id": page2.id,
@@ -316,6 +321,7 @@ def test_get_public_builder_by_id(api_client, data_fixture):
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {},
         },
     ]
 

@@ -67,6 +67,8 @@ class ElementSerializer(serializers.ModelSerializer):
             "id",
             "page_id",
             "type",
+            "order",
+            "place_in_container",
             "css_classes",
             "visibility",
             "visibility_condition",
@@ -97,15 +99,13 @@ class ElementSerializer(serializers.ModelSerializer):
             "style_width_child",
             "role_type",
             "roles",
-            # TODO: remove, compat fields for testing
-            "order",
-            "parent_element_id",
-            "place_in_container",
         )
         extra_kwargs = {
             "id": {"read_only": True},
             "page_id": {"read_only": True},
             "type": {"read_only": True},
+            "order": {"read_only": True, "help_text": "Lowest first."},
+            "place_in_container": {"read_only": True},
         }
 
 
@@ -136,6 +136,7 @@ class CreateElementSerializer(serializers.ModelSerializer):
         required=False,
         allow_null=False,
         default="",
+        allow_blank=True,
         help_text="The place in the container.",
     )
     style_background_file = UserFileField(
@@ -251,6 +252,7 @@ class MoveElementSerializer(serializers.Serializer):
     place_in_container = serializers.CharField(
         required=False,
         allow_null=False,
+        allow_blank=True,
         default="",
         help_text="The place in the container.",
     )
@@ -266,6 +268,9 @@ class DuplicateElementSerializer(serializers.Serializer):
     elements = serializers.SerializerMethodField(help_text="The duplicated elements.")
     workflow_actions = serializers.SerializerMethodField(
         help_text="The duplicated workflow actions"
+    )
+    graph_additions = serializers.SerializerMethodField(
+        help_text="The graph entries for the newly duplicated elements."
     )
 
     @extend_schema_field(ElementSerializer(many=True))
@@ -283,6 +288,14 @@ class DuplicateElementSerializer(serializers.Serializer):
             ).data
             for workflow_action in obj["workflow_actions"]
         ]
+
+    def get_graph_additions(self, obj: ElementsAndWorkflowActions):
+        elements = obj.get("elements", [])
+        if not elements:
+            return {}
+        full_graph = elements[0].page.get_graph().graph
+        new_ids = {str(el.id) for el in elements}
+        return {k: v for k, v in full_graph.items() if k in new_ids}
 
 
 class PageParameterValueSerializer(serializers.Serializer):

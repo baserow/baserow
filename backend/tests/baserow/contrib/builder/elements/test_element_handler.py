@@ -148,7 +148,7 @@ def test_get_elements(data_fixture, django_assert_num_queries):
 
     # We pass in a base queryset, no caching strategy is available.
     base_queryset = Element.objects.filter(page=page, visibility="all")
-    with django_assert_num_queries(4):
+    with django_assert_num_queries(3):
         elements = ElementHandler().get_elements(page, base_queryset)
         assert len(elements) == 3
 
