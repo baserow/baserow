@@ -9,6 +9,7 @@ class WhiteboardConfig(AppConfig):
             application_type_registry,
             object_scope_type_registry,
             operation_type_registry,
+            permission_manager_type_registry,
         )
         from baserow.ws.registries import page_registry
 
@@ -25,5 +26,17 @@ class WhiteboardConfig(AppConfig):
         operation_type_registry.register(ReadWhiteboardOperationType())
         operation_type_registry.register(UpdateWhiteboardContentOperationType())
         page_registry.register(WhiteboardPageType())
+
+        from .permission_manager import AllowIfTemplatePermissionManagerType
+
+        prev_manager = permission_manager_type_registry.get(
+            AllowIfTemplatePermissionManagerType.type
+        )
+        permission_manager_type_registry.unregister(
+            AllowIfTemplatePermissionManagerType.type
+        )
+        permission_manager_type_registry.register(
+            AllowIfTemplatePermissionManagerType(prev_manager)
+        )
 
         from .ws import receivers  # noqa: F401

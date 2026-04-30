@@ -13,6 +13,10 @@ export default defineNuxtPlugin({
         'whiteboardApplication',
         whiteboardApplicationStore
       )
+      $store.registerModuleNuxtSafe(
+        'template/whiteboardApplication',
+        whiteboardApplicationStore
+      )
     }
 
     $registry.register('application', new WhiteboardApplicationType(context))

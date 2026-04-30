@@ -2,6 +2,8 @@ import { ApplicationType } from '@baserow/modules/core/applicationTypes'
 import ApplicationContext from '@baserow/modules/whiteboard/components/application/ApplicationContext'
 import WhiteboardForm from '@baserow/modules/whiteboard/components/form/WhiteboardForm'
 import SidebarComponentWhiteboard from '@baserow/modules/whiteboard/components/sidebar/SidebarComponentWhiteboard'
+import WhiteboardTemplate from '@baserow/modules/whiteboard/components/WhiteboardTemplate'
+import WhiteboardTemplateSidebar from '@baserow/modules/whiteboard/components/sidebar/WhiteboardTemplateSidebar'
 import { DEVELOPMENT_STAGES } from '@baserow/modules/core/constants'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick } from '#imports'
@@ -49,6 +51,20 @@ export class WhiteboardApplicationType extends ApplicationType {
 
   getSidebarComponent() {
     return SidebarComponentWhiteboard
+  }
+
+  getTemplateSidebarComponent() {
+    return WhiteboardTemplateSidebar
+  }
+
+  getTemplatesPageComponent() {
+    return WhiteboardTemplate
+  }
+
+  getTemplatePage(application) {
+    return {
+      whiteboard: application,
+    }
   }
 
   delete(application, { $router }) {

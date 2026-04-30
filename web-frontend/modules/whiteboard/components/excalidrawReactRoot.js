@@ -82,7 +82,12 @@ import excalidrawCss from '@excalidraw/excalidraw/index.css?raw'
  *   - unmount()                -> tears down the React root
  */
 export function mountExcalidraw(container, options) {
-  const { initialData, onChange, onPointerUpdate } = options
+  const {
+    initialData,
+    onChange,
+    onPointerUpdate,
+    viewModeEnabled = false,
+  } = options
 
   const apiRef = { current: null }
   const e = React.createElement
@@ -101,6 +106,7 @@ export function mountExcalidraw(container, options) {
       e(Excalidraw, {
         excalidrawAPI: handleApiReady,
         initialData,
+        viewModeEnabled,
         onChange: (elements, appState, files) => {
           if (typeof onChange === 'function') {
             // Excalidraw fires onChange on every interaction (selection,
