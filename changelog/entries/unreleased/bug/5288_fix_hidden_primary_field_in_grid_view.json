@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed a bug where changing the primary field to a hidden field could keep it hidden in the grid view.",
+    "issue_origin": "github",
+    "issue_number": 5288,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-30"
+}

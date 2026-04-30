@@ -455,11 +455,8 @@ import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid
 import GridViewRowDragging from '@baserow/modules/database/components/view/grid/GridViewRowDragging'
 import RowEditModal from '@baserow/modules/database/components/row/RowEditModal'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
-import {
-  filterHiddenFieldsFunction,
-  filterVisibleFieldsFunction,
-  sortFieldsByOrderAndIdFunction,
-} from '@baserow/modules/database/utils/view'
+import { sortFieldsByOrderAndIdFunction } from '@baserow/modules/database/utils/view'
+import { filterGridViewVisibleFieldsFunction } from '@baserow/modules/database/components/view/grid/utils'
 import viewHelpers from '@baserow/modules/database/mixins/viewHelpers'
 import { isElement } from '@baserow/modules/core/utils/dom'
 import viewDecoration from '@baserow/modules/database/mixins/viewDecoration'
@@ -548,7 +545,7 @@ export default {
     rightVisibleFields() {
       const fieldOptions = this.fieldOptions
       return this.rightFields
-        .filter(filterVisibleFieldsFunction(fieldOptions))
+        .filter(filterGridViewVisibleFieldsFunction(fieldOptions))
         .sort(sortFieldsByOrderAndIdFunction(fieldOptions, true))
     },
     /**
@@ -556,8 +553,9 @@ export default {
      */
     hiddenFields() {
       const fieldOptions = this.fieldOptions
+      const isFieldVisible = filterGridViewVisibleFieldsFunction(fieldOptions)
       return this.rightFields
-        .filter(filterHiddenFieldsFunction(fieldOptions))
+        .filter((field) => !isFieldVisible(field))
         .sort(sortFieldsByOrderAndIdFunction(fieldOptions))
     },
     viewHasGroupBys() {
@@ -585,7 +583,8 @@ export default {
     },
     /**
      * Returns the fields that should be displayed in the frozen left section.
-     * Takes the first N *visible* fields in sort order (primary always first).
+     * Takes the first N fields visible in the grid in sort order. The primary
+     * field is always included, even if its field options mark it as hidden.
      */
     leftFields() {
       if (!this.hasFrozenColumns) {
@@ -594,7 +593,7 @@ export default {
       const fieldOptions = this.fieldOptions
       const sorted = this.fields
         .slice()
-        .filter(filterVisibleFieldsFunction(fieldOptions))
+        .filter(filterGridViewVisibleFieldsFunction(fieldOptions))
         .sort(sortFieldsByOrderAndIdFunction(fieldOptions, true))
       return sorted.slice(0, this.frozenColumnCount)
     },
@@ -1790,7 +1789,7 @@ export default {
       const fieldOptions = this.fieldOptions
       const sorted = this.fields
         .slice()
-        .filter(filterVisibleFieldsFunction(fieldOptions))
+        .filter(filterGridViewVisibleFieldsFunction(fieldOptions))
         .sort(sortFieldsByOrderAndIdFunction(fieldOptions, true))
       const frozenWidth = sorted
         .slice(0, this.frozenColumnCount)
