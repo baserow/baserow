@@ -54,9 +54,6 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-11-15',
   // Nuxt 4 defaults to srcDir "app/"; keep v3-style layout (app.vue and modules at project root).
   srcDir: '.',
-  dir: {
-    app: 'app',
-  },
   alias: {
     '@baserow': '',
   },
