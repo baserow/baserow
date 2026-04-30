@@ -25,11 +25,6 @@ export default defineNuxtModule({
     name: '@baserow/core',
     // The key in `nuxt.config` that holds your module options
     configKey: 'core',
-    // Compatibility constraints
-    compatibility: {
-      // Semver version of supported nuxt versions
-      nuxt: '^4.0.0',
-    },
   },
   // Default configuration options for your module, can also be a function returning those
   defaults: {},
