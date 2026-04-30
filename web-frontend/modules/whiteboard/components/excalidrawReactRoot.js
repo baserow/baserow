@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from 'react'
+import React, { useCallback, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import {
   Excalidraw,
@@ -87,13 +87,23 @@ export function mountExcalidraw(container, options) {
     onChange,
     onPointerUpdate,
     viewModeEnabled = false,
+    langCode: initialLangCode = 'en',
   } = options
 
   const apiRef = { current: null }
   const e = React.createElement
 
+  // Capture the latest `setState` setter so the host can switch the
+  // language at runtime via the controller's `setLangCode` method
+  // without remounting Excalidraw (and losing scene/canvas state).
+  // `useState`'s setter is stable across renders, so reassigning on
+  // every render is harmless.
+  let setLangCodeFn = null
+
   const ExcalidrawHost = () => {
     const localApiRef = useRef(null)
+    const [langCode, setLangCode] = useState(initialLangCode)
+    setLangCodeFn = setLangCode
 
     const handleApiReady = useCallback((api) => {
       localApiRef.current = api
@@ -107,6 +117,7 @@ export function mountExcalidraw(container, options) {
         excalidrawAPI: handleApiReady,
         initialData,
         viewModeEnabled,
+        langCode,
         onChange: (elements, appState, files) => {
           if (typeof onChange === 'function') {
             // Excalidraw fires onChange on every interaction (selection,
@@ -160,6 +171,11 @@ export function mountExcalidraw(container, options) {
         : Object.values(files).filter(Boolean)
       if (list.length === 0) return
       api.addFiles(list)
+    },
+    setLangCode(code) {
+      if (typeof setLangCodeFn === 'function') {
+        setLangCodeFn(code || 'en')
+      }
     },
     setCollaborators(collaboratorsObject) {
       const api = apiRef.current

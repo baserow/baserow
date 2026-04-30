@@ -20,11 +20,36 @@ export default {
       controller: null,
     }
   },
+  computed: {
+    excalidrawLangCode() {
+      // Mirror Excalidraw's locale to the user's Baserow language so
+      // the template preview reads in the same language as the rest
+      // of the app.
+      const map = {
+        en: 'en',
+        de: 'de-DE',
+        es: 'es-ES',
+        fr: 'fr-FR',
+        it: 'it-IT',
+        ko: 'ko-KR',
+        nl: 'nl-NL',
+        pl: 'pl-PL',
+        uk: 'uk-UA',
+      }
+      const userLanguage = this.$store.getters['auth/getLanguage']
+      return map[userLanguage] || 'en'
+    },
+  },
   watch: {
     pageValue: {
       handler(pageValue) {
         this.loadWhiteboard(pageValue.whiteboard)
       },
+    },
+    excalidrawLangCode(newCode) {
+      if (this.controller) {
+        this.controller.setLangCode(newCode)
+      }
     },
   },
   async mounted() {
@@ -74,6 +99,7 @@ export default {
         // explore it. Templates are static previews so nothing in
         // here is wired to autosave or broadcast either.
         viewModeEnabled: true,
+        langCode: this.excalidrawLangCode,
         onChange: () => {},
         onPointerUpdate: () => {},
       })

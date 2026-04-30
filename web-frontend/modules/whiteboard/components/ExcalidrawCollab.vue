@@ -48,8 +48,13 @@ export default {
       content: 'whiteboardApplication/getContent',
       pendingRemoteUpdates: 'whiteboardApplication/getPendingRemoteUpdates',
       collaborators: 'whiteboardApplication/getCollaborators',
+      userLanguage: 'auth/getLanguage',
     }),
     excalidrawLangCode() {
+      // Map Baserow's locale codes to the codes Excalidraw ships
+      // translations for. Baserow stores the user-selected language on
+      // `auth.user.language`; Excalidraw expects a richer locale code
+      // (e.g. `nl-NL`). Anything we can't translate falls back to `en`.
       const map = {
         en: 'en',
         de: 'de-DE',
@@ -61,8 +66,7 @@ export default {
         pl: 'pl-PL',
         uk: 'uk-UA',
       }
-      const locale = this.$i18n?.locale?.value || this.$i18n?.locale || 'en'
-      return map[locale] || 'en'
+      return map[this.userLanguage] || 'en'
     },
   },
   watch: {
@@ -86,6 +90,14 @@ export default {
         this.controller.setCollaborators(value || {})
       },
       deep: true,
+    },
+    excalidrawLangCode(newCode) {
+      // The user changed their Baserow language while the whiteboard
+      // is open — push the new locale into Excalidraw without
+      // remounting so the scene state is preserved.
+      if (this.controller) {
+        this.controller.setLangCode(newCode)
+      }
     },
   },
   async mounted() {
@@ -111,6 +123,7 @@ export default {
         files: initialContent.files || {},
       },
       viewModeEnabled: this.readOnly,
+      langCode: this.excalidrawLangCode,
       // Read-only viewers don't broadcast or autosave; the editing
       // pipelines are wired to no-ops so onChange / onPointerUpdate
       // events from Excalidraw (which still fire for hover/selection)
