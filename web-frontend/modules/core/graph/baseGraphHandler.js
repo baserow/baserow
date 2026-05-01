@@ -1,0 +1,302 @@
+import { clone } from '@baserow/modules/core/utils/object'
+
+const replace = (array, itemToReplace, replacement) => {
+  const foundIndex = array.findIndex((item) => item === itemToReplace)
+  return [
+    ...array.slice(0, foundIndex),
+    ...(Array.isArray(replacement) ? replacement : [replacement]),
+    ...array.slice(foundIndex + 1),
+  ]
+}
+
+export default class BaseGraphHandler {
+  constructor(container) {
+    this.container = container
+    this.graph = clone(container.graph || {})
+  }
+
+  getPointMap() {
+    throw new Error('getPointMap() must be implemented by subclass')
+  }
+
+  getPoint(pointId) {
+    return this.getPointMap()[pointId] || null
+  }
+
+  getInfo(point) {
+    const id = point?.id ?? point
+    return this.graph[id]
+  }
+
+  // Returns a flat array of child IDs, handling both the legacy array format
+  // [id, ...] and the new dict format {"slot": [id, ...]}.
+  _getChildrenIds(info) {
+    const children = info?.children
+    if (!children) return []
+    if (Array.isArray(children)) return children
+    return Object.values(children).flat()
+  }
+
+  // Normalises children to dict format. Legacy flat arrays become {"": [...]}.
+  _getChildrenAsDict(children) {
+    if (!children) return {}
+    if (Array.isArray(children)) return { '': children }
+    return children
+  }
+
+  hasPoints() {
+    return Boolean(this.getFirstPoint())
+  }
+
+  getFirstPoint() {
+    if (this.graph['0']) {
+      return this.getPoint(this.graph['0'])
+    }
+    return null
+  }
+
+  // Returns children of targetPoint.
+  // slot: restrict to a specific slot/place; null means all slots.
+  // followChains: if true, follows next[''] chains within each slot (builder style);
+  //   if false, returns only the head of each slot (automation style).
+  getChildren(targetPoint, { slot = null, followChains = false } = {}) {
+    const childrenDict = this._getChildrenAsDict(
+      this.getInfo(targetPoint)?.children
+    )
+    const slotEntries =
+      slot !== null
+        ? [[slot, childrenDict[slot] || []]]
+        : Object.entries(childrenDict)
+
+    const result = []
+    for (const [, headIds] of slotEntries) {
+      if (!headIds.length) continue
+      if (!followChains) {
+        const point = this.getPoint(headIds[0])
+        if (point) result.push(point)
+      } else {
+        let currentId = headIds[0]
+        while (currentId) {
+          const point = this.getPoint(currentId)
+          if (!point) break
+          result.push(point)
+          currentId = this.graph[currentId]?.next?.['']?.[0] ?? null
+        }
+      }
+    }
+    return result
+  }
+
+  getPointAtPosition(referencePoint, position, output) {
+    output = String(output)
+
+    switch (position) {
+      case 'south':
+        if (referencePoint === null) {
+          return this.getPoint(this.graph['0'])
+        }
+        {
+          const nextIds = this.getInfo(referencePoint)?.next?.[output] || []
+          if (nextIds.length > 0) return this.getPoint(nextIds[0])
+        }
+        break
+
+      case 'child': {
+        const childrenDict = this._getChildrenAsDict(
+          this.getInfo(referencePoint)?.children
+        )
+        const childIds = childrenDict[output] || []
+        if (childIds.length > 0) return this.getPoint(childIds[0])
+        break
+      }
+
+      default:
+        throw new Error(`Unexpected position: ${position}`)
+    }
+    return null
+  }
+
+  getPreviousPositions(target) {
+    const explore = (currentPosition, path) => {
+      const point = this.getPointAtPosition(...currentPosition)
+      if (point === null) return null
+
+      const pointId = String(point.id)
+      if (pointId === String(target.id)) return path
+
+      const info = this.getInfo(pointId)
+      const nextPositions = []
+
+      if (info?.next) {
+        for (const uid of Object.keys(info.next)) {
+          if (info.next[uid]?.length) {
+            nextPositions.push([pointId, 'south', uid])
+          }
+        }
+      }
+
+      if (info?.children) {
+        const childrenDict = this._getChildrenAsDict(info.children)
+        for (const [slot, childIds] of Object.entries(childrenDict)) {
+          if (childIds?.length) {
+            nextPositions.push([pointId, 'child', slot])
+          }
+        }
+      }
+
+      for (const nextPos of nextPositions) {
+        const found = explore(nextPos, [...path, nextPos])
+        if (found !== null && found !== undefined) return found
+      }
+
+      return null
+    }
+
+    const result = explore([null, 'south', ''], [])
+    if (!result) return []
+    return result.map(([nid, p, o]) => [this.getPoint(nid), p, o])
+  }
+
+  getPointPosition(point) {
+    if (this.graph['0'] === point.id) {
+      return [null, 'south', '']
+    }
+    for (const [pointId, value] of Object.entries(this.graph)) {
+      if (!value || typeof value !== 'object') continue
+
+      if (value.next) {
+        const outputFound = Object.entries(value.next).find(([, nextOnEdge]) =>
+          nextOnEdge.includes(point.id)
+        )
+        if (outputFound) {
+          return [this.getPoint(pointId), 'south', outputFound[0]]
+        }
+      }
+
+      if (value.children) {
+        const childrenDict = this._getChildrenAsDict(value.children)
+        for (const [slot, childIds] of Object.entries(childrenDict)) {
+          if (childIds?.includes(point.id)) {
+            return [this.getPoint(pointId), 'child', slot]
+          }
+        }
+      }
+    }
+    throw new Error(`Point ${point.id} not found in graph`)
+  }
+
+  insert(point, referencePoint, position, output) {
+    if (position === 'north') {
+      const [prevRef, prevPos, prevOutput] = this.getPointPosition(referencePoint)
+      this._insertAt(point, prevRef, prevPos, prevOutput)
+      return
+    }
+
+    this._insertAt(point, referencePoint, position, output)
+  }
+
+  _insertAt(point, referencePoint, position, output) {
+    if (!referencePoint) {
+      let next = null
+      if (this.graph['0']) {
+        next = [this.graph['0']]
+      }
+      this.graph['0'] = point.id
+      this.graph[point.id] = next ? { next: { '': next } } : {}
+      return
+    }
+
+    let newPointNext
+
+    switch (position) {
+      case 'south': {
+        if (!this.graph[referencePoint.id].next) {
+          this.graph[referencePoint.id].next = {}
+        }
+        if (!this.graph[referencePoint.id].next[output]) {
+          this.graph[referencePoint.id].next[output] = []
+        }
+        newPointNext = this.graph[referencePoint.id].next[output]
+        this.graph[referencePoint.id].next[output] = [point.id]
+        break
+      }
+
+      case 'child': {
+        if (!this.graph[referencePoint.id].children) {
+          this.graph[referencePoint.id].children = {}
+        }
+        if (!this.graph[referencePoint.id].children[output]) {
+          this.graph[referencePoint.id].children[output] = []
+        }
+        newPointNext = this.graph[referencePoint.id].children[output]
+        this.graph[referencePoint.id].children[output] = [point.id]
+        break
+      }
+
+      default:
+        throw new Error(`Unexpected position: ${position}`)
+    }
+
+    this.graph[point.id] = {
+      next: { '': newPointNext },
+    }
+  }
+
+  remove(point) {
+    const [previousRef, position, output] = this.getPointPosition(point)
+
+    const pointInfo = this.graph[point.id]
+    const previousRefInfo = previousRef ? this.graph[previousRef.id] : null
+
+    switch (position) {
+      case 'south':
+        if (previousRefInfo) {
+          previousRefInfo.next[output] = replace(
+            previousRefInfo.next[output],
+            point.id,
+            Object.values(pointInfo.next || {}).flat()
+          )
+        } else if (this.graph[point.id]?.next?.['']) {
+          this.graph['0'] = this.graph[point.id].next[''][0]
+        } else {
+          delete this.graph['0']
+        }
+        break
+
+      case 'child': {
+        if (!previousRefInfo.children) {
+          previousRefInfo.children = {}
+        }
+        const childrenDict = this._getChildrenAsDict(previousRefInfo.children)
+        childrenDict[output] = replace(
+          childrenDict[output] || [],
+          point.id,
+          Object.values(pointInfo.next || {}).flat()
+        )
+        previousRefInfo.children = childrenDict
+        break
+      }
+
+      default:
+        throw new Error(`Unexpected position: ${position}`)
+    }
+
+    delete this.graph[point.id]
+  }
+
+  move(pointToMove, referencePoint, position, output) {
+    const previousChildren = this.graph[pointToMove.id].children
+
+    this.remove(pointToMove)
+    this.insert(pointToMove, referencePoint, position, output)
+
+    this.graph[pointToMove.id].children = previousChildren
+  }
+
+  replace(pointToReplace, newPoint) {
+    const [referencePoint, position, output] = this.getPointPosition(pointToReplace)
+
+    this.remove(pointToReplace)
+    this.insert(newPoint, referencePoint, position, output)
+  }
+}

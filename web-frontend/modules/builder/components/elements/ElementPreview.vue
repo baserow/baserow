@@ -125,16 +125,9 @@ export default {
     const elementPage = computed(() =>
       store.getters['page/getById'](builder, props.element.page_id)
     )
-    const parentElement = computed(() => {
-      if (!props.element.parent_element_id) {
-        return null
-      }
-
-      return store.getters['element/getElementById'](
-        elementPage.value,
-        props.element.parent_element_id
-      )
-    })
+    const parentElement = computed(() =>
+      store.getters['element/getParent'](elementPage.value, props.element)
+    )
 
     function getDragImageScale(rect) {
       const defaultDragImageScale = 0.5
@@ -247,12 +240,9 @@ export default {
       ]
     },
     parentOfElementSelected() {
-      if (!this.elementSelected?.parent_element_id) {
-        return null
-      }
-      return this.$store.getters['element/getElementById'](
+      return this.$store.getters['element/getParent'](
         this.elementPage,
-        this.elementSelected.parent_element_id
+        this.elementSelected
       )
     },
     elementsAround() {
@@ -425,17 +415,21 @@ export default {
       const rootElementType = this.$registry.get('element', rootElement.type)
       const pagePlace = rootElementType.getPagePlace()
 
+      const nextEl = this.elementsAround[DIRECTIONS.AFTER]
+      const beforeId =
+        direction === DIRECTIONS.BEFORE
+          ? this.element.id
+          : nextEl?.id || null
+      const afterId =
+        direction === DIRECTIONS.AFTER && !nextEl ? this.element.id : null
+
       this.$refs.addElementModal.show({
         placeInContainer: this.element.place_in_container,
-        parentElementId: this.element.parent_element_id,
-        beforeId: this.getBeforeId(direction),
+        parentElementId: this.parentElement?.id ?? null,
+        beforeId,
+        afterId,
         pagePlace,
       })
-    },
-    getBeforeId(direction) {
-      return direction === DIRECTIONS.BEFORE
-        ? this.element.id
-        : this.elementsAround[DIRECTIONS.AFTER]?.id || null
     },
     async duplicateElement() {
       this.isDuplicating = true

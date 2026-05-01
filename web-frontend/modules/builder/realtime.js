@@ -76,7 +76,7 @@ export const registerRealtimeEvents = (realtime) => {
     store.dispatch('element/forceCreate', {
       page: ctx.page,
       element: data.element,
-      beforeId: data.before_id,
+      rebuildGraph: true,
     })
   })
 
@@ -111,13 +111,15 @@ export const registerRealtimeEvents = (realtime) => {
       builder: ctx.builder,
       page: ctx.page,
       elementId: data.element_id,
-      beforeElementId: data.before_id,
-      parentElementId: data.parent_element_id,
+      referenceElementId: data.reference_element_id,
+      position: data.position,
       placeInContainer: data.place_in_container,
     })
   })
 
   realtime.registerEvent('elements_moved', ({ store }, { elements }) => {
+    const affectedPageIds = new Set()
+
     elements.forEach((element) => {
       const ctx = getPageContext(store, element.page_id)
       if (!ctx) return
@@ -131,6 +133,14 @@ export const registerRealtimeEvents = (realtime) => {
           place_in_container: element.place_in_container,
         },
       })
+      affectedPageIds.add(element.page_id)
+    })
+
+    // Rebuild graph for each affected page after all compat fields are updated.
+    affectedPageIds.forEach((pageId) => {
+      const ctx = getPageContext(store, pageId)
+      if (!ctx) return
+      store.dispatch('element/rebuildGraph', { page: ctx.page })
     })
   })
 

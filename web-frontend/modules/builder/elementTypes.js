@@ -393,22 +393,6 @@ export class ElementType extends Registerable {
    * @returns an object containing values updated with the default values.
    */
   getDefaultValues(page, values) {
-    // By default if an element is inside a container we apply the
-    // `.getDefaultChildValues()` method of the parent to it.
-    if (values?.parent_element_id) {
-      const parentElement = this.app.$store.getters['element/getElementById'](
-        page,
-        values.parent_element_id
-      )
-      const parentElementType = this.app.$registry.get(
-        'element',
-        parentElement.type
-      )
-      return {
-        ...values,
-        ...parentElementType.getDefaultChildValues(page, values),
-      }
-    }
     return values
   }
 
@@ -527,21 +511,17 @@ export class ElementType extends Registerable {
    */
   getNextPlaces({ builder, page, element }) {
     let placeInContainer = element.place_in_container
-    const parentElementId = element.parent_element_id
-      ? element.parent_element_id
-      : null
 
     const elementPage = this.app.$store.getters['page/getById'](
       builder,
       element.page_id
     )
 
-    const parentElement = element.parent_element_id
-      ? this.app.$store.getters['element/getElementById'](
-          elementPage,
-          element.parent_element_id
-        )
-      : null
+    const parentElement = this.app.$store.getters['element/getParent'](
+      elementPage,
+      element
+    )
+    const parentElementId = parentElement?.id ?? null
     const parentElementType = parentElement
       ? this.app.$registry.get('element', parentElement.type)
       : null
@@ -555,42 +535,25 @@ export class ElementType extends Registerable {
       [DIRECTIONS.RIGHT]: null,
     }
 
-    // BEFORE
+    // BEFORE — insert before the previous sibling using 'north'
     const previousElement = elementsAround[DIRECTIONS.BEFORE]
     if (previousElement) {
-      // If we have a previous element, let place it before it.
       nextPlaces[DIRECTIONS.BEFORE] = {
-        beforeElementId: previousElement.id,
-        parentElementId,
-        placeInContainer: previousElement.place_in_container,
+        referenceElementId: previousElement.id,
+        position: 'north',
+        placeInContainer: '',
       }
     }
 
-    // AFTER
+    // AFTER — insert south of the next sibling, or south of this element if it's last
     const nextElement = elementsAround[DIRECTIONS.AFTER]
-    if (nextElement) {
-      const nextNextElement = this.app.$store.getters['element/getNextElement'](
-        elementPage,
-        nextElement
-      )
-      if (!nextNextElement) {
-        // We have to place this element as last element in the given place
-        nextPlaces[DIRECTIONS.AFTER] = {
-          beforeElementId: null,
-          parentElementId,
-          placeInContainer: element.place_in_container,
-        }
-      } else {
-        // Otherwise it must be placed just before the next next element
-        nextPlaces[DIRECTIONS.AFTER] = {
-          beforeElementId: nextNextElement.id,
-          parentElementId,
-          placeInContainer: nextNextElement.place_in_container,
-        }
-      }
+    nextPlaces[DIRECTIONS.AFTER] = {
+      referenceElementId: nextElement ? nextElement.id : element.id,
+      position: 'south',
+      placeInContainer: '',
     }
 
-    // LEFT
+    // LEFT — move to end of the previous container place
     if (parentElement) {
       const places = parentElementType.getElementPlaces(parentElement)
       const placeIndex = places.findIndex(
@@ -598,38 +561,50 @@ export class ElementType extends Registerable {
       )
 
       if (placeIndex > 0) {
-        // Let's move it as last of the previous container place
-        nextPlaces[DIRECTIONS.LEFT] = {
-          beforeElementId: null,
-          parentElementId,
-          placeInContainer: places[placeIndex - 1],
+        const prevPlace = places[placeIndex - 1]
+        const elementsInPrevPlace = this.app.$store.getters[
+          'element/getElementsInPlace'
+        ](elementPage, parentElementId, prevPlace)
+
+        if (elementsInPrevPlace.length) {
+          nextPlaces[DIRECTIONS.LEFT] = {
+            referenceElementId: elementsInPrevPlace.at(-1).id,
+            position: 'south',
+            placeInContainer: '',
+          }
+        } else {
+          nextPlaces[DIRECTIONS.LEFT] = {
+            referenceElementId: parentElementId,
+            position: 'child',
+            placeInContainer: prevPlace,
+          }
         }
       }
     }
 
-    // RIGHT
+    // RIGHT — move to end of the next container place
     if (parentElement) {
       const places = parentElementType.getElementPlaces(parentElement)
       const placeIndex = places.findIndex(
         (place) => place === element.place_in_container
       )
       if (placeIndex < places.length - 1) {
-        placeInContainer = places[placeIndex + 1]
+        const nextPlace = places[placeIndex + 1]
         const elementsInNextPlace = this.app.$store.getters[
           'element/getElementsInPlace'
-        ](elementPage, element.parent_element_id, placeInContainer)
+        ](elementPage, parentElementId, nextPlace)
+
         if (elementsInNextPlace.length) {
-          // Let's place it as first element in the next container place
           nextPlaces[DIRECTIONS.RIGHT] = {
-            beforeElementId: elementsInNextPlace[0].id,
-            parentElementId,
-            placeInContainer,
+            referenceElementId: elementsInNextPlace.at(-1).id,
+            position: 'south',
+            placeInContainer: '',
           }
         } else {
           nextPlaces[DIRECTIONS.RIGHT] = {
-            beforeElementId: null,
-            parentElementId,
-            placeInContainer,
+            referenceElementId: parentElementId,
+            position: 'child',
+            placeInContainer: nextPlace,
           }
         }
       }
@@ -659,20 +634,25 @@ export class ElementType extends Registerable {
   getElementsAround({ builder, page, element, withSharedPage = false }) {
     const elementType = this.app.$registry.get('element', element.type)
     const elementPlace = elementType.getPagePlace()
-    const isRootElement = !element.parent_element_id
 
     const elementPage = this.app.$store.getters['page/getById'](
       builder,
       element.page_id
     )
 
+    const parentElement = this.app.$store.getters['element/getParent'](
+      elementPage,
+      element
+    )
+    const isRootElement = !parentElement
+
     const siblings = this.app.$store.getters['element/getElementsInPlace'](
       elementPage,
-      element.parent_element_id,
+      parentElement?.id ?? null,
       element.place_in_container
     ).filter(
       (sibling) =>
-        Boolean(element.parent_element_id) ||
+        Boolean(parentElement) ||
         this.app.$registry.get('element', sibling.type).getPagePlace() ===
           elementPlace
     )
@@ -749,11 +729,7 @@ export class ElementType extends Registerable {
     let rightElement = null
 
     // We have a parent, so we can find left and right elements.
-    if (element.parent_element_id) {
-      const parentElement = this.app.$store.getters['element/getElementById'](
-        elementPage,
-        element.parent_element_id
-      )
+    if (parentElement) {
       const parentElementType = this.app.$registry.get(
         'element',
         parentElement.type
@@ -767,7 +743,7 @@ export class ElementType extends Registerable {
       while (placeLeftIndex >= 0) {
         const elementsInNextPlace = this.app.$store.getters[
           'element/getElementsInPlace'
-        ](elementPage, element.parent_element_id, places[placeLeftIndex])
+        ](elementPage, parentElement.id, places[placeLeftIndex])
         if (elementsInNextPlace.length > 0) {
           leftElement = elementsInNextPlace.at(-1)
           break
@@ -778,7 +754,7 @@ export class ElementType extends Registerable {
       while (placeRightIndex <= places.length - 1) {
         const elementsInNextPlace = this.app.$store.getters[
           'element/getElementsInPlace'
-        ](elementPage, element.parent_element_id, places[placeRightIndex])
+        ](elementPage, parentElement.id, places[placeRightIndex])
         if (elementsInNextPlace.length > 0) {
           rightElement = elementsInNextPlace[0]
           break
@@ -2365,12 +2341,11 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
       // A header must only follow another header; filter to headers to avoid
       // elements with lower order values being treated as the preceding element.
       const rootHeaderElements = this.app.$store.getters[
-        'element/getElementsOrdered'
+        'element/getRootElements'
       ](sharedPage).filter(
         (e) =>
-          !e.parent_element_id &&
           this.app.$registry.get('element', e.type).getPagePlace() ===
-            PAGE_PLACES.HEADER
+          PAGE_PLACES.HEADER
       )
 
       // Find the last header before beforeElement's order position (or the last header if placing at end).
@@ -2477,12 +2452,11 @@ export class FooterElementType extends HeaderElementType {
       // A footer must only precede another footer; filter to footers to avoid
       // elements with higher order values being treated as the next element.
       const rootFooterElements = this.app.$store.getters[
-        'element/getElementsOrdered'
+        'element/getRootElements'
       ](sharedPage).filter(
         (e) =>
-          !e.parent_element_id &&
           this.app.$registry.get('element', e.type).getPagePlace() ===
-            PAGE_PLACES.FOOTER
+          PAGE_PLACES.FOOTER
       )
 
       // Find the first footer at or after beforeElement's order position.

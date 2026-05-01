@@ -281,12 +281,9 @@ export default {
         : 'unset'
     },
     parentOfElementSelected() {
-      if (!this.elementSelected?.parent_element_id) {
-        return null
-      }
-      return this.$store.getters['element/getElementById'](
+      return this.$store.getters['element/getParent'](
         this.elementSelectedPage,
-        this.elementSelected.parent_element_id
+        this.elementSelected
       )
     },
     canCreateElement() {

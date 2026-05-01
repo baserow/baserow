@@ -1,9 +1,9 @@
-import BigNumber from 'bignumber.js'
+import { clone } from '@baserow/modules/core/utils/object'
+import { uuid } from '@baserow/modules/core/utils/string'
 
 import ElementService from '@baserow/modules/builder/services/element'
 import PublicBuilderService from '@baserow/modules/builder/services/publishedBuilder'
-import { calculateTempOrder } from '@baserow/modules/core/utils/order'
-import { uuid } from '@baserow/modules/core/utils/string'
+import ElementGraphHandler from '@baserow/modules/builder/utils/elementGraphHandler'
 
 const populateElement = (element, registry) => {
   const elementType = registry.get('element', element.type)
@@ -35,39 +35,16 @@ const updateContext = {
   moveTimeout: null,
 }
 
-/**
- * As the store data come first from the SSR generated version, we don't have the
- * BigNumber anymore so we need to make sure we use BigNumber when we compare things.
- * @param {Object} element
- * @returns a BigNumber object or null if the element or the order is missing.
- */
-const getOrder = (element) => {
-  return element?.order ? new BigNumber(element.order) : null
-}
-
-/** Recursively order the elements from up to down and left to right */
-const orderElements = (elements, parentElementId = null) => {
-  return elements
-    .filter(
-      ({ parent_element_id: curentParentElementId }) =>
-        curentParentElementId === parentElementId
-    )
-    .sort((a, b) => {
-      if (a.place_in_container !== b.place_in_container) {
-        return a.place_in_container > b.place_in_container ? 1 : -1
-      }
-
-      return getOrder(a).gt(getOrder(b)) ? 1 : -1
-    })
-    .map((element) => [element, ...orderElements(elements, element.id)])
-    .flat()
-}
-
 const updateCachedValues = (page) => {
-  page.orderedElements = orderElements(page.elements)
   page.elementMap = Object.fromEntries(
     page.elements.map((element) => [`${element.id}`, element])
   )
+  // Derive place_in_container from the graph (graph is authoritative for position)
+  const { placeMap } = ElementGraphHandler.buildElementMaps(page.graph || {})
+  for (const element of page.elements) {
+    element.place_in_container = placeMap[element.id] ?? ''
+  }
+  page.orderedElements = new ElementGraphHandler(page).getOrderedElements()
 }
 
 const mutations = {
@@ -77,14 +54,15 @@ const mutations = {
     page.elements = elements.map((element) =>
       populateElement(element, $registry)
     )
+    // page.graph is already authoritative from the pages API — don't rebuild it.
+    // Fall back to compat-field reconstruction only for pages without a graph yet.
+    if (!page.graph || Object.keys(page.graph).length === 0) {
+      page.graph = ElementGraphHandler.buildGraphFromElements(elements)
+    }
     updateCachedValues(page)
   },
-  ADD_ITEM(state, { page, element, sourcePageId = null, beforeId = null }) {
+  ADD_ITEM(state, { page, element, sourcePageId = null }) {
     const { $registry } = this
-    // For same-page moves, preserve the existing content/loading state so the
-    // element doesn't flash a spinner while the Nuxt useAsyncData cache skips
-    // the re-fetch. For cross-page moves, let populateElement reset cleanly so
-    // the new page context fetches fresh content.
     const isSamePageMove = sourcePageId !== null && sourcePageId === page.id
     const existingContentState = isSamePageMove ? element._ : null
     page.elements.push(populateElement(element, $registry))
@@ -113,8 +91,6 @@ const mutations = {
       Object.assign(builder.selectedElement, values)
     }
     if (updateCached) {
-      // We need to update cached values only if order or place of an element has
-      // changed or if an element has been added or removed.
       updateCachedValues(page)
     }
   },
@@ -125,14 +101,12 @@ const mutations = {
     }
     updateCachedValues(page)
   },
-  MOVE_ITEM(state, { page, index, oldIndex }) {
-    page.elements.splice(index, 0, page.elements.splice(oldIndex, 1)[0])
-  },
   SELECT_ITEM(state, { builder, element }) {
     builder.selectedElement = element
   },
   CLEAR_ITEMS(state, { page }) {
     page.elements = []
+    page.graph = {}
     updateCachedValues(page)
   },
   _SET_ELEMENT_NAMESPACE_PATH(state, { element, path }) {
@@ -154,6 +128,32 @@ const actions = {
 
     const elementType = $registry.get('element', element.type)
     elementType.afterCreate(element, page)
+
+    // If the element is not yet in the graph, append it to the end of the root
+    // chain. This handles test setup and compat-field-based callers that do not
+    // supply explicit graph position parameters. The undo path is exempt: it
+    // restores page.graph via page/forceUpdate before calling forceCreate, so
+    // the element is already present in the graph.
+    if (!(String(element.id) in (page.graph || {}))) {
+      const handler = new ElementGraphHandler(page)
+      let lastElement = null
+      if (page.graph?.['0']) {
+        let currentId = page.graph['0']
+        while (currentId) {
+          const el = handler.getElement(currentId)
+          if (!el) break
+          lastElement = el
+          currentId = handler.getInfo(currentId)?.next?.['']?.[0] ?? null
+        }
+      }
+      dispatch('graphInsert', {
+        page,
+        element,
+        referenceElement: lastElement,
+        position: 'south',
+        output: '',
+      })
+    }
   },
   forceUpdate({ commit }, { builder, page, element, values }) {
     const { $registry } = this
@@ -173,95 +173,73 @@ const actions = {
     const elementType = $registry.get('element', elementToDelete.type)
     elementType.afterDelete(elementToDelete, page)
   },
-  forceMoveToPage(
-    { commit, dispatch, getters },
-    {
-      builder,
-      page,
-      targetPage = null,
-      elementId,
-      beforeElementId,
-      parentElementId,
-      placeInContainer,
-    }
+  graphInsert(
+    { dispatch },
+    { page, element, referenceElement, position, output }
   ) {
-    const resolvedTargetPage = targetPage !== null ? targetPage : page
-    const element = getters.getElementById(page, elementId)
-
-    // Compute a temporary order on the target page while waiting for the server.
-    let tempOrder = ''
-    if (beforeElementId) {
-      // Place the element between beforeElement and its predecessor.
-      const beforeElement = getters.getElementById(
-        resolvedTargetPage,
-        beforeElementId
-      )
-      const beforeBeforeElement = getters.getPreviousElement(
-        resolvedTargetPage,
-        beforeElement
-      )
-      tempOrder = calculateTempOrder(
-        getOrder(beforeBeforeElement),
-        getOrder(beforeElement)
-      )
-    } else {
-      // Otherwise place at the end of the target container.
-      const lastElement = getters
-        .getElementsInPlace(
-          resolvedTargetPage,
-          parentElementId,
-          placeInContainer
-        )
-        .at(-1)
-      tempOrder = calculateTempOrder(getOrder(lastElement), null)
-    }
-
-    const { $registry } = this
-    const elementType = $registry.get('element', element.type)
-
-    elementType.wrapMove(
+    const handler = new ElementGraphHandler(page)
+    handler.insert(element, referenceElement, position, output)
+    dispatch(
+      'page/forceUpdate',
+      { page, values: { graph: handler.graph } },
       {
-        builder,
-        previousPage: page,
-        page: resolvedTargetPage,
-        element: element,
-      },
-      () => {
-        commit('DELETE_ITEM', { page, elementId: element.id })
-        commit('ADD_ITEM', {
-          page: resolvedTargetPage,
-          sourcePageId: page.id,
-          element: {
-            ...element,
-            order: tempOrder,
-            parent_element_id: parentElementId,
-            place_in_container: placeInContainer,
-            page_id: resolvedTargetPage.id,
-          },
-        })
-
-        const movedElement = getters.getElementById(
-          resolvedTargetPage,
-          elementId
-        )
-        dispatch('_setElementNamespacePath', {
-          page: resolvedTargetPage,
-          element: movedElement,
-        })
+        root: true,
       }
     )
+    updateCachedValues(page)
+  },
+  graphRemove({ dispatch }, { page, element }) {
+    const handler = new ElementGraphHandler(page)
+    handler.remove(element)
+    dispatch(
+      'page/forceUpdate',
+      { page, values: { graph: handler.graph } },
+      {
+        root: true,
+      }
+    )
+    updateCachedValues(page)
+  },
+  graphMove(
+    { dispatch },
+    { page, elementToMove, referenceElement, position, output }
+  ) {
+    const handler = new ElementGraphHandler(page)
+    handler.move(elementToMove, referenceElement, position, output)
+    dispatch(
+      'page/forceUpdate',
+      { page, values: { graph: handler.graph } },
+      {
+        root: true,
+      }
+    )
+    updateCachedValues(page)
+  },
+  graphReplace({ dispatch }, { page, elementToReplace, newElement }) {
+    const handler = new ElementGraphHandler(page)
+    handler.replace(elementToReplace, newElement)
+    dispatch(
+      'page/forceUpdate',
+      { page, values: { graph: handler.graph } },
+      {
+        root: true,
+      }
+    )
+    updateCachedValues(page)
   },
   select({ commit }, { builder, element }) {
     updateContext.lastUpdatedValues = null
     commit('SELECT_ITEM', { builder, element })
   },
   async create(
-    { dispatch },
+    { dispatch, commit, getters },
     {
       builder,
       page,
       elementType: elementTypeName,
-      beforeId = null,
+      referenceElementId = null,
+      position = 'south',
+      placeInContainer = '',
       values = null,
       forceCreate = true,
     }
@@ -269,20 +247,61 @@ const actions = {
     const { $registry, $client } = this
     const elementType = $registry.get('element', elementTypeName)
     const updatedValues = elementType.getDefaultValues(page, values)
-    const { data: element } = await ElementService($client).create(
-      page.id,
-      elementTypeName,
-      beforeId,
-      updatedValues
-    )
 
-    if (forceCreate) {
-      await dispatch('forceCreate', { page, element })
+    // Placeholder used only for graph bookkeeping — never stored in page.elements
+    // so we never render an element with incomplete field data while in-flight.
+    const tempElement = { id: uuid() }
 
-      await dispatch('select', { builder, element })
+    const referenceElement = referenceElementId
+      ? getters.getElementById(page, referenceElementId)
+      : null
+    const initialGraph = clone(page.graph)
+
+    dispatch('graphInsert', {
+      page,
+      element: tempElement,
+      referenceElement,
+      position,
+      output: placeInContainer,
+    })
+
+    try {
+      const { data: element } = await ElementService($client).create(
+        page.id,
+        elementTypeName,
+        referenceElementId,
+        position,
+        placeInContainer,
+        updatedValues
+      )
+
+      commit('ADD_ITEM', { page, element })
+
+      dispatch('graphReplace', {
+        page,
+        elementToReplace: tempElement,
+        newElement: element,
+      })
+
+      if (forceCreate) {
+        const populatedElement = getters.getElementById(page, element.id)
+        await dispatch('select', { builder, element: populatedElement })
+      }
+
+      await dispatch('_setElementNamespacePath', {
+        page,
+        element: getters.getElementById(page, element.id),
+      })
+
+      return element
+    } catch (error) {
+      dispatch(
+        'page/forceUpdate',
+        { page, values: { graph: initialGraph } },
+        { root: true }
+      )
+      throw error
     }
-
-    return element
   },
   async update({ dispatch }, { builder, page, element, values }) {
     const { $client } = this
@@ -319,8 +338,6 @@ const actions = {
     Object.keys(values).forEach((name) => {
       if (Object.prototype.hasOwnProperty.call(element, name)) {
         oldValues[name] = element[name]
-        // Accumulate the changed values to send all the ongoing changes with the
-        // final request
         updateContext.valuesToUpdate[name] = values[name]
       }
     })
@@ -341,7 +358,6 @@ const actions = {
           updateContext.lastUpdatedValues = null
           resolve()
         } catch (error) {
-          // Revert to old values on error
           if (updateContext.lastUpdatedValues) {
             await dispatch('forceUpdate', {
               builder,
@@ -370,28 +386,36 @@ const actions = {
       updateContext.promiseResolve = resolve
     })
   },
-  async delete({ dispatch, getters }, { builder, page, elementId }) {
+  async delete({ dispatch, commit, getters }, { builder, page, elementId }) {
     const { $client } = this
     const elementToDelete = getters.getElementById(page, elementId)
     const descendants = getters.getDescendants(page, elementToDelete)
 
-    // First delete all children
-    await Promise.all(
-      descendants.map((descendant) =>
-        dispatch('forceDelete', { builder, page, elementId: descendant.id })
-      )
-    )
+    const initialGraph = clone(page.graph)
 
-    await dispatch('forceDelete', { builder, page, elementId })
+    dispatch('graphRemove', { page, element: elementToDelete })
+
+    if (getters.getSelected(builder)?.id === elementId) {
+      commit('SELECT_ITEM', { builder, element: null })
+    }
+
+    // Remove the element and all its descendants from the local element list.
+    descendants.forEach((descendant) => {
+      commit('DELETE_ITEM', { page, elementId: descendant.id })
+    })
+    commit('DELETE_ITEM', { page, elementId })
 
     try {
       await ElementService($client).delete(elementId)
     } catch (error) {
-      await dispatch('forceCreate', {
-        page,
-        element: elementToDelete,
-      })
-      // Then restore all children
+      dispatch(
+        'page/forceUpdate',
+        { page, values: { graph: initialGraph } },
+        {
+          root: true,
+        }
+      )
+      await dispatch('forceCreate', { page, element: elementToDelete })
       await Promise.all(
         descendants.map((descendant) =>
           dispatch('forceCreate', { page, element: descendant })
@@ -406,7 +430,6 @@ const actions = {
 
     commit('SET_ITEMS', { builder, page, elements })
 
-    // Set the element namespace path of all elements we've fetched.
     await Promise.all(
       elements.map((element) =>
         dispatch('_setElementNamespacePath', { page, element })
@@ -422,7 +445,6 @@ const actions = {
 
     commit('SET_ITEMS', { builder, page, elements })
 
-    // Set the element namespace ath of all published elements we've fetched.
     await Promise.all(
       elements.map((element) =>
         dispatch('_setElementNamespacePath', { page, element })
@@ -437,39 +459,82 @@ const actions = {
       builder,
       page,
       elementId,
-      beforeElementId,
-      parentElementId = null,
-      placeInContainer = null,
+      referenceElementId,
+      position,
+      placeInContainer = '',
       targetPage = null,
     }
   ) {
     const { $client, $registry } = this
     const element = getters.getElementById(page, elementId)
-
     const resolvedTargetPage = targetPage !== null ? targetPage : page
-    const originalDataSourceId = element?.data_source_id || null
+    const isCrossPage = targetPage !== null && targetPage.id !== page.id
 
-    await dispatch('forceMoveToPage', {
-      builder,
-      page,
-      targetPage,
-      elementId,
-      beforeElementId,
-      parentElementId,
-      placeInContainer,
-    })
+    const referenceElement = referenceElementId
+      ? (getters.getElementById(resolvedTargetPage, referenceElementId) ??
+        getters.getElementById(page, referenceElementId))
+      : null
+
+    const initialSourceGraph = clone(page.graph)
+    const initialTargetGraph = isCrossPage
+      ? clone(resolvedTargetPage.graph)
+      : null
+
+    const elementType = $registry.get('element', element.type)
+
+    elementType.wrapMove(
+      {
+        builder,
+        previousPage: page,
+        page: resolvedTargetPage,
+        element,
+      },
+      () => {
+        if (isCrossPage) {
+          // Cross-page: remove from source graph, insert into target graph at the
+          // requested position (same params used by the confirmed API call below).
+          dispatch('graphRemove', { page, element })
+          commit('DELETE_ITEM', { page, elementId: element.id })
+          commit('ADD_ITEM', {
+            page: resolvedTargetPage,
+            sourcePageId: page.id,
+            element: { ...element, page_id: resolvedTargetPage.id },
+          })
+          dispatch('graphInsert', {
+            page: resolvedTargetPage,
+            element,
+            referenceElement,
+            position: position ?? 'south',
+            output: placeInContainer ?? '',
+          })
+
+          dispatch('_setElementNamespacePath', {
+            page: resolvedTargetPage,
+            element: getters.getElementById(resolvedTargetPage, elementId),
+          })
+        } else {
+          // Same-page: optimistic graph move.
+          dispatch('graphMove', {
+            page,
+            elementToMove: element,
+            referenceElement,
+            position,
+            output: placeInContainer,
+          })
+        }
+      }
+    )
 
     const fire = async () => {
       try {
         const { data: elementUpdated } = await ElementService($client).move(
-          resolvedTargetPage?.id,
           elementId,
-          beforeElementId,
-          parentElementId,
-          placeInContainer
+          referenceElementId,
+          position,
+          placeInContainer,
+          targetPage?.id ?? null
         )
 
-        // Replace the optimistic element with the server values.
         dispatch('forceUpdate', {
           builder,
           page: resolvedTargetPage,
@@ -477,18 +542,57 @@ const actions = {
           values: {
             order: elementUpdated.order,
             place_in_container: elementUpdated.place_in_container,
-            parent_element_id: elementUpdated.parent_element_id,
             page_id: elementUpdated.page_id,
           },
         })
+
+        if (isCrossPage) {
+          // Fix the cross-page graph using the original move parameters rather than
+          // rebuilding from compat fields.
+          const movedElement = getters.getElementById(
+            resolvedTargetPage,
+            elementId
+          )
+          dispatch('graphRemove', {
+            page: resolvedTargetPage,
+            element: movedElement,
+          })
+          const confirmedRef = referenceElementId
+            ? (getters.getElementById(resolvedTargetPage, referenceElementId) ??
+              getters.getElementById(page, referenceElementId))
+            : null
+          dispatch('graphInsert', {
+            page: resolvedTargetPage,
+            element: movedElement,
+            referenceElement: confirmedRef,
+            position,
+            output: placeInContainer,
+          })
+        }
       } catch (error) {
-        // Rollback: remove from target page and restore on source page.
-        commit('DELETE_ITEM', {
-          page: resolvedTargetPage,
-          elementId: element.id,
-        })
-        commit('ADD_ITEM', { page, element })
-        dispatch('_setElementNamespacePath', { page, element })
+        // Restore source graph
+        dispatch(
+          'page/forceUpdate',
+          { page, values: { graph: initialSourceGraph } },
+          { root: true }
+        )
+        updateCachedValues(page)
+
+        if (isCrossPage) {
+          // Restore target graph and move element back to source
+          dispatch(
+            'page/forceUpdate',
+            { page: resolvedTargetPage, values: { graph: initialTargetGraph } },
+            { root: true }
+          )
+          commit('DELETE_ITEM', {
+            page: resolvedTargetPage,
+            elementId: element.id,
+          })
+          commit('ADD_ITEM', { page, element })
+          dispatch('_setElementNamespacePath', { page, element })
+          updateCachedValues(resolvedTargetPage)
+        }
         throw error
       }
     }
@@ -496,11 +600,53 @@ const actions = {
     clearTimeout(updateContext.moveTimeout)
     updateContext.moveTimeout = setTimeout(fire, 1000)
   },
-  async duplicate({ commit, dispatch, getters }, { builder, page, elementId }) {
+  /**
+   * forceMove is a local-only move used by realtime events. It applies the
+   * move directly to the page graph using the graph-based positioning triplet
+   * (referenceElementId, position, placeInContainer) that the backend sends.
+   */
+  forceMove(
+    { dispatch, getters },
+    { page, elementId, referenceElementId, position, placeInContainer }
+  ) {
+    const element = getters.getElementById(page, elementId)
+    if (!element) return
+
+    const referenceElement = referenceElementId
+      ? getters.getElementById(page, referenceElementId)
+      : null
+
+    dispatch('graphMove', {
+      page,
+      elementToMove: element,
+      referenceElement,
+      position: position ?? 'south',
+      output: placeInContainer ?? '',
+    })
+  },
+  async duplicate({ commit, dispatch }, { builder, page, elementId }) {
     const { $client } = this
     const {
-      data: { elements, workflow_actions: workflowActions },
+      data: {
+        elements,
+        workflow_actions: workflowActions,
+        graph_additions: graph,
+      },
     } = await ElementService($client).duplicate(elementId)
+
+    // Apply the graph BEFORE calling forceCreate. forceCreate skips the
+    // root-chain append when the element is already present in page.graph,
+    // so pre-populating prevents duplicated elements from appearing at root
+    // level in addition to their correct position inside a container slot.
+    const updatedGraph = { ...page.graph, ...graph }
+    if (!updatedGraph[elementId]) updatedGraph[elementId] = {}
+    if (!updatedGraph[elementId].next) updatedGraph[elementId].next = {}
+    updatedGraph[elementId].next[''] = [elements[0].id]
+    dispatch(
+      'page/forceUpdate',
+      { page, values: { graph: updatedGraph } },
+      { root: true }
+    )
 
     const elementPromises = elements.map((element) =>
       dispatch('forceCreate', { page, element })
@@ -514,14 +660,10 @@ const actions = {
     )
 
     await Promise.all(elementPromises.concat(workflowActionPromises))
+    updateCachedValues(page)
 
-    const elementToDuplicate = getters.getElementById(page, elementId)
-    const elementToSelect = elements.find(
-      ({ parent_element_id: parentId }) =>
-        parentId === elementToDuplicate.parent_element_id
-    )
-
-    commit('SELECT_ITEM', { builder, element: elementToSelect })
+    // elements[0] is always the root duplicate (children follow in order)
+    commit('SELECT_ITEM', { builder, element: elements[0] })
 
     return elements
   },
@@ -543,6 +685,20 @@ const actions = {
       element,
       path: elementNamespacePath,
     })
+  },
+  /** Rebuild page.graph from compat fields on all current elements. */
+  rebuildGraph({ dispatch }, { page }) {
+    const rebuiltGraph = ElementGraphHandler.buildGraphFromElements(
+      page.elements
+    )
+    dispatch(
+      'page/forceUpdate',
+      { page, values: { graph: rebuiltGraph } },
+      {
+        root: true,
+      }
+    )
+    updateCachedValues(page)
   },
   setRepeatElementCollapsed({ commit }, { element, collapsed }) {
     commit('SET_REPEAT_ELEMENT_COLLAPSED', {
@@ -572,14 +728,21 @@ const getters = {
     return page.orderedElements
   },
   getRootElements: (state, getters) => (page) => {
-    return getters
-      .getElementsOrdered(page)
-      .filter((e) => e.parent_element_id === null)
+    const handler = new ElementGraphHandler(page)
+    const result = []
+    const visited = new Set()
+    let currentId = page.graph?.['0']
+    while (currentId && !visited.has(currentId)) {
+      visited.add(currentId)
+      const el = handler.getElement(currentId)
+      if (el) result.push(el)
+      currentId = handler.getInfo(currentId)?.next?.['']?.[0] ?? null
+    }
+    return result
   },
   getChildren: (state, getters) => (page, element) => {
-    return getters
-      .getElementsOrdered(page)
-      .filter((e) => e.parent_element_id === element.id)
+    if (!page.graph?.[element?.id]) return []
+    return new ElementGraphHandler(page).getChildren(element)
   },
   getDescendants: (state, getters) => (page, element) => {
     const getAllDescendants = (page, element) => {
@@ -596,12 +759,19 @@ const getters = {
     return getAllDescendants(page, element)
   },
   getParent: (state, getters) => (page, element) => {
-    return getters.getElementById(page, element?.parent_element_id)
+    if (!element?.id) return null
+    try {
+      const positions = new ElementGraphHandler(page).getPreviousPositions(
+        element
+      )
+      const childPosition = positions.findLast(([, pos]) => pos === 'child')
+      return childPosition ? childPosition[0] : null
+    } catch {
+      return null
+    }
   },
   /**
    * Given an element, return all its ancestors until we reach the root element.
-   * If `parentFirst` is `true` then we reverse the array of elements so that
-   * the element's immediate parent is first, otherwise the root element will be first.
    */
   getAncestors:
     (state, getters) =>
@@ -626,9 +796,22 @@ const getters = {
       return parentFirst ? ancestors.reverse() : ancestors
     },
   getSiblings: (state, getters) => (page, element) => {
-    return getters
-      .getElementsOrdered(page)
-      .filter((e) => e.parent_element_id === element.parent_element_id)
+    const parent = getters.getParent(page, element)
+    if (parent === null) {
+      return getters.getRootElements(page)
+    }
+    try {
+      const handler = new ElementGraphHandler(page)
+      const positions = handler.getPreviousPositions(element)
+      const childPos = positions.findLast(([, pos]) => pos === 'child')
+      if (childPos) {
+        const [, , slot] = childPos
+        return handler.getChildrenInPlace(parent, slot)
+      }
+      return []
+    } catch {
+      return []
+    }
   },
   getElementPosition:
     (state, getters) =>
@@ -644,34 +827,30 @@ const getters = {
     },
   getElementsInPlace:
     (state, getters) => (page, parentId, placeInContainer) => {
-      return getters
-        .getElementsOrdered(page)
-        .filter(
-          (e) =>
-            e.parent_element_id === parentId &&
-            e.place_in_container === placeInContainer
-        )
+      if (parentId === null || parentId === undefined) {
+        return getters.getRootElements(page)
+      }
+      const handler = new ElementGraphHandler(page)
+      const parent = handler.getElement(parentId)
+      if (!parent) return []
+      return handler.getChildrenInPlace(parent, placeInContainer ?? '')
     },
   getPreviousElement: (state, getters) => (page, before) => {
-    const elementsInPlace = getters.getElementsInPlace(
-      page,
-      before.parent_element_id,
-      before.place_in_container
-    )
-    return before
-      ? elementsInPlace
-          .reverse()
-          .find((e) => getOrder(e).lt(getOrder(before))) || null
-      : elementsInPlace.at(-1)
+    if (!before?.id) return null
+    try {
+      const positions = new ElementGraphHandler(page).getPreviousPositions(
+        before
+      )
+      const southPosition = positions.findLast(([, pos]) => pos === 'south')
+      return southPosition ? southPosition[0] : null
+    } catch {
+      return null
+    }
   },
   getNextElement: (state, getters) => (page, after) => {
-    const elementsInPlace = getters.getElementsInPlace(
-      page,
-      after.parent_element_id,
-      after.place_in_container
-    )
-
-    return elementsInPlace.find((e) => getOrder(e).gt(getOrder(after)))
+    if (!after?.id) return null
+    const nextList = new ElementGraphHandler(page).getNextElements(after)
+    return nextList[0] ?? null
   },
   getSelected: (state) => (builder) => {
     return builder.selectedElement
@@ -692,20 +871,17 @@ const getters = {
     // Exclude the element itself from the list of siblings
     const otherSiblings = siblings.filter((el) => el.id !== element.id)
 
-    // If the element has siblings, return the closest previous sibling.
-    // Default to the first (zeroth) sibling.
     if (otherSiblings.length) {
       const index = siblings.findIndex((el) => el.id === element.id)
       const nextIndex = Math.max(index - 1, 0)
       return otherSiblings[nextIndex]
     }
 
-    // Return the container element if the element has a parent
-    if (element.parent_element_id) {
-      return getters.getElementById(page, element.parent_element_id)
+    const parent = getters.getParent(page, element)
+    if (parent) {
+      return parent
     }
 
-    // Find root element
     const rootElements = getters
       .getRootElements(page)
       .filter((el) => el.id !== element.id)

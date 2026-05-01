@@ -83,6 +83,7 @@ export default {
       search: '',
       placeInContainer: null,
       beforeId: null,
+      afterId: null,
       parentElementId: null,
       pagePlace: null,
       addingElementType: null,
@@ -152,11 +153,12 @@ export default {
     }),
 
     async show(
-      { placeInContainer, beforeId, parentElementId, pagePlace } = {},
+      { placeInContainer, beforeId, afterId, parentElementId, pagePlace } = {},
       ...args
     ) {
       this.placeInContainer = placeInContainer
       this.beforeId = beforeId
+      this.afterId = afterId || null
       this.parentElementId = parentElementId
       this.pagePlace = pagePlace
       modal.methods.show.bind(this)(...args)
@@ -169,28 +171,60 @@ export default {
     async addElement(elementType) {
       this.addingElementType = elementType.getType()
 
-      let beforeId = this.beforeId
       let destinationPage
+      let referenceElementId = null
+      let position = 'south'
+      let placeInContainer = ''
 
       if (this.parentElementId) {
-        // The page must be the same as the parent one
+        // The page must be the same as the parent one.
         destinationPage =
           this.parentElement.page_id === this.currentPage.id
             ? this.currentPage
             : this.sharedPage
+
+        if (this.beforeId) {
+          // Insert before a specific element inside the container.
+          referenceElementId = this.beforeId
+          position = 'north'
+        } else {
+          // Append to the end of the container slot.
+          const elementsInPlace = this.$store.getters[
+            'element/getElementsInPlace'
+          ](destinationPage, this.parentElementId, this.placeInContainer)
+
+          if (elementsInPlace.length > 0) {
+            referenceElementId = elementsInPlace.at(-1).id
+            position = 'south'
+          } else {
+            referenceElementId = this.parentElementId
+            position = 'child'
+            placeInContainer = this.placeInContainer
+          }
+        }
       } else {
-        // The page is forced by the element type page place
+        // Root-level insertion.
         destinationPage =
           elementType.getPagePlace() === PAGE_PLACES.CONTENT
             ? this.currentPage
             : this.sharedPage
-        // If the before element doesn't belong to the same page we must ignore it
+
+        let beforeId = this.beforeId
         if (
           this.beforeElement &&
           this.beforeElement.page_id !== destinationPage.id
         ) {
           beforeId = null
         }
+
+        if (beforeId) {
+          referenceElementId = beforeId
+          position = 'north'
+        } else if (this.afterId) {
+          referenceElementId = this.afterId
+          position = 'south'
+        }
+        // else: referenceElementId=null, position='south' → appends to end
       }
 
       try {
@@ -198,11 +232,10 @@ export default {
           builder: this.builder,
           page: destinationPage,
           elementType: elementType.getType(),
-          beforeId,
-          values: {
-            parent_element_id: this.parentElementId,
-            place_in_container: this.placeInContainer,
-          },
+          referenceElementId,
+          position,
+          placeInContainer,
+          values: {},
         })
 
         this.$emit('element-added')

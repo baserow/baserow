@@ -122,7 +122,7 @@ export default {
       })
     },
     wrapperClasses() {
-      if (this.element?.parent_element_id) {
+      if (this.$store.getters['element/getParent'](this.elementPage, this.element)) {
         return {
           'element__wrapper--full-width':
             this.element.style_width_child === CHILD_WIDTH_TYPES.NORMAL.value,

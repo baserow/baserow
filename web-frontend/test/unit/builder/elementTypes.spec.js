@@ -45,8 +45,8 @@ describe('elementTypes tests', () => {
         id: 789,
         type: 'heading',
         page_id: page.id,
-        parent_element_id: elementParent.id,
       }
+      page.graph = { '0': 456, 456: { children: { '': [789] } }, 789: {} }
       page.elementMap = { 456: elementParent, 789: element }
       const elementType = testApp.$registry.get('element', element.type)
       expect(elementType.hasAncestorOfType(page, element, 'column')).toBe(true)
@@ -60,8 +60,8 @@ describe('elementTypes tests', () => {
         id: 222,
         type: 'table',
         page_id: page.id,
-        parent_element_id: repeatAncestor.id,
       }
+      page.graph = { '0': 111, 111: { children: { '': [222] } }, 222: {} }
       page.elementMap = { 111: repeatAncestor, 222: tableElement }
       const repeatElementType = testApp.$registry.get(
         'element',
@@ -766,7 +766,6 @@ describe('elementTypes tests', () => {
         id: 112,
         type: 'column',
         page_id: page.id,
-        parent_element_id: 111,
       }
       const columnAncestor2 = {
         id: 113,
@@ -774,6 +773,13 @@ describe('elementTypes tests', () => {
         page_id: page.id,
       }
 
+      // formAncestor (root) → next → columnAncestor2; formAncestor → child → columnAncestor1
+      page.graph = {
+        '0': 111,
+        111: { next: { '': [113] }, children: { '': [112] } },
+        112: {},
+        113: {},
+      }
       page.elementMap = {
         111: formAncestor,
         112: columnAncestor1,
@@ -866,9 +872,13 @@ describe('elementTypes tests', () => {
         id: 112,
         type: 'repeat',
         page_id: page.id,
-        parent_element_id: repeatElement.id,
       }
 
+      page.graph = {
+        '0': 111,
+        111: { children: { 'content': [112] } },
+        112: {},
+      }
       page.elementMap = {
         111: repeatElement,
         112: nestedRepeatElement,
@@ -910,9 +920,14 @@ describe('elementTypes tests', () => {
         id: 113,
         type: 'form_container',
         page_id: page.id,
-        parent_element_id: columnElement.id,
       }
 
+      page.graph = {
+        '0': 111,
+        111: { next: { '': [112] } },
+        112: { children: { '': [113] } },
+        113: {},
+      }
       page.elementMap = {
         111: destinationFormContainer,
         112: columnElement,
@@ -1216,7 +1231,6 @@ describe('elementTypes tests', () => {
         id: 51,
         type: 'input_text',
         page_id: page.id,
-        parent_element_id: element.id,
       }
       page.elementMap = { 50: element, 51: childElement }
       page.orderedElements = [element, childElement]
@@ -1268,8 +1282,8 @@ describe('elementTypes tests', () => {
         id: 51,
         type: 'input_text',
         page_id: page.id,
-        parent_element_id: element.id,
       }
+      page.graph = { '0': 50, 50: { children: { '': [51] } }, 51: {} }
       page.elementMap = { 50: element, 51: childElement }
       page.orderedElements = [element, childElement]
       expect(elementType.isInError(element, { page, element, builder })).toBe(
@@ -1411,7 +1425,6 @@ describe('elementTypes tests', () => {
             page,
             element: {
               place_in_container: null,
-              parent_element_id: null,
               ...element,
               page_id: page.id,
               order: `${index}.0000`,
@@ -1445,7 +1458,6 @@ describe('elementTypes tests', () => {
             page: sharedPage,
             element: {
               place_in_container: null,
-              parent_element_id: null,
               ...element,
               page_id: sharedPage.id,
               order: `${index}.0000`,
