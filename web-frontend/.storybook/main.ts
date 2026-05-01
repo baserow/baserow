@@ -32,13 +32,10 @@ const config: StorybookConfig = {
           'posthog-js',
           'flush-promises',
           'vuex',
+          'moment',
         ],
       },
     })
   },
 }
 export default config
-
-// 'storybook-addon-pseudo-states',
-// 'storybook-addon-designs',
-// '@storybook/addon-coverage',
