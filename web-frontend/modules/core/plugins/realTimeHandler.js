@@ -194,6 +194,28 @@ export class RealTimeHandler {
   }
 
   /**
+   * Sends an inbound message to the server over the existing WebSocket
+   * connection. Use this for ephemeral collab traffic (cursor positions,
+   * scene deltas) that the server should re-broadcast — the connection is
+   * already authenticated so this avoids the per-message HTTP overhead.
+   * The server-side `type` is dispatched through `client_message_registry`.
+   *
+   * Drops the message silently if the socket isn't open. Callers must
+   * never depend on delivery — these are best-effort, fire-and-forget.
+   */
+  send(message) {
+    if (!this.connected || !this.socket || this.socket.readyState !== 1) {
+      return false
+    }
+    try {
+      this.socket.send(JSON.stringify(message))
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  /**
    * Requests real time updates for the list of pages that
    * have been collected by the subscribe() call.
    */

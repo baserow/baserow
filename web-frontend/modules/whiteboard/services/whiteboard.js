@@ -6,10 +6,5 @@ export default (client) => {
     saveContent(whiteboardId, content) {
       return client.put(`/whiteboard/${whiteboardId}/`, { content })
     },
-    broadcastChanges(whiteboardId, payload) {
-      return client.post(`/whiteboard/${whiteboardId}/broadcast-changes/`, {
-        payload,
-      })
-    },
   }
 }

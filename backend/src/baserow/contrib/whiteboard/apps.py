@@ -12,7 +12,7 @@ class WhiteboardConfig(AppConfig):
             operation_type_registry,
             permission_manager_type_registry,
         )
-        from baserow.ws.registries import page_registry
+        from baserow.ws.registries import client_message_registry, page_registry
 
         from .application_types import WhiteboardApplicationType
         from .comments.notification_types import (
@@ -31,6 +31,9 @@ class WhiteboardConfig(AppConfig):
             ReadWhiteboardOperationType,
             UpdateWhiteboardContentOperationType,
         )
+        from .ws.client_message_types import (
+            BroadcastWhiteboardChangesMessageType,
+        )
         from .ws.pages import WhiteboardPageType
 
         application_type_registry.register(WhiteboardApplicationType())
@@ -43,6 +46,7 @@ class WhiteboardConfig(AppConfig):
         operation_type_registry.register(DeleteWhiteboardCommentOperationType())
         operation_type_registry.register(ResolveWhiteboardCommentOperationType())
         page_registry.register(WhiteboardPageType())
+        client_message_registry.register(BroadcastWhiteboardChangesMessageType())
 
         notification_type_registry.register(WhiteboardCommentMentionNotificationType())
         notification_type_registry.register(WhiteboardCommentReplyNotificationType())

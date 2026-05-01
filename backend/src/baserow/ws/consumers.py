@@ -5,7 +5,11 @@ from typing import TYPE_CHECKING, Optional
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
-from baserow.ws.registries import PageType, page_registry
+from baserow.ws.registries import (
+    PageType,
+    client_message_registry,
+    page_registry,
+)
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
@@ -162,6 +166,17 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
             await self._add_page_scope(content)
         if "remove_page" in content:
             await self._remove_page_scope(content)
+        # Dispatch any other inbound message via the client-message registry.
+        # Subscribe / unsubscribe stay hardcoded above (they're handled
+        # without a `type` field for backwards compatibility with existing
+        # clients) but every other inbound message is keyed off `type`.
+        message_type = content.get("type")
+        if message_type:
+            try:
+                handler = client_message_registry.get(message_type)
+            except client_message_registry.does_not_exist_exception_class:
+                return
+            await handler.handle(self, content)
 
     async def _get_page_context(
         self, content: dict, page_name_attr: str

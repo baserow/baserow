@@ -5,7 +5,6 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import (
     HTTP_200_OK,
-    HTTP_204_NO_CONTENT,
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
     HTTP_404_NOT_FOUND,
@@ -127,66 +126,3 @@ def test_put_whiteboard_emits_signal(api_client, data_fixture):
     kwargs = send_signal.call_args.kwargs
     assert kwargs["whiteboard"].id == whiteboard.id
     assert kwargs["user"].id == user.id
-
-
-@pytest.mark.django_db
-def test_post_broadcast_changes(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    whiteboard = data_fixture.create_whiteboard_application(user=user)
-
-    url = reverse(
-        "api:whiteboard:broadcast_changes",
-        kwargs={"whiteboard_id": whiteboard.id},
-    )
-
-    payload = {"type": "scene_update", "elements": [{"id": "x"}]}
-
-    with patch(
-        "baserow.contrib.whiteboard.api.views.WhiteboardPageType.broadcast"
-    ) as broadcast:
-        response = api_client.post(
-            url,
-            {"payload": payload},
-            format="json",
-            HTTP_AUTHORIZATION=f"JWT {token}",
-        )
-
-    assert response.status_code == HTTP_204_NO_CONTENT
-    assert broadcast.called
-    args, kwargs = broadcast.call_args
-    assert args[0] == payload
-    assert kwargs["whiteboard_id"] == whiteboard.id
-
-
-@pytest.mark.django_db
-def test_post_broadcast_changes_permission_denied(api_client, data_fixture):
-    _, token = data_fixture.create_user_and_token()
-    whiteboard = data_fixture.create_whiteboard_application()
-
-    url = reverse(
-        "api:whiteboard:broadcast_changes",
-        kwargs={"whiteboard_id": whiteboard.id},
-    )
-    response = api_client.post(
-        url,
-        {"payload": {"type": "scene_update"}},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_401_UNAUTHORIZED
-
-
-@pytest.mark.django_db
-def test_post_broadcast_changes_invalid_body(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    whiteboard = data_fixture.create_whiteboard_application(user=user)
-
-    url = reverse(
-        "api:whiteboard:broadcast_changes",
-        kwargs={"whiteboard_id": whiteboard.id},
-    )
-    response = api_client.post(
-        url, {}, format="json", HTTP_AUTHORIZATION=f"JWT {token}"
-    )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"

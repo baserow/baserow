@@ -67,18 +67,29 @@ export const actions = {
     if (!state.whiteboardId) return
     await WhiteboardService($client).saveContent(state.whiteboardId, content)
   },
-  async broadcastChanges({ state }, payload) {
-    const { $client } = this
+  broadcastChanges({ state }, payload) {
     if (!state.whiteboardId) return
-    try {
-      await WhiteboardService($client).broadcastChanges(
-        state.whiteboardId,
-        payload
-      )
-    } catch (e) {
-      // Ephemeral broadcasts must never break the editor — log and swallow.
-      console.warn('whiteboard broadcastChanges failed', e)
-    }
+    // Send the ephemeral collab payload directly over the existing
+    // authenticated WebSocket connection. The previous HTTP route
+    // (`POST /whiteboard/<id>/broadcast-changes/`) had to re-auth on
+    // every keystroke and went through DRF + a Django worker, which
+    // didn't scale on a busy board. The WS connection is already
+    // open and `client_message_registry` dispatches the payload to
+    // the same `WhiteboardPageType` group via Channels.
+    //
+    // We reach `$realtime` through `this.app` (the Nuxt app context).
+    // `storeRegister.js` does NOT inject `$realtime` directly onto the
+    // store because the realtime plugin depends on the store at boot
+    // time (would be a circular dep), but `this.app.$realtime` is
+    // populated long before any user interaction can trigger a
+    // broadcast.
+    const $realtime = this.app?.$realtime
+    if (!$realtime) return
+    $realtime.send({
+      type: 'broadcast_whiteboard_changes',
+      whiteboard_id: state.whiteboardId,
+      payload,
+    })
   },
   queueRemoteUpdate({ commit }, update) {
     commit('QUEUE_REMOTE_UPDATE', update)

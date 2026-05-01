@@ -144,3 +144,36 @@ class PageRegistry(Registry):
 
 
 page_registry = PageRegistry()
+
+
+class ClientMessageType(Instance):
+    """
+    The client-message registry holds inbound WebSocket message types that the
+    server accepts from clients on the already-authenticated connection.
+
+    A registered type is dispatched by `CoreConsumer.receive_json` whenever the
+    incoming JSON has a `type` field matching `ClientMessageType.type`. This
+    avoids the HTTP round-trip (auth, worker, view dispatch) for ephemeral
+    messages such as live-collab cursor and scene broadcasts that don't need
+    to be persisted.
+    """
+
+    async def handle(self, consumer, content: dict):
+        """
+        Process an inbound message. Permission checks are the handler's
+        responsibility — `consumer.scope['user']` is the authenticated user
+        (or `None` if unauthenticated), and `consumer.scope['web_socket_id']`
+        is the unique connection id (useful as `ignore_web_socket_id` when
+        re-broadcasting so the sender doesn't echo their own message).
+        """
+
+        raise NotImplementedError(
+            "Each client-message type must implement its own handle method."
+        )
+
+
+class ClientMessageRegistry(Registry):
+    name = "ws_client_message"
+
+
+client_message_registry = ClientMessageRegistry()

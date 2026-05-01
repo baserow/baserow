@@ -4,14 +4,13 @@ import { TestApp } from '@baserow/test/helpers/testApp'
 
 const mockGetContent = vi.fn()
 const mockSaveContent = vi.fn()
-const mockBroadcastChanges = vi.fn()
+const mockRealtimeSend = vi.fn()
 
 vi.mock('@baserow/modules/whiteboard/services/whiteboard', () => {
   return {
     default: () => ({
       getContent: mockGetContent,
       saveContent: mockSaveContent,
-      broadcastChanges: mockBroadcastChanges,
     }),
   }
 })
@@ -23,11 +22,16 @@ describe('whiteboardApplication store', () => {
   beforeEach(() => {
     mockGetContent.mockReset()
     mockSaveContent.mockReset()
-    mockBroadcastChanges.mockReset()
+    mockRealtimeSend.mockReset()
     testApp = new TestApp()
     store = testApp.createStore({
       modules: { whiteboardApplication: whiteboardModule },
     })
+    // Stub $realtime on the store's Nuxt app — the broadcastChanges
+    // action sends ephemeral collab payloads through the existing WS
+    // connection instead of an HTTP request, accessed via
+    // `this.app.$realtime`.
+    store.app = { ...(store.app || {}), $realtime: { send: mockRealtimeSend } }
   })
 
   afterEach(() => {
@@ -68,23 +72,28 @@ describe('whiteboardApplication store', () => {
     expect(mockSaveContent).toHaveBeenCalledWith(17, snapshot)
   })
 
-  test('broadcastChanges sends payload and never throws on errors', async () => {
+  test('broadcastChanges sends an inbound WS message wrapped with whiteboard_id', async () => {
     mockGetContent.mockResolvedValue({
       data: { content: { elements: [], appState: {}, files: {} } },
     })
-    mockBroadcastChanges.mockRejectedValueOnce(new Error('boom'))
     await store.dispatch('whiteboardApplication/fetchInitial', {
       whiteboardId: 17,
     })
 
-    await expect(
-      store.dispatch('whiteboardApplication/broadcastChanges', {
-        type: 'scene_update',
-      })
-    ).resolves.toBeUndefined()
-    expect(mockBroadcastChanges).toHaveBeenCalledWith(17, {
+    store.dispatch('whiteboardApplication/broadcastChanges', {
       type: 'scene_update',
+      elements: [{ id: 'x' }],
     })
+    expect(mockRealtimeSend).toHaveBeenCalledWith({
+      type: 'broadcast_whiteboard_changes',
+      whiteboard_id: 17,
+      payload: { type: 'scene_update', elements: [{ id: 'x' }] },
+    })
+  })
+
+  test('broadcastChanges is a no-op before the whiteboard id is loaded', () => {
+    store.dispatch('whiteboardApplication/broadcastChanges', { type: 'noop' })
+    expect(mockRealtimeSend).not.toHaveBeenCalled()
   })
 
   test('queue and clear remote updates', () => {
