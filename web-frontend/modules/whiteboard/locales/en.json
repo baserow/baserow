@@ -1,5 +1,30 @@
 {
   "whiteboardPage": {
     "loading": "Loading whiteboard"
+  },
+  "whiteboardComments": {
+    "toolbarComment": "Comment",
+    "toolbarShowResolved": "Show resolved",
+    "newComment": "New comment",
+    "thread": "Thread",
+    "resolve": "Resolve",
+    "resolving": "Resolving…",
+    "reopen": "Reopen",
+    "post": "Post",
+    "save": "Save",
+    "edited": "edited",
+    "unknownAuthor": "Unknown",
+    "placeholderNew": "Add a comment, mention with {'@'}",
+    "placeholderReply": "Reply… mention with {'@'}",
+    "placeholderEdit": "Edit your comment",
+    "confirmDelete": "Delete this comment?"
+  },
+  "whiteboardCommentMentionNotification": {
+    "title": "{sender} mentioned you in {whiteboard}.",
+    "deletedUser": "deleted user"
+  },
+  "whiteboardCommentReplyNotification": {
+    "title": "{sender} replied to a thread in {whiteboard}.",
+    "deletedUser": "deleted user"
   }
 }

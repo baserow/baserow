@@ -5,6 +5,8 @@ import {
   reconcileElements,
   CaptureUpdateAction,
   getSceneVersion,
+  sceneCoordsToViewportCoords,
+  viewportCoordsToSceneCoords,
 } from '@excalidraw/excalidraw'
 
 import excalidrawCss from '@excalidraw/excalidraw/index.css?raw'
@@ -88,27 +90,85 @@ export function mountExcalidraw(container, options) {
     onPointerUpdate,
     viewModeEnabled = false,
     langCode: initialLangCode = 'en',
+    onCommentButtonClick,
+    commentButtonLabel = 'Comment',
+    canComment = true,
+    initialCommentModeActive = false,
+    onAppStateChange,
   } = options
 
   const apiRef = { current: null }
   const e = React.createElement
 
-  // Capture the latest `setState` setter so the host can switch the
-  // language at runtime via the controller's `setLangCode` method
-  // without remounting Excalidraw (and losing scene/canvas state).
-  // `useState`'s setter is stable across renders, so reassigning on
-  // every render is harmless.
+  // Captured setState handles so the Vue host can flip these flags at
+  // runtime via the returned controller without remounting Excalidraw.
   let setLangCodeFn = null
+  let setCommentModeActiveFn = null
 
   const ExcalidrawHost = () => {
     const localApiRef = useRef(null)
     const [langCode, setLangCode] = useState(initialLangCode)
+    const [commentModeActive, setCommentModeActive] = useState(
+      initialCommentModeActive
+    )
     setLangCodeFn = setLangCode
+    setCommentModeActiveFn = setCommentModeActive
 
     const handleApiReady = useCallback((api) => {
       localApiRef.current = api
       apiRef.current = api
     }, [])
+
+    // Custom button rendered into Excalidraw's top-right area, the only
+    // officially-supported toolbar extension hook. We size it to match
+    // the neighbouring Library trigger (`--lg-button-size`) so the row
+    // stays uniform, and use an inline SVG so we don't depend on a
+    // Vue-side icon registry from inside the React tree.
+    const renderTopRightUI = () => {
+      if (!canComment) return null
+      return e(
+        'div',
+        { className: 'whiteboard-top-right-buttons' },
+        e(
+          'button',
+          {
+            key: 'whiteboard-comment-toggle',
+            type: 'button',
+            title: commentButtonLabel,
+            'aria-label': commentButtonLabel,
+            'aria-pressed': commentModeActive ? 'true' : 'false',
+            className:
+              'whiteboard-top-right-button' +
+              (commentModeActive
+                ? ' whiteboard-top-right-button--active'
+                : ''),
+            onClick: () => {
+              const next = !commentModeActive
+              setCommentModeActive(next)
+              if (typeof onCommentButtonClick === 'function') {
+                onCommentButtonClick(next)
+              }
+            },
+          },
+          e(
+            'svg',
+            {
+              viewBox: '0 0 24 24',
+              fill: 'none',
+              stroke: 'currentColor',
+              strokeWidth: '2',
+              strokeLinecap: 'round',
+              strokeLinejoin: 'round',
+              'aria-hidden': 'true',
+              focusable: 'false',
+            },
+            e('path', {
+              d: 'M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z',
+            })
+          )
+        )
+      )
+    }
 
     return e(
       'div',
@@ -118,12 +178,22 @@ export function mountExcalidraw(container, options) {
         initialData,
         viewModeEnabled,
         langCode,
+        renderTopRightUI,
         onChange: (elements, appState, files) => {
+          if (typeof onAppStateChange === 'function') {
+            // Cheap callback for the comment overlay — fires on every
+            // pan/zoom/element change so pin positions can re-project.
+            onAppStateChange({
+              scrollX: appState.scrollX,
+              scrollY: appState.scrollY,
+              zoom: appState.zoom?.value ?? appState.zoom,
+              width: appState.width,
+              height: appState.height,
+              offsetLeft: appState.offsetLeft,
+              offsetTop: appState.offsetTop,
+            })
+          }
           if (typeof onChange === 'function') {
-            // Excalidraw fires onChange on every interaction (selection,
-            // hover, scroll, …); the scene version only changes when an
-            // element is genuinely added, removed, or edited. Pass it
-            // through so the host can dedupe broadcasts and autosaves.
             onChange({
               elements,
               appState,
@@ -150,7 +220,7 @@ export function mountExcalidraw(container, options) {
     },
     applyRemoteScene(remoteElements) {
       const api = apiRef.current
-      if (!api) return
+      if (!api) return null
       const localElements = api.getSceneElementsIncludingDeleted()
       const localAppState = api.getAppState()
       const reconciled = reconcileElements(
@@ -162,6 +232,12 @@ export function mountExcalidraw(container, options) {
         elements: reconciled,
         captureUpdate: CaptureUpdateAction.NEVER,
       })
+      // Return the sceneVersion of the just-applied scene so the Vue
+      // host can stamp `currentSceneVersion` BEFORE Excalidraw fires
+      // `onChange`. Without this, the host sees the remote-driven
+      // version as a new local edit and broadcasts/autosaves it back,
+      // creating a 3-second ping-pong between every connected client.
+      return getSceneVersion(reconciled)
     },
     applyRemoteFiles(files) {
       const api = apiRef.current
@@ -176,6 +252,53 @@ export function mountExcalidraw(container, options) {
       if (typeof setLangCodeFn === 'function') {
         setLangCodeFn(code || 'en')
       }
+    },
+    setCommentModeActive(active) {
+      if (typeof setCommentModeActiveFn === 'function') {
+        setCommentModeActiveFn(!!active)
+      }
+    },
+    /** Returns the current appState — useful to convert a click's
+     *  viewport coords to scene coords on demand. */
+    getAppState() {
+      const api = apiRef.current
+      if (!api) return null
+      return api.getAppState()
+    },
+    /** Convert a page-relative pointer position to scene coordinates
+     *  using Excalidraw's own helper, so pin placement matches the
+     *  exact pixel the user clicked on regardless of zoom or pan. */
+    viewportToScene(clientX, clientY) {
+      const api = apiRef.current
+      if (!api) return null
+      const appState = api.getAppState()
+      return viewportCoordsToSceneCoords(
+        { clientX, clientY },
+        {
+          zoom: appState.zoom,
+          offsetLeft: appState.offsetLeft,
+          offsetTop: appState.offsetTop,
+          scrollX: appState.scrollX,
+          scrollY: appState.scrollY,
+        }
+      )
+    },
+    /** Convert scene coordinates to page-relative pixels for rendering
+     *  HTML pins on top of the canvas. */
+    sceneToViewport(sceneX, sceneY) {
+      const api = apiRef.current
+      if (!api) return null
+      const appState = api.getAppState()
+      return sceneCoordsToViewportCoords(
+        { sceneX, sceneY },
+        {
+          zoom: appState.zoom,
+          offsetLeft: appState.offsetLeft,
+          offsetTop: appState.offsetTop,
+          scrollX: appState.scrollX,
+          scrollY: appState.scrollY,
+        }
+      )
     },
     setCollaborators(collaboratorsObject) {
       const api = apiRef.current

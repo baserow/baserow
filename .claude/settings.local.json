@@ -6,7 +6,9 @@
       "WebFetch(domain:www.npmjs.com)",
       "WebSearch",
       "WebFetch(domain:github.com)",
-      "WebFetch(domain:medium.com)"
+      "WebFetch(domain:medium.com)",
+      "Bash(grep -E \"\\\\.\\(js|vue\\)$\")",
+      "WebFetch(domain:excalidraw.com)"
     ]
   }
 }

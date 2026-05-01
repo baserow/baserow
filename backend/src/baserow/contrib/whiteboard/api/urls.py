@@ -1,5 +1,6 @@
-from django.urls import re_path
+from django.urls import include, path, re_path
 
+from .comments import urls as comment_urls
 from .views import BroadcastChangesView, WhiteboardView
 
 app_name = "baserow.contrib.whiteboard.api"
@@ -15,4 +16,5 @@ urlpatterns = [
         BroadcastChangesView.as_view(),
         name="broadcast_changes",
     ),
+    path("", include(comment_urls, namespace="comments")),
 ]

@@ -32,21 +32,21 @@ describe('whiteboard realtime', () => {
       'pointer_update',
       'scene_update',
       'user_left_whiteboard',
+      'whiteboard_comment_created',
+      'whiteboard_comment_deleted',
+      'whiteboard_comment_resolved',
+      'whiteboard_comment_updated',
       'whiteboard_content_updated',
     ])
   })
 
-  test('whiteboard_content_updated dispatches fetchInitial when ids match', () => {
+  test('whiteboard_content_updated does not refetch (handled by scene_update)', () => {
+    // Live changes are propagated via `scene_update` broadcasts, so
+    // PUT-success events used to drive a flicker-causing fetchInitial
+    // — they're now no-ops. Both ID-match and ID-mismatch should
+    // dispatch nothing.
     const store = makeStore(7)
     handlers.whiteboard_content_updated({ store }, { whiteboard_id: 7 })
-    expect(store.dispatch).toHaveBeenCalledWith(
-      'whiteboardApplication/fetchInitial',
-      { whiteboardId: 7 }
-    )
-  })
-
-  test('whiteboard_content_updated ignores other boards', () => {
-    const store = makeStore(7)
     handlers.whiteboard_content_updated({ store }, { whiteboard_id: 99 })
     expect(store.dispatch).not.toHaveBeenCalled()
   })

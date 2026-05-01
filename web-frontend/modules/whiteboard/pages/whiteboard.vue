@@ -4,6 +4,8 @@
       v-if="whiteboard && contentLoaded"
       :whiteboard="whiteboard"
       :read-only="readOnly"
+      :can-comment="canComment"
+      :can-view-comments="canViewComments"
     />
   </div>
 </template>
@@ -15,6 +17,7 @@ import { useRoute } from 'vue-router'
 import { useNuxtApp, useAsyncData, useHead } from '#app'
 
 import ExcalidrawCollab from '@baserow/modules/whiteboard/components/ExcalidrawCollab.vue'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 definePageMeta({
   layout: 'app',
@@ -76,6 +79,30 @@ const readOnly = computed(() => {
   )
 })
 
+// COMMENTER + EDITOR + BUILDER + ADMIN can post comments. VIEWERs do
+// not see the toolbar at all (and the layer hides too — see
+// `canViewComments`).
+const canComment = computed(() => {
+  if (!whiteboard.value) return false
+  return $hasPermission(
+    'whiteboard.create_comment',
+    whiteboard.value,
+    whiteboard.value.workspace.id
+  )
+})
+
+// COMMENTER and above can list/see comments; VIEWERs cannot. Used to
+// gate the entire comment overlay (pins + popups) and to skip the
+// initial `fetchAll` that would otherwise 401.
+const canViewComments = computed(() => {
+  if (!whiteboard.value) return false
+  return $hasPermission(
+    'whiteboard.list_comments',
+    whiteboard.value,
+    whiteboard.value.workspace.id
+  )
+})
+
 useHead(() => ({
   title: whiteboard.value?.name || '',
 }))
@@ -85,13 +112,43 @@ onMounted(async () => {
   await store.dispatch('whiteboardApplication/fetchInitial', {
     whiteboardId: whiteboard.value.id,
   })
+  // Comments are loaded after the scene; the WS subscription on the
+  // whiteboard page also picks up `whiteboard_comment_*` events.
+  // VIEWERs lack `whiteboard.list_comments` and would 401 — skip.
+  if (canViewComments.value) {
+    try {
+      await store.dispatch('whiteboardComments/fetchAll', {
+        whiteboardId: whiteboard.value.id,
+      })
+    } catch (error) {
+      notifyIf(error, 'application')
+    }
+  }
   $realtime.subscribe('whiteboard', { whiteboard_id: whiteboard.value.id })
+
+  // Deep-link from a notification: open the targeted thread once the
+  // comment list has loaded. We use `?comment=<id>` rather than a hash
+  // so the URL stays cleanly bookmarkable.
+  if (canViewComments.value) {
+    const targetCommentId = parseInt(route.query.comment, 10)
+    if (Number.isFinite(targetCommentId)) {
+      // The notification can target either a top-level thread or a
+      // reply; resolve to the thread root before opening.
+      const all = store.getters['whiteboardComments/getComments']
+      const target = all.find((c) => c.id === targetCommentId)
+      const threadId = target?.parent_comment_id ?? targetCommentId
+      if (threadId) {
+        store.dispatch('whiteboardComments/openThread', threadId)
+      }
+    }
+  }
 })
 
 onBeforeUnmount(() => {
   if (whiteboard.value) {
     $realtime.unsubscribe('whiteboard', { whiteboard_id: whiteboard.value.id })
   }
+  store.dispatch('whiteboardComments/reset')
 })
 </script>
 

@@ -65,3 +65,46 @@ class ApplicationFixtures:
             kwargs["order"] = 0
 
         return Whiteboard.objects.create(**kwargs)
+
+    def create_whiteboard_comment(
+        self,
+        user=None,
+        whiteboard=None,
+        message=None,
+        parent_comment=None,
+        x=0.0,
+        y=0.0,
+        mentions=None,
+        **kwargs,
+    ):
+        from baserow.contrib.whiteboard.comments.models import WhiteboardComment
+
+        if whiteboard is None:
+            whiteboard = self.create_whiteboard_application(user=user)
+        if user is None:
+            user = self.create_user()
+        if message is None:
+            message = {
+                "type": "doc",
+                "content": [
+                    {
+                        "type": "paragraph",
+                        "content": [{"type": "text", "text": self.fake.sentence()}],
+                    }
+                ],
+            }
+        if parent_comment is not None:
+            x = None
+            y = None
+        comment = WhiteboardComment.objects.create(
+            whiteboard=whiteboard,
+            user=user,
+            message=message,
+            parent_comment=parent_comment,
+            x=x,
+            y=y,
+            **kwargs,
+        )
+        if mentions:
+            comment.mentions.set(mentions)
+        return comment

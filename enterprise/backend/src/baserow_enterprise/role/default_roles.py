@@ -88,6 +88,13 @@ from baserow.contrib.dashboard.widgets.operations import (
     RestoreWidgetOperationType,
     UpdateWidgetOperationType,
 )
+from baserow.contrib.whiteboard.comments.operations import (
+    CreateWhiteboardCommentOperationType,
+    DeleteWhiteboardCommentOperationType,
+    ListWhiteboardCommentsOperationType,
+    ResolveWhiteboardCommentOperationType,
+    UpdateWhiteboardCommentOperationType,
+)
 from baserow.contrib.whiteboard.operations import (
     ReadWhiteboardOperationType,
     UpdateWhiteboardContentOperationType,
@@ -430,6 +437,11 @@ default_roles[COMMENTER_ROLE_UID].extend(
         DeleteViewRowCommentOperationType,
         RestoreViewRowCommentOperationType,
         ReadDatabaseRowHistoryOperationType,
+        ListWhiteboardCommentsOperationType,
+        CreateWhiteboardCommentOperationType,
+        UpdateWhiteboardCommentOperationType,
+        DeleteWhiteboardCommentOperationType,
+        ResolveWhiteboardCommentOperationType,
     ]
 )
 default_roles[EDITOR_ROLE_UID].extend(
