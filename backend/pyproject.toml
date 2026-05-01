@@ -126,7 +126,7 @@ dev = [
     "watchdog==6.0.0",
     "argh==0.31.3",
     "pyinstrument==5.1.2",
-    "pyfakefs==6.0.0",
+    "pyfakefs==6.2.0",
     "pytest-xdist==3.8.0",
     "django-silk==5.4.3",
     "django-extensions==4.1",
