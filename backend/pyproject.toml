@@ -37,7 +37,7 @@ dependencies = [
     "django-celery-email-reboot==4.2.0",
     "zipp==3.23.0",
     "unicodecsv==0.14.1",
-    "django-celery-beat==2.8.1",
+    "django-celery-beat==2.9.0",
     "celery-redbeat==2.3.3",
     "flower==2.0.1",
     "service-identity==24.2.0",
