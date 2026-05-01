@@ -1,5 +1,40 @@
 import moment from '@baserow/modules/core/moment'
 
+export class Timedelta {
+  constructor(ms) {
+    this.ms = ms
+  }
+}
+
+const INTERVAL_PATTERNS = [
+  { regex: /^(\d+)\s+years?$/i, unit: 'days', factor: 365 },
+  { regex: /^(\d+)\s+months?$/i, unit: 'days', factor: 30 },
+  { regex: /^(\d+)\s+weeks?$/i, unit: 'days', factor: 7 },
+  { regex: /^(\d+)\s+days?$/i, unit: 'days', factor: 1 },
+  { regex: /^(\d+)\s+hours?$/i, unit: 'hours', factor: 1 },
+  { regex: /^(\d+)\s+minutes?$/i, unit: 'minutes', factor: 1 },
+  { regex: /^(\d+)\s+seconds?$/i, unit: 'seconds', factor: 1 },
+]
+
+const UNIT_TO_MS = {
+  days: 24 * 60 * 60 * 1000,
+  hours: 60 * 60 * 1000,
+  minutes: 60 * 1000,
+  seconds: 1000,
+}
+
+export function parseIntervalString(value) {
+  if (typeof value !== 'string') return null
+  for (const { regex, unit, factor } of INTERVAL_PATTERNS) {
+    const match = value.trim().match(regex)
+    if (match) {
+      const amount = parseInt(match[1], 10) * factor
+      return new Timedelta(amount * UNIT_TO_MS[unit])
+    }
+  }
+  return null
+}
+
 export const getHumanPeriodAgoCount = (dateTime) => {
   const now = moment()
   const d = moment(dateTime)

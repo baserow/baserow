@@ -1,9 +1,11 @@
+from datetime import timedelta
 from typing import Optional
 
 from django.core.exceptions import ValidationError
 
 import pytz
 
+from baserow.core.formula.utils.date import parse_interval_string
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
@@ -190,4 +192,33 @@ class DecimalSeparatorBaserowRuntimeFormulaArgumentType(
         return (
             f"'{value}' is not a valid decimal separator. "
             f"Valid options are: ',' or '.'."
+        )
+
+
+class TimedeltaBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
+    def test(self, value):
+        return isinstance(value, timedelta)
+
+    def parse(self, value):
+        return value
+
+
+class IntervalStringBaserowRuntimeFormulaArgumentType(
+    BaserowRuntimeFormulaArgumentType
+):
+    def test(self, value):
+        if isinstance(value, timedelta):
+            return True
+        return parse_interval_string(value) is not None
+
+    def parse(self, value):
+        if isinstance(value, timedelta):
+            return value
+        result = parse_interval_string(value)
+        return result if result is not None else value
+
+    def get_error_message(self, value) -> Optional[str]:
+        return (
+            f"'{value}' is not a valid interval string. "
+            f"Expected format: '<number> <unit>', e.g. '1 day', '2 hours'."
         )

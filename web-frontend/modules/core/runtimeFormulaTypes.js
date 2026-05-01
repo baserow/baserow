@@ -11,6 +11,9 @@ import {
   ArrayOfNumbersBaserowRuntimeFormulaArgumentType,
   ThousandSeparatorBaserowRuntimeFormulaArgumentType,
   DecimalSeparatorBaserowRuntimeFormulaArgumentType,
+  TimedeltaBaserowRuntimeFormulaArgumentType,
+  IntervalStringBaserowRuntimeFormulaArgumentType,
+  Timedelta,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
   InvalidFormulaArgument,
@@ -463,8 +466,37 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
     ]
   }
 
+  validateTypeOfArgs(args) {
+    if (args.length === 2) {
+      const [a, b] = args
+      const num = new NumberBaserowRuntimeFormulaArgumentType()
+      const dt = new DateTimeBaserowRuntimeFormulaArgumentType()
+      const td = new TimedeltaBaserowRuntimeFormulaArgumentType()
+      if (num.test(a) && num.test(b)) return undefined
+      if ((dt.test(a) && td.test(b)) || (td.test(a) && dt.test(b)))
+        return undefined
+      if (!(num.test(a) || dt.test(a) || td.test(a))) return a
+      return b
+    }
+    return super.validateTypeOfArgs(args)
+  }
+
+  parseArgs(args) {
+    if (args.some((a) => a instanceof Timedelta || a instanceof Date)) {
+      return args
+    }
+    return super.parseArgs(args)
+  }
+
   execute(context, args) {
-    return args[0] + args[1]
+    const [a, b] = args
+    if (a instanceof Date && b instanceof Timedelta) {
+      return new Date(a.getTime() + b.ms)
+    }
+    if (a instanceof Timedelta && b instanceof Date) {
+      return new Date(b.getTime() + a.ms)
+    }
+    return a + b
   }
 
   getDescription() {
@@ -510,8 +542,33 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
     ]
   }
 
+  validateTypeOfArgs(args) {
+    if (args.length === 2) {
+      const [a, b] = args
+      const num = new NumberBaserowRuntimeFormulaArgumentType()
+      const dt = new DateTimeBaserowRuntimeFormulaArgumentType()
+      const td = new TimedeltaBaserowRuntimeFormulaArgumentType()
+      if (num.test(a) && num.test(b)) return undefined
+      if (dt.test(a) && td.test(b)) return undefined
+      if (!(num.test(a) || dt.test(a))) return a
+      return b
+    }
+    return super.validateTypeOfArgs(args)
+  }
+
+  parseArgs(args) {
+    if (args.some((a) => a instanceof Timedelta || a instanceof Date)) {
+      return args
+    }
+    return super.parseArgs(args)
+  }
+
   execute(context, args) {
-    return args[0] - args[1]
+    const [a, b] = args
+    if (a instanceof Date && b instanceof Timedelta) {
+      return new Date(a.getTime() - b.ms)
+    }
+    return a - b
   }
 
   getDescription() {
@@ -2661,6 +2718,46 @@ export class RuntimeNumberFormat extends RuntimeFormulaFunction {
       {
         formula: "number_format(1000000, 2, ' ', ',')",
         result: "'1 000 000,00'",
+      },
+    ]
+  }
+}
+
+export class RuntimeDateInterval extends RuntimeFormulaFunction {
+  static getType() {
+    return 'date_interval'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.DATE
+  }
+
+  get args() {
+    return [new IntervalStringBaserowRuntimeFormulaArgumentType()]
+  }
+
+  execute(context, args) {
+    return args[0]
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.dateIntervalDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "date_interval('1 day')",
+        result: 'timedelta(days=1)',
+      },
+      {
+        formula: "now() + date_interval('1 day')",
+        result: "'2025-10-17 11:05:38'",
       },
     ]
   }

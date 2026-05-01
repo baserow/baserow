@@ -1,5 +1,6 @@
 import random
 import uuid
+from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
 
@@ -14,9 +15,11 @@ from baserow.core.formula.argument_types import (
     DateTimeBaserowRuntimeFormulaArgumentType,
     DecimalSeparatorBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
+    IntervalStringBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
     ThousandSeparatorBaserowRuntimeFormulaArgumentType,
+    TimedeltaBaserowRuntimeFormulaArgumentType,
     TimezoneBaserowRuntimeFormulaArgumentType,
 )
 from baserow.core.formula.registries import RuntimeFormulaFunction
@@ -88,6 +91,26 @@ class RuntimeAdd(RuntimeFormulaFunction):
         NumberBaserowRuntimeFormulaArgumentType(),
     ]
 
+    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
+        if len(args) == 2:
+            a, b = args
+            num = NumberBaserowRuntimeFormulaArgumentType()
+            dt = DateTimeBaserowRuntimeFormulaArgumentType()
+            td = TimedeltaBaserowRuntimeFormulaArgumentType()
+            if num.test(a) and num.test(b):
+                return None
+            if (dt.test(a) and td.test(b)) or (td.test(a) and dt.test(b)):
+                return None
+            if not (num.test(a) or dt.test(a) or td.test(a)):
+                return a
+            return b
+        return super().validate_type_of_args(args)
+
+    def parse_args(self, args: FormulaArgs) -> FormulaArgs:
+        if any(isinstance(a, (datetime, timedelta)) for a in args):
+            return list(args)
+        return super().parse_args(args)
+
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0] + args[1]
 
@@ -99,6 +122,26 @@ class RuntimeMinus(RuntimeFormulaFunction):
         NumberBaserowRuntimeFormulaArgumentType(),
         NumberBaserowRuntimeFormulaArgumentType(),
     ]
+
+    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
+        if len(args) == 2:
+            a, b = args
+            num = NumberBaserowRuntimeFormulaArgumentType()
+            dt = DateTimeBaserowRuntimeFormulaArgumentType()
+            td = TimedeltaBaserowRuntimeFormulaArgumentType()
+            if num.test(a) and num.test(b):
+                return None
+            if dt.test(a) and td.test(b):
+                return None
+            if not (num.test(a) or dt.test(a)):
+                return a
+            return b
+        return super().validate_type_of_args(args)
+
+    def parse_args(self, args: FormulaArgs) -> FormulaArgs:
+        if any(isinstance(a, (datetime, timedelta)) for a in args):
+            return list(args)
+        return super().parse_args(args)
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0] - args[1]
@@ -672,3 +715,12 @@ class RuntimeNumberFormat(RuntimeFormulaFunction):
             result = "-" + result
 
         return result
+
+
+class RuntimeDateInterval(RuntimeFormulaFunction):
+    type = "date_interval"
+
+    args = [IntervalStringBaserowRuntimeFormulaArgumentType()]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        return args[0]

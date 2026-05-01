@@ -1,4 +1,29 @@
 import re
+from datetime import timedelta
+from typing import Optional
+
+INTERVAL_PATTERNS = [
+    (re.compile(r"^(\d+)\s+years?$", re.IGNORECASE), "days", 365),
+    (re.compile(r"^(\d+)\s+months?$", re.IGNORECASE), "days", 30),
+    (re.compile(r"^(\d+)\s+weeks?$", re.IGNORECASE), "weeks", 1),
+    (re.compile(r"^(\d+)\s+days?$", re.IGNORECASE), "days", 1),
+    (re.compile(r"^(\d+)\s+hours?$", re.IGNORECASE), "hours", 1),
+    (re.compile(r"^(\d+)\s+minutes?$", re.IGNORECASE), "minutes", 1),
+    (re.compile(r"^(\d+)\s+seconds?$", re.IGNORECASE), "seconds", 1),
+]
+
+
+def parse_interval_string(value: str) -> Optional[timedelta]:
+    """Parse a human-readable interval string into a timedelta, or None if invalid."""
+
+    if not isinstance(value, str):
+        return None
+    for pattern, unit, factor in INTERVAL_PATTERNS:
+        match = pattern.match(value.strip())
+        if match:
+            amount = int(match.group(1)) * factor
+            return timedelta(**{unit: amount})
+    return None
 
 
 def convert_date_format_moment_to_python(moment_format: str) -> str:

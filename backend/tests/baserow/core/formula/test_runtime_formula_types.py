@@ -1,5 +1,5 @@
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from unittest.mock import MagicMock
 
 import pytest
@@ -15,6 +15,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeCapitalize,
     RuntimeConcat,
     RuntimeContains,
+    RuntimeDateInterval,
     RuntimeDateTimeFormat,
     RuntimeDay,
     RuntimeDivide,
@@ -2517,3 +2518,123 @@ def test_runtime_number_format_validate_args_raises_human_readable_error_for_bad
     with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
         RuntimeNumberFormat().validate_args([1000, 2, ",", ";"])
     assert "';' is not a valid decimal separator" in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["1 day"], timedelta(days=1)),
+        (["2 days"], timedelta(days=2)),
+        (["3 weeks"], timedelta(weeks=3)),
+        (["4 hours"], timedelta(hours=4)),
+        (["30 minutes"], timedelta(minutes=30)),
+        (["45 seconds"], timedelta(seconds=45)),
+        (["1 year"], timedelta(days=365)),
+        (["1 month"], timedelta(days=30)),
+    ],
+)
+def test_runtime_date_interval_execute(args, expected):
+    parsed_args = RuntimeDateInterval().parse_args(args)
+    result = RuntimeDateInterval().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # Valid interval strings — arg passes
+        (["1 day"], None),
+        (["2 days"], None),
+        # Invalid strings — arg is returned as invalid
+        (["foo"], "foo"),
+        ([""], ""),
+        ([1], 1),
+        ([None], None),
+    ],
+)
+def test_runtime_date_interval_validate_type_of_args(args, expected):
+    result = RuntimeDateInterval().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["1 day"], True),
+        (["1 day", "extra"], False),
+    ],
+)
+def test_runtime_date_interval_validate_number_of_args(args, expected):
+    result = RuntimeDateInterval().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (
+            [datetime(2025, 1, 1, 12, 0, 0), timedelta(days=1)],
+            datetime(2025, 1, 2, 12, 0, 0),
+        ),
+        (
+            [timedelta(days=1), datetime(2025, 1, 1, 12, 0, 0)],
+            datetime(2025, 1, 2, 12, 0, 0),
+        ),
+        (
+            [datetime(2025, 6, 15), timedelta(hours=3)],
+            datetime(2025, 6, 15, 3, 0, 0),
+        ),
+    ],
+)
+def test_runtime_add_with_datetime_and_timedelta(args, expected):
+    parsed_args = RuntimeAdd().parse_args(args)
+    result = RuntimeAdd().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([datetime(2025, 1, 1, 12, 0, 0), timedelta(days=1)], None),
+        ([timedelta(days=1), datetime(2025, 1, 1, 12, 0, 0)], None),
+        ([timedelta(days=1), timedelta(days=2)], timedelta(days=1)),
+        (["foo", timedelta(days=1)], "foo"),
+    ],
+)
+def test_runtime_add_validate_type_of_args_with_timedelta(args, expected):
+    result = RuntimeAdd().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (
+            [datetime(2025, 1, 2, 12, 0, 0), timedelta(days=1)],
+            datetime(2025, 1, 1, 12, 0, 0),
+        ),
+        (
+            [datetime(2025, 6, 15, 3, 0, 0), timedelta(hours=3)],
+            datetime(2025, 6, 15, 0, 0, 0),
+        ),
+    ],
+)
+def test_runtime_minus_with_datetime_and_timedelta(args, expected):
+    parsed_args = RuntimeMinus().parse_args(args)
+    result = RuntimeMinus().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([datetime(2025, 1, 2, 12, 0, 0), timedelta(days=1)], None),
+        ([timedelta(days=1), datetime(2025, 1, 1, 12, 0, 0)], timedelta(days=1)),
+        ([timedelta(days=1), timedelta(days=2)], timedelta(days=1)),
+        (["foo", timedelta(days=1)], "foo"),
+    ],
+)
+def test_runtime_minus_validate_type_of_args_with_timedelta(args, expected):
+    result = RuntimeMinus().validate_type_of_args(args)
+    assert result == expected
