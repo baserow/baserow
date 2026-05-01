@@ -44,6 +44,7 @@ class CoreConfig(AppConfig):
             RuntimeCapitalize,
             RuntimeConcat,
             RuntimeContains,
+            RuntimeDateInterval,
             RuntimeDateTimeFormat,
             RuntimeDay,
             RuntimeDivide,
@@ -138,6 +139,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeToArray())
         formula_runtime_function_registry.register(RuntimeNull())
         formula_runtime_function_registry.register(RuntimeNumberFormat())
+        formula_runtime_function_registry.register(RuntimeDateInterval())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,

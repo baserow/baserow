@@ -1,4 +1,4 @@
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 import pytest
 
@@ -6,6 +6,7 @@ from baserow.core.formula.argument_types import (
     DateTimeBaserowRuntimeFormulaArgumentType,
     DecimalSeparatorBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
+    IntervalStringBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
     ThousandSeparatorBaserowRuntimeFormulaArgumentType,
@@ -236,3 +237,49 @@ def test_decimal_separator_get_error_message_returns_human_readable_string():
     arg_type = DecimalSeparatorBaserowRuntimeFormulaArgumentType()
     message = arg_type.get_error_message(";")
     assert "';' is not a valid decimal separator" in message
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("1 day", True),
+        ("2 days", True),
+        ("3 weeks", True),
+        ("4 hours", True),
+        ("30 minutes", True),
+        ("45 seconds", True),
+        ("1 year", True),
+        ("1 month", True),
+        (timedelta(days=1), True),
+        ("foo", False),
+        ("", False),
+        ("1", False),
+        (1, False),
+        (None, False),
+    ],
+)
+def test_interval_string_test_method(value, expected):
+    assert IntervalStringBaserowRuntimeFormulaArgumentType().test(value) == expected
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("1 day", timedelta(days=1)),
+        ("2 days", timedelta(days=2)),
+        ("3 weeks", timedelta(weeks=3)),
+        ("4 hours", timedelta(hours=4)),
+        ("30 minutes", timedelta(minutes=30)),
+        ("45 seconds", timedelta(seconds=45)),
+        ("1 year", timedelta(days=365)),
+        ("1 month", timedelta(days=30)),
+    ],
+)
+def test_interval_string_parse_method(value, expected):
+    assert IntervalStringBaserowRuntimeFormulaArgumentType().parse(value) == expected
+
+
+def test_interval_string_get_error_message_returns_human_readable_string():
+    arg_type = IntervalStringBaserowRuntimeFormulaArgumentType()
+    message = arg_type.get_error_message("not valid")
+    assert "is not a valid interval string" in message

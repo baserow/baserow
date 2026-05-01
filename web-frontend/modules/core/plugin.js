@@ -97,6 +97,7 @@ import {
   RuntimeNow,
   RuntimeNull,
   RuntimeNumberFormat,
+  RuntimeDateInterval,
   RuntimeToday,
   RuntimeGetProperty,
   RuntimeRandomInt,
@@ -302,6 +303,10 @@ export default defineNuxtPlugin({
     registry.register(
       'runtimeFormulaFunction',
       new RuntimeNumberFormat(context)
+    )
+    registry.register(
+      'runtimeFormulaFunction',
+      new RuntimeDateInterval(context)
     )
     registry.register('errorPage', new DefaultErrorPageType(context))
 

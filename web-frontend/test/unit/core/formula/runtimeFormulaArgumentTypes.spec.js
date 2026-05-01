@@ -4,6 +4,8 @@ import {
   TimezoneBaserowRuntimeFormulaArgumentType,
   ThousandSeparatorBaserowRuntimeFormulaArgumentType,
   DecimalSeparatorBaserowRuntimeFormulaArgumentType,
+  IntervalStringBaserowRuntimeFormulaArgumentType,
+  Timedelta,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 
 describe('BaserowRuntimeFormulaArgumentType', () => {
@@ -73,5 +75,51 @@ describe('DecimalSeparatorBaserowRuntimeFormulaArgumentType', () => {
     }
     const message = argType.getErrorMessage(';', mocki18n)
     expect(message).toContain("';' is not a valid decimal separator.")
+  })
+})
+
+describe('IntervalStringBaserowRuntimeFormulaArgumentType', () => {
+  test.each([
+    { value: '1 day', expected: true },
+    { value: '2 days', expected: true },
+    { value: '3 weeks', expected: true },
+    { value: '4 hours', expected: true },
+    { value: '30 minutes', expected: true },
+    { value: '45 seconds', expected: true },
+    { value: '1 year', expected: true },
+    { value: '1 month', expected: true },
+    { value: new Timedelta(86400000), expected: true },
+    { value: '-1 day', expected: false },
+    { value: 'foo', expected: false },
+    { value: '', expected: false },
+    { value: '1', expected: false },
+    { value: 1, expected: false },
+    { value: null, expected: false },
+  ])('returns $expected for "$value"', ({ value, expected }) => {
+    expect(
+      new IntervalStringBaserowRuntimeFormulaArgumentType().test(value)
+    ).toBe(expected)
+  })
+
+  test.each([
+    { value: '1 day', expected: new Timedelta(86400000) },
+    { value: '2 days', expected: new Timedelta(2 * 86400000) },
+    { value: '3 weeks', expected: new Timedelta(3 * 7 * 86400000) },
+    { value: '4 hours', expected: new Timedelta(4 * 3600000) },
+    { value: '30 minutes', expected: new Timedelta(30 * 60000) },
+    { value: '45 seconds', expected: new Timedelta(45 * 1000) },
+  ])('parse converts "$value" to Timedelta', ({ value, expected }) => {
+    expect(
+      new IntervalStringBaserowRuntimeFormulaArgumentType().parse(value)
+    ).toStrictEqual(expected)
+  })
+
+  test('getErrorMessage returns a human-readable message', () => {
+    const argType = new IntervalStringBaserowRuntimeFormulaArgumentType()
+    const mocki18n = {
+      t: (key, params) => `'${params.value}' is not a valid interval string.`,
+    }
+    const message = argType.getErrorMessage('not valid', mocki18n)
+    expect(message).toContain("'not valid' is not a valid interval string.")
   })
 })

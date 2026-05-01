@@ -7,6 +7,11 @@ import {
   ensureArray,
 } from '@baserow/modules/core/utils/validator'
 import moment from '@baserow/modules/core/moment'
+import {
+  Timedelta,
+  parseIntervalString,
+} from '@baserow/modules/core/utils/date'
+export { Timedelta, parseIntervalString }
 
 const VALID_THOUSAND_SEPARATORS = new Set([',', '.', ' ', ''])
 const VALID_DECIMAL_SEPARATORS = new Set([',', '.'])
@@ -236,5 +241,33 @@ export class DecimalSeparatorBaserowRuntimeFormulaArgumentType extends BaserowRu
 
   getErrorMessage(value, i18n) {
     return i18n.t('runtimeFormulaTypeErrors.invalidDecimalSeparator', { value })
+  }
+}
+
+export class TimedeltaBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    return value instanceof Timedelta
+  }
+
+  parse(value) {
+    return value
+  }
+}
+
+export class IntervalStringBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    if (value instanceof Timedelta) return true
+    if (typeof value !== 'string') return false
+    return parseIntervalString(value) !== null
+  }
+
+  parse(value) {
+    if (value instanceof Timedelta) return value
+    const result = parseIntervalString(value)
+    return result !== null ? result : value
+  }
+
+  getErrorMessage(value, i18n) {
+    return i18n.t('runtimeFormulaTypeErrors.invalidIntervalString', { value })
   }
 }
