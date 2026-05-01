@@ -8273,10 +8273,10 @@ human-signals@^5.0.0:
   resolved "https://registry.yarnpkg.com/human-signals/-/human-signals-5.0.0.tgz#42665a284f9ae0dade3ba41ebc37eb4b852f3a28"
   integrity sha512-AXcZb6vzzrFAUE61HnN4mpLqd/cSIwNQjtNWR0euPm6y0iqx3G4gOXaIDdtdDwZmhwe82LA6+zinmW4UBWVePQ==
 
-iconoir@^6.11.0:
-  version "6.11.0"
-  resolved "https://registry.yarnpkg.com/iconoir/-/iconoir-6.11.0.tgz#99ed6af7a6d96e137c29cc8d057a8d07c0030490"
-  integrity sha512-68YIHDwpJojMN4Qz0YnaIVzWudcsSLwWc2MmxxvT6r4oL96kCTAuZwQJHv8Z2ZrTCW8acI4dfETmo4X+Q36rfA==
+iconoir@^7.11.0:
+  version "7.11.0"
+  resolved "https://registry.yarnpkg.com/iconoir/-/iconoir-7.11.0.tgz#798c1913f29d5941274d2bd46c38188b63295800"
+  integrity sha512-F9T/E08aJBaQ+VOBjn+ChWKn3hFwsaK5VZ024OFMxdDaxKjLGDpU/OsU7MO9wXM+mDs4ZImypdXIn0fFZAXKmA==
 
 ieee754@^1.1.13, ieee754@^1.2.1:
   version "1.2.1"
