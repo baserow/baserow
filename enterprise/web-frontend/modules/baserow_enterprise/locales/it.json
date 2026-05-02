@@ -9,7 +9,7 @@
         "overflowWarning": "Le licenze disponibili sono terminate. Imposta gli utenti come \"viewers\" per liberare le licenze necessarie."
     },
     "clientHandler": {
-        "cannotDisableAllAuthProvidersTitle": "Ultimo provider attivo",
+        "cannotDisableAllAuthProvidersTitle": "Ultimo provider attivato",
         "cannotDisableAllAuthProvidersDescription": "Non è possibile disabilitare o cancellare l'ultimo provider attivo."
     },
     "trashType": {
