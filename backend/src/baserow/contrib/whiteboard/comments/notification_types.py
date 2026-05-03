@@ -88,12 +88,14 @@ class WhiteboardCommentReplyNotificationType(
         thread = reply.parent_comment
         if thread is None:
             return
-        # Anyone who: authored the thread root, OR has been mentioned in
-        # the thread root, OR has been mentioned in any reply under the
-        # thread. Minus the exclude set (reply author + just-mentioned).
+        # Anyone who: authored the thread root, OR authored any reply
+        # under the thread, OR has been mentioned in the thread root,
+        # OR has been mentioned in any reply under the thread. Minus
+        # the exclude set (reply author + just-mentioned).
         participants = (
             User.objects.filter(
                 Q(id=thread.user_id)
+                | Q(whiteboard_comments__parent_comment=thread)
                 | Q(whiteboard_comment_mentions=thread)
                 | Q(whiteboard_comment_mentions__parent_comment=thread)
             )

@@ -164,3 +164,60 @@ def test_reply_notification_excludes_replier_and_mentioned(data_fixture):
     # Must include the original poster and the previously-mentioned user;
     # must NOT include the replier or the just-mentioned user.
     assert recipient_ids == sorted([author.id, parent_mentioned.id])
+
+
+@pytest.mark.django_db
+def test_reply_notification_includes_prior_repliers(data_fixture):
+    """A new reply must also notify users who previously replied to the
+    same thread, even if they were never mentioned and aren't the
+    thread root author."""
+
+    author = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=author)
+    prior_replier = data_fixture.create_user(workspace=workspace)
+    new_replier = data_fixture.create_user(workspace=workspace)
+    whiteboard = data_fixture.create_whiteboard_application(workspace=workspace)
+    handler = WhiteboardCommentHandler()
+
+    parent = handler.create_comment(
+        user=author,
+        whiteboard_id=whiteboard.id,
+        message=_doc("first"),
+        x=0.0,
+        y=0.0,
+    )
+    handler.create_comment(
+        user=prior_replier,
+        whiteboard_id=whiteboard.id,
+        message=_doc("me too"),
+        x=0.0,
+        y=0.0,
+        parent_comment_id=parent.id,
+    )
+    second_reply = handler.create_comment(
+        user=new_replier,
+        whiteboard_id=whiteboard.id,
+        message=_doc("and again"),
+        x=0.0,
+        y=0.0,
+        parent_comment_id=parent.id,
+    )
+
+    from baserow.contrib.whiteboard.comments.notification_types import (
+        WhiteboardCommentReplyNotificationType,
+    )
+
+    with patch(
+        "baserow.core.notifications.handler.NotificationHandler"
+        ".create_direct_notification_for_users"
+    ) as create_mock:
+        WhiteboardCommentReplyNotificationType.notify_thread_participants(
+            second_reply, exclude_user_ids={new_replier.id}
+        )
+
+    create_mock.assert_called_once()
+    recipients = create_mock.call_args.kwargs["recipients"]
+    recipient_ids = sorted(u.id for u in recipients)
+    # Both the thread author AND the prior replier must be notified.
+    # The new replier is excluded (they're the sender).
+    assert recipient_ids == sorted([author.id, prior_replier.id])
