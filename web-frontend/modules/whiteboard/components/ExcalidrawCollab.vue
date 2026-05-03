@@ -90,6 +90,11 @@ export default {
       currentSceneVersion: SCENE_VERSION_NONE,
       uploadedFiles: {},
       latestSnapshot: null,
+      // The user the local Excalidraw is currently following, set by
+      // the React-side `onUserFollow` callback. `null` when not
+      // following anyone. Used to gate the collaborator-viewport
+      // watcher below.
+      followedUserId: null,
       // Latest appState snapshot from Excalidraw — fed into the comment
       // overlay so pin positions track pan/zoom in real time.
       excalidrawAppState: {
@@ -108,10 +113,23 @@ export default {
       content: 'whiteboardApplication/getContent',
       pendingRemoteUpdates: 'whiteboardApplication/getPendingRemoteUpdates',
       collaborators: 'whiteboardApplication/getCollaborators',
+      viewportRequestSeq: 'whiteboardApplication/getViewportRequestSeq',
       userLanguage: 'auth/getLanguage',
       commentModeActive: 'whiteboardComments/isCommentModeActive',
       openThreadId: 'whiteboardComments/getOpenThreadId',
     }),
+    /** The currently-followed user's last-broadcast viewport, or null
+     *  when not following or before any update has arrived. Driven by
+     *  `viewport_update` WS events and the corresponding store
+     *  mutation. Watched separately so we only re-apply when the
+     *  viewport itself changes — not on every collaborator pointer
+     *  movement. */
+    followedViewport() {
+      const id = this.followedUserId
+      if (id == null) return null
+      const collab = this.collaborators?.[id]
+      return collab?.viewport || null
+    },
     excalidrawLangCode() {
       // Map Baserow's locale codes to the codes Excalidraw ships
       // translations for. Baserow stores the user-selected language on
@@ -189,6 +207,96 @@ export default {
       this._syncOutsideClickListener(id != null)
       this._syncEscapeListener()
     },
+    followedUserId(next, prev) {
+      void prev
+      if (next == null || !this.whiteboard) return
+      const user = this.$store.getters['auth/getUserObject']
+
+      // 1. Send the cold-start viewport request. Every peer responds
+      // with their current viewport, and our `followedViewport`
+      // watcher applies the followed user's response.
+      const sendRequest = () => {
+        this.$store.dispatch('whiteboardApplication/broadcastChanges', {
+          type: 'viewport_request',
+          whiteboard_id: this.whiteboard.id,
+          requester_user_id: user?.id ?? null,
+        })
+      }
+      sendRequest()
+
+      // 2. Apply whatever cached viewport we already have for the
+      // followed user. If they pan/zoomed since we joined, the
+      // viewport is in our store and we can snap immediately without
+      // waiting for the round-trip.
+      const cached = this.collaborators?.[next]?.viewport
+      if (cached && this.controller) {
+        this.controller.applyRemoteViewport(cached)
+      }
+
+      // 3. Retry the request once after 600 ms — covers the race
+      // where the first send was clobbered by an in-flight throttle
+      // or the peer hadn't fully wired up yet. The retry is cancelled
+      // by the `followedViewport` watcher as soon as a fresh viewport
+      // arrives.
+      if (this._followRetryTimer) clearTimeout(this._followRetryTimer)
+      this._followRetryTimer = setTimeout(() => {
+        if (this.followedUserId === next) {
+          sendRequest()
+        }
+      }, 600)
+    },
+    viewportRequestSeq() {
+      // Another peer has asked everyone to (re)broadcast. Force-fire
+      // even if our scrollX/scrollY/zoom hasn't changed since last
+      // time by clearing the dedup cache before invoking. We don't
+      // know who the requester wants — so every peer responds; the
+      // store's collaborator-keyed viewport map handles routing on
+      // the receiving side.
+      if (!this.controller) return
+      const local = this.controller.getAppState?.()
+      if (!local) return
+      this._lastBroadcastViewport = null
+      this._broadcastViewportNow({
+        scrollX: local.scrollX,
+        scrollY: local.scrollY,
+        zoom: local.zoom?.value ?? local.zoom ?? 1,
+        width: local.width || 0,
+        height: local.height || 0,
+      })
+    },
+    followedViewport: {
+      handler(viewport) {
+        // Mirror the followed user's viewport into our own Excalidraw
+        // instance whenever it changes. `applyRemoteViewport` uses
+        // `CaptureUpdateAction.NEVER` so the move is invisible to undo
+        // history.
+        if (!viewport || !this.controller) return
+        // We've got a fresh viewport — cancel any pending retry from
+        // the `followedUserId` watcher; the cold-start request did
+        // its job.
+        if (this._followRetryTimer) {
+          clearTimeout(this._followRetryTimer)
+          this._followRetryTimer = null
+        }
+        this.controller.applyRemoteViewport(viewport)
+        // Stamp the just-applied viewport so the follow-up `onChange`
+        // (which fires synchronously after `updateScene`) doesn't
+        // re-broadcast our own newly-matched camera. Without this we'd
+        // echo every remote viewport back as our own, doubling traffic
+        // and potentially confusing chained follows.
+        const local = this.controller.getAppState?.()
+        if (local) {
+          this._lastBroadcastViewport = {
+            scrollX: local.scrollX,
+            scrollY: local.scrollY,
+            zoom: local.zoom?.value ?? local.zoom,
+            width: local.width,
+            height: local.height,
+          }
+        }
+      },
+      deep: true,
+    },
   },
   async mounted() {
     if (!import.meta.client) return
@@ -222,6 +330,30 @@ export default {
       },
       onAppStateChange: (appState) => {
         this.excalidrawAppState = appState
+        // Broadcast viewport updates so peers can follow this user.
+        // Read-only viewers also broadcast — Excalidraw lets them
+        // pan/zoom even in viewModeEnabled and a follower would still
+        // expect their viewport to track.
+        this._broadcastViewport(appState)
+      },
+      onUserFollow: ({ action, userToFollow }) => {
+        // Excalidraw's payload shape (from its types.d.ts) is
+        // `{ userToFollow: { socketId, username }, action }`.
+        // The `socketId` is the same string we set as the
+        // `Collaborator.socketId` field — i.e. our auth user_id
+        // stringified. Parse back to a number so it matches the
+        // numeric keys the pointer/viewport broadcasters use.
+        // (Note: this callback is wired to Excalidraw via the
+        // imperative API inside `excalidrawReactRoot.js`; passing
+        // `onUserFollow` as a component prop is silently ignored by
+        // current `@excalidraw/excalidraw`.)
+        const socketId = userToFollow?.socketId
+        const id = parseInt(socketId, 10)
+        if (action === 'FOLLOW') {
+          this.followedUserId = Number.isFinite(id) ? id : null
+        } else {
+          this.followedUserId = null
+        }
       },
       // Read-only viewers don't broadcast or autosave; the editing
       // pipelines are wired to no-ops so onChange / onPointerUpdate
@@ -304,6 +436,14 @@ export default {
       this._broadcastPointerNow,
       POINTER_THROTTLE_MS
     )
+    this._broadcastViewport = this._throttle(
+      this._broadcastViewportNow,
+      POINTER_THROTTLE_MS
+    )
+    // Last viewport we broadcast — used to suppress no-op rebroadcasts
+    // when `onChange` fires for non-pan/zoom reasons (selection,
+    // hover, scene edits don't move the camera).
+    this._lastBroadcastViewport = null
   },
   methods: {
     _isDataUrl(value) {
@@ -503,6 +643,50 @@ export default {
         files: this.latestSnapshot.files,
       }
       this.$store.dispatch('whiteboardApplication/broadcastChanges', payload)
+    },
+    _broadcastViewportNow(appState) {
+      // Skip when nothing camera-related changed — `onChange` fires for
+      // hover / selection / scene edits too, none of which move the
+      // camera. We also broadcast `width` and `height` so followers can
+      // fit our visible scene rect into their own (possibly different
+      // sized) canvas instead of just copying scrollX/scrollY/zoom,
+      // which produces a misaligned view when the canvases differ.
+      if (!this.whiteboard) return
+      const user = this.$store.getters['auth/getUserObject']
+      if (!user?.id) return
+      const sx = appState.scrollX
+      const sy = appState.scrollY
+      const z = typeof appState.zoom === 'number' ? appState.zoom : 1
+      const w = appState.width || 0
+      const h = appState.height || 0
+      const last = this._lastBroadcastViewport
+      if (
+        last &&
+        last.scrollX === sx &&
+        last.scrollY === sy &&
+        last.zoom === z &&
+        last.width === w &&
+        last.height === h
+      ) {
+        return
+      }
+      this._lastBroadcastViewport = {
+        scrollX: sx,
+        scrollY: sy,
+        zoom: z,
+        width: w,
+        height: h,
+      }
+      this.$store.dispatch('whiteboardApplication/broadcastChanges', {
+        type: 'viewport_update',
+        whiteboard_id: this.whiteboard.id,
+        user_id: user.id,
+        scrollX: sx,
+        scrollY: sy,
+        zoom: z,
+        width: w,
+        height: h,
+      })
     },
     _broadcastPointerNow(payload) {
       if (!this.whiteboard) return

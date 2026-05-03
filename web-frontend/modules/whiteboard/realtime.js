@@ -57,6 +57,42 @@ export const registerRealtimeEvents = (realtime) => {
     store.dispatch('whiteboardApplication/removeCollaborator', data.user_id)
   })
 
+  realtime.registerEvent('viewport_request', ({ store }, data) => {
+    // A peer has just started following someone (or just joined) and
+    // wants every connected user's current viewport. Wakes up
+    // `ExcalidrawCollab`, which force-rebroadcasts its local viewport
+    // even if it hasn't changed since last time. Channels doesn't
+    // replay broadcasts on subscribe, so without this the follower
+    // would wait until the followed user happens to pan/zoom.
+    if (
+      data.whiteboard_id !==
+      store.getters['whiteboardApplication/getWhiteboardId']
+    ) {
+      return
+    }
+    store.dispatch('whiteboardApplication/noteViewportRequest')
+  })
+
+  realtime.registerEvent('viewport_update', ({ store }, data) => {
+    // Drives the "follow user" feature: every connected client
+    // broadcasts pan/zoom changes, and the local component watches the
+    // followed collaborator's viewport on the store and mirrors it.
+    if (
+      data.whiteboard_id !==
+      store.getters['whiteboardApplication/getWhiteboardId']
+    ) {
+      return
+    }
+    store.dispatch('whiteboardApplication/setCollaboratorViewport', {
+      id: data.user_id,
+      scrollX: data.scrollX,
+      scrollY: data.scrollY,
+      zoom: data.zoom,
+      width: data.width,
+      height: data.height,
+    })
+  })
+
   // Comment events.
   const isCurrentBoard = (store, data) =>
     data.whiteboard_id ===

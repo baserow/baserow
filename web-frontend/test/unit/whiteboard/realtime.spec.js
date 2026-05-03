@@ -32,12 +32,72 @@ describe('whiteboard realtime', () => {
       'pointer_update',
       'scene_update',
       'user_left_whiteboard',
+      'viewport_request',
+      'viewport_update',
       'whiteboard_comment_created',
       'whiteboard_comment_deleted',
       'whiteboard_comment_resolved',
       'whiteboard_comment_updated',
       'whiteboard_content_updated',
     ])
+  })
+
+  test('viewport_request increments the request counter', () => {
+    const store = makeStore(7)
+    handlers.viewport_request({ store }, { whiteboard_id: 7 })
+    expect(store.dispatch).toHaveBeenCalledWith(
+      'whiteboardApplication/noteViewportRequest'
+    )
+  })
+
+  test('viewport_request ignores other boards', () => {
+    const store = makeStore(7)
+    handlers.viewport_request({ store }, { whiteboard_id: 99 })
+    expect(store.dispatch).not.toHaveBeenCalled()
+  })
+
+  test('viewport_update dispatches setCollaboratorViewport with bounds', () => {
+    const store = makeStore(7)
+    handlers.viewport_update(
+      { store },
+      {
+        whiteboard_id: 7,
+        user_id: 11,
+        scrollX: 100,
+        scrollY: 200,
+        zoom: 1.5,
+        width: 1920,
+        height: 1080,
+      }
+    )
+    expect(store.dispatch).toHaveBeenCalledWith(
+      'whiteboardApplication/setCollaboratorViewport',
+      {
+        id: 11,
+        scrollX: 100,
+        scrollY: 200,
+        zoom: 1.5,
+        width: 1920,
+        height: 1080,
+      }
+    )
+  })
+
+  test('viewport_update ignores other boards', () => {
+    const store = makeStore(7)
+    handlers.viewport_update(
+      { store },
+      {
+        whiteboard_id: 99,
+        user_id: 11,
+        scrollX: 0,
+        scrollY: 0,
+        zoom: 1,
+        width: 100,
+        height: 100,
+      }
+    )
+    expect(store.dispatch).not.toHaveBeenCalled()
   })
 
   test('whiteboard_content_updated does not refetch (handled by scene_update)', () => {

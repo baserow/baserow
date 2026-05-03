@@ -95,6 +95,7 @@ export function mountExcalidraw(container, options) {
     canComment = true,
     initialCommentModeActive = false,
     onAppStateChange,
+    onUserFollow,
   } = options
 
   const apiRef = { current: null }
@@ -117,6 +118,19 @@ export function mountExcalidraw(container, options) {
     const handleApiReady = useCallback((api) => {
       localApiRef.current = api
       apiRef.current = api
+      // Subscribe to user-follow events through the imperative API.
+      // Passing `onUserFollow` as a prop is silently a no-op in
+      // current `@excalidraw/excalidraw` — the runtime only exposes
+      // the emitter via `api.onUserFollow(cb)`, and the prop in the
+      // type definitions is never wired up. Same is true for
+      // `onScrollChange`, `onPointerDown`, `onPointerUp`. Discovered
+      // by grepping the bundle: there are only three references to
+      // `onUserFollowEmitter` — the constructor, the imperative
+      // exposure, and the trigger sites. Nothing reads
+      // `props.onUserFollow`.
+      if (typeof onUserFollow === 'function' && typeof api.onUserFollow === 'function') {
+        api.onUserFollow(onUserFollow)
+      }
     }, [])
 
     // Custom button rendered into Excalidraw's top-right area, the only
@@ -207,6 +221,9 @@ export function mountExcalidraw(container, options) {
             onPointerUpdate(payload)
           }
         },
+        // NOTE: we intentionally don't pass `onUserFollow` here.
+        // Excalidraw doesn't honor the prop — subscription happens
+        // through the imperative API in `handleApiReady` above.
       })
     )
   }
@@ -238,6 +255,75 @@ export function mountExcalidraw(container, options) {
       // version as a new local edit and broadcasts/autosaves it back,
       // creating a 3-second ping-pong between every connected client.
       return getSceneVersion(reconciled)
+    },
+    /** Move the local viewport to match a remote user's viewport. Used
+     *  by the "follow user" feature — every `viewport_update` from the
+     *  followed user is funnelled through here.
+     *
+     *  The remote payload carries the followed user's `(scrollX,
+     *  scrollY, zoom, width, height)`. If we just copied scrollX /
+     *  scrollY / zoom 1:1, two browsers with different canvas sizes
+     *  would diverge: the same scroll/zoom values describe a different
+     *  visible scene rect on a smaller canvas, and the follower would
+     *  see less (or differently-anchored) content.
+     *
+     *  Excalidraw's projection is `viewportX = (sceneX + scrollX) *
+     *  zoom`. Inverting at the screen edges gives the remote's visible
+     *  scene rect:
+     *    sceneLeft   = -scrollX
+     *    sceneRight  = -scrollX + remoteWidth  / remoteZoom
+     *    sceneTop    = -scrollY
+     *    sceneBottom = -scrollY + remoteHeight / remoteZoom
+     *
+     *  We pick a local zoom that fits that rect inside our canvas,
+     *  then anchor the local viewport so its scene-center matches the
+     *  remote's scene-center. Result: the follower's screen shows the
+     *  same content the followed user is looking at, regardless of
+     *  window size. */
+    applyRemoteViewport({ scrollX, scrollY, zoom, width, height }) {
+      const api = apiRef.current
+      if (!api) return
+      if (
+        typeof scrollX !== 'number' ||
+        typeof scrollY !== 'number' ||
+        typeof zoom !== 'number'
+      ) {
+        return
+      }
+      const local = api.getAppState()
+      const localW = local.width || 0
+      const localH = local.height || 0
+      const remoteW = typeof width === 'number' && width > 0 ? width : localW
+      const remoteH = typeof height === 'number' && height > 0 ? height : localH
+      if (remoteW === 0 || remoteH === 0 || localW === 0 || localH === 0) {
+        // Nothing useful we can do without dimensions on either side —
+        // fall back to copying the raw values so a reasonable default
+        // still lands.
+        api.updateScene({
+          appState: { scrollX, scrollY, zoom: { value: zoom } },
+          captureUpdate: CaptureUpdateAction.NEVER,
+        })
+        return
+      }
+      // Remote visible scene rect in scene coords.
+      const remoteSceneW = remoteW / zoom
+      const remoteSceneH = remoteH / zoom
+      const remoteCenterX = -scrollX + remoteSceneW / 2
+      const remoteCenterY = -scrollY + remoteSceneH / 2
+      // Pick the largest zoom that fits the remote rect into the local
+      // canvas so nothing the followed user is seeing overflows our
+      // viewport. Letterboxing on whichever axis has slack.
+      const fitZoom = Math.min(localW / remoteSceneW, localH / remoteSceneH)
+      const nextScrollX = localW / 2 / fitZoom - remoteCenterX
+      const nextScrollY = localH / 2 / fitZoom - remoteCenterY
+      api.updateScene({
+        appState: {
+          scrollX: nextScrollX,
+          scrollY: nextScrollY,
+          zoom: { value: fitZoom },
+        },
+        captureUpdate: CaptureUpdateAction.NEVER,
+      })
     },
     applyRemoteFiles(files) {
       const api = apiRef.current
@@ -305,7 +391,13 @@ export function mountExcalidraw(container, options) {
       if (!api) return
       const map = new Map()
       for (const [id, value] of Object.entries(collaboratorsObject || {})) {
-        map.set(String(id), value)
+        const socketId = String(id)
+        // Excalidraw's `onUserFollow` reports back the collaborator's
+        // `socketId` field (NOT the map key). Without it the payload
+        // arrives as `{ userToFollow: { socketId: undefined } }` and
+        // we have no way to identify which user was clicked. We use
+        // the same string-coerced auth id as the map key.
+        map.set(socketId, { ...value, socketId })
       }
       api.updateScene({
         collaborators: map,

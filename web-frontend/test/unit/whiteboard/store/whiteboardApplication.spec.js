@@ -125,4 +125,53 @@ describe('whiteboardApplication store', () => {
     store.dispatch('whiteboardApplication/removeCollaborator', 11)
     expect(store.getters['whiteboardApplication/getCollaborators']).toEqual({})
   })
+
+  test('setCollaboratorViewport attaches viewport bounds to an existing collaborator', () => {
+    store.dispatch('whiteboardApplication/setCollaborator', {
+      id: 11,
+      username: 'Alice',
+      color: '#abc',
+    })
+    store.dispatch('whiteboardApplication/setCollaboratorViewport', {
+      id: 11,
+      scrollX: 50,
+      scrollY: 60,
+      zoom: 2,
+      width: 1920,
+      height: 1080,
+    })
+    expect(
+      store.getters['whiteboardApplication/getCollaborators'][11].viewport
+    ).toEqual({
+      scrollX: 50,
+      scrollY: 60,
+      zoom: 2,
+      width: 1920,
+      height: 1080,
+    })
+  })
+
+  test('noteViewportRequest increments the request counter', () => {
+    const before =
+      store.getters['whiteboardApplication/getViewportRequestSeq']
+    store.dispatch('whiteboardApplication/noteViewportRequest')
+    store.dispatch('whiteboardApplication/noteViewportRequest')
+    const after =
+      store.getters['whiteboardApplication/getViewportRequestSeq']
+    expect(after).toBe(before + 2)
+  })
+
+  test('setCollaboratorViewport is a no-op when collaborator is unknown', () => {
+    // Avoid creating a partial entry with no name/colour, which would
+    // render as an unnamed avatar in Excalidraw's collaborator strip.
+    store.dispatch('whiteboardApplication/setCollaboratorViewport', {
+      id: 99,
+      scrollX: 0,
+      scrollY: 0,
+      zoom: 1,
+      width: 0,
+      height: 0,
+    })
+    expect(store.getters['whiteboardApplication/getCollaborators']).toEqual({})
+  })
 })

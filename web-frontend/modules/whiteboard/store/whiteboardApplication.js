@@ -6,6 +6,12 @@ export const state = () => ({
   content: { elements: [], appState: {}, files: {} },
   pendingRemoteUpdates: [],
   collaborators: {},
+  // Bumped every time a peer asks us to (re)broadcast our current
+  // viewport — used to make the "follow user" feature work
+  // immediately on click. Channels doesn't replay broadcasts on
+  // subscribe, so a freshly-joined client otherwise has no viewport
+  // for an idle peer until that peer pans or zooms.
+  viewportRequestSeq: 0,
 })
 
 export const mutations = {
@@ -14,6 +20,7 @@ export const mutations = {
     state.content = { elements: [], appState: {}, files: {} }
     state.pendingRemoteUpdates = []
     state.collaborators = {}
+    state.viewportRequestSeq = 0
   },
   SET_WHITEBOARD_ID(state, whiteboardId) {
     state.whiteboardId = whiteboardId
@@ -31,15 +38,43 @@ export const mutations = {
     state.pendingRemoteUpdates = []
   },
   SET_COLLABORATOR(state, collaborator) {
+    // Merge into the existing entry rather than replace it. Pointer
+    // updates fire on every mouse move and were wiping the
+    // `viewport` field (set by `SET_COLLABORATOR_VIEWPORT`) — which
+    // broke instant follow because the cached viewport disappeared
+    // between the last pan/zoom broadcast and the moment the user
+    // clicked the avatar.
+    const existing = state.collaborators[collaborator.id]
     state.collaborators = {
       ...state.collaborators,
-      [collaborator.id]: collaborator,
+      [collaborator.id]: { ...(existing || {}), ...collaborator },
+    }
+  },
+  SET_COLLABORATOR_VIEWPORT(
+    state,
+    { id, scrollX, scrollY, zoom, width, height }
+  ) {
+    // Don't auto-create a collaborator entry if we haven't seen a
+    // pointer/cursor signal from this user yet — Excalidraw's
+    // collaborators map keys off the same id, and a synthetic entry
+    // with no name/colour would render an unnamed avatar.
+    const existing = state.collaborators[id]
+    if (!existing) return
+    state.collaborators = {
+      ...state.collaborators,
+      [id]: {
+        ...existing,
+        viewport: { scrollX, scrollY, zoom, width, height },
+      },
     }
   },
   REMOVE_COLLABORATOR(state, userId) {
     const next = { ...state.collaborators }
     delete next[userId]
     state.collaborators = next
+  },
+  INCREMENT_VIEWPORT_REQUEST_SEQ(state) {
+    state.viewportRequestSeq += 1
   },
 }
 
@@ -100,6 +135,12 @@ export const actions = {
   setCollaborator({ commit }, collaborator) {
     commit('SET_COLLABORATOR', collaborator)
   },
+  setCollaboratorViewport({ commit }, payload) {
+    commit('SET_COLLABORATOR_VIEWPORT', payload)
+  },
+  noteViewportRequest({ commit }) {
+    commit('INCREMENT_VIEWPORT_REQUEST_SEQ')
+  },
   removeCollaborator({ commit }, userId) {
     commit('REMOVE_COLLABORATOR', userId)
   },
@@ -120,6 +161,9 @@ export const getters = {
   },
   getCollaborators(state) {
     return state.collaborators
+  },
+  getViewportRequestSeq(state) {
+    return state.viewportRequestSeq
   },
 }
 
