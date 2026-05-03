@@ -63,9 +63,7 @@ describe('whiteboardComments store', () => {
       { id: 2, parent_comment_id: null, resolved: true },
     ])
     expect(store.getters['whiteboardComments/getThreads']).toHaveLength(1)
-    expect(
-      store.getters['whiteboardComments/getThreads'][0].id
-    ).toBe(1)
+    expect(store.getters['whiteboardComments/getThreads'][0].id).toBe(1)
   })
 
   test('getThreads attaches replies to their thread root', () => {

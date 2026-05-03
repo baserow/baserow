@@ -88,17 +88,6 @@ from baserow.contrib.dashboard.widgets.operations import (
     RestoreWidgetOperationType,
     UpdateWidgetOperationType,
 )
-from baserow.contrib.whiteboard.comments.operations import (
-    CreateWhiteboardCommentOperationType,
-    DeleteWhiteboardCommentOperationType,
-    ListWhiteboardCommentsOperationType,
-    ResolveWhiteboardCommentOperationType,
-    UpdateWhiteboardCommentOperationType,
-)
-from baserow.contrib.whiteboard.operations import (
-    ReadWhiteboardOperationType,
-    UpdateWhiteboardContentOperationType,
-)
 from baserow.contrib.database.airtable.operations import (
     RunAirtableImportJobOperationType,
 )
@@ -220,6 +209,17 @@ from baserow.contrib.database.webhooks.operations import (
     ReadWebhookOperationType,
     TestTriggerWebhookOperationType,
     UpdateWebhookOperationType,
+)
+from baserow.contrib.whiteboard.comments.operations import (
+    CreateWhiteboardCommentOperationType,
+    DeleteWhiteboardCommentOperationType,
+    ListWhiteboardCommentsOperationType,
+    ResolveWhiteboardCommentOperationType,
+    UpdateWhiteboardCommentOperationType,
+)
+from baserow.contrib.whiteboard.operations import (
+    ReadWhiteboardOperationType,
+    UpdateWhiteboardContentOperationType,
 )
 from baserow.core.integrations.operations import (
     CreateIntegrationOperationType,

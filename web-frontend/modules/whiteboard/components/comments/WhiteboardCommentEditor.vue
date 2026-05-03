@@ -48,7 +48,11 @@ export default {
     loading: { type: Boolean, default: false },
     placeholder: { type: String, default: '' },
     submitLabel: { type: String, default: '' },
-    workspaceId: { type: Number, required: true },
+    // The whiteboard's own workspace, looked up by id at the page
+    // level. Carries `.users` for the mention picker — read directly
+    // off the prop so we don't depend on `workspace/getSelected`,
+    // which can flip while the user navigates between workspaces.
+    workspace: { type: Object, required: true },
     autofocus: { type: Boolean, default: false },
   },
   emits: ['posted', 'cancelled'],
@@ -65,17 +69,7 @@ export default {
   },
   computed: {
     mentionableUsers() {
-      // Use the currently-selected workspace (the one the user is
-      // browsing). Row comments do exactly this. Going via `workspace/get`
-      // by id sometimes returns a stale snapshot whose `.users` array
-      // hasn't been hydrated yet — the picker still shows entries
-      // (because Mention is configured with the array reference at init
-      // time and Vue mutates it in place when the workspace fetch lands)
-      // but the renderer's lookup misses every user except the logged-in
-      // one because `loggedUserId` is captured directly off auth state.
-      // The selected-workspace getter avoids that race.
-      const workspace = this.$store.getters['workspace/getSelected']
-      return workspace?.users || []
+      return this.workspace?.users || []
     },
     isValid() {
       // ProseMirror considers an empty doc valid; we extra-gate against

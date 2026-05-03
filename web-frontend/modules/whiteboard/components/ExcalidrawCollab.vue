@@ -16,6 +16,7 @@
       <WhiteboardCommentLayer
         v-if="canViewComments"
         :whiteboard="whiteboard"
+        :workspace="workspace"
         :read-only="!canComment"
         :app-state="excalidrawAppState"
         :viewport-converter="_viewportConverter"
@@ -42,6 +43,14 @@ export default {
   components: { WhiteboardCommentLayer },
   props: {
     whiteboard: {
+      type: Object,
+      required: true,
+    },
+    // The whiteboard's own workspace, looked up by id in the page. Used
+    // for mention pickers / @-renderers in the comment overlay so they
+    // don't rely on `workspace/getSelected` (which can flip while the
+    // user navigates between workspaces).
+    workspace: {
       type: Object,
       required: true,
     },

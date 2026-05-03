@@ -48,6 +48,7 @@
         v-for="comment in items"
         :key="comment.id"
         :comment="comment"
+        :workspace="workspace"
         :read-only="readOnly"
       />
     </div>
@@ -60,7 +61,7 @@
             ? $t('whiteboardComments.placeholderNew')
             : $t('whiteboardComments.placeholderReply')
         "
-        :workspace-id="whiteboard.workspace.id"
+        :workspace="workspace"
         :autofocus="isDraft"
         @posted="onPosted"
         @cancelled="onCancelled"
@@ -80,6 +81,7 @@ export default {
   components: { WhiteboardCommentItem, WhiteboardCommentEditor },
   props: {
     whiteboard: { type: Object, required: true },
+    workspace: { type: Object, required: true },
     thread: { type: Object, default: null },
     draftPin: { type: Object, default: null },
     viewport: { type: Object, required: true },

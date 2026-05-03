@@ -44,10 +44,7 @@ def test_update_whiteboard_content_op_is_in_editor_role():
     # `COMMENTER` stay strictly read-only.
     assert UpdateWhiteboardContentOperationType in default_roles[EDITOR_ROLE_UID]
     assert UpdateWhiteboardContentOperationType in default_roles[BUILDER_ROLE_UID]
-    assert (
-        UpdateWhiteboardContentOperationType
-        not in default_roles[COMMENTER_ROLE_UID]
-    )
+    assert UpdateWhiteboardContentOperationType not in default_roles[COMMENTER_ROLE_UID]
     assert UpdateWhiteboardContentOperationType not in default_roles[VIEWER_ROLE_UID]
 
 

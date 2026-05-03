@@ -1,8 +1,9 @@
 <template>
   <div class="whiteboard-app">
     <ExcalidrawCollab
-      v-if="whiteboard && contentLoaded"
+      v-if="whiteboard && contentLoaded && workspace"
       :whiteboard="whiteboard"
+      :workspace="workspace"
       :read-only="readOnly"
       :can-comment="canComment"
       :can-view-comments="canViewComments"
@@ -37,8 +38,7 @@ const { data, error: fetchError } = await useAsyncData(
   `whiteboard-data-${route.params.whiteboardId}`,
   async () => {
     const whiteboard = store.getters['application/getSelected']
-    const workspace = store.getters['workspace/getSelected']
-    return { workspace, whiteboard }
+    return { whiteboard }
   }
 )
 
@@ -47,6 +47,18 @@ if (fetchError.value) {
 }
 
 const whiteboard = computed(() => data.value?.whiteboard)
+
+// The whiteboard's own workspace, looked up by id rather than relying
+// on `workspace/getSelected`. The selected getter changes whenever the
+// user navigates between workspaces, and components can latch onto the
+// wrong list of users while the selection is in flux. Looking up the
+// whiteboard's specific workspace gives a stable, board-scoped object
+// that we hand down as a prop to every component that needs it.
+const workspace = computed(() => {
+  const id = whiteboard.value?.workspace?.id
+  if (id == null) return null
+  return store.getters['workspace/get'](id) || null
+})
 
 // True once `fetchInitial` has loaded the content for THIS specific
 // whiteboard on the client. We must not render `<ExcalidrawCollab>`

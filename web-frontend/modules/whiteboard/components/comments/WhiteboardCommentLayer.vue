@@ -19,6 +19,7 @@
     <WhiteboardCommentThread
       v-if="openThread"
       :whiteboard="whiteboard"
+      :workspace="workspace"
       :thread="openThread"
       :viewport="openThreadViewport"
       :wrapper-width="appState.width || 0"
@@ -29,6 +30,7 @@
     <WhiteboardCommentThread
       v-else-if="openThreadId === 'draft' && draftPin"
       :whiteboard="whiteboard"
+      :workspace="workspace"
       :thread="null"
       :draft-pin="draftPin"
       :viewport="viewportFor({ x: draftPin.x, y: draftPin.y })"
@@ -51,6 +53,7 @@ export default {
   components: { WhiteboardCommentPin, WhiteboardCommentThread },
   props: {
     whiteboard: { type: Object, required: true },
+    workspace: { type: Object, required: true },
     readOnly: { type: Boolean, default: false },
     appState: { type: Object, required: true },
     viewportConverter: { type: Function, required: true },

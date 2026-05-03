@@ -33,14 +33,17 @@
       </button>
     </div>
     <div v-if="!editing" class="whiteboard-comment-item__body">
-      <WhiteboardCommentReadOnly :message="comment.message" />
+      <WhiteboardCommentReadOnly
+        :message="comment.message"
+        :workspace="workspace"
+      />
     </div>
     <WhiteboardCommentEditor
       v-else
       :initial-message="comment.message"
       :loading="loadingState === 'updating'"
       :placeholder="$t('whiteboardComments.placeholderEdit')"
-      :workspace-id="workspaceId"
+      :workspace="workspace"
       :submit-label="$t('whiteboardComments.save')"
       :autofocus="true"
       @posted="onSave"
@@ -60,15 +63,13 @@ export default {
   components: { WhiteboardCommentEditor, WhiteboardCommentReadOnly },
   props: {
     comment: { type: Object, required: true },
+    workspace: { type: Object, required: true },
     readOnly: { type: Boolean, default: false },
   },
   data() {
     return { editing: false }
   },
   computed: {
-    workspaceId() {
-      return this.$store.getters['application/getSelected']?.workspace?.id
-    },
     canEdit() {
       if (this.readOnly) return false
       const me = this.$store.getters['auth/getUserObject']
