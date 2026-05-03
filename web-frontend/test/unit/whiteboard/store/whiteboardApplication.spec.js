@@ -152,12 +152,10 @@ describe('whiteboardApplication store', () => {
   })
 
   test('noteViewportRequest increments the request counter', () => {
-    const before =
-      store.getters['whiteboardApplication/getViewportRequestSeq']
+    const before = store.getters['whiteboardApplication/getViewportRequestSeq']
     store.dispatch('whiteboardApplication/noteViewportRequest')
     store.dispatch('whiteboardApplication/noteViewportRequest')
-    const after =
-      store.getters['whiteboardApplication/getViewportRequestSeq']
+    const after = store.getters['whiteboardApplication/getViewportRequestSeq']
     expect(after).toBe(before + 2)
   })
 

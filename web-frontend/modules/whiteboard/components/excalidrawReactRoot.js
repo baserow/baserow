@@ -6,6 +6,7 @@ import {
   CaptureUpdateAction,
   getSceneVersion,
   sceneCoordsToViewportCoords,
+  useHandleLibrary,
   viewportCoordsToSceneCoords,
 } from '@excalidraw/excalidraw'
 
@@ -108,6 +109,7 @@ export function mountExcalidraw(container, options) {
 
   const ExcalidrawHost = () => {
     const localApiRef = useRef(null)
+    const [api, setApi] = useState(null)
     const [langCode, setLangCode] = useState(initialLangCode)
     const [commentModeActive, setCommentModeActive] = useState(
       initialCommentModeActive
@@ -115,9 +117,27 @@ export function mountExcalidraw(container, options) {
     setLangCodeFn = setLangCode
     setCommentModeActiveFn = setCommentModeActive
 
-    const handleApiReady = useCallback((api) => {
-      localApiRef.current = api
-      apiRef.current = api
+    // Wire Excalidraw's `#addLibrary=…` install flow. Excalidraw
+    // exposes this as a hook that:
+    //  - reads the URL hash on mount,
+    //  - subscribes to `hashchange`,
+    //  - validates the source URL (default validator allows
+    //    `*.excalidraw.com`, which covers `libraries.excalidraw.com`),
+    //  - fetches the `.excalidrawlib` payload, and
+    //  - calls `api.updateLibrary(...)` for us.
+    // Without this, navigating to `…#addLibrary=<url>` does nothing —
+    // hence the user-reported bug where clicking "Add to Excalidraw"
+    // on libraries.excalidraw.com landed on the page but never added
+    // anything.
+    useHandleLibrary({ excalidrawAPI: api })
+
+    const handleApiReady = useCallback((readyApi) => {
+      localApiRef.current = readyApi
+      apiRef.current = readyApi
+      // Promote to state so `useHandleLibrary` re-runs once the API is
+      // available (it accepts `null` initially and re-wires when the
+      // value becomes non-null).
+      setApi(readyApi)
       // Subscribe to user-follow events through the imperative API.
       // Passing `onUserFollow` as a prop is silently a no-op in
       // current `@excalidraw/excalidraw` — the runtime only exposes
@@ -128,8 +148,11 @@ export function mountExcalidraw(container, options) {
       // `onUserFollowEmitter` — the constructor, the imperative
       // exposure, and the trigger sites. Nothing reads
       // `props.onUserFollow`.
-      if (typeof onUserFollow === 'function' && typeof api.onUserFollow === 'function') {
-        api.onUserFollow(onUserFollow)
+      if (
+        typeof onUserFollow === 'function' &&
+        typeof readyApi.onUserFollow === 'function'
+      ) {
+        readyApi.onUserFollow(onUserFollow)
       }
     }, [])
 
@@ -153,9 +176,7 @@ export function mountExcalidraw(container, options) {
             'aria-pressed': commentModeActive ? 'true' : 'false',
             className:
               'whiteboard-top-right-button' +
-              (commentModeActive
-                ? ' whiteboard-top-right-button--active'
-                : ''),
+              (commentModeActive ? ' whiteboard-top-right-button--active' : ''),
             onClick: () => {
               const next = !commentModeActive
               setCommentModeActive(next)
