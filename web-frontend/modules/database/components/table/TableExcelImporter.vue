@@ -48,7 +48,7 @@
         </div>
       </div>
     </div>
-    <div v-if="values.filename !== '' && sheetNames.length > 0" class="row">
+    <div v-if="values.filename" class="row">
       <div class="col col-8">
         <div class="control">
           <label class="control__label control__label--small">{{
@@ -57,7 +57,7 @@
           <div class="control__elements">
             <Dropdown
               v-model="selectedSheet"
-              :disabled="isDisabled"
+              :disabled="isDisabled || sheetNames.length === 0"
               @input="reload()"
             >
               <DropdownItem
@@ -86,7 +86,7 @@
         </div>
       </div>
     </div>
-    <div v-if="values.filename !== ''" class="row">
+    <div v-if="values.filename && error === ''" class="row">
       <div class="col col-8 margin-top-1"><slot name="upsertMapping" /></div>
     </div>
     <Alert v-if="error !== ''" type="error">
@@ -104,6 +104,12 @@ import { useRuntimeConfig } from '#imports'
 import form from '@baserow/modules/core/mixins/form'
 import importer from '@baserow/modules/database/mixins/importer'
 import { ExcelParser } from '@baserow/modules/database/utils/excel'
+
+// Number of rows fetched for the preview parse. Kept small so the initial
+// parse is fast even on large workbooks, but generous enough to absorb a
+// header row plus the importer's preview window with room for sparse files
+// (leading blank rows etc.).
+const PREVIEW_ROW_LIMIT = 50
 
 export default {
   name: 'TableExcelImporter',
@@ -193,11 +199,13 @@ export default {
       reader.readAsArrayBuffer(event.target.files[0])
     },
     /**
-     * Parses the raw workbook data with SheetJS and prepares the preview for the
-     * currently selected sheet. If the workbook has not yet been parsed, this is
-     * also done here. Cell values are read as formatted text so that dates,
-     * numbers and booleans are imported the way the user sees them in their
-     * spreadsheet.
+     * Parses the raw workbook data with SheetJS and prepares the preview for
+     * the currently selected sheet. To keep the initial parse fast even on
+     * large workbooks we only read the first `PREVIEW_ROW_LIMIT` rows here;
+     * the full file is re-parsed on demand from `getData()` when the user
+     * actually submits the import. Cell values are read as formatted text so
+     * that dates, numbers and booleans are imported the way the user sees
+     * them in their spreadsheet.
      */
     async reload() {
       const fileName = this.values.filename
@@ -211,7 +219,9 @@ export default {
       try {
         if (this.parser === null) {
           const parser = new ExcelParser()
-          this.sheetNames = parser.parse(this.rawData)
+          this.sheetNames = await parser.parse(this.rawData, {
+            previewRows: PREVIEW_ROW_LIMIT,
+          })
           if (this.sheetNames.length === 0) {
             this.handleImporterError(this.$t('tableExcelImporter.emptyError'))
             return
@@ -234,10 +244,12 @@ export default {
       await this.$ensureRender()
 
       let rows
+      let totalRowCount
       try {
         rows = this.parser.getSheetRows(this.selectedSheet)
+        totalRowCount = this.parser.getTotalRowCount(this.selectedSheet)
       } catch (error) {
-        this.handleImporterError(
+        this.handleSheetError(
           this.$t('tableExcelImporter.processingError', {
             error: error.message,
           })
@@ -246,13 +258,16 @@ export default {
       }
 
       if (rows.length === 0) {
-        this.handleImporterError(this.$t('tableExcelImporter.emptySheetError'))
+        this.handleSheetError(this.$t('tableExcelImporter.emptySheetError'))
         return
       }
 
+      // Limit check uses the sheet's full range (preserved on `!fullref`
+      // through the partial parse) so we can reject oversized files before
+      // the user fills out the rest of the form.
       const limit = parseInt(this.config.public.initialTableDataLimit, 10)
-      if (limit && rows.length > limit) {
-        this.handleImporterError(
+      if (limit && totalRowCount > limit) {
+        this.handleSheetError(
           this.$t('tableExcelImporter.limitError', { limit })
         )
         return
@@ -262,14 +277,35 @@ export default {
       this.reloadPreview()
       this.state = null
 
-      const getData = () => {
+      const getData = async () => {
+        // Re-parse the whole file now that the user is committing to import.
+        // The progress bar in the parent submit flow covers the wait.
+        const fullParser = new ExcelParser()
+        await fullParser.parse(this.rawData)
+        const allRows = fullParser.getSheetRows(this.selectedSheet)
         if (this.firstRowHeader) {
-          const [, ...data] = this.parsedData
+          const [, ...data] = allRows
           return data
         }
-        return this.parsedData
+        return allRows
       }
       this.$emit('getData', getData)
+    },
+    /**
+     * Handle an error that's specific to the currently selected sheet (empty
+     * sheet, oversized sheet, sheet decoding failure). Unlike
+     * `handleImporterError` from the importer mixin, this preserves
+     * `values.filename` and the cached workbook/parser state so the user can
+     * recover by switching to a different sheet via the sheet picker, rather
+     * than being forced to re-upload the file.
+     */
+    handleSheetError(message) {
+      this.state = null
+      this.fileLoadingProgress = 0
+      this.parsedData = null
+      this.error = message
+      this.$emit('getData', null)
+      this.$emit('data', { header: [], previewData: [] })
     },
     /**
      * Reload the preview without re-parsing the workbook.

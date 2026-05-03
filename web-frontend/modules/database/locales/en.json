@@ -438,7 +438,7 @@
     "firstRowHeader": "First row is header",
     "limitFileSize": "The maximum file size is {limit}MB.",
     "limitError": "It is not possible to import more than {limit} rows.",
-    "processingError": "Error occurred while processing the Excel file: {error}",
+    "processingError": "An error occurred while processing the Excel file: {error}",
     "emptyError": "This Excel file does not contain any sheets.",
     "emptySheetError": "The selected sheet is empty."
   },

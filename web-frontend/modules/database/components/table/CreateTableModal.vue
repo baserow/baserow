@@ -120,6 +120,7 @@ export default {
         return
       }
       this.chosenType = type
+      this.$refs.createComponent?.reset()
     },
   },
 }
