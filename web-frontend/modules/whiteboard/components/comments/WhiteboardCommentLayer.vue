@@ -101,5 +101,12 @@ export default {
   inset: 0;
   pointer-events: none;
   z-index: 50;
+  // Pins are positioned with `transform: translate(x, y)` in
+  // viewport-relative coords. When a comment sits off-screen
+  // (right or bottom of the canvas), its pin's bounding box
+  // pokes past the layer and the layout's scroll container would
+  // grow scrollbars. Clip them — pins outside the viewport are
+  // visually irrelevant.
+  overflow: hidden;
 }
 </style>
