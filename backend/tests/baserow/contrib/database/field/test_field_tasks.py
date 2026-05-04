@@ -581,3 +581,27 @@ def test_link_row_fields_deps_are_excluded_from_periodic_updates(data_fixture):
 
     row_a.refresh_from_db()
     assert getattr(row_a, formula_a.db_column) == "02"
+
+
+@pytest.mark.django_db
+def test_invalid_formula_is_skipped_by_periodic_update(data_fixture):
+    table = data_fixture.create_database_table()
+    date_field = data_fixture.create_date_field(table=table, date_include_time=True)
+    bool_formula = data_fixture.create_formula_field(
+        table=table,
+        formula=f"today() > field('{date_field.name}')",
+    )
+    data_fixture.create_formula_field(
+        table=table,
+        formula=f"if(field('{bool_formula.name}'), 'YES', 'NO')",
+    )
+
+    assert bool_formula.needs_periodic_update is True
+    assert bool_formula.formula_type == "boolean"
+
+    bool_formula.mark_as_invalid_and_save("simulated invalid state")
+    bool_formula.refresh_from_db()
+    assert bool_formula.formula_type == "invalid"
+    assert bool_formula.needs_periodic_update is True
+
+    assert FormulaFieldType().get_fields_needing_periodic_update().exists() is False
