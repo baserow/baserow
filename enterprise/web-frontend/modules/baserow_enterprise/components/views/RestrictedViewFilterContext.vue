@@ -299,10 +299,7 @@ export default {
         const item = itemsByFieldId[field.id]
         if (!item || !item.enabled) continue
 
-        if (
-          item.value != null &&
-          (!item.field_type || item.field_type === field.type)
-        ) {
+        if (item.value != null && item.field_type === field.type) {
           newValues[name] = fieldType.parseDefaultRowValue(field, item.value)
         }
 

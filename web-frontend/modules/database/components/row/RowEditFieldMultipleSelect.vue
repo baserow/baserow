@@ -2,7 +2,7 @@
   <div class="control__elements">
     <ul
       class="field-multiple-select__items"
-      :class="{ 'field-multiple-select__items--empty': !!value }"
+      :class="{ 'field-multiple-select__items--empty': value.length === 0 }"
     >
       <li
         v-for="item in value"
