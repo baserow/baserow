@@ -4,6 +4,7 @@ import pytest
 
 from baserow.core.formula.argument_types import (
     DateTimeBaserowRuntimeFormulaArgumentType,
+    DatetimeFormatBaserowRuntimeFormulaArgumentType,
     DecimalSeparatorBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
     IntervalStringBaserowRuntimeFormulaArgumentType,
@@ -283,3 +284,32 @@ def test_interval_string_get_error_message_returns_human_readable_string():
     arg_type = IntervalStringBaserowRuntimeFormulaArgumentType()
     message = arg_type.get_error_message("not valid")
     assert "is not a valid interval string" in message
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("YYYY-MM-DD", True),
+        ("DD/MM/YYYY", True),
+        ("YYYY-MM-DD HH:mm:ss", True),
+        ("DD/MM/YYYY HH:mm:ss", True),
+        ("YYYY-MM-DDTHH:mm:ss", True),
+        ("HH:mm:ss", True),
+        ("SSS", True),
+        ("SS", False),
+        ("S", False),
+        ("Z", False),
+        ("YYYY-MM-DD HH:mm:SS", False),
+        ("", True),
+        (123, False),
+        (None, False),
+    ],
+)
+def test_datetime_format_test_method(value, expected):
+    assert DatetimeFormatBaserowRuntimeFormulaArgumentType().test(value) == expected
+
+
+def test_datetime_format_get_error_message_returns_human_readable_string():
+    arg_type = DatetimeFormatBaserowRuntimeFormulaArgumentType()
+    message = arg_type.get_error_message("SS")
+    assert "is not a valid datetime format" in message

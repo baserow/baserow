@@ -1,6 +1,7 @@
 import { expect } from 'vitest'
 import {
   BaserowRuntimeFormulaArgumentType,
+  DatetimeFormatBaserowRuntimeFormulaArgumentType,
   TimezoneBaserowRuntimeFormulaArgumentType,
   ThousandSeparatorBaserowRuntimeFormulaArgumentType,
   DecimalSeparatorBaserowRuntimeFormulaArgumentType,
@@ -121,5 +122,36 @@ describe('IntervalStringBaserowRuntimeFormulaArgumentType', () => {
     }
     const message = argType.getErrorMessage('not valid', mocki18n)
     expect(message).toContain("'not valid' is not a valid interval string.")
+  })
+})
+
+describe('DatetimeFormatBaserowRuntimeFormulaArgumentType', () => {
+  test.each([
+    { value: 'YYYY-MM-DD', expected: true },
+    { value: 'DD/MM/YYYY', expected: true },
+    { value: 'YYYY-MM-DD HH:mm:ss', expected: true },
+    { value: 'DD/MM/YYYY HH:mm:ss', expected: true },
+    { value: 'HH:mm:ss', expected: true },
+    { value: 'SSS', expected: true },
+    { value: '', expected: true },
+    { value: 'SS', expected: false },
+    { value: 'S', expected: false },
+    { value: 'Z', expected: false },
+    { value: 'YYYY-MM-DD HH:mm:SS', expected: false },
+    { value: 123, expected: false },
+    { value: null, expected: false },
+  ])('test() returns $expected for "$value"', ({ value, expected }) => {
+    expect(
+      new DatetimeFormatBaserowRuntimeFormulaArgumentType().test(value)
+    ).toBe(expected)
+  })
+
+  test('getErrorMessage returns a human-readable message', () => {
+    const argType = new DatetimeFormatBaserowRuntimeFormulaArgumentType()
+    const mocki18n = {
+      t: (key, params) => `'${params.value}' is not a valid datetime format.`,
+    }
+    const message = argType.getErrorMessage('SS', mocki18n)
+    expect(message).toContain("'SS' is not a valid datetime format.")
   })
 })

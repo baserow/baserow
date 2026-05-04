@@ -50,6 +50,7 @@ import {
   RuntimeToArray,
   RuntimeNull,
   RuntimeNumberFormat,
+  RuntimeToDatetime,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 import { Timedelta } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import { expect } from 'vitest'
@@ -899,7 +900,7 @@ describe('RuntimeDateTimeFormat', () => {
     expect(result).toStrictEqual(expected)
   })
 
-  test('validateArgs throws human-readable error', () => {
+  test('validateArgs throws for invalid timezone', () => {
     const formulaType = new RuntimeDateTimeFormat({
       app: {
         $i18n: {
@@ -910,6 +911,20 @@ describe('RuntimeDateTimeFormat', () => {
     expect(() =>
       formulaType.validateArgs([new Date(2025, 10, 6), 'YYYY', 'Europe/Foo'])
     ).toThrow("'Europe/Foo' is not a valid timezone.")
+  })
+
+  test('validateArgs throws for unsupported format token', () => {
+    const formulaType = new RuntimeDateTimeFormat({
+      app: {
+        $i18n: {
+          t: (key, params) =>
+            `'${params.value}' is not a valid datetime format.`,
+        },
+      },
+    })
+    expect(() =>
+      formulaType.validateArgs([new Date(2025, 10, 6), 'YYYY/MM/DD HH:mm:SS'])
+    ).toThrow("'YYYY/MM/DD HH:mm:SS' is not a valid datetime format.")
   })
 })
 
@@ -2175,5 +2190,82 @@ describe('RuntimeMinus with datetime and timedelta', () => {
     const formulaType = new RuntimeMinus()
     const result = formulaType.validateTypeOfArgs(args)
     expect(result).toStrictEqual(expected)
+  })
+})
+
+describe('RuntimeToDatetime', () => {
+  test.each([
+    { args: ['2024-01-15'], expectedTime: new Date('2024-01-15').getTime() },
+    {
+      args: ['2024-01-15T12:30:00'],
+      expectedTime: new Date('2024-01-15T12:30:00').getTime(),
+    },
+    {
+      args: ['15/01/2024', 'DD/MM/YYYY'],
+      expectedTime: new Date('2024-01-15').getTime(),
+    },
+    {
+      args: ['2024-01-15 12:30', 'YYYY-MM-DD HH:mm'],
+      expectedTime: new Date('2024-01-15T12:30:00').getTime(),
+    },
+  ])('execute returns a Date for valid input', ({ args, expectedTime }) => {
+    const formulaType = new RuntimeToDatetime()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toBeInstanceOf(Date)
+    expect(result.getTime()).toBe(expectedTime)
+  })
+
+  test('validateArgs throws for an invalid ISO string', () => {
+    const formulaType = new RuntimeToDatetime()
+    expect(() => formulaType.validateArgs(['not-a-date'])).toThrow(
+      'is not a valid datetime string'
+    )
+  })
+
+  test.each([
+    { value: '2026-', desc: 'trailing dash' },
+    { value: '2025', desc: 'year only' },
+    { value: '2025-01', desc: 'year-month only' },
+  ])('validateArgs throws for incomplete ISO string ($desc)', ({ value }) => {
+    const formulaType = new RuntimeToDatetime()
+    expect(() => formulaType.validateArgs([value])).toThrow(
+      'is not a valid datetime string'
+    )
+  })
+
+  test('validateArgs throws when string does not match provided format', () => {
+    const formulaType = new RuntimeToDatetime()
+    expect(() =>
+      formulaType.validateArgs(['2024-01-15', 'DD/MM/YYYY'])
+    ).toThrow('could not be parsed using format')
+  })
+
+  test('validateArgs throws for format with unsupported token', () => {
+    const formulaType = new RuntimeToDatetime()
+    expect(() =>
+      formulaType.validateArgs(['2025/06/04 12:23:45', 'YYYY/MM/DD HH:mm:SS'])
+    ).toThrow('is not a valid datetime format')
+  })
+
+  test.each([
+    { args: ['2024-01-15'], expected: undefined },
+    { args: ['not-a-date'], expected: undefined },
+    { args: ['2024-01-15', 'YYYY-MM-DD'], expected: undefined },
+  ])('validates type of args', ({ args, expected }) => {
+    const formulaType = new RuntimeToDatetime()
+    const result = formulaType.validateTypeOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['2024-01-15'], expected: true },
+    { args: ['2024-01-15', 'YYYY-MM-DD'], expected: true },
+    { args: ['2024-01-15', 'YYYY-MM-DD', 'extra'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeToDatetime()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toBe(expected)
   })
 })
