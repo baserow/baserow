@@ -103,7 +103,9 @@ class RuntimeAdd(RuntimeFormulaFunction):
                 return None
             if not (num.test(a) or dt.test(a) or td.test(a)):
                 return a
-            return b
+            if not (num.test(b) or dt.test(b) or td.test(b)):
+                return b
+            return a
         return super().validate_type_of_args(args)
 
     def parse_args(self, args: FormulaArgs) -> FormulaArgs:
