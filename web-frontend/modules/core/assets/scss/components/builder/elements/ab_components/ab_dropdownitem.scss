@@ -135,6 +135,10 @@
     text-decoration: none;
   }
 
+  .ab-dropdownitem__item--single & {
+    padding-right: calc(var(--input-horizontal-padding, 12px) + 1.25em);
+  }
+
   .ab-dropdownitem__item.disabled & {
     color: $palette-neutral-700;
 
@@ -150,8 +154,12 @@
   font-weight: 500;
   line-height: 120%;
   gap: 0.5em;
+  min-width: 0;
+  max-width: 100%;
 
-  @extend %ellipsis;
+  .ab-dropdownitem__item-name-checkbox {
+    flex-shrink: 0;
+  }
 
   .ab-dropdownitem__item-link:active & {
     color: color-mix(
@@ -160,4 +168,10 @@
       var(--input-text-color-complement, white) 20%
     );
   }
+}
+
+.ab-dropdownitem__item-name-text {
+  @extend %ellipsis;
+  flex: 1 1 auto;
+  min-width: 0;
 }

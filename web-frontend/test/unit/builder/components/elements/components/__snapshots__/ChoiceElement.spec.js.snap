@@ -203,7 +203,7 @@ exports[`ChoiceElement > as manual dropdown 1`] = `
                 
                 
                 <li
-                  class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  class="ab-dropdownitem__item ab-dropdownitem__item--no-options ab-dropdownitem__item--single"
                 >
                   <a
                     class="ab-dropdownitem__item-link"
@@ -228,7 +228,7 @@ exports[`ChoiceElement > as manual dropdown 1`] = `
                   />
                 </li>
                 <li
-                  class="ab-dropdownitem__item ab-dropdownitem__item--no-options"
+                  class="ab-dropdownitem__item ab-dropdownitem__item--no-options ab-dropdownitem__item--single"
                 >
                   <a
                     class="ab-dropdownitem__item-link"
