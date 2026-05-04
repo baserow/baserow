@@ -2242,7 +2242,14 @@ describe('RuntimeToDatetime', () => {
   })
 
   test('validateArgs throws for format with unsupported token', () => {
-    const formulaType = new RuntimeToDatetime()
+    const formulaType = new RuntimeToDatetime({
+      app: {
+        $i18n: {
+          t: (key, params) =>
+            `'${params.value}' is not a valid datetime format.`,
+        },
+      },
+    })
     expect(() =>
       formulaType.validateArgs(['2025/06/04 12:23:45', 'YYYY/MM/DD HH:mm:SS'])
     ).toThrow('is not a valid datetime format')
