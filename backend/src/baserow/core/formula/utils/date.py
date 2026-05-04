@@ -25,8 +25,14 @@ MOMENT_FORMAT_MAP = {
     "a": "%p",
     "SSS": "%f",
 }
-SUPPORTED_MOMENT_TOKEN_RE = re.compile(
+RE_SUPPORTED_MOMENT_TOKEN = re.compile(
     "|".join(sorted(MOMENT_FORMAT_MAP.keys(), key=len, reverse=True))
+)
+
+# Extends the conversion regex with T, the ISO 8601 date-time separator, which
+# is a valid literal in Moment.js format strings but has no mapped Python token.
+RE_VALID_FORMAT = re.compile(
+    "|".join(sorted(MOMENT_FORMAT_MAP.keys(), key=len, reverse=True)) + "|T"
 )
 
 INTERVAL_PATTERNS = [
@@ -58,7 +64,7 @@ def is_valid_datetime_format(value: str) -> bool:
 
     if not isinstance(value, str):
         return False
-    stripped = SUPPORTED_MOMENT_TOKEN_RE.sub("", value)
+    stripped = RE_VALID_FORMAT.sub("", value)
     return not re.search(r"[a-zA-Z]", stripped)
 
 
@@ -73,4 +79,4 @@ def convert_date_format_moment_to_python(moment_format: str) -> str:
     def replace_token(match: re.Match) -> str:
         return MOMENT_FORMAT_MAP[match.group(0)]
 
-    return SUPPORTED_MOMENT_TOKEN_RE.sub(replace_token, moment_format)
+    return RE_SUPPORTED_MOMENT_TOKEN.sub(replace_token, moment_format)

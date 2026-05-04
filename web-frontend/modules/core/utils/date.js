@@ -24,7 +24,7 @@ const UNIT_TO_MS = {
 }
 
 const SUPPORTED_MOMENT_TOKEN_RE =
-  /YYYY|MMMM|dddd|MMM|ddd|SSS|YY|MM|DD|HH|hh|mm|ss|[MDHhmsAa]/g
+  /YYYY|MMMM|dddd|MMM|ddd|SSS|YY|MM|DD|HH|hh|mm|ss|[MDHhmsAaT]/g
 
 export function isValidDatetimeFormat(value) {
   if (typeof value !== 'string') return false
