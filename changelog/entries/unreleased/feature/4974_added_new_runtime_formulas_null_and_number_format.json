@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Added new runtime formulas: abs(), null(), date_interval(), and number_format().",
+    "message": "Added new runtime formulas: number_format(), abs(), null(), date_interval(), and to_datetime().",
     "issue_origin": "github",
     "issue_number": 4974,
     "domain": "core",
