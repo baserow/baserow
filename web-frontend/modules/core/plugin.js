@@ -119,6 +119,7 @@ import {
   RuntimeAvg,
   RuntimeAt,
   RuntimeToArray,
+  RuntimeToDatetime,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 
 import {
@@ -308,6 +309,7 @@ export default defineNuxtPlugin({
       'runtimeFormulaFunction',
       new RuntimeDateInterval(context)
     )
+    registry.register('runtimeFormulaFunction', new RuntimeToDatetime(context))
     registry.register('errorPage', new DefaultErrorPageType(context))
 
     const fns = [

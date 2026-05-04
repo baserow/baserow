@@ -9,6 +9,7 @@ import {
 import moment from '@baserow/modules/core/moment'
 import {
   Timedelta,
+  isValidDatetimeFormat,
   parseIntervalString,
 } from '@baserow/modules/core/utils/date'
 export { Timedelta, parseIntervalString }
@@ -269,5 +270,19 @@ export class IntervalStringBaserowRuntimeFormulaArgumentType extends BaserowRunt
 
   getErrorMessage(value, i18n) {
     return i18n.t('runtimeFormulaTypeErrors.invalidIntervalString', { value })
+  }
+}
+
+export class DatetimeFormatBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    return isValidDatetimeFormat(value)
+  }
+
+  parse(value) {
+    return ensureString(value)
+  }
+
+  getErrorMessage(value, i18n) {
+    return i18n.t('runtimeFormulaTypeErrors.invalidDatetimeFormat', { value })
   }
 }

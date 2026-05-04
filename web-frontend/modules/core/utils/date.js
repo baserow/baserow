@@ -23,6 +23,14 @@ const UNIT_TO_MS = {
   seconds: 1000,
 }
 
+const SUPPORTED_MOMENT_TOKEN_RE =
+  /YYYY|MMMM|dddd|MMM|ddd|SSS|YY|MM|DD|HH|hh|mm|ss|[MDHhmsAa]/g
+
+export function isValidDatetimeFormat(value) {
+  if (typeof value !== 'string') return false
+  return !/[a-zA-Z]/.test(value.replace(SUPPORTED_MOMENT_TOKEN_RE, ''))
+}
+
 export function parseIntervalString(value) {
   if (typeof value !== 'string') return null
   for (const { regex, unit, factor } of INTERVAL_PATTERNS) {

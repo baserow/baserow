@@ -12,6 +12,7 @@ import {
   ThousandSeparatorBaserowRuntimeFormulaArgumentType,
   DecimalSeparatorBaserowRuntimeFormulaArgumentType,
   TimedeltaBaserowRuntimeFormulaArgumentType,
+  DatetimeFormatBaserowRuntimeFormulaArgumentType,
   IntervalStringBaserowRuntimeFormulaArgumentType,
   Timedelta,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
@@ -1358,7 +1359,7 @@ export class RuntimeDateTimeFormat extends RuntimeFormulaFunction {
   get args() {
     return [
       new DateTimeBaserowRuntimeFormulaArgumentType(),
-      new TextBaserowRuntimeFormulaArgumentType(),
+      new DatetimeFormatBaserowRuntimeFormulaArgumentType(),
       new TimezoneBaserowRuntimeFormulaArgumentType({ optional: true }),
     ]
   }
@@ -2718,6 +2719,74 @@ export class RuntimeNumberFormat extends RuntimeFormulaFunction {
       {
         formula: "number_format(1000000, 2, ' ', ',')",
         result: "'1 000 000,00'",
+      },
+    ]
+  }
+}
+
+export class RuntimeToDatetime extends RuntimeFormulaFunction {
+  static getType() {
+    return 'to_datetime'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.DATE
+  }
+
+  get args() {
+    return [
+      new TextBaserowRuntimeFormulaArgumentType(),
+      new DatetimeFormatBaserowRuntimeFormulaArgumentType({ optional: true }),
+    ]
+  }
+
+  validateArgs(args, { ctx = null, validationContext = {} } = {}) {
+    super.validateArgs(args, { ctx, validationContext })
+    const value = args[0]
+    if (args.length === 2) {
+      const fmt = args[1]
+      if (!moment(value, fmt, true).isValid()) {
+        throw new InvalidFormulaArgument(
+          this.getType(),
+          `'${value}' could not be parsed using format '${fmt}'.`
+        )
+      }
+    } else {
+      const hasMinDatePart = /^\d{4}-\d{2}-\d{2}/.test(value)
+      if (!hasMinDatePart || !moment(value, moment.ISO_8601, true).isValid()) {
+        throw new InvalidFormulaArgument(
+          this.getType(),
+          `'${value}' is not a valid datetime string.`
+        )
+      }
+    }
+  }
+
+  execute(context, args) {
+    if (args.length === 2) {
+      return moment(args[0], args[1], true).toDate()
+    }
+    return moment(args[0], moment.ISO_8601, true).toDate()
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.toDatetimeDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "to_datetime('2024-01-15')",
+        result: '2024-01-15T00:00:00',
+      },
+      {
+        formula: "to_datetime('15/01/2024', 'DD/MM/YYYY')",
+        result: '2024-01-15T00:00:00',
       },
     ]
   }

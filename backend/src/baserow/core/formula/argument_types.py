@@ -5,7 +5,10 @@ from django.core.exceptions import ValidationError
 
 import pytz
 
-from baserow.core.formula.utils.date import parse_interval_string
+from baserow.core.formula.utils.date import (
+    is_valid_datetime_format,
+    parse_interval_string,
+)
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
@@ -221,4 +224,20 @@ class IntervalStringBaserowRuntimeFormulaArgumentType(
         return (
             f"'{value}' is not a valid interval string. "
             f"Expected format: '<number> <unit>', e.g. '1 day', '2 hours'."
+        )
+
+
+class DatetimeFormatBaserowRuntimeFormulaArgumentType(
+    BaserowRuntimeFormulaArgumentType
+):
+    def test(self, value):
+        return is_valid_datetime_format(value)
+
+    def parse(self, value):
+        return ensure_string(value)
+
+    def get_error_message(self, value) -> Optional[str]:
+        return (
+            f"'{value}' is not a valid datetime format. "
+            f"Use Moment.js tokens such as 'YYYY-MM-DD' or 'DD/MM/YYYY HH:mm:ss'."
         )

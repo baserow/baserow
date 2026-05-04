@@ -699,6 +699,8 @@
     "toArrayDescription": "Converts a comma-delimited string into an array.",
     "nullDescription": "Returns null.",
     "numberFormatDescription": "Formats a number as a string with configurable decimal places, thousand separator, and decimal separator.",
+    "toDatetimeDescription": "Parses a string into a datetime object. An optional second argument specifies the format (e.g. 'DD/MM/YYYY'). If omitted, ISO 8601 format is assumed.",
+    "dateIntervalDescription": "Returns the date interval corresponding to the provided argument.",
     "formulaTypeFormula": "Function | Functions",
     "formulaTypeOperator": "Operator | Operators",
     "formulaTypeData": "Data",
@@ -714,7 +716,8 @@
     "invalidThousandSeparator": "'{value}' is not a valid thousand separator. Valid options are: ',', '.', ' ', or '' (empty string).",
     "invalidDecimalSeparator": "'{value}' is not a valid decimal separator. Valid options are: ',' or '.'.",
     "sameSeparators": "The thousand separator and decimal separator cannot be the same.",
-    "invalidIntervalString": "'{value}' is not a valid interval string. Valid options are: '1 day', '2 hours', etc."
+    "invalidIntervalString": "'{value}' is not a valid interval string. Valid options are: '1 day', '2 hours', etc.",
+    "invalidDatetimeFormat": "'{value}' is not a valid datetime format. Valid options are Moment.js tokens: 'YYYY-MM-DD', 'DD/MM/YYYY HH:mm:ss', etc."
   },
   "runtimeGetErrors": {
     "invalidPath": "The 'get' argument '{path}' must be a dot-delimited path (e.g., 'provider.property').",

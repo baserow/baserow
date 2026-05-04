@@ -55,6 +55,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeStrip,
     RuntimeSum,
     RuntimeToArray,
+    RuntimeToDatetime,
     RuntimeToday,
     RuntimeUpper,
     RuntimeYear,
@@ -1145,7 +1146,7 @@ def test_runtime_is_odd_validate_number_of_args(args, expected):
             ["2025-11-06 11:30:30.861096+00:00", "DD/MM/YYYY HH:mm:ss"],
             "06/11/2025 11:30:30",
         ),
-        (["2025-11-06 11:30:30.861096+00:00", "%f"], "861096"),
+        (["2025-11-06 11:30:30.861096+00:00", "SSS"], "861"),
     ],
 )
 def test_runtime_datetime_format_execute(args, expected):
@@ -1194,12 +1195,20 @@ def test_runtime_datetime_format_validate_number_of_args(args, expected):
     assert result is expected
 
 
-def test_runtime_datetime_format_validate_args_raises_human_readable_error():
+def test_runtime_datetime_format_validate_args_raises_for_invalid_timezone():
     with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
         RuntimeDateTimeFormat().validate_args(
             [datetime(2025, 11, 6, 12, 30), "YYYY-MM-DD", "Europe/Foo"]
         )
     assert "'Europe/Foo' is not a valid timezone" in str(exc_info.value)
+
+
+def test_runtime_datetime_format_validate_args_raises_for_unsupported_format_token():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeDateTimeFormat().validate_args(
+            [datetime(2025, 11, 6, 12, 30), "YYYY/MM/DD HH:mm:SS"]
+        )
+    assert "'YYYY/MM/DD HH:mm:SS' is not a valid datetime format" in str(exc_info.value)
 
 
 @pytest.mark.parametrize(
@@ -2638,3 +2647,67 @@ def test_runtime_minus_with_datetime_and_timedelta(args, expected):
 def test_runtime_minus_validate_type_of_args_with_timedelta(args, expected):
     result = RuntimeMinus().validate_type_of_args(args)
     assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["2024-01-15"], datetime(2024, 1, 15, 0, 0, 0)),
+        (["2024-01-15T12:30:00"], datetime(2024, 1, 15, 12, 30, 0)),
+        (["2024-01-15T12:30:00.123456"], datetime(2024, 1, 15, 12, 30, 0, 123456)),
+        (["15/01/2024", "DD/MM/YYYY"], datetime(2024, 1, 15, 0, 0, 0)),
+        (["01-15-2024", "MM-DD-YYYY"], datetime(2024, 1, 15, 0, 0, 0)),
+        (["2024-01-15 12:30", "YYYY-MM-DD HH:mm"], datetime(2024, 1, 15, 12, 30, 0)),
+    ],
+)
+def test_runtime_to_datetime_execute(args, expected):
+    parsed_args = RuntimeToDatetime().parse_args(args)
+    result = RuntimeToDatetime().execute({}, parsed_args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        (["2024-01-15"], None),
+        (["not-a-date"], None),
+        (["2024-01-15", "YYYY-MM-DD"], None),
+    ],
+)
+def test_runtime_to_datetime_validate_type_of_args(args, expected):
+    result = RuntimeToDatetime().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["2024-01-15"], True),
+        (["2024-01-15", "YYYY-MM-DD"], True),
+        (["2024-01-15", "YYYY-MM-DD", "extra"], False),
+    ],
+)
+def test_runtime_to_datetime_validate_number_of_args(args, expected):
+    result = RuntimeToDatetime().validate_number_of_args(args)
+    assert result is expected
+
+
+def test_runtime_to_datetime_validate_args_raises_for_invalid_iso_string():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToDatetime().validate_args(["not-a-date"])
+    assert "is not a valid ISO datetime string" in str(exc_info.value)
+
+
+def test_runtime_to_datetime_validate_args_raises_for_string_not_matching_format():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToDatetime().validate_args(["2024-01-15", "DD/MM/YYYY"])
+    assert "could not be parsed using format" in str(exc_info.value)
+
+
+def test_runtime_to_datetime_validate_args_raises_for_unsupported_format_token():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToDatetime().validate_args(
+            ["2025/06/04 12:23:45", "YYYY/MM/DD HH:mm:SS"]
+        )
+    assert "is not a valid datetime format" in str(exc_info.value)

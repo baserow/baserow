@@ -84,6 +84,7 @@ class CoreConfig(AppConfig):
             RuntimeStrip,
             RuntimeSum,
             RuntimeToArray,
+            RuntimeToDatetime,
             RuntimeToday,
             RuntimeUpper,
             RuntimeYear,
@@ -140,6 +141,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeNull())
         formula_runtime_function_registry.register(RuntimeNumberFormat())
         formula_runtime_function_registry.register(RuntimeDateInterval())
+        formula_runtime_function_registry.register(RuntimeToDatetime())
 
         from baserow.core.permission_manager import (
             AllowIfTemplatePermissionManagerType,

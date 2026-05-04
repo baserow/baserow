@@ -13,6 +13,7 @@ from baserow.core.formula.argument_types import (
     ArrayOfNumbersBaserowRuntimeFormulaArgumentType,
     BooleanBaserowRuntimeFormulaArgumentType,
     DateTimeBaserowRuntimeFormulaArgumentType,
+    DatetimeFormatBaserowRuntimeFormulaArgumentType,
     DecimalSeparatorBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
     IntervalStringBaserowRuntimeFormulaArgumentType,
@@ -317,7 +318,7 @@ class RuntimeDateTimeFormat(RuntimeFormulaFunction):
 
     args = [
         DateTimeBaserowRuntimeFormulaArgumentType(),
-        TextBaserowRuntimeFormulaArgumentType(),
+        DatetimeFormatBaserowRuntimeFormulaArgumentType(),
         TimezoneBaserowRuntimeFormulaArgumentType(optional=True),
     ]
 
@@ -726,3 +727,41 @@ class RuntimeDateInterval(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0]
+
+
+class RuntimeToDatetime(RuntimeFormulaFunction):
+    type = "to_datetime"
+
+    args = [
+        TextBaserowRuntimeFormulaArgumentType(),
+        DatetimeFormatBaserowRuntimeFormulaArgumentType(optional=True),
+    ]
+
+    def validate_args(self, args, validation_context=None):
+        super().validate_args(args, validation_context)
+        value = args[0]
+        if len(args) == 2:
+            moment_format = args[1]
+            python_format = convert_date_format_moment_to_python(moment_format)
+            try:
+                datetime.strptime(value, python_format)
+            except ValueError:
+                raise BaserowFormulaSyntaxError(
+                    f"'{value}' could not be parsed using format '{moment_format}'."
+                )
+        else:
+            try:
+                datetime.fromisoformat(value)
+            except ValueError:
+                raise BaserowFormulaSyntaxError(
+                    f"'{value}' is not a valid ISO datetime string. "
+                    f"Expected a format like '2024-01-15' or '2024-01-15T12:00:00'."
+                )
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        value = args[0]
+        if len(args) == 2:
+            python_format = convert_date_format_moment_to_python(args[1])
+            return datetime.strptime(value, python_format)
+        else:
+            return datetime.fromisoformat(value)
