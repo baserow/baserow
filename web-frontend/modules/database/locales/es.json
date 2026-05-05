@@ -1221,6 +1221,6 @@
     },
     "gridViewFreezeHandle": {
         "hoverHint": "Arrastrar para congelar columnas",
-        "freeze": "Congelar 0 columnas | Congelar 1 columna |"
+        "freeze": "Congelar 0 columnas | Congelar 1 columna | Congelar {count} columnas"
     }
 }
