@@ -2709,16 +2709,16 @@ export class RuntimeNumberFormat extends RuntimeFormulaFunction {
   getExamples() {
     return [
       {
+        formula: "number_format(1000000, 2, ',', '.')",
+        result: "'1,000,000.00'",
+      },
+      {
         formula: 'number_format(1000000)',
         result: "'1,000,000'",
       },
       {
         formula: 'number_format(1000000, 2)',
         result: "'1,000,000.00'",
-      },
-      {
-        formula: "number_format(1000000, 2, ' ', ',')",
-        result: "'1 000 000,00'",
       },
     ]
   }
@@ -2822,7 +2822,7 @@ export class RuntimeDateInterval extends RuntimeFormulaFunction {
     return [
       {
         formula: "date_interval('1 day')",
-        result: 'timedelta(days=1)',
+        result: '86400 seconds',
       },
       {
         formula: "now() + date_interval('1 day')",
