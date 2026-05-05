@@ -17,6 +17,7 @@ from baserow.contrib.builder.pages.exceptions import (
 )
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.user_sources.user_source_user import UserSourceUser
 
 
@@ -352,7 +353,10 @@ def test_import_element_has_to_import_parent_first(data_fixture):
         page=page, column_amount=15
     )
     text_element = data_fixture.create_builder_text_element(
-        page=page, parent_element=parent_column
+        page=page,
+        reference_element=parent_column,
+        position=GraphPointPosition.CHILD,
+        place_in_container="0",
     )
     parent_serialized = element_type_registry.get_by_model(
         parent_column
@@ -360,7 +364,12 @@ def test_import_element_has_to_import_parent_first(data_fixture):
     element_serialized = element_type_registry.get_by_model(
         text_element
     ).export_serialized(text_element)
-    new_page = data_fixture.create_builder_page(builder=text_element.page.builder)
+
+    # Provide the source page's graph so that import_elements
+    # can determine parent-child relationships
+    new_page = data_fixture.create_builder_page(
+        builder=text_element.page.builder, graph=page.graph
+    )
 
     [imported_column, imported_text] = PageHandler().import_elements(
         new_page,
@@ -382,7 +391,10 @@ def test_import_element_has_to_instance_already_created(data_fixture):
         page=page, column_amount=15
     )
     text_element = data_fixture.create_builder_text_element(
-        page=page, parent_element=parent_column
+        page=page,
+        reference_element=parent_column,
+        position=GraphPointPosition.CHILD,
+        place_in_container="0",
     )
     parent_serialized = element_type_registry.get_by_model(
         parent_column
@@ -390,7 +402,12 @@ def test_import_element_has_to_instance_already_created(data_fixture):
     element_serialized = element_type_registry.get_by_model(
         text_element
     ).export_serialized(text_element)
-    new_page = data_fixture.create_builder_page(builder=text_element.page.builder)
+
+    # Provide the source page's graph so that import_elements
+    # can determine parent-child relationships
+    new_page = data_fixture.create_builder_page(
+        builder=text_element.page.builder, graph=page.graph
+    )
 
     [imported_column, imported_text] = PageHandler().import_elements(
         new_page,

@@ -5,9 +5,9 @@ from django.utils import translation
 from django.utils.translation import gettext as _
 
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
-from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import LinkElement
 from baserow.contrib.builder.elements.registries import element_type_registry
+from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.workflow_actions.handler import (
     BuilderWorkflowActionHandler,
@@ -96,23 +96,26 @@ class BuilderApplicationTypeInitApplication:
         )
 
     def create_intro_element(self, page: "Page", link_to_page: "Page") -> None:
-        ElementHandler().create_element(
+        ElementService().create_element(
+            self.user,
             element_type_registry.get("heading"),
-            page=page,
+            page,
             level=1,
             value="'Welcome to the Application Builder!'",
         )
-        ElementHandler().create_element(
+        ElementService().create_element(
+            self.user,
             element_type_registry.get("text"),
-            page=page,
+            page,
             value="\"Baserow's application builder allows you to create dynamic and "
             "complex interface applications with no code. Pages can optionally "
             "source data from this Baserow installation's tables, or you can "
             'add data manually from the General tab."',
         )
-        ElementHandler().create_element(
+        ElementService().create_element(
+            self.user,
             element_type_registry.get("link"),
-            page=page,
+            page,
             variant="button",
             navigate_to_page_id=link_to_page.id,
             value=f"'Navigate to the {link_to_page.name} page'",
@@ -132,21 +135,24 @@ class BuilderApplicationTypeInitApplication:
             table=table,
             integration=integration,
         )
-        ElementHandler().create_element(
+        ElementService().create_element(
+            self.user,
             element_type_registry.get("heading"),
-            page=page,
+            page,
             level=2,
             value="'Tables'",
         )
-        ElementHandler().create_element(
+        ElementService().create_element(
+            self.user,
             element_type_registry.get("text"),
-            page=page,
+            page,
             value="'Here is an example table sourcing data from the "
             f"{table.name} table.'",
         )
-        ElementHandler().create_element(
+        ElementService().create_element(
+            self.user,
             element_type_registry.get("table"),
-            page=page,
+            page,
             data_source_id=data_source.id,
             fields=[
                 {
@@ -174,35 +180,41 @@ class BuilderApplicationTypeInitApplication:
     def create_form_element(
         self, page: "Page", integration: "Integration", table: "Table" = None
     ) -> None:
-        ElementHandler().create_element(
+        ElementService().create_element(
+            self.user,
             element_type_registry.get("heading"),
-            page=page,
+            page,
             level=2,
             value="'Forms'",
         )
-        form_container = ElementHandler().create_element(
+        form_container = ElementService().create_element(
+            self.user,
             element_type_registry.get("form_container"),
-            page=page,
+            page,
             level=2,
             value="'Forms'",
         )
-        first_name_input = ElementHandler().create_element(
+        first_name_input = ElementService().create_element(
+            self.user,
             element_type_registry.get("input_text"),
-            page=page,
+            page,
+            reference_element_id=form_container.id,
+            position="child",
             label="'First name'",
             style_padding_left=0,
             style_padding_right=0,
             placeholder="'Enter your first name'",
-            parent_element_id=form_container.id,
         )
-        last_name_input = ElementHandler().create_element(
+        last_name_input = ElementService().create_element(
+            self.user,
             element_type_registry.get("input_text"),
-            page=page,
+            page,
+            reference_element_id=form_container.id,
+            position="child",
             label="'Last name'",
             style_padding_left=0,
             style_padding_right=0,
             placeholder="'Enter your last name'",
-            parent_element_id=form_container.id,
         )
 
         # If the `Customers` table's schema didn't change, create a new service,
@@ -257,42 +269,50 @@ class BuilderApplicationTypeInitApplication:
             form_container.save()
 
     def create_container_element(self, page: "Page"):
-        ElementHandler().create_element(
+        ElementService().create_element(
+            self.user,
             element_type_registry.get("heading"),
-            page=page,
+            page,
             level=2,
             value="'Containers'",
         )
-        column_element = ElementHandler().create_element(
+        column_element = ElementService().create_element(
+            self.user,
             element_type_registry.get("column"),
-            page=page,
+            page,
             column_amount=3,
             value="'Containers'",
         )
-        ElementHandler().create_element(
+        ElementService().create_element(
+            self.user,
             element_type_registry.get("text"),
-            page=page,
-            place_in_container=0,
+            page,
+            reference_element_id=column_element.id,
+            position="child",
+            place_in_container="0",
             style_padding_left=0,
             style_padding_right=0,
-            parent_element_id=column_element.id,
             value="'Elements can be placed in containers...'",
         )
-        ElementHandler().create_element(
+        ElementService().create_element(
+            self.user,
             element_type_registry.get("text"),
-            page=page,
-            place_in_container=1,
+            page,
+            reference_element_id=column_element.id,
+            position="child",
+            place_in_container="1",
             style_padding_left=0,
             style_padding_right=0,
-            parent_element_id=column_element.id,
             value="'which you can configure with more, or fewer columns.'",
         )
-        ElementHandler().create_element(
+        ElementService().create_element(
+            self.user,
             element_type_registry.get("text"),
-            page=page,
-            place_in_container=2,
+            page,
+            reference_element_id=column_element.id,
+            position="child",
+            place_in_container="2",
             style_padding_left=0,
             style_padding_right=0,
-            parent_element_id=column_element.id,
             value="'The possibilities are endless!'",
         )

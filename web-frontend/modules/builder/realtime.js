@@ -117,22 +117,6 @@ export const registerRealtimeEvents = (realtime) => {
     })
   })
 
-  realtime.registerEvent(
-    'element_orders_recalculated',
-    ({ store, app }, data) => {
-      const selectedPage = store.getters['page/getSelected']
-      const builder = store.getters['application/getById'](
-        selectedPage.builder_id
-      )
-      if (generateHash(selectedPage.id) === data.page_id) {
-        store.dispatch('element/fetch', {
-          builder,
-          page: selectedPage,
-        })
-      }
-    }
-  )
-
   realtime.registerEvent('elements_moved', ({ store }, { elements }) => {
     elements.forEach((element) => {
       const ctx = getPageContext(store, element.page_id)

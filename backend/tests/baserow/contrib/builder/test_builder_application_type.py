@@ -144,7 +144,7 @@ def test_builder_application_export(data_fixture):
         page=page1, column_amount=3, column_gap=50
     )
     element_inside_container = data_fixture.create_builder_text_element(
-        page=page1, parent_element=element_container, place_in_container="0"
+        page=page1, reference_element=element_container, place_in_container="0"
     )
 
     integration = data_fixture.create_local_baserow_integration(
@@ -201,6 +201,11 @@ def test_builder_application_export(data_fixture):
         "path": page2.path,
         "path_params": page2.path_params,
         "query_params": [],
+        "graph": {
+            "0": element3.id,
+            str(element3.id): {"next": {"": [element4.id]}},
+            str(element4.id): {},
+        },
         "visibility": Page.VISIBILITY_TYPES.ALL.value,
         "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
         "roles": [],
@@ -247,9 +252,6 @@ def test_builder_application_export(data_fixture):
             {
                 "id": element3.id,
                 "type": "heading",
-                "order": str(element3.order),
-                "parent_element_id": None,
-                "place_in_container": None,
                 "visibility": "all",
                 "visibility_condition": BaserowFormulaObject(
                     formula="",
@@ -292,7 +294,6 @@ def test_builder_application_export(data_fixture):
                 "type": "table",
                 "schema_property": None,
                 "button_load_more_label": element4.button_load_more_label,
-                "order": str(element4.order),
                 "roles": [],
                 "role_type": "allow_all",
                 "orientation": {
@@ -300,8 +301,6 @@ def test_builder_application_export(data_fixture):
                     "tablet": "horizontal",
                     "desktop": "horizontal",
                 },
-                "parent_element_id": None,
-                "place_in_container": None,
                 "css_classes": "",
                 "visibility": "all",
                 "visibility_condition": BaserowFormulaObject(
@@ -369,6 +368,7 @@ def test_builder_application_export(data_fixture):
                 "path_params": shared_page.path_params,
                 "query_params": [],
                 "shared": True,
+                "graph": {},
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
                 "roles": [],
@@ -402,6 +402,15 @@ def test_builder_application_export(data_fixture):
                 "path_params": page1.path_params,
                 "query_params": [],
                 "shared": False,
+                "graph": {
+                    "0": element1.id,
+                    str(element1.id): {"next": {"": [element2.id]}},
+                    str(element2.id): {"next": {"": [element_container.id]}},
+                    str(element_container.id): {
+                        "next": {"": [element_inside_container.id]}
+                    },
+                    str(element_inside_container.id): {},
+                },
                 "visibility": Page.VISIBILITY_TYPES.ALL.value,
                 "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
                 "roles": [],
@@ -440,9 +449,6 @@ def test_builder_application_export(data_fixture):
                     {
                         "id": element1.id,
                         "type": "heading",
-                        "order": str(element1.order),
-                        "parent_element_id": None,
-                        "place_in_container": None,
                         "css_classes": "",
                         "visibility": "all",
                         "visibility_condition": BaserowFormulaObject(
@@ -483,9 +489,6 @@ def test_builder_application_export(data_fixture):
                     {
                         "id": element2.id,
                         "type": "text",
-                        "order": str(element2.order),
-                        "parent_element_id": None,
-                        "place_in_container": None,
                         "css_classes": "",
                         "visibility": "all",
                         "visibility_condition": BaserowFormulaObject(
@@ -526,8 +529,6 @@ def test_builder_application_export(data_fixture):
                     {
                         "id": element_container.id,
                         "type": "column",
-                        "parent_element_id": None,
-                        "place_in_container": None,
                         "css_classes": "",
                         "visibility": "all",
                         "visibility_condition": BaserowFormulaObject(
@@ -560,7 +561,6 @@ def test_builder_application_export(data_fixture):
                         "style_background_mode": "fill",
                         "style_width": "normal",
                         "style_width_child": "normal",
-                        "order": str(element_container.order),
                         "column_amount": 3,
                         "column_gap": 50,
                         "alignment": "top",
@@ -570,8 +570,6 @@ def test_builder_application_export(data_fixture):
                     {
                         "id": element_inside_container.id,
                         "type": "text",
-                        "parent_element_id": element_container.id,
-                        "place_in_container": "0",
                         "css_classes": "",
                         "visibility": "all",
                         "visibility_condition": BaserowFormulaObject(
@@ -604,7 +602,6 @@ def test_builder_application_export(data_fixture):
                         "style_background_mode": "fill",
                         "style_width": "normal",
                         "style_width_child": "normal",
-                        "order": str(element_inside_container.order),
                         "value": element_inside_container.value,
                         "roles": [],
                         "role_type": "allow_all",
@@ -787,12 +784,14 @@ PAGE_2_IMPORT_REFERENCE = {
     "visibility": Page.VISIBILITY_TYPES.ALL.value,
     "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
     "roles": [],
+    "graph": {
+        "0": 997,
+        "997": {},
+    },
     "elements": [
         {
             "id": 997,
             "type": "heading",
-            "parent_element_id": None,
-            "place_in_container": None,
             "style_background": "none",
             "style_background_color": "#ffffffff",
             "style_border_bottom_color": "border",
@@ -854,6 +853,15 @@ IMPORT_REFERENCE = {
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {
+                "0": 998,
+                "998": {"next": {"": [999]}},
+                "999": {"next": {"": [1000]}},
+                "1000": {"next": {"": [500]}},
+                "500": {"children": {"0": [501], "1": [502]}},
+                "501": {},
+                "502": {},
+            },
             "workflow_actions": [
                 {
                     "id": 123,
@@ -870,8 +878,6 @@ IMPORT_REFERENCE = {
                 {
                     "id": 998,
                     "type": "heading",
-                    "parent_element_id": None,
-                    "place_in_container": None,
                     "style_background": "none",
                     "style_background_color": "#ffffffff",
                     "style_border_bottom_color": "border",
@@ -889,8 +895,6 @@ IMPORT_REFERENCE = {
                 {
                     "id": 999,
                     "type": "text",
-                    "parent_element_id": None,
-                    "place_in_container": None,
                     "style_background": "none",
                     "style_background_color": "#ffffffff",
                     "style_border_bottom_color": "border",
@@ -907,8 +911,6 @@ IMPORT_REFERENCE = {
                 {
                     "id": 1000,
                     "type": "table",
-                    "parent_element_id": None,
-                    "place_in_container": None,
                     "style_background": "none",
                     "style_background_color": "#ffffffff",
                     "style_border_bottom_color": "border",
@@ -952,8 +954,6 @@ IMPORT_REFERENCE = {
                 {
                     "id": 502,
                     "type": "text",
-                    "parent_element_id": 500,
-                    "place_in_container": "1",
                     "style_background": "none",
                     "style_background_color": "#ffffffff",
                     "style_border_bottom_color": "border",
@@ -972,8 +972,6 @@ IMPORT_REFERENCE = {
                 {
                     "id": 500,
                     "type": "column",
-                    "parent_element_id": None,
-                    "place_in_container": None,
                     "style_background": "none",
                     "style_background_color": "#ffffffff",
                     "style_border_bottom_color": "border",
@@ -994,8 +992,6 @@ IMPORT_REFERENCE = {
                 {
                     "id": 501,
                     "type": "text",
-                    "parent_element_id": 500,
-                    "place_in_container": "0",
                     "style_background": "none",
                     "style_background_color": "#ffffffff",
                     "style_border_bottom_color": "border",
@@ -1159,12 +1155,12 @@ def test_builder_application_import(data_fixture):
     assert button_config_block.button_hover_background_color == "#ccccccff"
 
     [
+        container_element,
         element1,
-        element_inside_container,
-        element_inside_container2,
         element2,
         table_element,
-        container_element,
+        element_inside_container,
+        element_inside_container2,
     ] = specific_iterator(page1.element_set.all())
 
     assert isinstance(element1, HeadingElement)
@@ -1188,6 +1184,415 @@ def test_builder_application_import(data_fixture):
     assert workflow_action.title["formula"] == "'there'"
 
 
+COMPAT_PAGE_2_IMPORT_REFERENCE = {
+    "id": 998,
+    "name": "Megan Clark",
+    "order": 2,
+    "path": "/test2",
+    "path_params": {},
+    "workflow_actions": [],
+    "shared": False,
+    "visibility": Page.VISIBILITY_TYPES.ALL.value,
+    "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+    "roles": [],
+    # No "graph" key — old format
+    "elements": [
+        {
+            "id": 997,
+            "type": "heading",
+            "parent_element_id": None,
+            "place_in_container": None,
+            "style_background": "none",
+            "style_background_color": "#ffffffff",
+            "style_border_bottom_color": "border",
+            "style_border_bottom_size": 0,
+            "style_border_top_color": "border",
+            "style_border_top_size": 0,
+            "style_width": "normal",
+            "style_width_child": "normal",
+            "order": 1,
+            "value": "",
+            "level": 1,
+            "roles": [],
+            "role_type": "allow_all",
+        }
+    ],
+    "data_sources": [
+        {
+            "id": 1,
+            "name": "source 2",
+            "order": "1.00000000000000000000",
+            "service": {
+                "id": 1,
+                "integration_id": 42,
+                "row_id": "",
+                "view_id": None,
+                "table_id": None,
+                "search_query": "",
+                "filter_type": "AND",
+                "type": "local_baserow_get_row",
+            },
+        },
+        {
+            "id": 3,
+            "name": "source 3",
+            "order": "2.00000000000000000000",
+            "service": {
+                "id": 2,
+                "default_result_count": 20,
+                "integration_id": 42,
+                "view_id": None,
+                "table_id": None,
+                "search_query": "",
+                "filter_type": "AND",
+                "type": "local_baserow_list_rows",
+            },
+        },
+    ],
+}
+
+COMPAT_IMPORT_REFERENCE = {
+    "pages": [
+        {
+            "id": 999,
+            "name": "Tammy Hall",
+            "order": 1,
+            "path": "/test",
+            "path_params": {},
+            "query_params": [],
+            "visibility": Page.VISIBILITY_TYPES.ALL.value,
+            "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
+            "roles": [],
+            # No "graph" key — old format
+            "workflow_actions": [
+                {
+                    "id": 123,
+                    "order": 1,
+                    "page_id": 999,
+                    "element_id": 998,
+                    "event": "click",
+                    "type": "notification",
+                    "description": "'hello'",
+                    "title": "'there'",
+                }
+            ],
+            "elements": [
+                {
+                    "id": 998,
+                    "type": "heading",
+                    "parent_element_id": None,
+                    "place_in_container": None,
+                    "style_background": "none",
+                    "style_background_color": "#ffffffff",
+                    "style_border_bottom_color": "border",
+                    "style_border_bottom_size": 0,
+                    "style_border_top_color": "border",
+                    "style_border_top_size": 0,
+                    "style_width": "normal",
+                    "style_width_child": "normal",
+                    "order": 1,
+                    "value": "'foo'",
+                    "level": 2,
+                    "roles": [],
+                    "role_type": "allow_all",
+                },
+                {
+                    "id": 999,
+                    "type": "text",
+                    "parent_element_id": None,
+                    "place_in_container": None,
+                    "style_background": "none",
+                    "style_background_color": "#ffffffff",
+                    "style_border_bottom_color": "border",
+                    "style_border_bottom_size": 0,
+                    "style_border_top_color": "border",
+                    "style_border_top_size": 0,
+                    "style_width": "normal",
+                    "style_width_child": "normal",
+                    "order": 2,
+                    "value": "",
+                    "roles": [],
+                    "role_type": "allow_all",
+                },
+                {
+                    "id": 1000,
+                    "type": "table",
+                    "parent_element_id": None,
+                    "place_in_container": None,
+                    "style_background": "none",
+                    "style_background_color": "#ffffffff",
+                    "style_border_bottom_color": "border",
+                    "style_border_bottom_size": 0,
+                    "style_border_top_color": "border",
+                    "style_border_top_size": 0,
+                    "style_width": "normal",
+                    "style_width_child": "normal",
+                    "items_per_page": 42,
+                    "order": 2.5,
+                    "data_source_id": 5,
+                    "roles": [],
+                    "role_type": "allow_all",
+                    "fields": [
+                        {
+                            "name": "F 1",
+                            "type": "text",
+                            "styles": {},
+                            "config": {"value": "get('current_record.field_25')"},
+                            "uid": str(uuid.uuid4()),
+                        },
+                        {
+                            "name": "F 2",
+                            "type": "link",
+                            "styles": {},
+                            "uid": str(uuid.uuid4()),
+                            "config": {
+                                "page_parameters": [],
+                                "navigation_type": "custom",
+                                "navigate_to_page_id": None,
+                                "navigate_to_url": "get('current_record.field_25')",
+                                "link_name": "'Test'",
+                                "target": "self",
+                                "variant": LinkElement.VARIANTS.BUTTON,
+                            },
+                        },
+                    ],
+                    "property_options": [],
+                },
+                {
+                    "id": 502,
+                    "type": "text",
+                    "parent_element_id": 500,
+                    "place_in_container": "1",
+                    "style_background": "none",
+                    "style_background_color": "#ffffffff",
+                    "style_border_bottom_color": "border",
+                    "style_border_bottom_size": 0,
+                    "style_border_top_color": "border",
+                    "style_border_top_size": 0,
+                    "style_width": "normal",
+                    "style_width_child": "normal",
+                    "style_padding_top": 10,
+                    "style_padding_bottom": 10,
+                    "order": 1.5,
+                    "value": "'test'",
+                    "roles": [],
+                    "role_type": "allow_all",
+                },
+                {
+                    "id": 500,
+                    "type": "column",
+                    "parent_element_id": None,
+                    "place_in_container": None,
+                    "style_background": "none",
+                    "style_background_color": "#ffffffff",
+                    "style_border_bottom_color": "border",
+                    "style_border_bottom_size": 0,
+                    "style_border_top_color": "border",
+                    "style_border_top_size": 0,
+                    "style_width": "normal",
+                    "style_width_child": "normal",
+                    "style_padding_top": 10,
+                    "style_padding_bottom": 10,
+                    "order": 3,
+                    "column_amount": 3,
+                    "column_gap": 50,
+                    "alignment": "top",
+                    "roles": [],
+                    "role_type": "allow_all",
+                },
+                {
+                    "id": 501,
+                    "type": "text",
+                    "parent_element_id": 500,
+                    "place_in_container": "0",
+                    "style_background": "none",
+                    "style_background_color": "#ffffffff",
+                    "style_border_bottom_color": "border",
+                    "style_border_bottom_size": 0,
+                    "style_border_top_color": "border",
+                    "style_border_top_size": 0,
+                    "style_width": "normal",
+                    "style_width_child": "normal",
+                    "style_padding_top": 10,
+                    "style_padding_bottom": 10,
+                    "order": 1,
+                    "value": "'test'",
+                    "roles": [],
+                    "role_type": "allow_all",
+                },
+            ],
+            "data_sources": [
+                {
+                    "id": 4,
+                    "name": "source 0",
+                    "order": "1.00000000000000000000",
+                    "service": None,
+                },
+                {
+                    "id": 5,
+                    "name": "source 1",
+                    "order": "2.00000000000000000000",
+                    "service": {
+                        "id": 17,
+                        "integration_id": None,
+                        "view_id": None,
+                        "table_id": None,
+                        "search_query": "",
+                        "filter_type": "AND",
+                        "type": "local_baserow_list_rows",
+                    },
+                },
+            ],
+        },
+        COMPAT_PAGE_2_IMPORT_REFERENCE,
+    ],
+    "integrations": [
+        {
+            "authorized_user": "test@baserow.io",
+            "id": 42,
+            "name": "test",
+            "order": "1.00000000000000000000",
+            "type": "local_baserow",
+        },
+    ],
+    "user_sources": [
+        {
+            "auth_providers": [],
+            "email_field_id": None,
+            "id": 42,
+            "integration_id": 42,
+            "name": "My user source",
+            "name_field_id": None,
+            "order": "1.00000000000000000000",
+            "table_id": None,
+            "type": "local_baserow",
+        },
+    ],
+    "theme": {
+        "body_text_color": "#ccccccff",
+        "body_font_size": 14,
+        "body_text_alignment": "left",
+        "primary_color": "#ccccccff",
+        "secondary_color": "#ccccccff",
+        "border_color": "#ccccccff",
+        "heading_1_font_size": 25,
+        "heading_1_text_color": "#ccccccff",
+        "heading_1_text_alignment": "left",
+        "heading_2_font_size": 21,
+        "heading_2_text_color": "#ccccccff",
+        "heading_2_text_alignment": "left",
+        "heading_3_font_size": 17,
+        "heading_3_text_color": "#ccccccff",
+        "heading_3_text_alignment": "left",
+        "heading_4_font_size": 16,
+        "heading_4_text_color": "#ccccccff",
+        "heading_4_text_alignment": "left",
+        "heading_5_font_size": 14,
+        "heading_5_text_color": "#ccccccff",
+        "heading_5_text_alignment": "left",
+        "heading_6_font_size": 14,
+        "heading_6_text_color": "#ccccccff",
+        "heading_6_text_alignment": "left",
+        "button_background_color": "#ccccccff",
+        "button_hover_background_color": "#ccccccff",
+        "button_alignment": "left",
+        "button_width": "auto",
+        "image_alignment": "left",
+        "image_constraint": "contain",
+        "image_max_height": None,
+        "image_max_width": 100,
+        "link_alignment": "left",
+        "link_text_color": "primary",
+        "link_hover_text_color": "#ccccccff",
+        "link_active_text_color": "#275d9f",
+    },
+    "id": 999,
+    "name": "Holly Sherman",
+    "order": 0,
+    "type": "builder",
+    "login_page": COMPAT_PAGE_2_IMPORT_REFERENCE,
+}
+
+
+@pytest.mark.django_db
+def test_builder_application_import_compat(data_fixture):
+    user = data_fixture.create_user(email="test@baserow.io")
+    workspace = data_fixture.create_workspace(user=user)
+
+    config = ImportExportConfig(include_permission_data=True)
+    serialized_values = deepcopy(COMPAT_IMPORT_REFERENCE)
+    builder = BuilderApplicationType().import_serialized(
+        workspace, serialized_values, config, {}
+    )
+
+    assert builder.visible_pages.count() == 2
+    assert builder.page_set.filter(shared=True).count() == 1
+    assert builder.integrations.count() == 1
+    assert builder.user_sources.count() == 1
+
+    [page1, page2] = builder.visible_pages.all()
+
+    assert page1.element_set.count() == 6
+    assert page2.element_set.count() == 1
+
+    assert page1.datasource_set.count() == 2
+    assert page2.datasource_set.count() == 2
+
+    assert builder.login_page == page2
+
+    [
+        container_element,
+        element1,
+        element2,
+        table_element,
+        element_inside_container,
+        element_inside_container2,
+    ] = specific_iterator(page1.element_set.all())
+
+    assert isinstance(element1, HeadingElement)
+    assert isinstance(element2, TextElement)
+    assert isinstance(container_element, ColumnElement)
+    assert isinstance(table_element, TableElement)
+
+    assert table_element.fields.count() == 2
+    assert table_element.items_per_page == 42
+
+    assert element1.order == 1
+    assert element1.level == 2
+
+    # The compat migration must have reconstructed the graph so that
+    # parent/child relationships are correctly reflected after import.
+    assert element_inside_container.parent_element.specific == container_element
+    assert element_inside_container2.parent_element.specific == container_element
+
+    [workflow_action] = BuilderWorkflowActionHandler().get_workflow_actions(page1)
+    assert workflow_action.element_id == element1.id
+    assert workflow_action.description["formula"] == "'hello'"
+    assert workflow_action.title["formula"] == "'there'"
+
+    # Verify the graph structure was correctly reconstructed from the compat fields.
+    assert page1.graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [element2.id]}},
+        str(element2.id): {"next": {"": [table_element.id]}},
+        str(table_element.id): {"next": {"": [container_element.id]}},
+        str(container_element.id): {
+            "children": {
+                "1": [element_inside_container.id],
+                "0": [element_inside_container2.id],
+            }
+        },
+        str(element_inside_container.id): {},
+        str(element_inside_container2.id): {},
+    }
+
+    [page2_element] = specific_iterator(page2.element_set.all())
+    assert page2.graph == {
+        "0": page2_element.id,
+        str(page2_element.id): {},
+    }
+
+
 IMPORT_REFERENCE_COMPLEX = {
     "pages": [
         {
@@ -1200,12 +1605,14 @@ IMPORT_REFERENCE_COMPLEX = {
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {
+                "0": 997,
+                "997": {},
+            },
             "elements": [
                 {
                     "id": 997,
                     "type": "heading",
-                    "parent_element_id": None,
-                    "place_in_container": None,
                     "style_background": "none",
                     "style_background_color": "#ffffffff",
                     "style_border_bottom_color": "border",
@@ -1516,8 +1923,12 @@ def test_builder_application_imports_correct_default_roles(data_fixture):
     ]
 
     # Save the single element back to the list. We only need one element
-    # to test.
+    # to test. Update the graph to match so migrate_graph can remap all IDs.
     first_page["elements"] = [serialized_element]
+    first_page["graph"] = {
+        "0": serialized_element["id"],
+        str(serialized_element["id"]): {},
+    }
     serialized_values["pages"] = [first_page]
 
     config = ImportExportConfig(include_permission_data=True)

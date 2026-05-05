@@ -371,7 +371,7 @@ class CurrentRecordDataProviderType(BuilderDataProviderType):
             return current_record
 
         first_collection_element_ancestor = ElementHandler().get_first_ancestor_of_type(
-            dispatch_context.workflow_action.element_id,
+            dispatch_context.workflow_action.element,
             CollectionElementTypeMixin,
         )
         data_source_id = first_collection_element_ancestor.specific.data_source_id

@@ -6,7 +6,6 @@ from .data_sources.signals import (
 from .element.signals import (
     element_created,
     element_deleted,
-    element_orders_recalculated,
     element_updated,
 )
 from .page.signals import page_created, page_deleted, page_reordered, page_updated
@@ -28,7 +27,6 @@ __all__ = [
     "element_created",
     "element_deleted",
     "element_updated",
-    "element_orders_recalculated",
     "theme_updated",
     "workflow_action_created",
     "workflow_action_updated",

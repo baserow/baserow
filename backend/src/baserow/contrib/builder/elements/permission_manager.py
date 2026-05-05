@@ -11,6 +11,7 @@ from baserow.contrib.builder.workflow_actions.operations import (
     DispatchBuilderWorkflowActionOperationType,
     ListBuilderWorkflowActionsPageOperationType,
 )
+from baserow.core.cache import global_cache
 from baserow.core.registries import PermissionManagerType
 from baserow.core.subjects import AnonymousUserSubjectType
 from baserow.core.user_sources.subjects import UserSourceUserSubjectType
@@ -20,9 +21,8 @@ from .models import Element
 User = get_user_model()
 
 
-# Later this number could be dynamic but for now we set it arbitrary
-# high enough to cover most usages.
-MAX_ELEMENT_NESTING_DEPTH = 9
+ELEMENT_VISIBILITY_CACHE_KEY_PREFIX = "element_visibility"
+ELEMENT_VISIBILITY_CACHE_TTL_SECONDS = 60 * 60  # 1 hour
 
 
 class ElementVisibilityPermissionManager(PermissionManagerType):
@@ -142,67 +142,123 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
 
         return result
 
-    def exclude_elements_with_role(
-        self,
-        queryset: QuerySet,
-        role_type: Element.ROLE_TYPES,
-        role: str,
-        prefix: str = "",
-    ) -> QuerySet:
+    @classmethod
+    def _get_visibility_version_cache_key(cls, builder_id: int) -> str:
         """
-        Update the queryset by excluding all Elements that match a particular
-        role_type *and* role.
+        Returns the version-tracking key used to invalidate all per-role
+        visibility caches for a given builder at once.
 
-        The prefix is to support Elements that are a child of a different
-        Instance, e.g. when a BuilderWorkflowAction queryset is passed in,
-        we want to filter against the Element foreign key, not the action
-        itself.
-
-        The queryset exclusion logic is repeated to support the maximum level
-        of element nesting.
+        :param builder_id: The ID of the builder whose version key to return.
+        :return: The cache key string for the builder's current version counter.
         """
 
-        query = Q()
-        for level in range(MAX_ELEMENT_NESTING_DEPTH):
-            path = prefix + "parent_element__" * level
-            query |= Q(**{f"{path}role_type": role_type}) & Q(
-                **{f"{path}roles__contains": role}
+        return f"{ELEMENT_VISIBILITY_CACHE_KEY_PREFIX}_version_{builder_id}"
+
+    @classmethod
+    def _get_visibility_cache_key(cls, role: str | None, builder_id: int) -> str:
+        """
+        Returns the per-role cache key for the set of element IDs that are
+        invisible to `role` in the given builder.
+
+        Anonymous actors and authenticated actors share no key — and
+        authenticated actors with different roles each get their own key —
+        so that cached results are never mixed across actor types.
+
+        :param role: The role whose visibility cache key to compute. May be
+            None or a string.
+        :param builder_id: The ID of the builder.
+        :return: The cache key string for this role/builder combination.
+        """
+
+        is_authenticated = role is not None
+        auth_segment = f"auth_{role}" if is_authenticated else "anon"
+        return f"{ELEMENT_VISIBILITY_CACHE_KEY_PREFIX}_{builder_id}_{auth_segment}"
+
+    @classmethod
+    def invalidate_builder_element_visibility_cache(cls, builder_id: int) -> None:
+        """
+        Invalidate cache for `builder_id`, causing every per-role
+        cache entry for that builder to miss on the next read. Call this whenever
+        an element in the builder is created, updated, moved, or deleted.
+
+        :param builder_id: The ID of the builder whose cache entries to invalidate.
+        """
+
+        global_cache.invalidate(
+            invalidate_key=cls._get_visibility_version_cache_key(builder_id)
+        )
+
+    def is_element_hidden(self, element, role, cache=None):
+        """
+        Return whether `element` is hidden for the given `role`, including any
+        visibility restrictions inherited from parent elements.
+        """
+
+        cache = cache if cache is not None else {}
+
+        if element.id in cache:
+            return cache[element.id]
+
+        is_authenticated = role is not None
+        roles = element.roles or []
+        result = False
+
+        if is_authenticated:
+            if element.visibility == Element.VISIBILITY_TYPES.NOT_LOGGED:
+                result = True
+
+            elif (
+                element.role_type == Element.ROLE_TYPES.ALLOW_ALL_EXCEPT
+                and role in roles
+            ):
+                result = True
+
+            elif (
+                element.role_type == Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT
+                and role not in roles
+            ):
+                result = True
+        else:
+            if element.visibility == Element.VISIBILITY_TYPES.LOGGED_IN:
+                result = True
+
+        for parent in element.get_parent_points():
+            if self.is_element_hidden(parent, role, cache):
+                result = True
+                break
+
+        cache[element.id] = result
+        return result
+
+    def get_hidden_element_ids(self, role, builder_ids):
+        """
+        Returns the hidden element IDs for the provided builder IDs.
+        """
+
+        from baserow.contrib.builder.elements.handler import ElementHandler
+
+        builder_ids = list(builder_ids)
+        hidden_ids = []
+        cache = {}
+
+        for builder_id in builder_ids:
+            cache_key = self._get_visibility_cache_key(role, builder_id)
+            invalidate_key = self._get_visibility_version_cache_key(builder_id)
+
+            hidden_ids.extend(
+                global_cache.get(
+                    cache_key,
+                    invalidate_key=invalidate_key,
+                    default=lambda builder_id=builder_id: [
+                        e.id
+                        for e in ElementHandler().get_builder_elements(builder_id)
+                        if self.is_element_hidden(e, role, cache)
+                    ],
+                    timeout=ELEMENT_VISIBILITY_CACHE_TTL_SECONDS,
+                )
             )
 
-        queryset = queryset.exclude(query)
-
-        return queryset
-
-    def exclude_elements_without_role(
-        self,
-        queryset: QuerySet,
-        role_type: Element.VISIBILITY_TYPES,
-        role: str,
-        prefix: str = "",
-    ) -> QuerySet:
-        """
-        Update the queryset by excluding all Elements that match a particular
-        role_type but *not* the role.
-
-        The prefix is to support Elements that are a child of a different
-        Instance, e.g. when a BuilderWorkflowAction queryset is passed in,
-        we want to filter against the Element foreign key, not the action
-        itself.
-
-        The queryset exclusion logic is repeated to support the maximum level
-        of element nesting.
-        """
-
-        query = Q()
-        for level in range(MAX_ELEMENT_NESTING_DEPTH):
-            path = prefix + "parent_element__" * level
-            query |= Q(**{f"{path}role_type": role_type}) & ~Q(
-                **{f"{path}roles__contains": role}
-            )
-
-        queryset = queryset.exclude(query)
-
-        return queryset
+        return hidden_ids
 
     def exclude_elements_with_page_visibility(
         self,
@@ -227,34 +283,6 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
             & ~Q(page__roles__contains=[actor.role]),
         )
 
-    def exclude_elements_with_visibility(
-        self,
-        queryset: QuerySet,
-        visibility_type: Element.VISIBILITY_TYPES,
-        prefix: str = "",
-    ) -> QuerySet:
-        """
-        Update the queryset by excluding all Elements that match a particular
-        visibility_type.
-
-        The prefix is to support Elements that are a child of a different
-        Instance, e.g. when a BuilderWorkflowAction instance is passed in
-        we want to filter against its element foreign key, not the action
-        itself.
-
-        The queryset exclusion logic is repeated to support the maximum level
-        of element nesting.
-        """
-
-        query = Q()
-        for level in range(MAX_ELEMENT_NESTING_DEPTH):
-            path = prefix + "parent_element__" * level
-            query |= Q(**{f"{path}visibility": visibility_type})
-
-        queryset = queryset.exclude(query)
-
-        return queryset
-
     def filter_queryset(
         self,
         actor,
@@ -264,49 +292,28 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
     ):
         """Filters out invisible elements and their workflow actions."""
 
+        actor_role = (
+            getattr(actor, "role", None)
+            if getattr(actor, "is_authenticated", False)
+            else None
+        )
+
         if operation_name == ListElementsPageOperationType.type:
             queryset = self.exclude_elements_with_page_visibility(queryset, actor)
-            if getattr(actor, "is_authenticated", False):
-                queryset = self.exclude_elements_with_visibility(
-                    queryset, Element.VISIBILITY_TYPES.NOT_LOGGED
-                )
-                queryset = self.exclude_elements_with_role(
-                    queryset, Element.ROLE_TYPES.ALLOW_ALL_EXCEPT, actor.role
-                )
-                queryset = self.exclude_elements_without_role(
-                    queryset, Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT, actor.role
-                )
 
-                return queryset
-            else:
-                return self.exclude_elements_with_visibility(
-                    queryset, Element.VISIBILITY_TYPES.LOGGED_IN
-                )
+            builder_ids = set(
+                list(queryset.values_list("page__builder_id", flat=True).distinct())
+            )
+            excluded_ids = self.get_hidden_element_ids(actor_role, builder_ids)
+
+            return queryset.exclude(id__in=excluded_ids)
+
         elif operation_name == ListBuilderWorkflowActionsPageOperationType.type:
             queryset = self.exclude_elements_with_page_visibility(queryset, actor)
-
-            prefix = "element__"
-            if getattr(actor, "is_authenticated", False):
-                queryset = self.exclude_elements_with_visibility(
-                    queryset, Element.VISIBILITY_TYPES.NOT_LOGGED, prefix=prefix
-                )
-                queryset = self.exclude_elements_with_role(
-                    queryset,
-                    Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
-                    actor.role,
-                    prefix=prefix,
-                )
-                queryset = self.exclude_elements_without_role(
-                    queryset,
-                    Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
-                    actor.role,
-                    prefix=prefix,
-                )
-
-                return queryset
-            else:
-                return self.exclude_elements_with_visibility(
-                    queryset, Element.VISIBILITY_TYPES.LOGGED_IN, prefix=prefix
-                )
+            builder_ids = set(
+                list(queryset.values_list("page__builder_id", flat=True).distinct())
+            )
+            excluded_element_ids = self.get_hidden_element_ids(actor_role, builder_ids)
+            return queryset.exclude(element_id__in=excluded_element_ids)
 
         return queryset

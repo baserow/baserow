@@ -14,6 +14,7 @@ from baserow.contrib.builder.workflow_actions.registries import (
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
 from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.integrations.models import Integration
 from baserow.core.models import WorkspaceUser
 from baserow.core.user.exceptions import UserAlreadyExist
@@ -133,7 +134,8 @@ def load_test_data():
         logout_button = ElementHandler().create_element(
             button_element,
             builder.shared_page,
-            parent_element_id=column.id,
+            reference_element=column,
+            position=GraphPointPosition.CHILD,
             place_in_container="2",
             value='"Logout"',
             visibility="logged-in",

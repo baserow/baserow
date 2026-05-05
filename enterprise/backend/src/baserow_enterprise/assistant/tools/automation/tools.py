@@ -143,7 +143,7 @@ def add_nodes(
 
     return {
         "created_nodes": [
-            {"id": n.id, "label": n.get_label(), "type": n.get_type().type}
+            {"id": n.id, "label": n.label, "type": n.get_type().type}
             for n in created_nodes
         ]
     }

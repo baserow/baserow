@@ -89,10 +89,12 @@ def test_move_element_before_another(data_fixture):
     assert result["moved_elements"][0]["element_id"] == id2
     assert "errors" not in result
 
-    # Verify order: h2 should now come before h1
-    elements = list(ElementHandler().get_elements(page))
-    ids_in_order = [e.id for e in elements]
-    assert ids_in_order.index(id2) < ids_in_order.index(id1)
+    # Verify order via graph: h2 should now come before h1
+    from baserow.core.graph.handler import BaseGraphHandler
+
+    page.refresh_from_db()
+    order_map = BaseGraphHandler.get_order_map(page.graph)
+    assert order_map[id2] < order_map[id1]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -110,10 +112,12 @@ def test_move_element_to_end(data_fixture):
     assert len(result["moved_elements"]) == 1
     assert result["moved_elements"][0]["element_id"] == id1
 
-    # h1 should now be after h2
-    elements = list(ElementHandler().get_elements(page))
-    ids_in_order = [e.id for e in elements]
-    assert ids_in_order.index(id1) > ids_in_order.index(id2)
+    # h1 should now be after h2 in graph order
+    from baserow.core.graph.handler import BaseGraphHandler
+
+    page.refresh_from_db()
+    order_map = BaseGraphHandler.get_order_map(page.graph)
+    assert order_map[id1] > order_map[id2]
 
 
 @pytest.mark.django_db(transaction=True)

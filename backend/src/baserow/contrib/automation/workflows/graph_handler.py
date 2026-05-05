@@ -14,6 +14,7 @@ class AutomationWorkflowGraphHandler(BaseGraphHandler):
     the graph of an automation workflow.
     """
 
+    base_point_class = AutomationNode
     outputs_id_mapping = "automation_edge_outputs"
     instance_id_mapping = "automation_workflow_nodes"
     does_not_exist_exception = AutomationNodeDoesNotExist

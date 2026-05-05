@@ -3,6 +3,7 @@ import typing
 from django.db import models
 
 from baserow.contrib.builder.pages.validators import path_validation
+from baserow.core.graph.models import GraphModelMixin
 from baserow.core.jobs.mixins import (
     JobWithUndoRedoIds,
     JobWithUserIpAddress,
@@ -35,6 +36,7 @@ class Page(
     TrashableModelMixin,
     CreatedAndUpdatedOnMixin,
     OrderableMixin,
+    GraphModelMixin,
     models.Model,
 ):
     class VISIBILITY_TYPES(models.TextChoices):
@@ -104,6 +106,11 @@ class Page(
     def get_last_order(cls, builder: "Builder"):
         queryset = Page.objects_without_shared.filter(builder=builder)
         return cls.get_highest_order_of_queryset(queryset) + 1
+
+    def get_graph_handler(self):
+        from baserow.contrib.builder.pages.graph_handler import PageGraphHandler
+
+        return PageGraphHandler
 
     def __str__(self):
         return f"<Page id={self.id} name={self.name}/>"

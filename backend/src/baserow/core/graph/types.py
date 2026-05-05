@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Literal, TypeAlias, TypeVar
+from typing import TYPE_CHECKING, Literal, TypeAlias, TypedDict, TypeVar
 
 from django.db import models
 
@@ -16,12 +16,21 @@ GraphPoint = TypeVar("GraphPoint", bound="Model")
 GraphModelInstance = TypeVar("GraphModelInstance", bound="GraphModelBase")
 
 
+class SerializedGraphPoint(TypedDict, total=False):
+    next: dict[str, list[int]]
+    children: list[int]
+
+
+SerializedGraph = dict[str, int | SerializedGraphPoint]
+
+
 class GraphPointPosition(models.TextChoices):
+    NORTH = "north", "North"
     SOUTH = "south", "South"
     CHILD = "child", "Child"
 
 
-GraphPointPositionType = Literal["south", "child"]
+GraphPointPositionType = Literal["north", "south", "child"]
 GraphPointPositionTriplet: TypeAlias = tuple[
     GraphPoint | None, GraphPointPositionType, str
 ]
