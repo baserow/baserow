@@ -107,14 +107,14 @@ describe('RuntimeAdd', () => {
 
   test.each([
     // These are invalid
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [null], expected: null },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [null], expected: [0, null] },
+    { args: [{}], expected: [0, {}] },
+    { args: [[]], expected: [0, []] },
     {
       args: [new Date(2025, 10, 6, 12, 30)],
-      expected: new Date(2025, 10, 6, 12, 30),
+      expected: [0, new Date(2025, 10, 6, 12, 30)],
     },
     // These are valid
     { args: [1], expected: undefined },
@@ -153,14 +153,14 @@ describe('RuntimeMinus', () => {
 
   test.each([
     // These are invalid
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [null], expected: null },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [null], expected: [0, null] },
+    { args: [{}], expected: [0, {}] },
+    { args: [[]], expected: [0, []] },
     {
       args: [new Date(2025, 10, 6, 12, 30)],
-      expected: new Date(2025, 10, 6, 12, 30),
+      expected: [0, new Date(2025, 10, 6, 12, 30)],
     },
     // These are valid
     { args: [1], expected: undefined },
@@ -199,14 +199,14 @@ describe('RuntimeMultiply', () => {
 
   test.each([
     // These are invalid
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [null], expected: null },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [null], expected: [0, null] },
+    { args: [{}], expected: [0, {}] },
+    { args: [[]], expected: [0, []] },
     {
       args: [new Date(2025, 10, 6, 12, 30)],
-      expected: new Date(2025, 10, 6, 12, 30),
+      expected: [0, new Date(2025, 10, 6, 12, 30)],
     },
     // These are valid
     { args: [1], expected: undefined },
@@ -245,14 +245,14 @@ describe('RuntimeDivide', () => {
 
   test.each([
     // These are invalid
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [null], expected: null },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [null], expected: [0, null] },
+    { args: [{}], expected: [0, {}] },
+    { args: [[]], expected: [0, []] },
     {
       args: [new Date(2025, 10, 6, 12, 30)],
-      expected: new Date(2025, 10, 6, 12, 30),
+      expected: [0, new Date(2025, 10, 6, 12, 30)],
     },
     // These are valid
     { args: [1], expected: undefined },
@@ -687,13 +687,13 @@ describe('RuntimeRound', () => {
     { args: [123], expected: undefined },
     { args: [123.45], expected: undefined },
     // Other types are invalid
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [{}], expected: [0, {}] },
+    { args: [[]], expected: [0, []] },
     {
       args: [new Date(2025, 10, 6, 12, 30)],
-      expected: new Date(2025, 10, 6, 12, 30),
+      expected: [0, new Date(2025, 10, 6, 12, 30)],
     },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeRound()
@@ -735,13 +735,13 @@ describe('RuntimeAbs', () => {
     { args: [123], expected: undefined },
     { args: [123.45], expected: undefined },
     // Other types are invalid
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [{}], expected: [0, {}] },
+    { args: [[]], expected: [0, []] },
     {
       args: [new Date(2025, 10, 6, 12, 30)],
-      expected: new Date(2025, 10, 6, 12, 30),
+      expected: [0, new Date(2025, 10, 6, 12, 30)],
     },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeAbs()
@@ -780,13 +780,13 @@ describe('RuntimeIsEven', () => {
     { args: [123], expected: undefined },
     { args: [123.45], expected: undefined },
     // Other types are invalid
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [{}], expected: [0, {}] },
+    { args: [[]], expected: [0, []] },
     {
       args: [new Date(2025, 10, 6, 12, 30)],
-      expected: new Date(2025, 10, 6, 12, 30),
+      expected: [0, new Date(2025, 10, 6, 12, 30)],
     },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeIsEven()
@@ -825,13 +825,13 @@ describe('RuntimeIsOdd', () => {
     { args: [123], expected: undefined },
     { args: [123.45], expected: undefined },
     // Other types are invalid
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [{}], expected: [0, {}] },
+    { args: [[]], expected: [0, []] },
     {
       args: [new Date(2025, 10, 6, 12, 30)],
-      expected: new Date(2025, 10, 6, 12, 30),
+      expected: [0, new Date(2025, 10, 6, 12, 30)],
     },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeIsOdd()
@@ -875,13 +875,12 @@ describe('RuntimeDateTimeFormat', () => {
     { args: ['2025-11-06'], expected: undefined },
     { args: ['2025-11-06 11:30:30.861096+00:00'], expected: undefined },
     // All other types are invalid
-    { args: ['23.34'], expected: '23.34' },
-    { args: [123], expected: 123 },
-    { args: [123.45], expected: 123.45 },
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['23.34'], expected: [0, '23.34'] },
+    { args: [123], expected: [0, 123] },
+    { args: [123.45], expected: [0, 123.45] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [{}], expected: [0, {}] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeDateTimeFormat()
     const result = formulaType.validateTypeOfArgs(args)
@@ -946,13 +945,12 @@ describe('RuntimeDay', () => {
     { args: ['2025-11-06'], expected: undefined },
     { args: ['2025-11-06 11:30:30.861096+00:00'], expected: undefined },
     // All other types are invalid
-    { args: ['23.34'], expected: '23.34' },
-    { args: [123], expected: 123 },
-    { args: [123.45], expected: 123.45 },
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['23.34'], expected: [0, '23.34'] },
+    { args: [123], expected: [0, 123] },
+    { args: [123.45], expected: [0, 123.45] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [{}], expected: [0, {}] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeDay()
     const result = formulaType.validateTypeOfArgs(args)
@@ -989,13 +987,12 @@ describe('RuntimeMonth', () => {
     { args: ['2025-11-06'], expected: undefined },
     { args: ['2025-11-06 11:30:30.861096+00:00'], expected: undefined },
     // All other types are invalid
-    { args: ['23.34'], expected: '23.34' },
-    { args: [123], expected: 123 },
-    { args: [123.45], expected: 123.45 },
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['23.34'], expected: [0, '23.34'] },
+    { args: [123], expected: [0, 123] },
+    { args: [123.45], expected: [0, 123.45] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [{}], expected: [0, {}] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeMonth()
     const result = formulaType.validateTypeOfArgs(args)
@@ -1032,13 +1029,12 @@ describe('RuntimeYear', () => {
     { args: ['2025-11-06'], expected: undefined },
     { args: ['2025-11-06 11:30:30.861096+00:00'], expected: undefined },
     // All other types are invalid
-    { args: ['23.34'], expected: '23.34' },
-    { args: [123], expected: 123 },
-    { args: [123.45], expected: 123.45 },
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['23.34'], expected: [0, '23.34'] },
+    { args: [123], expected: [0, 123] },
+    { args: [123.45], expected: [0, 123.45] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [{}], expected: [0, {}] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeYear()
     const result = formulaType.validateTypeOfArgs(args)
@@ -1076,13 +1072,12 @@ describe('RuntimeHour', () => {
     { args: ['2025-11-06'], expected: undefined },
     { args: ['2025-11-06 11:30:30.861096+00:00'], expected: undefined },
     // All other types are invalid
-    { args: ['23.34'], expected: '23.34' },
-    { args: [123], expected: 123 },
-    { args: [123.45], expected: 123.45 },
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['23.34'], expected: [0, '23.34'] },
+    { args: [123], expected: [0, 123] },
+    { args: [123.45], expected: [0, 123.45] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [{}], expected: [0, {}] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeHour()
     const result = formulaType.validateTypeOfArgs(args)
@@ -1120,13 +1115,12 @@ describe('RuntimeMinute', () => {
     { args: ['2025-11-06'], expected: undefined },
     { args: ['2025-11-06 11:30:30.861096+00:00'], expected: undefined },
     // All other types are invalid
-    { args: ['23.34'], expected: '23.34' },
-    { args: [123], expected: 123 },
-    { args: [123.45], expected: 123.45 },
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['23.34'], expected: [0, '23.34'] },
+    { args: [123], expected: [0, 123] },
+    { args: [123.45], expected: [0, 123.45] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [{}], expected: [0, {}] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeMinute()
     const result = formulaType.validateTypeOfArgs(args)
@@ -1164,13 +1158,13 @@ describe('RuntimeSecond', () => {
     { args: ['2025-11-06'], expected: undefined },
     { args: ['2025-11-06 11:30:30.861096+00:00'], expected: undefined },
     // All other types are invalid
-    { args: ['23.34'], expected: '23.34' },
-    { args: [123], expected: 123 },
-    { args: [123.45], expected: 123.45 },
-    { args: ['foo'], expected: 'foo' },
-    { args: [true], expected: true },
-    { args: [{}], expected: {} },
-    { args: [[]], expected: [] },
+    { args: ['23.34'], expected: [0, '23.34'] },
+    { args: [123], expected: [0, 123] },
+    { args: [123.45], expected: [0, 123.45] },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [true], expected: [0, true] },
+    { args: [{}], expected: [0, {}] },
+    { args: [[]], expected: [0, []] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeSecond()
     const result = formulaType.validateTypeOfArgs(args)
@@ -1258,9 +1252,9 @@ describe('RuntimeGetProperty', () => {
     { args: ['{"foo": "bar"}', 'foo'], expected: undefined },
     { args: [{ foo: 'bar' }, 'baz'], expected: undefined },
     // Invalid types for 1st arg (2nd arg is cast to string)
-    { args: ['foo', 'foo'], expected: 'foo' },
-    { args: [12.34, 'bar'], expected: 12.34 },
-    { args: [null, 'bar'], expected: null },
+    { args: ['foo', 'foo'], expected: [0, 'foo'] },
+    { args: [12.34, 'bar'], expected: [0, 12.34] },
+    { args: [null, 'bar'], expected: [0, null] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeGetProperty()
     const result = formulaType.validateTypeOfArgs(args)
@@ -1296,11 +1290,11 @@ describe('RuntimeRandomInt', () => {
     { args: [2.5, 56.64], expected: undefined },
     { args: ['3', '4.5'], expected: undefined },
     // Invalid types for 1st arg
-    { args: [{}, 5], expected: {} },
-    { args: ['foo', 5], expected: 'foo' },
+    { args: [{}, 5], expected: [0, {}] },
+    { args: ['foo', 5], expected: [0, 'foo'] },
     // Invalid types for 2nd arg
-    { args: [5, {}], expected: {} },
-    { args: [5, 'foo'], expected: 'foo' },
+    { args: [5, {}], expected: [1, {}] },
+    { args: [5, 'foo'], expected: [1, 'foo'] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeRandomInt()
     const result = formulaType.validateTypeOfArgs(args)
@@ -1336,11 +1330,11 @@ describe('RuntimeRandomFloat', () => {
     { args: [2.5, 56.64], expected: undefined },
     { args: ['3', '4.5'], expected: undefined },
     // Invalid types for 1st arg
-    { args: [{}, 5], expected: {} },
-    { args: ['foo', 5], expected: 'foo' },
+    { args: [{}, 5], expected: [0, {}] },
+    { args: ['foo', 5], expected: [0, 'foo'] },
     // Invalid types for 2nd arg
-    { args: [5, {}], expected: {} },
-    { args: [5, 'foo'], expected: 'foo' },
+    { args: [5, {}], expected: [1, {}] },
+    { args: [5, 'foo'], expected: [1, 'foo'] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeRandomFloat()
     const result = formulaType.validateTypeOfArgs(args)
@@ -1846,7 +1840,7 @@ describe('RuntimeSum', () => {
     { args: [''], expected: undefined },
     { args: [['1', 2]], expected: undefined },
     // String '["1", "foo"]' is invalid (can't be parsed as array of numbers)
-    { args: ['["1", "foo"]'], expected: '["1", "foo"]' },
+    { args: ['["1", "foo"]'], expected: [0, '["1", "foo"]'] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeSum()
     const result = formulaType.validateTypeOfArgs(args)
@@ -1878,7 +1872,7 @@ describe('RuntimeAvg', () => {
   test.each([
     { args: [''], expected: undefined },
     { args: [['1', 2]], expected: undefined },
-    { args: ['["1", "foo"]'], expected: '["1", "foo"]' },
+    { args: ['["1", "foo"]'], expected: [0, '["1", "foo"]'] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeAvg()
     const result = formulaType.validateTypeOfArgs(args)
@@ -2005,10 +1999,10 @@ describe('RuntimeNumberFormat', () => {
     { args: [1000, 2], expected: undefined },
     { args: [1000, 2, ','], expected: undefined },
     { args: [1000, 2, ' ', ','], expected: undefined },
-    { args: ['foo'], expected: 'foo' },
-    { args: [1000, 'bar'], expected: 'bar' },
-    { args: [1000, 2, ';'], expected: ';' },
-    { args: [1000, 2, ',', ';'], expected: ';' },
+    { args: ['foo'], expected: [0, 'foo'] },
+    { args: [1000, 'bar'], expected: [1, 'bar'] },
+    { args: [1000, 2, ';'], expected: [2, ';'] },
+    { args: [1000, 2, ',', ';'], expected: [3, ';'] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeNumberFormat()
     const result = formulaType.validateTypeOfArgs(args)
@@ -2090,10 +2084,10 @@ describe('RuntimeDateInterval', () => {
     { args: ['1 day'], expected: undefined },
     { args: ['2 days'], expected: undefined },
     // Invalid strings and types — arg is returned as invalid
-    { args: [''], expected: '' },
-    { args: ['not valid'], expected: 'not valid' },
-    { args: [1], expected: 1 },
-    { args: [null], expected: null },
+    { args: [''], expected: [0, ''] },
+    { args: ['not valid'], expected: [0, 'not valid'] },
+    { args: [1], expected: [0, 1] },
+    { args: [null], expected: [0, null] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeDateInterval()
     const result = formulaType.validateTypeOfArgs(args)
@@ -2146,9 +2140,9 @@ describe('RuntimeAdd with datetime and timedelta', () => {
     },
     {
       args: [new Timedelta(86400000), new Timedelta(86400000)],
-      expected: new Timedelta(86400000),
+      expected: [1, new Timedelta(86400000)],
     },
-    { args: ['foo', new Timedelta(86400000)], expected: 'foo' },
+    { args: ['foo', new Timedelta(86400000)], expected: [0, 'foo'] },
   ])('validates type of args with timedelta', ({ args, expected }) => {
     const formulaType = new RuntimeAdd()
     const result = formulaType.validateTypeOfArgs(args)
@@ -2183,9 +2177,9 @@ describe('RuntimeMinus with datetime and timedelta', () => {
     },
     {
       args: [new Timedelta(86400000), new Date(2025, 0, 1)],
-      expected: new Timedelta(86400000),
+      expected: [0, new Timedelta(86400000)],
     },
-    { args: ['foo', new Timedelta(86400000)], expected: 'foo' },
+    { args: ['foo', new Timedelta(86400000)], expected: [0, 'foo'] },
   ])('validates type of args with timedelta', ({ args, expected }) => {
     const formulaType = new RuntimeMinus()
     const result = formulaType.validateTypeOfArgs(args)

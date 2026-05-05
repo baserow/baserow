@@ -34,10 +34,10 @@ class RuntimeConcat(RuntimeFormulaFunction):
     type = "concat"
     min_args = 2
 
-    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
+    def validate_type_of_args(self, args) -> Optional[tuple[int, FormulaArg]]:
         arg_type = TextBaserowRuntimeFormulaArgumentType()
         return next(
-            (arg for arg in args if not arg_type.test(arg)),
+            ((index, arg) for index, arg in enumerate(args) if not arg_type.test(arg)),
             None,
         )
 
@@ -103,10 +103,10 @@ class RuntimeAdd(RuntimeFormulaFunction):
             if (dt.test(a) and td.test(b)) or (td.test(a) and dt.test(b)):
                 return None
             if not (num.test(a) or dt.test(a) or td.test(a)):
-                return a
+                return (0, a)
             if not (num.test(b) or dt.test(b) or td.test(b)):
-                return b
-            return a
+                return (1, b)
+            return (0, a)
         return super().validate_type_of_args(args)
 
     def parse_args(self, args: FormulaArgs) -> FormulaArgs:
@@ -137,8 +137,8 @@ class RuntimeMinus(RuntimeFormulaFunction):
             if dt.test(a) and td.test(b):
                 return None
             if not (num.test(a) or dt.test(a)):
-                return a
-            return b
+                return (0, a)
+            return (1, b)
         return super().validate_type_of_args(args)
 
     def parse_args(self, args: FormulaArgs) -> FormulaArgs:
