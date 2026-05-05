@@ -4,7 +4,10 @@
       ref="memberSelectionList"
       class="padding-top-2"
       :members="members"
-      @invite="storeSelectedMembers"
+      :selected-members="selectedMembers"
+      :allow-empty-selection="allowEmptySelection"
+      :button-label="buttonLabel"
+      @select="storeSelectedMembers"
     />
   </Modal>
 </template>
@@ -22,11 +25,26 @@ export default {
       type: Array,
       required: true,
     },
+    selectedMembers: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
+    allowEmptySelection: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    buttonLabel: {
+      type: String,
+      required: false,
+      default: null,
+    },
   },
-  emits: ['invite'],
+  emits: ['select'],
   methods: {
     storeSelectedMembers(membersSelected) {
-      this.$emit('invite', membersSelected)
+      this.$emit('select', membersSelected)
       this.hide()
     },
   },

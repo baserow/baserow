@@ -143,6 +143,7 @@ def test_dispatch_slack_write_message_with_formulas(data_fixture):
     workflow = data_fixture.create_automation_workflow(automation=application)
     workflow_history = AutomationHistoryHandler().create_workflow_history(
         workflow,
+        workflow,
         timezone.now(),
         False,
     )

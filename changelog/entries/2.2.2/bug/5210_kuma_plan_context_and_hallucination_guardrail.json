@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Give Kuma the current license tier in its context and steer uncertain feature or plan questions to docs search.",
+    "issue_origin": "github",
+    "issue_number": 5210,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-04-17"
+}

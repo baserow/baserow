@@ -1,5 +1,11 @@
 <template>
-  <div v-if="!workflowHistoryItems.length" class="history-side-panel__empty">
+  <div v-if="loading" class="history-side-panel__empty">
+    <div class="loading"></div>
+  </div>
+  <div
+    v-else-if="!workflowHistoryItems.length"
+    class="history-side-panel__empty"
+  >
     <Icon
       class="history-side-panel__empty-icon"
       icon="baserow-icon-automation"
@@ -21,7 +27,29 @@
         <Icon icon="iconoir-cancel" type="secondary" />
       </a>
     </div>
-    <HistorySection
+
+    <div class="history-side-panel__divider"></div>
+
+    <div class="history-side-panel__counts">
+      <div class="history-side-panel__counts-runs">
+        <div class="history-side-panel__counts-runs-label">
+          {{ $t('historySidePanel.successfulRuns') }}
+        </div>
+        <div class="history-side-panel__counts-runs-total">
+          {{ history.success_count }}
+        </div>
+      </div>
+      <div class="history-side-panel__counts-runs">
+        <div class="history-side-panel__counts-runs-label">
+          {{ $t('historySidePanel.failedRuns') }}
+        </div>
+        <div class="history-side-panel__counts-runs-total">
+          {{ history.fail_count }}
+        </div>
+      </div>
+    </div>
+
+    <WorkflowHistory
       v-for="item in workflowHistoryItems"
       :key="item.id"
       :item="item"
@@ -31,20 +59,30 @@
 
 <script setup>
 import { useStore } from 'vuex'
-import HistorySection from '@baserow/modules/automation/components/workflow/sidePanels/HistorySection'
+import WorkflowHistory from '@baserow/modules/automation/components/workflow/sidePanels/WorkflowHistory'
 const store = useStore()
 
 const workflow = inject('workflow')
 
-const workflowHistoryItems = computed(() => {
-  const history = store.getters['automationHistory/getWorkflowHistory']()
-  return history?.results || []
+const loading = ref(false)
+
+const history = computed(() => {
+  return store.getters['automationHistory/getWorkflowHistory']()
 })
 
-const refreshData = () => {
-  return store.dispatch('automationHistory/fetchWorkflowHistory', {
-    workflowId: workflow.value.id,
-  })
+const workflowHistoryItems = computed(() => {
+  return history.value?.results || []
+})
+
+const refreshData = async () => {
+  loading.value = true
+  try {
+    await store.dispatch('automationHistory/fetchWorkflowHistory', {
+      workflowId: workflow.value.id,
+    })
+  } finally {
+    loading.value = false
+  }
 }
 
 onMounted(() => {

@@ -18,6 +18,7 @@ def test_previous_node_data_provider_get_data_chunk(data_fixture):
     workflow = data_fixture.create_automation_workflow()
     workflow_history = AutomationHistoryHandler().create_workflow_history(
         workflow,
+        workflow,
         timezone.now(),
         False,
     )
@@ -79,6 +80,7 @@ def test_previous_node_data_provider_get_data_chunk(data_fixture):
 
     workflow_history_2 = AutomationHistoryHandler().create_workflow_history(
         workflow,
+        workflow,
         timezone.now(),
         False,
     )
@@ -132,6 +134,7 @@ def test_previous_node_data_provider_import_path(data_fixture):
 def test_current_iteration_data_provider_get_data_chunk(data_fixture):
     workflow = data_fixture.create_automation_workflow()
     workflow_history = AutomationHistoryHandler().create_workflow_history(
+        workflow,
         workflow,
         timezone.now(),
         False,

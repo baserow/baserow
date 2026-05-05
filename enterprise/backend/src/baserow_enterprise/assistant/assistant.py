@@ -1,6 +1,7 @@
 import asyncio
 from typing import Any, AsyncGenerator
 
+from django.contrib.auth.models import AbstractUser
 from django.core.cache import cache
 from django.utils import translation
 
@@ -22,6 +23,7 @@ from pydantic_ai.run import AgentRunResultEvent
 from pydantic_ai.usage import UsageLimits
 
 from baserow.api.sessions import get_client_undo_redo_action_group_id
+from baserow.core.models import Workspace
 from baserow_enterprise.assistant.agents import main_agent, title_agent
 from baserow_enterprise.assistant.deps import (
     AgentMode,
@@ -46,6 +48,8 @@ from baserow_enterprise.assistant.telemetry import (
 )
 from baserow_enterprise.assistant.tools.navigation.utils import unsafe_navigate_to
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
+from baserow_premium.api.user.user_data_types import ActiveLicensesDataType
+from baserow_premium.license.registries import LicenseType, license_type_registry
 
 from .models import AssistantChat, AssistantChatMessage, AssistantChatPrediction
 from .types import (
@@ -101,6 +105,37 @@ def set_assistant_cancellation_key(
     cache.set(get_assistant_cancellation_key(chat_uuid), True, timeout=timeout)
 
 
+def _get_workspace_license_type(
+    user: AbstractUser, workspace: Workspace
+) -> LicenseType | None:
+    """
+    Pick the highest-``order`` ``LicenseType`` active for the user in the workspace,
+    reusing the same data the frontend consumes from ``ActiveLicensesDataType``. Returns
+    ``None`` when no license applies.
+
+    :param user: The user for whom to get the license type.
+    :param workspace: The workspace for which to get the license type.
+    :return: The active LicenseType with the highest order, or None if no license is
+        active.
+    """
+
+    try:
+        active = ActiveLicensesDataType().get_user_data(user, None)
+        names = set(active["instance_wide"]) | set(
+            active["per_workspace"].get(workspace.id, {})
+        )
+        return max(
+            (lt for lt in license_type_registry.get_all() if lt.type in names),
+            key=lambda lt: lt.order,
+            default=None,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to determine workspace license type for assistant context."
+        )
+        return None
+
+
 def _extract_tool_thought(event: FunctionToolCallEvent) -> str | None:
     """Extract the chain-of-thought ``thought`` argument from a tool call
     event, if present and non-empty."""
@@ -134,6 +169,7 @@ class Assistant:
             user=self._user,
             workspace=self._workspace,
             tool_helpers=self._tool_helpers,
+            license_tier=_get_workspace_license_type(self._user, self._workspace),
         )
         self._toolset, db_m, app_m, auto_m, explain_m = (
             assistant_tool_registry.build_toolset(

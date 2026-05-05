@@ -11,6 +11,8 @@ services:
       EMAIL_SMTP_HOST: 'mailhog'
       EMAIL_SMTP_PORT: '1025'
       BASEROW_PUBLIC_URL:
+      MEDIA_URL:
+      BASEROW_FILE_UPLOAD_ACTIVE_CONTENT_POLICY:
     ports:
       - "80:80"
       - "443:443"

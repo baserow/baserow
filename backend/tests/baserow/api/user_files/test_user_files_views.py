@@ -4,6 +4,7 @@ from django.conf import settings
 from django.core.files.storage import FileSystemStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.shortcuts import reverse
+from django.test import override_settings
 
 import pytest
 import responses
@@ -17,6 +18,22 @@ from rest_framework.status import (
 
 from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.core.models import UserFile
+
+
+@pytest.mark.django_db
+@override_settings(FILE_UPLOAD_ACTIVE_CONTENT_POLICY="block")
+def test_upload_file_active_content_blocked(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+
+    response = api_client.post(
+        reverse("api:user_files:upload_file"),
+        data={"file": SimpleUploadedFile("index.html", b"<script></script>")},
+        format="multipart",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_INVALID_FILE"
 
 
 @pytest.mark.django_db

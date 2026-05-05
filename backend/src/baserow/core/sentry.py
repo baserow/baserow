@@ -1,4 +1,35 @@
+import logging
+from typing import Any
+
 from django.contrib.auth import get_user_model
+
+
+def drop_expected_asyncio_websocket_ping_timeout_events(
+    event: dict[str, Any], hint: dict[str, Any]
+) -> dict[str, Any] | None:
+    """
+    Ignore websocket keepalive timeouts logged by asyncio.
+
+    These are emitted by the websockets stack when a client disappears without a
+    clean close handshake. They are noisy, expected in production, and don't
+    point to an application error in Baserow itself.
+    """
+
+    log_record = hint.get("log_record")
+    if not isinstance(log_record, logging.LogRecord):
+        return event
+
+    if log_record.name != "asyncio":
+        return event
+
+    message = log_record.getMessage()
+    if (
+        "ConnectionClosedError exception in shielded future" in message
+        and "keepalive ping timeout" in message
+    ):
+        return None
+
+    return event
 
 
 def setup_user_in_sentry(user):

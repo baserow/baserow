@@ -1,5 +1,7 @@
+from datetime import timedelta
 from typing import Optional
 
+from django.conf import settings
 from django.utils import timezone
 
 from celery.canvas import Signature
@@ -8,6 +10,9 @@ from baserow.config.celery import app
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.history.models import AutomationWorkflowHistory
+from baserow.contrib.automation.workflows.signals import (
+    automation_workflow_dispatch_done,
+)
 from baserow.core.db import atomic_with_retry_on_deadlock
 
 
@@ -54,7 +59,6 @@ def handle_workflow_dispatch_done(
         AutomationWorkflowHistory.objects.filter(
             id=history_id, simulate_until_node_id=simulate_until_node_id
         ).delete()
-
     else:
         # Only update the history if it's still started.
         # If the workflow history was marked as failed by a specific node, we
@@ -66,3 +70,28 @@ def handle_workflow_dispatch_done(
             status=HistoryStatusChoices.SUCCESS,
             completed_on=timezone.now(),
         )
+
+        history = AutomationWorkflowHistory.objects.get(id=history_id)
+        automation_workflow_dispatch_done.send(
+            sender=None,
+            workflow_history=history,
+        )
+
+
+@app.task(queue="automation_workflow")
+def automation_periodic_cleanup():
+    from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+
+    handler = AutomationWorkflowHandler()
+    handler.mark_failure_for_timed_out_history()
+    handler.clear_old_history()
+
+
+@app.on_after_finalize.connect
+def setup_periodic_automation_tasks(sender, **kwargs):
+    sender.add_periodic_task(
+        timedelta(
+            minutes=settings.AUTOMATION_WORKFLOW_HISTORY_CLEANUP_INTERVAL_MINUTES
+        ),
+        automation_periodic_cleanup.s(),
+    )

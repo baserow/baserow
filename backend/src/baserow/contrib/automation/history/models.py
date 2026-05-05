@@ -16,14 +16,22 @@ class AutomationHistory(models.Model):
 
     class Meta:
         abstract = True
-        ordering = ("-started_on",)
+        ordering = ("-started_on", "id")
 
 
 class AutomationWorkflowHistory(AutomationHistory):
-    workflow = models.ForeignKey(
+    original_workflow = models.ForeignKey(
         "automation.AutomationWorkflow",
         on_delete=models.CASCADE,
         related_name="workflow_histories",
+        # TODO ZDM: Make non-nullable after next release and add backfill
+        # migration. See: https://github.com/baserow/baserow/issues/5236
+        null=True,
+    )
+    workflow = models.ForeignKey(
+        "automation.AutomationWorkflow",
+        on_delete=models.CASCADE,
+        related_name="cloned_workflow_histories",
     )
     simulate_until_node = models.ForeignKey(
         "automation.AutomationNode",
@@ -45,6 +53,18 @@ class AutomationWorkflowHistory(AutomationHistory):
         help_text="Event payload received by the workflow.",
     )
 
+    class Meta(AutomationHistory.Meta):
+        indexes = [
+            models.Index(
+                fields=["workflow", "-started_on"],
+                name="wa_hist_started_idx",
+            ),
+            models.Index(
+                fields=["workflow", "status", "-started_on"],
+                name="wa_hist_status_started_idx",
+            ),
+        ]
+
 
 class AutomationNodeHistory(AutomationHistory):
     workflow_history = models.ForeignKey(
@@ -58,7 +78,7 @@ class AutomationNodeHistory(AutomationHistory):
         related_name="node_histories",
     )
 
-    class Meta:
+    class Meta(AutomationHistory.Meta):
         indexes = [
             models.Index(fields=["workflow_history", "node"]),
         ]
@@ -70,11 +90,6 @@ class AutomationNodeResult(models.Model):
         on_delete=models.CASCADE,
         related_name="node_results",
     )
-
-    iteration = models.PositiveIntegerField(
-        db_default=0,
-        help_text="Keeps track of the current iteration of the Iterator node.",
-    )  # TODO ZDM: Remove after next release
 
     iteration_path = models.CharField(
         db_default="",
@@ -88,4 +103,4 @@ class AutomationNodeResult(models.Model):
     )
 
     class Meta:
-        unique_together = [["node_history", "iteration"]]
+        unique_together = [["node_history", "iteration_path"]]

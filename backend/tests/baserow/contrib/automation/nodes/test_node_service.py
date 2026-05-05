@@ -11,6 +11,8 @@ from baserow.contrib.automation.nodes.models import LocalBaserowCreateRowActionN
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.nodes.service import AutomationNodeService
 from baserow.contrib.automation.nodes.trash_types import AutomationNodeTrashableItemType
+from baserow.contrib.automation.workflows.constants import WORKFLOW_DIRTY_CACHE_KEY
+from baserow.core.cache import global_cache
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.trash.handler import TrashHandler
 from baserow.test_utils.fixtures import Fixtures
@@ -755,3 +757,91 @@ def test_move_node_invalid_reference_node(data_fixture: Fixtures):
         )
 
     assert exc.value.args[0] == f"The reference node {action2.id} can't have child"
+
+
+@pytest.mark.django_db
+def test_update_node_updates_workflow_dirty_cache(data_fixture):
+    """
+    When a node is updated, the workflow's dirty cache flag should be set
+    so that the test clone knows to create a new clone instead of
+    reusing the last one.
+    """
+
+    user = data_fixture.create_user()
+    node = data_fixture.create_automation_node(user=user)
+
+    cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(node.workflow.id)
+
+    assert global_cache.get(cache_key, default=False) is False
+
+    AutomationNodeService().update_node(user, node.id, label="foo label")
+
+    assert global_cache.get(cache_key, default=False) is True
+
+
+@pytest.mark.django_db
+def test_create_node_updates_workflow_dirty_cache(data_fixture):
+    """
+    When a node is created, the workflow's dirty cache flag should be set
+    so that the test clone knows to create a new clone instead of
+    reusing the last one.
+    """
+
+    user = data_fixture.create_user()
+    node = data_fixture.create_automation_node(user=user)
+    workflow = node.workflow
+
+    cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+
+    assert global_cache.get(cache_key, default=False) is False
+
+    AutomationNodeService().create_node(
+        user,
+        node_type=automation_node_type_registry.get("local_baserow_create_row"),
+        workflow=workflow,
+        reference_node_id=node.id,
+        position="south",
+        output="",
+    )
+
+    assert global_cache.get(cache_key, default=False) is True
+
+
+@pytest.mark.django_db
+def test_duplicate_node_updates_workflow_dirty_cache(data_fixture):
+    """
+    When a node is duplicated, the workflow's dirty cache flag should be set
+    so that the test clone knows to create a new clone instead of
+    reusing the last one.
+    """
+
+    user = data_fixture.create_user()
+    node = data_fixture.create_local_baserow_create_row_action_node(user=user)
+
+    cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(node.workflow.id)
+
+    assert global_cache.get(cache_key, default=False) is False
+
+    AutomationNodeService().duplicate_node(user, node.id)
+
+    assert global_cache.get(cache_key, default=False) is True
+
+
+@pytest.mark.django_db
+def test_delete_node_updates_workflow_dirty_cache(data_fixture):
+    """
+    When a node is deleted, the workflow's dirty cache flag should be set
+    so that the test clone knows to create a new clone instead of
+    reusing the last one.
+    """
+
+    user = data_fixture.create_user()
+    node = data_fixture.create_automation_node(user=user)
+
+    cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(node.workflow.id)
+
+    assert global_cache.get(cache_key, default=False) is False
+
+    AutomationNodeService().delete_node(user, node.id)
+
+    assert global_cache.get(cache_key, default=False) is True

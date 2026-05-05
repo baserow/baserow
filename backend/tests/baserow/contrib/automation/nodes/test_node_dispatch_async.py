@@ -19,6 +19,7 @@ TRIGGER_NODE_TYPE_PATH = (
     "baserow.contrib.automation.nodes.node_types.LocalBaserowRowsCreatedNodeTriggerType"
 )
 NODE_HANDLER_PATH = "baserow.contrib.automation.nodes.handler"
+TASKS_PATH = "baserow.contrib.automation.workflows.tasks"
 
 
 def assert_dispatches_next_node(result, *expected_tasks):
@@ -205,6 +206,10 @@ def test_dispatch_node_service_error(data_fixture):
     assert error in node_history.message
     assert node_history.status == HistoryStatusChoices.ERROR
 
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.result == {}
+    assert node_result.iteration_path == ""
+
 
 @pytest.mark.django_db
 @patch(f"{TRIGGER_NODE_TYPE_PATH}.dispatch")
@@ -233,6 +238,10 @@ def test_dispatch_node_unexpected_error(mock_logger, mock_dispatch, data_fixture
     node_history = AutomationNodeHistory.objects.get(workflow_history=workflow_history)
     assert error in node_history.message
     assert node_history.status == HistoryStatusChoices.ERROR
+
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.result == {}
+    assert node_result.iteration_path == ""
 
 
 @pytest.mark.django_db
@@ -269,6 +278,10 @@ def test_dispatch_node_expected_error(mock_logger, mock_dispatch, data_fixture):
     assert error in node_history.message
     assert node_history.status == HistoryStatusChoices.ERROR
 
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.result == {}
+    assert node_result.iteration_path == ""
+
 
 @pytest.mark.django_db
 def test_dispatch_node_dispatches_trigger(data_fixture):
@@ -283,6 +296,7 @@ def test_dispatch_node_dispatches_trigger(data_fixture):
     )
 
     handle_workflow_dispatch_done(history_id=workflow_history.id)
+
     workflow_history.refresh_from_db()
     assert workflow_history.message == ""
     assert workflow_history.status == HistoryStatusChoices.SUCCESS
@@ -292,7 +306,7 @@ def test_dispatch_node_dispatches_trigger(data_fixture):
     assert node_history.status == HistoryStatusChoices.SUCCESS
 
     node_result = AutomationNodeResult.objects.get(node_history=node_history)
-    assert node_result.iteration == 0
+    assert node_result.iteration_path == ""
     assert node_result.result == workflow_history.event_payload
 
     assert_dispatches_next_node(result, (action_node, workflow_history, None))
@@ -344,7 +358,7 @@ def test_dispatch_node_dispatches_action_create_row(data_fixture):
     assert node_history.status == HistoryStatusChoices.SUCCESS
 
     node_result = AutomationNodeResult.objects.get(node_history=node_history)
-    assert node_result.iteration == 0
+    assert node_result.iteration_path == ""
     assert node_result.result == {
         action_table_field.name: "Apple",
         "id": AnyInt(),
@@ -611,7 +625,7 @@ def test_dispatch_node_dispatches_action_simulation(
     assert node_history.status == HistoryStatusChoices.SUCCESS
 
     node_result = AutomationNodeResult.objects.get(node_history=node_history)
-    assert node_result.iteration == 0
+    assert node_result.iteration_path == ""
     assert node_result.result == {
         "results": [
             {
@@ -923,12 +937,19 @@ def test_dispatch_node_dispatches_test_run(
     assert workflow_history.status == HistoryStatusChoices.STARTED
 
     # Make sure all nodes have a history and node result
-    for node in [
-        trigger_node,
-        iterator_node,
-        iterator_child_1_node,
-        iterator_child_2_node,
-    ]:
+    for node in [trigger_node, iterator_node]:
+        for node_history in AutomationNodeHistory.objects.filter(
+            workflow_history=workflow_history,
+            node=node,
+        ):
+            assert node_history.message == ""
+            assert node_history.status == HistoryStatusChoices.SUCCESS
+
+            node_result = AutomationNodeResult.objects.get(node_history=node_history)
+            assert node_result.iteration_path == ""
+            assert len(node_result.result) > 0
+
+    for node in [iterator_child_1_node, iterator_child_2_node]:
         for index, node_history in enumerate(
             AutomationNodeHistory.objects.filter(
                 workflow_history=workflow_history,
@@ -939,7 +960,7 @@ def test_dispatch_node_dispatches_test_run(
             assert node_history.status == HistoryStatusChoices.SUCCESS
 
             node_result = AutomationNodeResult.objects.get(node_history=node_history)
-            assert node_result.iteration == index
+            assert node_result.iteration_path == str(index)
             assert len(node_result.result) > 0
 
     # Ensure workflow history is exists for test runs
@@ -1010,7 +1031,7 @@ def test_dispatch_node_dispatches_action_update_row(data_fixture):
     assert node_history.status == HistoryStatusChoices.SUCCESS
 
     node_result = AutomationNodeResult.objects.get(node_history=node_history)
-    assert node_result.iteration == 0
+    assert node_result.iteration_path == ""
     assert node_result.result == {
         action_table_field.name: "Apple",
         "id": AnyInt(),
@@ -1057,7 +1078,7 @@ def test_dispatch_node_dispatches_action_delete_row(data_fixture):
     assert node_history.status == HistoryStatusChoices.SUCCESS
 
     node_result = AutomationNodeResult.objects.get(node_history=node_history)
-    assert node_result.iteration == 0
+    assert node_result.iteration_path == ""
     assert node_result.result == {}
 
 
@@ -1142,7 +1163,7 @@ def test_dispatch_node_dispatches_action_router(data_fixture):
     assert node_history.status == HistoryStatusChoices.SUCCESS
 
     node_result = AutomationNodeResult.objects.get(node_history=node_history)
-    assert node_result.iteration == 0
+    assert node_result.iteration_path == ""
     assert node_result.result == {
         action_table_field.name: "Cherry",
         "id": AnyInt(),
@@ -1482,3 +1503,78 @@ def test_dispatch_node_with_deleted_node(mock_logger, data_fixture):
         "deleted before the task was executed."
     )
     mock_logger.warning.assert_called_once_with(expected_error)
+
+
+@pytest.mark.django_db
+@patch(f"{NODE_HANDLER_PATH}.automation_node_updated")
+def test_dispatch_node_simulation_copies_sample_data_to_draft_node(
+    mock_automation_node_updated,
+    data_fixture,
+):
+    data = create_workflow(data_fixture)
+    workflow = data["workflow"]
+    trigger_node = data["trigger_node"]
+
+    workflow_history = data_fixture.create_automation_workflow_history(
+        original_workflow=workflow,
+        workflow=workflow,
+        simulate_until_node=trigger_node,
+        is_test_run=True,
+    )
+
+    assert trigger_node.service.specific.sample_data is None
+    AutomationNodeHandler().dispatch_node(
+        trigger_node.id,
+        history_id=workflow_history.id,
+    )
+
+    # Ensure the sample_data is saved to the draft node's service
+    trigger_node.service.specific.refresh_from_db()
+    assert trigger_node.service.specific.sample_data is not None
+
+    # Ensure a signal is sent for the draft node
+    mock_automation_node_updated.send.assert_called_once_with(
+        ANY, user=None, node=trigger_node
+    )
+
+
+@pytest.mark.django_db
+@patch(f"{TASKS_PATH}.automation_workflow_dispatch_done")
+def test_handle_workflow_dispatch_done_sends_signal_on_success(
+    mock_dispatch_done_signal, data_fixture
+):
+    data = create_workflow(data_fixture)
+    workflow_history = data["workflow_history"]
+    assert workflow_history.status == HistoryStatusChoices.STARTED
+
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.SUCCESS
+    mock_dispatch_done_signal.send.assert_called_once()
+    assert (
+        mock_dispatch_done_signal.send.call_args.kwargs["workflow_history"].id
+        == workflow_history.id
+    )
+
+
+@pytest.mark.django_db
+@patch(f"{TASKS_PATH}.automation_workflow_dispatch_done")
+def test_handle_workflow_dispatch_done_sends_signal_on_error(
+    mock_dispatch_done_signal, data_fixture
+):
+    data = create_workflow(data_fixture)
+    workflow_history = data["workflow_history"]
+    workflow_history.status = HistoryStatusChoices.ERROR
+    workflow_history.message = "Node failed"
+    workflow_history.save()
+
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+
+    workflow_history.refresh_from_db()
+    assert workflow_history.status == HistoryStatusChoices.ERROR
+    mock_dispatch_done_signal.send.assert_called_once()
+    assert (
+        mock_dispatch_done_signal.send.call_args.kwargs["workflow_history"].id
+        == workflow_history.id
+    )

@@ -1,10 +1,11 @@
 import os
-from unittest.mock import patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
 from baserow_enterprise.assistant.tools.search_user_docs.tools import (
     _TOOL_QUERY_RE,
+    SearchDocsResult,
     search_user_docs,
 )
 
@@ -82,6 +83,52 @@ async def test_search_user_docs_handles_empty_results(data_fixture):
 
     assert result["reliability"] == 0.0
     assert "Nothing found" in result["answer"]
+
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_search_user_docs_does_not_add_sources_for_nothing_found_prediction(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    ctx = make_test_ctx(user, workspace)
+    chunk = MagicMock(content="Some unrelated documentation.")
+    chunk.source_document = MagicMock(source_url="https://example.com/docs")
+
+    with (
+        patch(
+            "baserow_enterprise.assistant.tools.search_user_docs.tools.KnowledgeBaseHandler"
+        ) as mock_handler_cls,
+        patch(
+            "baserow_enterprise.assistant.tools.search_user_docs.tools.search_docs_agent.run",
+            new_callable=AsyncMock,
+        ) as mock_run,
+        patch(
+            "baserow_enterprise.assistant.model_profiles.get_model_string",
+            return_value="test/model",
+        ),
+        patch(
+            "baserow_enterprise.assistant.retrying_model._resolve_model",
+            return_value=MagicMock(),
+        ),
+    ):
+        mock_handler_cls.return_value.search.return_value = [chunk]
+        mock_run.return_value = MagicMock(
+            output=SearchDocsResult(
+                answer="Nothing found in the documentation.",
+                reliability=1.0,
+                sources=["https://example.com/docs"],
+            )
+        )
+
+        result = await search_user_docs(
+            ctx, question="Does Baserow support imaginary widgets?", thought="user asks"
+        )
+
+    assert result["reliability"] == 0.0
+    assert result["sources"] == []
+    assert ctx.deps.sources == []
 
 
 @pytest.mark.django_db

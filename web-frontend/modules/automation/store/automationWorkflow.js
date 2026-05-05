@@ -125,7 +125,7 @@ const actions = {
   },
   async create({ commit, dispatch }, { automation, name }) {
     const { data: workflow } = await AutomationWorkflowService(
-      useNuxtApp().$client
+      this.$client
     ).create(automation.id, name)
 
     commit('ADD_ITEM', { automation, workflow })
@@ -135,7 +135,7 @@ const actions = {
     return workflow
   },
   async fetchById({ getters, commit, dispatch }, { automation, workflowId }) {
-    const { data } = await AutomationWorkflowService(useNuxtApp().$client).read(
+    const { data } = await AutomationWorkflowService(this.$client).read(
       workflowId
     )
     const workflow = getters.getById(automation, workflowId)
@@ -150,9 +150,10 @@ const actions = {
     return data
   },
   async update({ dispatch }, { automation, workflow, values }) {
-    const { data } = await AutomationWorkflowService(
-      useNuxtApp().$client
-    ).update(workflow.id, values)
+    const { data } = await AutomationWorkflowService(this.$client).update(
+      workflow.id,
+      values
+    )
 
     const update = Object.keys(values).reduce((result, key) => {
       result[key] = data[key]
@@ -160,9 +161,10 @@ const actions = {
     }, {})
 
     await dispatch('forceUpdate', { workflow, values: update })
+    return data
   },
   async delete({ dispatch }, { automation, workflow }) {
-    await AutomationWorkflowService(useNuxtApp().$client).delete(workflow.id)
+    await AutomationWorkflowService(this.$client).delete(workflow.id)
 
     await dispatch('forceDelete', { automation, workflow })
   },
@@ -173,10 +175,7 @@ const actions = {
     commit('ORDER_WORKFLOWS', { automation, order, isHashed })
 
     try {
-      await AutomationWorkflowService(useNuxtApp().$client).order(
-        automation.id,
-        order
-      )
+      await AutomationWorkflowService(this.$client).order(automation.id, order)
     } catch (error) {
       commit('ORDER_WORKFLOWS', { automation, order: oldOrder, isHashed })
       throw error
@@ -184,7 +183,7 @@ const actions = {
   },
   async duplicate({ commit, dispatch }, { workflow }) {
     const { data: job } = await AutomationWorkflowService(
-      useNuxtApp().$client
+      this.$client
     ).duplicate(workflow.id)
 
     await dispatch('job/create', job, { root: true })
@@ -195,10 +194,10 @@ const actions = {
     commit('SET_ACTIVE_SIDE_PANEL', sidePanelType)
   },
   async testRun({ dispatch }, { workflow }) {
-    await AutomationWorkflowService(useNuxtApp().$client).testRun(workflow.id)
+    await AutomationWorkflowService(this.$client).testRun(workflow.id)
   },
   async publishWorkflow({ dispatch }, { workflow }) {
-    await AutomationWorkflowService(useNuxtApp().$client).publish(workflow.id)
+    await AutomationWorkflowService(this.$client).publish(workflow.id)
   },
 }
 

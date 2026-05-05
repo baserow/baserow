@@ -10,9 +10,9 @@
 
 Baserow consists of a number of services, two of which are built and provided as 
 separate standalone images by us:
-* `baserow/backend:2.2.0` which by default starts the Gunicorn Django backend server 
+* `baserow/backend:2.2.2` which by default starts the Gunicorn Django backend server 
   for Baserow but is also used to start the celery workers and celery beat services.
-* `baserow/web-frontend:2.2.0` which is a Nuxt server providing Server Side rendering 
+* `baserow/web-frontend:2.2.2` which is a Nuxt server providing Server Side rendering 
   for the website.
 
 If you want to use your own container orchestration software like Kubernetes then these
@@ -27,10 +27,10 @@ in the root of our repository.
 These are all the services you need to set up to run a Baserow using the standalone 
 images:
 
-* `baserow/backend:2.2.0` (default command is `gunicorn`)
-* `baserow/backend:2.2.0` with command `celery-worker`
-* `baserow/backend:2.2.0` with command `celery-export-worker`
-* `baserow/web-frontend:2.2.0` (default command is `nuxt-prod`)
+* `baserow/backend:2.2.2` (default command is `gunicorn`)
+* `baserow/backend:2.2.2` with command `celery-worker`
+* `baserow/backend:2.2.2` with command `celery-export-worker`
+* `baserow/web-frontend:2.2.2` (default command is `nuxt-prod`)
 * A postgres database 
 * A redis server
 
@@ -54,9 +54,11 @@ images:
   * Redirect `/api/` and `/ws/` requests to the backend gunicorn service without 
     dropping these prefixes.
   * Serve the files in the `/baserow/media` folder in the backend gunicorn service 
-    (share with your proxy using a volume) at the `/media` endpoint. Ensure 
-    that requests with a `dl` query parameter have a `Content-disposition` header added
-    with the value of `attachment; filename=THE_DL_QUERY_PARAM_VALUE` 
+    (share with your proxy using a volume) at the `/media` endpoint. Ensure all media
+    responses have `X-Content-Type-Options: nosniff` and
+    `Content-Security-Policy: sandbox; default-src 'none'; script-src 'none'; object-src 'none'; base-uri 'none'`.
+    Requests with a `dl` query parameter can use
+    `Content-Disposition: attachment; filename=THE_DL_QUERY_PARAM_VALUE`.
   * Send all other requests to the web-frontend service.
 * You must provide all email related environment variables to both the backend and 
   celery-worker services. This is because the `celery-worker` service is the one 

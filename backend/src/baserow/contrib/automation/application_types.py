@@ -108,6 +108,7 @@ class AutomationApplicationType(ApplicationType):
         serialized_workflows = [
             handler.export_workflow(
                 w,
+                import_export_config=import_export_config,
                 files_zip=files_zip,
                 storage=storage,
                 cache=self.cache,
@@ -208,6 +209,7 @@ class AutomationApplicationType(ApplicationType):
             storage,
             progress.create_child_builder(represents_progress=100),
         )
+
         automation = application.specific
 
         if not serialized_integrations:
@@ -261,8 +263,15 @@ class AutomationApplicationType(ApplicationType):
             instance = self.enhance_queryset(base_queryset).first()
             return instance and list(instance.workflows.all()) or []
 
+    def _get_workflows_queryset(self) -> QuerySet[AutomationWorkflow]:
+        return AutomationWorkflow.objects.select_related(
+            "automation__workspace"
+        ).prefetch_related("notification_recipients")
+
     def enhance_queryset(self, queryset):
-        return queryset.prefetch_related("workflows")
+        return queryset.prefetch_related(
+            Prefetch("workflows", queryset=self._get_workflows_queryset())
+        )
 
     def enhance_and_filter_queryset(
         self,
@@ -276,9 +285,7 @@ class AutomationApplicationType(ApplicationType):
                 queryset=CoreHandler().filter_queryset(
                     user,
                     ListAutomationWorkflowsOperationType.type,
-                    AutomationWorkflow.objects.select_related(
-                        "automation__workspace"
-                    ).all(),
+                    self._get_workflows_queryset(),
                     workspace=workspace,
                 ),
             ),

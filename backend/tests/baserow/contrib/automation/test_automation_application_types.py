@@ -105,6 +105,7 @@ def test_automation_export_serialized(data_fixture):
                 "name": workflow.name,
                 "order": workflow.order,
                 "state": workflow.state,
+                "notification_recipient_emails": [],
                 "nodes": [
                     {
                         "id": trigger.id,
@@ -255,21 +256,31 @@ def test_fetch_workflows_to_serialize_with_user(data_fixture):
 @pytest.mark.django_db
 def test_enhance_queryset(data_fixture, django_assert_num_queries):
     user = data_fixture.create_user()
+    recipient = data_fixture.create_user()
 
     # Create two automations with 2 workflows each
     workflow_1 = data_fixture.create_automation_workflow(user=user)
-    data_fixture.create_automation_workflow(automation=workflow_1.automation, user=user)
+    workflow_1.notification_recipients.add(recipient)
+    workflow_2 = data_fixture.create_automation_workflow(
+        automation=workflow_1.automation, user=user
+    )
+    workflow_2.notification_recipients.add(recipient)
 
     workflow_3 = data_fixture.create_automation_workflow(user=user)
-    data_fixture.create_automation_workflow(automation=workflow_3.automation, user=user)
+    workflow_3.notification_recipients.add(recipient)
+    workflow_4 = data_fixture.create_automation_workflow(
+        automation=workflow_3.automation, user=user
+    )
+    workflow_4.notification_recipients.add(recipient)
 
     # query 1: fetch all automations
     # query 2: fetch all workflows for automation 1
     # query 3: fetch all workflows for automation 2
-    expected_queries = 3
+    # query 4-7: fetch notification recipients for each workflow
+    expected_queries = 7
     with django_assert_num_queries(expected_queries):
         [
-            workflow.name
+            sorted(recipient.id for recipient in workflow.notification_recipients.all())
             for automation in Automation.objects.all()
             for workflow in automation.workflows.all()
         ]
@@ -277,11 +288,12 @@ def test_enhance_queryset(data_fixture, django_assert_num_queries):
     queryset = AutomationApplicationType().enhance_queryset(Automation.objects.all())
 
     # query 1: fetch all automations
-    # query 2: fetch all workflows for automation 2
-    expected_queries = 2
+    # query 2: fetch all workflows
+    # query 3: fetch all notification recipients for prefetched workflows
+    expected_queries = 3
     with django_assert_num_queries(expected_queries):
         [
-            workflow.name
+            sorted(recipient.id for recipient in workflow.notification_recipients.all())
             for automation in queryset
             for workflow in automation.workflows.all()
         ]

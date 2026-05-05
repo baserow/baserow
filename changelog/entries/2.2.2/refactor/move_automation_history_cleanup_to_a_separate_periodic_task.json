@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Optimize Automation History clean-up by moving it to a separate periodic task.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-04-10"
+}

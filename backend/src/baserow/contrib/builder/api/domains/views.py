@@ -401,6 +401,8 @@ class AskPublicBuilderDomainExistsView(APIView):
             + settings.EXTRA_PUBLIC_BACKEND_HOSTNAMES
             + settings.EXTRA_PUBLIC_WEB_FRONTEND_HOSTNAMES
         )
+        if settings.MEDIA_URL_HOSTNAME:
+            allowed_domain.add(settings.MEDIA_URL_HOSTNAME)
 
         if domain_name in allowed_domain:
             return Response(None, status=200)

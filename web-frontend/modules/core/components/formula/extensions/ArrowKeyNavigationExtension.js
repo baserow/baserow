@@ -1,5 +1,6 @@
 import { Extension } from '@tiptap/core'
 import { TextSelection } from 'prosemirror-state'
+import { isZWSNode } from '@baserow/modules/core/components/formula/extensions/helpers'
 
 export const ArrowKeyNavigationExtension = Extension.create({
   name: 'arrowKeyNavigation',
@@ -130,7 +131,7 @@ export const ArrowKeyNavigationExtension = Extension.create({
           if (!nextNode) break
 
           // Always skip ZWS
-          if (nextNode.isText && nextNode.text === '\u200B') {
+          if (isZWSNode(nextNode)) {
             pos += nextNode.nodeSize
             moved = true
             continue
@@ -182,7 +183,7 @@ export const ArrowKeyNavigationExtension = Extension.create({
           if (!prevNode) break
 
           // Always skip ZWS
-          if (prevNode.isText && prevNode.text === '\u200B') {
+          if (isZWSNode(prevNode)) {
             pos -= prevNode.nodeSize
             moved = true
             continue

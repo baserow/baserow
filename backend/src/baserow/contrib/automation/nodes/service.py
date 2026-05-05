@@ -34,7 +34,9 @@ from baserow.contrib.automation.nodes.types import (
     ReplacedAutomationNode,
     UpdatedAutomationNode,
 )
+from baserow.contrib.automation.workflows.constants import WORKFLOW_DIRTY_CACHE_KEY
 from baserow.contrib.automation.workflows.signals import automation_workflow_updated
+from baserow.core.cache import global_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.trash.handler import TrashHandler
@@ -196,6 +198,9 @@ class AutomationNodeService:
 
         workflow.get_graph().insert(new_node, reference_node, position, output)
 
+        cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+        global_cache.update(cache_key, lambda _: True)
+
         automation_node_created.send(
             self,
             node=new_node,
@@ -245,6 +250,9 @@ class AutomationNodeService:
         # Now export the 'new' node values, since everything has been updated.
         new_node_values = node_type.export_prepared_values(node)
 
+        cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(node.workflow.id)
+        global_cache.update(cache_key, lambda _: True)
+
         automation_node_updated.send(self, user=user, node=updated_node)
 
         return UpdatedAutomationNode(
@@ -285,6 +293,9 @@ class AutomationNodeService:
             node,
         )
 
+        cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+        global_cache.update(cache_key, lambda _: True)
+
         automation_node_deleted.send(
             self,
             workflow=workflow,
@@ -324,6 +335,9 @@ class AutomationNodeService:
         duplicated_node = self.handler.duplicate_node(source_node)
 
         workflow.get_graph().insert(duplicated_node, source_node, "south", "")
+
+        cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+        global_cache.update(cache_key, lambda _: True)
 
         automation_node_created.send(
             self,

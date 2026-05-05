@@ -15,6 +15,7 @@ import os
 from pydantic_ai.usage import UsageLimits
 
 from baserow_enterprise.assistant.agents import main_agent
+from baserow_enterprise.assistant.assistant import _get_workspace_license_type
 from baserow_enterprise.assistant.deps import AssistantDeps, ToolHelpers
 from baserow_enterprise.assistant.tools.registries import assistant_tool_registry
 from baserow_enterprise.assistant.types import (
@@ -209,6 +210,7 @@ def create_eval_assistant(user, workspace, max_iters=15, model=None):
         user=user,
         workspace=workspace,
         tool_helpers=tool_helpers,
+        license_tier=_get_workspace_license_type(user, workspace),
     )
 
     # Build the single-agent toolset (navigation + core + database + automation)

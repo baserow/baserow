@@ -7,13 +7,16 @@ from asgiref.sync import async_to_sync
 from pydantic_ai.messages import PartStartEvent
 from pydantic_ai.messages import TextPart as PaiTextPart
 
+from baserow_enterprise.assistant.agents import dynamic_license_tier
 from baserow_enterprise.assistant.assistant import (
     Assistant,
+    _get_workspace_license_type,
     compact_message_history,
     get_model_string,
 )
 from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.models import AssistantChat, AssistantChatMessage
+from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
 from baserow_enterprise.assistant.types import (
     AiMessage,
     AiMessageChunk,
@@ -306,6 +309,125 @@ class TestCompactMessageHistory:
 
         compacted = compact_message_history(messages)
         assert len(compacted) == 2
+
+
+@pytest.mark.django_db
+class TestAssistantLicenseTier:
+    @patch("baserow_enterprise.assistant.assistant._get_workspace_license_type")
+    def test_assistant_initializes_license_tier(
+        self, mock__get_workspace_license_type, enterprise_data_fixture
+    ):
+        user = enterprise_data_fixture.create_user()
+        workspace = enterprise_data_fixture.create_workspace(user=user)
+        chat = AssistantChat.objects.create(
+            user=user, workspace=workspace, title="Test Chat"
+        )
+        license_type = MagicMock(type="premium", features=["premium"])
+        mock__get_workspace_license_type.return_value = license_type
+
+        assistant = Assistant(chat)
+
+        mock__get_workspace_license_type.assert_called_once_with(user, workspace)
+        assert assistant._deps.license_tier is license_type
+
+    def test_dynamic_license_tier_injects_type_and_features(self):
+        ctx = MagicMock()
+        ctx.deps.license_tier = MagicMock(type="advanced", features=["sso", "rbac"])
+
+        assert dynamic_license_tier(ctx) == (
+            "\n<license_tier>advanced</license_tier>\n<features>rbac,sso</features>"
+        )
+
+    def test_dynamic_license_tier_normalizes_internal_enterprise_type(self):
+        ctx = MagicMock()
+        ctx.deps.license_tier = MagicMock(
+            type="enterprise_without_support", features=["sso", "rbac"]
+        )
+
+        assert dynamic_license_tier(ctx) == (
+            "\n<license_tier>enterprise</license_tier>\n<features>rbac,sso</features>"
+        )
+
+    def test_dynamic_license_tier_renders_free_for_unknown_type(self):
+        ctx = MagicMock()
+        ctx.deps.license_tier = MagicMock(type="unknown", features=["sso", "rbac"])
+
+        assert dynamic_license_tier(ctx) == (
+            "\n<license_tier>free</license_tier>\n<features>rbac,sso</features>"
+        )
+
+    def test_dynamic_license_tier_renders_free_when_no_license(self):
+        ctx = MagicMock()
+        ctx.deps.license_tier = None
+
+        assert dynamic_license_tier(ctx) == "\n<license_tier>free</license_tier>"
+
+    def test_agent_system_prompt_includes_grounding_guardrail(self):
+        assert "Use `search_user_docs` first" in AGENT_SYSTEM_PROMPT
+        assert "Never invent plan names" in AGENT_SYSTEM_PROMPT
+
+
+@pytest.mark.django_db
+class TestGetWorkspaceLicenseType:
+    _PATCH_PATH = (
+        "baserow_enterprise.assistant.assistant.ActiveLicensesDataType.get_user_data"
+    )
+
+    def _call(self, data, workspace_id=1):
+        with patch(self._PATCH_PATH, return_value=data):
+            return _get_workspace_license_type(MagicMock(), MagicMock(id=workspace_id))
+
+    def test_returns_none_without_active_licenses(self):
+        assert self._call({"instance_wide": {}, "per_workspace": {}}) is None
+
+    def test_returns_instance_wide_license(self):
+        result = self._call({"instance_wide": {"premium": True}, "per_workspace": {}})
+        assert result is not None
+        assert result.type == "premium"
+
+    def test_returns_per_workspace_license(self):
+        result = self._call(
+            {"instance_wide": {}, "per_workspace": {42: {"advanced": True}}},
+            workspace_id=42,
+        )
+        assert result is not None
+        assert result.type == "advanced"
+
+    def test_ignores_licenses_from_other_workspaces(self):
+        assert (
+            self._call(
+                {"instance_wide": {}, "per_workspace": {99: {"advanced": True}}},
+                workspace_id=42,
+            )
+            is None
+        )
+
+    def test_picks_highest_order_from_combined_set(self):
+        result = self._call(
+            {
+                "instance_wide": {"premium": True},
+                "per_workspace": {1: {"advanced": True}},
+            }
+        )
+        assert result is not None
+        # PremiumLicenseType.order=10, AdvancedLicenseType.order=75
+        assert result.type == "advanced"
+
+    def test_skips_license_names_not_in_registry(self):
+        result = self._call(
+            {
+                "instance_wide": {"bogus_tier": True, "premium": True},
+                "per_workspace": {},
+            }
+        )
+        assert result is not None
+        assert result.type == "premium"
+
+    def test_returns_none_when_only_unknown_names(self):
+        assert (
+            self._call({"instance_wide": {"bogus_tier": True}, "per_workspace": {}})
+            is None
+        )
 
 
 @pytest.mark.django_db

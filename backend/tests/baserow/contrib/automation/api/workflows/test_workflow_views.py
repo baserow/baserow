@@ -1,5 +1,6 @@
 import datetime
 
+from django.db.models import Count, Q
 from django.urls import reverse
 from django.utils import timezone
 
@@ -14,8 +15,14 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.automation.api.workflows.serializers import (
+    AutomationWorkflowHistorySerializer,
+)
+from baserow.contrib.automation.history.constants import HistoryStatusChoices
+from baserow.contrib.automation.history.handler import AutomationHistoryHandler
 from baserow.contrib.automation.workflows.constants import ALLOW_TEST_RUN_MINUTES
 from baserow.contrib.database.rows.handler import RowHandler
+from baserow.core.cache import local_cache
 from baserow.test_utils.helpers import AnyInt, AnyStr
 from tests.baserow.contrib.automation.api.utils import get_api_kwargs
 
@@ -51,6 +58,7 @@ def test_create_workflow(api_client, data_fixture):
         "automation_id": AnyInt(),
         "id": AnyInt(),
         "name": name,
+        "notification_recipient_ids": [user.id],
         "order": AnyInt(),
         "state": "draft",
         "published_on": None,
@@ -143,6 +151,7 @@ def test_read_workflow(api_client, data_fixture):
         "state": "draft",
         "published_on": None,
         "graph": {"0": trigger.id, str(trigger.id): {}},
+        "notification_recipient_ids": [],
     }
 
 
@@ -158,6 +167,47 @@ def test_update_workflow(api_client, data_fixture):
 
     assert response.status_code == HTTP_200_OK
     assert response.json()["name"] == "test-updated"
+
+
+@pytest.mark.django_db
+def test_update_workflow_notification_recipients(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user, name="test")
+    recipient = data_fixture.create_user(workspace=workflow.automation.workspace)
+
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
+    response = api_client.patch(
+        url,
+        {"notification_recipient_ids": [recipient.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["notification_recipient_ids"] == [recipient.id]
+
+
+@pytest.mark.django_db
+def test_update_workflow_rejects_non_workspace_notification_recipient(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user, name="test")
+    recipient = data_fixture.create_user()
+
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
+    response = api_client.patch(
+        url,
+        {"notification_recipient_ids": [recipient.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_AUTOMATION_WORKFLOW_NOTIFICATION_RECIPIENTS_INVALID",
+        "detail": "All notification recipients must belong to the workflow workspace.",
+    }
 
 
 @pytest.mark.django_db
@@ -365,6 +415,7 @@ def test_duplicate_workflow(api_client, data_fixture):
             "automation_id": automation.id,
             "id": workflow.id,
             "name": "test",
+            "notification_recipient_ids": [],
             "order": AnyInt(),
             "state": "draft",
             "published_on": None,
@@ -591,6 +642,8 @@ def test_get_workflow_histories(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response.json() == {
         "count": 1,
+        "fail_count": 0,
+        "success_count": 1,
         "next": None,
         "previous": None,
         "results": [
@@ -601,6 +654,9 @@ def test_get_workflow_histories(api_client, data_fixture):
                 "is_test_run": False,
                 "message": "",
                 "status": "success",
+                "event_payload": None,
+                "node_histories": [],
+                "simulate_until_node": None,
             },
         ],
     }
@@ -662,3 +718,150 @@ def test_rename_workflow_using_existing_workflow_name(api_client, data_fixture):
     assert workflow_1.name == "test1"
     workflow_2.refresh_from_db()
     assert workflow_2.name == "test1"
+
+
+@pytest.mark.django_db
+def test_get_workflow_histories_query_count(data_fixture, django_assert_num_queries):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = workflow.get_trigger()
+
+    handler = AutomationHistoryHandler()
+
+    def _create_histories(count):
+        for _ in range(count):
+            workflow_history = handler.create_workflow_history(
+                original_workflow=workflow,
+                workflow=workflow,
+                started_on=timezone.now(),
+                is_test_run=False,
+            )
+            node_history = handler.create_node_history(
+                workflow_history=workflow_history,
+                node=trigger,
+                started_on=timezone.now(),
+            )
+            handler.create_node_result(
+                node_history=node_history,
+                result={"foo": "bar"},
+            )
+
+    _create_histories(3)
+    local_cache.clear()
+
+    expected_queries = 10
+    with django_assert_num_queries(expected_queries):
+        queryset = handler.get_workflow_histories(workflow)
+        queryset.aggregate(
+            success_count=Count("id", filter=Q(status=HistoryStatusChoices.SUCCESS)),
+            fail_count=Count("id", filter=Q(status=HistoryStatusChoices.ERROR)),
+        )
+        AutomationWorkflowHistorySerializer(list(queryset), many=True).data
+
+    _create_histories(3)
+    local_cache.clear()
+
+    with django_assert_num_queries(expected_queries):
+        queryset = handler.get_workflow_histories(workflow)
+        queryset.aggregate(
+            success_count=Count("id", filter=Q(status=HistoryStatusChoices.SUCCESS)),
+            fail_count=Count("id", filter=Q(status=HistoryStatusChoices.ERROR)),
+        )
+        AutomationWorkflowHistorySerializer(list(queryset), many=True).data
+
+
+@pytest.mark.django_db
+def test_get_workflow_histories_with_node_histories(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    trigger = workflow.get_trigger()
+    action_node = data_fixture.create_local_baserow_create_row_action_node(
+        user=user, workflow=workflow, label="My Action"
+    )
+
+    now = timezone.now()
+    workflow_history = data_fixture.create_automation_workflow_history(
+        user=user,
+        workflow=workflow,
+        status=HistoryStatusChoices.SUCCESS,
+        completed_on=now,
+    )
+    node_history_1 = data_fixture.create_automation_node_history(
+        user=user,
+        workflow_history=workflow_history,
+        node=trigger,
+        completed_on=now,
+    )
+    node_result_1 = data_fixture.create_automation_node_result(
+        user=user,
+        node_history=node_history_1,
+        result={"rows": [1, 2]},
+    )
+    node_history_2 = data_fixture.create_automation_node_history(
+        user=user,
+        workflow_history=workflow_history,
+        node=action_node,
+        completed_on=now,
+    )
+    node_result_2 = data_fixture.create_automation_node_result(
+        user=user,
+        node_history=node_history_2,
+        result={"created_row_id": 99},
+        iteration_path="0.2.1",
+    )
+
+    url = reverse(API_URL_WORKFLOW_HISTORY, kwargs={"workflow_id": workflow.id})
+    response = api_client.get(url, **get_api_kwargs(token))
+
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+
+    assert data["count"] == 1
+    assert data["success_count"] == 1
+    assert data["fail_count"] == 0
+
+    w_history = data["results"][0]
+    assert w_history["id"] == workflow_history.id
+    assert w_history["status"] == "success"
+    assert len(w_history["node_histories"]) == 2
+
+    n_history_1 = w_history["node_histories"][0]
+    assert n_history_1["node"] == trigger.id
+    assert n_history_1["workflow_history"] == workflow_history.id
+    assert n_history_1["node_type"] == trigger.get_type().type
+    assert n_history_1["node_label"] == trigger.label
+    assert n_history_1["parent_node_id"] is None
+    assert n_history_1["iteration"] == 0
+    assert n_history_1["result"] == {"rows": [1, 2]}
+
+    n_history_2 = w_history["node_histories"][1]
+    assert n_history_2["node"] == action_node.id
+    assert n_history_2["workflow_history"] == workflow_history.id
+    assert n_history_2["node_type"] == action_node.get_type().type
+    assert n_history_2["node_label"] == "My Action"
+    assert n_history_2["iteration"] == 1
+    assert n_history_2["result"] == {"created_row_id": 99}
+
+
+@pytest.mark.django_db
+def test_get_workflow_histories_has_success_and_fail_counts(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    data_fixture.create_automation_workflow_history(
+        workflow=workflow, status=HistoryStatusChoices.SUCCESS
+    )
+    data_fixture.create_automation_workflow_history(
+        workflow=workflow, status=HistoryStatusChoices.SUCCESS
+    )
+    data_fixture.create_automation_workflow_history(
+        workflow=workflow, status=HistoryStatusChoices.ERROR
+    )
+
+    url = reverse(API_URL_WORKFLOW_HISTORY, kwargs={"workflow_id": workflow.id})
+    response = api_client.get(url, **get_api_kwargs(token))
+
+    assert response.status_code == HTTP_200_OK
+    data = response.json()
+    assert data["count"] == 3
+    assert data["success_count"] == 2
+    assert data["fail_count"] == 1

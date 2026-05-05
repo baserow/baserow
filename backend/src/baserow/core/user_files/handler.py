@@ -31,6 +31,7 @@ from baserow.core.storage import (
 from baserow.core.utils import random_string, sha256_hash, stream_size, truncate_middle
 
 from .exceptions import (
+    ActiveContentBlockedUserFileError,
     FileSizeTooLargeError,
     FileURLCouldNotBeReached,
     InvalidFileStreamError,
@@ -43,9 +44,66 @@ if TYPE_CHECKING:
     from PIL import Image
 
 MIME_TYPE_UNKNOWN = "application/octet-stream"
+ACTIVE_CONTENT_EXTENSIONS = {"html", "htm", "xhtml", "xml", "svg", "svgz"}
+ACTIVE_CONTENT_MIME_TYPES = {
+    "application/xhtml+xml",
+    "application/xml",
+    "image/svg+xml",
+    "text/html",
+    "text/xml",
+}
 
 
 class UserFileHandler:
+    def _is_active_content_extension(self, extension: str) -> bool:
+        return extension.lower() in ACTIVE_CONTENT_EXTENSIONS
+
+    def _is_active_content_mime_type(self, mime_type: str) -> bool:
+        return mime_type.lower() in ACTIVE_CONTENT_MIME_TYPES
+
+    def _resolve_mime_type_and_active_content(
+        self, file_name: str, extension: str, stream
+    ) -> tuple[str, bool]:
+        """
+        Resolves the MIME type for an uploaded file and decides whether it should be
+        treated as active content.
+
+        Both the filename-derived MIME type and the client-supplied `content_type` are
+        checked independently against the active-content blocklist so that a malicious
+        client cannot bypass the gate by pairing an innocuous extension with a dangerous
+        Content-Type header (or vice versa).
+
+        :param file_name: The name of the uploaded file.
+        :param extension: The file extension of the uploaded file.
+        :param stream: The file content stream of the uploaded file, which may have a
+            `content_type` attribute.
+        :return: A tuple of the resolved MIME type and whether the file is considered
+            active content.
+        """
+
+        guessed_mime_type = mimetypes.guess_type(file_name)[0]
+        uploaded_mime_type = getattr(stream, "content_type", None)
+        mime_type = guessed_mime_type or uploaded_mime_type or MIME_TYPE_UNKNOWN
+        is_active_content = (
+            self._is_active_content_extension(extension)
+            or (
+                guessed_mime_type is not None
+                and self._is_active_content_mime_type(guessed_mime_type)
+            )
+            or (
+                uploaded_mime_type is not None
+                and self._is_active_content_mime_type(uploaded_mime_type)
+            )
+        )
+        return mime_type, is_active_content
+
+    def _neutralize_active_content(self, user_file: UserFile) -> UserFile:
+        user_file.mime_type = MIME_TYPE_UNKNOWN
+        user_file.is_image = False
+        user_file.image_width = None
+        user_file.image_height = None
+        return user_file
+
     def is_user_file_name(self, user_file_name: str) -> bool:
         """
         Checks if the given name is a user file name.
@@ -266,6 +324,15 @@ class UserFileHandler:
         storage = storage or get_default_storage()
         stream_hash = sha256_hash(stream)
         file_name = truncate_middle(file_name, 64)
+        extension = pathlib.Path(file_name).suffix[1:].lower()
+        mime_type, is_active_content = self._resolve_mime_type_and_active_content(
+            file_name, extension, stream
+        )
+
+        if is_active_content and settings.FILE_UPLOAD_ACTIVE_CONTENT_POLICY == "block":
+            raise ActiveContentBlockedUserFileError(
+                "The provided file type is not allowed."
+            )
 
         existing_user_file = UserFile.objects.filter(
             original_name=file_name,
@@ -274,14 +341,18 @@ class UserFileHandler:
         ).first()
 
         if existing_user_file:
+            if is_active_content:
+                self._neutralize_active_content(existing_user_file)
+                existing_user_file.save(
+                    update_fields=[
+                        "mime_type",
+                        "is_image",
+                        "image_width",
+                        "image_height",
+                    ]
+                )
             return existing_user_file
 
-        extension = pathlib.Path(file_name).suffix[1:].lower()
-        mime_type = (
-            mimetypes.guess_type(file_name)[0]
-            or getattr(stream, "content_type", None)
-            or MIME_TYPE_UNKNOWN
-        )
         unique = self.generate_unique(stream_hash, extension)
         user_file = UserFile(
             original_name=file_name,
@@ -293,26 +364,30 @@ class UserFileHandler:
             sha256_hash=stream_hash,
         )
 
-        image = None
-        try:
-            image = Image.open(stream)
-            user_file.mime_type = f"image/{image.format}".lower()
-            self.generate_and_save_image_thumbnails(
-                image, user_file.name, storage=storage
-            )
-            # Skip marking as images if thumbnails cannot be generated (i.e. PSD files).
-            user_file.is_image = True
-            user_file.image_width = image.width
-            user_file.image_height = image.height
-        except IOError:
-            pass  # Not an image
-        except Exception as exc:
-            logger.warning(
-                f"Failed to generate thumbnails for user file of type {mime_type}: {exc}"
-            )
-        finally:
-            if image is not None:
-                del image
+        if is_active_content:
+            self._neutralize_active_content(user_file)
+        else:
+            image = None
+            try:
+                image = Image.open(stream)
+                user_file.mime_type = f"image/{image.format}".lower()
+                self.generate_and_save_image_thumbnails(
+                    image, user_file.name, storage=storage
+                )
+                # Skip marking as images if thumbnails cannot be generated (i.e. PSD files).
+                user_file.is_image = True
+                user_file.image_width = image.width
+                user_file.image_height = image.height
+            except IOError:
+                pass  # Not an image
+            except Exception as exc:
+                logger.warning(
+                    f"Failed to generate thumbnails for user file of type "
+                    f"{mime_type}: {exc}"
+                )
+            finally:
+                if image is not None:
+                    del image
 
         user_file.save()
 

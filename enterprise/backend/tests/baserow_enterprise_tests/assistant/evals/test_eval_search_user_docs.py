@@ -112,6 +112,21 @@ SEARCH_DOCS_CASES = [
         id="field-permissions",
     ),
     pytest.param(
+        "Which Baserow plan unlocks field-level permissions for a workspace?",
+        ["field-level-permissions", "permissions"],
+        ["plan", "field-level permissions", "field permissions", "enterprise"],
+        id="plan-for-field-level-permissions",
+    ),
+    pytest.param(
+        (
+            "I can't find the conditional options toggle for my single select field. "
+            "Should I upgrade, or is there another requirement?"
+        ),
+        ["single-select", "select-option", "fields"],
+        ["conditional", "single select", "plan", "upgrade"],
+        id="conditional-options-plan-question",
+    ),
+    pytest.param(
         (
             "How can I create a calendar that shows my tasks, but only the ones assigned to me."
         ),
@@ -121,9 +136,8 @@ SEARCH_DOCS_CASES = [
     ),
     pytest.param(
         (
-            "I'm trying to combine the first name and last name columns "
-            "into one, but I want to make sure it's uppercase. Can you tell me how to "
-            "write that formula?"
+            "What would a formula look like that combines a first name and last name field "
+            "into a full name field?"
         ),
         ["formula", "understanding-formulas"],
         ["concat", "upper", "formula"],
@@ -270,7 +284,7 @@ def test_search_user_docs(
             hint=f"tools called: {[e.get('tool_name') for e in history if e.get('tool_name')]}",
         )
         checks.check(
-            f"returned at least one source URL for user docs",
+            "returned at least one source URL for user docs",
             len(sources) >= 1,
             hint=f"tools called: {[e.get('tool_name') for e in history if e.get('tool_name')]}",
         )

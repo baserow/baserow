@@ -51,7 +51,9 @@ export default {
     },
   },
   setup() {
-    return { v$: useVuelidate({ $lazy: true }) }
+    return {
+      v$: useVuelidate({ $lazy: true }),
+    }
   },
   data() {
     return {

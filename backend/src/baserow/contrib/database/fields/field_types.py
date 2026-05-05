@@ -5676,7 +5676,7 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
             table__trashed=False,
             table__database__trashed=False,
             table__database__workspace__trashed=False,
-        )
+        ).exclude(formula_type=BaserowFormulaInvalidType.type)
 
     def run_periodic_update(
         self,

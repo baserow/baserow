@@ -2,10 +2,11 @@ from unittest.mock import patch
 
 import pytest
 
-from baserow.contrib.automation.models import Automation, AutomationWorkflow
+from baserow.contrib.automation.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.exceptions import (
     AutomationWorkflowDoesNotExist,
+    AutomationWorkflowNotificationRecipientsInvalid,
     AutomationWorkflowNotInAutomation,
 )
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
@@ -76,6 +77,26 @@ def test_create_workflow(data_fixture):
     workflow = AutomationWorkflowService().create_workflow(user, automation.id, "foo")
 
     assert workflow.automation_workflow_nodes.count() == 0
+    assert list(workflow.notification_recipients.all()) == [user]
+
+
+@pytest.mark.django_db
+def test_create_workflow_rejects_non_workspace_notification_recipients(data_fixture):
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    recipient = data_fixture.create_user()
+
+    with pytest.raises(AutomationWorkflowNotificationRecipientsInvalid) as exc:
+        AutomationWorkflowService().create_workflow(
+            user,
+            automation.id,
+            "foo",
+            notification_recipient_ids=[recipient.id],
+        )
+
+    assert str(exc.value) == (
+        "All notification recipients must belong to the workflow workspace."
+    )
 
 
 @patch(f"{SERVICES_PATH}.automation_workflow_deleted")
@@ -150,6 +171,37 @@ def test_update_workflow_ignores_invalid_values(data_fixture):
     assert hasattr(updated_workflow, "foo") is False
 
 
+@pytest.mark.django_db
+def test_update_workflow_updates_notification_recipients(data_fixture):
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(automation=automation)
+    recipient = data_fixture.create_user(workspace=automation.workspace)
+
+    updated_workflow = AutomationWorkflowService().update_workflow(
+        user, workflow.id, notification_recipient_ids=[recipient.id]
+    )
+
+    assert list(updated_workflow.workflow.notification_recipients.all()) == [recipient]
+
+
+@pytest.mark.django_db
+def test_update_workflow_rejects_non_workspace_notification_recipients(data_fixture):
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(automation=automation)
+    recipient = data_fixture.create_user()
+
+    with pytest.raises(AutomationWorkflowNotificationRecipientsInvalid) as exc:
+        AutomationWorkflowService().update_workflow(
+            user, workflow.id, notification_recipient_ids=[recipient.id]
+        )
+
+    assert str(exc.value) == (
+        "All notification recipients must belong to the workflow workspace."
+    )
+
+
 @patch(f"{SERVICES_PATH}.automation_workflows_reordered")
 @pytest.mark.django_db
 def test_workflows_reordered_signal_sent(workflows_reordered_mock, data_fixture):
@@ -208,6 +260,19 @@ def test_duplicate_workflow(data_fixture):
 
 
 @pytest.mark.django_db
+def test_duplicate_workflow_preserves_notification_recipients(data_fixture):
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    recipient = data_fixture.create_user(workspace=automation.workspace)
+    workflow = data_fixture.create_automation_workflow(automation=automation)
+    workflow.notification_recipients.add(recipient)
+
+    workflow_clone = AutomationWorkflowService().duplicate_workflow(user, workflow)
+
+    assert list(workflow_clone.notification_recipients.all()) == [recipient]
+
+
+@pytest.mark.django_db
 def test_duplicate_workflow_user_not_in_workspace(data_fixture):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow()
@@ -256,18 +321,32 @@ def test_publish_workflow(mock_signal, data_fixture):
     workflow = data_fixture.create_automation_workflow(automation=automation)
 
     service = AutomationWorkflowService()
-    service.publish(user, workflow, Progress(0))
+    published_workflow = service.publish(user, workflow, Progress(0))
 
     workflow.refresh_from_db()
     assert workflow.state == WorkflowState.DRAFT
 
-    published_automation = Automation.objects.get(published_from=workflow)
+    published_automation = published_workflow.automation
     assert published_automation.automation.workspace is None
     assert published_automation.workflows.count() == 1
 
-    published_workflow = published_automation.workflows.first()
     assert published_workflow.state == WorkflowState.LIVE
 
     mock_signal.send.assert_called_once_with(
         service, user=user, workflow=published_workflow
     )
+
+
+@pytest.mark.django_db
+def test_publish_workflow_removes_notification_recipients(data_fixture):
+    user = data_fixture.create_user()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(automation=automation)
+    recipient = data_fixture.create_user(workspace=automation.workspace)
+    workflow.notification_recipients.add(recipient)
+
+    published_workflow = AutomationWorkflowService().publish(
+        user, workflow, Progress(0)
+    )
+
+    assert list(published_workflow.notification_recipients.all()) == []
