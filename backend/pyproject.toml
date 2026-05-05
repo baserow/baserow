@@ -88,6 +88,7 @@ dependencies = [
     "typing_extensions>=4.14.1",
     "icalendar==6.3.2",
     "jira2markdown==0.5",
+    "atlassian-python-api==4.0.7",
     "openpyxl==3.1.5",
     "zipstream-ng==1.9.0",
     "mcp==1.26.0",
