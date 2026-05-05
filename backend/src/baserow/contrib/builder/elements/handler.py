@@ -561,7 +561,10 @@ class ElementHandler:
             workflow_actions=workflow_actions_duplicated,
         )
 
-        for child in element.children.all():
+        # Use get_child_points() rather than element.children (ORM queryset) because
+        # the queryset orders by pk, which diverges from graph order when elements have
+        # been moved after creation.
+        for child in element.get_child_points():
             children_duplicated = self._duplicate_element_recursive(
                 child.specific, id_mapping, element_duplicated, GraphPointPosition.CHILD
             )
