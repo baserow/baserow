@@ -14,6 +14,7 @@
       "
       :show-search="false"
       :multiple="element.multiple"
+      :clearable="!element.multiple && !element.required"
       @hide="onFormElementTouch"
     >
       <ABDropdownItem
