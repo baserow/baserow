@@ -974,6 +974,69 @@ def test_duplicate_element(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_duplicate_container_preserves_child_order(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+
+    form_container = data_fixture.create_builder_form_container_element(page=page)
+
+    # Create children in reverse graph order so pk(checkbox) < pk(text) < pk(input_text) < pk(heading).
+    # Desired graph order: heading → input_text → text → checkbox
+    checkbox = data_fixture.create_builder_checkbox_element(
+        page=page,
+        position=GraphPointPosition.CHILD,
+        reference_element=form_container,
+        place_in_container="",
+    )
+    text = data_fixture.create_builder_text_element(
+        page=page,
+        position=GraphPointPosition.NORTH,
+        reference_element=checkbox,
+    )
+    input_text = data_fixture.create_builder_input_text_element(
+        page=page,
+        position=GraphPointPosition.NORTH,
+        reference_element=text,
+    )
+    heading = data_fixture.create_builder_heading_element(
+        page=page,
+        position=GraphPointPosition.NORTH,
+        reference_element=input_text,
+    )
+
+    # Confirm pk order is the inverse of graph order.
+    assert checkbox.id < text.id < input_text.id < heading.id
+
+    url = reverse(
+        "api:builder:element:duplicate",
+        kwargs={"element_id": form_container.id},
+    )
+    response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+
+    response_json = response.json()
+    fc_copy, h_copy, it_copy, t_copy, cb_copy = response_json["elements"]
+
+    # Types reveal graph order. If children were iterated in pk order (checkbox has
+    # the lowest pk), checkbox would appear first instead of heading.
+    assert fc_copy["type"] == "form_container"
+    assert h_copy["type"] == "heading"
+    assert it_copy["type"] == "input_text"
+    assert t_copy["type"] == "text"
+    assert cb_copy["type"] == "checkbox"
+
+    # graph_additions must form the same chain as the original:
+    # fc_copy → h_copy → it_copy → t_copy → cb_copy
+    assert response_json["graph_additions"] == {
+        str(fc_copy["id"]): {"children": {"": [h_copy["id"]]}},
+        str(h_copy["id"]): {"next": {"": [it_copy["id"]]}},
+        str(it_copy["id"]): {"next": {"": [t_copy["id"]]}},
+        str(t_copy["id"]): {"next": {"": [cb_copy["id"]]}},
+        str(cb_copy["id"]): {},
+    }
+
+
+@pytest.mark.django_db
 def test_duplicate_element_does_not_exist(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
 
