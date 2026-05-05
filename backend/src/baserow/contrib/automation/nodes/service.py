@@ -418,6 +418,9 @@ class AutomationNodeService:
             workflow.simulate_until_node = None
             workflow.save(update_fields=["simulate_until_node"])
 
+        cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
+        global_cache.update(cache_key, lambda _: True)
+
         automation_node_deleted.send(
             self,
             workflow=workflow,

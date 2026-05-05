@@ -88,10 +88,6 @@ const { data: pageData, error } = await useAsyncData(
         workflowId: workflowId.value,
       })
 
-      await $store.dispatch('automationHistory/fetchWorkflowHistory', {
-        workflowId: workflowId.value,
-      })
-
       await $store.dispatch('automationWorkflowNode/fetch', {
         workflow,
       })

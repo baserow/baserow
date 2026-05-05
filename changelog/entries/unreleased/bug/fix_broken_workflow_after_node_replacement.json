@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix broken workflow after node replacement",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-05-05"
+}
