@@ -101,6 +101,9 @@ export default {
     formElementChildrenAreInvalid() {
       return this.getFormElementDescendants.some(
         ({ descendant, descendantType }) => {
+          if (!this.isFormFieldDisplayed(descendant, descendantType)) {
+            return false
+          }
           const uniqueElementId = descendantType.uniqueElementId({
             element: descendant,
             applicationContext: this.applicationContext,
@@ -114,6 +117,18 @@ export default {
     },
   },
   methods: {
+    isFormFieldDisplayed(descendant, descendantType) {
+      if (
+        this.mode !== 'editing' &&
+        descendantType.isInError(descendant, this.applicationContext)
+      ) {
+        return false
+      }
+      return descendantType.isVisible({
+        element: descendant,
+        applicationContext: this.applicationContext,
+      })
+    },
     /*
      * Responsible for marking all form element descendents in this form container
      * as touched, or not touched, depending on what we're achieving in validation.
@@ -121,6 +136,9 @@ export default {
     setFormElementDescendantsTouched(wasTouched) {
       this.getFormElementDescendants.forEach(
         ({ descendant, descendantType }) => {
+          if (!this.isFormFieldDisplayed(descendant, descendantType)) {
+            return
+          }
           const uniqueElementId = descendantType.uniqueElementId({
             element: descendant,
             applicationContext: this.applicationContext,
