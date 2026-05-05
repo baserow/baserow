@@ -172,6 +172,7 @@
 
 .ab-dropdownitem__item-name-text {
   @extend %ellipsis;
+
   flex: 1 1 auto;
   min-width: 0;
 }
