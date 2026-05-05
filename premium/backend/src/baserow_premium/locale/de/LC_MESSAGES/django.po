@@ -7,7 +7,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2023-01-31 17:07+0000\n"
+"POT-Creation-Date: 2026-03-16 21:52+0000\n"
 "PO-Revision-Date: 2023-03-07 14:56+0000\n"
 "Last-Translator: Alexander Haller <alex@baserow.io>\n"
 "Language-Team: German <https://hosted.weblate.org/projects/baserow/"
@@ -16,14 +16,59 @@ msgstr ""
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 "X-Generator: Weblate 4.16.2-dev\n"
 
-#: baserow_premium/row_comments/actions.py:20
+#: src/baserow_premium/fields/actions.py:19
+msgid "Generate Formula With AI"
+msgstr "Formel mit KI generieren"
+
+#: src/baserow_premium/fields/actions.py:20
+#, python-format
+msgid "Generate formula with AI using \"%(ai_type)s\" and \"%(ai_model)s\""
+msgstr "Formel mit KI generieren unter Verwendung von \"%(ai_type)s\" und \"%(ai_model)s\""
+
+#: src/baserow_premium/row_comments/actions.py:21
 msgid "Create row comment"
 msgstr "Zeilenkommentar erstellen"
 
-#: baserow_premium/row_comments/actions.py:21
+#: src/baserow_premium/row_comments/actions.py:22
 #, python-format
 msgid "Comment (%(comment_id)s) has been added to row (%(row_id)s)"
 msgstr "Der Kommentar (%(comment_id)s) wurde der Zeile (%(row_id)s) hinzugefügt"
+
+#: src/baserow_premium/row_comments/actions.py:93
+msgid "Update row comment"
+msgstr "Zeilenkommentar aktualisieren"
+
+#: src/baserow_premium/row_comments/actions.py:94
+#, python-format
+msgid "Comment (%(comment_id)s) has been updated in row (%(row_id)s)"
+msgstr "Der Kommentar (%(comment_id)s) wurde in der Zeile (%(row_id)s) aktualisiert"
+
+#: src/baserow_premium/row_comments/actions.py:174
+msgid "Delete row comment"
+msgstr "Zeilenkommentar löschen"
+
+#: src/baserow_premium/row_comments/actions.py:175
+#, python-format
+msgid "Comment (%(comment_id)s) has been deleted from row (%(row_id)s)"
+msgstr "Der Kommentar (%(comment_id)s) wurde aus der Zeile (%(row_id)s) gelöscht"
+
+#: src/baserow_premium/row_comments/notification_types.py:75
+#, python-format
+msgid "%(user)s mentioned you in row %(row_name)s in %(table_name)s."
+msgstr "%(user)s hat Sie in der Zeile %(row_name)s in %(table_name)s erwähnt."
+
+#: src/baserow_premium/row_comments/notification_types.py:128
+#, python-format
+msgid "%(user)s posted a comment in row %(row_name)s in %(table_name)s."
+msgstr "%(user)s hat einen Kommentar in der Zeile %(row_name)s in %(table_name)s veröffentlicht."
+
+#: src/baserow_premium/views/actions.py:26
+msgid "Calendar View ICal feed slug URL updated"
+msgstr "Slug-URL des ICal-Feeds der Kalenderansicht aktualisiert"
+
+#: src/baserow_premium/views/actions.py:27
+msgid "View changed public ICal feed slug URL"
+msgstr "Öffentliche Slug-URL des ICal-Feeds der Ansicht geändert"

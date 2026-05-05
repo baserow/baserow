@@ -33,7 +33,7 @@
     "aggregateRowsDataSourceForm": {
         "data": "Daten",
         "sourceFieldLabel": "Quelle",
-        "viewFieldLabel": "Anzeigen",
+        "viewFieldLabel": "Ansicht",
         "notSelected": "Nicht ausgewählt",
         "aggregationFieldLabel": "Feld",
         "aggregationTypeLabel": "Zusammenfassung"
