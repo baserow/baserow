@@ -717,7 +717,7 @@
     "invalidDecimalSeparator": "'{value}' is not a valid decimal separator. Valid options are: ',' or '.'.",
     "sameSeparators": "The thousand separator and decimal separator cannot be the same.",
     "invalidIntervalString": "'{value}' is not a valid interval string. Valid options are: '1 day', '2 hours', etc.",
-    "invalidDatetimeFormat": "'{value}' is not a valid datetime format. Valid options are Moment.js tokens: 'YYYY-MM-DD', 'DD/MM/YYYY HH:mm:ss', etc."
+    "invalidDatetimeFormat": "'{value}' is not a valid datetime format. Valid options are: 'YYYY-MM-DD', 'DD/MM/YYYY HH:mm:ss', etc."
   },
   "runtimeGetErrors": {
     "invalidPath": "The 'get' argument '{path}' must be a dot-delimited path (e.g., 'provider.property').",

@@ -239,5 +239,5 @@ class DatetimeFormatBaserowRuntimeFormulaArgumentType(
     def get_error_message(self, value) -> Optional[str]:
         return (
             f"'{value}' is not a valid datetime format. "
-            f"Use Moment.js tokens such as 'YYYY-MM-DD' or 'DD/MM/YYYY HH:mm:ss'."
+            f"Examples: 'YYYY-MM-DD' or 'DD/MM/YYYY HH:mm:ss'."
         )
