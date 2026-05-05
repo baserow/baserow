@@ -2,7 +2,7 @@ import _ from 'lodash'
 
 import { trueValues, falseValues } from '@baserow/modules/core/utils/constants'
 import moment from '@baserow/modules/core/moment'
-import { DateOnly } from '@baserow/modules/core/utils/date'
+import { DateOnly, Timedelta } from '@baserow/modules/core/utils/date'
 
 const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/
 const isoDateFormat = 'YYYY-MM-DD HH:mm:ss'
@@ -46,6 +46,9 @@ export const ensureInteger = (value) => {
     if (/^(-|\+)?(\d+|Infinity)$/.test(value)) {
       return Number(value)
     }
+  }
+  if (value instanceof Timedelta) {
+    return Math.floor(value.ms / 1000)
   }
   throw new Error(
     `Value '${value}' is not a valid integer or convertible to an integer.`
@@ -102,6 +105,26 @@ export const ensureString = (value, { allowEmpty = true } = {}) => {
     if (!isNaN(value)) {
       return moment(value).format(isoDateFormat)
     }
+  } else if (value instanceof Timedelta) {
+    const totalSeconds = Math.floor(Math.abs(value.ms) / 1000)
+
+    if (totalSeconds === 0) return '0 seconds'
+
+    const parts = []
+    const days = Math.floor(totalSeconds / 86400)
+    const hours = Math.floor((totalSeconds % 86400) / 3600)
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+    const seconds = totalSeconds % 60
+
+    if (days) parts.push(`${days} ${days === 1 ? 'day' : 'days'}`)
+    if (hours) parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`)
+    if (minutes)
+      parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`)
+    if (seconds)
+      parts.push(`${seconds} ${seconds === 1 ? 'second' : 'seconds'}`)
+
+    const result = parts.join(' ')
+    return value.ms < 0 ? `-${result}` : result
   } else if (typeof value === 'object') {
     // If it's a file we just extract the name
     if (value.__file__) {

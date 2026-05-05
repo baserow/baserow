@@ -10,7 +10,7 @@ import {
 } from '@baserow/modules/core/utils/validator'
 import { expect } from 'vitest'
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
-import { DateOnly } from '@baserow/modules/core/utils/date'
+import { DateOnly, Timedelta } from '@baserow/modules/core/utils/date'
 
 describe('ensureInteger', () => {
   it('should return the value as an integer if it is already an integer', () => {
@@ -29,6 +29,13 @@ describe('ensureInteger', () => {
     expect(() => ensureInteger(true)).toThrow(Error)
     expect(() => ensureInteger(null)).toThrow(Error)
     expect(() => ensureInteger([])).toThrow(Error)
+  })
+
+  it('should convert a Timedelta to total seconds', () => {
+    expect(ensureInteger(new Timedelta(86400000))).toBe(86400)
+    expect(ensureInteger(new Timedelta(3600000))).toBe(3600)
+    expect(ensureInteger(new Timedelta(0))).toBe(0)
+    expect(ensureInteger(new Timedelta(1500))).toBe(1)
   })
 })
 
@@ -227,6 +234,21 @@ describe('ensureString', () => {
     expect(ensureString(new DateOnly('2025-07-09'))).toBe('2025-07-09')
     expect(ensureString(new DateOnly(NaN))).toBe('Invalid Date')
     expect(ensureString(new Date(NaN))).toBe('Invalid Date')
+  })
+
+  it('should convert Timedelta to human-readable string', () => {
+    expect(ensureString(new Timedelta(0))).toBe('0 seconds')
+    expect(ensureString(new Timedelta(86400000))).toBe('1 day')
+    expect(ensureString(new Timedelta(2 * 86400000))).toBe('2 days')
+    expect(ensureString(new Timedelta(3600000))).toBe('1 hour')
+    expect(ensureString(new Timedelta(3 * 3600000 + 30 * 60000))).toBe(
+      '3 hours 30 minutes'
+    )
+    expect(
+      ensureString(new Timedelta(86400000 + 2 * 3600000 + 3 * 60000 + 4000))
+    ).toBe('1 day 2 hours 3 minutes 4 seconds')
+    expect(ensureString(new Timedelta(90000))).toBe('1 minute 30 seconds')
+    expect(ensureString(new Timedelta(-86400000))).toBe('-1 day')
   })
 })
 
