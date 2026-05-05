@@ -483,7 +483,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         try:
             dispatch_result = node_type.dispatch(node, dispatch_context)
         except ServiceImproperlyConfiguredDispatchException as e:
-            error = f"The node {node.id} is misconfigured and cannot be dispatched. {str(e)}"
+            error = f"The node is misconfigured and cannot be dispatched. {str(e)}"
             self._handle_workflow_error(node_history, iteration_path, error)
             self._handle_simulation_notify(simulate_until_node, node)
             return None
