@@ -785,7 +785,9 @@ def test_queryset_excludes_all_child_elements(
         visibility=child_visibility_type,
         roles=chid_element_roles,
         role_type=role_type,
-        parent_element_id=repeat_element.id,
+        reference_element=repeat_element,
+        position="child",
+        place_in_container="",
     )
 
     # Add a Heading element that matches the user's role, and is the final
@@ -795,7 +797,9 @@ def test_queryset_excludes_all_child_elements(
         visibility=child_visibility_type,
         roles=chid_element_roles,
         role_type=role_type,
-        parent_element_id=column_element.id,
+        reference_element=column_element,
+        position="child",
+        place_in_container="",
     )
 
     # Create a workflow action connected to the element that requires the role

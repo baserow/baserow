@@ -163,6 +163,7 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {},
         },
         {
             "id": page.id,
@@ -174,6 +175,7 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {},
         },
         {
             "id": page2.id,
@@ -185,6 +187,7 @@ def test_get_public_builder_by_domain_name(api_client, data_fixture):
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {},
         },
     ]
 
@@ -295,6 +298,7 @@ def test_get_public_builder_by_id(api_client, data_fixture):
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {},
         },
         {
             "id": page.id,
@@ -306,6 +310,7 @@ def test_get_public_builder_by_id(api_client, data_fixture):
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {},
         },
         {
             "id": page2.id,
@@ -317,6 +322,7 @@ def test_get_public_builder_by_id(api_client, data_fixture):
             "visibility": Page.VISIBILITY_TYPES.ALL.value,
             "role_type": Page.ROLE_TYPES.ALLOW_ALL.value,
             "roles": [],
+            "graph": {},
         },
     ]
 
@@ -439,9 +445,9 @@ def test_get_elements_of_public_builder(api_client, data_fixture):
         "id": element1.id,
         "page_id": page.id,
         "type": "heading",
-        "order": "1.00000000000000000000",
+        "order": 1.0,
         "parent_element_id": None,
-        "place_in_container": None,
+        "place_in_container": "",
         "css_classes": "",
         "visibility": "all",
         "visibility_condition": {"formula": "", "mode": "simple", "version": "0.1"},

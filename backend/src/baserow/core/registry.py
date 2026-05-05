@@ -589,7 +589,7 @@ class EasyImportExportMixin(Generic[T], ABC):
         import_export_config: Optional[Any] = None,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
-        cache: Optional[Dict[str, any]] = None,
+        cache: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
         Exports the instance to a serialized dict that can be imported by the
@@ -626,7 +626,7 @@ class EasyImportExportMixin(Generic[T], ABC):
         id_mapping: Dict[str, Dict[int, int]],
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
-        cache: Optional[Dict[str, any]] = None,
+        cache: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> Any:
         """

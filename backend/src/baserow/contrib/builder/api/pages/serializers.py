@@ -56,6 +56,7 @@ class PageSerializer(serializers.ModelSerializer):
             "role_type",
             "roles",
             "query_params",
+            "graph",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -65,6 +66,7 @@ class PageSerializer(serializers.ModelSerializer):
             "role_type": {"read_only": True},
             "roles": {"read_only": True},
             "order": {"help_text": "Lowest first."},
+            "graph": {"read_only": True},
         }
 
 

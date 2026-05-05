@@ -28,6 +28,7 @@ from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_ADVANCED,
     BaserowFormulaObject,
 )
+from baserow.core.graph.types import GraphPointPosition
 from baserow_enterprise.assistant.tools.shared.formula_utils import (
     formula_desc,
     literal_or_placeholder,
@@ -497,7 +498,8 @@ def _header_footer_post_create(
             user,
             menu_type,
             page,
-            parent_element_id=orm_element.id,
+            reference_element_id=orm_element.id,
+            position=GraphPointPosition.CHILD,
             menu_items=menu_items_orm,
         )
 

@@ -376,7 +376,7 @@ def update_element_formulas(
         pushed = False
         try:
             ancestor = ElementHandler().get_first_ancestor_of_type(
-                orm_element.id, CollectionElementTypeMixin
+                orm_element, CollectionElementTypeMixin
             )
         except KeyError:
             # Parent element may be on a different page (e.g. shared page header)
@@ -550,7 +550,7 @@ def update_single_element_formulas(
     pushed = False
     try:
         ancestor = ElementHandler().get_first_ancestor_of_type(
-            orm_element.id, CollectionElementTypeMixin
+            orm_element, CollectionElementTypeMixin
         )
     except KeyError:
         # Parent element may be on a different page (e.g. shared page header)
@@ -628,7 +628,7 @@ def update_workflow_action_formulas(
             formulas = action_create.get_formulas_to_create(orm_action, context)
 
             ancestor = ElementHandler().get_first_ancestor_of_type(
-                orm_action.element_id, CollectionElementTypeMixin
+                orm_action.element, CollectionElementTypeMixin
             )
             if ancestor:
                 context.push_current_record_context(ancestor.data_source_id)

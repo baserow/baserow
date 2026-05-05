@@ -2,7 +2,7 @@ from collections import defaultdict
 
 import pytest
 
-from baserow.contrib.builder.elements.models import RatingElement, RatingStyleChoices
+from baserow.contrib.builder.elements.models import RatingStyleChoices
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
@@ -13,8 +13,7 @@ from baserow.core.utils import MirrorDict
 @pytest.mark.django_db
 def test_rating_element_type_export_import(data_fixture):
     page = data_fixture.create_builder_page()
-    element = data_fixture.create_builder_element(
-        RatingElement,
+    element = data_fixture.create_builder_rating_element(
         page=page,
         value="'4'",
         max_value=5,

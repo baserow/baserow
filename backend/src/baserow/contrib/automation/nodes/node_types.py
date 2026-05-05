@@ -111,7 +111,7 @@ class ContainerNodeTypeMixin:
         Check the container node is not moved inside itself.
         """
 
-        if node in reference_node.get_parent_nodes():
+        if node in reference_node.get_parent_points():
             raise AutomationNodeNotMovable(
                 "A container node cannot be moved inside itself"
             )
