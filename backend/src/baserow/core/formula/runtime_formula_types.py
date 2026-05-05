@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
 
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from baserow.core.exceptions import InstanceTypeDoesNotExist
@@ -26,7 +27,7 @@ from baserow.core.formula.argument_types import (
 from baserow.core.formula.registries import RuntimeFormulaFunction
 from baserow.core.formula.types import FormulaArg, FormulaArgs, FormulaContext
 from baserow.core.formula.utils.date import convert_date_format_moment_to_python
-from baserow.core.formula.validator import ensure_array, ensure_string
+from baserow.core.formula.validator import ensure_array, ensure_datetime, ensure_string
 from baserow.core.utils import to_path
 
 
@@ -744,15 +745,15 @@ class RuntimeToDatetime(RuntimeFormulaFunction):
             moment_format = args[1]
             python_format = convert_date_format_moment_to_python(moment_format)
             try:
-                datetime.strptime(value, python_format)
-            except ValueError:
+                ensure_datetime(value, date_format=python_format)
+            except ValidationError:
                 raise BaserowFormulaSyntaxError(
                     f"'{value}' could not be parsed using format '{moment_format}'."
                 )
         else:
             try:
-                datetime.fromisoformat(value)
-            except ValueError:
+                ensure_datetime(value)
+            except ValidationError:
                 raise BaserowFormulaSyntaxError(
                     f"'{value}' is not a valid ISO datetime string. "
                     f"Expected a format like '2024-01-15' or '2024-01-15T12:00:00'."
@@ -762,6 +763,6 @@ class RuntimeToDatetime(RuntimeFormulaFunction):
         value = args[0]
         if len(args) == 2:
             python_format = convert_date_format_moment_to_python(args[1])
-            return datetime.strptime(value, python_format)
+            return ensure_datetime(value, date_format=python_format)
         else:
-            return datetime.fromisoformat(value)
+            return ensure_datetime(value)

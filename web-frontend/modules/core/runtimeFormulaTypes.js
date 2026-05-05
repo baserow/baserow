@@ -26,6 +26,7 @@ import { avg, sum } from '@baserow/modules/core/utils/number'
 import {
   ensureString,
   ensureArray,
+  ensureDateTime,
 } from '@baserow/modules/core/utils/validator'
 import { Node, VueNodeViewRenderer } from '@tiptap/vue-3'
 import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
@@ -2755,15 +2756,29 @@ export class RuntimeToDatetime extends RuntimeFormulaFunction {
     const value = args[0]
     if (args.length === 2) {
       const fmt = args[1]
-      if (!moment(value, fmt, true).isValid()) {
+      try {
+        ensureDateTime(value, { allowEmpty: false, format: fmt })
+      } catch {
         throw new InvalidFormulaArgument(
           this.getType(),
           `'${value}' could not be parsed using format '${fmt}'.`
         )
       }
     } else {
+      // "2026" is a valid string argument to moment, but the backend
+      // expects the full datetime string. This ensures that we don't
+      // allow "2026" or "2026-05" to be accepted as valid.
       const hasMinDatePart = /^\d{4}-\d{2}-\d{2}/.test(value)
-      if (!hasMinDatePart || !moment(value, moment.ISO_8601, true).isValid()) {
+      if (!hasMinDatePart) {
+        throw new InvalidFormulaArgument(
+          this.getType(),
+          `'${value}' is not a valid datetime string.`
+        )
+      }
+
+      try {
+        ensureDateTime(value, { allowEmpty: false })
+      } catch {
         throw new InvalidFormulaArgument(
           this.getType(),
           `'${value}' is not a valid datetime string.`
@@ -2774,9 +2789,9 @@ export class RuntimeToDatetime extends RuntimeFormulaFunction {
 
   execute(context, args) {
     if (args.length === 2) {
-      return moment(args[0], args[1], true).toDate()
+      return ensureDateTime(args[0], { allowEmpty: false, format: args[1] })
     }
-    return moment(args[0], moment.ISO_8601, true).toDate()
+    return ensureDateTime(args[0], { allowEmpty: false })
   }
 
   getDescription() {

@@ -30,6 +30,29 @@ def test_ensure_datetime():
     assert ensure_datetime("2024-12-17 12:00") == datetime(2024, 12, 17, 12, 0, 0)
 
 
+def test_ensure_datetime_with_date_format():
+    assert ensure_datetime(
+        "05/05/2026 14:30", date_format="%d/%m/%Y %H:%M"
+    ) == datetime(2026, 5, 5, 14, 30)
+    assert ensure_datetime("2026-05-05", date_format="%Y-%m-%d") == datetime(2026, 5, 5)
+
+
+def test_ensure_datetime_with_date_format_iso_takes_priority():
+    assert ensure_datetime("2026-05-05T12:00:00", date_format="%d/%m/%Y") == datetime(
+        2026, 5, 5, 12, 0, 0
+    )
+
+
+def test_ensure_datetime_with_date_format_invalid_value():
+    with pytest.raises(ValidationError) as exc:
+        ensure_datetime("foo", date_format="%d/%m/%Y %H:%M")
+    assert exc.value.args[0] == "Value cannot be converted to a datetime."
+
+
+def test_ensure_datetime_with_date_format_none_value():
+    assert ensure_datetime(None, date_format="%d/%m/%Y") is None
+
+
 @pytest.mark.parametrize("value", [1, 0.1, [], {}, False, "invalid"])
 def test_ensure_datetime_throws_exception_for_invalid_value(value):
     with pytest.raises(ValidationError) as exc:
