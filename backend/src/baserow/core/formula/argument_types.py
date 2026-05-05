@@ -7,11 +7,11 @@ import pytz
 
 from baserow.core.formula.utils.date import (
     is_valid_datetime_format,
-    parse_interval_string,
 )
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
+    ensure_date_interval,
     ensure_datetime,
     ensure_numeric,
     ensure_object,
@@ -210,15 +210,14 @@ class IntervalStringBaserowRuntimeFormulaArgumentType(
     BaserowRuntimeFormulaArgumentType
 ):
     def test(self, value):
-        if isinstance(value, timedelta):
+        try:
+            ensure_date_interval(value)
             return True
-        return parse_interval_string(value) is not None
+        except ValidationError:
+            return False
 
     def parse(self, value):
-        if isinstance(value, timedelta):
-            return value
-        result = parse_interval_string(value)
-        return result if result is not None else value
+        return ensure_date_interval(value)
 
     def get_error_message(self, value) -> Optional[str]:
         return (

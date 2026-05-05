@@ -5,6 +5,7 @@ import {
   ensureObject,
   ensureBoolean,
   ensureArray,
+  ensureDateInterval,
 } from '@baserow/modules/core/utils/validator'
 import moment from '@baserow/modules/core/moment'
 import {
@@ -257,15 +258,16 @@ export class TimedeltaBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFo
 
 export class IntervalStringBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
   test(value) {
-    if (value instanceof Timedelta) return true
-    if (typeof value !== 'string') return false
-    return parseIntervalString(value) !== null
+    try {
+      ensureDateInterval(value)
+      return true
+    } catch (e) {
+      return false
+    }
   }
 
   parse(value) {
-    if (value instanceof Timedelta) return value
-    const result = parseIntervalString(value)
-    return result !== null ? result : value
+    return ensureDateInterval(value)
   }
 
   getErrorMessage(value, i18n) {

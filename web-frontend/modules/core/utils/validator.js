@@ -2,7 +2,11 @@ import _ from 'lodash'
 
 import { trueValues, falseValues } from '@baserow/modules/core/utils/constants'
 import moment from '@baserow/modules/core/moment'
-import { DateOnly, Timedelta } from '@baserow/modules/core/utils/date'
+import {
+  DateOnly,
+  Timedelta,
+  parseIntervalString,
+} from '@baserow/modules/core/utils/date'
 
 const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/
 const isoDateFormat = 'YYYY-MM-DD HH:mm:ss'
@@ -307,4 +311,29 @@ export const ensureObject = (value) => {
   throw new TypeError(
     'Value is not a valid object or convertible to an object.'
   )
+}
+
+/**
+ * Ensures that the value is a valid date interval or converts it to one.
+ * @param {*} value - The value to ensure as a date interval.
+ * @returns {Timedelta} - The converted value as a Timedelta.
+ * @throws {TypeError} if `value` is not convertable to a Timedelta.
+ */
+export const ensureDateInterval = (value) => {
+  if (value instanceof Timedelta) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const result = parseIntervalString(value)
+    if (result !== null) return result
+    throw new TypeError(
+      `'${value}' is not a valid interval string. Expected format: e.g. '1 day', '2 hours'.`
+    )
+  }
+  if (typeof value === 'number') {
+    return new Timedelta(value * 1000)
+  }
+
+  throw new TypeError('Value cannot be converted to a date interval.')
 }

@@ -261,7 +261,7 @@ def ensure_datetime(
         raise ValidationError("Value cannot be converted to a datetime.") from exc
 
 
-def ensure_date_interval(value: Any) -> Optional[timedelta]:
+def ensure_date_interval(value: Any) -> timedelta:
     """
     Ensures that the value is a timedelta or is convertible to a timedelta.
     :param value: The value to ensure as a timedelta.
@@ -269,9 +269,6 @@ def ensure_date_interval(value: Any) -> Optional[timedelta]:
     :raises ValidationError: If the value is not a valid timedelta or
         convertible to a timedelta.
     """
-
-    if value is None:
-        return None
 
     if isinstance(value, timedelta):
         return value
