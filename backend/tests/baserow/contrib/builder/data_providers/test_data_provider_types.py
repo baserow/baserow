@@ -38,6 +38,7 @@ from baserow.core.formula.exceptions import (
 )
 from baserow.core.formula.registries import DataProviderType
 from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -1511,7 +1512,9 @@ def test_current_record_provider_get_data_chunk(data_fixture):
         page=page, data_source=data_source
     )
     button_element = data_fixture.create_builder_button_element(
-        page=page, parent_element=repeat_element
+        page=page,
+        reference_element=repeat_element,
+        position=GraphPointPosition.CHILD,
     )
 
     workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(

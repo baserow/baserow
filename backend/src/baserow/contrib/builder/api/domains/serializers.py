@@ -179,11 +179,13 @@ class PublicPageSerializer(serializers.ModelSerializer):
             "role_type",
             "roles",
             "query_params",
+            "graph",
         )
         extra_kwargs = {
             "id": {"read_only": True},
             "builder_id": {"read_only": True},
             "order": {"help_text": "Lowest first."},
+            "graph": {"read_only": True},
         }
 
 

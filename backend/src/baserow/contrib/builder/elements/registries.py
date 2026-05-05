@@ -1,6 +1,7 @@
 import uuid
 from abc import ABC, abstractmethod
 from typing import (
+    TYPE_CHECKING,
     Any,
     Dict,
     Generator,
@@ -23,6 +24,7 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
@@ -45,6 +47,9 @@ BUILDER_PAGE_ELEMENTS = "builder_page_elements"
 ELEMENT_IDS_PROCESSED_FOR_ROLES = "_element_ids_processed_for_roles"
 EXISTING_USER_SOURCE_ROLES = "_existing_user_source_roles"
 
+if TYPE_CHECKING:
+    from baserow.contrib.builder.pages.graph_handler import PageGraphHandler
+
 
 class ElementType(
     BuilderInstanceWithFormulaMixin,
@@ -59,6 +64,9 @@ class ElementType(
     SerializedDict: Type[ElementDictSubClass]
     parent_property_name = "page"
     id_mapping_name = BUILDER_PAGE_ELEMENTS
+
+    # Is this element type a container-type element?
+    is_container = False
 
     # Whether this element is a multi-page element and should be placed on shared page.
     is_multi_page_element = False
@@ -83,70 +91,71 @@ class ElementType(
         implementation of this hook.
 
         :param values: The values that are being updated
-        :param instance: (optional) The existing instance that is being updated
-        :return:
+        :param instance: The existing instance that is being updated
+        :return: Values that should be used for the update or creation of the element.
         """
 
-        from baserow.contrib.builder.elements.handler import ElementHandler
+        page = values.get("page", instance.page) if instance else values["page"]
 
-        parent_element_id = values.get(
-            "parent_element_id", getattr(instance, "parent_element_id", None)
-        )
-
-        if instance:
-            place_in_container = values.get(
-                "place_in_container", instance.place_in_container
+        if (
+            instance is None
+            and getattr(self, "is_multi_page_element", False) != page.shared
+        ):
+            raise ValidationError(
+                "This element type can't be added as root of a "
+                f"{'an unshared' if self.is_multi_page_element else 'the shared'} "
+                "page."
             )
-            page = values.get("page", instance.page)
-        else:
-            place_in_container = values.get("place_in_container", None)
-            page = values["page"]
-
-        parent_element = None
-        if parent_element_id is not None:
-            parent_element = ElementHandler().get_element(parent_element_id)
-
-        # Validate the place for this element
-        self.validate_place(page, parent_element, place_in_container)
 
         return values
 
     def validate_place(
         self,
         page: Page,
-        parent_element: Optional[ElementSubClass],
+        reference_element: ElementSubClass,
         place_in_container: str,
+        position: GraphPointPositionType = None,
     ):
         """
-        Validates the page/parent_element/place_in_container for this element.
-        Can be overridden to change the behaviour.
+        Validates the page/reference_element/place_in_container for this element.
+        Can be overridden to change the behavior.
 
         :param page: the page we want to add/move the element to.
-        :param parent_element: the parent_element if any.
+        :param reference_element: the element reference.
         :param place_in_container: the place in container in the parent.
-        :raises ValidationError: if the the element place is not allowed.
+        :param position: the position we are referencing alongside `reference_element`.
+        :raises ValidationError: if the element place is disallowed.
         """
 
-        if parent_element:
-            if self.type not in [
-                e.type for e in parent_element.get_type().child_types_allowed
-            ]:
-                raise ValidationError(
-                    f"Container of type {parent_element.get_type().type} can't have child of "
-                    f"type {self.type}"
-                )
-
-            # If we have a parent, we validate the place is accepted by this container.
-            parent_element.get_type().validate_place_in_container(
-                place_in_container, parent_element
+        reference_type = reference_element.get_type()
+        if self.type not in [e.type for e in reference_type.child_types_allowed]:
+            raise ValidationError(
+                f"Container of type {reference_type.type} can't have "
+                f"child of type {self.type}"
             )
-        else:
-            if self.is_multi_page_element != page.shared:
-                raise ValidationError(
-                    "This element type can't be added as root of a "
-                    f"{'an unshared' if self.is_multi_page_element else 'the shared'} "
-                    "page."
-                )
+
+        # We know the reference is a container, but are we actively trying
+        # to validate the place of the element as a child of this container?
+        if position == GraphPointPosition.CHILD:
+            reference_type.validate_place_in_container(
+                place_in_container, reference_element
+            )
+
+    def after_import(
+        self,
+        instance: ElementSubClass,
+        id_mapping: Dict[str, Any],
+        import_context: Dict[str, Any],
+    ):
+        """
+        This hook is called after all elements have been created but before
+        graph migration. Used for post-processing that needs import context
+        (e.g. property options, collection field formulas).
+
+        :param instance: The imported element instance.
+        :param id_mapping: A map of old->new id per data type.
+        :param import_context: Context dict with data_source_id, schema_property, etc.
+        """
 
     def after_create(self, instance: ElementSubClass, values: Dict):
         """
@@ -172,11 +181,16 @@ class ElementType(
             element prior to `after_update` being called.
         """
 
-    def after_move(self, instance: ElementSubClass):
+    def after_move(
+        self, instance: ElementSubClass, source_graph: "PageGraphHandler" = None
+    ):
         """
         This hook is called right after the element has been moved successfully.
 
         :param instance: Moved instance.
+        :param source_graph: The graph the element lived in before the move. Passed
+            so implementations can still look up children even after the graph has
+            been mutated.
         """
 
     def before_delete(self, instance: ElementSubClass):
@@ -184,6 +198,16 @@ class ElementType(
         This hook is called just before the element will be deleted.
 
         :param instance: The to be deleted element instance.
+        """
+
+    def before_move(
+        self,
+        element: Element,
+        reference_element: Element | None,
+        position: GraphPointPositionType,
+    ):
+        """
+        Called before an element is moved.
         """
 
     def import_context_addition(self, instance: ElementSubClass) -> Dict[str, Any]:
@@ -208,13 +232,13 @@ class ElementType(
         cache: Dict[str, Any] | None = None,
         **kwargs,
     ) -> ElementSubClass:
+        if cache is None:
+            cache = {}
+
         # Add mapping for builder element event uids (for collection field or other
         # elements that are using dynamic events.
         if "builder_element_event_uids" not in id_mapping:
             id_mapping["builder_element_event_uids"] = {}
-
-        if cache is None:
-            cache = {}
 
         existing_roles = cache.get("existing_roles", {}).get(page.builder.id)
         if not existing_roles:
@@ -243,6 +267,12 @@ class ElementType(
         cache.setdefault("imported_element_map", {})[created_instance.id] = (
             created_instance
         )
+
+        from baserow.contrib.builder.elements.handler import ElementHandler
+
+        # As we've created a new element instance, clear the `ElementHandler`
+        # cache so that any upcoming calls to `get_elements` includes the new model.
+        ElementHandler().invalidate_element_cache(page)
 
         return created_instance
 
@@ -293,9 +323,6 @@ class ElementType(
         You can customize the behavior of the serialization of a property with this
         hook.
         """
-
-        if prop_name == "order":
-            return str(element.order)
 
         if prop_name == "style_background_file_id":
             return UserFileHandler().export_user_file(

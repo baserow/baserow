@@ -14,6 +14,7 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import GridView
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
@@ -348,12 +349,16 @@ def load_test_data():
             builder.shared_page,
         )
         column = ElementHandler().create_element(
-            column_element, builder.shared_page, parent_element_id=header.id
+            column_element,
+            builder.shared_page,
+            reference_element=header,
+            position=GraphPointPosition.CHILD,
         )
         ElementHandler().create_element(
             link_element_type,
             builder.shared_page,
-            parent_element_id=column.id,
+            reference_element=column,
+            position=GraphPointPosition.CHILD,
             place_in_container="0",
             value='"Home"',
             variant="link",
