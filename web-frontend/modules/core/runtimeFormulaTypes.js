@@ -92,10 +92,10 @@ export class RuntimeFormulaFunction extends Registerable {
    * @throws InvalidFormulaArgumentType - If any of the arguments have a wrong type
    */
   validateArgs(args, { ctx = null, validationContext = {} } = {}) {
-    const invalidArg = this.validateTypeOfArgs(args)
-    if (invalidArg) {
+    const result = this.validateTypeOfArgs(args)
+    if (result) {
+      const [index, invalidArg] = result
       if (this.args) {
-        const index = args.indexOf(invalidArg)
         const message = this.args[index].getErrorMessage(
           invalidArg,
           this.app.$i18n
@@ -139,7 +139,13 @@ export class RuntimeFormulaFunction extends Registerable {
       return null
     }
 
-    return args.find((arg, index) => !this.args[index].test(arg))
+    for (let index = 0; index < args.length; index++) {
+      if (!this.args[index].test(args[index])) {
+        return [index, args[index]]
+      }
+    }
+
+    return undefined
   }
 
   /**
@@ -476,8 +482,8 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
       if (num.test(a) && num.test(b)) return undefined
       if ((dt.test(a) && td.test(b)) || (td.test(a) && dt.test(b)))
         return undefined
-      if (!(num.test(a) || dt.test(a) || td.test(a))) return a
-      return b
+      if (!(num.test(a) || dt.test(a) || td.test(a))) return [0, a]
+      return [1, b]
     }
     return super.validateTypeOfArgs(args)
   }
@@ -551,8 +557,8 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
       const td = new TimedeltaBaserowRuntimeFormulaArgumentType()
       if (num.test(a) && num.test(b)) return undefined
       if (dt.test(a) && td.test(b)) return undefined
-      if (!(num.test(a) || dt.test(a))) return a
-      return b
+      if (!(num.test(a) || dt.test(a))) return [0, a]
+      return [1, b]
     }
     return super.validateTypeOfArgs(args)
   }
