@@ -2086,7 +2086,7 @@ describe('RuntimeDateInterval', () => {
     // Invalid strings and types — arg is returned as invalid
     { args: [''], expected: [0, ''] },
     { args: ['not valid'], expected: [0, 'not valid'] },
-    { args: [1], expected: [0, 1] },
+    { args: [1], expected: undefined },
     { args: [null], expected: [0, null] },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeDateInterval()

@@ -1,6 +1,7 @@
 import {
   ensureArray,
   ensureDateTime,
+  ensureDateInterval,
   ensureInteger,
   ensureString,
   ensureNumeric,
@@ -555,5 +556,52 @@ describe('ensureDateTime', () => {
       expect(result.getUTCMinutes()).toBe(30)
       expect(result.getUTCSeconds()).toBe(45)
     })
+  })
+})
+
+describe('ensureDateInterval', () => {
+  test('returns Timedelta for valid interval strings', () => {
+    expect(ensureDateInterval('1 day')).toStrictEqual(new Timedelta(86400000))
+    expect(ensureDateInterval('2 hours')).toStrictEqual(
+      new Timedelta(2 * 3600000)
+    )
+    expect(ensureDateInterval('30 minutes')).toStrictEqual(
+      new Timedelta(30 * 60000)
+    )
+    expect(ensureDateInterval('1 week')).toStrictEqual(
+      new Timedelta(7 * 86400000)
+    )
+    expect(ensureDateInterval('1 year')).toStrictEqual(
+      new Timedelta(365 * 86400000)
+    )
+    expect(ensureDateInterval('1 month')).toStrictEqual(
+      new Timedelta(30 * 86400000)
+    )
+  })
+
+  test('returns Timedelta passthrough', () => {
+    const td = new Timedelta(5000)
+    expect(ensureDateInterval(td)).toBe(td)
+  })
+
+  test('converts number to Timedelta in seconds', () => {
+    expect(ensureDateInterval(60)).toStrictEqual(new Timedelta(60000))
+    expect(ensureDateInterval(3600)).toStrictEqual(new Timedelta(3600000))
+    expect(ensureDateInterval(0)).toStrictEqual(new Timedelta(0))
+  })
+
+  test('throws for invalid strings', () => {
+    expect(() => ensureDateInterval('foo')).toThrow()
+    expect(() => ensureDateInterval('')).toThrow()
+  })
+
+  test('throws for null/undefined', () => {
+    expect(() => ensureDateInterval(null)).toThrow()
+    expect(() => ensureDateInterval(undefined)).toThrow()
+  })
+
+  test('throws for invalid types', () => {
+    expect(() => ensureDateInterval([])).toThrow()
+    expect(() => ensureDateInterval({})).toThrow()
   })
 })

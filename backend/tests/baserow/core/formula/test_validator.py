@@ -63,7 +63,6 @@ def test_ensure_datetime_throws_exception_for_invalid_value(value):
 @pytest.mark.parametrize(
     "value,expected",
     [
-        (None, None),
         (timedelta(days=2), timedelta(days=2)),
         (timedelta(hours=3, minutes=30), timedelta(hours=3, minutes=30)),
         (timedelta(0), timedelta(0)),
@@ -94,7 +93,7 @@ def test_ensure_date_interval_invalid_string(value):
     assert f"'{value}' is not a valid interval string." in str(e)
 
 
-@pytest.mark.parametrize("value", [[], {}])
+@pytest.mark.parametrize("value", [None, [], {}])
 def test_ensure_date_interval_invalid_type(value):
     with pytest.raises(ValidationError) as e:
         ensure_date_interval(value)

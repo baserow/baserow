@@ -255,7 +255,7 @@ def test_decimal_separator_get_error_message_returns_human_readable_string():
         ("foo", False),
         ("", False),
         ("1", False),
-        (1, False),
+        (1, True),
         (None, False),
     ],
 )
