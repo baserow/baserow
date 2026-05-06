@@ -118,6 +118,8 @@ export default {
   },
   methods: {
     isFormFieldDisplayed(descendant, descendantType) {
+      // In the published app PageElement hides misconfigured
+      // elements, so we exclude them from  validation here too.
       if (
         this.mode !== 'editing' &&
         descendantType.isInError(descendant, this.applicationContext)
