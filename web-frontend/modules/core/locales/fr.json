@@ -229,7 +229,7 @@
         "refresh": "Actualiser la page"
     },
     "dashboard": {
-        "title": "Statistiques",
+        "title": "Accueil",
         "alertTitle": "Soutenez-nous !",
         "alertText": "En partageant Baserow, vous nous aidez à améliorer le produit et à le rendre plus utile pour vous.",
         "tweetContent": "Découvrez {'@'}baserow, une base de données no-code libre, une alternative à Airtable !",
