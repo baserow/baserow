@@ -992,7 +992,7 @@ def test_auth_user_can_view_element_returns_true(
         (
             Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
-            [],
+            ["foo_role"],
             Element.VISIBILITY_TYPES.LOGGED_IN,
             Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
             [],
@@ -1014,12 +1014,12 @@ def test_auth_user_can_view_element_returns_true(
         (
             Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
-            ["foo_role"],
+            [],
             Element.VISIBILITY_TYPES.LOGGED_IN,
             Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
-            [],
+            ["foo_role"],
             "foo_role",
-            0,
+            1,
         ),
         # Page disallows visibility due to role, so despite the Element allowing
         # access, it shouldn't be returned.

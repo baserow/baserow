@@ -1294,91 +1294,176 @@ def test_public_dispatch_data_sources_list_rows_with_elements_and_role(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "user_role,page_role_type,page_roles,element_role,expect_fields",
+    "user_role,page_visibility,page_role_type,page_roles,"
+    "element_role_type,element_roles,expect_fields",
     [
+        # Page visibility = all: page role settings should be ignored.
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.ALLOW_ALL,
             [],
-            "",
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
             True,
         ),
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
             [],
-            "",
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
             True,
         ),
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
             ["foo_role"],
-            "",
-            False,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
             [],
-            "",
-            False,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
-            ["foo_role"],
-            "",
             True,
         ),
-        # The following should all fail (no field info returned) because
-        # although the Page visiblity allows access, the Element visibility
-        # does not.
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            [],
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
+            True,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
+            True,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.ALLOW_ALL,
             [],
-            "foo_role",
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
             False,
         ),
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
             [],
-            "foo_role",
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
             False,
         ),
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
             ["foo_role"],
-            "foo_role",
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
             False,
         ),
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
             [],
-            "foo_role",
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
             False,
         ),
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
             ["foo_role"],
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            False,
+        ),
+        # Page visibility = logged-in: page role settings should be applied.
+        (
             "foo_role",
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.ALLOW_ALL,
+            [],
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            True,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            True,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            True,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["bar_role"],
+            False,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["bar_role"],
+            False,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            False,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            [],
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
             False,
         ),
     ],
 )
-def test_public_dispatch_data_sources_list_rows_with_page_visibility_all(
+def test_public_dispatch_data_sources_list_rows_with_page_visibility(
     api_client,
     data_fixture,
     data_source_element_roles_fixture,
     user_role,
+    page_visibility,
     page_role_type,
     page_roles,
-    element_role,
+    element_role_type,
+    element_roles,
     expect_fields,
 ):
     """
@@ -1388,14 +1473,10 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_all(
     This test checks that the page's visibility setting is correctly evaluated
     when filtering the elements for the API response. The response should only
     contain field data if the page's visibility settings allow it.
-
-    When the visibility_type is 'all', the API should return fields regardless
-    of the role_type or roles list. However, it should still respect the element
-    level visibility.
     """
 
     page = data_source_element_roles_fixture["page"]
-    page.visibility = Page.VISIBILITY_TYPES.ALL
+    page.visibility = page_visibility
     page.role_type = page_role_type
     page.roles = page_roles
     page.save()
@@ -1406,7 +1487,7 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_all(
         user_role,
     )
     user_source_user = UserSourceUser(
-        user_source, None, 1, "foo_username", "foo@bar.com"
+        user_source, None, 1, "foo_username", "foo@bar.com", role=user_role
     )
     token = user_source_user.get_refresh_token().access_token
 
@@ -1424,8 +1505,8 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_all(
         page=page,
         data_source=data_source,
         visibility=Element.VISIBILITY_TYPES.LOGGED_IN,
-        roles=[element_role],
-        role_type=Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+        roles=element_roles,
+        role_type=element_role_type,
         fields=[
             {
                 "name": "FieldA",
@@ -1474,91 +1555,176 @@ def test_public_dispatch_data_sources_list_rows_with_page_visibility_all(
 
 @pytest.mark.django_db
 @pytest.mark.parametrize(
-    "user_role,page_role_type,page_roles,element_role,expect_fields",
+    "user_role,page_visibility,page_role_type,page_roles,"
+    "element_role_type,element_roles,expect_fields",
     [
+        # Page visibility = all: page role settings should be ignored.
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.ALLOW_ALL,
             [],
-            "",
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
             True,
         ),
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
             [],
-            "",
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
             True,
         ),
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
             ["foo_role"],
-            "",
-            False,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
             [],
-            "",
-            False,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
-            ["foo_role"],
-            "",
             True,
         ),
-        # The following should all fail (no field info returned) because
-        # although the Page visiblity allows access, the Element visibility
-        # does not.
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            [],
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
+            True,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
+            True,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.ALLOW_ALL,
             [],
-            "foo_role",
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
             False,
         ),
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
             [],
-            "foo_role",
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
             False,
         ),
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
             ["foo_role"],
-            "foo_role",
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
             False,
         ),
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
             [],
-            "foo_role",
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
             False,
         ),
         (
             "foo_role",
+            Page.VISIBILITY_TYPES.ALL,
             Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
             ["foo_role"],
+            Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            False,
+        ),
+        # Page visibility = logged-in: page role settings should be applied.
+        (
             "foo_role",
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.ALLOW_ALL,
+            [],
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            True,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            True,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            True,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            [],
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["bar_role"],
+            False,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["bar_role"],
+            False,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
+            False,
+        ),
+        (
+            "foo_role",
+            Page.VISIBILITY_TYPES.LOGGED_IN,
+            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            [],
+            Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
+            ["foo_role"],
             False,
         ),
     ],
 )
-def test_public_dispatch_data_sources_get_row_with_page_visibility_all(
+def test_public_dispatch_data_sources_get_row_with_page_visibility(
     api_client,
     data_fixture,
     data_source_element_roles_fixture,
     user_role,
+    page_visibility,
     page_role_type,
     page_roles,
-    element_role,
+    element_role_type,
+    element_roles,
     expect_fields,
 ):
     """
@@ -1569,13 +1735,10 @@ def test_public_dispatch_data_sources_get_row_with_page_visibility_all(
     when filtering the elements for the API response. The response should only
     contain field data if the page's visibility settings allow it.
 
-    When the visibility_type is 'all', the API should return fields regardless
-    of the role_type or roles list. However, it should still respect the element
-    level visibility.
     """
 
     page = data_source_element_roles_fixture["page"]
-    page.visibility = Page.VISIBILITY_TYPES.ALL
+    page.visibility = page_visibility
     page.role_type = page_role_type
     page.roles = page_roles
     page.save()
@@ -1605,8 +1768,8 @@ def test_public_dispatch_data_sources_get_row_with_page_visibility_all(
         page=page,
         value=f"get('data_source.{data_source.id}.field_{field_id}')",
         visibility=Element.VISIBILITY_TYPES.LOGGED_IN,
-        roles=[element_role],
-        role_type=Element.ROLE_TYPES.ALLOW_ALL_EXCEPT,
+        roles=element_roles,
+        role_type=element_role_type,
     )
 
     url = reverse(
@@ -1626,298 +1789,6 @@ def test_public_dispatch_data_sources_get_row_with_page_visibility_all(
     if expect_fields:
         assert response.json() == {
             str(data_source.id): {field.name: "Apple"},
-        }
-    else:
-        assert response.json() == {str(data_source.id): {}}
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "user_role,page_role_type,page_roles,element_role,expect_fields",
-    [
-        (
-            "foo_role",
-            Page.ROLE_TYPES.ALLOW_ALL,
-            [],
-            "foo_role",
-            True,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
-            [],
-            "foo_role",
-            True,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
-            ["foo_role"],
-            "foo_role",
-            True,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
-            [],
-            "bar_role",
-            False,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
-            ["foo_role"],
-            "bar_role",
-            False,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
-            ["foo_role"],
-            "foo_role",
-            False,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
-            [],
-            "foo_role",
-            False,
-        ),
-    ],
-)
-def test_public_dispatch_data_sources_list_rows_with_page_visibility_logged_in(
-    api_client,
-    data_fixture,
-    data_source_element_roles_fixture,
-    user_role,
-    page_role_type,
-    page_roles,
-    element_role,
-    expect_fields,
-):
-    """
-    Test the DispatchDataSourcesView endpoint when using a Data Source type
-    of List Rows.
-
-    This test checks that the page's visibility setting is correctly evaluated
-    when filtering the elements for the API response. The response should only
-    contain field data if the page's visibility settings allow it.
-
-    When the visibility_type is 'logged-in', the API should return fields only
-    when the user is logged in and has an allowed roles. It should also still
-    respect the element level visibility.
-    """
-
-    page = data_source_element_roles_fixture["page"]
-    page.visibility = Page.VISIBILITY_TYPES.LOGGED_IN
-    page.role_type = page_role_type
-    page.roles = page_roles
-    page.save()
-
-    user_source, integration = data_fixture.create_user_table_and_role(
-        data_source_element_roles_fixture["user"],
-        data_source_element_roles_fixture["builder_to"],
-        user_role,
-    )
-    user_source_user = UserSourceUser(
-        user_source, None, 1, "foo_username", "foo@bar.com"
-    )
-    token = user_source_user.get_refresh_token().access_token
-
-    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
-        user=data_source_element_roles_fixture["user"],
-        page=page,
-        integration=integration,
-        table=data_source_element_roles_fixture["table"],
-    )
-
-    field_id = data_source_element_roles_fixture["fields"][0].id
-
-    # Create an element that uses a formula referencing the data source
-    data_fixture.create_builder_table_element(
-        page=page,
-        data_source=data_source,
-        visibility=Element.VISIBILITY_TYPES.LOGGED_IN,
-        roles=[element_role],
-        role_type=Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
-        fields=[
-            {
-                "name": "FieldA",
-                "type": "text",
-                "config": {"value": f"get('current_record.field_{field_id}')"},
-            },
-        ],
-    )
-
-    url = reverse(
-        "api:builder:domains:public_dispatch_all",
-        kwargs={"page_id": page.id},
-    )
-
-    response = api_client.post(
-        url,
-        {},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == HTTP_200_OK
-
-    rows = data_source_element_roles_fixture["rows"]
-
-    if expect_fields:
-        field_name = data_source_element_roles_fixture["fields"][0].name
-        assert response.json() == {
-            str(data_source.id): {
-                "has_next_page": False,
-                "results": [
-                    {field_name: "Apple", "id": rows[0].id},
-                    {field_name: "Banana", "id": rows[1].id},
-                    {field_name: "Cherry", "id": rows[2].id},
-                ],
-            },
-        }
-    else:
-        assert response.json() == {
-            str(data_source.id): {
-                "has_next_page": False,
-                "results": [],
-            },
-        }
-
-
-@pytest.mark.django_db
-@pytest.mark.parametrize(
-    "user_role,page_role_type,page_roles,element_role,expect_fields",
-    [
-        (
-            "foo_role",
-            Page.ROLE_TYPES.ALLOW_ALL,
-            [],
-            "foo_role",
-            True,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
-            [],
-            "foo_role",
-            True,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
-            ["foo_role"],
-            "foo_role",
-            True,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
-            [],
-            "bar_role",
-            False,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
-            ["foo_role"],
-            "bar_role",
-            False,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
-            ["foo_role"],
-            "foo_role",
-            False,
-        ),
-        (
-            "foo_role",
-            Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
-            [],
-            "foo_role",
-            False,
-        ),
-    ],
-)
-def test_public_dispatch_data_sources_get_row_with_page_visibility_logged_in(
-    api_client,
-    data_fixture,
-    data_source_element_roles_fixture,
-    user_role,
-    page_role_type,
-    page_roles,
-    element_role,
-    expect_fields,
-):
-    """
-    Test the DispatchDataSourcesView endpoint when using a Data Source type
-    of Get Row.
-
-    This test checks that the page's visibility setting is correctly evaluated
-    when filtering the elements for the API response. The response should only
-    contain field data if the page's visibility settings allow it.
-
-    When the visibility_type is 'logged-in', the API should return fields only
-    when the user is logged in and has an allowed roles. It should also still
-    respect the element level visibility.
-    """
-
-    page = data_source_element_roles_fixture["page"]
-    page.visibility = Page.VISIBILITY_TYPES.LOGGED_IN
-    page.role_type = page_role_type
-    page.roles = page_roles
-    page.save()
-
-    user_source, integration = data_fixture.create_user_table_and_role(
-        data_source_element_roles_fixture["user"],
-        data_source_element_roles_fixture["builder_to"],
-        user_role,
-    )
-    user_source_user = UserSourceUser(
-        user_source, None, 1, "foo_username", "foo@bar.com", role=user_role
-    )
-    token = user_source_user.get_refresh_token().access_token
-
-    data_source = data_fixture.create_builder_local_baserow_get_row_data_source(
-        user=data_source_element_roles_fixture["user"],
-        page=page,
-        integration=integration,
-        table=data_source_element_roles_fixture["table"],
-        row_id="1",
-    )
-
-    # Create an element that uses a formula referencing the data source
-    field_id = data_source_element_roles_fixture["fields"][0].id
-    data_fixture.create_builder_heading_element(
-        page=page,
-        value=f"get('data_source.{data_source.id}.field_{field_id}')",
-        visibility=Element.VISIBILITY_TYPES.LOGGED_IN,
-        roles=[element_role],
-        role_type=Element.ROLE_TYPES.DISALLOW_ALL_EXCEPT,
-    )
-
-    url = reverse(
-        "api:builder:domains:public_dispatch_all",
-        kwargs={"page_id": page.id},
-    )
-
-    response = api_client.post(
-        url,
-        {},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-
-    assert response.status_code == HTTP_200_OK
-
-    if expect_fields:
-        assert response.json() == {
-            str(data_source.id): {
-                data_source_element_roles_fixture["fields"][0].name: "Apple"
-            },
         }
     else:
         assert response.json() == {str(data_source.id): {}}

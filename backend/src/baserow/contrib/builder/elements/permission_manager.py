@@ -17,11 +17,9 @@ from .models import Element
 User = get_user_model()
 
 
-# For now there can be up to three levels of nested elements.
-# E.g. a RepeatElement might contain a ColumnElement, which might contain a
-# HeadingElement.
-# However, later this number could be dynamic depending on the page itself.
-MAX_ELEMENT_NESTING_DEPTH = 3
+# Later this number could be dynamic but for now we set it arbitrary
+# high enough to cover most usages.
+MAX_ELEMENT_NESTING_DEPTH = 9
 
 
 class ElementVisibilityPermissionManager(PermissionManagerType):
@@ -182,11 +180,13 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
             return queryset.exclude(page__visibility=Page.VISIBILITY_TYPES.LOGGED_IN)
 
         return queryset.exclude(
-            page__role_type=Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
-            page__roles__contains=actor.role,
+            Q(page__visibility=Page.VISIBILITY_TYPES.LOGGED_IN)
+            & Q(page__role_type=Page.ROLE_TYPES.ALLOW_ALL_EXCEPT)
+            & Q(page__roles__contains=[actor.role])
         ).exclude(
-            Q(page__role_type=Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT)
-            & ~Q(page__roles__contains=actor.role),
+            Q(page__visibility=Page.VISIBILITY_TYPES.LOGGED_IN)
+            & Q(page__role_type=Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT)
+            & ~Q(page__roles__contains=[actor.role]),
         )
 
     def exclude_elements_with_visibility(
