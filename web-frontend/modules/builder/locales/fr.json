@@ -695,7 +695,7 @@
         "loggedInVisitors": "Visiteurs connectés",
         "notLoggedInVisitors": "Visiteurs déconnectés",
         "warningTitle": "C'est un dispositif de sécurité",
-        "warningMessage": "Veuillez consulter la &lt;a href='https://baserow.io/user-docs/application-builder-element-visibility#note-accessing-hidden-data-via-api' target='_blank'&gt;documentation&lt;/a&gt; pour plus d'informations sur la sécurité des données.",
+        "warningMessage": "Veuillez consulter la {link} pour plus d'informations sur la sécurité des données.",
         "excludedRolesLabel": "tous les rôles sauf",
         "switchAllowLabel": "Autoriser",
         "switchDisallowLabel": "Interdir",
