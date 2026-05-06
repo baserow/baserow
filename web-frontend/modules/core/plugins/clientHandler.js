@@ -278,6 +278,13 @@ export class ErrorHandler {
       return this.errorMap[this.code]
     }
 
+    if (this.detail && typeof this.detail === 'string') {
+      return new ResponseErrorMessage(
+        this.app.$i18n.t('clientHandler.notCompletedTitle'),
+        this.detail
+      )
+    }
+
     return this.genericDefaultError()
   }
 
