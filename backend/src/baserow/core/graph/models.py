@@ -193,9 +193,10 @@ class GraphPointMixin:
         `previous point` or a `parent point`.
         """
 
-        return [
-            position[0] for position in self._get_graph().get_previous_positions(self)
-        ]
+        positions = self._get_graph().get_previous_positions(self)
+        if positions is None:
+            return []
+        return [position[0] for position in positions]
 
     def get_child_points(self) -> list[Self]:
         """

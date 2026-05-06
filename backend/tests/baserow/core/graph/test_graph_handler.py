@@ -141,6 +141,60 @@ def test_get_siblings_returns_all_siblings_in_chain(container_graph_fixture):
     assert [p.id for p in graph.get_siblings(model.points[6])] == [5]
 
 
+def test_remove_permutations():
+    """
+    Removing a point with no children, one child, and multiple chained children.
+    In all cases the return value must contain point_removed and dependencies_removed.
+    """
+
+    # ── Case 1: remove a point with no children ───────────────────────────────
+    # Graph: root -> p1 -> p2
+    model = make_graph_model({"0": 1, "1": {"next": {"": [2]}}, "2": {}})
+    p1, p2 = model.points[1], model.points[2]
+    graph = model.get_graph()
+
+    result = graph.remove(p1)
+
+    assert result.point_removed is p1
+    assert result.dependencies_removed == []
+    # p2 is promoted to root; p1's info is gone
+    assert model.graph["0"] == 2
+    assert "1" not in model.graph
+
+    # ── Case 2: remove a point that has exactly one child ─────────────────────
+    # Graph: root -> p1 (children: {"0": [p2]})
+    model = make_graph_model({"0": 1, "1": {"children": {"0": [2]}}, "2": {}})
+    p1, p2 = model.points[1], model.points[2]
+    graph = model.get_graph()
+
+    result = graph.remove(p1)
+
+    assert result.point_removed is p1
+    assert [p.id for p in result.dependencies_removed] == [2]
+    # Both p1 and its child p2 are gone; graph is empty
+    assert model.graph == {}
+
+    # ── Case 3: remove a point whose child slot contains a next chain ─────────
+    # Graph: root -> p1 (children: {"0": [p2]}), p2 -> p3 -> p4
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"children": {"0": [2]}},
+            "2": {"next": {"": [3]}},
+            "3": {"next": {"": [4]}},
+            "4": {},
+        }
+    )
+    p1, p2, p3, p4 = (model.points[i] for i in [1, 2, 3, 4])
+    graph = model.get_graph()
+
+    result = graph.remove(p1)
+
+    assert result.point_removed is p1
+    assert [p.id for p in result.dependencies_removed] == [2, 3, 4]
+    assert model.graph == {}
+
+
 def test_insert_permutations():
     model = make_graph_model({})
     graph = model.get_graph()
