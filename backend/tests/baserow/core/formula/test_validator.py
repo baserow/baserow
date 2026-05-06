@@ -43,6 +43,21 @@ def test_ensure_datetime_with_date_format_iso_takes_priority():
     )
 
 
+def test_ensure_datetime_strict_rejects_iso_when_format_differs():
+    with pytest.raises(ValidationError):
+        ensure_datetime("2026-05-06", date_format="%d/%m/%Y", strict=True)
+
+
+def test_ensure_datetime_strict_accepts_matching_format():
+    assert ensure_datetime(
+        "06/05/2026", date_format="%d/%m/%Y", strict=True
+    ) == datetime(2026, 5, 6)
+
+
+def test_ensure_datetime_strict_none_value():
+    assert ensure_datetime(None, date_format="%d/%m/%Y", strict=True) is None
+
+
 def test_ensure_datetime_with_date_format_invalid_value():
     with pytest.raises(ValidationError) as exc:
         ensure_datetime("foo", date_format="%d/%m/%Y %H:%M")
