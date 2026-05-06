@@ -14,9 +14,27 @@ class Migration(migrations.Migration):
             model_name='pendingsearchvalueupdate',
             name='pendingsearchvaluedeletion_frd',
         ),
-        migrations.RemoveField(
-            model_name='pendingsearchvalueupdate',
-            name='table',
+        # Column and FK kept one release for rollback safety; only the FK index is dropped.
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.RemoveField(
+                    model_name='pendingsearchvalueupdate',
+                    name='table',
+                ),
+            ],
+            database_operations=[
+                migrations.RunSQL(
+                    sql=(
+                        "DROP INDEX IF EXISTS "
+                        "database_pendingsearchvalueupdate_table_id_813adfd1;"
+                    ),
+                    reverse_sql=(
+                        "CREATE INDEX IF NOT EXISTS "
+                        "database_pendingsearchvalueupdate_table_id_813adfd1 "
+                        "ON database_pendingsearchvalueupdate (table_id);"
+                    ),
+                ),
+            ],
         ),
         migrations.RunSQL(
             sql="""

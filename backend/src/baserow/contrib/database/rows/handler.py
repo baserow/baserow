@@ -1794,7 +1794,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param progress: Give a progress instance to track the progress of the import.
         :param model: Optional model to prevent recomputing table model.
         :param signal_params: Additional parameters that are added to the signal.
-        :param skip_search_update: Set to True to skip search updates after each batch but make sure you trigger it eventually.
+        :param skip_search_update: When True, skip search updates. The caller is
+            responsible for managing search updates.
         :return: The created rows and the error report.
         """
 
@@ -1824,8 +1825,6 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
                 generate_error_report=True,
                 send_realtime_update=False,
                 send_webhook_events=False,
-                # Don't trigger loads of search updates for every batch of rows we
-                # create but instead a single one for this entire table at the end.
                 skip_search_update=skip_search_update,
                 signal_params=signal_params,
             )
@@ -1862,7 +1861,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param progress: Give a progress instance to track the progress of the import.
         :param model: Optional model to prevent recomputing table model.
         :param signal_params: Additional parameters that are added to the signal.
-        :param skip_search_update: Set to True to skip search updates after each batch but make sure you trigger it eventually.
+        :param skip_search_update: When True, skip search updates. The caller is
+            responsible for managing search updates.
         :return: The updated rows and the error report.
         """
 

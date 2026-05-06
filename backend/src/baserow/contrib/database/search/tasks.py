@@ -128,7 +128,14 @@ def update_search_data(table_id: int):
     flag.clear()
 
     # Leave a safety margin so the task can finish cleanly before the hard limit.
-    time_budget = max(60, settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT - 30)
+    hard_limit = settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT
+    if hard_limit <= 30:
+        logger.warning(
+            "CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT={}s is at or below the 30s "
+            "safety margin; the task may be killed before it can finish.",
+            hard_limit,
+        )
+    time_budget = max(1, hard_limit - 30)
     completed = SearchHandler.process_search_data_updates(
         table, time_budget_seconds=time_budget
     )
