@@ -237,26 +237,26 @@ def ensure_date(value: Any) -> Optional[date]:
 
 
 def ensure_datetime(
-    value: Any, date_format: str = "%Y-%m-%d %H:%M"
+    value: Any, date_format: str = "%Y-%m-%d %H:%M", strict: bool = False
 ) -> Optional[datetime]:
     """
     Ensures that the value is a datetime or can be converted to a datetime.
     :param value: The value to ensure as a datetime.
     :param date_format: The format to use to parse the datetime.
+    :param strict: If True, always validates the date format.
     :return: The value as a datetime.
     :raises ValidationError: If the value is not a valid datetime or convertible to a
         datetime.
     """
 
+    if value is None:
+        return None
+
     try:
-        return (
-            FormattedDateTime(
-                value,
-                date_format=date_format,
-            ).datetime
-            if value is not None
-            else None
-        )
+        if strict and isinstance(value, str):
+            parsed = datetime.strptime(value, date_format)
+            return FormattedDateTime(parsed, date_format=date_format).datetime
+        return FormattedDateTime(value, date_format=date_format).datetime
     except (ValueError, TypeError) as exc:
         raise ValidationError("Value cannot be converted to a datetime.") from exc
 

@@ -745,7 +745,7 @@ class RuntimeToDatetime(RuntimeFormulaFunction):
             moment_format = args[1]
             python_format = convert_date_format_moment_to_python(moment_format)
             try:
-                ensure_datetime(value, date_format=python_format)
+                ensure_datetime(value, date_format=python_format, strict=True)
             except ValidationError:
                 raise BaserowFormulaSyntaxError(
                     f"'{value}' could not be parsed using format '{moment_format}'."
@@ -763,6 +763,6 @@ class RuntimeToDatetime(RuntimeFormulaFunction):
         value = args[0]
         if len(args) == 2:
             python_format = convert_date_format_moment_to_python(args[1])
-            return ensure_datetime(value, date_format=python_format)
+            return ensure_datetime(value, date_format=python_format, strict=True)
         else:
             return ensure_datetime(value)
