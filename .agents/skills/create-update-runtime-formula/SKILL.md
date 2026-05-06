@@ -26,6 +26,37 @@ There are some additional methods that control how the formula is rendered in th
 - `formulaComponent()`
 - `fromNodeToFormula()`
 
+## Ensurers
+Ensurers are reusable normalization/coercion functions that convert an arbitrary value into a specific type, or raise an error if conversion is not possible. They live in:
+- Backend: `backend/src/baserow/core/formula/validator.py`
+- Frontend: `web-frontend/modules/core/utils/validator.js`
+
+Existing ensurers include `ensure_string`, `ensure_date_interval`, etc.
+
+### When to create or use an ensurer
+Argument types should delegate their `test()` and `parse()` methods to an ensurer rather than implementing inline conversion logic.
+- For `test()`, call the ensurer inside a try/except (backend) or try/catch (frontend) and return `True`/`False`.
+- For `parse()`, return the ensurer's result directly.
+
+Runtime formula types should use ensurers in their `execute()` method when converting input values, rather than calling low-level conversion functions (e.g. `datetime.strptime()`, `moment()`) directly.
+
+Before creating a new ensurer, check whether an existing one already covers the target type. Only create a new ensurer when no existing one handles the conversion.
+
+### When a new type is introduced, update existing ensurers
+When introducing a new data type (e.g. `timedelta` / `Timedelta`), the existing `ensure_string()` and `ensure_integer()` ensurers may need to be updated to handle coercion of the new type into strings and integers.
+
+For example:
+- `ensure_string()` was updated to convert `timedelta` to a human-readable string like `"1 day"`
+- `ensure_integer()` was updated to convert `timedelta` to total seconds.
+
+### Ensurer implementation conventions
+- Backend ensurers raise `django.core.exceptions.ValidationError` on failure.
+- Frontend ensurers throw `TypeError` or `Error` on failure.
+- Both backend and frontend ensurers must implement the same conversion logic and accept the same range of input types.
+- Tests for ensurers go in:
+  - Backend: `backend/tests/baserow/core/formula/test_validator.py`
+  - Frontend: `web-frontend/test/unit/core/utils/validator.spec.js`
+
 ## Backend Checklist
 
 Useful backend files:
@@ -63,6 +94,8 @@ When creating a new runtime formula type, consider whether a new argument type i
 Note that the constructor can accept kwargs, such as `cast_to_int` for `NumberBaserowRuntimeFormulaType`. E.g. `RuntimeRound` uses `optional=True, cast_to_int=True`.
 
 All argument types must implement both `test()` and `parse()`. The `get_error_message()` method is special, which is described next.
+
+Argument types should delegate to an ensurer in `validator.py` for their `test()` and `parse()` implementations. For example, `IntervalStringBaserowRuntimeFormulaArgumentType` delegates to `ensure_date_interval()`. Avoid duplicating conversion logic inline when an ensurer exists or can be created.
 
 ##### `get_error_message()`
 When an argument type can return a useful human-readable error message, this method should be overridden to return an error message.
@@ -190,6 +223,13 @@ When creating a new runtime formula type, both the backend and frontend will nee
 - Create a new argument type if an existing type doesn't provide the needed functionality.
   - Backend: `backend/src/baserow/core/formula/argument_types.py`
   - Frontend: `web-frontend/modules/core/runtimeFormulaArgumentTypes.js`
+- Create or update an ensurer if the argument type or `execute()` method requires type coercion that isn't covered by an existing ensurer.
+  - Backend: `backend/src/baserow/core/formula/validator.py`
+  - Frontend: `web-frontend/modules/core/utils/validator.js`
+- If introducing a new data type, check whether existing ensurers (e.g. `ensure_string()`, etc) need updating to handle coercion of the new type.
+- Add tests for new or updated ensurers.
+  - Backend: `backend/tests/baserow/core/formula/test_validator.py`
+  - Frontend: `web-frontend/test/unit/core/utils/validator.spec.js`
 - Register the runtime formula type.
   - Backend: `backend/src/baserow/core/apps.py`
   - Frontend: `web-frontend/modules/core/plugin.js`
