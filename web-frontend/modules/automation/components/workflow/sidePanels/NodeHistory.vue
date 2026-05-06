@@ -7,7 +7,8 @@
       <template #header="{ expanded }">
         <div class="node-history__header-row">
           <div class="node-history__header-icon">
-            <i :class="nodeIconClass"></i>
+            <i v-if="nodeIconClass" :class="nodeIconClass"></i>
+            <img v-else :alt="nodeType.name" :src="nodeType.image" />
           </div>
           <div class="node-history__header-info">
             <div>
@@ -100,7 +101,8 @@
 
     <div v-else class="node-history__header-row">
       <div class="node-history__header-icon">
-        <i :class="nodeIconClass"></i>
+        <i v-if="nodeIconClass" :class="nodeIconClass"></i>
+        <img v-else :alt="nodeType.name" :src="nodeType.image" />
       </div>
       <div class="node-history__header-info">
         <div
