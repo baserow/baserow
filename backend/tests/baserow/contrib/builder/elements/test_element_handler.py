@@ -199,6 +199,42 @@ def test_delete_element(data_fixture):
 
 
 @pytest.mark.django_db
+def test_delete_container_element_deletes_children(data_fixture):
+    page = data_fixture.create_builder_page()
+    container = data_fixture.create_builder_column_element(page=page, column_amount=2)
+    child1 = data_fixture.create_builder_heading_element(
+        page=page,
+        position=GraphPointPosition.CHILD,
+        reference_element=container,
+        place_in_container="0",
+    )
+    child2 = data_fixture.create_builder_column_element(
+        page=page,
+        column_amount=1,
+        position=GraphPointPosition.CHILD,
+        reference_element=container,
+        place_in_container="1",
+    )
+    grandchild = data_fixture.create_builder_heading_element(
+        page=page,
+        position=GraphPointPosition.CHILD,
+        reference_element=child2,
+        place_in_container="0",
+    )
+
+    ElementHandler().delete_element(container)
+
+    assert not Element.objects.filter(
+        id__in=[container.id, child1.id, child2.id, grandchild.id]
+    ).exists()
+
+    page.refresh_from_db(fields=["graph"])
+    for element_id in [container.id, child1.id, child2.id, grandchild.id]:
+        assert str(element_id) not in page.graph
+    assert page.graph == {}
+
+
+@pytest.mark.django_db
 def test_update_element(data_fixture):
     user = data_fixture.create_user()
     element = data_fixture.create_builder_heading_element(user=user)

@@ -11,6 +11,7 @@ from baserow.core.graph.types import (
     GraphPoint,
     GraphPointPositionTriplet,
     GraphPointPositionType,
+    GraphPointRemoved,
     SerializedGraph,
 )
 
@@ -573,6 +574,18 @@ class BaseGraphHandler(ABC):
             current = str(next_ids[0]) if next_ids else None
         return result
 
+    def _collect_all_descendants(self, point: GraphPoint) -> List[GraphPoint]:
+        """
+        Returns all descendants (direct and transitive children) of a point in
+        depth-first order, by recursing into each child returned by get_children.
+        """
+
+        result = []
+        for child in self.get_children(point):
+            result.append(child)
+            result.extend(self._collect_all_descendants(child))
+        return result
+
     def merge_children_into_place(
         self,
         container_point: GraphPoint,
@@ -773,19 +786,37 @@ class BaseGraphHandler(ABC):
 
         self._update_graph()
 
-    def remove(self, point_to_delete: GraphPoint, keep_info: bool = False):
+    def remove(
+        self, point_to_delete: GraphPoint, keep_info: bool = False
+    ) -> GraphPointRemoved:
         """
-        Remove the given point.
+        Remove the given point from the graph.
+
+        When keep_info is False (the default), any children of the point are also
+        removed from the graph — their graph info entries are deleted and returned as
+        dependencies_removed so the caller can clean up the corresponding DB records.
+
+        When keep_info is True (used by move), the point's info dict is preserved and
+        its children travel with it; no cascade occurs.
 
         :param point_to_delete: The point to delete.
         :param keep_info: doesn't delete the info dict from the graph yet if True.
+        :return: A GraphPointRemoved with point_removed and dependencies_removed.
         """
 
         graph = self.instance.graph
 
         if str(point_to_delete.id) not in graph:
             # The point is already removed. Could be by a replacement.
-            return
+            return GraphPointRemoved(point_removed=point_to_delete)
+
+        dependencies: List[GraphPoint] = []
+        if not keep_info:
+            # Collect all descendants before touching the graph so that the traversal
+            # still has access to the full graph structure.
+            dependencies = self._collect_all_descendants(point_to_delete)
+            for dep in dependencies:
+                graph.pop(str(dep.id), None)
 
         next_point_ids = self._get_all_next_points(point_to_delete)
 
@@ -820,6 +851,10 @@ class BaseGraphHandler(ABC):
             del graph[str(point_to_delete.id)]
 
         self._update_graph()
+
+        return GraphPointRemoved(
+            point_removed=point_to_delete, dependencies_removed=dependencies
+        )
 
     def replace(self, point_to_replace: GraphPoint, new_point: GraphPoint):
         """

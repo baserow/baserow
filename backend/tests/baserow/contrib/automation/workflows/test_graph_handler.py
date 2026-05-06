@@ -643,10 +643,8 @@ def test_graph_handler_insert_first_node(
             {
                 "0": 1,
                 "1": {"next": {"": [2]}},
-                "2": {"next": {"": [4]}},  # yes we lose the child for now
+                "2": {"next": {"": [4]}},
                 "4": {"next": {"": [5], "randomUid": [9]}},
-                "7": {"next": {"": [8]}},
-                "8": {"children": []},
                 "9": {},
             },
         ),

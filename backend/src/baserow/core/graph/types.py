@@ -1,4 +1,5 @@
-from typing import TYPE_CHECKING, Literal, TypeAlias, TypedDict, TypeVar
+from dataclasses import dataclass, field
+from typing import TYPE_CHECKING, Generic, Literal, TypeAlias, TypedDict, TypeVar
 
 from django.db import models
 
@@ -34,3 +35,9 @@ GraphPointPositionType = Literal["north", "south", "child"]
 GraphPointPositionTriplet: TypeAlias = tuple[
     GraphPoint | None, GraphPointPositionType, str
 ]
+
+
+@dataclass
+class GraphPointRemoved(Generic[GraphPoint]):
+    point_removed: GraphPoint
+    dependencies_removed: list[GraphPoint] = field(default_factory=list)
