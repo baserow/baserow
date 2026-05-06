@@ -241,7 +241,7 @@ export default {
      */
     handleDateBlur(event) {
       this.updateDate(event.target.value)
-      this.$refs.dateContext.hide()
+      this.$refs.dateContext?.hide()
     },
     /**
      * Handle blur event on the time input field.

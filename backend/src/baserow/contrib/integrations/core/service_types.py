@@ -1317,6 +1317,48 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
 
         return super().prepare_values(values, user, instance)
 
+    def serialize_property(
+        self,
+        service: CorePeriodicService,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ):
+        if prop_name == "next_run_at":
+            return (
+                service.next_run_at.isoformat()
+                if service.next_run_at is not None
+                else None
+            )
+
+        return super().serialize_property(
+            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+        )
+
+    def deserialize_property(
+        self,
+        prop_name: str,
+        value: Any,
+        id_mapping: Dict[str, Any],
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        if prop_name == "next_run_at" and value is not None:
+            return datetime.fromisoformat(value)
+
+        return super().deserialize_property(
+            prop_name,
+            value,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
     def can_immediately_be_tested(self, service):
         return True
 
