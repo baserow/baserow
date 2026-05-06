@@ -3768,6 +3768,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         fields: List[Field],
         rows: List["GeneratedTableModel"],
         base_queryset: QuerySet,
+        collapsed_group_values: Optional[List[Dict[str, Any]]] = None,
+        view_group_bys: Optional[List[Any]] = None,
     ) -> Dict[Field, QuerySet]:
         """
         This method calculates the count of each unique value within the provided rows,
@@ -3779,6 +3781,14 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param base_queryset: The base_queryset before the pagination was applied.
             This is needed because the rows that must be counted can be outside of
             the paginated range.
+        :param collapsed_group_values: Group values that were removed from the
+            current page because they are collapsed. They are seeded into the
+            metadata query so the frontend can still render their headers and counts.
+        :param view_group_bys: The ViewGroupBy instances (or anything with `order`
+            and `type` attributes) parallel to ``fields``. When provided, the
+            resulting metadata queryset is ordered using each field type's
+            ``get_order``, matching the row sort order so the frontend can place
+            collapsed-group headers consistently.
         :return: A dictionary where the key is the grouped by field, and the value a
             queryset containing the count per field.
         :raises ValueError: if a field is provided that cannot be grouped by.
@@ -3820,6 +3830,55 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                     qs_per_level[level] |= Q(**all_filters)
                     unique_value_per_level[level].add(all_values)
 
+        if collapsed_group_values:
+            for entry in collapsed_group_values:
+                all_values = tuple()
+                all_filters = {}
+
+                for level, field in enumerate(fields):
+                    field_name = field.db_column
+                    if field_name not in entry:
+                        break
+
+                    field_type = field_type_registry.get_by_model(field.specific_class)
+
+                    if not field_type.check_can_group_by(field, DEFAULT_SORT_TYPE_KEY):
+                        raise ValueError(f"Can't group by {field_name}.")
+
+                    serializer_field = field_type.get_group_by_serializer_field(field)
+                    raw_value = entry[field_name]
+
+                    if raw_value is None:
+                        value = None
+                    else:
+                        try:
+                            value = serializer_field.to_internal_value(raw_value)
+                        except Exception:
+                            value = raw_value
+
+                    unique_value = field_type.get_group_by_field_unique_value(
+                        field, field_name, value
+                    )
+                    all_values += (unique_value,)
+
+                    if all_values not in unique_value_per_level[level]:
+                        (
+                            filters,
+                            annotations,
+                        ) = field_type.get_group_by_field_filters_and_annotations(
+                            field,
+                            field_name,
+                            base_queryset,
+                            unique_value,
+                            cte,
+                            rows,
+                        )
+
+                        all_filters.update(**filters)
+                        all_annotations.update(**annotations)
+                        qs_per_level[level] |= Q(**all_filters)
+                        unique_value_per_level[level].add(all_values)
+
         by_level = {}
         for level, q in qs_per_level.items():
             field_names = []
@@ -3837,11 +3896,17 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             if len(all_annotations) > 0:
                 queryset = queryset.annotate(**all_annotations)
 
+            order_by_args, queryset = self._build_group_by_metadata_order_by(
+                fields[: level + 1],
+                view_group_bys[: level + 1] if view_group_bys else None,
+                queryset,
+            )
+
             queryset = (
                 queryset.filter(q)
                 .values(*field_names)
                 .annotate(count=Count("id"))
-                .order_by()
+                .order_by(*order_by_args)
             )
 
             for cte_with in cte.values():
@@ -3850,6 +3915,38 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             by_level[fields[level]] = queryset
 
         return by_level
+
+    def _build_group_by_metadata_order_by(
+        self,
+        fields: List[Field],
+        view_group_bys: Optional[List[Any]],
+        queryset: QuerySet,
+    ) -> Tuple[List[Any], QuerySet]:
+        """
+        Builds the ``order_by`` arguments for the metadata queryset so the
+        returned entries match the row sort order. Falls back to no ordering
+        when ``view_group_bys`` is not provided (e.g. older callers).
+        """
+
+        if not view_group_bys:
+            return [], queryset
+
+        order_by = []
+        for field, view_group_by in zip(fields, view_group_bys):
+            field_type = field_type_registry.get_by_model(field.specific_class)
+            annotated_order_by = field_type.get_order(
+                field,
+                field.db_column,
+                view_group_by.order,
+                view_group_by.type,
+                table_model=queryset.model,
+            )
+            if annotated_order_by.annotation is not None:
+                queryset = queryset.annotate(**annotated_order_by.annotation)
+            for fob in annotated_order_by.order_bys:
+                order_by.append(fob)
+
+        return order_by, queryset
 
     def _get_prepared_values_for_data(
         self, view_type: ViewType, view: View, changed_allowed_keys: Iterable[str]

@@ -30,7 +30,6 @@
       :view="view"
       :include-row-details="!viewHasGroupBys"
       :include-grid-view-identifier-dropdown="!viewHasGroupBys"
-      :include-group-by="true"
       :can-order-fields="frozenColumnCount > 1"
       :read-only="
         readOnly ||
@@ -71,6 +70,7 @@
       @refresh-row="refreshRow"
       @scroll="scroll($event.pixelY, 0)"
       @cell-selected="cellSelected"
+      @toggle-collapse="toggleGroupCollapse"
     ></GridViewSection>
     <GridViewRowsAddContext ref="rowsAddContext" @add-rows="addRows" />
     <div
@@ -99,25 +99,6 @@
       :get-field-width="getFieldWidth"
       @frozen-count-change="onFrozenCountDragChange"
     ></GridViewFreezeHandle>
-    <HorizontalResize
-      v-else-if="viewHasGroupBys && leftFields.length === 0"
-      class="grid-view__divider-width"
-      :style="{ left: leftWidth + 'px' }"
-      :width="activeGroupBys[activeGroupBys.length - 1].width"
-      :min="GRID_VIEW_MIN_FIELD_WIDTH"
-      @move="
-        moveGroupWidth(activeGroupBys[activeGroupBys.length - 1], view, $event)
-      "
-      @update="
-        updateGroupWidth(
-          activeGroupBys[activeGroupBys.length - 1],
-          view,
-          database,
-          readOnly,
-          $event
-        )
-      "
-    ></HorizontalResize>
     <GridViewSection
       ref="right"
       class="grid-view__right"
@@ -170,6 +151,7 @@
       @refresh-row="refreshRow"
       @scroll="scroll($event.pixelY, $event.pixelX)"
       @cell-selected="cellSelected"
+      @toggle-collapse="toggleGroupCollapse"
     ></GridViewSection>
     <GridViewFieldDragging
       ref="crossSectionFieldDragging"
@@ -197,7 +179,7 @@
       :all-visible-fields="allVisibleFields"
       :all-fields-in-table="fields"
       :store-prefix="storePrefix"
-      :offset="activeGroupByWidth"
+      :offset="0"
       :get-scroll-element="getVerticalScrollbarElement"
       @scroll="scroll($event.pixelY, $event.pixelX)"
     ></GridViewRowDragging>
@@ -449,7 +431,6 @@ import { mapGetters } from 'vuex'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import GridViewSection from '@baserow/modules/database/components/view/grid/GridViewSection'
-import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 import GridViewFieldDragging from '@baserow/modules/database/components/view/grid/GridViewFieldDragging'
 import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid/GridViewFreezeHandle'
 import GridViewRowDragging from '@baserow/modules/database/components/view/grid/GridViewRowDragging'
@@ -465,6 +446,12 @@ import { clone } from '@baserow/modules/core/utils/object'
 import copyPasteHelper from '@baserow/modules/database/mixins/copyPasteHelper'
 import GridViewRowsAddContext from '@baserow/modules/database/components/view/grid/fields/GridViewRowsAddContext'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
+import { RefreshCancelledError } from '@baserow/modules/core/errors'
+import {
+  findDepth0GroupPosition,
+  GROUP_HEADER_HEIGHT,
+  GROUP_ROW_HEIGHT,
+} from '@baserow/modules/database/utils/groupByInterleave'
 import {
   GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING,
   GRID_VIEW_MULTI_SELECT_CHECKBOX,
@@ -474,7 +461,6 @@ import {
 export default {
   name: 'GridView',
   components: {
-    HorizontalResize,
     GridViewFieldDragging,
     GridViewFreezeHandle,
     GridViewRowsAddContext,
@@ -616,9 +602,7 @@ export default {
     leftWidth() {
       return (
         this.leftFieldsWidth +
-        (this.viewHasGroupBys ? 0 : this.gridViewRowDetailsWidth) +
-        // 100 must be replaced with the dynamic width
-        this.activeGroupByWidth
+        (this.viewHasGroupBys ? 0 : this.gridViewRowDetailsWidth)
       )
     },
     /**
@@ -631,7 +615,6 @@ export default {
     crossSectionDraggingOffset() {
       const primary = this.fields.find((f) => f.primary)
       return (
-        this.activeGroupByWidth +
         this.gridViewRowDetailsWidth +
         (primary ? this.getFieldWidth(primary) : 0)
       )
@@ -742,6 +725,27 @@ export default {
       this.storePrefix + 'view/grid/fetchAllFieldAggregationData',
       { view: this.view }
     )
+    this.$store
+      .dispatch(
+        this.storePrefix + 'view/grid/hydrateCollapsedGroupsFromStorage',
+        {
+          view: this.view,
+          fields: this.fields,
+          adhocFiltering:
+            this.$store.getters[
+              this.storePrefix + 'view/grid/getAdhocFiltering'
+            ],
+          adhocSorting:
+            this.$store.getters[
+              this.storePrefix + 'view/grid/getAdhocSorting'
+            ],
+        }
+      )
+      .catch((error) => {
+        if (!(error instanceof RefreshCancelledError)) {
+          throw error
+        }
+      })
     this.onWindowResize()
 
     if (this.row !== null) {
@@ -1396,6 +1400,98 @@ export default {
         fieldId,
         fields: this.fields,
       })
+    },
+    async toggleGroupCollapse(groupValues) {
+      const collapsedBefore = this.$store.getters[
+        this.storePrefix + 'view/grid/getCollapsedGroupsForView'
+      ](this.view.id)
+      const wasCollapsed = collapsedBefore.some(
+        (cg) => JSON.stringify(cg) === JSON.stringify(groupValues)
+      )
+
+      const scrollAdjustment = !wasCollapsed
+        ? this.computeScrollAdjustmentForCollapse(groupValues, collapsedBefore)
+        : null
+
+      this.$store.commit(
+        this.storePrefix + 'view/grid/TOGGLE_GROUP_COLLAPSED',
+        { viewId: this.view.id, groupValues }
+      )
+
+      if (scrollAdjustment !== null) {
+        // Reset the buffer's window so the upcoming refresh fetches rows from
+        // index 0. We deliberately do NOT reset bufferLimit — the refresh's
+        // ADD_ROWS uses `prependToRows: -bufferLimit` to evict the old rows,
+        // and zeroing it out here would leave the stale rows in place.
+        this.$store.commit(
+          this.storePrefix + 'view/grid/SET_BUFFER_START_INDEX',
+          0
+        )
+        this.$refs.right.$refs.body.scrollTop = scrollAdjustment
+        this.$refs.left.$refs.body.scrollTop = scrollAdjustment
+        await this.$store.dispatch(
+          this.storePrefix + 'view/grid/visibleByScrollTop',
+          scrollAdjustment
+        )
+      }
+
+      try {
+        await this.$store.dispatch(this.storePrefix + 'view/grid/refresh', {
+          view: this.view,
+          fields: this.fields,
+          adhocFiltering:
+            this.$store.getters[
+              this.storePrefix + 'view/grid/getAdhocFiltering'
+            ],
+          adhocSorting:
+            this.$store.getters[this.storePrefix + 'view/grid/getAdhocSorting'],
+        })
+      } catch (error) {
+        // A rapid follow-up toggle aborts the in-flight refresh, which rejects
+        // with RefreshCancelledError. The newer toggle owns the next refresh,
+        // so swallow this and let it run.
+        if (!(error instanceof RefreshCancelledError)) {
+          throw error
+        }
+        return
+      }
+      await this.refresh()
+    },
+    /**
+     * Returns the desired body scrollTop *after* a group is collapsed, or null
+     * if no adjustment is needed. Without this, collapsing a tall group while
+     * the user is inside or below it leaves their scroll position pointing at
+     * empty/wrong content.
+     */
+    computeScrollAdjustmentForCollapse(groupValues, collapsedBefore) {
+      const fields = this.activeGroupBys
+        .map((gb) => this.fields.find((f) => f.id === gb.field))
+        .filter(Boolean)
+      if (fields.length === 0) return null
+
+      const position = findDepth0GroupPosition({
+        groupValues,
+        groupByMetadata: this.$store.getters[
+          this.storePrefix + 'view/grid/getGroupByMetadata'
+        ],
+        collapsedGroups: collapsedBefore,
+        fields,
+        registry: this.$registry,
+      })
+      if (position === null) return null
+
+      const currentScrollTop = this.$refs.right?.$refs?.body?.scrollTop ?? 0
+      const oldGroupHeight =
+        GROUP_HEADER_HEIGHT + position.count * GROUP_ROW_HEIGHT
+      const groupEndY = position.y + oldGroupHeight
+
+      if (currentScrollTop <= position.y) {
+        return null
+      }
+      if (currentScrollTop <= groupEndY) {
+        return position.y
+      }
+      return currentScrollTop - (oldGroupHeight - GROUP_HEADER_HEIGHT)
     },
     /**
      * This method is called from the parent component when the data in the view has

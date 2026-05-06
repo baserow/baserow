@@ -52,6 +52,10 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
     ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
 )
+from baserow.contrib.database.api.views.grid.collapsed_groups import (
+    build_collapsed_groups_exclusion_q,
+    parse_collapsed_groups,
+)
 from baserow.contrib.database.api.views.grid.serializers import (
     GridViewFieldOptionsSerializer,
 )
@@ -226,6 +230,7 @@ class GridViewView(APIView):
         exclude_fields = request.GET.get("exclude_fields")
         adhoc_filters = AdHocFilters.from_request(request)
         order_by = request.GET.get("order_by")
+        collapsed_groups_raw = request.GET.get("collapsed_groups")
 
         view_handler = ViewHandler()
         view = view_handler.get_view_as_user(
@@ -260,6 +265,24 @@ class GridViewView(APIView):
             hidden_field_ids=hidden_field_ids,
         )
         model = queryset.model
+        group_by_metadata_queryset = queryset
+        group_by_fields = []
+        view_group_bys = []
+        collapsed_group_values = []
+
+        if view_type.can_group_by and view.viewgroupby_set.all():
+            view_group_bys = list(view.viewgroupby_set.all())
+            group_by_fields = [
+                model._field_objects[group_by.field_id]["field"]
+                for group_by in view_group_bys
+            ]
+            collapsed_group_values = parse_collapsed_groups(collapsed_groups_raw)
+            if collapsed_group_values:
+                queryset = queryset.exclude(
+                    build_collapsed_groups_exclusion_q(
+                        group_by_fields, collapsed_group_values, queryset
+                    )
+                )
 
         if ONLY_COUNT_API_PARAM.name in request.GET:
             return Response({"count": queryset.count()})
@@ -268,13 +291,13 @@ class GridViewView(APIView):
             queryset, request, field_ids, exclude_field_ids=hidden_field_ids
         )
 
-        if view_type.can_group_by and view.viewgroupby_set.all():
-            group_by_fields = [
-                model._field_objects[group_by.field_id]["field"]
-                for group_by in view.viewgroupby_set.all()
-            ]
+        if group_by_fields:
             serialized_group_by_metadata = serialize_group_by_fields_metadata(
-                queryset, group_by_fields, page
+                group_by_metadata_queryset,
+                group_by_fields,
+                page,
+                collapsed_group_values=collapsed_group_values,
+                view_group_bys=view_group_bys,
             )
             response.data.update(group_by_metadata=serialized_group_by_metadata)
 
@@ -830,6 +853,40 @@ class PublicGridViewRowsView(APIView):
             publicly_visible_field_options,
         ) = get_public_view_filtered_queryset(view, request, query_params)
         model = queryset.model
+        group_by_metadata_queryset = queryset
+        collapsed_group_values = parse_collapsed_groups(
+            request.GET.get("collapsed_groups")
+        )
+        group_by = request.GET.get("group_by")
+        group_by_fields = []
+        view_group_bys = []
+
+        if group_by:
+            group_by_fields = [
+                # We can safely do this without having to check whether the
+                # `group_by` input is valid because this has already been validated
+                # by the `get_public_rows_queryset_and_field_ids`.
+                model._field_objects[get_field_id_from_field_key(field_string, False)][
+                    "field"
+                ]
+                for field_string in split_comma_separated_string(group_by)
+            ]
+            view_group_by_by_field_id = {
+                gb.field_id: gb for gb in view.viewgroupby_set.all()
+            }
+            view_group_bys = [
+                view_group_by_by_field_id[field.id]
+                for field in group_by_fields
+                if field.id in view_group_by_by_field_id
+            ]
+            if len(view_group_bys) != len(group_by_fields):
+                view_group_bys = []
+            if collapsed_group_values:
+                queryset = queryset.exclude(
+                    build_collapsed_groups_exclusion_q(
+                        group_by_fields, collapsed_group_values, queryset
+                    )
+                )
 
         if ONLY_COUNT_API_PARAM.name in request.GET:
             return Response({"count": queryset.count()})
@@ -845,19 +902,13 @@ class PublicGridViewRowsView(APIView):
             )
             response.data.update(**public_view_field_options)
 
-        group_by = request.GET.get("group_by")
-        if group_by:
-            group_by_fields = [
-                # We can safely do this without having to check whether the
-                # `group_by` input is valid because this has already been validated
-                # by the `get_public_rows_queryset_and_field_ids`.
-                model._field_objects[get_field_id_from_field_key(field_string, False)][
-                    "field"
-                ]
-                for field_string in split_comma_separated_string(group_by)
-            ]
+        if group_by_fields:
             serialized_group_by_metadata = serialize_group_by_fields_metadata(
-                queryset, group_by_fields, page
+                group_by_metadata_queryset,
+                group_by_fields,
+                page,
+                collapsed_group_values=collapsed_group_values,
+                view_group_bys=view_group_bys,
             )
 
             response.data.update(group_by_metadata=serialized_group_by_metadata)

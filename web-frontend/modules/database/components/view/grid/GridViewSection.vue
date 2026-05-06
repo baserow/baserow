@@ -12,22 +12,6 @@
       },
     }"
   >
-    <div
-      v-for="({ left }, index) in groupByDividers"
-      :key="'group-by-divider-' + index"
-      class="grid-view__group-by-divider"
-      :style="{ left: left + 'px' }"
-    ></div>
-    <HorizontalResize
-      v-for="({ groupBy, left }, index) in groupByDividers"
-      :key="'group-by-width-' + index"
-      class="grid-view__head-group-width-handle"
-      :style="{ left: left + 'px' }"
-      :width="groupBy.width"
-      :min="GRID_VIEW_MIN_FIELD_WIDTH"
-      @move="moveGroupWidth(groupBy, view, $event)"
-      @update="updateGroupWidth(groupBy, view, database, readOnly, $event)"
-    ></HorizontalResize>
     <div class="grid-view__inner" :style="{ 'min-width': width + 'px' }">
       <GridViewHead
         :database="database"
@@ -40,7 +24,7 @@
         :include-grid-view-identifier-dropdown="
           includeGridViewIdentifierDropdown
         "
-        :include-group-by="includeGroupBy"
+        :include-group-by="false"
         :read-only="readOnly"
         :store-prefix="storePrefix"
         @field-created="$emit('field-created', $event)"
@@ -65,15 +49,9 @@
             :visible-fields="visibleFields"
             :view="view"
             :include-row-details="includeRowDetails"
-            :include-group-by="includeGroupBy"
+            :include-group-by="false"
             :store-prefix="storePrefix"
           ></GridViewPlaceholder>
-          <GridViewGroups
-            v-if="includeGroupBy && activeGroupBys.length > 0"
-            :all-fields-in-table="allFieldsInTable"
-            :group-by-value-sets="groupByValueSets"
-            :store-prefix="storePrefix"
-          ></GridViewGroups>
           <GridViewRows
             v-if="includeRowDetails || visibleFields.length > 0"
             ref="rows"
@@ -86,8 +64,8 @@
             :decorations-by-place="decorationsByPlace"
             :left-offset="fieldsLeftOffset"
             :include-row-details="includeRowDetails"
-            :include-group-by="includeGroupBy"
-            :rows-at-end-of-groups="rowsAtEndOfGroups"
+            :interleaved-items="interleavedItems"
+            :section-width="width"
             :read-only="readOnly"
             :can-drag="
               $hasPermission(
@@ -116,6 +94,7 @@
             @row-dragging="$emit('row-dragging', $event)"
             @row-hover="$emit('row-hover', $event)"
             @row-context="$emit('row-context', $event)"
+            @toggle-collapse="$emit('toggle-collapse', $event)"
           ></GridViewRows>
           <GridViewRowAdd
             v-if="
@@ -142,6 +121,26 @@
           <div v-else class="grid-view__row-placeholder"></div>
         </div>
       </div>
+      <GridViewGroupHeader
+        v-if="showStickyHeader && stickyHeaderItem"
+        :key="`sticky-${stickyHeaderItem.depth}-${
+          stickyHeaderItem.groupValues[`field_${stickyHeaderItem.field.id}`]
+        }`"
+        class="grid-view__sticky-group-header"
+        :field="stickyHeaderItem.field"
+        :value="
+          stickyHeaderItem.groupValues[`field_${stickyHeaderItem.field.id}`]
+        "
+        :count="stickyHeaderItem.count"
+        :depth="stickyHeaderItem.depth"
+        :collapsed="stickyHeaderItem.collapsed"
+        :left-offset="0"
+        :row-details-width="includeRowDetails ? gridViewRowDetailsWidth : 0"
+        :width="width"
+        @toggle-collapse="
+          $emit('toggle-collapse', stickyHeaderItem.groupValues)
+        "
+      />
       <div class="grid-view__foot">
         <div v-if="includeRowDetails" class="grid-view__foot-info">
           {{ $t('gridView.rowCount', { count }) }}
@@ -168,24 +167,22 @@ import debounce from 'lodash/debounce'
 
 import GridViewHead from '@baserow/modules/database/components/view/grid/GridViewHead'
 import GridViewPlaceholder from '@baserow/modules/database/components/view/grid/GridViewPlaceholder'
-import GridViewGroups from '@baserow/modules/database/components/view/grid/GridViewGroups'
 import GridViewRows from '@baserow/modules/database/components/view/grid/GridViewRows'
 import GridViewRowAdd from '@baserow/modules/database/components/view/grid/GridViewRowAdd'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewFieldFooter from '@baserow/modules/database/components/view/grid/GridViewFieldFooter'
-import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
-import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
+import GridViewGroupHeader from '@baserow/modules/database/components/view/grid/GridViewGroupHeader'
+import { buildInterleavedList } from '@baserow/modules/database/utils/groupByInterleave'
 
 export default {
   name: 'GridViewSection',
   components: {
-    HorizontalResize,
     GridViewHead,
     GridViewPlaceholder,
-    GridViewGroups,
     GridViewRows,
     GridViewRowAdd,
     GridViewFieldFooter,
+    GridViewGroupHeader,
   },
   mixins: [gridViewHelpers],
   props: {
@@ -269,6 +266,7 @@ export default {
     'row-dragging',
     'row-hover',
     'row-context',
+    'toggle-collapse',
     'scroll',
     'field-created',
     'field-dragging',
@@ -307,154 +305,26 @@ export default {
 
       return width
     },
-    groupByDividers() {
-      if (!this.includeGroupBy) {
-        return []
-      }
+    interleavedItems() {
+      const fields = this.activeGroupBys
+        .map((groupBy) =>
+          this.allFieldsInTable.find((field) => field.id === groupBy.field)
+        )
+        .filter(Boolean)
 
-      let last = 0
-      const dividers = this.activeGroupBys
-        .filter((groupBy, index) => index < this.activeGroupBys.length - 1)
-        .map((groupBy) => {
-          last += groupBy.width
-          return { groupBy, left: last }
-        })
-
-      return dividers
-    },
-    /**
-     * Computes an object that can be used by the `GridViewGroups` and `GridViewRows`
-     * components to correctly visualize the groups. Even though both components need
-     * different data, we're computing it in the same function because having only one
-     * loop is more efficient.
-     *
-     * groupBySets:
-     *
-     * Every entry in the array represents a group, and contains a list of spans, which
-     * are essentially a row span of the rows in that group.
-     *
-     * [
-     *   {
-     *     "groupBy": object,
-     *     "groupSpans": [
-     *       {
-     *         "rowSpan": 10,
-     *         "value": any,
-     *       },
-     *       ...
-     *     ]
-     *   },
-     *   ...
-     * ]
-     *
-     * rowsAtEndOfGroups:
-     *
-     * Indicates whether the row is the start or end of the last group. This is needed
-     * to add a visual divider
-     *
-     * [1, 2]
-     *
-     */
-    groupBySetsAndRowsAtEndOfGroups() {
-      const groupBys = this.activeGroupBys
-      const metadata = this.groupByMetadata
-      const rows = this.allRows
-      const rowsAtEndOfGroups = new Set()
-
-      const groupBySets = groupBys.map((groupBy, groupByIndex) => {
-        const groupSpans = []
-        let lastGroup = null
-
-        rows.forEach((row, index) => {
-          const previousRow = rows[index - 1]
-          const nextRow = rows[index + 1]
-
-          /**
-           * Helper function that checks whether the value is the same for both rows in
-           * this group, but also the previous ones. This is needed because we need to
-           * start a new group if the previous value doesn't match.
-           */
-          const checkIfInSameGroup = (row1, row2) => {
-            if (row1 === undefined || row2 === undefined) {
-              return false
-            }
-            return groupBys.slice(0, groupByIndex + 1).every((groupBy) => {
-              const groupByField = this.allFieldsInTable.find(
-                (f) => f.id === groupBy.field
-              )
-              if (!groupByField) {
-                return false
-              }
-              const groupByFieldType = this.$registry.get(
-                'field',
-                groupByField.type
-              )
-              return groupByFieldType.isEqual(
-                groupByField,
-                row1[`field_${groupBy.field}`],
-                row2[`field_${groupBy.field}`]
-              )
-            })
-          }
-
-          if (!checkIfInSameGroup(previousRow, row)) {
-            // The group by metadata is a dict where the key is equal to the group by,
-            // and the value an array containing the count for each unique value
-            // combination. Below we're looking through the entries to find the
-            // matching count for the row values.
-            const count =
-              (metadata[`field_${groupBy.field}`] || []).find((entry) => {
-                const groupByFields = groupBys
-                  .slice(0, groupByIndex + 1)
-                  .map((groupBy) =>
-                    this.allFieldsInTable.find((f) => f.id === groupBy.field)
-                  )
-                  .filter(Boolean)
-                return fieldValuesAreEqualInObjects(
-                  groupByFields,
-                  this.$registry,
-                  entry,
-                  row,
-                  true
-                )
-              })?.count || -1
-
-            // If the start of a group, then create a new span object in the last.
-            lastGroup = {
-              rowSpan: 1,
-              value: row[`field_${groupBy.field}`],
-              count,
-            }
-          } else {
-            // If the value hasn't changed, it means that this row falls within the
-            // already started group, to we have to increase the row span.
-            lastGroup.rowSpan += 1
-          }
-
-          if (!checkIfInSameGroup(row, nextRow)) {
-            // If the group ends, it must be added to the array.
-            groupSpans.push(lastGroup)
-            lastGroup = null
-
-            // If we're at the last group, we want to store whether the row is last so
-            // that we can visually show divider. This is only needed for the last group
-            // because that's where the divider must match the one with the group.
-            if (groupByIndex === groupBys.length - 1) {
-              rowsAtEndOfGroups.add(row.id)
-            }
-          }
-        })
-
-        return { groupBy, groupSpans }
+      return buildInterleavedList({
+        rows: this.allRows,
+        activeGroupBys: this.activeGroupBys,
+        groupByMetadata: this.groupByMetadata,
+        collapsedGroups: this.collapsedGroupsForView,
+        registry: this.$registry,
+        fields,
       })
-
-      return { groupBySets, rowsAtEndOfGroups }
     },
-    groupByValueSets() {
-      return this.groupBySetsAndRowsAtEndOfGroups.groupBySets
-    },
-    rowsAtEndOfGroups() {
-      return this.groupBySetsAndRowsAtEndOfGroups.rowsAtEndOfGroups
+    collapsedGroupsForView() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getCollapsedGroupsForView'
+      ](this.view.id)
     },
     isMultiSelectHolding() {
       return this.$store.getters[
@@ -471,6 +341,54 @@ export default {
       return this.$store.getters[
         this.storePrefix + 'view/grid/getGroupByMetadata'
       ]
+    },
+    rowsTop() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getRowsTop']
+    },
+    scrollTop() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getScrollTop']
+    },
+    showStickyHeader() {
+      return (
+        this.includeRowDetails &&
+        this.activeGroupBys.length > 0 &&
+        this.interleavedItems.length > 0
+      )
+    },
+    stickyHeaderItem() {
+      // Walks the buffered items in screen order, accumulating each item's
+      // height (48px header / 33px row), and returns the last header whose top
+      // edge has scrolled past the viewport top.
+      //
+      // If the buffer doesn't yet reach the current scrollTop (e.g. mid-fetch
+      // after a scroll) we return null so the overlay is hidden instead of
+      // flashing whatever header was in the now-stale prefix.
+      if (!this.showStickyHeader) {
+        return null
+      }
+
+      const HEADER_HEIGHT = 48
+      const ROW_HEIGHT = 33
+      const scrollTop = this.scrollTop
+      let offset = this.rowsTop
+      let last = null
+      let bufferCoversScrollTop = false
+
+      for (const item of this.interleavedItems) {
+        if (offset > scrollTop) {
+          bufferCoversScrollTop = true
+          break
+        }
+        if (item.type === 'header') {
+          last = item
+        }
+        offset += item.type === 'header' ? HEADER_HEIGHT : ROW_HEIGHT
+      }
+
+      if (!bufferCoversScrollTop) {
+        return null
+      }
+      return last
     },
   },
   watch: {

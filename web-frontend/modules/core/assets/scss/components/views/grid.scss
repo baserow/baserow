@@ -211,19 +211,6 @@
   }
 }
 
-.grid-view__head-group {
-  position: relative;
-  height: 33px;
-}
-
-.grid-view__head-group-width-handle {
-  @extend %grid-view-divider-width-handle;
-  @include absolute(3px, auto, auto, auto);
-
-  margin-left: -4.5px;
-  z-index: 3;
-}
-
 .grid-view__body {
   position: absolute;
   inset: 33px 0 48px;
@@ -468,73 +455,92 @@
   }
 }
 
-.grid-view__group-by-divider {
-  @include absolute(0, auto, 0, auto);
-
-  z-index: 3;
-  width: 1px;
-  background-color: $color-neutral-400;
-}
-
-.grid-view__groups {
-  position: absolute;
-  z-index: 1;
-  top: 0;
+.grid-view__group-header {
   display: flex;
+  align-items: center;
+  height: 48px;
+  padding-right: 12px;
   background-color: $color-neutral-50;
+  border-bottom: 1px solid $color-neutral-200;
+  position: relative;
+  z-index: 1;
 }
 
-.grid-view__group-span {
-  position: relative;
+.grid-view__sticky-group-header {
+  position: absolute;
+  top: 33px;
+  left: 0;
+  right: 0;
+  z-index: 4;
+  pointer-events: auto;
+}
 
-  &::after {
-    @include absolute(auto, auto, 0, 0);
+.grid-view__group-header--collapsed {
+  border-bottom-color: $color-neutral-400;
+}
 
-    content: '';
-    height: 1px;
-    background-color: $color-neutral-400;
-    width: 100%;
-    pointer-events: none;
+.grid-view__group-header-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  cursor: pointer;
+  color: $palette-neutral-900;
+  flex-shrink: 0;
+}
+
+.grid-view__group-header-toggle-icon {
+  transition: transform 0.15s ease;
+}
+
+.grid-view__group-header-toggle-icon--expanded {
+  transform: rotate(90deg);
+}
+
+.grid-view__group-header-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+  gap: 4px;
+}
+
+.grid-view__group-header-field-name {
+  @extend %ellipsis;
+
+  max-width: 100%;
+  font-size: 11px;
+  line-height: 13px;
+  font-weight: 600;
+  color: $palette-neutral-600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.grid-view__group-header-value-row {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 8px;
+}
+
+.grid-view__group-header-value {
+  min-width: 0;
+  overflow: hidden;
+
+  &.grid-view__group-header-value--empty {
+    color: $palette-neutral-500;
+    font-style: italic;
   }
 }
 
-.grid-view__group {
-  position: sticky;
-  top: 0;
-  background-color: $color-neutral-50;
-  width: 100%;
-}
-
-.grid-view__group-cell {
-  display: flex;
-  height: $grid-view-row-height-small;
-  align-items: center;
-  width: 100%;
-  padding: 0 8px;
-}
-
-.grid-view__group-name {
-  @extend %ellipsis;
-
-  line-height: $grid-view-row-height-small;
-  font-size: 12px;
-  font-weight: 500;
-  color: $palette-neutral-900;
-}
-
-.grid-view__group-value {
-  min-width: 0;
-  width: 100%;
-  overflow: hidden;
-}
-
-.grid-view__group-count {
+.grid-view__group-header-count {
   font-size: 11px;
   line-height: 18px;
   font-weight: 600;
   padding: 0 5px;
   background-color: $color-neutral-200;
-  margin-left: 8px;
+  flex-shrink: 0;
 
   @include rounded($rounded);
 }

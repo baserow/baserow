@@ -38,6 +38,7 @@ import {
 const ORDER_STEP = '1'
 const ORDER_STEP_BEFORE = '0.00000000000000000001'
 const REFRESH_ROW_DELAY = 1000
+const GROUP_HEADER_HEIGHT = 48
 
 /**
  * Populates fresh rows from text (or JSON) data. The number of returned rows will match
@@ -148,6 +149,42 @@ function getPendingOperationKey(fieldId, rowId) {
   return `${fieldId}-${rowId}`
 }
 
+function getCollapsedGroupsParam(getters, viewId) {
+  const groups = getters.getCollapsedGroupsForView(viewId)
+  return groups.length > 0 ? JSON.stringify(groups) : ''
+}
+
+function persistCollapsedGroups(viewId, groups) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    window.localStorage.setItem(
+      `gridView.${viewId}.collapsedGroups`,
+      JSON.stringify(groups)
+    )
+  } catch {
+    // Ignore localStorage errors.
+  }
+}
+
+function loadCollapsedGroups(viewId) {
+  if (typeof window === 'undefined') {
+    return []
+  }
+
+  try {
+    const stored = window.localStorage.getItem(
+      `gridView.${viewId}.collapsedGroups`
+    )
+    const parsed = stored ? JSON.parse(stored) : []
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
 export const state = () => ({
   // Indicates if multiple cell selection is active
   multiSelectActive: false,
@@ -215,6 +252,7 @@ export const state = () => ({
   fieldAggregationData: {},
   activeGroupBys: [],
   groupByMetadata: {},
+  collapsedGroups: {},
   // Contains a fieldId and rowId string pair that looks like `{fieldId}-{rowId}`. If
   // in the array, then that cell is a loading state. This is for example used for
   // fields that use a background worker to compute the value like the AI field.
@@ -627,6 +665,33 @@ export const mutations = {
   SET_GROUP_BY_METADATA(state, metadata) {
     state.groupByMetadata = metadata
   },
+  SET_COLLAPSED_GROUPS(state, { viewId, groups }) {
+    state.collapsedGroups = {
+      ...state.collapsedGroups,
+      [viewId]: groups,
+    }
+  },
+  TOGGLE_GROUP_COLLAPSED(state, { viewId, groupValues }) {
+    const current = state.collapsedGroups[viewId] || []
+    const index = current.findIndex((group) => _.isEqual(group, groupValues))
+    const groups =
+      index === -1
+        ? [...current, groupValues]
+        : [...current.slice(0, index), ...current.slice(index + 1)]
+
+    state.collapsedGroups = {
+      ...state.collapsedGroups,
+      [viewId]: groups,
+    }
+    persistCollapsedGroups(viewId, groups)
+  },
+  CLEAR_COLLAPSED_GROUPS(state, { viewId }) {
+    state.collapsedGroups = {
+      ...state.collapsedGroups,
+      [viewId]: [],
+    }
+    persistCollapsedGroups(viewId, [])
+  },
   /**
    * Merges the existing group by metadata and the newly provided metadata. If a
    * count for the value combination already exists, it will be updated, otherwise
@@ -920,6 +985,7 @@ export const actions = {
           publicUrl: rootGetters['page/view/public/getIsPublic'],
           publicAuthToken: rootGetters['page/view/public/getAuthToken'],
           groupBy: getGroupBy(rootGetters, getters.getLastGridId),
+          collapsedGroups: getCollapsedGroupsParam(getters, gridId),
           orderBy: getOrderBy(view, getters.getAdhocSorting),
           filters: getFilters(view, getters.getAdhocFiltering),
           excludeCount: getters.canExcludeCount,
@@ -1006,12 +1072,12 @@ export const actions = {
         getters.getBufferStartIndex
       ) - getters.getBufferStartIndex
 
-    // Calculate the top position of the html element that contains all the rows.
-    // This element will be placed over the placeholder the correct position of
-    // those rows.
-    const top =
-      Math.min(visibleStartIndex, getters.getBufferEndIndex) *
-      getters.getRowHeight
+    // Position the rendered buffer so its first item sits at its true virtual
+    // y-position. Body.scrollTop scrolls the body itself; combining the two
+    // makes the user-visible rows land at the top of the viewport. Using
+    // visibleStartIndex here would only be correct when rendering a sliced
+    // window — the interleaved grouping renders the whole buffer at once.
+    const top = getters.getBufferStartIndex * getters.getRowHeight
 
     // If the index changes from what we already have we can commit the new indexes
     // to the state.
@@ -1085,6 +1151,10 @@ export const actions = {
     commit('SET_LAST_GRID_ID', gridId)
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_ADHOC_SORTING', adhocSorting)
+    commit('SET_COLLAPSED_GROUPS', {
+      viewId: gridId,
+      groups: loadCollapsedGroups(gridId),
+    })
 
     const view = rootGetters['view/get'](getters.getLastGridId)
     const limit = getters.getBufferRequestSize * 2
@@ -1098,6 +1168,7 @@ export const actions = {
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       groupBy: getGroupBy(rootGetters, getters.getLastGridId),
+      collapsedGroups: getCollapsedGroupsParam(getters, gridId),
       orderBy: getOrderBy(view, adhocSorting),
       filters: getFilters(view, adhocFiltering),
     })
@@ -1158,6 +1229,8 @@ export const actions = {
         signal: lastRefreshRequestController.signal,
         publicUrl: rootGetters['page/view/public/getIsPublic'],
         publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+        groupBy: getGroupBy(rootGetters, getters.getLastGridId),
+        collapsedGroups: getCollapsedGroupsParam(getters, gridId),
         filters: getFilters(view, adhocFiltering),
       })
       .then((response) => {
@@ -1184,6 +1257,7 @@ export const actions = {
             publicUrl: rootGetters['page/view/public/getIsPublic'],
             publicAuthToken: rootGetters['page/view/public/getAuthToken'],
             groupBy: getGroupBy(rootGetters, getters.getLastGridId),
+            collapsedGroups: getCollapsedGroupsParam(getters, gridId),
             orderBy: getOrderBy(view, adhocSorting),
             filters: getFilters(view, adhocFiltering),
             excludeCount: true, // We already have it from the previous request.
@@ -1954,6 +2028,7 @@ export const actions = {
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       groupBy: getGroupBy(rootGetters, getters.getLastGridId),
+      collapsedGroups: getCollapsedGroupsParam(getters, gridId),
       orderBy: getOrderBy(view, getters.getAdhocSorting),
       filters: getFilters(view, getters.getAdhocFiltering),
       includeFields: fields,
@@ -3567,6 +3642,22 @@ export const actions = {
   setRowHeight({ commit, dispatch, getters }, value) {
     commit('UPDATE_ROW_HEIGHT', value)
   },
+  /**
+   * `fetchInitial` runs server-side where `window` is undefined, so its
+   * localStorage read returns an empty array. Call this once on client mount to
+   * pick up any persisted collapse state and re-fetch rows with it applied.
+   */
+  hydrateCollapsedGroupsFromStorage(
+    { commit, dispatch, getters },
+    { view, fields, adhocFiltering, adhocSorting }
+  ) {
+    const groups = loadCollapsedGroups(view.id)
+    if (groups.length === 0) {
+      return
+    }
+    commit('SET_COLLAPSED_GROUPS', { viewId: view.id, groups })
+    return dispatch('refresh', { view, fields, adhocFiltering, adhocSorting })
+  },
   toggleCheckboxRowSelection({ commit, dispatch, state, getters }, { row }) {
     const { $registry, $client, $i18n, $config } = this
     const rowId = row.id
@@ -3874,6 +3965,12 @@ export const getters = {
   },
   getGroupByMetadata(state) {
     return state.groupByMetadata
+  },
+  getCollapsedGroupsForView: (state) => (viewId) => {
+    return state.collapsedGroups[viewId] || []
+  },
+  getGroupHeaderHeight() {
+    return GROUP_HEADER_HEIGHT
   },
   getAdhocFiltering(state) {
     return state.adhocFiltering

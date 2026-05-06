@@ -336,9 +336,15 @@ def serialize_group_by_fields_metadata(
     queryset: QuerySet[GeneratedTableModel],
     group_by_fields: List[Field],
     page: QuerySet[GeneratedTableModel],
+    collapsed_group_values: Optional[List[Dict[str, Any]]] = None,
+    view_group_bys: Optional[List[Any]] = None,
 ):
     group_by_metadata = ViewHandler().get_group_by_metadata_in_rows(
-        group_by_fields, page, queryset
+        group_by_fields,
+        page,
+        queryset,
+        collapsed_group_values=collapsed_group_values,
+        view_group_bys=view_group_bys,
     )
     serialized_group_by_metadata = serialize_group_by_metadata(group_by_metadata)
     return serialized_group_by_metadata

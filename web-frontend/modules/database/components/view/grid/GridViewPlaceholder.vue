@@ -51,7 +51,14 @@ export default {
   },
   computed: {
     groupByWidth() {
-      return this.includeGroupBy ? this.activeGroupByWidth : 0
+      if (!this.includeGroupBy) {
+        return 0
+      }
+
+      return this.activeGroupBys.reduce(
+        (width, groupBy) => width + groupBy.width,
+        0
+      )
     },
     /**
      * Calculate the left positions of the placeholder columns. These are the gray
