@@ -278,7 +278,14 @@ export class ErrorHandler {
       return this.errorMap[this.code]
     }
 
-    if (this.detail && typeof this.detail === 'string') {
+    const status = this.response?.status || 500
+    if (
+      this.detail &&
+      typeof this.detail === 'string' &&
+      status >= 400 &&
+      status < 500 &&
+      this.code != 'ERROR_REQUEST_BODY_VALIDATION'
+    ) {
       return new ResponseErrorMessage(
         this.app.$i18n.t('clientHandler.notCompletedTitle'),
         this.detail
