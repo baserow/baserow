@@ -640,6 +640,51 @@ def test_delete_element_permission_denied(
 
 
 @pytest.mark.django_db
+def test_delete_container_element_deletes_children(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+
+    container = data_fixture.create_builder_column_element(page=page, column_amount=2)
+    child1 = data_fixture.create_builder_heading_element(
+        page=page,
+        position=GraphPointPosition.CHILD,
+        reference_element=container,
+        place_in_container="0",
+    )
+    child2 = data_fixture.create_builder_column_element(
+        page=page,
+        column_amount=1,
+        position=GraphPointPosition.CHILD,
+        reference_element=container,
+        place_in_container="1",
+    )
+    grandchild = data_fixture.create_builder_heading_element(
+        page=page,
+        position=GraphPointPosition.CHILD,
+        reference_element=child2,
+        place_in_container="0",
+    )
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": container.id})
+    response = api_client.delete(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    assert not Element.objects.filter(
+        id__in=[container.id, child1.id, child2.id, grandchild.id]
+    ).exists()
+
+    page.refresh_from_db(fields=["graph"])
+    for element_id in [container.id, child1.id, child2.id, grandchild.id]:
+        assert str(element_id) not in page.graph
+    assert page.graph == {}
+
+    list_url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    list_response = api_client.get(list_url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert list_response.status_code == HTTP_200_OK
+    assert list_response.json() == []
+
+
+@pytest.mark.django_db
 def test_delete_element_element_not_exist(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
 

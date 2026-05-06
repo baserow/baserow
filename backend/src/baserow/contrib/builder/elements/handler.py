@@ -411,7 +411,7 @@ class ElementHandler:
 
     def delete_element(self, element: Element):
         """
-        Deletes an element.
+        Deletes an element and all of its graph-reachable descendants.
 
         :param element: The to-be-deleted element.
         """
@@ -419,12 +419,13 @@ class ElementHandler:
         page = element.page
         element.get_type().before_delete(element)
 
-        # Remove from the graph before the DB delete so the graph doesn't keep
-        # a stale reference. Children deleted by CASCADE are orphaned in the
-        # graph (no longer reachable from "0") but that is harmless.
-        page.get_graph().remove(element)
-
+        result = page.get_graph().remove(element)
         element.delete()
+
+        for dep in result.dependencies_removed:
+            specific = dep.specific
+            specific.get_type().before_delete(specific)
+            specific.delete()
 
         self.invalidate_element_cache(page)
 
