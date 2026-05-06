@@ -12,6 +12,7 @@ from opentelemetry.trace import Span
 from baserow.core.psycopg import is_psycopg3
 from baserow.core.telemetry.provider import DifferentSamplerPerLibraryTracerProvider
 from baserow.core.telemetry.utils import BatchBaggageSpanProcessor, otel_is_enabled
+from baserow.core.utils import get_user_remote_ip_address_from_request
 
 OTEL_CLIENT_IP_ATTRIBUTE_NAMES = ("client.address", "net.peer.ip")
 
@@ -177,8 +178,6 @@ def _setup_django_process_instrumentation():
 
 def _set_real_client_ip_on_request_span(span: Span, request: HttpRequest):
     if span and span.is_recording():
-        from baserow.core.utils import get_user_remote_ip_address_from_request
-
         ip_address = get_user_remote_ip_address_from_request(request)
         if ip_address:
             for attribute_name in OTEL_CLIENT_IP_ATTRIBUTE_NAMES:
