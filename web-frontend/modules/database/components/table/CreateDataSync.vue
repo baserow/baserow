@@ -7,17 +7,16 @@
         :value="job.progress_percentage"
         :status="jobHumanReadableState"
       />
-      <div class="align-right">
-        <Button
-          v-if="jobIsRunning"
-          type="secondary"
-          size="large"
-          :loading="cancelLoading"
-          @click="cancelJob"
-        >
-          {{ $t('action.cancel') }}
-        </Button>
-      </div>
+      <ButtonText
+        v-if="jobIsRunning || cancelLoading"
+        tag="a"
+        type="secondary"
+        class="modal-progress__cancel-button"
+        :loading="cancelLoading"
+        @click="cancelJob"
+      >
+        {{ $t('action.cancel') }}
+      </ButtonText>
     </div>
   </div>
   <div v-else-if="!loadedProperties">
@@ -107,27 +106,27 @@
         :value="job.progress_percentage"
         :status="jobHumanReadableState"
       />
-      <div class="align-right">
-        <Button
-          v-if="jobIsRunning"
-          type="secondary"
-          size="large"
-          :loading="cancelLoading"
-          @click="cancelJob"
-        >
-          {{ $t('action.cancel') }}
-        </Button>
-        <Button
-          v-else
-          type="primary"
-          size="large"
-          :disabled="creatingTable || jobIsFinished"
-          :loading="creatingTable || jobIsFinished"
-          @click="create"
-        >
-          {{ $t('createDataSync.create') }}
-        </Button>
-      </div>
+      <ButtonText
+        v-if="jobIsRunning || cancelLoading"
+        tag="a"
+        type="secondary"
+        class="modal-progress__cancel-button"
+        :loading="cancelLoading"
+        @click="cancelJob"
+      >
+        {{ $t('action.cancel') }}
+      </ButtonText>
+      <Button
+        type="primary"
+        size="large"
+        full-width
+        class="modal-progress__primary-button"
+        :disabled="creatingTable || jobIsFinished || jobIsRunning"
+        :loading="creatingTable || jobIsFinished || jobIsRunning"
+        @click="create"
+      >
+        {{ $t('createDataSync.create') }}
+      </Button>
     </div>
   </div>
 </template>
@@ -156,7 +155,7 @@ export default {
       required: true,
     },
   },
-  emits: ['hide', 'import-in-progress'],
+  emits: ['hide', 'import-in-progress', 'uploading-before-job-created'],
   setup() {
     const nuxtApp = useNuxtApp()
     return { nuxtApp }
@@ -202,6 +201,11 @@ export default {
     syncInProgress() {
       return this.creatingTable || this.jobIsRunning
     },
+    // True while creating the table before the sync job exists.
+    // Once created, the user can close the modal and the job will restore on reopen.
+    uploadingBeforeJobCreated() {
+      return this.creatingTable && this.job === null
+    },
     twoWaySyncDeactivatedModal() {
       if (!this.twoWaySyncStrategy) {
         return null
@@ -213,6 +217,12 @@ export default {
     syncInProgress: {
       handler(value) {
         this.$emit('import-in-progress', value)
+      },
+      immediate: true,
+    },
+    uploadingBeforeJobCreated: {
+      handler(value) {
+        this.$emit('uploading-before-job-created', value)
       },
       immediate: true,
     },

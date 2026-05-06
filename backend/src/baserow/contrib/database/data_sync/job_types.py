@@ -24,6 +24,7 @@ from baserow.core.db import transaction_atomic
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
+from baserow.core.jobs.models import JobQuerySet
 from baserow.core.jobs.registries import JobType
 
 from .actions import SyncDataSyncTableActionType
@@ -63,33 +64,28 @@ class SyncDataSyncTableJobType(JobType):
         "data_sync": DataSyncSerializer(read_only=True),
     }
 
-    def can_schedule_or_raise(self, job: SyncDataSyncTableJob) -> None:
+    def _can_schedule_or_raise(
+        self, running_jobs: JobQuerySet, new_job: SyncDataSyncTableJob
+    ) -> None:
         """
         Limits concurrent data syncs to ``max_count`` per user overall, and at
         most one running job per individual data sync.
 
-        :param job: The job instance that is going to be scheduled.
         :raises MaxJobCountExceeded: If a conflicting job is already running.
         """
 
-        running_jobs = SyncDataSyncTableJob.objects.filter(
-            user_id=job.user.id
-        ).is_pending_or_running()
+        super()._can_schedule_or_raise(running_jobs, new_job)
 
-        if len(running_jobs) >= self.max_count:
-            raise MaxJobCountExceeded(
-                f"You can only launch {self.max_count} {self.type} job(s) at "
-                "the same time."
-            )
-
-        if job.data_sync_id is not None:
+        if new_job.data_sync_id is not None:
             for running_job in running_jobs:
-                if running_job.data_sync_id == job.data_sync_id:
+                if running_job.data_sync_id == new_job.data_sync_id:
                     raise MaxJobCountExceeded(
                         f"A {self.type} job is already running for this data sync."
                     )
 
     def on_cancelled(self, job: SyncDataSyncTableJob) -> None:
+        # Delete table if this is the initial sync job (last_sync is None), to avoid
+        # leaving an empty, unsynced table that the user never explicitly created.
         if job.data_sync and job.data_sync.last_sync is None:
             try:
                 TableHandler().delete_table(job.user, job.data_sync.table)

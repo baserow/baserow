@@ -4,7 +4,7 @@
     :right-sidebar="true"
     :right-sidebar-scrollable="true"
     :close-button="false"
-    :can-close="!importInProgress"
+    :can-close="!uploadingBeforeJobCreated"
     @show="onShow"
   >
     <template #content>
@@ -132,31 +132,31 @@
           :value="progressPercentage"
           :status="humanReadableState"
         />
-        <div class="align-right">
-          <Button
-            v-if="jobIsRunning"
-            type="secondary"
-            size="large"
-            :loading="cancelLoading"
-            @click="cancelJob"
-          >
-            {{ $t('action.cancel') }}
-          </Button>
-          <Button
-            v-else
-            type="primary"
-            size="large"
-            :loading="importInProgress || (jobIsFinished && !isTableCreated)"
-            :disabled="
-              importInProgress ||
-              !canBeSubmitted ||
-              (jobIsFinished && !isTableCreated)
-            "
-            @click="submitted"
-          >
-            {{ $t('importFileModal.importButton') }}
-          </Button>
-        </div>
+        <ButtonText
+          v-if="jobIsRunning || cancelLoading"
+          tag="a"
+          type="secondary"
+          class="modal-progress__cancel-button"
+          :loading="cancelLoading"
+          @click="cancelJob"
+        >
+          {{ $t('action.cancel') }}
+        </ButtonText>
+        <Button
+          type="primary"
+          size="large"
+          full-width
+          class="modal-progress__primary-button"
+          :loading="importInProgress || (jobIsFinished && !isTableCreated)"
+          :disabled="
+            importInProgress ||
+            !canBeSubmitted ||
+            (jobIsFinished && !isTableCreated)
+          "
+          @click="submitted"
+        >
+          {{ $t('importFileModal.importButton') }}
+        </Button>
       </div>
       <div v-else class="align-right">
         <Button
@@ -207,7 +207,7 @@
           </div>
         </div>
       </div>
-      <div class="modal__actions">
+      <div v-if="!uploadingBeforeJobCreated" class="modal__actions">
         <a class="modal__close" @click="hide()">
           <i class="iconoir-cancel"></i>
         </a>
@@ -441,6 +441,12 @@ export default {
         !this.jobHasFailed &&
         !this.error.visible
       )
+    },
+    // True only while uploading the file before the backend job exists.
+    // Once the job is created the user can close the modal — the running job
+    // is in the store and will be restored on reopen.
+    uploadingBeforeJobCreated() {
+      return this.job === null && this.importInProgress
     },
     importerTypes() {
       return this.$registry.getAll('importer')

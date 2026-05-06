@@ -58,27 +58,28 @@
         :value="progressPercentage"
         :status="humanReadableState"
       />
-      <div class="align-right">
-        <Button
-          v-if="jobIsRunning"
-          type="secondary"
-          size="large"
-          :loading="cancelLoading"
-          @click="cancelJob"
-        >
-          {{ $t('action.cancel') }}
-        </Button>
-        <Button
-          v-else-if="!restoredFromStore"
-          type="primary"
-          size="large"
-          :loading="importInProgress || jobIsFinished"
-          :disabled="importInProgress || jobIsFinished"
-          @click="$refs.tableForm.submit()"
-        >
-          {{ $t('createTable.addButton') }}
-        </Button>
-      </div>
+      <ButtonText
+        v-if="jobIsRunning || cancelLoading"
+        tag="a"
+        type="secondary"
+        class="modal-progress__cancel-button"
+        :loading="cancelLoading"
+        @click="cancelJob"
+      >
+        {{ $t('action.cancel') }}
+      </ButtonText>
+      <Button
+        v-if="!restoredFromStore"
+        type="primary"
+        size="large"
+        full-width
+        class="modal-progress__primary-button"
+        :loading="importInProgress || jobIsFinished"
+        :disabled="importInProgress || jobIsFinished"
+        @click="$refs.tableForm.submit()"
+      >
+        {{ $t('createTable.addButton') }}
+      </Button>
     </div>
     <div v-else class="align-right">
       <Button
@@ -124,7 +125,7 @@ export default {
       required: true,
     },
   },
-  emits: ['hide', 'import-in-progress'],
+  emits: ['hide', 'import-in-progress', 'uploading-before-job-created'],
   setup() {
     const nuxtApp = useNuxtApp()
     return { nuxtApp }
@@ -218,6 +219,12 @@ export default {
         !this.error.visible
       )
     },
+    // True only while uploading the file before the backend job exists.
+    // Once the job is created the user can close the modal — the running job
+    // is in the store and will be restored on reopen.
+    uploadingBeforeJobCreated() {
+      return this.job === null && this.importInProgress
+    },
     importerComponent() {
       if (this.chosenType === '') return null
       try {
@@ -252,6 +259,12 @@ export default {
     importInProgress: {
       handler(value) {
         this.$emit('import-in-progress', value)
+      },
+      immediate: true,
+    },
+    uploadingBeforeJobCreated: {
+      handler(value) {
+        this.$emit('uploading-before-job-created', value)
       },
       immediate: true,
     },

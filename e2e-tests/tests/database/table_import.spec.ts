@@ -92,9 +92,11 @@ test.describe("Table import job restore after reload", () => {
       { timeout: 30000 }
     );
 
-    // Reload the page while the import is still running
+    // Reload the page while the import is still running. We deliberately
+    // don't wait for "networkidle" — the job poller fires every 2s, so
+    // networkidle won't settle and would eat the test budget. The next
+    // click auto-waits for the title to appear.
     await page.reload();
-    await page.waitForLoadState("networkidle");
 
     // Navigate back to the database
     await page.getByTitle("ImportTestDb").click();
@@ -135,16 +137,50 @@ test.describe("Table import job restore after reload", () => {
     ).toBeVisible({ timeout: 10000 });
 
     // A progress bar or cancel button should be visible (job still running)
-    const cancelButton = modalAfterReload.getByRole("button", {
-      name: "Cancel",
-    });
+    const cancelButton = modalAfterReload.locator(
+      ".modal-progress__cancel-button"
+    );
     await expect(cancelButton).toBeVisible({ timeout: 5000 });
 
-    // Click cancel and verify the job is cancelled
-    await cancelButton.click();
+    // Click cancel and verify the job is cancelled. Use force:true because
+    // the surrounding ProgressBar updates its value rapidly and Vue can
+    // re-render the actions block, briefly detaching the button.
+    await cancelButton.click({ force: true });
 
     // The cancel button should disappear (job is no longer running)
     await expect(cancelButton).toBeHidden({ timeout: 15000 });
+  });
+
+  test("Create empty table with a given name", async ({
+    page,
+    workspacePage,
+  }) => {
+    await createDatabase(
+      workspacePage.user,
+      "EmptyTableDb",
+      workspacePage.workspace
+    );
+    await workspacePage.goto();
+    await page.getByTitle("EmptyTableDb").click();
+
+    await page.getByText("New table").click();
+
+    const modal = page
+      .locator(".modal__box:not(.modal__box--full-screen)")
+      .filter({ hasText: "Create new table" });
+    await expect(modal).toBeVisible();
+
+    // "Start with a new table" is the default selection — no importer needed,
+    // so the only text input on screen is the Name field.
+    const tableName = "Empty Table";
+    await modal.getByRole("textbox").first().fill(tableName);
+
+    await modal.getByRole("button", { name: "Add table" }).click();
+
+    // The user is redirected to the newly-created table — its name appears
+    // in the sidebar and the URL points at /database/.../table/...
+    await expect(page.getByTitle(tableName)).toBeVisible({ timeout: 15000 });
+    await expect(page).toHaveURL(/\/database\/\d+\/table\/\d+/);
   });
 
   test("CSV import into existing table restores running job after reload", async ({
@@ -220,9 +256,10 @@ test.describe("Table import job restore after reload", () => {
       { timeout: 30000 }
     );
 
-    // Reload while the import is running
+    // Reload while the import is running. Don't wait for "networkidle"
+    // here — the job poller fires every 2s so networkidle won't settle and
+    // would consume the test budget before the post-reload checks run.
     await page.reload();
-    await page.waitForLoadState("networkidle");
 
     // After reload, navigate back to the table and reopen the import modal
     await page.getByTitle("ExistingImportDb").click();
@@ -255,13 +292,15 @@ test.describe("Table import job restore after reload", () => {
     await expect(modalAfterReload).toBeVisible();
 
     // The cancel button should be visible (meaning the running job was restored)
-    const cancelButton = modalAfterReload.getByRole("button", {
-      name: "Cancel",
-    });
+    const cancelButton = modalAfterReload.locator(
+      ".modal-progress__cancel-button"
+    );
     await expect(cancelButton).toBeVisible({ timeout: 10000 });
 
-    // Cancel and verify the job stops
-    await cancelButton.click();
+    // Cancel and verify the job stops. Use force:true because the
+    // ProgressBar inside the same modal re-renders rapidly and can
+    // briefly detach the button between visibility check and click.
+    await cancelButton.click({ force: true });
     await expect(cancelButton).toBeHidden({ timeout: 10000 });
   });
 });

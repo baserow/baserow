@@ -121,12 +121,14 @@ class TableCreateSerializer(serializers.ModelSerializer):
     importer_type = serializers.CharField(
         max_length=32,
         required=False,
+        allow_blank=True,
         default="",
         help_text="The frontend importer identifier used to parse the file.",
     )
     original_file_name = serializers.CharField(
         max_length=255,
         required=False,
+        allow_blank=True,
         default="",
         help_text="The original name of the uploaded file.",
     )
@@ -165,12 +167,14 @@ class TableImportSerializer(serializers.Serializer):
     importer_type = serializers.CharField(
         max_length=32,
         required=False,
+        allow_blank=True,
         default="",
         help_text="The frontend importer identifier used to parse the file.",
     )
     original_file_name = serializers.CharField(
         max_length=255,
         required=False,
+        allow_blank=True,
         default="",
         help_text="The original name of the uploaded file.",
     )

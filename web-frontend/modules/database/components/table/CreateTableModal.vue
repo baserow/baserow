@@ -1,5 +1,10 @@
 <template>
-  <Modal ref="modal" @show="onShow" @hidden="callCreateComponentHide()">
+  <Modal
+    ref="modal"
+    :can-close="!uploadingBeforeJobCreated"
+    @show="onShow"
+    @hidden="callCreateComponentHide()"
+  >
     <template #content>
       <div class="import-modal__header">
         <h2 class="import-modal__title">
@@ -68,6 +73,7 @@
         :database="database"
         @hide="hide()"
         @import-in-progress="importInProgress = $event"
+        @uploading-before-job-created="uploadingBeforeJobCreated = $event"
       ></CreateTable>
       <CreateDataSync
         v-else
@@ -76,6 +82,7 @@
         :database="database"
         @hide="hide()"
         @import-in-progress="importInProgress = $event"
+        @uploading-before-job-created="uploadingBeforeJobCreated = $event"
       ></CreateDataSync>
     </template>
   </Modal>
@@ -105,6 +112,7 @@ export default {
     return {
       chosenType: '',
       importInProgress: false,
+      uploadingBeforeJobCreated: false,
     }
   },
   computed: {
@@ -128,14 +136,14 @@ export default {
     },
     getRunningJobType() {
       const jobs = this.$store.getters['job/getUnfinishedJobs']
-      const dbId = this.database.id
+      const databaseId = this.database.id
 
       // Check for a running file import (new table creation)
       const fileImport = jobs.find(
         (j) =>
           j.type === FileImportJobType.getType() &&
           j.table_id === null &&
-          j.database_id === dbId
+          j.database_id === databaseId
       )
       if (fileImport) {
         const type = fileImport.importer_type || ''
@@ -149,7 +157,7 @@ export default {
       const dataSync = jobs.find(
         (j) =>
           j.type === SyncDataSyncTableJobType.getType() &&
-          j.data_sync?.database_id === dbId
+          j.data_sync?.database_id === databaseId
       )
       if (dataSync) {
         const type = dataSync.data_sync?.type || ''
