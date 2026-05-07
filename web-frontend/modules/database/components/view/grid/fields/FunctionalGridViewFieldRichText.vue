@@ -21,7 +21,7 @@ export default {
       default: '',
     },
     workspaceId: {
-      type: null,
+      type: Number,
       required: true,
     },
   },

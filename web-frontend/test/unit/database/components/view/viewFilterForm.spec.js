@@ -14,7 +14,8 @@ vi.mock('@baserow/modules/core/utils/string', async (importOriginal) => {
     ...actual,
     uuid: () => mockUuid(),
     // Used by createNewUndoRedoActionGroupId in createFilter
-    generateUUID: () => '00000000-0000-4000-a000-000000000001',
+    generateUUID: () =>
+      `00000000-0000-4000-a000-${mockUuid().toString().padStart(12, '0')}`,
   }
 })
 

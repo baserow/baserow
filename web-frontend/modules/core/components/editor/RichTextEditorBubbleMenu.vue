@@ -4,7 +4,7 @@
     class="rich-text-editor__menu-container"
     :editor="editor"
     :plugin-key="pluginKey"
-    :append-to="appendTo"
+    :append-to="typeof appendTo === 'function' ? appendTo() : appendTo"
     :should-show="shouldShowMenu"
     :update-delay="0"
     :resize-delay="0"

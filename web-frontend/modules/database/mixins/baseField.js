@@ -10,6 +10,7 @@ export default {
     workspaceId: {
       type: Number,
       required: true,
+      default: null,
     },
     /**
      * Contains the field type object. Because each field type can have different

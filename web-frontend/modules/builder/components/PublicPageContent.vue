@@ -166,7 +166,7 @@ const headConfig = computed(() => {
     bodyAttrs: {
       class: 'public-page',
     },
-    style: [{ children: `:root { ${cssVars} }`, type: 'text/css' }],
+    style: [{ innerHTML: `:root { ${cssVars} }`, type: 'text/css' }],
   }
 
   if (faviconLink.value) {
