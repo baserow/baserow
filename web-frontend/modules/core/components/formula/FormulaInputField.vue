@@ -587,10 +587,9 @@ export default {
 
       if (config.needsDynamicOffset) {
         const inputRect = this.$el?.getBoundingClientRect()
-        const contextRect =
-          this.$refs.formulaInputExplorerContext
-            ?.getTeleportedElement()
-            ?.getBoundingClientRect()
+        const contextRect = this.$refs.formulaInputExplorerContext
+          ?.getTeleportedElement()
+          ?.getBoundingClientRect()
 
         switch (this.contextPosition) {
           case 'left':

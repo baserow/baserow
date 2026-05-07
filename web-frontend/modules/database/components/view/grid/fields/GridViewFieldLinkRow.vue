@@ -89,9 +89,7 @@
 import { mapGetters } from 'vuex'
 
 import { getPersistentFieldOptionsKey } from '@baserow/modules/database/utils/field'
-import {
-  isInsideTeleportedElement,
-} from '@baserow/modules/core/utils/dom'
+import { isInsideTeleportedElement } from '@baserow/modules/core/utils/dom'
 import gridField from '@baserow/modules/database/mixins/gridField'
 import linkRowField from '@baserow/modules/database/mixins/linkRowField'
 import arrayLoading from '@baserow/modules/database/mixins/arrayLoading'

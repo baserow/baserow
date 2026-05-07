@@ -138,8 +138,10 @@ export default {
 
       return (
         !isInsideTeleportedElement(this.$refs.dateContext, event) &&
-        !(this.field.date_include_time &&
-          isInsideTeleportedElement(this.$refs.timeContext, event))
+        !(
+          this.field.date_include_time &&
+          isInsideTeleportedElement(this.$refs.timeContext, event)
+        )
       )
     },
     /**
