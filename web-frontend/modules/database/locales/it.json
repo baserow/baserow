@@ -874,7 +874,9 @@
         "thenBy": "Poi per",
         "addGroupBy": "Scegli un campo con cui raggruppare",
         "noGroupByTitle": "Non hai ancora creato nessun groupp",
-        "noGroupByText": "Raggruppa righe per campo."
+        "noGroupByText": "Raggruppa righe per campo.",
+        "collapseAll": "Collapse all",
+        "expandAll": "Expand all"
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} ti ha assegnato a {fieldName} nella riga {rowId} della tabella {tableName}",

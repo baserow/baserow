@@ -78,17 +78,18 @@
         </div>
       </div>
       <div
-        v-if="view.group_bys.length < availableFieldsLength && !disableGroupBy"
+        v-if="canAddGroupBy || view.group_bys.length > 0"
         class="context__footer"
       >
         <ButtonText
+          v-if="canAddGroupBy"
           ref="addDropdownToggle"
           icon="iconoir-plus"
           @click="$refs.addDropdown.toggle($refs.addDropdownToggle.$el)"
         >
           {{ $t('viewGroupByContext.addGroupBy') }}</ButtonText
         >
-        <div class="group-bys__add">
+        <div v-if="canAddGroupBy" class="group-bys__add">
           <Dropdown
             ref="addDropdown"
             :show-input="false"
@@ -103,6 +104,26 @@
               :icon="getFieldType(field).iconClass"
             ></DropdownItem>
           </Dropdown>
+        </div>
+        <div v-if="view.group_bys.length > 0" class="group-bys__footer-actions">
+          <ButtonText
+            class="group-bys__footer-action"
+            type="secondary"
+            size="small"
+            :disabled="allGroupsCollapsed"
+            @click="collapseAll"
+          >
+            {{ $t('viewGroupByContext.collapseAll') }}
+          </ButtonText>
+          <ButtonText
+            class="group-bys__footer-action"
+            type="primary"
+            size="small"
+            :disabled="allGroupsExpanded"
+            @click="expandAll"
+          >
+            {{ $t('viewGroupByContext.expandAll') }}
+          </ButtonText>
         </div>
       </div>
     </div>
@@ -157,6 +178,12 @@ export default {
     availableFields() {
       return this.fields.filter((f) => this.isFieldAvailable(f))
     },
+    canAddGroupBy() {
+      return (
+        this.view.group_bys.length < this.availableFieldsLength &&
+        !this.disableGroupBy
+      )
+    },
     contextWarning() {
       const ownershipType = this.$registry.get(
         'viewOwnershipType',
@@ -167,6 +194,36 @@ export default {
         this.fields,
         this.database,
         this.storePrefix
+      )
+    },
+    collapsedGroups() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getCollapsedGroupsForView'
+      ](this.view.id)
+    },
+    collapsedGroupsMode() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getCollapsedGroupsModeForView'
+      ](this.view.id)
+    },
+    /**
+     * In collapse-mode, an empty exception list means literally everything is
+     * collapsed, so there's nothing left to collapse further.
+     */
+    allGroupsCollapsed() {
+      return (
+        this.collapsedGroupsMode === 'collapse' &&
+        this.collapsedGroups.length === 0
+      )
+    },
+    /**
+     * In expand-mode (default) with no explicit collapses, everything is already
+     * expanded.
+     */
+    allGroupsExpanded() {
+      return (
+        this.collapsedGroupsMode === 'expand' &&
+        this.collapsedGroups.length === 0
       )
     },
   },
@@ -249,6 +306,19 @@ export default {
     },
     getSortTypes(field) {
       return this.getFieldType(field).getSortTypes(field)
+    },
+    async collapseAll() {
+      this.$store.dispatch(this.storePrefix + 'view/grid/collapseAllGroups', {
+        viewId: this.view.id,
+        fields: this.fields,
+      })
+      this.$emit('changed')
+    },
+    async expandAll() {
+      this.$store.dispatch(this.storePrefix + 'view/grid/expandAllGroups', {
+        viewId: this.view.id,
+      })
+      this.$emit('changed')
     },
   },
 }

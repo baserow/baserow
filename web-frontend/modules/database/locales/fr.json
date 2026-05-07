@@ -912,7 +912,9 @@
         "addGroupBy": "choisissez un champ de regroupement",
         "noGroupByTitle": "Vous n'avez créé aucun groupe",
         "noGroupByText": "Regroupez les lignes par un champ.",
-        "hiddenFieldWarning": "Un ou plusieurs regroupements font référence à des champs masqués qui ne seront pas visibles pour les Éditeurs et les utilisateurs ayant des rôles inférieurs."
+        "hiddenFieldWarning": "Un ou plusieurs regroupements font référence à des champs masqués qui ne seront pas visibles pour les Éditeurs et les utilisateurs ayant des rôles inférieurs.",
+        "collapseAll": "Collapse all",
+        "expandAll": "Expand all"
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} vous a assigné à {fieldName} dans la ligne {rowId} de la table {tableName}",

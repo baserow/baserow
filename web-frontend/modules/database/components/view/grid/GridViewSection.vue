@@ -121,26 +121,6 @@
           <div v-else class="grid-view__row-placeholder"></div>
         </div>
       </div>
-      <GridViewGroupHeader
-        v-if="showStickyHeader && stickyHeaderItem"
-        :key="`sticky-${stickyHeaderItem.depth}-${
-          stickyHeaderItem.groupValues[`field_${stickyHeaderItem.field.id}`]
-        }`"
-        class="grid-view__sticky-group-header"
-        :field="stickyHeaderItem.field"
-        :value="
-          stickyHeaderItem.groupValues[`field_${stickyHeaderItem.field.id}`]
-        "
-        :count="stickyHeaderItem.count"
-        :depth="stickyHeaderItem.depth"
-        :collapsed="stickyHeaderItem.collapsed"
-        :left-offset="0"
-        :row-details-width="includeRowDetails ? gridViewRowDetailsWidth : 0"
-        :width="width"
-        @toggle-collapse="
-          $emit('toggle-collapse', stickyHeaderItem.groupValues)
-        "
-      />
       <div class="grid-view__foot">
         <div v-if="includeRowDetails" class="grid-view__foot-info">
           {{ $t('gridView.rowCount', { count }) }}
@@ -171,7 +151,6 @@ import GridViewRows from '@baserow/modules/database/components/view/grid/GridVie
 import GridViewRowAdd from '@baserow/modules/database/components/view/grid/GridViewRowAdd'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewFieldFooter from '@baserow/modules/database/components/view/grid/GridViewFieldFooter'
-import GridViewGroupHeader from '@baserow/modules/database/components/view/grid/GridViewGroupHeader'
 import { buildInterleavedList } from '@baserow/modules/database/utils/groupByInterleave'
 
 export default {
@@ -182,7 +161,6 @@ export default {
     GridViewRows,
     GridViewRowAdd,
     GridViewFieldFooter,
-    GridViewGroupHeader,
   },
   mixins: [gridViewHelpers],
   props: {
@@ -317,13 +295,20 @@ export default {
         activeGroupBys: this.activeGroupBys,
         groupByMetadata: this.groupByMetadata,
         collapsedGroups: this.collapsedGroupsForView,
+        collapsedGroupsMode: this.collapsedGroupsModeForView,
         registry: this.$registry,
         fields,
+        bufferStartIndex: this.bufferStartIndex,
       })
     },
     collapsedGroupsForView() {
       return this.$store.getters[
         this.storePrefix + 'view/grid/getCollapsedGroupsForView'
+      ](this.view.id)
+    },
+    collapsedGroupsModeForView() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getCollapsedGroupsModeForView'
       ](this.view.id)
     },
     isMultiSelectHolding() {
@@ -342,53 +327,10 @@ export default {
         this.storePrefix + 'view/grid/getGroupByMetadata'
       ]
     },
-    rowsTop() {
-      return this.$store.getters[this.storePrefix + 'view/grid/getRowsTop']
-    },
-    scrollTop() {
-      return this.$store.getters[this.storePrefix + 'view/grid/getScrollTop']
-    },
-    showStickyHeader() {
-      return (
-        this.includeRowDetails &&
-        this.activeGroupBys.length > 0 &&
-        this.interleavedItems.length > 0
-      )
-    },
-    stickyHeaderItem() {
-      // Walks the buffered items in screen order, accumulating each item's
-      // height (48px header / 33px row), and returns the last header whose top
-      // edge has scrolled past the viewport top.
-      //
-      // If the buffer doesn't yet reach the current scrollTop (e.g. mid-fetch
-      // after a scroll) we return null so the overlay is hidden instead of
-      // flashing whatever header was in the now-stale prefix.
-      if (!this.showStickyHeader) {
-        return null
-      }
-
-      const HEADER_HEIGHT = 48
-      const ROW_HEIGHT = 33
-      const scrollTop = this.scrollTop
-      let offset = this.rowsTop
-      let last = null
-      let bufferCoversScrollTop = false
-
-      for (const item of this.interleavedItems) {
-        if (offset > scrollTop) {
-          bufferCoversScrollTop = true
-          break
-        }
-        if (item.type === 'header') {
-          last = item
-        }
-        offset += item.type === 'header' ? HEADER_HEIGHT : ROW_HEIGHT
-      }
-
-      if (!bufferCoversScrollTop) {
-        return null
-      }
-      return last
+    bufferStartIndex() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getBufferStartIndex'
+      ]
     },
   },
   watch: {

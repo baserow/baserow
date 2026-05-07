@@ -563,7 +563,9 @@
         "groupBy": "Gruppieren nach",
         "thenBy": "dann nach",
         "addGroupBy": "Wählen Sie ein Feld, nach dem gruppiert werden soll",
-        "hiddenFieldWarning": "Eine oder mehrere Gruppierungen verweisen auf ausgeblendete Felder, die für Editoren und niedrigere Rollen nicht sichtbar sind."
+        "hiddenFieldWarning": "Eine oder mehrere Gruppierungen verweisen auf ausgeblendete Felder, die für Editoren und niedrigere Rollen nicht sichtbar sind.",
+        "collapseAll": "Collapse all",
+        "expandAll": "Expand all"
     },
     "viewGroupBy": {
         "groupBy": "Gruppieren | Gruppieren nach 1 Feld | Gruppieren nach {count} Feldern"

@@ -466,15 +466,6 @@
   z-index: 1;
 }
 
-.grid-view__sticky-group-header {
-  position: absolute;
-  top: 33px;
-  left: 0;
-  right: 0;
-  z-index: 4;
-  pointer-events: auto;
-}
-
 .grid-view__group-header--collapsed {
   border-bottom-color: $color-neutral-400;
 }

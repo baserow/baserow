@@ -28,6 +28,19 @@
   font-size: 13px;
 }
 
+.group-bys__footer-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  min-width: 0;
+  margin-left: auto;
+}
+
+.group-bys__footer-action {
+  min-width: 0;
+}
+
 .group-bys__items {
   display: flex;
   flex-direction: column;

@@ -542,7 +542,9 @@
         "groupBy": "그룹화 기준",
         "thenBy": "다음 기준",
         "addGroupBy": "그룹화할 필드 선택",
-        "hiddenFieldWarning": "하나 이상의 그룹화 기준이 편집자 및 하위 권한 사용자에게 표시되지 않는 숨겨진 필드를 참조합니다."
+        "hiddenFieldWarning": "하나 이상의 그룹화 기준이 편집자 및 하위 권한 사용자에게 표시되지 않는 숨겨진 필드를 참조합니다.",
+        "collapseAll": "Collapse all",
+        "expandAll": "Expand all"
     },
     "viewGroupBy": {
         "groupBy": "그룹 | 1개의 필드로 그룹화 | {count}개의 필드로 그룹화"

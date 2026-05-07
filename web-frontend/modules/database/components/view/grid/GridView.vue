@@ -725,27 +725,6 @@ export default {
       this.storePrefix + 'view/grid/fetchAllFieldAggregationData',
       { view: this.view }
     )
-    this.$store
-      .dispatch(
-        this.storePrefix + 'view/grid/hydrateCollapsedGroupsFromStorage',
-        {
-          view: this.view,
-          fields: this.fields,
-          adhocFiltering:
-            this.$store.getters[
-              this.storePrefix + 'view/grid/getAdhocFiltering'
-            ],
-          adhocSorting:
-            this.$store.getters[
-              this.storePrefix + 'view/grid/getAdhocSorting'
-            ],
-        }
-      )
-      .catch((error) => {
-        if (!(error instanceof RefreshCancelledError)) {
-          throw error
-        }
-      })
     this.onWindowResize()
 
     if (this.row !== null) {
@@ -1469,11 +1448,21 @@ export default {
         .filter(Boolean)
       if (fields.length === 0) return null
 
+      // Only adjust scroll for depth-0 collapses. Computing the right scroll
+      // target for nested-depth collapses requires walking the metadata tree
+      // including ancestor heights, and getting it wrong puts body.scrollTop
+      // out of sync with the buffer position — which produces the visible
+      // duplicate-headers bug. Until the calculation is generalised, leave
+      // the user's scroll alone for nested collapses.
+      const depth = Object.keys(groupValues).length - 1
+      if (depth !== 0) return null
+
       const position = findDepth0GroupPosition({
         groupValues,
-        groupByMetadata: this.$store.getters[
-          this.storePrefix + 'view/grid/getGroupByMetadata'
-        ],
+        groupByMetadata:
+          this.$store.getters[
+            this.storePrefix + 'view/grid/getGroupByMetadata'
+          ],
         collapsedGroups: collapsedBefore,
         fields,
         registry: this.$registry,

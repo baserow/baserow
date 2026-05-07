@@ -912,7 +912,9 @@
         "addGroupBy": "Elegir un campo por el que agrupar",
         "noGroupByTitle": "Aún no has creado ninguna agrupación",
         "noGroupByText": "Agrupar filas por un campo.",
-        "hiddenFieldWarning": "Uno o más agrupamientos hacen referencia a campos ocultos que no serán visibles para editores y roles inferiores."
+        "hiddenFieldWarning": "Uno o más agrupamientos hacen referencia a campos ocultos que no serán visibles para editores y roles inferiores.",
+        "collapseAll": "Collapse all",
+        "expandAll": "Expand all"
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} te asignó a {nombreDeCampo} en la fila {rowId} en {nombreDeTabla}",

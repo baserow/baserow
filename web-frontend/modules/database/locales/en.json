@@ -575,6 +575,8 @@
     "groupBy": "Group by",
     "thenBy": "Then by",
     "addGroupBy": "choose a field to group by",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
     "hiddenFieldWarning": "One or more group bys reference hidden fields that won't be visible to editors and lower roles."
   },
   "viewGroupBy": {

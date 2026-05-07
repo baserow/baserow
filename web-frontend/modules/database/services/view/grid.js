@@ -19,6 +19,7 @@ export default (client) => {
       publicAuthToken = null,
       groupBy = '',
       collapsedGroups = '',
+      collapsedGroupsMode = '',
       orderBy = null,
       filters = {},
       includeFields = [],
@@ -64,6 +65,10 @@ export default (client) => {
 
       if (collapsedGroups) {
         params.append('collapsed_groups', collapsedGroups)
+      }
+
+      if (collapsedGroupsMode) {
+        params.append('collapsed_groups_mode', collapsedGroupsMode)
       }
 
       if (orderBy || orderBy === '') {
@@ -117,6 +122,7 @@ export default (client) => {
       publicAuthToken = null,
       groupBy = '',
       collapsedGroups = '',
+      collapsedGroupsMode = '',
       filters = {},
     }) {
       const params = new URLSearchParams()
@@ -135,6 +141,10 @@ export default (client) => {
 
       if (collapsedGroups) {
         params.append('collapsed_groups', collapsedGroups)
+      }
+
+      if (collapsedGroupsMode) {
+        params.append('collapsed_groups_mode', collapsedGroupsMode)
       }
 
       Object.keys(filters).forEach((key) => {

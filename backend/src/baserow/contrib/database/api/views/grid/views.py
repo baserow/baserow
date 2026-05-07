@@ -53,8 +53,12 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
 )
 from baserow.contrib.database.api.views.grid.collapsed_groups import (
+    COLLAPSED_GROUPS_MODE_COLLAPSE,
     build_collapsed_groups_exclusion_q,
+    entry_key,
+    enumerate_all_group_combinations,
     parse_collapsed_groups,
+    parse_collapsed_groups_mode,
 )
 from baserow.contrib.database.api.views.grid.serializers import (
     GridViewFieldOptionsSerializer,
@@ -231,6 +235,9 @@ class GridViewView(APIView):
         adhoc_filters = AdHocFilters.from_request(request)
         order_by = request.GET.get("order_by")
         collapsed_groups_raw = request.GET.get("collapsed_groups")
+        collapsed_groups_mode = parse_collapsed_groups_mode(
+            request.GET.get("collapsed_groups_mode")
+        )
 
         view_handler = ViewHandler()
         view = view_handler.get_view_as_user(
@@ -276,13 +283,42 @@ class GridViewView(APIView):
                 model._field_objects[group_by.field_id]["field"]
                 for group_by in view_group_bys
             ]
-            collapsed_group_values = parse_collapsed_groups(collapsed_groups_raw)
-            if collapsed_group_values:
-                queryset = queryset.exclude(
-                    build_collapsed_groups_exclusion_q(
-                        group_by_fields, collapsed_group_values, queryset
+            user_collapsed_groups = parse_collapsed_groups(collapsed_groups_raw)
+            if collapsed_groups_mode == COLLAPSED_GROUPS_MODE_COLLAPSE:
+                # The user clicked "Collapse all". The frontend can't enumerate
+                # every group, so the list it sent is the *exception* set of
+                # explicitly-expanded groups. Keep only their rows; everything
+                # else is collapsed and contributes header-only metadata.
+                if user_collapsed_groups:
+                    queryset = queryset.filter(
+                        build_collapsed_groups_exclusion_q(
+                            group_by_fields, user_collapsed_groups, queryset
+                        )
                     )
+                else:
+                    queryset = queryset.none()
+                # `collapsed_group_values` feeds the metadata seed. We want
+                # headers for every group EXCEPT the explicitly-expanded ones,
+                # which the row loop will already cover.
+                collapsed_group_values = enumerate_all_group_combinations(
+                    group_by_fields, group_by_metadata_queryset
                 )
+                expanded_keys = {
+                    entry_key(entry, group_by_fields) for entry in user_collapsed_groups
+                }
+                collapsed_group_values = [
+                    entry
+                    for entry in collapsed_group_values
+                    if entry_key(entry, group_by_fields) not in expanded_keys
+                ]
+            else:
+                collapsed_group_values = user_collapsed_groups
+                if collapsed_group_values:
+                    queryset = queryset.exclude(
+                        build_collapsed_groups_exclusion_q(
+                            group_by_fields, collapsed_group_values, queryset
+                        )
+                    )
 
         if ONLY_COUNT_API_PARAM.name in request.GET:
             return Response({"count": queryset.count()})
@@ -854,9 +890,13 @@ class PublicGridViewRowsView(APIView):
         ) = get_public_view_filtered_queryset(view, request, query_params)
         model = queryset.model
         group_by_metadata_queryset = queryset
-        collapsed_group_values = parse_collapsed_groups(
+        user_collapsed_groups = parse_collapsed_groups(
             request.GET.get("collapsed_groups")
         )
+        collapsed_groups_mode = parse_collapsed_groups_mode(
+            request.GET.get("collapsed_groups_mode")
+        )
+        collapsed_group_values = []
         group_by = request.GET.get("group_by")
         group_by_fields = []
         view_group_bys = []
@@ -881,7 +921,28 @@ class PublicGridViewRowsView(APIView):
             ]
             if len(view_group_bys) != len(group_by_fields):
                 view_group_bys = []
-            if collapsed_group_values:
+            if collapsed_groups_mode == COLLAPSED_GROUPS_MODE_COLLAPSE:
+                if user_collapsed_groups:
+                    queryset = queryset.filter(
+                        build_collapsed_groups_exclusion_q(
+                            group_by_fields, user_collapsed_groups, queryset
+                        )
+                    )
+                else:
+                    queryset = queryset.none()
+                collapsed_group_values = enumerate_all_group_combinations(
+                    group_by_fields, group_by_metadata_queryset
+                )
+                expanded_keys = {
+                    entry_key(entry, group_by_fields) for entry in user_collapsed_groups
+                }
+                collapsed_group_values = [
+                    entry
+                    for entry in collapsed_group_values
+                    if entry_key(entry, group_by_fields) not in expanded_keys
+                ]
+            elif user_collapsed_groups:
+                collapsed_group_values = user_collapsed_groups
                 queryset = queryset.exclude(
                     build_collapsed_groups_exclusion_q(
                         group_by_fields, collapsed_group_values, queryset

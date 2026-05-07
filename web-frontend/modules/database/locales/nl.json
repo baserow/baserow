@@ -912,7 +912,9 @@
         "addGroupBy": "kies een veld om op te sorteren",
         "noGroupByTitle": "Je hebt nog geen groepen gemaakt",
         "noGroupByText": "Groepeer rijen op een veld.",
-        "hiddenFieldWarning": "Een of meer groeperingen verwijzen naar verborgen velden die niet zichtbaar zijn voor editors en gebruikers met een lagere rol."
+        "hiddenFieldWarning": "Een of meer groeperingen verwijzen naar verborgen velden die niet zichtbaar zijn voor editors en gebruikers met een lagere rol.",
+        "collapseAll": "Collapse all",
+        "expandAll": "Expand all"
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} heeft u toegewezen aan {fieldName} in rij {rowId} in {tableName}",

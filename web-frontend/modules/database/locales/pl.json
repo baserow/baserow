@@ -868,7 +868,9 @@
         "noGroupByText": "Grupowanie wierszy według pola.",
         "groupBy": "Grupa według",
         "thenBy": "Następnie przez",
-        "addGroupBy": "wybierz pole do grupowania według"
+        "addGroupBy": "wybierz pole do grupowania według",
+        "collapseAll": "Collapse all",
+        "expandAll": "Expand all"
     },
     "userMentionInRichTextFieldNotification": {
         "title": "{sender} wspomniał o Tobie w polu {fieldName} wiersza {rowId} w {tableName}",

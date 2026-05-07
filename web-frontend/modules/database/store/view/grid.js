@@ -149,39 +149,15 @@ function getPendingOperationKey(fieldId, rowId) {
   return `${fieldId}-${rowId}`
 }
 
-function getCollapsedGroupsParam(getters, viewId) {
+export const COLLAPSED_GROUPS_MODE_EXPAND = 'expand'
+export const COLLAPSED_GROUPS_MODE_COLLAPSE = 'collapse'
+
+function getCollapsedGroupsParams(getters, viewId) {
   const groups = getters.getCollapsedGroupsForView(viewId)
-  return groups.length > 0 ? JSON.stringify(groups) : ''
-}
-
-function persistCollapsedGroups(viewId, groups) {
-  if (typeof window === 'undefined') {
-    return
-  }
-
-  try {
-    window.localStorage.setItem(
-      `gridView.${viewId}.collapsedGroups`,
-      JSON.stringify(groups)
-    )
-  } catch {
-    // Ignore localStorage errors.
-  }
-}
-
-function loadCollapsedGroups(viewId) {
-  if (typeof window === 'undefined') {
-    return []
-  }
-
-  try {
-    const stored = window.localStorage.getItem(
-      `gridView.${viewId}.collapsedGroups`
-    )
-    const parsed = stored ? JSON.parse(stored) : []
-    return Array.isArray(parsed) ? parsed : []
-  } catch {
-    return []
+  const mode = getters.getCollapsedGroupsModeForView(viewId)
+  return {
+    collapsedGroups: groups.length > 0 ? JSON.stringify(groups) : '',
+    collapsedGroupsMode: mode,
   }
 }
 
@@ -252,7 +228,14 @@ export const state = () => ({
   fieldAggregationData: {},
   activeGroupBys: [],
   groupByMetadata: {},
+  // Per-view list of explicitly toggled groups. Its meaning depends on
+  // `collapsedGroupsMode`:
+  //   - 'expand'   (default): entries are explicitly *collapsed* groups
+  //   - 'collapse'          : entries are explicitly *expanded* groups
+  // The mode-based inversion is what makes "Collapse all" work without the
+  // frontend having to know every group up front.
   collapsedGroups: {},
+  collapsedGroupsMode: {},
   // Contains a fieldId and rowId string pair that looks like `{fieldId}-{rowId}`. If
   // in the array, then that cell is a loading state. This is for example used for
   // fields that use a background worker to compute the value like the AI field.
@@ -665,10 +648,20 @@ export const mutations = {
   SET_GROUP_BY_METADATA(state, metadata) {
     state.groupByMetadata = metadata
   },
-  SET_COLLAPSED_GROUPS(state, { viewId, groups }) {
+  SET_COLLAPSED_GROUPS(state, { viewId, groups, mode }) {
+    const nextMode =
+      mode === COLLAPSED_GROUPS_MODE_COLLAPSE
+        ? COLLAPSED_GROUPS_MODE_COLLAPSE
+        : mode === COLLAPSED_GROUPS_MODE_EXPAND
+          ? COLLAPSED_GROUPS_MODE_EXPAND
+          : state.collapsedGroupsMode[viewId] || COLLAPSED_GROUPS_MODE_EXPAND
     state.collapsedGroups = {
       ...state.collapsedGroups,
       [viewId]: groups,
+    }
+    state.collapsedGroupsMode = {
+      ...state.collapsedGroupsMode,
+      [viewId]: nextMode,
     }
   },
   TOGGLE_GROUP_COLLAPSED(state, { viewId, groupValues }) {
@@ -683,14 +676,16 @@ export const mutations = {
       ...state.collapsedGroups,
       [viewId]: groups,
     }
-    persistCollapsedGroups(viewId, groups)
   },
   CLEAR_COLLAPSED_GROUPS(state, { viewId }) {
     state.collapsedGroups = {
       ...state.collapsedGroups,
       [viewId]: [],
     }
-    persistCollapsedGroups(viewId, [])
+    state.collapsedGroupsMode = {
+      ...state.collapsedGroupsMode,
+      [viewId]: COLLAPSED_GROUPS_MODE_EXPAND,
+    }
   },
   /**
    * Merges the existing group by metadata and the newly provided metadata. If a
@@ -985,7 +980,7 @@ export const actions = {
           publicUrl: rootGetters['page/view/public/getIsPublic'],
           publicAuthToken: rootGetters['page/view/public/getAuthToken'],
           groupBy: getGroupBy(rootGetters, getters.getLastGridId),
-          collapsedGroups: getCollapsedGroupsParam(getters, gridId),
+          ...getCollapsedGroupsParams(getters, gridId),
           orderBy: getOrderBy(view, getters.getAdhocSorting),
           filters: getFilters(view, getters.getAdhocFiltering),
           excludeCount: getters.canExcludeCount,
@@ -1153,7 +1148,8 @@ export const actions = {
     commit('SET_ADHOC_SORTING', adhocSorting)
     commit('SET_COLLAPSED_GROUPS', {
       viewId: gridId,
-      groups: loadCollapsedGroups(gridId),
+      groups: [],
+      mode: COLLAPSED_GROUPS_MODE_EXPAND,
     })
 
     const view = rootGetters['view/get'](getters.getLastGridId)
@@ -1168,7 +1164,7 @@ export const actions = {
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       groupBy: getGroupBy(rootGetters, getters.getLastGridId),
-      collapsedGroups: getCollapsedGroupsParam(getters, gridId),
+      ...getCollapsedGroupsParams(getters, gridId),
       orderBy: getOrderBy(view, adhocSorting),
       filters: getFilters(view, adhocFiltering),
     })
@@ -1230,7 +1226,7 @@ export const actions = {
         publicUrl: rootGetters['page/view/public/getIsPublic'],
         publicAuthToken: rootGetters['page/view/public/getAuthToken'],
         groupBy: getGroupBy(rootGetters, getters.getLastGridId),
-        collapsedGroups: getCollapsedGroupsParam(getters, gridId),
+        ...getCollapsedGroupsParams(getters, gridId),
         filters: getFilters(view, adhocFiltering),
       })
       .then((response) => {
@@ -1257,7 +1253,7 @@ export const actions = {
             publicUrl: rootGetters['page/view/public/getIsPublic'],
             publicAuthToken: rootGetters['page/view/public/getAuthToken'],
             groupBy: getGroupBy(rootGetters, getters.getLastGridId),
-            collapsedGroups: getCollapsedGroupsParam(getters, gridId),
+            ...getCollapsedGroupsParams(getters, gridId),
             orderBy: getOrderBy(view, adhocSorting),
             filters: getFilters(view, adhocFiltering),
             excludeCount: true, // We already have it from the previous request.
@@ -1313,8 +1309,42 @@ export const actions = {
       })
     return lastRefreshRequest
   },
-  updateActiveGroupBys({ commit }, groupBys) {
+  updateActiveGroupBys({ commit, getters, state }, groupBys) {
+    // When the group-by configuration changes (fields added, removed, or
+    // reordered), the previously collapsed group values reference fields that
+    // may no longer exist or may now sit at a different depth. Clear them so
+    // we don't carry stale state into the new layout.
+    const previous = state.activeGroupBys
+    const fieldKey = (g) => `${g.field}:${g.order}:${g.type}`
+    const changed =
+      previous.length !== groupBys.length ||
+      previous.some((gb, i) => fieldKey(gb) !== fieldKey(groupBys[i]))
+    if (changed) {
+      const viewId = getters.getLastGridId
+      if (viewId !== null && viewId !== undefined) {
+        commit('CLEAR_COLLAPSED_GROUPS', { viewId })
+      }
+    }
     commit('SET_ACTIVE_GROUP_BYS', groupBys)
+  },
+  /**
+   * Switches the view into "collapse-all" mode. The frontend can't enumerate
+   * every group up front (it only knows the ones that have been loaded), so
+   * the backend honours `collapsed_groups_mode=collapse` and returns no rows
+   * — the persisted list becomes the *exception* set of explicitly-expanded
+   * groups when the user later clicks individual chevrons.
+   */
+  collapseAllGroups({ commit }, { viewId }) {
+    commit('SET_COLLAPSED_GROUPS', {
+      viewId,
+      groups: [],
+      mode: COLLAPSED_GROUPS_MODE_COLLAPSE,
+    })
+    commit('SET_BUFFER_START_INDEX', 0)
+  },
+  expandAllGroups({ commit }, { viewId }) {
+    commit('CLEAR_COLLAPSED_GROUPS', { viewId })
+    commit('SET_BUFFER_START_INDEX', 0)
   },
   /**
    * Updates the field options of a given field and also makes an API request to the
@@ -2028,7 +2058,7 @@ export const actions = {
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       groupBy: getGroupBy(rootGetters, getters.getLastGridId),
-      collapsedGroups: getCollapsedGroupsParam(getters, gridId),
+      ...getCollapsedGroupsParams(getters, gridId),
       orderBy: getOrderBy(view, getters.getAdhocSorting),
       filters: getFilters(view, getters.getAdhocFiltering),
       includeFields: fields,
@@ -3642,22 +3672,6 @@ export const actions = {
   setRowHeight({ commit, dispatch, getters }, value) {
     commit('UPDATE_ROW_HEIGHT', value)
   },
-  /**
-   * `fetchInitial` runs server-side where `window` is undefined, so its
-   * localStorage read returns an empty array. Call this once on client mount to
-   * pick up any persisted collapse state and re-fetch rows with it applied.
-   */
-  hydrateCollapsedGroupsFromStorage(
-    { commit, dispatch, getters },
-    { view, fields, adhocFiltering, adhocSorting }
-  ) {
-    const groups = loadCollapsedGroups(view.id)
-    if (groups.length === 0) {
-      return
-    }
-    commit('SET_COLLAPSED_GROUPS', { viewId: view.id, groups })
-    return dispatch('refresh', { view, fields, adhocFiltering, adhocSorting })
-  },
   toggleCheckboxRowSelection({ commit, dispatch, state, getters }, { row }) {
     const { $registry, $client, $i18n, $config } = this
     const rowId = row.id
@@ -3968,6 +3982,9 @@ export const getters = {
   },
   getCollapsedGroupsForView: (state) => (viewId) => {
     return state.collapsedGroups[viewId] || []
+  },
+  getCollapsedGroupsModeForView: (state) => (viewId) => {
+    return state.collapsedGroupsMode[viewId] || COLLAPSED_GROUPS_MODE_EXPAND
   },
   getGroupHeaderHeight() {
     return GROUP_HEADER_HEIGHT

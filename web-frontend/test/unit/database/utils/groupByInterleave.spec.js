@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { buildInterleavedList } from '@baserow/modules/database/utils/groupByInterleave'
+import {
+  buildInterleavedList,
+  COLLAPSED_GROUPS_MODE_COLLAPSE,
+  findDepth0GroupPosition,
+} from '@baserow/modules/database/utils/groupByInterleave'
 
 const mockRegistry = {
   get() {
@@ -145,6 +149,172 @@ describe('buildInterleavedList', () => {
         collapsed: false,
       },
       { type: 'row', row: rows[0] },
+    ])
+  })
+
+  it('does not insert collapsed depth-0 headers that are outside the current buffer', () => {
+    const field = { id: 1, type: 'text' }
+    const rows = [
+      { id: 3, field_1: 'B' },
+      { id: 4, field_1: 'B' },
+    ]
+
+    const result = buildInterleavedList({
+      rows,
+      activeGroupBys: [{ field: 1, order: 'ASC' }],
+      groupByMetadata: {
+        field_1: [
+          { field_1: 'A', count: 2 },
+          { field_1: 'B', count: 10 },
+        ],
+      },
+      collapsedGroups: [{ field_1: 'A' }],
+      registry: mockRegistry,
+      fields: [field],
+      bufferStartIndex: 5,
+    })
+
+    expect(result).toEqual([
+      { type: 'row', row: rows[0] },
+      { type: 'row', row: rows[1] },
+    ])
+  })
+
+  it('keeps collapsed depth-0 sibling headers visible in collapse mode', () => {
+    const category = { id: 1, type: 'text' }
+    const completed = { id: 2, type: 'boolean' }
+
+    const result = buildInterleavedList({
+      rows: [],
+      activeGroupBys: [
+        { field: 1, order: 'ASC' },
+        { field: 2, order: 'ASC' },
+      ],
+      groupByMetadata: {
+        field_1: [
+          { field_1: 'Accounting', count: 1383 },
+          { field_1: 'Design', count: 2 },
+          { field_1: 'Development', count: 4805 },
+        ],
+        field_2: [
+          { field_1: 'Accounting', field_2: false, count: 689 },
+          { field_1: 'Accounting', field_2: true, count: 694 },
+        ],
+      },
+      collapsedGroups: [{ field_1: 'Accounting' }],
+      collapsedGroupsMode: COLLAPSED_GROUPS_MODE_COLLAPSE,
+      registry: mockRegistry,
+      fields: [category, completed],
+      bufferStartIndex: 1000,
+    })
+
+    expect(
+      result
+        .filter((item) => item.type === 'header')
+        .map((item) => ({
+          depth: item.depth,
+          groupValues: item.groupValues,
+          collapsed: item.collapsed,
+        }))
+    ).toEqual([
+      {
+        depth: 0,
+        groupValues: { field_1: 'Accounting' },
+        collapsed: false,
+      },
+      {
+        depth: 1,
+        groupValues: { field_1: 'Accounting', field_2: false },
+        collapsed: true,
+      },
+      {
+        depth: 1,
+        groupValues: { field_1: 'Accounting', field_2: true },
+        collapsed: true,
+      },
+      {
+        depth: 0,
+        groupValues: { field_1: 'Design' },
+        collapsed: true,
+      },
+      {
+        depth: 0,
+        groupValues: { field_1: 'Development' },
+        collapsed: true,
+      },
+    ])
+  })
+
+  it('does not render group headers for a buffer starting in the middle of a group', () => {
+    const field = { id: 1, type: 'text' }
+    const rows = [
+      { id: 20, field_1: 'B' },
+      { id: 21, field_1: 'B' },
+    ]
+
+    const result = buildInterleavedList({
+      rows,
+      activeGroupBys: [{ field: 1, order: 'ASC' }],
+      groupByMetadata: {
+        field_1: [
+          { field_1: 'A', count: 2 },
+          { field_1: 'B', count: 10 },
+        ],
+      },
+      collapsedGroups: [],
+      registry: mockRegistry,
+      fields: [field],
+      bufferStartIndex: 5,
+    })
+
+    expect(result).toEqual([
+      { type: 'row', row: rows[0] },
+      { type: 'row', row: rows[1] },
+    ])
+  })
+
+  it('renders child headers when a buffer starts exactly at a nested group boundary', () => {
+    const category = { id: 1, type: 'text' }
+    const completed = { id: 2, type: 'boolean' }
+    const rows = [
+      { id: 20, field_1: 'B', field_2: true },
+      { id: 21, field_1: 'B', field_2: true },
+    ]
+
+    const result = buildInterleavedList({
+      rows,
+      activeGroupBys: [
+        { field: 1, order: 'ASC' },
+        { field: 2, order: 'ASC' },
+      ],
+      groupByMetadata: {
+        field_1: [
+          { field_1: 'A', count: 2 },
+          { field_1: 'B', count: 10 },
+        ],
+        field_2: [
+          { field_1: 'A', field_2: false, count: 2 },
+          { field_1: 'B', field_2: false, count: 3 },
+          { field_1: 'B', field_2: true, count: 7 },
+        ],
+      },
+      collapsedGroups: [],
+      registry: mockRegistry,
+      fields: [category, completed],
+      bufferStartIndex: 5,
+    })
+
+    expect(result).toEqual([
+      {
+        type: 'header',
+        depth: 1,
+        field: completed,
+        groupValues: { field_1: 'B', field_2: true },
+        count: 7,
+        collapsed: false,
+      },
+      { type: 'row', row: rows[0] },
+      { type: 'row', row: rows[1] },
     ])
   })
 
@@ -417,5 +587,57 @@ describe('buildInterleavedList', () => {
       },
       { type: 'row', row: rows[0] },
     ])
+  })
+})
+
+describe('findDepth0GroupPosition', () => {
+  it('counts nested group headers in previous depth-0 group heights', () => {
+    const category = { id: 1, type: 'text' }
+    const completed = { id: 2, type: 'boolean' }
+
+    expect(
+      findDepth0GroupPosition({
+        groupValues: { field_1: 'Development' },
+        groupByMetadata: {
+          field_1: [
+            { field_1: 'Design', count: 2 },
+            { field_1: 'Development', count: 3 },
+          ],
+          field_2: [
+            { field_1: 'Design', field_2: false, count: 1 },
+            { field_1: 'Design', field_2: true, count: 1 },
+            { field_1: 'Development', field_2: false, count: 3 },
+          ],
+        },
+        collapsedGroups: [],
+        fields: [category, completed],
+        registry: mockRegistry,
+      })
+    ).toEqual({ y: 210, count: 3 })
+  })
+
+  it('counts collapsed nested groups as header-only height', () => {
+    const category = { id: 1, type: 'text' }
+    const completed = { id: 2, type: 'boolean' }
+
+    expect(
+      findDepth0GroupPosition({
+        groupValues: { field_1: 'Development' },
+        groupByMetadata: {
+          field_1: [
+            { field_1: 'Design', count: 2 },
+            { field_1: 'Development', count: 3 },
+          ],
+          field_2: [
+            { field_1: 'Design', field_2: false, count: 1 },
+            { field_1: 'Design', field_2: true, count: 1 },
+            { field_1: 'Development', field_2: false, count: 3 },
+          ],
+        },
+        collapsedGroups: [{ field_1: 'Design', field_2: false }],
+        fields: [category, completed],
+        registry: mockRegistry,
+      })
+    ).toEqual({ y: 177, count: 3 })
   })
 })

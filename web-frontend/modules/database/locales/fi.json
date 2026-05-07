@@ -484,7 +484,9 @@
         "noGroupByText": "",
         "groupBy": "",
         "thenBy": "",
-        "addGroupBy": ""
+        "addGroupBy": "",
+        "collapseAll": "Collapse all",
+        "expandAll": "Expand all"
     },
     "viewGroupBy": {
         "groupBy": ""

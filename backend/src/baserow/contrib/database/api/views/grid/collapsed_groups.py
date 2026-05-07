@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import json
-from typing import Any
+from typing import Any, Iterable
 
 from django.db.models import Q
 from django.db.models.query import QuerySet
 
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.fields.registries import field_type_registry
+
+COLLAPSED_GROUPS_MODE_EXPAND = "expand"
+COLLAPSED_GROUPS_MODE_COLLAPSE = "collapse"
 
 
 def parse_collapsed_groups(raw: str | None) -> list[dict[str, Any]]:
@@ -30,6 +33,18 @@ def parse_collapsed_groups(raw: str | None) -> list[dict[str, Any]]:
         return []
 
     return [entry for entry in parsed if isinstance(entry, dict)]
+
+
+def parse_collapsed_groups_mode(raw: str | None) -> str:
+    """
+    Parses the `collapsed_groups_mode` query parameter. Accepts the two known
+    sentinels and falls back to ``expand`` for anything else, including
+    omission, so older clients keep their existing behaviour.
+    """
+
+    if raw == COLLAPSED_GROUPS_MODE_COLLAPSE:
+        return COLLAPSED_GROUPS_MODE_COLLAPSE
+    return COLLAPSED_GROUPS_MODE_EXPAND
 
 
 def build_collapsed_groups_exclusion_q(
@@ -80,3 +95,52 @@ def build_collapsed_groups_exclusion_q(
             combined_q |= entry_q
 
     return combined_q
+
+
+def enumerate_all_group_combinations(
+    group_by_fields: list[Field],
+    base_queryset: QuerySet,
+) -> list[dict[str, Any]]:
+    """
+    Returns synthetic collapsed-group dicts covering every distinct combination
+    at every group-by depth. Used by `collapse all` so the metadata serializer
+    can seed headers for groups whose rows we excluded from the response.
+
+    The values returned are the raw DB values for each field — the metadata
+    serializer round-trips them through ``to_internal_value`` to handle complex
+    field types.
+    """
+
+    if not group_by_fields:
+        return []
+
+    field_names = [field.db_column for field in group_by_fields]
+    distinct_qs = (
+        base_queryset.model.objects.filter(
+            id__in=base_queryset.clear_multi_field_prefetch().values("id")
+        )
+        .values(*field_names)
+        .distinct()
+    )
+
+    seen_per_depth: list[set] = [set() for _ in field_names]
+    result: list[dict[str, Any]] = []
+
+    for combo in distinct_qs:
+        for depth in range(len(field_names)):
+            key = tuple(combo[name] for name in field_names[: depth + 1])
+            if key in seen_per_depth[depth]:
+                continue
+            seen_per_depth[depth].add(key)
+            result.append({name: combo[name] for name in field_names[: depth + 1]})
+
+    return result
+
+
+def entry_key(entry: dict[str, Any], group_by_fields: Iterable[Field]) -> tuple:
+    """
+    Stable hashable key for a collapsed-group dict, used for set membership
+    when subtracting "expanded" exceptions from "all groups".
+    """
+
+    return tuple(entry.get(field.db_column) for field in group_by_fields)

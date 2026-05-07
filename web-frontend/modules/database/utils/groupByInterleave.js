@@ -3,6 +3,9 @@ import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/gr
 const HEADER_HEIGHT = 48
 const ROW_HEIGHT = 33
 
+export const COLLAPSED_GROUPS_MODE_EXPAND = 'expand'
+export const COLLAPSED_GROUPS_MODE_COLLAPSE = 'collapse'
+
 /**
  * Returns the virtual y-coordinate where the depth-0 group identified by
  * `groupValues` starts (i.e. the top of its header), and the count of rows in
@@ -14,6 +17,7 @@ export function findDepth0GroupPosition({
   groupValues,
   groupByMetadata,
   collapsedGroups,
+  collapsedGroupsMode = COLLAPSED_GROUPS_MODE_EXPAND,
   fields,
   registry,
 }) {
@@ -34,22 +38,16 @@ export function findDepth0GroupPosition({
     if (matches) {
       return { y, count: entry.count }
     }
-    const isCollapsed = collapsedGroups.some(
-      (cg) =>
-        Object.keys(cg).length === 1 &&
-        fieldValuesAreEqualInObjects(
-          fieldsAtDepth,
-          registry,
-          cg,
-          entry,
-          true,
-          true
-        )
-    )
-    y += HEADER_HEIGHT
-    if (!isCollapsed) {
-      y += entry.count * ROW_HEIGHT
-    }
+    y += getGroupVirtualHeight({
+      groupValues: getGroupValues(entry, fieldsAtDepth),
+      count: entry.count,
+      depth: 0,
+      groupByMetadata,
+      collapsedGroups,
+      collapsedGroupsMode,
+      fields,
+      registry,
+    })
   }
   return null
 }
@@ -57,13 +55,83 @@ export function findDepth0GroupPosition({
 export const GROUP_HEADER_HEIGHT = HEADER_HEIGHT
 export const GROUP_ROW_HEIGHT = ROW_HEIGHT
 
+function getGroupVirtualHeight({
+  groupValues,
+  count,
+  depth,
+  groupByMetadata,
+  collapsedGroups,
+  collapsedGroupsMode = COLLAPSED_GROUPS_MODE_EXPAND,
+  fields,
+  registry,
+}) {
+  const fieldsAtDepth = fields.slice(0, depth + 1)
+  let height = HEADER_HEIGHT
+
+  if (
+    isCollapsed(
+      collapsedGroups,
+      groupValues,
+      fieldsAtDepth,
+      registry,
+      collapsedGroupsMode
+    )
+  ) {
+    return height
+  }
+
+  if (depth === fields.length - 1) {
+    return height + count * ROW_HEIGHT
+  }
+
+  const childDepth = depth + 1
+  const childField = fields[childDepth]
+  const childEntries = groupByMetadata[`field_${childField.id}`] || []
+  const children = childEntries.filter((entry) =>
+    fieldValuesAreEqualInObjects(
+      fieldsAtDepth,
+      registry,
+      entry,
+      groupValues,
+      true,
+      true
+    )
+  )
+
+  if (children.length === 0) {
+    return height + count * ROW_HEIGHT
+  }
+
+  return (
+    height +
+    children.reduce((total, childEntry) => {
+      const childFields = fields.slice(0, childDepth + 1)
+      return (
+        total +
+        getGroupVirtualHeight({
+          groupValues: getGroupValues(childEntry, childFields),
+          count: childEntry.count,
+          depth: childDepth,
+          groupByMetadata,
+          collapsedGroups,
+          collapsedGroupsMode,
+          fields,
+          registry,
+        })
+      )
+    }, 0)
+  )
+}
+
 export function buildInterleavedList({
   rows,
   activeGroupBys,
   groupByMetadata,
   collapsedGroups,
+  collapsedGroupsMode = COLLAPSED_GROUPS_MODE_EXPAND,
   registry,
   fields = [],
+  bufferStartIndex = 0,
 }) {
   if (activeGroupBys.length === 0) {
     return rows.map((row) => ({ type: 'row', row }))
@@ -84,6 +152,7 @@ export function buildInterleavedList({
 
   rows.forEach((row, index) => {
     const previousRow = rows[index - 1]
+    const rowIndex = bufferStartIndex + index
     let skipRow = false
 
     for (let depth = 0; depth < groupByFields.length; depth++) {
@@ -96,7 +165,9 @@ export function buildInterleavedList({
           groupValues,
           groupByFields,
           depth,
-          registry
+          registry,
+          false,
+          collapsedGroupsMode
         )
       ) {
         skipRow = true
@@ -121,10 +192,24 @@ export function buildInterleavedList({
         collapsedGroups,
         groupValues,
         fieldsAtDepth,
-        registry
+        registry,
+        collapsedGroupsMode
       )
 
-      if (isNewGroup) {
+      const isRealGroupBoundary =
+        previousRow !== undefined ||
+        isGroupAtVisibleRowIndex({
+          groupValues: serializedGroupValues,
+          depth,
+          rowIndex,
+          groupByMetadata,
+          collapsedGroups,
+          collapsedGroupsMode,
+          fields: groupByFields,
+          registry,
+        })
+
+      if (isNewGroup && isRealGroupBoundary) {
         items.push({
           type: 'header',
           depth,
@@ -154,14 +239,18 @@ export function buildInterleavedList({
     items,
     groupByMetadata,
     collapsedGroups,
+    collapsedGroupsMode,
     groupByFields,
-    registry
+    registry,
+    bufferStartIndex,
+    rows.length
   )
 
   insertCollapsedGroupHeaders(
     items,
     groupByMetadata,
     collapsedGroups,
+    collapsedGroupsMode,
     groupByFields,
     registry
   )
@@ -176,24 +265,168 @@ function getGroupValues(row, fields) {
   }, {})
 }
 
-function lookupCount(
-  metadata,
-  fields,
-  depth,
+function isGroupAtVisibleRowIndex({
   groupValues,
+  depth,
+  rowIndex,
+  groupByMetadata,
+  collapsedGroups,
+  collapsedGroupsMode = COLLAPSED_GROUPS_MODE_EXPAND,
+  fields,
   registry,
-  groupValuesIsGroup = false
-) {
-  return (
-    lookupMetadataEntry(
-      metadata,
-      fields,
-      depth,
-      groupValues,
-      registry,
-      groupValuesIsGroup
-    )?.count ?? -1
+}) {
+  const groupStartRowIndex = findGroupStartRowIndex({
+    groupValues,
+    depth,
+    groupByMetadata,
+    collapsedGroups,
+    collapsedGroupsMode,
+    fields,
+    registry,
+  })
+  return groupStartRowIndex === rowIndex
+}
+
+function findGroupStartRowIndex({
+  groupValues,
+  depth,
+  groupByMetadata,
+  collapsedGroups,
+  collapsedGroupsMode = COLLAPSED_GROUPS_MODE_EXPAND,
+  fields,
+  registry,
+}) {
+  let rowIndex = 0
+
+  function visitGroups(currentDepth, parentValues = null) {
+    const field = fields[currentDepth]
+    const fieldsAtDepth = fields.slice(0, currentDepth + 1)
+    const parentFields = fields.slice(0, currentDepth)
+    const entries = groupByMetadata[`field_${field.id}`] || []
+
+    for (const entry of entries) {
+      if (
+        parentValues !== null &&
+        !fieldValuesAreEqualInObjects(
+          parentFields,
+          registry,
+          entry,
+          parentValues,
+          true,
+          true
+        )
+      ) {
+        continue
+      }
+
+      const entryGroupValues = getGroupValues(entry, fieldsAtDepth)
+      const matchesTarget = fieldValuesAreEqualInObjects(
+        fieldsAtDepth,
+        registry,
+        entryGroupValues,
+        groupValues,
+        true,
+        true
+      )
+
+      if (currentDepth === depth && matchesTarget) {
+        return rowIndex
+      }
+
+      if (
+        currentDepth < depth &&
+        fieldValuesAreEqualInObjects(
+          fieldsAtDepth,
+          registry,
+          entryGroupValues,
+          groupValues,
+          true,
+          true
+        )
+      ) {
+        return visitGroups(currentDepth + 1, entryGroupValues)
+      }
+
+      rowIndex += getGroupVisibleRowCount({
+        groupValues: entryGroupValues,
+        count: entry.count,
+        depth: currentDepth,
+        groupByMetadata,
+        collapsedGroups,
+        collapsedGroupsMode,
+        fields,
+        registry,
+      })
+    }
+
+    return null
+  }
+
+  return visitGroups(0)
+}
+
+function getGroupVisibleRowCount({
+  groupValues,
+  count,
+  depth,
+  groupByMetadata,
+  collapsedGroups,
+  collapsedGroupsMode = COLLAPSED_GROUPS_MODE_EXPAND,
+  fields,
+  registry,
+}) {
+  const fieldsAtDepth = fields.slice(0, depth + 1)
+  const collapsed = isCollapsed(
+    collapsedGroups,
+    groupValues,
+    fieldsAtDepth,
+    registry,
+    collapsedGroupsMode,
+    true
   )
+
+  if (collapsed) {
+    return 0
+  }
+
+  if (depth === fields.length - 1) {
+    return count
+  }
+
+  const childDepth = depth + 1
+  const childField = fields[childDepth]
+  const childEntries = groupByMetadata[`field_${childField.id}`] || []
+  const children = childEntries.filter((entry) =>
+    fieldValuesAreEqualInObjects(
+      fieldsAtDepth,
+      registry,
+      entry,
+      groupValues,
+      true,
+      true
+    )
+  )
+
+  if (children.length === 0) {
+    return count
+  }
+
+  return children.reduce((total, childEntry) => {
+    const childFields = fields.slice(0, childDepth + 1)
+    return (
+      total +
+      getGroupVisibleRowCount({
+        groupValues: getGroupValues(childEntry, childFields),
+        count: childEntry.count,
+        depth: childDepth,
+        groupByMetadata,
+        collapsedGroups,
+        collapsedGroupsMode,
+        fields,
+        registry,
+      })
+    )
+  }, 0)
 }
 
 function lookupMetadataEntry(
@@ -220,9 +453,16 @@ function lookupMetadataEntry(
   )
 }
 
-function isCollapsed(collapsedGroups, groupValues, fieldsAtDepth, registry) {
-  return collapsedGroups.some((collapsedGroup) => {
-    if (Object.keys(collapsedGroup).length !== fieldsAtDepth.length) {
+function isCollapsed(
+  collapsedGroups,
+  groupValues,
+  fieldsAtDepth,
+  registry,
+  collapsedGroupsMode = COLLAPSED_GROUPS_MODE_EXPAND,
+  groupValuesIsGroup = false
+) {
+  const inList = collapsedGroups.some((entry) => {
+    if (Object.keys(entry).length !== fieldsAtDepth.length) {
       return false
     }
     // collapsedGroup holds metadata-form values (e.g. an option ID); groupValues
@@ -231,11 +471,16 @@ function isCollapsed(collapsedGroups, groupValues, fieldsAtDepth, registry) {
     return fieldValuesAreEqualInObjects(
       fieldsAtDepth,
       registry,
-      collapsedGroup,
+      entry,
       groupValues,
-      true
+      true,
+      groupValuesIsGroup
     )
   })
+
+  return collapsedGroupsMode === COLLAPSED_GROUPS_MODE_COLLAPSE
+    ? !inList
+    : inList
 }
 
 function isAncestorCollapsed(
@@ -244,30 +489,40 @@ function isAncestorCollapsed(
   groupByFields,
   depth,
   registry,
-  groupValuesIsGroup = false
+  groupValuesIsGroup = false,
+  collapsedGroupsMode = COLLAPSED_GROUPS_MODE_EXPAND
 ) {
-  return collapsedGroups.some((collapsedGroup) => {
-    const collapsedDepth = getEntryDepth(collapsedGroup, groupByFields)
-    if (collapsedDepth < 0 || collapsedDepth >= depth) {
-      return false
+  for (let ancestorDepth = 0; ancestorDepth < depth; ancestorDepth++) {
+    const fieldsAtDepth = groupByFields.slice(0, ancestorDepth + 1)
+    const ancestorValues = fieldsAtDepth.reduce((acc, f) => {
+      acc[`field_${f.id}`] = groupValues[`field_${f.id}`]
+      return acc
+    }, {})
+    if (
+      isCollapsed(
+        collapsedGroups,
+        ancestorValues,
+        fieldsAtDepth,
+        registry,
+        collapsedGroupsMode,
+        groupValuesIsGroup
+      )
+    ) {
+      return true
     }
-    return fieldValuesAreEqualInObjects(
-      groupByFields.slice(0, collapsedDepth + 1),
-      registry,
-      collapsedGroup,
-      groupValues,
-      true,
-      groupValuesIsGroup
-    )
-  })
+  }
+  return false
 }
 
 function insertMissingDepth0Headers(
   items,
   groupByMetadata,
   collapsedGroups,
+  collapsedGroupsMode = COLLAPSED_GROUPS_MODE_EXPAND,
   fields,
-  registry
+  registry,
+  bufferStartIndex,
+  bufferLength
 ) {
   if (fields.length === 0) {
     return
@@ -279,6 +534,46 @@ function insertMissingDepth0Headers(
 
   metadataEntries.forEach((entry, metadataIndex) => {
     const groupValues = getGroupValues(entry, fieldsAtDepth)
+    const collapsed = isCollapsed(
+      collapsedGroups,
+      groupValues,
+      fieldsAtDepth,
+      registry,
+      collapsedGroupsMode,
+      true
+    )
+
+    // In expand-mode, only synthesize headers for collapsed groups — uncollapsed
+    // ones get their headers from the row-iteration above, anchored to the real
+    // row positions in the buffer. Synthesizing them here would put them at
+    // the wrong virtual y when the buffer sits mid-group.
+    //
+    // In collapse-mode every group is conceptually a header-tall placeholder by
+    // default, including the just-toggled exception whose rows haven't arrived
+    // yet. Synthesize for all entries; `alreadyRendered` deduplicates against
+    // headers the row-iteration already added once the response lands.
+    if (collapsedGroupsMode === COLLAPSED_GROUPS_MODE_EXPAND && !collapsed) {
+      return
+    }
+
+    if (collapsedGroupsMode === COLLAPSED_GROUPS_MODE_EXPAND && collapsed) {
+      const groupStartRowIndex = findGroupStartRowIndex({
+        groupValues,
+        depth: 0,
+        groupByMetadata,
+        collapsedGroups,
+        collapsedGroupsMode,
+        fields,
+        registry,
+      })
+      if (
+        groupStartRowIndex === null ||
+        groupStartRowIndex < bufferStartIndex ||
+        groupStartRowIndex > bufferStartIndex + bufferLength
+      ) {
+        return
+      }
+    }
 
     const alreadyRendered = items.some(
       (item) =>
@@ -296,19 +591,6 @@ function insertMissingDepth0Headers(
     if (alreadyRendered) {
       return
     }
-
-    const collapsed = collapsedGroups.some(
-      (collapsedGroup) =>
-        Object.keys(collapsedGroup).length === 1 &&
-        fieldValuesAreEqualInObjects(
-          fieldsAtDepth,
-          registry,
-          collapsedGroup,
-          groupValues,
-          true,
-          true
-        )
-    )
 
     const insertIndex = items.findIndex((item) => {
       if (item.type !== 'header' || item.depth !== 0) {
@@ -344,87 +626,143 @@ function insertCollapsedGroupHeaders(
   items,
   groupByMetadata,
   collapsedGroups,
+  collapsedGroupsMode = COLLAPSED_GROUPS_MODE_EXPAND,
   fields,
   registry
 ) {
-  collapsedGroups.forEach((collapsedGroup) => {
-    const depth = getEntryDepth(collapsedGroup, fields)
-    if (depth <= 0) {
-      // Depth-0 collapsed headers are inserted by `insertMissingDepth0Headers`.
-      return
-    }
-
+  for (let depth = 1; depth < fields.length; depth++) {
+    const field = fields[depth]
     const fieldsAtDepth = fields.slice(0, depth + 1)
-    if (
-      isAncestorCollapsed(
+    const metadataEntries = groupByMetadata[`field_${field.id}`] || []
+
+    metadataEntries.forEach((entry) => {
+      const groupValues = getGroupValues(entry, fieldsAtDepth)
+      const collapsed = isCollapsed(
         collapsedGroups,
-        collapsedGroup,
-        fields,
-        depth,
+        groupValues,
+        fieldsAtDepth,
         registry,
+        collapsedGroupsMode,
         true
       )
-    ) {
-      return
-    }
 
-    const alreadyRendered = items.some(
-      (item) =>
-        item.type === 'header' &&
-        item.depth === depth &&
-        fieldValuesAreEqualInObjects(
-          fieldsAtDepth,
-          registry,
-          item.groupValues,
-          collapsedGroup,
-          true,
-          true
-        )
-    )
-
-    if (alreadyRendered) {
-      return
-    }
-
-    const field = fields[depth]
-    const header = {
-      type: 'header',
-      depth,
-      field,
-      groupValues: { ...collapsedGroup },
-      count: lookupCount(
-        groupByMetadata,
-        fields,
-        depth,
-        collapsedGroup,
-        registry,
-        true
-      ),
-      collapsed: true,
-    }
-
-    const metadataEntries = groupByMetadata[`field_${field.id}`] || []
-    const collapsedMetadataIndex = findMetadataIndex(
-      metadataEntries,
-      collapsedGroup,
-      fieldsAtDepth,
-      registry
-    )
-    const insertIndex = items.findIndex((item) => {
-      if (item.type !== 'header' || item.depth !== depth) {
-        return false
+      // Same rule as `insertMissingDepth0Headers`: in expand-mode skip
+      // uncollapsed groups (their headers come from row-iteration), in
+      // collapse-mode synthesize everything so a just-toggled exception
+      // doesn't blink out of existence while the refresh is in flight.
+      if (collapsedGroupsMode === COLLAPSED_GROUPS_MODE_EXPAND && !collapsed) {
+        return
       }
-      const itemMetadataIndex = findMetadataIndex(
+
+      if (
+        isAncestorCollapsed(
+          collapsedGroups,
+          groupValues,
+          fields,
+          depth,
+          registry,
+          true,
+          collapsedGroupsMode
+        )
+      ) {
+        return
+      }
+
+      const alreadyRendered = items.some(
+        (item) =>
+          item.type === 'header' &&
+          item.depth === depth &&
+          fieldValuesAreEqualInObjects(
+            fieldsAtDepth,
+            registry,
+            item.groupValues,
+            groupValues,
+            true,
+            true
+          )
+      )
+
+      if (alreadyRendered) {
+        return
+      }
+
+      // Only insert a deeper-level collapsed header if its parent group is
+      // present in the items list — otherwise we'd plant a Design+High header
+      // somewhere inside Development's section because there's no Design
+      // anchor to position it against.
+      const parentFields = fields.slice(0, depth)
+      const parentValues = parentFields.reduce((acc, parentField) => {
+        acc[`field_${parentField.id}`] = groupValues[`field_${parentField.id}`]
+        return acc
+      }, {})
+      const parentItemIndex = items.findIndex(
+        (item) =>
+          item.type === 'header' &&
+          item.depth === depth - 1 &&
+          fieldValuesAreEqualInObjects(
+            parentFields,
+            registry,
+            item.groupValues,
+            parentValues,
+            true,
+            true
+          )
+      )
+      if (parentItemIndex === -1) {
+        return
+      }
+
+      const header = {
+        type: 'header',
+        depth,
+        field,
+        groupValues,
+        count: entry.count,
+        collapsed,
+      }
+
+      // Find the next sibling at this depth WITHIN the same parent. We bound
+      // the search to the parent's section so we only consider items that
+      // belong to it.
+      const collapsedMetadataIndex = findMetadataIndex(
         metadataEntries,
-        item.groupValues,
+        groupValues,
         fieldsAtDepth,
         registry
       )
-      return collapsedMetadataIndex < itemMetadataIndex
-    })
 
-    items.splice(insertIndex === -1 ? items.length : insertIndex, 0, header)
-  })
+      let parentSectionEnd = items.length
+      for (let i = parentItemIndex + 1; i < items.length; i++) {
+        const item = items[i]
+        if (item.type === 'header' && item.depth <= depth - 1) {
+          parentSectionEnd = i
+          break
+        }
+      }
+
+      let insertIndex = -1
+      for (let i = parentItemIndex + 1; i < parentSectionEnd; i++) {
+        const item = items[i]
+        if (item.type !== 'header' || item.depth !== depth) continue
+        const itemMetadataIndex = findMetadataIndex(
+          metadataEntries,
+          item.groupValues,
+          fieldsAtDepth,
+          registry
+        )
+        if (collapsedMetadataIndex < itemMetadataIndex) {
+          insertIndex = i
+          break
+        }
+      }
+
+      items.splice(
+        insertIndex === -1 ? parentSectionEnd : insertIndex,
+        0,
+        header
+      )
+    })
+  }
 }
 
 function findMetadataIndex(entries, groupValues, fieldsAtDepth, registry) {
@@ -439,15 +777,4 @@ function findMetadataIndex(entries, groupValues, fieldsAtDepth, registry) {
     )
   )
   return index === -1 ? Number.MAX_SAFE_INTEGER : index
-}
-
-function getEntryDepth(entry, fields) {
-  for (let depth = fields.length - 1; depth >= 0; depth--) {
-    if (
-      Object.prototype.hasOwnProperty.call(entry, `field_${fields[depth].id}`)
-    ) {
-      return depth
-    }
-  }
-  return -1
 }
