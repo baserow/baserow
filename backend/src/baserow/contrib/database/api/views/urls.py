@@ -4,6 +4,8 @@ from baserow.contrib.database.views.registries import view_type_registry
 
 from .views import (
     DuplicateViewView,
+    OrderViewGroupBysView,
+    OrderViewSortingsView,
     OrderViewsView,
     PublicViewAuthView,
     PublicViewGetRowView,
@@ -81,9 +83,19 @@ urlpatterns = view_type_registry.api_urls + [
         name="list_sortings",
     ),
     re_path(
+        r"(?P<view_id>[0-9]+)/sortings/order/$",
+        OrderViewSortingsView.as_view(),
+        name="order_sortings",
+    ),
+    re_path(
         r"(?P<view_id>[0-9]+)/group_bys/$",
         ViewGroupBysView.as_view(),
         name="list_group_bys",
+    ),
+    re_path(
+        r"(?P<view_id>[0-9]+)/group_bys/order/$",
+        OrderViewGroupBysView.as_view(),
+        name="order_group_bys",
     ),
     re_path(
         r"(?P<view_id>[0-9]+)/decorations/$",

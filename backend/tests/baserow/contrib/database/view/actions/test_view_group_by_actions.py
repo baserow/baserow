@@ -4,6 +4,7 @@ from baserow.contrib.database.action.scopes import ViewActionScopeType
 from baserow.contrib.database.views.actions import (
     CreateViewGroupByActionType,
     DeleteViewGroupByActionType,
+    OrderViewGroupBysActionType,
     UpdateViewGroupByActionType,
 )
 from baserow.contrib.database.views.models import ViewGroupBy
@@ -304,3 +305,61 @@ def test_can_undo_redo_deleting_view_group_by_with_type(data_fixture):
     group_by = ViewGroupBy.objects.all()
     assert len(group_by) == 1
     assert group_by[0].type == "order"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_can_undo_redo_ordering_view_group_bys(data_fixture):
+    session_id = "1010"
+    user = data_fixture.create_user(session_id=session_id)
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+    field_1 = data_fixture.create_text_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    field_3 = data_fixture.create_text_field(table=table)
+
+    group_by_1 = data_fixture.create_view_group_by(view=grid_view, field=field_1)
+    group_by_2 = data_fixture.create_view_group_by(view=grid_view, field=field_2)
+    group_by_3 = data_fixture.create_view_group_by(view=grid_view, field=field_3)
+
+    original_order = list(
+        ViewGroupBy.objects.filter(view=grid_view)
+        .order_by("priority", "id")
+        .values_list("id", flat=True)
+    )
+    new_order = [group_by_3.id, group_by_1.id, group_by_2.id]
+
+    action_type_registry.get_by_type(OrderViewGroupBysActionType).do(
+        user, grid_view, new_order
+    )
+
+    assert (
+        list(
+            ViewGroupBy.objects.filter(view=grid_view)
+            .order_by("priority", "id")
+            .values_list("id", flat=True)
+        )
+        == new_order
+    )
+
+    ActionHandler.undo(user, [ViewActionScopeType.value(grid_view.id)], session_id)
+
+    assert (
+        list(
+            ViewGroupBy.objects.filter(view=grid_view)
+            .order_by("priority", "id")
+            .values_list("id", flat=True)
+        )
+        == original_order
+    )
+
+    ActionHandler.redo(user, [ViewActionScopeType.value(grid_view.id)], session_id)
+
+    assert (
+        list(
+            ViewGroupBy.objects.filter(view=grid_view)
+            .order_by("priority", "id")
+            .values_list("id", flat=True)
+        )
+        == new_order
+    )

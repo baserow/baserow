@@ -487,7 +487,7 @@ class ViewSortManager(models.Manager):
         return super().get_queryset().filter(~trashed_Q)
 
 
-class ViewSort(HierarchicalModelMixin, models.Model):
+class ViewSort(HierarchicalModelMixin, OrderableMixin, models.Model):
     objects = ViewSortManager()
 
     view = models.ForeignKey(
@@ -515,12 +515,18 @@ class ViewSort(HierarchicalModelMixin, models.Model):
         help_text=f"Indicates the sort type. Will automatically fall back to `"
         f"{DEFAULT_SORT_TYPE_KEY}` if incompatible with field type.",
     )
+    priority = models.PositiveIntegerField(
+        default=32767,
+        db_default=32767,
+        help_text="Position of this sorting in the ordering chain. The sorting with "
+        "the lowest priority is applied first.",
+    )
 
     def get_parent(self):
         return self.view
 
     class Meta:
-        ordering = ("id",)
+        ordering = ("priority", "id")
 
 
 class ViewGroupByManager(models.Manager):
@@ -529,7 +535,7 @@ class ViewGroupByManager(models.Manager):
         return super().get_queryset().filter(~trashed_Q)
 
 
-class ViewGroupBy(HierarchicalModelMixin, models.Model):
+class ViewGroupBy(HierarchicalModelMixin, OrderableMixin, models.Model):
     objects = ViewGroupByManager()
 
     view = models.ForeignKey(
@@ -561,12 +567,18 @@ class ViewGroupBy(HierarchicalModelMixin, models.Model):
         default=200,
         help_text="The pixel width of the group by in the related view.",
     )
+    priority = models.PositiveIntegerField(
+        default=32767,
+        db_default=32767,
+        help_text="Position of this group by in the ordering chain. The group by with "
+        "the lowest priority is applied first.",
+    )
 
     def get_parent(self):
         return self.view
 
     class Meta:
-        ordering = ("id",)
+        ordering = ("priority", "id")
 
 
 class GridView(View):

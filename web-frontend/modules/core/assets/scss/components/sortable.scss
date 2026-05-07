@@ -3,6 +3,10 @@
   pointer-events: none !important;
 }
 
+.sortable-mousedown-item {
+  user-select: none !important;
+}
+
 .sortable-position-indicator {
   position: absolute;
   height: 3px;

@@ -14,6 +14,36 @@ import { clone } from '@baserow/modules/core/utils/object'
 import { DATABASE_ACTION_SCOPES } from '@baserow/modules/database/utils/undoRedoConstants'
 import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/action'
 
+function sortByPriority(items) {
+  items.sort((a, b) => {
+    const aPriority = a.priority ?? Number.MAX_SAFE_INTEGER
+    const bPriority = b.priority ?? Number.MAX_SAFE_INTEGER
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority
+    }
+    return a.id - b.id
+  })
+}
+
+function applyOrderToItems(items, order) {
+  const indexById = new Map(order.map((id, index) => [id, index]))
+  items.sort((a, b) => {
+    const aIndex = indexById.has(a.id)
+      ? indexById.get(a.id)
+      : Number.MAX_SAFE_INTEGER
+    const bIndex = indexById.has(b.id)
+      ? indexById.get(b.id)
+      : Number.MAX_SAFE_INTEGER
+    if (aIndex !== bIndex) {
+      return aIndex - bIndex
+    }
+    return a.id - b.id
+  })
+  items.forEach((item, index) => {
+    item.priority = index + 1
+  })
+}
+
 export function populateFilter(filter) {
   filter._ = {
     hover: false,
@@ -84,6 +114,7 @@ export function populateView(view, registry) {
     view.sortings.forEach((sort) => {
       populateSort(sort)
     })
+    sortByPriority(view.sortings)
   } else {
     view.sortings = []
   }
@@ -91,6 +122,7 @@ export function populateView(view, registry) {
     view.group_bys.forEach((groupBy) => {
       populateGroupBy(groupBy)
     })
+    sortByPriority(view.group_bys)
   } else {
     view.group_bys = []
   }
@@ -262,6 +294,10 @@ export const mutations = {
   },
   ADD_SORT(state, { view, sort }) {
     view.sortings.push(sort)
+    sortByPriority(view.sortings)
+  },
+  ORDER_SORTS(state, { view, order }) {
+    applyOrderToItems(view.sortings, order)
   },
   FINALIZE_SORT(state, { view, oldId, id }) {
     const index = view.sortings.findIndex((item) => item.id === oldId)
@@ -291,6 +327,10 @@ export const mutations = {
   },
   ADD_GROUP_BY(state, { view, groupBy }) {
     view.group_bys.push(groupBy)
+    sortByPriority(view.group_bys)
+  },
+  ORDER_GROUP_BYS(state, { view, order }) {
+    applyOrderToItems(view.group_bys, order)
   },
   FINALIZE_GROUP_BY(state, { view, oldId, id }) {
     const index = view.group_bys.findIndex((item) => item.id === oldId)
@@ -1237,6 +1277,33 @@ export const actions = {
     commit('DELETE_SORT', { view, id: sort.id })
   },
   /**
+   * Updates the order of the sortings of a view. Optimistically applies the new
+   * order in the store and rolls back on API error.
+   */
+  async orderSortings(
+    { dispatch },
+    { view, order, oldOrder, readOnly = false }
+  ) {
+    const { $client } = this
+    dispatch('forceOrderSortings', { view, order })
+
+    if (!readOnly) {
+      try {
+        await SortService($client).order(view.id, order)
+      } catch (error) {
+        dispatch('forceOrderSortings', { view, order: oldOrder })
+        throw error
+      }
+    }
+  },
+  /**
+   * Forcefully reorder the sortings of a view without making a request to the
+   * backend.
+   */
+  forceOrderSortings({ commit }, { view, order }) {
+    commit('ORDER_SORTS', { view, order })
+  },
+  /**
    * When a field is deleted the related sortings are also automatically deleted in the
    * backend so they need to be removed here.
    */
@@ -1359,6 +1426,33 @@ export const actions = {
    */
   forceDeleteGroupBy({ commit }, { view, groupBy }) {
     commit('DELETE_GROUP_BY', { view, id: groupBy.id })
+  },
+  /**
+   * Updates the order of the group bys of a view. Optimistically applies the new
+   * order in the store and rolls back on API error.
+   */
+  async orderGroupBys(
+    { dispatch },
+    { view, order, oldOrder, readOnly = false }
+  ) {
+    const { $client } = this
+    dispatch('forceOrderGroupBys', { view, order })
+
+    if (!readOnly) {
+      try {
+        await GroupByService($client).order(view.id, order)
+      } catch (error) {
+        dispatch('forceOrderGroupBys', { view, order: oldOrder })
+        throw error
+      }
+    }
+  },
+  /**
+   * Forcefully reorder the group bys of a view without making a request to the
+   * backend.
+   */
+  forceOrderGroupBys({ commit }, { view, order }) {
+    commit('ORDER_GROUP_BYS', { view, order })
   },
   /**
    * When a field is deleted the related group bys are also automatically deleted in the

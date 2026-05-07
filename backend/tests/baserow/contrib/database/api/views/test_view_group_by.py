@@ -711,3 +711,148 @@ def test_cant_delete_view_group_by_when_view_trashed(api_client, data_fixture):
     response = api_client.delete(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
 
     assert response.status_code == HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_order_view_group_bys(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    field_3 = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(table=table)
+
+    group_by_1 = data_fixture.create_view_group_by(view=view, field=field_1)
+    group_by_2 = data_fixture.create_view_group_by(view=view, field=field_2)
+    group_by_3 = data_fixture.create_view_group_by(view=view, field=field_3)
+
+    response = api_client.post(
+        reverse("api:database:views:order_group_bys", kwargs={"view_id": view.id}),
+        {"view_group_by_ids": [group_by_3.id, group_by_1.id, group_by_2.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    group_by_1.refresh_from_db()
+    group_by_2.refresh_from_db()
+    group_by_3.refresh_from_db()
+    assert group_by_3.priority < group_by_1.priority < group_by_2.priority
+
+    ordered_ids = list(
+        ViewGroupBy.objects.filter(view=view)
+        .order_by("priority", "id")
+        .values_list("id", flat=True)
+    )
+    assert ordered_ids == [group_by_3.id, group_by_1.id, group_by_2.id]
+
+
+@pytest.mark.django_db
+def test_order_view_group_bys_user_not_in_workspace(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table()
+    field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(table=table)
+    group_by = data_fixture.create_view_group_by(view=view, field=field)
+
+    response = api_client.post(
+        reverse("api:database:views:order_group_bys", kwargs={"view_id": view.id}),
+        {"view_group_by_ids": [group_by.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+
+@pytest.mark.django_db
+def test_order_view_group_bys_view_does_not_exist(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+
+    response = api_client.post(
+        reverse("api:database:views:order_group_bys", kwargs={"view_id": 99999}),
+        {"view_group_by_ids": [1]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_order_view_group_bys_group_by_not_in_view(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(table=table)
+    view_1 = data_fixture.create_grid_view(table=table)
+    view_2 = data_fixture.create_grid_view(table=table)
+    group_by_in_other_view = data_fixture.create_view_group_by(
+        view=view_2, field=field_1
+    )
+
+    response = api_client.post(
+        reverse("api:database:views:order_group_bys", kwargs={"view_id": view_1.id}),
+        {"view_group_by_ids": [group_by_in_other_view.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_VIEW_GROUP_BY_NOT_IN_VIEW"
+
+
+@pytest.mark.django_db
+def test_order_view_group_bys_partial_list(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    field_3 = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(table=table)
+
+    group_by_1 = data_fixture.create_view_group_by(view=view, field=field_1)
+    group_by_2 = data_fixture.create_view_group_by(view=view, field=field_2)
+    group_by_3 = data_fixture.create_view_group_by(view=view, field=field_3)
+
+    # Swapping group_by_2 and group_by_3 via a partial list. group_by_1 keeps
+    # its original (first) position because it is not part of the payload —
+    # consistent with OrderableMixin.order_objects semantics.
+    response = api_client.post(
+        reverse("api:database:views:order_group_bys", kwargs={"view_id": view.id}),
+        {"view_group_by_ids": [group_by_3.id, group_by_2.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    ordered_ids = list(
+        ViewGroupBy.objects.filter(view=view)
+        .order_by("priority", "id")
+        .values_list("id", flat=True)
+    )
+    assert ordered_ids == [group_by_1.id, group_by_3.id, group_by_2.id]
+
+
+@pytest.mark.django_db
+def test_create_view_group_by_assigns_next_priority(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    field_3 = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(table=table)
+
+    for field in (field_1, field_2, field_3):
+        response = api_client.post(
+            reverse("api:database:views:list_group_bys", kwargs={"view_id": view.id}),
+            {"field": field.id, "order": "ASC"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+
+    priorities = list(
+        ViewGroupBy.objects.filter(view=view)
+        .order_by("id")
+        .values_list("priority", flat=True)
+    )
+    assert priorities == [1, 2, 3]

@@ -21,12 +21,23 @@
         <div
           v-for="(sort, index) in view.sortings"
           :key="sort.id"
+          v-sortable="{
+            id: sort.id,
+            update: orderSortings,
+            handle: '[data-sort-handle]',
+            enabled: !disableSort,
+            marginTop: -8,
+            marginTopLast: 8,
+            marginLeft: 16,
+            marginRight: 16,
+          }"
           class="sortings__item"
           :class="{
             'sortings__item--loading': sort._.loading,
           }"
           :set="field = getField(sort.field)"
         >
+          <a v-if="!disableSort" class="sortings__handle" data-sort-handle></a>
           <a
             v-if="!disableSort"
             class="sortings__remove"
@@ -194,6 +205,23 @@ export default {
             value: 'ASC',
             type: DEFAULT_SORT_TYPE_KEY,
           },
+          readOnly: this.readOnly,
+        })
+        this.$emit('changed')
+      } catch (error) {
+        notifyIf(error, 'view')
+      }
+    },
+    async orderSortings(order, oldOrder) {
+      if (this.disableSort) {
+        return
+      }
+
+      try {
+        await this.$store.dispatch('view/orderSortings', {
+          view: this.view,
+          order,
+          oldOrder,
           readOnly: this.readOnly,
         })
         this.$emit('changed')

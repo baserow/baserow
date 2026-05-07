@@ -41,12 +41,14 @@ from baserow.contrib.database.views.exceptions import (
     ViewFilterTypeNotAllowedForField,
     ViewGroupByFieldAlreadyExist,
     ViewGroupByFieldNotSupported,
+    ViewGroupByNotInView,
     ViewGroupByNotSupported,
     ViewNotInTable,
     ViewOwnershipTypeDoesNotExist,
     ViewSortDoesNotExist,
     ViewSortFieldAlreadyExist,
     ViewSortFieldNotSupported,
+    ViewSortNotInView,
     ViewSortNotSupported,
     ViewTypeDoesNotExist,
 )
@@ -5279,3 +5281,93 @@ def test_export_import_default_values_for_all_field_types(data_fixture):
         assert imported.enabled == original.enabled
         assert imported.field_type == original.field_type
         assert imported.function == original.function
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.views.signals.view_sortings_reordered.send")
+def test_order_view_sortings(send_mock, data_fixture):
+    user = data_fixture.create_user()
+    other_user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    view = data_fixture.create_grid_view(table=table)
+    other_view = data_fixture.create_grid_view(table=table)
+    field_1 = data_fixture.create_text_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    field_3 = data_fixture.create_text_field(table=table)
+    foreign_field = data_fixture.create_text_field(table=table)
+
+    sort_1 = data_fixture.create_view_sort(view=view, field=field_1)
+    sort_2 = data_fixture.create_view_sort(view=view, field=field_2)
+    sort_3 = data_fixture.create_view_sort(view=view, field=field_3)
+    foreign_sort = data_fixture.create_view_sort(view=other_view, field=foreign_field)
+
+    handler = ViewHandler()
+
+    with pytest.raises(UserNotInWorkspace):
+        handler.order_sortings(user=other_user, view=view, order=[sort_1.id])
+
+    with pytest.raises(ViewSortNotInView):
+        handler.order_sortings(user=user, view=view, order=[foreign_sort.id])
+
+    full_order = handler.order_sortings(
+        user=user, view=view, order=[sort_3.id, sort_1.id, sort_2.id]
+    )
+    assert full_order == [sort_3.id, sort_1.id, sort_2.id]
+
+    sort_1.refresh_from_db()
+    sort_2.refresh_from_db()
+    sort_3.refresh_from_db()
+    assert sort_3.priority < sort_1.priority < sort_2.priority
+
+    send_mock.assert_called_once()
+    assert send_mock.call_args[1]["view"].id == view.id
+    assert send_mock.call_args[1]["order"] == [sort_3.id, sort_1.id, sort_2.id]
+    assert send_mock.call_args[1]["user"].id == user.id
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.views.signals.view_group_bys_reordered.send")
+def test_order_view_group_bys(send_mock, data_fixture):
+    user = data_fixture.create_user()
+    other_user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    view = data_fixture.create_grid_view(table=table)
+    other_view = data_fixture.create_grid_view(table=table)
+    field_1 = data_fixture.create_text_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    field_3 = data_fixture.create_text_field(table=table)
+    foreign_field = data_fixture.create_text_field(table=table)
+
+    group_by_1 = data_fixture.create_view_group_by(view=view, field=field_1)
+    group_by_2 = data_fixture.create_view_group_by(view=view, field=field_2)
+    group_by_3 = data_fixture.create_view_group_by(view=view, field=field_3)
+    foreign_group_by = data_fixture.create_view_group_by(
+        view=other_view, field=foreign_field
+    )
+
+    handler = ViewHandler()
+
+    with pytest.raises(UserNotInWorkspace):
+        handler.order_group_bys(user=other_user, view=view, order=[group_by_1.id])
+
+    with pytest.raises(ViewGroupByNotInView):
+        handler.order_group_bys(user=user, view=view, order=[foreign_group_by.id])
+
+    full_order = handler.order_group_bys(
+        user=user, view=view, order=[group_by_3.id, group_by_1.id, group_by_2.id]
+    )
+    assert full_order == [group_by_3.id, group_by_1.id, group_by_2.id]
+
+    group_by_1.refresh_from_db()
+    group_by_2.refresh_from_db()
+    group_by_3.refresh_from_db()
+    assert group_by_3.priority < group_by_1.priority < group_by_2.priority
+
+    send_mock.assert_called_once()
+    assert send_mock.call_args[1]["view"].id == view.id
+    assert send_mock.call_args[1]["order"] == [
+        group_by_3.id,
+        group_by_1.id,
+        group_by_2.id,
+    ]
+    assert send_mock.call_args[1]["user"].id == user.id

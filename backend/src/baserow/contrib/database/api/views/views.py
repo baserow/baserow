@@ -84,7 +84,9 @@ from baserow.contrib.database.views.actions import (
     DeleteViewGroupByActionType,
     DeleteViewSortActionType,
     DuplicateViewActionType,
+    OrderViewGroupBysActionType,
     OrderViewsActionType,
+    OrderViewSortsActionType,
     RotateViewSlugActionType,
     UpdateDecorationActionType,
     UpdateViewActionType,
@@ -113,6 +115,7 @@ from baserow.contrib.database.views.exceptions import (
     ViewGroupByDoesNotExist,
     ViewGroupByFieldAlreadyExist,
     ViewGroupByFieldNotSupported,
+    ViewGroupByNotInView,
     ViewGroupByNotSupported,
     ViewNotInTable,
     ViewOwnershipTypeDoesNotExist,
@@ -120,6 +123,7 @@ from baserow.contrib.database.views.exceptions import (
     ViewSortDoesNotExist,
     ViewSortFieldAlreadyExist,
     ViewSortFieldNotSupported,
+    ViewSortNotInView,
     ViewSortNotSupported,
 )
 from baserow.contrib.database.views.handler import ViewHandler
@@ -162,6 +166,7 @@ from .errors import (
     ERROR_VIEW_GROUP_BY_DOES_NOT_EXIST,
     ERROR_VIEW_GROUP_BY_FIELD_ALREADY_EXISTS,
     ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED,
+    ERROR_VIEW_GROUP_BY_NOT_IN_VIEW,
     ERROR_VIEW_GROUP_BY_NOT_SUPPORTED,
     ERROR_VIEW_NOT_IN_TABLE,
     ERROR_VIEW_OWNERSHIP_TYPE_DOES_NOT_EXIST,
@@ -169,6 +174,7 @@ from .errors import (
     ERROR_VIEW_SORT_DOES_NOT_EXIST,
     ERROR_VIEW_SORT_FIELD_ALREADY_EXISTS,
     ERROR_VIEW_SORT_FIELD_NOT_SUPPORTED,
+    ERROR_VIEW_SORT_NOT_IN_VIEW,
     ERROR_VIEW_SORT_NOT_SUPPORTED,
 )
 from .serializers import (
@@ -178,6 +184,8 @@ from .serializers import (
     CreateViewSerializer,
     CreateViewSortSerializer,
     ListQueryParamatersSerializer,
+    OrderViewGroupBysSerializer,
+    OrderViewSortingsSerializer,
     OrderViewsSerializer,
     PublicViewAuthRequestSerializer,
     PublicViewAuthResponseSerializer,
@@ -1494,6 +1502,56 @@ class ViewDecorationView(APIView):
         return Response(status=204)
 
 
+class OrderViewSortingsView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="view_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="Updates the order of the sortings in the view related "
+                "to the provided value.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Database table view sortings"],
+        operation_id="order_database_table_view_sortings",
+        description=(
+            "Changes the order of the provided view sort ids to the matching position "
+            "that the id has in the list. The sort with the lowest position in the "
+            "list is applied first when ordering rows."
+        ),
+        request=OrderViewSortingsSerializer,
+        responses={
+            204: None,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_VIEW_SORT_NOT_IN_VIEW"]
+            ),
+            404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
+        },
+    )
+    @validate_body(OrderViewSortingsSerializer)
+    @transaction.atomic
+    @map_exceptions(
+        {
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ViewSortNotInView: ERROR_VIEW_SORT_NOT_IN_VIEW,
+        }
+    )
+    def post(self, request, data, view_id):
+        """Updates the order of the sortings in a view."""
+
+        view = ViewHandler().get_view(view_id)
+        action_type_registry.get_by_type(OrderViewSortsActionType).do(
+            request.user, view, data["view_sort_ids"]
+        )
+        return Response(status=204)
+
+
 class ViewSortingsView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -2179,6 +2237,56 @@ class PublicViewInfoView(APIView):
                 fields=fields,
             ).data
         )
+
+
+class OrderViewGroupBysView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="view_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="Updates the order of the group bys in the view related "
+                "to the provided value.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+            CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Database table view groupings"],
+        operation_id="order_database_table_view_group_bys",
+        description=(
+            "Changes the order of the provided view group by ids to the matching "
+            "position that the id has in the list. The group by with the lowest "
+            "position in the list is applied first when ordering rows."
+        ),
+        request=OrderViewGroupBysSerializer,
+        responses={
+            204: None,
+            400: get_error_schema(
+                ["ERROR_USER_NOT_IN_GROUP", "ERROR_VIEW_GROUP_BY_NOT_IN_VIEW"]
+            ),
+            404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
+        },
+    )
+    @validate_body(OrderViewGroupBysSerializer)
+    @transaction.atomic
+    @map_exceptions(
+        {
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ViewGroupByNotInView: ERROR_VIEW_GROUP_BY_NOT_IN_VIEW,
+        }
+    )
+    def post(self, request, data, view_id):
+        """Updates the order of the group bys in a view."""
+
+        view = ViewHandler().get_view(view_id)
+        action_type_registry.get_by_type(OrderViewGroupBysActionType).do(
+            request.user, view, data["view_group_by_ids"]
+        )
+        return Response(status=204)
 
 
 class ViewGroupBysView(APIView):

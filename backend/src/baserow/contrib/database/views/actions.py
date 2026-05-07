@@ -1081,6 +1081,76 @@ class DeleteViewSortActionType(UndoableActionType):
         ViewHandler().delete_sort(user, view_sort)
 
 
+class OrderViewSortsActionType(UndoableActionType):
+    type = "order_view_sortings"
+    description = ActionTypeDescription(
+        _("Order view sortings"),
+        _("View sortings order changed"),
+        VIEW_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "view_id",
+        "table_id",
+        "database_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        view_id: int
+        view_name: str
+        table_id: int
+        table_name: str
+        database_id: int
+        database_name: str
+        order: List[int]
+        original_order: List[int]
+
+    @classmethod
+    def do(cls, user: AbstractUser, view: View, order: List[int]) -> List[int]:
+        """
+        Reorders the view sortings of the given view. See
+        baserow.contrib.database.views.handler.ViewHandler.order_sortings for
+        further details. Undoing this action restores the original order;
+        redoing it reapplies the new order.
+        """
+
+        original_order = list(
+            ViewSort.objects.filter(view=view)
+            .order_by("priority", "id")
+            .values_list("id", flat=True)
+        )
+
+        full_order = ViewHandler().order_sortings(user, view, order)
+
+        params = cls.Params(
+            view.id,
+            view.name,
+            view.table.id,
+            view.table.name,
+            view.table.database.id,
+            view.table.database.name,
+            full_order,
+            original_order,
+        )
+        workspace = view.table.database.workspace
+        cls.register_action(user, params, cls.scope(view.id), workspace)
+        return full_order
+
+    @classmethod
+    def scope(cls, view_id: int) -> ActionScopeStr:
+        return ViewActionScopeType.value(view_id)
+
+    @classmethod
+    def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
+        view = ViewHandler().get_view(params.view_id)
+        ViewHandler().order_sortings(user, view, params.original_order)
+
+    @classmethod
+    def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
+        view = ViewHandler().get_view(params.view_id)
+        ViewHandler().order_sortings(user, view, params.order)
+
+
 class OrderViewsActionType(UndoableActionType):
     type = "order_views"
     description = ActionTypeDescription(
@@ -2318,6 +2388,76 @@ class DeleteViewGroupByActionType(UndoableActionType):
     def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
         view_group_by = ViewHandler().get_group_by(user, params.view_group_by_id)
         ViewHandler().delete_group_by(user, view_group_by)
+
+
+class OrderViewGroupBysActionType(UndoableActionType):
+    type = "order_view_group_bys"
+    description = ActionTypeDescription(
+        _("Order view group bys"),
+        _("View group bys order changed"),
+        VIEW_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "view_id",
+        "table_id",
+        "database_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        view_id: int
+        view_name: str
+        table_id: int
+        table_name: str
+        database_id: int
+        database_name: str
+        order: List[int]
+        original_order: List[int]
+
+    @classmethod
+    def do(cls, user: AbstractUser, view: View, order: List[int]) -> List[int]:
+        """
+        Reorders the view group bys of the given view. See
+        baserow.contrib.database.views.handler.ViewHandler.order_group_bys for
+        further details. Undoing this action restores the original order;
+        redoing it reapplies the new order.
+        """
+
+        original_order = list(
+            ViewGroupBy.objects.filter(view=view)
+            .order_by("priority", "id")
+            .values_list("id", flat=True)
+        )
+
+        full_order = ViewHandler().order_group_bys(user, view, order)
+
+        params = cls.Params(
+            view.id,
+            view.name,
+            view.table.id,
+            view.table.name,
+            view.table.database.id,
+            view.table.database.name,
+            full_order,
+            original_order,
+        )
+        workspace = view.table.database.workspace
+        cls.register_action(user, params, cls.scope(view.id), workspace)
+        return full_order
+
+    @classmethod
+    def scope(cls, view_id: int) -> ActionScopeStr:
+        return ViewActionScopeType.value(view_id)
+
+    @classmethod
+    def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
+        view = ViewHandler().get_view(params.view_id)
+        ViewHandler().order_group_bys(user, view, params.original_order)
+
+    @classmethod
+    def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
+        view = ViewHandler().get_view(params.view_id)
+        ViewHandler().order_group_bys(user, view, params.order)
 
 
 class SubmitFormActionType(ActionType):

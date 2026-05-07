@@ -22,12 +22,27 @@
         <div
           v-for="(groupBy, index) in view.group_bys"
           :key="groupBy.id"
+          v-sortable="{
+            id: groupBy.id,
+            update: orderGroupBys,
+            handle: '[data-group-by-handle]',
+            enabled: !disableGroupBy,
+            marginTop: -8,
+            marginTopLast: 8,
+            marginLeft: 16,
+            marginRight: 16,
+          }"
           class="group-bys__item"
           :class="{
             'group-bys__item--loading': groupBy._.loading,
           }"
           :set="field = getField(groupBy.field)"
         >
+          <a
+            v-if="!disableGroupBy"
+            class="group-bys__handle"
+            data-group-by-handle
+          ></a>
           <a
             v-if="!disableGroupBy"
             class="group-bys__remove"
@@ -200,6 +215,23 @@ export default {
             value: 'ASC',
             type: DEFAULT_SORT_TYPE_KEY,
           },
+          readOnly: this.readOnly,
+        })
+        this.$emit('changed')
+      } catch (error) {
+        notifyIf(error, 'view')
+      }
+    },
+    async orderGroupBys(order, oldOrder) {
+      if (this.disableGroupBy) {
+        return
+      }
+
+      try {
+        await this.$store.dispatch('view/orderGroupBys', {
+          view: this.view,
+          order,
+          oldOrder,
           readOnly: this.readOnly,
         })
         this.$emit('changed')

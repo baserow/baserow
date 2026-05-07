@@ -82,6 +82,17 @@ export default {
         parent.style.position = 'relative'
       }
 
+      // Disable text selection on the sortable items as soon as the user
+      // mousedowns on the handle. Without this the browser starts a text
+      // selection between the moment of mousedown and the moment the 3px drag
+      // threshold is exceeded — by which point `sortable-sorting-item` is
+      // applied but text has already been selected. `pointer-events: none` is
+      // intentionally not part of this class so that a plain click without a
+      // drag still works.
+      ;[...parent.childNodes]
+        .filter((e) => e.nodeType === 1)
+        .forEach((s) => s.classList.add('sortable-mousedown-item'))
+
       indicator = document.createElement('div')
       indicator.classList.add('sortable-position-indicator')
       parent.insertBefore(indicator, parent.firstChild)
@@ -109,6 +120,7 @@ export default {
     el.sortableMarginLeft = binding.value.marginLeft
     el.sortableMarginRight = binding.value.marginRight
     el.sortableMarginTop = binding.value.marginTop
+    el.sortableMarginTopLast = binding.value.marginTopLast
   },
   /**
    * Called when the user moves the mouse when the dragging of the element has
@@ -177,13 +189,20 @@ export default {
     // element must be moved to the end.
     const elementRect = el.getBoundingClientRect()
     const afterRect = all[all.length - 1].getBoundingClientRect()
+    // Allow callers to nudge the indicator differently for the trailing
+    // position (when the dragged element will land at the very end of the
+    // list) compared to between-items positions, since there is no natural
+    // gap below the last item to centre the indicator in.
+    const verticalMargin = before
+      ? el.sortableMarginTop || 0
+      : (el.sortableMarginTopLast ?? el.sortableMarginTop ?? 0)
     const top =
       (before
         ? beforeRect.top - indicator.clientHeight / 2
         : afterRect.top + afterRect.height) -
       parentRect.top +
       parent.scrollTop +
-      (el.sortableMarginTop || 0)
+      verticalMargin
     const left = elementRect.left - parentRect.left
     indicator.style.left = left + (el.sortableMarginLeft || 0) + 'px'
     indicator.style.width =
@@ -298,6 +317,7 @@ export default {
     const all = [...parent.childNodes].filter((e) => e.nodeType === 1)
     all.forEach((s) => {
       s.classList.remove('sortable-sorting-item')
+      s.classList.remove('sortable-mousedown-item')
     })
 
     window.removeEventListener('mouseup', el.mouseUpEvent)

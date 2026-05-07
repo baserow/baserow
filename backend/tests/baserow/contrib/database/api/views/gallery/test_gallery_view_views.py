@@ -833,6 +833,7 @@ def test_get_public_gallery_view(api_client, data_fixture):
                     "order": "DESC",
                     "type": "default",
                     "view": gallery_view.slug,
+                    "priority": visible_sort.priority,
                 }
             ],
             "group_bys": [],

@@ -15,5 +15,10 @@ export default (client) => {
     delete(viewSortId) {
       return client.delete(`/database/views/sort/${viewSortId}/`)
     },
+    order(viewId, order) {
+      return client.post(`/database/views/${viewId}/sortings/order/`, {
+        view_sort_ids: order,
+      })
+    },
   }
 }
