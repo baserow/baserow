@@ -1,7 +1,7 @@
 .column-element {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(var(--column-amount), minmax(0, 1fr));
   width: 100%;
-  justify-content: space-between;
   gap: var(--space-between-columns);
   align-items: stretch;
 }
@@ -11,7 +11,7 @@
   display: flex;
   flex-direction: column;
   justify-content: var(--alignment);
-  width: var(--column-width);
+  min-width: 0;
 }
 
 .column-element__element {

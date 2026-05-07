@@ -26,17 +26,19 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
             class="ab-datetime-picker__wrapper"
           >
             <i
-              class="button-icon__icon iconoir-calendar"
+              class="ab-icon iconoir-calendar ab-datetime-picker__icon"
+              title=""
             />
             <input
-              class="ab-input ab-datetime-picker__input"
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--date"
               placeholder="DD/MM/YYYY"
               type="text"
               value=""
             />
-            <div>
-              <!--v-if-->
-            </div>
+            <!--v-if-->
+            <div
+              class="flex-grow-1"
+            />
             <!--v-if-->
           </div>
           
@@ -80,17 +82,19 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
             class="ab-datetime-picker__wrapper"
           >
             <i
-              class="button-icon__icon iconoir-calendar"
+              class="ab-icon iconoir-calendar ab-datetime-picker__icon"
+              title=""
             />
             <input
-              class="ab-input ab-datetime-picker__input"
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--date"
               placeholder="MM/DD/YYYY"
               type="text"
               value=""
             />
-            <div>
-              <!--v-if-->
-            </div>
+            <!--v-if-->
+            <div
+              class="flex-grow-1"
+            />
             <!--v-if-->
           </div>
           
@@ -134,17 +138,19 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
             class="ab-datetime-picker__wrapper"
           >
             <i
-              class="button-icon__icon iconoir-calendar"
+              class="ab-icon iconoir-calendar ab-datetime-picker__icon"
+              title=""
             />
             <input
-              class="ab-input ab-datetime-picker__input"
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--date"
               placeholder="YYYY-MM-DD"
               type="text"
               value=""
             />
-            <div>
-              <!--v-if-->
-            </div>
+            <!--v-if-->
+            <div
+              class="flex-grow-1"
+            />
             <!--v-if-->
           </div>
           
@@ -188,22 +194,24 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
             class="ab-datetime-picker__wrapper"
           >
             <i
-              class="button-icon__icon iconoir-calendar"
+              class="ab-icon iconoir-calendar ab-datetime-picker__icon"
+              title=""
             />
             <input
-              class="ab-input ab-datetime-picker__input"
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--date"
               placeholder="DD/MM/YYYY"
               type="text"
               value=""
             />
-            <div>
-              <input
-                class="ab-input ab-datetime-picker__input"
-                placeholder="HH:mm"
-                type="text"
-                value=""
-              />
-            </div>
+            <input
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--time"
+              placeholder="HH:mm"
+              type="text"
+              value=""
+            />
+            <div
+              class="flex-grow-1"
+            />
             <!--v-if-->
           </div>
           
@@ -247,22 +255,24 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
             class="ab-datetime-picker__wrapper"
           >
             <i
-              class="button-icon__icon iconoir-calendar"
+              class="ab-icon iconoir-calendar ab-datetime-picker__icon"
+              title=""
             />
             <input
-              class="ab-input ab-datetime-picker__input"
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--date"
               placeholder="DD/MM/YYYY"
               type="text"
               value=""
             />
-            <div>
-              <input
-                class="ab-input ab-datetime-picker__input"
-                placeholder="hh:mm A"
-                type="text"
-                value=""
-              />
-            </div>
+            <input
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--time"
+              placeholder="hh:mm A"
+              type="text"
+              value=""
+            />
+            <div
+              class="flex-grow-1"
+            />
             <!--v-if-->
           </div>
           
@@ -306,22 +316,24 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
             class="ab-datetime-picker__wrapper"
           >
             <i
-              class="button-icon__icon iconoir-calendar"
+              class="ab-icon iconoir-calendar ab-datetime-picker__icon"
+              title=""
             />
             <input
-              class="ab-input ab-datetime-picker__input"
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--date"
               placeholder="MM/DD/YYYY"
               type="text"
               value=""
             />
-            <div>
-              <input
-                class="ab-input ab-datetime-picker__input"
-                placeholder="HH:mm"
-                type="text"
-                value=""
-              />
-            </div>
+            <input
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--time"
+              placeholder="HH:mm"
+              type="text"
+              value=""
+            />
+            <div
+              class="flex-grow-1"
+            />
             <!--v-if-->
           </div>
           
@@ -365,22 +377,24 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
             class="ab-datetime-picker__wrapper"
           >
             <i
-              class="button-icon__icon iconoir-calendar"
+              class="ab-icon iconoir-calendar ab-datetime-picker__icon"
+              title=""
             />
             <input
-              class="ab-input ab-datetime-picker__input"
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--date"
               placeholder="MM/DD/YYYY"
               type="text"
               value=""
             />
-            <div>
-              <input
-                class="ab-input ab-datetime-picker__input"
-                placeholder="hh:mm A"
-                type="text"
-                value=""
-              />
-            </div>
+            <input
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--time"
+              placeholder="hh:mm A"
+              type="text"
+              value=""
+            />
+            <div
+              class="flex-grow-1"
+            />
             <!--v-if-->
           </div>
           
@@ -424,22 +438,24 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
             class="ab-datetime-picker__wrapper"
           >
             <i
-              class="button-icon__icon iconoir-calendar"
+              class="ab-icon iconoir-calendar ab-datetime-picker__icon"
+              title=""
             />
             <input
-              class="ab-input ab-datetime-picker__input"
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--date"
               placeholder="YYYY-MM-DD"
               type="text"
               value=""
             />
-            <div>
-              <input
-                class="ab-input ab-datetime-picker__input"
-                placeholder="HH:mm"
-                type="text"
-                value=""
-              />
-            </div>
+            <input
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--time"
+              placeholder="HH:mm"
+              type="text"
+              value=""
+            />
+            <div
+              class="flex-grow-1"
+            />
             <!--v-if-->
           </div>
           
@@ -483,22 +499,24 @@ exports[`DateTimePickerElement > placeholder corresponds to date and time format
             class="ab-datetime-picker__wrapper"
           >
             <i
-              class="button-icon__icon iconoir-calendar"
+              class="ab-icon iconoir-calendar ab-datetime-picker__icon"
+              title=""
             />
             <input
-              class="ab-input ab-datetime-picker__input"
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--date"
               placeholder="YYYY-MM-DD"
               type="text"
               value=""
             />
-            <div>
-              <input
-                class="ab-input ab-datetime-picker__input"
-                placeholder="hh:mm A"
-                type="text"
-                value=""
-              />
-            </div>
+            <input
+              class="ab-input ab-datetime-picker__input ab-datetime-picker__input--time"
+              placeholder="hh:mm A"
+              type="text"
+              value=""
+            />
+            <div
+              class="flex-grow-1"
+            />
             <!--v-if-->
           </div>
           

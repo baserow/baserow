@@ -1,18 +1,19 @@
 .ab-datetime-picker__wrapper {
   display: flex;
+  justify-content: flex-start;
   align-items: center;
+  gap: var(--input-horizontal-padding, 12px);
   border: var(--input-border-size, 1px) solid var(--input-border-color, black);
   border-radius: var(--input-border-radius, 0);
   background-color: var(--input-background-color, $white);
   padding: var(--input-vertical-padding, 8px)
     var(--input-horizontal-padding, 12px);
+  overflow: hidden;
 }
 
-.ab-datetime-picker__clear {
+.ab-datetime-picker__icon.ab-icon {
   cursor: pointer;
   color: var(--input-text-color, $black);
-  flex-shrink: 0;
-  margin-left: auto;
 
   &:hover {
     opacity: 0.7;
@@ -20,10 +21,20 @@
 }
 
 .ab-datetime-picker__input {
+  flex: 0;
+
   &.ab-input {
     border: none;
-    padding: 0 var(--input-horizontal-padding, 12px);
-    width: 14ch; // 14 characters is enough to fit a date format ('YYYY-MM-DD')
+    width: auto;
+    padding: 0;
+  }
+
+  &--date.ab-input {
+    min-width: 11ch;
+  }
+
+  &--time.ab-input {
+    min-width: 5ch;
   }
 }
 

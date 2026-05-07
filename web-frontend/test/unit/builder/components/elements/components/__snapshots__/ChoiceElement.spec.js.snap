@@ -108,10 +108,12 @@ exports[`ChoiceElement > as manual checkboxes 1`] = `
             <input
               aria-disabled="false"
               class="ab-checkbox__input"
+              id="ab-checkbox-v-0-0-1"
               type="checkbox"
             />
             <label
               class="ab-checkbox__label"
+              for="ab-checkbox-v-0-0-1"
             >
               
               First
@@ -124,10 +126,12 @@ exports[`ChoiceElement > as manual checkboxes 1`] = `
             <input
               aria-disabled="false"
               class="ab-checkbox__input"
+              id="ab-checkbox-v-0-0-2"
               type="checkbox"
             />
             <label
               class="ab-checkbox__label"
+              for="ab-checkbox-v-0-0-2"
             >
               
               Second

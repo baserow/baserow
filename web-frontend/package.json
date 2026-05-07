@@ -22,7 +22,7 @@
     "stylelint": "stylelint --cache --cache-location=.cache/stylelint **/*.scss ../premium/web-frontend/modules/**/*.scss ../enterprise/web-frontend/modules/**/*.scss",
     "stylelint:fix": "stylelint --cache --cache-location=.cache/stylelint --fix **/*.scss ../premium/web-frontend/modules/**/*.scss ../enterprise/web-frontend/modules/**/*.scss",
     "prettier": "prettier --check --log-level=warn --cache --cache-location=.cache/prettier . ../premium/web-frontend ../enterprise/web-frontend",
-    "prettier:fix": "prettier --write --log-level=warn --cache --cache-location=.cache/prettier . ../premium/web-frontend ../enterprise/web-frontend"
+    "prettier:fix": "prettier --write --log-level=warn . ../premium/web-frontend ../enterprise/web-frontend"
   },
   "resolutions": {
     "cipher-base": "^1.0.5",

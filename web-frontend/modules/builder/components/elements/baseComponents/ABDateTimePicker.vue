@@ -1,7 +1,8 @@
 <template>
   <div ref="wrapper" class="ab-datetime-picker__wrapper">
-    <i
-      class="button-icon__icon iconoir-calendar"
+    <ABIcon
+      class="ab-datetime-picker__icon"
+      icon="iconoir-calendar"
       @click="$refs.dateContext.show($refs.wrapper, 'bottom', 'left', 0)"
     />
     <ABInput
@@ -20,15 +21,16 @@
       v-model="timeInputValue"
       class="ab-datetime-picker__input ab-datetime-picker__input--time"
       :placeholder="timeFormat"
-      cclick="$refs.timeContext.show($refs.timeWrapper, 'bottom', 'left')"
-      @focus="$refs.timeContext.show($refs.timeWrapper, 'bottom', 'left')"
+      @click="$refs.timeContext.show($refs.timeWrapper.$el, 'bottom', 'left')"
+      @focus="$refs.timeContext.show($refs.timeWrapper.$el, 'bottom', 'left')"
       @keydown.enter.prevent="$event.target.blur()"
       @blur="handleTimeBlur($event)"
     />
     <div class="flex-grow-1" />
-    <i
+    <ABIcon
       v-if="dateInputValue"
-      class="ab-datetime-picker__clear button-icon__icon iconoir-cancel"
+      class="ab-datetime-picker__icon"
+      icon="iconoir-cancel"
       @click="clearValue"
     />
     <Context
