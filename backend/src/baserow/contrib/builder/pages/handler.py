@@ -754,7 +754,7 @@ class PageHandler:
             page_instance.order = serialized_page["order"]
             page_instance.path = serialized_page["path"]
             page_instance.path_params = serialized_page["path_params"]
-            page_instance.graph = serialized_page["graph"]
+            page_instance.graph = serialized_page.get("graph", {})
         else:
             # Note: serialized pages exported before the page visibility feature
             # will not contain the `visibility`, `role_type` or `roles` keys,
