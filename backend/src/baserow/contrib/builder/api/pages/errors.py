@@ -19,12 +19,6 @@ ERROR_PAGE_NOT_IN_BUILDER = (
     "The page id {e.page_id} does not belong to the builder.",
 )
 
-ERROR_PAGE_NAME_NOT_UNIQUE = (
-    "ERROR_PAGE_NAME_NOT_UNIQUE",
-    HTTP_400_BAD_REQUEST,
-    "The page name {e.name} already exists for your builder instance.",
-)
-
 ERROR_PAGE_PATH_NOT_UNIQUE = (
     "ERROR_PAGE_PATH_NOT_UNIQUE",
     HTTP_400_BAD_REQUEST,

@@ -24,7 +24,6 @@ from baserow.contrib.builder.pages.exceptions import (
     DuplicatePathParamsInPath,
     InvalidQueryParamName,
     PageDoesNotExist,
-    PageNameNotUnique,
     PageNotInBuilder,
     PagePathNotUnique,
     PathParamNotDefined,
@@ -144,8 +143,6 @@ class PageHandler:
                 shared=shared,
             )
         except IntegrityError as e:
-            if "unique constraint" in e.args[0] and "name" in e.args[0]:
-                raise PageNameNotUnique(name=name, builder_id=builder.id)
             if "unique constraint" in e.args[0] and "path" in e.args[0]:
                 raise PagePathNotUnique(path=path, builder_id=builder.id)
             raise e
@@ -203,8 +200,6 @@ class PageHandler:
         try:
             page.save()
         except IntegrityError as e:
-            if is_unique_violation_error(e) and "name" in e.args[0]:
-                raise PageNameNotUnique(name=page.name, builder_id=page.builder_id)
             if is_unique_violation_error(e) and "path" in e.args[0]:
                 raise PagePathNotUnique(path=page.path, builder_id=page.builder_id)
             raise e

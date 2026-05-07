@@ -158,14 +158,8 @@ export default defineNuxtPlugin({
   name: 'builder',
   dependsOn: ['core', 'store'],
   async setup(nuxtApp) {
-    const { $store, $registry, $clientErrorMap, $i18n } = nuxtApp
+    const { $store, $registry } = nuxtApp
     const context = { app: nuxtApp }
-
-    $clientErrorMap.setError(
-      'ERROR_PAGE_NAME_NOT_UNIQUE',
-      $i18n.t('pageErrors.errorNameNotUnique'),
-      $i18n.t('pageErrors.errorNameNotUniqueDescription')
-    )
 
     $store.registerModuleNuxtSafe('page', pageStore)
     $store.registerModuleNuxtSafe('element', elementStore)

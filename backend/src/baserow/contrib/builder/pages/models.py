@@ -91,7 +91,7 @@ class Page(
             "-shared",  # First page is the shared one if any.
             "order",
         )
-        unique_together = [["builder", "name"], ["builder", "path"]]
+        unique_together = [["builder", "path"]]
         indexes = [
             models.Index(fields=["-shared", "order"]),
             models.Index(fields=["builder", "-shared", "order"]),
