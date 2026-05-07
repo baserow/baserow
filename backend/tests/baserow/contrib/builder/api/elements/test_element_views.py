@@ -161,6 +161,35 @@ def test_create_element_south_position(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_element_place_in_container_null_compat(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    form = data_fixture.create_builder_form_container_element(page=page)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "input_text",
+            "position": GraphPointPosition.CHILD,
+            "reference_element_id": form.id,
+            "place_in_container": None,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    child_id = response.json()["id"]
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": form.id,
+        str(form.id): {"children": {"": [child_id]}},
+        str(child_id): {},
+    }
+
+
+@pytest.mark.django_db
 def test_create_elements_in_container_slot_ordering(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)

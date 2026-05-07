@@ -4,6 +4,36 @@ from baserow.contrib.builder.compat.graph_migrator import (
 )
 
 
+def test_migrate_to_graph_string_orders_sort_numerically():
+    elements = [
+        ElementToMigrate(
+            id=1,
+            parent_element_id=None,
+            order="1.00000000000000000000",
+            place_in_container="",
+        ),
+        ElementToMigrate(
+            id=2,
+            parent_element_id=None,
+            order="9.00000000000000000000",
+            place_in_container="",
+        ),
+        ElementToMigrate(
+            id=3,
+            parent_element_id=None,
+            order="10.00000000000000000000",
+            place_in_container="",
+        ),
+    ]
+    migrator = PageGraphMigrator(elements)
+    assert migrator.to_graph() == {
+        "0": 1,
+        "1": {"next": {"": [2]}},
+        "2": {"next": {"": [3]}},
+        "3": {},
+    }
+
+
 def test_migrate_to_graph():
     """
     - element1

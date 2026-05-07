@@ -154,6 +154,7 @@ class PageHandler:
                 path_params=path_params,
                 query_params=query_params,
                 shared=shared,
+                graph={},
             )
         except IntegrityError as e:
             if "unique constraint" in e.args[0] and "path" in e.args[0]:
@@ -753,6 +754,7 @@ class PageHandler:
             page_instance.order = serialized_page["order"]
             page_instance.path = serialized_page["path"]
             page_instance.path_params = serialized_page["path_params"]
+            page_instance.graph = serialized_page["graph"]
         else:
             # Note: serialized pages exported before the page visibility feature
             # will not contain the `visibility`, `role_type` or `roles` keys,

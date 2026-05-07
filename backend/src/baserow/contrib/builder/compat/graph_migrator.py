@@ -1,4 +1,5 @@
 from collections import defaultdict
+from decimal import Decimal
 from typing import Any, Dict, List, TypedDict
 
 from django.db.models import QuerySet
@@ -15,7 +16,10 @@ class ElementToMigrate(TypedDict):
 
 class PageGraphMigrator:
     def __init__(self, elements: List[ElementToMigrate]):
-        self.elements = sorted(elements, key=lambda e: e["order"])
+        # Normalize order to Decimal so both JSON strings ("10.00...") and
+        # Decimal instances (from ORM .values()) sort and compare correctly.
+        normalized = [{**e, "order": Decimal(str(e["order"]))} for e in elements]
+        self.elements = sorted(normalized, key=lambda e: e["order"])
 
     @classmethod
     def serialize_page_elements(
