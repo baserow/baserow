@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Added before/after hooks to send a signal before and after a node dispatch.",
+    "issue_origin": "github",
+    "issue_number": 5263,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-05-07"
+}
