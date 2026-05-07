@@ -108,7 +108,7 @@
                       :is="col.cellComponent"
                       :row="row"
                       :column="col"
-                      v-on="$attrs"
+                      v-bind="$attrs"
                       @row-context="(payload) => $emit('row-context', payload)"
                       @row-update="updateRow"
                       @row-delete="deleteRow"
