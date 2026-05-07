@@ -187,7 +187,8 @@ export default class BaseGraphHandler {
 
   insert(point, referencePoint, position, output) {
     if (position === 'north') {
-      const [prevRef, prevPos, prevOutput] = this.getPointPosition(referencePoint)
+      const [prevRef, prevPos, prevOutput] =
+        this.getPointPosition(referencePoint)
       this._insertAt(point, prevRef, prevPos, prevOutput)
       return
     }
@@ -294,7 +295,8 @@ export default class BaseGraphHandler {
   }
 
   replace(pointToReplace, newPoint) {
-    const [referencePoint, position, output] = this.getPointPosition(pointToReplace)
+    const [referencePoint, position, output] =
+      this.getPointPosition(pointToReplace)
 
     this.remove(pointToReplace)
     this.insert(newPoint, referencePoint, position, output)

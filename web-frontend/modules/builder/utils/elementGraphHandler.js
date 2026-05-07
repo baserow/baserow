@@ -37,7 +37,10 @@ export default class ElementGraphHandler extends BaseGraphHandler {
 
   // Returns the chain of children in a specific container slot.
   getChildrenInPlace(containerElement, place) {
-    return super.getChildren(containerElement, { slot: place, followChains: true })
+    return super.getChildren(containerElement, {
+      slot: place,
+      followChains: true,
+    })
   }
 
   // Returns elements following this element on the default next edge.

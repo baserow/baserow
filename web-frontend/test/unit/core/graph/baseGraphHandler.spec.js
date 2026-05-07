@@ -10,7 +10,10 @@ class TestHandler extends BaseGraphHandler {
 const pt = (id) => ({ id })
 
 const make = (graph, points = {}) =>
-  new TestHandler({ graph: JSON.parse(JSON.stringify(graph)), pointMap: points })
+  new TestHandler({
+    graph: JSON.parse(JSON.stringify(graph)),
+    pointMap: points,
+  })
 
 // Build a pointMap from an array of point objects.
 const pm = (...ids) => Object.fromEntries(ids.map((id) => [id, pt(id)]))
@@ -48,9 +51,9 @@ describe('BaseGraphHandler', () => {
   describe('_getChildrenIds', () => {
     test('dict format', () => {
       const h = make({})
-      expect(h._getChildrenIds({ children: { '0': [1, 2], '1': [3] } })).toEqual(
-        [1, 2, 3]
-      )
+      expect(h._getChildrenIds({ children: { 0: [1, 2], 1: [3] } })).toEqual([
+        1, 2, 3,
+      ])
     })
 
     test('legacy array format', () => {
@@ -68,7 +71,7 @@ describe('BaseGraphHandler', () => {
   describe('_getChildrenAsDict', () => {
     test('passes through dict unchanged', () => {
       const h = make({})
-      const dict = { '0': [1], '1': [2] }
+      const dict = { 0: [1], 1: [2] }
       expect(h._getChildrenAsDict(dict)).toBe(dict)
     })
 
@@ -92,7 +95,7 @@ describe('BaseGraphHandler', () => {
     })
 
     test('single root', () => {
-      const h = make({ '0': 1 }, pm(1))
+      const h = make({ 0: 1 }, pm(1))
       expect(h.hasPoints()).toBe(true)
       expect(h.getFirstPoint()).toEqual(pt(1))
     })
@@ -100,8 +103,8 @@ describe('BaseGraphHandler', () => {
 
   describe('getChildren', () => {
     const graph = {
-      '0': 1,
-      1: { children: { '0': [2], '1': [4] } },
+      0: 1,
+      1: { children: { 0: [2], 1: [4] } },
       2: { next: { '': [3] } },
       3: {},
       4: {},
@@ -127,20 +130,20 @@ describe('BaseGraphHandler', () => {
     })
 
     test('empty children', () => {
-      const h = make({ '0': 1, 1: {} }, pm(1))
+      const h = make({ 0: 1, 1: {} }, pm(1))
       expect(h.getChildren(pt(1))).toEqual([])
     })
 
     test('legacy array children with followChains=false', () => {
-      const h = make({ '0': 1, 1: { children: [2] }, 2: {} }, pm(1, 2))
+      const h = make({ 0: 1, 1: { children: [2] }, 2: {} }, pm(1, 2))
       expect(h.getChildren(pt(1))).toEqual([pt(2)])
     })
   })
 
   describe('getPointAtPosition', () => {
     const graph = {
-      '0': 1,
-      1: { next: { '': [2] }, children: { '0': [3] } },
+      0: 1,
+      1: { next: { '': [2] }, children: { 0: [3] } },
       2: {},
       3: {},
     }
@@ -179,40 +182,34 @@ describe('BaseGraphHandler', () => {
 
   describe('getPointPosition', () => {
     test('root returns [null, south, ""]', () => {
-      const h = make({ '0': 1, 1: {} }, pm(1))
+      const h = make({ 0: 1, 1: {} }, pm(1))
       expect(h.getPointPosition(pt(1))).toEqual([null, 'south', ''])
     })
 
     test('south returns [predecessor, south, output]', () => {
-      const h = make({ '0': 1, 1: { next: { '': [2] } }, 2: {} }, pm(1, 2))
+      const h = make({ 0: 1, 1: { next: { '': [2] } }, 2: {} }, pm(1, 2))
       expect(h.getPointPosition(pt(2))).toEqual([pt(1), 'south', ''])
     })
 
     test('child returns [parent, child, slot]', () => {
-      const h = make(
-        { '0': 1, 1: { children: { '0': [2] } }, 2: {} },
-        pm(1, 2)
-      )
+      const h = make({ 0: 1, 1: { children: { 0: [2] } }, 2: {} }, pm(1, 2))
       expect(h.getPointPosition(pt(2))).toEqual([pt(1), 'child', '0'])
     })
 
     test('child with legacy array returns [parent, child, ""]', () => {
-      const h = make({ '0': 1, 1: { children: [2] }, 2: {} }, pm(1, 2))
+      const h = make({ 0: 1, 1: { children: [2] }, 2: {} }, pm(1, 2))
       expect(h.getPointPosition(pt(2))).toEqual([pt(1), 'child', ''])
     })
 
     test('throws for unknown point', () => {
-      const h = make({ '0': 1, 1: {} }, pm(1))
+      const h = make({ 0: 1, 1: {} }, pm(1))
       expect(() => h.getPointPosition(pt(99))).toThrow()
     })
   })
 
   describe('getPreviousPositions', () => {
     test('returns path for shallow point', () => {
-      const h = make(
-        { '0': 1, 1: { next: { '': [2] } }, 2: {} },
-        pm(1, 2)
-      )
+      const h = make({ 0: 1, 1: { next: { '': [2] } }, 2: {} }, pm(1, 2))
       const path = h.getPreviousPositions(pt(2))
       expect(path).toHaveLength(1)
       expect(path[0]).toEqual([pt(1), 'south', ''])
@@ -220,7 +217,7 @@ describe('BaseGraphHandler', () => {
 
     test('returns path through nested child', () => {
       const h = make(
-        { '0': 1, 1: { children: { '0': [2] } }, 2: { next: { '': [3] } }, 3: {} },
+        { 0: 1, 1: { children: { 0: [2] } }, 2: { next: { '': [3] } }, 3: {} },
         pm(1, 2, 3)
       )
       const path = h.getPreviousPositions(pt(3))
@@ -230,7 +227,7 @@ describe('BaseGraphHandler', () => {
     })
 
     test('returns [] when target not reachable', () => {
-      const h = make({ '0': 1, 1: {} }, pm(1))
+      const h = make({ 0: 1, 1: {} }, pm(1))
       expect(h.getPreviousPositions(pt(99))).toEqual([])
     })
   })
@@ -244,28 +241,28 @@ describe('BaseGraphHandler', () => {
     })
 
     test('as root displaces existing root', () => {
-      const h = make({ '0': 2, 2: {} }, pm(1, 2))
+      const h = make({ 0: 2, 2: {} }, pm(1, 2))
       h.insert(pt(1), null, 'south', '')
       expect(h.graph['0']).toBe(1)
       expect(h.graph[1]).toEqual({ next: { '': [2] } })
     })
 
     test('south appends after reference', () => {
-      const h = make({ '0': 1, 1: { next: { '': [3] } }, 3: {} }, pm(1, 2, 3))
+      const h = make({ 0: 1, 1: { next: { '': [3] } }, 3: {} }, pm(1, 2, 3))
       h.insert(pt(2), pt(1), 'south', '')
       expect(h.graph[1].next['']).toEqual([2])
       expect(h.graph[2]).toEqual({ next: { '': [3] } })
     })
 
     test('child inserts into slot', () => {
-      const h = make({ '0': 1, 1: {} }, pm(1, 2))
+      const h = make({ 0: 1, 1: {} }, pm(1, 2))
       h.insert(pt(2), pt(1), 'child', '0')
       expect(h.graph[1].children['0']).toEqual([2])
       expect(h.graph[2]).toEqual({ next: { '': [] } })
     })
 
     test('north inserts before reference', () => {
-      const h = make({ '0': 1, 1: { next: { '': [2] } }, 2: {} }, pm(1, 2, 3))
+      const h = make({ 0: 1, 1: { next: { '': [2] } }, 2: {} }, pm(1, 2, 3))
       h.insert(pt(3), pt(2), 'north', '')
       expect(h.graph[1].next['']).toEqual([3])
       expect(h.graph[3]).toEqual({ next: { '': [2] } })
@@ -274,17 +271,14 @@ describe('BaseGraphHandler', () => {
 
   describe('remove', () => {
     test('removes the only root element', () => {
-      const h = make({ '0': 1, 1: {} }, pm(1))
+      const h = make({ 0: 1, 1: {} }, pm(1))
       h.remove(pt(1))
       expect(h.graph['0']).toBeUndefined()
       expect(h.graph[1]).toBeUndefined()
     })
 
     test('removes root and promotes successor', () => {
-      const h = make(
-        { '0': 1, 1: { next: { '': [2] } }, 2: {} },
-        pm(1, 2)
-      )
+      const h = make({ 0: 1, 1: { next: { '': [2] } }, 2: {} }, pm(1, 2))
       h.remove(pt(1))
       expect(h.graph['0']).toBe(2)
       expect(h.graph[1]).toBeUndefined()
@@ -292,7 +286,7 @@ describe('BaseGraphHandler', () => {
 
     test('removes south element and stitches chain', () => {
       const h = make(
-        { '0': 1, 1: { next: { '': [2] } }, 2: { next: { '': [3] } }, 3: {} },
+        { 0: 1, 1: { next: { '': [2] } }, 2: { next: { '': [3] } }, 3: {} },
         pm(1, 2, 3)
       )
       h.remove(pt(2))
@@ -303,8 +297,8 @@ describe('BaseGraphHandler', () => {
     test('removes child element and stitches slot', () => {
       const h = make(
         {
-          '0': 1,
-          1: { children: { '0': [2] } },
+          0: 1,
+          1: { children: { 0: [2] } },
           2: { next: { '': [3] } },
           3: {},
         },
@@ -316,10 +310,7 @@ describe('BaseGraphHandler', () => {
     })
 
     test('removes child with legacy array children', () => {
-      const h = make(
-        { '0': 1, 1: { children: [2] }, 2: {} },
-        pm(1, 2)
-      )
+      const h = make({ 0: 1, 1: { children: [2] }, 2: {} }, pm(1, 2))
       h.remove(pt(2))
       expect(h.graph[1].children['']).toEqual([])
     })
@@ -329,8 +320,8 @@ describe('BaseGraphHandler', () => {
     test('moves point and preserves its children', () => {
       const h = make(
         {
-          '0': 1,
-          1: { next: { '': [2] }, children: { '0': [3] } },
+          0: 1,
+          1: { next: { '': [2] }, children: { 0: [3] } },
           2: {},
           3: {},
         },
@@ -341,16 +332,13 @@ describe('BaseGraphHandler', () => {
       expect(h.graph['0']).toBe(2)
       expect(h.graph[2].next['']).toEqual([1])
       // Children of the moved point must be preserved
-      expect(h.graph[1].children).toEqual({ '0': [3] })
+      expect(h.graph[1].children).toEqual({ 0: [3] })
     })
   })
 
   describe('replace', () => {
     test('swaps point keeping graph structure', () => {
-      const h = make(
-        { '0': 1, 1: { next: { '': [2] } }, 2: {} },
-        pm(1, 2, 99)
-      )
+      const h = make({ 0: 1, 1: { next: { '': [2] } }, 2: {} }, pm(1, 2, 99))
       h.replace(pt(1), pt(99))
       expect(h.graph['0']).toBe(99)
       expect(h.graph[99]).toEqual({ next: { '': [2] } })

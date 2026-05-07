@@ -46,7 +46,7 @@ describe('elementTypes tests', () => {
         type: 'heading',
         page_id: page.id,
       }
-      page.graph = { '0': 456, 456: { children: { '': [789] } }, 789: {} }
+      page.graph = { 0: 456, 456: { children: { '': [789] } }, 789: {} }
       page.elementMap = { 456: elementParent, 789: element }
       const elementType = testApp.$registry.get('element', element.type)
       expect(elementType.hasAncestorOfType(page, element, 'column')).toBe(true)
@@ -61,7 +61,7 @@ describe('elementTypes tests', () => {
         type: 'table',
         page_id: page.id,
       }
-      page.graph = { '0': 111, 111: { children: { '': [222] } }, 222: {} }
+      page.graph = { 0: 111, 111: { children: { '': [222] } }, 222: {} }
       page.elementMap = { 111: repeatAncestor, 222: tableElement }
       const repeatElementType = testApp.$registry.get(
         'element',
@@ -775,7 +775,7 @@ describe('elementTypes tests', () => {
 
       // formAncestor (root) → next → columnAncestor2; formAncestor → child → columnAncestor1
       page.graph = {
-        '0': 111,
+        0: 111,
         111: { next: { '': [113] }, children: { '': [112] } },
         112: {},
         113: {},
@@ -875,8 +875,8 @@ describe('elementTypes tests', () => {
       }
 
       page.graph = {
-        '0': 111,
-        111: { children: { 'content': [112] } },
+        0: 111,
+        111: { children: { content: [112] } },
         112: {},
       }
       page.elementMap = {
@@ -923,7 +923,7 @@ describe('elementTypes tests', () => {
       }
 
       page.graph = {
-        '0': 111,
+        0: 111,
         111: { next: { '': [112] } },
         112: { children: { '': [113] } },
         113: {},
@@ -1283,7 +1283,7 @@ describe('elementTypes tests', () => {
         type: 'input_text',
         page_id: page.id,
       }
-      page.graph = { '0': 50, 50: { children: { '': [51] } }, 51: {} }
+      page.graph = { 0: 50, 50: { children: { '': [51] } }, 51: {} }
       page.elementMap = { 50: element, 51: childElement }
       page.orderedElements = [element, childElement]
       expect(elementType.isInError(element, { page, element, builder })).toBe(

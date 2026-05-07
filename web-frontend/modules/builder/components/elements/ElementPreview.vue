@@ -417,9 +417,7 @@ export default {
 
       const nextEl = this.elementsAround[DIRECTIONS.AFTER]
       const beforeId =
-        direction === DIRECTIONS.BEFORE
-          ? this.element.id
-          : nextEl?.id || null
+        direction === DIRECTIONS.BEFORE ? this.element.id : nextEl?.id || null
       const afterId =
         direction === DIRECTIONS.AFTER && !nextEl ? this.element.id : null
 
