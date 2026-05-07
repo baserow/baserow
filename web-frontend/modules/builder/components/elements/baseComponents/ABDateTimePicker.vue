@@ -6,7 +6,7 @@
     />
     <ABInput
       v-model="dateInputValue"
-      class="ab-datetime-picker__input"
+      class="ab-datetime-picker__input ab-datetime-picker__input--date"
       :placeholder="dateFormat"
       @focus="$refs.dateContext.toggle($refs.wrapper, 'bottom', 'left', 0)"
       @click="$refs.dateContext.show($refs.wrapper, 'bottom', 'left', 0)"
@@ -14,18 +14,18 @@
       @keydown.enter.prevent="$event.target.blur()"
       @blur="handleDateBlur($event)"
     />
-    <div ref="timeWrapper">
-      <ABInput
-        v-if="includeTime"
-        v-model="timeInputValue"
-        class="ab-datetime-picker__input"
-        :placeholder="timeFormat"
-        @focus="$refs.timeContext.toggle($refs.timeWrapper, 'bottom', 'left')"
-        @click="$refs.timeContext.show($refs.timeWrapper, 'bottom', 'left')"
-        @keydown.enter.prevent="$event.target.blur()"
-        @blur="handleTimeBlur($event)"
-      />
-    </div>
+    <ABInput
+      v-if="includeTime"
+      ref="timeWrapper"
+      v-model="timeInputValue"
+      class="ab-datetime-picker__input ab-datetime-picker__input--time"
+      :placeholder="timeFormat"
+      cclick="$refs.timeContext.show($refs.timeWrapper, 'bottom', 'left')"
+      @focus="$refs.timeContext.show($refs.timeWrapper, 'bottom', 'left')"
+      @keydown.enter.prevent="$event.target.blur()"
+      @blur="handleTimeBlur($event)"
+    />
+    <div class="flex-grow-1" />
     <i
       v-if="dateInputValue"
       class="ab-datetime-picker__clear button-icon__icon iconoir-cancel"
