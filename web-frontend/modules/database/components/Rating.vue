@@ -33,6 +33,7 @@ export default {
     value: {
       required: true,
       type: Number,
+      default: 0,
     },
     maxValue: {
       required: true,
