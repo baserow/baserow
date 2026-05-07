@@ -59,14 +59,11 @@ export default {
       }
       // Ensure that the context's width is dynamically set
       // to the targetElement's width, as it can be variable.
-      // Note: the Context component is teleported to body, so `$el` is a
-      // comment placeholder. Use `Context#getTeleportedElement()` for the portal root.
       const contextEl = this.$refs.context?.getTeleportedElement()
-      if (width !== null && contextEl) {
+      if (contextEl) {
+        const { width } = el.getBoundingClientRect()
         contextEl.style.width = `${width}px`
       }
-      const { width } = el.getBoundingClientRect()
-      this.$refs.context.$el.style.width = `${width}px`
       return this.$refs.context.show(
         el,
         verticalPosition,
