@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Detect jira deployment type",
+    "message": "Detect Jira deployment type",
     "issue_origin": "github",
     "issue_number": 5306,
     "domain": "database",

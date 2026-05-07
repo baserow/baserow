@@ -22,6 +22,7 @@ def _make_instance(auth_type=JIRA_ISSUES_DATA_SYNC_API_TOKEN, url=BASE_URL):
     instance.jira_authentication = auth_type
     instance.jira_username = "user@test.com"
     instance.jira_api_token = "token123"
+    instance.jira_personal_access_token = "token123"
     return instance
 
 
@@ -162,6 +163,7 @@ def test_fetch_issues_cloud_no_issues_error():
     )
     with pytest.raises(SyncError, match="No issues found"):
         fetch_issues(instance, "project=TEST")
+    assert len(responses.calls) == 3  # serverInfo + approximate-count + search/jql
 
 
 @responses.activate
@@ -217,6 +219,10 @@ def test_fetch_issues_on_prem_single_page():
 @responses.activate
 def test_fetch_issues_on_prem_pagination():
     instance = _make_instance(auth_type=JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN)
+    page1_issues = [
+        {"id": str(i), "key": f"TEST-{i}", "fields": {}} for i in range(1, 51)
+    ]
+    page2_issues = [{"id": "51", "key": "TEST-51", "fields": {}}]
     responses.add(
         responses.GET,
         f"{BASE_URL}/rest/api/2/serverInfo",
@@ -228,7 +234,7 @@ def test_fetch_issues_on_prem_pagination():
         f"{BASE_URL}/rest/api/2/search",
         status=200,
         json={
-            "issues": [{"id": "1", "key": "TEST-1", "fields": {}}],
+            "issues": page1_issues,
             "startAt": 0,
             "maxResults": 50,
             "total": 51,
@@ -239,15 +245,16 @@ def test_fetch_issues_on_prem_pagination():
         f"{BASE_URL}/rest/api/2/search",
         status=200,
         json={
-            "issues": [{"id": "2", "key": "TEST-2", "fields": {}}],
+            "issues": page2_issues,
             "startAt": 50,
             "maxResults": 50,
             "total": 51,
         },
     )
     issues = fetch_issues(instance, "project=TEST")
-    assert len(issues) == 2
-    assert issues[1]["id"] == "2"
+    assert len(issues) == 51
+    assert issues[0]["id"] == "1"
+    assert issues[-1]["id"] == "51"
 
 
 @responses.activate
