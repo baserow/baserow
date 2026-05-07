@@ -78,6 +78,7 @@ class Migration(migrations.Migration):
             name="graph",
             field=models.JSONField(
                 default=dict,
+                db_default={},
                 help_text="A JSON serialized graph containing the points and edges.",
             ),
         ),

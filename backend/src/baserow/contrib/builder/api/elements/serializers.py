@@ -46,6 +46,7 @@ class ElementSerializer(serializers.ModelSerializer):
     """
 
     type = serializers.SerializerMethodField(help_text="The type of the element.")
+    order = serializers.CharField(read_only=True, help_text="Lowest first.")
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance):
@@ -134,7 +135,7 @@ class CreateElementSerializer(serializers.ModelSerializer):
     )
     place_in_container = serializers.CharField(
         required=False,
-        allow_null=False,
+        allow_null=True,
         default="",
         allow_blank=True,
         help_text="The place in the container.",
@@ -251,11 +252,12 @@ class MoveElementSerializer(serializers.Serializer):
     )
     place_in_container = serializers.CharField(
         required=False,
-        allow_null=False,
+        allow_null=True,
         allow_blank=True,
         default="",
         help_text="The place in the container.",
     )
+
     target_page_id = serializers.IntegerField(
         allow_null=True,
         required=False,

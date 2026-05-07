@@ -17,6 +17,7 @@ class GraphModelMixin(models.Model):
 
     graph = models.JSONField(
         default=dict,
+        db_default={},
         help_text="A JSON serialized graph containing the points and edges.",
     )
 

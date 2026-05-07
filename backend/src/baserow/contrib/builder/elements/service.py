@@ -171,7 +171,7 @@ class ElementService:
 
         # We currently only support one value for the output, other than
         # a blank string, and that's the place inside a container.
-        output = kwargs.pop("place_in_container", "")
+        output = kwargs.pop("place_in_container", "") or ""
 
         try:
             reference_element = (
