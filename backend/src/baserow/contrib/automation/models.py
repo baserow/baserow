@@ -6,6 +6,7 @@ from baserow.contrib.automation.history.models import (
     AutomationNodeResult,
     AutomationWorkflowHistory,
 )
+from baserow.contrib.automation.usage.models import WorkspaceAutomationUsage
 from baserow.contrib.automation.workflows.models import (
     AutomationWorkflow,
     DuplicateAutomationWorkflowJob,
@@ -20,6 +21,7 @@ __all__ = [
     "AutomationWorkflowHistory",
     "AutomationNodeHistory",
     "AutomationNodeResult",
+    "WorkspaceAutomationUsage",
 ]
 
 
