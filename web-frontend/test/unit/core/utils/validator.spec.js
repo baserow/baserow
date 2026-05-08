@@ -585,6 +585,14 @@ describe('ensureDateInterval', () => {
     expect(ensureDateInterval(0)).toStrictEqual(new Timedelta(0))
   })
 
+  test('converts numeric string to Timedelta in seconds', () => {
+    expect(ensureDateInterval('86400')).toStrictEqual(new Timedelta(86400000))
+    expect(ensureDateInterval('3600')).toStrictEqual(new Timedelta(3600000))
+    expect(ensureDateInterval('60')).toStrictEqual(new Timedelta(60000))
+    expect(ensureDateInterval('0')).toStrictEqual(new Timedelta(0))
+    expect(ensureDateInterval('1.5')).toStrictEqual(new Timedelta(1500))
+  })
+
   test('throws for invalid strings', () => {
     expect(() => ensureDateInterval('foo')).toThrow()
     expect(() => ensureDateInterval('')).toThrow()

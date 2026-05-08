@@ -309,6 +309,14 @@ export const ensureDateInterval = (value) => {
   if (typeof value === 'string') {
     const result = parseIntervalString(value)
     if (result !== null) return result
+
+    if (value.trim() !== '') {
+      const num = Number(value)
+      if (Number.isFinite(num)) {
+        return new Timedelta(num * 1000)
+      }
+    }
+
     throw new TypeError(
       `'${value}' is not a valid interval string. Expected format: e.g. '1 day', '2 hours'.`
     )
