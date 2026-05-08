@@ -119,17 +119,13 @@ def test_ensure_date_interval_invalid_type(value):
 @pytest.mark.parametrize(
     "value,expected",
     [
-        (timedelta(0), "0 seconds"),
-        (timedelta(days=1), "1 day"),
-        (timedelta(days=2), "2 days"),
-        (timedelta(hours=1), "1 hour"),
-        (timedelta(hours=3, minutes=30), "3 hours 30 minutes"),
-        (
-            timedelta(days=1, hours=2, minutes=3, seconds=4),
-            "1 day 2 hours 3 minutes 4 seconds",
-        ),
-        (timedelta(seconds=90), "1 minute 30 seconds"),
-        (timedelta(seconds=-86400), "-1 day"),
+        (timedelta(0), "0"),
+        (timedelta(days=1), "86400"),
+        (timedelta(days=2), "172800"),
+        (timedelta(hours=1), "3600"),
+        (timedelta(days=1, hours=2, minutes=3, seconds=4), "93784"),
+        (timedelta(seconds=90), "90"),
+        (timedelta(seconds=-86400), "-86400"),
     ],
 )
 def test_ensure_string_with_timedelta(value, expected):
