@@ -1,6 +1,6 @@
 {
-    "type": "refactor",
-    "message": "Added before/after hooks to send a signal before and after a node dispatch.",
+    "type": "feature",
+    "message": "Added methods, hooks, and model to track automation usage.",
     "issue_origin": "github",
     "issue_number": 5263,
     "domain": "automation",
