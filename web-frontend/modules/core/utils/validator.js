@@ -110,25 +110,7 @@ export const ensureString = (value, { allowEmpty = true } = {}) => {
       return moment(value).format(isoDateFormat)
     }
   } else if (value instanceof Timedelta) {
-    const totalSeconds = Math.floor(Math.abs(value.ms) / 1000)
-
-    if (totalSeconds === 0) return '0 seconds'
-
-    const parts = []
-    const days = Math.floor(totalSeconds / 86400)
-    const hours = Math.floor((totalSeconds % 86400) / 3600)
-    const minutes = Math.floor((totalSeconds % 3600) / 60)
-    const seconds = totalSeconds % 60
-
-    if (days) parts.push(`${days} ${days === 1 ? 'day' : 'days'}`)
-    if (hours) parts.push(`${hours} ${hours === 1 ? 'hour' : 'hours'}`)
-    if (minutes)
-      parts.push(`${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`)
-    if (seconds)
-      parts.push(`${seconds} ${seconds === 1 ? 'second' : 'seconds'}`)
-
-    const result = parts.join(' ')
-    return value.ms < 0 ? `-${result}` : result
+    return `${Math.floor(value.ms / 1000)}`
   } else if (typeof value === 'object') {
     // If it's a file we just extract the name
     if (value.__file__) {

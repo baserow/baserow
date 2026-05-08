@@ -237,19 +237,14 @@ describe('ensureString', () => {
     expect(ensureString(new Date(NaN))).toBe('Invalid Date')
   })
 
-  it('should convert Timedelta to human-readable string', () => {
-    expect(ensureString(new Timedelta(0))).toBe('0 seconds')
-    expect(ensureString(new Timedelta(86400000))).toBe('1 day')
-    expect(ensureString(new Timedelta(2 * 86400000))).toBe('2 days')
-    expect(ensureString(new Timedelta(3600000))).toBe('1 hour')
-    expect(ensureString(new Timedelta(3 * 3600000 + 30 * 60000))).toBe(
-      '3 hours 30 minutes'
-    )
-    expect(
-      ensureString(new Timedelta(86400000 + 2 * 3600000 + 3 * 60000 + 4000))
-    ).toBe('1 day 2 hours 3 minutes 4 seconds')
-    expect(ensureString(new Timedelta(90000))).toBe('1 minute 30 seconds')
-    expect(ensureString(new Timedelta(-86400000))).toBe('-1 day')
+  it('should convert Timedelta to total seconds string', () => {
+    expect(ensureString(new Timedelta(0))).toBe('0')
+    expect(ensureString(new Timedelta(86400000))).toBe('86400')
+    expect(ensureString(new Timedelta(2 * 86400000))).toBe('172800')
+    expect(ensureString(new Timedelta(3600000))).toBe('3600')
+    expect(ensureString(new Timedelta(93784000))).toBe('93784')
+    expect(ensureString(new Timedelta(90000))).toBe('90')
+    expect(ensureString(new Timedelta(-86400000))).toBe('-86400')
   })
 })
 

@@ -131,29 +131,7 @@ def ensure_string(value: Any, allow_empty: bool = True) -> str:
         return "true" if value else "false"
 
     if isinstance(value, timedelta):
-        total = int(value.total_seconds())
-        if total == 0:
-            return "0 seconds"
-
-        parts = []
-        days, remainder = divmod(abs(total), 86400)
-        hours, remainder = divmod(remainder, 3600)
-        minutes, seconds = divmod(remainder, 60)
-
-        if days:
-            parts.append(f"{days} {'day' if days == 1 else 'days'}")
-
-        if hours:
-            parts.append(f"{hours} {'hour' if hours == 1 else 'hours'}")
-
-        if minutes:
-            parts.append(f"{minutes} {'minute' if minutes == 1 else 'minutes'}")
-
-        if seconds:
-            parts.append(f"{seconds} {'second' if seconds == 1 else 'seconds'}")
-
-        result = " ".join(parts)
-        return f"-{result}" if total < 0 else result
+        return str(int(value.total_seconds()))
 
     if isinstance(value, list):
         results = [ensure_string(item) for item in value if item]
