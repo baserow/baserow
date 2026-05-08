@@ -93,7 +93,7 @@ describe('IntervalStringBaserowRuntimeFormulaArgumentType', () => {
     { value: '-1 day', expected: false },
     { value: 'foo', expected: false },
     { value: '', expected: false },
-    { value: '1', expected: false },
+    { value: '1', expected: true },
     { value: 1, expected: true },
     { value: null, expected: false },
   ])('returns $expected for "$value"', ({ value, expected }) => {

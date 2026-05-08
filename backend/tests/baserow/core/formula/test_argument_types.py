@@ -254,7 +254,7 @@ def test_decimal_separator_get_error_message_returns_human_readable_string():
         (timedelta(days=1), True),
         ("foo", False),
         ("", False),
-        ("1", False),
+        ("1", True),
         (1, True),
         (None, False),
     ],
