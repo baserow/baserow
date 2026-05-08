@@ -254,6 +254,12 @@ def ensure_date_interval(value: Any) -> timedelta:
     if isinstance(value, str):
         if result := parse_interval_string(value):
             return result
+
+        try:
+            return timedelta(seconds=float(value))
+        except (ValueError, TypeError):
+            pass
+
         raise ValidationError(
             f"'{value}' is not a valid interval string. "
             f"Expected format: e.g. '1 day', '2 hours'."
