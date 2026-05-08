@@ -18,7 +18,7 @@ def update_automation_usage(sender, node: AutomationNode, **kwargs) -> None:
     if cost == 0:
         return
 
-    workspace = node.workflow.automation.workspace
+    workspace = node.workflow.get_original().automation.workspace
 
     usage, _ = WorkspaceAutomationUsage.objects.get_or_create(
         workspace=workspace,
