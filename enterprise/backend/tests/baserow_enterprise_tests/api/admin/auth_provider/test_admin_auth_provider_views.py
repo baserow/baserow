@@ -234,6 +234,49 @@ def test_admin_can_create_saml_provider_with_an_enterprise_license(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_admin_can_create_saml_provider_with_azure_role_descriptor_metadata(
+    api_client, data_fixture, enterprise_data_fixture
+):
+    data_fixture.create_password_provider()
+
+    domain = "test.it"
+    metadata = enterprise_data_fixture.get_test_saml_idp_metadata()
+    metadata_with_role_descriptor = metadata.replace(
+        "</md:EntityDescriptor>",
+        """
+        <md:RoleDescriptor
+            xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+            xsi:type="fed:ApplicationServiceType"
+            protocolSupportEnumeration="http://docs.oasis-open.org/wsfed/federation/200706"
+            xmlns:fed="http://docs.oasis-open.org/wsfed/federation/200706">
+            <md:KeyDescriptor use="signing"/>
+        </md:RoleDescriptor>
+        </md:EntityDescriptor>
+        """,
+    )
+
+    _, token = enterprise_data_fixture.create_enterprise_admin_user_and_token()
+
+    response = api_client.post(
+        reverse("api:enterprise:admin:auth_provider:list"),
+        {
+            "type": SamlAuthProviderType.type,
+            "domain": domain,
+            "metadata": metadata_with_role_descriptor,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["domain"] == domain
+    assert "RoleDescriptor" not in response_json["metadata"]
+    assert "IDPSSODescriptor" in response_json["metadata"]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_admin_cannot_update_saml_provider_without_an_enterprise_license(
     api_client, data_fixture, enterprise_data_fixture
 ):
