@@ -17,6 +17,8 @@ export default (client) => {
       publicUrl = false,
       publicAuthToken = null,
       filters = {},
+      search = '',
+      searchMode = '',
       limitLinkedItems = null,
     }) {
       const include = []
@@ -44,6 +46,13 @@ export default (client) => {
           params.append(key, value)
         })
       })
+
+      if (search) {
+        params.append('search', search)
+        if (searchMode) {
+          params.append('search_mode', searchMode)
+        }
+      }
 
       selectOptions.forEach((selectOption) => {
         let value = selectOption.id.toString()

@@ -4,11 +4,13 @@ import { GroupTaskQueue } from '@baserow/modules/core/utils/queue'
 import ViewService from '@baserow/modules/database/services/view'
 import KanbanService from '@baserow_premium/services/views/kanban'
 import {
+  calculateSingleRowSearchMatches,
   extractRowMetadata,
   getFilters,
   getRowSortFunction,
   matchSearchFilters,
 } from '@baserow/modules/database/utils/view'
+import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import RowService from '@baserow/modules/database/services/row'
 import FieldService from '@baserow/modules/database/services/field'
 import { SingleSelectFieldType } from '@baserow/modules/database/fieldTypes'
@@ -54,6 +56,11 @@ export const state = () => ({
   draggingOriginalBefore: null,
   // If true, ad hoc filtering is used instead of persistent one
   adhocFiltering: false,
+  // A user provided optional search term which can be used to filter down rows.
+  activeSearchTerm: '',
+  // If true then the activeSearchTerm will be sent to the server to filter rows
+  // entirely out.
+  hideRowsNotMatchingSearch: true,
   // Indicates whether row(s) are currently being created.
   creating: false,
 })
@@ -64,6 +71,12 @@ export const mutations = {
     state.singleSelectFieldId = -1
     state.stacks = {}
     state.fieldOptions = {}
+    state.activeSearchTerm = ''
+    state.hideRowsNotMatchingSearch = true
+  },
+  SET_SEARCH(state, { activeSearchTerm, hideRowsNotMatchingSearch }) {
+    state.activeSearchTerm = activeSearchTerm.trim()
+    state.hideRowsNotMatchingSearch = hideRowsNotMatchingSearch
   },
   SET_LAST_KANBAN_ID(state, kanbanId) {
     state.lastKanbanId = kanbanId
@@ -227,9 +240,9 @@ export const actions = {
       includeFieldOptions = true,
     }
   ) {
+    const { $client, $config } = this
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_LAST_KANBAN_ID', kanbanId)
-    const { $client } = this
     const view = rootGetters['view/get'](kanbanId)
     const { data } = await KanbanService($client).fetchRows({
       kanbanId,
@@ -240,6 +253,8 @@ export const actions = {
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       filters: getFilters(view, adhocFiltering),
+      search: getters.getServerSearchTerm,
+      searchMode: getDefaultSearchModeFromEnv($config),
     })
     // Don't do anything if the kanbanId does not match the current view kanbanId
     // because that probably means the user switched to another view or table, and
@@ -265,7 +280,7 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { selectOptionId }
   ) {
-    const { $client } = this
+    const { $client, $config } = this
     const kanbanId = getters.getLastKanbanId
     const stack = getters.getStack(selectOptionId)
     const view = rootGetters['view/get'](kanbanId)
@@ -284,6 +299,8 @@ export const actions = {
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       filters: getFilters(view, getters.getAdhocFiltering),
+      search: getters.getServerSearchTerm,
+      searchMode: getDefaultSearchModeFromEnv($config),
     })
     // Don't do anything if the kanbanId does not match the current view kanbanId
     // because that probably means the user switched to another view or table, and
@@ -563,11 +580,12 @@ export const actions = {
    * Check if the provided row matches the provided view filters.
    */
   rowMatchesFilters(context, { view, fields, row, overrides = {} }) {
+    const { getters } = context
     const values = JSON.parse(JSON.stringify(row))
     Object.assign(values, overrides)
 
     // The value is always valid if the filters are disabled.
-    return view.filters_disabled
+    const matchesViewFilters = view.filters_disabled
       ? true
       : matchSearchFilters(
           this.$registry,
@@ -577,6 +595,30 @@ export const actions = {
           fields,
           values
         )
+
+    if (!matchesViewFilters) {
+      return false
+    }
+
+    if (!getters.getActiveSearchTerm) {
+      return true
+    }
+
+    return calculateSingleRowSearchMatches(
+      row,
+      getters.getActiveSearchTerm,
+      getters.isHidingRowsNotMatchingSearch,
+      fields,
+      this.$registry,
+      getDefaultSearchModeFromEnv(this.$config),
+      overrides
+    ).matchSearch
+  },
+  updateSearch(
+    { commit },
+    { activeSearchTerm, hideRowsNotMatchingSearch = true }
+  ) {
+    commit('SET_SEARCH', { activeSearchTerm, hideRowsNotMatchingSearch })
   },
   /**
    * Can be called when a row in the table has been updated. This action will make sure
@@ -1099,6 +1141,15 @@ export const actions = {
 }
 
 export const getters = {
+  getServerSearchTerm(state) {
+    return state.hideRowsNotMatchingSearch ? state.activeSearchTerm : false
+  },
+  getActiveSearchTerm(state) {
+    return state.activeSearchTerm
+  },
+  isHidingRowsNotMatchingSearch(state) {
+    return state.hideRowsNotMatchingSearch
+  },
   getLastKanbanId(state) {
     return state.lastKanbanId
   },

@@ -245,6 +245,105 @@ def test_list_all_rows(api_client, premium_data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_search_kanban_rows(api_client, premium_data_fixture):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table, primary=True)
+    single_select_field = premium_data_fixture.create_single_select_field(table=table)
+    option_a = premium_data_fixture.create_select_option(
+        field=single_select_field, value="A", color="blue"
+    )
+    option_b = premium_data_fixture.create_select_option(
+        field=single_select_field, value="B", color="red"
+    )
+    kanban = premium_data_fixture.create_kanban_view(
+        table=table, single_select_field=single_select_field
+    )
+
+    model = table.get_model()
+    row_a = model.objects.create(
+        **{
+            f"field_{text_field.id}": "Call client",
+            f"field_{single_select_field.id}_id": option_a.id,
+        }
+    )
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "Internal planning",
+            f"field_{single_select_field.id}_id": option_a.id,
+        }
+    )
+    row_b = model.objects.create(
+        **{
+            f"field_{text_field.id}": "Client follow up",
+            f"field_{single_select_field.id}_id": option_b.id,
+        }
+    )
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "Archive notes",
+            f"field_{single_select_field.id}_id": None,
+        }
+    )
+
+    url = reverse("api:database:views:kanban:list", kwargs={"view_id": kanban.id})
+    response = api_client.get(
+        f"{url}?search=client", **{"HTTP_AUTHORIZATION": f"JWT {token}"}
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["rows"]["null"]["count"] == 0
+    assert response_json["rows"][str(option_a.id)]["count"] == 1
+    assert response_json["rows"][str(option_a.id)]["results"][0]["id"] == row_a.id
+    assert response_json["rows"][str(option_b.id)]["count"] == 1
+    assert response_json["rows"][str(option_b.id)]["results"][0]["id"] == row_b.id
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_search_kanban_with_empty_term(api_client, premium_data_fixture):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table, primary=True)
+    single_select_field = premium_data_fixture.create_single_select_field(table=table)
+    option_a = premium_data_fixture.create_select_option(
+        field=single_select_field, value="A", color="blue"
+    )
+    kanban = premium_data_fixture.create_kanban_view(
+        table=table, single_select_field=single_select_field
+    )
+
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "Call client",
+            f"field_{single_select_field.id}_id": option_a.id,
+        }
+    )
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "Internal planning",
+            f"field_{single_select_field.id}_id": None,
+        }
+    )
+
+    url = reverse("api:database:views:kanban:list", kwargs={"view_id": kanban.id})
+    response = api_client.get(
+        f"{url}?search=", **{"HTTP_AUTHORIZATION": f"JWT {token}"}
+    )
+
+    assert response.status_code == HTTP_200_OK
+    total_results = sum(stack["count"] for stack in response.json()["rows"].values())
+    assert total_results == 2
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_list_with_specific_select_options(api_client, premium_data_fixture):
     user, token = premium_data_fixture.create_user_and_token(
         has_active_premium_license=True
@@ -2142,6 +2241,67 @@ def test_list_public_rows_valid_select_option_parameter(
             },
         },
     }
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_search_public_kanban_rows(api_client, premium_data_fixture):
+    user, token = premium_data_fixture.create_user_and_token()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table, primary=True)
+
+    kanban_view = premium_data_fixture.create_kanban_view(
+        table=table,
+        user=user,
+        public=True,
+    )
+    single_select = kanban_view.single_select_field
+    option_a = premium_data_fixture.create_select_option(
+        field=single_select, value="A", color="blue"
+    )
+    option_b = premium_data_fixture.create_select_option(
+        field=single_select, value="B", color="red"
+    )
+
+    row_1 = RowHandler().create_row(
+        user,
+        table,
+        values={
+            f"field_{text_field.id}": "Client call",
+            f"field_{single_select.id}": option_a.id,
+        },
+    )
+    RowHandler().create_row(
+        user,
+        table,
+        values={
+            f"field_{text_field.id}": "Internal planning",
+            f"field_{single_select.id}": option_a.id,
+        },
+    )
+    row_3 = RowHandler().create_row(
+        user,
+        table,
+        values={
+            f"field_{text_field.id}": "Client follow up",
+            f"field_{single_select.id}": option_b.id,
+        },
+    )
+
+    response = api_client.get(
+        reverse(
+            "api:database:views:kanban:public_rows", kwargs={"slug": kanban_view.slug}
+        )
+        + "?search=client"
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["rows"]["null"]["count"] == 0
+    assert response_json["rows"][str(option_a.id)]["count"] == 1
+    assert response_json["rows"][str(option_a.id)]["results"][0]["id"] == row_1.id
+    assert response_json["rows"][str(option_b.id)]["count"] == 1
+    assert response_json["rows"][str(option_b.id)]["results"][0]["id"] == row_3.id
 
 
 @pytest.mark.django_db

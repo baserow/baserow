@@ -146,8 +146,8 @@
         (fieldCreated($event), (showHiddenFieldsInRowModal = true))
       "
       @field-created-callback-done="afterFieldCreatedUpdateFieldOptions"
-      @navigate-previous="$emit('navigate-previous', $event)"
-      @navigate-next="$emit('navigate-next', $event)"
+      @navigate-previous="$emit('navigate-previous', $event, activeSearchTerm)"
+      @navigate-next="$emit('navigate-next', $event, activeSearchTerm)"
       @refresh-row="refreshRow"
     ></RowEditModal>
     <Context
@@ -297,6 +297,11 @@ export default {
     fieldOptions() {
       return this.$store.getters[
         `${this.storePrefix}view/kanban/getAllFieldOptions`
+      ]
+    },
+    activeSearchTerm() {
+      return this.$store.getters[
+        `${this.storePrefix}view/kanban/getActiveSearchTerm`
       ]
     },
   },
