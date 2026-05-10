@@ -76,7 +76,7 @@ export class KanbanViewType extends PremiumViewType {
   }
 
   canSort() {
-    return false
+    return true
   }
 
   canShare() {

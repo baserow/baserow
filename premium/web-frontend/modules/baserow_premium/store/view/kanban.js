@@ -628,7 +628,7 @@ export const actions = {
     }
     newStackResults.push(newRow)
     newStackCount++
-    newStackResults.sort(getRowSortFunction($registry, [], fields))
+    newStackResults.sort(getRowSortFunction($registry, view.sortings, fields))
     const newIndex = newStackResults.findIndex((r) => r.id === newRow.id)
     const newIsLast = newIndex === newStackResults.length - 1
     const newExists =
@@ -712,13 +712,17 @@ export const actions = {
    * need to updated and will make a call to the backend. If something goes wrong,
    * the row is moved back to the original stack and position.
    */
-  async stopRowDrag({ dispatch, commit, getters }, { table, fields }) {
+  async stopRowDrag({ dispatch, commit, getters }, { table, fields, view }) {
     const row = getters.getDraggingRow
 
     if (row === null) {
       return
     }
     const { $client, $registry } = this
+    // When the view has one or more sortings the vertical position of cards is
+    // determined by the sort, so we must not push a manual position to the
+    // backend; the row's `order` field is left untouched.
+    const sortingsActive = view.sortings.length > 0
 
     // First we need to figure out what the current position of the row is and how
     // that should be communicated to the backend later. The backend expects another
@@ -785,16 +789,19 @@ export const actions = {
         // If for whatever reason updating the value fails, we need to undo the
         // things that have changed in the store.
         commit('UPDATE_ROW', { row, values: oldValues })
-        dispatch('cancelRowDrag', { row, originalStackId })
+        dispatch('cancelRowDrag', { row, originalStackId, view, fields })
         throw error
       }
     }
 
     // If the row is not before the same or if the stack has changed, we must update
-    // the position.
+    // the position. With sortings active the position is determined by the sort,
+    // so we skip the move call entirely and let the row stay where the local
+    // sort placed it.
     if (
-      (before || { id: null }).id !== (originalBefore || { id: null }).id ||
-      originalStackId !== currentStackId
+      !sortingsActive &&
+      ((before || { id: null }).id !== (originalBefore || { id: null }).id ||
+        originalStackId !== currentStackId)
     ) {
       try {
         const { data } = await RowService($client).move(
@@ -804,8 +811,24 @@ export const actions = {
         )
         commit('UPDATE_ROW', { row, values: data })
       } catch (error) {
-        dispatch('cancelRowDrag', { row, originalStackId })
+        dispatch('cancelRowDrag', { row, originalStackId, view, fields })
         throw error
+      }
+    }
+
+    // When sortings are active and the row was dropped in a different stack,
+    // the row may have been visually placed at the last loaded index of the
+    // destination buffer. If that buffer is partial (i.e. the destination
+    // stack has more rows server-side than what is currently loaded), the
+    // row's real sorted position is unknown and might be past the buffer.
+    // In that case we drop it from the visible buffer; it will appear when
+    // the user scrolls the destination stack and the next page is fetched.
+    if (sortingsActive && originalStackId !== currentStackId) {
+      const stack = getters.getStack(currentStackId)
+      const isLastLoaded = currentIndex === stack.results.length - 1
+      const partialBuffer = stack.results.length < stack.count
+      if (isLastLoaded && partialBuffer) {
+        commit('DELETE_ROW', { stackId: currentStackId, index: currentIndex })
       }
     }
   },
@@ -813,7 +836,10 @@ export const actions = {
    * Cancels the current row drag action by reverting back to the original position
    * while respecting any new rows that have been moved into there in the mean time.
    */
-  cancelRowDrag({ dispatch, getters, commit }, { row, originalStackId }) {
+  cancelRowDrag(
+    { dispatch, getters, commit },
+    { row, originalStackId, view = null, fields = [] }
+  ) {
     const current = getters.findStackIdAndIndex(row.id)
 
     if (current !== undefined) {
@@ -825,7 +851,7 @@ export const actions = {
         sortedRows.push(row)
       }
       const { $registry } = this
-      sortedRows.sort(getRowSortFunction($registry, [], [], null))
+      sortedRows.sort(getRowSortFunction($registry, view.sortings, fields))
       const targetIndex = sortedRows.findIndex((r) => r.id === row.id)
 
       dispatch('forceMoveRowTo', {

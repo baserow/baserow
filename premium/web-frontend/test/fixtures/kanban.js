@@ -48,7 +48,7 @@ export function createKanbanView(
         colorClass: 'color-success',
         name: 'Kanban',
         canFilter: true,
-        canSort: false,
+        canSort: true,
         canShare: true,
         canGroupBy: false,
       },

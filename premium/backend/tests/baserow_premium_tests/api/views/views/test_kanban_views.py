@@ -2531,3 +2531,123 @@ def test_reference_to_single_select_field_is_removed_after_trashing(
     json_response = response.json()
 
     assert len(json_response) == 0
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_list_rows_applies_view_sortings_per_stack(api_client, premium_data_fixture):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table, primary=True)
+    single_select_field = premium_data_fixture.create_single_select_field(table=table)
+    option_a = premium_data_fixture.create_select_option(
+        field=single_select_field, value="A", color="blue"
+    )
+    kanban = premium_data_fixture.create_kanban_view(
+        table=table, single_select_field=single_select_field
+    )
+    premium_data_fixture.create_view_sort(view=kanban, field=text_field, order="ASC")
+
+    model = table.get_model()
+    # Insert rows in unsorted order; the view sort should reorder them.
+    row_a_c = model.objects.create(
+        **{
+            f"field_{text_field.id}": "C",
+            f"field_{single_select_field.id}_id": option_a.id,
+        }
+    )
+    row_a_a = model.objects.create(
+        **{
+            f"field_{text_field.id}": "A",
+            f"field_{single_select_field.id}_id": option_a.id,
+        }
+    )
+    row_a_b = model.objects.create(
+        **{
+            f"field_{text_field.id}": "B",
+            f"field_{single_select_field.id}_id": option_a.id,
+        }
+    )
+    row_null_b = model.objects.create(
+        **{
+            f"field_{text_field.id}": "B",
+            f"field_{single_select_field.id}_id": None,
+        }
+    )
+    row_null_a = model.objects.create(
+        **{
+            f"field_{text_field.id}": "A",
+            f"field_{single_select_field.id}_id": None,
+        }
+    )
+
+    url = reverse("api:database:views:kanban:list", kwargs={"view_id": kanban.id})
+    response = api_client.get(url, **{"HTTP_AUTHORIZATION": f"JWT {token}"})
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+
+    null_results = response_json["rows"]["null"]["results"]
+    assert [r["id"] for r in null_results] == [row_null_a.id, row_null_b.id]
+
+    a_results = response_json["rows"][str(option_a.id)]["results"]
+    assert [r["id"] for r in a_results] == [row_a_a.id, row_a_b.id, row_a_c.id]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_list_public_rows_applies_view_sortings_per_stack(
+    api_client, premium_data_fixture
+):
+    user, _ = premium_data_fixture.create_user_and_token()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table, primary=True)
+    single_select_field = premium_data_fixture.create_single_select_field(table=table)
+    option_a = premium_data_fixture.create_select_option(
+        field=single_select_field, value="A", color="blue"
+    )
+    kanban_view = premium_data_fixture.create_kanban_view(
+        table=table,
+        user=user,
+        public=True,
+        single_select_field=single_select_field,
+    )
+    premium_data_fixture.create_kanban_view_field_option(
+        kanban_view, text_field, hidden=False
+    )
+    premium_data_fixture.create_view_sort(
+        view=kanban_view, field=text_field, order="DESC"
+    )
+
+    model = table.get_model()
+    row_a_a = model.objects.create(
+        **{
+            f"field_{text_field.id}": "A",
+            f"field_{single_select_field.id}_id": option_a.id,
+        }
+    )
+    row_a_c = model.objects.create(
+        **{
+            f"field_{text_field.id}": "C",
+            f"field_{single_select_field.id}_id": option_a.id,
+        }
+    )
+    row_a_b = model.objects.create(
+        **{
+            f"field_{text_field.id}": "B",
+            f"field_{single_select_field.id}_id": option_a.id,
+        }
+    )
+
+    response = api_client.get(
+        reverse(
+            "api:database:views:kanban:public_rows",
+            kwargs={"slug": kanban_view.slug},
+        )
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+
+    a_results = response_json["rows"][str(option_a.id)]["results"]
+    assert [r["id"] for r in a_results] == [row_a_c.id, row_a_b.id, row_a_a.id]

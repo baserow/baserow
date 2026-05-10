@@ -278,4 +278,76 @@ describe('Kanban view store', () => {
     expect(store.state.kanban.stacks['1'].results[0].id).toBe(2)
     expect(store.state.kanban.stacks['1'].results[1].id).toBe(10)
   })
+
+  test('stopRowDrag with sortings drops the row from a partial buffer and skips the move call', async () => {
+    // Stack 1 represents a partially-loaded destination: 2 rows visible out of 50.
+    const draggingRow = {
+      id: 5,
+      order: '5.00',
+      field_1: { id: 1 },
+      _: { dragging: true },
+    }
+    const stacks = {
+      null: { count: 0, results: [] },
+      // The dragging row was already moved into the destination stack at the
+      // last loaded index by the in-progress drag (cardMoveOver).
+      1: {
+        count: 50,
+        results: [
+          { id: 10, order: '10.00', field_1: { id: 1 } },
+          { id: 11, order: '11.00', field_1: { id: 1 } },
+          draggingRow,
+        ],
+      },
+    }
+    const state = Object.assign(kanbanStore.state(), {
+      lastKanbanId: 1,
+      singleSelectFieldId: 1,
+      stacks,
+      // Simulate the drag state the same way startRowDrag would have set it.
+      draggingRow,
+      draggingOriginalStackId: 'null',
+      draggingOriginalBefore: null,
+    })
+    store.replaceState({ ...store.state, kanban: state })
+
+    const fields = [
+      {
+        id: 1,
+        type: 'single_select',
+        select_options: [{ id: 1, value: 'A', color: 'blue' }],
+      },
+    ]
+    const table = { id: 99 }
+    const view = { sortings: [{ id: 1, field: 1, order: 'ASC' }] }
+
+    let movePatchHit = false
+    let updatePatchHit = false
+    // The single-select update endpoint must be called once; the row move
+    // endpoint must NOT be called when sortings are active.
+    testApp.mock
+      .onPatch(`/database/rows/table/${table.id}/${draggingRow.id}/`)
+      .reply((config) => {
+        updatePatchHit = true
+        return [200, { id: draggingRow.id, ...JSON.parse(config.data) }]
+      })
+    testApp.mock
+      .onPatch(`/database/rows/table/${table.id}/${draggingRow.id}/move/`)
+      .reply(() => {
+        movePatchHit = true
+        return [200, draggingRow]
+      })
+
+    await store.dispatch('kanban/stopRowDrag', { table, fields, view })
+
+    expect(updatePatchHit).toBe(true)
+    expect(movePatchHit).toBe(false)
+    // The row was at the last loaded index of a partial buffer, so it has
+    // been removed from the destination's visible buffer; the count stays
+    // unchanged because the row is still in that stack on the server.
+    expect(store.state.kanban.stacks['1'].count).toBe(50)
+    expect(store.state.kanban.stacks['1'].results.map((r) => r.id)).toEqual([
+      10, 11,
+    ])
+  })
 })
