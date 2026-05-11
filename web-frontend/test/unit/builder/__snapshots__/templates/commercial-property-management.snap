@@ -1,1 +1,269 @@
-{"shared":[{"type":"header","children":[{"type":"image","children":[]},{"type":"column","children":[{"type":"text","children":[]},{"type":"button","children":[]},{"type":"link","children":[]}]}]}],"login":[{"type":"image","children":[]},{"type":"heading","children":[]},{"type":"auth_form","children":[]}],"dashboard":[{"type":"heading","children":[]},{"type":"repeat","children":[{"type":"column","children":[{"type":"heading","children":[]},{"type":"image","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"link","children":[]}]}]},{"type":"heading","children":[]},{"type":"table","children":[]}],"building-details":[{"type":"heading","children":[]},{"type":"column","children":[{"type":"text","children":[]},{"type":"image","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"repeat","children":[{"type":"text","children":[]}]}]},{"type":"heading","children":[]},{"type":"table","children":[]}],"unit-details":[{"type":"heading","children":[]},{"type":"heading","children":[]},{"type":"table","children":[]},{"type":"heading","children":[]},{"type":"table","children":[]}],"lease-details":[{"type":"heading","children":[]},{"type":"column","children":[{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"iframe","children":[]}]}],"service-request-details":[{"type":"heading","children":[]},{"type":"button","children":[]},{"type":"text","children":[]},{"type":"column","children":[{"type":"link","children":[]},{"type":"image","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]},{"type":"heading","children":[]},{"type":"form_container","children":[{"type":"record_selector","children":[]},{"type":"record_selector","children":[]}]}]}
+{
+  "shared": [
+    {
+      "type": "header",
+      "children": [
+        {
+          "type": "image",
+          "children": []
+        },
+        {
+          "type": "column",
+          "children": [
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "button",
+              "children": []
+            },
+            {
+              "type": "link",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "login": [
+    {
+      "type": "image",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "auth_form",
+      "children": []
+    }
+  ],
+  "dashboard": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "repeat",
+      "children": [
+        {
+          "type": "column",
+          "children": [
+            {
+              "type": "heading",
+              "children": []
+            },
+            {
+              "type": "image",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "link",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "table",
+      "children": []
+    }
+  ],
+  "building-details": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "image",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "repeat",
+          "children": [
+            {
+              "type": "text",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "table",
+      "children": []
+    }
+  ],
+  "unit-details": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "table",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "table",
+      "children": []
+    }
+  ],
+  "lease-details": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "iframe",
+          "children": []
+        }
+      ]
+    }
+  ],
+  "service-request-details": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "button",
+      "children": []
+    },
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "link",
+          "children": []
+        },
+        {
+          "type": "image",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "form_container",
+      "children": [
+        {
+          "type": "record_selector",
+          "children": []
+        },
+        {
+          "type": "record_selector",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

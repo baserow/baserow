@@ -133,7 +133,7 @@ class Command(BaseCommand):
                         pages_output[_page_slug(page)] = build_element_tree(elements)
 
                 dest = output_dir / f"{template.slug}.json"
-                dest.write_text(json.dumps(pages_output))
+                dest.write_text(json.dumps(pages_output, indent=2))
                 progress.increment(state=template.slug)
 
         finally:

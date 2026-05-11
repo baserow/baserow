@@ -1,1 +1,1566 @@
-{"shared":[{"type":"header","children":[{"type":"column","children":[{"type":"text","children":[]},{"type":"image","children":[]},{"type":"text","children":[]}]},{"type":"menu","children":[]}]}],"login":[{"type":"heading","children":[]},{"type":"auth_form","children":[]}],"home":[{"type":"column","children":[{"type":"link","children":[]},{"type":"text","children":[]},{"type":"button","children":[]}]},{"type":"link","children":[]},{"type":"column","children":[{"type":"heading","children":[]},{"type":"heading","children":[]},{"type":"simple_container","children":[{"type":"table","children":[]}]},{"type":"simple_container","children":[{"type":"table","children":[]}]}]},{"type":"column","children":[{"type":"heading","children":[]},{"type":"heading","children":[]},{"type":"simple_container","children":[{"type":"table","children":[]}]},{"type":"simple_container","children":[{"type":"repeat","children":[{"type":"image","children":[]},{"type":"link","children":[]}]}]}]}],"task-details":[{"type":"text","children":[]},{"type":"column","children":[{"type":"text","children":[]},{"type":"button","children":[]}]},{"type":"column","children":[{"type":"text","children":[]},{"type":"button","children":[]}]},{"type":"text","children":[]},{"type":"heading","children":[]},{"type":"menu","children":[]},{"type":"column","children":[{"type":"text","children":[]},{"type":"form_container","children":[{"type":"input_text","children":[]},{"type":"input_text","children":[]},{"type":"choice","children":[]},{"type":"datetime_picker","children":[]},{"type":"datetime_picker","children":[]},{"type":"input_text","children":[]},{"type":"record_selector","children":[]},{"type":"record_selector","children":[]}]},{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"repeat","children":[{"type":"link","children":[]}]},{"type":"heading","children":[]},{"type":"repeat","children":[{"type":"link","children":[]}]}]},{"type":"link","children":[]},{"type":"text","children":[]},{"type":"link","children":[]},{"type":"text","children":[]},{"type":"link","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]}],"task-dependencies":[{"type":"text","children":[]},{"type":"column","children":[{"type":"text","children":[]},{"type":"button","children":[]}]},{"type":"column","children":[{"type":"text","children":[]},{"type":"button","children":[]}]},{"type":"text","children":[]},{"type":"heading","children":[]},{"type":"menu","children":[]},{"type":"column","children":[{"type":"form_container","children":[{"type":"record_selector","children":[]},{"type":"text","children":[]}]},{"type":"form_container","children":[{"type":"record_selector","children":[]}]},{"type":"heading","children":[]},{"type":"repeat","children":[{"type":"link","children":[]}]}]}],"task-actions":[{"type":"text","children":[]},{"type":"column","children":[{"type":"text","children":[]},{"type":"button","children":[]}]},{"type":"column","children":[{"type":"text","children":[]},{"type":"button","children":[]}]},{"type":"text","children":[]},{"type":"heading","children":[]},{"type":"menu","children":[]},{"type":"column","children":[{"type":"simple_container","children":[{"type":"text","children":[]},{"type":"link","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"button","children":[]}]},{"type":"form_container","children":[{"type":"input_text","children":[]},{"type":"input_text","children":[]}]},{"type":"repeat","children":[{"type":"simple_container","children":[{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]}]}]}],"task-messages":[{"type":"text","children":[]},{"type":"column","children":[{"type":"text","children":[]},{"type":"button","children":[]}]},{"type":"column","children":[{"type":"text","children":[]},{"type":"button","children":[]}]},{"type":"text","children":[]},{"type":"heading","children":[]},{"type":"menu","children":[]},{"type":"column","children":[{"type":"form_container","children":[{"type":"input_text","children":[]}]},{"type":"repeat","children":[{"type":"simple_container","children":[{"type":"simple_container","children":[{"type":"image","children":[]}]},{"type":"simple_container","children":[{"type":"link","children":[]},{"type":"text","children":[]}]}]},{"type":"simple_container","children":[{"type":"text","children":[]}]},{"type":"simple_container","children":[{"type":"text","children":[]}]}]}]}],"task-files":[{"type":"text","children":[]},{"type":"column","children":[{"type":"text","children":[]},{"type":"button","children":[]}]},{"type":"column","children":[{"type":"text","children":[]},{"type":"button","children":[]}]},{"type":"text","children":[]},{"type":"heading","children":[]},{"type":"menu","children":[]},{"type":"column","children":[{"type":"heading","children":[]},{"type":"table","children":[]},{"type":"form_container","children":[{"type":"input_text","children":[]},{"type":"input_file","children":[]}]},{"type":"heading","children":[]},{"type":"table","children":[]}]}],"add-task":[{"type":"heading","children":[]},{"type":"column","children":[{"type":"heading","children":[]},{"type":"heading","children":[]},{"type":"heading","children":[]},{"type":"repeat","children":[{"type":"simple_container","children":[{"type":"link","children":[]},{"type":"text","children":[]}]}]},{"type":"repeat","children":[{"type":"simple_container","children":[{"type":"link","children":[]},{"type":"text","children":[]}]}]},{"type":"form_container","children":[{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"input_text","children":[]},{"type":"input_text","children":[]},{"type":"choice","children":[]},{"type":"datetime_picker","children":[]},{"type":"datetime_picker","children":[]},{"type":"input_text","children":[]},{"type":"record_selector","children":[]},{"type":"record_selector","children":[]}]}]}],"project-details":[{"type":"heading","children":[]},{"type":"menu","children":[]},{"type":"column","children":[{"type":"simple_container","children":[{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]},{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]}]},{"type":"text","children":[]},{"type":"form_container","children":[{"type":"input_text","children":[]},{"type":"datetime_picker","children":[]},{"type":"datetime_picker","children":[]},{"type":"record_selector","children":[]}]},{"type":"simple_container","children":[{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]}]},{"type":"simple_container","children":[{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]}]},{"type":"repeat","children":[{"type":"link","children":[]}]},{"type":"simple_container","children":[{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]}]}]},{"type":"heading","children":[]},{"type":"table","children":[]}],"project-milestones":[{"type":"heading","children":[]},{"type":"menu","children":[]},{"type":"column","children":[{"type":"link","children":[]},{"type":"simple_container","children":[{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]},{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]}]},{"type":"form_container","children":[{"type":"input_text","children":[]},{"type":"input_text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]},{"type":"simple_container","children":[{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]}]},{"type":"repeat","children":[{"type":"simple_container","children":[{"type":"link","children":[]},{"type":"text","children":[]}]}]},{"type":"simple_container","children":[{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]}]},{"type":"simple_container","children":[{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]}]}]},{"type":"heading","children":[]},{"type":"link","children":[]},{"type":"table","children":[]}],"project-tasks":[{"type":"heading","children":[]},{"type":"menu","children":[]},{"type":"heading","children":[]},{"type":"table","children":[]}],"project-team":[{"type":"heading","children":[]},{"type":"menu","children":[]},{"type":"column","children":[{"type":"simple_container","children":[{"type":"link","children":[]},{"type":"button","children":[]}]},{"type":"repeat","children":[{"type":"simple_container","children":[{"type":"simple_container","children":[{"type":"image","children":[]}]},{"type":"simple_container","children":[{"type":"text","children":[]},{"type":"text","children":[]},{"type":"link","children":[]}]}]},{"type":"simple_container","children":[{"type":"simple_container","children":[{"type":"image","children":[]}]},{"type":"simple_container","children":[{"type":"text","children":[]},{"type":"text","children":[]},{"type":"link","children":[]}]}]}]},{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"repeat","children":[{"type":"link","children":[]}]},{"type":"heading","children":[]},{"type":"repeat","children":[{"type":"link","children":[]}]},{"type":"heading","children":[]},{"type":"repeat","children":[{"type":"link","children":[]}]}]},{"type":"repeat","children":[{"type":"simple_container","children":[{"type":"simple_container","children":[{"type":"image","children":[]}]},{"type":"simple_container","children":[{"type":"text","children":[]},{"type":"button","children":[]}]}]}]}]}],"project-files":[{"type":"heading","children":[]},{"type":"menu","children":[]},{"type":"column","children":[{"type":"heading","children":[]},{"type":"form_container","children":[{"type":"input_text","children":[]},{"type":"input_file","children":[]}]},{"type":"table","children":[]},{"type":"heading","children":[]},{"type":"table","children":[]}]}],"add-milestone":[{"type":"heading","children":[]},{"type":"column","children":[{"type":"heading","children":[]},{"type":"heading","children":[]},{"type":"repeat","children":[{"type":"simple_container","children":[{"type":"link","children":[]},{"type":"text","children":[]}]}]},{"type":"form_container","children":[{"type":"text","children":[]},{"type":"text","children":[]},{"type":"input_text","children":[]},{"type":"input_text","children":[]}]}]}],"projects":[{"type":"heading","children":[]},{"type":"table","children":[]},{"type":"heading","children":[]},{"type":"link","children":[]},{"type":"table","children":[]},{"type":"heading","children":[]},{"type":"table","children":[]}],"add-project":[{"type":"heading","children":[]},{"type":"form_container","children":[{"type":"input_text","children":[]},{"type":"input_text","children":[]},{"type":"datetime_picker","children":[]},{"type":"datetime_picker","children":[]},{"type":"record_selector","children":[]}]}],"user-details":[{"type":"column","children":[{"type":"image","children":[]},{"type":"heading","children":[]},{"type":"text","children":[]},{"type":"link","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]},{"type":"heading","children":[]},{"type":"heading","children":[]},{"type":"table","children":[]},{"type":"heading","children":[]},{"type":"table","children":[]},{"type":"heading","children":[]},{"type":"table","children":[]}]}
+{
+  "shared": [
+    {
+      "type": "header",
+      "children": [
+        {
+          "type": "column",
+          "children": [
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "image",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "menu",
+          "children": []
+        }
+      ]
+    }
+  ],
+  "login": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "auth_form",
+      "children": []
+    }
+  ],
+  "home": [
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "link",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "button",
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "link",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "table",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "table",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "table",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "repeat",
+              "children": [
+                {
+                  "type": "image",
+                  "children": []
+                },
+                {
+                  "type": "link",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "task-details": [
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "button",
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "button",
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "menu",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "form_container",
+          "children": [
+            {
+              "type": "input_text",
+              "children": []
+            },
+            {
+              "type": "input_text",
+              "children": []
+            },
+            {
+              "type": "choice",
+              "children": []
+            },
+            {
+              "type": "datetime_picker",
+              "children": []
+            },
+            {
+              "type": "datetime_picker",
+              "children": []
+            },
+            {
+              "type": "input_text",
+              "children": []
+            },
+            {
+              "type": "record_selector",
+              "children": []
+            },
+            {
+              "type": "record_selector",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "heading",
+              "children": []
+            },
+            {
+              "type": "repeat",
+              "children": [
+                {
+                  "type": "link",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "children": []
+            },
+            {
+              "type": "repeat",
+              "children": [
+                {
+                  "type": "link",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "link",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "link",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "link",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        }
+      ]
+    }
+  ],
+  "task-dependencies": [
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "button",
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "button",
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "menu",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "form_container",
+          "children": [
+            {
+              "type": "record_selector",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "form_container",
+          "children": [
+            {
+              "type": "record_selector",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "repeat",
+          "children": [
+            {
+              "type": "link",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "task-actions": [
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "button",
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "button",
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "menu",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "link",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "button",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "form_container",
+          "children": [
+            {
+              "type": "input_text",
+              "children": []
+            },
+            {
+              "type": "input_text",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "repeat",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "text",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "task-messages": [
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "button",
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "button",
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "menu",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "form_container",
+          "children": [
+            {
+              "type": "input_text",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "repeat",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "simple_container",
+                  "children": [
+                    {
+                      "type": "image",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": "simple_container",
+                  "children": [
+                    {
+                      "type": "link",
+                      "children": []
+                    },
+                    {
+                      "type": "text",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "task-files": [
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "button",
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "button",
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "menu",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "table",
+          "children": []
+        },
+        {
+          "type": "form_container",
+          "children": [
+            {
+              "type": "input_text",
+              "children": []
+            },
+            {
+              "type": "input_file",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "table",
+          "children": []
+        }
+      ]
+    }
+  ],
+  "add-task": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "repeat",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "link",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "repeat",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "link",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "form_container",
+          "children": [
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "input_text",
+              "children": []
+            },
+            {
+              "type": "input_text",
+              "children": []
+            },
+            {
+              "type": "choice",
+              "children": []
+            },
+            {
+              "type": "datetime_picker",
+              "children": []
+            },
+            {
+              "type": "datetime_picker",
+              "children": []
+            },
+            {
+              "type": "input_text",
+              "children": []
+            },
+            {
+              "type": "record_selector",
+              "children": []
+            },
+            {
+              "type": "record_selector",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "project-details": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "menu",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "heading",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "heading",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "form_container",
+          "children": [
+            {
+              "type": "input_text",
+              "children": []
+            },
+            {
+              "type": "datetime_picker",
+              "children": []
+            },
+            {
+              "type": "datetime_picker",
+              "children": []
+            },
+            {
+              "type": "record_selector",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "heading",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "heading",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "repeat",
+          "children": [
+            {
+              "type": "link",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "heading",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "table",
+      "children": []
+    }
+  ],
+  "project-milestones": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "menu",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "link",
+          "children": []
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "heading",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "heading",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "form_container",
+          "children": [
+            {
+              "type": "input_text",
+              "children": []
+            },
+            {
+              "type": "input_text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "heading",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "repeat",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "link",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "heading",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "heading",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "link",
+      "children": []
+    },
+    {
+      "type": "table",
+      "children": []
+    }
+  ],
+  "project-tasks": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "menu",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "table",
+      "children": []
+    }
+  ],
+  "project-team": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "menu",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "link",
+              "children": []
+            },
+            {
+              "type": "button",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "repeat",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "simple_container",
+                  "children": [
+                    {
+                      "type": "image",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": "simple_container",
+                  "children": [
+                    {
+                      "type": "text",
+                      "children": []
+                    },
+                    {
+                      "type": "text",
+                      "children": []
+                    },
+                    {
+                      "type": "link",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "simple_container",
+                  "children": [
+                    {
+                      "type": "image",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": "simple_container",
+                  "children": [
+                    {
+                      "type": "text",
+                      "children": []
+                    },
+                    {
+                      "type": "text",
+                      "children": []
+                    },
+                    {
+                      "type": "link",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "heading",
+              "children": []
+            },
+            {
+              "type": "repeat",
+              "children": [
+                {
+                  "type": "link",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "children": []
+            },
+            {
+              "type": "repeat",
+              "children": [
+                {
+                  "type": "link",
+                  "children": []
+                }
+              ]
+            },
+            {
+              "type": "heading",
+              "children": []
+            },
+            {
+              "type": "repeat",
+              "children": [
+                {
+                  "type": "link",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "repeat",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "simple_container",
+                  "children": [
+                    {
+                      "type": "image",
+                      "children": []
+                    }
+                  ]
+                },
+                {
+                  "type": "simple_container",
+                  "children": [
+                    {
+                      "type": "text",
+                      "children": []
+                    },
+                    {
+                      "type": "button",
+                      "children": []
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "project-files": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "menu",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "form_container",
+          "children": [
+            {
+              "type": "input_text",
+              "children": []
+            },
+            {
+              "type": "input_file",
+              "children": []
+            }
+          ]
+        },
+        {
+          "type": "table",
+          "children": []
+        },
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "table",
+          "children": []
+        }
+      ]
+    }
+  ],
+  "add-milestone": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "repeat",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "link",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "form_container",
+          "children": [
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "input_text",
+              "children": []
+            },
+            {
+              "type": "input_text",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "projects": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "table",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "link",
+      "children": []
+    },
+    {
+      "type": "table",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "table",
+      "children": []
+    }
+  ],
+  "add-project": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "form_container",
+      "children": [
+        {
+          "type": "input_text",
+          "children": []
+        },
+        {
+          "type": "input_text",
+          "children": []
+        },
+        {
+          "type": "datetime_picker",
+          "children": []
+        },
+        {
+          "type": "datetime_picker",
+          "children": []
+        },
+        {
+          "type": "record_selector",
+          "children": []
+        }
+      ]
+    }
+  ],
+  "user-details": [
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "image",
+          "children": []
+        },
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "link",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "table",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "table",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "table",
+      "children": []
+    }
+  ]
+}

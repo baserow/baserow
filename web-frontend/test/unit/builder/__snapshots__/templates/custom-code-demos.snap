@@ -1,1 +1,404 @@
-{"shared":[{"type":"header","children":[{"type":"heading","children":[]}]}],"1-using-google-fonts":[{"type":"heading","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}],"2-custom-column-width":[{"type":"text","children":[]},{"type":"column","children":[{"type":"text","children":[]},{"type":"text","children":[]}]}],"3-fixed-height-repeat":[{"type":"text","children":[]},{"type":"column","children":[{"type":"repeat","children":[{"type":"simple_container","children":[{"type":"link","children":[]},{"type":"image","children":[]},{"type":"text","children":[]}]}]},{"type":"simple_container","children":[{"type":"heading","children":[]}]}]}],"4-clickable-container":[{"type":"text","children":[]},{"type":"column","children":[{"type":"repeat","children":[{"type":"link","children":[]},{"type":"simple_container","children":[{"type":"text","children":[]},{"type":"image","children":[]},{"type":"text","children":[]}]}]},{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]}]}],"5-hover-effect":[{"type":"text","children":[]},{"type":"column","children":[{"type":"repeat","children":[{"type":"link","children":[]},{"type":"simple_container","children":[{"type":"text","children":[]},{"type":"image","children":[]},{"type":"text","children":[]}]}]},{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]},{"type":"text","children":[]}]}]}],"6-draw-chart":[{"type":"text","children":[]},{"type":"simple_container","children":[{"type":"heading","children":[]}]},{"type":"table","children":[]}],"7-draw-chart-with-filters":[{"type":"text","children":[]},{"type":"heading","children":[]},{"type":"column","children":[{"type":"table","children":[]},{"type":"simple_container","children":[{"type":"text","children":[]}]}]}],"8-conditional-formatting":[{"type":"text","children":[]},{"type":"heading","children":[]},{"type":"table","children":[]}],"9-sticky-button":[{"type":"text","children":[]},{"type":"link","children":[]},{"type":"text","children":[]},{"type":"heading","children":[]},{"type":"form_container","children":[{"type":"input_text","children":[]},{"type":"input_text","children":[]},{"type":"input_text","children":[]}]}],"10-expand-and-collapse":[{"type":"text","children":[]},{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"simple_container","children":[{"type":"table","children":[]}]}]},{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"simple_container","children":[{"type":"table","children":[]}]}]},{"type":"simple_container","children":[{"type":"heading","children":[]},{"type":"simple_container","children":[{"type":"table","children":[]}]}]}]}
+{
+  "shared": [
+    {
+      "type": "header",
+      "children": [
+        {
+          "type": "heading",
+          "children": []
+        }
+      ]
+    }
+  ],
+  "1-using-google-fonts": [
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "text",
+      "children": []
+    }
+  ],
+  "2-custom-column-width": [
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "text",
+          "children": []
+        },
+        {
+          "type": "text",
+          "children": []
+        }
+      ]
+    }
+  ],
+  "3-fixed-height-repeat": [
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "repeat",
+          "children": [
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "link",
+                  "children": []
+                },
+                {
+                  "type": "image",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "heading",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "4-clickable-container": [
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "repeat",
+          "children": [
+            {
+              "type": "link",
+              "children": []
+            },
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "text",
+                  "children": []
+                },
+                {
+                  "type": "image",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "heading",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "5-hover-effect": [
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "repeat",
+          "children": [
+            {
+              "type": "link",
+              "children": []
+            },
+            {
+              "type": "simple_container",
+              "children": [
+                {
+                  "type": "text",
+                  "children": []
+                },
+                {
+                  "type": "image",
+                  "children": []
+                },
+                {
+                  "type": "text",
+                  "children": []
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "heading",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            },
+            {
+              "type": "text",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "6-draw-chart": [
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "simple_container",
+      "children": [
+        {
+          "type": "heading",
+          "children": []
+        }
+      ]
+    },
+    {
+      "type": "table",
+      "children": []
+    }
+  ],
+  "7-draw-chart-with-filters": [
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "column",
+      "children": [
+        {
+          "type": "table",
+          "children": []
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "text",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "8-conditional-formatting": [
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "table",
+      "children": []
+    }
+  ],
+  "9-sticky-button": [
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "link",
+      "children": []
+    },
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "heading",
+      "children": []
+    },
+    {
+      "type": "form_container",
+      "children": [
+        {
+          "type": "input_text",
+          "children": []
+        },
+        {
+          "type": "input_text",
+          "children": []
+        },
+        {
+          "type": "input_text",
+          "children": []
+        }
+      ]
+    }
+  ],
+  "10-expand-and-collapse": [
+    {
+      "type": "text",
+      "children": []
+    },
+    {
+      "type": "simple_container",
+      "children": [
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "table",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "simple_container",
+      "children": [
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "table",
+              "children": []
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "simple_container",
+      "children": [
+        {
+          "type": "heading",
+          "children": []
+        },
+        {
+          "type": "simple_container",
+          "children": [
+            {
+              "type": "table",
+              "children": []
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
