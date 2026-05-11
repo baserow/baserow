@@ -13,6 +13,8 @@ export default (client) => {
       signal = null,
       includeFieldOptions = false,
       includeRowMetadata = true,
+      search = '',
+      searchMode = '',
       selectOptions = [],
       publicUrl = false,
       publicAuthToken = null,
@@ -37,6 +39,13 @@ export default (client) => {
 
       if (include.length > 0) {
         params.append('include', include.join(','))
+      }
+
+      if (search) {
+        params.append('search', search)
+        if (searchMode) {
+          params.append('search_mode', searchMode)
+        }
       }
 
       Object.keys(filters).forEach((key) => {

@@ -1,6 +1,6 @@
 from collections import defaultdict
 from datetime import date, datetime, timedelta, timezone
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Dict, Iterable, List, Optional, Set, Tuple, Union
 from zoneinfo import ZoneInfo
 
 from django.contrib.auth.models import AbstractUser
@@ -35,6 +35,9 @@ def get_rows_grouped_by_single_select_field(
     option_settings: Dict[str, Dict[str, int]] = None,
     default_limit: int = 40,
     default_offset: int = 0,
+    search: Optional[str] = None,
+    search_mode: Optional[str] = None,
+    only_search_by_field_ids: Optional[Iterable[int]] = None,
     adhoc_filters: Optional[AdHocFilters] = None,
     model: Optional[GeneratedTableModel] = None,
     base_queryset: Optional[QuerySet] = None,
@@ -67,6 +70,9 @@ def get_rows_grouped_by_single_select_field(
         specific settings for that field have been provided.
     :param default_offset: The default offset that applies to all options if no
         specific settings for that field have been provided.
+    :param search: A search term to apply to the resulting queryset.
+    :param search_mode: The type of search to perform if a search term is provided.
+    :param only_search_by_field_ids: Optional field ids to restrict searching to.
     :param adhoc_filters: The optional ad hoc filters if they should be used
         instead of view filters.
     :param model: Additionally, an existing model can be provided so that it doesn't
@@ -87,6 +93,11 @@ def get_rows_grouped_by_single_select_field(
 
     if base_queryset is None:
         base_queryset = model.objects.all().enhance_by_fields().order_by("order", "id")
+
+    if search is not None:
+        base_queryset = base_queryset.search_all_fields(
+            search, only_search_by_field_ids, search_mode=search_mode
+        )
 
     if adhoc_filters is None:
         adhoc_filters = AdHocFilters()

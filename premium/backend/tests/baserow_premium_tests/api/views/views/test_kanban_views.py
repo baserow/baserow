@@ -245,6 +245,67 @@ def test_list_all_rows(api_client, premium_data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_list_rows_with_search(api_client, premium_data_fixture):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table, primary=True)
+    single_select_field = premium_data_fixture.create_single_select_field(table=table)
+    option_a = premium_data_fixture.create_select_option(
+        field=single_select_field, value="A", color="blue"
+    )
+    option_b = premium_data_fixture.create_select_option(
+        field=single_select_field, value="B", color="red"
+    )
+    kanban = premium_data_fixture.create_kanban_view(
+        table=table, single_select_field=single_select_field
+    )
+
+    model = table.get_model()
+    row_none = model.objects.create(
+        **{
+            f"field_{text_field.id}": "Needle row none",
+            f"field_{single_select_field.id}_id": None,
+        }
+    )
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "Other row none",
+            f"field_{single_select_field.id}_id": None,
+        }
+    )
+    row_a = model.objects.create(
+        **{
+            f"field_{text_field.id}": "Needle row A",
+            f"field_{single_select_field.id}_id": option_a.id,
+        }
+    )
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "Other row B",
+            f"field_{single_select_field.id}_id": option_b.id,
+        }
+    )
+
+    url = reverse("api:database:views:kanban:list", kwargs={"view_id": kanban.id})
+    response = api_client.get(
+        f"{url}?search=Needle&search_mode=compat",
+        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["rows"]["null"]["count"] == 1
+    assert response_json["rows"]["null"]["results"][0]["id"] == row_none.id
+    assert response_json["rows"][str(option_a.id)]["count"] == 1
+    assert response_json["rows"][str(option_a.id)]["results"][0]["id"] == row_a.id
+    assert response_json["rows"][str(option_b.id)]["count"] == 0
+    assert response_json["rows"][str(option_b.id)]["results"] == []
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_list_with_specific_select_options(api_client, premium_data_fixture):
     user, token = premium_data_fixture.create_user_and_token(
         has_active_premium_license=True
@@ -1872,6 +1933,72 @@ def test_list_public_rows_doesnt_show_hidden_columns(api_client, premium_data_fi
             },
         },
     }
+
+
+@pytest.mark.django_db
+def test_list_public_rows_searches_only_visible_columns(
+    api_client, premium_data_fixture
+):
+    user, token = premium_data_fixture.create_user_and_token()
+    table = premium_data_fixture.create_database_table(user=user)
+
+    kanban_view = premium_data_fixture.create_kanban_view(
+        table=table,
+        user=user,
+        public=True,
+    )
+
+    public_field = premium_data_fixture.create_text_field(table=table, name="public")
+    hidden_field = premium_data_fixture.create_text_field(table=table, name="hidden")
+
+    premium_data_fixture.create_kanban_view_field_option(
+        kanban_view, public_field, hidden=False
+    )
+    premium_data_fixture.create_kanban_view_field_option(
+        kanban_view, hidden_field, hidden=True
+    )
+
+    row_1 = RowHandler().create_row(
+        user,
+        table,
+        values={
+            f"field_{public_field.id}": "visible-match",
+            f"field_{hidden_field.id}": "hidden-other",
+        },
+    )
+    RowHandler().create_row(
+        user,
+        table,
+        values={
+            f"field_{public_field.id}": "visible-other",
+            f"field_{hidden_field.id}": "hidden-target",
+        },
+    )
+
+    url = reverse(
+        "api:database:views:kanban:public_rows", kwargs={"slug": kanban_view.slug}
+    )
+    response = api_client.get(f"{url}?search=hidden-target&search_mode=compat")
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json == {
+        "rows": {
+            "null": {
+                "count": 0,
+                "results": [],
+            }
+        },
+    }
+
+    response = api_client.get(f"{url}?search=visible-match&search_mode=compat")
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["rows"]["null"]["count"] == 1
+    assert response_json["rows"]["null"]["results"][0]["id"] == row_1.id
+    assert f"field_{public_field.id}" in response_json["rows"]["null"]["results"][0]
+    assert f"field_{hidden_field.id}" not in response_json["rows"]["null"]["results"][0]
 
 
 @pytest.mark.django_db

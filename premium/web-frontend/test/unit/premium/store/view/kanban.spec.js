@@ -22,6 +22,19 @@ describe('Kanban view store', () => {
     testApp.afterEach()
   })
 
+  test('updateSearch', async () => {
+    await store.dispatch('kanban/updateSearch', {
+      fields: [],
+      activeSearchTerm: '  test  ',
+      refreshMatchesOnClient: false,
+    })
+
+    expect(store.state.kanban.activeSearchTerm).toBe('test')
+    expect(store.getters['kanban/getActiveSearchTerm']).toBe('test')
+    expect(store.getters['kanban/getServerSearchTerm']).toBe('test')
+    expect(store.getters['kanban/isHidingRowsNotMatchingSearch']).toBe(true)
+  })
+
   test('createdNewRow', async () => {
     const stacks = {}
     stacks.null = {
