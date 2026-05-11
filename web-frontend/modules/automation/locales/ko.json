@@ -98,7 +98,16 @@
         "completedInLessThanSecond": "1초도 안 걸려 완료되었습니다.",
         "testRun": "테스트",
         "statusStarted": "진행 중...",
-        "running": "{at}를 위해 실행 중"
+        "running": "{at}를 위해 실행 중",
+        "statusSuccessBadge": "완료됨",
+        "statusErrorBadge": "실패함",
+        "successfulRuns": "성공적으로 실행됨",
+        "failedRuns": "실행 실패됨",
+        "errorHideDetails": "세부정보 숨기기",
+        "errorShowDetails": "세부정보 보기",
+        "runNumber": "실행 {n}",
+        "runCount": "{n} 실행",
+        "showResult": "결과 표시"
     },
     "nodeType": {
         "triggerDeletionError": "트리거는 삭제할 수 없고, 교체만 가능합니다.",
@@ -123,7 +132,8 @@
         "periodicTriggerLabel": "주기적 트리거",
         "aiAgent": "AI 프롬프트",
         "slackWriteMessageName": "슬랙 메시지를 보내세요",
-        "slackWriteMessageLabel": "#{channel}에 메시지를 보내세요"
+        "slackWriteMessageLabel": "#{channel}에 메시지를 보내세요",
+        "defaultEdgeLabelFallback": "기본"
     },
     "workflowNode": {
         "actionDelete": "삭제",
@@ -203,5 +213,18 @@
     },
     "automationWorkflow": {
         "title": "워크플로"
+    },
+    "workflowGeneralSettings": {
+        "titleOverview": "워크플로 설정",
+        "nameLabel": "워크플로 이름",
+        "workflowDisabledRecipientsLabel": "알림 수신자",
+        "workflowDisabledRecipientsHelp": "이 워크플로가 자동으로 비활성화되면 해당 작업공간 구성원에게 앱 내 알림이 전송됩니다.",
+        "selectWorkflowDisabledRecipients": "수신자를 선택하세요",
+        "noWorkflowDisabledRecipients": "선정된 수신자가 없습니다.",
+        "cantUpdateWorkflowTitle": "워크플로를 업데이트할 수 없습니다",
+        "cantUpdateWorkflowDescription": "죄송합니다. 워크플로를 업데이트할 수 없었습니다."
+    },
+    "workflowDisabledNotification": {
+        "body": "{name} 워크플로가 비활성화되었습니다."
     }
 }
