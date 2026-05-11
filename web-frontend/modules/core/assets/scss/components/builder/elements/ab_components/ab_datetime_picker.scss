@@ -27,14 +27,19 @@
     border: none;
     width: auto;
     padding: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   &--date.ab-input {
-    min-width: 11ch;
+    min-width: 5ch;
+    flex-basis: 11ch;
   }
 
   &--time.ab-input {
-    min-width: 5ch;
+    min-width: 2ch;
+    flex-basis: 5ch;
   }
 }
 
