@@ -10,6 +10,13 @@
     >
       <i class="header__search-icon iconoir-search"></i>
       {{ headerSearchTerm }}
+      <a
+        v-show="headerSearchTerm.length > 0"
+        class="header__filter-clear"
+        @click.stop="clear"
+      >
+        <i class="iconoir-cancel"></i>
+      </a>
     </a>
     <ViewSearchContext
       ref="context"
@@ -94,6 +101,14 @@ export default {
       event.preventDefault()
       this.$bus.$emit('close-modals')
       this.$refs.contextLink.click()
+    },
+    clear() {
+      const ref = this.$refs.context
+      const context = ref.getRootContext()
+      if (this.$refs.context.getRootContext().open) {
+        context.hide()
+      }
+      ref.setActiveSearchTerm('')
     },
   },
 }

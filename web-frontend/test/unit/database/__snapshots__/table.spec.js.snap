@@ -68,7 +68,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           </div>
         </li>
         <li class="header__filter-item header__filter-item--full-width">
-          <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> </a></div>
+          <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> <a class="header__filter-clear" style="display: none;"><i class="iconoir-cancel"></i></a></a></div>
         </li>
       </ul>
     </header>
@@ -289,7 +289,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           </div>
         </li>
         <li class="header__filter-item header__filter-item--full-width">
-          <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> </a></div>
+          <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> <a class="header__filter-clear" style="display: none;"><i class="iconoir-cancel"></i></a></a></div>
         </li>
       </ul>
     </header>

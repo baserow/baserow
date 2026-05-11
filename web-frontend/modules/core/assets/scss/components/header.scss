@@ -251,6 +251,16 @@
   }
 }
 
+.header__filter-clear {
+  color: $palette-neutral-900;
+  font-size: 14px;
+
+  &:hover {
+    text-decoration: none;
+    color: $palette-neutral-1200;
+  }
+}
+
 .header__search-icon {
   color: $color-neutral-900;
   font-size: 16px;
