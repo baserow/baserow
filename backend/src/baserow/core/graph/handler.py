@@ -482,8 +482,8 @@ class BaseGraphHandler(ABC):
         return result
 
     @classmethod
-    def generate_parent_map_cache_key(cls, graph_model_id: int) -> str:
-        return f"parent_map_{graph_model_id}"
+    def generate_parent_map_cache_key(cls, graph_model: GraphModelInstance) -> str:
+        return f"parent_map_{graph_model._meta.label}_{graph_model.id}"
 
     @staticmethod
     def build_parent_map(graph: SerializedGraph | None) -> Dict[int, int]:

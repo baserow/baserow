@@ -35,7 +35,7 @@ class GraphModelMixin(models.Model):
 
         handler = self.get_graph_handler()
         return local_cache.get(
-            f"cached_graph_{self.id}",
+            f"cached_graph_{self._meta.label}_{self.id}",
             lambda: handler(self),
         )
 
@@ -235,7 +235,7 @@ class GraphPointMixin:
 
         parent_model = self.get_parent()
         return local_cache.get(
-            BaseGraphHandler.generate_parent_map_cache_key(parent_model.id),
+            BaseGraphHandler.generate_parent_map_cache_key(parent_model),
             lambda: BaseGraphHandler.build_parent_map(self._get_graph().graph),
         )
 
