@@ -102,6 +102,7 @@
 </template>
 
 <script>
+import { markRaw } from 'vue'
 import CircleProgressBar from '@baserow/modules/core/components/CircleProgressBar.vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import Toasts from '@baserow/modules/core/components/toasts/Toasts'
@@ -206,7 +207,7 @@ export default {
 
       const completeCallback = (message = null, component = null) => {
         this.message = message
-        this.component = component
+        this.component = component ? markRaw(component) : null
       }
 
       // Now that all the steps have been completed, we're looping over all of them and
