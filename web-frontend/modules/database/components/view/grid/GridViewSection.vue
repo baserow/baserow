@@ -151,7 +151,11 @@ import GridViewRows from '@baserow/modules/database/components/view/grid/GridVie
 import GridViewRowAdd from '@baserow/modules/database/components/view/grid/GridViewRowAdd'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewFieldFooter from '@baserow/modules/database/components/view/grid/GridViewFieldFooter'
-import { buildInterleavedList } from '@baserow/modules/database/utils/groupByInterleave'
+import {
+  buildHeightIndex,
+  buildInterleavedFromHeightIndex,
+  buildInterleavedList,
+} from '@baserow/modules/database/utils/groupByInterleave'
 
 export default {
   name: 'GridViewSection',
@@ -283,13 +287,31 @@ export default {
 
       return width
     },
-    interleavedItems() {
-      const fields = this.activeGroupBys
+    groupByFields() {
+      return this.activeGroupBys
         .map((groupBy) =>
           this.allFieldsInTable.find((field) => field.id === groupBy.field)
         )
         .filter(Boolean)
-
+    },
+    interleavedItems() {
+      // When the per-view height index is built, derive the buffer's
+      // interleaved list from it directly — O(items + buffer_rows). Legacy
+      // metadata-based pathway is O(N^2) over collapsed groups and becomes a
+      // CPU hotspot for high-cardinality leaf groups.
+      if (
+        this.heightIndex &&
+        this.heightIndex.items &&
+        this.heightIndex.items.length > 0
+      ) {
+        return buildInterleavedFromHeightIndex({
+          heightIndex: this.heightIndex,
+          rows: this.allRows,
+          bufferStartIndex: this.bufferStartIndex,
+          bufferLimit: this.bufferLimit,
+          fields: this.groupByFields,
+        })
+      }
       return buildInterleavedList({
         rows: this.allRows,
         activeGroupBys: this.activeGroupBys,
@@ -297,9 +319,51 @@ export default {
         collapsedGroups: this.collapsedGroupsForView,
         collapsedGroupsMode: this.collapsedGroupsModeForView,
         registry: this.$registry,
-        fields,
+        fields: this.groupByFields,
         bufferStartIndex: this.bufferStartIndex,
       })
+    },
+    /**
+     * Builds the pixel-prefix-sum index used by the scrollbar math from the
+     * current view's group tree. Returns null when no tree is loaded yet, when
+     * the backend reported truncation, or when the view has no group-by — in
+     * those cases the legacy uniform-height path takes over.
+     */
+    heightIndex() {
+      const tree = this.groupTreeForView
+      if (
+        !tree ||
+        tree.truncated ||
+        !tree.nodes ||
+        tree.nodes.length === 0 ||
+        this.groupByFields.length === 0
+      ) {
+        return null
+      }
+      // ``fullyLoaded`` means the BE returned every depth in one shot
+      // (expand-all). In that case we pass ``loadedSubtrees=null`` so the
+      // height index treats every subtree as loaded — no skeleton
+      // placeholders, no reserved space.
+      const loaded = tree.fullyLoaded
+        ? null
+        : new Set(Object.keys(tree.loadedSubtrees || {}))
+      const loading = tree.fullyLoaded
+        ? null
+        : new Set(Object.keys(tree.loadingSubtrees || {}))
+      return buildHeightIndex({
+        treeNodes: tree.nodes,
+        collapsedGroups: this.collapsedGroupsForView,
+        collapsedGroupsMode: this.collapsedGroupsModeForView,
+        fields: this.groupByFields,
+        registry: this.$registry,
+        loadedSubtrees: loaded,
+        loadingSubtrees: loading,
+      })
+    },
+    groupTreeForView() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getGroupTreeForView'
+      ](this.view.id)
     },
     collapsedGroupsForView() {
       return this.$store.getters[
@@ -332,6 +396,11 @@ export default {
         this.storePrefix + 'view/grid/getBufferStartIndex'
       ]
     },
+    bufferLimit() {
+      return this.$store.getters[
+        this.storePrefix + 'view/grid/getBufferLimit'
+      ]
+    },
   },
   watch: {
     fieldOptions: {
@@ -344,6 +413,15 @@ export default {
       deep: true,
       handler() {
         this.updateVisibleFieldsInRow()
+      },
+    },
+    heightIndex: {
+      immediate: true,
+      handler(value) {
+        this.$store.commit(
+          this.storePrefix + 'view/grid/SET_HEIGHT_INDEX',
+          value
+        )
       },
     },
   },
@@ -416,6 +494,7 @@ export default {
     if (this.horizontalScrollEvent !== null) {
       sectionElement.removeEventListener('scroll', this.horizontalScrollEvent)
     }
+    this.$store.commit(this.storePrefix + 'view/grid/SET_HEIGHT_INDEX', null)
   },
   methods: {
     handleFieldDragging(event) {

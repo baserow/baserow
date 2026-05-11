@@ -55,6 +55,354 @@ export function findDepth0GroupPosition({
 export const GROUP_HEADER_HEIGHT = HEADER_HEIGHT
 export const GROUP_ROW_HEIGHT = ROW_HEIGHT
 
+/**
+ * Stable string key for a path object so set-membership checks against
+ * loadedSubtrees / loadingSubtrees are O(1). The order of fields in the
+ * returned key is the group-by order — i.e. the natural order the user sees.
+ */
+export function pathKey(path, fields) {
+  if (!path || !fields) return ''
+  const parts = []
+  for (const field of fields) {
+    const k = `field_${field.id}`
+    if (!Object.prototype.hasOwnProperty.call(path, k)) break
+    parts.push(JSON.stringify(path[k]))
+  }
+  return parts.join('|')
+}
+
+/**
+ * Builds a flat virtual layout for the entire grid given the (possibly
+ * partial) group-tree returned by the backend `group-tree` endpoint and the
+ * user's collapse state.
+ *
+ * The returned `items` array describes every header, block of rows, and
+ * subtree-skeleton placeholder in display order. `prefixSums[i]` is the
+ * y-coordinate of `items[i]`'s top (and `prefixSums[items.length]` is
+ * `totalHeight`).
+ *
+ * Tree input shape: ordered list of `{path, depth, row_count, children_count}`
+ * where children of a node always immediately follow that node when their
+ * subtree has been fetched. For non-leaf nodes whose subtree hasn't been
+ * fetched yet (lazy mode), the heightIndex emits a `subtree-skeleton`
+ * placeholder sized via ``children_count × HEADER_HEIGHT`` so the layout
+ * doesn't pop when the response lands.
+ *
+ * @param loadedSubtrees Optional Set<pathKey>. When provided, expanded
+ *   non-leaf paths NOT in this set get a skeleton placeholder rather than
+ *   walking their (missing) descendants. ``null``/omitted = legacy mode
+ *   (treats every expanded subtree as fully loaded).
+ * @param loadingSubtrees Optional Set<pathKey>. When set, marks the
+ *   skeleton item with ``loading: true`` so the renderer can show a spinner.
+ */
+export function buildHeightIndex({
+  treeNodes,
+  collapsedGroups,
+  collapsedGroupsMode = COLLAPSED_GROUPS_MODE_EXPAND,
+  fields,
+  registry,
+  loadedSubtrees = null,
+  loadingSubtrees = null,
+}) {
+  const items = []
+  const prefixSums = [0]
+  let cumulativeHeight = 0
+  let visibleRowCount = 0
+  // Depth at which the current collapse roots (null = no active collapse).
+  // Once set, descendants are skipped until we encounter a sibling/shallower
+  // node, which resets it.
+  let openCollapseDepth = null
+
+  if (!treeNodes || treeNodes.length === 0 || !fields || fields.length === 0) {
+    return Object.freeze({
+      items: Object.freeze(items),
+      prefixSums: Float64Array.from(prefixSums),
+      totalHeight: 0,
+      totalRowCount: 0,
+    })
+  }
+
+  const maxDepth = fields.length - 1
+
+  const isSubtreeLoaded = (node) => {
+    if (loadedSubtrees === null) return true
+    const key = pathKey(node.path, fields.slice(0, node.depth + 1))
+    return loadedSubtrees.has(key)
+  }
+
+  const isSubtreeLoading = (node) => {
+    if (loadingSubtrees === null) return false
+    const key = pathKey(node.path, fields.slice(0, node.depth + 1))
+    return loadingSubtrees.has(key)
+  }
+
+  for (const node of treeNodes) {
+    if (openCollapseDepth !== null && node.depth <= openCollapseDepth) {
+      openCollapseDepth = null
+    }
+
+    if (openCollapseDepth !== null) {
+      continue
+    }
+
+    const fieldsAtDepth = fields.slice(0, node.depth + 1)
+    const collapsed = isCollapsed(
+      collapsedGroups,
+      node.path,
+      fieldsAtDepth,
+      registry,
+      collapsedGroupsMode,
+      true
+    )
+
+    const rowCount = node.row_count ?? node.count ?? 0
+    const childrenCount = node.children_count ?? null
+
+    items.push({
+      type: 'group-header',
+      depth: node.depth,
+      path: node.path,
+      rowCount,
+      childrenCount,
+      collapsed,
+      startRowIndex: visibleRowCount,
+      y: cumulativeHeight,
+    })
+    cumulativeHeight += HEADER_HEIGHT
+    prefixSums.push(cumulativeHeight)
+
+    if (collapsed) {
+      openCollapseDepth = node.depth
+      continue
+    }
+
+    if (node.depth === maxDepth) {
+      items.push({
+        type: 'rows',
+        depth: node.depth,
+        path: node.path,
+        count: rowCount,
+        startRowIndex: visibleRowCount,
+        y: cumulativeHeight,
+      })
+      cumulativeHeight += rowCount * ROW_HEIGHT
+      visibleRowCount += rowCount
+      prefixSums.push(cumulativeHeight)
+    } else if (!isSubtreeLoaded(node)) {
+      // Non-leaf, expanded, subtree not yet fetched. Reserve space for
+      // ``children_count`` collapsed sub-headers so the layout doesn't pop
+      // when the response lands; mark the placeholder loading=true so the
+      // renderer can show a spinner.
+      const placeholderHeight = (childrenCount || 0) * HEADER_HEIGHT
+      items.push({
+        type: 'subtree-skeleton',
+        depth: node.depth,
+        path: node.path,
+        childrenCount,
+        loading: isSubtreeLoading(node),
+        startRowIndex: visibleRowCount,
+        y: cumulativeHeight,
+        height: placeholderHeight,
+      })
+      cumulativeHeight += placeholderHeight
+      prefixSums.push(cumulativeHeight)
+      // Skip the natural-iteration walk through descendants — we won't
+      // encounter any in `treeNodes` anyway because the subtree isn't
+      // loaded; this just makes the intent explicit.
+      openCollapseDepth = node.depth
+    }
+  }
+
+  // Annotate every header with the visible-row range it covers. The render
+  // path uses this to skip emitting deep-level headers whose group falls
+  // entirely outside the buffer window — without it a view with thousands of
+  // leaf groups would push thousands of header nodes into the DOM on every
+  // toggle.
+  const headerStack = []
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    if (item.type !== 'group-header') continue
+    while (
+      headerStack.length > 0 &&
+      items[headerStack[headerStack.length - 1]].depth >= item.depth
+    ) {
+      const closedIdx = headerStack.pop()
+      items[closedIdx].endRowIndex = item.startRowIndex
+    }
+    item.endRowIndex = visibleRowCount
+    headerStack.push(i)
+  }
+  while (headerStack.length > 0) {
+    const idx = headerStack.pop()
+    items[idx].endRowIndex = visibleRowCount
+  }
+
+  // Freeze so Vuex doesn't recursively wrap each item / path object in a
+  // reactive proxy when the index is committed to state. Reactive proxying
+  // for thousands of nodes is a real CPU cost and we only ever read this
+  // structure — never mutate it in place.
+  return Object.freeze({
+    items: Object.freeze(items),
+    prefixSums: Float64Array.from(prefixSums),
+    totalHeight: cumulativeHeight,
+    totalRowCount: visibleRowCount,
+  })
+}
+
+/**
+ * Maps a visible-row index back to its y-coordinate in the height index.
+ * Used to anchor the rendered buffer at the right pixel offset when the
+ * grid view contains a mix of headers and rows. Returns 0 for an empty index.
+ *
+ * `buildInterleavedList` prepends a depth-0 header to the buffer whenever the
+ * buffer starts exactly at the first row of a top-level group, so for those
+ * boundary cases this returns the *header*'s y rather than the row's. When
+ * the buffer starts mid-group, no header is prepended and we return the y of
+ * the row itself.
+ */
+export function rowOffsetToY(heightIndex, rowOffset) {
+  if (!heightIndex || !heightIndex.items || heightIndex.items.length === 0) {
+    return 0
+  }
+  const target = Math.max(0, rowOffset)
+
+  for (const item of heightIndex.items) {
+    if (
+      item.type === 'group-header' &&
+      item.depth === 0 &&
+      item.startRowIndex === target
+    ) {
+      return item.y
+    }
+  }
+
+  for (const item of heightIndex.items) {
+    if (item.type !== 'rows') continue
+    if (target < item.startRowIndex) {
+      return item.y
+    }
+    if (target < item.startRowIndex + item.count) {
+      return item.y + (target - item.startRowIndex) * ROW_HEIGHT
+    }
+  }
+  return heightIndex.totalHeight
+}
+
+/**
+ * Fast path for the renderable interleaved list when a height index is
+ * available. Walks the prebuilt `items` array — already in display order,
+ * already collapse-aware — and emits headers + rows in the buffer's window.
+ *
+ * O(items + buffer_rows). The legacy `buildInterleavedList` is O(metadata *
+ * items * metadata) due to nested findIndex/some calls; for views with many
+ * leaf groups this becomes a CPU bottleneck on every collapse toggle, which
+ * is what this function avoids.
+ */
+export function buildInterleavedFromHeightIndex({
+  heightIndex,
+  rows,
+  bufferStartIndex,
+  fields,
+}) {
+  if (!heightIndex || !heightIndex.items || heightIndex.items.length === 0) {
+    return rows.map((row) => ({ type: 'row', row }))
+  }
+  const items = heightIndex.items
+  const out = []
+  const bufferEndIndex = bufferStartIndex + rows.length
+  const headerEndIndex = bufferEndIndex
+
+  for (const item of items) {
+    if (item.type === 'group-header') {
+      // Headers are emitted only when the group's row range overlaps the
+      // buffer. Without this gate, depth-0 headers far below the buffer
+      // (e.g. ``Design`` after Accounting's just-expanded 1383 rows) would
+      // render in DOM-flow right after the buffer's last row, while the
+      // heightIndex says they live ~22 000 px further down — producing the
+      // "all the headers stack at the bottom and only fix when rows arrive"
+      // glitch.
+      //
+      // Inclusive overlap test (`start > end` / `end < start` skip): a
+      // header whose group has zero visible rows (e.g. a collapsed sibling
+      // under a just-expanded parent) has start == end, and we want it on
+      // screen. Strict-greater would silently drop those, leaving the user
+      // with only the parent header and a blank viewport.
+      const itemStart = item.startRowIndex
+      const itemEnd = item.endRowIndex ?? itemStart
+      if (itemStart > headerEndIndex || itemEnd < bufferStartIndex) {
+        continue
+      }
+      out.push({
+        type: 'header',
+        depth: item.depth,
+        field: fields[item.depth],
+        groupValues: item.path,
+        count: item.rowCount,
+        childrenCount: item.childrenCount,
+        collapsed: item.collapsed,
+      })
+    } else if (item.type === 'rows') {
+      const visibleStart = Math.max(item.startRowIndex, bufferStartIndex)
+      const visibleEnd = Math.min(
+        item.startRowIndex + item.count,
+        bufferEndIndex
+      )
+      for (let i = visibleStart; i < visibleEnd; i++) {
+        const row = rows[i - bufferStartIndex]
+        if (row) out.push({ type: 'row', row })
+      }
+    } else if (item.type === 'subtree-skeleton') {
+      out.push({
+        type: 'subtree-skeleton',
+        depth: item.depth,
+        path: item.path,
+        childrenCount: item.childrenCount,
+        loading: item.loading,
+        height: item.height,
+      })
+    }
+  }
+
+  return out
+}
+
+/**
+ * Binary-searches the prefix-sum array to map a viewport `scrollTop` pixel
+ * value to the item at that position, plus the visible-row offset the row
+ * fetcher should request. Returns `null` when the index is empty.
+ */
+export function resolveScrollTop(heightIndex, scrollTop) {
+  const { items, prefixSums, totalHeight } = heightIndex
+  if (!items || items.length === 0) return null
+
+  const clamped = Math.max(0, Math.min(scrollTop, totalHeight))
+  let lo = 0
+  let hi = items.length - 1
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >>> 1
+    if (prefixSums[mid] <= clamped) {
+      lo = mid
+    } else {
+      hi = mid - 1
+    }
+  }
+
+  const itemIndex = lo
+  const item = items[itemIndex]
+  const y = prefixSums[itemIndex]
+  const offsetWithinItem = clamped - y
+
+  let rowOffset = item.startRowIndex
+  if (item.type === 'rows') {
+    rowOffset += Math.min(
+      Math.max(Math.floor(offsetWithinItem / ROW_HEIGHT), 0),
+      Math.max(item.count - 1, 0)
+    )
+  }
+
+  return { itemIndex, item, y, offsetWithinItem, rowOffset }
+}
+
 function getGroupVirtualHeight({
   groupValues,
   count,

@@ -3,6 +3,7 @@ from django.urls import re_path
 from .views import (
     GridViewFieldAggregationsView,
     GridViewFieldAggregationView,
+    GridViewGroupTreeView,
     GridViewView,
     PublicGridViewFieldAggregationsView,
     PublicGridViewRowsView,
@@ -20,6 +21,11 @@ urlpatterns = [
         r"(?P<view_id>[0-9]+)/aggregations/$",
         GridViewFieldAggregationsView.as_view(),
         name="field-aggregations",
+    ),
+    re_path(
+        r"(?P<view_id>[0-9]+)/group-tree/$",
+        GridViewGroupTreeView.as_view(),
+        name="group-tree",
     ),
     re_path(
         r"(?P<slug>[-\w]+)/public/aggregations/$",

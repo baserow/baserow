@@ -625,7 +625,8 @@ export class GridViewType extends ViewType {
     fields,
     storePrefix = '',
     includeFieldOptions = false,
-    sourceEvent = null
+    sourceEvent = null,
+    options = {}
   ) {
     const isPublic = store.getters[storePrefix + 'view/public/getIsPublic']
     const adhocFiltering = isAdhocFiltering(
@@ -646,6 +647,10 @@ export class GridViewType extends ViewType {
       includeFieldOptions,
       adhocFiltering,
       adhocSorting,
+      refreshGroupTree:
+        options.refreshGroupTree === undefined
+          ? true
+          : options.refreshGroupTree,
     })
   }
 

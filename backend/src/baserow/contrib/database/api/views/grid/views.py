@@ -1,5 +1,7 @@
 from decimal import Decimal
 
+from django.conf import settings
+
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -55,8 +57,6 @@ from baserow.contrib.database.api.views.errors import (
 from baserow.contrib.database.api.views.grid.collapsed_groups import (
     COLLAPSED_GROUPS_MODE_COLLAPSE,
     build_collapsed_groups_exclusion_q,
-    entry_key,
-    enumerate_all_group_combinations,
     parse_collapsed_groups,
     parse_collapsed_groups_mode,
 )
@@ -70,7 +70,7 @@ from baserow.contrib.database.api.views.utils import (
     get_public_view_filtered_queryset,
     get_view_filtered_queryset,
     paginate_and_serialize_queryset,
-    serialize_group_by_fields_metadata,
+    serialize_group_by_tree,
     serialize_rows_metadata,
     serialize_view_field_options,
 )
@@ -82,6 +82,7 @@ from baserow.contrib.database.fields.exceptions import (
     OrderByFieldNotPossible,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.table.operations import ListRowsDatabaseTableOperationType
 from baserow.contrib.database.views.exceptions import (
@@ -109,11 +110,67 @@ from .schemas import (
     field_aggregation_response_schema,
     field_aggregations_response_schema,
 )
-from .serializers import GridViewFilterSerializer
+from .serializers import GridViewFilterSerializer, GridViewGroupTreeSerializer
 
 
 def get_available_aggregation_type():
     return [f.type for f in view_aggregation_type_registry.get_all()]
+
+
+def _parse_max_depth_param(raw):
+    """Parse the ``max_depth`` query param. Invalid input falls back to None
+    (full-tree behaviour) so older clients keep working."""
+    if raw is None or raw == "":
+        return None
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value >= 0 else None
+
+
+def _deserialize_expanded_paths(raw_paths, group_by_fields):
+    """Run each path's raw values through the field type's
+    ``to_internal_value`` (same shape used for ``collapsed_groups``) so the
+    handler's queryset filters compare apples-to-apples with stored DB
+    values. Paths that can't be deserialised are silently skipped — the
+    frontend re-sends previously-expanded paths after filter changes and
+    those may no longer match the schema."""
+
+    if not raw_paths:
+        return []
+    serializer_fields = {
+        f.db_column: field_type_registry.get_by_model(
+            f.specific_class
+        ).get_group_by_serializer_field(f)
+        for f in group_by_fields
+    }
+    out = []
+    for raw in raw_paths:
+        if not isinstance(raw, dict):
+            continue
+        deserialised = {}
+        valid = True
+        for f in group_by_fields:
+            db_column = f.db_column
+            if db_column not in raw:
+                break
+            raw_value = raw[db_column]
+            if raw_value is None:
+                deserialised[db_column] = None
+                continue
+            serializer_field = serializer_fields.get(db_column)
+            if serializer_field is None:
+                deserialised[db_column] = raw_value
+                continue
+            try:
+                deserialised[db_column] = serializer_field.to_internal_value(raw_value)
+            except Exception:
+                valid = False
+                break
+        if valid and deserialised:
+            out.append(deserialised)
+    return out
 
 
 class GridViewView(APIView):
@@ -272,7 +329,6 @@ class GridViewView(APIView):
             hidden_field_ids=hidden_field_ids,
         )
         model = queryset.model
-        group_by_metadata_queryset = queryset
         group_by_fields = []
         view_group_bys = []
         collapsed_group_values = []
@@ -297,20 +353,15 @@ class GridViewView(APIView):
                     )
                 else:
                     queryset = queryset.none()
-                # `collapsed_group_values` feeds the metadata seed. We want
-                # headers for every group EXCEPT the explicitly-expanded ones,
-                # which the row loop will already cover.
-                collapsed_group_values = enumerate_all_group_combinations(
-                    group_by_fields, group_by_metadata_queryset
-                )
-                expanded_keys = {
-                    entry_key(entry, group_by_fields) for entry in user_collapsed_groups
-                }
-                collapsed_group_values = [
-                    entry
-                    for entry in collapsed_group_values
-                    if entry_key(entry, group_by_fields) not in expanded_keys
-                ]
+                # We deliberately don't enumerate every group combination here
+                # to seed metadata: the frontend always fetches the full tree
+                # from /group-tree/ for header rendering. Seeding via
+                # `enumerate_all_group_combinations` builds an OR(field=value)
+                # query with one clause per distinct group, which the planner
+                # can't reduce — at 20k rows / thousands of groups it pegs the
+                # database at 100% CPU for minutes. Leave the metadata sparse;
+                # the heightIndex carries the headers.
+                collapsed_group_values = []
             else:
                 collapsed_group_values = user_collapsed_groups
                 if collapsed_group_values:
@@ -327,15 +378,10 @@ class GridViewView(APIView):
             queryset, request, field_ids, exclude_field_ids=hidden_field_ids
         )
 
-        if group_by_fields:
-            serialized_group_by_metadata = serialize_group_by_fields_metadata(
-                group_by_metadata_queryset,
-                group_by_fields,
-                page,
-                collapsed_group_values=collapsed_group_values,
-                view_group_bys=view_group_bys,
-            )
-            response.data.update(group_by_metadata=serialized_group_by_metadata)
+        # Header rendering is driven entirely by the /group-tree/ endpoint on
+        # the frontend, so the per-page metadata seed (which previously cost a
+        # GROUP BY query — or worse, a giant OR'd seed in collapse mode) is no
+        # longer needed in the row response.
 
         if field_options:
             response.data.update(
@@ -428,6 +474,147 @@ class GridViewView(APIView):
         )
         serializer = serializer_class(results, many=True)
         return Response(serializer.data)
+
+
+class GridViewGroupTreeView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+
+        return super().get_permissions()
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="view_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The id of the grid view to fetch the group tree for.",
+            ),
+            OpenApiParameter(
+                name="max_depth",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                required=False,
+                description=(
+                    "Optional. Limits the global outline to depths 0..max_depth-1. "
+                    "``max_depth=1`` returns only the depth-0 nodes (typical "
+                    "first-paint call). When omitted and ``expanded`` is empty, "
+                    "the entire tree is returned (legacy behaviour, used by "
+                    "Expand all)."
+                ),
+            ),
+            OpenApiParameter(
+                name="expanded",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                required=False,
+                description=(
+                    "Optional JSON array of path objects. For each, the entire "
+                    "descendant subtree is included regardless of ``max_depth``. "
+                    "Path encoding matches ``collapsed_groups``: e.g. "
+                    '``[{"field_5": 4136}, {"field_5": 4136, "field_8": '
+                    "true}]``. Paths that no longer exist (after a filter "
+                    "change) are silently ignored."
+                ),
+            ),
+            *ADHOC_FILTERS_API_PARAMS,
+            SEARCH_VALUE_API_PARAM,
+            SEARCH_MODE_API_PARAM,
+        ],
+        tags=["Database table grid view"],
+        operation_id="get_database_table_grid_view_group_tree",
+        description=(
+            "Returns the group-by tree for the grid view (or a slice of it), "
+            "ordered for display. The frontend uses this to compute "
+            "pixel-accurate scrollbar math and to incrementally fetch only the "
+            "subtrees the user has actually expanded.\n\n"
+            "Each node has a ``path`` (mapping group-by field db_columns to "
+            "deserialized values), a ``depth``, a ``row_count`` (leaf rows "
+            "under this subtree), and — for non-leaf nodes — a "
+            "``children_count`` giving the number of immediate sub-groups. "
+            "The frontend uses ``children_count`` to reserve layout space "
+            "while a subtree fetch is in flight.\n\n"
+            "When the response would exceed the configured node cap "
+            "(``BASEROW_VIEW_GROUP_TREE_MAX_NODES``) the response sets "
+            "``truncated: true`` and returns no nodes."
+        ),
+        responses={
+            200: GridViewGroupTreeSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_FILTER_FIELD_NOT_FOUND",
+                    "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
+                    "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
+                    "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+                ]
+            ),
+            404: get_error_schema(["ERROR_GRID_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ViewDoesNotExist: ERROR_GRID_DOES_NOT_EXIST,
+            FilterFieldNotFound: ERROR_FILTER_FIELD_NOT_FOUND,
+            ViewFilterTypeDoesNotExist: ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
+            ViewFilterTypeNotAllowedForField: ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
+        }
+    )
+    @validate_query_parameters(SearchQueryParamSerializer, return_validated=True)
+    def get(self, request, view_id, query_params):
+        adhoc_filters = AdHocFilters.from_request(request)
+        view_handler = ViewHandler()
+        view = view_handler.get_view_as_user(
+            request.user,
+            view_id,
+            GridView,
+            base_queryset=GridView.objects.prefetch_related(
+                "viewsort_set", "viewgroupby_set"
+            ),
+        )
+        view_type = view_type_registry.get_by_model(view)
+
+        check_permissions_with_view_fallback(
+            ListRowsDatabaseTableOperationType.type,
+            ListViewRowsOperationType.type,
+            request.user,
+            view.table,
+            view,
+        )
+
+        view_group_bys = list(view.viewgroupby_set.all())
+        if not (view_type.can_group_by and view_group_bys):
+            return Response({"nodes": [], "truncated": False, "total_nodes": 0})
+
+        queryset = get_view_filtered_queryset(
+            request.user,
+            view,
+            adhoc_filters,
+            order_by=None,
+            query_params=query_params,
+        )
+        model = queryset.model
+        group_by_fields = [
+            model._field_objects[group_by.field_id]["field"]
+            for group_by in view_group_bys
+        ]
+
+        max_depth = _parse_max_depth_param(request.GET.get("max_depth"))
+        expanded_paths = parse_collapsed_groups(request.GET.get("expanded"))
+
+        tree = view_handler.get_group_by_tree(
+            group_by_fields,
+            queryset,
+            view_group_bys,
+            settings.VIEW_GROUP_TREE_MAX_NODES,
+            max_depth=max_depth,
+            expanded_paths=_deserialize_expanded_paths(expanded_paths, group_by_fields),
+        )
+        return Response(serialize_group_by_tree(tree, group_by_fields))
 
 
 class GridViewFieldAggregationsView(APIView):
@@ -889,7 +1076,6 @@ class PublicGridViewRowsView(APIView):
             publicly_visible_field_options,
         ) = get_public_view_filtered_queryset(view, request, query_params)
         model = queryset.model
-        group_by_metadata_queryset = queryset
         user_collapsed_groups = parse_collapsed_groups(
             request.GET.get("collapsed_groups")
         )
@@ -930,17 +1116,11 @@ class PublicGridViewRowsView(APIView):
                     )
                 else:
                     queryset = queryset.none()
-                collapsed_group_values = enumerate_all_group_combinations(
-                    group_by_fields, group_by_metadata_queryset
-                )
-                expanded_keys = {
-                    entry_key(entry, group_by_fields) for entry in user_collapsed_groups
-                }
-                collapsed_group_values = [
-                    entry
-                    for entry in collapsed_group_values
-                    if entry_key(entry, group_by_fields) not in expanded_keys
-                ]
+                # Skip metadata seeding for the same reason as the
+                # authenticated view above: enumerating every group builds
+                # an unbounded OR query that pegs Postgres at scale. The
+                # frontend uses /group-tree/ for headers in collapse mode.
+                collapsed_group_values = []
             elif user_collapsed_groups:
                 collapsed_group_values = user_collapsed_groups
                 queryset = queryset.exclude(
@@ -963,15 +1143,7 @@ class PublicGridViewRowsView(APIView):
             )
             response.data.update(**public_view_field_options)
 
-        if group_by_fields:
-            serialized_group_by_metadata = serialize_group_by_fields_metadata(
-                group_by_metadata_queryset,
-                group_by_fields,
-                page,
-                collapsed_group_values=collapsed_group_values,
-                view_group_bys=view_group_bys,
-            )
-
-            response.data.update(group_by_metadata=serialized_group_by_metadata)
+        # Same reasoning as the authenticated view: header rendering is
+        # driven by /group-tree/, so we omit the per-page metadata seed.
 
         return response

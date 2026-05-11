@@ -26,6 +26,19 @@
         :width="sectionWidth"
         @toggle-collapse="$emit('toggle-collapse', item.groupValues)"
       />
+      <div
+        v-else-if="item.type === 'subtree-skeleton'"
+        class="grid-view__subtree-skeleton"
+        :style="{
+          height: (item.height || 48) + 'px',
+          width: sectionWidth + 'px',
+        }"
+      >
+        <div
+          v-if="item.loading"
+          class="grid-view__subtree-skeleton-spinner loading-spinner"
+        ></div>
+      </div>
       <GridViewRow
         v-else
         :group-end="isGroupEnd(index)"

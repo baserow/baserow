@@ -9,7 +9,10 @@
   >
     <a
       class="grid-view__group-header-toggle"
-      :style="{ width: toggleWidth + 'px' }"
+      :style="{
+        width: toggleWidth + 'px',
+        marginLeft: depth * 16 + 'px',
+      }"
       @click.prevent="$emit('toggle-collapse')"
     >
       <i

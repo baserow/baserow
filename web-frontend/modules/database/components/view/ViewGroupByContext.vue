@@ -312,13 +312,28 @@ export default {
         viewId: this.view.id,
         fields: this.fields,
       })
-      this.$emit('changed')
+      // Collapse / expand all only changes which rows are visible, not the
+      // tree's structure or counts. Skip the GROUP BY tree query the refresh
+      // would otherwise re-issue.
+      this.$emit('changed', { refreshGroupTree: false })
     },
     async expandAll() {
-      this.$store.dispatch(this.storePrefix + 'view/grid/expandAllGroups', {
-        viewId: this.view.id,
-      })
-      this.$emit('changed')
+      // Expand-all in collapse-default views requires the full tree (lazy
+      // outline isn't enough). The action fetches it; the buffer refresh
+      // comes from the @changed handler. We still skip the redundant tree
+      // refetch in the refresh chain via refreshGroupTree=false.
+      await this.$store.dispatch(
+        this.storePrefix + 'view/grid/expandAllGroups',
+        {
+          viewId: this.view.id,
+          view: this.view,
+          adhocFiltering:
+            this.$store.getters[
+              this.storePrefix + 'view/grid/getAdhocFiltering'
+            ],
+        }
+      )
+      this.$emit('changed', { refreshGroupTree: false })
     },
   },
 }

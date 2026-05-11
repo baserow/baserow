@@ -175,6 +175,46 @@ export default (client) => {
 
       return client.post(`/database/views/grid/${gridId}/`, data)
     },
+    fetchGroupTree({
+      gridId,
+      filters = {},
+      search = '',
+      searchMode = '',
+      maxDepth = null,
+      expandedPaths = null,
+      signal = null,
+    }) {
+      const params = new URLSearchParams()
+
+      Object.keys(filters).forEach((key) => {
+        filters[key].forEach((value) => {
+          params.append(key, value)
+        })
+      })
+
+      if (search) {
+        params.append('search', search)
+        if (searchMode) {
+          params.append('search_mode', searchMode)
+        }
+      }
+
+      if (maxDepth !== null && maxDepth !== undefined) {
+        params.append('max_depth', String(maxDepth))
+      }
+
+      if (Array.isArray(expandedPaths) && expandedPaths.length > 0) {
+        params.append('expanded', JSON.stringify(expandedPaths))
+      }
+
+      const config = { params }
+
+      if (signal !== null) {
+        config.signal = signal
+      }
+
+      return client.get(`/database/views/grid/${gridId}/group-tree/`, config)
+    },
     fetchFieldAggregations({
       gridId,
       filters = {},

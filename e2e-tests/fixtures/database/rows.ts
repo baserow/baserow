@@ -26,9 +26,30 @@ export async function createRows(
   user: User,
   table: Table,
   rowValues: any,
-): Promise<void> {
-  await getClient(user).post(
+): Promise<{ id: number; [k: string]: any }[]> {
+  const response = await getClient(user).post(
     `database/rows/table/${table.id}/batch/?user_field_names=true`,
     { items: rowValues },
   );
+  return response.data.items;
+}
+
+export async function deleteRows(
+  user: User,
+  table: Table,
+  rowIds: number[],
+): Promise<void> {
+  await getClient(user).post(`database/rows/table/${table.id}/batch-delete/`, {
+    items: rowIds,
+  });
+}
+
+export async function listRows(
+  user: User,
+  table: Table,
+): Promise<{ id: number; [k: string]: any }[]> {
+  const response = await getClient(user).get(
+    `database/rows/table/${table.id}/?user_field_names=true&size=200`,
+  );
+  return response.data.results;
 }

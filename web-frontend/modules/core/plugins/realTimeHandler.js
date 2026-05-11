@@ -453,6 +453,15 @@ export default defineNuxtPlugin({
       app: nuxtApp,
     }
 
-    nuxtApp.provide('realtime', new RealTimeHandler(context))
+    const handler = new RealTimeHandler(context)
+    nuxtApp.provide('realtime', handler)
+    // Expose for e2e tests so they can wait for a specific page
+    // subscription before triggering realtime mutations. The frontend
+    // app itself reads the handler via ``$realtime`` / ``useNuxtApp``;
+    // tests need a window-level handle because Nuxt 3 doesn't expose
+    // ``window.$nuxt``.
+    if (typeof window !== 'undefined' && process.env.NODE_ENV !== 'production') {
+      window.__baserowRealtime = handler
+    }
   },
 })

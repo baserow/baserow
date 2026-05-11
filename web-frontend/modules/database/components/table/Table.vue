@@ -157,7 +157,7 @@
             :read-only="adhocGrouping"
             :disable-group-by="disableGroupBy"
             :store-prefix="storePrefix"
-            @changed="refresh()"
+            @changed="refresh($event)"
           ></ViewGroupBy>
         </li>
         <li
@@ -615,6 +615,14 @@ export default {
 
       const includeFieldOptions =
         typeof event === 'object' ? event.includeFieldOptions : false
+      // Callers that only changed collapse state (not the underlying group
+      // tree's structure) can pass `refreshGroupTree: false` to skip the
+      // expensive GROUP BY query. Default is true so structural refreshes
+      // (filter / sort / group-by config / field type) keep working.
+      const refreshGroupTree =
+        typeof event === 'object' && event?.refreshGroupTree === false
+          ? false
+          : true
 
       const fieldsToRefresh =
         typeof event === 'object' && event.newField
@@ -631,7 +639,8 @@ export default {
           fieldsToRefresh,
           this.storePrefix,
           includeFieldOptions,
-          event?.sourceEvent
+          event?.sourceEvent,
+          { refreshGroupTree }
         )
       } catch (error) {
         if (error instanceof RefreshCancelledError) {

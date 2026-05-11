@@ -1,9 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildHeightIndex,
   buildInterleavedList,
   COLLAPSED_GROUPS_MODE_COLLAPSE,
   findDepth0GroupPosition,
+  GROUP_HEADER_HEIGHT,
+  GROUP_ROW_HEIGHT,
+  resolveScrollTop,
+  rowOffsetToY,
 } from '@baserow/modules/database/utils/groupByInterleave'
 
 const mockRegistry = {
@@ -639,5 +644,355 @@ describe('findDepth0GroupPosition', () => {
         registry: mockRegistry,
       })
     ).toEqual({ y: 177, count: 3 })
+  })
+})
+
+describe('buildHeightIndex', () => {
+  const colorField = { id: 5, type: 'text' }
+  const sizeField = { id: 8, type: 'text' }
+
+  const flatTree = [
+    { path: { field_5: 'A' }, depth: 0, row_count: 2 },
+    { path: { field_5: 'B' }, depth: 0, row_count: 3 },
+  ]
+  const nestedTree = [
+    { path: { field_5: 'A' }, depth: 0, row_count: 3, children_count: 2 },
+    { path: { field_5: 'A', field_8: '10' }, depth: 1, row_count: 2 },
+    { path: { field_5: 'A', field_8: '20' }, depth: 1, row_count: 1 },
+    { path: { field_5: 'B' }, depth: 0, row_count: 2, children_count: 1 },
+    { path: { field_5: 'B', field_8: '10' }, depth: 1, row_count: 2 },
+  ]
+
+  it('returns an empty index for empty inputs', () => {
+    const index = buildHeightIndex({
+      treeNodes: [],
+      collapsedGroups: [],
+      fields: [colorField],
+      registry: mockRegistry,
+    })
+    expect(index.items).toEqual([])
+    expect(index.totalHeight).toBe(0)
+    expect(index.totalRowCount).toBe(0)
+  })
+
+  it('builds header + rows items for a single-level tree', () => {
+    const index = buildHeightIndex({
+      treeNodes: flatTree,
+      collapsedGroups: [],
+      fields: [colorField],
+      registry: mockRegistry,
+    })
+
+    expect(
+      index.items.map((i) => [i.type, i.path?.field_5, i.rowCount ?? i.count])
+    ).toEqual([
+      ['group-header', 'A', 2],
+      ['rows', 'A', 2],
+      ['group-header', 'B', 3],
+      ['rows', 'B', 3],
+    ])
+    expect(index.totalRowCount).toBe(5)
+    expect(index.totalHeight).toBe(
+      2 * GROUP_HEADER_HEIGHT + 5 * GROUP_ROW_HEIGHT
+    )
+    // prefix sums: 0, 48, 48+66, 48+66+48, 48+66+48+99
+    expect(Array.from(index.prefixSums)).toEqual([
+      0,
+      GROUP_HEADER_HEIGHT,
+      GROUP_HEADER_HEIGHT + 2 * GROUP_ROW_HEIGHT,
+      2 * GROUP_HEADER_HEIGHT + 2 * GROUP_ROW_HEIGHT,
+      2 * GROUP_HEADER_HEIGHT + 5 * GROUP_ROW_HEIGHT,
+    ])
+  })
+
+  it('omits row blocks and skips descendants for a collapsed parent', () => {
+    const index = buildHeightIndex({
+      treeNodes: nestedTree,
+      collapsedGroups: [{ field_5: 'A' }],
+      fields: [colorField, sizeField],
+      registry: mockRegistry,
+    })
+
+    // A is collapsed: only its header, then B's full subtree.
+    expect(index.items.map((i) => [i.type, i.depth, i.path.field_5])).toEqual([
+      ['group-header', 0, 'A'],
+      ['group-header', 0, 'B'],
+      ['group-header', 1, 'B'],
+      ['rows', 1, 'B'],
+    ])
+    // A's rows must not contribute to totalRowCount.
+    expect(index.totalRowCount).toBe(2)
+  })
+
+  it('treats every group as collapsed in collapse-mode unless explicitly expanded', () => {
+    const index = buildHeightIndex({
+      treeNodes: flatTree,
+      collapsedGroups: [{ field_5: 'B' }],
+      collapsedGroupsMode: COLLAPSED_GROUPS_MODE_COLLAPSE,
+      fields: [colorField],
+      registry: mockRegistry,
+    })
+
+    expect(index.items.map((i) => [i.type, i.path.field_5])).toEqual([
+      ['group-header', 'A'],
+      ['group-header', 'B'],
+      ['rows', 'B'],
+    ])
+    expect(index.totalRowCount).toBe(3)
+  })
+
+  it('tracks startRowIndex so the row offset can be derived for any item', () => {
+    const index = buildHeightIndex({
+      treeNodes: nestedTree,
+      collapsedGroups: [],
+      fields: [colorField, sizeField],
+      registry: mockRegistry,
+    })
+
+    // A.10 rows item is the second 'rows' item; A's leaf rows are 0..2,
+    // so A.20's rows start at 2 and B.10's rows at 5.
+    const rowsItems = index.items.filter((i) => i.type === 'rows')
+    expect(
+      rowsItems.map((r) => [r.path.field_8, r.startRowIndex, r.count])
+    ).toEqual([
+      ['10', 0, 2],
+      ['20', 2, 1],
+      ['10', 3, 2],
+    ])
+    expect(index.totalRowCount).toBe(5)
+  })
+})
+
+describe('resolveScrollTop', () => {
+  const colorField = { id: 5, type: 'text' }
+  const tree = [
+    { path: { field_5: 'A' }, depth: 0, count: 4 },
+    { path: { field_5: 'B' }, depth: 0, count: 2 },
+  ]
+
+  const buildIndex = (collapsed = []) =>
+    buildHeightIndex({
+      treeNodes: tree,
+      collapsedGroups: collapsed,
+      fields: [colorField],
+      registry: mockRegistry,
+    })
+
+  it('returns null for an empty index', () => {
+    expect(
+      resolveScrollTop(
+        buildHeightIndex({
+          treeNodes: [],
+          collapsedGroups: [],
+          fields: [colorField],
+          registry: mockRegistry,
+        }),
+        100
+      )
+    ).toBeNull()
+  })
+
+  it('lands on the first header at scrollTop 0', () => {
+    const index = buildIndex()
+    const result = resolveScrollTop(index, 0)
+    expect(result.itemIndex).toBe(0)
+    expect(result.item.type).toBe('group-header')
+    expect(result.rowOffset).toBe(0)
+  })
+
+  it('clamps scrollTop above totalHeight to the last item', () => {
+    const index = buildIndex()
+    const result = resolveScrollTop(index, index.totalHeight + 1000)
+    // Last item is the 'rows' block of B. rowOffset must point into it.
+    expect(result.item.type).toBe('rows')
+    expect(result.rowOffset).toBe(index.totalRowCount - 1)
+  })
+
+  it('translates pixel offset inside a rows item to the right rowOffset', () => {
+    const index = buildIndex()
+    // First 'rows' item starts at HEADER_HEIGHT and contains 4 rows.
+    // ScrollTop = HEADER_HEIGHT + 2 * ROW_HEIGHT lands on row index 2.
+    const scrollTop = GROUP_HEADER_HEIGHT + 2 * GROUP_ROW_HEIGHT
+    const result = resolveScrollTop(index, scrollTop)
+    expect(result.item.type).toBe('rows')
+    expect(result.rowOffset).toBe(2)
+  })
+
+  it('skips collapsed group rows when computing offsets', () => {
+    const index = buildIndex([{ field_5: 'A' }])
+    // With A collapsed, items: [headerA, headerB, rowsB].
+    // A's rows do not count: total visible rows = 2.
+    expect(index.totalRowCount).toBe(2)
+    // ScrollTop just past both headers lands on row 0 of B.
+    const result = resolveScrollTop(index, 2 * GROUP_HEADER_HEIGHT)
+    expect(result.item.type).toBe('rows')
+    expect(result.rowOffset).toBe(0)
+  })
+})
+
+describe('buildHeightIndex with partial trees', () => {
+  const colorField = { id: 5, type: 'text' }
+  const sizeField = { id: 8, type: 'text' }
+
+  it('emits a subtree-skeleton placeholder for an expanded but unloaded group', () => {
+    const index = buildHeightIndex({
+      treeNodes: [
+        {
+          path: { field_5: 'A' },
+          depth: 0,
+          row_count: 50,
+          children_count: 5,
+        },
+      ],
+      collapsedGroups: [{ field_5: 'A' }],
+      collapsedGroupsMode: COLLAPSED_GROUPS_MODE_COLLAPSE,
+      fields: [colorField, sizeField],
+      registry: mockRegistry,
+      loadedSubtrees: new Set([]),
+    })
+
+    expect(index.items.map((i) => i.type)).toEqual([
+      'group-header',
+      'subtree-skeleton',
+    ])
+    // Reserved height = children_count × header height (5 × 48).
+    expect(index.items[1].height).toBe(5 * GROUP_HEADER_HEIGHT)
+    expect(index.items[1].loading).toBe(false)
+  })
+
+  it('marks the skeleton as loading when the path is in loadingSubtrees', () => {
+    const index = buildHeightIndex({
+      treeNodes: [
+        {
+          path: { field_5: 'A' },
+          depth: 0,
+          row_count: 50,
+          children_count: 3,
+        },
+      ],
+      collapsedGroups: [{ field_5: 'A' }],
+      collapsedGroupsMode: COLLAPSED_GROUPS_MODE_COLLAPSE,
+      fields: [colorField, sizeField],
+      registry: mockRegistry,
+      loadedSubtrees: new Set([]),
+      loadingSubtrees: new Set(['"A"']),
+    })
+
+    const skeleton = index.items.find((i) => i.type === 'subtree-skeleton')
+    expect(skeleton.loading).toBe(true)
+  })
+
+  it('walks descendants when the path is in loadedSubtrees', () => {
+    const index = buildHeightIndex({
+      treeNodes: [
+        {
+          path: { field_5: 'A' },
+          depth: 0,
+          row_count: 2,
+          children_count: 1,
+        },
+        { path: { field_5: 'A', field_8: '10' }, depth: 1, row_count: 2 },
+      ],
+      collapsedGroups: [{ field_5: 'A' }, { field_5: 'A', field_8: '10' }],
+      collapsedGroupsMode: COLLAPSED_GROUPS_MODE_COLLAPSE,
+      fields: [colorField, sizeField],
+      registry: mockRegistry,
+      loadedSubtrees: new Set(['"A"']),
+    })
+
+    expect(index.items.map((i) => [i.type, i.depth])).toEqual([
+      ['group-header', 0],
+      ['group-header', 1],
+      ['rows', 1],
+    ])
+  })
+
+  it('does not emit a skeleton for legacy mode when loadedSubtrees is null', () => {
+    // Legacy callers don't pass loadedSubtrees and rely on the tree being
+    // fully loaded; expanded groups must walk descendants normally.
+    const index = buildHeightIndex({
+      treeNodes: [
+        {
+          path: { field_5: 'A' },
+          depth: 0,
+          row_count: 1,
+          children_count: 1,
+        },
+        { path: { field_5: 'A', field_8: '10' }, depth: 1, row_count: 1 },
+      ],
+      collapsedGroups: [],
+      fields: [colorField, sizeField],
+      registry: mockRegistry,
+      // no loadedSubtrees -> legacy "everything's loaded" behaviour
+    })
+    expect(index.items.some((i) => i.type === 'subtree-skeleton')).toBe(false)
+  })
+})
+
+describe('rowOffsetToY', () => {
+  const colorField = { id: 5, type: 'text' }
+
+  it('returns 0 when row offset 0 falls at a depth-0 group boundary', () => {
+    const index = buildHeightIndex({
+      treeNodes: [
+        { path: { field_5: 'A' }, depth: 0, count: 4 },
+        { path: { field_5: 'B' }, depth: 0, count: 2 },
+      ],
+      collapsedGroups: [],
+      fields: [colorField],
+      registry: mockRegistry,
+    })
+    // Buffer starts at row 0 → it includes the leading 'A' header, so the
+    // buffer's first DOM item sits at y=0 (the header), not y=48 (row 0).
+    expect(rowOffsetToY(index, 0)).toBe(0)
+  })
+
+  it('returns the y of a mid-group row when no header is prepended', () => {
+    const index = buildHeightIndex({
+      treeNodes: [
+        { path: { field_5: 'A' }, depth: 0, count: 4 },
+        { path: { field_5: 'B' }, depth: 0, count: 2 },
+      ],
+      collapsedGroups: [],
+      fields: [colorField],
+      registry: mockRegistry,
+    })
+    // Row 2 is mid-group A; the buffer at index 2 has no leading header,
+    // so we return the y of the row itself.
+    expect(rowOffsetToY(index, 2)).toBe(
+      GROUP_HEADER_HEIGHT + 2 * GROUP_ROW_HEIGHT
+    )
+  })
+
+  it('returns the y of B header when buffer starts at the first row of B', () => {
+    const index = buildHeightIndex({
+      treeNodes: [
+        { path: { field_5: 'A' }, depth: 0, count: 4 },
+        { path: { field_5: 'B' }, depth: 0, count: 2 },
+      ],
+      collapsedGroups: [],
+      fields: [colorField],
+      registry: mockRegistry,
+    })
+    // Items: headerA(y=0), rowsA(y=48, count=4), headerB(y=180), rowsB(y=228).
+    // Row 4 is the first row of group B; the buffer prepends B's header,
+    // so the y must be the header's y (180), not the row's y (228).
+    const expected = GROUP_HEADER_HEIGHT + 4 * GROUP_ROW_HEIGHT
+    expect(rowOffsetToY(index, 4)).toBe(expected)
+  })
+
+  it('returns 0 when all groups are collapsed and no rows exist', () => {
+    const index = buildHeightIndex({
+      treeNodes: [
+        { path: { field_5: 'A' }, depth: 0, count: 4 },
+        { path: { field_5: 'B' }, depth: 0, count: 2 },
+      ],
+      collapsedGroups: [{ field_5: 'A' }, { field_5: 'B' }],
+      fields: [colorField],
+      registry: mockRegistry,
+    })
+    expect(index.totalRowCount).toBe(0)
+    // bufferStartIndex is 0 and the first item is headerA at y=0.
+    expect(rowOffsetToY(index, 0)).toBe(0)
   })
 })

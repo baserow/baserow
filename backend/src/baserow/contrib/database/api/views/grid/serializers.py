@@ -53,3 +53,49 @@ class GridViewFilterSerializer(serializers.Serializer):
         child=serializers.IntegerField(),
         help_text="Only rows related to the provided ids are added to the response.",
     )
+
+
+class GridViewGroupTreeNodeSerializer(serializers.Serializer):
+    path = serializers.DictField(
+        help_text=(
+            "Mapping of group-by field db_column names to the deserialized "
+            "group value at every depth from 0 up to this node's depth."
+        )
+    )
+    depth = serializers.IntegerField(
+        help_text="Zero-based depth of this node in the group-by hierarchy."
+    )
+    row_count = serializers.IntegerField(
+        help_text=(
+            "Number of leaf rows (matching the view's filters) descending "
+            "from this node, regardless of any client-side collapse state."
+        )
+    )
+    children_count = serializers.IntegerField(
+        required=False,
+        help_text=(
+            "Number of immediate sub-groups one depth below this node. "
+            "Omitted at the deepest depth (leaf nodes have no sub-groups). "
+            "The frontend uses this to reserve layout space for unloaded "
+            "subtrees while their children are being fetched."
+        ),
+    )
+
+
+class GridViewGroupTreeSerializer(serializers.Serializer):
+    nodes = GridViewGroupTreeNodeSerializer(
+        many=True,
+        help_text=(
+            "Flat list of group nodes ordered for display. Children of a node "
+            "always immediately follow that node."
+        ),
+    )
+    truncated = serializers.BooleanField(
+        help_text=(
+            "True when the tree exceeds the configured node cap. The "
+            "frontend should fall back to uniform-height scrollbar math."
+        )
+    )
+    total_nodes = serializers.IntegerField(
+        help_text="Total number of group nodes across all depths."
+    )

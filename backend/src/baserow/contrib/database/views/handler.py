@@ -3916,6 +3916,248 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         return by_level
 
+    def get_group_by_tree(
+        self,
+        fields: List[Field],
+        base_queryset: QuerySet,
+        view_group_bys: Optional[List[Any]],
+        max_nodes: int,
+        max_depth: Optional[int] = None,
+        expanded_paths: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Returns the group structure (or a slice of it) for the provided base
+        queryset, ordered by the view's group-by ordering. The frontend uses
+        this to compute pixel-accurate scrollbar math without round-tripping
+        every viewport change, and to incrementally fetch only the subtrees
+        the user has actually expanded.
+
+        Each returned node is::
+
+            {
+                "path": {db_column: value, ...},   # full path from root
+                "depth": int,                       # 0-based depth
+                "row_count": int,                   # leaf rows under subtree
+                "children_count": int,              # immediate sub-groups
+                                                    # (omitted at leaf depth)
+            }
+
+        :param fields: The group-by fields in nesting order (depth 0 first).
+        :param base_queryset: Filtered/sorted queryset to count from.
+        :param view_group_bys: ViewGroupBy instances parallel to ``fields``;
+            applied to ordering through each field type's ``get_order``.
+        :param max_nodes: Soft cap on total returned nodes. When the cap would
+            be exceeded the response signals truncation and the frontend falls
+            back to uniform-height scrolling.
+        :param max_depth: Optional global outline cap. ``max_depth=1`` returns
+            depth-0 nodes only (the typical "first paint, everything collapsed"
+            request). ``max_depth=None`` means *no global outline*: only the
+            ``expanded_paths`` subtrees come back. The historical
+            "fetch the entire tree" behaviour is ``max_depth=None`` combined
+            with ``expanded_paths`` either ``None`` or empty — the function
+            then falls back to fetching every depth globally.
+        :param expanded_paths: Optional list of path dicts. For each, every
+            descendant at every deeper depth is included regardless of
+            ``max_depth``. The frontend sends these when the user has expanded
+            specific groups; the backend silently ignores paths that don't
+            match anything (e.g. after a filter change pruned them).
+        :raises ValueError: if a field is provided that cannot be grouped by.
+        """
+
+        n_fields = len(fields)
+        if n_fields == 0:
+            return {"nodes": [], "truncated": False, "total_nodes": 0}
+
+        expanded_paths = expanded_paths or []
+
+        # depth_filters[d] semantics:
+        #   None         -> global at this depth (no path constraint)
+        #   list[dict]   -> include nodes at this depth that descend from any
+        #                   of these prefix paths
+        #   missing key  -> don't fetch anything at this depth
+        depth_filters: Dict[int, Optional[List[Dict[str, Any]]]] = {}
+
+        if max_depth is None and not expanded_paths:
+            # Backwards-compatible "full tree" mode used by Expand all and the
+            # initial implementation.
+            for d in range(n_fields):
+                depth_filters[d] = None
+        else:
+            if max_depth is not None and max_depth > 0:
+                for d in range(min(max_depth, n_fields)):
+                    depth_filters[d] = None
+
+            for path in expanded_paths:
+                if not isinstance(path, dict):
+                    continue
+                path_depth = sum(
+                    1 for f in fields if f.db_column in path
+                )  # how many group-by levels the path covers
+                if path_depth == 0 or path_depth > n_fields:
+                    continue
+                # The ``expanded`` semantics is "give me everything below this
+                # path". Concretely: at every depth strictly deeper than the
+                # path itself, include nodes whose ancestor matches.
+                for d in range(path_depth, n_fields):
+                    if d in depth_filters and depth_filters[d] is None:
+                        continue  # already covered by the global outline
+                    if d not in depth_filters:
+                        depth_filters[d] = []
+                    depth_filters[d].append(path)
+
+        # Pre-compute per-field annotations once. Each field type may need to
+        # add subqueries / CTEs to make grouping work (link rows etc.).
+        cte: Dict[str, Any] = {}
+        all_annotations: Dict[str, Any] = {}
+        for field in fields:
+            field_type = field_type_registry.get_by_model(field.specific_class)
+            if not field_type.check_can_group_by(field, DEFAULT_SORT_TYPE_KEY):
+                raise ValueError(f"Can't group by {field.db_column}.")
+            _, annotations = field_type.get_group_by_field_filters_and_annotations(
+                field, field.db_column, base_queryset, None, cte, []
+            )
+            all_annotations.update(**annotations)
+
+        nodes_by_path: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
+        emit_order: List[Tuple[int, Tuple[Any, ...]]] = []
+        total_nodes = 0
+
+        for depth in sorted(depth_filters.keys()):
+            level_fields = fields[: depth + 1]
+            field_names = [f.db_column for f in level_fields]
+            is_leaf = depth == n_fields - 1
+            child_field = None if is_leaf else fields[depth + 1]
+
+            queryset = base_queryset.model.objects.filter(
+                id__in=base_queryset.clear_multi_field_prefetch().values("id")
+            ).values()
+
+            if all_annotations:
+                queryset = queryset.annotate(**all_annotations)
+
+            filter_paths = depth_filters[depth]
+            if filter_paths is not None:
+                if not filter_paths:
+                    continue
+                combined_q = Q()
+                for path in filter_paths:
+                    path_q = Q()
+                    for field in fields:
+                        fname = field.db_column
+                        if fname not in path:
+                            break
+                        path_q &= Q(**{fname: path[fname]})
+                    if path_q != Q():
+                        combined_q |= path_q
+                if combined_q == Q():
+                    continue
+                queryset = queryset.filter(combined_q)
+
+            order_by_args, queryset = self._build_group_by_metadata_order_by(
+                level_fields,
+                view_group_bys[: depth + 1] if view_group_bys else None,
+                queryset,
+            )
+
+            annotations = {"row_count": Count("id")}
+            if child_field is not None:
+                annotations["children_count"] = Count(
+                    child_field.db_column, distinct=True
+                )
+
+            queryset = (
+                queryset.values(*field_names)
+                .annotate(**annotations)
+                .order_by(*order_by_args)
+            )
+
+            for cte_with in cte.values():
+                queryset = queryset.with_cte(cte_with)
+
+            for entry in queryset:
+                key = tuple(entry[name] for name in field_names)
+                if key in nodes_by_path:
+                    continue
+                node = {
+                    "path": {name: entry[name] for name in field_names},
+                    "depth": depth,
+                    "row_count": entry["row_count"],
+                }
+                if child_field is not None:
+                    node["children_count"] = entry["children_count"]
+                nodes_by_path[key] = node
+                emit_order.append((depth, key))
+                total_nodes += 1
+                if total_nodes > max_nodes:
+                    return {
+                        "nodes": [],
+                        "truncated": True,
+                        "total_nodes": total_nodes,
+                    }
+
+        # Walk parents → descendants in display order. Within each parent the
+        # children inherit the database ORDER BY from the queryset above
+        # because Python dicts preserve insertion order.
+        children_by_parent: Dict[Tuple[Any, ...], List[Tuple[Any, ...]]] = defaultdict(
+            list
+        )
+        for _depth, key in emit_order:
+            parent_key = key[:-1]
+            children_by_parent[parent_key].append(key)
+
+        # When called with ``expanded`` but no global outline, the response
+        # contains nodes whose ancestor isn't in ``nodes_by_path``. The walk
+        # from root would emit nothing in that case — start it from each
+        # expanded path's tuple so its children come back. Order matches the
+        # ``expanded`` input order.
+        synthetic_roots: List[Tuple[Any, ...]] = []
+        seen_synthetic: set = set()
+        for path in expanded_paths:
+            if not isinstance(path, dict):
+                continue
+            path_tuple = tuple(path[f.db_column] for f in fields if f.db_column in path)
+            if (
+                path_tuple
+                and path_tuple not in nodes_by_path
+                and path_tuple in children_by_parent
+                and path_tuple not in seen_synthetic
+            ):
+                synthetic_roots.append(path_tuple)
+                seen_synthetic.add(path_tuple)
+
+        ordered_nodes: List[Dict[str, Any]] = []
+        walked: set = set()
+        self._emit_group_tree_walk(
+            children_by_parent, nodes_by_path, (), ordered_nodes, walked
+        )
+        for synthetic in synthetic_roots:
+            self._emit_group_tree_walk(
+                children_by_parent, nodes_by_path, synthetic, ordered_nodes, walked
+            )
+
+        return {
+            "nodes": ordered_nodes,
+            "truncated": False,
+            "total_nodes": len(ordered_nodes),
+        }
+
+    def _emit_group_tree_walk(
+        self,
+        children_by_parent: Dict[Tuple[Any, ...], List[Tuple[Any, ...]]],
+        nodes_by_path: Dict[Tuple[Any, ...], Dict[str, Any]],
+        parent_key: Tuple[Any, ...],
+        out: List[Dict[str, Any]],
+        walked: set,
+    ) -> None:
+        for child_key in children_by_parent.get(parent_key, []):
+            if child_key in walked:
+                continue
+            walked.add(child_key)
+            out.append(nodes_by_path[child_key])
+            self._emit_group_tree_walk(
+                children_by_parent, nodes_by_path, child_key, out, walked
+            )
+
     def _build_group_by_metadata_order_by(
         self,
         fields: List[Field],

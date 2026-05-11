@@ -30,10 +30,38 @@ import {
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
 import {
+  pathKey,
+  resolveScrollTop as resolveHeightIndexScrollTop,
+  rowOffsetToY,
+} from '@baserow/modules/database/utils/groupByInterleave'
+import {
   GRID_VIEW_MULTI_SELECT_AREA,
   GRID_VIEW_MULTI_SELECT_CHECKBOX,
   LINKED_ITEMS_LOAD_ALL,
 } from '@baserow/modules/database/constants'
+
+// Module-scoped registry of in-flight subtree fetches so we can cancel them
+// when the user collapses the corresponding group or changes filters.
+const subtreeAbortControllers = new Map()
+
+function abortAllSubtreeFetches(gridId) {
+  const prefix = `${gridId}:`
+  for (const [key, controller] of subtreeAbortControllers.entries()) {
+    if (key.startsWith(prefix)) {
+      controller.abort()
+      subtreeAbortControllers.delete(key)
+    }
+  }
+}
+
+function abortSubtreeFetch(gridId, key) {
+  const k = `${gridId}:${key}`
+  const controller = subtreeAbortControllers.get(k)
+  if (controller) {
+    controller.abort()
+    subtreeAbortControllers.delete(k)
+  }
+}
 
 const ORDER_STEP = '1'
 const ORDER_STEP_BEFORE = '0.00000000000000000001'
@@ -152,11 +180,180 @@ function getPendingOperationKey(fieldId, rowId) {
 export const COLLAPSED_GROUPS_MODE_EXPAND = 'expand'
 export const COLLAPSED_GROUPS_MODE_COLLAPSE = 'collapse'
 
+/**
+ * Stable comparator for group-by values. Mirrors the BE's natural
+ * ordering (nulls first, then booleans, numbers, strings) so locally-
+ * inserted nodes land in the same position the next ``fetchGroupTree``
+ * would put them.
+ */
+function compareGroupValues(a, b) {
+  if (_.isEqual(a, b)) return 0
+  if (a === null || a === undefined) return -1
+  if (b === null || b === undefined) return 1
+  if (typeof a === 'boolean' && typeof b === 'boolean') {
+    return a === b ? 0 : a ? 1 : -1
+  }
+  if (typeof a === 'number' && typeof b === 'number') return a - b
+  if (typeof a === 'string' && typeof b === 'string') {
+    return a.localeCompare(b)
+  }
+  return JSON.stringify(a).localeCompare(JSON.stringify(b))
+}
+
+/**
+ * Finds where ``newNode`` should be inserted in the flat ``nodes`` list
+ * so the tree stays in display order. For depth 0 we scan all depth-0
+ * siblings; for depth > 0 we scan only the siblings sharing the same
+ * parent prefix. Returns -1 when the node belongs at the end.
+ */
+function findGroupTreeInsertionIndex(
+  nodes,
+  newNode,
+  parentPath,
+  sortOrder = 'ASC'
+) {
+  const direction = sortOrder === 'DESC' ? -1 : 1
+  const newDepth = newNode.depth
+  const newKey = Object.keys(newNode.path).find(
+    (k) => !parentPath || !Object.prototype.hasOwnProperty.call(parentPath, k)
+  )
+  const newValue = newKey ? newNode.path[newKey] : undefined
+
+  if (newDepth === 0) {
+    for (let i = 0; i < nodes.length; i++) {
+      const n = nodes[i]
+      if (n.depth !== 0) continue
+      const cmp = compareGroupValues(n.path[newKey], newValue) * direction
+      if (cmp > 0) return i
+    }
+    return -1
+  }
+
+  // Locate the parent and walk its descendants until we find the right
+  // sibling slot or hit a node outside the parent's subtree.
+  let parentIndex = -1
+  for (let i = 0; i < nodes.length; i++) {
+    const n = nodes[i]
+    if (n.depth === newDepth - 1 && _.isEqual(n.path, parentPath)) {
+      parentIndex = i
+      break
+    }
+  }
+  if (parentIndex === -1) return -1
+
+  for (let i = parentIndex + 1; i < nodes.length; i++) {
+    const n = nodes[i]
+    if (n.depth <= newDepth - 1) return i
+    if (n.depth !== newDepth) continue
+    const sameParent = Object.keys(parentPath || {}).every((k) =>
+      _.isEqual(n.path[k], parentPath[k])
+    )
+    if (!sameParent) return i
+    const cmp = compareGroupValues(n.path[newKey], newValue) * direction
+    if (cmp > 0) return i
+  }
+  return -1
+}
+
+/**
+ * True when the row's group (or any ancestor of it) is collapsed in the
+ * given view. A row in a collapsed group has no slot in the heightIndex,
+ * so it must not be inserted into the buffer — otherwise the interleaver
+ * would render it inside whatever expanded group occupies that pixel
+ * range.
+ */
+function isRowGroupCollapsed({
+  row,
+  groupBys,
+  fields,
+  collapsedGroups,
+  collapsedGroupsMode,
+  registry,
+}) {
+  const groupByFields = groupBys
+    .map((gb) => fields.find((f) => f.id === gb.field))
+    .filter(Boolean)
+  if (groupByFields.length === 0) return false
+
+  for (let depth = 0; depth < groupByFields.length; depth++) {
+    const path = {}
+    for (let i = 0; i <= depth; i++) {
+      const f = groupByFields[i]
+      const fieldType = registry.get('field', f._.type.type)
+      const rowValue = row[`field_${f.id}`]
+      path[`field_${f.id}`] = fieldType.getGroupValueFromRowValue(f, rowValue)
+    }
+    const inList = collapsedGroups.some((entry) => _.isEqual(entry, path))
+    const isExpanded =
+      collapsedGroupsMode === COLLAPSED_GROUPS_MODE_COLLAPSE
+        ? inList
+        : !inList
+    if (!isExpanded) return true
+  }
+  return false
+}
+
+const COLLAPSED_GROUPS_STORAGE_PREFIX = 'baserow.gridView.collapsedGroups.'
+
+function getCollapsedGroupsStorageKey(viewId) {
+  return `${COLLAPSED_GROUPS_STORAGE_PREFIX}${viewId}`
+}
+
+function loadCollapsedGroupsFromStorage(viewId) {
+  if (typeof window === 'undefined' || !window.localStorage) return null
+  try {
+    const raw = window.localStorage.getItem(
+      getCollapsedGroupsStorageKey(viewId)
+    )
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || !Array.isArray(parsed.groups)) return null
+    const mode =
+      parsed.mode === COLLAPSED_GROUPS_MODE_COLLAPSE
+        ? COLLAPSED_GROUPS_MODE_COLLAPSE
+        : COLLAPSED_GROUPS_MODE_EXPAND
+    return { groups: parsed.groups, mode }
+  } catch (e) {
+    return null
+  }
+}
+
+function saveCollapsedGroupsToStorage(viewId, _groups, _mode) {
+  // Collapse state is intentionally not persisted in v1. We leave the helper
+  // in place because several actions still call it; if we add per-view
+  // persistence later this is the single point to wire it up. We *do* clear
+  // any leftover entry so older builds' persisted state can't leak in.
+  if (typeof window === 'undefined' || !window.localStorage) return
+  try {
+    window.localStorage.removeItem(getCollapsedGroupsStorageKey(viewId))
+  } catch (e) {
+    // localStorage may be unavailable; ignore.
+  }
+}
+
 function getCollapsedGroupsParams(getters, viewId) {
   const groups = getters.getCollapsedGroupsForView(viewId)
   const mode = getters.getCollapsedGroupsModeForView(viewId)
+  const activeGroupBys = getters.getActiveGroupBys
+
+  // In collapse-mode the list represents *expanded* paths. A partial-prefix
+  // entry (e.g. {field_19032: 4124} when grouping by 2 fields) means "this
+  // group's sub-headers are visible" - it is FE-only UI state. Sending it to
+  // the backend would union in every row matching that prefix, masking the
+  // narrower leaf-depth filters and showing rows from sibling sub-groups that
+  // should be collapsed. Only send leaf-depth entries; the FE keeps the
+  // partials locally for header rendering.
+  let serializableGroups = groups
+  if (mode === COLLAPSED_GROUPS_MODE_COLLAPSE && activeGroupBys.length > 1) {
+    const leafDepth = activeGroupBys.length
+    serializableGroups = groups.filter(
+      (group) => Object.keys(group).length === leafDepth
+    )
+  }
+
   return {
-    collapsedGroups: groups.length > 0 ? JSON.stringify(groups) : '',
+    collapsedGroups:
+      serializableGroups.length > 0 ? JSON.stringify(serializableGroups) : '',
     collapsedGroupsMode: mode,
   }
 }
@@ -236,6 +433,22 @@ export const state = () => ({
   // frontend having to know every group up front.
   collapsedGroups: {},
   collapsedGroupsMode: {},
+  // Per-view group tree fetched from `/group-tree/`, populated lazily.
+  //   { nodes, truncated, totalNodes,
+  //     loadedSubtrees: {pathKey: true},
+  //     loadingSubtrees: {pathKey: true} }
+  // ``nodes`` is the ordered flat list of `{ path, depth, row_count,
+  // children_count }`. ``loadedSubtrees`` tracks which subtrees we have
+  // descendants for (the empty key '' represents the depth-0 outline).
+  // ``loadingSubtrees`` mirrors in-flight subtree fetches so the renderer
+  // can show a spinner on the corresponding header.
+  groupTrees: {},
+  // Cached pixel-prefix-sum index built from the group tree + collapse state
+  // for the *current* view. The grid section component recomputes this when
+  // its inputs change and commits SET_HEIGHT_INDEX. Actions read it to map
+  // scrollTop -> rowOffset and to size the scrollable container. ``null`` when
+  // no group-by is active (the legacy uniform-height path is used instead).
+  heightIndex: null,
   // Contains a fieldId and rowId string pair that looks like `{fieldId}-{rowId}`. If
   // in the array, then that cell is a loading state. This is for example used for
   // fields that use a background worker to compute the value like the AI field.
@@ -687,6 +900,217 @@ export const mutations = {
       [viewId]: COLLAPSED_GROUPS_MODE_EXPAND,
     }
   },
+  SET_GROUP_TREE(
+    state,
+    { viewId, tree, outlineLoaded = true, fullyLoaded = false }
+  ) {
+    state.groupTrees = {
+      ...state.groupTrees,
+      [viewId]: {
+        nodes: tree?.nodes || [],
+        truncated: !!tree?.truncated,
+        totalNodes:
+          typeof tree?.total_nodes === 'number'
+            ? tree.total_nodes
+            : tree?.totalNodes || 0,
+        // Empty key '' represents "depth-0 outline" — used by the FE to
+        // distinguish a fresh tree (outline only) from a fully-fetched one.
+        loadedSubtrees: outlineLoaded ? { '': true } : {},
+        loadingSubtrees: {},
+        // ``fullyLoaded`` is set when the BE returned the entire tree at
+        // every depth (max_depth omitted). Skips skeleton placeholders
+        // that would otherwise reserve space for non-leaf children.
+        fullyLoaded,
+      },
+    }
+  },
+  CLEAR_GROUP_TREE(state, { viewId }) {
+    if (!(viewId in state.groupTrees)) return
+    const next = { ...state.groupTrees }
+    delete next[viewId]
+    state.groupTrees = next
+  },
+  /**
+   * Merges a fetched subtree response into an existing tree. Inserts the
+   * new descendants right after their parent in the flat node list so
+   * display order is preserved, and marks ``parentPathKey`` as loaded.
+   */
+  MERGE_GROUP_TREE_SUBTREE(state, { viewId, parentPathKey, parentPath, tree }) {
+    const existing = state.groupTrees[viewId]
+    if (!existing) return
+    const incoming = tree?.nodes || []
+    if (incoming.length === 0) {
+      state.groupTrees = {
+        ...state.groupTrees,
+        [viewId]: {
+          ...existing,
+          loadedSubtrees: {
+            ...existing.loadedSubtrees,
+            [parentPathKey]: true,
+          },
+        },
+      }
+      return
+    }
+    // Find the insertion point: right after the parent node (or at end if
+    // parent isn't in the tree, e.g. when fetching only a subtree without
+    // the outline).
+    const parentDepthKeys = parentPath ? Object.keys(parentPath) : []
+    const matchesParent = (node) => {
+      if (!parentPath) return false
+      if (node.depth !== parentDepthKeys.length - 1) return false
+      for (const k of parentDepthKeys) {
+        if (JSON.stringify(node.path[k]) !== JSON.stringify(parentPath[k])) {
+          return false
+        }
+      }
+      return true
+    }
+    const insertionIndex = existing.nodes.findIndex(matchesParent)
+
+    let nodes
+    if (insertionIndex === -1) {
+      nodes = [...existing.nodes, ...incoming]
+    } else {
+      // Skip incoming nodes whose path matches the parent itself (the BE
+      // sometimes echoes the parent in the response).
+      const trimmed = incoming.filter((n) => !matchesParent(n))
+      nodes = [
+        ...existing.nodes.slice(0, insertionIndex + 1),
+        ...trimmed,
+        ...existing.nodes.slice(insertionIndex + 1),
+      ]
+    }
+
+    state.groupTrees = {
+      ...state.groupTrees,
+      [viewId]: {
+        ...existing,
+        nodes,
+        truncated: existing.truncated || !!tree?.truncated,
+        totalNodes: nodes.length,
+        loadedSubtrees: {
+          ...existing.loadedSubtrees,
+          [parentPathKey]: true,
+        },
+      },
+    }
+  },
+  /**
+   * Appends a freshly discovered group node to a view's tree. Used when a
+   * row mutation lands in a path that the BE never told us about (e.g. a
+   * boolean group-by where only ``false`` had rows until the user ticks
+   * one). The node is added with zero count — callers should follow up
+   * with ``UPDATE_GROUP_TREE_COUNT`` to bump it. The new node's parent
+   * path is marked as loaded, otherwise the heightIndex would render a
+   * skeleton placeholder under it.
+   */
+  INSERT_GROUP_TREE_NODE(
+    state,
+    { viewId, node, parentPathKey, parentPath, sortOrder }
+  ) {
+    const existing = state.groupTrees[viewId]
+    if (!existing) return
+    if (
+      existing.nodes.some(
+        (n) => n.depth === node.depth && _.isEqual(n.path, node.path)
+      )
+    ) {
+      return
+    }
+    const newNode = { row_count: 0, ...node }
+    const insertionIndex = findGroupTreeInsertionIndex(
+      existing.nodes,
+      newNode,
+      parentPath,
+      sortOrder
+    )
+    const nodes =
+      insertionIndex === -1
+        ? [...existing.nodes, newNode]
+        : [
+            ...existing.nodes.slice(0, insertionIndex),
+            newNode,
+            ...existing.nodes.slice(insertionIndex),
+          ]
+    state.groupTrees = {
+      ...state.groupTrees,
+      [viewId]: {
+        ...existing,
+        nodes,
+        totalNodes: nodes.length,
+        loadedSubtrees: parentPathKey
+          ? { ...existing.loadedSubtrees, [parentPathKey]: true }
+          : existing.loadedSubtrees,
+      },
+    }
+  },
+  SET_GROUP_TREE_SUBTREE_LOADING(state, { viewId, pathKey, loading }) {
+    const existing = state.groupTrees[viewId]
+    if (!existing) return
+    const next = { ...existing.loadingSubtrees }
+    if (loading) {
+      next[pathKey] = true
+    } else {
+      delete next[pathKey]
+    }
+    state.groupTrees = {
+      ...state.groupTrees,
+      [viewId]: { ...existing, loadingSubtrees: next },
+    }
+  },
+  SET_HEIGHT_INDEX(state, heightIndex) {
+    state.heightIndex = heightIndex
+  },
+  /**
+   * Increments or decrements counts on every group node whose path prefix
+   * matches the row's group-by values. Mirrors UPDATE_GROUP_BY_METADATA_COUNT
+   * so the tree stays in sync with the local metadata cache when websockets
+   * report row mutations. Prunes nodes whose count drops to zero — empty
+   * groups should disappear from the heightIndex (and their banner from the
+   * grid) instead of lingering as 0-row placeholders.
+   */
+  UPDATE_GROUP_TREE_COUNT(
+    state,
+    { viewId, fields, registry, row, increase, decrease }
+  ) {
+    const tree = state.groupTrees[viewId]
+    if (!tree) return
+    const groupBys = state.activeGroupBys
+    if (groupBys.length === 0) return
+
+    const groupByFields = groupBys
+      .map((groupBy) => fields.find((f) => f.id === groupBy.field))
+      .filter(Boolean)
+    if (groupByFields.length === 0) return
+
+    const delta = increase ? 1 : decrease ? -1 : 0
+    if (delta === 0) return
+
+    const nodes = tree.nodes
+      .map((node) => {
+        const fieldsAtDepth = groupByFields.slice(0, node.depth + 1)
+        const equal = fieldValuesAreEqualInObjects(
+          fieldsAtDepth,
+          registry,
+          node.path,
+          row,
+          true
+        )
+        if (!equal) return node
+        const current = node.row_count ?? node.count ?? 0
+        return { ...node, row_count: Math.max(0, current + delta) }
+      })
+      // Drop empty groups. Counts cascade across depths (a depth-N node's
+      // count is the sum of its leaves), so a parent only reaches zero
+      // once every descendant has — making this filter safe at every
+      // depth in one pass.
+      .filter((node) => (node.row_count ?? node.count ?? 0) > 0)
+    state.groupTrees = {
+      ...state.groupTrees,
+      [viewId]: { ...tree, nodes, totalNodes: nodes.length },
+    }
+  },
   /**
    * Merges the existing group by metadata and the newly provided metadata. If a
    * count for the value combination already exists, it will be updated, otherwise
@@ -725,6 +1149,11 @@ export const mutations = {
   },
   /**
    * Increases or decreases the count of all group entries that match the row values.
+   *
+   * Also patches the per-view group tree (used for pixel-accurate scrollbar
+   * math) so it stays in sync with the metadata cache. Tree node insertion is
+   * intentionally not handled here — when a row introduces a brand-new group,
+   * the next refresh fetches a fresh tree.
    */
   UPDATE_GROUP_BY_METADATA_COUNT(
     state,
@@ -776,6 +1205,38 @@ export const mutations = {
         existingMetadata[`field_${groupBy.field}`].push(newEntry)
       }
     })
+
+    const viewId = state.lastGridId
+    const tree =
+      viewId !== null && viewId !== undefined && viewId !== -1
+        ? state.groupTrees[viewId]
+        : null
+    if (tree && tree.nodes && tree.nodes.length > 0) {
+      const delta = increase ? 1 : decrease ? -1 : 0
+      if (delta !== 0) {
+        const groupByFields = groupBys
+          .map((groupBy) => fields.find((f) => f.id === groupBy.field))
+          .filter(Boolean)
+        if (groupByFields.length > 0) {
+          const nodes = tree.nodes.map((node) => {
+            const fieldsAtDepth = groupByFields.slice(0, node.depth + 1)
+            const equal = fieldValuesAreEqualInObjects(
+              fieldsAtDepth,
+              registry,
+              node.path,
+              row,
+              true
+            )
+            if (!equal) return node
+            return { ...node, count: Math.max(0, node.count + delta) }
+          })
+          state.groupTrees = {
+            ...state.groupTrees,
+            [viewId]: { ...tree, nodes },
+          }
+        }
+      }
+    }
   },
   SET_PENDING_FIELD_OPERATIONS(state, { fieldId, rowIds, value }) {
     const addKey = (fieldId, rowId) => {
@@ -867,7 +1328,7 @@ export const actions = {
    * anything other then we already have or waiting for a new request will be made.
    */
   fetchByScrollTop(
-    { commit, getters, rootGetters, dispatch },
+    { commit, getters, rootGetters, dispatch, state },
     { scrollTop, fields }
   ) {
     const { $registry, $client, $i18n, $config } = this
@@ -876,13 +1337,33 @@ export const actions = {
     const view = rootGetters['view/get'](getters.getLastGridId)
 
     // Calculate what the middle row index of the visible window based on the scroll
-    // top.
+    // top. When a height index is available we map pixels through the
+    // prefix-sum so collapsed groups and group headers contribute their real
+    // height; otherwise we fall back to the legacy uniform-height math.
     const middle = scrollTop + windowHeight / 2
-    const countIndex = getters.getCount - 1
-    const middleRowIndex = Math.min(
-      Math.max(Math.ceil(middle / getters.getRowHeight) - 1, 0),
-      countIndex
-    )
+    const heightIndex = state.heightIndex
+    // ``getCount`` returns the *total table* row count (e.g. 20 008) which is
+    // the right upper bound when there is no group-by. With a group tree, the
+    // *visible* row count (after collapse) is much smaller — e.g. 2 391 when
+    // only Marketing > Completed ✓ is expanded — and the buffer math must use
+    // that, otherwise we ask the backend for offsets past the last visible
+    // row and ADD_ROWS commits a ``bufferLimit`` larger than the rows array.
+    const visibleRowTotal = heightIndex
+      ? heightIndex.totalRowCount
+      : getters.getCount
+    const countIndex = visibleRowTotal - 1
+    let middleRowIndex
+    if (heightIndex && Number.isFinite(heightIndex.totalHeight)) {
+      const resolved = resolveHeightIndexScrollTop(heightIndex, middle)
+      middleRowIndex = resolved
+        ? Math.min(Math.max(resolved.rowOffset, 0), Math.max(countIndex, 0))
+        : 0
+    } else {
+      middleRowIndex = Math.min(
+        Math.max(Math.ceil(middle / getters.getRowHeight) - 1, 0),
+        countIndex
+      )
+    }
 
     // Calculate the start and end index of the rows that are visible to the user in
     // the whole database.
@@ -906,7 +1387,7 @@ export const actions = {
     const bufferEndIndex = Math.min(
       Math.ceil((visibleEndIndex + bufferRequestSize) / bufferRequestSize) *
         bufferRequestSize,
-      getters.getCount
+      visibleRowTotal
     )
     const bufferLimit = bufferEndIndex - bufferStartIndex
 
@@ -1026,7 +1507,7 @@ export const actions = {
    * the middle row should be and which rows we have in the buffer we can calculate
    * what the start and end index for the visible rows in the buffer should be.
    */
-  visibleByScrollTop({ getters, commit }, scrollTop = null) {
+  visibleByScrollTop({ getters, commit, state }, scrollTop = null) {
     const { $registry, $client, $i18n, $config } = this
     if (scrollTop !== null) {
       commit('SET_SCROLL_TOP', scrollTop)
@@ -1036,12 +1517,26 @@ export const actions = {
 
     const windowHeight = getters.getWindowHeight
     const middle = scrollTop + windowHeight / 2
-    const countIndex = getters.getCount - 1
+    const heightIndex = state.heightIndex
+    // See ``fetchByScrollTop``: with a group tree we must clamp to the
+    // *visible* row count, not the total table count.
+    const visibleRowTotal = heightIndex
+      ? heightIndex.totalRowCount
+      : getters.getCount
+    const countIndex = visibleRowTotal - 1
 
-    const middleRowIndex = Math.min(
-      Math.max(Math.ceil(middle / getters.getRowHeight) - 1, 0),
-      countIndex
-    )
+    let middleRowIndex
+    if (heightIndex && Number.isFinite(heightIndex.totalHeight)) {
+      const resolved = resolveHeightIndexScrollTop(heightIndex, middle)
+      middleRowIndex = resolved
+        ? Math.min(Math.max(resolved.rowOffset, 0), Math.max(countIndex, 0))
+        : 0
+    } else {
+      middleRowIndex = Math.min(
+        Math.max(Math.ceil(middle / getters.getRowHeight) - 1, 0),
+        countIndex
+      )
+    }
 
     // Calculate the start and end index of the rows that are visible to the user in
     // the whole table.
@@ -1051,7 +1546,7 @@ export const actions = {
     )
     const visibleEndIndex = Math.min(
       middleRowIndex + getters.getRowPadding + 1,
-      getters.getCount
+      visibleRowTotal
     )
 
     // Calculate the start and end index of the buffered rows that are visible for
@@ -1068,11 +1563,14 @@ export const actions = {
       ) - getters.getBufferStartIndex
 
     // Position the rendered buffer so its first item sits at its true virtual
-    // y-position. Body.scrollTop scrolls the body itself; combining the two
-    // makes the user-visible rows land at the top of the viewport. Using
-    // visibleStartIndex here would only be correct when rendering a sliced
-    // window — the interleaved grouping renders the whole buffer at once.
-    const top = getters.getBufferStartIndex * getters.getRowHeight
+    // y-position. With a height index we look up the actual y for the
+    // buffer's first row (collapsed groups + variable header heights make
+    // ``bufferStartIndex * rowHeight`` wrong). Without one, fall back to the
+    // legacy uniform-height math.
+    const top =
+      heightIndex && Number.isFinite(heightIndex.totalHeight)
+        ? rowOffsetToY(heightIndex, getters.getBufferStartIndex)
+        : getters.getBufferStartIndex * getters.getRowHeight
 
     // If the index changes from what we already have we can commit the new indexes
     // to the state.
@@ -1146,28 +1644,64 @@ export const actions = {
     commit('SET_LAST_GRID_ID', gridId)
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_ADHOC_SORTING', adhocSorting)
+    const view = rootGetters['view/get'](getters.getLastGridId)
+    const hasGroupBy =
+      view && Array.isArray(view.group_bys) && view.group_bys.length > 0
+    // Grouped views default to collapse-default mode: only depth-0 headers
+    // visible at view-load, no rows. The user expands what they care
+    // about and rows are fetched lazily. Non-grouped views stay expand.
     commit('SET_COLLAPSED_GROUPS', {
       viewId: gridId,
       groups: [],
-      mode: COLLAPSED_GROUPS_MODE_EXPAND,
+      mode: hasGroupBy
+        ? COLLAPSED_GROUPS_MODE_COLLAPSE
+        : COLLAPSED_GROUPS_MODE_EXPAND,
     })
+    // Drop any stale persisted state from earlier runs so it can't bleed
+    // into the current session. Collapse state isn't persisted in v1.
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem(getCollapsedGroupsStorageKey(gridId))
+      } catch (e) {
+        // localStorage may be unavailable; ignore.
+      }
+    }
 
-    const view = rootGetters['view/get'](getters.getLastGridId)
     const limit = getters.getBufferRequestSize * 2
-    const { data } = await GridService($client).fetchRows({
-      gridId,
-      offset: 0,
-      limit,
-      includeFieldOptions: true,
-      search: getters.getServerSearchTerm,
-      searchMode: getDefaultSearchModeFromEnv($config),
-      publicUrl: rootGetters['page/view/public/getIsPublic'],
-      publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-      groupBy: getGroupBy(rootGetters, getters.getLastGridId),
-      ...getCollapsedGroupsParams(getters, gridId),
-      orderBy: getOrderBy(view, adhocSorting),
-      filters: getFilters(view, adhocFiltering),
-    })
+    // For grouped views in collapse-default mode the rows endpoint returns 0
+    // rows AND count=0 (the BE counts post-collapse). We want the footer to
+    // show the *total* filtered row count, which never changes on collapse
+    // toggles. Issue a separate count request without ``collapsed_groups``
+    // and use that value instead of ``data.count`` from the rows response.
+    const [{ data }, totalCount] = await Promise.all([
+      GridService($client).fetchRows({
+        gridId,
+        offset: 0,
+        limit,
+        includeFieldOptions: true,
+        search: getters.getServerSearchTerm,
+        searchMode: getDefaultSearchModeFromEnv($config),
+        publicUrl: rootGetters['page/view/public/getIsPublic'],
+        publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+        groupBy: getGroupBy(rootGetters, getters.getLastGridId),
+        ...getCollapsedGroupsParams(getters, gridId),
+        orderBy: getOrderBy(view, adhocSorting),
+        filters: getFilters(view, adhocFiltering),
+      }),
+      hasGroupBy
+        ? GridService($client)
+            .fetchCount({
+              gridId,
+              search: getters.getServerSearchTerm,
+              searchMode: getDefaultSearchModeFromEnv($config),
+              publicUrl: rootGetters['page/view/public/getIsPublic'],
+              publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+              groupBy: getGroupBy(rootGetters, getters.getLastGridId),
+              filters: getFilters(view, adhocFiltering),
+            })
+            .then((response) => response.data.count)
+        : Promise.resolve(null),
+    ])
     // Don't do anything if the gridId does not match the current view gridId
     // because that probably means the user switched to another view or table, and
     // the data that is returned here shouldn't do anything.
@@ -1179,11 +1713,12 @@ export const actions = {
       populateRow(row, metadata, false)
     })
     commit('CLEAR_ROWS')
+    const displayCount = totalCount ?? data.count
     commit('ADD_ROWS', {
       rows: data.results,
       prependToRows: 0,
       appendToRows: data.results.length,
-      count: data.count,
+      count: displayCount,
       bufferStartIndex: 0,
       bufferLimit: data.count > limit ? limit : data.count,
     })
@@ -1191,12 +1726,335 @@ export const actions = {
       startIndex: 0,
       // @TODO mut calculate how many rows would fit and based on that calculate
       // what the end index should be.
-      endIndex: data.count > 31 ? 31 : data.count,
+      endIndex: displayCount > 31 ? 31 : displayCount,
       top: 0,
     })
     commit('REPLACE_ALL_FIELD_OPTIONS', data.field_options)
     commit('SET_GROUP_BY_METADATA', data.group_by_metadata || {})
     dispatch('updateSearch', { fields })
+
+    if (view && view.group_bys && view.group_bys.length > 0) {
+      // Awaited so that the depth-0 outline is in store state by the time
+      // the page renders. Without this, SSR (and the first client paint
+      // before hydration completes) shows an empty grid in collapse-default
+      // mode — there are no rows yet (queryset.none()) and no tree, so the
+      // section component has nothing to draw.
+      await dispatch('fetchGroupTree', {
+        gridId,
+        view,
+        adhocFiltering,
+      })
+    } else {
+      commit('CLEAR_GROUP_TREE', { viewId: gridId })
+    }
+  },
+  /**
+   * Fetches the depth-0 outline of the group-by tree (or the whole tree when
+   * ``maxDepth`` is null). Called on view-load and whenever the structural
+   * config changes (filter / sort / group-by). Subtrees the user expands
+   * later are fetched incrementally via ``fetchExpandedSubtree``.
+   */
+  async fetchGroupTree(
+    { commit, getters },
+    { gridId, view, adhocFiltering, maxDepth = 1 }
+  ) {
+    const { $client, $config } = this
+    if (!view || !view.group_bys || view.group_bys.length === 0) {
+      commit('CLEAR_GROUP_TREE', { viewId: gridId })
+      return
+    }
+    abortAllSubtreeFetches(gridId)
+    try {
+      const { data } = await GridService($client).fetchGroupTree({
+        gridId,
+        search: getters.getServerSearchTerm,
+        searchMode: getDefaultSearchModeFromEnv($config),
+        filters: getFilters(view, adhocFiltering),
+        maxDepth,
+      })
+      if (gridId !== getters.getLastGridId) {
+        return
+      }
+      commit('SET_GROUP_TREE', {
+        viewId: gridId,
+        tree: data,
+        outlineLoaded: true,
+        fullyLoaded: maxDepth === null,
+      })
+    } catch (error) {
+      if (axios.isCancel(error) || error?.name === 'CanceledError') return
+      throw error
+    }
+  },
+  /**
+   * Lazily fetches the full descendant subtree of the given path. Used when
+   * the user expands a non-leaf group whose children we don't yet have.
+   * Dedupes against in-flight requests for the same path; cancels previous
+   * with AbortController on collapse / filter change.
+   */
+  async fetchExpandedSubtree(
+    { commit, state, getters },
+    { gridId, view, adhocFiltering, path, fields }
+  ) {
+    const { $client, $config } = this
+    const groupBys = state.activeGroupBys
+    const groupByFields = groupBys
+      .map((gb) => fields.find((f) => f.id === gb.field))
+      .filter(Boolean)
+    if (groupByFields.length === 0) return
+    const key = pathKey(path, groupByFields)
+    const existing = state.groupTrees[gridId]
+    if (!existing) return
+    if (existing.fullyLoaded) return
+    if (existing.loadedSubtrees?.[key]) return
+    if (existing.loadingSubtrees?.[key]) return
+
+    const controller = new AbortController()
+    subtreeAbortControllers.set(`${gridId}:${key}`, controller)
+    commit('SET_GROUP_TREE_SUBTREE_LOADING', {
+      viewId: gridId,
+      pathKey: key,
+      loading: true,
+    })
+
+    try {
+      const { data } = await GridService($client).fetchGroupTree({
+        gridId,
+        search: getters.getServerSearchTerm,
+        searchMode: getDefaultSearchModeFromEnv($config),
+        filters: getFilters(view, adhocFiltering),
+        expandedPaths: [path],
+        signal: controller.signal,
+      })
+      if (gridId !== getters.getLastGridId) return
+      commit('MERGE_GROUP_TREE_SUBTREE', {
+        viewId: gridId,
+        parentPathKey: key,
+        parentPath: path,
+        tree: data,
+      })
+    } catch (error) {
+      if (axios.isCancel(error) || error?.name === 'CanceledError') {
+        return
+      }
+      throw error
+    } finally {
+      subtreeAbortControllers.delete(`${gridId}:${key}`)
+      commit('SET_GROUP_TREE_SUBTREE_LOADING', {
+        viewId: gridId,
+        pathKey: key,
+        loading: false,
+      })
+    }
+  },
+  /**
+   * Expands every level of the group path that contains ``row``. Used after
+   * a row is created so the user actually sees it instead of it disappearing
+   * into a collapsed group. No-op when there is no group-by or when the path
+   * is already expanded.
+   */
+  expandRowGroupPath({ commit, state }, { view, fields, row }) {
+    const { $registry } = this
+    if (!view || !Array.isArray(view.group_bys) || view.group_bys.length === 0)
+      return
+    const groupByFields = view.group_bys
+      .map((gb) => fields.find((f) => f.id === gb.field))
+      .filter(Boolean)
+    if (groupByFields.length === 0) return
+
+    const mode =
+      state.collapsedGroupsMode[view.id] || COLLAPSED_GROUPS_MODE_EXPAND
+
+    for (let depth = 1; depth <= groupByFields.length; depth++) {
+      const path = {}
+      for (let i = 0; i < depth; i++) {
+        const f = groupByFields[i]
+        const fieldType = $registry.get('field', f._.type.type)
+        const rowValue = row[`field_${f.id}`]
+        path[`field_${f.id}`] = fieldType.getGroupValueFromRowValue(f, rowValue)
+      }
+      const collapsed = state.collapsedGroups[view.id] || []
+      const inList = collapsed.some((c) => _.isEqual(c, path))
+      // In collapse-mode the list contains *expanded* paths; in expand-mode
+      // it contains *collapsed* paths.
+      const isExpanded =
+        mode === COLLAPSED_GROUPS_MODE_COLLAPSE ? inList : !inList
+      if (!isExpanded) {
+        commit('TOGGLE_GROUP_COLLAPSED', { viewId: view.id, groupValues: path })
+      }
+    }
+  },
+  /**
+   * Locally patches the per-view group tree's row_counts to reflect a
+   * created / updated / deleted row, then repaginates the buffer at the
+   * current scroll position. Avoids a tree refetch when the affected
+   * paths already exist (which is the common case) so other expanded
+   * groups in the user's view don't visually collapse to a skeleton
+   * while the request is in flight.
+   *
+   * Falls back to ``refreshGroupTreeForRow`` (full refetch) only when the
+   * new row introduces a depth-0 group that isn't in the tree yet —
+   * there's no way to discover it without a round-trip.
+   */
+  syncGroupTreeForRowMove(
+    { commit, state, dispatch, getters },
+    { view, fields, oldRow, newRow }
+  ) {
+    const { $registry } = this
+    if (!view || !Array.isArray(view.group_bys) || view.group_bys.length === 0)
+      return
+    const tree = state.groupTrees[view.id]
+    if (!tree) return
+
+    const groupByFields = view.group_bys
+      .map((gb) => fields.find((f) => f.id === gb.field))
+      .filter(Boolean)
+    if (groupByFields.length === 0) return
+
+    if (oldRow) {
+      commit('UPDATE_GROUP_TREE_COUNT', {
+        viewId: view.id,
+        fields,
+        registry: $registry,
+        row: oldRow,
+        increase: false,
+        decrease: true,
+      })
+    }
+
+    if (newRow) {
+      // For each depth missing from the tree, insert a fresh node at
+      // its sorted position and mark it collapsed by default.
+      // ``UPDATE_GROUP_TREE_COUNT`` below cascades the row count across
+      // every matching depth in one pass.
+      const mode =
+        state.collapsedGroupsMode[view.id] || COLLAPSED_GROUPS_MODE_EXPAND
+      for (let depth = 0; depth < groupByFields.length; depth++) {
+        const path = {}
+        for (let i = 0; i <= depth; i++) {
+          const f = groupByFields[i]
+          const fieldType = $registry.get('field', f._.type.type)
+          path[`field_${f.id}`] = fieldType.getGroupValueFromRowValue(
+            f,
+            newRow[`field_${f.id}`]
+          )
+        }
+        const existsAtDepth = tree.nodes.some(
+          (n) => n.depth === depth && _.isEqual(n.path, path)
+        )
+        if (existsAtDepth) continue
+
+        const parentPath =
+          depth === 0
+            ? null
+            : groupByFields.slice(0, depth).reduce((acc, f) => {
+                acc[`field_${f.id}`] = path[`field_${f.id}`]
+                return acc
+              }, {})
+        const parentPathKey =
+          depth === 0
+            ? ''
+            : pathKey(parentPath, groupByFields.slice(0, depth))
+        const sortOrder = view.group_bys[depth]?.order || 'ASC'
+        commit('INSERT_GROUP_TREE_NODE', {
+          viewId: view.id,
+          node: { path, depth, row_count: 0, children_count: 0 },
+          parentPathKey,
+          parentPath,
+          sortOrder,
+        })
+        // Collapsed-by-default. ``TOGGLE_GROUP_COLLAPSED`` is — as the
+        // name says — a toggle, not a setter, so we only fire it when
+        // the path is currently expanded. Without this guard, a path
+        // the user previously collapsed (say, before all its rows were
+        // deleted) would re-expand the moment a row reappears in it.
+        const collapsedList = state.collapsedGroups[view.id] || []
+        const inList = collapsedList.some((p) => _.isEqual(p, path))
+        const isExpanded =
+          mode === COLLAPSED_GROUPS_MODE_COLLAPSE ? inList : !inList
+        if (isExpanded) {
+          commit('TOGGLE_GROUP_COLLAPSED', {
+            viewId: view.id,
+            groupValues: path,
+          })
+        }
+      }
+
+      commit('UPDATE_GROUP_TREE_COUNT', {
+        viewId: view.id,
+        fields,
+        registry: $registry,
+        row: newRow,
+        increase: true,
+        decrease: false,
+      })
+    }
+
+    // Repaginate the buffer so the rows the heightIndex now expects in
+    // each group's range actually match what's in ``state.rows``. The
+    // local in-buffer move done by ``updatedExistingRow`` can leave the
+    // moved row at a position that no longer corresponds to its new
+    // group; the cleanest way to reconcile is to ask the BE for the
+    // visible window again.
+    dispatch('fetchByScrollTop', {
+      scrollTop: getters.getScrollTop,
+      fields,
+    })
+  },
+  /**
+   * Refetches the depth-0 outline so a brand-new group introduced by the
+   * row (e.g. an "Empty" group when the row's group-by value is null and
+   * no previous row was null) becomes visible. When there's more than one
+   * group-by also fetches the depth-0 subtree containing the row so its
+   * leaf group exists in the tree (otherwise the row has no leaf to live
+   * under and the heightIndex won't render it).
+   */
+  async refreshGroupTreeForRow(
+    { dispatch, getters },
+    { view, fields, row }
+  ) {
+    const { $registry } = this
+    if (!view || !Array.isArray(view.group_bys) || view.group_bys.length === 0)
+      return
+    const groupByFields = view.group_bys
+      .map((gb) => fields.find((f) => f.id === gb.field))
+      .filter(Boolean)
+    if (groupByFields.length === 0) return
+
+    await dispatch('fetchGroupTree', {
+      gridId: view.id,
+      view,
+      adhocFiltering: getters.getAdhocFiltering,
+    })
+
+    if (groupByFields.length > 1) {
+      const f = groupByFields[0]
+      const fieldType = $registry.get('field', f._.type.type)
+      const rowValue = row[`field_${f.id}`]
+      const path = {
+        [`field_${f.id}`]: fieldType.getGroupValueFromRowValue(f, rowValue),
+      }
+      // Awaited so the depth-1 subtree is in state before we ask the buffer
+      // to repaginate; otherwise the heightIndex reports zero rows for the
+      // path and ``fetchByScrollTop`` short-circuits with requestLimit=0.
+      await dispatch('fetchExpandedSubtree', {
+        gridId: view.id,
+        view,
+        adhocFiltering: getters.getAdhocFiltering,
+        path,
+        fields,
+      })
+    }
+
+    // Force a buffer repagination. The heightIndex's ``totalRowCount`` just
+    // grew (e.g. from 0 to 10 when the user expanded the new "Empty" group)
+    // but the buffer still holds the single optimistically-inserted row.
+    // Without this dispatch the rest of the rows in the now-visible group
+    // never load.
+    dispatch('fetchByScrollTop', {
+      scrollTop: getters.getScrollTop,
+      fields,
+    })
   },
   /**
    * Refreshes the current state with fresh data. It keeps the scroll offset the same
@@ -1206,7 +2064,19 @@ export const actions = {
    */
   refresh(
     { dispatch, commit, getters, rootGetters },
-    { view, fields, adhocFiltering, adhocSorting, includeFieldOptions = false }
+    {
+      view,
+      fields,
+      adhocFiltering,
+      adhocSorting,
+      includeFieldOptions = false,
+      // Toggle-collapse calls refresh() to repaginate the row buffer, but the
+      // group tree itself only depends on filters/sorts/group-by config — not
+      // on what's collapsed. Callers that change the structure (filter, sort,
+      // group-by config, field type) leave this at the default; toggle-only
+      // callers pass refreshGroupTree=false to skip a heavy GROUP BY query.
+      refreshGroupTree = true,
+    }
   ) {
     const { $client, $config } = this
     commit('SET_ADHOC_FILTERING', adhocFiltering)
@@ -1217,21 +2087,28 @@ export const actions = {
       lastRefreshRequestController.abort()
     }
     lastRefreshRequestController = new AbortController()
-    lastRefreshRequest = GridService($client)
-      .fetchCount({
-        gridId,
-        search: getters.getServerSearchTerm,
-        searchMode: getDefaultSearchModeFromEnv($config),
-        signal: lastRefreshRequestController.signal,
-        publicUrl: rootGetters['page/view/public/getIsPublic'],
-        publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-        groupBy: getGroupBy(rootGetters, getters.getLastGridId),
-        ...getCollapsedGroupsParams(getters, gridId),
-        filters: getFilters(view, adhocFiltering),
-      })
-      .then((response) => {
-        const count = response.data.count
-
+    // Total table-row count only changes when filters / sorts / group-by /
+    // search change — never on collapse-toggle. So we refetch it together
+    // with the tree (refreshGroupTree=true) and reuse the stored value
+    // otherwise. Notably the count call deliberately omits
+    // ``collapsed_groups`` so the BE returns the full filtered row total
+    // instead of the visible (post-collapse) row count.
+    const countPromise = refreshGroupTree
+      ? GridService($client)
+          .fetchCount({
+            gridId,
+            search: getters.getServerSearchTerm,
+            searchMode: getDefaultSearchModeFromEnv($config),
+            signal: lastRefreshRequestController.signal,
+            publicUrl: rootGetters['page/view/public/getIsPublic'],
+            publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+            groupBy: getGroupBy(rootGetters, getters.getLastGridId),
+            filters: getFilters(view, adhocFiltering),
+          })
+          .then((response) => response.data.count)
+      : Promise.resolve(getters.getCount)
+    lastRefreshRequest = countPromise
+      .then((count) => {
         const limit = getters.getBufferRequestSize * 3
         const bufferEndIndex = getters.getBufferEndIndex
         const offset =
@@ -1294,9 +2171,24 @@ export const actions = {
           }
         }
         dispatch('correctMultiSelect')
-        dispatch('fetchAllFieldAggregationData', {
-          view,
-        })
+        // Aggregations and the group tree depend only on filters/sorts/
+        // group-by — never on collapse state. Skip both when the caller
+        // signals a non-structural refresh (toggle-collapse, expand-all,
+        // collapse-all). This is the same gate as ``refreshGroupTree``.
+        if (refreshGroupTree) {
+          dispatch('fetchAllFieldAggregationData', {
+            view,
+          })
+          if (view && view.group_bys && view.group_bys.length > 0) {
+            dispatch('fetchGroupTree', {
+              gridId,
+              view,
+              adhocFiltering,
+            })
+          } else {
+            commit('CLEAR_GROUP_TREE', { viewId: gridId })
+          }
+        }
         lastRefreshRequest = null
       })
       .catch((error) => {
@@ -1310,19 +2202,35 @@ export const actions = {
     return lastRefreshRequest
   },
   updateActiveGroupBys({ commit, getters, state }, groupBys) {
-    // When the group-by configuration changes (fields added, removed, or
-    // reordered), the previously collapsed group values reference fields that
-    // may no longer exist or may now sit at a different depth. Clear them so
-    // we don't carry stale state into the new layout.
+    // Reset state when the group-by configuration changes. There are two
+    // shapes of "change":
+    //   - First load (previous=[] → groupBys=[...]): fetchInitial already
+    //     fetched the right tree + collapse state for this groupBys list,
+    //     so we don't invalidate it. We just sync activeGroupBys.
+    //   - Real config change (previous=[...] → different): the tree and
+    //     collapsed paths reference fields that may no longer exist; drop
+    //     them so the next refresh re-populates with the new shape.
     const previous = state.activeGroupBys
     const fieldKey = (g) => `${g.field}:${g.order}:${g.type}`
+    const isInitialPopulation =
+      previous.length === 0 && groupBys.length > 0
     const changed =
       previous.length !== groupBys.length ||
       previous.some((gb, i) => fieldKey(gb) !== fieldKey(groupBys[i]))
-    if (changed) {
+    if (changed && !isInitialPopulation) {
       const viewId = getters.getLastGridId
       if (viewId !== null && viewId !== undefined) {
-        commit('CLEAR_COLLAPSED_GROUPS', { viewId })
+        commit('CLEAR_GROUP_TREE', { viewId })
+        const newMode =
+          groupBys && groupBys.length > 0
+            ? COLLAPSED_GROUPS_MODE_COLLAPSE
+            : COLLAPSED_GROUPS_MODE_EXPAND
+        commit('SET_COLLAPSED_GROUPS', {
+          viewId,
+          groups: [],
+          mode: newMode,
+        })
+        saveCollapsedGroupsToStorage(viewId, [], newMode)
       }
     }
     commit('SET_ACTIVE_GROUP_BYS', groupBys)
@@ -1335,16 +2243,120 @@ export const actions = {
    * groups when the user later clicks individual chevrons.
    */
   collapseAllGroups({ commit }, { viewId }) {
+    abortAllSubtreeFetches(viewId)
     commit('SET_COLLAPSED_GROUPS', {
       viewId,
       groups: [],
       mode: COLLAPSED_GROUPS_MODE_COLLAPSE,
     })
     commit('SET_BUFFER_START_INDEX', 0)
+    saveCollapsedGroupsToStorage(viewId, [], COLLAPSED_GROUPS_MODE_COLLAPSE)
   },
-  expandAllGroups({ commit }, { viewId }) {
+  async expandAllGroups(
+    { commit, dispatch, getters },
+    { viewId, view, adhocFiltering }
+  ) {
+    abortAllSubtreeFetches(viewId)
     commit('CLEAR_COLLAPSED_GROUPS', { viewId })
     commit('SET_BUFFER_START_INDEX', 0)
+    saveCollapsedGroupsToStorage(viewId, [], COLLAPSED_GROUPS_MODE_EXPAND)
+
+    // Expand-all means "show everything"; the lazy outline isn't enough.
+    // Fetch the full tree so the heightIndex covers every depth. Caller
+    // must pass ``view`` (which carries group_bys); if absent we just skip
+    // — the @changed handler will trigger a refresh that re-populates.
+    if (view && Array.isArray(view.group_bys) && view.group_bys.length > 0) {
+      await dispatch('fetchGroupTree', {
+        gridId: viewId,
+        view,
+        adhocFiltering: adhocFiltering ?? getters.getAdhocFiltering,
+        maxDepth: null,
+      })
+    }
+  },
+  /**
+   * Toggles a single group's collapse state and persists the result. When
+   * the toggle expands a non-leaf group whose subtree isn't loaded yet,
+   * dispatches a lazy fetch for that subtree. When it collapses an in-flight
+   * subtree, aborts the request.
+   */
+  toggleGroupCollapsed(
+    { commit, state, dispatch },
+    { viewId, groupValues, view, fields, adhocFiltering }
+  ) {
+    const before = state.collapsedGroups[viewId] || []
+    const wasInList = before.some(
+      (entry) => JSON.stringify(entry) === JSON.stringify(groupValues)
+    )
+
+    commit('TOGGLE_GROUP_COLLAPSED', { viewId, groupValues })
+
+    const mode =
+      state.collapsedGroupsMode[viewId] || COLLAPSED_GROUPS_MODE_EXPAND
+    saveCollapsedGroupsToStorage(
+      viewId,
+      state.collapsedGroups[viewId] || [],
+      mode
+    )
+
+    // In collapse-mode the list represents *expanded* paths. Combine with the
+    // user's intent: was the toggle just now expanding (path is now in list)
+    // or collapsing (path was removed from list)?
+    const nowInList = !wasInList
+    const expanded =
+      mode === COLLAPSED_GROUPS_MODE_COLLAPSE ? nowInList : !nowInList
+
+    if (!view || !fields) return
+
+    const groupBys = state.activeGroupBys
+    const groupByFields = groupBys
+      .map((gb) => fields.find((f) => f.id === gb.field))
+      .filter(Boolean)
+    if (groupByFields.length === 0) return
+
+    const pathDepth = groupByFields.findIndex(
+      (f) => !Object.prototype.hasOwnProperty.call(groupValues, `field_${f.id}`)
+    )
+    const isLeaf = pathDepth === -1 || pathDepth === groupByFields.length - 0
+    // ``pathDepth === -1`` means every group-by field is in groupValues — the
+    // path is at leaf depth and has no subtree to fetch (rows come from the
+    // row endpoint).
+    const isLeafPath =
+      pathDepth === -1 ||
+      Object.keys(groupValues).length === groupByFields.length
+
+    const key = pathKey(groupValues, groupByFields)
+
+    if (expanded) {
+      const tree = state.groupTrees[viewId]
+      // Skip the subtree fetch when the tree is already fully loaded
+      // (expand-all path). Without this, the BE would re-return the same
+      // depth-1 nodes and ``MERGE_GROUP_TREE_SUBTREE`` would duplicate them
+      // in the flat node list.
+      if (
+        !isLeafPath &&
+        tree &&
+        !tree.fullyLoaded &&
+        !tree.loadedSubtrees?.[key] &&
+        !tree.loadingSubtrees?.[key]
+      ) {
+        dispatch('fetchExpandedSubtree', {
+          gridId: viewId,
+          view,
+          adhocFiltering,
+          path: groupValues,
+          fields,
+        })
+      }
+    } else {
+      // Collapsing — abort the in-flight subtree fetch if any.
+      abortSubtreeFetch(viewId, key)
+      commit('SET_GROUP_TREE_SUBTREE_LOADING', {
+        viewId,
+        pathKey: key,
+        loading: false,
+      })
+    }
   },
   /**
    * Updates the field options of a given field and also makes an API request to the
@@ -2316,6 +3328,27 @@ export const actions = {
         })
       }
 
+      // Make the just-inserted rows visible in grouped views: expand the
+      // path that contains them so the heightIndex actually emits a 'rows'
+      // item rather than collapsing the new row's group. Tree counts and
+      // any new group nodes (e.g. an "Empty" depth-0 group introduced by
+      // a NULL group-by value) are picked up *after* the backend create
+      // succeeds — we can't fetch the tree yet because the row only exists
+      // optimistically in the buffer at this point.
+      if (
+        view &&
+        Array.isArray(view.group_bys) &&
+        view.group_bys.length > 0
+      ) {
+        for (const rowPopulated of rowsPopulated) {
+          dispatch('expandRowGroupPath', {
+            view,
+            fields,
+            row: rowPopulated,
+          })
+        }
+      }
+
       dispatch('visibleByScrollTop')
 
       // Check if not all rows are visible.
@@ -2420,6 +3453,22 @@ export const actions = {
         await dispatch('fetchAllFieldAggregationData', {
           view,
         })
+        // Refresh the group tree now that the BE has the new rows so any
+        // brand-new group node (typically an "Empty" depth-0 group when a
+        // row's group-by value is null and no prior row was null) appears
+        // in the outline with the correct row_count. Done after the BE
+        // create so we don't read stale counts.
+        if (
+          view &&
+          Array.isArray(view.group_bys) &&
+          view.group_bys.length > 0
+        ) {
+          dispatch('refreshGroupTreeForRow', {
+            view,
+            fields,
+            row: rowsPopulated[0],
+          })
+        }
       } catch (error) {
         if (isSingleRowInsertion) {
           commit('UPDATE_GROUP_BY_METADATA_COUNT', {
@@ -2466,7 +3515,7 @@ export const actions = {
    * also makes sure that row will be inserted at the correct position.
    */
   async createdNewRow(
-    { commit, getters, dispatch },
+    { commit, getters, state, dispatch },
     { view, fields, values, metadata, populate = true }
   ) {
     const { $registry, $client, $i18n, $config } = this
@@ -2496,39 +3545,81 @@ export const actions = {
       decrease: false,
     })
 
-    // Now that we know that the row applies to the filters, which means it belongs
-    // in this view, we need to estimate what position it has in the table.
-    const allRowsCopy = clone(getters.getAllRows)
-    allRowsCopy.push(row)
-    const sortFunction = getRowSortFunction(
-      $registry,
-      view.sortings,
-      fields,
-      view.group_bys
-    )
-    allRowsCopy.sort(sortFunction)
-    const index = allRowsCopy.findIndex((r) => r.id === row.id)
+    // If any ancestor of the row's group (or the leaf itself) is collapsed,
+    // the heightIndex won't allocate row slots for this row's position. The
+    // sort-then-insert path below would still place the row at a buffer
+    // index that the interleaver maps to whatever *neighbouring* expanded
+    // group occupies that pixel range — visually parking the row in the
+    // wrong group. Skip the buffer insert; the tree count bump
+    // (syncGroupTreeForRowMove below) is enough for the heightIndex.
+    const groupCollapsed =
+      view &&
+      Array.isArray(view.group_bys) &&
+      view.group_bys.length > 0 &&
+      isRowGroupCollapsed({
+        row,
+        viewId: view.id,
+        groupBys: view.group_bys,
+        fields,
+        collapsedGroups: state.collapsedGroups[view.id] || [],
+        collapsedGroupsMode:
+          state.collapsedGroupsMode[view.id] || COLLAPSED_GROUPS_MODE_EXPAND,
+        registry: $registry,
+      })
 
-    const isFirst = index === 0
-    const isLast = index === allRowsCopy.length - 1
+    if (!groupCollapsed) {
+      // Now that we know that the row applies to the filters, which means it belongs
+      // in this view, we need to estimate what position it has in the table.
+      const allRowsCopy = clone(getters.getAllRows)
+      allRowsCopy.push(row)
+      const sortFunction = getRowSortFunction(
+        $registry,
+        view.sortings,
+        fields,
+        view.group_bys
+      )
+      allRowsCopy.sort(sortFunction)
+      const index = allRowsCopy.findIndex((r) => r.id === row.id)
 
-    if (
-      // All of these scenario's mean that the row belongs in the buffer that
-      // we have loaded currently.
-      (isFirst && getters.getBufferStartIndex === 0) ||
-      (isLast && getters.getBufferEndIndex === getters.getCount) ||
-      (index > 0 && index < allRowsCopy.length - 1)
-    ) {
-      commit('INSERT_NEW_ROWS_IN_BUFFER_AT_INDEX', { rows: [row], index })
-    } else {
-      if (isFirst) {
-        // Because the row has been added before the our buffer, we need know that the
-        // buffer start index has increased by one.
-        commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex + 1)
+      const isFirst = index === 0
+      const isLast = index === allRowsCopy.length - 1
+
+      if (
+        // All of these scenario's mean that the row belongs in the buffer that
+        // we have loaded currently.
+        (isFirst && getters.getBufferStartIndex === 0) ||
+        (isLast && getters.getBufferEndIndex === getters.getCount) ||
+        (index > 0 && index < allRowsCopy.length - 1)
+      ) {
+        commit('INSERT_NEW_ROWS_IN_BUFFER_AT_INDEX', { rows: [row], index })
+      } else {
+        if (isFirst) {
+          // Because the row has been added before the our buffer, we need know that the
+          // buffer start index has increased by one.
+          commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex + 1)
+        }
+        // The row has been added outside of the buffer, so we can safely increase the
+        // count.
+        commit('SET_COUNT', getters.getCount + 1)
       }
-      // The row has been added outside of the buffer, so we can safely increase the
-      // count.
+    } else {
+      // The row lives in a collapsed group so it's not in the buffer; still
+      // counts toward the total row count.
       commit('SET_COUNT', getters.getCount + 1)
+    }
+
+    // WS-driven row creation in a grouped view: patch the tree counts so
+    // the heightIndex reflects the new row's group right away. If the
+    // row's depth-0 group isn't in the tree yet (a brand-new value), fall
+    // back to a tree refetch — that's the one case where we have no
+    // choice but to drop ``loadedSubtrees``.
+    if (view && Array.isArray(view.group_bys) && view.group_bys.length > 0) {
+      dispatch('syncGroupTreeForRowMove', {
+        view,
+        fields,
+        oldRow: null,
+        newRow: row,
+      })
     }
   },
   /**
@@ -2655,6 +3746,74 @@ export const actions = {
         const rowExistsInBuffer = getters.getRow(row.id) !== undefined
 
         if (rowExistsInBuffer) {
+          // If a group-by field is among the changing values, the row must
+          // not stay at its current buffer position — that position belongs
+          // to the *old* group's pixel range in the heightIndex, so an
+          // in-place update would visually park the row inside the wrong
+          // group. Drop it from the buffer, patch the tree counts, and let
+          // ``fetchByScrollTop`` repopulate the visible window — the row
+          // will reappear under its new group only if that group is expanded.
+          // Runs regardless of ``optimisticUpdate``: even when the BE will
+          // recompute related read-only fields, the visible row must not
+          // sit in the wrong group while waiting for the response.
+          const groupByChanged =
+            view &&
+            Array.isArray(view.group_bys) &&
+            view.group_bys.length > 0 &&
+            view.group_bys.some((gb) => {
+              const key = `field_${gb.field}`
+              return (
+                Object.prototype.hasOwnProperty.call(values, key) &&
+                !_.isEqual(row[key], values[key])
+              )
+            })
+          if (groupByChanged) {
+            const oldRowSnapshot = clone(row)
+            const newRowSnapshot = Object.assign(clone(row), values)
+            commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+              fields,
+              registry: $registry,
+              row: oldRowSnapshot,
+              increase: false,
+              decrease: true,
+            })
+            commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+              fields,
+              registry: $registry,
+              row: newRowSnapshot,
+              increase: true,
+              decrease: false,
+            })
+            dispatch('syncGroupTreeForRowMove', {
+              view,
+              fields,
+              oldRow: oldRowSnapshot,
+              newRow: newRowSnapshot,
+            })
+            // Mutate the row in place and re-sort. The tree update
+            // above made the heightIndex's group ranges line up with
+            // ``getRowSortFunction`` 's group-by-first ordering, so the
+            // row's new buffer index maps to the correct group's pixel
+            // range. ``fetchByScrollTopDelayed`` (after the BE call)
+            // refills any leaf rows the buffer slice is now missing.
+            commit('UPDATE_ROW_VALUES', { row, values: { ...values } })
+            const sortFunction = getRowSortFunction(
+              $registry,
+              view.sortings,
+              fields,
+              view.group_bys
+            )
+            const sorted = clone(getters.getAllRows)
+            sorted.sort(sortFunction)
+            const newIndex = sorted.findIndex((r) => r.id === row.id)
+            const currentIndex = getters.getAllRows.findIndex(
+              (r) => r.id === row.id
+            )
+            if (newIndex !== -1 && newIndex !== currentIndex) {
+              commit('MOVE_EXISTING_ROW_IN_BUFFER', { row, index: newIndex })
+            }
+            return
+          }
           // If the row exists in the buffer, we can visually show to the user that
           // the values have changed, without immediately reflecting the change in
           // the buffer.
@@ -2789,6 +3948,14 @@ export const actions = {
         }
         dispatch('fetchAllFieldAggregationData', {
           view,
+        })
+        // Refill the visible window after a group-by-changing optimistic
+        // update. The optimistic path drops the moved row from the
+        // buffer; once the BE confirms, fetch the rows that the new
+        // tree state expects in the buffer's range.
+        dispatch('fetchByScrollTopDelayed', {
+          scrollTop: getters.getScrollTop,
+          fields,
         })
       } catch (error) {
         if (!canUpdateOptimistically) {
@@ -3129,6 +4296,65 @@ export const actions = {
         metadata,
       })
     } else if (oldRowExists && newRowExists) {
+      // When the row's group-by value changes, the existing in-buffer
+      // sort/move logic below leaves the row at a buffer position that
+      // doesn't correspond to its new group's range in the heightIndex —
+      // visually that means "row appears in the wrong (currently-visible)
+      // group for a moment before snapping into the correct one". Take
+      // a different path: patch the tree counts so the heightIndex
+      // matches the new groups *before* the buffer is touched, drop the
+      // row from the buffer (it now belongs to a possibly-collapsed
+      // group), and let ``fetchByScrollTop`` repopulate the visible
+      // window from the BE.
+      const groupByChanged =
+        view &&
+        Array.isArray(view.group_bys) &&
+        view.group_bys.length > 0 &&
+        view.group_bys.some((gb) => {
+          const key = `field_${gb.field}`
+          return !_.isEqual(oldRow[key], newRow[key])
+        })
+      if (groupByChanged) {
+        commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+          fields,
+          registry: $registry,
+          row: oldRow,
+          increase: false,
+          decrease: true,
+        })
+        commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+          fields,
+          registry: $registry,
+          row: newRow,
+          increase: true,
+          decrease: false,
+        })
+        dispatch('syncGroupTreeForRowMove', {
+          view,
+          fields,
+          oldRow,
+          newRow,
+        })
+        if (getters.getAllRows.findIndex((r) => r.id === row.id) > -1) {
+          commit('UPDATE_ROW_IN_BUFFER', { row, values, metadata })
+          const sortFunction = getRowSortFunction(
+            $registry,
+            view.sortings,
+            fields,
+            view.group_bys
+          )
+          const sorted = clone(getters.getAllRows)
+          sorted.sort(sortFunction)
+          const newIndex = sorted.findIndex((r) => r.id === row.id)
+          const currentIndex = getters.getAllRows.findIndex(
+            (r) => r.id === row.id
+          )
+          if (newIndex !== -1 && newIndex !== currentIndex) {
+            commit('MOVE_EXISTING_ROW_IN_BUFFER', { row, index: newIndex })
+          }
+        }
+        return
+      }
       // Instead of implementing a metadata updated mutation, we can easily just
       // call the deleted and created mutation because that will have the same effect.
       commit('UPDATE_GROUP_BY_METADATA_COUNT', {
@@ -3268,6 +4494,7 @@ export const actions = {
         commit('DELETE_ROW_IN_BUFFER_WITHOUT_UPDATE', row)
       }
       await dispatch('correctMultiSelect')
+
     }
   },
   /**
@@ -3393,29 +4620,42 @@ export const actions = {
     if (exists) {
       commit('DELETE_ROW_IN_BUFFER', row)
       await dispatch('correctMultiSelect')
-      return
+    } else {
+      // Otherwise we have to calculate if it was before or after the current
+      // buffer.
+      allRowsCopy.push(row)
+      const sortFunction = getRowSortFunction(
+        $registry,
+        view.sortings,
+        fields,
+        view.group_bys
+      )
+      allRowsCopy.sort(sortFunction)
+      const index = allRowsCopy.findIndex((r) => r.id === row.id)
+
+      // If the row is at position 0, it means that the row existed before the
+      // buffer, which means the buffer start index has decreased.
+      if (index === 0) {
+        commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex - 1)
+      }
+
+      commit('SET_COUNT', getters.getCount - 1)
+      await dispatch('correctMultiSelect')
     }
 
-    // Otherwise we have to calculate was before or after the current buffer.
-    allRowsCopy.push(row)
-    const sortFunction = getRowSortFunction(
-      $registry,
-      view.sortings,
-      fields,
-      view.group_bys
-    )
-    allRowsCopy.sort(sortFunction)
-    const index = allRowsCopy.findIndex((r) => r.id === row.id)
-
-    // If the row is at position 0, it means that the row existed before the buffer,
-    // which means the buffer start index has decreased.
-    if (index === 0) {
-      commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex - 1)
+    // Patch the tree counts so the heightIndex reflects the deleted row
+    // right away. If the row was the last in its group we leave the
+    // (now zero-count) node in place — no harm in a render-time check
+    // skipping it later — rather than triggering a tree refetch that
+    // would collapse other expanded groups in the user's view.
+    if (view && Array.isArray(view.group_bys) && view.group_bys.length > 0) {
+      dispatch('syncGroupTreeForRowMove', {
+        view,
+        fields,
+        oldRow: row,
+        newRow: null,
+      })
     }
-
-    // Regardless of where the
-    commit('SET_COUNT', getters.getCount - 1)
-    await dispatch('correctMultiSelect')
   },
   /**
    * Triggered when a row has been changed, or has a pending change in the provided
@@ -3748,7 +4988,13 @@ export const getters = {
     return state.rows.length
   },
   getPlaceholderHeight(state) {
+    if (state.heightIndex && Number.isFinite(state.heightIndex.totalHeight)) {
+      return state.heightIndex.totalHeight
+    }
     return state.count * state.rowHeight
+  },
+  getHeightIndex(state) {
+    return state.heightIndex
   },
   getRowPadding(state) {
     return state.rowPadding
@@ -3985,6 +5231,9 @@ export const getters = {
   },
   getCollapsedGroupsModeForView: (state) => (viewId) => {
     return state.collapsedGroupsMode[viewId] || COLLAPSED_GROUPS_MODE_EXPAND
+  },
+  getGroupTreeForView: (state) => (viewId) => {
+    return state.groupTrees[viewId] || null
   },
   getGroupHeaderHeight() {
     return GROUP_HEADER_HEIGHT

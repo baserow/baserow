@@ -1392,9 +1392,18 @@ export default {
         ? this.computeScrollAdjustmentForCollapse(groupValues, collapsedBefore)
         : null
 
-      this.$store.commit(
-        this.storePrefix + 'view/grid/TOGGLE_GROUP_COLLAPSED',
-        { viewId: this.view.id, groupValues }
+      this.$store.dispatch(
+        this.storePrefix + 'view/grid/toggleGroupCollapsed',
+        {
+          viewId: this.view.id,
+          groupValues,
+          view: this.view,
+          fields: this.fields,
+          adhocFiltering:
+            this.$store.getters[
+              this.storePrefix + 'view/grid/getAdhocFiltering'
+            ],
+        }
       )
 
       if (scrollAdjustment !== null) {
@@ -1424,6 +1433,10 @@ export default {
             ],
           adhocSorting:
             this.$store.getters[this.storePrefix + 'view/grid/getAdhocSorting'],
+          // Toggling a single group never changes the tree structure (groups,
+          // counts, ordering) — only which rows are visible. Skip the heavy
+          // GROUP BY query the tree fetch would otherwise re-issue.
+          refreshGroupTree: false,
         })
       } catch (error) {
         // A rapid follow-up toggle aborts the in-flight refresh, which rejects

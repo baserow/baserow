@@ -850,6 +850,12 @@ BATCH_ROWS_SIZE_LIMIT = int(
     os.getenv("BATCH_ROWS_SIZE_LIMIT", 200)
 )  # How many rows can be modified at once.
 
+# Soft cap on how many group nodes the grid view's group-tree endpoint will
+# return before falling back to a `truncated: true` response. The frontend uses
+# the tree to compute pixel-accurate scrollbar math; beyond this cap it
+# degrades to uniform-height scrolling.
+VIEW_GROUP_TREE_MAX_NODES = int(os.getenv("BASEROW_VIEW_GROUP_TREE_MAX_NODES", 50000))
+
 SEARCH_UPDATE_BATCH_SIZE = int(
     os.getenv("BASEROW_SEARCH_UPDATE_BATCH_SIZE", 2000)
 )  # How many rows to process per batch in search index updates.

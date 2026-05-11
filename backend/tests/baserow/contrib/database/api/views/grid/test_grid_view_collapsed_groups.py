@@ -167,13 +167,9 @@ def test_grid_view_list_rows_with_collapsed_groups(api_client, data_fixture):
     assert response_json["count"] == 1
     assert len(response_json["results"]) == 1
     assert response_json["results"][0][f"field_{text_field.id}"] == "Red"
-
-    metadata = response_json["group_by_metadata"]
-    entries = {
-        entry[f"field_{text_field.id}"]: entry["count"]
-        for entry in metadata[f"field_{text_field.id}"]
-    }
-    assert entries == {"Green": 2, "Red": 1}
+    # The row endpoint no longer ships group_by_metadata — header rendering
+    # is driven by the /group-tree/ endpoint.
+    assert "group_by_metadata" not in response_json
 
 
 @pytest.mark.django_db
@@ -202,10 +198,4 @@ def test_public_grid_view_rows_with_collapsed_groups(api_client, data_fixture):
     assert response.status_code == HTTP_200_OK
     assert response_json["count"] == 1
     assert len(response_json["results"]) == 1
-
-    metadata = response_json["group_by_metadata"]
-    entries = {
-        entry[f"field_{text_field.id}"]: entry["count"]
-        for entry in metadata[f"field_{text_field.id}"]
-    }
-    assert entries == {"Green": 2, "Red": 1}
+    assert "group_by_metadata" not in response_json

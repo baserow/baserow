@@ -470,6 +470,24 @@
   border-bottom-color: $color-neutral-400;
 }
 
+.grid-view__subtree-skeleton {
+  background: repeating-linear-gradient(
+    to bottom,
+    $color-neutral-50 0,
+    $color-neutral-50 47px,
+    $color-neutral-100 47px,
+    $color-neutral-100 48px
+  );
+  position: relative;
+}
+
+.grid-view__subtree-skeleton-spinner {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
 .grid-view__group-header-toggle {
   display: flex;
   align-items: center;
