@@ -59,7 +59,8 @@
         "copyToClipboard": "클립보드에 복사",
         "reset": "재설정",
         "hide": "숨기기",
-        "next": "다음"
+        "next": "다음",
+        "select": "선택"
     },
     "adminType": {
         "settings": "설정",
