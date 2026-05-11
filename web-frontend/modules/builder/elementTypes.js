@@ -1396,13 +1396,6 @@ export class FormElementType extends ElementType {
     return resolvedName || this.name
   }
 
-  afterDelete(element, page) {
-    return this.app.$store.dispatch('formData/removeFormData', {
-      page,
-      elementId: element.id,
-    })
-  }
-
   getDataSchema(element) {
     return {
       type: this.formDataType(element),
