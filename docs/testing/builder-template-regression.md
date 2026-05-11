@@ -41,7 +41,7 @@ To force regeneration of all templates at once:
 just b manage export_builder_template_trees --force
 ```
 
-**To verify a feature branch hasn't introduced regressions**, run without `--update`:
+**To verify a feature branch hasn't introduced regressions**, regenerate the fixtures from your branch first, then compare against the committed snapshots:
 
 ```bash
 just b manage sync_templates
@@ -49,4 +49,4 @@ just b manage export_builder_template_trees --force
 cd web-frontend && yarn test:core builderTemplateRegression --run
 ```
 
-A failure means the element tree for that template differs from the committed baseline. The diff shows exactly what changed.
+The fixtures are gitignored, so they must be regenerated on each branch before the Vitest run is meaningful. A failure means the element tree for that template differs from the committed baseline. The diff shows exactly what changed.
