@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fix error when sumarizing any array shaped field",
+    "message": "Fix error when summarizing any array shaped field",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "dashboard",
