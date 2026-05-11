@@ -282,7 +282,16 @@ def test_cannot_get_row_outside_of_restricted_view(api_client, enterprise_data_f
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
-def test_create_row_with_only_view_permissions(api_client, enterprise_data_fixture):
+@pytest.mark.parametrize(
+    "url_name, prepare_payload",
+    [
+        ("api:database:rows:list", lambda row: row),
+        ("api:database:rows:batch", lambda row: {"items": [row]}),
+    ],
+)
+def test_create_row_with_only_view_permissions(
+    api_client, enterprise_data_fixture, url_name, prepare_payload
+):
     enterprise_data_fixture.enable_enterprise()
 
     user, token = enterprise_data_fixture.create_user_and_token()
@@ -318,13 +327,13 @@ def test_create_row_with_only_view_permissions(api_client, enterprise_data_fixtu
         scope=View.objects.get(id=normal_view.id),
     )
 
-    url = reverse("api:database:rows:list", kwargs={"table_id": table.id})
+    url = reverse(url_name, kwargs={"table_id": table.id})
 
     # Expect permission denied when trying to create a row in the table because the
     # user does not have access to the table.
     response = api_client.post(
         url,
-        {f"field_{text_field.id}": "Test 1"},
+        prepare_payload({f"field_{text_field.id}": "Test 1"}),
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token2}",
     )
@@ -335,7 +344,7 @@ def test_create_row_with_only_view_permissions(api_client, enterprise_data_fixtu
     # view ownership type does not allow a user to create a row.
     response = api_client.post(
         url + f"?view={normal_view.id}",
-        {f"field_{text_field.id}": "Test 1"},
+        prepare_payload({f"field_{text_field.id}": "Test 1"}),
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token2}",
     )
@@ -345,7 +354,17 @@ def test_create_row_with_only_view_permissions(api_client, enterprise_data_fixtu
     # Should come through because the user has access to the view.
     response = api_client.post(
         url + f"?view={restricted_view.id}",
-        {f"field_{text_field.id}": "Test 1"},
+        prepare_payload({f"field_{text_field.id}": "Test 1"}),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_200_OK
+    created_row_id = table.get_model().objects.first().id
+
+    # Should also be possible to reference another row as before_row
+    response = api_client.post(
+        url + f"?view={restricted_view.id}&before={created_row_id}",
+        prepare_payload({f"field_{text_field.id}": "Test 1"}),
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token2}",
     )

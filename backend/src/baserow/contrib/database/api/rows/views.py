@@ -599,15 +599,15 @@ class RowsView(APIView):
             validation_serializer, request_data, partial=True, return_validated=True
         )
 
+        view_id = query_params.get("view")
+        view = ViewHandler().get_view(view_id) if view_id else None
+
         before_id = query_params.get("before")
         before_row = (
-            RowHandler().get_row(request.user, table, before_id, model)
+            RowHandler().get_row(request.user, table, before_id, model, view=view)
             if before_id
             else None
         )
-
-        view_id = query_params.get("view")
-        view = ViewHandler().get_view(view_id) if view_id else None
 
         try:
             row = action_type_registry.get_by_type(CreateRowActionType).do(
@@ -1366,17 +1366,17 @@ class BatchRowsView(APIView):
         model = table.get_model()
         request_data = deepcopy(request.data)
 
+        view_id = query_params.get("view")
+        view = ViewHandler().get_view(view_id) if view_id else None
+
         user_field_names = extract_user_field_names_from_params(request.GET)
         send_webhook_events = extract_send_webhook_events_from_params(request.GET)
         before_id = query_params.get("before")
         before_row = (
-            RowHandler().get_row(request.user, table, before_id, model)
+            RowHandler().get_row(request.user, table, before_id, model, view=view)
             if before_id
             else None
         )
-
-        view_id = query_params.get("view")
-        view = ViewHandler().get_view(view_id) if view_id else None
 
         row_validation_serializer = get_row_serializer_class(
             model, user_field_names=user_field_names
