@@ -191,6 +191,25 @@ def test_create_element_bad_request_for_formula(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_element_bad_request_for_invalid_runtime_formula(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {"type": "heading", "value": "unsupported_function()"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_ELEMENT_INVALID_FORMULA"
+
+
+@pytest.mark.django_db
 def test_create_element_permission_denied(
     api_client, data_fixture, stub_check_permissions
 ):
@@ -287,6 +306,26 @@ def test_updating_element_with_invalid_formula_arguments_throws_error(
             ]
         },
     }
+
+
+@pytest.mark.django_db
+def test_update_element_bad_request_for_invalid_runtime_formula(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_heading_element(page=page)
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": element.id})
+    response = api_client.patch(
+        url,
+        {"value": "unsupported_function()"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_ELEMENT_INVALID_FORMULA"
 
 
 @pytest.mark.django_db

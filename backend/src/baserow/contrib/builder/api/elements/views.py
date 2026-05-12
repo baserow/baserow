@@ -26,6 +26,7 @@ from baserow.contrib.builder.api.data_sources.errors import (
 )
 from baserow.contrib.builder.api.elements.errors import (
     ERROR_ELEMENT_DOES_NOT_EXIST,
+    ERROR_ELEMENT_INVALID_FORMULA,
     ERROR_ELEMENT_MOVE_NOT_ALLOWED,
     ERROR_ELEMENT_NOT_IN_SAME_PAGE,
     ERROR_ELEMENT_PROPERTY_OPTIONS_NOT_UNIQUE,
@@ -56,6 +57,7 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist, PageNotInBuilder
 from baserow.contrib.builder.pages.handler import PageHandler
+from baserow.core.formula.exceptions import InvalidRuntimeFormula
 
 
 class ElementsView(APIView):
@@ -138,6 +140,7 @@ class ElementsView(APIView):
             ),
             400: get_error_schema(
                 [
+                    "ERROR_ELEMENT_INVALID_FORMULA",
                     "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
@@ -151,6 +154,7 @@ class ElementsView(APIView):
             ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
             ElementNotInSamePage: ERROR_ELEMENT_NOT_IN_SAME_PAGE,
             ElementTypeDeactivated: ERROR_ELEMENT_TYPE_DEACTIVATED,
+            InvalidRuntimeFormula: ERROR_ELEMENT_INVALID_FORMULA,
         }
     )
     @validate_body_custom_fields(
@@ -202,6 +206,7 @@ class ElementView(APIView):
             ),
             400: get_error_schema(
                 [
+                    "ERROR_ELEMENT_INVALID_FORMULA",
                     "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
@@ -218,6 +223,7 @@ class ElementView(APIView):
             ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
             DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
             CollectionElementPropertyOptionsNotUnique: ERROR_ELEMENT_PROPERTY_OPTIONS_NOT_UNIQUE,
+            InvalidRuntimeFormula: ERROR_ELEMENT_INVALID_FORMULA,
         }
     )
     @require_request_data_type(dict)
