@@ -128,6 +128,10 @@ describe('Calendar view store', () => {
     filters: [],
     filters_disabled: true,
   }
+  const viewWithTextSort = {
+    ...view,
+    sortings: [{ field: 1, order: 'ASC', type: 'default' }],
+  }
 
   beforeEach(() => {
     testApp = new TestApp()
@@ -318,6 +322,59 @@ describe('Calendar view store', () => {
           expect(resultStack.results[1].id).toBe(3)
           expect(resultStack.results[2].id).toBe(10)
           expect(resultStack.results[3].id).toBe(11)
+        })
+
+        test('new rows use view sortings within the same date', async () => {
+          const dateStacks = {}
+          dateStacks['2023-01-01'] = {
+            count: 2,
+            results: [
+              {
+                id: 10,
+                order: '10.00',
+                field_1: 'B',
+                field_2: '2023-01-01T00:00:00Z',
+              },
+              {
+                id: 11,
+                order: '11.00',
+                field_1: 'D',
+                field_2: '2023-01-01T00:00:00Z',
+              },
+            ],
+          }
+
+          const state = Object.assign(calendarStore.state(), {
+            dateFieldId: 2,
+            dateStacks,
+          })
+          store.replaceState({ ...store.state, calendar: state })
+
+          await store.dispatch('calendar/createdNewRow', {
+            view: viewWithTextSort,
+            values: {
+              id: 1,
+              order: '1.00',
+              field_1: 'A',
+              field_2: '2023-01-01T00:00:00Z',
+            },
+            fields,
+          })
+          await store.dispatch('calendar/createdNewRow', {
+            view: viewWithTextSort,
+            values: {
+              id: 12,
+              order: '12.00',
+              field_1: 'C',
+              field_2: '2023-01-01T00:00:00Z',
+            },
+            fields,
+          })
+
+          const resultStack = store.state.calendar.dateStacks['2023-01-01']
+          expect(resultStack.results.map(({ id }) => id)).toStrictEqual([
+            1, 10, 12, 11,
+          ])
         })
 
         test('new rows added across dates', async () => {
@@ -886,6 +943,61 @@ describe('Calendar view store', () => {
           expect(resultStack.results[0].id).toBe(100)
           expect(resultStack.results[1].id).toBe(22)
           expect(resultStack.results[2].id).toBe(10)
+        })
+
+        test('updated rows use view sortings within the same date', async () => {
+          const dateStacks = {}
+          dateStacks['2023-01-01'] = {
+            count: 3,
+            results: [
+              {
+                id: 10,
+                order: '10.00',
+                field_1: 'A',
+                field_2: '2023-01-01T00:00:00Z',
+              },
+              {
+                id: 11,
+                order: '11.00',
+                field_1: 'B',
+                field_2: '2023-01-01T00:00:00Z',
+              },
+              {
+                id: 12,
+                order: '12.00',
+                field_1: 'D',
+                field_2: '2023-01-01T00:00:00Z',
+              },
+            ],
+          }
+
+          const state = Object.assign(calendarStore.state(), {
+            dateFieldId: 2,
+            dateStacks,
+          })
+          store.replaceState({ ...store.state, calendar: state })
+
+          await store.dispatch('calendar/updatedExistingRow', {
+            view: viewWithTextSort,
+            row: {
+              id: 12,
+              order: '12.00',
+              field_1: 'D',
+              field_2: '2023-01-01T00:00:00Z',
+            },
+            values: {
+              id: 12,
+              order: '12.00',
+              field_1: 'AA',
+              field_2: '2023-01-01T00:00:00Z',
+            },
+            fields,
+          })
+
+          const resultStack = store.state.calendar.dateStacks['2023-01-01']
+          expect(resultStack.results.map(({ id }) => id)).toStrictEqual([
+            10, 12, 11,
+          ])
         })
 
         test('moving rows across dates', async () => {

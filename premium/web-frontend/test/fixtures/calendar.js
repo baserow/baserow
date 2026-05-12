@@ -48,7 +48,7 @@ export function createCalendarView(
         colorClass: 'color-success',
         name: 'Calendar',
         canFilter: true,
-        canSort: false,
+        canSort: true,
         canShare: true,
         canGroupBy: false,
       },

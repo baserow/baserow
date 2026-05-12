@@ -237,6 +237,8 @@ def get_rows_grouped_by_date_field(
         )
     if search is not None:
         base_queryset = base_queryset.search_all_fields(search, search_mode=search_mode)
+    if view.viewsort_set.exists():
+        base_queryset = ViewHandler().apply_sorting(view, base_queryset)
 
     # Check if the view ownership type is enforcing the filters to be applied. If
     # so, then regardless of what argument is provided, the filters are applied to

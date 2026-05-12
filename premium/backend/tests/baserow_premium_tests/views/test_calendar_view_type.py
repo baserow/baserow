@@ -671,6 +671,62 @@ def test_calendar_timezone_test_cases(
     assert dict(grouped_rows) == test_case["expected_result"]
 
 
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+def test_get_rows_grouped_by_date_field_applies_sortings_within_date_buckets(
+    premium_data_fixture,
+):
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table, primary=True)
+    date_field = premium_data_fixture.create_date_field(table=table)
+    calendar_view = premium_data_fixture.create_calendar_view(
+        table=table, date_field=date_field
+    )
+    premium_data_fixture.create_view_sort(
+        view=calendar_view, field=text_field, order="ASC"
+    )
+
+    model = table.get_model()
+    row_b_day_1 = model.objects.create(
+        **{
+            f"field_{text_field.id}": "B",
+            f"field_{date_field.id}": date(2023, 1, 10),
+        }
+    )
+    row_a_day_1 = model.objects.create(
+        **{
+            f"field_{text_field.id}": "A",
+            f"field_{date_field.id}": date(2023, 1, 10),
+        }
+    )
+    row_c_day_2 = model.objects.create(
+        **{
+            f"field_{text_field.id}": "C",
+            f"field_{date_field.id}": date(2023, 1, 11),
+        }
+    )
+    row_a_day_2 = model.objects.create(
+        **{
+            f"field_{text_field.id}": "A",
+            f"field_{date_field.id}": date(2023, 1, 11),
+        }
+    )
+
+    grouped_rows = get_rows_grouped_by_date_field(
+        user,
+        calendar_view,
+        date_field,
+        from_timestamp=datetime(2023, 1, 10, 0, 0, 0, 0),
+        to_timestamp=datetime(2023, 1, 11, 0, 0, 0, 0),
+        user_timezone="UTC",
+        model=model,
+    )
+
+    assert grouped_rows["2023-01-10"]["results"] == [row_a_day_1, row_b_day_1]
+    assert grouped_rows["2023-01-11"]["results"] == [row_a_day_2, row_c_day_2]
+
+
 @pytest.mark.view_calendar
 def test_to_midnight():
     assert to_midnight(datetime(2023, 1, 9, 23, 0, 0, 0)) == datetime(
