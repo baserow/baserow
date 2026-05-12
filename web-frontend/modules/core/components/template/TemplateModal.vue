@@ -1,5 +1,5 @@
 <template>
-  <Modal ref="modal" :full-screen="true" :close-button="false">
+  <Modal ref="modal" :full-screen="true" :close-button="false" keep-content>
     <div v-if="loading" class="loading-absolute-center"></div>
     <template v-else>
       <TemplateHeader
