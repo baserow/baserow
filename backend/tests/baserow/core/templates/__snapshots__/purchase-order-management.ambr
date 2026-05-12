@@ -1,0 +1,581 @@
+# serializer version: 1
+# name: test_template_snapshot[purchase-order-management]
+  dict({
+    'builder': dict({
+      'Add request': list([
+        dict({
+          'children': list([
+          ]),
+          'type': 'link',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'input_text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'datetime_picker',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'record_selector',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'input_text',
+            }),
+          ]),
+          'type': 'form_container',
+        }),
+      ]),
+      'Add request details': list([
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'button',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'button',
+            }),
+          ]),
+          'type': 'column',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+          ]),
+          'type': 'column',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'table',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'record_selector',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'input_text',
+                }),
+              ]),
+              'type': 'form_container',
+            }),
+          ]),
+          'type': 'column',
+        }),
+      ]),
+      'Homepage': list([
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'link',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'table',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'table',
+        }),
+      ]),
+      'Login': list([
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'auth_form',
+        }),
+      ]),
+      'Request details': list([
+        dict({
+          'children': list([
+          ]),
+          'type': 'link',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+          ]),
+          'type': 'column',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+          ]),
+          'type': 'column',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'button',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'button',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'button',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'button',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'button',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'button',
+            }),
+          ]),
+          'type': 'column',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'table',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'table',
+        }),
+      ]),
+      'Request details update': list([
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+          ]),
+          'type': 'column',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+          ]),
+          'type': 'column',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'link',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'record_selector',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'choice',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'input_text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'input_text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'input_text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'input_text',
+            }),
+          ]),
+          'type': 'form_container',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'table',
+        }),
+      ]),
+      '__shared__': list([
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'image',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'button',
+                }),
+              ]),
+              'type': 'column',
+            }),
+          ]),
+          'type': 'header',
+        }),
+      ]),
+    }),
+  })
+# ---

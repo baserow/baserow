@@ -1,0 +1,369 @@
+# serializer version: 1
+# name: test_template_snapshot[intake-qualification]
+  dict({
+    'builder': dict({
+      'Dashboard': list([
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'heading',
+                }),
+              ]),
+              'type': 'column',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'table',
+            }),
+          ]),
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'heading',
+                }),
+              ]),
+              'type': 'column',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'table',
+            }),
+          ]),
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'heading',
+                }),
+              ]),
+              'type': 'column',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'table',
+            }),
+          ]),
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'heading',
+                }),
+              ]),
+              'type': 'column',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'table',
+            }),
+          ]),
+          'type': 'simple_container',
+        }),
+      ]),
+      'Team Login': list([
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'auth_form',
+            }),
+          ]),
+          'type': 'simple_container',
+        }),
+      ]),
+      'Update Campaign': list([
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'record_selector',
+                }),
+              ]),
+              'type': 'form_container',
+            }),
+          ]),
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+          ]),
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'heading',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'datetime_picker',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'datetime_picker',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'choice',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'input_file',
+                }),
+              ]),
+              'type': 'form_container',
+            }),
+          ]),
+          'type': 'simple_container',
+        }),
+      ]),
+      'Update Log': list([
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'record_selector',
+                }),
+              ]),
+              'type': 'form_container',
+            }),
+          ]),
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+          ]),
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'heading',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'input_text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'choice',
+                }),
+              ]),
+              'type': 'form_container',
+            }),
+          ]),
+          'type': 'simple_container',
+        }),
+      ]),
+      'Update Service': list([
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'record_selector',
+                }),
+              ]),
+              'type': 'form_container',
+            }),
+          ]),
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+          ]),
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'heading',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'input_text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'input_text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'checkbox',
+                }),
+              ]),
+              'type': 'form_container',
+            }),
+          ]),
+          'type': 'simple_container',
+        }),
+      ]),
+      '__shared__': list([
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'type': 'image',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'menu',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+          ]),
+          'type': 'header',
+        }),
+      ]),
+    }),
+  })
+# ---

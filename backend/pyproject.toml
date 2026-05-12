@@ -152,6 +152,7 @@ dev = [
     "ipdb",
     "build",
     "rust-just>=1.46.0",
+    "syrupy==5.1.0",
 ]
 changelog = [
     "typer==0.24.1",

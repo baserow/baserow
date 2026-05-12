@@ -579,3 +579,33 @@ class BuilderApplicationType(ApplicationType):
         else:
             instance = self.enhance_queryset(base_queryset).first()
             return instance and list(instance.page_set.all()) or []
+
+    def serialize_for_regression_testing(self, builder: Builder) -> dict:
+        """
+        Serializes each page's element tree as a list of ``{type, children}`` nodes,
+        keyed by page name. Used by snapshot tests to detect element-hierarchy
+        regressions across template changes.
+
+        :param builder: The builder application instance to serialize.
+        :return: A dict mapping page names to their element-tree representation.
+        """
+        from baserow.contrib.builder.elements.handler import ElementHandler
+        from baserow.contrib.builder.pages.handler import PageHandler
+
+        result = {}
+        for page in PageHandler().get_pages(builder):
+            elements = list(ElementHandler().get_elements(page))
+            # Elements are already ordered by (order, id) via Element.Meta.ordering.
+            by_parent: dict[int | None, list] = {}
+            for el in elements:
+                by_parent.setdefault(el.parent_element_id, []).append(el)
+
+            def build_tree(parent_id):
+                return [
+                    {"type": el.get_type().type, "children": build_tree(el.id)}
+                    for el in by_parent.get(parent_id, [])
+                ]
+
+            result[page.name] = build_tree(None)
+
+        return result
