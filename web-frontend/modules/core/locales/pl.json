@@ -1045,5 +1045,12 @@
         "createEndpoint": "Utwórz adres końcowy",
         "backToOverview": "Powrót",
         "createNewTitle": "Utwórz adres końcowy serwera MCP"
+    },
+    "workspaceSearch": {
+        "types": {
+            "applications": "Aplikacje",
+            "tables": "Tabele",
+            "fields": "Pola"
+        }
     }
 }
