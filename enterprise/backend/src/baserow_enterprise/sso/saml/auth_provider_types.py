@@ -14,7 +14,7 @@ from baserow_enterprise.api.sso.saml.errors import (
     ERROR_SAML_PROVIDER_FOR_DOMAIN_ALREADY_EXISTS,
 )
 from baserow_enterprise.api.sso.saml.validators import (
-    validate_saml_metadata,
+    SamlMetadataField,
     validate_unique_saml_domain,
 )
 from baserow_enterprise.api.sso.utils import (
@@ -54,8 +54,7 @@ class SamlAuthProviderTypeMixin:
     ]
 
     saml_serializer_field_overrides = {
-        "metadata": serializers.CharField(
-            validators=[validate_saml_metadata],
+        "metadata": SamlMetadataField(
             required=True,
             help_text="The SAML metadata XML provided by the IdP.",
         ),

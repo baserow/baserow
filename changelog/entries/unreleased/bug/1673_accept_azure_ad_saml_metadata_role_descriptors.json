@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Accept Azure AD SAML metadata containing unsupported RoleDescriptor nodes.",
+    "issue_origin": "github",
+    "issue_number": 1673,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-05-12"
+}
