@@ -904,9 +904,14 @@ export class ElementType extends Registerable {
       recordIndexPath = [0],
     } = applicationContext
 
+    const elementPage =
+      element.page_id === page.id
+        ? page
+        : this.app.$store.getters['page/getById'](builder, element.page_id)
+
     const collectionAncestry = this.getCollectionAncestry({
       element,
-      page,
+      page: elementPage,
       allowSameElement,
     })
 
