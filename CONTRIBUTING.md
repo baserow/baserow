@@ -82,18 +82,6 @@ Possible outcomes:
 - **Changes requested** — we'll list what needs to change. Please respond within 2 weeks; PRs with no activity after that will be closed. You can always reopen later.
 - **Closed** — with an explanation of why. This is not personal — it's about priorities, alignment, and capacity. You can reopen if you resolve the issues, or open a fresh PR after incorporating our feedback.
 
-## Help us finish it
-
-If you've started something useful but don't have the time or context to bring it to our full quality standards, you can ask us to take it over. We may also proactively offer this on promising PRs.
-
-How it works:
-
-- Let us know in the PR that you'd like us to finish it
-- If the feature aligns with our priorities and the code is a solid foundation, we'll take it from there
-- **You get credited** as a contributor in the release. Let us know if you'd also like to be mentioned in the release blog post.
-
-We can't guarantee we'll do this for every PR. If the timing isn't right or the PR needs too many changes, we may decline. But we'll always do our best to recognize your work and, where possible, incorporate your contribution.
-
 ## Quality standards
 
 See [Code quality](docs/development/code-quality.md) for the full list of standards, linters, and testing expectations. The CI pipeline must pass and security impact must be considered.
