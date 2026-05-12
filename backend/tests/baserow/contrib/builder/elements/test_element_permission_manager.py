@@ -3,7 +3,10 @@ from django.contrib.auth.models import AnonymousUser
 import pytest
 
 from baserow.contrib.builder.elements.models import Element
-from baserow.contrib.builder.elements.operations import ListElementsPageOperationType
+from baserow.contrib.builder.elements.operations import (
+    ListElementsPageOperationType,
+    ReadElementOperationType,
+)
 from baserow.contrib.builder.elements.permission_manager import (
     ElementVisibilityPermissionManager,
 )
@@ -253,6 +256,82 @@ def test_element_visibility_permission_manager_filter_queryset(
             for wa in all_was_for_anonymous
         ]
     )
+
+
+@pytest.mark.django_db
+def test_element_visibility_permission_manager_read_element_permission(
+    data_fixture,
+    stub_user_source_registry,
+):
+    user = data_fixture.create_user(username="Auth user")
+    builder = data_fixture.create_builder_application(user=user)
+    builder_to = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(builder=builder, published_to=builder_to)
+    public_page = data_fixture.create_builder_page(builder=builder_to)
+    logged_in_page = data_fixture.create_builder_page(
+        builder=builder_to, visibility=Page.VISIBILITY_TYPES.LOGGED_IN
+    )
+    public_user_source = data_fixture.create_user_source_with_first_type(
+        application=builder_to
+    )
+    public_user_source_user = UserSourceUser(
+        public_user_source, None, 1, "US public", "e@ma.il"
+    )
+
+    element_all = data_fixture.create_builder_button_element(
+        page=public_page, visibility=Element.VISIBILITY_TYPES.ALL
+    )
+    element_logged_in = data_fixture.create_builder_button_element(
+        page=public_page, visibility=Element.VISIBILITY_TYPES.LOGGED_IN
+    )
+    element_not_logged = data_fixture.create_builder_button_element(
+        page=public_page, visibility=Element.VISIBILITY_TYPES.NOT_LOGGED
+    )
+    element_on_logged_in_page = data_fixture.create_builder_button_element(
+        page=logged_in_page, visibility=Element.VISIBILITY_TYPES.ALL
+    )
+
+    checks = [
+        PermissionCheck(
+            public_user_source_user, ReadElementOperationType.type, element_all
+        ),
+        PermissionCheck(
+            public_user_source_user, ReadElementOperationType.type, element_logged_in
+        ),
+        PermissionCheck(
+            public_user_source_user, ReadElementOperationType.type, element_not_logged
+        ),
+        PermissionCheck(
+            public_user_source_user,
+            ReadElementOperationType.type,
+            element_on_logged_in_page,
+        ),
+        PermissionCheck(AnonymousUser(), ReadElementOperationType.type, element_all),
+        PermissionCheck(
+            AnonymousUser(), ReadElementOperationType.type, element_logged_in
+        ),
+        PermissionCheck(
+            AnonymousUser(), ReadElementOperationType.type, element_not_logged
+        ),
+        PermissionCheck(
+            AnonymousUser(), ReadElementOperationType.type, element_on_logged_in_page
+        ),
+    ]
+
+    result = ElementVisibilityPermissionManager().check_multiple_permissions(
+        checks, builder.workspace
+    )
+
+    assert [result.get(check, None) for check in checks] == [
+        True,
+        True,
+        False,
+        True,
+        True,
+        False,
+        True,
+        False,
+    ]
 
 
 @pytest.fixture(autouse=True)

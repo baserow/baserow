@@ -1,3 +1,4 @@
+import json
 from unittest.mock import ANY, MagicMock, patch
 
 from django.test.utils import override_settings
@@ -1063,6 +1064,96 @@ def test_public_dispatch_data_source_view_returns_some_fields(
                 fields[0].name: "Gobi Manchurian",
             },
         ],
+    }
+
+
+@pytest.mark.django_db
+def test_public_dispatch_data_source_cannot_use_hidden_element_refinements(
+    api_client, data_fixture
+):
+    user = data_fixture.create_user()
+    builder_from = data_fixture.create_builder_application(user=user)
+    builder = data_fixture.create_builder_application(workspace=None)
+    data_fixture.create_builder_custom_domain(
+        builder=builder_from, published_to=builder
+    )
+    public_page = data_fixture.create_builder_page(builder=builder)
+    hidden_page = data_fixture.create_builder_page(
+        builder=builder, visibility=Page.VISIBILITY_TYPES.LOGGED_IN
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=builder, authorized_user=user, name="test"
+    )
+    table, _, _ = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+            ("SSN", "text"),
+        ],
+        rows=[
+            ["Peter", "111"],
+            ["Afonso", "222"],
+        ],
+    )
+    public_field = table.field_set.get(name="Name")
+    private_field = table.field_set.get(name="SSN")
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source(
+        user=user,
+        page=builder.shared_page,
+        integration=integration,
+        table=table,
+    )
+
+    visible_element = data_fixture.create_builder_table_element(
+        page=public_page,
+        data_source=data_source,
+        fields=[
+            {
+                "name": "Name",
+                "type": "text",
+                "config": {"value": f"get('current_record.{public_field.db_column}')"},
+            },
+        ],
+    )
+    visible_element.property_options.create(
+        schema_property=private_field.db_column, filterable=False
+    )
+
+    hidden_element = data_fixture.create_builder_table_element(
+        page=hidden_page,
+        data_source=data_source,
+        visibility=Element.VISIBILITY_TYPES.LOGGED_IN,
+    )
+    hidden_element.property_options.create(
+        schema_property=private_field.db_column, filterable=True
+    )
+
+    advanced_filters = {
+        "filter_type": "AND",
+        "filters": [
+            {
+                "field": private_field.id,
+                "type": "equal",
+                "value": "222",
+            }
+        ],
+    }
+    url = reverse(
+        "api:builder:domains:public_dispatch",
+        kwargs={"data_source_id": data_source.id},
+    )
+
+    response = api_client.post(
+        f"{url}?filters={json.dumps(advanced_filters)}",
+        {"metadata": {"data_source": {"element": hidden_element.id}}},
+        format="json",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == {
+        "error": "ERROR_DATA_SOURCE_REFINEMENT_FORBIDDEN",
+        "detail": "Data source filter, search and/or sort fields error: "
+        "The data source is not available for the dispatched element.",
     }
 
 

@@ -2,7 +2,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Q, QuerySet
 
-from baserow.contrib.builder.elements.operations import ListElementsPageOperationType
+from baserow.contrib.builder.elements.operations import (
+    ListElementsPageOperationType,
+    ReadElementOperationType,
+)
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.operations import (
     DispatchBuilderWorkflowActionOperationType,
@@ -70,6 +73,53 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
         # Return False by default for safety
         return False
 
+    def actor_can_view_page(self, actor, page):
+        """
+        Return True if the actor is allowed to view the page.
+        """
+
+        if isinstance(actor, User):
+            return True
+
+        if page.visibility != Page.VISIBILITY_TYPES.LOGGED_IN:
+            return True
+
+        if not getattr(actor, "is_authenticated", False):
+            return False
+
+        if page.role_type == Page.ROLE_TYPES.ALLOW_ALL:
+            return True
+        elif page.role_type == Page.ROLE_TYPES.ALLOW_ALL_EXCEPT:
+            return actor.role not in page.roles
+        elif page.role_type == Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT:
+            return actor.role in page.roles
+
+        return False
+
+    def actor_can_view_element(self, actor, element):
+        """
+        Return True if the actor is allowed to view the element, taking element
+        and page visibility and role settings into account.
+        """
+
+        if not self.actor_can_view_page(actor, element.page):
+            return False
+
+        current_element = element
+        while current_element is not None:
+            if getattr(actor, "is_authenticated", False):
+                if current_element.visibility == Element.VISIBILITY_TYPES.NOT_LOGGED:
+                    return False
+
+                if not self.auth_user_can_view_element(actor, current_element):
+                    return False
+            elif current_element.visibility == Element.VISIBILITY_TYPES.LOGGED_IN:
+                return False
+
+            current_element = current_element.parent_element
+
+        return True
+
     def check_multiple_permissions(
         self,
         checks,
@@ -85,22 +135,10 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
 
         for check in checks:
             if check.operation_name == DispatchBuilderWorkflowActionOperationType.type:
-                if getattr(check.actor, "is_authenticated", False):
-                    if (
-                        check.context.element.visibility
-                        == Element.VISIBILITY_TYPES.NOT_LOGGED
-                    ):
-                        result[check] = False
-                    elif not self.auth_user_can_view_element(
-                        check.actor, check.context.element
-                    ):
-                        result[check] = False
-                else:
-                    if (
-                        check.context.element.visibility
-                        == Element.VISIBILITY_TYPES.LOGGED_IN
-                    ):
-                        result[check] = False
+                if not self.actor_can_view_element(check.actor, check.context.element):
+                    result[check] = False
+            elif check.operation_name == ReadElementOperationType.type:
+                result[check] = self.actor_can_view_element(check.actor, check.context)
 
         return result
 
