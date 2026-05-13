@@ -138,11 +138,11 @@ function updateValue(raw) {
 }
 
 function onInput(e) {
-  const raw = input.value.value
+  const raw = e.target.value
 
   if (!raw && props.defaultValueWhenEmpty !== null) return
 
-  updateValue(e.target.value)
+  updateValue(raw)
 }
 
 function onBlur(e) {
