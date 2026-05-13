@@ -5779,12 +5779,34 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
         field_cache: "FieldCache",
         via_path_to_starting_table: Optional[List[LinkRowField]],
     ):
-        update_statement = (
-            FormulaHandler.baserow_expression_to_update_django_expression(
-                field.cached_typed_internal_expression,
-                field_cache.get_model(field.table),
+        if field.cached_formula_type.is_invalid():
+            return
+
+        try:
+            update_statement = (
+                FormulaHandler.baserow_expression_to_update_django_expression(
+                    field.cached_typed_internal_expression,
+                    field_cache.get_model(field.table),
+                    raise_exceptions=True,
+                )
             )
-        )
+        except Exception:
+            # If we get an error it's probably because we are using a stale cache and
+            # one of the field type used in this formula was changed
+            # let's try again after refreshing the field cache for this table
+            # Prevents the sentry issue BASEROW-SAAS-BACKEND-5
+            field_cache.refresh_table_model(field.table)
+            field.refresh_from_db()
+            field.clear_cached_properties()
+            if field.cached_formula_type.is_invalid():
+                return
+            update_statement = (
+                FormulaHandler.baserow_expression_to_update_django_expression(
+                    field.cached_typed_internal_expression,
+                    field_cache.get_model(field.table),
+                )
+            )
+
         update_collector.add_field_with_pending_update_statement(
             field,
             update_statement,

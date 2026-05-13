@@ -104,7 +104,10 @@ class FormulaHandler(metaclass=baserow_trace_methods(tracer)):
 
     @classmethod
     def baserow_expression_to_update_django_expression(
-        cls, expression: BaserowExpression, model: Type[Model]
+        cls,
+        expression: BaserowExpression,
+        model: Type[Model],
+        raise_exceptions: bool = False,
     ) -> Expression:
         """
         Converts the provided baserow expression to a django expression that can be
@@ -118,7 +121,9 @@ class FormulaHandler(metaclass=baserow_trace_methods(tracer)):
         :return: A Django Expression for use in an update statement.
         """
 
-        return baserow_expression_to_update_django_expression(expression, model)
+        return baserow_expression_to_update_django_expression(
+            expression, model, raise_exceptions=raise_exceptions
+        )
 
     @classmethod
     def baserow_expression_to_row_update_django_expression(

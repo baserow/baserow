@@ -40,8 +40,11 @@ from baserow.core.formula.parser.exceptions import MaximumFormulaSizeError
 def baserow_expression_to_update_django_expression(
     baserow_expression: BaserowExpression[BaserowFormulaType],
     model: Type[Model],
+    raise_exceptions: bool = False,
 ):
-    return _baserow_expression_to_django_expression(baserow_expression, model, None)
+    return _baserow_expression_to_django_expression(
+        baserow_expression, model, None, raise_exceptions=raise_exceptions
+    )
 
 
 def baserow_expression_to_single_row_update_django_expression(
@@ -67,6 +70,7 @@ def _baserow_expression_to_django_expression(
     model: Type[Model],
     model_instance: Optional[Model],
     insert=False,
+    raise_exceptions: bool = False,
 ) -> Expression:
     """
     Takes a BaserowExpression and converts it to a Django Expression which calculates
@@ -113,6 +117,8 @@ def _baserow_expression_to_django_expression(
     except RecursionError:
         raise MaximumFormulaSizeError()
     except Exception as e:
+        if raise_exceptions:
+            raise
         formula_exception_handler(e)
         return Value(None)
 

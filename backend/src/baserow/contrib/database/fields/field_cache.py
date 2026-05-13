@@ -53,6 +53,18 @@ class FieldCache:
             self.cache_model_fields(model)
         return self._model_cache[table_id]
 
+    def uncache_table(self, table):
+        table_id = table.id
+        self._model_cache.pop(table_id, None)
+        self._cached_field_by_name_per_table.pop(table_id, None)
+
+    def refresh_table_model(self, table):
+        self.uncache_table(table)
+        table.refresh_from_db(fields=["version"])
+        model = table.get_model(use_cache=False)
+        self.cache_model(model)
+        return model
+
     def uncache_field(self, field):
         return self._cached_field_by_name_per_table[field.table_id].pop(
             field.name, None
