@@ -391,6 +391,26 @@ def test_get_serializer_class(data_fixture):
     }
 
 
+@pytest.mark.django_db
+def test_get_serializer_class_with_fields_named_like_serializer_internals(data_fixture):
+    workspace = data_fixture.create_workspace(name="Workspace 1")
+
+    workspace_serializer = get_serializer_class(
+        Workspace,
+        ["Meta", "validate"],
+        {
+            "Meta": CharField(source="name"),
+            "validate": CharField(source="name"),
+        },
+    )(workspace)
+
+    assert workspace_serializer.data == {
+        "Meta": "Workspace 1",
+        "validate": "Workspace 1",
+    }
+    assert workspace_serializer.__class__.Meta.model == Workspace
+
+
 @override_settings(DEBUG=False)
 def test_api_error_if_url_trailing_slash_is_missing(api_client):
     invalid_url = "/api/invalid-url"

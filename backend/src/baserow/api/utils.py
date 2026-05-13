@@ -389,9 +389,6 @@ def get_serializer_class(
 
     attrs = {"Meta": Meta}
 
-    if field_overrides:
-        attrs.update(field_overrides)
-
     def validate(self, value):
         if required_fields:
             for field_name in required_fields:
@@ -404,7 +401,7 @@ def get_serializer_class(
 
     attrs["validate"] = validate
     mixins = base_mixins or []
-    return type(
+    serializer_class = type(
         str(model_.__name__ + "Serializer"),
         (
             *mixins,
@@ -412,6 +409,18 @@ def get_serializer_class(
         ),
         attrs,
     )
+
+    if field_overrides:
+        # User-facing field names are valid serializer field names, but some of
+        # them, such as "Meta" or "validate", collide with DRF class internals.
+        # Register declared fields directly so those names can be serialized
+        # without replacing the serializer configuration or methods.
+        serializer_class._declared_fields = {
+            **serializer_class._declared_fields,
+            **field_overrides,
+        }
+
+    return serializer_class
 
 
 class MappingSerializer:
