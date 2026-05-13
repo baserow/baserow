@@ -284,6 +284,34 @@ export class PublicLogoRemovalPaidFeature extends PaidFeature {
   }
 }
 
+export class GroupedAggregateRowsDataSourcePaidFeature extends PaidFeature {
+  static getType() {
+    return 'builder_grouped_aggregate_rows'
+  }
+
+  getPlan() {
+    return 'Enterprise'
+  }
+
+  getIconClass() {
+    return 'iconoir-stats-report'
+  }
+
+  getName() {
+    return this.app.$i18n.t('premiumFeatures.groupedAggregateRowsDataSource')
+  }
+
+  getImage() {
+    return null
+  }
+
+  getContent() {
+    return this.app.$i18n.t(
+      'premiumFeatures.groupedAggregateRowsDataSourceContent'
+    )
+  }
+}
+
 export class FormSurveyModePaidFeature extends PaidFeature {
   static getType() {
     return 'form_survey_mode'

@@ -16,6 +16,30 @@ from baserow_premium.integrations.local_baserow.models import (
 )
 
 
+@pytest.fixture(autouse=True)
+def enable_grouped_aggregate_rows_feature(mocker):
+    mocker.patch(
+        "baserow_premium.integrations.local_baserow.service_types."
+        "LicenseHandler.workspace_has_feature",
+        return_value=True,
+    )
+    mocker.patch(
+        "baserow_premium.integrations.local_baserow.service_types."
+        "LicenseHandler.raise_if_workspace_doesnt_have_feature",
+        return_value=None,
+    )
+
+
+def without_grouped_row_ids(result):
+    return {
+        **result,
+        "results": [
+            {key: value for key, value in row.items() if key != "id"}
+            for row in result["results"]
+        ],
+    }
+
+
 @pytest.mark.django_db
 def test_grouped_aggregate_rows_get_dashboard_data_sources(
     api_client, premium_data_fixture
@@ -240,9 +264,9 @@ def test_grouped_aggregate_rows_dispatch_dashboard_data_source(
     dashboard = premium_data_fixture.create_dashboard_application(
         user=user, workspace=workspace
     )
-    field = premium_data_fixture.create_number_field(table=table)
-    field_2 = premium_data_fixture.create_number_field(table=table)
-    field_3 = premium_data_fixture.create_number_field(table=table)
+    field = premium_data_fixture.create_number_field(table=table, name="Amount")
+    field_2 = premium_data_fixture.create_number_field(table=table, name="Quantity")
+    field_3 = premium_data_fixture.create_number_field(table=table, name="Score")
     integration = premium_data_fixture.create_local_baserow_integration(
         application=dashboard, user=user
     )
@@ -354,31 +378,155 @@ def test_grouped_aggregate_rows_dispatch_dashboard_data_source(
 
     response_json = response.json()
     assert response.status_code == HTTP_200_OK, response_json
+    assert without_grouped_row_ids(response_json) == {
+        "has_next_page": False,
+        "results": [
+            {
+                "Amount": 30.0,
+                "Amount sum": 90.0,
+                "Quantity sum": 9.0,
+                "Score sum": 3.0,
+            },
+            {
+                "Amount": 20.0,
+                "Amount sum": 60.0,
+                "Quantity sum": 6.0,
+                "Score sum": 6.0,
+            },
+            {
+                "Amount": 10.0,
+                "Amount sum": 30.0,
+                "Quantity sum": 3.0,
+                "Score sum": 6.0,
+            },
+            {
+                "Amount": None,
+                "Amount sum": None,
+                "Quantity sum": 100.0,
+                "Score sum": 100.0,
+            },
+        ],
+    }
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_dispatch_dashboard_data_source_without_group_by_returns_list(
+    api_client, premium_data_fixture
+):
+    user, token = premium_data_fixture.create_user_and_token()
+    workspace = premium_data_fixture.create_workspace(user=user)
+    database = premium_data_fixture.create_database_application(workspace=workspace)
+    table = premium_data_fixture.create_database_table(user=user, database=database)
+    dashboard = premium_data_fixture.create_dashboard_application(
+        user=user, workspace=workspace
+    )
+    field = premium_data_fixture.create_number_field(table=table)
+    integration = premium_data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = premium_data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+    )
+    data_source = premium_data_fixture.create_dashboard_local_baserow_grouped_aggregate_rows_data_source(
+        dashboard=dashboard, service=service, integration_args={"user": user}
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="sum", order=1
+    )
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[
+            {f"field_{field.id}": 10},
+            {f"field_{field.id}": 20},
+        ],
+    )
+    url = reverse(
+        "api:dashboard:data_sources:dispatch",
+        kwargs={"data_source_id": data_source.id},
+    )
+
+    response = api_client.post(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK, response_json
     assert response_json == {
-        "result": [
+        "has_next_page": False,
+        "results": [
             {
-                f"field_{field.id}": 30.0,
-                f"field_{field.id}_sum": 90.0,
-                f"field_{field_2.id}_sum": 9.0,
-                f"field_{field_3.id}_sum": 3.0,
+                "id": "Result",
+                f"{field.name} sum": 30.0,
             },
+        ],
+    }
+
+
+@pytest.mark.django_db
+def test_grouped_aggregate_rows_dispatch_dashboard_data_source_uses_human_names(
+    api_client, premium_data_fixture
+):
+    user, token = premium_data_fixture.create_user_and_token()
+    workspace = premium_data_fixture.create_workspace(user=user)
+    database = premium_data_fixture.create_database_application(workspace=workspace)
+    table = premium_data_fixture.create_database_table(user=user, database=database)
+    dashboard = premium_data_fixture.create_dashboard_application(
+        user=user, workspace=workspace
+    )
+    field = premium_data_fixture.create_number_field(table=table, name="Amount")
+    group_by_field = premium_data_fixture.create_text_field(
+        table=table, name="Category"
+    )
+    integration = premium_data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service = premium_data_fixture.create_service(
+        LocalBaserowGroupedAggregateRows,
+        integration=integration,
+        table=table,
+    )
+    data_source = premium_data_fixture.create_dashboard_local_baserow_grouped_aggregate_rows_data_source(
+        dashboard=dashboard, service=service, integration_args={"user": user}
+    )
+    LocalBaserowTableServiceAggregationSeries.objects.create(
+        service=service, field=field, aggregation_type="sum", order=1
+    )
+    LocalBaserowTableServiceAggregationGroupBy.objects.create(
+        service=service, field=group_by_field, order=1
+    )
+
+    RowHandler().create_rows(
+        user,
+        table,
+        rows_values=[
+            {field.db_column: 10, group_by_field.db_column: "Hardware"},
+            {field.db_column: 20, group_by_field.db_column: "Hardware"},
+        ],
+    )
+    url = reverse(
+        "api:dashboard:data_sources:dispatch",
+        kwargs={"data_source_id": data_source.id},
+    )
+
+    response = api_client.post(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK, response_json
+    assert without_grouped_row_ids(response_json) == {
+        "has_next_page": False,
+        "results": [
             {
-                f"field_{field.id}": 20.0,
-                f"field_{field.id}_sum": 60.0,
-                f"field_{field_2.id}_sum": 6.0,
-                f"field_{field_3.id}_sum": 6.0,
-            },
-            {
-                f"field_{field.id}": 10.0,
-                f"field_{field.id}_sum": 30.0,
-                f"field_{field_2.id}_sum": 3.0,
-                f"field_{field_3.id}_sum": 6.0,
-            },
-            {
-                f"field_{field.id}": None,
-                f"field_{field.id}_sum": None,
-                f"field_{field_2.id}_sum": 100.0,
-                f"field_{field_3.id}_sum": 100.0,
+                "Category": "Hardware",
+                "Amount sum": 30.0,
             },
         ],
     }

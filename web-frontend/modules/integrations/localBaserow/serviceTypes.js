@@ -34,6 +34,20 @@ export class LocalBaserowTableServiceType extends ServiceType {
     return service.context_data_schema
   }
 
+  getSchemaProperties(service) {
+    const schema = this.getDataSchema(service)
+    return this.returnsList ? schema?.items?.properties : schema?.properties
+  }
+
+  getSchemaProperty(service, propertyName) {
+    return this.getSchemaProperties(service)?.[propertyName]
+  }
+
+  getSchemaPropertyDisplayName(service, propertyName) {
+    const property = this.getSchemaProperty(service, propertyName)
+    return property?.metadata?.display_name || property?.title || propertyName
+  }
+
   /**
    * Given an array of tables, returns the supported tables for this service type.
    * By default, we return all tables, but specific service types can override this

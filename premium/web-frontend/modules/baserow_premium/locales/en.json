@@ -196,7 +196,9 @@
     "aiFeatures": "AI features",
     "aiFeaturesContent": "Use AI to automate and enhance your workflows. With the AI prompt field type you can generate text, summaries, or insights directly in cells based on a dynamic prompts that can reference other fields. Separately, you can also ask AI to create formulas for you.",
     "chartWidget": "Chart widget",
-    "chartWidgetContent": "Visualize your data with charts on dashboards. Use any table as a data source, add multiple series, and group or sort by fields with rich summary options."
+    "chartWidgetContent": "Visualize your data with charts on dashboards. Use any table as a data source, add multiple series, and group or sort by fields with rich summary options.",
+    "groupedAggregateRowsDataSource": "Group and summarize rows",
+    "groupedAggregateRowsDataSourceContent": "Group rows from a Baserow table and calculate summaries for use in application builder pages."
   },
   "licenses": {
     "titleNoLicenses": "No licenses found",
@@ -374,6 +376,46 @@
     "true": "true",
     "false": "false",
     "other": "Other"
+  },
+  "groupedAggregateRowsDataSourceForm": {
+    "series": "Series",
+    "addSeries": "Add series",
+    "data": "Data",
+    "sourceFieldLabel": "Source",
+    "viewFieldLabel": "View",
+    "notSelected": "Not selected"
+  },
+  "localBaserowGroupedAggregateRowsForm": {
+    "series": "Series",
+    "addSeries": "Add series"
+  },
+  "serviceType": {
+    "localBaserowGroupedAggregateRows": "Group and summarize rows",
+    "localBaserowGroupedAggregateRowsDescription": "Group rows from a Baserow table and calculate summaries.",
+    "errorNoAggregationSeriesDefined": "No summary series defined.",
+    "errorIncompleteAggregationSeries": "One or more summary series are incomplete."
+  },
+  "aggregationSeriesForm": {
+    "aggregationFieldLabel": "Field",
+    "aggregationTypeLabel": "Summary",
+    "deleteSeries": "Delete series",
+    "chartType": "Chart type",
+    "barChart": "Bar",
+    "lineChart": "Line",
+    "pieChart": "Pie",
+    "doughnutChart": "Doughnut",
+    "polarAreaChart": "Polar area"
+  },
+  "aggregationGroupByForm": {
+    "groupByFieldLabel": "Group by",
+    "groupByNone": "None",
+    "groupByRowId": "Row Id"
+  },
+  "aggregationSortByForm": {
+    "sortByFieldLabel": "Sort by",
+    "none": "None",
+    "ascending": "Ascending",
+    "descending": "Descending"
   },
   "generateAIValuesModal": {
     "title": "Generate all AI values",

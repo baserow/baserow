@@ -107,6 +107,7 @@ export class DataSourcesPageHeaderItemType extends PageHeaderItemType {
       return serviceType.isInError({
         service: dataSource,
         application: builder,
+        workspace: builder.workspace,
       })
     })
   }

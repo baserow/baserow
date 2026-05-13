@@ -245,8 +245,12 @@ class DispatchDashboardDataSourceView(APIView):
         Call the given data source related service dispatch method.
         """
 
-        dispatch_context = DashboardDispatchContext(request)
-        response = DashboardDataSourceService().dispatch_data_source(
+        data_source_service = DashboardDataSourceService()
+        data_source = data_source_service.handler.get_data_source(data_source_id)
+        dispatch_context = DashboardDispatchContext(
+            request, data_source.dashboard.workspace
+        )
+        response = data_source_service.dispatch_data_source(
             request.user, data_source_id, dispatch_context
         )
         return Response(response)
