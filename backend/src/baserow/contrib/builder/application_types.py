@@ -615,11 +615,12 @@ class BuilderApplicationType(ApplicationType):
                 for slot in sorted(
                     by_slot, key=lambda s: min(e.order for e in by_slot[s])
                 ):
-                    ordered.extend(
-                        sorted(by_slot[slot], key=lambda e: (e.order, e.id))
-                    )
+                    ordered.extend(sorted(by_slot[slot], key=lambda e: (e.order, e.id)))
                 return [
-                    {"type": element.get_type().type, "children": build_tree(element.id)}
+                    {
+                        "type": element.get_type().type,
+                        "children": build_tree(element.id),
+                    }
                     for element in ordered
                 ]
 
