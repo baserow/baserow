@@ -17,6 +17,31 @@
             }),
             dict({
               'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
                 dict({
                   'children': list([
                   ]),
@@ -29,31 +54,6 @@
                 }),
               ]),
               'type': 'form_container',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
             }),
             dict({
               'children': list([

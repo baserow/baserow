@@ -586,24 +586,41 @@ class BuilderApplicationType(ApplicationType):
         keyed by page name. Used by snapshot tests to detect element-hierarchy
         regressions across template changes.
 
+        Children are grouped by slot (place_in_container) and slots are ordered by
+        the minimum ``order`` value among their members, so the output is stable
+        regardless of cross-slot insertion history.
+
         :param builder: The builder application instance to serialize.
         :return: A dict mapping page names to their element-tree representation.
         """
+        from collections import defaultdict
+
         from baserow.contrib.builder.elements.handler import ElementHandler
         from baserow.contrib.builder.pages.handler import PageHandler
 
         result = {}
         for page in PageHandler().get_pages(builder):
             elements = list(ElementHandler().get_elements(page))
-            # Elements are already ordered by (order, id) via Element.Meta.ordering.
+
             by_parent: dict[int | None, list] = {}
             for el in elements:
                 by_parent.setdefault(el.parent_element_id, []).append(el)
 
             def build_tree(parent_id):
+                children = by_parent.get(parent_id, [])
+                by_slot: dict[str, list] = defaultdict(list)
+                for el in children:
+                    by_slot[el.place_in_container or ""].append(el)
+                ordered = []
+                for slot in sorted(
+                    by_slot, key=lambda s: min(e.order for e in by_slot[s])
+                ):
+                    ordered.extend(
+                        sorted(by_slot[slot], key=lambda e: (e.order, e.id))
+                    )
                 return [
-                    {"type": el.get_type().type, "children": build_tree(el.id)}
-                    for el in by_parent.get(parent_id, [])
+                    {"type": element.get_type().type, "children": build_tree(element.id)}
+                    for element in ordered
                 ]
 
             result[page.name] = build_tree(None)

@@ -333,22 +333,22 @@
             dict({
               'children': list([
               ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
               'type': 'link',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
             }),
             dict({
               'children': list([
@@ -517,22 +517,22 @@
             dict({
               'children': list([
               ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
               'type': 'link',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
             }),
             dict({
               'children': list([

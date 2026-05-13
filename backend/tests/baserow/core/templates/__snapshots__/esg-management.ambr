@@ -63,6 +63,31 @@
             dict({
               'children': list([
               ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
               'type': 'link',
             }),
             dict({
@@ -73,32 +98,7 @@
             dict({
               'children': list([
               ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
               'type': 'link',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
             }),
             dict({
               'children': list([
@@ -808,6 +808,36 @@
             dict({
               'children': list([
               ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
               'type': 'iframe',
             }),
             dict({
@@ -823,37 +853,7 @@
             dict({
               'children': list([
               ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
               'type': 'iframe',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
             }),
           ]),
           'type': 'column',
@@ -910,12 +910,7 @@
             dict({
               'children': list([
               ]),
-              'type': 'heading',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'heading',
+              'type': 'text',
             }),
             dict({
               'children': list([
@@ -930,12 +925,17 @@
             dict({
               'children': list([
               ]),
-              'type': 'text',
+              'type': 'heading',
             }),
             dict({
               'children': list([
               ]),
               'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'heading',
             }),
             dict({
               'children': list([
@@ -1309,17 +1309,17 @@
             dict({
               'children': list([
               ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
               'type': 'iframe',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
             }),
             dict({
               'children': list([

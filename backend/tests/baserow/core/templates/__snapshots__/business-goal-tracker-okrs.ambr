@@ -18,47 +18,47 @@
             dict({
               'children': list([
               ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
               'type': 'image',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
             }),
           ]),
           'type': 'column',
@@ -189,17 +189,22 @@
             dict({
               'children': list([
               ]),
+              'type': 'input_text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'input_text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'button',
+            }),
+            dict({
+              'children': list([
+              ]),
               'type': 'link',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'input_text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'input_text',
             }),
             dict({
               'children': list([
@@ -210,11 +215,6 @@
               'children': list([
               ]),
               'type': 'link',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'button',
             }),
             dict({
               'children': list([
@@ -310,17 +310,17 @@
             dict({
               'children': list([
               ]),
+              'type': 'button',
+            }),
+            dict({
+              'children': list([
+              ]),
               'type': 'text',
             }),
             dict({
               'children': list([
               ]),
               'type': 'link',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'button',
             }),
             dict({
               'children': list([

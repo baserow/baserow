@@ -112,11 +112,6 @@
             dict({
               'children': list([
               ]),
-              'type': 'heading',
-            }),
-            dict({
-              'children': list([
-              ]),
               'type': 'text',
             }),
             dict({
@@ -143,6 +138,11 @@
                 }),
               ]),
               'type': 'form_container',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'heading',
             }),
             dict({
               'children': list([
@@ -321,6 +321,36 @@
             dict({
               'children': list([
               ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
               'type': 'link',
             }),
             dict({
@@ -337,36 +367,6 @@
               'children': list([
               ]),
               'type': 'link',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
             }),
           ]),
           'type': 'column',
@@ -501,36 +501,6 @@
             }),
             dict({
               'children': list([
-                dict({
-                  'children': list([
-                  ]),
-                  'type': 'choice',
-                }),
-                dict({
-                  'children': list([
-                  ]),
-                  'type': 'choice',
-                }),
-                dict({
-                  'children': list([
-                  ]),
-                  'type': 'record_selector',
-                }),
-                dict({
-                  'children': list([
-                  ]),
-                  'type': 'datetime_picker',
-                }),
-                dict({
-                  'children': list([
-                  ]),
-                  'type': 'input_text',
-                }),
-              ]),
-              'type': 'form_container',
-            }),
-            dict({
-              'children': list([
               ]),
               'type': 'link',
             }),
@@ -563,6 +533,36 @@
               'children': list([
               ]),
               'type': 'text',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'choice',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'choice',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'record_selector',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'datetime_picker',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'input_text',
+                }),
+              ]),
+              'type': 'form_container',
             }),
           ]),
           'type': 'column',
@@ -632,31 +632,6 @@
             }),
             dict({
               'children': list([
-                dict({
-                  'children': list([
-                  ]),
-                  'type': 'datetime_picker',
-                }),
-                dict({
-                  'children': list([
-                  ]),
-                  'type': 'record_selector',
-                }),
-                dict({
-                  'children': list([
-                  ]),
-                  'type': 'input_text',
-                }),
-                dict({
-                  'children': list([
-                  ]),
-                  'type': 'input_text',
-                }),
-              ]),
-              'type': 'form_container',
-            }),
-            dict({
-              'children': list([
               ]),
               'type': 'link',
             }),
@@ -679,6 +654,31 @@
               'children': list([
               ]),
               'type': 'text',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'datetime_picker',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'record_selector',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'input_text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'input_text',
+                }),
+              ]),
+              'type': 'form_container',
             }),
           ]),
           'type': 'column',

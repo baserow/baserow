@@ -204,17 +204,17 @@
             dict({
               'children': list([
               ]),
-              'type': 'table',
-            }),
-            dict({
-              'children': list([
-              ]),
               'type': 'choice',
             }),
             dict({
               'children': list([
               ]),
               'type': 'button',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'table',
             }),
           ]),
           'type': 'column',

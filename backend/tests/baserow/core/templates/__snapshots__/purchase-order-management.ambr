@@ -139,16 +139,6 @@
             }),
             dict({
               'children': list([
-              ]),
-              'type': 'heading',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'table',
-            }),
-            dict({
-              'children': list([
                 dict({
                   'children': list([
                   ]),
@@ -161,6 +151,16 @@
                 }),
               ]),
               'type': 'form_container',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'table',
             }),
           ]),
           'type': 'column',

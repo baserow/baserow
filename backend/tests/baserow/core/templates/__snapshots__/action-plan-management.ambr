@@ -305,6 +305,41 @@
             }),
             dict({
               'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'link',
+                }),
+              ]),
+              'type': 'repeat',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'link',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
               ]),
               'type': 'text',
             }),
@@ -332,41 +367,6 @@
                 }),
               ]),
               'type': 'form_container',
-            }),
-            dict({
-              'children': list([
-                dict({
-                  'children': list([
-                  ]),
-                  'type': 'link',
-                }),
-              ]),
-              'type': 'repeat',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'link',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
             }),
           ]),
           'type': 'column',
@@ -461,12 +461,12 @@
             dict({
               'children': list([
               ]),
-              'type': 'iframe',
+              'type': 'text',
             }),
             dict({
               'children': list([
               ]),
-              'type': 'text',
+              'type': 'iframe',
             }),
           ]),
           'type': 'column',

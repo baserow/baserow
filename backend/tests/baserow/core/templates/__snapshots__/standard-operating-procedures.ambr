@@ -20,12 +20,12 @@
                 dict({
                   'children': list([
                   ]),
-                  'type': 'link',
+                  'type': 'text',
                 }),
                 dict({
                   'children': list([
                   ]),
-                  'type': 'text',
+                  'type': 'link',
                 }),
               ]),
               'type': 'column',
@@ -150,6 +150,21 @@
                 }),
                 dict({
                   'children': list([
+                  ]),
+                  'type': 'text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'type': 'text',
+                }),
+                dict({
+                  'children': list([
                     dict({
                       'children': list([
                       ]),
@@ -167,21 +182,6 @@
                     }),
                   ]),
                   'type': 'form_container',
-                }),
-                dict({
-                  'children': list([
-                  ]),
-                  'type': 'text',
-                }),
-                dict({
-                  'children': list([
-                  ]),
-                  'type': 'text',
-                }),
-                dict({
-                  'children': list([
-                  ]),
-                  'type': 'text',
                 }),
               ]),
               'type': 'column',

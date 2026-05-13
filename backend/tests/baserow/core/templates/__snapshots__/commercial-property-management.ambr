@@ -18,11 +18,6 @@
             dict({
               'children': list([
               ]),
-              'type': 'image',
-            }),
-            dict({
-              'children': list([
-              ]),
               'type': 'text',
             }),
             dict({
@@ -54,6 +49,11 @@
                 }),
               ]),
               'type': 'repeat',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'image',
             }),
           ]),
           'type': 'column',
@@ -206,37 +206,37 @@
             dict({
               'children': list([
               ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
               'type': 'image',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
             }),
           ]),
           'type': 'column',
@@ -307,12 +307,12 @@
                 dict({
                   'children': list([
                   ]),
-                  'type': 'button',
+                  'type': 'link',
                 }),
                 dict({
                   'children': list([
                   ]),
-                  'type': 'link',
+                  'type': 'button',
                 }),
               ]),
               'type': 'column',

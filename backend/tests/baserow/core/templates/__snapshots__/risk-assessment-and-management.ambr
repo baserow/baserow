@@ -268,6 +268,21 @@
             }),
             dict({
               'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
                 dict({
                   'children': list([
                   ]),
@@ -275,21 +290,6 @@
                 }),
               ]),
               'type': 'form_container',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
             }),
           ]),
           'type': 'column',
@@ -357,6 +357,21 @@
             }),
             dict({
               'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
                 dict({
                   'children': list([
                   ]),
@@ -374,21 +389,6 @@
                 }),
               ]),
               'type': 'form_container',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
-            }),
-            dict({
-              'children': list([
-              ]),
-              'type': 'text',
             }),
           ]),
           'type': 'column',
@@ -592,12 +592,12 @@
             dict({
               'children': list([
               ]),
-              'type': 'heading',
+              'type': 'table',
             }),
             dict({
               'children': list([
               ]),
-              'type': 'table',
+              'type': 'heading',
             }),
             dict({
               'children': list([
