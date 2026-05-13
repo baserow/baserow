@@ -346,7 +346,9 @@ def test_dispatch_data_source(data_fixture):
     widget = data_fixture.create_summary_widget(
         dashboard=dashboard, data_source=data_source
     )
-    dispatch_context = DashboardDispatchContext(HttpRequest(), widget)
+    dispatch_context = DashboardDispatchContext(
+        HttpRequest(), widget.dashboard.workspace
+    )
 
     result = DashboardDataSourceService().dispatch_data_source(
         user, data_source.id, dispatch_context
@@ -359,7 +361,9 @@ def test_dispatch_data_source(data_fixture):
 def test_dispatch_data_source_permissions_denied(data_fixture):
     user = data_fixture.create_user()
     data_source = data_fixture.create_dashboard_data_source(name="Name 1")
-    dispatch_context = DashboardDispatchContext(HttpRequest())
+    dispatch_context = DashboardDispatchContext(
+        HttpRequest(), data_source.dashboard.workspace
+    )
 
     with pytest.raises(PermissionException):
         DashboardDataSourceService().dispatch_data_source(
@@ -374,7 +378,9 @@ def test_dispatch_data_source_trashed(data_fixture):
     data_source = data_fixture.create_dashboard_data_source(
         name="Name 1", dashboard=dashboard, trashed=True
     )
-    dispatch_context = DashboardDispatchContext(HttpRequest())
+    dispatch_context = DashboardDispatchContext(
+        HttpRequest(), data_source.dashboard.workspace
+    )
 
     with pytest.raises(DashboardDataSourceDoesNotExist):
         DashboardDataSourceService().dispatch_data_source(
@@ -389,7 +395,9 @@ def test_dispatch_data_source_dashboard_trashed(data_fixture):
     data_source = data_fixture.create_dashboard_data_source(
         name="Name 1", dashboard=dashboard
     )
-    dispatch_context = DashboardDispatchContext(HttpRequest())
+    dispatch_context = DashboardDispatchContext(
+        HttpRequest(), data_source.dashboard.workspace
+    )
 
     with pytest.raises(DashboardDataSourceDoesNotExist):
         DashboardDataSourceService().dispatch_data_source(

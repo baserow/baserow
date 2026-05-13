@@ -75,11 +75,15 @@ export default {
   },
   emits: ['delete', 'edit', 'share'],
   computed: {
-    isInError() {
-      return this.dataSourceType?.isInError({
+    errorMessage() {
+      return this.dataSourceType?.getErrorMessage({
         service: this.dataSource,
         application: this.builder,
+        workspace: this.workspace,
       })
+    },
+    isInError() {
+      return Boolean(this.errorMessage)
     },
     dataSourceType() {
       if (!this.dataSource.type) {
@@ -94,6 +98,9 @@ export default {
       return this.integrationType?.image || 'default.png'
     },
     subtitle() {
+      if (this.errorMessage) {
+        return this.errorMessage
+      }
       return this.dataSourceType
         ? this.dataSourceType.getDescription(this.dataSource, this.builder)
         : this.$t('dataSourceItem.notConfigured')
