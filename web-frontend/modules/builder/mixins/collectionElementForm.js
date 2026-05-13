@@ -54,13 +54,14 @@ export default {
     /**
      * In collection element forms, the ability to view paging options
      * (e.g. items per page, or styling the load more button) is dependent
-     * on whether the selected data source returns a list. When a single row
-     * data source is used, we use all of its records to iterate with, so no
-     * paging options are available.
+     * on whether the selected data source returns a list that supports
+     * pagination. When a single row data source or an unpaginated list data
+     * source is used, we use all of its records to iterate with, so no paging
+     * options are available.
      * @returns {boolean} - Whether the paging options are available.
      */
     pagingOptionsAvailable() {
-      return this.selectedDataSourceReturnsList
+      return this.selectedDataSourceSupportsPagination
     },
     /**
      * In collection element forms, the ability to choose a data source
@@ -158,12 +159,17 @@ export default {
     selectedDataSourceReturnsList() {
       return this.selectedDataSourceType?.returnsList
     },
+    selectedDataSourceSupportsPagination() {
+      return Boolean(this.selectedDataSourceType?.supportsPagination)
+    },
     maxItemPerPage() {
       if (!this.selectedDataSourceType) {
         return 20
       }
-      return this.selectedDataSourceType.getMaxResultLimit(
-        this.selectedDataSource
+      return (
+        this.selectedDataSourceType.getMaxResultLimit(
+          this.selectedDataSource
+        ) ?? Number.MAX_SAFE_INTEGER
       )
     },
     ...mapGetters({

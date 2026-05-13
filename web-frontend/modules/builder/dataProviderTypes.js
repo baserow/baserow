@@ -795,7 +795,7 @@ export class FormDataProviderType extends DataProviderType {
             {
               title: name,
               order,
-              ...elementType.getDataSchema(element),
+              ...elementType.getDataSchema(element, applicationContext),
             },
           ]
         })

@@ -1,8 +1,9 @@
 <template>
   <component
     :is="chartComponent"
-    v-if="chartData.datasets.length > 0"
+    v-if="hasChartData"
     id="chart-id"
+    :key="chartRenderKey"
     :options="chartOptions"
     :data="chartData"
     class="chart"
@@ -79,6 +80,7 @@ ChartJS.register(
 export default {
   name: 'Chart',
   components: { Bar, Pie },
+  emits: ['rendered'],
   props: {
     dataSource: {
       type: Object,
@@ -92,6 +94,12 @@ export default {
       type: Array,
       required: true,
     },
+  },
+  mounted() {
+    this.emitRendered()
+  },
+  updated() {
+    this.emitRendered()
   },
   computed: {
     chartComponent() {
@@ -131,7 +139,10 @@ export default {
                 } else {
                   const original =
                     ChartJS.overrides.pie.plugins.legend.labels.generateLabels
-                  const originalLabels = original.call(this, chart)
+                  if (chart.data.datasets.length <= 1) {
+                    return original(chart)
+                  }
+                  const originalLabels = original(chart)
                   const datasetColors = chart.data.datasets.map(function (e) {
                     return e.backgroundColor
                   })
@@ -146,7 +157,8 @@ export default {
                         newLabel.text = dataset.label
                       }
                       newLabel.fillStyle =
-                        datasetColors[datasetIndex][label.index % 10]
+                        datasetColors[datasetIndex]?.[label.index % 10] ||
+                        label.fillStyle
                       newLabels.push(newLabel)
                     })
                     datasetIndex += 1
@@ -183,37 +195,64 @@ export default {
         },
       }
     },
-    result() {
-      return this.dataSourceData.result
+    results() {
+      return this.dataSourceData.results
+    },
+    hasGrouping() {
+      return (this.dataSource.aggregation_group_bys || []).length > 0
     },
     chartData() {
-      if (!this.result) {
+      if (!this.results) {
         return {
           datasets: [],
         }
       }
-      if (this.dataSource.aggregation_group_bys?.length === 0) {
+      if (!this.hasGrouping) {
         return this.chartDataNoGrouping
       }
       return this.chartDataGrouping
     },
+    hasChartData() {
+      return this.chartData.datasets.length > 0
+    },
+    chartRenderKey() {
+      return `${this.chartComponent}-${JSON.stringify(this.chartData)}`
+    },
+    serviceType() {
+      if (!this.dataSource.type) {
+        return null
+      }
+      return this.$registry.get('service', this.dataSource.type)
+    },
     chartDataGrouping() {
       const groupByFieldId = this.dataSource.aggregation_group_bys[0].field_id
       const primaryField = Object.values(
-        this.dataSource.schema.properties
+        this.dataSource.schema.items.properties
       ).find((item) => item.metadata?.primary === true)
-      const labels = this.result.map((item) => {
-        if (item[`field_${groupByFieldId}`] !== undefined) {
-          return this.getGroupByValue(`field_${groupByFieldId}`, item)
+      const labels = this.results.map((item) => {
+        const groupByFieldName = `field_${groupByFieldId}`
+        const groupByResultName = this.getResultPropertyName(groupByFieldName)
+        if (this.hasResultValue(item, groupByResultName, groupByFieldName)) {
+          return this.getGroupByValue(groupByFieldName, groupByResultName, item)
         }
-        return this.getGroupByValue(`field_${primaryField.metadata.id}`, item)
+        const primaryFieldName = `field_${primaryField.metadata.id}`
+        const primaryResultName = this.getResultPropertyName(primaryFieldName)
+        return this.getGroupByValue(primaryFieldName, primaryResultName, item)
       })
       const datasets = []
       for (const [index, series] of this.chartSeries.entries()) {
-        const seriesData = this.result.map((item) => {
-          return item[`${series.fieldName}_${series.aggregationType}`]
+        const technicalResultFieldName = `${series.fieldName}_${series.aggregationType}`
+        const resultFieldName = this.getResultPropertyName(
+          technicalResultFieldName
+        )
+        const seriesData = this.results.map((item) => {
+          return this.getResultValue(
+            item,
+            resultFieldName,
+            technicalResultFieldName
+          )
         })
-        const label = this.getLabel(series.fieldName, series.aggregationType)
+        const label = this.getLabel(series)
         const seriesConfig = this.getIndividualSeriesConfig(series.id)
         datasets.push({
           type:
@@ -229,13 +268,50 @@ export default {
       }
     },
     chartDataNoGrouping() {
+      const result = this.results[0] || {}
+      if (this.chartComponent === 'Pie') {
+        const labels = []
+        const data = []
+        for (const series of this.chartSeries) {
+          const technicalResultFieldName = `${series.fieldName}_${series.aggregationType}`
+          const resultFieldName = this.getResultPropertyName(
+            technicalResultFieldName
+          )
+          labels.push(this.getLabel(series))
+          data.push(
+            this.getResultValue(
+              result,
+              resultFieldName,
+              technicalResultFieldName
+            )
+          )
+        }
+        return {
+          labels,
+          datasets: [
+            {
+              data,
+              backgroundColor: this.valuesColors[0],
+            },
+          ],
+        }
+      }
+
       const labels = ['']
       const datasets = []
       for (const [index, series] of this.chartSeries.entries()) {
+        const technicalResultFieldName = `${series.fieldName}_${series.aggregationType}`
+        const resultFieldName = this.getResultPropertyName(
+          technicalResultFieldName
+        )
         const seriesData = [
-          this.result[`${series.fieldName}_${series.aggregationType}`],
+          this.getResultValue(
+            result,
+            resultFieldName,
+            technicalResultFieldName
+          ),
         ]
-        const label = this.getLabel(series.fieldName, series.aggregationType)
+        const label = this.getLabel(series)
         const seriesConfig = this.getIndividualSeriesConfig(series.id)
         datasets.push({
           type:
@@ -254,6 +330,7 @@ export default {
       return this.dataSource.aggregation_series.map((item) => {
         return {
           id: item.id,
+          fieldId: item.field_id,
           fieldName: `field_${item.field_id}`,
           aggregationType: item.aggregation_type,
         }
@@ -302,24 +379,58 @@ export default {
 
       return chartType.toLowerCase()
     },
-    getFieldTitle(fieldName) {
-      return this.dataSource.schema.properties[fieldName].title
-    },
     getAggregationTitle(aggregationType) {
-      return this.$registry.get('viewAggregation', aggregationType).getName()
+      return this.$registry.get('groupedAggregation', aggregationType).getName()
     },
-    getLabel(fieldName, aggregationType) {
-      let label = this.getAggregationTitle(aggregationType)
-      if (fieldName) {
-        label = `${this.getFieldTitle(fieldName)} (${label})`
+    getResultField(series) {
+      const resultFieldName = `${series.fieldName}_${series.aggregationType}`
+      return this.dataSource.schema.items.properties[resultFieldName]
+    },
+    getFieldTitle(series) {
+      const resultFieldName = `${series.fieldName}_${series.aggregationType}`
+      return (
+        this.serviceType?.getSchemaPropertyDisplayName(
+          this.dataSource,
+          resultFieldName
+        ) || this.getResultField(series)?.title
+      )
+    },
+    getLabel(series) {
+      const label = this.getAggregationTitle(series.aggregationType)
+      const fieldTitle = this.getFieldTitle(series)
+      if (fieldTitle) {
+        return `${fieldTitle} (${label})`
       }
       return label
     },
-    getGroupByValue(fieldName, item) {
+    getResultPropertyName(propertyName) {
+      const property = this.dataSource.schema?.items?.properties?.[propertyName]
+      if (property?.metadata?.aggregation) {
+        return property.metadata.display_name || property?.title || propertyName
+      }
+      return property?.title || propertyName
+    },
+    hasResultValue(item, resultFieldName, fallbackFieldName = null) {
+      return (
+        item[resultFieldName] !== undefined ||
+        (fallbackFieldName !== null && item[fallbackFieldName] !== undefined)
+      )
+    },
+    getResultValue(item, resultFieldName, fallbackFieldName = null) {
+      if (item[resultFieldName] !== undefined) {
+        return item[resultFieldName]
+      }
+      if (fallbackFieldName !== null) {
+        return item[fallbackFieldName]
+      }
+      return undefined
+    },
+    getGroupByValue(fieldName, resultFieldName, item) {
       const serializedField = this.dataSource.context_data.fields[fieldName]
       const fieldType = serializedField.type
+      const value = this.getResultValue(item, resultFieldName, fieldName)
 
-      if (item[fieldName] === 'OTHER_VALUES') {
+      if (value === 'OTHER_VALUES') {
         return this.$t('chart.other')
       }
 
@@ -328,24 +439,26 @@ export default {
           'chartFieldFormatting',
           fieldType
         )
-        return fieldFormatter.formatGroupByFieldValue(
-          serializedField,
-          item[fieldName]
-        )
+        return fieldFormatter.formatGroupByFieldValue(serializedField, value)
       }
 
-      if (item[fieldName] === true) {
+      if (value === true) {
         return this.$t('chart.true')
       }
 
-      if (item[fieldName] === false) {
+      if (value === false) {
         return this.$t('chart.false')
       }
 
-      return item[fieldName] ?? ''
+      return value ?? ''
     },
     getIndividualSeriesConfig(seriesId) {
       return this.seriesConfig.find((item) => item.series_id === seriesId) || {}
+    },
+    emitRendered() {
+      this.$nextTick(() => {
+        this.$emit('rendered')
+      })
     },
   },
 }
