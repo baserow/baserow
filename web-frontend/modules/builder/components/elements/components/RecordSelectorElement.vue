@@ -155,7 +155,7 @@ export default {
       // Fill the dropdown options with an array containing
       // the record id and name from the resolved expression
       const options = this.elementContent.map((record, recordIndex) => ({
-        value: record?.id,
+        value: this.getId(record),
         nameSuffix: ensureString(
           this.resolveFormula(
             this.element.option_name_suffix,
@@ -230,6 +230,7 @@ export default {
       async handler(newDefaultValue, oldValue) {
         if (!_.isEqual(newDefaultValue, oldValue)) {
           this.inputValue = newDefaultValue
+          await this.refreshSelectedValue()
           if (!this.shouldDebounce) {
             await this.updateDefaultRecordNames(newDefaultValue)
             this.shouldDebounce = true
@@ -249,6 +250,16 @@ export default {
     },
   },
   methods: {
+    async refreshSelectedValue() {
+      await this.$nextTick()
+      this.$refs.recordSelectorDropdown?.forceRefreshSelectedValue()
+    },
+    getId(record) {
+      if (!record) {
+        return null
+      }
+      return record[this.dataSourceType.getIdProperty(this.dataSource, record)]
+    },
     async beforeShow() {
       if (!this.openedOnce) {
         this.openedOnce = true
@@ -286,19 +297,45 @@ export default {
         return
       }
 
+      const locallyResolvedOptions = []
+      const unresolvedRecordIds = []
+      recordIds.forEach((recordId) => {
+        const name = this.dataSourceType.getRecordNameFromId(
+          this.dataSource,
+          recordId
+        )
+        if (name === null || name === undefined) {
+          unresolvedRecordIds.push(recordId)
+        } else {
+          locallyResolvedOptions.push({
+            value: recordId,
+            name,
+            actualName: name,
+          })
+        }
+      })
+
+      if (unresolvedRecordIds.length === 0) {
+        this.defaultValueOptions = locallyResolvedOptions
+        await this.refreshSelectedValue()
+        return
+      }
+
       this.loading = true
       try {
         const data = await DataSourceService(this.$client).getRecordNames(
           this.element.data_source_id,
-          recordIds
+          unresolvedRecordIds
         )
-        this.defaultValueOptions = Object.entries(data).map(
-          ([value, name]) => ({
-            value: parseInt(value),
+        this.defaultValueOptions = [
+          ...locallyResolvedOptions,
+          ...Object.entries(data).map(([value, name]) => ({
+            value: this.dataSourceType.parseRecordId(value),
             name,
             actualName: name,
-          })
-        )
+          })),
+        ]
+        await this.refreshSelectedValue()
       } catch (error) {
         handleDispatchError(
           error,

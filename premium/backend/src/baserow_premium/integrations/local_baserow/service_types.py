@@ -1,4 +1,5 @@
 import re
+from typing import Any
 
 from django.conf import settings
 from django.db.models import F
@@ -25,7 +26,11 @@ from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
-from baserow.core.services.registries import DispatchTypes
+from baserow.core.services.registries import (
+    DispatchTypes,
+    ListServiceTypeMixin,
+    ServiceType,
+)
 from baserow.core.services.types import DispatchResult
 from baserow.core.utils import atomic_if_not_already
 from baserow_premium.api.integrations.local_baserow.serializers import (
@@ -43,15 +48,20 @@ from baserow_premium.integrations.registries import (
     grouped_aggregation_group_by_registry,
     grouped_aggregation_registry,
 )
+from baserow_premium.license.handler import LicenseHandler
 from baserow_premium.services.types import (
     ServiceAggregationGroupByDict,
     ServiceAggregationSeriesDict,
     ServiceAggregationSortByDict,
 )
 
+BUILDER_GROUPED_AGGREGATE_ROWS = "builder_grouped_aggregate_rows"
+GROUPED_AGGREGATE_ROW_ID = "id"
+
 
 class LocalBaserowGroupedAggregateRowsUserServiceType(
     LocalBaserowTableServiceFilterableMixin,
+    ListServiceTypeMixin,
     LocalBaserowViewServiceType,
 ):
     """
@@ -65,6 +75,25 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
     dispatch_types = [DispatchTypes.DATA]
     serializer_mixins = LocalBaserowTableServiceFilterableMixin.mixin_serializer_mixins
 
+    def is_deactivated(self, workspace) -> bool:
+        return not LicenseHandler.workspace_has_feature(
+            BUILDER_GROUPED_AGGREGATE_ROWS, workspace
+        )
+
+    def raise_if_deactivated(self, workspace) -> None:
+        LicenseHandler.raise_if_workspace_doesnt_have_feature(
+            BUILDER_GROUPED_AGGREGATE_ROWS, workspace
+        )
+
+    def dispatch(
+        self,
+        service: LocalBaserowGroupedAggregateRows,
+        dispatch_context: DispatchContext,
+    ) -> DispatchResult:
+        self.raise_if_deactivated(dispatch_context.workspace)
+
+        return super().dispatch(service, dispatch_context)
+
     def get_schema_name(self, service: LocalBaserowGroupedAggregateRows) -> str:
         return f"GroupedAggregation{service.id}Schema"
 
@@ -72,6 +101,225 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         self, service: LocalBaserowGroupedAggregateRows
     ) -> dict | None:
         return None
+
+    def prepare_record_ids(self, record_ids: list[Any]) -> list[str]:
+        return [str(record_id) for record_id in record_ids if record_id != ""]
+
+    def get_id_property(self, service: Service) -> str:
+        return GROUPED_AGGREGATE_ROW_ID
+
+    def get_name_property(self, service: Service) -> str | None:
+        group_by = service.service_aggregation_group_bys.first()
+        if group_by is None:
+            return None
+
+        if group_by.field_id is None:
+            return service.table.get_model().get_primary_field().db_column
+
+        return group_by.field.db_column
+
+    def _get_name_field_object(self, service: Service) -> dict | None:
+        group_by = service.service_aggregation_group_bys.first()
+        if group_by is None:
+            return None
+
+        field_id = group_by.field_id
+        if field_id is None:
+            field_id = service.table.get_model().get_primary_field().id
+
+        for field_object in self.get_table_field_objects(service) or []:
+            if field_object["field"].id == field_id:
+                return field_object
+
+        return None
+
+    def _get_human_readable_result_value(
+        self,
+        value: Any,
+        field_object: dict | None,
+        model,
+    ) -> str:
+        if field_object is None:
+            return ""
+        if value == "OTHER_VALUES":
+            return value
+
+        model_field = model._meta.get_field(field_object["name"])
+        related_model = getattr(model_field.remote_field, "model", None)
+        if related_model is not None and value is not None:
+            try:
+                value = related_model.objects.get(pk=value)
+            except (TypeError, ValueError, related_model.DoesNotExist):
+                value = None
+
+        human_readable_value = field_object["type"].get_human_readable_value(
+            value, field_object
+        )
+        if human_readable_value is None:
+            return ""
+
+        return str(human_readable_value)
+
+    def _get_result_record_id(
+        self,
+        service: LocalBaserowGroupedAggregateRows,
+        result: dict,
+        index: int,
+        model,
+    ) -> str:
+        name_property = self.get_name_property(service)
+        if name_property is None:
+            return "Result"
+
+        value = self._get_human_readable_result_value(
+            result.get(name_property), self._get_name_field_object(service), model
+        )
+
+        if value is None or value == "":
+            return str(index)
+
+        return value
+
+    def generate_schema(
+        self,
+        service: LocalBaserowGroupedAggregateRows,
+        allowed_fields: list[str] | None = None,
+    ) -> dict | None:
+        if not service.table_id:
+            return None
+
+        result_properties = self._get_result_properties(service)
+        if result_properties is None:
+            return None
+
+        if allowed_fields is not None:
+            allowed_fields = set(allowed_fields)
+            result_properties = {
+                field: value
+                for field, value in result_properties.items()
+                if field in allowed_fields
+            }
+
+        return {
+            "type": "array",
+            "title": self.get_schema_name(service),
+            "items": {
+                "type": "object",
+                "properties": result_properties,
+            },
+        }
+
+    def _get_result_properties(
+        self,
+        service: LocalBaserowGroupedAggregateRows,
+    ) -> dict | None:
+        table_properties = self._get_table_properties(service)
+        if table_properties is None:
+            return None
+
+        def grouped_field_property(field_db_column):
+            return {
+                **table_properties[field_db_column],
+                "sortable": False,
+                "filterable": False,
+                "searchable": False,
+            }
+
+        properties = {
+            GROUPED_AGGREGATE_ROW_ID: {
+                "title": "Id",
+                "type": "string",
+                "sortable": False,
+                "filterable": False,
+                "searchable": False,
+            },
+        }
+        group_bys = service.service_aggregation_group_bys.all()
+        for group_by in group_bys:
+            if group_by.field_id is None:
+                primary_field = service.table.get_model().get_primary_field()
+                properties[primary_field.db_column] = grouped_field_property(
+                    primary_field.db_column
+                )
+            elif group_by.field.db_column in table_properties:
+                properties[group_by.field.db_column] = grouped_field_property(
+                    group_by.field.db_column
+                )
+
+        for aggregation_series in service.service_aggregation_series.all():
+            if not aggregation_series.field or not aggregation_series.aggregation_type:
+                continue
+            aggregation_type = grouped_aggregation_registry.get(
+                aggregation_series.aggregation_type
+            )
+            properties[
+                f"{aggregation_series.field.db_column}_{aggregation_series.aggregation_type}"
+            ] = {
+                "title": (
+                    f"{aggregation_series.field.name} "
+                    f"{aggregation_series.aggregation_type}"
+                ),
+                **aggregation_type.get_result_schema(aggregation_series.field.specific),
+                "metadata": self.get_aggregation_result_metadata(aggregation_series),
+            }
+
+        return properties
+
+    def get_aggregation_result_metadata(
+        self, aggregation_series: LocalBaserowTableServiceAggregationSeries
+    ) -> dict:
+        field = aggregation_series.field
+        return {
+            "display_name": f"{field.name} {aggregation_series.aggregation_type}",
+            "source_field": {
+                "id": field.id,
+                "name": field.db_column,
+                "display_name": field.name,
+            },
+            "aggregation": {
+                "type": aggregation_series.aggregation_type,
+            },
+        }
+
+    def prepare_value_path(self, service: Service, path: list[str]):
+        if len(path) < 1:
+            return path
+
+        property_name, *rest = path
+        human_name = self._get_result_property_human_name(service, property_name)
+        if human_name == property_name:
+            return path
+
+        return [human_name, *rest]
+
+    def _get_result_property_human_name(self, service: Service, property_name: str):
+        if property_name == GROUPED_AGGREGATE_ROW_ID:
+            return property_name
+
+        result_properties = self._get_result_properties(service) or {}
+        property_schema = result_properties.get(property_name)
+        if property_schema is None:
+            return property_name
+
+        return (
+            property_schema.get("metadata", {}).get("display_name")
+            or property_schema.get("title")
+            or property_name
+        )
+
+    def _convert_result_property_names_to_human_names(
+        self, service: Service, result: dict
+    ):
+        return {
+            self._get_result_property_human_name(service, key): value
+            for key, value in result.items()
+        }
+
+    def _convert_allowed_field_names(self, service, allowed_fields):
+        return [
+            self._get_result_property_human_name(service, field)
+            for field in allowed_fields
+        ]
 
     def enhance_queryset(self, queryset):
         return (
@@ -369,6 +617,8 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             metadata.
         """
 
+        super().after_create(instance, values)
+
         if "service_aggregation_series" in values:
             self._update_service_aggregation_series(
                 instance, values.pop("service_aggregation_series")
@@ -398,6 +648,8 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         :param changes: A dictionary containing all changes which were made to the
             service prior to `after_update` being called.
         """
+
+        super().after_update(instance, values, changes)
 
         # Following a Table change, from one Table to another, we drop all
         # the things that are no longer applicable for the other table.
@@ -701,8 +953,17 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     sorts.append(field_order_by)
 
         queryset = queryset.annotate(**sort_annotations)
+        group_by_fields = [
+            model.get_primary_field() if group_by.field is None else group_by.field
+            for group_by in service.service_aggregation_group_bys.all()
+        ]
+        group_by_value_serializers_by_db_column = {
+            field.db_column: field.get_type().get_query_value_serializer(field.specific)
+            for field in group_by_fields
+        }
 
-        def process_individual_result(result: dict):
+        def process_individual_result(result: dict, index: int):
+            result = {**result}
             for agg_series in defined_agg_series:
                 key = f"{agg_series.field.db_column}_{agg_series.aggregation_type}"
                 raw_value = result.pop(f"{key}_raw")
@@ -712,6 +973,16 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 )
             if "total" in result:
                 del result["total"]
+            result[GROUPED_AGGREGATE_ROW_ID] = self._get_result_record_id(
+                service, result, index, model
+            )
+            for (
+                db_column,
+                serialize_value,
+            ) in group_by_value_serializers_by_db_column.items():
+                if db_column not in result:
+                    continue
+                result[db_column] = serialize_value(result[db_column])
             return result
 
         if len(group_by_values) > 0:
@@ -720,9 +991,13 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
             queryset = queryset[
                 : settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS + 1
             ]
+            raw_results = list(queryset)
 
-            results = [process_individual_result(result) for result in queryset]
-            buckets_count = len(queryset)
+            results = [
+                process_individual_result(result, index)
+                for index, result in enumerate(raw_results)
+            ]
+            buckets_count = len(raw_results)
             if (
                 buckets_count
                 > settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
@@ -730,29 +1005,34 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                 # The number of buckets don't fit in the limit
                 # so we will aggregate all the other buckets into one
                 bucket_db_column = group_by_values[0]
+                raw_results = raw_results[
+                    : settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
+                    - 1
+                ]
                 results = results[
                     : settings.BASEROW_PREMIUM_GROUPED_AGGREGATE_SERVICE_MAX_AGG_BUCKETS
                     - 1
                 ]
-                buckets_taken = [result[bucket_db_column] for result in results]
+                buckets_taken = [result[bucket_db_column] for result in raw_results]
                 other_buckets_qs = other_buckets_qs.exclude(
                     **{f"{bucket_db_column}__in": buckets_taken}
                 )
 
                 other_bucket_results = other_buckets_qs.aggregate(**combined_agg_dict)
-                other_bucket_results = process_individual_result(other_bucket_results)
                 other_bucket_primary_field = (
                     {f"{model.get_primary_field().db_column}": "OTHER_VALUES"}
                     if "id" in group_by_values
                     else {}
                 )
-                results.append(
+                other_bucket_results = process_individual_result(
                     {
-                        f"{bucket_db_column}": "OTHER_VALUES",
+                        bucket_db_column: "OTHER_VALUES",
                         **other_bucket_primary_field,
                         **other_bucket_results,
-                    }
+                    },
+                    len(results),
                 )
+                results.append(other_bucket_results)
                 first_sort_by = service.service_aggregation_sorts.first()
                 if first_sort_by and first_sort_by.sort_on == "SERIES":
                     results = sorted(
@@ -762,10 +1042,24 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
                     )
         else:
             results = queryset.aggregate(**combined_agg_dict)
-            results = process_individual_result(results)
+            results = process_individual_result(results, 0)
+            results = [results]
+
+        if dispatch_context.only_record_id is not None:
+            current_record_id = str(dispatch_context.only_record_id)
+            results = [
+                result
+                for result in results
+                if result[GROUPED_AGGREGATE_ROW_ID] == current_record_id
+            ]
+
+        results = [
+            self._convert_result_property_names_to_human_names(service, result)
+            for result in results
+        ]
 
         return {
-            "data": {"result": results},
+            "data": {"results": results, "has_next_page": False},
             "baserow_table_model": model,
         }
 
@@ -774,3 +1068,29 @@ class LocalBaserowGroupedAggregateRowsUserServiceType(
         data: any,
     ) -> DispatchResult:
         return DispatchResult(data=data["data"])
+
+    def sanitize_result(self, service, result, allowed_field_names):
+        """
+        Filter against the human names returned by grouped aggregation dispatch.
+        """
+
+        allowed_field_names = self._convert_allowed_field_names(
+            service, allowed_field_names
+        )
+
+        return ServiceType.sanitize_result(self, service, result, allowed_field_names)
+
+    def extract_properties(
+        self, service: Service, path: list[str], **kwargs
+    ) -> list[str]:
+        result_properties = self._get_result_properties(service) or {}
+
+        if not path:
+            return list(result_properties.keys())
+
+        # DataSourceDataProviderType and CurrentRecordDataProviderType strip the row
+        # selector from list paths before calling the service extractor.
+        if len(path) >= 1 and path[0] in result_properties:
+            return [path[0]]
+
+        return []

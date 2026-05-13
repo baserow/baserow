@@ -355,7 +355,9 @@ def test_dispatch_data_source(data_fixture):
     widget = data_fixture.create_summary_widget(
         dashboard=dashboard, data_source=data_source
     )
-    dispatch_context = DashboardDispatchContext(HttpRequest(), widget)
+    dispatch_context = DashboardDispatchContext(
+        HttpRequest(), widget.dashboard.workspace
+    )
 
     result = DashboardDataSourceHandler().dispatch_data_source(
         data_source, dispatch_context
@@ -392,7 +394,9 @@ def test_dispatch_data_source_improperly_configured(data_fixture):
             name="Name 1", user=user, dashboard=dashboard, service=service
         )
     )
-    dispatch_context = DashboardDispatchContext(HttpRequest())
+    dispatch_context = DashboardDispatchContext(
+        HttpRequest(), data_source.dashboard.workspace
+    )
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         DashboardDataSourceHandler().dispatch_data_source(data_source, dispatch_context)

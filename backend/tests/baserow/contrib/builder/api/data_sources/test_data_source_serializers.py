@@ -10,8 +10,12 @@ from baserow.contrib.builder.api.data_sources.serializers import GetRecordIdsSer
         ({"record_ids": ""}, {"record_ids": []}, True),
         ({"record_ids": "1"}, {"record_ids": ["1"]}, True),
         ({"record_ids": "1,2,3"}, {"record_ids": ["1", "2", "3"]}, True),
-        ({"record_ids": "1,invalid"}, {"record_ids": []}, False),
-        ({"record_ids": "invalid_1,invalid_2"}, {"record_ids": []}, False),
+        ({"record_ids": "1,invalid"}, {"record_ids": ["1", "invalid"]}, True),
+        (
+            {"record_ids": '"ACME, Inc.",Other'},
+            {"record_ids": ["ACME, Inc.", "Other"]},
+            True,
+        ),
     ],
 )
 def test_get_record_ids_serializer(data, expected, valid):

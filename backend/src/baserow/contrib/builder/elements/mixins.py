@@ -412,7 +412,7 @@ class CollectionElementTypeMixin:
             else:
                 max_count = 20
 
-            if values["items_per_page"] > max_count:
+            if max_count is not None and values["items_per_page"] > max_count:
                 raise RequestBodyValidationException(
                     {
                         "items_per_page": [

@@ -6,6 +6,14 @@
   height: 280px;
 }
 
+.dashboard-chart-widget__chart {
+  height: 100%;
+}
+
+.dashboard-chart-widget__chart--hidden {
+  visibility: hidden;
+}
+
 .dashboard-chart-widget__loading {
   height: 341px;
 

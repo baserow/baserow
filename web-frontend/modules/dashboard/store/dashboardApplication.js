@@ -164,7 +164,6 @@ export const actions = {
     data.forEach((widget) => {
       commit('ADD_WIDGET', widget)
     })
-    await dispatch('setLoading', false)
     await dispatch('fetchNewDataSources', dashboardId)
 
     if (forEditing) {
@@ -174,17 +173,22 @@ export const actions = {
         commit('ADD_INTEGRATION', integration)
       })
     }
+    await dispatch('setLoading', false)
   },
   async fetchNewDataSources({ commit, dispatch, getters }, dashboardId) {
     const { $client } = this
     const { data: dataSourcesData } =
       await DataSourceService($client).getAllDataSources(dashboardId)
-    dataSourcesData.forEach(async (dataSource) => {
-      if (!getters.getDataSourceById(dataSource.id)) {
-        commit('ADD_DATA_SOURCE', dataSource)
-        await dispatch('dispatchDataSource', dataSource.id)
-      }
-    })
+    await Promise.all(
+      dataSourcesData.map(async (dataSource) => {
+        if (!getters.getDataSourceById(dataSource.id)) {
+          commit('ADD_DATA_SOURCE', dataSource)
+        }
+        if (!getters.getDataForDataSource(dataSource.id)) {
+          await dispatch('dispatchDataSource', dataSource.id)
+        }
+      })
+    )
   },
   async createWidget({ commit, dispatch }, { dashboard, widget }) {
     const { $client } = this

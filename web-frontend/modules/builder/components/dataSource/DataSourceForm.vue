@@ -16,6 +16,15 @@
             :search-placeholder="$t('dataSourceForm.searchActionPlaceholder')"
             :empty-text="$t('dataSourceForm.noActionsFound')"
             panel-height="240px"
+            @disabled-click="onServiceTypeDisabledClick"
+          />
+          <component
+            :is="deactivatedClickModal[0]"
+            v-if="deactivatedClickModal !== null"
+            ref="deactivatedClickModal"
+            v-bind="deactivatedClickModal[1]"
+            :name="deactivatedServiceTypeName"
+            :workspace="builder.workspace"
           />
         </FormGroup>
         <FormGroup
@@ -113,6 +122,8 @@ export default {
     return {
       allowedValues: ['name', 'integration_id', 'type'],
       values: { name: '', integration_id: null, type: null },
+      deactivatedClickModal: null,
+      deactivatedServiceTypeName: '',
     }
   },
   computed: {
@@ -239,6 +250,25 @@ export default {
     },
     isServiceTypeDeactivated(serviceType) {
       return this.getServiceTypeDeactivatedReason(serviceType) !== null
+    },
+    onServiceTypeDisabledClick(item) {
+      this.onServiceTypeClick(this.$registry.get('service', item.value))
+    },
+    onServiceTypeClick(serviceType) {
+      const deactivatedClickModal = serviceType.getDeactivatedClickModal?.({
+        workspace: this.builder.workspace,
+      })
+      if (
+        deactivatedClickModal === null ||
+        deactivatedClickModal === undefined
+      ) {
+        return
+      }
+      this.deactivatedClickModal = deactivatedClickModal
+      this.deactivatedServiceTypeName = serviceType.name
+      this.$nextTick(() => {
+        this.$refs.deactivatedClickModal.show()
+      })
     },
   },
   validations() {

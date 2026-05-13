@@ -252,15 +252,6 @@ class CoreXLSFileReaderServiceType(ListServiceTypeMixin, CoreServiceType):
         "sheet_name",
     ]
 
-    def _get_dispatch_workspace(self, dispatch_context: DispatchContext):
-        if page := getattr(dispatch_context, "page", None):
-            return page.builder.workspace
-
-        if workflow := getattr(dispatch_context, "workflow", None):
-            return workflow.automation.workspace
-
-        return None
-
     def is_deactivated(self, workspace) -> bool:
         return not LicenseHandler.workspace_has_feature(XLS_FILE_READER, workspace)
 
@@ -274,8 +265,7 @@ class CoreXLSFileReaderServiceType(ListServiceTypeMixin, CoreServiceType):
         service: CoreXLSFileReaderService,
         dispatch_context: DispatchContext,
     ) -> DispatchResult:
-        if workspace := self._get_dispatch_workspace(dispatch_context):
-            self.raise_if_deactivated(workspace)
+        self.raise_if_deactivated(dispatch_context.workspace)
 
         return super().dispatch(service, dispatch_context)
 

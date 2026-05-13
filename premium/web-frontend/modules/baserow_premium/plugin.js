@@ -65,6 +65,7 @@ import {
   PieChartWidgetType,
 } from '@baserow_premium/dashboard/widgetTypes'
 import { SingleSelectFormattingType } from '@baserow_premium/dashboard/chartFieldFormatting'
+import { LocalBaserowGroupedAggregateRowsServiceType } from '@baserow_premium/integrations/localBaserow/serviceTypes'
 import { GenerateAIValuesJobType } from '@baserow_premium/jobTypes'
 import { GenerateAIValuesContextItemType } from '@baserow_premium/fieldContextItemTypes'
 import { PremiumLicenseType } from '@baserow_premium/licenseTypes'
@@ -88,6 +89,7 @@ import {
   CalendarViewPaidFeature,
   ExportsPaidFeature,
   FormSurveyModePaidFeature,
+  GroupedAggregateRowsDataSourcePaidFeature,
   KanbanViewPaidFeature,
   PersonalViewsPaidFeature,
   PublicLogoRemovalPaidFeature,
@@ -339,6 +341,10 @@ export default defineNuxtPlugin({
       'chartFieldFormatting',
       new SingleSelectFormattingType(context)
     )
+    $registry.register(
+      'service',
+      new LocalBaserowGroupedAggregateRowsServiceType(context)
+    )
 
     $registry.register('paidFeature', new KanbanViewPaidFeature(context))
     $registry.register('paidFeature', new CalendarViewPaidFeature(context))
@@ -347,6 +353,10 @@ export default defineNuxtPlugin({
     $registry.register('paidFeature', new RowCommentsPaidFeature(context))
     $registry.register('paidFeature', new RowNotificationsPaidFeature(context))
     $registry.register('paidFeature', new AIPaidFeature(context))
+    $registry.register(
+      'paidFeature',
+      new GroupedAggregateRowsDataSourcePaidFeature(context)
+    )
     $registry.register('paidFeature', new PersonalViewsPaidFeature(context))
     $registry.register('paidFeature', new ExportsPaidFeature(context))
     $registry.register('paidFeature', new FormSurveyModePaidFeature(context))

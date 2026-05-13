@@ -5,6 +5,13 @@ const GRACE_DELAY = 50 // ms before querying the backend with a get query
 
 const groupGetNameCalls = callGrouper(GRACE_DELAY)
 
+const csvEscape = (value) => {
+  const stringValue = `${value}`
+  return /[",\n]/.test(stringValue)
+    ? `"${stringValue.replaceAll('"', '""')}"`
+    : stringValue
+}
+
 export default (client) => {
   return {
     fetchAll(pageId) {
@@ -82,7 +89,7 @@ export default (client) => {
                   {
                     params: {
                       record_ids: Array.from(recordIds)
-                        .map((item) => `${item}`)
+                        .map(csvEscape)
                         .join(','),
                     },
                   }
@@ -105,7 +112,9 @@ export default (client) => {
         }
         return Object.fromEntries(
           Object.entries(data[dataSourceId]).filter(([key]) =>
-            recordIds.includes(parseInt(key))
+            Array.from(recordIds)
+              .map((id) => `${id}`)
+              .includes(key)
           )
         )
       }

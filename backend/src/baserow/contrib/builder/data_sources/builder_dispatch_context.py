@@ -39,6 +39,7 @@ class BuilderDispatchContext(DispatchContext):
         "count",
         "only_record_id",
         "only_expose_public_allowed_properties",
+        "workspace",
     ]
 
     def __init__(
@@ -78,6 +79,8 @@ class BuilderDispatchContext(DispatchContext):
         self.only_expose_public_allowed_properties = (
             only_expose_public_allowed_properties
         )
+
+        kwargs["workspace"] = page.builder.get_workspace()
 
         super().__init__(**kwargs)
 

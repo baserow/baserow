@@ -155,10 +155,12 @@
   },
   "serviceRefinementForms": {
     "filterTabTitle": "Filter | 1 Filter | {count} Filters",
+    "groupTabTitle": "Group by | 1 Group | {count} Groups",
     "sortTabTitle": "Sort | 1 Sort | {count} Sorts",
     "searchTabTitle": "Search | 1 Search | {count} Searches",
     "searchFieldPlaceHolder": "Enter a search term...",
     "noTableChosenForFiltering": "Choose a table to begin using data source filters.",
+    "noTableChosenForGrouping": "Choose a table to begin using data source groups.",
     "noTableChosenForSorting": "Choose a table to begin using data source sorts.",
     "refinements": "Refinements"
   },

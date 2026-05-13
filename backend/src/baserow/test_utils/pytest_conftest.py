@@ -9,6 +9,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from functools import partial
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any, AsyncGenerator, Dict, List, Optional
 from unittest.mock import patch
 
@@ -994,7 +995,8 @@ class FakeDispatchContext(DispatchContext):
     ]
 
     def __init__(self, **kwargs):
-        super().__init__()
+        workspace = kwargs.pop("workspace", SimpleNamespace(id=-1))
+        super().__init__(workspace)
         self.context = kwargs.pop("context", {})
         self._public_allowed_properties = kwargs.pop("public_allowed_properties", None)
         self._searchable_fields = kwargs.pop("searchable_fields", [])
