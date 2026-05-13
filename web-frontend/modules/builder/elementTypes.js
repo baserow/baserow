@@ -2160,8 +2160,41 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
     return RecordSelectorElementForm
   }
 
-  formDataType(element) {
-    return element.multiple ? 'array' : 'number'
+  getRecordIdServiceType(element, applicationContext) {
+    if (!applicationContext?.builder || !applicationContext?.page) {
+      return null
+    }
+    const dataSource = this.getDataSourceForElement({
+      builder: applicationContext.builder,
+      page: applicationContext.page,
+      element,
+    })
+    if (!dataSource) {
+      return null
+    }
+    return this.app.$registry.get('service', dataSource.type)
+  }
+
+  getRecordIdDataType(element, applicationContext) {
+    const serviceType = this.getRecordIdServiceType(element, applicationContext)
+    if (!serviceType) {
+      return 'number'
+    }
+    return serviceType.getRecordIdDataType?.() || 'number'
+  }
+
+  formDataType(element, applicationContext) {
+    return element.multiple
+      ? 'array'
+      : this.getRecordIdDataType(element, applicationContext)
+  }
+
+  getRecordIdParser(element, applicationContext) {
+    const serviceType = this.getRecordIdServiceType(element, applicationContext)
+    if (!serviceType) {
+      return ensureInteger
+    }
+    return serviceType.parseRecordId.bind(serviceType)
   }
 
   getInitialFormDataValue(element, applicationContext) {
@@ -2170,10 +2203,11 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
         ...applicationContext,
         element,
       })
+      const parseRecordId = this.getRecordIdParser(element, applicationContext)
       if (element.multiple) {
-        return ensureArray(resolvedFormula).map(ensureInteger)
+        return ensureArray(resolvedFormula).map(parseRecordId)
       } else {
-        return ensureInteger(resolvedFormula)
+        return parseRecordId(resolvedFormula)
       }
     } catch {
       return element.multiple ? [] : null
@@ -2218,17 +2252,18 @@ export class RecordSelectorElementType extends CollectionElementTypeMixin(
     return super.getErrorMessage(element, applicationContext)
   }
 
-  getDataSchema(element) {
-    const type = this.formDataType(element)
-    if (type === 'number') {
+  getDataSchema(element, applicationContext) {
+    const type = this.formDataType(element, applicationContext)
+    const recordIdType = this.getRecordIdDataType(element, applicationContext)
+    if (type === 'number' || type === 'string') {
       return {
-        type: 'number',
+        type,
       }
     } else if (type === 'array') {
       return {
         type: 'array',
         items: {
-          type: 'number',
+          type: recordIdType,
         },
       }
     }

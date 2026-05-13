@@ -6,6 +6,7 @@ from baserow_enterprise.features import (
     AUDIT_LOG,
     BUILDER_CUSTOM_CODE,
     BUILDER_FILE_INPUT,
+    BUILDER_GROUPED_AGGREGATE_ROWS,
     BUILDER_NO_BRANDING,
     BUILDER_SSO,
     CODE_RUNNER,
@@ -46,6 +47,7 @@ COMMON_ADVANCED_FEATURES = [
     BUILDER_CUSTOM_CODE,
     CODE_RUNNER,
     XLS_FILE_READER,
+    BUILDER_GROUPED_AGGREGATE_ROWS,
     # only self-hosted
     SSO,
 ]
@@ -107,7 +109,6 @@ class EnterpriseWithoutSupportLicenseType(AdvancedLicenseType):
         *COMMON_ADVANCED_FEATURES,
         ENTERPRISE_SETTINGS,
         SECURE_FILE_SERVE,
-        DATA_SCANNER,
     ]
 
     def handle_seat_overflow(self, seats_taken: int, license_object: License):

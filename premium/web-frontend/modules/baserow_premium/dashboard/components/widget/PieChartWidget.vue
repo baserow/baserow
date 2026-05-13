@@ -5,7 +5,7 @@
       'dashboard-chart-widget--with-header-description': widget.description,
     }"
   >
-    <template v-if="!loading">
+    <template v-if="!isDataLoading">
       <div
         class="widget__header"
         :class="{
@@ -37,13 +37,26 @@
         ></WidgetContextMenu>
       </div>
 
-      <div class="dashboard-chart-widget__content widget__content">
-        <Chart
-          :data-source="dataSource"
-          :data-source-data="dataForDataSource"
-          :series-config="widget.series_config"
+      <div
+        class="dashboard-chart-widget__content widget__content"
+        :class="{ 'loading-spinner': isChartLoading }"
+      >
+        <div
+          class="dashboard-chart-widget__chart"
+          :class="{
+            'dashboard-chart-widget__chart--hidden': isChartLoading,
+          }"
         >
-        </Chart>
+          <Chart
+            v-if="chartReady"
+            :key="chartKey"
+            :data-source="dataSource"
+            :data-source-data="dataForDataSource"
+            :series-config="widget.series_config"
+            @rendered="chartRendered = true"
+          >
+          </Chart>
+        </div>
       </div>
     </template>
     <div v-else class="dashboard-chart-widget__loading loading-spinner"></div>
@@ -58,6 +71,11 @@ export default {
   name: 'PieChartWidget',
   emits: ['delete-widget'],
   components: { WidgetContextMenu, Chart },
+  data() {
+    return {
+      chartRendered: false,
+    }
+  },
   props: {
     dashboard: {
       type: Object,
@@ -94,6 +112,20 @@ export default {
         `${this.storePrefix}dashboardApplication/getDataForDataSource`
       ](this.dataSource?.id)
     },
+    chartReady() {
+      return Boolean(this.dataSource && this.dataForDataSource)
+    },
+    isDataLoading() {
+      return this.loading || !this.chartReady
+    },
+    isChartLoading() {
+      return !this.chartRendered
+    },
+    chartKey() {
+      return `${this.dataSource?.id}-${JSON.stringify(
+        this.dataForDataSource?.results || []
+      )}`
+    },
     isEditMode() {
       return this.$store.getters[
         `${this.storePrefix}dashboardApplication/isEditMode`
@@ -105,6 +137,11 @@ export default {
         return !!data._error
       }
       return false
+    },
+  },
+  watch: {
+    chartKey() {
+      this.chartRendered = false
     },
   },
 }

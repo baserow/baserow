@@ -108,7 +108,6 @@ from baserow.core.formula.types import (
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
-    ensure_integer,
     ensure_numeric,
     ensure_string_or_integer,
 )
@@ -774,17 +773,22 @@ class RecordSelectorElementType(
         service_type = service.get_type()
 
         try:
-            record_ids = set(map(ensure_integer, ensure_array(value)))
+            raw_record_ids = (
+                ensure_array(value)
+                if element.multiple
+                else ([] if value is None or value == "" else [value])
+            )
+            record_ids = set(service_type.prepare_record_ids(raw_record_ids))
             record_names = service_type.get_record_names(
                 service.specific,
                 record_ids,
                 dispatch_context,
             )
             available_record_ids = set(record_names.keys())
-        except ValidationError as err:
+        except (ValidationError, DRFValidationError) as err:
             msg = (
-                "The value must be an array of integers, or convertible to an"
-                "array of integers"
+                "The value must be an array of valid record identifiers, or "
+                "convertible to an array of valid record identifiers"
             )
             raise TypeError(msg) from err
 
@@ -797,7 +801,7 @@ class RecordSelectorElementType(
                 msg = f"{value} is not a valid option"
                 raise ValueError(msg)
         else:
-            record_id = value
+            record_id = next(iter(record_ids), None)
 
             if not record_id:
                 if element.required:

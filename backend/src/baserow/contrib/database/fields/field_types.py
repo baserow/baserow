@@ -3056,6 +3056,22 @@ class LinkRowFieldType(
             },
         )
 
+    def get_query_value_serializer(self, field: LinkRowField):
+        response_serializer = self.get_response_serializer_field(field)
+        related_model = field.link_row_table.get_model()
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            rows_by_id = {
+                row.id: row for row in related_model.objects.filter(id__in=value)
+            }
+            rows = [rows_by_id[row_id] for row_id in value if row_id in rows_by_id]
+            return response_serializer.to_representation(rows)
+
+        return serialize
+
     def get_serializer_help_text(self, instance):
         return (
             "This field accepts an `array` containing the ids or the names of the "
@@ -4861,6 +4877,18 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             }
         )
 
+    def get_query_value_serializer(self, field: SingleSelectField):
+        select_options = {option.id: option for option in field.select_options.all()}
+        response_serializer = self.get_response_serializer_field(field)
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            return response_serializer.to_representation(select_options.get(value))
+
+        return serialize
+
     def get_formula_reference_to_model_field(
         self, model_field, db_column, already_in_subquery
     ):
@@ -5064,6 +5092,23 @@ class MultipleSelectFieldType(
                 **kwargs,
             }
         )
+
+    def get_query_value_serializer(self, field: MultipleSelectField):
+        select_options = {option.id: option for option in field.select_options.all()}
+        response_serializer = self.get_response_serializer_field(field)
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            options = [
+                select_options[option_id]
+                for option_id in value
+                if option_id in select_options
+            ]
+            return response_serializer.to_representation(options)
+
+        return serialize
 
     def enhance_queryset(self, queryset, field, name, **kwargs):
         # It's important that this individual enhance_queryset method exists, even
@@ -7019,6 +7064,23 @@ class MultipleCollaboratorsFieldType(
                 **kwargs,
             }
         )
+
+    def get_query_value_serializer(self, field: MultipleCollaboratorsField):
+        response_serializer = self.get_response_serializer_field(field)
+
+        def serialize(value):
+            if value is None or value == "OTHER_VALUES":
+                return value
+
+            users_by_id = {
+                user.id: user for user in get_user_model().objects.filter(id__in=value)
+            }
+            users = [
+                users_by_id[user_id] for user_id in value if user_id in users_by_id
+            ]
+            return response_serializer.to_representation(users)
+
+        return serialize
 
     def serialize_to_input_value(self, field: Field, value: any) -> any:
         return [{"id": u.id, "name": u.first_name} for u in value.all()]

@@ -1,6 +1,7 @@
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     Dict,
     List,
     NoReturn,
@@ -2240,6 +2241,16 @@ class FieldType(
         """
 
         return field_name
+
+    def get_query_value_serializer(self, field: Field) -> Callable[[Any], Any]:
+        """
+        Returns a serializer function for raw values produced by queries.
+
+        Field types can override this when the raw query value differs from the
+        public API representation of the field value.
+        """
+
+        return lambda value: value
 
     def to_runtime_formula_value(self, field, value):
         """
