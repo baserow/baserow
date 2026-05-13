@@ -47,6 +47,8 @@ Reusable skills live in `.agents/skills/`. Each subdirectory is a self-contained
 | `write-frontend-unit-test` | Writing or fixing frontend unit tests in `web-frontend`, `premium/web-frontend`, or `enterprise/web-frontend` |
 | `create-update-service` | Creating or updating an integration type or service type in `contrib/integrations` |
 | `create-in-app-notification` | Creating or updating a Baserow in-app notification for an event, including backend and frontend registration, target routing data, and duplicate-prevention behavior |
+| `add-update-builder-element-type` | Adding or updating an Application Builder element type across backend, frontend, migrations, registration, translations, icons, and targeted tests |
+| `manage-backend-layers` | Adding or changing backend model, handler, service, undoable action, and API view layers using the newer automation modules as the preferred pattern |
 
 ## Security & Configuration Tips
 

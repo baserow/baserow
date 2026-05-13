@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage Backend Layers"
+  short_description: "Guide backend layers for Baserow features"
+  default_prompt: "Use $manage-backend-layers to add a Baserow backend feature across models, handlers, services, actions, and API views."
