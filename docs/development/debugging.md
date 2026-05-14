@@ -1,221 +1,458 @@
 # Debugging
 
-A practical reference for the day-to-day "something's wrong, where do I
-look" question. Three sections: **tools available**, **Baserow-specific
-debugging recipes**, and **gotchas**.
+The practical "something's wrong, where do I look" reference. Organised by
+what you're trying to do, not by tool.
 
-## Tools available
+Sections:
 
-### snoop — automatic Python tracing
+- [Pick your tracing backend](#pick-your-tracing-backend)
+- [Backend debugging tools](#backend-debugging-tools)
+- [Frontend debugging tools](#frontend-debugging-tools)
+- [VSCode setup](#vscode-setup) — separate so users on other IDEs can skip it
+- [Baserow-specific debugging recipes](#baserow-specific-debugging-recipes)
+- [Gotchas](#gotchas)
 
-[snoop](https://github.com/alexmojaki/snoop) traces a piece of code and
-shows how variables change over time. Available globally — no import
-needed.
+## Pick your tracing backend
 
-```python
-@snoop
-def my_function():
-    for i in range(5):
-        a = i * 2
+Baserow emits OpenTelemetry spans out of the box (see
+[observability](../patterns/observability.md)). To make those useful locally
+you need somewhere to send them. Three reasonable choices:
 
-# Or as a context manager
-with snoop:
-    for row in rows:
-        do_something(row)
+### Sentry (hosted, free tier) — recommended default
+
+[sentry.io](https://sentry.io) gives you error tracking and OTEL traces in
+one product. Set up a personal project, copy the DSN into `.env.local` as
+`SENTRY_DSN`, and you'll see exceptions and traces from your local dev
+backend within seconds. Same flow for frontend (separate Sentry project,
+separate DSN). The free tier comfortably covers a personal dev rig.
+
+When you suspect a real bug, this is the highest-leverage tool because
+each exception comes pre-populated with the trace that led to it.
+
+### Jaeger via docker-compose — fully local, no signup
+
+Add a `jaeger` service alongside the existing dev stack and point the OTEL
+exporter at it. Jaeger Tracing on Docker Hub gives you the all-in-one
+image in one container:
+
+```yaml
+# add to docker-compose.dev.yml (or a separate override file)
+jaeger:
+  image: jaegertracing/all-in-one:latest
+  ports:
+    - "16686:16686"  # UI
+    - "4317:4317"    # OTLP gRPC
+    - "4318:4318"    # OTLP HTTP
 ```
 
-Useful kwargs:
+Then set `BASEROW_ENABLE_OTEL=true` and the standard
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` env var. The UI lives
+at http://localhost:16686.
 
-- `@snoop(depth=2)` — also traces functions called from the traced
-  function (default depth is 1).
-- `@snoop(watch_explode=['my_dict'])` — expands dicts/objects to show
-  every key/attribute.
+Trade-off vs Sentry: pure tracing, no error tracking, no automatic source
+links — but no data leaves your machine.
 
-Pretty-print a variable manually with `pp(x)`. Most useful when you
-already know roughly where the bug is and want a frame-by-frame view of a
-short stretch of code.
+### Honeycomb — for production
 
-### `django-extensions` — Django power tools
+baserow.io traces land in Honeycomb. Use it when you need to debug
+something you can only see in production. Don't point dev at it; the
+signal-to-noise ratio is awful.
 
-Available inside the backend container:
+## Backend debugging tools
 
-- `django-admin shell_plus` — interactive shell with Baserow models
-  auto-imported. Faster than typing `from baserow... import` for ten
-  minutes.
-- `django-admin show_urls` — lists every registered URL. Use it when
-  you can't find the view that handles a particular endpoint.
-- `django-admin runserver_plus` — runserver with Werkzeug debugger
-  attached.
-- `django-admin graph_models` — generates a Graphviz ER diagram of the
-  models in an app. Worth running once when learning a new area.
+### `just b shell_plus --print-sql`
 
-### `django-silk` — request and query profiler
+The single most useful command for "what query does my code actually
+emit?". `shell_plus` (from `django-extensions`) launches an interactive
+Python shell with every Baserow model auto-imported. `--print-sql` echoes
+every SQL statement that runs, with timing.
 
-Once Baserow is up in debug mode, browse to
-http://localhost:8000/silk/. Every request is logged with its full query
-list and timings. Indispensable for spotting N+1s in real flows —
-particularly the dashboard views that fan out across the model graph.
+```bash
+just b shell_plus --print-sql
+```
+
+Inside the shell, you can run arbitrary code and see the queries it
+produces:
+
+```python
+table = Table.objects.get(pk=42)
+model = table.get_model()  # see every query the cache misses
+list(model.objects.all())   # the actual SELECT
+```
+
+Use this any time you suspect a handler is doing more work than it
+should. Pair with [queries.md](../patterns/queries.md) for the patterns
+that fix what you find.
+
+### `django-silk` — live request profiler
+
+Browse to http://localhost:8000/silk/ after starting Baserow in dev. Every
+request the backend handles is logged with its full query list, timings,
+and a flame-graph view. Indispensable for spotting N+1s in real flows.
+
+Some useful queries to try:
+
+- Sort by "Number of queries" → find N+1 candidates.
+- Sort by "Time spent on queries" → find slow queries.
+- Click a request → see which view ran it and the per-query timing.
+
+`BASEROW_ENABLE_SILK` controls whether silk is wired up; default is on in
+dev. Turn it off if it's interfering with a performance measurement —
+silk's own overhead is non-trivial.
+
+### `django-admin show_urls`
+
+Lists every URL registered in the project. Use it when you can't find
+which view handles a particular endpoint:
+
+```bash
+just b show_urls | grep -i 'group_by'
+```
 
 ### Flower — Celery monitor
 
-http://localhost:5555/. Real-time view of Celery workers and tasks.
-Use it when you suspect a job is failing silently, getting retried too
-much, or stuck.
+http://localhost:5555/. Real-time view of Celery workers and tasks. Use
+it when:
 
-### `ipdb` / breakpoints
+- You scheduled a job and it never ran (check the worker is alive).
+- A job is failing and you can't find the error (Flower shows tracebacks).
+- A task is being retried too aggressively (check the retry count).
 
-`breakpoint()` works as expected. In a container, attach with
-`docker attach <container>` first, then `breakpoint()` drops you into
-`ipdb`.
+### `breakpoint()` / `ipdb`
 
-### OTEL traces in dev
+Standard `breakpoint()` works. In the dev container, attach to the
+backend container first (`docker attach <container>`) so stdin reaches
+the debugger.
 
-If OTEL is configured in dev (see
-[Monitoring Baserow](../installation/monitoring.md)), span data flows to
-your local backend and is queryable. Most local devs skip this — the same
-data is available locally via `django-silk`, and the loguru logs are
-easier to grep.
+If you'd rather skip the attach dance, use a VSCode launch config (see
+below) — that gives you breakpoints from the editor.
+
+### Loguru and `BASEROW_BACKEND_DATABASE_LOG_LEVEL`
+
+Set `BASEROW_BACKEND_DATABASE_LOG_LEVEL=DEBUG` to log every SQL query that
+runs, not just inside `shell_plus`. Useful for short snippets you can run
+end-to-end and grep through. For longer flows, prefer silk — the volume
+of debug logs becomes unwieldy fast.
+
+`BASEROW_BACKEND_LOG_LEVEL=DEBUG` does the same for application logs.
+See [observability](../patterns/observability.md) for the logging
+conventions.
+
+## Frontend debugging tools
+
+### Browser DevTools — primary tool
+
+Open in Chrome / Firefox / Edge:
+
+- **Console** — `console.log` output, errors, warnings.
+- **Network** — every XHR / fetch / websocket message. Right-click → "Copy
+  as cURL" to replay a failing request from the terminal.
+- **Sources / Debugger** — set breakpoints in `.vue` and `.js` files
+  served from the dev server. Use `debugger;` statements as another way
+  in.
+- **Application → Local Storage / IndexedDB** — inspect cached auth
+  tokens and locally persisted state.
+
+### Vue DevTools
+
+Install the browser extension:
+[Vue.js devtools](https://devtools.vuejs.org/). Gives you:
+
+- A **components tree** with live props and data — click a component, see
+  its current state.
+- A **Vuex inspector** with **time-travel** — every mutation is logged;
+  you can roll the store back to a previous state to bisect "when did
+  this break". Worth its weight in gold for store-driven bugs.
+- An **events** tab — every emitted event with payload.
+
+Use it for any "the UI looks wrong" or "this Vuex action did the wrong
+thing" bug.
+
+### Vuex / store
+
+Add temporary `console.log` statements at the top of an action or
+mutation; or use the Vue DevTools mutation log instead — it's already
+there for free.
+
+If a realtime update from the backend isn't reflected in the UI, the
+chain is:
+
+1. Did the backend send the ws message? → check silk / OTEL.
+2. Did the frontend receive it? → DevTools → Network → WS frames.
+3. Did the registered realtime handler run? → add a log at the entry
+   point or set a Vue DevTools breakpoint.
+4. Did the handler dispatch the right mutation? → Vuex log.
+
+### Network / API debugging
+
+For poking at the API directly:
+
+- **Browser → Network tab** is fastest for replaying what the frontend
+  already did.
+- **`httpie`** (`brew install httpie`) gives you cleaner curl ergonomics
+  for ad-hoc requests.
+- **Bruno**, **Insomnia**, or **Postman** for saved request collections.
+- **VSCode REST Client** extension if you live in the editor — `.http`
+  files with one request per block, response inline.
+
+### Mail catcher
+
+In dev, outbound emails are sent to a local mail catcher
+(`mailhog` / `mailpit`-style service in `docker-compose.dev.yml`). Browse
+its UI to read what would have been sent. Useful for testing
+notification flows and password reset emails without spamming a real
+inbox.
+
+## VSCode setup
+
+(Skip if you use another IDE — none of this is required to develop
+Baserow. The other tools above work the same regardless.)
+
+VSCode has good Python and JavaScript / Vue support out of the box. Two
+things worth setting up: launch configurations for breakpoint debugging,
+and the right extensions.
+
+### Recommended extensions
+
+- **Python** (Microsoft) + **Pylance** — IntelliSense, type checking.
+- **debugpy** — Python debugger (bundled with the Python extension).
+- **Ruff** — fast Python linter, matches the project's formatting.
+- **Vue (Official)** (Volar) — Vue 3 IntelliSense and template
+  type-checking. Disable Vetur if you have it; the two conflict.
+- **ESLint** — JavaScript / Vue linting.
+- **EditorConfig** — respects the repo's `.editorconfig`.
+
+The Baserow repo has a `.vscode/` directory with `launch.json`,
+`tasks.json`, and `settings.json` covering the common entry points
+(backend runserver, frontend dev server, celery worker, pytest, jest).
+You can copy / adapt the configurations to your local environment.
+
+### Launch configurations
+
+`.vscode/launch.json` defines named debug profiles. Common ones the repo
+provides (configuration names paraphrased — see your local
+`launch.json`):
+
+- **Backend: runserver** — `debugpy` launching `backend/baserow runserver
+  0.0.0.0:8000`. Attach breakpoints in any backend `.py` file; the
+  request will pause when it hits them.
+- **Celery: worker (pool=solo)** — `debugpy` launching `celery -A
+  baserow worker --pool=solo` so the worker runs in-process and your
+  breakpoints fire.
+- **pytest: current file** — `debugpy` launching `pytest ${file} -v -s`
+  for running and debugging the test file you're currently viewing.
+- **Frontend: dev** — Node launch for `yarn run dev`. Pair with a
+  Chrome / Edge launch (see below) to set breakpoints in `.vue` and `.js`
+  files.
+- **Jest: current file** — Node launch for `node_modules/jest/bin/jest`
+  on the current file.
+
+### Secrets in launch.json — please don't
+
+`launch.json` is committed to the repo. Do not put real API keys,
+license tokens, or DSNs in it. Two safer patterns:
+
+1. **Reference an `.env.local` file** via the `envFile` field:
+
+   ```jsonc
+   {
+     "name": "Backend: runserver",
+     "type": "debugpy",
+     "envFile": "${workspaceFolder}/.env.local",
+     "env": {
+       "DJANGO_SETTINGS_MODULE": "baserow.config.settings.dev"
+     }
+   }
+   ```
+
+   Put secrets in `.env.local` and add it to `.gitignore`. Already
+   ignored at the repo root.
+
+2. **Read from your shell environment** via `${env:VARNAME}`:
+
+   ```jsonc
+   "env": {
+     "OPENAI_API_KEY": "${env:OPENAI_API_KEY}"
+   }
+   ```
+
+   Set the variables in your shell rc (`~/.zshrc`, etc.) — never in
+   committed config.
+
+If you've already committed secrets, **rotate them**. `git filter-repo`
+or BFG can rewrite history, but treat any leaked key as compromised.
+
+### Debugging Vue in VSCode
+
+To set breakpoints in `.vue` and `.js` files from inside VSCode:
+
+1. Start the frontend dev server (`yarn run dev` or your Frontend launch
+   config). It serves on http://localhost:3000.
+2. Add a Chrome / Edge launch config:
+
+   ```jsonc
+   {
+     "name": "Frontend: attach to Chrome",
+     "type": "chrome",  // or "msedge"
+     "request": "launch",
+     "url": "http://localhost:3000",
+     "webRoot": "${workspaceFolder}/web-frontend"
+   }
+   ```
+
+3. Launch it. VSCode opens a Chrome window connected to its debugger.
+   Set breakpoints in `.vue` files — they'll fire when the page runs the
+   relevant code.
+
+Most people end up using **Chrome / Edge DevTools directly** instead of
+the VSCode debugger for frontend work — the DevTools network and Vuex
+panels are too useful to give up. Pick what you prefer; both work.
 
 ## Baserow-specific debugging recipes
 
 ### "Why is this field acting weird?"
 
-Most field-behaviour mysteries trace to one of three things: the
-`FieldType`, the dynamic model cache, or the field-dependency graph.
+Field-behaviour mysteries trace to one of three things: the `FieldType`,
+the dynamic model cache, or the field-dependency graph.
 
 ```python
 # In shell_plus
 table = Table.objects.get(pk=...)
 model = table.get_model()
+model.info()  # rich-printed table of every field
 
-# Inspect every field on the model
-model.info()  # rich-printed table; dev-only
-
-# Find the field type
 field = Field.objects.get(pk=...).specific
 field_type = field_type_registry.get_by_model(field)
 print(type(field), type(field_type))
 
-# Force a cache miss and rebuild
+# Force a cache miss
 from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
 invalidate_table_in_model_cache(table.id)
 model = table.get_model()
 ```
 
 If the field's value looks right in the DB but wrong via the model, the
-generated model is likely stale. Verify with `Table.version` — every
-field change should bump it.
+generated model is likely stale. `Table.version` should bump on every
+field change.
 
 ### "Why didn't I get a realtime update?"
 
 Walk the chain:
 
-1. Did the **handler emit the signal**? Add `breakpoint()` after the
-   handler mutates state, check `dir(baserow.contrib.database.rows.signals)`
-   for the expected signal, and confirm it's being sent.
-2. Did a **ws receiver fire**? `baserow.ws.*` has receivers; add a log
-   statement at the entry point or set `BASEROW_BACKEND_LOG_LEVEL=DEBUG`.
-3. Did the **message reach the right page**? Each ws page has a
-   `page_registry` entry that decides who subscribes. Mismatched page
-   ids = no broadcast.
-4. Did the **frontend handler run**? In the browser, the Vuex store
-   action that processes the ws message logs in dev. Confirm the
-   message type matches a registered realtime handler.
+1. Did the **handler emit the signal**? `breakpoint()` after the
+   mutation, confirm the right signal is sent.
+2. Did a **ws receiver fire**? Check `baserow.ws.*`; add a log statement
+   at entry, or set `BASEROW_BACKEND_LOG_LEVEL=DEBUG`.
+3. Did the **message reach the right page**? `page_registry` decides
+   subscribers. Mismatched page id = no broadcast.
+4. Did the **frontend handler run**? Browser → Network → WS frames; then
+   Vue DevTools to see the Vuex mutations.
 
-See [websockets guide](../technical/websockets.md) for the full path.
+See [websockets guide](../technical/websockets.md).
 
 ### "Why is this query slow?"
 
-1. Hit the endpoint with `django-silk` on. Read the query list.
-2. If query count grows with the page size → N+1. Find where the loop
-   touches an FK or reverse-FK. Fix per [queries](../patterns/queries.md).
-3. If query count is small but one query is slow → either a missing
-   index (check `EXPLAIN ANALYZE` via raw SQL) or a poorly-bounded
-   queryset (look for `.filter(...)` without an index-backed column).
-4. If it's a search query → check the TSV column has been built;
-   `SearchHandler` may be lagging.
+1. Hit the endpoint with silk on.
+2. If query count grows with page size → N+1. Fix per
+   [queries.md](../patterns/queries.md).
+3. If count is small but one query is slow → missing index or unbounded
+   queryset. `EXPLAIN ANALYZE` via `shell_plus`:
+
+   ```python
+   from django.db import connection
+   with connection.cursor() as c:
+       c.execute("EXPLAIN ANALYZE SELECT ...")
+       for row in c.fetchall():
+           print(row[0])
+   ```
+
+4. If it's a search query → check the TSV column is built and
+   `SearchHandler` isn't lagging.
 
 ### "Why did my migration fail in CI but pass locally?"
 
-- Local DB is smaller; you may have skipped batching that prod-scale needs.
-- Your local DB might be missing a constraint that prod has (e.g. a
-  unique index added in a later migration).
+- Local DB is smaller; you skipped batching that prod-scale needs.
+- Local DB is missing a constraint that prod has.
 - You forgot `atomic = False` on a `CREATE INDEX CONCURRENTLY` migration.
 - You imported a model directly instead of using `apps.get_model()`.
 
-See migration conventions in [creating features](../patterns/creating-features.md).
+See migration conventions in
+[creating features](../patterns/creating-features.md).
 
 ### "Why is undo not undoing this thing?"
 
-Check whether the operation goes through an `ActionType`. If it doesn't —
-i.e. the handler is called directly without an action wrapper — there's
-nothing to undo. Add the action or use a different code path. See
-[action system](../technical/action-system.md).
+Check whether the operation goes through an `ActionType`. If it doesn't,
+nothing to undo. If it does:
 
-If the operation *is* an action but undo doesn't work:
+1. Right `scope()`? Undo is scope-filtered.
+2. `Params` round-trips through JSON cleanly?
+3. Exceptions in undo? They're logged but the action row is marked
+   undone-with-error.
 
-1. Check the action ran with the right `scope()`. Undo is scope-filtered.
-2. Check `Params` round-trips through JSON cleanly. A non-JSON-safe value
-   in `Params` will cause silent breakage on undo.
-3. Check there are no exceptions during undo — they're logged but the
-   action row is still marked undone-with-error.
+See [action system](../technical/action-system.md).
 
 ### "Why is the test passing but production failing?"
 
-The most common culprit in Baserow tests:
+- **Cache differences.** Tests use in-memory cache; prod uses Redis. An
+  invalidation race that always wins in memory may lose in prod.
+- **Transaction isolation.** Tests roll back each test. `on_commit`
+  callbacks don't fire unless you opt in with
+  `TestCase.captureOnCommitCallbacks(execute=True)`.
+- **Search index not built.** Tests skip async search reindex.
+- **Different ordering.** Production interleaves; tests serialise. Race
+  conditions hide.
 
-- **Cache differences.** Tests use an in-memory cache; prod uses Redis.
-  An invalidation race that always wins in memory may lose in prod.
-- **Transaction isolation.** Tests typically run each test in a
-  transaction that's rolled back. `on_commit` callbacks never fire by
-  default. Wrap with `TestCase.captureOnCommitCallbacks(execute=True)` if
-  you need them.
-- **Search index not built.** Tests skip the async search reindex unless
-  you flush Celery synchronously.
-- **Different ordering.** Production traffic interleaves; tests run
-  sequentially. Race conditions hide in tests.
+### "I want to reproduce a production bug locally"
 
-### "I want to see every SQL query"
+- **Snapshot import.** If you have access to a snapshot of the user's
+  data, install it into a local workspace via the snapshots feature.
+  Bug usually reproduces with a fraction of the data.
+- **Templates.** If the bug is data-shape-dependent, a template captures
+  the schema without the volume.
+- **`fill_table_rows` management command.** Generate large synthetic
+  tables to reproduce performance bugs.
+- **`run_periodic_fields_updates` management command.** Manually trigger
+  periodic recalcs for a specific workspace.
 
-Set `BASEROW_BACKEND_DATABASE_LOG_LEVEL=DEBUG` (default is `ERROR` so DB
-logs stay quiet). Each query appears in the loguru log with its timing.
-Useful for short snippets; for full request analysis use `django-silk`.
+### "Bisecting a regression"
 
-### "I want to see what an OTEL trace would look like"
-
-Add `add_baserow_trace_attrs(name="value", ...)` in the code path of
-interest, then load the page locally and check the OTEL exporter output
-(or run the Honeycomb URL if you have access). See
-[observability](../patterns/observability.md).
+`git bisect` works as advertised; `just b show_urls` or a one-line
+shell_plus check can serve as the test condition. Use it when "this
+worked last week but doesn't now" and there are dozens of merged PRs to
+sift through.
 
 ## Gotchas
 
-- **`Table.get_model()` returns a fresh class each time.** Don't `is`-compare
-  generated model classes. See [dynamic models](../technical/dynamic-models.md).
+- **`Table.get_model()` returns a fresh class each time.** Don't
+  `is`-compare generated model classes. See
+  [dynamic models](../technical/dynamic-models.md).
 - **Lenient field-type conversion silently nulls unconvertible values.**
-  If data disappeared after a field type change with no error, this is why.
+  If data disappeared after a type change with no error, this is why.
   See [field system](../patterns/field-system.md).
 - **`on_commit` doesn't fire inside `TestCase`** unless you opt in.
 - **Signals can fail silently.** A raise in one receiver doesn't stop
-  the others, but it also doesn't surface to the caller. Always log
-  exceptions in receivers.
+  the others, but it also doesn't surface to the caller. Log exceptions
+  in receivers.
 - **Soft-deleted (trashed) rows are filtered by the default manager.**
-  Use `Model.trash` (manager) to see them. They're not gone; they're
-  hidden.
-- **The local cache is per-request.** Anything you cache via `local_cache`
-  is lost the moment the request ends. Don't use it for cross-request
-  state; it'll look like the cache "doesn't work".
+  Use `Model.trash` to see them.
+- **The local cache is per-request.** Anything cached via `local_cache`
+  is lost after the request. Don't use it for cross-request state.
 - **Cachalot must be opt-in for user tables.** A query that "should be
-  cached" but isn't is probably outside the `cachalot_enabled()` context.
+  cached" but isn't is probably outside `cachalot_enabled()`.
   See [caching](../technical/caching.md).
-- **Action signals fire on undo/redo too.** If you have a receiver that
-  reacts to `action_done`, it fires three times during a do/undo/redo
-  sequence. Filter by `action_command_type`.
+- **Action signals fire on undo/redo too.** Filter by
+  `action_command_type` if you don't want all three.
+- **silk has overhead.** Disable when measuring real performance.
+- **Vue DevTools time-travel mutates the store live.** If you replay to
+  an old state and then continue using the app, you'll see weird
+  behaviour because the backend doesn't know you rewound. Reload after
+  time-travel debugging.
 
 ## Related
 
 - [Observability](../patterns/observability.md) — logging and OTEL.
 - [Queries](../patterns/queries.md) — N+1 and ORM tips.
-- [Architectural patterns](../patterns/architecture.md) — where to suspect
-  the bug is.
-- [Running tests](running-tests.md), [running the dev env locally](running-the-dev-env-locally.md).
+- [Architectural patterns](../patterns/architecture.md) — where to
+  suspect the bug is.
+- [Running tests](running-tests.md),
+  [running the dev env locally](running-the-dev-env-locally.md).
