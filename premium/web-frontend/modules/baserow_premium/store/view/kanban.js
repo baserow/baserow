@@ -6,6 +6,7 @@ import KanbanService from '@baserow_premium/services/views/kanban'
 import {
   extractRowMetadata,
   getFilters,
+  getOrderBy,
   getRowSortFunction,
   matchSearchFilters,
 } from '@baserow/modules/database/utils/view'
@@ -54,6 +55,8 @@ export const state = () => ({
   draggingOriginalBefore: null,
   // If true, ad hoc filtering is used instead of persistent one
   adhocFiltering: false,
+  // If true, ad hoc sorting is used
+  adhocSorting: false,
   // Indicates whether row(s) are currently being created.
   creating: false,
 })
@@ -201,6 +204,9 @@ export const mutations = {
   SET_ADHOC_FILTERING(state, adhocFiltering) {
     state.adhocFiltering = adhocFiltering
   },
+  SET_ADHOC_SORTING(state, adhocSorting) {
+    state.adhocSorting = adhocSorting
+  },
   SET_CREATING(state, value) {
     state.creating = value
   },
@@ -224,10 +230,12 @@ export const actions = {
       kanbanId,
       singleSelectFieldId,
       adhocFiltering,
+      adhocSorting,
       includeFieldOptions = true,
     }
   ) {
     commit('SET_ADHOC_FILTERING', adhocFiltering)
+    commit('SET_ADHOC_SORTING', adhocSorting)
     commit('SET_LAST_KANBAN_ID', kanbanId)
     const { $client } = this
     const view = rootGetters['view/get'](kanbanId)
@@ -239,6 +247,7 @@ export const actions = {
       selectOptions: [],
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+      orderBy: getOrderBy(view, adhocSorting),
       filters: getFilters(view, adhocFiltering),
     })
     // Don't do anything if the kanbanId does not match the current view kanbanId
@@ -283,6 +292,7 @@ export const actions = {
       ],
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+      orderBy: getOrderBy(view, getters.getAdhocSorting),
       filters: getFilters(view, getters.getAdhocFiltering),
     })
     // Don't do anything if the kanbanId does not match the current view kanbanId
@@ -816,18 +826,12 @@ export const actions = {
       }
     }
 
-    // When sortings are active and the row was dropped in a different stack,
-    // the row may have been visually placed at the last loaded index of the
-    // destination buffer. If that buffer is partial (i.e. the destination
-    // stack has more rows server-side than what is currently loaded), the
-    // row's real sorted position is unknown and might be past the buffer.
-    // In that case we drop it from the visible buffer; it will appear when
-    // the user scrolls the destination stack and the next page is fetched.
     if (sortingsActive && originalStackId !== currentStackId) {
       const stack = getters.getStack(currentStackId)
       const isLastLoaded = currentIndex === stack.results.length - 1
       const partialBuffer = stack.results.length < stack.count
       if (isLastLoaded && partialBuffer) {
+        // Real sorted position is unknown, the next page-fetch will reveal it.
         commit('DELETE_ROW', { stackId: currentStackId, index: currentIndex })
       }
     }
@@ -851,7 +855,8 @@ export const actions = {
         sortedRows.push(row)
       }
       const { $registry } = this
-      sortedRows.sort(getRowSortFunction($registry, view.sortings, fields))
+      const sortings = view?.sortings || []
+      sortedRows.sort(getRowSortFunction($registry, sortings, fields))
       const targetIndex = sortedRows.findIndex((r) => r.id === row.id)
 
       dispatch('forceMoveRowTo', {
@@ -1181,6 +1186,9 @@ export const getters = {
   },
   getAdhocFiltering(state) {
     return state.adhocFiltering
+  },
+  getAdhocSorting(state) {
+    return state.adhocSorting
   },
   getCreating(state) {
     return state.creating

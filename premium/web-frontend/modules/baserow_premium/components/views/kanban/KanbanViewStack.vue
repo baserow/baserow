@@ -12,7 +12,10 @@
   >
     <div
       class="kanban-view__stack"
-      :class="{ 'kanban-view__stack--dragging': draggingRow !== null }"
+      :class="{
+        'kanban-view__stack--dragging': draggingRow !== null,
+        'kanban-view__stack--drag-over': isDragOver,
+      }"
       @mousemove="stackMoveOver($event, stack, id)"
     >
       <div class="kanban-view__stack-head">
@@ -247,6 +250,22 @@ export default {
       return this.$store.getters[
         this.$props.storePrefix + 'view/kanban/getDraggingOriginalStackId'
       ]
+    },
+    /**
+     * `true` when a card is currently being dragged and its live stack (the one
+     * it has been moved into by the drag handlers) matches this stack. Used to
+     * apply a visual indicator on the destination stack.
+     */
+    isDragOver() {
+      if (this.draggingRow === null) {
+        return false
+      }
+      const findStackIdAndIndex =
+        this.$store.getters[
+          this.storePrefix + 'view/kanban/findStackIdAndIndex'
+        ]
+      const result = findStackIdAndIndex(this.draggingRow.id)
+      return result !== undefined && result[0] === this.id
     },
     /**
      * When the view has one or more sortings configured, the vertical position
