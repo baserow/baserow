@@ -348,6 +348,18 @@ export class ViewType extends Registerable {
           updateFunction,
         }
       )
+      // The grouped store keeps its own row reference per section
+      // bucket; mirror the metadata patch there so comments badges /
+      // presence indicators refresh live when V2 is active.
+      if (store.hasModule(storePrefix + 'view/gridGrouped')) {
+        store
+          .dispatch(storePrefix + 'view/gridGrouped/updateRowMetadata', {
+            rowId,
+            rowMetadataType,
+            updateFunction,
+          })
+          .catch(() => {})
+      }
     }
   }
 
@@ -625,8 +637,7 @@ export class GridViewType extends ViewType {
     fields,
     storePrefix = '',
     includeFieldOptions = false,
-    sourceEvent = null,
-    options = {}
+    sourceEvent = null
   ) {
     const isPublic = store.getters[storePrefix + 'view/public/getIsPublic']
     const adhocFiltering = isAdhocFiltering(
@@ -647,10 +658,6 @@ export class GridViewType extends ViewType {
       includeFieldOptions,
       adhocFiltering,
       adhocSorting,
-      refreshGroupTree:
-        options.refreshGroupTree === undefined
-          ? true
-          : options.refreshGroupTree,
     })
   }
 
@@ -739,7 +746,12 @@ export class GridViewType extends ViewType {
     )
   }
 
-  async afterFieldDeleted({ dispatch }, field, fieldType, storePrefix = '') {
+  async afterFieldDeleted(
+    { dispatch, rootGetters, rootState },
+    field,
+    fieldType,
+    storePrefix = ''
+  ) {
     await dispatch(
       storePrefix + 'view/grid/forceDeleteFieldOptions',
       field.id,
@@ -747,10 +759,21 @@ export class GridViewType extends ViewType {
         root: true,
       }
     )
+    // If the deleted field was used by the active group-bys, sort,
+    // or a filter, the grouped view needs to refresh — its tree
+    // and section buckets are derived from those.
+    const hasGrouped = rootState[storePrefix + 'view/gridGrouped']
+    if (hasGrouped) {
+      await dispatch(
+        storePrefix + 'view/gridGrouped/refreshForViewConfigChange',
+        { fields: rootGetters['field/getAll'] },
+        { root: true }
+      )
+    }
   }
 
   async afterFieldUpdated(
-    { dispatch, rootGetters },
+    { dispatch, rootGetters, rootState },
     field,
     oldField,
     fieldType,
@@ -779,6 +802,16 @@ export class GridViewType extends ViewType {
         root: true,
       }
     )
+    // Grouped view: a sort/filter/group-by field may now behave
+    // differently (e.g. an option label changed), so refresh.
+    const hasGrouped = rootState[storePrefix + 'view/gridGrouped']
+    if (hasGrouped) {
+      await dispatch(
+        storePrefix + 'view/gridGrouped/refreshForViewConfigChange',
+        { fields: rootGetters['field/getAll'] },
+        { root: true }
+      )
+    }
   }
 
   async fieldOptionsUpdated({ store }, view, fieldOptions, storePrefix) {
@@ -806,6 +839,18 @@ export class GridViewType extends ViewType {
         values,
         metadata,
       })
+      // Mirror the create into the grouped store too — both stores
+      // stay populated in parallel so the user can flip view modes
+      // without losing data. The grouped variant uses per-section
+      // buckets, the flat one uses the row buffer; both react to
+      // the same realtime event.
+      if (store.hasModule(storePrefix + 'view/gridGrouped')) {
+        store
+          .dispatch(storePrefix + 'view/gridGrouped/handleRealtimeRowCreated', {
+            row: values,
+          })
+          .catch(() => {})
+      }
       await store.dispatch(storePrefix + 'view/grid/fetchByScrollTopDelayed', {
         scrollTop: store.getters[storePrefix + 'view/grid/getScrollTop'],
         fields,
@@ -850,6 +895,14 @@ export class GridViewType extends ViewType {
         metadata,
         updatedFieldIds,
       })
+      if (store.hasModule(storePrefix + 'view/gridGrouped')) {
+        store
+          .dispatch(storePrefix + 'view/gridGrouped/handleRealtimeRowUpdated', {
+            row: { ...row, ...values },
+            fields,
+          })
+          .catch(() => {})
+      }
       await store.dispatch(storePrefix + 'view/grid/fetchByScrollTopDelayed', {
         scrollTop: store.getters[storePrefix + 'view/grid/getScrollTop'],
         fields,
@@ -867,6 +920,13 @@ export class GridViewType extends ViewType {
         fields,
         row,
       })
+      if (store.hasModule(storePrefix + 'view/gridGrouped')) {
+        store
+          .dispatch(storePrefix + 'view/gridGrouped/handleRealtimeRowDeleted', {
+            rowId: row.id,
+          })
+          .catch(() => {})
+      }
       await store.dispatch(storePrefix + 'view/grid/fetchByScrollTopDelayed', {
         scrollTop: store.getters[storePrefix + 'view/grid/getScrollTop'],
         fields,

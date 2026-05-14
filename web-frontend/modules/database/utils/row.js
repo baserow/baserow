@@ -1,5 +1,9 @@
 //import Vue from 'vue'
 import { clone } from '@baserow/modules/core/utils/object'
+import {
+  matchSearchFilters,
+  getRowSortFunction,
+} from '@baserow/modules/database/utils/view'
 
 /**
  * Serializes a row to make sure that the values are according to what the API expects.
@@ -84,6 +88,237 @@ export function prepareNewOldAndUpdateRequestValues(
   updateRequestValues[`field_${field.id}`] = updateValue
 
   return { newRowValues, oldRowValues, updateRequestValues }
+}
+
+/**
+ * Multi-field variant of `prepareNewOldAndUpdateRequestValues`. Given
+ * a single row and multiple `(field, value, oldValue)` triples, return
+ * one combined `{newRowValues, oldRowValues, updateRequestValues}` so
+ * the row can be PATCHed once with every field change at the same
+ * time. Side-effect optimistic values (`onRowChange`) are still
+ * computed for un-edited fields against a virtual row that already
+ * reflects every new value.
+ */
+export function prepareRowMultiFieldUpdate(
+  row,
+  allFields,
+  fieldValuePairs,
+  registry
+) {
+  const newRowValues = { id: row.id }
+  const oldRowValues = { id: row.id }
+  const updateRequestValues = { id: row.id }
+  const editedFieldIds = new Set(fieldValuePairs.map((p) => p.field.id))
+
+  for (const { field, value, oldValue } of fieldValuePairs) {
+    const fieldKey = `field_${field.id}`
+    newRowValues[fieldKey] = value
+    oldRowValues[fieldKey] = oldValue
+    const fieldType = registry.get('field', field.type)
+    updateRequestValues[fieldKey] = fieldType.prepareValueForUpdate(
+      field,
+      value
+    )
+  }
+
+  const virtualRow = { ...row, ...newRowValues }
+  for (const otherField of allFields) {
+    if (editedFieldIds.has(otherField.id)) continue
+    const fieldType = registry.get('field', otherField.type)
+    const fieldKey = `field_${otherField.id}`
+    const currentFieldValue = row[fieldKey]
+    const optimisticFieldValue = fieldType.onRowChange(
+      virtualRow,
+      otherField,
+      currentFieldValue
+    )
+    if (currentFieldValue !== optimisticFieldValue) {
+      newRowValues[fieldKey] = optimisticFieldValue
+      oldRowValues[fieldKey] = currentFieldValue
+    }
+  }
+
+  return { newRowValues, oldRowValues, updateRequestValues }
+}
+
+/**
+ * Compute the row-form values a brand-new row should start with,
+ * combining: explicit caller-supplied values (highest priority),
+ * view-level default_row_values, and each field type's own default
+ * (`getNewRowValue`). Returns a `{ field_X: rowFormValue, … }` map
+ * suitable for an optimistic insert; pass each value through the
+ * field type's `prepareValueForUpdate` separately to build the BE
+ * payload.
+ *
+ * This is the same computation the legacy flat-grid create flow
+ * does inline; it's extracted here so the grouped grid can reuse it
+ * without duplicating the defaults logic.
+ */
+export function buildNewRowDefaults({
+  view,
+  fields,
+  registry,
+  suppliedValues = {},
+}) {
+  const defaultItems = view?.default_row_values ?? []
+  const defaultsByFieldId = {}
+  for (const item of defaultItems) {
+    if (item.enabled && (item.value != null || item.function)) {
+      defaultsByFieldId[item.field] = item
+    }
+  }
+  const newRow = {}
+  for (const field of fields) {
+    const name = `field_${field.id}`
+    if (name in suppliedValues) {
+      newRow[name] = suppliedValues[name]
+      continue
+    }
+    const fieldTypeKey = field._?.type?.type || field.type
+    const fieldType = registry.get('field', fieldTypeKey)
+    const defaultViewItem = defaultsByFieldId[field.id]
+    const supportedFunctions = fieldType.getSupportedDefaultValueFunctions
+      ? fieldType.getSupportedDefaultValueFunctions().map((f) => f.name)
+      : []
+    if (
+      defaultViewItem?.function &&
+      supportedFunctions.includes(defaultViewItem.function)
+    ) {
+      newRow[name] = fieldType.resolveDefaultValueFunction(
+        defaultViewItem.function,
+        field
+      )
+    } else if (
+      defaultViewItem?.value != null &&
+      (!defaultViewItem.field_type ||
+        defaultViewItem.field_type === fieldTypeKey)
+    ) {
+      newRow[name] = fieldType.parseDefaultRowValue(
+        field,
+        defaultViewItem.value
+      )
+    } else if (fieldType.getNewRowValue) {
+      newRow[name] = fieldType.getNewRowValue(field)
+    }
+  }
+  return newRow
+}
+
+/**
+ * Decide whether a row still belongs at its current position after a
+ * change: matches the view's filters, and lands at the same sorted
+ * index amongst the comparison set. Mirrors the logic the flat grid
+ * uses inline in `view/grid/updateMatchFilters` and
+ * `view/grid/updateMatchSortings` — extracted here so the grouped
+ * grid can reuse the same checks without re-deriving them.
+ *
+ * Inputs:
+ *   - `row`                  : the row whose flags to compute.
+ *   - `view`                 : the view (for filters + sortings).
+ *   - `fields`               : all visible fields (for sort/filter
+ *                              field lookup).
+ *   - `registry`             : the field type registry.
+ *   - `rowsInSortingGroup`   : rows to sort `row` against. For the
+ *                              flat grid: every loaded row. For the
+ *                              grouped grid: every loaded row of
+ *                              `row`'s section.
+ *   - `groupBys`             : group-by config; passed through to the
+ *                              sort function so secondary group sort
+ *                              keys are honoured.
+ *
+ * Returns `{matchFilters, matchSortings}`. Match flags are `true` when
+ * the row is at home; `false` when it would drift on a refresh.
+ */
+export function computeRowMatchFlags({
+  row,
+  view,
+  fields,
+  registry,
+  rowsInSortingGroup = [],
+  groupBys = [],
+}) {
+  const matchFilters = view?.filters_disabled
+    ? true
+    : matchSearchFilters(
+        registry,
+        view.filter_type,
+        view.filters ?? [],
+        view.filter_groups ?? [],
+        fields ?? [],
+        row
+      )
+
+  let matchSortings = true
+  if (fields && fields.length > 0) {
+    const sortFn = getRowSortFunction(
+      registry,
+      view?.sortings ?? [],
+      fields,
+      groupBys
+    )
+    const currentIdx = rowsInSortingGroup.findIndex((r) => r.id === row.id)
+    if (currentIdx >= 0) {
+      const sorted = [...rowsInSortingGroup].sort(sortFn)
+      const sortedIdx = sorted.findIndex((r) => r.id === row.id)
+      matchSortings = currentIdx === sortedIdx
+    }
+  }
+
+  return { matchFilters, matchSortings }
+}
+
+/**
+ * Compute the per-cell flags used by the area / checkbox multi-cell
+ * highlight: `{selected, top, right, bottom, left}`. The view's row
+ * component passes this object to `GridViewCell` which uses it to
+ * paint the outer borders only on the rectangle's perimeter (not on
+ * internal cell edges).
+ *
+ * Pure function — both the flat and grouped row components call it
+ * with their own coordinate model. Coordinates use the same model as
+ * the flat grid's multi-select state: integer row index in the
+ * linearised visible-row list, integer field index in the visible
+ * fields list. The grouped grid linearises its sections into a
+ * single visible-row index in its store getter, so the flat store's
+ * mutations and `[min, max]` getters work unchanged.
+ */
+export function computeMultiSelectPosition({
+  isAreaSelectionActive,
+  isCheckboxSelected,
+  rowIndex,
+  fieldIndex,
+  rowIndexRange,
+  fieldIndexRange,
+}) {
+  const position = {
+    selected: false,
+    top: false,
+    right: false,
+    bottom: false,
+    left: false,
+  }
+  if (!isAreaSelectionActive) {
+    if (isCheckboxSelected) position.selected = true
+    return position
+  }
+  const [minRow, maxRow] = rowIndexRange ?? [-1, -1]
+  const [minField, maxField] = fieldIndexRange ?? [-1, -1]
+  if (
+    rowIndex < 0 ||
+    fieldIndex < 0 ||
+    rowIndex < minRow ||
+    rowIndex > maxRow ||
+    fieldIndex < minField ||
+    fieldIndex > maxField
+  ) {
+    return position
+  }
+  position.selected = true
+  if (rowIndex === minRow) position.top = true
+  if (rowIndex === maxRow) position.bottom = true
+  if (fieldIndex === minField) position.left = true
+  if (fieldIndex === maxField) position.right = true
+  return position
 }
 
 /**

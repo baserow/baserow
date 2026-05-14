@@ -120,9 +120,6 @@ export default (client) => {
       signal = null,
       publicUrl = false,
       publicAuthToken = null,
-      groupBy = '',
-      collapsedGroups = '',
-      collapsedGroupsMode = '',
       filters = {},
     }) {
       const params = new URLSearchParams()
@@ -133,18 +130,6 @@ export default (client) => {
         if (searchMode) {
           params.append('search_mode', searchMode)
         }
-      }
-
-      if (groupBy) {
-        params.append('group_by', groupBy)
-      }
-
-      if (collapsedGroups) {
-        params.append('collapsed_groups', collapsedGroups)
-      }
-
-      if (collapsedGroupsMode) {
-        params.append('collapsed_groups_mode', collapsedGroupsMode)
       }
 
       Object.keys(filters).forEach((key) => {
@@ -165,15 +150,6 @@ export default (client) => {
 
       const url = publicUrl ? 'public/rows/' : ''
       return client.get(`/database/views/grid/${gridId}/${url}`, config)
-    },
-    filterRows({ gridId, rowIds, fieldIds = null }) {
-      const data = { row_ids: rowIds }
-
-      if (fieldIds !== null) {
-        data.field_ids = fieldIds
-      }
-
-      return client.post(`/database/views/grid/${gridId}/`, data)
     },
     fetchGroupTree({
       gridId,
@@ -214,6 +190,15 @@ export default (client) => {
       }
 
       return client.get(`/database/views/grid/${gridId}/group-tree/`, config)
+    },
+    filterRows({ gridId, rowIds, fieldIds = null }) {
+      const data = { row_ids: rowIds }
+
+      if (fieldIds !== null) {
+        data.field_ids = fieldIds
+      }
+
+      return client.post(`/database/views/grid/${gridId}/`, data)
     },
     fetchFieldAggregations({
       gridId,

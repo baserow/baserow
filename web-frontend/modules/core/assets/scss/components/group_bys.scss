@@ -165,3 +165,9 @@
 .group-bys__add {
   @include absolute(calc(100% + 4px), auto, auto, 0);
 }
+
+.group-bys__collapse-actions {
+  margin-left: auto;
+
+  @include flex-align-items(8px);
+}

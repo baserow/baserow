@@ -78,18 +78,17 @@
         </div>
       </div>
       <div
-        v-if="canAddGroupBy || view.group_bys.length > 0"
+        v-if="view.group_bys.length < availableFieldsLength && !disableGroupBy"
         class="context__footer"
       >
         <ButtonText
-          v-if="canAddGroupBy"
           ref="addDropdownToggle"
           icon="iconoir-plus"
           @click="$refs.addDropdown.toggle($refs.addDropdownToggle.$el)"
         >
           {{ $t('viewGroupByContext.addGroupBy') }}</ButtonText
         >
-        <div v-if="canAddGroupBy" class="group-bys__add">
+        <div class="group-bys__add">
           <Dropdown
             ref="addDropdown"
             :show-input="false"
@@ -105,23 +104,11 @@
             ></DropdownItem>
           </Dropdown>
         </div>
-        <div v-if="view.group_bys.length > 0" class="group-bys__footer-actions">
-          <ButtonText
-            class="group-bys__footer-action"
-            type="secondary"
-            size="small"
-            :disabled="allGroupsCollapsed"
-            @click="collapseAll"
-          >
+        <div v-if="hasGroupedGrid" class="group-bys__collapse-actions">
+          <ButtonText @click="setCollapsedAll(true)">
             {{ $t('viewGroupByContext.collapseAll') }}
           </ButtonText>
-          <ButtonText
-            class="group-bys__footer-action"
-            type="primary"
-            size="small"
-            :disabled="allGroupsExpanded"
-            @click="expandAll"
-          >
+          <ButtonText @click="setCollapsedAll(false)">
             {{ $t('viewGroupByContext.expandAll') }}
           </ButtonText>
         </div>
@@ -178,12 +165,6 @@ export default {
     availableFields() {
       return this.fields.filter((f) => this.isFieldAvailable(f))
     },
-    canAddGroupBy() {
-      return (
-        this.view.group_bys.length < this.availableFieldsLength &&
-        !this.disableGroupBy
-      )
-    },
     contextWarning() {
       const ownershipType = this.$registry.get(
         'viewOwnershipType',
@@ -196,34 +177,9 @@ export default {
         this.storePrefix
       )
     },
-    collapsedGroups() {
-      return this.$store.getters[
-        this.storePrefix + 'view/grid/getCollapsedGroupsForView'
-      ](this.view.id)
-    },
-    collapsedGroupsMode() {
-      return this.$store.getters[
-        this.storePrefix + 'view/grid/getCollapsedGroupsModeForView'
-      ](this.view.id)
-    },
-    /**
-     * In collapse-mode, an empty exception list means literally everything is
-     * collapsed, so there's nothing left to collapse further.
-     */
-    allGroupsCollapsed() {
-      return (
-        this.collapsedGroupsMode === 'collapse' &&
-        this.collapsedGroups.length === 0
-      )
-    },
-    /**
-     * In expand-mode (default) with no explicit collapses, everything is already
-     * expanded.
-     */
-    allGroupsExpanded() {
-      return (
-        this.collapsedGroupsMode === 'expand' &&
-        this.collapsedGroups.length === 0
+    hasGroupedGrid() {
+      return Boolean(
+        this.$store.state[this.storePrefix + 'view/gridGrouped']
       )
     },
   },
@@ -307,33 +263,15 @@ export default {
     getSortTypes(field) {
       return this.getFieldType(field).getSortTypes(field)
     },
-    async collapseAll() {
-      this.$store.dispatch(this.storePrefix + 'view/grid/collapseAllGroups', {
-        viewId: this.view.id,
-        fields: this.fields,
-      })
-      // Collapse / expand all only changes which rows are visible, not the
-      // tree's structure or counts. Skip the GROUP BY tree query the refresh
-      // would otherwise re-issue.
-      this.$emit('changed', { refreshGroupTree: false })
-    },
-    async expandAll() {
-      // Expand-all in collapse-default views requires the full tree (lazy
-      // outline isn't enough). The action fetches it; the buffer refresh
-      // comes from the @changed handler. We still skip the redundant tree
-      // refetch in the refresh chain via refreshGroupTree=false.
-      await this.$store.dispatch(
-        this.storePrefix + 'view/grid/expandAllGroups',
-        {
-          viewId: this.view.id,
-          view: this.view,
-          adhocFiltering:
-            this.$store.getters[
-              this.storePrefix + 'view/grid/getAdhocFiltering'
-            ],
-        }
-      )
-      this.$emit('changed', { refreshGroupTree: false })
+    async setCollapsedAll(collapsed) {
+      try {
+        await this.$store.dispatch(
+          this.storePrefix + 'view/gridGrouped/setCollapsedAll',
+          { collapsed }
+        )
+      } catch (error) {
+        notifyIf(error, 'view')
+      }
     },
   },
 }

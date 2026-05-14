@@ -313,11 +313,24 @@ export default {
         return
       }
 
-      // If targetfieldId is 0 then the field should be moved to the left of the
-      // first field, otherwise it should be moved at the right of the target field
-      const position = this.targetFieldId === 0 ? 'left' : 'right'
+      // Translate the visual drop point into a "left of nextField"
+      // dispatch whenever possible. The store action operates in the
+      // `fieldOptions.order` index space, but the visible list is
+      // sorted with `primaryAlwaysFirst=true` — so "right of <primary>"
+      // visually means "left of the first non-primary by order",
+      // which collapses into "left of fields[targetIndex + 1]" in
+      // visible order. Always sending the dispatch as "left of the
+      // next visible field" sidesteps the primary-first offset
+      // entirely; we only fall back to "right of last" when the
+      // drop is at the very end of the visible list.
+      const targetIndex =
+        this.targetFieldId === 0
+          ? -1
+          : this.fields.findIndex((f) => f.id === this.targetFieldId)
+      const nextField = this.fields[targetIndex + 1]
+      const position = nextField ? 'left' : 'right'
       const fromField = {
-        id: this.targetFieldId === 0 ? this.fields[0].id : this.targetFieldId,
+        id: nextField ? nextField.id : this.fields[this.fields.length - 1].id,
       }
       try {
         await this.$store.dispatch(

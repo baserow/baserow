@@ -10,419 +10,364 @@
       'grid-view--row-height-' + view.row_height_size,
     ]"
   >
-    <Scrollbars
-      ref="scrollbars"
-      horizontal="getHorizontalScrollbarElement"
-      vertical="getVerticalScrollbarElement"
-      :style="{ left: leftWidth + 'px' }"
-      @vertical="verticalScroll"
-      @horizontal="horizontalScroll"
-    ></Scrollbars>
-    <GridViewSection
-      ref="left"
-      class="grid-view__left"
-      :visible-fields="leftFields"
-      :all-visible-fields="allVisibleFields"
-      :all-fields-in-table="fields"
-      :decorations-by-place="decorationsByPlace"
-      :database="database"
-      :table="table"
-      :view="view"
-      :include-row-details="!viewHasGroupBys"
-      :include-grid-view-identifier-dropdown="!viewHasGroupBys"
-      :can-order-fields="frozenColumnCount > 1"
-      :read-only="
-        readOnly ||
-        (!$hasPermission(
-          'database.table.update_row',
-          table,
-          database.workspace.id
-        ) &&
-          !$hasPermission(
-            'database.table.view.update_row',
-            view,
-            database.workspace.id
-          ))
-      "
-      :store-prefix="storePrefix"
-      :style="{ width: leftWidth + 'px' }"
-      @refresh="$emit('refresh', $event)"
-      @field-created="fieldCreated"
-      @field-dragging="startCrossSectionFieldDrag($event.field, $event.event)"
-      @row-hover="setRowHover($event.row, $event.value)"
-      @row-context="showRowContext($event.event, $event.row)"
-      @row-dragging="rowDragStart"
-      @row-select="handleRowSelect"
-      @cell-mousedown-left="multiSelectStart"
-      @cell-mouseover="multiSelectHold"
-      @cell-mouseup-left="multiSelectStop"
-      @cell-shift-click="multiSelectShiftClick"
-      @add-row="addRow()"
-      @add-rows="$refs.rowsAddContext.toggleNextToMouse($event)"
-      @add-row-after="addRowAfter($event)"
-      @update="updateValue"
-      @paste="multiplePasteFromCell"
-      @edit="editValue"
-      @selected="selectedCell"
-      @unselected="unselectedCell"
-      @select-next="selectNextCell"
-      @edit-modal="openRowEditModal($event)"
-      @refresh-row="refreshRow"
-      @scroll="scroll($event.pixelY, 0)"
-      @cell-selected="cellSelected"
-      @toggle-collapse="toggleGroupCollapse"
-    ></GridViewSection>
-    <GridViewRowsAddContext ref="rowsAddContext" @add-rows="addRows" />
-    <div
-      ref="divider"
-      class="grid-view__divider"
-      :style="{ left: leftWidth + 'px' }"
-    ></div>
-    <GridViewFreezeHandle
-      v-if="
-        canFitFrozenColumns && !viewHasGroupBys && allDraggableFields.length > 0
-      "
+    <GridGrouped
+      v-if="useGroupedV2"
       :view="view"
       :database="database"
-      :fields="fields"
-      :field-options="fieldOptions"
-      :read-only="
-        readOnly ||
-        !$hasPermission(
-          'database.table.view.update',
-          view,
-          database.workspace.id
-        )
-      "
-      :row-details-width="gridViewRowDetailsWidth"
-      :left-width="leftWidth"
-      :get-field-width="getFieldWidth"
-      @frozen-count-change="onFrozenCountDragChange"
-    ></GridViewFreezeHandle>
-    <GridViewSection
-      ref="right"
-      class="grid-view__right"
-      :visible-fields="rightVisibleFields"
-      :all-visible-fields="allVisibleFields"
-      :all-fields-in-table="fields"
-      :decorations-by-place="decorationsByPlace"
-      :database="database"
       :table="table"
-      :view="view"
-      :include-row-details="viewHasGroupBys"
-      :include-grid-view-identifier-dropdown="viewHasGroupBys"
-      :include-add-field="true"
-      :can-order-fields="true"
-      :read-only="
-        readOnly ||
-        (!$hasPermission(
-          'database.table.update_row',
-          table,
-          database.workspace.id
-        ) &&
-          !$hasPermission(
-            'database.table.view.update_row',
-            view,
-            database.workspace.id
-          ))
-      "
-      :store-prefix="storePrefix"
-      :style="{ left: leftWidth + 'px' }"
-      @refresh="$emit('refresh', $event)"
-      @field-created="fieldCreated"
-      @field-dragging="startCrossSectionFieldDrag($event.field, $event.event)"
-      @row-hover="setRowHover($event.row, $event.value)"
-      @row-context="showRowContext($event.event, $event.row)"
-      @add-row="addRow()"
-      @add-rows="$refs.rowsAddContext.toggleNextToMouse($event)"
-      @add-row-after="addRowAfter($event)"
-      @update="updateValue"
-      @paste="multiplePasteFromCell"
-      @edit="editValue"
-      @row-dragging="rowDragStart"
-      @cell-mousedown-left="multiSelectStart"
-      @cell-mouseover="multiSelectHold"
-      @cell-mouseup-left="multiSelectStop"
-      @cell-shift-click="multiSelectShiftClick"
-      @selected="selectedCell"
-      @unselected="unselectedCell"
-      @select-next="selectNextCell"
-      @edit-modal="openRowEditModal($event)"
-      @refresh-row="refreshRow"
-      @scroll="scroll($event.pixelY, $event.pixelX)"
-      @cell-selected="cellSelected"
-      @toggle-collapse="toggleGroupCollapse"
-    ></GridViewSection>
-    <GridViewFieldDragging
-      ref="crossSectionFieldDragging"
-      :view="view"
-      :fields="allDraggableFields"
-      :offset="crossSectionDraggingOffset"
-      :read-only="
-        readOnly ||
-        !$hasPermission(
-          'database.table.view.update_field_options',
-          view,
-          database.workspace.id
-        )
-      "
-      :store-prefix="storePrefix"
-      :get-scroll-element="getCrossSectionScrollElement"
-      :get-scrollable-element="getCrossSectionScrollableElement"
-      :frozen-section-width="leftWidth"
-      @scroll="scroll(0, $event.pixelX)"
-    ></GridViewFieldDragging>
-    <GridViewRowDragging
-      ref="rowDragging"
-      :table="table"
-      :view="view"
-      :all-visible-fields="allVisibleFields"
-      :all-fields-in-table="fields"
-      :store-prefix="storePrefix"
-      :offset="0"
-      :get-scroll-element="getVerticalScrollbarElement"
-      @scroll="scroll($event.pixelY, $event.pixelX)"
-    ></GridViewRowDragging>
-    <Context ref="rowContext" overflow-scroll max-height-if-outside-viewport>
-      <ul v-show="isMultiSelectActive" class="context__menu">
-        <component
-          :is="contextItemComponent"
-          v-for="(contextItemComponent, index) in getMultiSelectContextItems()"
-          :key="index"
-          :field="getSelectedField()"
-          :get-rows="getSelectedRowsFunction"
-          :store-prefix="storePrefix"
-          :database="database"
-          @click=";[$refs.rowContext.hide()]"
-        ></component>
-        <li class="context__menu-item">
-          <a
-            class="context__menu-item-link"
-            @click=";[copySelection($event, false), $refs.rowContext.hide()]"
-          >
-            <i class="context__menu-item-icon iconoir-copy"></i>
-            {{ $t('gridView.copyCells') }}
-          </a>
-        </li>
-        <li class="context__menu-item">
-          <a
-            class="context__menu-item-link"
-            @click=";[copySelection($event, true), $refs.rowContext.hide()]"
-          >
-            <i class="context__menu-item-icon iconoir-copy"></i>
-            {{ $t('gridView.copyCellsWithHeader') }}
-          </a>
-        </li>
-        <li
-          v-if="
-            !readOnly &&
-            (!table.data_sync || table.data_sync.two_way_sync) &&
-            ($hasPermission(
-              'database.table.delete_row',
-              table,
-              database.workspace.id
-            ) ||
-              $hasPermission(
-                'database.table.view.delete_row',
-                view,
-                database.workspace.id
-              ))
-          "
-          class="context__menu-item"
-        >
-          <a
-            class="context__menu-item-link"
-            :class="{ 'context__menu-item-link--loading': deletingRow }"
-            @click.stop="deleteRowsFromMultipleCellSelection()"
-          >
-            <i class="context__menu-item-icon iconoir-bin"></i>
-            {{ $t('gridView.deleteRows') }}
-          </a>
-        </li>
-      </ul>
-      <ul v-show="!isMultiSelectActive" class="context__menu">
-        <li class="context__menu-item">
-          <a
-            class="context__menu-item-link"
-            @click=";[selectRow($event, selectedRow), $refs.rowContext.hide()]"
-          >
-            <i class="context__menu-item-icon iconoir-check-circle"></i>
-            {{ $t('gridView.selectRow') }}
-          </a>
-        </li>
-        <li
-          v-if="
-            !readOnly &&
-            (!table.data_sync || table.data_sync.two_way_sync) &&
-            ($hasPermission(
-              'database.table.create_row',
-              table,
-              database.workspace.id
-            ) ||
-              $hasPermission(
-                'database.table.view.create_row',
-                view,
-                database.workspace.id
-              ))
-          "
-          class="context__menu-item"
-        >
-          <a
-            class="context__menu-item-link"
-            @click="addRowAboveSelectedRow($event, selectedRow)"
-          >
-            <i class="context__menu-item-icon iconoir-arrow-up"></i>
-            {{ $t('gridView.insertRowAbove') }}
-          </a>
-        </li>
-        <li
-          v-if="
-            !readOnly &&
-            (!table.data_sync || table.data_sync.two_way_sync) &&
-            ($hasPermission(
-              'database.table.create_row',
-              table,
-              database.workspace.id
-            ) ||
-              $hasPermission(
-                'database.table.view.create_row',
-                view,
-                database.workspace.id
-              ))
-          "
-          class="context__menu-item"
-        >
-          <a
-            class="context__menu-item-link"
-            @click="addRowBelowSelectedRow($event, selectedRow)"
-          >
-            <i class="context__menu-item-icon iconoir-arrow-down"></i>
-            {{ $t('gridView.insertRowBelow') }}
-          </a>
-        </li>
-        <li
-          v-if="
-            !readOnly &&
-            (!table.data_sync || table.data_sync.two_way_sync) &&
-            ($hasPermission(
-              'database.table.create_row',
-              table,
-              database.workspace.id
-            ) ||
-              $hasPermission(
-                'database.table.view.create_row',
-                view,
-                database.workspace.id
-              ))
-          "
-          class="context__menu-item"
-        >
-          <a
-            class="context__menu-item-link"
-            @click="duplicateSelectedRow($event, selectedRow)"
-          >
-            <i class="context__menu-item-icon iconoir-copy"></i>
-            {{ $t('gridView.duplicateRow') }}
-          </a>
-        </li>
-        <li v-if="!readOnly" class="context__menu-item">
-          <a
-            class="context__menu-item-link"
-            @click="copyLinkToSelectedRow($event, selectedRow)"
-          >
-            <i class="context__menu-item-icon iconoir-link"></i>
-            {{ $t('gridView.copyRowURL') }}
-          </a>
-        </li>
-        <li
-          v-if="selectedRow !== null && !selectedRow._.loading"
-          class="context__menu-item"
-        >
-          <a
-            class="context__menu-item-link"
-            @click=";[openRowEditModal(selectedRow), $refs.rowContext.hide()]"
-          >
-            <i class="context__menu-item-icon iconoir-expand"></i>
-            {{ $t('gridView.enlargeRow') }}
-          </a>
-        </li>
-        <li
-          v-if="
-            !readOnly &&
-            (!table.data_sync || table.data_sync.two_way_sync) &&
-            ($hasPermission(
-              'database.table.delete_row',
-              table,
-              database.workspace.id
-            ) ||
-              $hasPermission(
-                'database.table.view.delete_row',
-                view,
-                database.workspace.id
-              ))
-          "
-          class="context__menu-item context__menu-item--with-separator"
-        >
-          <a class="context__menu-item-link" @click="deleteRow(selectedRow)">
-            <i class="context__menu-item-icon iconoir-bin"></i>
-            {{ $t('gridView.deleteRow') }}
-          </a>
-        </li>
-      </ul>
-    </Context>
-    <RowEditModal
-      ref="rowEditModal"
-      :database="database"
-      :table="table"
-      :view="view"
-      :all-fields-in-table="fields"
       :visible-fields="allVisibleFields"
-      :hidden-fields="hiddenFields"
-      :rows="allRows"
-      :sortable="true"
-      :can-modify-fields="true"
-      :read-only="
-        readOnly ||
-        (!$hasPermission(
-          'database.table.update_row',
-          table,
-          database.workspace.id
-        ) &&
-          !$hasPermission(
-            'database.table.view.update_row',
-            view,
-            database.workspace.id
-          ))
-      "
-      :enable-navigation="
-        !readOnly &&
-        ($hasPermission(
-          'database.table.update_row',
-          table,
-          database.workspace.id
-        ) ||
-          $hasPermission(
-            'database.table.view.update_row',
-            view,
-            database.workspace.id
-          ))
-      "
-      :show-hidden-fields="showHiddenFieldsInRowModal"
-      @toggle-hidden-fields-visibility="
-        showHiddenFieldsInRowModal = !showHiddenFieldsInRowModal
-      "
-      @update="updateValue"
-      @toggle-field-visibility="toggleFieldVisibility"
-      @order-fields="orderFields"
-      @hidden="rowEditModalHidden"
-      @field-updated="$emit('refresh', $event)"
-      @field-deleted="$emit('refresh')"
+      :all-fields-in-table="fields"
+      :field-options="fieldOptions"
+      :store-prefix="storePrefix"
+      :workspace-id="database.workspace.id"
+      :read-only="readOnly"
+      @edit-start="onGroupedEditStart"
+      @refresh="$emit('refresh', $event)"
       @field-created="fieldCreated"
-      @field-created-callback-done="afterFieldCreatedUpdateFieldOptions"
-      @navigate-previous="$emit('navigate-previous', $event, activeSearchTerm)"
-      @navigate-next="$emit('navigate-next', $event, activeSearchTerm)"
-      @refresh-row="refreshRow"
-    ></RowEditModal>
+    />
+    <!--
+      We keep the legacy GridViewSection-based body mounted even when
+      ``useGroupedV2`` is active, hidden via ``display: none``. Several
+      legacy methods + watchers reach into ``$refs.left`` / ``$refs.right``
+      / ``$refs.scrollbars`` without guards — switching with ``v-if``
+      tears those refs out and an in-flight watcher (e.g. the
+      ``row`` deep-watcher, or any of the scroll handlers fired during
+      the transition) immediately crashes with
+      ``this.$refs.right.$refs`` undefined. Hiding instead of
+      destroying keeps the refs alive for the duration of the
+      session; the v2 path renders on top and owns the visible
+      viewport. A follow-up extracting the legacy body into its own
+      component will let us actually unmount it again.
+    -->
+    <div v-show="!useGroupedV2" class="grid-view__legacy-body">
+      <Scrollbars
+        ref="scrollbars"
+        horizontal="getHorizontalScrollbarElement"
+        vertical="getVerticalScrollbarElement"
+        :style="{ left: leftWidth + 'px' }"
+        @vertical="verticalScroll"
+        @horizontal="horizontalScroll"
+      ></Scrollbars>
+      <GridViewSection
+        ref="left"
+        class="grid-view__left"
+        :visible-fields="leftFields"
+        :all-visible-fields="allVisibleFields"
+        :all-fields-in-table="fields"
+        :decorations-by-place="decorationsByPlace"
+        :database="database"
+        :table="table"
+        :view="view"
+        :include-row-details="!viewHasGroupBys"
+        :include-grid-view-identifier-dropdown="!viewHasGroupBys"
+        :include-group-by="true"
+        :can-order-fields="frozenColumnCount > 1"
+        :read-only="
+          readOnly ||
+          (!$hasPermission(
+            'database.table.update_row',
+            table,
+            database.workspace.id
+          ) &&
+            !$hasPermission(
+              'database.table.view.update_row',
+              view,
+              database.workspace.id
+            ))
+        "
+        :store-prefix="storePrefix"
+        :style="{ width: leftWidth + 'px' }"
+        @refresh="$emit('refresh', $event)"
+        @field-created="fieldCreated"
+        @field-dragging="startCrossSectionFieldDrag($event.field, $event.event)"
+        @row-hover="setRowHover($event.row, $event.value)"
+        @row-context="showRowContext($event.event, $event.row)"
+        @row-dragging="rowDragStart"
+        @row-select="handleRowSelect"
+        @cell-mousedown-left="multiSelectStart"
+        @cell-mouseover="multiSelectHold"
+        @cell-mouseup-left="multiSelectStop"
+        @cell-shift-click="multiSelectShiftClick"
+        @add-row="addRow()"
+        @add-rows="$refs.rowsAddContext.toggleNextToMouse($event)"
+        @add-row-after="addRowAfter($event)"
+        @update="updateValue"
+        @paste="multiplePasteFromCell"
+        @edit="editValue"
+        @selected="selectedCell"
+        @unselected="unselectedCell"
+        @select-next="selectNextCell"
+        @edit-modal="openRowEditModal($event)"
+        @refresh-row="refreshRow"
+        @scroll="scroll($event.pixelY, 0)"
+        @cell-selected="cellSelected"
+      ></GridViewSection>
+      <GridViewRowsAddContext ref="rowsAddContext" @add-rows="addRows" />
+      <div
+        ref="divider"
+        class="grid-view__divider"
+        :style="{ left: leftWidth + 'px' }"
+      ></div>
+      <GridViewFreezeHandle
+        v-if="
+          canFitFrozenColumns &&
+          !viewHasGroupBys &&
+          allDraggableFields.length > 0
+        "
+        :view="view"
+        :database="database"
+        :fields="fields"
+        :field-options="fieldOptions"
+        :read-only="
+          readOnly ||
+          !$hasPermission(
+            'database.table.view.update',
+            view,
+            database.workspace.id
+          )
+        "
+        :row-details-width="gridViewRowDetailsWidth"
+        :left-width="leftWidth"
+        :get-field-width="getFieldWidth"
+        @frozen-count-change="onFrozenCountDragChange"
+      ></GridViewFreezeHandle>
+      <HorizontalResize
+        v-else-if="viewHasGroupBys && leftFields.length === 0"
+        class="grid-view__divider-width"
+        :style="{ left: leftWidth + 'px' }"
+        :width="activeGroupBys[activeGroupBys.length - 1].width"
+        :min="GRID_VIEW_MIN_FIELD_WIDTH"
+        @move="
+          moveGroupWidth(
+            activeGroupBys[activeGroupBys.length - 1],
+            view,
+            $event
+          )
+        "
+        @update="
+          updateGroupWidth(
+            activeGroupBys[activeGroupBys.length - 1],
+            view,
+            database,
+            readOnly,
+            $event
+          )
+        "
+      ></HorizontalResize>
+      <GridViewSection
+        ref="right"
+        class="grid-view__right"
+        :visible-fields="rightVisibleFields"
+        :all-visible-fields="allVisibleFields"
+        :all-fields-in-table="fields"
+        :decorations-by-place="decorationsByPlace"
+        :database="database"
+        :table="table"
+        :view="view"
+        :include-row-details="viewHasGroupBys"
+        :include-grid-view-identifier-dropdown="viewHasGroupBys"
+        :include-add-field="true"
+        :can-order-fields="true"
+        :read-only="
+          readOnly ||
+          (!$hasPermission(
+            'database.table.update_row',
+            table,
+            database.workspace.id
+          ) &&
+            !$hasPermission(
+              'database.table.view.update_row',
+              view,
+              database.workspace.id
+            ))
+        "
+        :store-prefix="storePrefix"
+        :style="{ left: leftWidth + 'px' }"
+        @refresh="$emit('refresh', $event)"
+        @field-created="fieldCreated"
+        @field-dragging="startCrossSectionFieldDrag($event.field, $event.event)"
+        @row-hover="setRowHover($event.row, $event.value)"
+        @row-context="showRowContext($event.event, $event.row)"
+        @add-row="addRow()"
+        @add-rows="$refs.rowsAddContext.toggleNextToMouse($event)"
+        @add-row-after="addRowAfter($event)"
+        @update="updateValue"
+        @paste="multiplePasteFromCell"
+        @edit="editValue"
+        @row-dragging="rowDragStart"
+        @cell-mousedown-left="multiSelectStart"
+        @cell-mouseover="multiSelectHold"
+        @cell-mouseup-left="multiSelectStop"
+        @cell-shift-click="multiSelectShiftClick"
+        @selected="selectedCell"
+        @unselected="unselectedCell"
+        @select-next="selectNextCell"
+        @edit-modal="openRowEditModal($event)"
+        @refresh-row="refreshRow"
+        @scroll="scroll($event.pixelY, $event.pixelX)"
+        @cell-selected="cellSelected"
+      ></GridViewSection>
+      <GridViewFieldDragging
+        ref="crossSectionFieldDragging"
+        :view="view"
+        :fields="allDraggableFields"
+        :offset="crossSectionDraggingOffset"
+        :read-only="
+          readOnly ||
+          !$hasPermission(
+            'database.table.view.update_field_options',
+            view,
+            database.workspace.id
+          )
+        "
+        :store-prefix="storePrefix"
+        :get-scroll-element="getCrossSectionScrollElement"
+        :get-scrollable-element="getCrossSectionScrollableElement"
+        :frozen-section-width="leftWidth"
+        @scroll="scroll(0, $event.pixelX)"
+      ></GridViewFieldDragging>
+      <GridViewRowDragging
+        ref="rowDragging"
+        :table="table"
+        :view="view"
+        :all-visible-fields="allVisibleFields"
+        :all-fields-in-table="fields"
+        :store-prefix="storePrefix"
+        :offset="activeGroupByWidth"
+        :get-scroll-element="getVerticalScrollbarElement"
+        @scroll="scroll($event.pixelY, $event.pixelX)"
+      ></GridViewRowDragging>
+      <Context ref="rowContext" overflow-scroll max-height-if-outside-viewport>
+        <ul v-show="isMultiSelectActive" class="context__menu">
+          <component
+            :is="contextItemComponent"
+            v-for="(
+              contextItemComponent, index
+            ) in getMultiSelectContextItems()"
+            :key="index"
+            :field="getSelectedField()"
+            :get-rows="getSelectedRowsFunction"
+            :store-prefix="storePrefix"
+            :database="database"
+            @click=";[$refs.rowContext.hide()]"
+          ></component>
+          <li class="context__menu-item">
+            <a
+              class="context__menu-item-link"
+              @click=";[copySelection($event, false), $refs.rowContext.hide()]"
+            >
+              <i class="context__menu-item-icon iconoir-copy"></i>
+              {{ $t('gridView.copyCells') }}
+            </a>
+          </li>
+          <li class="context__menu-item">
+            <a
+              class="context__menu-item-link"
+              @click=";[copySelection($event, true), $refs.rowContext.hide()]"
+            >
+              <i class="context__menu-item-icon iconoir-copy"></i>
+              {{ $t('gridView.copyCellsWithHeader') }}
+            </a>
+          </li>
+          <li
+            v-if="
+              !readOnly &&
+              (!table.data_sync || table.data_sync.two_way_sync) &&
+              ($hasPermission(
+                'database.table.delete_row',
+                table,
+                database.workspace.id
+              ) ||
+                $hasPermission(
+                  'database.table.view.delete_row',
+                  view,
+                  database.workspace.id
+                ))
+            "
+            class="context__menu-item"
+          >
+            <a
+              class="context__menu-item-link"
+              :class="{ 'context__menu-item-link--loading': deletingRow }"
+              @click.stop="deleteRowsFromMultipleCellSelection()"
+            >
+              <i class="context__menu-item-icon iconoir-bin"></i>
+              {{ $t('gridView.deleteRows') }}
+            </a>
+          </li>
+        </ul>
+        <GridRowContextItems
+          v-show="!isMultiSelectActive"
+          :row="selectedRow"
+          :read-only="readOnly"
+          :can-create-row="canCreateRowFlat"
+          :can-delete-row="canDeleteRowFlat"
+          :can-select-row="true"
+          @select-row="onContextSelectRow"
+          @insert-above="onContextInsertAbove"
+          @insert-below="onContextInsertBelow"
+          @duplicate-row="onContextDuplicateRow"
+          @copy-row-url="copyLinkToSelectedRow({}, $event)"
+          @open-row-modal="onContextOpenRowModal"
+          @delete-row="deleteRow($event)"
+        />
+      </Context>
+      <RowEditModal
+        ref="rowEditModal"
+        :database="database"
+        :table="table"
+        :view="view"
+        :all-fields-in-table="fields"
+        :visible-fields="allVisibleFields"
+        :hidden-fields="hiddenFields"
+        :rows="allRows"
+        :sortable="true"
+        :can-modify-fields="true"
+        :read-only="
+          readOnly ||
+          (!$hasPermission(
+            'database.table.update_row',
+            table,
+            database.workspace.id
+          ) &&
+            !$hasPermission(
+              'database.table.view.update_row',
+              view,
+              database.workspace.id
+            ))
+        "
+        :enable-navigation="
+          !readOnly &&
+          ($hasPermission(
+            'database.table.update_row',
+            table,
+            database.workspace.id
+          ) ||
+            $hasPermission(
+              'database.table.view.update_row',
+              view,
+              database.workspace.id
+            ))
+        "
+        :show-hidden-fields="showHiddenFieldsInRowModal"
+        @toggle-hidden-fields-visibility="
+          showHiddenFieldsInRowModal = !showHiddenFieldsInRowModal
+        "
+        @update="updateValue"
+        @toggle-field-visibility="toggleFieldVisibility"
+        @order-fields="orderFields"
+        @hidden="rowEditModalHidden"
+        @field-updated="$emit('refresh', $event)"
+        @field-deleted="$emit('refresh')"
+        @field-created="fieldCreated"
+        @field-created-callback-done="afterFieldCreatedUpdateFieldOptions"
+        @navigate-previous="
+          $emit('navigate-previous', $event, activeSearchTerm)
+        "
+        @navigate-next="$emit('navigate-next', $event, activeSearchTerm)"
+        @refresh-row="refreshRow"
+      ></RowEditModal>
+    </div>
   </div>
 </template>
 
@@ -431,6 +376,8 @@ import { mapGetters } from 'vuex'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import GridViewSection from '@baserow/modules/database/components/view/grid/GridViewSection'
+import GridGrouped from '@baserow/modules/database/components/view/grid/GridGrouped'
+import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 import GridViewFieldDragging from '@baserow/modules/database/components/view/grid/GridViewFieldDragging'
 import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid/GridViewFreezeHandle'
 import GridViewRowDragging from '@baserow/modules/database/components/view/grid/GridViewRowDragging'
@@ -445,13 +392,8 @@ import { populateRow } from '@baserow/modules/database/store/view/grid'
 import { clone } from '@baserow/modules/core/utils/object'
 import copyPasteHelper from '@baserow/modules/database/mixins/copyPasteHelper'
 import GridViewRowsAddContext from '@baserow/modules/database/components/view/grid/fields/GridViewRowsAddContext'
+import GridRowContextItems from '@baserow/modules/database/components/view/grid/GridRowContextItems'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
-import { RefreshCancelledError } from '@baserow/modules/core/errors'
-import {
-  findDepth0GroupPosition,
-  GROUP_HEADER_HEIGHT,
-  GROUP_ROW_HEIGHT,
-} from '@baserow/modules/database/utils/groupByInterleave'
 import {
   GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING,
   GRID_VIEW_MULTI_SELECT_CHECKBOX,
@@ -461,12 +403,15 @@ import {
 export default {
   name: 'GridView',
   components: {
+    HorizontalResize,
     GridViewFieldDragging,
     GridViewFreezeHandle,
     GridViewRowsAddContext,
     GridViewSection,
     GridViewRowDragging,
     RowEditModal,
+    GridGrouped,
+    GridRowContextItems,
   },
   mixins: [viewHelpers, gridViewHelpers, viewDecoration, copyPasteHelper],
   props: {
@@ -547,6 +492,50 @@ export default {
     viewHasGroupBys() {
       return this.activeGroupBys.length > 0
     },
+    // Permission flags consumed by the shared `GridRowContextItems`
+    // menu — same checks the inline lis used to do.
+    canCreateRowFlat() {
+      if (this.readOnly) return false
+      if (this.table?.data_sync && !this.table.data_sync.two_way_sync)
+        return false
+      return (
+        this.$hasPermission(
+          'database.table.create_row',
+          this.table,
+          this.database.workspace.id
+        ) ||
+        this.$hasPermission(
+          'database.table.view.create_row',
+          this.view,
+          this.database.workspace.id
+        )
+      )
+    },
+    canDeleteRowFlat() {
+      if (this.readOnly) return false
+      if (this.table?.data_sync && !this.table.data_sync.two_way_sync)
+        return false
+      return (
+        this.$hasPermission(
+          'database.table.delete_row',
+          this.table,
+          this.database.workspace.id
+        ) ||
+        this.$hasPermission(
+          'database.table.view.delete_row',
+          this.view,
+          this.database.workspace.id
+        )
+      )
+    },
+    useGroupedV2() {
+      // Whenever a group-by is configured, hand the body off to the
+      // new Airtable-style `GridGrouped` component. Flat (no
+      // group-by) views stay on the legacy two-pane layout, which is
+      // why this module's name leads with V2 — it is opt-in by view
+      // configuration, not by user toggle.
+      return this.viewHasGroupBys
+    },
     frozenColumnCount() {
       return this.view.frozen_column_count ?? 1
     },
@@ -602,7 +591,9 @@ export default {
     leftWidth() {
       return (
         this.leftFieldsWidth +
-        (this.viewHasGroupBys ? 0 : this.gridViewRowDetailsWidth)
+        (this.viewHasGroupBys ? 0 : this.gridViewRowDetailsWidth) +
+        // 100 must be replaced with the dynamic width
+        this.activeGroupByWidth
       )
     },
     /**
@@ -615,6 +606,7 @@ export default {
     crossSectionDraggingOffset() {
       const primary = this.fields.find((f) => f.primary)
       return (
+        this.activeGroupByWidth +
         this.gridViewRowDetailsWidth +
         (primary ? this.getFieldWidth(primary) : 0)
       )
@@ -695,6 +687,28 @@ export default {
       this.onWindowResize()
       this.$emit('refresh')
     },
+    useGroupedV2(now) {
+      // Switching the view from "no group-by" to "grouped" (or back)
+      // needs to re-seed the gridGrouped module so the right group
+      // tree + collapse state are in place for the new shape.
+      if (now) this.initializeGroupedV2()
+    },
+    activeGroupBys: {
+      deep: true,
+      handler(now, prev) {
+        if (!this.useGroupedV2) return
+        // Detect any change to the group-by config — added, removed,
+        // reordered, or a field was swapped for another.
+        const changed =
+          !prev ||
+          now.length !== prev.length ||
+          now.some(
+            (gb, i) =>
+              gb.field !== prev[i]?.field || gb.order !== prev[i]?.order
+          )
+        if (changed) this.initializeGroupedV2()
+      },
+    },
   },
   /*beforeCreate() {
     this.$options.computed = {
@@ -730,6 +744,9 @@ export default {
     if (this.row !== null) {
       this.populateAndEditRow(this.row)
     }
+    if (this.useGroupedV2) {
+      this.initializeGroupedV2()
+    }
   },
   beforeUnmount() {
     if (this.resizeObserver !== null) {
@@ -748,6 +765,29 @@ export default {
     )
   },
   methods: {
+    initializeGroupedV2() {
+      const groupByFields = (this.activeGroupBys ?? [])
+        .map((gb) => this.fields.find((f) => f.id === gb.field))
+        .filter(Boolean)
+      const collapseMode = groupByFields.length > 0 ? 'collapse' : 'expand'
+      this.$store.dispatch(this.storePrefix + 'view/gridGrouped/initialize', {
+        gridId: this.view.id,
+        groupByFields,
+        sortings: this.view.sortings,
+        collapseMode,
+        registry: this.$registry,
+      })
+    },
+    onGroupedEditStart({ row } = {}) {
+      // The row edit modal is owned by GridView (it's mounted once
+      // for both grid variants). When the grouped grid wants to open
+      // a row, it emits `edit-start` and we forward to the same
+      // `openRowEditModal` the flat grid uses. The modal's update
+      // flow routes back through `updateValue`, which dispatches the
+      // grouped store action when V2 is active.
+      if (!row) return
+      this.openRowEditModal(row)
+    },
     onFrozenCountDragChange() {
       // During drag we don't persist anything — the freeze handle component
       // handles the optimistic save on mouseup.
@@ -851,6 +891,35 @@ export default {
         }
       }
     },
+    // Adapter handlers for the shared `GridRowContextItems` menu.
+    // The menu component emits the row only; we synthesise a stub
+    // event so existing handlers that read `preventFieldCellUnselect`
+    // keep working (the flag was set on the click event inside the
+    // shared component before dispatch).
+    onContextSelectRow(row) {
+      this.selectRow(this._stubMenuEvent(), row)
+      this.$refs.rowContext.hide()
+    },
+    onContextInsertAbove(row) {
+      this.addRowAboveSelectedRow(this._stubMenuEvent(), row)
+    },
+    onContextInsertBelow(row) {
+      this.addRowBelowSelectedRow(this._stubMenuEvent(), row)
+    },
+    onContextDuplicateRow(row) {
+      this.duplicateSelectedRow(this._stubMenuEvent(), row)
+    },
+    _stubMenuEvent() {
+      // The shared `GridRowContextItems` component already sets
+      // `preventFieldCellUnselect = true` on the actual click event
+      // before emitting, so we only need a stub with the
+      // `stopPropagation` no-op the existing `selectRow` calls.
+      return { preventFieldCellUnselect: true, stopPropagation: () => {} }
+    },
+    onContextOpenRowModal(row) {
+      this.openRowEditModal(row)
+      this.$refs.rowContext.hide()
+    },
     duplicateSelectedRow(event, selectedRow) {
       event.preventFieldCellUnselect = true
       const duplicatedRow = clone(selectedRow)
@@ -917,6 +986,10 @@ export default {
      * to update the scrollbars.
      */
     fieldsUpdated() {
+      // GridGrouped owns its own scrollbars/layout; the legacy
+      // scrollbars + frozen-column refs simply aren't mounted while
+      // the grouped path is active. Bail before touching them.
+      if (this.useGroupedV2) return
       const scrollbars = this.$refs.scrollbars
       // Vue can sometimes trigger this via watch before the child component
       // scrollbars has been created, check it exists and has the expected method
@@ -957,19 +1030,19 @@ export default {
      */
     async updateValue({ field, row, value, oldValue }) {
       try {
-        await this.$store.dispatch(
-          this.storePrefix + 'view/grid/updateRowValue',
-          {
-            table: this.table,
-            view: this.view,
-            fields: this.fields,
-            row,
-            field,
-            value,
-            oldValue,
-            isRowOpenedInModal: this.isRowOpenedInModal,
-          }
-        )
+        const action = this.useGroupedV2
+          ? this.storePrefix + 'view/gridGrouped/updateRowValue'
+          : this.storePrefix + 'view/grid/updateRowValue'
+        await this.$store.dispatch(action, {
+          table: this.table,
+          view: this.view,
+          fields: this.fields,
+          row,
+          field,
+          value,
+          oldValue,
+          isRowOpenedInModal: this.isRowOpenedInModal,
+        })
       } catch (error) {
         notifyIf(error, 'field')
       }
@@ -1006,6 +1079,11 @@ export default {
      * Called when a user scrolls without using the scrollbar.
      */
     scroll(pixelY, pixelX) {
+      // Grouped path owns its own scroll container — let the wheel
+      // event flow to the browser instead of swallowing it. The
+      // directive `v-scroll` only calls `preventDefault` when this
+      // returns falsy.
+      if (this.useGroupedV2) return true
       const $rightBody = this.$refs.right.$refs.body
       const $right = this.$refs.right.$el
 
@@ -1207,12 +1285,18 @@ export default {
     rowEditModalHidden({ row }) {
       this.$emit('selected-row', undefined)
 
-      // It could be that the row is not in the buffer anymore and in that case we also
-      // don't need to refresh the row.
       if (
         row === undefined ||
         !Object.prototype.hasOwnProperty.call(row, 'id')
       ) {
+        return
+      }
+
+      if (this.useGroupedV2) {
+        this.$store.dispatch(
+          this.storePrefix + 'view/gridGrouped/refreshRowAfterChange',
+          { rowId: row.id }
+        )
         return
       }
 
@@ -1380,127 +1464,19 @@ export default {
         fields: this.fields,
       })
     },
-    async toggleGroupCollapse(groupValues) {
-      const collapsedBefore = this.$store.getters[
-        this.storePrefix + 'view/grid/getCollapsedGroupsForView'
-      ](this.view.id)
-      const wasCollapsed = collapsedBefore.some(
-        (cg) => JSON.stringify(cg) === JSON.stringify(groupValues)
-      )
-
-      const scrollAdjustment = !wasCollapsed
-        ? this.computeScrollAdjustmentForCollapse(groupValues, collapsedBefore)
-        : null
-
-      this.$store.dispatch(
-        this.storePrefix + 'view/grid/toggleGroupCollapsed',
-        {
-          viewId: this.view.id,
-          groupValues,
-          view: this.view,
-          fields: this.fields,
-          adhocFiltering:
-            this.$store.getters[
-              this.storePrefix + 'view/grid/getAdhocFiltering'
-            ],
-        }
-      )
-
-      if (scrollAdjustment !== null) {
-        // Reset the buffer's window so the upcoming refresh fetches rows from
-        // index 0. We deliberately do NOT reset bufferLimit — the refresh's
-        // ADD_ROWS uses `prependToRows: -bufferLimit` to evict the old rows,
-        // and zeroing it out here would leave the stale rows in place.
-        this.$store.commit(
-          this.storePrefix + 'view/grid/SET_BUFFER_START_INDEX',
-          0
-        )
-        this.$refs.right.$refs.body.scrollTop = scrollAdjustment
-        this.$refs.left.$refs.body.scrollTop = scrollAdjustment
-        await this.$store.dispatch(
-          this.storePrefix + 'view/grid/visibleByScrollTop',
-          scrollAdjustment
-        )
-      }
-
-      try {
-        await this.$store.dispatch(this.storePrefix + 'view/grid/refresh', {
-          view: this.view,
-          fields: this.fields,
-          adhocFiltering:
-            this.$store.getters[
-              this.storePrefix + 'view/grid/getAdhocFiltering'
-            ],
-          adhocSorting:
-            this.$store.getters[this.storePrefix + 'view/grid/getAdhocSorting'],
-          // Toggling a single group never changes the tree structure (groups,
-          // counts, ordering) — only which rows are visible. Skip the heavy
-          // GROUP BY query the tree fetch would otherwise re-issue.
-          refreshGroupTree: false,
-        })
-      } catch (error) {
-        // A rapid follow-up toggle aborts the in-flight refresh, which rejects
-        // with RefreshCancelledError. The newer toggle owns the next refresh,
-        // so swallow this and let it run.
-        if (!(error instanceof RefreshCancelledError)) {
-          throw error
-        }
-        return
-      }
-      await this.refresh()
-    },
-    /**
-     * Returns the desired body scrollTop *after* a group is collapsed, or null
-     * if no adjustment is needed. Without this, collapsing a tall group while
-     * the user is inside or below it leaves their scroll position pointing at
-     * empty/wrong content.
-     */
-    computeScrollAdjustmentForCollapse(groupValues, collapsedBefore) {
-      const fields = this.activeGroupBys
-        .map((gb) => this.fields.find((f) => f.id === gb.field))
-        .filter(Boolean)
-      if (fields.length === 0) return null
-
-      // Only adjust scroll for depth-0 collapses. Computing the right scroll
-      // target for nested-depth collapses requires walking the metadata tree
-      // including ancestor heights, and getting it wrong puts body.scrollTop
-      // out of sync with the buffer position — which produces the visible
-      // duplicate-headers bug. Until the calculation is generalised, leave
-      // the user's scroll alone for nested collapses.
-      const depth = Object.keys(groupValues).length - 1
-      if (depth !== 0) return null
-
-      const position = findDepth0GroupPosition({
-        groupValues,
-        groupByMetadata:
-          this.$store.getters[
-            this.storePrefix + 'view/grid/getGroupByMetadata'
-          ],
-        collapsedGroups: collapsedBefore,
-        fields,
-        registry: this.$registry,
-      })
-      if (position === null) return null
-
-      const currentScrollTop = this.$refs.right?.$refs?.body?.scrollTop ?? 0
-      const oldGroupHeight =
-        GROUP_HEADER_HEIGHT + position.count * GROUP_ROW_HEIGHT
-      const groupEndY = position.y + oldGroupHeight
-
-      if (currentScrollTop <= position.y) {
-        return null
-      }
-      if (currentScrollTop <= groupEndY) {
-        return position.y
-      }
-      return currentScrollTop - (oldGroupHeight - GROUP_HEADER_HEIGHT)
-    },
     /**
      * This method is called from the parent component when the data in the view has
      * been reset. This can for example happen when a user creates or updates a filter
      * or wants to sort on a field.
      */
     async refresh() {
+      if (this.useGroupedV2) {
+        await this.$store.dispatch(
+          this.storePrefix + 'view/gridGrouped/refreshForViewConfigChange',
+          { sortings: clone(this.view.sortings || []) }
+        )
+        return
+      }
       await this.$store.dispatch(
         this.storePrefix + 'view/grid/visibleByScrollTop',
         this.$refs.right.$refs.body.scrollTop
@@ -1900,6 +1876,10 @@ export default {
      */
     onWindowResize() {
       this.checkCanFitFrozenColumns()
+      // GridGrouped owns its own viewport sizing; the legacy
+      // left/right refs don't exist when its branch is active. Bail
+      // out before reading them.
+      if (this.useGroupedV2) return
 
       // Update the window height to dynamically show the right amount of rows.
       const height = this.$refs.left.$refs.body.clientHeight

@@ -23,7 +23,7 @@
       :read-only="readOnly"
       :disable-group-by="disableGroupBy"
       :store-prefix="storePrefix"
-      @changed="$emit('changed', $event)"
+      @changed="$emit('changed')"
     ></ViewGroupByContext>
   </div>
 </template>

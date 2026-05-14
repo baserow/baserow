@@ -3,94 +3,63 @@
     class="grid-view__rows"
     :style="{
       transform: `translateY(${rowsTop}px) translateX(${leftOffset || 0}px)`,
-      left: '0px',
+      left: (includeGroupBy ? activeGroupByWidth : 0) + 'px',
     }"
   >
-    <template
-      v-for="(item, index) in visibleItems"
-      :key="
-        item.type === 'row'
-          ? `row-${item.row._.persistentId}`
-          : `header-${index}`
+    <GridViewRow
+      v-for="(row, index) in rows"
+      :key="`row-${row._.persistentId}`"
+      :group-end="rowsAtEndOfGroups.has(row.id)"
+      :view="view"
+      :workspace-id="workspaceId"
+      :row="row"
+      :rendered-fields="renderedFields"
+      :visible-fields="visibleFields"
+      :all-visible-fields="allVisibleFields"
+      :all-fields-in-table="allFieldsInTable"
+      :field-widths="fieldWidths"
+      :include-row-details="includeRowDetails"
+      :include-group-by="includeGroupBy"
+      :decorations-by-place="decorationsByPlace"
+      :read-only="readOnly"
+      :can-drag="
+        canDrag && view.sortings.length === 0 && activeGroupBys.length === 0
       "
-    >
-      <GridViewGroupHeader
-        v-if="item.type === 'header'"
-        :field="item.field"
-        :value="item.groupValues[`field_${item.field.id}`]"
-        :count="item.count"
-        :depth="item.depth"
-        :collapsed="item.collapsed"
-        :left-offset="leftOffset || 0"
-        :row-details-width="includeRowDetails ? gridViewRowDetailsWidth : 0"
-        :width="sectionWidth"
-        @toggle-collapse="$emit('toggle-collapse', item.groupValues)"
-      />
-      <div
-        v-else-if="item.type === 'subtree-skeleton'"
-        class="grid-view__subtree-skeleton"
-        :style="{
-          height: (item.height || 48) + 'px',
-          width: sectionWidth + 'px',
-        }"
-      >
-        <div
-          v-if="item.loading"
-          class="grid-view__subtree-skeleton-spinner loading-spinner"
-        ></div>
-      </div>
-      <GridViewRow
-        v-else
-        :group-end="isGroupEnd(index)"
-        :view="view"
-        :workspace-id="workspaceId"
-        :row="item.row"
-        :rendered-fields="renderedFields"
-        :visible-fields="visibleFields"
-        :all-visible-fields="allVisibleFields"
-        :all-fields-in-table="allFieldsInTable"
-        :field-widths="fieldWidths"
-        :include-row-details="includeRowDetails"
-        :decorations-by-place="decorationsByPlace"
-        :read-only="readOnly"
-        :can-drag="
-          canDrag && view.sortings.length === 0 && activeGroupBys.length === 0
-        "
-        :store-prefix="storePrefix"
-        :row-identifier-type="view.row_identifier_type"
-        :count="getRowCount(index)"
-        @update="$emit('update', $event)"
-        @paste="$emit('paste', $event)"
-        @edit="$emit('edit', $event)"
-        @cell-mousedown-left="$emit('cell-mousedown-left', $event)"
-        @cell-mouseover="$emit('cell-mouseover', $event)"
-        @cell-mouseup-left="$emit('cell-mouseup-left', $event)"
-        @cell-shift-click="$emit('cell-shift-click', $event)"
-        @cell-selected="$emit('cell-selected', $event)"
-        @selected="$emit('selected', $event)"
-        @unselected="$emit('unselected', $event)"
-        @select="$emit('select', $event)"
-        @unselect="$emit('unselect', $event)"
-        @select-next="$emit('select-next', $event)"
-        @add-row-after="$emit('add-row-after', $event)"
-        @edit-modal="$emit('edit-modal', $event)"
-        @refresh-row="$emit('refresh-row', $event)"
-        @row-dragging="$emit('row-dragging', $event)"
-        @row-hover="$emit('row-hover', $event)"
-        @row-context="$emit('row-context', $event)"
-      />
-    </template>
+      :store-prefix="storePrefix"
+      :row-identifier-type="view.row_identifier_type"
+      :count="index + rowsStartIndex + bufferStartIndex + 1"
+      @update="$emit('update', $event)"
+      @paste="$emit('paste', $event)"
+      @edit="$emit('edit', $event)"
+      @cell-mousedown-left="$emit('cell-mousedown-left', $event)"
+      @cell-mouseover="$emit('cell-mouseover', $event)"
+      @cell-mouseup-left="$emit('cell-mouseup-left', $event)"
+      @cell-shift-click="$emit('cell-shift-click', $event)"
+      @cell-selected="$emit('cell-selected', $event)"
+      @selected="$emit('selected', $event)"
+      @unselected="$emit('unselected', $event)"
+      @select="$emit('select', $event)"
+      @unselect="$emit('unselect', $event)"
+      @select-next="$emit('select-next', $event)"
+      @add-row-after="$emit('add-row-after', $event)"
+      @edit-modal="$emit('edit-modal', $event)"
+      @refresh-row="$emit('refresh-row', $event)"
+      @row-dragging="$emit('row-dragging', $event)"
+      @row-hover="$emit('row-hover', $event)"
+      @row-context="$emit('row-context', $event)"
+    />
   </div>
 </template>
 
 <script>
+import { mapGetters } from 'vuex'
+
 import GridViewRow from '@baserow/modules/database/components/view/grid/GridViewRow'
-import GridViewGroupHeader from '@baserow/modules/database/components/view/grid/GridViewGroupHeader'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 
 export default {
   name: 'GridViewRows',
-  components: { GridViewGroupHeader, GridViewRow },
+  components: { GridViewRow },
   mixins: [gridViewHelpers],
   props: {
     /**
@@ -138,6 +107,11 @@ export default {
       required: false,
       default: () => false,
     },
+    includeGroupBy: {
+      type: Boolean,
+      required: false,
+      default: () => false,
+    },
     readOnly: {
       type: Boolean,
       required: true,
@@ -146,12 +120,8 @@ export default {
       type: Number,
       required: true,
     },
-    interleavedItems: {
-      type: Array,
-      required: true,
-    },
-    sectionWidth: {
-      type: Number,
+    rowsAtEndOfGroups: {
+      type: Set,
       required: true,
     },
     canDrag: {
@@ -179,7 +149,6 @@ export default {
     'row-dragging',
     'row-hover',
     'row-context',
-    'toggle-collapse',
   ],
   computed: {
     fieldWidths() {
@@ -189,8 +158,8 @@ export default {
       })
       return fieldWidths
     },
-    visibleItems() {
-      return this.interleavedItems
+    rows() {
+      return this.$store.getters[this.storePrefix + 'view/grid/getRows']
     },
     rowsTop() {
       return this.$store.getters[this.storePrefix + 'view/grid/getRowsTop']
@@ -212,18 +181,6 @@ export default {
       return this.$store.getters[
         this.storePrefix + 'view/grid/getActiveGroupBys'
       ]
-    },
-  },
-  methods: {
-    isGroupEnd(index) {
-      const next = this.visibleItems[index + 1]
-      return next === undefined || next.type === 'header'
-    },
-    getRowCount(index) {
-      const rowsBefore = this.visibleItems
-        .slice(0, index + 1)
-        .filter((item) => item.type === 'row').length
-      return this.bufferStartIndex + rowsBefore
     },
   },
 }
