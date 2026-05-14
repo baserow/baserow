@@ -75,22 +75,70 @@ Baserow provides various APIs detailed below:
 
 ## Technical Overviews
 
+**Start here when ramping up:**
+
 * [Introduction](technical/introduction.md): An introduction to some important technical
   concepts in Baserow.
-* [Database plugin](technical/database-plugin.md) An introduction to the database plugin
-  which is installed by default.
+* [Systems overview](technical/systems-overview.md): A high-level map of the major
+  subsystems in Baserow.
+* [Architectural patterns](patterns/architecture.md): The view → service → action →
+  handler → ORM shape that almost every feature follows, plus the realtime path.
+* [Registries](patterns/registries.md): The extension pattern used by nearly every
+  subsystem.
+* [Features and interactions](technical/features-and-interactions.md): Catalogue of
+  features and the interaction map of where they couple non-trivially.
+
+**Database plugin:**
+
+* [Database plugin](technical/database-plugin.md): Architecture entry point for the
+  database contrib application.
+* [Dynamic models](technical/dynamic-models.md): How `Table.get_model()` builds Django
+  models at runtime, and where the caches are.
+* [Field system](patterns/field-system.md): The `FieldHandler` / `FieldType` /
+  `field_type_registry` architecture.
 * [Formula Technical Guide](technical/formula-technical-guide.md): A more technical
   guide about formulas aimed at developers who want to understand and work with
   internals of Baserow formulas.
+
+**Core systems:**
+
+* [Action system](technical/action-system.md): `ActionType` / `Action` / `ActionHandler`
+  and how operations get audited and made undoable.
 * [Undo Redo Technical Guide](technical/undo-redo-guide.md): How Baserow implements undo
   redo technically.
 * [Permissions handling Guide](technical/permissions-guide.md): How Baserow implements
   permission checking technically.
+* [Trash system](technical/trash-system.md): Soft-delete, retention, restore.
+* [Notification system](technical/notification-system.md): In-product notifications and
+  email delivery.
+* [Serialization system](technical/serialization-system.md): Export / import / snapshots
+  / templates / duplication.
+* [Caching](technical/caching.md): The map of all caches and what invalidates them.
+* [WebSockets guide](technical/websockets.md): How Baserow pushes realtime updates to
+  the frontend.
+* [Workspace search](technical/workspace-search.md): How table search is implemented.
+* [PostgreSQL locks](technical/postgresql-locks.md): Lock conventions used in the
+  backend.
+
+**Patterns for everyday development:**
+
+* [Creating a feature](patterns/creating-features.md): How to add a view, action,
+  handler, model — plus zero-downtime migration conventions.
+* [Query patterns](patterns/queries.md): `select_related`, `prefetch_related`,
+  `specific_iterator`, bulk writes, N+1 avoidance.
+* [Observability](patterns/observability.md): Logging, OTEL tracing, and how
+  to verify assumptions in production.
+* [Jobs pattern](patterns/jobs.md), [forms pattern](patterns/forms.md),
+  [emails pattern](patterns/emails.md), [date and time](patterns/date-and-time.md),
+  [row history from action](patterns/row_history_from_action.md),
+  [loading animations](patterns/loading-animations.md).
 
 ## Development
 
 Everything related to contributing and developing for Baserow.
 
+* [Engineering workflow](./development/engineering-workflow.md): How we move from
+  issue to merged pull request — labels, templates, draft PRs, review flow.
 * [Development environment](./development/development-environment.md): More detailed
   information on baserow's local development environment.
 * [Running the Dev Environment](development/running-the-dev-environment.md): A
