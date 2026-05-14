@@ -9,6 +9,7 @@ exports[`User Admin Component Tests > A users attributes will be displayed 1`] =
         <div class="form-input form-input--icon-left form-input--large"><i class="form-input__icon form-input__icon-left iconoir-search"></i>
           <div class="form-input__wrapper"><input class="form-input__input" type="text" min="false" max="false" step="false" placeholder="crudTableSearch.search" autocomplete="" value="">
             <!--v-if-->
+            <!--v-if-->
           </div>
           <!--v-if-->
         </div>
@@ -154,6 +155,7 @@ exports[`User Admin Component Tests > you can sort by multiple columns which wil
       <form>
         <div class="form-input form-input--icon-left form-input--large"><i class="form-input__icon form-input__icon-left iconoir-search"></i>
           <div class="form-input__wrapper"><input class="form-input__input" type="text" min="false" max="false" step="false" placeholder="crudTableSearch.search" autocomplete="" value="">
+            <!--v-if-->
             <!--v-if-->
           </div>
           <!--v-if-->

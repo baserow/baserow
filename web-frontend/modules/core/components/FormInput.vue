@@ -13,6 +13,7 @@
       'form-input--xlarge': size === 'xlarge',
       'form-input--suffix': hasSuffixSlot,
       'form-input--no-controls': removeNumberInputControls,
+      'form-input--can-clear': canClear,
     }"
     @click="focusOnClick && focus()"
   >
@@ -27,7 +28,9 @@
         :id="forInput"
         ref="input"
         class="form-input__input"
-        :class="{ 'form-input__input--text-invisible': textInvisible }"
+        :class="{
+          'form-input__input--text-invisible': textInvisible,
+        }"
         :value="fromValue(innerValue)"
         :disabled="disabled"
         :type="type"
@@ -52,6 +55,14 @@
         class="form-input__icon form-input__icon-right"
         :class="iconRight"
       />
+      <a
+        v-if="canClear"
+        v-show="fromValue(innerValue) !== ''"
+        class="form-input__clear"
+        @click="updateValue('')"
+      >
+        <i class="iconoir-cancel"></i>
+      </a>
     </div>
 
     <div v-if="hasSuffixSlot" class="form-input__suffix">
@@ -95,6 +106,7 @@ const props = defineProps({
   step: { type: Number, default: -1 },
   focusOnClick: { type: Boolean, default: true },
   textInvisible: Boolean,
+  canClear: { type: Boolean, default: false },
 })
 
 const emit = defineEmits([

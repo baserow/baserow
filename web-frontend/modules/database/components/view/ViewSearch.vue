@@ -10,13 +10,14 @@
     >
       <i class="header__search-icon iconoir-search"></i>
       {{ headerSearchTerm }}
-      <a
-        v-show="headerSearchTerm.length > 0"
-        class="header__filter-clear"
-        @click.stop="clear"
-      >
-        <i class="iconoir-cancel"></i>
-      </a>
+    </a>
+    <a
+      v-show="headerSearchTerm.length > 0"
+      class="header__search-clear"
+      :aria-label="$t('viewSearch.clearSearch')"
+      @click.stop.prevent="clear"
+    >
+      <i class="iconoir-cancel"></i>
     </a>
     <ViewSearchContext
       ref="context"
@@ -105,7 +106,7 @@ export default {
     clear() {
       const ref = this.$refs.context
       const context = ref.getRootContext()
-      if (this.$refs.context.getRootContext().open) {
+      if (context.open) {
         context.hide()
       }
       ref.setActiveSearchTerm('')

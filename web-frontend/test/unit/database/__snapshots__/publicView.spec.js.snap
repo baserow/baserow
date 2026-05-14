@@ -311,15 +311,16 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                 <i
                   class="header__search-icon iconoir-search"
                 />
-                  
-                <a
-                  class="header__filter-clear"
-                  style="display: none;"
-                >
-                  <i
-                    class="iconoir-cancel"
-                  />
-                </a>
+                 
+              </a>
+              <a
+                aria-label="viewSearch.clearSearch"
+                class="header__search-clear"
+                style="display: none;"
+              >
+                <i
+                  class="iconoir-cancel"
+                />
               </a>
             </div>
           </li>

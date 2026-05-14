@@ -7,15 +7,18 @@
     @shown="focus"
   >
     <form class="context__form" @submit.prevent="searchIfChanged">
-      <FormInput
-        ref="activeSearchTermInput"
-        v-model="activeSearchTerm"
-        size="large"
-        icon-left="iconoir-search"
-        :placeholder="$t('viewSearchContext.searchInRows')"
-        class="margin-bottom-2"
-        @keyup="searchIfChanged"
-      ></FormInput>
+      <div class="header__search-form">
+        <FormInput
+          ref="activeSearchTermInput"
+          v-model="activeSearchTerm"
+          size="large"
+          icon-left="iconoir-search"
+          :placeholder="$t('viewSearchContext.searchInRows')"
+          class="margin-bottom-2"
+          :can-clear="true"
+          @keyup="searchIfChanged"
+        ></FormInput>
+      </div>
       <div
         v-if="!alwaysHideRowsNotMatchingSearch"
         class="control control--align-right margin-bottom-0"

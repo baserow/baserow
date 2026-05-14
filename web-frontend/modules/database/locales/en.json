@@ -508,6 +508,9 @@
     "syntax": "Syntax",
     "examples": "Examples"
   },
+  "viewSearch": {
+    "clearSearch": "Clear search"
+  },
   "viewSearchContext": {
     "searchInRows": "Search in all rows",
     "hideNotMatching": "hide not matching rows"

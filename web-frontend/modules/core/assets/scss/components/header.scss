@@ -238,6 +238,7 @@
 }
 
 .header__search {
+  position: relative;
   margin-left: auto;
   flex-direction: row-reverse;
   display: flex;
@@ -248,12 +249,24 @@
     @extend %ellipsis;
 
     display: inline-block;
+
+    &.active {
+      padding-right: 26px;
+    }
   }
 }
 
-.header__filter-clear {
+.header__search-form {
+  position: relative;
+}
+
+.header__search-clear {
   color: $palette-neutral-900;
   font-size: 14px;
+  line-height: 20px;
+  margin-top: -10px;
+
+  @include absolute(50%, 8px, 0, auto);
 
   &:hover {
     text-decoration: none;
