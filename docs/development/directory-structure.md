@@ -1,13 +1,65 @@
 # Directory structure
 
-One of the things you will notice it that all the files and directories are in the
-same repository. This makes it easier to setup a demo and development environment and
-all the changes can be put in a single merge request.
+Everything ships from a single repository. This makes it easier to set up a demo or
+development environment and to land cross-cutting changes in one pull request.
 
-In the root you will find three folders `backend`, `docs` and `web-frontend`. You will
-also notice some files that are related to the whole project like an editor config
-file, continuous integration config, changelog, docker-compose yaml files and a readme.
-In the following topics we will zoom in on the directories.
+## Top-level layout
+
+| Folder | What lives here |
+|---|---|
+| `backend` | Python/Django backend for core + contrib. |
+| `web-frontend` | Nuxt/Vue frontend for core + contrib. |
+| `premium` | Plugin containing premium-licensed features (backend + web-frontend). |
+| `enterprise` | Plugin containing enterprise-licensed features (backend + web-frontend). |
+| `integrations` | External integrations (currently Zapier; automation integrations will land here). |
+| `e2e-tests` | Playwright end-to-end tests. The only place where we use TypeScript today. |
+| `deploy` | One sub-folder per deployment target (all-in-one image, Heroku, Cloudron, …). |
+| `docs` | Developer documentation that gets published to baserow.io/docs. |
+| `changelog` | Source for the changelog generator used when opening a pull request. |
+| `config` | Per-IDE starter configurations. |
+| `formula` | Formula language grammar/parser source. |
+| `embeddings` | Embeddings/AI server source. |
+| `tests` | Repository-wide test helpers. |
+
+Top-level files include the editor config, CI config, the root `justfile`,
+`docker-compose.*.yml` files, `CHANGELOG.md`, `README.md`, and `LICENSE`.
+
+## core and contrib
+
+Inside `backend/src/baserow/` (and analogously in `web-frontend/modules/`) the code
+is split into two layers:
+
+- **core** — the framework: users, workspaces, applications, undo/redo,
+  notifications, trash, search, permissions, jobs, telemetry, and every base
+  class/registry that other code extends.
+- **contrib** — concrete Baserow application types built on top of core. Today
+  contrib contains `database`, `builder`, `automation`, `dashboard`, and
+  `integrations`. The Automation Builder application will also live here.
+
+Import rule: **contrib can import from core, core must never import from contrib.**
+Core code should know nothing about specific application types. The same rule
+applies between core/contrib and `premium`/`enterprise`: the plugins import from
+core and contrib, never the other way around.
+
+Note that Baserow application types are not Django apps. A single Django app can
+host multiple Baserow application types, and one Baserow application type may span
+multiple Django apps.
+
+## api vs business logic
+
+Inside both core and contrib we separate the HTTP-facing layer from the business
+logic:
+
+- `api/` — DRF urls, views, serializers and exception mappings.
+- everything else — handlers, services, actions, registries, models.
+
+The api layer can (and should) import from the business logic. The business logic
+must not import from the api layer. The reason is straightforward: handlers must be
+callable from the shell, management commands, Celery tasks and tests without going
+through HTTP.
+
+For the layered shape of a typical request, see
+[Architectural patterns](../patterns/architecture.md).
 
 ## backend
 
@@ -42,13 +94,13 @@ The src directory contains the full source code of the Baserow backend module.
    specific environments. It also contains the root url config that includes the api
    under the namespace `api`. There is
    also a wsgi.py file which can be used to expose the applications.
-* `contrib`: contains extra apps that can be installed. For now it only contains the
-  backend part of the database plugin. This app is installed by default, but it is
-  optional.
-* `core`: is a required app that is installed by default. It contains some abstract
-  concepts that are reused throughout the backend. It also contains the code for the
-  workspace and application concepts that are at the core of Baserow. Of course there are
-  also helper classes, functions, and decorators that can be reused.
+* `contrib`: contains the Baserow application types built on top of `core`. Today
+  it holds `database`, `builder`, `automation`, `dashboard` and `integrations`.
+  Each application type has its own handlers, registries, models, api and
+  migrations.
+* `core`: the framework. Contains users, workspaces, applications, undo/redo,
+  notifications, trash, search, permissions, jobs, telemetry and every base class
+  and registry that contrib code extends. `core` must not import from `contrib`.
 * `manage.py`: the Django manage.py file to execute management commands.
 
 ### tests

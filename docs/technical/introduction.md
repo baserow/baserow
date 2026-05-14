@@ -1,5 +1,11 @@
 # Baserow Technical Introduction
 
+> **New to the codebase?** Start with [Systems overview](systems-overview.md) for
+> the map of major subsystems, then [Architectural patterns](../patterns/architecture.md)
+> for the layered shape of a request, then [Registries](../patterns/registries.md) for
+> the pattern most of the code uses. The deeper per-system guides (undo/redo,
+> permissions, websockets, workspace search, …) are linked from the systems overview.
+
 ## Architecture
 
 Baserow consists of two main components:
