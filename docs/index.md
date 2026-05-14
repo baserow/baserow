@@ -85,6 +85,8 @@ Baserow provides various APIs detailed below:
   handler → ORM shape that almost every feature follows, plus the realtime path.
 * [Registries](patterns/registries.md): The extension pattern used by nearly every
   subsystem.
+* [Baserow vs Django](patterns/baserow-vs-django.md): How Baserow overloads Django
+  terminology (field, table, model, application) and what each word means.
 * [Features and interactions](technical/features-and-interactions.md): Catalogue of
   features and the interaction map of where they couple non-trivially.
 
@@ -114,6 +116,8 @@ Baserow provides various APIs detailed below:
 * [Serialization system](technical/serialization-system.md): Export / import / snapshots
   / templates / duplication.
 * [Caching](technical/caching.md): The map of all caches and what invalidates them.
+* [Editions and licensing](technical/editions-and-licensing.md): Core / contrib /
+  premium / enterprise boundaries, the `LicenseHandler` API, SaaS context.
 * [WebSockets guide](technical/websockets.md): How Baserow pushes realtime updates to
   the frontend.
 * [Workspace search](technical/workspace-search.md): How table search is implemented.
