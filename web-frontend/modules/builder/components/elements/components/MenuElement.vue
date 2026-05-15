@@ -1,41 +1,86 @@
 <template>
   <div
     :class="[
-      'menu-element__container',
-      element.orientation === 'horizontal'
-        ? 'menu-element__container--horizontal'
-        : 'menu-element__container--vertical',
+      'menu-element__wrapper',
+      `menu-element__align-${menuElementAlignment}`,
     ]"
-    :style="{ '--alignment': menuAlignment, ...getStyleOverride('menu') }"
   >
-    <div
-      v-for="item in element.menu_items"
-      :key="item.id"
-      :class="`menu-element__menu-item-${item.type}`"
-    >
-      <MenuItem :menu-item="item" :element="element" />
-    </div>
+    <template v-if="useCompactMenu">
+      <div
+        :class="burgerTriggerClasses"
+        :style="{ '--alignment': menuAlignment, ...getStyleOverride('menu') }"
+      >
+        <button
+          type="button"
+          :class="[
+            'menu-element__burger-menu',
+            `menu-element__burger-menu-${menuElementAlignment}`,
+          ]"
+          @click.stop="compactMenuOpen = !compactMenuOpen"
+        >
+          <i class="iconoir-menu"></i>
+        </button>
+      </div>
 
-    <div v-if="!element.menu_items.length" class="element--no-value">
-      {{ $t('menuElement.missingValue') }}
+      <div
+        v-if="compactMenuOpen"
+        v-click-outside="closeCompactMenu"
+        :class="compactPanelClasses"
+        :style="{
+          ...getStyleOverride('menu'),
+          '--alignment': defaultMenuAlignment,
+        }"
+      >
+        <button
+          type="button"
+          class="menu-element__burger-menu-close"
+          @click="closeCompactMenu"
+        >
+          <i class="iconoir-cancel"></i>
+        </button>
+
+        <div
+          v-for="item in element.menu_items"
+          :key="item.id"
+          :class="getMenuItemClasses(item)"
+        >
+          <MenuItem
+            :menu-item="item"
+            :element="element"
+            :is-compact-menu="useCompactMenu"
+          />
+        </div>
+
+        <div v-if="!element.menu_items.length" class="element--no-value">
+          {{ $t('menuElement.missingValue') }}
+        </div>
+      </div>
+    </template>
+
+    <div
+      v-else
+      :class="menuContainerClasses"
+      :style="{ '--alignment': menuAlignment, ...getStyleOverride('menu') }"
+    >
+      <div
+        v-for="item in element.menu_items"
+        :key="item.id"
+        :class="getMenuItemClasses(item)"
+      >
+        <MenuItem :menu-item="item" :element="element" />
+      </div>
+
+      <div v-if="!element.menu_items.length" class="element--no-value">
+        {{ $t('menuElement.missingValue') }}
+      </div>
     </div>
   </div>
 </template>
 
 <script>
-import { resolveApplicationRoute } from '@baserow/modules/builder/utils/routing'
 import element from '@baserow/modules/builder/mixins/element'
-import resolveElementUrl from '@baserow/modules/builder/utils/urlResolution'
 import { HORIZONTAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
 import MenuItem from '@baserow/modules/builder/components/elements/components/MenuItem.vue'
-
-/**
- * CSS classes to force a Link variant to appear as active.
- */
-const LINK_ACTIVE_CLASSES = {
-  link: 'ab-link--force-active',
-  button: 'ab-button--force-active',
-}
 
 /**
  * @typedef MenuElement
@@ -54,16 +99,29 @@ export default {
   },
   data() {
     return {
-      expandedItems: {},
-      activeItem: {},
+      compactMenuOpen: false,
     }
   },
   computed: {
-    pages() {
-      return this.$store.getters['page/getVisiblePages'](this.builder)
+    burgerTriggerClasses() {
+      return [
+        'menu-element__container',
+        'menu-element__container--burger',
+        'menu-element__container--burger-trigger',
+      ]
     },
-    menuElementType() {
-      return this.$registry.get('element', 'menu')
+    compactPanelClasses() {
+      return [
+        'menu-element__container',
+        'menu-element__container--burger',
+        'menu-element__burger-active',
+      ]
+    },
+    menuContainerClasses() {
+      return [
+        'menu-element__container',
+        `menu-element__container--${this.element.orientation}`,
+      ]
     },
     menuAlignment() {
       const alignmentsCSS = {
@@ -71,38 +129,33 @@ export default {
         [HORIZONTAL_ALIGNMENTS.CENTER]: 'center',
         [HORIZONTAL_ALIGNMENTS.RIGHT]: 'flex-end',
       }
-      return alignmentsCSS[this.element.alignment]
+      return alignmentsCSS[this.menuElementAlignment]
+    },
+    defaultMenuAlignment() {
+      return 'flex-start'
+    },
+    menuElementAlignment() {
+      return this.element.alignment || HORIZONTAL_ALIGNMENTS.LEFT
+    },
+    useCompactMenu() {
+      const deviceType =
+        this.$store.getters['page/getDeviceTypeSelected'] || 'desktop'
+      return this.element.variant?.[deviceType] === 'compact'
     },
   },
-  mounted() {
-    /**
-     * If the current page matches a menu item, that menu item is set as the
-     * active item. This ensures that the active CSS style is applied to the
-     * correct menu item.
-     */
-    /*const found = resolveApplicationRoute(
-      this.pages,
-      Array.isArray(this.$route.params.pathMatch)
-        ? this.$route.params.pathMatch.join('/')
-        : this.$route.params.pathMatch
-    )
-
-    if (!found?.length) return
-
-    const currentPageId = found[0].id
-
-    for (const item of this.element.menu_items) {
-      if (!item.children.length && item.navigate_to_page_id === currentPageId) {
-        this.activeItem = item
-        break
-      }
-      for (const child of item.children) {
-        if (child.navigate_to_page_id === currentPageId) {
-          this.activeItem = child
-          break
-        }
-      }
-    }*/
+  methods: {
+    closeCompactMenu() {
+      this.compactMenuOpen = false
+    },
+    getMenuItemClasses(item) {
+      return [
+        `menu-element__menu-item-${item.type}`,
+        {
+          'menu-element__menu-item--compact-spacer':
+            this.useCompactMenu && item.type === 'spacer',
+        },
+      ]
+    },
   },
 }
 </script>

@@ -18,7 +18,12 @@
           }}
         </ABLink>
       </div>
-      <div v-else ref="menuSubLinkContainer" @click="toggleSubMenu()">
+      <div
+        v-else
+        ref="menuSubLinkContainer"
+        class="menu-element__menu-item-with-children"
+        @click="toggleSubMenu()"
+      >
         <div>
           <ABLink :variant="menuItem.variant" :force-active="sublinkIsActive">
             <div class="menu-element__sub-link-menu--container">
@@ -38,7 +43,38 @@
           </ABLink>
         </div>
 
-        <Context :ref="`subLinkContext`" :hide-on-click-outside="true">
+        <div v-if="isExpanded" class="menu-element__sub-link--container">
+          <div
+            v-for="child in menuItem.children"
+            :key="child.id"
+            class="menu-element__sub-links"
+            :style="getStyleOverride('menu')"
+          >
+            <ABLink
+              :variant="child.variant"
+              :url="getItemUrl(child)"
+              :target="getMenuItem(child).target"
+              class="menu-element__sub-link"
+              :force-active="menuItemIsActive(child)"
+              @click.stop
+            >
+              {{
+                child.name
+                  ? child.name ||
+                    (mode === 'editing'
+                      ? $t('menuElement.emptyLinkValue')
+                      : '&nbsp;')
+                  : $t('menuElement.missingLinkValue')
+              }}
+            </ABLink>
+          </div>
+        </div>
+
+        <Context
+          v-if="!useInlineSubLinks"
+          :ref="`subLinkContext`"
+          :hide-on-click-outside="true"
+        >
           <ThemeProvider class="menu-element__sub-links">
             <div
               v-for="child in menuItem.children"
@@ -107,7 +143,7 @@ export default {
       type: Object,
       required: true,
     },
-    isMobileDevice: {
+    isCompactMenu: {
       type: Boolean,
       default: false,
     },
@@ -128,6 +164,15 @@ export default {
     sublinkIsActive() {
       return this.menuItem.children?.some(
         (child) => child.uid === this.activeItem?.uid
+      )
+    },
+    useInlineSubLinks() {
+      const deviceType =
+        this.$store.getters['page/getDeviceTypeSelected'] || 'desktop'
+      return (
+        this.element.orientation === ORIENTATIONS.VERTICAL ||
+        this.isCompactMenu ||
+        this.element.variant?.[deviceType] === 'compact'
       )
     },
   },
@@ -161,10 +206,7 @@ export default {
   },
   methods: {
     toggleSubMenu() {
-      if (
-        this.element.orientation === ORIENTATIONS.VERTICAL ||
-        this.isMobileDevice
-      ) {
+      if (this.useInlineSubLinks) {
         this.isExpanded = !this.isExpanded
       } else {
         this.$refs.subLinkContext.toggle(
@@ -208,9 +250,6 @@ export default {
         page_id: this.element.page_id,
         type: 'menu_item',
       }
-    },
-    sublinkParentIsExpanded(itemId) {
-      return !!this.sublinkExpandedItems[itemId]
     },
     onButtonClick(item) {
       const eventName = `${item.uid}_click`
