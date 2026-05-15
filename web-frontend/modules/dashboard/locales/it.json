@@ -6,6 +6,8 @@
         "doneEditing": "Fatto la modifica"
     },
     "emptyDashboard": {
-        "title": "Questa dashboard non ha nessun widget"
+        "title": "Questa dashboard non ha nessun widget",
+        "subtitle": "Inizia aggiungendone uno.",
+        "addWidget": "Aggiungi widget"
     }
 }
