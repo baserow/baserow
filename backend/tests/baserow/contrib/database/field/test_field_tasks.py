@@ -363,9 +363,10 @@ def test_all_formula_that_needs_updates_are_periodically_updated(data_fixture):
     table = data_fixture.create_database_table(database=database)
     with freeze_time("2023-02-27 10:15"):
         now_field = data_fixture.create_formula_field(
-            table=table, formula="now()", date_include_time=True
+            name="now", table=table, formula="now()", date_include_time=True
         )
         data_fixture.create_formula_field(
+            name="ref_now",
             table=table,
             formula=f"field('{now_field.name}')",
             date_include_time=True,
@@ -373,6 +374,7 @@ def test_all_formula_that_needs_updates_are_periodically_updated(data_fixture):
 
         date_field = data_fixture.create_date_field(table=table, date_include_time=True)
         data_fixture.create_formula_field(
+            name="now_vs_date",
             table=table,
             formula=f"now() > field('{date_field.name}')",
             date_include_time=True,
