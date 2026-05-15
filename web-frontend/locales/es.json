@@ -61,7 +61,8 @@
         "getStarted": "Empezar",
         "close": "Cerrar",
         "hide": "Ocultar",
-        "next": "Siguiente"
+        "next": "Siguiente",
+        "select": "Seleccionar"
     },
     "adminType": {
         "settings": "Ajustes",
