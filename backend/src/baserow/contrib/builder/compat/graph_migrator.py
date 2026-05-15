@@ -48,14 +48,14 @@ class PageGraphMigrator:
                 place = child.get("place_in_container") or ""
                 children_by_place[place].append(child)
 
-            # Build the children dict with edges
+            # Build the children dict with edges.
+            # Only the chain head (first child) is stored per slot; siblings
+            # are reachable via each element's next[""] edge.
             graph_element["children"] = {}
             for place, place_children in children_by_place.items():
                 sorted_children = sorted(place_children, key=lambda c: c["order"])
-                graph_element["children"][place] = []
+                graph_element["children"][place] = [sorted_children[0]["id"]]
                 for child in sorted_children:
-                    graph_element["children"][place].append(child["id"])
-                    # Recursively migrate child elements
                     graph = self.migrate_element(graph, child)
 
         # Find the next element based on the `order`.

@@ -71,7 +71,7 @@ def test_migrate_to_graph():
     migrator = PageGraphMigrator(elements)
     assert migrator.to_graph() == {
         "0": 1,
-        "1": {"next": {"": [4]}, "children": {"": [2, 3]}},
+        "1": {"next": {"": [4]}, "children": {"": [2]}},
         "2": {"next": {"": [3]}},  # element 2 is followed by element 3 (same place)
         "3": {},
         "4": {},
@@ -126,7 +126,7 @@ def test_migrate_to_graph_with_places():
             "next": {"": [5]},
             "children": {
                 "0": [2],
-                "1": [3, 4],
+                "1": [3],
             },
         },
         "2": {},
