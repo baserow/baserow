@@ -781,6 +781,9 @@ class FormulaField(Field):
                 field_cache=field_cache, raise_if_invalid=raise_if_invalid
             )
         super().save(*args, **kwargs)
+        # Keep field_cache consistent to avoid stale type info downstream. See GH #5371.
+        if field_cache is not None:
+            field_cache.cache_field(self)
 
     def refresh_from_db(self, *args, **kwargs) -> None:
         super().refresh_from_db(*args, **kwargs)

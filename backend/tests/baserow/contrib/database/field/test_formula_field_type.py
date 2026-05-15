@@ -9,6 +9,7 @@ from django.db.models import TextField
 from django.urls import reverse
 
 import pytest
+from freezegun import freeze_time
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT
 
 from baserow.contrib.database.fields.dependencies.update_collector import (
@@ -2453,3 +2454,84 @@ def test_count_formula_for_link_row_field_with_file_primary_field(data_fixture):
     ).created_rows[0]
 
     assert getattr(row_a, count_formula.db_column) == 2
+
+
+@pytest.mark.django_db
+def test_periodic_update_does_not_crash_on_outer_if_after_inner_invalidated(
+    data_fixture,
+):
+    """
+    Regression test for Sentry issue BASEROW-SAAS-BACKEND-5 / GH #5371.
+
+    When deleting a field referenced by a chain of formulas, the propagation
+    used to leave the FieldCache populated with the pre-mutation instance of
+    an inner formula. A later same-cascade re-type of an outer IF formula
+    then read the stale 'boolean' type from the cache, stayed valid as
+    'text', and the next periodic update crashed in BaserowIf with
+    "When() supports a Q object, a boolean expression, or lookups as a
+    condition." because the underlying column is generated as TextField
+    for invalid formulas.
+    """
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    primary = data_fixture.create_text_field(
+        table=table, name="identifier", primary=True
+    )
+    seed = data_fixture.create_text_field(table=table, name="seed")
+    FieldHandler().update_field(
+        user=user,
+        field=primary,
+        new_type_name="formula",
+        formula=f"field('{seed.name}')",
+    )
+
+    inner_flag = data_fixture.create_formula_field(
+        table=table,
+        name="inner_flag",
+        formula=f"field('{primary.name}') = 'yes'",
+    )
+    inner_flag.refresh_from_db()
+    assert inner_flag.formula_type == "boolean"
+
+    with freeze_time("2026-01-01"):
+        ticker = data_fixture.create_formula_field(
+            table=table,
+            name="ticker",
+            formula="now()",
+            date_include_time=True,
+        )
+
+    outer_icon = data_fixture.create_formula_field(
+        table=table,
+        name="outer_icon",
+        formula=(
+            f"if(field('{inner_flag.name}'), "
+            f"datetime_format(field('{ticker.name}'), 'YYYY'), "
+            f"'no')"
+        ),
+    )
+    outer_icon.refresh_from_db()
+    assert outer_icon.formula_type == "text"
+
+    FieldHandler().delete_field(user=user, field=seed)
+
+    fields_for_periodic = list(
+        FormulaFieldType()
+        .get_fields_needing_periodic_update()
+        .filter(table__database__workspace_id=table.database.workspace_id)
+    )
+    assert ticker in fields_for_periodic
+
+    FormulaFieldType().run_periodic_update(
+        fields_for_periodic,
+        skip_search_updates=True,
+        database_id=table.database_id,
+    )
+
+    outer_icon_after = FormulaField.objects.get(pk=outer_icon.pk)
+    assert outer_icon_after.formula_type == "invalid", (
+        f"outer IF formula was not re-typed to invalid when inner_flag "
+        f"became invalid. formula_type={outer_icon_after.formula_type!r}, "
+        f"internal_formula={outer_icon_after.internal_formula!r}"
+    )
