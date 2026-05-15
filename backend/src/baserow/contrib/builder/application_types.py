@@ -587,7 +587,7 @@ class BuilderApplicationType(ApplicationType):
         regressions across template changes.
 
         Children are grouped by slot (place_in_container) and slots are ordered by
-        the minimum ``order`` value among their members, so the output is stable
+        the minimum element ``id`` among their members, so the output is stable
         regardless of cross-slot insertion history.
 
         :param builder: The builder application instance to serialize.
@@ -613,12 +613,13 @@ class BuilderApplicationType(ApplicationType):
                     by_slot[el.place_in_container or ""].append(el)
                 ordered = []
                 for slot in sorted(
-                    by_slot, key=lambda s: min(e.order for e in by_slot[s])
+                    by_slot, key=lambda s: min(e.id for e in by_slot[s])
                 ):
                     ordered.extend(sorted(by_slot[slot], key=lambda e: (e.order, e.id)))
                 return [
                     {
                         "type": element.get_type().type,
+                        "place_in_container": element.place_in_container or "",
                         "children": build_tree(element.id),
                     }
                     for element in ordered

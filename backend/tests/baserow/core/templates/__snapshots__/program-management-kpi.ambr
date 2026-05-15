@@ -6,6 +6,7 @@
         dict({
           'children': list([
           ]),
+          'place_in_container': '',
           'type': 'heading',
         }),
         dict({
@@ -15,17 +16,21 @@
                 dict({
                   'children': list([
                   ]),
+                  'place_in_container': '',
                   'type': 'record_selector',
                 }),
               ]),
+              'place_in_container': '',
               'type': 'form_container',
             }),
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'button',
             }),
           ]),
+          'place_in_container': '',
           'type': 'simple_container',
         }),
         dict({
@@ -33,19 +38,23 @@
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'heading',
             }),
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'heading',
             }),
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'table',
             }),
           ]),
+          'place_in_container': '',
           'type': 'simple_container',
         }),
       ]),
@@ -53,6 +62,7 @@
         dict({
           'children': list([
           ]),
+          'place_in_container': '',
           'type': 'heading',
         }),
         dict({
@@ -62,22 +72,27 @@
                 dict({
                   'children': list([
                   ]),
+                  'place_in_container': '0',
                   'type': 'heading',
                 }),
                 dict({
                   'children': list([
                   ]),
+                  'place_in_container': '0',
                   'type': 'heading',
                 }),
                 dict({
                   'children': list([
                   ]),
+                  'place_in_container': '0',
                   'type': 'text',
                 }),
               ]),
+              'place_in_container': '',
               'type': 'column',
             }),
           ]),
+          'place_in_container': '',
           'type': 'simple_container',
         }),
         dict({
@@ -85,14 +100,17 @@
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'heading',
             }),
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'table',
             }),
           ]),
+          'place_in_container': '',
           'type': 'simple_container',
         }),
         dict({
@@ -100,14 +118,17 @@
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'heading',
             }),
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'table',
             }),
           ]),
+          'place_in_container': '',
           'type': 'simple_container',
         }),
       ]),
@@ -115,6 +136,7 @@
         dict({
           'children': list([
           ]),
+          'place_in_container': '',
           'type': 'heading',
         }),
         dict({
@@ -122,14 +144,17 @@
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'heading',
             }),
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'table',
             }),
           ]),
+          'place_in_container': '',
           'type': 'simple_container',
         }),
         dict({
@@ -137,14 +162,17 @@
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'heading',
             }),
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'table',
             }),
           ]),
+          'place_in_container': '',
           'type': 'simple_container',
         }),
         dict({
@@ -152,6 +180,7 @@
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'heading',
             }),
             dict({
@@ -159,32 +188,39 @@
                 dict({
                   'children': list([
                   ]),
+                  'place_in_container': '',
                   'type': 'input_text',
                 }),
                 dict({
                   'children': list([
                   ]),
+                  'place_in_container': '',
                   'type': 'input_text',
                 }),
                 dict({
                   'children': list([
                   ]),
+                  'place_in_container': '',
                   'type': 'datetime_picker',
                 }),
                 dict({
                   'children': list([
                   ]),
+                  'place_in_container': '',
                   'type': 'record_selector',
                 }),
                 dict({
                   'children': list([
                   ]),
+                  'place_in_container': '',
                   'type': 'record_selector',
                 }),
               ]),
+              'place_in_container': '',
               'type': 'form_container',
             }),
           ]),
+          'place_in_container': '',
           'type': 'simple_container',
         }),
       ]),
@@ -192,11 +228,13 @@
         dict({
           'children': list([
           ]),
+          'place_in_container': '',
           'type': 'heading',
         }),
         dict({
           'children': list([
           ]),
+          'place_in_container': '',
           'type': 'auth_form',
         }),
       ]),
@@ -204,6 +242,7 @@
         dict({
           'children': list([
           ]),
+          'place_in_container': '',
           'type': 'heading',
         }),
         dict({
@@ -213,17 +252,21 @@
                 dict({
                   'children': list([
                   ]),
+                  'place_in_container': '',
                   'type': 'record_selector',
                 }),
               ]),
+              'place_in_container': '',
               'type': 'form_container',
             }),
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'button',
             }),
           ]),
+          'place_in_container': '',
           'type': 'simple_container',
         }),
         dict({
@@ -231,19 +274,23 @@
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'heading',
             }),
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'heading',
             }),
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'table',
             }),
           ]),
+          'place_in_container': '',
           'type': 'simple_container',
         }),
       ]),
@@ -251,6 +298,7 @@
         dict({
           'children': list([
           ]),
+          'place_in_container': '',
           'type': 'heading',
         }),
         dict({
@@ -260,17 +308,21 @@
                 dict({
                   'children': list([
                   ]),
+                  'place_in_container': '',
                   'type': 'record_selector',
                 }),
               ]),
+              'place_in_container': '',
               'type': 'form_container',
             }),
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'button',
             }),
           ]),
+          'place_in_container': '',
           'type': 'simple_container',
         }),
         dict({
@@ -278,14 +330,17 @@
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'heading',
             }),
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'heading',
             }),
           ]),
+          'place_in_container': '',
           'type': 'simple_container',
         }),
         dict({
@@ -297,36 +352,43 @@
                     dict({
                       'children': list([
                       ]),
+                      'place_in_container': '',
                       'type': 'heading',
                     }),
                     dict({
                       'children': list([
                       ]),
+                      'place_in_container': '',
                       'type': 'text',
                     }),
                     dict({
                       'children': list([
                       ]),
+                      'place_in_container': '',
                       'type': 'text',
                     }),
                     dict({
                       'children': list([
                       ]),
+                      'place_in_container': '',
                       'type': 'text',
                     }),
                     dict({
                       'children': list([
                       ]),
+                      'place_in_container': '',
                       'type': 'text',
                     }),
                     dict({
                       'children': list([
                       ]),
+                      'place_in_container': '',
                       'type': 'text',
                     }),
                     dict({
                       'children': list([
                       ]),
+                      'place_in_container': '',
                       'type': 'heading',
                     }),
                     dict({
@@ -336,26 +398,33 @@
                             dict({
                               'children': list([
                               ]),
+                              'place_in_container': '1',
                               'type': 'datetime_picker',
                             }),
                             dict({
                               'children': list([
                               ]),
+                              'place_in_container': '0',
                               'type': 'choice',
                             }),
                           ]),
+                          'place_in_container': '',
                           'type': 'column',
                         }),
                       ]),
+                      'place_in_container': '',
                       'type': 'form_container',
                     }),
                   ]),
+                  'place_in_container': '',
                   'type': 'simple_container',
                 }),
               ]),
+              'place_in_container': '',
               'type': 'repeat',
             }),
           ]),
+          'place_in_container': '',
           'type': 'simple_container',
         }),
       ]),
@@ -365,19 +434,23 @@
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'image',
             }),
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'menu',
             }),
             dict({
               'children': list([
               ]),
+              'place_in_container': '',
               'type': 'text',
             }),
           ]),
+          'place_in_container': '',
           'type': 'header',
         }),
       ]),
