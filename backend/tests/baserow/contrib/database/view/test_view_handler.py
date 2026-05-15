@@ -94,6 +94,7 @@ def clean_registry_cache():
 
     view_type_registry.get_for_class.cache_clear()
     yield
+    field_type_registry.get_for_class.cache_clear()
 
 
 @pytest.mark.django_db
