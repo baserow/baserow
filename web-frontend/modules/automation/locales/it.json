@@ -5,5 +5,9 @@
     "automationWelcomeGuidedTourStep": {
         "title": "Benvenuto in Baserow Automations!",
         "content": "Facciamo un breve tour. Vedrai come impostare i trigger, aggiungere azioni, testare il tuo flusso di lavoro e pubblicarlo — nessuna codifica richiesta."
+    },
+    "automationGraphGuidedTourStep": {
+        "title": "Gestisci il tuo grafo del flusso di lavoro qui",
+        "content": "Crea un trigger e azioni qui per definire cosa dovrebbe fare il flusso di lavoro. Seleziona un trigger o un'azione per configurarlo nel pannello laterale."
     }
 }
