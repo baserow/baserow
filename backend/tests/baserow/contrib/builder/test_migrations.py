@@ -627,21 +627,20 @@ def test_0068_migrate_element_hierarchy_to_graph(migrator, teardown_table_metada
     assert is_dict_subset(
         migrated_page.graph,
         {
-            "0": str(shared_header.id),
+            "0": shared_header.id,
             str(shared_header.id): {
                 "next": {"": [column.id]},
-                "children": [heading.id],
+                "children": {"": [heading.id]},
             },
             str(heading.id): {},
             str(column.id): {
-                "children": [
-                    text_1_column_1.id,
-                    text_2_column_1.id,
-                    text_column_2.id,
-                    text_column_3.id,
-                ]
+                "children": {
+                    "0": [text_1_column_1.id],
+                    "1": [text_column_2.id],
+                    "2": [text_column_3.id],
+                }
             },
-            str(text_1_column_1.id): {},
+            str(text_1_column_1.id): {"next": {"": [text_2_column_1.id]}},
             str(text_2_column_1.id): {},
             str(text_column_2.id): {},
             str(text_column_3.id): {},
