@@ -1,0 +1,61 @@
+{
+    "files.exclude": {
+        "**/__pycache__": true,
+        "**/*.pyc": true,
+        "**/.pytest_cache": true,
+        "**/__pytest__": true,
+        "**/.mypy_cache": true,
+        "**/.venv": true,
+        "**/venv": true,
+        "**/.nuxt": true,
+        "**/node_modules": true,
+        "**/.git": true,
+        "**/.output": true,
+        "**/.nuxt-storybook": true,
+        "**/.cache": true
+    },
+    "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python",
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python.testing.pytestArgs": [
+        "-c", "backend/pytest.ini",
+        "--rootdir=backend",
+        "--ignore=changelog",
+        "--disable-warnings",
+        "--reuse-db"
+    ],
+    "python.envFile": "${workspaceFolder}/.vscode/env",
+    "python.analysis.extraPaths": [
+        "backend/src",
+        "premium/backend/src",
+        "enterprise/backend/src"
+    ],
+    "[python]": {
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit",
+            "source.fixAll": "explicit"
+        }
+    },
+    "ruff.configuration": "backend/pyproject.toml",
+    "ruff.organizeImports": true,
+    "ruff.interpreter": ["${workspaceFolder}/backend/.venv/bin/python"],
+    "editor.wordWrapColumn": 88,
+    "sqltools.connections": [
+        {
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5431,
+            "driver": "PostgreSQL",
+            "name": "__AGENT_NAME__",
+            "database": "baserow-__AGENT_NAME__",
+            "username": "baserow",
+            "password": "baserow"
+        }
+    ],
+    "workbench.colorCustomizations": {
+        "titleBar.activeBackground": "__TITLE_BAR_BG__",
+        "titleBar.activeForeground": "__TITLE_BAR_FG__",
+        "titleBar.inactiveBackground": "__TITLE_BAR_INACTIVE_BG__"
+    }
+}

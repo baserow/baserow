@@ -1,0 +1,128 @@
+# Shared infrastructure for multi-instance Baserow development.
+# Provides: Traefik reverse proxy, PostgreSQL, Mailhog, MinIO, OTEL collector.
+# Each feature instance connects to these shared services.
+#
+# Usage:
+#   just agent infra-up       # start infra + develop instance
+#   just agent infra-down     # stop everything
+#
+# Web UIs:
+#   http://localhost:${BASEROW_PROXY_PORT}         Dashboard (links to all instances)
+#   http://localhost:8099                        Traefik router details
+#   http://mail.localhost:${BASEROW_PROXY_PORT}  Mailhog (captured emails)
+#   http://minio.localhost:${BASEROW_PROXY_PORT} MinIO Console (file storage)
+
+services:
+  traefik:
+    image: traefik:v3.6.13
+    restart: unless-stopped
+    command:
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.docker.network=baserow-infra
+      - --entrypoints.web.address=:${BASEROW_PROXY_PORT:-8888}
+      - --log.level=WARN
+    ports:
+      - "127.0.0.1:${BASEROW_PROXY_PORT:-8888}:${BASEROW_PROXY_PORT:-8888}"
+      - "127.0.0.1:8099:8080"
+    labels:
+      # Expose Traefik's own API on localhost/api/* so the dashboard
+      # page can fetch router info without CORS issues (same origin).
+      - "traefik.enable=true"
+      - "traefik.http.routers.agent-api.rule=Host(`localhost`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.agent-api.entrypoints=web"
+      - "traefik.http.routers.agent-api.priority=100"
+      - "traefik.http.services.agent-api.loadbalancer.server.port=8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - baserow-infra
+
+  db:
+    image: pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-14}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: baserow
+      POSTGRES_PASSWORD: baserow
+      POSTGRES_DB: baserow
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U baserow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "127.0.0.1:5431:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - baserow-infra
+
+  mailhog:
+    image: mailhog/mailhog
+    restart: unless-stopped
+    logging:
+      driver: "none"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mailhog.rule=Host(`mail.localhost`)"
+      - "traefik.http.routers.mailhog.entrypoints=web"
+      - "traefik.http.services.mailhog.loadbalancer.server.port=8025"
+    networks:
+      - baserow-infra
+
+  minio:
+    image: minio/minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: baserow
+      MINIO_ROOT_PASSWORD: baserow123
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    labels:
+      - "traefik.enable=true"
+      # Console UI
+      - "traefik.http.routers.minio-console.rule=Host(`minio.localhost`)"
+      - "traefik.http.routers.minio-console.entrypoints=web"
+      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - baserow-infra
+
+  dashboard:
+    image: busybox
+    command: httpd -f -p 80 -h /www
+    volumes:
+      - ./agent-dashboard.html:/www/index.html:ro
+      - ./agent-instances.json:/www/instances.json:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`localhost`)"
+      - "traefik.http.routers.dashboard.entrypoints=web"
+      - "traefik.http.services.dashboard.loadbalancer.server.port=80"
+    networks:
+      - baserow-infra
+
+  otel-collector:
+    image: otel/opentelemetry-collector:0.106.1
+    restart: unless-stopped
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./deploy/otel/otel-collector-config.yaml:/etc/otel-collector-config.yaml
+    networks:
+      - baserow-infra
+
+networks:
+  baserow-infra:
+    name: baserow-infra
+    driver: bridge
+
+volumes:
+  pgdata:
+  minio_data:

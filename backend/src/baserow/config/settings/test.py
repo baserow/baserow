@@ -28,6 +28,7 @@ else:
 # Prefixes for vars that can be overridden via env vars (for DB/Redis configuration)
 ALLOWED_ENV_PREFIXES = (
     "DATABASE_",
+    "TEST_DATABASE_",
     "BASEROW_EMBEDDINGS_API_URL",
     "BASEROW_BACKEND_LOG_LEVEL",
 )
@@ -72,6 +73,12 @@ BASEROW_TESTS_SETUP_DB_FIXTURE = str_to_bool(
 DATABASES["default"].setdefault("TEST", {})[
     "MIGRATE"
 ] = not BASEROW_TESTS_SETUP_DB_FIXTURE
+
+# Allow overriding the test database name (e.g., for multi-instance dev environments
+# where each worktree needs its own test DB).
+TEST_DATABASE_NAME = os.environ.get("TEST_DATABASE_NAME", "")
+if TEST_DATABASE_NAME:
+    DATABASES["default"]["TEST"]["NAME"] = TEST_DATABASE_NAME
 
 # Open a second database connection that can be used to test transactions.
 DATABASES["default-copy"] = deepcopy(DATABASES["default"])

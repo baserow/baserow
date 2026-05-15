@@ -1,0 +1,58 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "pytest: current file",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "pytest",
+            "args": ["${file}", "-v", "-s"],
+            "cwd": "${workspaceFolder}/backend",
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "baserow.config.settings.test",
+                "DATABASE_HOST": "localhost",
+                "DATABASE_PORT": "5431",
+                "DATABASE_NAME": "baserow-__AGENT_NAME__",
+                "DATABASE_PASSWORD": "baserow"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Backend: runserver",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "backend/baserow",
+            "args": ["runserver", "0.0.0.0:8000"],
+            "django": true,
+            "justMyCode": false,
+            "env": {
+                "DJANGO_SETTINGS_MODULE": "baserow.config.settings.dev",
+                "DATABASE_HOST": "localhost",
+                "DATABASE_PORT": "5431",
+                "DATABASE_NAME": "baserow-__AGENT_NAME__",
+                "DATABASE_PASSWORD": "baserow",
+                "REDIS_HOST": "localhost",
+                "REDIS_PASSWORD": "baserow",
+                "PYTHONPATH": "${workspaceFolder}/backend/src:${workspaceFolder}/premium/backend/src:${workspaceFolder}/enterprise/backend/src"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Attach to agent backend",
+            "type": "debugpy",
+            "request": "attach",
+            "connect": {
+                "host": "127.0.0.1",
+                "port": 5678
+            },
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}",
+                    "remoteRoot": "/baserow"
+                }
+            ],
+            "django": true,
+            "justMyCode": false
+        }
+    ]
+}

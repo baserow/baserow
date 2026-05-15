@@ -1399,3 +1399,594 @@ ci cmd="" target="":
             [[ -n "{{ cmd }}" ]] && exit 1 || exit 0
             ;;
     esac
+
+# =============================================================================
+# Agent Instances (multi-instance dev for AI agents)
+# =============================================================================
+
+# Manage isolated Baserow instances for parallel agent work.
+# Shared infra (DB, Mailhog, MinIO, OTEL) runs once. Each feature gets its own
+# lightweight stack (Redis, backend, frontend, celery, MJML) in a git worktree,
+# accessible via <name>.localhost through Traefik.
+[group('7 - agents')]
+[doc("Agent instances: just agent <infra-up|up|down|list|clean|logs|exec|infra-down>")]
+agent cmd="" name="" *ARGS:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    SELF="$(cd "$(dirname "{{ justfile() }}")" && pwd)"
+    ROOT="$(dirname "$(git -C "$SELF" rev-parse --path-format=absolute --git-common-dir)")"
+    PROXY_PORT="${BASEROW_PROXY_PORT:-8888}"
+    export BASEROW_PROXY_PORT="$PROXY_PORT"
+    INFRA_COMPOSE="docker compose -f $SELF/docker-compose.infra.yml -p baserow-infra"
+
+    # --- helpers ---
+
+    slugify() {
+        echo "$1" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9-]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//'
+    }
+
+    worktree_path() {
+        echo "$ROOT/.claude/worktrees/$1"
+    }
+
+    require_worktree() {
+        local name="$1"
+        local wt_path=$(worktree_path "$name")
+        if [ ! -d "$wt_path" ]; then
+            echo "Error: worktree '$name' not found at $wt_path" >&2
+            echo "Use 'just agent up $name' to create it automatically." >&2
+            exit 1
+        fi
+        echo "$wt_path"
+    }
+
+    ensure_worktree() {
+        local name="$1"
+        local base="${2:-develop}"
+        local wt_path=$(worktree_path "$name")
+
+        if [ -d "$wt_path" ]; then
+            echo "$wt_path"
+            return
+        fi
+
+        mkdir -p "$ROOT/.claude/worktrees"
+        if git -C "$ROOT" rev-parse --verify "$name" >/dev/null 2>&1; then
+            echo "==> Creating worktree from existing branch '$name'..." >&2
+            git -C "$ROOT" worktree add "$wt_path" "$name" >&2
+        else
+            echo "==> Creating worktree with new branch '$name' from '$base'..." >&2
+            git -C "$ROOT" worktree add "$wt_path" -b "$name" "$base" >&2
+        fi
+        echo "$wt_path"
+    }
+
+    generate_env() {
+        local name="$1"
+        local slug=$(slugify "$name")
+        local wt=$(require_worktree "$name")
+        local env_file="$wt/.env.agent"
+        local uid=${UID:-$(id -u)}
+        local gid=${GID:-$(id -g)}
+
+        sed \
+            -e "s/__AGENT_NAME__/$slug/g" \
+            -e "s/__PROXY_PORT__/$PROXY_PORT/g" \
+            "$SELF/.env.agent.template" > "$env_file"
+
+        echo "" >> "$env_file"
+        echo "UID=$uid" >> "$env_file"
+        echo "GID=$gid" >> "$env_file"
+
+        # Generate local.py for auto-creating a workspace named after the branch
+        local local_py="$wt/backend/src/baserow/config/settings/local.py"
+        sed -e "s/__AGENT_NAME__/$slug/g" \
+            "$SELF/local.py.agent.template" > "$local_py"
+
+        # Compute VS Code title bar color (develop = default, features = hue from name)
+        local tbarbg tbarfg tbaribg
+        if [ "$slug" = "develop" ]; then
+            tbarbg="#323233"; tbarfg="#cccccc"; tbaribg="#2d2d2d"
+        else
+            eval "$(python3 "$SELF/vscode-agent/colors.py" "$slug")"
+        fi
+
+        # Generate .vscode/ config (interpreter, PYTHONPATH, ruff, pytest, DB, colors)
+        mkdir -p "$wt/.vscode"
+        for f in settings.json env launch.json; do
+            sed \
+                -e "s/__AGENT_NAME__/$slug/g" \
+                -e "s/__TITLE_BAR_BG__/$tbarbg/g" \
+                -e "s/__TITLE_BAR_FG__/$tbarfg/g" \
+                -e "s/__TITLE_BAR_INACTIVE_BG__/$tbaribg/g" \
+                "$SELF/vscode-agent/$f" > "$wt/.vscode/$f"
+        done
+
+        # Generate .env.local (used by `just b run-dev-server`, etc.)
+        sed \
+            -e "s/__AGENT_NAME__/$slug/g" \
+            -e "s/__PROXY_PORT__/$PROXY_PORT/g" \
+            "$SELF/env.local.agent.template" > "$wt/.env.local"
+
+        # Generate backend/.env.testing-local (used by `just b test` via TEST_ENV_FILE)
+        # Only DB vars — test.py blocks everything else for consistency.
+        printf "DATABASE_HOST=localhost\nDATABASE_PORT=5431\nDATABASE_NAME=baserow-%s\nDATABASE_PASSWORD=baserow\n" "$slug" > "$wt/backend/.env.testing-local"
+
+        echo "$env_file"
+    }
+
+    feature_compose() {
+        local name="$1"
+        local slug=$(slugify "$name")
+        local wt=$(require_worktree "$name")
+        local env_file="$wt/.env.agent"
+
+        if [ ! -f "$env_file" ]; then
+            echo "Error: $env_file not found. Run 'just agent up $name' first." >&2
+            exit 1
+        fi
+
+        # Ensure feature compose + Caddyfile exist in worktree (may be on older branch)
+        for f in docker-compose.feature.yml Caddyfile.agent; do
+            if [ ! -f "$wt/$f" ]; then
+                cp "$SELF/$f" "$wt/$f"
+            fi
+        done
+
+        echo "cd $wt && docker compose --env-file .env.agent -f docker-compose.feature.yml -p baserow-$slug"
+    }
+
+    update_instances_json() {
+        # Rebuild agent-instances.json from all worktrees with .env.agent files.
+        local json_file="$SELF/agent-instances.json"
+        local tmp_file="$json_file.tmp"
+        echo "{" > "$tmp_file"
+        local first=true
+        for wt_dir in "$ROOT/.claude/worktrees"/*/; do
+            [ -d "$wt_dir" ] || continue
+            [ -f "$wt_dir/.env.agent" ] || continue
+            local wt_name=$(basename "$wt_dir")
+            local slug=$(slugify "$wt_name")
+            local branch=$(git -C "$wt_dir" branch --show-current 2>/dev/null || echo "$slug")
+            if [ "$first" = true ]; then first=false; else echo "," >> "$tmp_file"; fi
+            echo "  \"$slug\": {\"branch\": \"$branch\"}" >> "$tmp_file"
+        done
+        echo "}" >> "$tmp_file"
+        mv "$tmp_file" "$json_file"
+    }
+
+    ensure_infra() {
+        if ! docker ps --format '{{ '{{.Names}}' }}' | grep -q "baserow-infra-traefik"; then
+            [ -f "$SELF/agent-instances.json" ] || echo "{}" > "$SELF/agent-instances.json"
+            echo "==> Starting shared infrastructure..."
+            $INFRA_COMPOSE up -d
+            # Wait for DB to be ready
+            echo "==> Waiting for PostgreSQL..."
+            for i in $(seq 1 30); do
+                if docker exec baserow-infra-db-1 pg_isready -U baserow >/dev/null 2>&1; then
+                    break
+                fi
+                sleep 1
+            done
+        fi
+    }
+
+    ensure_feature_db() {
+        local slug="$1"
+        local db_name="baserow-$slug"
+        echo "==> Ensuring database '$db_name' exists..."
+        docker exec baserow-infra-db-1 \
+            psql -U baserow -tc "SELECT 1 FROM pg_database WHERE datname='$db_name'" \
+            | grep -q 1 || \
+            docker exec baserow-infra-db-1 \
+                psql -U baserow -c "CREATE DATABASE \"$db_name\""
+    }
+
+    ensure_minio_bucket() {
+        local slug="$1"
+        local bucket="baserow-$slug"
+        echo "==> Ensuring MinIO bucket '$bucket' exists..."
+
+        # Wait for MinIO to be ready
+        for i in $(seq 1 30); do
+            if docker exec baserow-infra-minio-1 mc ready local >/dev/null 2>&1; then
+                break
+            fi
+            sleep 1
+        done
+
+        # Create bucket and set public-read policy (mc is built into the minio image)
+        docker exec baserow-infra-minio-1 mc alias set myminio http://localhost:9000 baserow baserow123 >/dev/null 2>&1
+        docker exec baserow-infra-minio-1 mc mb --ignore-existing myminio/$bucket 2>&1 | grep -v "already" || true
+        docker exec baserow-infra-minio-1 mc anonymous set download myminio/$bucket >/dev/null 2>&1
+    }
+
+    # --- commands ---
+
+    case "{{ cmd }}" in
+        infra-up)
+            # Ensure instances JSON exists before compose mounts it
+            [ -f "$SELF/agent-instances.json" ] || echo "{}" > "$SELF/agent-instances.json"
+
+            echo "Starting shared infrastructure (Traefik, PostgreSQL, Mailhog, MinIO, OTEL)..."
+            $INFRA_COMPOSE up -d
+
+            # Wait for DB
+            echo "==> Waiting for PostgreSQL..."
+            for i in $(seq 1 30); do
+                if docker exec baserow-infra-db-1 pg_isready -U baserow >/dev/null 2>&1; then
+                    echo "    PostgreSQL ready."
+                    break
+                fi
+                sleep 1
+            done
+
+            echo ""
+            echo "==========================================="
+            echo " Shared infrastructure is running"
+            echo "==========================================="
+            echo ""
+            echo "  Dashboard: http://localhost:$PROXY_PORT"
+            echo "  Mailhog:  http://mail.localhost:$PROXY_PORT"
+            echo "  MinIO:    http://minio.localhost:$PROXY_PORT  (baserow / baserow123)"
+            echo "  Traefik:  http://localhost:8099"
+            echo "  Postgres: localhost:5431  (baserow / baserow)"
+            echo ""
+
+            # Auto-start develop instance
+            echo "==> Starting develop instance..."
+            just agent up develop develop
+            ;;
+
+        infra-down)
+            echo "Stopping all agent instances..."
+            for wt_dir in "$ROOT/.claude/worktrees"/*/; do
+                [ -d "$wt_dir" ] || continue
+                wt_name=$(basename "$wt_dir")
+                [ -f "$wt_dir/.env.agent" ] || continue
+                slug=$(slugify "$wt_name")
+                echo "  Stopping baserow-$slug..."
+                (cd "$wt_dir" && docker compose --env-file .env.agent \
+                    -f docker-compose.feature.yml \
+                    -p "baserow-$slug" down 2>/dev/null) || true
+            done
+
+            echo "Stopping shared infrastructure..."
+            $INFRA_COMPOSE down
+            echo "Done."
+            ;;
+
+        up|start)
+            if [ -z "{{ name }}" ]; then
+                echo "Usage: just agent up <name> [base-branch]"
+                echo ""
+                echo "Creates a git worktree + starts a feature stack."
+                echo "Shared infra is started automatically if needed."
+                echo "Default base branch: develop"
+                echo ""
+                echo "Existing worktrees:"
+                ls -1 "$ROOT/.claude/worktrees/" 2>/dev/null | sed 's/^/  /' || echo "  (none)"
+                exit 1
+            fi
+
+            slug=$(slugify "{{ name }}")
+
+            # Parse optional base branch from ARGS
+            ALLARGS=({{ ARGS }})
+            BASE_BRANCH="${ALLARGS[0]:-develop}"
+
+            wt=$(ensure_worktree "{{ name }}" "$BASE_BRANCH")
+
+            # Start shared infra if needed
+            ensure_infra
+
+            # Create per-feature DB and MinIO bucket
+            ensure_feature_db "$slug"
+            ensure_minio_bucket "$slug"
+
+            # Generate env file
+            echo "==> Generating environment for '$slug'..."
+            generate_env "{{ name }}" >/dev/null
+
+            # Ensure compose files exist in worktree
+            for f in docker-compose.feature.yml Caddyfile.agent; do
+                if [ ! -f "$wt/$f" ]; then
+                    cp "$SELF/$f" "$wt/$f"
+                fi
+            done
+
+            # Ensure agent files are gitignored in the worktree
+            for pattern in .env.agent Caddyfile.agent docker-compose.feature.yml agent-instances.json; do
+                grep -qxF "$pattern" "$wt/.gitignore" 2>/dev/null || echo "$pattern" >> "$wt/.gitignore"
+            done
+
+            # Ensure node_modules dir exists for bind mount
+            mkdir -p "$wt/web-frontend/node_modules"
+
+            # Build dev images if needed (shared across instances)
+            echo "==> Ensuring dev images are built (first time may take a few minutes)..."
+            DC_CMD=$(feature_compose "{{ name }}")
+            eval "$DC_CMD build backend web-frontend 2>&1 | tail -3"
+
+            # Start the feature stack
+            echo "==> Starting baserow-$slug..."
+            eval "$DC_CMD up -d"
+
+            echo ""
+            echo "==========================================="
+            echo " Feature '$slug' is starting"
+            echo "==========================================="
+            echo ""
+            echo "  URL:      http://$slug.localhost:$PROXY_PORT"
+            echo "  Traefik:  http://localhost:8099"
+            echo "  Database: baserow-$slug (on localhost:5431)"
+            echo "  Bucket:   baserow-$slug (on MinIO)"
+            echo "  Branch:   $(git -C "$wt" branch --show-current 2>/dev/null)"
+            echo "  Worktree: $wt"
+            echo ""
+            echo "Commands:"
+            echo "  cd \$(just agent open {{ name }})             # cd into worktree"
+            echo "  just agent logs {{ name }}                  # follow logs"
+            echo "  just agent exec {{ name }} backend bash     # shell into backend"
+            echo "  just agent debug {{ name }}                 # attach debugger to backend"
+            echo "  just agent debug {{ name }} celery          # attach debugger to celery"
+            echo "  just agent down {{ name }}                  # stop (keep data)"
+            echo "  just agent clean {{ name }}                 # remove everything"
+
+            update_instances_json
+            ;;
+
+        debug)
+            if [ -z "{{ name }}" ]; then
+                echo "Usage: just agent debug <name> [backend|celery]"
+                echo ""
+                echo "Bridges localhost:5678 to debugpy inside the container."
+                echo "Default service: backend (port 5678), celery (port 5679)."
+                echo "Press Ctrl+C to stop."
+                exit 1
+            fi
+            slug=$(slugify "{{ name }}")
+            wt=$(require_worktree "{{ name }}")
+
+            # Parse service from ARGS (default: backend)
+            ALLARGS=({{ ARGS }})
+            svc="${ALLARGS[0]:-backend}"
+            if [ "$svc" = "celery" ]; then
+                remote_port=5679
+            else
+                svc="backend"
+                remote_port=5678
+            fi
+
+            # Wait for debugpy to be listening
+            echo "==> Waiting for debugpy on $svc:$remote_port..."
+            for i in $(seq 1 30); do
+                if docker exec "baserow-${slug}-${svc}-1" bash -c "echo > /dev/tcp/localhost/$remote_port" 2>/dev/null; then
+                    echo "    debugpy ready."
+                    break
+                fi
+                if [ "$i" -eq 30 ]; then
+                    echo "    ERROR: debugpy did not start. Check: just agent logs {{ name }} $svc"
+                    exit 1
+                fi
+                sleep 2
+            done
+
+            echo "==> Bridging localhost:5678 → $svc:$remote_port (Ctrl+C to stop)"
+            echo "    Attach VS Code with 'Attach to agent backend' launch config."
+            echo ""
+            docker run --rm --network "baserow-${slug}_local" -p 127.0.0.1:5678:5678 alpine/socat \
+                TCP-LISTEN:5678,fork,reuseaddr TCP:${svc}:${remote_port}
+            ;;
+
+        restart)
+            if [ -z "{{ name }}" ]; then
+                echo "Usage: just agent restart <name> [service...]"
+                exit 1
+            fi
+            slug=$(slugify "{{ name }}")
+            DC_CMD=$(feature_compose "{{ name }}")
+            ALLARGS=({{ ARGS }})
+            if [ ${#ALLARGS[@]} -gt 0 ]; then
+                echo "Restarting ${ALLARGS[*]} in baserow-$slug..."
+                eval "$DC_CMD restart ${ALLARGS[*]}"
+            else
+                echo "Restarting all services in baserow-$slug..."
+                eval "$DC_CMD restart"
+            fi
+            ;;
+
+        open)
+            if [ -z "{{ name }}" ]; then
+                echo "Usage: cd \$(just agent open <name>)"
+                exit 1
+            fi
+            wt=$(require_worktree "{{ name }}")
+            echo "$wt"
+            ;;
+
+        down|stop)
+            if [ -z "{{ name }}" ]; then
+                echo "Usage: just agent down <name>"
+                exit 1
+            fi
+            slug=$(slugify "{{ name }}")
+            DC_CMD=$(feature_compose "{{ name }}")
+            echo "Stopping baserow-$slug..."
+            eval "$DC_CMD down {{ ARGS }}"
+            update_instances_json
+            ;;
+
+        logs)
+            if [ -z "{{ name }}" ]; then
+                echo "Usage: just agent logs <name> [service...]"
+                exit 1
+            fi
+            DC_CMD=$(feature_compose "{{ name }}")
+            eval "$DC_CMD logs -f {{ ARGS }}"
+            ;;
+
+        exec)
+            if [ -z "{{ name }}" ]; then
+                echo "Usage: just agent exec <name> <service> <command>"
+                exit 1
+            fi
+            DC_CMD=$(feature_compose "{{ name }}")
+            eval "$DC_CMD exec {{ ARGS }}"
+            ;;
+
+        ps|list)
+            echo "==> Shared infrastructure"
+            if docker ps --format '{{ '{{.Names}}' }}' | grep -q "baserow-infra-traefik"; then
+                echo "  Running"
+                echo "    Dashboard:  http://localhost:$PROXY_PORT"
+                echo "    Mailhog:    http://mail.localhost:$PROXY_PORT"
+                echo "    MinIO:      http://minio.localhost:$PROXY_PORT"
+                echo "    Traefik:    http://localhost:8099"
+                echo "    PostgreSQL: localhost:5431"
+            else
+                echo "  Not running — start with: just agent infra-up"
+            fi
+            echo ""
+            echo "==> Feature instances"
+            echo ""
+
+            found=false
+            for wt_dir in "$ROOT/.claude/worktrees"/*/; do
+                [ -d "$wt_dir" ] || continue
+                wt_name=$(basename "$wt_dir")
+                [ -f "$wt_dir/.env.agent" ] || continue
+
+                slug=$(slugify "$wt_name")
+                project="baserow-$slug"
+
+                running=$(docker ps --filter "label=com.docker.compose.project=$project" --format '{{ '{{.Status}}' }}' | head -1)
+                if [ -n "$running" ]; then
+                    found=true
+                    echo "  $slug"
+                    echo "    URL:      http://$slug.localhost:$PROXY_PORT"
+                    echo "    Database: baserow-$slug"
+                    echo "    Worktree: $wt_dir"
+                    echo "    Status:   $running"
+                    echo ""
+                fi
+            done
+
+            if [ "$found" = false ]; then
+                echo "  (no running instances)"
+            fi
+            echo ""
+            ;;
+
+        clean)
+            if [ -n "{{ name }}" ]; then
+                slug=$(slugify "{{ name }}")
+                wt=$(worktree_path "{{ name }}")
+
+                # Stop feature stack + remove volumes
+                if [ -f "$wt/.env.agent" ]; then
+                    echo "==> Stopping baserow-$slug and removing volumes..."
+                    DC_CMD=$(feature_compose "{{ name }}")
+                    eval "$DC_CMD down -v" 2>/dev/null || true
+                    rm -f "$wt/.env.agent"
+                fi
+
+                # Drop the feature database
+                if docker ps --format '{{ '{{.Names}}' }}' | grep -q "baserow-infra-db"; then
+                    echo "==> Dropping database baserow-$slug..."
+                    docker exec baserow-infra-db-1 \
+                        psql -U baserow -c "DROP DATABASE IF EXISTS \"baserow-$slug\"" 2>/dev/null || true
+                fi
+
+                # Remove git worktree
+                if [ -d "$wt" ]; then
+                    if [ -n "$(git -C "$wt" status --porcelain 2>/dev/null)" ]; then
+                        echo ""
+                        echo "WARNING: worktree has uncommitted changes:"
+                        git -C "$wt" status --short
+                        echo ""
+                        printf "Remove worktree anyway? [y/N] "
+                        read -r confirm
+                        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+                            echo "Aborted. Docker removed, worktree preserved at: $wt"
+                            exit 0
+                        fi
+                    fi
+
+                    echo "==> Removing worktree..."
+                    git -C "$ROOT" worktree remove "$wt" --force 2>/dev/null || rm -rf "$wt"
+                fi
+                echo "Done."
+                update_instances_json
+            else
+                echo "Remove ALL feature instances (Docker + worktrees + databases)? [y/N]"
+                read -r confirm
+                if [[ "$confirm" =~ ^[Yy]$ ]]; then
+                    for wt_dir in "$ROOT/.claude/worktrees"/*/; do
+                        [ -d "$wt_dir" ] || continue
+                        wt_name=$(basename "$wt_dir")
+                        [ -f "$wt_dir/.env.agent" ] || continue
+                        slug=$(slugify "$wt_name")
+
+                        echo "==> Cleaning baserow-$slug..."
+                        (cd "$wt_dir" && docker compose --env-file .env.agent \
+                            -f docker-compose.feature.yml \
+                            -p "baserow-$slug" down -v 2>/dev/null) || true
+                        rm -f "$wt_dir/.env.agent"
+
+                        # Drop DB
+                        docker exec baserow-infra-db-1 \
+                            psql -U baserow -c "DROP DATABASE IF EXISTS \"baserow-$slug\"" 2>/dev/null || true
+
+                        git -C "$ROOT" worktree remove "$wt_dir" --force 2>/dev/null || rm -rf "$wt_dir"
+                    done
+                    echo "Done."
+                    update_instances_json
+                fi
+            fi
+            ;;
+
+        *)
+            echo "Agent instance management for parallel AI agent workflows"
+            echo ""
+            echo "Shared infrastructure (DB, Mailhog, MinIO, OTEL) runs once."
+            echo "Each feature gets a lightweight stack (Redis, backend, frontend,"
+            echo "celery, MJML) in a git worktree, accessible via <name>.localhost."
+            echo ""
+            echo "Usage: just agent <command> [name] [args]"
+            echo ""
+            echo "Infrastructure:"
+            echo "  infra-up                Start shared infra + develop instance"
+            echo "  infra-down              Stop all instances + shared infra"
+            echo ""
+            echo "Feature instances:"
+            echo "  up <name> [base]        Create worktree + start feature (default base: develop)"
+            echo "  open <name>             Print worktree path: cd \$(just agent open <name>)"
+            echo "  down <name>             Stop feature (keep data + worktree)"
+            echo "  clean [name]            Stop + drop DB + remove worktree"
+            echo "  logs <name> [service]   Follow logs"
+            echo "  exec <name> <svc> <cmd> Execute command in service container"
+            echo "  restart <name> [svc...] Restart all or specific services"
+            echo "  debug <name> [svc]      Attach debugpy (svc: backend|celery, bridges localhost:5678)"
+            echo "  list                    Show running instances"
+            echo ""
+            echo "Workflow:"
+            echo "  just agent infra-up                 # start infra + develop"
+            echo "  just agent up fix-bug               # start feature instance"
+            echo "  # → http://fix-bug.localhost:$PROXY_PORT"
+            echo "  just agent logs fix-bug              # follow logs"
+            echo "  just agent exec fix-bug backend bash # shell into backend"
+            echo "  just agent down fix-bug              # stop (keeps data)"
+            echo "  just agent clean fix-bug             # remove everything"
+            echo ""
+            echo "Web UIs:"
+            echo "  http://localhost:$PROXY_PORT             Dashboard (instance links)"
+            echo "  http://mail.localhost:$PROXY_PORT             Mailhog"
+            echo "  http://minio.localhost:$PROXY_PORT            MinIO Console"
+            echo "  http://localhost:8099                         Traefik"
+            echo ""
+            echo "Tab completion:  source agent-completions.zsh   (add to .zshrc)"
+            [[ -n "{{ cmd }}" ]] && exit 1 || exit 0
+            ;;
+    esac

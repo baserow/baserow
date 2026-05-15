@@ -1,0 +1,8 @@
+PYTHONPATH=backend/src:premium/backend/src:enterprise/backend/src:backend/tests:premium/backend/tests:enterprise/backend/tests
+DJANGO_SETTINGS_MODULE=baserow.config.settings.test
+DATABASE_HOST=localhost
+DATABASE_PORT=5431
+DATABASE_NAME=baserow-__AGENT_NAME__
+DATABASE_PASSWORD=baserow
+REDIS_HOST=localhost
+REDIS_PASSWORD=baserow

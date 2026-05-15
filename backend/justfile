@@ -237,6 +237,9 @@ test *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _set_pythonpath }}
+    if [ -z "${TEST_ENV_FILE:-}" ] && [ -f .env.testing-local ]; then
+        export TEST_ENV_FILE=.env.testing-local
+    fi
     {{ _pytest }} {{ ARGS }}
 
 # Run tests with coverage report

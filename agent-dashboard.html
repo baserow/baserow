@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Baserow Agent Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f1117; color: #e1e4e8; padding: 2rem; }
+  h1 { font-size: 1.4rem; font-weight: 600; color: #8b949e; }
+  .section { margin-top: 1.5rem; }
+  .section-title { font-size: 0.8rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #484f58; margin-bottom: 0.75rem; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 0.75rem; }
+  .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem 1.25rem; transition: border-color 0.15s; }
+  .card:hover { border-color: #58a6ff; }
+  .card-header { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+  .card-header h2 { font-size: 1.05rem; flex: 1; }
+  .card-header h2 a { color: #58a6ff; text-decoration: none; }
+  .card-header h2 a:hover { text-decoration: underline; }
+  .card.feature { border-left: 3px solid #58a6ff; }
+  .card.infra { border-left: 3px solid #8b949e; }
+  .card.infra .card-header h2 a { color: #e1e4e8; }
+  .badge { font-size: 0.65rem; padding: 0.2em 0.6em; border-radius: 10px; font-weight: 600; white-space: nowrap; }
+  .badge.up { background: #238636; color: #fff; }
+  .rows { display: flex; flex-direction: column; gap: 0.35rem; }
+  .row { display: flex; align-items: center; font-size: 0.8rem; color: #8b949e; gap: 0.4rem; }
+  .row .label { width: 60px; flex-shrink: 0; color: #484f58; }
+  .row .value { flex: 1; min-width: 0; }
+  .row code { background: #21262d; padding: 0.1em 0.4em; border-radius: 4px; font-size: 0.78rem; color: #c9d1d9; }
+  .row a { color: #58a6ff; text-decoration: none; }
+  .row a:hover { text-decoration: underline; }
+  .copy-btn { background: none; border: 1px solid #30363d; border-radius: 4px; color: #8b949e; cursor: pointer; padding: 0.15em 0.4em; font-size: 0.72rem; transition: all 0.15s; flex-shrink: 0; }
+  .copy-btn:hover { border-color: #58a6ff; color: #58a6ff; }
+  .copy-btn.copied { border-color: #238636; color: #238636; }
+  .empty { color: #484f58; font-style: italic; padding: 1.5rem 0; }
+  .refresh { font-size: 0.7rem; color: #30363d; margin-top: 1.5rem; }
+</style>
+</head>
+<body>
+<h1>Baserow Agent Dashboard</h1>
+
+<div class="section" id="features-section">
+  <div class="section-title">Feature instances</div>
+  <div class="grid" id="features-grid"></div>
+</div>
+
+<div class="section">
+  <div class="section-title">Infrastructure</div>
+  <div class="grid" id="infra-grid"></div>
+</div>
+
+<div class="refresh" id="refresh"></div>
+
+<script>
+var WORKTREE_BASE = ".claude/worktrees/";
+
+function hostFromRule(rule) {
+  var m = rule.match(/Host\(`([^`]+)`\)/);
+  return m ? m[1] : null;
+}
+
+function el(tag, attrs, children) {
+  var e = document.createElement(tag);
+  if (attrs) {
+    var keys = Object.keys(attrs);
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      var v = attrs[k];
+      if (k === "textContent") e.textContent = v;
+      else if (k === "className") e.className = v;
+      else e.setAttribute(k, v);
+    }
+  }
+  if (children) {
+    for (var j = 0; j < children.length; j++) {
+      var c = children[j];
+      if (c) e.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+    }
+  }
+  return e;
+}
+
+function copyBtn(text) {
+  var btn = el("button", { className: "copy-btn", textContent: "copy" });
+  btn.addEventListener("click", function() {
+    navigator.clipboard.writeText(text).then(function() {
+      btn.textContent = "copied";
+      btn.classList.add("copied");
+      setTimeout(function() {
+        btn.textContent = "copy";
+        btn.classList.remove("copied");
+      }, 1500);
+    });
+  });
+  return btn;
+}
+
+function makeRow(label, valueChildren, copyText) {
+  var items = [
+    el("span", { className: "label", textContent: label }),
+    el("span", { className: "value" }, valueChildren)
+  ];
+  if (copyText) items.push(copyBtn(copyText));
+  return el("div", { className: "row" }, items);
+}
+
+function makeLink(text, url) {
+  return el("a", { href: url, target: "_blank", textContent: text });
+}
+
+function buildFeatureCard(f, instanceInfo) {
+  var wtPath = WORKTREE_BASE + f.slug;
+  var branch = (instanceInfo && instanceInfo.branch) || f.slug;
+  return el("div", { className: "card feature" }, [
+    el("div", { className: "card-header" }, [
+      el("h2", {}, [makeLink(f.slug, f.url)]),
+      el("span", { className: "badge up", textContent: "running" })
+    ]),
+    el("div", { className: "rows" }, [
+      makeRow("URL", [makeLink(f.url, f.url)], f.url),
+      makeRow("Branch", [el("code", { textContent: branch })], branch),
+      makeRow("DB", [el("code", { textContent: "baserow-" + f.slug })], "baserow-" + f.slug),
+      makeRow("Bucket", [el("code", { textContent: "baserow-" + f.slug })], "baserow-" + f.slug),
+      makeRow("Path", [el("code", { textContent: wtPath })], wtPath)
+    ])
+  ]);
+}
+
+function buildInfraCard(name, icon, rows) {
+  return el("div", { className: "card infra" }, [
+    el("div", { className: "card-header" }, [
+      el("h2", {}, [document.createTextNode(name)])
+    ]),
+    el("div", { className: "rows" }, rows)
+  ]);
+}
+
+async function refresh() {
+  var featuresGrid = document.getElementById("features-grid");
+  var infraGrid = document.getElementById("infra-grid");
+
+  try {
+    var res = await fetch("/api/http/routers");
+    var routers = await res.json();
+
+    // Fetch instance metadata (PR info, branch names)
+    var instances = {};
+    try {
+      var instRes = await fetch("/instances.json?" + Date.now());
+      instances = await instRes.json();
+    } catch (e) { /* no instances.json yet */ }
+
+    var features = [];
+    var infraUrls = {};
+
+    for (var i = 0; i < routers.length; i++) {
+      var r = routers[i];
+      if (r.provider === "internal" || r.status !== "enabled") continue;
+      var host = hostFromRule(r.rule || "");
+      if (!host) continue;
+
+      var name = r.name.replace(/@.*$/, "");
+      var url = location.protocol + "//" + host + ":" + location.port;
+
+      if (name === "mailhog") infraUrls.mailhog = url;
+      else if (name === "minio-console") infraUrls.minio = url;
+      else if (name === "dashboard") { /* skip */ }
+      else if (name.startsWith("baserow-")) {
+        features.push({ slug: name.replace(/^baserow-/, ""), url: url });
+      }
+    }
+
+    features.sort(function(a, b) { return a.slug.localeCompare(b.slug); });
+
+    // Feature cards
+    featuresGrid.replaceChildren();
+    if (features.length === 0) {
+      featuresGrid.appendChild(el("div", { className: "empty", textContent: "No instances running. Start one with: just agent up <name>" }));
+    } else {
+      for (var fi = 0; fi < features.length; fi++) {
+        featuresGrid.appendChild(buildFeatureCard(features[fi], instances[features[fi].slug]));
+      }
+    }
+
+    // Infra cards
+    var traefikUrl = location.protocol + "//" + location.hostname + ":8099";
+    infraGrid.replaceChildren();
+
+    infraGrid.appendChild(buildInfraCard("PostgreSQL", null, [
+      makeRow("Host", [el("code", { textContent: "localhost:5431" })], "localhost:5431"),
+      makeRow("User", [el("code", { textContent: "baserow" })], "baserow"),
+      makeRow("Pass", [el("code", { textContent: "baserow" })], "baserow")
+    ]));
+
+    if (infraUrls.minio) {
+      infraGrid.appendChild(buildInfraCard("MinIO", null, [
+        makeRow("Console", [makeLink(infraUrls.minio, infraUrls.minio)], infraUrls.minio),
+        makeRow("Endpoint", [el("code", { textContent: "http://minio:9000" })], "http://minio:9000"),
+        makeRow("User", [el("code", { textContent: "baserow" })], "baserow"),
+        makeRow("Pass", [el("code", { textContent: "baserow123" })], "baserow123")
+      ]));
+    }
+
+    if (infraUrls.mailhog) {
+      infraGrid.appendChild(buildInfraCard("Mailhog", null, [
+        makeRow("Inbox", [makeLink(infraUrls.mailhog, infraUrls.mailhog)], infraUrls.mailhog),
+        makeRow("SMTP", [el("code", { textContent: "mailhog:1025" })], "mailhog:1025")
+      ]));
+    }
+
+    infraGrid.appendChild(buildInfraCard("Traefik", null, [
+      makeRow("Dash", [makeLink(traefikUrl, traefikUrl)], traefikUrl)
+    ]));
+
+    document.getElementById("refresh").textContent =
+      "Updated " + new Date().toLocaleTimeString() + " \u00b7 refreshes every 10s";
+  } catch (e) {
+    featuresGrid.replaceChildren(
+      el("div", { className: "empty", textContent: "Could not reach Traefik API. Is infrastructure running?" })
+    );
+    infraGrid.replaceChildren();
+  }
+}
+
+refresh();
+setInterval(refresh, 10000);
+</script>
+</body>
+</html>
