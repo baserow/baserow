@@ -37,7 +37,6 @@ export default {
     return {
       scrollableParents: new Set(),
       selector: null,
-      visible: false,
       position: {
         top: 0,
         right: 0,
@@ -45,6 +44,11 @@ export default {
         height: 0,
       },
     }
+  },
+  computed: {
+    visible() {
+      return this.selector !== null
+    },
   },
   mounted() {
     const parent = this._getParent()
@@ -108,16 +112,13 @@ export default {
       }
 
       if (this.selector === null) {
-        this.visible = false
         return
       }
 
-      if (this.selector.length > 0) {
-        const elements = this.getElements(this.selector)
-        if (elements.length === 0) {
-          this.visible = false
-          return
-        }
+      const elements =
+        this.selector.length > 0 ? this.getElements(this.selector) : []
+
+      if (elements.length > 0) {
         const parentRect = this._getParent().getBoundingClientRect()
         const elementRect = getCombinedBoundingClientRect(elements)
         position.top = elementRect.top - parentRect.top - this.padding + 'px'
@@ -125,16 +126,15 @@ export default {
         position.width = elementRect.width + this.padding * 2 + 'px'
         position.height = elementRect.height + this.padding * 2 + 'px'
       } else {
+        // Fall back to centered when no targets match
         position.top = '50%'
         position.left = '50%'
       }
 
       this.position = position
-      this.visible = true
     },
     hide() {
       this.selector = null
-      this.visible = false
       this.clearScrollEvents()
     },
   },
