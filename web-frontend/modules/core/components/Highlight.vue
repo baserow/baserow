@@ -1,6 +1,6 @@
 <template>
   <div
-    v-if="selector !== null"
+    v-if="visible"
     class="highlight"
     :style="{
       left: `${position.left || '0px'}`,
@@ -37,6 +37,7 @@ export default {
     return {
       scrollableParents: new Set(),
       selector: null,
+      visible: false,
       position: {
         top: 0,
         right: 0,
@@ -107,12 +108,14 @@ export default {
       }
 
       if (this.selector === null) {
+        this.visible = false
         return
       }
 
       if (this.selector.length > 0) {
         const elements = this.getElements(this.selector)
         if (elements.length === 0) {
+          this.visible = false
           return
         }
         const parentRect = this._getParent().getBoundingClientRect()
@@ -127,9 +130,11 @@ export default {
       }
 
       this.position = position
+      this.visible = true
     },
     hide() {
       this.selector = null
+      this.visible = false
       this.clearScrollEvents()
     },
   },
