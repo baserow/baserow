@@ -278,7 +278,9 @@
         "coBranding": "Sostituzione logo co-branding",
         "auditLogs": "Registro attività",
         "support": "Supporto diretto",
-        "dataSync": "Sync dei dati"
+        "dataSync": "Sync dei dati",
+        "dataSyncContent": "Mantieni automaticamente le tabelle aggiornate sincronizzandole con altre tabelle Baserow o fonti esterne come Jira, GitHub, GitLab o HubSpot. Consente anche di sincronizzare periodicamente e abilita la sincronizzazione dei dati bidirezionale per i tipi di sincronizzazione dati supportati.",
+        "ssoContent": "Abilita accessi sicuri e senza interruzioni con SAML, Google, Facebook, GitHub, GitLab o OpenID Connect. Supporta più provider contemporaneamente. Nota che sia Baserow come strumento, sia il sistema di autenticazione del costruttore di applicazioni supportano SSO."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Supporto diretto"
@@ -366,7 +368,8 @@
         "preview": "Anteprima"
     },
     "configureDataSyncPeriodicInterval": {
-        "saved": "Salvato"
+        "saved": "Salvato",
+        "deactivatedText": "La sincronizzazione dei dati periodica è stata disattivata perché ha fallito troppe volte consecutive. Per favore prova a sincronizzare manualmente, e se funziona come previsto, allora clicca sul pulsante di attivazione."
     },
     "dataSyncPeriodicIntervalForm": {
         "intervalLabel": "Intervallo",
@@ -430,5 +433,8 @@
     },
     "deleteDataScanModal": {
         "title": "Annulla scansione dati"
+    },
+    "fieldPermissionModal": {
+        "linkRowWarning": "Questo è un campo 'Link to table'. Per assicurare che i valori non possano essere cambiati dalla tabella collegata, per favore assicurati di impostare i permessi giusti anche sulla tabella collegata."
     }
 }
