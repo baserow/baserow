@@ -5734,19 +5734,27 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
                     # LinkRowFields might depends on FormulaFields, but we can't update
                     # them here because this is only valid for FormulaFields.
                     continue
+                if dependant_field in updated_fields:
+                    continue
+                if table_id not in update_collectors:
+                    update_collectors[table_id] = FieldUpdateCollector(
+                        dependant_field.table, update_changes_only=True
+                    )
                 self._update_field_values(
                     dependant_field,
                     update_collectors[table_id],
                     field_cache,
                     via_path_to_starting_table,
                 )
-            updated_fields |= set(
-                update_collector.apply_updates_and_get_updated_fields(
-                    field_cache, skip_search_updates=skip_search_updates
+            for collector in update_collectors.values():
+                updated_fields |= set(
+                    collector.apply_updates_and_get_updated_fields(
+                        field_cache, skip_search_updates=skip_search_updates
+                    )
                 )
-            )
 
-        update_collector.send_force_refresh_signals_for_all_updated_tables()
+        for collector in update_collectors.values():
+            collector.send_force_refresh_signals_for_all_updated_tables()
 
         return list(updated_fields)
 
