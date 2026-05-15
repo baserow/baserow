@@ -112,6 +112,9 @@ export default {
 
       if (this.selector.length > 0) {
         const elements = this.getElements(this.selector)
+        if (elements.length === 0) {
+          return
+        }
         const parentRect = this._getParent().getBoundingClientRect()
         const elementRect = getCombinedBoundingClientRect(elements)
         position.top = elementRect.top - parentRect.top - this.padding + 'px'
