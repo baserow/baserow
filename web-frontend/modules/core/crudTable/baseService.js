@@ -33,7 +33,7 @@ export default (client, baseUrl, isPaginated = true) => {
       if (sorts.length > 0) {
         params.sorts = sorts
           .map((s) => {
-            const direction = s.direction === 'asc' ? '-' : '+'
+            const direction = s.direction === 'asc' ? '+' : '-'
             return `${direction}${s.key}`
           })
           .join(',')
