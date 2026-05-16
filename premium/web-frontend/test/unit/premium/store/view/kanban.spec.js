@@ -7,6 +7,7 @@ describe('Kanban view store', () => {
   const view = {
     filters: [],
     filters_disabled: false,
+    sortings: [],
   }
 
   beforeEach(() => {
