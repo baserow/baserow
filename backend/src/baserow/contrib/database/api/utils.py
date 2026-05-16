@@ -179,6 +179,26 @@ def extract_user_field_names_from_params(query_params):
     return str_to_bool(value)
 
 
+def extract_row_metadata_field_exclusions(exclude_value):
+    """
+    Extracts `id` and `order` exclusions from the exclude parameter.
+    These are special row metadata fields that are not user-defined fields.
+
+    :param exclude_value: The raw exclude parameter value (comma-separated string).
+    :type exclude_value: str or None
+    :return: A tuple of (exclude_id, exclude_order) booleans.
+    :rtype: tuple[bool, bool]
+    """
+
+    if not exclude_value:
+        return False, False
+
+    parts = [p.strip().lower() for p in exclude_value.split(",")]
+    exclude_id = "id" in parts
+    exclude_order = "order" in parts
+    return exclude_id, exclude_order
+
+
 def extract_send_webhook_events_from_params(query_params) -> bool:
     """
     Extracts the send_webhook_events parameter from the query_params and returns

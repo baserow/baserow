@@ -68,6 +68,7 @@ from baserow.contrib.database.api.tokens.errors import (
 )
 from baserow.contrib.database.api.utils import (
     extract_link_row_joins_from_request,
+    extract_row_metadata_field_exclusions,
     extract_send_webhook_events_from_params,
     extract_user_field_names_from_params,
     get_include_exclude_fields,
@@ -272,6 +273,9 @@ class RowsView(APIView):
                     "parameter `exclude=field_1,field_2` then the fields with id `1` "
                     "and id `2` are going to be excluded from the selection and "
                     "response. "
+                    "You can also exclude the built-in `id` and `order` fields by "
+                    "including them in the exclude parameter, for example "
+                    "`exclude=id,order` or `exclude=field_1,id`. "
                     "If the `user_field_names` parameter is provided then "
                     "instead exclude should be a comma separated list of the actual "
                     "field names. For field names with commas you should surround the "
@@ -399,6 +403,7 @@ class RowsView(APIView):
         order_by = query_params.get("order_by")
         include = query_params.get("include")
         exclude = query_params.get("exclude")
+        exclude_id, exclude_order = extract_row_metadata_field_exclusions(exclude)
         user_field_names = extract_user_field_names_from_params(request.GET)
         view_id = query_params.get("view_id")
         fields_base_queryset = Field.objects.select_related("content_type").filter(
@@ -471,6 +476,8 @@ class RowsView(APIView):
             field_ids=[f.id for f in fields] if fields else None,
             user_field_names=user_field_names,
             field_kwargs=field_kwargs,
+            exclude_id=exclude_id,
+            exclude_order=exclude_order,
         )
         serializer = serializer_class(page, many=True)
 

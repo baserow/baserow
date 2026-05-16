@@ -108,6 +108,8 @@ def get_row_serializer_class(
     include_id=False,
     required_fields=None,
     extra_kwargs=None,
+    exclude_id=False,
+    exclude_order=False,
 ):
     """
     Generates a Django rest framework model serializer based on the available fields
@@ -149,6 +151,10 @@ def get_row_serializer_class(
         passed to the field serializer, the key in this dictionary must be listed in the
         fieldType.serializer_extra_args list.
     :type extra_kwargs: dict
+    :param exclude_id: If True, the `id` field will be excluded from the response.
+    :type exclude_id: bool
+    :param exclude_order: If True, the `order` field will be excluded from the response.
+    :type exclude_order: bool
     :return: The generated serializer.
     :rtype: ModelSerializer
     """
@@ -214,11 +220,29 @@ def get_row_serializer_class(
         field_names.append("id")
         field_overrides["id"] = serializers.IntegerField()
 
+    effective_base_class = base_class
+    if (exclude_id or exclude_order) and base_class is not None:
+        base_meta_fields = list(getattr(base_class.Meta, "fields", ()))
+        if exclude_id and "id" in base_meta_fields:
+            base_meta_fields.remove("id")
+        if exclude_order and "order" in base_meta_fields:
+            base_meta_fields.remove("order")
+
+        class FilteredMeta:
+            fields = tuple(base_meta_fields)
+            extra_kwargs = getattr(base_class.Meta, "extra_kwargs", {})
+
+        effective_base_class = type(
+            f"Filtered{base_class.__name__}",
+            (base_class,),
+            {"Meta": FilteredMeta},
+        )
+
     return get_serializer_class(
         model,
         field_names,
         field_overrides,
-        base_class,
+        effective_base_class,
         required_fields=required_fields,
     )
 
