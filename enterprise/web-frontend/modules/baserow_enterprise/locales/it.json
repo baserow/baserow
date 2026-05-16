@@ -10,7 +10,7 @@
     },
     "clientHandler": {
         "cannotDisableAllAuthProvidersTitle": "Ultimo provider attivato",
-        "cannotDisableAllAuthProvidersDescription": "Non è possibile disabilitare o cancellare l'ultimo provider attivo."
+        "cannotDisableAllAuthProvidersDescription": "Non è possibile disabilitare o cancellare l'ultimo provider attivato."
     },
     "trashType": {
         "team": "team"
