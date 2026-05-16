@@ -829,8 +829,7 @@ export const actions = {
     const rowMovedToAnotherStack = originalStackId !== currentStackId
     if (sortingsActive && rowMovedToAnotherStack) {
       const targetStack = getters.getStack(currentStackId)
-      const droppedRowIsLast =
-        currentIndex === targetStack.results.length - 1
+      const droppedRowIsLast = currentIndex === targetStack.results.length - 1
       const targetStackHasUnloadedRows =
         targetStack.results.length < targetStack.count
 
