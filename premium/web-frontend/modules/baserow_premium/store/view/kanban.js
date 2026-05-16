@@ -826,12 +826,17 @@ export const actions = {
       }
     }
 
-    if (sortingsActive && originalStackId !== currentStackId) {
-      const stack = getters.getStack(currentStackId)
-      const isLastLoaded = currentIndex === stack.results.length - 1
-      const partialBuffer = stack.results.length < stack.count
-      if (isLastLoaded && partialBuffer) {
-        // Real sorted position is unknown, the next page-fetch will reveal it.
+    const rowMovedToAnotherStack = originalStackId !== currentStackId
+    if (sortingsActive && rowMovedToAnotherStack) {
+      const targetStack = getters.getStack(currentStackId)
+      const droppedRowIsLast =
+        currentIndex === targetStack.results.length - 1
+      const targetStackHasUnloadedRows =
+        targetStack.results.length < targetStack.count
+
+      if (droppedRowIsLast && targetStackHasUnloadedRows) {
+        // The sorted position might be among the unloaded rows. Remove the
+        // optimistic card until the next page fetch returns its real position.
         commit('DELETE_ROW', { stackId: currentStackId, index: currentIndex })
       }
     }
