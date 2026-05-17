@@ -1,1 +1,47 @@
-{}
+{
+    "dashboard": {
+        "descriptionPlaceholder": "Opis"
+    },
+    "dashboardHeader": {
+        "doneEditing": "Zakończono edycję"
+    },
+    "emptyDashboard": {
+        "title": "Na pulpicie nie ma jeszcze żadnych widżetów",
+        "subtitle": "Zacznij od dodania widżetu.",
+        "addWidget": "Dodaj widżet"
+    },
+    "dashboardHeaderMenuItems": {
+        "editMode": "Tryb edycji"
+    },
+    "createWidgetModal": {
+        "title": "Dodaj nowy widżet"
+    },
+    "widget": {
+        "fixConfiguration": "Popraw konfigurację"
+    },
+    "summaryWidget": {
+        "name": "Podsumowanie"
+    },
+    "emptyDashboardSidebar": {
+        "title": "Żaden element nie został wybrany",
+        "message": "Kliknij element, żeby zobaczyć szczegóły."
+    },
+    "widgetSettings": {
+        "title": "Tytuł",
+        "description": "Opis"
+    },
+    "aggregateRowsDataSourceForm": {
+        "data": "Dane",
+        "sourceFieldLabel": "Źródło",
+        "viewFieldLabel": "Widok",
+        "notSelected": "Nie wybrano",
+        "aggregationFieldLabel": "Pole",
+        "aggregationTypeLabel": "Podsumowanie"
+    },
+    "widgetContext": {
+        "delete": "Usuń"
+    },
+    "trashType": {
+        "widget": "widżet"
+    }
+}
