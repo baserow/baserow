@@ -217,8 +217,8 @@
     },
     "integrationSettings": {
         "title": "Integracje",
-        "integrationMessage": "Nowe integracje można tworzyć poprzez dodanie źródła danych, akcji lub uwierzytelnienia użytkownika.",
-        "noIntegrationMessage": "Nie utworzono jeszcze żadnego połączenia. Można je utworzyć poprzez dodanie źródła danych, akcji lub uwierzytelnienia użytkownika."
+        "integrationMessage": "Możesz skonfigurować nowe integracje, dodając źródło danych, operację lub uwierzytelnianie użytkownika.",
+        "noIntegrationMessage": "Nie utworzono jeszcze żadnych integracji. Aby skonfigurować integrację, dodaj źródło danych, operację lub uwierzytelnienie użytkownika."
     },
     "textElement": {
         "noValue": "Pusty akapit..."
@@ -553,5 +553,8 @@
     "userSelector": {
         "viewAs": "Zobacz jak: {user}",
         "anonymous": "Anonimowy"
+    },
+    "generalSettings": {
+        "titleOverview": "Ogólne"
     }
 }
