@@ -81,7 +81,7 @@ class RuntimeFormulaFunction(ABC, Instance):
         """
 
         if result := self.validate_type_of_args(args):
-            index, invalid_arg = result
+            index, invalid_arg = result[0]
             if self.args:
                 if message := self.args[index].get_error_message(invalid_arg):
                     raise BaserowFormulaSyntaxError(message)
@@ -103,28 +103,23 @@ class RuntimeFormulaFunction(ABC, Instance):
 
         return required_args <= len(args) <= total_args
 
-    def validate_type_of_args(
-        self, args: FormulaArgs
-    ) -> Optional[tuple[int, FormulaArg]]:
+    def validate_type_of_args(self, args: FormulaArgs) -> list[tuple[int, FormulaArg]]:
         """
         This function validates that the type of all args is correct.
         If a type is incorrect it will return that arg.
 
         :param args: The args that are being checked.
-        :return: A tuple of the index and the arg that has the wrong type, if any.
+        :return: A list of tuples of the index and the arg that has the wrong type.
         """
 
         if self.args is None:
-            return None
+            return []
 
-        return next(
-            (
-                (index, arg)
-                for index, arg in enumerate(args)
-                if not self.args[index].test(arg)
-            ),
-            None,
-        )
+        return [
+            (index, arg)
+            for index, arg in enumerate(args)
+            if not self.args[index].test(arg)
+        ]
 
     def parse_args(self, args: FormulaArgs) -> FormulaArgs:
         """
