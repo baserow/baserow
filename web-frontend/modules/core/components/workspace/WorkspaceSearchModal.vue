@@ -47,7 +47,7 @@
         >
           <!-- Search results -->
           <div v-if="hasResults" class="workspace-search__results">
-            <div class="workspace-search__results-list">
+            <div ref="resultsList" class="workspace-search__results-list">
               <div
                 v-for="(result, index) in allResults"
                 :key="`${result.type}-${result.id}-${index}`"
@@ -252,16 +252,6 @@ export default {
     },
   },
 
-  mounted() {
-    this.$nextTick(() => {
-      this.attachScrollListener()
-    })
-  },
-
-  beforeUnmount() {
-    this.removeScrollListener()
-  },
-
   methods: {
     onMouseMove(event) {
       if (event && (event.movementX !== 0 || event.movementY !== 0)) {
@@ -273,34 +263,11 @@ export default {
         searchTerm: this.searchTerm,
       })
     },
-    attachScrollListener() {
-      try {
-        const modalContent = this.getTeleportedElement()?.querySelector(
-          '.modal__box-content'
-        )
-        modalContent?.addEventListener('scroll', this.handleScroll)
-      } catch (error) {
-        console.error('Error attaching scroll listener:', error)
-      }
-    },
-
-    removeScrollListener() {
-      try {
-        const modalContent = this.getTeleportedElement()?.querySelector(
-          '.modal__box-content'
-        )
-        modalContent?.removeEventListener('scroll', this.handleScroll)
-      } catch (error) {
-        console.error('Error removing scroll listener:', error)
-      }
-    },
-
     onShow() {
       this.$nextTick(() => {
         if (this.$refs.searchInput) {
           this.$refs.searchInput.focus()
         }
-        this.attachScrollListener()
       })
     },
 
@@ -430,10 +397,7 @@ export default {
           this.allResults &&
           this.allResults.length > 0
         ) {
-          const resultItems = this.$el.querySelectorAll(
-            '.workspace-search__result-item'
-          )
-          const activeItem = resultItems[this.activeIndex]
+          const activeItem = this.$refs.resultsList?.children[this.activeIndex]
 
           if (activeItem) {
             activeItem.scrollIntoView({
