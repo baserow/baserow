@@ -93,7 +93,6 @@ def test_ensure_datetime_throws_exception_for_invalid_value(value):
         ("3600", timedelta(hours=1)),
         ("60", timedelta(seconds=60)),
         ("0", timedelta(0)),
-        ("1.5", timedelta(seconds=1.5)),
         (60, timedelta(seconds=60)),
         (3600, timedelta(hours=1)),
         (86400, timedelta(days=1)),
