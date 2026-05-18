@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('automation', '0028_automationworkflowhistory_original_workflow_and_more'),
+        ('automation', '0030_workflow_graph_db_default'),
     ]
 
     operations = [
         migrations.AlterField(
             model_name='automationworkflow',
             name='graph',
-            field=models.JSONField(default=dict, help_text='A JSON serialized graph containing the points and edges.'),
+            field=models.JSONField(db_default={}, default=dict, help_text='A JSON serialized graph containing the points and edges.'),
         ),
     ]

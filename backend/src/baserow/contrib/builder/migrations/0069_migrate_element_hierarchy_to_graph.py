@@ -69,7 +69,7 @@ class Migration(migrations.Migration):
     atomic = False
 
     dependencies = [
-        ("builder", "0067_slackwritemessageworkflowaction"),
+        ("builder", "0068_alter_page_unique_together"),
     ]
 
     operations = [
