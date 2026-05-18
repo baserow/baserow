@@ -284,7 +284,12 @@ class ViewType(
 
         if self.can_sort:
             serialized["sortings"] = [
-                {"id": sort.id, "field_id": sort.field_id, "order": sort.order}
+                {
+                    "id": sort.id,
+                    "field_id": sort.field_id,
+                    "order": sort.order,
+                    "priority": sort.priority,
+                }
                 for sort in view.viewsort_set.all()
             ]
 
@@ -294,6 +299,7 @@ class ViewType(
                     "id": group_by.id,
                     "field_id": group_by.field_id,
                     "order": group_by.order,
+                    "priority": group_by.priority,
                 }
                 for group_by in view.viewgroupby_set.all()
             ]

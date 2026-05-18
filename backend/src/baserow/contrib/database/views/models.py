@@ -515,7 +515,7 @@ class ViewSort(HierarchicalModelMixin, OrderableMixin, models.Model):
         help_text=f"Indicates the sort type. Will automatically fall back to `"
         f"{DEFAULT_SORT_TYPE_KEY}` if incompatible with field type.",
     )
-    priority = models.PositiveIntegerField(
+    priority = models.PositiveSmallIntegerField(
         default=32767,
         db_default=32767,
         help_text="Position of this sorting in the ordering chain. The sorting with "
@@ -567,7 +567,7 @@ class ViewGroupBy(HierarchicalModelMixin, OrderableMixin, models.Model):
         default=200,
         help_text="The pixel width of the group by in the related view.",
     )
-    priority = models.PositiveIntegerField(
+    priority = models.PositiveSmallIntegerField(
         default=32767,
         db_default=32767,
         help_text="Position of this group by in the ordering chain. The group by with "

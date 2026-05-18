@@ -47,13 +47,16 @@ export default {
     binding.dir.updated(el, binding)
     el.sortableAutoScrolling = false
 
-    const mousedownElement = binding.value.handle
-      ? el.querySelector(binding.value.handle)
-      : el
-
     el.mousedownEvent = (event) => {
       if (!el.sortableEnabled || event.button !== 0) {
         return
+      }
+
+      if (binding.value.handle) {
+        const handle = el.querySelector(binding.value.handle)
+        if (!handle || !handle.contains(event.target)) {
+          return
+        }
       }
 
       el.sortableMoved = false
@@ -82,22 +85,14 @@ export default {
         parent.style.position = 'relative'
       }
 
-      // Disable text selection on the sortable items as soon as the user
-      // mousedowns on the handle. Without this the browser starts a text
-      // selection between the moment of mousedown and the moment the 3px drag
-      // threshold is exceeded — by which point `sortable-sorting-item` is
-      // applied but text has already been selected. `pointer-events: none` is
-      // intentionally not part of this class so that a plain click without a
-      // drag still works.
-      ;[...parent.childNodes]
-        .filter((e) => e.nodeType === 1)
-        .forEach((s) => s.classList.add('sortable-mousedown-item'))
+      // Prevent the browser from starting a text selection.
+      event.preventDefault()
 
       indicator = document.createElement('div')
       indicator.classList.add('sortable-position-indicator')
       parent.insertBefore(indicator, parent.firstChild)
     }
-    mousedownElement.addEventListener('mousedown', el.mousedownEvent)
+    el.addEventListener('mousedown', el.mousedownEvent)
   },
   /**
    * When the directive must unbind from the element, we will remove all the events
@@ -108,10 +103,7 @@ export default {
       binding.dir.cancel(el)
     }
 
-    const mousedownElement = binding.value.handle
-      ? el.querySelector(binding.value.handle)
-      : el
-    mousedownElement.removeEventListener('mousedown', el.mousedownEvent)
+    el.removeEventListener('mousedown', el.mousedownEvent)
   },
   updated(el, binding) {
     el.sortableId = binding.value.id
@@ -317,7 +309,6 @@ export default {
     const all = [...parent.childNodes].filter((e) => e.nodeType === 1)
     all.forEach((s) => {
       s.classList.remove('sortable-sorting-item')
-      s.classList.remove('sortable-mousedown-item')
     })
 
     window.removeEventListener('mouseup', el.mouseUpEvent)

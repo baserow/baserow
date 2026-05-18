@@ -2398,10 +2398,6 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             context=view,
         )
 
-        # Lock the view's sort rows for the duration of the transaction so that
-        # two concurrent reorder requests can't read each other's pre-state and
-        # silently overwrite one another. Concurrent requests will block on
-        # this query and run sequentially.
         queryset = ViewSort.objects.select_for_update(of=("self",)).filter(view=view)
         sort_ids = set(queryset.values_list("id", flat=True))
 
@@ -2709,10 +2705,6 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             context=view,
         )
 
-        # Lock the view's group-by rows for the duration of the transaction so
-        # that two concurrent reorder requests can't read each other's
-        # pre-state and silently overwrite one another. Concurrent requests
-        # will block on this query and run sequentially.
         queryset = ViewGroupBy.objects.select_for_update(of=("self",)).filter(view=view)
         group_by_ids = set(queryset.values_list("id", flat=True))
 

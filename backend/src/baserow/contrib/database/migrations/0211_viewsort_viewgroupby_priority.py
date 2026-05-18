@@ -3,14 +3,14 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("database", "0209_optimize_pending_search_value_update"),
+        ("database", "0210_fileimportjob_importer_type_and_more"),
     ]
 
     operations = [
         migrations.AddField(
             model_name="viewsort",
             name="priority",
-            field=models.PositiveIntegerField(
+            field=models.PositiveSmallIntegerField(
                 db_default=32767,
                 default=32767,
                 help_text="Position of this sorting in the ordering chain. The "
@@ -20,7 +20,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name="viewgroupby",
             name="priority",
-            field=models.PositiveIntegerField(
+            field=models.PositiveSmallIntegerField(
                 db_default=32767,
                 default=32767,
                 help_text="Position of this group by in the ordering chain. The "

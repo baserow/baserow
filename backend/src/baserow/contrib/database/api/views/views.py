@@ -1520,9 +1520,8 @@ class OrderViewSortingsView(APIView):
         tags=["Database table view sortings"],
         operation_id="order_database_table_view_sortings",
         description=(
-            "Changes the order of the provided view sort ids to the matching position "
-            "that the id has in the list. The sort with the lowest position in the "
-            "list is applied first when ordering rows."
+            "Reorders the sorts to match the order of the given IDs. Sorts earlier in "
+            "the list are applied first."
         ),
         request=OrderViewSortingsSerializer,
         responses={
