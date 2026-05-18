@@ -297,7 +297,10 @@ export const getElementFromRef = (ref) => {
   if (target?.$el instanceof Element) return target.$el
 }
 
-// Teleported overlay root resolved from `$refs[key]` (via `getElementFromRef`), or null if not an HTMLElement.
+/**
+ * Teleported overlay root resolved from `$refs[key]` (via `getElementFromRef`),
+ * or null if not an HTMLElement.
+ */
 export const getTeleportedElementFromRef = (refs, refKey) => {
   if (!refs || !refKey) {
     return null
