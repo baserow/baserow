@@ -13,7 +13,7 @@ from baserow.contrib.database.fields.constants import (
     BASEROW_BOOLEAN_FIELD_TRUE_VALUES,
 )
 from baserow.core.datetime import FormattedDate, FormattedDateTime
-from baserow.core.formula.utils.date import parse_duration_string
+from baserow.core.duration import parse_duration_string
 
 
 def ensure_boolean(value: Any, strict=True) -> bool:
@@ -252,7 +252,8 @@ def ensure_duration(value: Any) -> timedelta:
         return value
 
     if isinstance(value, str):
-        if result := parse_duration_string(value):
+        result = parse_duration_string(value)
+        if result is not None:
             return result
 
         try:

@@ -5,8 +5,8 @@ import moment from '@baserow/modules/core/moment'
 import {
   DateOnly,
   Timedelta,
-  parseDurationString,
 } from '@baserow/modules/core/utils/date'
+import { parseDurationString } from '@baserow/modules/core/utils/duration'
 
 const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/
 const isoDateFormat = 'YYYY-MM-DD HH:mm:ss'
