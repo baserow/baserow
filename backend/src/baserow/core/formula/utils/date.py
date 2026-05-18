@@ -35,7 +35,7 @@ RE_VALID_FORMAT = re.compile(
     "|".join(sorted(MOMENT_FORMAT_MAP.keys(), key=len, reverse=True)) + "|T"
 )
 
-INTERVAL_PATTERNS = [
+DURATION_PATTERNS = [
     (re.compile(r"^(\d+)\s+years?$", re.IGNORECASE), "days", 365),
     (re.compile(r"^(\d+)\s+months?$", re.IGNORECASE), "days", 30),
     (re.compile(r"^(\d+)\s+weeks?$", re.IGNORECASE), "weeks", 1),
@@ -46,16 +46,18 @@ INTERVAL_PATTERNS = [
 ]
 
 
-def parse_interval_string(value: str) -> Optional[timedelta]:
-    """Parse a human-readable interval string into a timedelta, or None if invalid."""
+def parse_duration_string(value: str) -> Optional[timedelta]:
+    """Parse a human-readable duration string into a timedelta, or None if invalid."""
 
     if not isinstance(value, str):
         return None
-    for pattern, unit, factor in INTERVAL_PATTERNS:
+
+    for pattern, unit, factor in DURATION_PATTERNS:
         match = pattern.match(value.strip())
         if match:
             amount = int(match.group(1)) * factor
             return timedelta(**{unit: amount})
+
     return None
 
 

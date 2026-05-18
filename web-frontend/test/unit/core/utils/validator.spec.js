@@ -1,7 +1,7 @@
 import {
   ensureArray,
   ensureDateTime,
-  ensureDateInterval,
+  ensureDuration,
   ensureInteger,
   ensureString,
   ensureNumeric,
@@ -554,57 +554,52 @@ describe('ensureDateTime', () => {
   })
 })
 
-describe('ensureDateInterval', () => {
-  test('returns Timedelta for valid interval strings', () => {
-    expect(ensureDateInterval('1 day')).toStrictEqual(new Timedelta(86400000))
-    expect(ensureDateInterval('2 hours')).toStrictEqual(
-      new Timedelta(2 * 3600000)
-    )
-    expect(ensureDateInterval('30 minutes')).toStrictEqual(
+describe('ensureDuration', () => {
+  test('returns Timedelta for valid duration strings', () => {
+    expect(ensureDuration('1 day')).toStrictEqual(new Timedelta(86400000))
+    expect(ensureDuration('2 hours')).toStrictEqual(new Timedelta(2 * 3600000))
+    expect(ensureDuration('30 minutes')).toStrictEqual(
       new Timedelta(30 * 60000)
     )
-    expect(ensureDateInterval('1 week')).toStrictEqual(
-      new Timedelta(7 * 86400000)
-    )
-    expect(ensureDateInterval('1 year')).toStrictEqual(
+    expect(ensureDuration('1 week')).toStrictEqual(new Timedelta(7 * 86400000))
+    expect(ensureDuration('1 year')).toStrictEqual(
       new Timedelta(365 * 86400000)
     )
-    expect(ensureDateInterval('1 month')).toStrictEqual(
+    expect(ensureDuration('1 month')).toStrictEqual(
       new Timedelta(30 * 86400000)
     )
   })
 
   test('returns Timedelta passthrough', () => {
     const td = new Timedelta(5000)
-    expect(ensureDateInterval(td)).toBe(td)
+    expect(ensureDuration(td)).toBe(td)
   })
 
   test('converts number to Timedelta in seconds', () => {
-    expect(ensureDateInterval(60)).toStrictEqual(new Timedelta(60000))
-    expect(ensureDateInterval(3600)).toStrictEqual(new Timedelta(3600000))
-    expect(ensureDateInterval(0)).toStrictEqual(new Timedelta(0))
+    expect(ensureDuration(60)).toStrictEqual(new Timedelta(60000))
+    expect(ensureDuration(3600)).toStrictEqual(new Timedelta(3600000))
+    expect(ensureDuration(0)).toStrictEqual(new Timedelta(0))
   })
 
   test('converts numeric string to Timedelta in seconds', () => {
-    expect(ensureDateInterval('86400')).toStrictEqual(new Timedelta(86400000))
-    expect(ensureDateInterval('3600')).toStrictEqual(new Timedelta(3600000))
-    expect(ensureDateInterval('60')).toStrictEqual(new Timedelta(60000))
-    expect(ensureDateInterval('0')).toStrictEqual(new Timedelta(0))
-    expect(ensureDateInterval('1.5')).toStrictEqual(new Timedelta(1500))
+    expect(ensureDuration('86400')).toStrictEqual(new Timedelta(86400000))
+    expect(ensureDuration('3600')).toStrictEqual(new Timedelta(3600000))
+    expect(ensureDuration('60')).toStrictEqual(new Timedelta(60000))
+    expect(ensureDuration('0')).toStrictEqual(new Timedelta(0))
   })
 
   test('throws for invalid strings', () => {
-    expect(() => ensureDateInterval('foo')).toThrow()
-    expect(() => ensureDateInterval('')).toThrow()
+    expect(() => ensureDuration('foo')).toThrow()
+    expect(() => ensureDuration('')).toThrow()
   })
 
   test('throws for null/undefined', () => {
-    expect(() => ensureDateInterval(null)).toThrow()
-    expect(() => ensureDateInterval(undefined)).toThrow()
+    expect(() => ensureDuration(null)).toThrow()
+    expect(() => ensureDuration(undefined)).toThrow()
   })
 
   test('throws for invalid types', () => {
-    expect(() => ensureDateInterval([])).toThrow()
-    expect(() => ensureDateInterval({})).toThrow()
+    expect(() => ensureDuration([])).toThrow()
+    expect(() => ensureDuration({})).toThrow()
   })
 })

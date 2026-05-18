@@ -13,7 +13,7 @@ import {
   DecimalSeparatorBaserowRuntimeFormulaArgumentType,
   TimedeltaBaserowRuntimeFormulaArgumentType,
   DatetimeFormatBaserowRuntimeFormulaArgumentType,
-  IntervalStringBaserowRuntimeFormulaArgumentType,
+  DurationBaserowRuntimeFormulaArgumentType,
   Timedelta,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
@@ -2813,9 +2813,9 @@ export class RuntimeToDatetime extends RuntimeFormulaFunction {
   }
 }
 
-export class RuntimeDateInterval extends RuntimeFormulaFunction {
+export class RuntimeDuration extends RuntimeFormulaFunction {
   static getType() {
-    return 'date_interval'
+    return 'duration'
   }
 
   static getFormulaType() {
@@ -2827,7 +2827,7 @@ export class RuntimeDateInterval extends RuntimeFormulaFunction {
   }
 
   get args() {
-    return [new IntervalStringBaserowRuntimeFormulaArgumentType()]
+    return [new DurationBaserowRuntimeFormulaArgumentType()]
   }
 
   execute(context, args) {
@@ -2836,17 +2836,17 @@ export class RuntimeDateInterval extends RuntimeFormulaFunction {
 
   getDescription() {
     const { $i18n: i18n } = this.app
-    return i18n.t('runtimeFormulaTypes.dateIntervalDescription')
+    return i18n.t('runtimeFormulaTypes.durationDescription')
   }
 
   getExamples() {
     return [
       {
-        formula: "date_interval('1 day')",
+        formula: "duration('1 day')",
         result: '86400 seconds',
       },
       {
-        formula: "now() + date_interval('1 day')",
+        formula: "now() + duration('1 day')",
         result: "'2025-10-17 11:05:38'",
       },
     ]

@@ -5,7 +5,7 @@ import moment from '@baserow/modules/core/moment'
 import {
   DateOnly,
   Timedelta,
-  parseIntervalString,
+  parseDurationString,
 } from '@baserow/modules/core/utils/date'
 
 const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/
@@ -296,25 +296,25 @@ export const ensureObject = (value) => {
 }
 
 /**
- * Ensures that the value is a valid date interval or converts it to one.
- * @param {*} value - The value to ensure as a date interval.
+ * Ensures that the value is a valid duration or converts it to one.
+ * @param {*} value - The value to ensure as a duration.
  * @returns {Timedelta} - The converted value as a Timedelta.
  * @throws {TypeError} if `value` is not convertable to a Timedelta.
  */
-export const ensureDateInterval = (value) => {
+export const ensureDuration = (value) => {
   if (value instanceof Timedelta) {
     return value
   }
 
   if (typeof value === 'string') {
-    const result = parseIntervalString(value)
+    const result = parseDurationString(value)
     if (result !== null) return result
 
     try {
       return new Timedelta(ensureInteger(value) * 1000)
     } catch {
       throw new TypeError(
-        `'${value}' is not a valid interval string. Expected format: e.g. '1 day', '2 hours'.`
+        `'${value}' is not a valid duration. Expected format: e.g. '1 day', '2 hours'.`
       )
     }
   }
@@ -323,5 +323,5 @@ export const ensureDateInterval = (value) => {
     return new Timedelta(value * 1000)
   }
 
-  throw new TypeError('Value cannot be converted to a date interval.')
+  throw new TypeError('Value cannot be converted to a duration.')
 }

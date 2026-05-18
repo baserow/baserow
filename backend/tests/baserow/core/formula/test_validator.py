@@ -6,8 +6,8 @@ import pytest
 
 from baserow.core.formula.validator import (
     ensure_date,
-    ensure_date_interval,
     ensure_datetime,
+    ensure_duration,
     ensure_integer,
     ensure_string,
 )
@@ -100,24 +100,24 @@ def test_ensure_datetime_throws_exception_for_invalid_value(value):
         (1.5, timedelta(seconds=1.5)),
     ],
 )
-def test_ensure_date_interval_passthrough(value, expected):
-    assert ensure_date_interval(value) == expected
+def test_ensure_duration_passthrough(value, expected):
+    assert ensure_duration(value) == expected
 
 
 @pytest.mark.parametrize("value", ["foo", ""])
-def test_ensure_date_interval_invalid_string(value):
+def test_ensure_duration_invalid_string(value):
     with pytest.raises(ValidationError) as e:
-        ensure_date_interval(value)
+        ensure_duration(value)
 
-    assert f"'{value}' is not a valid interval string." in str(e)
+    assert f"'{value}' is not a valid duration." in str(e)
 
 
 @pytest.mark.parametrize("value", [None, [], {}])
-def test_ensure_date_interval_invalid_type(value):
+def test_ensure_duration_invalid_type(value):
     with pytest.raises(ValidationError) as e:
-        ensure_date_interval(value)
+        ensure_duration(value)
 
-    assert e.value.args[0] == "Value cannot be converted to a date interval."
+    assert e.value.args[0] == "Value cannot be converted to a duration."
 
 
 @pytest.mark.parametrize(

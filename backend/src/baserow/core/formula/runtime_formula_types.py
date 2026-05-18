@@ -17,7 +17,7 @@ from baserow.core.formula.argument_types import (
     DatetimeFormatBaserowRuntimeFormulaArgumentType,
     DecimalSeparatorBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
-    IntervalStringBaserowRuntimeFormulaArgumentType,
+    DurationBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
     ThousandSeparatorBaserowRuntimeFormulaArgumentType,
@@ -721,10 +721,10 @@ class RuntimeNumberFormat(RuntimeFormulaFunction):
         return result
 
 
-class RuntimeDateInterval(RuntimeFormulaFunction):
-    type = "date_interval"
+class RuntimeDuration(RuntimeFormulaFunction):
+    type = "duration"
 
-    args = [IntervalStringBaserowRuntimeFormulaArgumentType()]
+    args = [DurationBaserowRuntimeFormulaArgumentType()]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return args[0]
