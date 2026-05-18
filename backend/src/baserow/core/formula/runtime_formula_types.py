@@ -35,12 +35,11 @@ class RuntimeConcat(RuntimeFormulaFunction):
     type = "concat"
     min_args = 2
 
-    def validate_type_of_args(self, args) -> Optional[tuple[int, FormulaArg]]:
+    def validate_type_of_args(self, args) -> list[tuple[int, FormulaArg]]:
         arg_type = TextBaserowRuntimeFormulaArgumentType()
-        return next(
-            ((index, arg) for index, arg in enumerate(args) if not arg_type.test(arg)),
-            None,
-        )
+        return [
+            (index, arg) for index, arg in enumerate(args) if not arg_type.test(arg)
+        ]
 
     def validate_number_of_args(self, args):
         return len(args) >= self.min_args
@@ -93,21 +92,21 @@ class RuntimeAdd(RuntimeFormulaFunction):
         NumberBaserowRuntimeFormulaArgumentType(),
     ]
 
-    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
+    def validate_type_of_args(self, args) -> list[tuple[int, FormulaArg]]:
         if len(args) == 2:
             a, b = args
             num = NumberBaserowRuntimeFormulaArgumentType()
             dt = DateTimeBaserowRuntimeFormulaArgumentType()
             td = TimedeltaBaserowRuntimeFormulaArgumentType()
             if num.test(a) and num.test(b):
-                return None
+                return []
             if (dt.test(a) and td.test(b)) or (td.test(a) and dt.test(b)):
-                return None
+                return []
             if not (num.test(a) or dt.test(a) or td.test(a)):
-                return (0, a)
+                return [(0, a)]
             if not (num.test(b) or dt.test(b) or td.test(b)):
-                return (1, b)
-            return (0, a)
+                return [(1, b)]
+            return [(0, a)]
         return super().validate_type_of_args(args)
 
     def parse_args(self, args: FormulaArgs) -> FormulaArgs:
@@ -127,19 +126,19 @@ class RuntimeMinus(RuntimeFormulaFunction):
         NumberBaserowRuntimeFormulaArgumentType(),
     ]
 
-    def validate_type_of_args(self, args) -> Optional[FormulaArg]:
+    def validate_type_of_args(self, args) -> list[tuple[int, FormulaArg]]:
         if len(args) == 2:
             a, b = args
             num = NumberBaserowRuntimeFormulaArgumentType()
             dt = DateTimeBaserowRuntimeFormulaArgumentType()
             td = TimedeltaBaserowRuntimeFormulaArgumentType()
             if num.test(a) and num.test(b):
-                return None
+                return []
             if dt.test(a) and td.test(b):
-                return None
+                return []
             if not (num.test(a) or dt.test(a)):
-                return (0, a)
-            return (1, b)
+                return [(0, a)]
+            return [(1, b)]
         return super().validate_type_of_args(args)
 
     def parse_args(self, args: FormulaArgs) -> FormulaArgs:
