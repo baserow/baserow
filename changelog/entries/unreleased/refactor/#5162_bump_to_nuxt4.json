@@ -1,9 +1,9 @@
 {
-    "type": "refactor",
-    "message": "Bump to Nuxt4",
-    "issue_origin": "github",
-    "issue_number": "#5162",
-    "domain": "core",
-    "bullet_points": [],
-    "created_at": "2026-04-30"
+  "type": "refactor",
+  "message": "Bump to Nuxt4",
+  "issue_origin": "github",
+  "issue_number": "5162",
+  "domain": "core",
+  "bullet_points": [],
+  "created_at": "2026-04-30"
 }
