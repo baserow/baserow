@@ -26,7 +26,8 @@ admins, all workspace members, a broadcast to every user) and we want one
 ## `NotificationType` — the registry
 
 Each notification kind is a `NotificationType` subclass registered in
-`notification_type_registry` (see `baserow/core/notifications/registries.py`).
+`notification_type_registry` (see
+`backend/src/baserow/core/notifications/registries.py`).
 The type owns:
 
 - **Recipient resolution** — given the params, which users should receive this?
@@ -61,9 +62,10 @@ NotificationHandler.create_direct_notification_for_users(
 
 `NotificationHandler` also has helpers for **broadcast** notifications
 (`create_broadcast_notification`) where the notification is created once and
-every user can see it until they've marked it read, and for **workspace-wide**
-notifications (`create_workspace_notification`) that target all users in a
-workspace.
+every user can see it until they've marked it read, and for sending the same
+notification to a specific set of recipients
+(`create_direct_notification_for_users` — used to target, for example, every
+user in a workspace by passing the workspace's user list).
 
 Three signals fire from the handler:
 
@@ -136,8 +138,8 @@ true) is the global kill switch. Set to false to disable all email sending.
 - **The signal-versus-handler split.** Notifications are often emitted from
   signal receivers, not from the handler that did the work, because the
   notification depends on context that's only available after the action is
-  complete. Look at `baserow.contrib.database.collaborator_field` for a
-  representative example.
+  complete. Look at `baserow.contrib.database.fields.notification_types` for
+  representative examples.
 - **Email send is async.** Sending an email is a Celery task triggered by beat,
   not by the request that created the notification. A user that creates a
   notification and then immediately checks their inbox will not see it yet.
@@ -149,4 +151,6 @@ true) is the global kill switch. Set to false to disable all email sending.
 ## Related
 
 - [Systems overview — Notification system](systems-overview.md#notification-system).
+- [Frontend notifications](../patterns/frontend-notifications.md) — the panel,
+  store, realtime updates, and frontend registry.
 - [Email pattern](../patterns/emails.md) — how email rendering works generally.

@@ -25,11 +25,13 @@ Install the following tools:
 1. Make sure you have installed / enabled the Python VSCode plugin.
 1. Now we will create a Python virtual environment and configure VSCode to use it to run tests
    and linters:
-    1. Initialize the backend (creates venv and installs dependencies):
+    1. Initialize the project (creates venv and installs dependencies),
+       from the repo root:
        ```bash
-       just b init
+       just init
        ```
-       This creates a virtualenv at `.venv/` in the project root.
+       This creates a virtualenv at `.venv/` in the project root and
+       installs both backend and frontend dependencies.
     2. Then you will most likely need to select it as default interpreter for the project:
          1. Type: Ctrl + Shift + P or open the command palette
          1. Type: Python: select interpreter
@@ -59,7 +61,7 @@ Install the following tools:
    see `baserow/docs/installation/supported.md` to determine the supported version
    of Node.js to use.
 1. Install `yarn` globally: `npm install -g yarn`
-1. Now run `just f install` to install dependencies (or `yarn install` directly).
+1. Now run `just install` to install dependencies (or `yarn install` directly).
 1. Select "Trust Project" if you see an VSCode popup after running yarn install
 1. If you do not see Jest tests in the testing menu:
    1. Type: Ctrl + Shift + P or open the command palette

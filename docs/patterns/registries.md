@@ -111,7 +111,14 @@ def ready(self):
 
 ## A non-exhaustive tour of the registries
 
-In `baserow/core/`:
+> **Source of truth:** every registry lives in a `registries.py` file under
+> `backend/src/baserow/`. To get the current full list, run
+> `find backend/src/baserow -name registries.py` (and the same under
+> `premium/` and `enterprise/`). The tour below is a guided sample of the
+> most-touched ones and will drift over time — trust the file system, not
+> this page.
+
+In `backend/src/baserow/core/`:
 
 - `registries.py` — `application_type_registry`, `plugin_registry`,
   `permission_manager_type_registry`, `object_scope_type_registry`,
@@ -121,43 +128,35 @@ In `baserow/core/`:
 - `jobs/registries.py` — `job_type_registry`.
 - `notifications/registries.py` — `notification_type_registry`.
 - `trash/registries.py` — `trash_item_type_registry`.
-- `search/registries.py`, `services/registries.py`,
-  `integrations/registries.py`, `user_sources/registries.py`,
-  `formula/registries.py`, `mcp/registries.py`, `captcha/registries.py`,
-  `workflow_actions/registries.py`, …
+- Plus `search/`, `services/`, `integrations/`, `user_sources/`, `formula/`,
+  `mcp/`, `captcha/`, `workflow_actions/` — each with its own `registries.py`.
 
-In `baserow/contrib/database/`:
+In `backend/src/baserow/contrib/database/`:
 
 - `fields/registries.py` — `field_type_registry`,
   `field_converter_registry`, `field_aggregation_registry`.
 - `views/registries.py` — `view_type_registry`, `view_filter_type_registry`,
   `view_aggregation_type_registry`, `decorator_value_provider_type_registry`, …
-- `webhooks/registries.py`, `data_sync/registries.py`,
-  `export/registries.py`, `airtable/registries.py`, …
+- Plus `webhooks/`, `data_sync/`, `export/`, `airtable/` — each with its own
+  `registries.py`.
 
-This list is not exhaustive — search the codebase for `registries.py` files to find
-the full set; there are several more in `core/services/`, `core/integrations/`,
-`core/formula/`, `core/workflow_actions/`, `core/captcha/`, `core/user_sources/`,
-and elsewhere.
-
-In `baserow/ws/` and `baserow/api/`:
+In `backend/src/baserow/ws/` and `backend/src/baserow/api/`:
 
 - `ws/registries.py` — `page_registry` for the websocket subscription model.
 - `api/registries.py` — `api_exception_registry` for exception serialisation.
 
 ## Adding a new type
 
-The most common reason to touch a registry is to register a new type from a plugin
-or feature. The plugin guides cover the per-registry detail:
+The most common reason to touch a registry is to register a new type from a
+feature, contrib module, premium or enterprise. The pattern is always the
+same: subclass the base, give it a unique `type` string, implement the
+abstract methods, and register the instance from `apps.py` `ready()` (or the
+frontend module's `plugin.js` for frontend registries).
 
-- [Create application type](../plugins/application-type.md)
-- [Create field type](../plugins/field-type.md)
-- [Create view type](../plugins/view-type.md)
-- [Create view filter type](../plugins/view-filter-type.md)
-- [Create field converter](../plugins/field-converter.md)
-
-The pattern is always the same: subclass the base, give it a unique `type` string,
-implement the abstract methods, register the instance from `apps.py` `ready()`.
+For concrete examples, use current docs such as [Field system](field-system.md),
+[View filters](view-filters.md), [Job types](jobtypes.md), and
+[Frontend registries](frontend-registries.md). The old pages under
+[`docs/plugins/`](../plugins/introduction.md) are historical only.
 
 ## When to use a registry yourself
 

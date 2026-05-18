@@ -15,9 +15,6 @@ It is what powers, behind the scenes:
 - **Duplication** — the "duplicate database" / "duplicate table" / "duplicate
   view" operations are implemented as in-memory `export_serialized` →
   `import_serialized` round trips.
-- **AI / agent context** in some flows — the same serialized representation is
-  used as canonical input to LLM-driven actions.
-
 Because so many features funnel through this system, it has strong implications
 when you change a model or registry: if you don't update the
 `export_serialized` / `import_serialized` paths, **template loading,
@@ -39,8 +36,9 @@ Registries that participate include `application_type_registry`,
 `view_decoration_type_registry`, `formula_function_type_registry`,
 `webhook_event_type_registry`, and several more in `core` and `contrib`.
 
-The base classes live in `baserow/core/registries.py` (`ApplicationType`) and
-in each app's `registries.py` (e.g. `FieldType.export_serialized`,
+The base classes live in `backend/src/baserow/core/registries.py`
+(`ApplicationType`) and in each app's `registries.py` (e.g.
+`FieldType.export_serialized`,
 `ViewType.export_serialized`).
 
 ## Shape of the export
@@ -100,7 +98,7 @@ Conventionally, `id_mapping` has typed keys like
 If you add a new type, give it its own key so other types' importers can rely
 on it.
 
-## `SerializationProcessor`
+## `SerializationProcessorType`
 
 A separate registry (`serialization_processor_registry`) lets you piggyback
 extra data onto the serialized structure without modifying the core types.
@@ -124,7 +122,7 @@ These three operations all use the same shape:
 3. `application_type.import_serialized(workspace, serialized, config,
    id_mapping, files_zip)` produces a new application in the target workspace.
 
-The `ImportExportConfig` (`baserow.core.import_export.handler`) controls
+The `ImportExportConfig` (`baserow.core.registries`) controls
 flags: whether to include row data, whether to remap permissions, whether the
 files are external or internal, etc.
 
@@ -156,7 +154,7 @@ the easy thing to forget. Run this checklist:
 4. If your type involves user-uploaded files, pass them through the
    `files_zip` parameter and reference them by archive path in the JSON.
 5. If your data needs a side-channel that doesn't fit on the type itself,
-   register a `SerializationProcessor`.
+   register a `SerializationProcessorType`.
 
 ## Gotchas
 

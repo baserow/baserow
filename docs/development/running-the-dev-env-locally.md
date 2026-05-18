@@ -142,40 +142,33 @@ Look at [Configuration](../installation/configuration.md) to customize your envi
 
 ## Common Commands
 
-Shortcuts: `b` = `backend`, `f` = `frontend`
+The docs use the bare-command form (run from `backend/` or
+`web-frontend/`). The full convention — including the `b`/`f` prefixed
+form from the repo root — is in the
+[justfile reference](justfile.md#how-to-invoke-the-three-styles).
 
-### Backend Commands
+### Backend commands
 
-All backend commands can be run from the project root with `just backend` (or `just b`) or from `backend/`:
+From `backend/`:
 
 ```bash
-# From project root (just b is shorthand for just backend)
-just b test              # Run tests
-just b lint              # Run linters
-just b fix               # Auto-fix code style
-just b shell_plus        # Django shell_plus with SQL logging
-just b m makemigrations  # Create migrations
-just b m migrate         # Apply migrations
-
-# From backend/
-cd backend
-just test
-just lint
-just shell_plus
+just test              # Run tests
+just lint              # Run linters
+just fix               # Auto-fix code style
+just shell_plus        # Django shell_plus with SQL logging
+just m makemigrations  # Create migrations
+just m migrate         # Apply migrations
 ```
 
-### Frontend Commands
+### Frontend commands
+
+From `web-frontend/`:
 
 ```bash
-# From project root (just f is shorthand for just frontend)
-just f lint              # Run ESLint + Stylelint
-just f test              # Run Jest tests
-just f fix               # Auto-fix code style
-
-# From web-frontend/
-cd web-frontend
-just lint
-just test
+just lint              # Run ESLint + Stylelint + Prettier
+just test              # Run Vitest tests
+just fix               # Auto-fix code style
+just storybook         # Run Storybook on :6006
 ```
 
 ### Viewing Logs
@@ -247,92 +240,93 @@ just run-dev-server    # Start Nuxt dev server
 
 ## Running Tests
 
-### Backend Tests
+### Backend tests
+
+From `backend/`:
 
 ```bash
-# Run all tests
-just b test
-
-# Run tests in parallel (faster)
-just b test -n=auto
-
-# Run specific test file
-just b test tests/baserow/core/test_core_models.py
-
-# Run with coverage
-just b test-coverage
+just test                                              # all tests
+just test -n=auto                                      # parallel (faster)
+just test tests/baserow/core/test_core_models.py       # specific file
+just test-coverage                                     # with coverage
 ```
 
-### Fast Tests with Ramdisk Database
+### Fast tests with ramdisk database
 
-For 2-5x faster tests, use a PostgreSQL container with tmpfs:
+For 2–5× faster tests, use a Postgres container with tmpfs:
 
 ```bash
-# Start ramdisk database (port 5433)
+# Start ramdisk database (port 5433) — from repo root
 just test-db start
 
-# Run tests against it
-DATABASE_URL=postgres://baserow:baserow@localhost:5433/baserow just b test -n=auto
+# Run tests against it — from backend/
+DATABASE_URL=postgres://baserow:baserow@localhost:5433/baserow just test -n=auto
 
-# Stop when done
+# Stop when done — from repo root
 just test-db stop
 ```
 
-### Frontend Tests
+### Frontend tests
+
+From `web-frontend/`:
 
 ```bash
-just f test              # Run Jest tests
-just f test --watch      # Watch mode
+just test              # Vitest
+just test --watch      # watch mode
 ```
 
 ## Database Operations
 
-### Running Migrations
+From `backend/`:
+
+### Running migrations
 
 ```bash
-just b migrate
+just migrate
 # or
-just b m migrate
+just m migrate
 ```
 
-### Creating Migrations
+### Creating migrations
 
 ```bash
-just b m makemigrations
-just b m makemigrations core  # Specific app
+just m makemigrations
+just m makemigrations core  # specific app
 ```
 
-### Creating a Superuser
+### Creating a superuser
 
 ```bash
-just b m createsuperuser
+just m createsuperuser
 ```
 
-### Syncing Templates
+### Syncing templates
 
-Templates (example databases, forms, etc.) are not synced by default for faster startup:
+Templates (example databases, forms, etc.) are not synced by default
+for faster startup:
 
 ```bash
-just b m sync_templates
+just m sync_templates
 ```
 
-### Accessing the Database
+### Accessing the database
 
 ```bash
-# Django database shell
-just b m dbshell
+# Django database shell (from backend/)
+just m dbshell
 
-# Direct PostgreSQL (via Docker)
+# Direct PostgreSQL via Docker (from repo root)
 just dc-dev exec db psql -U baserow
 ```
 
-### Resetting the Database
+### Resetting the database
 
 ```bash
-# Stop Docker, remove volumes, restart
+# From repo root
 just dc-dev down -v
 just dc-dev up -d db redis
-just b migrate
+# Then, from backend/
+just migrate
 ```
 
 ## Debugging
@@ -366,8 +360,8 @@ For VS Code, add to `.vscode/launch.json`:
 ### Celery Debugging
 
 ```bash
-# Run with debug logging
-CELERY_LOG_LEVEL=DEBUG just b run-dev-celery
+# Run with debug logging (from backend/)
+CELERY_LOG_LEVEL=DEBUG just run-dev-celery
 ```
 
 ## Troubleshooting
@@ -375,8 +369,10 @@ CELERY_LOG_LEVEL=DEBUG just b run-dev-celery
 ### "Module not found" Errors
 
 ```bash
-just b uv sync
-just f yarn
+# From backend/
+just uv sync
+# From web-frontend/
+just yarn
 ```
 
 ### Database Connection Errors
@@ -409,16 +405,16 @@ kill -9 $(lsof -i :3000 | awk 'NR==2 {print $2}')
 The justfile defaults to `solo` pool on macOS to avoid fork() issues:
 
 ```bash
-# Force a different pool if needed
-CELERY_POOL=threads just b run-dev-celery
+# Force a different pool if needed (from backend/)
+CELERY_POOL=threads just run-dev-celery
 ```
 
 ### Frontend Build Errors
 
 ```bash
-# Clear node_modules and reinstall
-rm -rf web-frontend/node_modules
-just f install
+# Clear node_modules and reinstall (from web-frontend/)
+rm -rf node_modules
+just install
 
 # Clear Nuxt cache
 rm -rf web-frontend/.nuxt

@@ -1,65 +1,118 @@
 # Code quality
 
-The quality of the code is very important. That is why we have linters, unit tests, API
-docs, in-code docs, developer docs, modular code, and have put a lot of thought into the
-underlying architecture of both the backend and the web-frontend.
+How the codebase is kept consistent: linters, formatters, tests, and
+CI. The settings of *what* counts as a violation live with each tool's
+config; this page is the operator's view.
 
-## Running linters and tests
+For the broader "we do this here" rules — comments, type hints,
+imports, locales — see [Project conventions](conventions.md). For the
+`just` invocation styles see
+[justfile reference](justfile.md#how-to-invoke-the-three-styles); the
+commands below use the bare form from the component directory.
 
-If you have the [development environment](./running-the-dev-env-locally.md) up and running
-you can easily run the linters using [just](./justfile.md) commands.
+## Running linters
 
-**Backend (from project root or `backend/` directory):**
-* `just b format`: auto format all Python code using black.
-* `just b sort`: sort imports using isort.
-* `just b fix`: run both format and sort.
-* `just b lint`: check Python code with flake8, black, isort, and bandit.
+### Backend
 
-**Frontend (from project root or `web-frontend/` directory):**
-* `just f lint`: check JavaScript with eslint and SCSS with stylelint.
-* `just f fix`: auto-fix code style issues.
+From `backend/`:
+
+```bash
+just fix        # Ruff format + Ruff lint --fix (auto-fix style + lint issues)
+just lint       # Ruff check only — no changes to files
+```
+
+Ruff covers format, lint, import sorting, and security checks
+(`bandit`) in one tool. See [Tools — Ruff](tools.md#ruff) for the
+configuration source.
+
+### Frontend
+
+From `web-frontend/`:
+
+```bash
+just fix        # ESLint + Stylelint + Prettier — auto-fix
+just lint       # check only
+```
 
 ## Running tests
 
-There are also commands to easily run the tests.
+### Backend (pytest)
 
-* `just b test` (backend): run all backend Python tests with pytest.
-* `just b test -n=auto` (backend): run tests in parallel for faster execution.
-* `just f test` (frontend): run all frontend tests with Jest.
+From `backend/`:
+
+```bash
+just test                  # all tests
+just test -n=auto          # parallel
+just test tests/path/      # specific path
+```
+
+For the full reference (ramdisk DB, env-file mode, Docker vs local)
+see [Running tests](running-tests.md).
+
+### Frontend (Vitest)
+
+From `web-frontend/`:
+
+```bash
+just test
+just yarn test:core …      # specific test path
+```
+
+### End-to-end (Playwright)
+
+From `e2e-tests/`:
+
+```bash
+just test
+```
+
+See [E2E testing](e2e-testing.md) for when and what to add.
+
+## Everything at once
+
+From the repo root, the no-prefix recipes fan out to both components:
+
+```bash
+just lint        # backend + frontend lint
+just fix         # backend + frontend auto-fix
+just test        # backend + frontend tests
+```
+
+This is what CI runs before allowing a merge.
 
 ## Continuous integration
 
-To make sure nothing was missed during development we also have a continuous
-integration pipeline that runs every time a branch is pushed. All the commands explained
-above will execute in an isolated environment. In order to improve speed
-they are separated by lint and test stages. It is not allowed to merge a branch if
-one of these jobs fails.
+CI runs every push. Lint and test stages run separately so the fast
+checks fail-fast before the slower ones. A branch cannot merge while
+any stage is red.
 
-The pipeline also has a build job. During this job
-[plugin boilerplate](../plugins/boilerplate.md) Baserow will be installed as a
-dependency to ensure that this still works.
+The build job also installs Baserow as a dependency to verify the
+package builds cleanly.
 
-### Running CI locally
+### Running CI checks locally
 
-You can run the same checks locally before pushing:
+The same commands as CI:
 
 ```bash
-# Run all linters
-just lint
-
-# Run all tests
-just test
-
-# Or run backend/frontend separately
-just b lint && just b test
-just f lint && just f test
+just lint                  # from repo root
+just test                  # from repo root
 ```
 
-For Docker-based CI testing (matches the CI environment more closely):
+For a more accurate Docker-based replica of the CI environment:
 
 ```bash
-just ci build           # Build CI images
-just ci lint            # Run linters in containers
-just ci test            # Run tests in containers
-just ci run             # Full CI pipeline
+just ci build              # build CI images
+just ci lint               # run linters in containers
+just ci test               # run tests in containers
+just ci run                # full CI pipeline
 ```
+
+## Related
+
+- [Project conventions](conventions.md) — the rules the linters
+  enforce.
+- [Running tests](running-tests.md) — backend test deep dive.
+- [E2E testing](e2e-testing.md).
+- [Tools](tools.md) — Ruff, pytest, Vitest, ESLint, Stylelint,
+  Prettier, Playwright.
+- [justfile reference](justfile.md) — the three invocation styles.

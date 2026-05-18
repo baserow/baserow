@@ -30,7 +30,7 @@ workspace_to_delete)`).
 
 See baserow.core.action.models.Action for more details.
 
-| id (serial) | user_id (fk to user table, nullable) | session (text nullable) |  category (text) | created_on (auto_now_add DateTimeField) | type (text)         | params (JSONB)              | undone_at (nullable DateTimeField) | error (text nullable) |
+| id (serial) | user_id (fk to user table, nullable) | session (text nullable) |  scope (text) | created_on (auto_now_add DateTimeField) | type (text)         | params (JSONB)              | undone_at (nullable DateTimeField) | error (text nullable) |
 | ------ | ------ | ------ | ------ | ------ |---------------------|-----------------------------| ------ | ------ |
 | 1 | 2 | 'some-uuid-from-client' | 'root' | datetime | 'workspace_created' | '{created_workspace_id:10}' |  null | null |
 
@@ -51,14 +51,14 @@ need three pieces of information:
    them undo/redo actions with a matching `ClientSessionId`. This lets us have different
    undo/redo histories per tab the user has open as each tab will generate a
    unique `ClientSessionId`.
-3. A `category`. Every time an action is performed in Baserow we associate it with a
-   particular category. This is literally just a text column on the `Action` model with
-   values like `root` or `table10` or `workspace20`. An actions category describes in which
+3. A `scope`. Every time an action is performed in Baserow we associate it with a
+   particular scope. This is literally just a text column on the `Action` model with
+   values like `root` or `table10` or `workspace20`. An actions scope describes in which
    logical part of Baserow the action was performed. The `ActionType` implementation
-   decides what to set its category to when calling `cls.register_action`. When an
-   undo/redo occurs the web-frontend sends the categories the user is currently looking
+   decides what to set its scope to when calling `cls.register_action`. When an
+   undo/redo occurs the web-frontend sends the scopes the user is currently looking
    at. For example if I have table 20 open, with workspace 6 in the side bar and I press
-   undo/redo the category sent will be:
+   undo/redo the scope sent will be:
 
 ```json
 {
@@ -68,27 +68,27 @@ need three pieces of information:
 }
 ```
 
-By sending this category to the undo/redo endpoint we are telling it to undo any actions
+By sending this scope to the undo/redo endpoint we are telling it to undo any actions
 which were done in:
 
-1. The root category
-2. The table 20 category
-3. The workspace 6 category
+1. The root scope
+2. The table 20 scope
+3. The workspace 6 scope
 
 For example, if I renamed table 20, then the table_update action would be in workspace 6
-category. If I was then looking at table 20 in the UI and pressed undo, the UI would
-send the workspace 6 category as one of the active categories as table 20 is in workspace 6.
+scope. If I was then looking at table 20 in the UI and pressed undo, the UI would
+send the workspace 6 scope as one of the active scopes as table 20 is in workspace 6.
 Meaning I could then undo this rename. If i was to first switch to workspace 5 and press
-undo, the UI would send workspace 5 as the category and I wouldn't be able to undo the
+undo, the UI would send workspace 5 as the scope and I wouldn't be able to undo the
 rename of table 20 until I switched back into a part of the UI where the workspace 6
-category is active.
+scope is active.
 
 ## Undo Redo Worked Example
 
 1. User A opens Table 10, which is in Application 2 in Workspace 1.
     1. On page load a ClientSessionId `example_client_session_id` is generated and
        stored in the `auth` store. (its a uuid normally).
-    1. The current category for this page is set in the `undoRedo` store to
+    1. The current scope for this page is set in the `undoRedo` store to
        be: `{root: true, table_id:10, application_id:2, workspace_id:1}`
 1. User A changes the Tables name.
     1. A request is sent to the table update endpoint.
@@ -97,25 +97,25 @@ category is active.
     1. The table update API endpoint will
        call `action_type_registry.get(UpdateTableAction).do(user, ...)`
     2. The change is made and a new Action is stored.
-        1. UpdateTableAction sets the `category` of the action to be `workspace1`
+        1. UpdateTableAction sets the `scope` of the action to be `workspace1`
         1. The `ClientSessionId` is found from the request and the session of the action
            is set to `example_client_session_id`
         1. The `user` of the action is set to `User A`
         1. The old tables name is stored in the `action.params` JSONField to facilitate
            undos and redos.
 1. User A presses `Undo`
-    1. A request is sent to the `undo` endpoint with the `category` request data value
-       set to the current category of the page the user has open obtained from
+    1. A request is sent to the `undo` endpoint with the `scope` request data value
+       set to the current scope of the page the user has open obtained from
        the `undoRedo` store (see above).
         1. The `ClientSessionId` header is set on the request
            to `example_client_session_id`
     1. `ActionHandler.undo` is called.
         1. It finds the latest action for `User A` in
            session `example_client_session_id` and in any of the following
-           categories `["root", "workspace1", "application2", "table10"]`. These were
-           calculated from the category parameter provided to the endpoint.
+           scopes `["root", "workspace1", "application2", "table10"]`. These were
+           calculated from the scope parameter provided to the endpoint.
         1. The table rename action is found as it's session matches, it is in
-           category `workspace`, it was done by `User A` and it has not yet been undone (
+           scope `workspace`, it was done by `User A` and it has not yet been undone (
            the `undone_at` column is null).
         1. It deserializes the parameters for the latest action from the table into the
            action's `Params` dataclass

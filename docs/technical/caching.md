@@ -1,9 +1,9 @@
 # Caching
 
 Baserow caches at several levels: per-request in-process, distributed Redis,
-ORM-level (cachalot), and ad-hoc `lru_cache`/`cached_property` decorators in
-hot paths. This page is the map. If you're touching anything performance-
-sensitive, know the layer you're in and what invalidates it.
+and ad-hoc `lru_cache`/`cached_property` decorators in hot paths. This page
+is the map. If you're touching anything performance-sensitive, know the
+layer you're in and what invalidates it.
 
 ## At a glance
 
@@ -11,8 +11,7 @@ sensitive, know the layer you're in and what invalidates it.
 |---|---|---|---|---|
 | `local_cache` | `asgiref.Local` (in-process) | One request / task | Auto, on exit | Auto via `LocalCacheMiddleware`; explicit `.delete(key)` |
 | `global_cache` | Django cache (Redis) | Cross-request | Per call; defaults short | Versioned counter; `.invalidate()` |
-| `generated_models` cache | Dedicated Django cache (Redis) | Cross-request | None | `Table.version` UUID change |
-| `cachalot` | Redis (separate config) | Cross-request | None | Auto on ORM write |
+| `generated-models` cache | Dedicated Django cache (Redis) | Cross-request | None | `Table.version` UUID change |
 | User & Settings cache | Django cache | Cross-request | `BASEROW_CACHE_TTL_SECONDS` | `post_save` signals |
 | Job progress cache | Django cache (Redis) | Cross-request | While job runs | On job completion |
 | `lru_cache` / `cached_property` | In-process | Worker lifetime / object lifetime | None | Worker restart / object disposal |
@@ -79,43 +78,19 @@ periodically.
 `baserow.config.settings.base` defines several Django cache "names":
 
 - `default` — main Redis cache. Used by `global_cache`, sessions, etc.
-- `generated_models` — separate cache for `Table.get_model()` `field_attrs`
+- `generated-models` — separate cache for `Table.get_model()` `field_attrs`
   (see [dynamic models](dynamic-models.md)).
-- `cachalot` — separate Redis instance for ORM-level cachalot.
 
-Splitting caches by name keeps flushes targeted: clearing `cachalot` doesn't
-clear `default`.
+Splitting caches by name keeps flushes targeted: clearing one cache doesn't
+clear the others.
 
 ## Application-layer caches
 
 ### Generated model `field_attrs` cache
 
 Covered in detail in [dynamic models](dynamic-models.md). Two-layer
-(`local_cache` + `generated_models` Redis cache), versioned by
+(`local_cache` + `generated-models` Redis cache), versioned by
 `Table.version` UUID, invalidated by every field change.
-
-### cachalot — ORM query cache for user tables
-
-`baserow.cachalot_patch.py`. cachalot caches Django ORM query results in
-Redis, with automatic invalidation on writes to the relevant tables. Baserow
-applies it selectively to the dynamic user tables (`db_table_*`,
-`link_row_*`, `multiple_*`):
-
-```python
-from baserow.cachalot_patch import cachalot_enabled
-
-with cachalot_enabled():
-    rows = model.objects.filter(...).all()  # cached
-```
-
-Globally enabled via the `CACHALOT_ENABLED` env var; per-call via the context
-manager.
-
-The big benefit is for repeated reads of the same user-table query in a
-session. The big risk is correctness: any code path that writes to those
-tables outside the ORM (raw SQL, signals from non-ORM sources) won't trigger
-cachalot's invalidation hooks, and you'll see stale reads. If you're not sure,
-don't enable cachalot for your query.
 
 ### User & Settings caches
 
@@ -184,17 +159,21 @@ invalidation — discarding the instance discards the cache.
    same thing twice in a request (permissions, workspace membership, dynamic
    model), wrap it.
 2. **Versioned caches don't need surgical invalidation.** When you change
-   something cached by `global_cache` or the `generated_models` cache, you
+   something cached by `global_cache` or the `generated-models` cache, you
    roll the version once and every reader sees a miss on next access.
    You do not need to know every key in the family.
-3. **cachalot is opt-in for user tables.** Don't sprinkle it; correctness
-   bugs from missed invalidation are nasty.
-4. **`BASEROW_VERSION` is part of several cache keys.** A Baserow upgrade
+3. **`BASEROW_VERSION` is part of several cache keys.** A Baserow upgrade
    gives you a free flush. You can rely on this for cross-release schema
    changes that didn't get an explicit invalidation.
-5. **`lru_cache` lives until the worker restarts.** Don't use it for anything
+4. **`lru_cache` lives until the worker restarts.** Don't use it for anything
    that changes at runtime. Don't use it on functions with `self`, ever
    (silent memory leaks).
+5. **Cache invalidation can run under writer locks.** Several mutations
+   invalidate cached state while holding row or table locks (e.g. the
+   `generated-models` version bump runs inside the field-handler
+   transaction). Cheap invalidations are fine; doing expensive work inside
+   `invalidate()` callbacks extends the lock window. See
+   [PostgreSQL locking](postgresql-locks.md) for the lock side of this.
 
 ## Common mistakes
 

@@ -1,192 +1,297 @@
 # Development tools
 
+The toolchain Baserow actually uses today. If you're seeing a tool here for
+the first time, this is the entry that explains *what* and *why*. The
+config and conventions for each live in their own places (see links).
+
 ## Backend
 
-### PostgreSQL
+### Python 3.14
 
-Baserow uses PostgreSQL for persistent storage.
+Baserow's backend targets Python **3.14** (pinned in
+`backend/pyproject.toml` as `requires-python = "==3.14.*"`). Don't try to
+install the project under an older interpreter — runtime errors are subtle
+and not always immediate.
 
-https://www.postgresql.org/
+### uv
+
+Backend dependencies are managed with [**uv**](https://docs.astral.sh/uv/),
+not pip / pipenv / poetry. The lockfile is `backend/uv.lock`. All `just`
+recipes call through `uv run` so you generally don't run `uv` directly.
 
 ### Django
 
-At the core of the backend we run the Django framework. A popular framework was chosen
-to lower the barrier of creating a plugin. We also looked for a batteries included,
-simple, and proven framework. Django was the obvious choice.
+The backend is a [Django](https://www.djangoproject.com/) application,
+currently on 5.2.x. Django gives us the ORM, the admin, the migrations
+framework, and authentication primitives. The `core` package is laid out
+around Django apps; user-facing application types (database, builder,
+automation, dashboard, integrations) live under `contrib/`.
 
-https://www.djangoproject.com
+### Django REST Framework
 
-### Django REST framework
+[DRF](https://www.django-rest-framework.org/) is at the base of every REST
+endpoint: serializers, viewsets, authentication, throttling. Most views
+are `APIView` or `GenericAPIView` subclasses with `map_exceptions` wired
+in for the domain-exception → HTTP-status mapping.
 
-To quickly create endpoints, handle authentication, object serialization, validation,
-and do many more things we use Django REST Framework. You will find it at the base or
-every endpoint.
+### Django Channels
 
-https://www.django-rest-framework.org/
+[Channels](https://channels.readthedocs.io/) powers the WebSocket layer.
+We use `channels[daphne]` for the ASGI server and `channels-redis` as the
+channel layer. See [WebSockets](../technical/websockets.md) for the
+realtime architecture.
+
+### Celery + Redbeat
+
+Long-running and periodic backend work runs on
+[Celery](https://docs.celeryq.dev/). Broker: Redis. Periodic tasks use
+`celery-redbeat` (Redis-backed schedule store, survives restarts).
+`celery-singleton` provides single-flight task locks for jobs that must
+not run concurrently. See [Celery](../technical/celery.md) and
+[Jobs](../technical/jobs.md).
+
+### Redis
+
+Multipurpose: Celery broker, Channels layer, Django cache backend,
+and session store. Single Redis instance with separate logical databases
+— see [Caching](../technical/caching.md).
+
+### PostgreSQL
+
+The persistent store. Baserow uses Postgres features heavily: dynamic
+tables for user data, `tsvector` for search, `GIN` indexes, advisory
+locks for migrations, `jsonb` for formula-result snapshots. See
+[Dynamic models](../technical/dynamic-models.md),
+[Table rows search](../technical/table-rows-search.md), and
+[PostgreSQL locks](../technical/postgresql-locks.md).
+
+### loguru
+
+[loguru](https://loguru.readthedocs.io/) is the logging library. **Always
+use `from loguru import logger`** — never the stdlib `logging` module. See
+[Project conventions](conventions.md#logging-always-loguru).
+
+### Ruff
+
+[Ruff](https://docs.astral.sh/ruff/) replaces black, flake8, isort, and
+bandit in a single fast tool. It's our formatter, linter, import sorter,
+and security scanner. Configured in `backend/pyproject.toml` under
+`[tool.ruff]`. 88-character line length.
+
+From `backend/`:
+
+```bash
+just fix       # auto-format + auto-fix lint issues
+just lint      # check only
+```
 
 ### pytest
 
-We use pytest to easily and automatically test all the python code. Most of the backend
-code is covered with tests and we like to keep it that way! The code is also tested
-in the [continuous integration pipeline](./code-quality.md). It can also be tested
-manually in the development environment:
+[pytest](https://docs.pytest.org/) with `pytest-django` is the backend
+test runner. Common plugins in use: `pytest-xdist` (parallel), `pytest-cov`
+(coverage), `pytest-mock`, `pytest-asyncio`, `pytest-retry`,
+`pytest-testmon`. Always run through `just`. From `backend/`:
 
 ```bash
-just b test              # Run all tests
-just b test -n=auto      # Run tests in parallel
-just b test tests/path/  # Run specific tests
+just test                              # everything
+just test -n=auto                      # parallel
+just test tests/path/                  # specific path
+just test-coverage                     # with coverage
 ```
 
-https://docs.pytest.org/en/latest/contents.html
+Never invoke `pytest` directly — the recipe sets `PYTHONPATH` and env vars
+that the bare binary won't. See
+[Project conventions: tests](conventions.md#tests-always-via-just).
 
-### Flake8
+Skill: [`write-backend-unit-test`](https://github.com/baserow/baserow/blob/develop/.agents/skills/write-backend-unit-test/SKILL.md).
 
-Flake8 makes it easy to enforce our python code style. The code is checked in the
-continuous integration pipeline. It can also be checked manually:
+### drf-spectacular
 
-```bash
-just b lint
-```
-
-If all the code meets the standards you should not see any output.
-
-https://flake8.pycqa.org/en/latest/
-
-### Black
-
-Black auto formats all of our python code into one opinionated consistent style. The
-goal being to reduce and hopefully eliminate the need to worry about formatting whilst
-writing and reviewing code.
-
-https://black.readthedocs.io/en/stable/index.html
-
-```bash
-just b format
-```
-
-### Internationalization
-
-For internationalization (i18n), we leverage Django's built-in support. Django's internationalization framework allows us to easily translate our web application into multiple languages.
-
-To use Django's internationalization features, we wrap our text with a special function called `gettext` or `gettext_lazy`.
-For more information, refer to the [Django Internationalization and Localization documentation](https://docs.djangoproject.com/en/3.2/topics/i18n/).
-
-To collect or update all translation strings into a message file:
-
-```bash
-just b make-translations
-```
-
-This will call Django's `makemessages` command for the English language of all the installed applications. The creation of the messages for the other languages and the step to compile all these messages, will be automatically handled by `Weblate` before each release.
-
+OpenAPI schema generation from DRF code. The schema feeds the redoc page
+served at `/api/redoc/` and the user-facing API docs. Configured in
+`backend/src/baserow/config/settings/base.py`.
 
 ### ItsDangerous
 
-In order to safely share sensitive data like password reset tokens we use a proven
-library called ItsDangerous.
+Token signing for things like password reset links and form-submission
+tokens. Third-party library; nothing Baserow-specific.
 
-https://itsdangerous.palletsprojects.com/en/1.1.x/
+### django-storages
 
-### DRF spectacular
+Pluggable file storage for user-uploaded files (file fields, exports,
+imports). Supports local disk, S3, Azure Blob, and Google Cloud Storage.
+See `installation/secure-file-serve.md` for the production setup.
 
-Having up to date API documentation and having it in the OpenAPI specification format
-is a must. To avoid mistakes, the contents are close to the code and are automated as
-much as possible. DRF Spectacular offers all of this!
+### Backend internationalisation
 
-https://pypi.org/project/drf-spectacular/
-
-### MJML
-
-In order to simplify the process of creating HTML emails we use MJML. This tool makes
-it easy to create responsive emails that work with most email clients. This might seem
-a bit like over engineering to use this for only the password forgot email, but more
-complicated emails are going to be added in the future and we wanted to have a solid
-base.
-
-https://mjml.io/
-
-## Web frontend
-
-### Vue.js
-
-https://vuejs.org/
-
-### Nuxt.js
-
-Because of our experience with Vue.js and the great features Nuxt.js offers, the choice
-of Nuxt as a frontend framework was obvious. It offers server side rendering, automated
-code splitting, good project structure, modularity and lots of other features out of
-the box. All of which are needed for Baserow.
-
-https://nuxtjs.org/
-
-### Stylelint
-
-The tool Stylelint is used to make sure all the SCSS code is in the correct format:
+Backend strings use Django's `gettext` / `gettext_lazy`. To update message
+files for English, from `backend/`:
 
 ```bash
-just f lint
+just make-translations
 ```
 
-https://stylelint.io/
+Translations for non-English locales are filled in by **Weblate** before
+each release. Do not manually edit non-English `.po` files.
+
+## Frontend
+
+### Vue 3
+
+[Vue 3](https://vuejs.org/) is the UI framework. Note the version —
+render functions must use Vue 3 semantics (`import { h } from 'vue'`).
+See [Project conventions: Vue](conventions.md#vue-3-render-functions).
+
+### Nuxt 3
+
+[Nuxt 3](https://nuxt.com/) is the meta-framework: routing, SSR, modules,
+build pipeline. We organise the frontend as Nuxt modules under
+`web-frontend/modules/`, mirroring the backend `contrib/` packages.
+
+### Vite
+
+Nuxt 3 uses [Vite](https://vitejs.dev/) as the build tool (replacing
+webpack used by Nuxt 2). JSX-bearing files must use `.jsx` or `.tsx`
+extensions so Vite can parse them. See
+[Project conventions: JSX](conventions.md#jsx-file-extensions).
+
+### yarn
+
+Frontend dependencies are managed with [yarn](https://yarnpkg.com/). The
+lockfile is `web-frontend/yarn.lock`. As with `uv`, the `just` recipes
+wrap yarn; you rarely call it directly.
 
 ### ESLint
 
-ESLint is used to make sure all the JavaScript code is in the correct format:
+[ESLint 9](https://eslint.org/) for JavaScript / Vue files. Configured in
+`eslint.config.mjs` at the repo root (flat config). From `web-frontend/`:
 
 ```bash
-just f lint
+just lint    # check
+just fix     # auto-fix
 ```
 
-https://eslint.org/
+### Stylelint
+
+[Stylelint](https://stylelint.io/) for SCSS. BEM-style naming is the
+convention — see [Project conventions: SCSS](conventions.md#scss-bem-naming).
 
 ### Prettier
 
-https://prettier.io/
+[Prettier](https://prettier.io/) for code formatting (run as part of
+`just lint` / `just fix` in `web-frontend/`).
 
-### webpack
+### Vitest
 
-Bundles all the assets of Baserow. This is being used by default with Nuxt.js.
-
-https://webpack.js.org/
-
-### SCSS
-
-https://sass-lang.com/
-
-### JEST
-
-Because of its simplicity and compatibility with Vue and Nuxt we have chosen to include
-JEST as the framework for the web frontend tests. Almost no code is covered yet so we
-can definitely improve on that. The code is also tested in the continuous integration
-pipeline. It can also be tested manually:
+[Vitest](https://vitest.dev/) is the frontend test runner, paired with
+[Vue Test Utils](https://test-utils.vuejs.org/) and our `TestApp`
+fixtures. Replaces Jest (which Baserow used before the Nuxt-3 / Vite
+migration). From `web-frontend/`:
 
 ```bash
-just f test
+just test                  # all frontend tests
+just yarn test:core path/  # specific test
+just yarn test:premium     # premium suite
 ```
 
-https://jestjs.io/
+Snapshot tests are supported; we use them for stable component output.
+
+Skill: [`write-frontend-unit-test`](https://github.com/baserow/baserow/blob/develop/.agents/skills/write-frontend-unit-test/SKILL.md).
+
+### Storybook
+
+[Storybook 9](https://storybook.js.org/) hosts the component library.
+Stories live in `web-frontend/stories/`. Run it locally with
+`yarn storybook` (port 6006) or visit the deployed version at
+[baserow.io/style-guide](https://baserow.io/style-guide).
+
+### axios
+
+HTTP client for browser → backend calls. The frontend "service" layer is a
+typed wrapper around axios — see
+[Architectural patterns](../patterns/architecture.md#service). Tests use
+`axios-mock-adapter` to stub responses.
+
+### Frontend internationalisation
+
+[`@nuxtjs/i18n`](https://i18n.nuxtjs.org/) handles runtime locale
+switching. Source strings live in `en.json`; **only edit `en.json`** —
+Weblate manages every other locale. See
+[Project conventions: locales](conventions.md#locales-only-edit-enjson).
+
+### SCSS / Sass
+
+[SCSS](https://sass-lang.com/) for styles. BEM naming. Tokens are
+centralised; use them rather than hard-coded values.
 
 ### Iconoir
 
-To improve the user experience we are using the Iconoir icons set in the web
-frontend.
+[Iconoir](https://iconoir.com/) is the icon set used throughout the UI.
 
-https://iconoir.com/
+### Sentry
 
-## Additional tools
+Frontend error reporting via [`@sentry/nuxt`](https://docs.sentry.io/).
+Backend uses `sentry-sdk[django]`. The default Sentry organisation is
+`baserow-eu` (region `https://de.sentry.io`).
+
+## End-to-end
+
+### Playwright
+
+[Playwright](https://playwright.dev/) drives browser-level tests in
+`e2e-tests/`. TypeScript-only directory in the repo.
+
+```bash
+just e2e test
+```
+
+See [E2E testing](e2e-testing.md). Never invoke `playwright` directly.
+
+## Cross-cutting
+
+### just
+
+[just](https://github.com/casey/just) is the command runner that wraps
+every workflow (lint, test, dev server, migrations, docs, e2e, …). All
+recipes are in `justfile` files at the repo root and inside each major
+component. See [justfile reference](justfile.md) for the full list.
+
+**Run tests, linters, and builds through `just`, not the underlying
+tools** — the recipes set the environment variables and paths the tools
+expect. See [Project conventions: tests](conventions.md#tests-always-via-just).
+
+### Docker
+
+[Docker](https://docker.com/) backs the optional containerised dev
+environment and every deployment recipe. The `docker-compose.*.yml` files
+in the repo root cover dev, build, and the all-in-one image. See
+[Running with Docker](running-the-dev-env-with-docker.md).
 
 ### Changelog generator
 
-The changelog generator is a custom-built tool we developed to make it easier for you to
-write changelog entries which don't cause merge conflicts.
+Each PR that adds a user-visible change needs a changelog entry. Don't
+write the YAML by hand — the generator handles classification and
+formatting:
 
-Every time a merge request is created and requires a changelog, the changelog generator
-should be used to generate such changelog.
+```bash
+just changelog add
+```
 
-See [here](https://github.com/baserow/baserow/blob/master/changelog/README.md) for more details.
+Skill: [`create-changelog`](https://github.com/baserow/baserow/blob/develop/.agents/skills/create-changelog/SKILL.md). See also
+`changelog/README.md` in the repo root.
 
-## Thanks!
+### Django Silk (dev only)
 
-Big thanks to creators and contributors of the tools described above! Without you
-Baserow would not have been where it is today.
+[Silk](https://github.com/jazzband/django-silk) is a request/SQL profiler
+enabled in development via `BASEROW_ENABLE_SILK`. It records every
+request, its SQL queries, and Python stack traces into Postgres. Use
+when chasing slow endpoints or N+1 queries.
+
+Skill: [`silk-profiler`](https://github.com/baserow/baserow/blob/develop/.agents/skills/silk-profiler/SKILL.md).
+
+## Related
+
+- [Project conventions](conventions.md) — the rules for using these tools.
+- [Code quality](code-quality.md) — what CI runs.
+- [Skills index](skills-index.md) — reusable workflow recipes.
+- [justfile reference](justfile.md) — every `just` command.

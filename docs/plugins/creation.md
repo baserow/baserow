@@ -1,5 +1,10 @@
 # Creating A Plugin [Outdated]
 
+!!! danger "Legacy plugin system"
+
+    This page is historical and does not work with current Baserow. See
+    [Plugin basics](introduction.md) for the supported alternative.
+
 > Check out our [Plugin community sub-forum](https://community.baserow.io/c/plugins/17)
 > for community made plugins and further discussion.
 
@@ -55,13 +60,14 @@ services by populating the respective plugin sub-folder.
 
 Since the `backend` service is built with Django, the `backend` sub-folder in a plugin
 should be a Django [app](https://docs.djangoproject.com/en/3.2/ref/applications/).
-Similarly, the `web-frontend` service is built using Nuxt.js, and so the `web-frontend`
-plugin sub-folder should contain a Nuxt (
-v2) [module](https://nuxtjs.org/tutorials/creating-a-nuxt-module/).
+Similarly, the legacy `web-frontend` service was built using Nuxt 2, so the
+`web-frontend` plugin sub-folder contained a Nuxt
+[module](https://nuxtjs.org/tutorials/creating-a-nuxt-module/).
 
 ### Plugin Installation API
 
-> The current Baserow Plugin API Version is `0.0.1-alpha`.
+> At the time this legacy guide was written, the Baserow Plugin API version was
+> `0.0.1-alpha`.
 
 All the Baserow official images ship with the following bash scripts which are used to
 install plugins. They can be used either in a Dockerfile at build time to bake a plugin
@@ -188,10 +194,9 @@ at `backend/requirements/base.txt`.
 
 When the Baserow backend Django service starts up it looks for any plugins in the plugin
 directory which have a `backend` sub-folder. If it finds any it assumes
-the `backend/src/plugin_name/`
-sub folder contains a Django App and adds it to the `INSTALLED_APPS`. This means that
-your backend plugin must be a Django app whose name exactly matches the name of the
-plugin folder.
+the plugin's `backend/src/<plugin_name>/` subfolder contains a Django app and adds it
+to `INSTALLED_APPS`. This means that your backend plugin must be a Django app whose
+name exactly matches the name of the plugin folder.
 
 In your plugin's Django app you can do anything that you normally can do with a Django
 app such as having migrations, using the `ready()` method to do startup configuration

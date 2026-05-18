@@ -1,160 +1,421 @@
-# Baserow Formula Technical Guide
+# Baserow formula technical guide
 
-This guide explains the inner workings of Baserow formulas for developers.
+This is the engineer's view of the database formula system — the one that
+powers the `formula`, `lookup`, `rollup`, and `count` field types in user
+tables. For the user-facing explanation see
+[understanding Baserow formulas](../tutorials/understanding-baserow-formulas.md).
 
-See the [understanding baserow formulas guide](../tutorials/understanding-baserow-formulas.md) if
-you instead want a general guide of how to use formulas as a user within Baserow.
+> **Not this doc:** there is a *separate* "runtime formula" system under
+> `backend/src/baserow/core/formula/` used by the application builder
+> (`get('current_user.email')`, `concat('Hello ', name)`, etc.). It shares
+> the grammar but nothing else — no typing, no materialisation, no
+> dependency graph. If you're touching the builder, that's a different
+> codebase that happens to live next door.
 
-## Technical Overview
+## The one thing to internalise: formulas are materialised
 
-In Baserow there is a special formula field type. The user enters a single formula for a
-whole formula field which is then used to calculate every cell in the formula field.
+A Baserow formula is **not** evaluated at query time. Every formula field
+is backed by a real Postgres column on the user table. The cell value you
+see in a grid view is just `SELECT formula_column FROM ...` — there is no
+expression to evaluate. What the formula machinery actually does is
+produce, on every change, a Django ORM expression that gets fed to a bulk
+`UPDATE` over that column.
 
-Baserow formulas are written in the open source Baserow Formula language which is a
-simple expression based language similar to formulas you will find in other spreadsheet
-tools. The Baserow Formula language itself is a fully functioning programming language
-with a :
+This shapes the whole architecture and is the answer to most "wait, how
+does this work?" questions:
 
-* A language syntax/grammar definition.
-    * See `{git repo root}/formulas/*.g4`.
-* Lexers and parsers generated using ANTLR4 from the grammar.
-    * See `{git repo root}/formulas/build.sh` for the script that generates these using
-      docker.
-    * A generated parser used for checking formula validity in the browser can be found
-      in
-      `web-frontend/modules/database/formula/parser`.
-    * A generated parser used for checking formula validity and constructing the python
-      AST in the backend can be found
-      in `backend/src/baserow/core/formulas/parser/generated`.
-* A python abstract syntax tree used internally in the backend.
-    * See `backend/src/baserow/core/formulas/ast/tree.py`.
-* A typing algorithm that is capable of typing a given formula.
-    * See the formula types module found
-      in `backend/src/baserow/core/formulas/types`.
-* Finally, a generator which coverts a typed formula into a Django expression for safe
-  evaluation.
-    * see the expression generator module found
-      in `backend/src/baserow/core/formulas/expression_generator`.
+- **Why so much code on the write path?** Because we pay the formula cost
+  on write, not on read. Reads are cheap.
+- **Why a typing pass?** Because we need to pick the right Postgres column
+  type up front (`numeric`, `text`, `jsonb`, …) and choose the right
+  ORM expression for the cast.
+- **Why a dependency graph?** Because if A depends on B, an update to B
+  must re-`UPDATE` A's column. We need to know what to recompute and in
+  what order.
+- **Why can formula fields reuse formula fields?** Because every
+  intermediate is itself a materialised column. A formula referencing
+  another formula is just `F("field_123")` — no inlining, no exponential
+  expression bloat, no recompilation cascade.
 
-## Formula Features from a technical perspective
+The corollary: **changing a formula or its dependencies rewrites column
+data, not just metadata.** A `formula` field is closer to a generated
+column than to a Django `@property`.
 
-A Formula is just a single expression which can consist of literals (string, int,
-decimal), functions, operators and nested formulas.
+## The pipeline
 
-### Formula Functions
+A user types a string. By the time it hits a row's column, six things
+have happened.
 
-Functions are defined by implementing a BaserowFunctionDefinition and storing it in
-the `formula_function_registry` (which allows plugins to trivially add their own custom
-functions)
+```
+formula string
+   │  parser/parser.py — ANTLR4
+   ▼
+ANTLR parse tree
+   │  parser/ast_mapper.py — BaserowFormulaToBaserowASTMapper
+   ▼
+untyped BaserowExpression (AST)
+   │  types/typer.py + types/visitors.py:FormulaTypingVisitor
+   ▼
+typed BaserowExpression (every node has a BaserowFormulaType)
+   │  expression_generator/generator.py
+   ▼
+Django ORM Expression
+   │  handler.py:recalculate_formula_and_get_update_expression
+   ▼
+Bulk UPDATE on the user table's formula column
+```
 
-Functions have specific or unlimited number of arguments. These arguments can be type
-checked and forced to have specific types otherwise an error is shown. The function
-itself has a return type.
+### 1. Grammar and parser
 
-A function can change its behaviour at type checking time, for example if a function is
-given two arguments of different types it could first choose to wrap them in a
-BaserowToText function call.
+ANTLR4. Grammar at `formula/BaserowFormula.g4` and
+`formula/BaserowFormulaLexer.g4` in the repo root. Generated Python parser
+under `backend/src/baserow/core/formula/parser/generated/`. Entry point:
+`baserow.core.formula.parser.parser.get_parse_tree_for_formula`. The
+generated code lives in `core/` rather than `contrib/database/` because
+both formula systems (database and builder) share the grammar.
 
-Functions define how to transform themselves into a Django Expression to calculate their
-result.
+### 2. Parse tree → Python AST
 
-### Extending Baserow Formulas using plugins
+`backend/src/baserow/contrib/database/formula/parser/ast_mapper.py`. The
+`BaserowFormulaToBaserowASTMapper` (line 54) is the ANTLR visitor that
+walks the parse tree and emits `BaserowExpression` nodes. Entry point:
+`raw_formula_to_untyped_expression()` (line 32).
 
-Plugins can easily add new Baserow formula functions and types by implementing
-a `BaserowFunctionDefinition` and registering it in the `formula_function_registry`.
-Hint: Use the various `{Zero/One/Two/Three}ArgumentBaserowFunctionDefinition` sub-classes
-get a nicer set of functions to implement corresponding to the arguments.
+The AST nodes live in
+`backend/src/baserow/contrib/database/formula/ast/tree.py`:
 
-### Formula Operators
+- `BaserowExpression[A]` — generic base; `A` is the type parameter (`UnTyped`
+  before typing, a concrete `BaserowFormulaType` after).
+- `BaserowFunctionCall[A]` — a function applied to args. Holds a
+  `BaserowFunctionDefinition`.
+- `BaserowFieldReference[A]` — refers to another field by name. After
+  typing this is rewritten to reference by ID (see "internal formula").
+- `BaserowStringLiteral` / `BaserowIntegerLiteral` / `BaserowDecimalLiteral`
+  / `BaserowBooleanLiteral`.
 
-Operators are implemented as a mapping from an operator to a `BaserowFunctionDefinition`
-. So the `+` operator is just a fancy way of calling the `BaserowAdd` function.
-Operators have precedence as defined by the rule ordering in the BaserowParser.g4
-grammar file.
+Every node has `.accept(visitor)`. All the rest of the pipeline is visitors.
 
-### Operator Overloading
+### 3. Type resolution
 
-Operators can have different implementations depending on the input types. For example
-`'a'+'b'` concatenates the two strings together, whereas `1+2` performs numeric
-addition.
+`backend/src/baserow/contrib/database/formula/types/typer.py:12` —
+`calculate_typed_expression`. Walks the untyped AST with
+`FormulaTypingVisitor` (`types/visitors.py:220`), assigning a
+`BaserowFormulaType` to each node bottom-up. The result is a fully typed
+AST or — if anything failed — a tree whose root is wrapped in
+`BaserowFormulaInvalidType` carrying an error message.
 
-### Calculating the result of a Formula
+`BaserowFormulaType` lives in
+`backend/src/baserow/contrib/database/formula/types/formula_type.py:66`.
+Concrete types are in `types/formula_types.py`:
+`BaserowFormulaTextType`, `BaserowFormulaNumberType`,
+`BaserowFormulaBooleanType`, `BaserowFormulaDateType`,
+`BaserowFormulaDurationType`, `BaserowFormulaSingleSelectType`,
+`BaserowFormulaMultipleSelectType`, `BaserowFormulaArrayType`,
+`BaserowFormulaURLType`, etc. The special `BaserowFormulaInvalidType`
+lives next to the base class in `types/formula_type.py:570`. The concrete
+types are discovered through the `BASEROW_FORMULA_TYPES` module-level list
+at `formula_types.py:1984`.
 
-Formulas ultimately compile down to a prepared SQL statement which is used to  
-calculate and store the formula results in a PostgreSQL column.
+Each `BaserowFormulaType` answers two questions:
 
-To generate the SQL we transform a baserow formula into
-a [Django Expression](https://docs.djangoproject.com/en/3.2/ref/models/expressions/)
-and then rely on Django to generate the SQL for us.
+- **What Django field stores my value?** — via `get_model_field(...)` and
+  `db_column_fields`. This is where the storage-format mismatch lives
+  (see below).
+- **What's the "compatible" Baserow field type for filters/sorts?** —
+  via `baserow_field_type` (e.g. `"text"`, `"number"`). The view filter
+  registry uses this to decide which filters apply to a formula column.
 
-### Field References
+### 4. AST → Django expression
 
-Formulas can reference other fields including other formula fields. They cannot
-reference themselves and circular references are disallowed.
+`backend/src/baserow/contrib/database/formula/expression_generator/generator.py`.
+The `BaserowExpressionToDjangoExpressionGenerator` walks a typed AST and
+emits Django ORM `Expression` objects (`F`, `Func`, `Cast`, `Subquery`,
+…). Three public entry points:
 
-Because formula fields can reference other fields, now whenever a field is edited,
-deleted, restored or created it might also affect other fields which depend on it. In
-these situations we construct the reference tree of all fields in a table, recalculate
-what each fields type is and if it has changed refresh that formula fields values.
+- `baserow_expression_to_update_django_expression` (line 40) — for bulk
+  `UPDATE` over an existing column.
+- `baserow_expression_to_insert_django_expression` (line 56) — for
+  `INSERT`. Different because aggregate-style sub-expressions can't run
+  on a row that doesn't have an id yet.
+- `baserow_expression_to_single_row_update_django_expression` (line 47)
+  — single-row variant used when one row needs to refresh.
 
-### User configurable type/formatting options
+### 5. Persistence — the materialised column
 
-Formula types can have their options override by user configurable formatting options.
+`FormulaHandler.recalculate_formula_and_get_update_expression`
+(`handler.py:399`) is what `FieldHandler` calls when a formula field is
+created, the formula text changes, or a dependency changes. It:
 
-For example:
+1. Saves the recalculated `FormulaField` metadata.
+2. Calls `recreate_formula_field_if_needed(...)` to **drop and recreate
+   the Postgres column** if the formula type changed (e.g. number → text).
+   This is real DDL.
+3. Returns the Django UPDATE expression that the caller runs to
+   re-populate the column.
 
-* A formula field `1+1` is initially calculated to have the type of
-  `BaserowFormulaNumberType(num_decimal_places=0)`.
-* This calculated type is stored on the `FormulaField` model by setting
-  its `formula_type` field to `number`, it's `num_decimal_places` field to `0` and
-  setting all other type option fields to null.
-* Then all cells for this field will be displayed as `1`.
-* The user however can then edit these persisted type options themselves to change the
-  type and hence how the field is displayed.
-* For example the user could then change `num_decimal_places` to `2`, which changes the
-  corresponding field on the model and also changes the type of that field to
-  `BaserowFormulaNumberType(num_decimal_places=2)`.
-* Now the cells will be shown as `1.00`
+That last step is the materialisation: `model.objects.update(field_X=expr)`.
 
-These user supplied type/formatting options will be reset when the overall type of a
-formula field changes, otherwise they will stick around.
+### 6. Recompute on dependency change
 
-### The Invalid Formula Type
+When field B (which A depends on) changes, the field dependency graph
+identifies A as needing a refresh, and the same expression-generation
+machinery emits a new UPDATE. The handler-level walkthrough is in
+[field-system.md](../patterns/field-system.md). Topological order means
+chains of formula-of-formula resolve in a single pass.
 
-There is an invalid type which stores an error on the `FormulaField` model for formulas
-which have an invalid type such as `(1+'a')` etc.
+## The dependency graph
 
-### Type Coercion
+`backend/src/baserow/contrib/database/fields/dependencies/`. Three things
+to know:
 
-Generally functions prefer to coerce types in sensible ways that a non-technical user
-might expect. For example, `CONCAT(field('a date field'),field('a boolean field'))`
-should work without having to use a function to cast each to text. * However we don't
-allow users to do odd things like compare a boolean to a date and instead provide a type
-error rather than always returning false or something.
+- **Storage** — `FieldDependency` rows
+  (`dependencies/models.py:4`): `dependant` FK → `dependency` FK, optional
+  `via` (LinkRowField), optional `broken_reference_field_name`. The
+  graph is real data, not a runtime computation.
+- **Build** —
+  `dependencies/dependency_rebuilder.py:rebuild_fields_dependencies`. For
+  a formula field, it asks the typed AST for the fields it references
+  (`BaserowFieldReferenceVisitor` in
+  `formula/parser/ast_mapper.py`), then writes `FieldDependency` rows.
+- **Walk** — `FieldDependencyHandler._get_all_dependent_fields`
+  (`dependencies/handler.py:80`) uses `graphlib.TopologicalSorter` to
+  return dependants in order. A change to one field triggers refresh of
+  every dependant in topological order, each one a single bulk UPDATE.
 
-### Field Renaming
+The graph encodes link-row hops, so a formula `lookup("Friends", "Name")`
+adds an edge "this field → friends.name via the Friends link row".
+Changes on either side trigger the right recompute.
 
-Renaming a field will rename any references to that field in a formula. This is achieved
-by the following process:
+## Internal formula vs user formula
 
-* Updating all formulas referencing that field to reference the new name 
-* Returning these updated fields to the browser.
+`FormulaField` (in `fields/models.py:626`) has two text columns:
 
-When deleting a field we:
-* Mark the formulas which referenced it as broken with an error.
-* This then lets the user create a new field called `'name'` which will then fix those
-  broken formulas. 
+- **`formula`** — the user's input verbatim, with field references by
+  *name*: `field('Total') * 2`. This is what the UI shows.
+- **`internal_formula`** — a normalised form with field references by
+  *id*: `field_by_id(123) * 2`. This is what we parse and type.
 
-This also can happen when a field is restored from deletion or a field is renamed.
+The split matters because **renaming a field doesn't change the formulas
+that reference it.** The id-keyed `internal_formula` is stable; only the
+user-facing `formula` text needs to update its quoted name. Renaming a
+field walks every formula in the table, regenerates the user-facing
+`formula` string from the unchanged `internal_formula`, and sends it
+back. No re-parse, no re-type.
 
-Importantly this means creating, restoring or renaming fields can cause any number of
-other fields in the same table to go from the invalid type to a valid type and hence we
-need to check and re-type the table in these situations.
+The same column also lets us detect when *deleting* a field would
+silently break a formula — we know which ids the formula references
+without reparsing.
 
-### Sorting and Filtering Formula Fields
+## Formula types and storage formats
 
-Formula fields can be sorted and filtered using Baserow's existing view filters based on
-the BaserowFormulaType of the field. Simply using
-the `FormulaFieldType.compatible_with_formula_types`
-helper function when defining your view filters `compatible_field_types` to say which of
-the Formula Types work with your view filter.
+This is a real footgun. A formula's storage column **does not always
+match the column format of the underlying field type with the same name.**
+
+The mismatches:
+
+| `BaserowFormulaType` | `baserow_field_type` (filter compat) | Actual storage |
+|---|---|---|
+| `BaserowFormulaTextType` | `text` | `text` column |
+| `BaserowFormulaNumberType` | `number` | `numeric` column |
+| `BaserowFormulaSingleSelectType` | (none) | `JSONField` — stores `{"id": ..., "value": ..., "color": ...}` |
+| `BaserowFormulaMultipleSelectType` | (none) | `JSONField` (array of objects) |
+| `BaserowFormulaArrayType` | (none) | `JSONField` (array of element-typed objects) |
+| `BaserowFormulaLinkType` | (none) | `JSONField` — stores `{"label": ..., "url": ...}` |
+
+The reason: a formula returning a single-select isn't a real
+`SelectOption` FK. There's no parent option row to point at — the formula
+*computes* the option. So we store a denormalised JSON snapshot of what
+the option looks like *at recompute time*.
+
+Consequences for anyone writing code against formula columns:
+
+- **Don't `F("formula_field_id") == single_select_id`.** It's not a FK;
+  it's JSON.
+- **Filters know this** because they go through `baserow_field_type`. If
+  you're writing a new filter on a select field that should also work
+  on a formula returning a select, route via the formula type's
+  `baserow_field_type`, not the raw model field.
+- **If the upstream select option's name or colour changes, the
+  formula's snapshot is stale until the next recompute.** That recompute
+  is scheduled by the dependency graph, so this is usually fine — but
+  bulk imports / direct DB edits can leave snapshots out of date.
+
+## Functions
+
+A function is a `BaserowFunctionDefinition` subclass
+(`formula/ast/tree.py:408`) registered in `formula_function_registry`
+(`formula/registries.py:10`). A function decides:
+
+- **What arguments it accepts** — fixed count, range, or unlimited
+  (`FixedNumOfArgs`, `NumOfArgsGreaterThan`, `NumOfArgsBetween`).
+- **What types it accepts and returns** — `type_function(args)` runs at
+  typing time; it can reject mismatches, *or* it can rewrite the AST
+  (e.g. `concat(date, bool)` wraps both args in `toText(...)` calls).
+  This is how implicit coercion works.
+- **How to emit Django** — `to_django_expression_given_args(args)`.
+
+Most function definitions inherit from the arity helpers
+(`ZeroArgumentBaserowFunction`, `OneArgumentBaserowFunction`, etc., in
+the same file) which collapse the boilerplate.
+
+Operators (`+`, `*`, `==`, …) are not a separate concept — the parser
+maps them to function calls. `+` is `BaserowAdd`, `==` is
+`BaserowEqual`, etc. Precedence comes from the grammar's rule ordering
+in `BaserowFormula.g4`. Operator "overloading" (`'a' + 'b'` vs `1 + 2`)
+is just a function whose `type_function` returns different output types
+based on its arguments.
+
+## Lookup, rollup, count — formulas in disguise
+
+`CountField`, `RollupField`, and `LookupField` (all in `fields/models.py`,
+each subclassing `FormulaField`) are not separate concepts. They're
+formulas with their `formula` text generated internally from a few
+parameters:
+
+- `CountField(through_field=Friends)` → `count(field('Friends'))`.
+- `RollupField(through_field=Friends, target_field=Score, rollup_function=sum)`
+  → `sum(lookup('Friends', 'Score'))`.
+- `LookupField(through_field=Friends, target_field=Name)`
+  → `lookup('Friends', 'Name')`.
+
+`FormulaFieldType` (`fields/field_types.py`) handles all four. The
+lookup/rollup/count UI builds the formula string under the hood and the
+rest of the pipeline runs exactly the same.
+
+This is why all four go through the same dependency graph, the same
+typing pass, and the same materialised column. Once you understand
+formulas, you understand lookup/rollup/count for free.
+
+## Formula language versioning
+
+The formula language grows over time — new functions, fixed type
+inference bugs, changed semantics. We don't want to break user formulas
+in long-lived workspaces. The solution:
+
+- `BASEROW_FORMULA_VERSION` (currently `5`) is the language version this
+  build of Baserow understands.
+- `FormulaField.version` records the version a given formula was last
+  recalculated under.
+- `formula/migrations/migrations.py` defines `FORMULA_MIGRATIONS` — one
+  entry per version with what work needs doing to bring a formula from
+  `version=N-1` up to `version=N` (recalculate attributes, rebuild
+  dependencies, recompute cell values, force-recreate columns).
+
+A Baserow deployment startup runs the formula migration runner and
+catches up any out-of-date formulas. Adding a function that doesn't
+change existing semantics doesn't need a new version; changing typing
+rules or fixing a bug whose old behaviour was observable does. The
+existing entries are a good reference for what counts as which.
+
+## Invalid type — graceful failure
+
+When typing fails (referenced field deleted, type mismatch, parse
+error), we don't crash. The whole expression is wrapped in
+`BaserowFormulaInvalidType(error)` and the column's storage type
+collapses to text. The error message lives on `FormulaField.error`. The
+UI shows it in the formula configuration drawer.
+
+What makes this safe:
+
+- The "invalid" column is still a real Postgres column — queries don't
+  fail.
+- The dependency graph still tracks the broken reference (the
+  `broken_reference_field_name` column on `FieldDependency`).
+- The moment the broken reference becomes resolvable again — a deleted
+  field is restored, a new field with the right name is created — the
+  formula re-types automatically and the column is repopulated.
+
+## Aggregates and the post-insert refresh
+
+Aggregate formulas (sum, count, every, …) cannot be evaluated inside
+the same `INSERT` that creates the row — at INSERT time the new row has
+no id yet, so the subqueries that would walk to linked rows have
+nothing to bind. The flag
+`FormulaField.requires_refresh_after_insert` records this; row creation
+runs an `UPDATE` immediately after the `INSERT` to populate aggregate
+columns.
+
+There's a similar
+`needs_periodic_update` for formulas containing time-sensitive functions
+(`now()`, `today()`) — Celery refreshes these on a schedule.
+
+`FormulaHandler._expression_requires_refresh_after_insert` carries this
+warning in a comment:
+
+> WARNING: This function is directly used by migration code. Please
+> ensure backwards compatibility when adding fields etc.
+
+That's because the cached flag is computed during formula migrations.
+Changing what `_expression_requires_refresh_after_insert` returns can
+quietly invalidate stored data on the next migration run.
+
+## Frontend
+
+The frontend has its own ANTLR-generated parser
+(`web-frontend/modules/core/formula/parser/`) used purely for **client-side
+validation, syntax highlighting, and autocomplete** in the formula input.
+It does not type-check or evaluate — only the backend is authoritative.
+
+The grammar is shared (one `.g4` source, two generators). When you
+change the grammar, regenerate both via `formula/build.sh`. The
+backend parser is regenerated under
+`backend/src/baserow/core/formula/parser/generated/`; the frontend's
+counterpart is under `web-frontend/modules/core/formula/parser/`.
+
+## Visitors worth knowing
+
+Spread across a few modules under
+`backend/src/baserow/contrib/database/formula/`:
+
+- `FormulaTypingVisitor` (`types/visitors.py:220`) — untyped → typed.
+- `BaserowExpressionToDjangoExpressionGenerator`
+  (`expression_generator/generator.py`) — typed → Django ORM.
+- `BaserowFieldReferenceVisitor` (`parser/ast_mapper.py:188`) — collects
+  referenced field ids. Used by the dependency rebuilder and by
+  rename/delete logic.
+- `FunctionsUsedVisitor` (`types/visitors.py:39`) — list of function names
+  in the expression. Used to compute `needs_periodic_update`.
+- `BaserowFormulaASTVisitor[Y, X]` (`ast/visitors.py:10`, the base) —
+  generic visitor base class; `Y` is input type-parameter, `X` is the
+  return type.
+
+Writing a new pass over the AST is almost always "subclass
+`BaserowFormulaASTVisitor`".
+
+## Where to grep when debugging
+
+| Symptom | Look at |
+|---|---|
+| "Formula doesn't recompute when X changes" | `dependencies/dependency_rebuilder.py`, `BaserowFieldReferenceVisitor` |
+| "Formula returns wrong type" | `types/visitors.py:FormulaTypingVisitor`, the function's `type_function` |
+| "Formula returns right type but wrong value" | `expression_generator/generator.py`, the function's `to_django_expression_given_args` |
+| "Formula column got dropped/recreated" | `handler.py:recalculate_formula_and_get_update_expression`, `recreate_formula_field_if_needed` |
+| "Filter on formula column doesn't work" | `BaserowFormulaType.baserow_field_type`, the field-type's filter list |
+| "After deploy, lots of formulas need recompute" | `formula/migrations/migrations.py`, `BASEROW_FORMULA_VERSION` |
+| "Aggregate formula shows null after insert" | `requires_refresh_after_insert` flag, the post-insert UPDATE in `RowHandler` |
+
+## Tests
+
+- `backend/tests/baserow/contrib/database/formula/` — type system,
+  function-by-function semantics, AST round-trips.
+- `backend/tests/baserow/contrib/database/field/` — `LookupField`,
+  `RollupField`, `CountField` behaviour.
+- `backend/tests/baserow/core/formula/` — parser, runtime formula
+  (builder) execution.
+- `web-frontend/test/unit/formula/` — frontend parser, validator,
+  autocomplete.
+
+## Related
+
+- [Field system](../patterns/field-system.md) — where formula fields
+  hang off the broader field/handler architecture and dependency cascade.
+- [Dynamic models](dynamic-models.md) — why dropping and recreating a
+  formula column requires invalidating the generated-model cache.
+- [Table rows full-text search](table-rows-search.md) — how the formula
+  type's resolved `baserow_field_type` decides how the formula's value
+  enters the search index.
+- [PostgreSQL locks](postgresql-locks.md) — formula recompute holds row
+  locks during the UPDATE; matters when a wide table has many
+  formula-of-formula dependencies.
+- [Understanding Baserow formulas](../tutorials/understanding-baserow-formulas.md)
+  — user-facing tutorial.

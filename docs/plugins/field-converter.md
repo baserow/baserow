@@ -1,5 +1,10 @@
 # Field converter
 
+!!! danger "Legacy plugin system"
+
+    This page is historical and does not work with current Baserow. See
+    [Plugin basics](introduction.md) for the supported alternative.
+
 A field converter can alter a field's database schema and convert the related data to a
 new format. For example in Django it is not possible to alter a ManyToManyField to a
 CharField or to convert from and to a ManyToManyField. The alter_field function of the

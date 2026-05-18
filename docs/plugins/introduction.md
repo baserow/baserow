@@ -1,5 +1,19 @@
 # Introduction
 
+!!! danger "Legacy plugin system — no longer works"
+
+    This describes the original Baserow plugin system from before 2.1.
+    **It no longer works.** Internal APIs and registration surfaces have
+    changed substantially since 2.1, and the boilerplate has not been
+    updated. A plugin built against these docs will not load against
+    current Baserow.
+
+    The pages below are kept for historical reference only. To extend a
+    self-hosted Baserow install today, use
+    [custom client scripts](custom-client-scripts.md) — a small frontend
+    extension mechanism driven by the `BASEROW_EXTRA_CLIENT_SCRIPT_URLS`
+    environment variable (enterprise feature).
+
 Baserow plugins let you fully customize and extend Baserow quickly and easily. Multiple
 plugins can be installed into a new or existing Baserow installation, they get full
 access to Baserow's internals for maximum customization and are straightforward develop

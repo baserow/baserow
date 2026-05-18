@@ -5,35 +5,57 @@ what you're trying to do, not by tool.
 
 Sections:
 
-- [Pick your tracing backend](#pick-your-tracing-backend)
+- [Pick your error / tracing backend](#pick-your-error-tracing-backend)
 - [Backend debugging tools](#backend-debugging-tools)
 - [Frontend debugging tools](#frontend-debugging-tools)
 - [VSCode setup](#vscode-setup) — separate so users on other IDEs can skip it
 - [Baserow-specific debugging recipes](#baserow-specific-debugging-recipes)
 - [Gotchas](#gotchas)
 
-## Pick your tracing backend
+## Pick your error / tracing backend
 
 Baserow emits OpenTelemetry spans out of the box (see
-[observability](../patterns/observability.md)). To make those useful locally
-you need somewhere to send them. Three reasonable choices:
+[observability](../patterns/observability.md)). Errors and traces are two
+separate signals here, and the options differ:
 
-### Sentry (hosted, free tier) — recommended default
+### Sentry (hosted, free tier) — recommended for errors
 
-[sentry.io](https://sentry.io) gives you error tracking and OTEL traces in
-one product. Set up a personal project, copy the DSN into `.env.local` as
-`SENTRY_DSN`, and you'll see exceptions and traces from your local dev
-backend within seconds. Same flow for frontend (separate Sentry project,
-separate DSN). The free tier comfortably covers a personal dev rig.
+[sentry.io](https://sentry.io) is wired up for **exception tracking only**.
+Set up a personal project, copy the DSN into `.env.local` as `SENTRY_DSN`,
+and unhandled exceptions from your local dev backend land in Sentry within
+seconds. Same flow for frontend (separate Sentry project, separate DSN).
+The free tier comfortably covers a personal dev rig. For the full set of
+Sentry-related variables (separate backend/frontend DSNs, environment
+tags), see [Configuring Baserow](../installation/configuration.md).
 
-When you suspect a real bug, this is the highest-leverage tool because
-each exception comes pre-populated with the trace that led to it.
+Baserow's OTEL spans (`baserow_trace_methods`, `@baserow_trace`) are **not**
+forwarded to Sentry — `sentry_sdk.init()` is called without
+`traces_sample_rate`, so performance tracing is off. If you want to see the
+trace that led to an exception locally, use Honeycomb or Jaeger alongside Sentry.
 
-### Jaeger via docker-compose — fully local, no signup
+### Honeycomb (hosted, free tier) — recommended for traces
 
-Add a `jaeger` service alongside the existing dev stack and point the OTEL
-exporter at it. Jaeger Tracing on Docker Hub gives you the all-in-one
-image in one container:
+Honeycomb is what baserow.io production traces land in, so it's the same
+tool you'll use to debug prod incidents — worth getting comfortable with
+locally. The free tier (20M events/month) is more than enough for a dev
+rig. Create a personal team, grab an ingest key, and point the OTEL
+exporter at it:
+
+```bash
+BASEROW_ENABLE_OTEL=true
+# EU region — use https://api.honeycomb.io for US
+OTEL_EXPORTER_OTLP_ENDPOINT=https://api.eu1.honeycomb.io
+OTEL_EXPORTER_OTLP_HEADERS=x-honeycomb-team=<your-ingest-key>
+```
+
+Use a separate Honeycomb environment for dev so your local spans don't
+mingle with prod. Don't point dev at the prod environment — the
+signal-to-noise ratio gets awful fast.
+
+### Jaeger via docker-compose — self-hosted alternative
+
+If you'd rather not ship spans to a hosted service, run Jaeger locally.
+The all-in-one image is one container:
 
 ```yaml
 # add to docker-compose.dev.yml (or a separate override file)
@@ -45,22 +67,16 @@ jaeger:
     - "4318:4318"    # OTLP HTTP
 ```
 
-Then set `BASEROW_ENABLE_OTEL=true` and the standard
-`OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318` env var. The UI lives
-at http://localhost:16686.
+Then set `BASEROW_ENABLE_OTEL=true` and
+`OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318`. UI at
+http://localhost:16686.
 
-Trade-off vs Sentry: pure tracing, no error tracking, no automatic source
-links — but no data leaves your machine.
-
-### Honeycomb — for production
-
-baserow.io traces land in Honeycomb. Use it when you need to debug
-something you can only see in production. Don't point dev at it; the
-signal-to-noise ratio is awful.
+Trade-off vs Honeycomb: no signup, no data leaves your machine, but the
+query UI is much weaker and you can't share links with the team.
 
 ## Backend debugging tools
 
-### `just b shell_plus --print-sql`
+### `just shell_plus --print-sql` (from `backend/`)
 
 The single most useful command for "what query does my code actually
 emit?". `shell_plus` (from `django-extensions`) launches an interactive
@@ -68,7 +84,7 @@ Python shell with every Baserow model auto-imported. `--print-sql` echoes
 every SQL statement that runs, with timing.
 
 ```bash
-just b shell_plus --print-sql
+just shell_plus --print-sql
 ```
 
 Inside the shell, you can run arbitrary code and see the queries it
@@ -103,10 +119,10 @@ silk's own overhead is non-trivial.
 ### `django-admin show_urls`
 
 Lists every URL registered in the project. Use it when you can't find
-which view handles a particular endpoint:
+which view handles a particular endpoint. From `backend/`:
 
 ```bash
-just b show_urls | grep -i 'group_by'
+just m show_urls | grep -i 'group_by'
 ```
 
 ### Flower — Celery monitor
@@ -197,11 +213,10 @@ For poking at the API directly:
 
 ### Mail catcher
 
-In dev, outbound emails are sent to a local mail catcher
-(`mailhog` / `mailpit`-style service in `docker-compose.dev.yml`). Browse
-its UI to read what would have been sent. Useful for testing
-notification flows and password reset emails without spamming a real
-inbox.
+In dev, outbound emails are sent to MailHog, the local mail catcher
+defined in `docker-compose.dev.yml`. Browse its UI to read what would
+have been sent. Useful for testing notification flows and password
+reset emails without spamming a real inbox.
 
 ## VSCode setup
 
@@ -222,10 +237,10 @@ and the right extensions.
 - **ESLint** — JavaScript / Vue linting.
 - **EditorConfig** — respects the repo's `.editorconfig`.
 
-The Baserow repo has a `.vscode/` directory with `launch.json`,
-`tasks.json`, and `settings.json` covering the common entry points
-(backend runserver, frontend dev server, celery worker, pytest, jest).
-You can copy / adapt the configurations to your local environment.
+`.vscode/` is gitignored. The repo ships a starter template at
+`config/vscode/.vscode/` (`launch.json`, `settings.json`, `env`) covering
+the common entry points (backend runserver, frontend dev server, celery
+worker, pytest, Vitest). Copy it into your own `.vscode/` and adapt.
 
 ### Launch configurations
 
@@ -244,43 +259,29 @@ provides (configuration names paraphrased — see your local
 - **Frontend: dev** — Node launch for `yarn run dev`. Pair with a
   Chrome / Edge launch (see below) to set breakpoints in `.vue` and `.js`
   files.
-- **Jest: current file** — Node launch for `node_modules/jest/bin/jest`
-  on the current file.
+- **Vitest: current file** — Node launch for running the frontend test
+  file you're currently viewing.
 
-### Secrets in launch.json — please don't
+### Keeping secrets out of launch.json
 
-`launch.json` is committed to the repo. Do not put real API keys,
-license tokens, or DSNs in it. Two safer patterns:
+Your `.vscode/launch.json` is gitignored so secrets in it won't leak,
+but the cleaner pattern is to pull env from `.env.local` via the
+`envFile` field — same source as the rest of the dev stack, one place to
+update keys:
 
-1. **Reference an `.env.local` file** via the `envFile` field:
+```jsonc
+{
+  "name": "Backend: runserver",
+  "type": "debugpy",
+  "envFile": "${workspaceFolder}/.env.local",
+  "env": {
+    "DJANGO_SETTINGS_MODULE": "baserow.config.settings.dev"
+  }
+}
+```
 
-   ```jsonc
-   {
-     "name": "Backend: runserver",
-     "type": "debugpy",
-     "envFile": "${workspaceFolder}/.env.local",
-     "env": {
-       "DJANGO_SETTINGS_MODULE": "baserow.config.settings.dev"
-     }
-   }
-   ```
-
-   Put secrets in `.env.local` and add it to `.gitignore`. Already
-   ignored at the repo root.
-
-2. **Read from your shell environment** via `${env:VARNAME}`:
-
-   ```jsonc
-   "env": {
-     "OPENAI_API_KEY": "${env:OPENAI_API_KEY}"
-   }
-   ```
-
-   Set the variables in your shell rc (`~/.zshrc`, etc.) — never in
-   committed config.
-
-If you've already committed secrets, **rotate them**. `git filter-repo`
-or BFG can rewrite history, but treat any leaked key as compromised.
+If you're editing the committed template at `config/vscode/.vscode/`,
+keep it secret-free — that one **is** in git.
 
 ### Debugging Vue in VSCode
 
@@ -310,31 +311,6 @@ panels are too useful to give up. Pick what you prefer; both work.
 
 ## Baserow-specific debugging recipes
 
-### "Why is this field acting weird?"
-
-Field-behaviour mysteries trace to one of three things: the `FieldType`,
-the dynamic model cache, or the field-dependency graph.
-
-```python
-# In shell_plus
-table = Table.objects.get(pk=...)
-model = table.get_model()
-model.info()  # rich-printed table of every field
-
-field = Field.objects.get(pk=...).specific
-field_type = field_type_registry.get_by_model(field)
-print(type(field), type(field_type))
-
-# Force a cache miss
-from baserow.contrib.database.table.cache import invalidate_table_in_model_cache
-invalidate_table_in_model_cache(table.id)
-model = table.get_model()
-```
-
-If the field's value looks right in the DB but wrong via the model, the
-generated model is likely stale. `Table.version` should bump on every
-field change.
-
 ### "Why didn't I get a realtime update?"
 
 Walk the chain:
@@ -343,9 +319,10 @@ Walk the chain:
    mutation, confirm the right signal is sent.
 2. Did a **ws receiver fire**? Check `baserow.ws.*`; add a log statement
    at entry, or set `BASEROW_BACKEND_LOG_LEVEL=DEBUG`.
-3. Did the **message reach the right page**? `page_registry` decides
+3. Was the celery container (or process if run locally) working?
+4. Did the **message reach the right page**? `page_registry` decides
    subscribers. Mismatched page id = no broadcast.
-4. Did the **frontend handler run**? Browser → Network → WS frames; then
+5. Did the **frontend handler run**? Browser → Network → WS frames; then
    Vue DevTools to see the Vuex mutations.
 
 See [websockets guide](../technical/websockets.md).
@@ -366,44 +343,24 @@ See [websockets guide](../technical/websockets.md).
            print(row[0])
    ```
 
-4. If it's a search query → check the TSV column is built and
-   `SearchHandler` isn't lagging.
-
-### "Why did my migration fail in CI but pass locally?"
-
-- Local DB is smaller; you skipped batching that prod-scale needs.
-- Local DB is missing a constraint that prod has.
-- You forgot `atomic = False` on a `CREATE INDEX CONCURRENTLY` migration.
-- You imported a model directly instead of using `apps.get_model()`.
-
-See migration conventions in
-[creating features](../patterns/creating-features.md).
 
 ### "Why is undo not undoing this thing?"
 
 Check whether the operation goes through an `ActionType`. If it doesn't,
 nothing to undo. If it does:
 
-1. Right `scope()`? Undo is scope-filtered.
-2. `Params` round-trips through JSON cleanly?
-3. Exceptions in undo? They're logged but the action row is marked
+1. Is the session-id the same? After a reload the session-id is generated again and it's different from the one that triggered the action.
+2. Right `scope()`? Undo is filtered to the scopes the UI sent. See [undo/redo guide](../technical/undo-redo-guide.md).
+3. `Params` round-trips through JSON cleanly?
+4. Exceptions in undo? They're logged but the action row is marked
    undone-with-error.
 
 See [action system](../technical/action-system.md).
 
-### "Why is the test passing but production failing?"
-
-- **Cache differences.** Tests use in-memory cache; prod uses Redis. An
-  invalidation race that always wins in memory may lose in prod.
-- **Transaction isolation.** Tests roll back each test. `on_commit`
-  callbacks don't fire unless you opt in with
-  `TestCase.captureOnCommitCallbacks(execute=True)`.
-- **Search index not built.** Tests skip async search reindex.
-- **Different ordering.** Production interleaves; tests serialise. Race
-  conditions hide.
-
 ### "I want to reproduce a production bug locally"
 
+- **Export workspace applications**. Even only the applications structure 
+  is often enough to replicate most bugs. 
 - **Snapshot import.** If you have access to a snapshot of the user's
   data, install it into a local workspace via the snapshots feature.
   Bug usually reproduces with a fraction of the data.
@@ -416,8 +373,8 @@ See [action system](../technical/action-system.md).
 
 ### "Bisecting a regression"
 
-`git bisect` works as advertised; `just b show_urls` or a one-line
-shell_plus check can serve as the test condition. Use it when "this
+`git bisect` works as advertised; `just show_urls` (from `backend/`) or
+a one-line shell_plus check can serve as the test condition. Use it when "this
 worked last week but doesn't now" and there are dozens of merged PRs to
 sift through.
 
@@ -434,7 +391,7 @@ sift through.
   the others, but it also doesn't surface to the caller. Log exceptions
   in receivers.
 - **Soft-deleted (trashed) rows are filtered by the default manager.**
-  Use `Model.trash` to see them.
+  Use `Model.objects_and_trash` to see them.
 - **The local cache is per-request.** Anything cached via `local_cache`
   is lost after the request. Don't use it for cross-request state.
 - **Cachalot must be opt-in for user tables.** A query that "should be

@@ -1,194 +1,172 @@
-# Table of contents
+# Baserow developer documentation
 
-Baserow is an open-source online database tool. Users can use this no-code platform to
-create a database without any technical experience. It lowers the barriers to app
-creation so that anyone who can work with a spreadsheet can also create a database. The
-interface looks a lot like a spreadsheet. Our goal is to provide a perfect and fast user
-experience while keeping it easy for developers to write plugins and maintain the
-codebase. The developer documentation contains several topics you might need as a
-developer.
+This site is the developer reference for working on Baserow. The full list
+of docs is in the sidebar; this page is a curated entry point.
 
-## Installation
+If you're trying to **install or self-host Baserow**, jump to
+[Operations](#operations). If you're trying to **use** Baserow as a product,
+the user guides are at [baserow.io/docs](https://baserow.io/docs) (different
+site).
 
-We provide a hosted version of Baserow which you can sign up and start using immediately
-at [https://baserow.io](https://baserow.io). Alternatively you can easily self-host
-Baserow by following one the guides below:
+## Start here
 
-* [Install with Docker](installation/install-with-docker.md): A step-by-step guide to
-  install Baserow using docker.
-* [Install with Docker Compose](installation/install-with-docker-compose.md): A
-  step-by-step guide to install Baserow using Docker Compose.
-* [Install with Helm](installation/install-with-helm.md): A community maintained helm 
-  chart for installing Baserow on a K8S cluster easily.
-* [Install on AWS](installation/install-on-aws.md): An overview of your options to 
-  install Baserow on AWS with two specific guides for ECS.
-* [Install using Standalone images](installation/install-using-standalone-images.md): A
-  general overview on how to run the Baserow standalone service images with your own
-  container orchestration software.
-* [Install on Cloudron](installation/install-on-cloudron.md): Instructions to manually
-  install Baserow on Cloudron.
-* [Install on Heroku](installation/install-on-heroku.md): A step-by-step guide to
-  install Baserow using Heroku.
-* [Install on Render](installation/install-on-render.md): A step-by-step guide to
-  install Baserow using Render a Heroku alternative.
-* [Install on Digital Ocean Apps](installation/install-on-digital-ocean.md):
-  Instructions on how to install on Digital Ocean Apps platform.
-* [Install on Railway](installation/install-on-railway.md): A step-by-step guide to
-  install Baserow on Railway.
-* [Install on Ubuntu](installation/install-on-ubuntu.md): Instructions on how to install
-  Docker and use it to install Baserow on a fresh ubuntu install.
-* [Third party hosting providers](installation/third-party-hosting-providers.md): A list
-  of hosting/deployment providers that allow to easily self-host Baserow.
-* [Install with Traefik](installation/install-with-traefik.md): How to configure Baserow
-  when using Traefik.
-* [Install with K8S](installation/install-with-k8s.md): An example performant 
-  production ready K8S configuration for use as a starting point.
-* [Install behind Nginx](installation/install-behind-nginx.md): How to configure Baserow
-  when using a Nginx reverse proxy.
-* [Install behind Apache](installation/install-behind-apache.md): How to configure Baserow
-  when using an Apache reverse proxy.
-* [DEPRECATED: Install on Ubuntu](installation/old-install-on-ubuntu.md): A deprecated
-  and now unsupported guide on how to manually install Baserow and its required services
-  on a fresh Ubuntu install. Please use the guides above instead.
-* [Supported runtime dependencies and environments](installation/supported.md): Learn about
-  the supported and recommended runtime dependencies.
-* [Monitoring Baserow](installation/monitoring.md): Learn how to monitor your Baserow
-  server using open telemetry.
-* [Setup AI-assistant](installation/ai-assistant.md): A quick guide on how to setup the
-  AI-assistant.
+New to the codebase? Read these in order. They build on each other.
 
-## Baserow Tutorials
+1. [Introduction](technical/introduction.md) — what Baserow is technically.
+2. [Systems overview](technical/systems-overview.md) — the map of subsystems.
+3. [Architectural patterns](patterns/architecture.md) — view → service →
+   action → handler → ORM.
+4. [Registries](patterns/registries.md) — the extension pattern used
+   everywhere.
+5. [Baserow vs Django](patterns/baserow-vs-django.md) — the word overloads
+   (field, table, model, application). The short page that prevents most
+   confusion.
+6. [Editions and licensing](technical/editions-and-licensing.md) — what's
+   in the free edition (core + contrib) vs premium vs enterprise.
 
-* [Understanding Baserow Formulas](tutorials/understanding-baserow-formulas.md): A
-  tutorial explaining how to use the formula field in Baserow.
-* [Debugging Connection Issues](tutorials/debugging-connection-issues.md): A guide
-  to help you troubleshoot and resolve common connection issues in Baserow.
+## Getting your environment running
 
-## API Usage
+* [Development environment](development/development-environment.md) —
+  Docker vs local, which to pick.
+* [Running locally](development/running-the-dev-env-locally.md) /
+  [running with Docker](development/running-the-dev-env-with-docker.md).
+* [Running tests](development/running-tests.md).
+* [justfile reference](development/justfile.md) — every `just` recipe.
+* [IntelliJ](development/intellij-setup.md) /
+  [VS Code](development/vscode-setup.md) setup.
+* [Debugging](development/debugging.md) — tools and how to use them.
 
-Baserow provides various APIs detailed below:
+## How we work
 
-* [REST API](apis/rest-api.md): An introduction to the REST API and information about
-  API resources.
-* [WebSocket API](apis/web-socket-api.md): An introduction to the WebSockets API which
-  is used to broadcast real time updates.
+* [Engineering workflow](development/engineering-workflow.md) — issue → PR
+  → review → merge.
+* [Project conventions](development/conventions.md) — the "we do this here"
+  rules: loguru, type hints, comments, locales, `just` recipes, commits.
+  **Read this on your first day.**
+* [Skills](development/skills-index.md) — reusable workflow recipes
+  (`add-django-config-env-var`, `write-backend-unit-test`,
+  `create-in-app-notification`, …). Use these instead of re-deriving.
+* [Code quality](development/code-quality.md) — linters, formatters, CI.
+* [Feature flags](development/feature-flags.md).
 
-## Technical Overviews
+## Patterns and recipes
 
-**Start here when ramping up:**
+For the architectural map see [Architectural patterns](patterns/architecture.md).
+For how to ship a new feature:
 
-* [Introduction](technical/introduction.md): An introduction to some important technical
-  concepts in Baserow.
-* [Systems overview](technical/systems-overview.md): A high-level map of the major
-  subsystems in Baserow.
-* [Architectural patterns](patterns/architecture.md): The view → service → action →
-  handler → ORM shape that almost every feature follows, plus the realtime path.
-* [Registries](patterns/registries.md): The extension pattern used by nearly every
-  subsystem.
-* [Baserow vs Django](patterns/baserow-vs-django.md): How Baserow overloads Django
-  terminology (field, table, model, application) and what each word means.
-* [Features and interactions](technical/features-and-interactions.md): Catalogue of
-  features and the interaction map of where they couple non-trivially.
+* [Creating a feature](patterns/creating-features.md) — end-to-end
+  checklist.
+* [Query patterns](patterns/queries.md) — `select_related`,
+  `prefetch_related`, `specific_iterator`, bulk writes, N+1 avoidance.
+* [Celery](technical/celery.md) — the async runtime: workers, queues, tasks, periodic, singleton.
+* [Jobs](technical/jobs.md) — Celery wrapper for user-triggered work with progress + cancel.
+* [Observability](patterns/observability.md) — logging and tracing.
+* Smaller patterns: [forms](patterns/forms.md),
+  [modals](patterns/modals.md), [context menus](patterns/context-menus.md),
+  [dropdowns](patterns/dropdowns.md), [CRUD tables](patterns/crud-tables.md),
+  [alerts and toasts](patterns/alerts-and-toasts.md),
+  [frontend notifications](patterns/frontend-notifications.md),
+  [emails](patterns/emails.md), [date and time](patterns/date-and-time.md),
+  [row history from action](patterns/row_history_from_action.md), and
+  [loading animations](patterns/loading-animations.md).
+
+## System deep dives
+
+The reference for each major subsystem. Read after the "Start here" path.
 
 **Database plugin:**
 
-* [Database plugin](technical/database-plugin.md): Architecture entry point for the
-  database contrib application.
-* [Dynamic models](technical/dynamic-models.md): How `Table.get_model()` builds Django
-  models at runtime, and where the caches are.
-* [Field system](patterns/field-system.md): The `FieldHandler` / `FieldType` /
-  `field_type_registry` architecture.
-* [Formula Technical Guide](technical/formula-technical-guide.md): A more technical
-  guide about formulas aimed at developers who want to understand and work with
-  internals of Baserow formulas.
+* [Database plugin](technical/database-plugin.md) — entry point.
+* [Field system](patterns/field-system.md) — central architectural concept.
+* [Dynamic models](technical/dynamic-models.md) — runtime model generation.
+* [Formulas](technical/formula-technical-guide.md) — materialised
+  expressions, the AST, the dependency graph.
+* [Table rows full-text search](technical/table-rows-search.md) —
+  async tsvector indexing pipeline.
+* [Workspace search](technical/workspace-search.md) — cross-type
+  aggregation.
 
 **Core systems:**
 
-* [Action system](technical/action-system.md): `ActionType` / `Action` / `ActionHandler`
-  and how operations get audited and made undoable.
-* [Undo Redo Technical Guide](technical/undo-redo-guide.md): How Baserow implements undo
-  redo technically.
-* [Permissions handling Guide](technical/permissions-guide.md): How Baserow implements
-  permission checking technically.
-* [Trash system](technical/trash-system.md): Soft-delete, retention, restore.
-* [Notification system](technical/notification-system.md): In-product notifications and
-  email delivery.
-* [Serialization system](technical/serialization-system.md): Export / import / snapshots
-  / templates / duplication.
-* [Caching](technical/caching.md): The map of all caches and what invalidates them.
-* [Editions and licensing](technical/editions-and-licensing.md): Core / contrib /
-  premium / enterprise boundaries, the `LicenseHandler` API, SaaS context.
-* [WebSockets guide](technical/websockets.md): How Baserow pushes realtime updates to
-  the frontend.
-* [Workspace search](technical/workspace-search.md): How table search is implemented.
-* [PostgreSQL locks](technical/postgresql-locks.md): Lock conventions used in the
-  backend.
+* [Action system](technical/action-system.md) and
+  [undo / redo](technical/undo-redo-guide.md).
+* [Permissions](technical/permissions-guide.md).
+* [Trash system](technical/trash-system.md).
+* [Notifications](technical/notification-system.md).
+* [Serialization](technical/serialization-system.md) — export / import /
+  snapshots / templates / duplication.
+* [Caching](technical/caching.md).
+* [WebSockets](technical/websockets.md).
+* [PostgreSQL locks](technical/postgresql-locks.md) — isolation,
+  `select_for_update`, deadlocks, snapshot reads.
 
-**Patterns for everyday development:**
+## APIs
 
-* [Creating a feature](patterns/creating-features.md): How to add a view, action,
-  handler, model — plus zero-downtime migration conventions.
-* [Query patterns](patterns/queries.md): `select_related`, `prefetch_related`,
-  `specific_iterator`, bulk writes, N+1 avoidance.
-* [Observability](patterns/observability.md): Logging, OTEL tracing, and how
-  to verify assumptions in production.
-* [Jobs pattern](patterns/jobs.md), [forms pattern](patterns/forms.md),
-  [emails pattern](patterns/emails.md), [date and time](patterns/date-and-time.md),
-  [row history from action](patterns/row_history_from_action.md),
-  [loading animations](patterns/loading-animations.md).
+* [REST API](apis/rest-api.md).
+* [WebSocket API](apis/web-socket-api.md).
+* [Deprecations](apis/deprecations.md).
 
-## Development
+## Extending Baserow
 
-Everything related to contributing and developing for Baserow.
+The currently supported way to extend a self-hosted install:
 
-* [Engineering workflow](./development/engineering-workflow.md): How we move from
-  issue to merged pull request — labels, templates, draft PRs, review flow.
-* [Development environment](./development/development-environment.md): More detailed
-  information on baserow's local development environment.
-* [Running the Dev Environment](development/running-the-dev-environment.md): A
-  step-by-step guide to run Baserow for development.
-* [Directory structure](./development/directory-structure.md): The structure of all the
-  directories in the Baserow repository explained.
-* [Tools](./development/tools.md): The tools (flake8, pytest, eslint, etc) and how to
-  use them.
-* [Code quality](./development/code-quality.md): More information about the code style,
-  quality, choices we made, and how we enforce them.
-* [Debugging](./development/debugging.md): Debugging tools and how to use them.
-* [Create a template](./development/create-a-template.md): Create a template that can be
-  previewed and installed by others.
-* [Justfile reference](./development/justfile.md): Complete reference for all `just` commands
-  available for development.
-* [dev.sh](./development/dev_sh.md): **(Deprecated)** Legacy `./dev.sh` helper script.
-  Use `just` commands instead.
-* [IntelliJ setup](./development/intellij-setup.md): How to configure Intellij to work
-  well with Baserow for development purposes.
-* [Feature flags](./development/feature-flags.md): How Baserow uses basic feature flags for optionally
-  enabling unfinished or unready features.
-* [E2E Testing](./development/e2e-testing.md): How to run Baserow's end-to-end tests 
-  and when to add your own.
-* [Metrics and Logs](./development/metrics-and-logs.md): How to work with metrics and logs
-  to aid with monitoring Baserow as a developer.
-* [Backend Tests](development/running-tests.md): A guide on how to run python tests for the backend.
+* [Custom client scripts](plugins/custom-client-scripts.md) — inject
+  JavaScript into every page via `BASEROW_EXTRA_CLIENT_SCRIPT_URLS`
+  (enterprise feature). This is the recommended extension mechanism today.
 
-## Plugins
+### Legacy plugin system (pre-2.1)
 
-Everything related to custom plugin development.
+The original plugin system is historical and does not work with current
+Baserow. See [Plugin basics](plugins/introduction.md) for the full warning and
+the supported alternative. The pages below remain for reference only.
 
-* [Plugin basics](./plugins/introduction.md): An introduction into Baserow plugins.
-* [Plugin boilerplate](./plugins/boilerplate.md) **Outdated**: Don't reinvent the
-  wheel, use the boilerplate for quick plugin development.
-* [Create application](./plugins/application-type.md): Want to create an application
-  type? Learn how to do that here.
-* [Create database table view](./plugins/view-type.md): Display table data like a
-  calendar, Kanban board or however you like by creating a view type.
-* [Create database table view filter](./plugins/view-filter-type.md): Filter the rows of
-  a view with custom conditions.
-* [Create database table field](./plugins/field-type.md): You can store data in a custom
-  format by creating a field type.
-* [Creata a field converter](./plugins/field-converter.md): Converters alter a field and
-  convert the related data for specific field changes.
+* [Plugin basics](plugins/introduction.md) (legacy)
+* [Plugin installation](plugins/installation.md) (legacy)
+* [Boilerplate](plugins/boilerplate.md) (legacy)
+* [Plugin creation](plugins/creation.md) (legacy)
+* [Application type](plugins/application-type.md) (legacy)
+* [View type](plugins/view-type.md) (legacy)
+* [View filter type](plugins/view-filter-type.md) (legacy)
+* [Field type](plugins/field-type.md) (legacy)
+* [Field converter](plugins/field-converter.md) (legacy)
+
+## Tutorials
+
+User-facing how-tos.
+
+* [Understanding Baserow formulas](tutorials/understanding-baserow-formulas.md).
+* [Pre-filling forms](tutorials/prefill-forms.md).
+* [Debugging connection issues](tutorials/debugging-connection-issues.md).
+
+## Operations
+
+Self-hosting, deploying, and running Baserow in production.
+
+* [Configuration reference](installation/configuration.md) — every env var.
+* [Supported runtimes](installation/supported.md).
+* [Install with Docker](installation/install-with-docker.md) — the most
+  common path.
+* [Install with Docker Compose](installation/install-with-docker-compose.md).
+* [Install with Helm](installation/install-with-helm.md) /
+  [K8s](installation/install-with-k8s.md).
+* [Monitoring](installation/monitoring.md) +
+  [metrics and logs](development/metrics-and-logs.md).
+* [Backup and restore](runbooks/back-up-and-restore-baserow.md).
+* [SSO / SAML](development/sso-saml.md).
+* [Read replicas](development/read-replicas.md).
+* [Secure file serve](installation/secure-file-serve.md).
+* [Embeddings server](development/embeddings-server.md),
+  [AI assistant setup](installation/ai-assistant.md),
+  [MCP server](development/mcp-server.md).
+
+The sidebar has the full list of platform-specific install guides (AWS,
+Heroku, Render, Railway, Cloudron, Digital Ocean, Ubuntu, behind Nginx /
+Apache / Traefik, third-party providers).
+
+## Decisions (ADRs)
+
+* [Decision index and backlog](decisions/index.md).
 
 ## Other
 
-* [External resources related to Baserow](./other/external-resources.md): A list of
-  external third party resources.
+* [External resources](other/external-resources.md).

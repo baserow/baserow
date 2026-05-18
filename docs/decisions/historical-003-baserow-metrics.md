@@ -1,3 +1,5 @@
+# Baserow metrics
+
 ## The Problem
 
 We want to be able to observe a running instance of Baserow so we can:

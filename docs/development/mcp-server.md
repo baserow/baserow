@@ -96,10 +96,12 @@ Set `enabled = False` on the class if the tool should not be exposed to MCP clie
 
 See [docs/testing/mcp-test-plan.md](../testing/mcp-test-plan.md) for manual testing instructions.
 
+From `backend/`:
+
 ```bash
 # All MCP tests
-just b test tests/baserow/contrib/database/mcp/
+just test tests/baserow/contrib/database/mcp/
 
 # Service layer only
-just b test tests/baserow/contrib/database/mcp/test_mcp_services.py
+just test tests/baserow/contrib/database/mcp/test_mcp_services.py
 ```

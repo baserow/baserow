@@ -157,6 +157,11 @@ dev = [
 changelog = [
     "typer==0.24.1",
 ]
+docs = [
+    "mkdocs==1.6.1",
+    "mkdocs-material==9.5.49",
+    "pymdown-extensions==10.21.3",
+]
 
 [tool.hatch.metadata]
 allow-direct-references = true

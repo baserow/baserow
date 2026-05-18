@@ -8,6 +8,10 @@ All eval tests live under
 marked with `@pytest.mark.eval` so they are **skipped by default** in CI and
 local test runs.
 
+All commands below run from `backend/`. See
+[justfile reference](../development/justfile.md#how-to-invoke-the-three-styles)
+for the prefix-form alternatives.
+
 ## Prerequisites
 
 1. A running PostgreSQL database (see [running-tests.md](../development/running-tests.md)).
@@ -25,11 +29,11 @@ export GROQ_API_KEY=gsk_...
 export BASEROW_BACKEND_LOG_LEVEL=WARNING
 
 # Run all evals with the default model (groq:openai/gpt-oss-120b)
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
+just test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
   -m eval -v
 
 # Run a single eval file
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_core_builders.py \
+just test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_core_builders.py \
   -m eval -v
 ```
 
@@ -55,7 +59,7 @@ The eval conftest reads API keys from the same `TEST_ENV_FILE` that
 `os.environ` so that LLM provider SDKs can find them:
 
 ```bash
-TEST_ENV_FILE=.env.testing-local just b test \
+TEST_ENV_FILE=.env.testing-local just test \
   ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ -m eval -v -s
 ```
 
@@ -65,7 +69,7 @@ Variables already present in `os.environ` take precedence.
 
 ```bash
 GROQ_API_KEY=... OPENAI_API_KEY=... EVAL_LLM_MODEL="groq:openai/gpt-oss-120b,openai:gpt-4o" \
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
+just test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
   -m eval -v -s
 ```
 
@@ -217,7 +221,7 @@ To force a fresh sync (e.g. after schema changes or new documentation):
 
 ```bash
 # Drop and recreate the test DB, then re-sync
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
+just test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
   -m eval -v -s --create-db
 ```
 
@@ -225,11 +229,11 @@ just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals
 
 ```bash
 # Only search docs evals
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
+just test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
   -m eval -v -s
 
 # A single test case by parametrize ID
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
+just test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_search_user_docs.py \
   -m eval -v -s -k "vlookup-to-link-row"
 ```
 
@@ -248,7 +252,7 @@ LLM evals are inherently non-deterministic. If a test fails intermittently:
 
 - Use `EVAL_RETRIES` to automatically distinguish flakes from consistent bugs:
   ```bash
-  EVAL_RETRIES=3 just b test \
+  EVAL_RETRIES=3 just test \
     ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/test_eval_database_tables.py \
     -m eval -v -s
   ```

@@ -1,5 +1,10 @@
 # Application type
 
+!!! danger "Legacy plugin system"
+
+    This page is historical and does not work with current Baserow. See
+    [Plugin basics](introduction.md) for the supported alternative.
+
 An application is an abstraction that a user can add to workspace. More information about 
 this can be found in the [introduction](../technical/introduction.md). This is a
 tutorial about how you can add your own application to Baserow via a plugin. We are 
@@ -64,13 +69,13 @@ $ baserow makemigrations my_baserow_plugin
 $ baserow migrate 
 ```
 
-Lets try to create a new application with the `text_file` type by calling the 
+Let's try to create a new application with the `text_file` type by calling the
 `create_application` endpoint. More information on how to do this can be found in the
 [api docs](../apis/rest-api.md) and in the 
 [create application api spec](https://api.baserow.io/api/redoc/#operation/create_application).
 If that succeeds you are ready to get to the next web-frontend part. You might want to 
-inspect the `backend/src/baserow/core/registries.py::ApplicationType` class for all the
-options.
+inspect the `ApplicationType` class in `backend/src/baserow/core/registries.py` for
+all the options.
 
 ## Web frontend
 

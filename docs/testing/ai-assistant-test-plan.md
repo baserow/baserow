@@ -1,5 +1,9 @@
 # AI Assistant Test Plan
 
+All command examples below run from `backend/`. See
+[justfile reference](../development/justfile.md#how-to-invoke-the-three-styles)
+for the prefix-form alternatives.
+
 ## How to test
 
 ### 1. Automated tests (unit)
@@ -7,7 +11,7 @@
 Run the unit test suite (no LLM needed):
 
 ```bash
-just b test -n auto ../enterprise/backend/tests/baserow_enterprise_tests/assistant/ \
+just test -n auto ../enterprise/backend/tests/baserow_enterprise_tests/assistant/ \
   -v --ignore=enterprise/backend/tests/baserow_enterprise_tests/assistant/evals
 ```
 
@@ -23,7 +27,7 @@ the `search_user_docs` tool also require a running embedding service — set
 
 ```bash
 GROQ_API_KEY=gsk_... BASEROW_EMBEDDINGS_API_URL=http://... \
-just b test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
+just test ../enterprise/backend/tests/baserow_enterprise_tests/assistant/evals/ \
   -m eval -v -s
 ```
 

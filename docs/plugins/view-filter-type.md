@@ -1,5 +1,10 @@
 # View filter type
 
+!!! danger "Legacy plugin system"
+
+    This page is historical and does not work with current Baserow. See
+    [Plugin basics](introduction.md) for the supported alternative.
+
 A view filter can be created by a user to filter the rows of a view. Only the rows that
 apply to the filters are going to be displayed. There can be many types of filters like
 equals, contains, lower than, is empty, etc. These filter types can easily be added when

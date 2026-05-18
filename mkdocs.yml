@@ -1,0 +1,245 @@
+site_name: Baserow developer docs
+site_description: Onboarding and technical documentation for Baserow developers.
+docs_dir: docs
+site_dir: site
+
+# Default port for `mkdocs serve`. 8000 is the backend, 8001 is used by SaaS,
+# 7999 and 4000 are taken by OrbStack on dev machines. Override with
+# `just docs serve -a 127.0.0.1:<other>` if 9000 clashes for you.
+dev_addr: 127.0.0.1:9000
+
+# Explicit navigation. The order matters: this is the new-dev reading order.
+# When you add a new doc, also add it here — otherwise strict builds warn and
+# the page will not appear in the intended reading path.
+nav:
+  - Home: index.md
+
+  - Getting started:
+      - Development environment: development/development-environment.md
+      - Running locally: development/running-the-dev-env-locally.md
+      - Running with Docker: development/running-the-dev-env-with-docker.md
+      - Running tests: development/running-tests.md
+      - justfile reference: development/justfile.md
+      - Tools: development/tools.md
+      - IntelliJ setup: development/intellij-setup.md
+      - VS Code setup: development/vscode-setup.md
+      - Engineering workflow: development/engineering-workflow.md
+      - Project conventions: development/conventions.md
+      - Skills (reusable workflows): development/skills-index.md
+      - Code quality: development/code-quality.md
+      - Debugging: development/debugging.md
+      - E2E testing: development/e2e-testing.md
+      - Storybook: development/storybook.md
+      - Feature flags: development/feature-flags.md
+      - Create a template: development/create-a-template.md
+      - Legacy dev.sh: development/dev_sh.md
+
+  - Understanding Baserow:
+      - Introduction: technical/introduction.md
+      - Systems overview: technical/systems-overview.md
+      - Architectural patterns: patterns/architecture.md
+      - Frontend architecture: patterns/frontend-architecture.md
+      - Registries: patterns/registries.md
+      - Frontend registries: patterns/frontend-registries.md
+      - Baserow vs Django (glossary): patterns/baserow-vs-django.md
+      - Directory structure: development/directory-structure.md
+      - Editions and licensing: technical/editions-and-licensing.md
+
+  - Patterns and recipes:
+      - Creating a feature: patterns/creating-features.md
+      - Backend:
+          - ORM and queries: patterns/queries.md
+          - Endpoints (validation and error mapping): patterns/endpoints.md
+          - Database migrations (zero-downtime): patterns/migrations.md
+          - Bulk writes: patterns/bulk-writes.md
+          - Polymorphism and .specific: patterns/polymorphism.md
+          - Celery tasks: patterns/celery-tasks.md
+          - Job types (end-to-end): patterns/jobtypes.md
+          - Observability (logging and tracing): patterns/observability.md
+          - Date and time: patterns/date-and-time.md
+          - Emails: patterns/emails.md
+          - Row history from action: patterns/row_history_from_action.md
+      - Frontend:
+          - Forms: patterns/forms.md
+          - Modals: patterns/modals.md
+          - Context menus: patterns/context-menus.md
+          - Dropdowns: patterns/dropdowns.md
+          - CRUD tables: patterns/crud-tables.md
+          - Alerts and toasts: patterns/alerts-and-toasts.md
+          - Frontend notifications: patterns/frontend-notifications.md
+          - Optimistic updates: patterns/optimistic-updates.md
+          - Loading animations: patterns/loading-animations.md
+      - Cross-cutting:
+          - View filters (backend + frontend): patterns/view-filters.md
+          - Realtime end-to-end: patterns/realtime-end-to-end.md
+          - Signals and transaction.on_commit: patterns/signals-and-on-commit.md
+          - Progress bars: patterns/progress-bars.md
+          - i18n and translations: patterns/i18n-translations.md
+
+  - System deep dives:
+      - Authentication and sessions: technical/authentication.md
+      - Permissions: technical/permissions-guide.md
+      - Action system: technical/action-system.md
+      - Undo / redo: technical/undo-redo-guide.md
+      - Trash system: technical/trash-system.md
+      - Notifications: technical/notification-system.md
+      - Serialization: technical/serialization-system.md
+      - Caching: technical/caching.md
+      - Celery: technical/celery.md
+      - Jobs: technical/jobs.md
+      - WebSockets: technical/websockets.md
+      - PostgreSQL locks: technical/postgresql-locks.md
+      - Files and user uploads: technical/files.md
+      - Database plugin: technical/database-plugin.md
+      - Field system: patterns/field-system.md
+      - Dynamic models: technical/dynamic-models.md
+      - Formulas: technical/formula-technical-guide.md
+      - Table rows search: technical/table-rows-search.md
+      - Workspace search: technical/workspace-search.md
+      - AI assistant: technical/ai-assistant.md
+      - AI field architecture: development/ai-field-architecture.md
+
+  - APIs:
+      - REST API: apis/rest-api.md
+      - WebSocket API: apis/web-socket-api.md
+      - Deprecations: apis/deprecations.md
+
+  - Extending Baserow:
+      - Custom client scripts (supported): plugins/custom-client-scripts.md
+      - Legacy plugin system (pre-2.1, no longer working):
+          - Plugin basics: plugins/introduction.md
+          - Installation: plugins/installation.md
+          - Boilerplate: plugins/boilerplate.md
+          - Plugin creation: plugins/creation.md
+          - Application type: plugins/application-type.md
+          - View type: plugins/view-type.md
+          - View filter type: plugins/view-filter-type.md
+          - Field type: plugins/field-type.md
+          - Field converter: plugins/field-converter.md
+
+  - Tutorials:
+      - Understanding formulas (user): tutorials/understanding-baserow-formulas.md
+      - Pre-filling forms: tutorials/prefill-forms.md
+      - Debugging connection issues: tutorials/debugging-connection-issues.md
+
+  - Operations:
+      - Configuration reference: installation/configuration.md
+      - Supported runtimes: installation/supported.md
+      - Install with Docker: installation/install-with-docker.md
+      - Install with Docker Compose: installation/install-with-docker-compose.md
+      - Install with Helm: installation/install-with-helm.md
+      - Install with K8s: installation/install-with-k8s.md
+      - Install on AWS: installation/install-on-aws.md
+      - Install on Cloudron: installation/install-on-cloudron.md
+      - Install on Heroku: installation/install-on-heroku.md
+      - Install on Render: installation/install-on-render.md
+      - Install on Digital Ocean: installation/install-on-digital-ocean.md
+      - Install on Railway: installation/install-on-railway.md
+      - Install on Ubuntu: installation/install-on-ubuntu.md
+      - Install using standalone images: installation/install-using-standalone-images.md
+      - Install with Traefik: installation/install-with-traefik.md
+      - Install behind Nginx: installation/install-behind-nginx.md
+      - Install behind Apache: installation/install-behind-apache.md
+      - Third-party hosting: installation/third-party-hosting-providers.md
+      - Old Ubuntu install (deprecated): installation/old-install-on-ubuntu.md
+      - Monitoring: installation/monitoring.md
+      - Metrics and logs: development/metrics-and-logs.md
+      - Secure file serve: installation/secure-file-serve.md
+      - SSO / SAML: development/sso-saml.md
+      - Read replicas: development/read-replicas.md
+      - Building production images: development/building-and-running-production-images.md
+      - CI/CD: development/ci-cd.md
+      - AI assistant setup: installation/ai-assistant.md
+      - Embeddings server: development/embeddings-server.md
+      - MCP server: development/mcp-server.md
+      - Runbooks:
+          - Backup and restore: runbooks/back-up-and-restore-baserow.md
+          - Migrate user-tables DB: runbooks/migrate-from-user-tables-database.md
+
+  - Testing playbooks:
+      - AI assistant evals: testing/ai-assistant-evals.md
+      - AI assistant test plan: testing/ai-assistant-test-plan.md
+      - AI field test plan: testing/ai-field-test-plan.md
+      - MCP test plan: testing/mcp-test-plan.md
+
+  - Decisions (ADRs):
+      - Index and backlog: decisions/index.md
+      - Historical (pre-restructure):
+          - Phone number field validation: decisions/historical-001-phone-number-field-validation.md
+          - Baserow data backups: decisions/historical-002-baserow-data-backups.md
+          - Baserow metrics: decisions/historical-003-baserow-metrics.md
+
+  - Other:
+      - External resources: other/external-resources.md
+
+theme:
+  name: material
+  logo: assets/logo.svg
+  favicon: assets/favicon.png
+  font:
+    text: Inter
+    code: JetBrains Mono
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      # Custom Baserow blues are set in stylesheets/baserow.css.
+      # `custom` keeps Material from applying its built-in palette over them.
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  features:
+    # navigation.instant intentionally disabled: it intercepts page loads via
+    # XHR and breaks `mkdocs serve` live-reload (the current page stays
+    # cached even after a rebuild). The production-nav speed win isn't worth
+    # the dev-loop pain. Re-enable when we add a CI build of the site.
+    - navigation.tracking
+    - navigation.indexes
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - toc.follow
+
+extra_css:
+  - stylesheets/baserow.css
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+plugins:
+  - search
+
+# Custom build-time hooks. See docs_hooks/ for what each one does.
+hooks:
+  - docs_hooks/skills_index.py
+
+# Extra directories that `mkdocs serve` watches for live-reload.
+# `docs_dir` itself is always watched; these are the out-of-tree paths
+# our content depends on so that editing a SKILL.md or a hook re-renders.
+watch:
+  - .agents/skills
+  - docs_hooks

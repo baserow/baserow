@@ -25,11 +25,13 @@ Install the following tools:
    [Python IntelliJ plugin](https://plugins.jetbrains.com/plugin/631-python).
 1. Now we will create a Python virtual environment and configure IntelliJ to use it to run tests
    and linters:
-    1. Initialize the backend (creates venv and installs dependencies):
+    1. Initialize the project (creates venv and installs dependencies),
+       from the repo root:
        ```bash
-       just b init
+       just init
        ```
-       This creates a virtualenv at `.venv/` in the project root.
+       This creates a virtualenv at `.venv/` in the project root and
+       installs both backend and frontend dependencies.
     2. Now back in Intellij, press F4 or right-click on the top level baserow folder and
        select `module settings`:
         1. Make sure the `backend` module SDK is set to the python virtualenv you just
@@ -59,7 +61,7 @@ Install the following tools:
 1. Now you should be able to run the backend python tests, try
    run `backend/tests/baserow/core/test_core_models.py` for instance.
 1. Now lets set up your frontend dev by changing directory to `baserow/web-frontend`
-1. Now run `just f install` (or `yarn install` directly). If you do not have yarn available
+1. Now run `just install` (or `yarn install` directly). If you do not have yarn available
    check out and install a node version manager like [nvm](https://github.com/nvm-sh/nvm) or
    [fnm](https://github.com/Schniz/fnm) and follow the
    [Yarn installation instructions](https://yarnpkg.com/getting-started/install)).

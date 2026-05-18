@@ -1,5 +1,10 @@
 # Field type
 
+!!! danger "Legacy plugin system"
+
+    This page is historical and does not work with current Baserow. See
+    [Plugin basics](introduction.md) for the supported alternative.
+
 A field is an abstraction that defines how table data is stored per column. More
 information can be found on the
 [database plugin page](../technical/database-plugin.md). This is a tutorial about how to
@@ -33,8 +38,8 @@ model field is used when generating the table's model that is used to select and
 the data. The serializer field is used when exposing the data via the REST API to the
 web-frontend. For more information about the properties and methods related to the field
 type you can check the
-`backend/src/baserow/contrib/database/fields/registries.py::FieldType` class in the
-Baserow repository.
+`FieldType` class in
+`backend/src/baserow/contrib/database/fields/registries.py`.
 
 Create `plugins/my_baserow_plugin/backend/src/my_baserow_plugin/field_types.py`
 

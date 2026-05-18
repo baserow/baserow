@@ -37,11 +37,10 @@ help:
     @echo "    just dc-dev down               # Stop containers"
     @echo ""
     @echo "Documentation:"
+    @echo "  just docs                                           - Serve the docs site at http://localhost:9000"
     @echo "  docs/development/justfile.md                        - Just command reference"
     @echo "  docs/development/running-the-dev-env-locally.md     - Local development setup"
     @echo "  docs/development/running-the-dev-env-with-docker.md - Docker development setup"
-    @echo "  docs/development/running-tests.md                   - Running tests"
-    @echo "  docs/development/code-quality.md                    - Linting and formatting"
     @echo ""
     @echo "Component-specific help:"
     @echo "  just b help           # Backend commands and docs"
@@ -1180,6 +1179,19 @@ env-clear:
 [doc("Changelog: just changelog <add|release|generate|purge>")]
 changelog *args:
     cd backend && uv run --group changelog python ../changelog/src/changelog.py "$@"
+
+
+[group('5 - utilities')]
+[doc("Docs site: just docs <serve|build|...> (default: serve at http://localhost:9000)")]
+docs *args="serve":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    ARGS=({{ args }})
+    EXTRA=""
+    if [[ "${ARGS[0]:-}" == "serve" ]]; then
+        EXTRA="--livereload"
+    fi
+    cd backend && uv run --group docs mkdocs "${ARGS[@]}" $EXTRA --config-file ../mkdocs.yml
 
 # Run changelog tests
 [group('4 - testing')]

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="14" height="14" viewBox="0 0 14 14">
+  <defs>
+    <clipPath id="clip-baserow-icon">
+      <rect width="14" height="14"/>
+    </clipPath>
+  </defs>
+  <g id="baserow-icon" clip-path="url(#clip-baserow-icon)">
+    <g id="Group_4" data-name="Group 4" transform="translate(219 -417)">
+      <path id="Path_33" data-name="Path 33" d="M.753,0H7.978a.753.753,0,0,1,.753.753V2.709a.753.753,0,0,1-.753.753H.753A.753.753,0,0,1,0,2.709V.753A.753.753,0,0,1,.753,0Z" transform="translate(-210.269 431) rotate(180)" fill="#202128"/>
+      <path id="Path_9" data-name="Path 9" d="M.753,0H13.247A.753.753,0,0,1,14,.753V2.709a.753.753,0,0,1-.753.753H.753A.753.753,0,0,1,0,2.709V.753A.753.753,0,0,1,.753,0Z" transform="translate(-205 425.731) rotate(180)" fill="#202128"/>
+      <path id="Path_32" data-name="Path 32" d="M.753,0H7.978a.753.753,0,0,1,.753.753V2.709a.753.753,0,0,1-.753.753H.753A.753.753,0,0,1,0,2.709V.753A.753.753,0,0,1,.753,0Z" transform="translate(-205 420.461) rotate(180)" fill="#202128"/>
+      <path id="Path_34" data-name="Path 34" d="M.753,0H2.709a.753.753,0,0,1,.753.753V2.709a.753.753,0,0,1-.753.753H.753A.753.753,0,0,1,0,2.709V.753A.753.753,0,0,1,.753,0Z" transform="translate(-205 431) rotate(180)" fill="#202128"/>
+      <path id="Path_31" data-name="Path 31" d="M.753,0H2.709a.753.753,0,0,1,.753.753V2.709a.753.753,0,0,1-.753.753H.753A.753.753,0,0,1,0,2.709V.753A.753.753,0,0,1,.753,0Z" transform="translate(-219 417)" fill="#202128"/>
+    </g>
+  </g>
+</svg>

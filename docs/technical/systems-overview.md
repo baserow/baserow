@@ -33,8 +33,8 @@ changes type. `FieldHandler` is the orchestration layer that creates, updates, d
 and converts fields, coordinating side effects across dependent systems (dynamic model
 regeneration, search reindex, formula recomputation, dependency graph updates).
 
-See also: [Create database table field](../plugins/field-type.md),
-[Field converters](../plugins/field-converter.md).
+See also: [Field system](../patterns/field-system.md) and
+[Dynamic models](dynamic-models.md).
 
 ## Serialization system
 
@@ -42,16 +42,20 @@ Allows exporting Baserow applications to and from JSON / ZIP. It powers template
 workspace export/import, snapshots, and the in-memory "duplicate" flow (every
 duplication is just a serialize-then-deserialize round trip). Each registry that owns
 user-visible types implements `export_serialized` / `import_serialized` on its
-instances. See `baserow.core.export_serialized` and the per-app
+instances. A separate `SerializationProcessorType` registry lets cross-cutting
+concerns (search, formulas) hook into the round trip without modifying the
+type classes themselves. See `baserow.core.export_serialized` and the per-app
 `export_serialized.py` modules.
 
 ## Action system
 
 The event-based backbone of user-driven changes. Every state-changing user operation
 goes through an `ActionType` so it can be audited and, where applicable, undone or
-redone. `ActionHandler.do()` runs the action and writes an `Action` model row to the
-audit log. Actions live in `actions.py` modules per domain
-(e.g. `baserow/contrib/database/rows/actions.py`). The registry and base classes are
+redone. The action type's `do()` classmethod runs the action and (via
+`register_action`) writes an `Action` model row to the audit log; `ActionHandler`
+sits on top and handles undo/redo lookup. Actions live in `actions.py` modules
+per domain
+(e.g. `backend/src/baserow/contrib/database/rows/actions.py`). The registry and base classes are
 in `baserow.core.action.registries`.
 
 See also: [Undo/redo guide](undo-redo-guide.md).
@@ -88,13 +92,16 @@ permanently delete its instances. Entry point: `baserow.core.trash.handler.Trash
 
 ## Search system
 
-Maintains per-column TSV (PostgreSQL full-text search) representations so that
-searching across user tables is fast even on large datasets. Field types decide how
-their values get serialized into the TSV column; field updates, row writes and field
-type conversions all trigger reindex paths. See
+Maintains a per-workspace `tsvector` search table populated asynchronously
+from user-table writes, so searching is fast even on large datasets. Field
+types decide how their values get serialized into the index
+(`get_search_expression`); field updates, row writes and field-type
+conversions all trigger reindex paths. See
 `baserow.contrib.database.search` and `baserow.core.search.registries`.
 
-See also: [Workspace search guide](workspace-search.md).
+See also: [Table rows full-text search](table-rows-search.md) for the
+indexing pipeline and query path; [Workspace search guide](workspace-search.md)
+for cross-type aggregation on top of that index.
 
 ## Notification system
 
@@ -136,9 +143,9 @@ dependency graph is used to decide what else has to be recomputed or reindexed. 
 
 Gates premium and enterprise features behind license checks. Code that runs only
 under a license lives under `premium/` or `enterprise/`; the core has no direct
-knowledge of either. Feature checks go through `LicenseHandler` and the feature
-registry. Avoid coupling core or contrib code to license state — use the registered
-hooks instead.
+knowledge of either. Feature checks go through `LicenseHandler` and the
+`license_type_registry`. Avoid coupling core or contrib code to license state —
+use the registered hooks instead.
 
 ## Telemetry / logs / metrics
 
@@ -149,14 +156,16 @@ decorator on handlers and action types. Production traces are shipped to Honeyco
 See also: [Metrics and logs](../development/metrics-and-logs.md),
 [Monitoring Baserow](../installation/monitoring.md).
 
-## Plugin system
+## Plugin and extension system
 
-External code can extend Baserow by registering new application types, field types,
-view types, filters, formula functions, etc. into the same registries the built-in
-code uses. The premium and enterprise editions are themselves plugins, which is the
-mechanism that keeps the licensing boundary clean.
+Premium and enterprise extend Baserow by registering application types, field
+types, view types, filters, formula functions and other implementations into the
+same registries the built-in code uses. That internal plugin mechanism is what
+keeps the licensing boundary clean.
 
-See also: [Plugin basics](../plugins/introduction.md).
+The old external plugin system documented under `docs/plugins/` is historical
+and does not work with current Baserow. For supported self-hosted frontend
+customisation, see [custom client scripts](../plugins/custom-client-scripts.md).
 
 ## Job system
 
@@ -165,7 +174,7 @@ snapshots) to a Celery worker so the request thread stays responsive. Each job k
 is a `JobType` in `job_type_registry`; jobs report progress, can be cancelled, and
 can broadcast realtime updates as they advance.
 
-See also: [Jobs pattern](../patterns/jobs.md).
+See also: [Celery](celery.md), [Jobs](jobs.md).
 
 ## Where this fits
 

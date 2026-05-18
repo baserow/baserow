@@ -105,7 +105,7 @@ request.
 
 ### Layer 2 — distributed Redis cache (versioned)
 
-The dedicated `generated_models` cache backend (Redis in production).
+The dedicated `generated-models` cache backend (Redis in production).
 Key: `full_table_model_{table_id}_{BASEROW_VERSION}`.
 
 This cache **does not store the model class itself** — dynamically generated
@@ -118,9 +118,10 @@ faster than re-querying all the fields and calling each
 Stored shape: `{"field_attrs": {...}, "version": table.version}`.
 
 The cache is invalidated by **version mismatch**: every `Table` row has a
-`version: str` UUID column; when something changes that affects the model,
-`invalidate_table_in_model_cache(table_id)` rolls the UUID, so the cache lookup
-finds a stale `version` and discards the entry.
+`version` TextField (default `"initial_version"`); when something changes
+that affects the model, `invalidate_table_in_model_cache(table_id)` writes
+a fresh `uuid.uuid4()` into it, so the cache lookup finds a stale `version`
+and discards the entry.
 
 Invalidation happens in:
 

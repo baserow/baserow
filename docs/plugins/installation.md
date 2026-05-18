@@ -1,5 +1,10 @@
 # Plugin Installation
 
+!!! danger "Legacy plugin system"
+
+    This page is historical and does not work with current Baserow. See
+    [Plugin basics](introduction.md) for the supported alternative.
+
 > Check out our [Plugin community sub-forum](https://community.baserow.io/c/plugins/17)
 > for community made plugins and further discussion.
 

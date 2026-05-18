@@ -91,13 +91,16 @@ The terminology to keep straight:
 - **`Action`** — a Django model row recording that one specific occurrence of an
   `ActionType` happened, with its params, scope, user, and timestamp. This is what
   populates the audit log.
-- **`ActionHandler`** — the orchestrator. It's what views/services call. It looks up
-  the `ActionType`, runs `do()` inside a transaction, writes the `Action` row,
-  emits the `action_done` signal, and handles undo/redo lookup.
+- **`ActionHandler`** — the orchestrator for **undo and redo**. Views and services
+  call `ActionType.do(user, ...)` directly; `do()` calls `cls.register_action(...)`,
+  which writes the `Action` row and emits `action_done`. `ActionHandler.undo(...)` /
+  `.redo(...)` look up the relevant `Action` rows and invoke each `ActionType`'s
+  `undo()` / `redo()`; the periodic cleanup job (`clean_up_old_undoable_actions`)
+  also lives on this handler.
 
 A typical `ActionType.do()` does three things: validate inputs, call into a handler
 to do the work, and return a structure rich enough to undo. See
-`baserow/contrib/database/rows/actions.py` for representative examples and
+`backend/src/baserow/contrib/database/rows/actions.py` for representative examples and
 [Undo/redo guide](../technical/undo-redo-guide.md) for the model.
 
 ### Handler

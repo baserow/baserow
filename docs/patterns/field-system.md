@@ -3,8 +3,9 @@
 The field system is the engine behind every column in every user table. If
 you're working anywhere in the database module, you'll spend most of your
 time here. This page is the architectural overview; [the
-field-type plugin guide](../plugins/field-type.md) is the practical "how to
-register a new type" companion.
+registries guide](registries.md) explains the registration pattern, and the
+built-in field types in `baserow.contrib.database.fields.field_types` are the
+best examples to copy.
 
 For the broader request flow and the registry pattern itself, read
 [Architectural patterns](architecture.md) and [Registries](registries.md)
@@ -15,7 +16,7 @@ first.
 | Component | Lives in | What it owns |
 |---|---|---|
 | **`FieldHandler`** | `baserow.contrib.database.fields.handler` | Orchestration. The create/update/convert/delete entry points. Triggers side effects. |
-| **`FieldType` subclasses** | `baserow.contrib.database.fields.field_types` + plugins | Per-type behaviour: storage shape, validation, search representation, dependency contract, conversion hooks. |
+| **`FieldType` subclasses** | `baserow.contrib.database.fields.field_types` plus premium/enterprise modules | Per-type behaviour: storage shape, validation, search representation, dependency contract, conversion hooks. |
 | **`Field` model + subclasses** | `baserow.contrib.database.fields.models` | The Django models. Polymorphic — every `FieldType` has its own model subclass (e.g. `TextField`, `LinkRowField`). |
 
 Plus the registries:
@@ -25,7 +26,8 @@ Plus the registries:
   type-to-type conversions.
 
 The `FieldHandler` is the orchestrator; `FieldType` subclasses are the
-customisation points; the registries are the plugin surface.
+customisation points; the registries are the extension surface used by core,
+contrib, premium and enterprise code.
 
 ## The polymorphic `Field` model
 
@@ -99,6 +101,10 @@ The interesting variable is whether the type changes.
 8. Apply collected updates via the `update_collector`.
 9. Schedule search reindex; emit `field_updated` with `field_type_changed=True`.
 
+The order matters: dependent recomputation happens **before** the search
+reindex is scheduled, so the index is rebuilt against the post-recompute
+values rather than the stale ones.
+
 ## Lifecycle — convert (the interesting one)
 
 When a field's type changes, the existing column data must convert from one
@@ -131,7 +137,8 @@ If no converter applies, `lenient_schema_editor()` does the conversion:
 3. `to_field_type.get_alter_column_prepare_new_value()` — post-process the
    converted value.
 4. **Any value that fails to cast is silently set to NULL.** There is no
-   per-value error report.
+   per-value error report. The subsequent search reindex will pick up the
+   nulled values — old text won't keep matching after the conversion runs.
 
 **Rule of thumb:** if a conversion needs to preserve data and would otherwise
 fail or null out, register a `FieldConverter`. Don't hope the lenient path
@@ -170,13 +177,19 @@ Field types control how their data ends up in search. Two methods on
 - **`is_searchable(field) -> bool`** — whether to include this field in search
   at all. Defaults to `True`; computed/read-only fields may return `False`.
 
-Critical to understand: **there is one TSV column per table, not per field.**
-Every searchable field's expression is concatenated into it. Reindex is
-asynchronous (`SearchHandler.schedule_update_search_data` queues a Celery task
-on transaction commit), so search data can lag behind writes briefly.
+Critical to understand: the search index for row data lives in a
+per-workspace search table (not per-field TSV columns on the user table —
+that's a legacy V1 layout still present on some deployments). Reindex is
+asynchronous and **debounced** (`SearchHandler.schedule_update_search_data`
+inserts pending-update rows and schedules a Celery task), so search data can
+lag behind writes briefly. New fields are **not** indexed at creation — the
+first read of a view bootstraps indexing for any field whose
+`search_data_initialized_at` is still NULL.
 
-See [workspace search guide](../technical/workspace-search.md) for the
-indexing path.
+See [table rows full-text search](../technical/table-rows-search.md) for the
+full indexing pipeline and the legacy V1 caveat, and
+[workspace search guide](../technical/workspace-search.md) for how those
+results are aggregated across types.
 
 ## Dependency contract
 
@@ -235,12 +248,17 @@ Read these in roughly that order to build a model of how complexity scales.
 
 ## Related
 
-- [Plugin guide: field types](../plugins/field-type.md) — registration
-  mechanics for new types.
-- [Plugin guide: field converters](../plugins/field-converter.md) —
-  registration for new type conversions.
+- [Registries](registries.md) — registration mechanics for new types.
+- [Database plugin](../technical/database-plugin.md) — where field types sit
+  in the wider database application.
 - [Dynamic models](../technical/dynamic-models.md) — how field changes
   invalidate the generated model cache.
-- [Workspace search](../technical/workspace-search.md).
+- [Table rows full-text search](../technical/table-rows-search.md) — how
+  `get_search_expression` ends up in the index.
+- [Workspace search](../technical/workspace-search.md) — cross-type
+  aggregation on top of the per-table index.
+- [AI field architecture](../development/ai-field-architecture.md) and
+  [Embeddings server](../development/embeddings-server.md) — the `ai` field
+  type's compute path.
 - [Undo/redo guide](../technical/undo-redo-guide.md) — actions wrap most
   field-handler operations.

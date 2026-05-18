@@ -29,7 +29,7 @@ For each trashable Django model there's a `TrashableItemType` subclass registere
 in `trash_item_type_registry`. The registry is the extension point: to make a new
 model trashable, register a `TrashableItemType` for it.
 
-The base class (see `baserow/core/trash/registries.py`) requires implementations
+The base class (see `backend/src/baserow/core/trash/registries.py`) requires implementations
 to provide:
 
 - `model_class` — the Django model.
@@ -70,7 +70,7 @@ window (rare; mostly used for cleanup of unrecoverable state).
 
 ## Restore flow
 
-`TrashHandler.restore(requesting_user, trash_entry_id)`:
+`TrashHandler.restore_item(requesting_user, trash_entry_id)`:
 
 1. Refuse to restore a child whose parent is still trashed (raises
    `CannotRestoreChildBeforeParent`). The user has to restore the parent first.
@@ -116,6 +116,13 @@ registered in `trash_operation_type_registry` and gate who can see/empty what.
   filtered out of `_field_objects` on the dynamic model, but the column itself
   still exists in the user table so that NOT NULL constraints don't break on
   restore. See [dynamic models](dynamic-models.md).
+- **Model cache invalidation on restore is the type's responsibility.**
+  Trash/restore of fields and tables changes the shape of the generated
+  Django model, so the `restore()` and `permanently_delete_item()`
+  implementations for those types are responsible for calling
+  `invalidate_table_in_model_cache(table_id)`. The trash handler itself
+  doesn't know which restores should invalidate. If you register a new
+  `TrashableItemType` whose restore changes the generated model, mirror that.
 - **Parent inference.** `get_parent()` must return the parent item, not just its
   id, because the trash handler needs the type lookup to find the parent's
   trash entry.

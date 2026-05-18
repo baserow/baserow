@@ -107,10 +107,9 @@ from baserow.core.telemetry.utils import add_baserow_trace_attrs
 add_baserow_trace_attrs(table_id=table.id, row_count=len(rows))
 ```
 
-Attributes are namespaced under the `baserow.` prefix automatically. Real
-example:
-`baserow/contrib/database/fields/tasks.py:96`
-(`add_baserow_trace_attrs(update_now=update_now, workspace_id=workspace.id)`).
+Attributes are namespaced under the `baserow.` prefix automatically. Add only
+fields you expect to query, such as strategy names, table ids, workspace ids,
+or row counts.
 
 ### User context in spans
 
@@ -197,7 +196,7 @@ can give in a PR review is a Honeycomb link.
 
 Honeycomb shows the number of DB spans inside each parent span. If the
 count grows with the page size of the affected listing, it's N+1. Add a
-query-count test (see [queries](queries.md#cheat-sheet-—-writing-a-new-handler-method))
+query-count test (see [queries](queries.md#cheat-sheet-writing-a-new-handler-method))
 to lock in the fix.
 
 ## Configuration knobs

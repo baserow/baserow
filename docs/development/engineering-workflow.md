@@ -6,59 +6,22 @@ windows, hotfixes) have their own runbooks.
 
 ## Issues
 
-We use [GitHub Issues](https://github.com/baserow/baserow/issues). New issues are
-opened through one of two templates from the
-[New issue page](https://github.com/baserow/baserow/issues/new/choose):
+We use [GitHub Issues](https://github.com/baserow/baserow/issues). Bugs and
+feature requests should use the issue templates so GitHub's issue type is set
+correctly. Refactors, dependency bumps, docs, CI work, and similar tasks can use
+a blank issue and be typed during triage.
 
-- **🪲 Bug Report** (`.github/ISSUE_TEMPLATE/bug.yml`) — auto-applies the
-  `bug 🪲` and `needs feedback ⚠️` labels.
-- **💡 Feature Request** (`.github/ISSUE_TEMPLATE/feature_request.yml`) —
-  auto-applies the `feature request 💡` and `needs feedback ⚠️` labels.
+The durable rules:
 
-Blank issues are disabled by default; vague ideas go to the
-[community forum](https://community.baserow.io/) first.
+- Concrete bug reports and feature requests belong in GitHub issues.
+- Vague product ideas usually start in the
+  [community forum](https://community.baserow.io/).
+- Team priority lives in the team's GitHub project, not in a hard-coded label
+  list.
+- Oversized work should be split before implementation.
 
-There is no "maintenance" template — refactors, dependency upgrades and pure tech
-debt are typically tracked directly in pull requests rather than as separate
-issues.
-
-### Labels worth knowing
-
-**Domain labels** identify which team's expertise is needed. Exactly one is
-usually applied:
-
-- `database 🗄️` — database module.
-- `application 📱` — application builder.
-- `automation 🤖` — automations.
-- `dashboard 📈` — dashboards.
-- `core 🔩` — only core code; no contrib expertise required.
-- `devops 👨‍🔧` — infra, CI, deployment, install methods.
-- `integration 🔗` — Zapier and other external integrations.
-
-**Type labels** are mostly auto-applied by the issue templates:
-
-- `bug 🪲` — bugs.
-- `feature request 💡` — feature requests.
-- `AI` — AI-related code.
-
-**Triage / lifecycle labels:**
-
-- `needs feedback ⚠️` — applied automatically; means a maintainer hasn't
-  reviewed it yet.
-- `up-next` — triaged and prioritized; safe to pick from when starting new work.
-- `good first issue` — simple starting issues. Note: the label is sparsely
-  maintained, so prefer `up-next` + domain + recency when looking for work.
-- `needs ux design 🎨` — blocked on UI/UX design.
-- `external contribution` — opened by a community contributor.
-- `gitlab issue` — migrated from the old GitLab tracker; ignore for new triage.
-
-**Priority labels:** `p0` (high) → `p3` (lowest).
-
-**Size label:** `size:xl` — represents over 10 days of work; issues with this
-label must be split into smaller tasks.
-
-**Bot-managed labels** (auto-applied by dependabot etc.): `dependencies`,
-`python`, `python:uv`, `javascript`.
+Labels and project-board fields change. Trust the live GitHub project for the
+current taxonomy.
 
 ## Branches
 
@@ -109,7 +72,6 @@ list. The items worth remembering:
 - [Pull requests sorted by latest activity](https://github.com/baserow/baserow/pulls?q=is%3Apr+is%3Aopen+sort%3Aupdated-desc)
 - [Pull requests waiting on my review](https://github.com/baserow/baserow/pulls/review-requested/%40me)
 - [Pull requests I authored](https://github.com/baserow/baserow/pulls/%40me)
-- [Issues in `database 🗄️` labeled `up-next`](https://github.com/baserow/baserow/issues?q=is%3Aopen+is%3Aissue+label%3A%22database+%F0%9F%97%84%EF%B8%8F%22+label%3Aup-next)
 
 ## Related
 

@@ -14,7 +14,7 @@ development environment and to land cross-cutting changes in one pull request.
 | `integrations` | External integrations (currently Zapier; automation integrations will land here). |
 | `e2e-tests` | Playwright end-to-end tests. The only place where we use TypeScript today. |
 | `deploy` | One sub-folder per deployment target (all-in-one image, Heroku, Cloudron, …). |
-| `docs` | Developer documentation that gets published to baserow.io/docs. |
+| `docs` | Developer, installation, operations, and technical documentation. The MkDocs navigation lives in `mkdocs.yml`. |
 | `changelog` | Source for the changelog generator used when opening a pull request. |
 | `config` | Per-IDE starter configurations. |
 | `formula` | Formula language grammar/parser source. |
@@ -66,9 +66,9 @@ For the layered shape of a typical request, see
 In the backend directory you will find some files that are related only to the backend.
 This whole directory is also added to the backend container.
 
-* `pyproject.toml`: Python project configuration including dependencies managed by uv.
+* `pyproject.toml`: Python project configuration including dependencies managed by uv;
+  also holds the Ruff lint/format configuration (`[tool.ruff]`).
 * `uv.lock`: lockfile for reproducible dependency installation.
-* `.flake8`: contains the flake8 linter configuration.
 * `baserow`: is actually a python file, that just calls the management.py file in the
   source directory. This file is registered as a command via the `pyproject.toml`. When
   someone adds Baserow as a dependency they can use the command `baserow migrate` which
@@ -124,54 +124,40 @@ def test_something_important(data_fixture):
 
 ## web-frontend
 
-In the web-frontend directory you will find some files that are related only to the
-web frontend. This whole directory is also added to the web-frontend container.
+In the web-frontend directory you will find files related only to the Nuxt/Vue
+frontend. This whole directory is also added to the web-frontend container.
 
-* `.babelrc`: contains the configuration for the babel compiler.
-* `.eslintignore`: a text file containing directories that must be ignored by eslint.
-* `.eslintrc.js`: the configuration for the eslint linter.
-* `.prettierrc`: configuration for prettier.
-* `.stylelintrc`: configuration for stylelint which lints the scss code.
-* `Dockerfile`:  Builds an image containing just the web-frontend service, build with
-  `--target dev` to instead get a dev ready image.
-* `intellij-idea.webpack.config.js` a webpack config file that can be used by Intellij
-  iDEA. It adds the correct aliases for the editor.
-* `jest.config.js`: config file for running the tests with JEST.
-* `justfile`: contains commands to install dependencies, run the linter, and run
-  the tests.
-* `nuxt.config.js`: base Nuxt config for the development environment.
-* `package.json`: main package config including all the dependencies for the
-  web-frontend.
-* `yarn.lock`: auto generated file containing a list of the dependencies installed via
-  yarn.
+* `Dockerfile`: builds an image containing just the web-frontend service; use
+  `--target dev` for the development image.
+* `eslint.config.mjs` (repo root): ESLint flat config for JavaScript and Vue files.
+* `web-frontend/stylelint.config.mjs`: Stylelint configuration for SCSS.
+* Prettier runs through the frontend `just` recipes and package scripts.
+* `nuxt.config.ts`: Nuxt entry point.
+* `config/`: environment-specific Nuxt config files.
+* `vitest.config.ts` and `vitest.config.base.ts`: Vitest test configuration.
+* `package.json`: package config and frontend dependencies.
+* `yarn.lock`: lockfile for dependencies installed via yarn.
+* `justfile`: commands to install dependencies, run linting, and run tests.
 
 ### config
 
-The config directory contains some base Nuxt settings and some settings for specific
-environments. For example, in the development environment the eslint loader is added to
-webpack.
+The config directory contains base Nuxt settings plus environment-specific
+overrides for development, production and tests.
 
 ### modules
 
-All the modules follow the common directory structure of Nuxt. More information can be
-found in the
-[Nuxt documentation about the directory structure](https://nuxtjs.org/guide/directory-structure/).
+All modules follow Nuxt's module-oriented structure: `module.js`, `plugin.js`,
+components, pages, services, store modules, realtime handlers, assets and
+locales.
 
 ### tests
 
-At the moment there are only a few tests related to the web-frontend. Because the tests
-aren't maintained at this point, the directory structure is off. The specs should be in
-the matching modules directory.
+Frontend unit tests live under `web-frontend/test/` and run with Vitest. Tests
+mirror the source area where possible and use the shared `TestApp` fixture.
 
 ## docs
 
-The docs folder contains markdown files with the full developer documentation of
-Baserow. The contents of these files are automatically placed on
-https://baserow.io/docs.
+The docs folder contains Markdown files for developer, installation,
+operations and technical documentation. The sidebar order is controlled by
+`mkdocs.yml`.
 
-## media
-
-Contains a nginx based docker image which is used in Baserow's docker setup to serve
-any uploaded user files. This is needed as Django will not serve media files when
-not in debug mode and instead requires you to run your own web server to serve these
-assets.

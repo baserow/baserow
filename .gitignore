@@ -166,3 +166,6 @@ web-frontend/.nuxt-storybook/
 web-frontend/storybook-static
 
 .agent
+
+# MkDocs build output
+/site/

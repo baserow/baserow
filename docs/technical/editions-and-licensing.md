@@ -3,24 +3,31 @@
 Baserow ships in three editions. They share most of the code but differ in
 what's enabled at runtime. This page covers:
 
-1. The boundaries between core, premium, and enterprise — what goes where
+1. The boundaries between free, premium, and enterprise — what goes where
    and why.
 2. The licensing mechanism — how the code knows whether a feature is
    active.
 3. The SaaS context — how baserow.io differs from a self-hosted install.
 
+> **Edition vs directory.** "Free edition" and the `baserow.core` Python
+> package are different things. The free edition is the open-source build
+> as a whole — it contains both the `core/` package (framework) and the
+> `contrib/` packages (database, builder, automations, dashboards,
+> integrations). When other docs say "the `core` package" they mean the
+> directory, not the edition.
+
 ## Editions
 
-| Edition | Folder | License | Contents |
+| Edition | Folders | License | Contents |
 |---|---|---|---|
-| **Core** | `backend/`, `web-frontend/` | Open-source (MIT) | Everything everyone gets: users, workspaces, the database application type with all built-in field/view types, the builder app, automations, dashboards, integrations. The framework. |
+| **Free edition** | `backend/` + `web-frontend/` | Open-source (MIT) | Everything everyone gets: users, workspaces, the database application type with all built-in field/view types, the builder app, automations, dashboards, integrations. The framework. |
 | **Premium** | `premium/` | Baserow Premium Edition License | Self-hostable but licensed features: personal views, row comments, AI fields, advanced exports, etc. |
 | **Enterprise** | `enterprise/` | Baserow Enterprise Edition License | RBAC, SSO/SAML, audit logs, advanced admin, restricted views, data scanner, etc. |
 
 Premium and enterprise are themselves Baserow plugins — they register types
-into the same registries the core code uses. There is no special code path
-that "is premium" or "is enterprise" beyond a licence check at the feature
-boundaries.
+into the same registries the free-edition code uses. There is no special
+code path that "is premium" or "is enterprise" beyond a licence check at
+the feature boundaries.
 
 ## Boundary rules
 
@@ -45,17 +52,17 @@ In particular:
   refactor core to provide a registration point — you don't reach into
   premium from core.
 
-Why it matters: a Baserow user who self-hosts core-only must be able to run
-without `premium/` or `enterprise/` on disk at all. The licence model also
-depends on it — a premium feature can't run if `premium/` isn't installed.
+Why it matters: a Baserow user who self-hosts the free edition must be
+able to run without `premium/` or `enterprise/` on disk at all. The licence
+model also depends on it — a premium feature can't run if `premium/` isn't
+installed.
 
 ## Where things go
 
 The rule of thumb when you're adding a new feature:
 
 - **Touches everyone:** core or contrib.
-- **Touches paid plans on self-hosted *and* on SaaS:** premium.
-- **Touches paid plans only on SaaS or enterprise self-hosted:** enterprise.
+- **Touches paid plans:** premium or enterprise, depending on the feature.
 - **Touches the database application type:** `contrib/database` (for free) or
   `premium`/`enterprise` (for paid).
 - **Touches the builder, automations, dashboards, integrations:** the
@@ -125,10 +132,11 @@ default plugin lives in premium; SaaS overrides it with its own variant.
 
 Each plugin keeps its feature flag constants in a `features.py`:
 
-- `premium/backend/src/baserow_premium/license/features.py` — `PREMIUM`,
-  `AI`, `PERSONAL_VIEWS`, `EXPORT_GROUP`, ...
+- `premium/backend/src/baserow_premium/license/features.py` — currently
+  just `PREMIUM`. Premium-only features (personal views, AI fields, advanced
+  exports, ...) are all gated by this single flag.
 - `enterprise/backend/src/baserow_enterprise/features.py` — `RBAC`,
-  `SSO`, `AUDIT_LOG`, ...
+  `SSO`, `AUDIT_LOG`, `SECURE_FILE_SERVE`, ...
 
 Use these constants by import. Don't pass raw strings.
 
@@ -180,7 +188,7 @@ implement it — same pattern as premium/enterprise vs core.
 - **Checking the license inside a tight loop.** The check is cheap but
   non-zero. Cache the result for the request via `local_cache` (see
   [caching](caching.md)).
-- **Forgetting that premium / enterprise files don't exist in core-only
+- **Forgetting that premium / enterprise files might not exist in core-only
   installs.** Conditional imports must be defensive; do not assume
   `baserow_premium` is importable from a core code path.
 - **Putting a paid feature in the wrong tier.** Premium vs enterprise is a
@@ -188,7 +196,7 @@ implement it — same pattern as premium/enterprise vs core.
 
 ## Related
 
-- [Systems overview — license/feature/pricing system](systems-overview.md#license--feature--pricing-system).
+- [Systems overview — license/feature/pricing system](systems-overview.md#license-feature-pricing-system).
 - [Directory structure](../development/directory-structure.md) — the boundary
   rules in the broader codebase layout.
 - [Architectural patterns](../patterns/architecture.md) — where the licence

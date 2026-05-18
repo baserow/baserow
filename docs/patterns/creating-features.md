@@ -55,14 +55,14 @@ code reading and writing the same tables. Follow these patterns.
 
 ### Nullable-then-backfill-then-NOT-NULL
 
-For a new non-nullable column on a non-trivial table, split into three
-migrations (or three operations in one migration):
+For a new non-nullable column on a non-trivial table, split the rollout across
+releases:
 
 1. `AddField(name="x", null=True, default=None)`.
 2. `RunPython(populate_x, reverse_populate_x)` to backfill.
-3. `AlterField(name="x", null=False)`.
+3. In a later release, `AlterField(name="x", null=False)`.
 
-Worked example: `baserow/contrib/database/migrations/0053_add_and_move_public_flags.py`
+Worked example: `backend/src/baserow/contrib/database/migrations/0053_add_and_move_public_flags.py`
 uses temp fields (`public_temp`, `slug_temp`), backfills with
 `bulk_update(batch_size=...)`, then renames back.
 
@@ -72,18 +72,21 @@ uses temp fields (`public_temp`, `slug_temp`), backfills with
 Don't load millions of rows into memory.
 
 ```python
+from baserow.core.utils import grouper
+
 def populate_x(apps, schema_editor):
     Model = apps.get_model("app", "Model")
-    for chunk in chunked_iterator(Model.objects.all(), chunk_size=1000):
+    rows = Model.objects.all().iterator(chunk_size=1000)
+    for chunk in grouper(1000, rows):
         Model.objects.bulk_update(
             [update_one(obj) for obj in chunk], ["x"], batch_size=100
         )
 ```
 
 A real example with explicit batching and atomic-per-chunk semantics:
-`baserow/core/migrations/0081_usersource_uid.py` (single-pass, but the
-pattern is the same) and
-`baserow/contrib/database/migrations/0081_batch_webhooks.py` (multi-chunk).
+`backend/src/baserow/contrib/database/migrations/0081_batch_webhooks.py`
+(multi-chunk). For a single-pass backfill using `apps.get_model`, see
+`backend/src/baserow/core/migrations/0081_usersource_uid.py`.
 
 ### `atomic = False` for index operations
 
@@ -91,7 +94,7 @@ PostgreSQL's `CREATE INDEX CONCURRENTLY` doesn't run in a transaction. To use
 it, set `atomic = False` on the migration class and use `RunSQL` with
 `CREATE INDEX CONCURRENTLY IF NOT EXISTS ...`.
 
-Worked example: `baserow/core/migrations/0113_alter_notification_options_and_more.py`.
+Worked example: `backend/src/baserow/core/migrations/0113_alter_notification_options_and_more.py`.
 
 ### Use `apps.get_model()` in `RunPython`
 
@@ -114,16 +117,16 @@ makes incident response much harder.
 - Did you import models directly? (Wrong.)
 
 The full migration checklist is in
-[Migration conventions in the queries doc](queries.md). When in doubt, ask
+[Database migrations](migrations.md). When in doubt, ask
 in review.
 
 ## Writing a handler
 
 Where it goes:
 
-- Core handler: `baserow/core/handler.py` or domain-specific
-  `baserow/core/<area>/handler.py`.
-- Database handler: `baserow/contrib/database/<area>/handler.py`.
+- Core handler: `backend/src/baserow/core/handler.py` or domain-specific
+  `backend/src/baserow/core/<area>/handler.py`.
+- Database handler: `backend/src/baserow/contrib/database/<area>/handler.py`.
 
 A handler is a class with classmethods (or a singleton with instance methods —
 both styles exist). The single most important property: a handler method must
@@ -222,8 +225,10 @@ Conventions in this codebase:
   Use `data_fixture.create_text_field(...)`, `data_fixture.create_row_for_many_to_many_field(...)`,
   etc. Search existing tests for examples.
 - **Query-count tests** for hot paths. See [queries](queries.md).
-- **Snapshot / serialisation round-trip tests** for any new field type or
-  view type. See [serialization](../technical/serialization-system.md).
+- **Round-trip serialisation tests** for any new field type or view type
+  (export → import into a fresh workspace, compare). "Snapshot" here means
+  the test pattern, not the user-facing snapshot feature. See
+  [serialization](../technical/serialization-system.md).
 
 ## Wiring it up
 

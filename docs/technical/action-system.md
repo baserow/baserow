@@ -20,12 +20,12 @@ the layer between **service** and **handler** in the backend flow.
 | **`Action`** | `baserow.core.action.models` | A Django model row: one specific occurrence of an `ActionType` happening, with its params, scope, user, session, timestamps. This populates the audit log. |
 | **`ActionHandler`** | `baserow.core.action.handler` | The orchestrator. Drives `undo()` and `redo()` for a user across the latest action(s) within a set of scopes. |
 
-A common confusion early on: `ActionType.do()` is what runs the operation, but
-it's not what views call directly. Views/services call **`ActionType.do()` itself**
-(the class method); inside `do()`, the implementation calls `cls.register_action()`
-to record the `Action` row, then delegates to a handler for the actual mutation.
+A common confusion early on: views and services usually call the class method
+`SomeActionType.do(...)`, not `ActionHandler`. Inside `do()`, the implementation
+calls `cls.register_action()` to record the `Action` row, then delegates to a
+handler for the actual mutation. `ActionHandler` is for undo/redo orchestration.
 
-Read `baserow/contrib/database/rows/actions.py` for canonical examples.
+Read `backend/src/baserow/contrib/database/rows/actions.py` for canonical examples.
 
 ## Shape of an `ActionType`
 
@@ -61,8 +61,14 @@ when a user presses undo, the frontend tells the backend which scopes the user i
 currently "in" (the table they're looking at, the workspace, etc.), and
 `ActionHandler.undo()` only considers actions in those scopes.
 
+Scopes are *per-domain*, not per-workspace. A scope string looks like
+`table42` (table 42), `view100` (view 100), `application7`, `workspace3`,
+etc. A user's undo stack while editing rows in table 42 is independent from
+their undo stack in table 99, even though both tables live in the same
+workspace.
+
 Scope types are registered in `action_scope_registry` (see `ActionScopeType` in
-`baserow/core/action/registries.py`). Each scope type implements `value()` to
+`backend/src/baserow/core/action/registries.py`). Each scope type implements `value()` to
 build an `ActionScopeStr` from runtime context.
 
 ## Undo and redo
@@ -103,12 +109,12 @@ No:
 - Operations triggered by another action (e.g. signal receivers that update
   search). The originating action covers them.
 
-If you're unsure, make it an action. The cost is small and you get the audit log
-for free.
+If you're unsure, make it an action. The cost is small and it records the change
+in the audit log.
 
 ## Anatomy of a typical action implementation
 
-A simplified shape (read the real ones in `baserow/contrib/database/rows/actions.py`):
+A simplified shape (read the real ones in `backend/src/baserow/contrib/database/rows/actions.py`):
 
 ```python
 from baserow.core.action.registries import UndoableActionType

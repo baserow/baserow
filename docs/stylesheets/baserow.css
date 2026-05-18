@@ -1,0 +1,61 @@
+/*
+ * Baserow brand overrides for the Material for MkDocs theme.
+ *
+ * Palette values mirror web-frontend/modules/core/assets/scss/colors.scss:
+ *   $palette-blue-500 = #5190ef  (primary accent)
+ *   $palette-blue-700 = #3c76c7  (hover / darker accent)
+ *   $palette-blue-100 = #dae4fd  (light wash)
+ *   $palette-blue-900 = #1d508b  (deep accent)
+ */
+
+:root {
+  --md-primary-fg-color:        #1d508b; /* topbar / sidebar accent */
+  --md-primary-fg-color--light: #5190ef;
+  --md-primary-fg-color--dark:  #124377;
+  --md-accent-fg-color:         #5190ef; /* links, focus */
+  --md-accent-fg-color--transparent: #5190ef1a;
+  --md-typeset-a-color:         #3c76c7;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color:        #5190ef;
+  --md-primary-fg-color--light: #689ef1;
+  --md-primary-fg-color--dark:  #1d508b;
+  --md-accent-fg-color:         #689ef1;
+  --md-typeset-a-color:         #96baf6;
+}
+
+/* Brand the topbar more obviously than the default Material header. */
+.md-header {
+  background-color: var(--md-primary-fg-color);
+}
+
+/* Tighter logo. The Baserow logo is wider than Material expects. */
+.md-header__button.md-logo img,
+.md-header__button.md-logo svg {
+  height: 1.5rem;
+  width: auto;
+}
+
+/* Match Baserow's body copy weight a touch better. */
+.md-typeset {
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* Slightly bolder section headings to match the Nuxt site. */
+.md-typeset h1,
+.md-typeset h2 {
+  font-weight: 700;
+}
+
+/* Code-block frame in brand blue rather than the default grey. */
+.md-typeset pre > code {
+  border-left: 3px solid var(--md-primary-fg-color--light);
+}
+
+/* Admonition tweak: the danger banners we use on legacy plugin pages
+ * are more prominent with the brand-aligned border. */
+.md-typeset .admonition.danger,
+.md-typeset details.danger {
+  border-color: #d9534f;
+}

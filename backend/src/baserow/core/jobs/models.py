@@ -137,7 +137,7 @@ class Job(CreatedAndUpdatedOnMixin, PolymorphicContentTypeMixin, models.Model):
 
     def set_state_cancelled(self):
         """
-        Mark job as pending cancellatttion
+        Mark job as cancelled.
         """
 
         self.set_state(JOB_CANCELLED)
@@ -161,7 +161,7 @@ class Job(CreatedAndUpdatedOnMixin, PolymorphicContentTypeMixin, models.Model):
 
     def set_state_finished(self):
         """
-        Mark job as started
+        Mark job as finished.
         """
 
         self.set_state(JOB_FINISHED)

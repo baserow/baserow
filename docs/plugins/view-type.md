@@ -1,5 +1,10 @@
 # View type
 
+!!! danger "Legacy plugin system"
+
+    This page is historical and does not work with current Baserow. See
+    [Plugin basics](introduction.md) for the supported alternative.
+
 A view is an abstraction that defines how table data is displayed to a user. More 
 information about this can be found on the 
 [database plugin page](../technical/database-plugin.md). This is a tutorial about 
@@ -26,10 +31,11 @@ class CalendarView(View):
     pass
 ```
 
-Next we need a to create a `CalendarViewType` class. All the view type configuration, 
+Next we need to create a `CalendarViewType` class. All the view type configuration,
 hooks and other related things are in here. More information about the possibilities 
 can be found in the Baserow repository at 
-`backend/src/baserow/contrib/database/views/registries.py::ViewType`.
+the `ViewType` class in
+`backend/src/baserow/contrib/database/views/registries.py`.
 
 plugins/my_baserow_plugin/backend/src/my_baserow_plugin/view_types.py
 ```python
@@ -117,10 +123,10 @@ export default {
 </script>
 ```
 
-You can inspect the `web-frontend/modules/database/viewTypes.js::ViewType` for all the
-methods and properties that can be overridden here. The component that is returned by
-the `getComponent` method is will be added to the body of the page when a view of this
-type is selected.
+You can inspect the `ViewType` class in
+`web-frontend/modules/database/viewTypes.js` for all the methods and properties that
+can be overridden here. The component returned by `getComponent` is added to the body
+of the page when a view of this type is selected.
 
 plugins/my_baserow_plugin/web-frontend/viewTypes.js
 ```javascript
