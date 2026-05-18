@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('automation', '0028_automationworkflowhistory_original_workflow_and_more'),
+        ('automation', '0029_alter_automationworkflowhistory_original_workflow'),
         ('core', '0114_alter_workspaceinvitation_message'),
     ]
 
