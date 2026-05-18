@@ -256,8 +256,8 @@ def ensure_date_interval(value: Any) -> timedelta:
             return result
 
         try:
-            return timedelta(seconds=float(value))
-        except (ValueError, TypeError):
+            return timedelta(seconds=ensure_integer(value))
+        except ValidationError:
             pass
 
         raise ValidationError(
