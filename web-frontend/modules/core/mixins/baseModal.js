@@ -1,4 +1,4 @@
-import { getModalTeleportedElement } from '../utils/dom'
+import { getModalTeleportedElement } from '@baserow/modules/core/utils/dom'
 
 export default {
   mixins: [],
