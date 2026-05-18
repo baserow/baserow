@@ -6,7 +6,7 @@ export class Timedelta {
   }
 }
 
-const INTERVAL_PATTERNS = [
+const DURATION_PATTERNS = [
   { regex: /^(\d+)\s+years?$/i, unit: 'days', factor: 365 },
   { regex: /^(\d+)\s+months?$/i, unit: 'days', factor: 30 },
   { regex: /^(\d+)\s+weeks?$/i, unit: 'days', factor: 7 },
@@ -31,9 +31,9 @@ export function isValidDatetimeFormat(value) {
   return !/[a-zA-Z]/.test(value.replace(SUPPORTED_MOMENT_TOKEN_RE, ''))
 }
 
-export function parseIntervalString(value) {
+export function parseDurationString(value) {
   if (typeof value !== 'string') return null
-  for (const { regex, unit, factor } of INTERVAL_PATTERNS) {
+  for (const { regex, unit, factor } of DURATION_PATTERNS) {
     const match = value.trim().match(regex)
     if (match) {
       const amount = parseInt(match[1], 10) * factor

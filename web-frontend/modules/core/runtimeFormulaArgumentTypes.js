@@ -5,15 +5,15 @@ import {
   ensureObject,
   ensureBoolean,
   ensureArray,
-  ensureDateInterval,
+  ensureDuration,
 } from '@baserow/modules/core/utils/validator'
 import moment from '@baserow/modules/core/moment'
 import {
   Timedelta,
   isValidDatetimeFormat,
-  parseIntervalString,
+  parseDurationString,
 } from '@baserow/modules/core/utils/date'
-export { Timedelta, parseIntervalString }
+export { Timedelta, parseDurationString }
 
 const VALID_THOUSAND_SEPARATORS = new Set([',', '.', ' ', ''])
 const VALID_DECIMAL_SEPARATORS = new Set([',', '.'])
@@ -256,10 +256,10 @@ export class TimedeltaBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFo
   }
 }
 
-export class IntervalStringBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+export class DurationBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
   test(value) {
     try {
-      ensureDateInterval(value)
+      ensureDuration(value)
       return true
     } catch (e) {
       return false
@@ -267,11 +267,11 @@ export class IntervalStringBaserowRuntimeFormulaArgumentType extends BaserowRunt
   }
 
   parse(value) {
-    return ensureDateInterval(value)
+    return ensureDuration(value)
   }
 
   getErrorMessage(value, i18n) {
-    return i18n.t('runtimeFormulaTypeErrors.invalidIntervalString', { value })
+    return i18n.t('runtimeFormulaTypeErrors.invalidDuration', { value })
   }
 }
 

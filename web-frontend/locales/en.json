@@ -700,7 +700,7 @@
     "nullDescription": "Returns null, which can be used as a value or for comparison",
     "numberFormatDescription": "Formats a number as a string with configurable decimal places, thousand separator, and decimal separator.",
     "toDatetimeDescription": "Parses a string into a datetime object. An optional second argument specifies the format (e.g. 'DD/MM/YYYY'). If omitted, ISO 8601 format is assumed.",
-    "dateIntervalDescription": "Returns the date interval corresponding to the provided argument.",
+    "durationDescription": "Returns the duration corresponding to the provided argument.",
     "formulaTypeFormula": "Function | Functions",
     "formulaTypeOperator": "Operator | Operators",
     "formulaTypeData": "Data",
@@ -716,7 +716,7 @@
     "invalidThousandSeparator": "'{value}' is not a valid thousand separator. Valid options are: ',', '.', ' ', or '' (empty string).",
     "invalidDecimalSeparator": "'{value}' is not a valid decimal separator. Valid options are: ',' or '.'.",
     "sameSeparators": "The thousand separator and decimal separator cannot be the same.",
-    "invalidIntervalString": "'{value}' is not a valid interval string. Valid options are: '1 day', '2 hours', etc.",
+    "invalidDuration": "'{value}' is not a valid duration. Valid options are: '1 day', '2 hours', etc.",
     "invalidDatetimeFormat": "'{value}' is not a valid datetime format. Valid options are: 'YYYY-MM-DD', 'DD/MM/YYYY HH:mm:ss', etc."
   },
   "runtimeGetErrors": {

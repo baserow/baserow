@@ -4,7 +4,7 @@ import {
   RuntimeAnd,
   RuntimeCapitalize,
   RuntimeConcat,
-  RuntimeDateInterval,
+  RuntimeDuration,
   RuntimeDateTimeFormat,
   RuntimeDay,
   RuntimeDivide,
@@ -2062,7 +2062,7 @@ describe('RuntimeNumberFormat', () => {
   })
 })
 
-describe('RuntimeDateInterval', () => {
+describe('RuntimeDuration', () => {
   test.each([
     { args: ['1 day'], expected: new Timedelta(86400000) },
     { args: ['2 days'], expected: new Timedelta(2 * 86400000) },
@@ -2073,14 +2073,14 @@ describe('RuntimeDateInterval', () => {
     { args: ['1 year'], expected: new Timedelta(365 * 86400000) },
     { args: ['1 month'], expected: new Timedelta(30 * 86400000) },
   ])('execute returns expected value', ({ args, expected }) => {
-    const formulaType = new RuntimeDateInterval()
+    const formulaType = new RuntimeDuration()
     const parsedArgs = formulaType.parseArgs(args)
     const result = formulaType.execute({}, parsedArgs)
     expect(result).toStrictEqual(expected)
   })
 
   test.each([
-    // Valid interval strings — arg passes
+    // Valid duration strings — arg passes
     { args: ['1 day'], expected: undefined },
     { args: ['2 days'], expected: undefined },
     // Invalid strings and types — arg is returned as invalid
@@ -2089,7 +2089,7 @@ describe('RuntimeDateInterval', () => {
     { args: [1], expected: undefined },
     { args: [null], expected: [0, null] },
   ])('validates type of args', ({ args, expected }) => {
-    const formulaType = new RuntimeDateInterval()
+    const formulaType = new RuntimeDuration()
     const result = formulaType.validateTypeOfArgs(args)
     expect(result).toStrictEqual(expected)
   })
@@ -2099,7 +2099,7 @@ describe('RuntimeDateInterval', () => {
     { args: ['1 day'], expected: true },
     { args: ['1 day', 'extra'], expected: false },
   ])('validates number of args', ({ args, expected }) => {
-    const formulaType = new RuntimeDateInterval()
+    const formulaType = new RuntimeDuration()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toBe(expected)
   })

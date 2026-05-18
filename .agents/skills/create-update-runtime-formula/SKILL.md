@@ -31,7 +31,7 @@ Ensurers are reusable normalization/coercion functions that convert an arbitrary
 - Backend: `backend/src/baserow/core/formula/validator.py`
 - Frontend: `web-frontend/modules/core/utils/validator.js`
 
-Existing ensurers include `ensure_string`, `ensure_date_interval`, etc.
+Existing ensurers include `ensure_string`, `ensure_duration`, etc.
 
 ### When to create or use an ensurer
 Argument types should delegate their `test()` and `parse()` methods to an ensurer rather than implementing inline conversion logic.
@@ -95,7 +95,7 @@ Note that the constructor can accept kwargs, such as `cast_to_int` for `NumberBa
 
 All argument types must implement both `test()` and `parse()`. The `get_error_message()` method is special, which is described next.
 
-Argument types should delegate to an ensurer in `validator.py` for their `test()` and `parse()` implementations. For example, `IntervalStringBaserowRuntimeFormulaArgumentType` delegates to `ensure_date_interval()`. Avoid duplicating conversion logic inline when an ensurer exists or can be created.
+Argument types should delegate to an ensurer in `validator.py` for their `test()` and `parse()` implementations. For example, `DurationBaserowRuntimeFormulaArgumentType` delegates to `ensure_duration()`. Avoid duplicating conversion logic inline when an ensurer exists or can be created.
 
 ##### `get_error_message()`
 When an argument type can return a useful human-readable error message, this method should be overridden to return an error message.

@@ -5,7 +5,7 @@ import {
   TimezoneBaserowRuntimeFormulaArgumentType,
   ThousandSeparatorBaserowRuntimeFormulaArgumentType,
   DecimalSeparatorBaserowRuntimeFormulaArgumentType,
-  IntervalStringBaserowRuntimeFormulaArgumentType,
+  DurationBaserowRuntimeFormulaArgumentType,
   Timedelta,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 
@@ -79,7 +79,7 @@ describe('DecimalSeparatorBaserowRuntimeFormulaArgumentType', () => {
   })
 })
 
-describe('IntervalStringBaserowRuntimeFormulaArgumentType', () => {
+describe('DurationBaserowRuntimeFormulaArgumentType', () => {
   test.each([
     { value: '1 day', expected: true },
     { value: '2 days', expected: true },
@@ -97,9 +97,9 @@ describe('IntervalStringBaserowRuntimeFormulaArgumentType', () => {
     { value: 1, expected: true },
     { value: null, expected: false },
   ])('returns $expected for "$value"', ({ value, expected }) => {
-    expect(
-      new IntervalStringBaserowRuntimeFormulaArgumentType().test(value)
-    ).toBe(expected)
+    expect(new DurationBaserowRuntimeFormulaArgumentType().test(value)).toBe(
+      expected
+    )
   })
 
   test.each([
@@ -111,17 +111,17 @@ describe('IntervalStringBaserowRuntimeFormulaArgumentType', () => {
     { value: '45 seconds', expected: new Timedelta(45 * 1000) },
   ])('parse converts "$value" to Timedelta', ({ value, expected }) => {
     expect(
-      new IntervalStringBaserowRuntimeFormulaArgumentType().parse(value)
+      new DurationBaserowRuntimeFormulaArgumentType().parse(value)
     ).toStrictEqual(expected)
   })
 
   test('getErrorMessage returns a human-readable message', () => {
-    const argType = new IntervalStringBaserowRuntimeFormulaArgumentType()
+    const argType = new DurationBaserowRuntimeFormulaArgumentType()
     const mocki18n = {
-      t: (key, params) => `'${params.value}' is not a valid interval string.`,
+      t: (key, params) => `'${params.value}' is not a valid duration string.`,
     }
     const message = argType.getErrorMessage('not valid', mocki18n)
-    expect(message).toContain("'not valid' is not a valid interval string.")
+    expect(message).toContain("'not valid' is not a valid duration string.")
   })
 })
 

@@ -13,7 +13,7 @@ from baserow.contrib.database.fields.constants import (
     BASEROW_BOOLEAN_FIELD_TRUE_VALUES,
 )
 from baserow.core.datetime import FormattedDate, FormattedDateTime
-from baserow.core.formula.utils.date import parse_interval_string
+from baserow.core.formula.utils.date import parse_duration_string
 
 
 def ensure_boolean(value: Any, strict=True) -> bool:
@@ -239,7 +239,7 @@ def ensure_datetime(
         raise ValidationError("Value cannot be converted to a datetime.") from exc
 
 
-def ensure_date_interval(value: Any) -> timedelta:
+def ensure_duration(value: Any) -> timedelta:
     """
     Ensures that the value is a timedelta or is convertible to a timedelta.
     :param value: The value to ensure as a timedelta.
@@ -252,7 +252,7 @@ def ensure_date_interval(value: Any) -> timedelta:
         return value
 
     if isinstance(value, str):
-        if result := parse_interval_string(value):
+        if result := parse_duration_string(value):
             return result
 
         try:
@@ -261,14 +261,14 @@ def ensure_date_interval(value: Any) -> timedelta:
             pass
 
         raise ValidationError(
-            f"'{value}' is not a valid interval string. "
+            f"'{value}' is not a valid duration. "
             f"Expected format: e.g. '1 day', '2 hours'."
         )
 
     if isinstance(value, (int, float)):
         return timedelta(seconds=value)
 
-    raise ValidationError("Value cannot be converted to a date interval.")
+    raise ValidationError("Value cannot be converted to a duration.")
 
 
 def ensure_object(value: Any) -> Optional[dict]:

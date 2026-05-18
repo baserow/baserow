@@ -7,7 +7,7 @@ from baserow.core.formula.argument_types import (
     DatetimeFormatBaserowRuntimeFormulaArgumentType,
     DecimalSeparatorBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
-    IntervalStringBaserowRuntimeFormulaArgumentType,
+    DurationBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
     ThousandSeparatorBaserowRuntimeFormulaArgumentType,
@@ -259,8 +259,8 @@ def test_decimal_separator_get_error_message_returns_human_readable_string():
         (None, False),
     ],
 )
-def test_interval_string_test_method(value, expected):
-    assert IntervalStringBaserowRuntimeFormulaArgumentType().test(value) == expected
+def test_duration_string_test_method(value, expected):
+    assert DurationBaserowRuntimeFormulaArgumentType().test(value) == expected
 
 
 @pytest.mark.parametrize(
@@ -276,14 +276,14 @@ def test_interval_string_test_method(value, expected):
         ("1 month", timedelta(days=30)),
     ],
 )
-def test_interval_string_parse_method(value, expected):
-    assert IntervalStringBaserowRuntimeFormulaArgumentType().parse(value) == expected
+def test_duration_parse_method(value, expected):
+    assert DurationBaserowRuntimeFormulaArgumentType().parse(value) == expected
 
 
-def test_interval_string_get_error_message_returns_human_readable_string():
-    arg_type = IntervalStringBaserowRuntimeFormulaArgumentType()
+def test_duration_string_get_error_message_returns_human_readable_string():
+    arg_type = DurationBaserowRuntimeFormulaArgumentType()
     message = arg_type.get_error_message("not valid")
-    assert "is not a valid interval string" in message
+    assert "is not a valid duration" in message
 
 
 @pytest.mark.parametrize(

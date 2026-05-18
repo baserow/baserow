@@ -11,8 +11,8 @@ from baserow.core.formula.utils.date import (
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
-    ensure_date_interval,
     ensure_datetime,
+    ensure_duration,
     ensure_numeric,
     ensure_object,
     ensure_string,
@@ -206,22 +206,20 @@ class TimedeltaBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentTy
         return value
 
 
-class IntervalStringBaserowRuntimeFormulaArgumentType(
-    BaserowRuntimeFormulaArgumentType
-):
+class DurationBaserowRuntimeFormulaArgumentType(BaserowRuntimeFormulaArgumentType):
     def test(self, value):
         try:
-            ensure_date_interval(value)
+            ensure_duration(value)
             return True
         except ValidationError:
             return False
 
     def parse(self, value):
-        return ensure_date_interval(value)
+        return ensure_duration(value)
 
     def get_error_message(self, value) -> Optional[str]:
         return (
-            f"'{value}' is not a valid interval string. "
+            f"'{value}' is not a valid duration. "
             f"Expected format: '<number> <unit>', e.g. '1 day', '2 hours'."
         )
 
