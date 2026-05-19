@@ -39,8 +39,11 @@ const updateCachedValues = (page) => {
   page.elementMap = Object.fromEntries(
     page.elements.map((element) => [`${element.id}`, element])
   )
-  // Derive place_in_container from the graph (graph is authoritative for position)
-  const { placeMap } = ElementGraphHandler.buildElementMaps(page.graph || {})
+  // Derive place_in_container and parent from the graph (graph is authoritative)
+  const { parentMap, placeMap } = ElementGraphHandler.buildElementMaps(
+    page.graph || {}
+  )
+  page.parentMap = parentMap
   for (const element of page.elements) {
     element.place_in_container = placeMap[element.id] ?? ''
   }
@@ -760,15 +763,13 @@ const getters = {
   },
   getParent: (state, getters) => (page, element) => {
     if (!element?.id) return null
-    try {
-      const positions = new ElementGraphHandler(page).getPreviousPositions(
-        element
-      )
-      const childPosition = positions.findLast(([, pos]) => pos === 'child')
-      return childPosition ? childPosition[0] : null
-    } catch {
-      return null
-    }
+    // parentMap is always set by updateCachedValues in the running app;
+    // the fallback only applies to tests that construct page objects manually.
+    const parentMap =
+      page.parentMap ??
+      ElementGraphHandler.buildElementMaps(page?.graph ?? {}).parentMap
+    const parentId = parentMap[element.id]
+    return parentId ? getters.getElementById(page, parentId) : null
   },
   /**
    * Given an element, return all its ancestors until we reach the root element.

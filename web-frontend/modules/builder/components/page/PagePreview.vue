@@ -245,6 +245,12 @@ export default {
         }
       )[0]
 
+      // Can be undefined if elementSelectedPage isn't in the store yet
+      // (timing gap between element selection and page load).
+      if (!ancestorWithPagePlace) {
+        return null
+      }
+
       return this.$registry
         .get('element', ancestorWithPagePlace.type)
         .getPagePlace()
