@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Dict, List, Optional, Set, Union
 
-from django.db.models import Prefetch, QuerySet
+from django.db.models import QuerySet
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.exceptions import (
@@ -34,15 +34,6 @@ class AutomationHistoryHandler:
         return base_queryset.filter(
             original_workflow=workflow,
             simulate_until_node__isnull=True,
-        ).prefetch_related(
-            Prefetch(
-                "node_histories",
-                queryset=AutomationNodeHistory.objects.select_related(
-                    "node", "node__workflow"
-                )
-                .prefetch_related("node_results")
-                .order_by("started_on"),
-            ),
         )
 
     def get_workflow_history(

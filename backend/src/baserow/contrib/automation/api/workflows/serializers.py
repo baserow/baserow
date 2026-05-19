@@ -5,7 +5,6 @@ from rest_framework import serializers
 from baserow.api.pagination import PageNumberPagination
 from baserow.contrib.automation.models import (
     AutomationHistory,
-    AutomationNodeHistory,
     AutomationWorkflow,
     AutomationWorkflowHistory,
 )
@@ -118,70 +117,12 @@ class AutomationHistorySerializer(serializers.ModelSerializer):
         )
 
 
-class AutomationNodeHistorySerializer(AutomationHistorySerializer):
-    parent_node_id = serializers.SerializerMethodField()
-    iteration = serializers.SerializerMethodField()
-    result = serializers.SerializerMethodField()
-    node_type = serializers.SerializerMethodField()
-    node_label = serializers.SerializerMethodField()
-
-    class Meta:
-        model = AutomationNodeHistory
-        fields = AutomationHistorySerializer.Meta.fields + (
-            "workflow_history",
-            "node",
-            "node_type",
-            "node_label",
-            "parent_node_id",
-            "iteration",
-            "result",
-        )
-
-    def _get_first_node_result(self, obj):
-        results = obj.node_results.all()
-        return results[0] if results else None
-
-    @extend_schema_field(OpenApiTypes.STR)
-    def get_node_type(self, obj):
-        return obj.node.get_type().type
-
-    @extend_schema_field(OpenApiTypes.STR)
-    def get_node_label(self, obj):
-        return obj.node.label
-
-    @extend_schema_field(OpenApiTypes.INT)
-    def get_parent_node_id(self, obj):
-        parent_nodes = obj.node.get_parent_nodes()
-        if not parent_nodes:
-            return None
-        return parent_nodes[-1].id
-
-    @extend_schema_field(OpenApiTypes.INT)
-    def get_iteration(self, obj):
-        result = self._get_first_node_result(obj)
-        if result is None:
-            return None
-
-        if result.iteration_path:
-            return int(result.iteration_path.rsplit(".", 1)[-1])
-
-        return 0
-
-    def get_result(self, obj):
-        result = self._get_first_node_result(obj)
-        return result.result if result else {}
-
-
 class AutomationWorkflowHistorySerializer(AutomationHistorySerializer):
-    node_histories = AutomationNodeHistorySerializer(read_only=True, many=True)
-
     class Meta:
         model = AutomationWorkflowHistory
         fields = AutomationHistorySerializer.Meta.fields + (
             "is_test_run",
-            "event_payload",
             "simulate_until_node",
-            "node_histories",
         )
 
 
