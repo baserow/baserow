@@ -10,22 +10,50 @@ If you have the [development environment](./running-the-dev-env-locally.md) up a
 you can easily run the linters using [just](./justfile.md) commands.
 
 **Backend (from project root or `backend/` directory):**
-* `just b format`: auto format all Python code using black.
-* `just b sort`: sort imports using isort.
-* `just b fix`: run both format and sort.
-* `just b lint`: check Python code with flake8, black, isort, and bandit.
+
+- `just b format`: auto format all Python code using black.
+- `just b sort`: sort imports using isort.
+- `just b fix`: run both format and sort.
+- `just b lint`: check Python code with flake8, black, isort, and bandit.
 
 **Frontend (from project root or `web-frontend/` directory):**
-* `just f lint`: check JavaScript with eslint and SCSS with stylelint.
-* `just f fix`: auto-fix code style issues.
+
+- `just f lint`: check JavaScript with eslint and SCSS with stylelint.
+- `just f fix`: auto-fix code style issues.
 
 ## Running tests
 
 There are also commands to easily run the tests.
 
-* `just b test` (backend): run all backend Python tests with pytest.
-* `just b test -n=auto` (backend): run tests in parallel for faster execution.
-* `just f test` (frontend): run all frontend tests with Jest.
+- `just b test` (backend): run all backend Python tests with pytest.
+- `just b test -n=auto` (backend): run tests in parallel for faster execution.
+- `just f test` (frontend): run all frontend tests with Jest.
+
+## Git pre-commit hooks
+
+Baserow uses `pre-commit` to automatically run linters and formatters before commits are created. This ensures your changes comply with repo-wide code quality rules without waiting for CI feedback.
+
+### Installation
+
+To set up the pre-commit hooks locally in your `.git/` folder, run the following command from the repository root:
+
+```bash
+just pre-commit-install
+```
+
+This will register the pre-commit hooks, which cover general hygiene, Ruff checks on python files, and local system linter/formatter hooks for frontend changes.
+
+### Running manually
+
+You can also run pre-commit manually at any time against all files or staged changes:
+
+```bash
+# Run against all files
+just b run pre-commit run --all-files
+
+# Run against specific files
+just b run pre-commit run --files path/to/file1.py path/to/file2.js
+```
 
 ## Continuous integration
 

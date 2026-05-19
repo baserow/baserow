@@ -207,11 +207,11 @@ check: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-   
+
     {{ uv_run }} ruff check --config pyproject.toml {{ backend_source_dirs }} {{ backend_tests_dirs }}
     {{ uv_run }} ruff format --config pyproject.toml --check {{ backend_source_dirs }} {{ backend_tests_dirs }}
 
-alias lint := check 
+alias lint := check
 alias l := check
 
 # Fix code style (sort imports + format)
@@ -340,7 +340,7 @@ check-migrations: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    
+
     DJANGO_SETTINGS_MODULE={{ django_settings }} {{ uv_run }} baserow makemigrations --dry-run --check
 
 # =============================================================================

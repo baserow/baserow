@@ -58,7 +58,14 @@ init:
     @just b init
     @just f install
 
+# Install pre-commit Git hooks in the repository
+[group('1 - local-dev')]
+[doc("Install pre-commit Git hooks in the repository")]
+pre-commit-install:
+    @just b run pre-commit install --install-hooks
+
 # Local development environment management
+
 [group('1 - local-dev')]
 [doc("Local dev: just dev <up|up -d|stop|logs|ps|wipe>")]
 dev *ARGS:
