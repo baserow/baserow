@@ -3,6 +3,8 @@ from typing import TYPE_CHECKING, List
 from django.contrib.auth.models import AbstractUser
 from django.utils import translation
 
+from rest_framework.exceptions import ValidationError
+
 from baserow.contrib.builder.elements.exceptions import (
     ElementDoesNotExist,
     ElementNotInSamePage,
@@ -119,6 +121,25 @@ class ElementService:
         """
         Validates the position.
         """
+
+        # Determine if the new element will be root-level on the page.
+        # CHILD always has a parent; NORTH/SOUTH share the parent of the reference.
+        if position == GraphPointPosition.CHILD:
+            will_be_root = False
+        elif reference_element is None:
+            will_be_root = True
+        else:
+            will_be_root = reference_element.get_parent_point() is None
+
+        if (
+            will_be_root
+            and getattr(element_type, "is_multi_page_element", False) != page.shared
+        ):
+            raise ValidationError(
+                "This element type can't be added as root of a "
+                f"{'an unshared' if element_type.is_multi_page_element else 'the shared'} "
+                "page."
+            )
 
         if reference_element is None:
             return
