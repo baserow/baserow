@@ -95,18 +95,6 @@ class ElementType(
         :return: Values that should be used for the update or creation of the element.
         """
 
-        page = values.get("page", instance.page) if instance else values["page"]
-
-        if (
-            instance is None
-            and getattr(self, "is_multi_page_element", False) != page.shared
-        ):
-            raise ValidationError(
-                "This element type can't be added as root of a "
-                f"{'an unshared' if self.is_multi_page_element else 'the shared'} "
-                "page."
-            )
-
         return values
 
     def validate_place(
