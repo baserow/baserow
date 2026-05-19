@@ -965,6 +965,35 @@ def test_move_element_to_regular_page_without_parent_is_invalid_for_shared_eleme
 
 
 @pytest.mark.django_db
+def test_create_non_shared_element_inside_shared_container_is_allowed(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    shared_page = builder.shared_page
+    header = data_fixture.create_builder_element(
+        HeaderElementType,
+        user=user,
+        page=shared_page,
+        share_type="all",
+    )
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": shared_page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "heading",
+            "reference_element_id": header.id,
+            "position": GraphPointPosition.CHILD,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
 def test_can_move_element_between_places(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
