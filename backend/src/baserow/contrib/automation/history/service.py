@@ -59,20 +59,22 @@ class AutomationHistoryService:
         user: AbstractUser,
         workflow_history_id: int,
         parent_node_id: Optional[int],
+        iteration_path: str = "",
     ) -> Tuple[
         QuerySet[AutomationNodeHistory],
         Dict[int, Optional[int]],
         Set[int],
     ]:
         """
-        Returns the immediate child node histories for the given history.
+        Returns the immediate child node histories for the given history,
+        optionally scoped to a parent's iteration_path.
         """
 
         workflow_history = self.handler.get_workflow_history(workflow_history_id)
         self._check_workflow_history_permissions(user, workflow_history)
 
         queryset = self.handler.get_child_node_histories(
-            workflow_history, parent_node_id
+            workflow_history, parent_node_id, iteration_path
         )
         parent_map = workflow_history.workflow.get_graph().get_parent_map()
         error_ancestor_ids = self.handler.get_error_ancestor_node_ids(workflow_history)

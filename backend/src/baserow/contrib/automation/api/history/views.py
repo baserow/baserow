@@ -50,6 +50,16 @@ class AutomationNodeHistoriesView(APIView):
                     "the root node histories."
                 ),
             ),
+            OpenApiParameter(
+                name="iteration_path",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                required=False,
+                description=(
+                    "Required when expanding a container nested inside another "
+                    "iterator, so only that run's children are returned."
+                ),
+            ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
         ],
         tags=[AUTOMATION_HISTORY_TAG],
@@ -81,6 +91,7 @@ class AutomationNodeHistoriesView(APIView):
             request.user,
             workflow_history_id,
             query_params.get("parent_node_id"),
+            query_params.get("iteration_path", ""),
         )
 
         serializer = AutomationNodeHistorySerializer(

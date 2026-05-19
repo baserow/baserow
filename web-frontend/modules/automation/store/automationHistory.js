@@ -6,14 +6,14 @@ import {
 } from '@baserow/modules/automation/constants'
 import AutomationHistoryService from '@baserow/modules/automation/services/history'
 
-const nodeHistoriesKey = (workflowHistoryId, parentNodeId) =>
-  `${workflowHistoryId}:${parentNodeId ?? 'root'}`
+const nodeHistoriesKey = (workflowHistoryId, parentNodeId, iterationPath) =>
+  `${workflowHistoryId}:${parentNodeId ?? 'root'}:${iterationPath ?? ''}`
 
 const state = {
   // Holds the value of which workflow history is currently selected
   workflowHistory: {},
   // Cached children of a parent in a workflow history run.
-  // Keyed by `${workflowHistoryId}:${parentNodeId ?? 'root'}`.
+  // Keyed by `${workflowHistoryId}:${parentNodeId ?? 'root'}:${iterationPath ?? ''}`.
   // Each value: { status, items }.
   nodeHistoriesByParent: {},
   // Cached node history result blobs, fetched on demand.
@@ -50,9 +50,9 @@ const actions = {
   },
   async fetchNodeHistories(
     { state, commit },
-    { workflowHistoryId, parentNodeId = null }
+    { workflowHistoryId, parentNodeId = null, iterationPath = '' }
   ) {
-    const key = nodeHistoriesKey(workflowHistoryId, parentNodeId)
+    const key = nodeHistoriesKey(workflowHistoryId, parentNodeId, iterationPath)
     const entry = state.nodeHistoriesByParent[key]
     if (
       entry &&
@@ -68,7 +68,7 @@ const actions = {
     try {
       const { data } = await AutomationHistoryService(
         useNuxtApp().$client
-      ).getNodeHistories(workflowHistoryId, parentNodeId)
+      ).getNodeHistories(workflowHistoryId, parentNodeId, iterationPath)
       commit('SET_NODE_HISTORIES', {
         key,
         data: { status: STATUS_LOADED, items: data },
@@ -121,8 +121,12 @@ const getters = {
   },
   getNodeHistoriesByParent:
     (state) =>
-    (workflowHistoryId, parentNodeId = null) => {
-      const key = nodeHistoriesKey(workflowHistoryId, parentNodeId)
+    (workflowHistoryId, parentNodeId = null, iterationPath = '') => {
+      const key = nodeHistoriesKey(
+        workflowHistoryId,
+        parentNodeId,
+        iterationPath
+      )
       return (
         state.nodeHistoriesByParent[key] || {
           status: STATUS_LOADING,

@@ -178,11 +178,17 @@ class AutomationHistoryHandler:
         self,
         workflow_history: AutomationWorkflowHistory,
         parent_node_id: Optional[int],
+        iteration_path: str = "",
     ) -> QuerySet[AutomationNodeHistory]:
         """
         Returns the AutomationNodeHistory entries for a workflow history
         that are the immediate children of the given parent workflow node.
         If the parent_node_id is None, returns the root node histories.
+
+        When iteration_path is provided, the queryset is further filtered
+        to histories whose iteration_path starts with it. This is needed to
+        distinguish the children of iterators that both have the same
+        parent node but live in different iterations.
         """
 
         parent_map = workflow_history.workflow.get_graph().get_parent_map()
@@ -198,12 +204,18 @@ class AutomationHistoryHandler:
                 if parent == parent_node_id
             ]
 
+        queryset = AutomationNodeHistory.objects.filter(
+            workflow_history=workflow_history,
+            node_id__in=child_node_ids,
+        )
+
+        if iteration_path:
+            queryset = queryset.filter(
+                node_results__iteration_path__startswith=iteration_path
+            ).distinct()
+
         return (
-            AutomationNodeHistory.objects.filter(
-                workflow_history=workflow_history,
-                node_id__in=child_node_ids,
-            )
-            .select_related("node", "node__workflow")
+            queryset.select_related("node", "node__workflow")
             .prefetch_related("node_results")
             .order_by("started_on", "id")
         )

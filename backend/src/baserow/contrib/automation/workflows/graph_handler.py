@@ -267,13 +267,31 @@ class NodeGraphHandler:
         for node_id_str, node_info in self.graph.items():
             if node_id_str == "0" or not isinstance(node_info, dict):
                 continue
-            parent_id = int(node_id_str)
-            for child_id in node_info.get("children", []):
-                parent_map[child_id] = parent_id
+            container_id = int(node_id_str)
+            to_visit = list(node_info.get("children", []))
+
+            # Walk through the container's body via `next` edges, marking
+            # each visited node as a child of this container. We don't descend
+            # into any inner container's children since those nodes belong to
+            # the inner container's body and are visited when the outer loop
+            # processes that container.
+            while to_visit:
+                current_id = to_visit.pop()
+                if current_id in parent_map:
+                    continue
+
+                parent_map[current_id] = container_id
+                current_info = self.graph.get(str(current_id), {})
+                if not isinstance(current_info, dict):
+                    continue
+
+                for next_ids in current_info.get("next", {}).values():
+                    to_visit.extend(next_ids)
 
         for node_id_str in self.graph:
             if node_id_str == "0":
                 continue
+
             node_id = int(node_id_str)
             parent_map.setdefault(node_id, None)
 

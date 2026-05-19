@@ -20,6 +20,7 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
     node_label = serializers.SerializerMethodField()
     parent_node_id = serializers.SerializerMethodField()
     iteration = serializers.SerializerMethodField()
+    iteration_path = serializers.SerializerMethodField()
     is_container = serializers.SerializerMethodField()
     has_error_descendant = serializers.SerializerMethodField()
 
@@ -37,6 +38,7 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
             "node_label",
             "parent_node_id",
             "iteration",
+            "iteration_path",
             "is_container",
             "has_error_descendant",
         )
@@ -54,17 +56,23 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
         parent_map = self.context.get("parent_map", {})
         return parent_map.get(obj.node_id)
 
+    def _get_first_node_result(self, obj):
+        results = obj.node_results.all()
+        return results[0] if results else None
+
     @extend_schema_field(OpenApiTypes.INT)
     def get_iteration(self, obj):
-        results = list(obj.node_results.all())
-        if not results:
+        result = self._get_first_node_result(obj)
+        if result is None:
             return None
-
-        iteration_path = results[0].iteration_path
-        if iteration_path:
-            return int(iteration_path.rsplit(".", 1)[-1])
-
+        if result.iteration_path:
+            return int(result.iteration_path.rsplit(".", 1)[-1])
         return 0
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_iteration_path(self, obj):
+        result = self._get_first_node_result(obj)
+        return result.iteration_path if result else ""
 
     @extend_schema_field(OpenApiTypes.BOOL)
     def get_is_container(self, obj):
@@ -77,6 +85,15 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
 
 class NodeHistoriesQueryParamsSerializer(serializers.Serializer):
     parent_node_id = serializers.IntegerField(required=False, allow_null=True)
+    iteration_path = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text=(
+            "When provided, only node histories whose iteration_path starts "
+            "with iteration_path are returned."
+        ),
+    )
 
 
 class AutomationNodeResultSerializer(serializers.ModelSerializer):

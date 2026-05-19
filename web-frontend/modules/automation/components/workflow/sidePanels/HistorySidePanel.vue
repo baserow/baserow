@@ -77,6 +77,7 @@ const workflowHistoryItems = computed(() => {
 const refreshData = async () => {
   loading.value = true
   try {
+    store.dispatch('automationHistory/invalidate')
     await store.dispatch('automationHistory/fetchWorkflowHistory', {
       workflowId: workflow.value.id,
     })

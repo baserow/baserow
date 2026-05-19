@@ -1,5 +1,5 @@
 <template>
-  <Expandable toggle-on-click>
+  <Expandable toggle-on-click @toggle="onToggle">
     <template #header="{ expanded }">
       <div class="workflow-history__divider"></div>
       <div class="workflow-history__header">
@@ -26,20 +26,32 @@
     <template #default>
       <template v-if="item.status !== 'started'">
         <div
-          v-if="!item.node_histories.length && item.message"
+          v-if="nodeHistoriesEntry.status === STATUS_LOADING"
+          class="workflow-history__loading"
+        >
+          <div class="loading"></div>
+        </div>
+        <div
+          v-else-if="nodeHistoriesEntry.status === STATUS_ERROR"
           class="workflow-history__message"
         >
-          {{ item.message }}
+          {{ $t('historySidePanel.failedToLoad') }}
         </div>
-        <NodeHistory
-          v-for="nodeId in rootNodeIds"
-          v-else
-          :key="nodeId"
-          :node-id="nodeId"
-          :node-histories="nodeHistoriesByNode[nodeId] || []"
-          :child-node-histories-by-parent="childNodeHistoriesByParent"
-          :depth="0"
-        />
+        <template v-else>
+          <div
+            v-if="!nodeHistoriesEntry.items.length && item.message"
+            class="workflow-history__message"
+          >
+            {{ item.message }}
+          </div>
+          <NodeHistory
+            v-for="nodeHistory in nodeHistoriesEntry.items"
+            v-else
+            :key="nodeHistory.id"
+            :workflow-history-id="item.id"
+            :node-history="nodeHistory"
+          />
+        </template>
         <div class="workflow-history__run-time">
           {{ totalRunTimeMessage }}
         </div>
@@ -54,15 +66,21 @@
 </template>
 
 <script setup>
+import { useStore } from 'vuex'
 import moment from '@baserow/modules/core/moment'
 import { getUserTimeZone } from '@baserow/modules/core/utils/date'
 
 import historySuccessIcon from '@baserow/modules/core/assets/images/history-success.svg?url'
 import historyFailedIcon from '@baserow/modules/core/assets/images/history-failed.svg?url'
 import historyDisabledIcon from '@baserow/modules/core/assets/images/history-disabled.svg?url'
+import {
+  STATUS_ERROR,
+  STATUS_LOADING,
+} from '@baserow/modules/automation/constants'
 import NodeHistory from '@baserow/modules/automation/components/workflow/sidePanels/NodeHistory.vue'
 
 const app = useNuxtApp()
+const store = useStore()
 
 const props = defineProps({
   item: {
@@ -93,6 +111,18 @@ watch(
   { immediate: true }
 )
 
+const onToggle = () => {
+  if (props.item.status === 'started') return
+  store.dispatch('automationHistory/fetchNodeHistories', {
+    workflowHistoryId: props.item.id,
+    parentNodeId: null,
+  })
+}
+
+const nodeHistoriesEntry = computed(() =>
+  store.getters['automationHistory/getNodeHistoriesByParent'](props.item.id)
+)
+
 const statusTitle = computed(() => {
   switch (props.item.status) {
     case 'success':
@@ -121,64 +151,6 @@ const historyTitlePrefix = computed(() => {
   return props.item.is_test_run === true
     ? `[${app.$i18n.t('historySidePanel.testRun')}] `
     : ''
-})
-
-/**
- * Return an array of root node IDs, e.g. nodes that do not have a parent node.
- *
- * WorkflowHistory only renders the root nodes directly via NodeHistory.
- * NodeHistory then renders any child nodes recursively. This makes it easy
- * to correctly nest child nodes as well as their expandable content.
- */
-const rootNodeIds = computed(() => {
-  const _rootNodeIds = []
-  for (const nodeHistory of props.item.node_histories) {
-    if (
-      nodeHistory.parent_node_id == null &&
-      !_rootNodeIds.includes(nodeHistory.node)
-    ) {
-      _rootNodeIds.push(nodeHistory.node)
-    }
-  }
-  return _rootNodeIds
-})
-
-/**
- * Return an object where keys are node IDs and values are an array of node
- * histories for that node.
- *
- * This is used to show the correct histories (node status, run number) are
- * shown in the NodeHistory.
- */
-const nodeHistoriesByNode = computed(() => {
-  const _nodeHistoriesByNode = {}
-  for (const nodeHistory of props.item.node_histories) {
-    if (!_nodeHistoriesByNode[nodeHistory.node]) {
-      _nodeHistoriesByNode[nodeHistory.node] = []
-    }
-    _nodeHistoriesByNode[nodeHistory.node].push(nodeHistory)
-  }
-  return _nodeHistoriesByNode
-})
-
-/**
- * Return an object where keys are parent node IDs and values are an array
- * of child node histories for that node.
- *
- * This is used to determine if a node has children, as well as the number of
- * runs for a collection node.
- */
-const childNodeHistoriesByParent = computed(() => {
-  const _childNodeHistoriesByParent = {}
-  for (const nodeHistory of props.item.node_histories) {
-    if (nodeHistory.parent_node_id != null) {
-      const parent = nodeHistory.parent_node_id
-      if (!_childNodeHistoriesByParent[parent])
-        _childNodeHistoriesByParent[parent] = []
-      _childNodeHistoriesByParent[parent].push(nodeHistory)
-    }
-  }
-  return _childNodeHistoriesByParent
 })
 
 const historyIconPath = computed(() => {

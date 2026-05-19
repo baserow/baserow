@@ -119,7 +119,8 @@
     "runNumber": "Run {n}",
     "runCount": "{n} runs",
     "testRun": "Test",
-    "showResult": "Show result"
+    "showResult": "Show result",
+    "failedToLoad": "Failed to load."
   },
   "nodeType": {
     "triggerDeletionError": "Triggers cannot be deleted, only replaced.",

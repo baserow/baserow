@@ -3,7 +3,11 @@
     class="node-history__header"
     :style="depth > 0 ? { marginLeft: '24px' } : {}"
   >
-    <Expandable v-if="hasChildren" toggle-on-click>
+    <Expandable
+      v-if="nodeHistory.is_container"
+      toggle-on-click
+      @toggle="onToggle"
+    >
       <template #header="{ expanded }">
         <div class="node-history__header-row">
           <div class="node-history__header-icon">
@@ -46,8 +50,23 @@
         </div>
       </template>
       <template #default>
+        <div
+          v-if="childEntry.status === STATUS_LOADING"
+          class="node-history__loading"
+          :style="{ marginLeft: '48px' }"
+        >
+          <div class="loading"></div>
+        </div>
+        <div
+          v-else-if="childEntry.status === STATUS_ERROR"
+          class="node-history__error-info"
+          :style="{ marginLeft: '48px' }"
+        >
+          {{ $t('historySidePanel.failedToLoad') }}
+        </div>
         <Expandable
           v-for="group in childNodeHistoriesByIteration"
+          v-else
           :key="group.iteration"
           toggle-on-click
         >
@@ -85,11 +104,10 @@
             <div class="node-history__nested-scroll">
               <div class="node-history__nested-scroll-inner">
                 <NodeHistory
-                  v-for="nodeHistory in group.histories"
-                  :key="nodeHistory.id"
-                  :node-id="nodeHistory.node"
-                  :node-histories="[nodeHistory]"
-                  :child-node-histories-by-parent="childNodeHistoriesByParent"
+                  v-for="childNodeHistory in group.histories"
+                  :key="childNodeHistory.id"
+                  :workflow-history-id="workflowHistoryId"
+                  :node-history="childNodeHistory"
                   :depth="depth + 1"
                 />
               </div>
@@ -169,11 +187,12 @@
       </Expandable>
     </div>
 
-    <Context v-if="!hasChildren" ref="nodeResultButtonContext">
+    <Context v-if="!nodeHistory.is_container" ref="nodeResultButtonContext">
       <Button
         ref="nodeResultContextToggle"
         type="secondary"
         full-width
+        :loading="fetchingResult"
         icon="iconoir-code-brackets node-history__show-result-button-icon"
         @click="showNodeResultModal"
       >
@@ -182,33 +201,37 @@
     </Context>
 
     <SampleDataModal
-      v-if="!hasChildren"
+      v-if="!nodeHistory.is_container"
       ref="nodeResultModal"
-      :sample-data="nodeResultData"
+      :sample-data="resolvedSampleData"
       :title="nodeTypeLabel"
     />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useStore } from 'vuex'
 
 import SampleDataModal from '@baserow/modules/automation/components/sidebar/SampleDataModal'
+import { notifyIf } from '@baserow/modules/core/utils/error'
+import {
+  STATUS_ERROR,
+  STATUS_LOADED,
+  STATUS_LOADING,
+} from '@baserow/modules/automation/constants'
 
 const app = useNuxtApp()
+const store = useStore()
 
 const props = defineProps({
-  nodeId: {
+  workflowHistoryId: {
     type: Number,
     required: true,
   },
-  nodeHistories: {
-    type: Array,
-    default: () => [],
-  },
-  childNodeHistoriesByParent: {
+  nodeHistory: {
     type: Object,
-    default: () => ({}),
+    required: true,
   },
   depth: {
     type: Number,
@@ -219,9 +242,11 @@ const props = defineProps({
 const nodeResultButtonContext = ref(null)
 const nodeResultButtonContextToggle = ref(null)
 const nodeResultModal = ref(null)
+const fetchingResult = ref(false)
+const resolvedSampleData = ref(null)
 
 const nodeType = computed(() => {
-  return app.$registry.get('node', props.nodeHistories[0].node_type)
+  return app.$registry.get('node', props.nodeHistory.node_type)
 })
 
 const nodeIconClass = computed(() => {
@@ -229,52 +254,38 @@ const nodeIconClass = computed(() => {
 })
 
 const nodeTypeLabel = computed(() => {
-  const nodeHistory = props.nodeHistories[0]
-  const baseLabel = nodeHistory.node_label || nodeType.value.name
-  const result = nodeHistory.result
-  if (result.edge) {
-    // Show which branch was taken.
-    return `${baseLabel} (${result.edge?.label || app.$i18n.t('nodeType.defaultEdgeLabelFallback')})`
-  }
-  return baseLabel
+  return props.nodeHistory.node_label || nodeType.value.name
 })
 
-const nodeResultData = computed(() => {
-  // Since the SampleDataModal is only shown for final nodes (not nodes with
-  // children), the history will only ever have just one result.
-  const result = props.nodeHistories[0].result
-
-  if (result?._error) {
-    return result._error
-  }
-  if (nodeType.value.serviceType.returnsList && result?.results) {
-    return result.results
-  }
-  return result
-})
-
-const hasDescendantError = (nodeId) => {
-  const children = props.childNodeHistoriesByParent[nodeId] || []
-  return children.some(
-    (child) => child.status === 'error' || hasDescendantError(child.node)
+const childEntry = computed(() =>
+  store.getters['automationHistory/getNodeHistoriesByParent'](
+    props.workflowHistoryId,
+    props.nodeHistory.node,
+    props.nodeHistory.iteration_path
   )
+)
+
+const onToggle = () => {
+  if (!props.nodeHistory.is_container) return
+  store.dispatch('automationHistory/fetchNodeHistories', {
+    workflowHistoryId: props.workflowHistoryId,
+    parentNodeId: props.nodeHistory.node,
+    iterationPath: props.nodeHistory.iteration_path,
+  })
 }
 
 const iterationHasError = (group) => {
   return group.histories.some(
-    (h) => h.status === 'error' || hasDescendantError(h.node)
+    (h) => h.status === 'error' || h.has_error_descendant
   )
 }
 
-const hasOwnError = computed(() =>
-  props.nodeHistories.some((nh) => nh.status === 'error')
-)
+const hasOwnError = computed(() => props.nodeHistory.status === 'error')
 
 const status = computed(() => {
-  if (props.nodeHistories.length === 0) return 'success'
-
-  const childError = hasDescendantError(props.nodeId)
-  return hasOwnError.value || childError ? 'error' : 'success'
+  return hasOwnError.value || props.nodeHistory.has_error_descendant
+    ? 'error'
+    : 'success'
 })
 
 const statusLabel = computed(() => {
@@ -283,18 +294,7 @@ const statusLabel = computed(() => {
     : app.$i18n.t('historySidePanel.statusErrorBadge')
 })
 
-const errorMessage = computed(() => {
-  const historyWithError = props.nodeHistories.find(
-    (nh) => nh.status === 'error'
-  )
-  return historyWithError.message
-})
-
-const childNodeHistories = computed(
-  () => props.childNodeHistoriesByParent[props.nodeId] || []
-)
-
-const hasChildren = computed(() => childNodeHistories.value.length > 0)
+const errorMessage = computed(() => props.nodeHistory.message)
 
 /**
  * Return an array of objects with keys: iteration and histories.
@@ -302,12 +302,12 @@ const hasChildren = computed(() => childNodeHistories.value.length > 0)
  * iteration: the run number of the current node run.
  * histories: the child node histories for that run.
  *
- * This is used to group child node histories by run, so that we can show
- * Run 1, Run 2, etc and the correct child histories for each run.
+ * Group the fetched child node histories by iteration so the UI can render
+ * "Run 1", "Run 2", etc.
  */
 const childNodeHistoriesByIteration = computed(() => {
   const iterationsHistories = {}
-  for (const childHistory of childNodeHistories.value) {
+  for (const childHistory of childEntry.value.items) {
     const iteration = childHistory.iteration ?? 0
     if (!iterationsHistories[iteration]) iterationsHistories[iteration] = []
     iterationsHistories[iteration].push(childHistory)
@@ -331,7 +331,28 @@ const openNodeResultButtonContext = () => {
   }
 }
 
-const showNodeResultModal = () => {
-  nodeResultModal.value.show()
+const showNodeResultModal = async () => {
+  fetchingResult.value = true
+  try {
+    await store.dispatch('automationHistory/fetchNodeResult', {
+      nodeHistoryId: props.nodeHistory.id,
+    })
+    const entry = store.getters['automationHistory/getNodeResult'](
+      props.nodeHistory.id
+    )
+    if (entry.status !== STATUS_LOADED) return
+    let result = entry.result
+    if (result?._error) {
+      result = result._error
+    } else if (nodeType.value.serviceType.returnsList && result?.results) {
+      result = result.results
+    }
+    resolvedSampleData.value = result
+    nodeResultModal.value.show()
+  } catch (error) {
+    notifyIf(error)
+  } finally {
+    fetchingResult.value = false
+  }
 }
 </script>
