@@ -56,14 +56,34 @@ $bg-color-contrast: var(--page-background-color-contrast, $palette-neutral-100);
   }
 }
 
-%menu-item-button-full-width {
+.menu-element__menu-item-separator {
+  background-color: color-mix(
+    in srgb,
+    var(--body-text-color, $black),
+    var(--page-background-color, $white) 50%
+  );
+
+  .menu-element__container--vertical & {
+    width: 100%;
+    height: 1px;
+  }
+
+  .menu-element__container--horizontal & {
+    width: 1px;
+    height: 20px;
+  }
+}
+
+.menu-element__container--vertical {
+  flex-direction: column;
+  gap: 1.8em;
+  width: 100%;
+
   .menu-element__menu-item-button .ab-button {
     width: 100%;
     display: block;
   }
-}
 
-%sub-link-indentation {
   .menu-element__sub-links {
     margin-left: 10px;
 
@@ -73,61 +93,19 @@ $bg-color-contrast: var(--page-background-color-contrast, $palette-neutral-100);
   }
 }
 
-/* Moved this block before .menu-element__sub-link--container to fix no-descending-specificity */
-.menu-element__container--vertical {
-  flex-direction: column;
-  gap: 20px;
-  width: 100%;
-
-  @extend %menu-item-button-full-width;
-  @extend %sub-link-indentation;
-
-  .menu-element__menu-item-separator {
-    width: 100%;
-    height: 1px;
-    background-color: color-mix(
-      in srgb,
-      var(--body-text-color, $black),
-      var(--page-background-color, $white) 50%
-    );
-    margin: 0 5px;
-  }
-
-  /* This rule now appears earlier */
-  .menu-element__sub-links {
-    padding: 10px;
-  }
-}
-
 .menu-element__sub-link--container {
   margin-top: 5px;
 
   .menu-element__sub-links {
     border-radius: 6px;
     background-color: $bg-color;
-
-    /* This rule with higher specificity now appears later */
-    .menu-element__align-right & {
-      text-align: right;
-      padding-right: 20px;
-    }
   }
 }
 
 .menu-element__container--horizontal {
   flex-direction: row;
   align-items: center;
-  gap: 20px;
-
-  .menu-element__menu-item-separator {
-    width: 1px;
-    height: 20px;
-    background-color: color-mix(
-      in srgb,
-      var(--body-text-color, $black),
-      var(--page-background-color, $white) 50%
-    );
-  }
+  gap: 1.8em;
 }
 
 .menu-element__menu-item-spacer,
@@ -135,138 +113,37 @@ $bg-color-contrast: var(--page-background-color-contrast, $palette-neutral-100);
   flex: 1;
 }
 
-.menu-element__container--burger {
+.menu-element__burger-menu {
   display: flex;
-  flex-direction: column;
-  gap: 20px;
-  width: 100%;
-  margin-bottom: 10px;
+  justify-content: var(--alignment);
 
-  @extend %menu-item-button-full-width;
-  @extend %sub-link-indentation;
+  // Change icon size
+  --body-font-size: 2em;
+}
 
-  .menu-element__menu-item-separator {
-    width: 100%;
-    height: 1px;
-    background-color: $palette-neutral-500;
+.menu-element__container--burger {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  background-color: $bg-color;
+  padding: 1em;
+  z-index: 1;
+  overflow-y: auto;
+  max-width: 420px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-radius: 0 6px 6px 0;
+
+  @media (min-width: 420px) {
+    animation: menu-element-slide-in-left 180ms ease-out;
   }
 
-  %burger-icon-container {
-    display: flex;
-    padding: 10px;
-    position: relative;
-    border: 0;
-    background: transparent;
-    color: inherit;
-    font: inherit;
-    width: 100%;
-
-    i {
-      font-size: 24px;
-      cursor: pointer;
-      width: 30px;
-      height: 30px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-  }
-
-  .menu-element__burger-menu-left,
-  .menu-element__burger-menu-center,
-  .menu-element__burger-menu-right {
-    @extend %burger-icon-container;
-  }
-
-  .menu-element__burger-menu-left {
-    justify-content: flex-start;
-  }
-
-  .menu-element__burger-menu-center {
-    justify-content: center;
-  }
-
-  .menu-element__burger-menu-right {
-    justify-content: flex-end;
-  }
-
-  &.menu-element__container--burger-trigger {
-    position: relative;
-  }
-
-  &.menu-element__burger-active {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    padding: 54px 30px 20px 17px;
-    height: 100vh;
-    background-color: $bg-color;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: var(--alignment);
-    z-index: 1;
-    overflow-y: auto;
-
-    .menu-element__burger-menu-close {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      width: 30px;
-      height: 30px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0;
-      border: 0;
-      background: transparent;
-      color: inherit;
-      cursor: pointer;
-
-      i {
-        font-size: 24px;
-      }
-    }
-
-    .menu-element__burger-menu-right {
-      .menu-element__burger-menu-close {
-        left: 10px;
-        right: auto;
-      }
-    }
-
-    .menu-element__menu-item-link {
-      margin-left: 10px;
-    }
-
-    .menu-element__menu-item-button {
-      align-self: stretch;
-      width: 100%;
-    }
-
-    .menu-element__menu-item--compact-spacer {
-      flex: 0 0 auto;
-      margin-top: auto;
-    }
-
-    @media (min-width: 768px) {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: min(320px, 90vw);
-      height: 100vh;
-      overflow-y: auto;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-      border-radius: 0 6px 6px 0;
-      padding: 54px 30px 20px 17px;
-      animation: menu-element-slide-in-left 180ms ease-out;
-    }
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .menu-element__container--burger.menu-element__burger-active {
-    animation: none;
-  }
+.menu-element__burger-menu-close {
+  font-size: 2em;
+  align-self: flex-end;
 }

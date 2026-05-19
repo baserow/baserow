@@ -2,24 +2,18 @@
   <div
     :class="[
       'menu-element__wrapper',
-      `menu-element__align-${menuElementAlignment}`,
+      `menu-element__wrapper--${menuElementAlignment}`,
     ]"
+    :style="{ '--alignment': menuAlignment }"
   >
     <template v-if="useCompactMenu">
-      <div
-        :class="burgerTriggerClasses"
-        :style="{ '--alignment': menuAlignment, ...getStyleOverride('menu') }"
-      >
-        <button
-          type="button"
-          :class="[
-            'menu-element__burger-menu',
-            `menu-element__burger-menu-${menuElementAlignment}`,
-          ]"
+      <div class="menu-element__burger-menu">
+        <ABIcon
+          icon="iconoir-menu"
+          :class="'menu-element__burger-menu-icon'"
+          is-button
           @click.stop="compactMenuOpen = !compactMenuOpen"
-        >
-          <i class="iconoir-menu"></i>
-        </button>
+        />
       </div>
 
       <div
@@ -28,27 +22,22 @@
         :class="compactPanelClasses"
         :style="{
           ...getStyleOverride('menu'),
-          '--alignment': defaultMenuAlignment,
+          '--alignment': 'flex-start',
         }"
       >
-        <button
-          type="button"
+        <ABIcon
+          icon="iconoir-cancel"
           class="menu-element__burger-menu-close"
+          is-button
           @click="closeCompactMenu"
-        >
-          <i class="iconoir-cancel"></i>
-        </button>
+        />
 
         <div
           v-for="item in element.menu_items"
           :key="item.id"
-          :class="getMenuItemClasses(item)"
+          :class="`menu-element__menu-item-${item.type}`"
         >
-          <MenuItem
-            :menu-item="item"
-            :element="element"
-            :is-compact-menu="useCompactMenu"
-          />
+          <MenuItem :menu-item="item" :element="element" />
         </div>
 
         <div v-if="!element.menu_items.length" class="element--no-value">
@@ -65,7 +54,7 @@
       <div
         v-for="item in element.menu_items"
         :key="item.id"
-        :class="getMenuItemClasses(item)"
+        :class="`menu-element__menu-item-${item.type}`"
       >
         <MenuItem :menu-item="item" :element="element" />
       </div>
@@ -103,18 +92,11 @@ export default {
     }
   },
   computed: {
-    burgerTriggerClasses() {
-      return [
-        'menu-element__container',
-        'menu-element__container--burger',
-        'menu-element__container--burger-trigger',
-      ]
-    },
     compactPanelClasses() {
       return [
         'menu-element__container',
+        'menu-element__container--vertical',
         'menu-element__container--burger',
-        'menu-element__burger-active',
       ]
     },
     menuContainerClasses() {
@@ -131,9 +113,6 @@ export default {
       }
       return alignmentsCSS[this.menuElementAlignment]
     },
-    defaultMenuAlignment() {
-      return 'flex-start'
-    },
     menuElementAlignment() {
       return this.element.alignment || HORIZONTAL_ALIGNMENTS.LEFT
     },
@@ -146,15 +125,6 @@ export default {
   methods: {
     closeCompactMenu() {
       this.compactMenuOpen = false
-    },
-    getMenuItemClasses(item) {
-      return [
-        `menu-element__menu-item-${item.type}`,
-        {
-          'menu-element__menu-item--compact-spacer':
-            this.useCompactMenu && item.type === 'spacer',
-        },
-      ]
     },
   },
 }

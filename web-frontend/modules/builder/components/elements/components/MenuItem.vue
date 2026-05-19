@@ -143,10 +143,6 @@ export default {
       type: Object,
       required: true,
     },
-    isCompactMenu: {
-      type: Boolean,
-      default: false,
-    },
   },
   data() {
     return {
@@ -171,7 +167,6 @@ export default {
         this.$store.getters['page/getDeviceTypeSelected'] || 'desktop'
       return (
         this.element.orientation === ORIENTATIONS.VERTICAL ||
-        this.isCompactMenu ||
         this.element.variant?.[deviceType] === 'compact'
       )
     },
