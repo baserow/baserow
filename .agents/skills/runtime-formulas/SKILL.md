@@ -338,10 +338,12 @@ Minimum validation before finishing:
 
 Use these searches before editing:
 
+Use `rg -n "<pattern>" <paths>` as a faster equivalent when `rg` is available.
+
 ```bash
-rg -n "class .*DataProviderType|DataProviderTypeRegistry|data_provider_type_registry" backend/src web-frontend/modules
-rg -n "FormulaField|JSONFormulaField|FormulaSerializerField|BaserowFormulaObject" backend/src/baserow/contrib backend/src/baserow/core/formula
-rg -n "resolve_formula\\(|formula_runtime_function_registry|RuntimeFormulaFunction" backend/src
-rg -n "getDataChunk|getDataSchema|getDataContent|getContextDataSchema|getPathTitle" web-frontend/modules
-rg -n "formula_generator|import_formula|import_path|extract_properties" backend/src/baserow/contrib
+grep -RInE "class .*DataProviderType|DataProviderTypeRegistry|data_provider_type_registry" backend/src web-frontend/modules
+grep -RInE "FormulaField|JSONFormulaField|FormulaSerializerField|BaserowFormulaObject" backend/src/baserow/contrib backend/src/baserow/core/formula
+grep -RInE "resolve_formula\\(|formula_runtime_function_registry|RuntimeFormulaFunction" backend/src
+grep -RInE "getDataChunk|getDataSchema|getDataContent|getContextDataSchema|getPathTitle" web-frontend/modules
+grep -RInE "formula_generator|import_formula|import_path|extract_properties" backend/src/baserow/contrib
 ```

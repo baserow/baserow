@@ -40,11 +40,13 @@ Then inspect the nearest existing implementation in the same product area:
 
 Useful searches:
 
-- `rg -n "class .*OperationType" backend/src premium/backend enterprise/backend`
-- `rg -n "operation_type_registry.register" backend/src premium/backend enterprise/backend`
-- `rg -n "class .*PermissionManagerType" backend/src premium/backend enterprise/backend`
-- `rg -n "permission_manager_type_registry.register|PERMISSION_MANAGERS" backend/src premium/backend enterprise/backend`
-- `rg -n "PermissionManagerType|permissionManager|\\$hasPermission|hasPermission\\(" web-frontend premium/web-frontend enterprise/web-frontend`
+Use `rg -n "<pattern>" <paths>` as a faster equivalent when `rg` is available.
+
+- `grep -RInE "class .*OperationType" backend/src premium/backend enterprise/backend`
+- `grep -RInE "operation_type_registry.register" backend/src premium/backend enterprise/backend`
+- `grep -RInE "class .*PermissionManagerType" backend/src premium/backend enterprise/backend`
+- `grep -RInE "permission_manager_type_registry.register|PERMISSION_MANAGERS" backend/src premium/backend enterprise/backend`
+- `grep -RInE "PermissionManagerType|permissionManager|\\$hasPermission|hasPermission\\(" web-frontend premium/web-frontend enterprise/web-frontend`
 
 ## Permission Model
 

@@ -24,9 +24,11 @@ Then inspect the nearest existing spec in the same module area.
 
 Useful searches:
 
-- `rg --files web-frontend/test premium/web-frontend/test enterprise/web-frontend/test | rg '\.spec\.'`
-- `rg -n "new TestApp\\(|new PremiumTestApp\\(|mountSuspended\\(" web-frontend/test premium/web-frontend/test enterprise/web-frontend/test`
-- `rg -n "toMatchSnapshot\\(|vi\\.fn\\(|vi\\.spyOn\\(" web-frontend/test premium/web-frontend/test enterprise/web-frontend/test`
+Use `rg` as a faster equivalent when it is available.
+
+- `find web-frontend/test premium/web-frontend/test enterprise/web-frontend/test -type f | grep '\.spec\.'`
+- `grep -RInE "new TestApp\\(|new PremiumTestApp\\(|mountSuspended\\(" web-frontend/test premium/web-frontend/test enterprise/web-frontend/test`
+- `grep -RInE "toMatchSnapshot\\(|vi\\.fn\\(|vi\\.spyOn\\(" web-frontend/test premium/web-frontend/test enterprise/web-frontend/test`
 
 ## Tooling Used In This Repo
 

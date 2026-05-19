@@ -42,7 +42,9 @@ Before editing, identify which of these applies:
 4. Update to an existing integration, service, or wrapper type
 5. Full feature spanning backend, frontend, translations, and tests
 
-Then inspect the closest existing example with `rg` before changing files.
+Then inspect the closest existing example with `grep` before changing files. If
+`rg` is available, it is a faster equivalent for the same patterns and target
+paths.
 
 Useful starting points:
 
@@ -218,17 +220,19 @@ Minimum validation before finishing:
 
 Use these searches to move quickly:
 
-- `rg -n "class .*ServiceType" backend/src/baserow/contrib/integrations`
-- `rg -n "class .*IntegrationType" backend/src/baserow/contrib/integrations`
-- `rg -n "DispatchTypes\\.(ACTION|DATA)" backend/src/baserow/contrib/integrations`
-- `rg -n "TriggerServiceTypeMixin|ListServiceTypeMixin" backend/src/baserow/contrib/integrations`
-- `rg -n "register\\(" backend/src/baserow/contrib/integrations/apps.py web-frontend/modules/integrations/plugin.js`
-- `rg -n "BuilderWorkflowServiceActionType|builder_workflow_action_type_registry" backend/src/baserow/contrib/builder`
-- `rg -n "AutomationNodeActionNodeType|TriggerNodeType|automation_node_type_registry" backend/src/baserow/contrib/automation`
-- `rg -n "WorkflowActionType|register\\('workflowAction'" web-frontend/modules/builder`
-- `rg -n "ActionNodeTypeMixin|TriggerNodeTypeMixin|register\\('node'" web-frontend/modules/automation`
-- `rg -n "getType\\(\\)" web-frontend/modules/integrations`
-- `rg -n "\"serviceType\\.|integrationType\\.\"" web-frontend/modules/integrations/locales/en.json`
+Use `rg -n "<pattern>" <paths>` as a faster equivalent when `rg` is available.
+
+- `grep -RInE "class .*ServiceType" backend/src/baserow/contrib/integrations`
+- `grep -RInE "class .*IntegrationType" backend/src/baserow/contrib/integrations`
+- `grep -RInE "DispatchTypes\\.(ACTION|DATA)" backend/src/baserow/contrib/integrations`
+- `grep -RInE "TriggerServiceTypeMixin|ListServiceTypeMixin" backend/src/baserow/contrib/integrations`
+- `grep -RInE "register\\(" backend/src/baserow/contrib/integrations/apps.py web-frontend/modules/integrations/plugin.js`
+- `grep -RInE "BuilderWorkflowServiceActionType|builder_workflow_action_type_registry" backend/src/baserow/contrib/builder`
+- `grep -RInE "AutomationNodeActionNodeType|TriggerNodeType|automation_node_type_registry" backend/src/baserow/contrib/automation`
+- `grep -RInE "WorkflowActionType|register\\('workflowAction'" web-frontend/modules/builder`
+- `grep -RInE "ActionNodeTypeMixin|TriggerNodeTypeMixin|register\\('node'" web-frontend/modules/automation`
+- `grep -RInE "getType\\(\\)" web-frontend/modules/integrations`
+- `grep -RInE "\"serviceType\\.|integrationType\\.\"" web-frontend/modules/integrations/locales/en.json`
 
 ## Guardrails
 

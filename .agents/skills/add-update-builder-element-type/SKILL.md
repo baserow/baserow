@@ -25,28 +25,30 @@ Prefer copying the nearest existing element with the same behavior:
 
 Before editing, identify:
 
-1. Core, premium, or enterprise ownership.
+1. Open source core OSC, or Enterprise licensing (no premium for app builder elements).
+   Prompt the user for that information.
 2. Basic, form, collection, container, or multi-page behavior.
 3. Whether the type adds persisted fields.
 4. Whether fields are formulas and need formula import/export support.
 5. Whether the element has workflow events, form data, child elements, or data source
    content.
 
-Then inspect the closest existing implementation with `rg` instead of starting from
-the base class.
+Then inspect the closest existing implementation with `grep` instead of starting
+from the base class. If `rg` is available, it is a faster equivalent for the same
+patterns and target paths.
 
 Useful searches:
 
-- `rg -n "class .*Element\\(" backend/src/baserow/contrib/builder/elements/models.py enterprise/backend/src/baserow_enterprise/builder/elements/models.py`
-- `rg -n "class .*ElementType\\(" backend/src/baserow/contrib/builder/elements/element_types.py enterprise/backend/src/baserow_enterprise/builder/elements/element_types.py`
-- `rg -n "element_type_registry.register" backend/src/baserow/contrib/builder/apps.py enterprise/backend/src/baserow_enterprise/apps.py`
-- `rg -n "class .*ElementType extends" web-frontend/modules/builder/elementTypes.js enterprise/web-frontend/modules/baserow_enterprise/builder/elementTypes.js`
-- `rg -n "\\$registry.register\\('element'" web-frontend/modules/builder/plugin.js enterprise/web-frontend/modules/baserow_enterprise/plugin.js`
-- `rg -n "\"elementType\\." web-frontend/modules/builder/locales/en.json enterprise/web-frontend/modules/baserow_enterprise/locales/en.json`
+- `grep -RInE "class .*Element\\(" backend/src/baserow/contrib/builder/elements/models.py enterprise/backend/src/baserow_enterprise/builder/elements/models.py`
+- `grep -RInE "class .*ElementType\\(" backend/src/baserow/contrib/builder/elements/element_types.py enterprise/backend/src/baserow_enterprise/builder/elements/element_types.py`
+- `grep -RInE "element_type_registry.register" backend/src/baserow/contrib/builder/apps.py enterprise/backend/src/baserow_enterprise/apps.py`
+- `grep -RInE "class .*ElementType extends" web-frontend/modules/builder/elementTypes.js enterprise/web-frontend/modules/baserow_enterprise/builder/elementTypes.js`
+- `grep -RInE "\\$registry.register\\('element'" web-frontend/modules/builder/plugin.js enterprise/web-frontend/modules/baserow_enterprise/plugin.js`
+- `grep -RInE "\"elementType\\." web-frontend/modules/builder/locales/en.json enterprise/web-frontend/modules/baserow_enterprise/locales/en.json`
 
 ## Backend Checklist
 
-For a core element, start in:
+For an OSC element, start in:
 
 - `backend/src/baserow/contrib/builder/elements/models.py`
 - `backend/src/baserow/contrib/builder/elements/element_types.py`
@@ -85,7 +87,7 @@ the existing equivalent does.
 
 ## Frontend Checklist
 
-For a core element, start in:
+For an OSC element, start in:
 
 - `web-frontend/modules/builder/elementTypes.js`
 - `web-frontend/modules/builder/plugin.js`

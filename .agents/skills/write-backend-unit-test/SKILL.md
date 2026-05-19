@@ -23,9 +23,11 @@ Then inspect the nearest existing test file in the same module area.
 
 Useful searches:
 
-- `rg --files backend/tests premium/backend/tests enterprise/backend/tests | rg 'test_.*\.py$'`
-- `rg -n "@pytest\\.mark\\.django_db|api_client|data_fixture|premium_data_fixture|enterprise_data_fixture" backend/tests premium/backend/tests enterprise/backend/tests`
-- `rg -n "pytest\\.raises|@patch\\(|override_settings|django_assert_num_queries" backend/tests premium/backend/tests enterprise/backend/tests`
+Use `rg` as a faster equivalent when it is available.
+
+- `find backend/tests premium/backend/tests enterprise/backend/tests -type f | grep 'test_.*\.py$'`
+- `grep -RInE "@pytest\\.mark\\.django_db|api_client|data_fixture|premium_data_fixture|enterprise_data_fixture" backend/tests premium/backend/tests enterprise/backend/tests`
+- `grep -RInE "pytest\\.raises|@patch\\(|override_settings|django_assert_num_queries" backend/tests premium/backend/tests enterprise/backend/tests`
 
 ## Tooling Used In This Repo
 

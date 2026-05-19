@@ -33,11 +33,13 @@ Identify the feature surface and inspect the nearest existing module before edit
 
 Useful searches:
 
-- `rg -n "class .*Handler|class .*Service|UndoableActionType|APIView" backend/src/baserow/contrib/automation`
-- `rg -n "check_permissions|filter_queryset" backend/src/baserow/contrib/automation`
-- `rg -n "@transaction.atomic|@map_exceptions|@validate_body|@require_request_data_type" backend/src/baserow`
-- `rg -n "ActionTypeDescription|register_action|def undo|def redo" backend/src/baserow`
-- `rg -n "objects_and_trash|TrashHandler|TrashableModelMixin|OrderableMixin" backend/src/baserow`
+Use `rg -n "<pattern>" <paths>` as a faster equivalent when `rg` is available.
+
+- `grep -RInE "class .*Handler|class .*Service|UndoableActionType|APIView" backend/src/baserow/contrib/automation`
+- `grep -RInE "check_permissions|filter_queryset" backend/src/baserow/contrib/automation`
+- `grep -RInE "@transaction.atomic|@map_exceptions|@validate_body|@require_request_data_type" backend/src/baserow`
+- `grep -RInE "ActionTypeDescription|register_action|def undo|def redo" backend/src/baserow`
+- `grep -RInE "objects_and_trash|TrashHandler|TrashableModelMixin|OrderableMixin" backend/src/baserow`
 
 ## Layer Responsibilities
 
@@ -200,9 +202,9 @@ Good automation test locations to inspect:
 
 Run the narrowest relevant backend test first:
 
-- `just b test backend/tests/baserow/contrib/automation/workflows/`
-- `just b test backend/tests/baserow/contrib/automation/nodes/`
-- `just b test backend/tests/path/to/test_file.py`
+- `just b test tests/baserow/contrib/automation/workflows/`
+- `just b test tests/baserow/contrib/automation/nodes/`
+- `just b test tests/path/to/test_file.py`
 
 ## Guardrails
 
