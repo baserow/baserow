@@ -4,17 +4,17 @@
             "licenses": "Zarządzaj licencjami"
         },
         "viewType": {
-            "kanban": "Tablica Kanban",
+            "kanban": "Kanban",
             "calendar": "Kalendarz",
-            "timeline": "Linia czasu"
+            "timeline": "Oś czasu"
         },
         "exporterType": {
-            "json": "Eksport do JSON",
-            "xml": "Eksport do XML",
-            "excel": "Eksportuj do Excela",
+            "json": "Eksport w formacie JSON",
+            "xml": "Eksport w formacie XML",
+            "excel": "Eksport w formacie Excel",
             "file": "Eksportuj pliki"
         },
-        "deactivated": "Dostępne w wersji premium"
+        "deactivated": "Dostępne w wersji Premium"
     },
     "premiumModal": {
         "title": "Uaktualnij, aby użyć {name}",
@@ -22,9 +22,9 @@
         "viewPricing": "Zobacz cennik"
     },
     "rowCommentSidebar": {
-        "onlyPremium": "Komentarze wierszy dostępne są w wersji premium.",
+        "onlyPremium": "Funkcja dodawania komentarzy do wierszy jest dostępna w wersji premium.",
         "readOnlyNoComment": "Brak komentarzy do tego wiersza.",
-        "noComment": "Brak jeszcze komentarzy dla tego wiersza. Użyj poniższego formularza, aby dodać komentarz.",
+        "noComment": "Ten wiersz nie ma jeszcze żadnych komentarzy. Użyj poniższego formularza, aby dodać komentarz.",
         "comment": "Komentarz",
         "more": "Więcej informacji",
         "name": "Komentarze"
@@ -33,11 +33,11 @@
         "you": "Ty",
         "anonymous": "Anonimowy",
         "created": "utworzono",
-        "edited": "edytowany",
+        "edited": "edytowano",
         "commentTrashed": "Ten komentarz został usunięty.",
         "errorUserNotCommentAuthorTitle": "Nie można zaktualizować ani usunąć.",
         "creating": "tworzenie",
-        "updating": "aktualizuje",
+        "updating": "aktualizowanie",
         "deleting": "usuwanie",
         "errorUserNotCommentAuthor": "Tylko autor komentarza może go zaktualizować lub usunąć.",
         "errorInvalidCommentMentionTitle": "Nieprawidłowa wzmianka",
@@ -46,52 +46,52 @@
     "registerLicenseModal": {
         "titleRegisterLicense": "Zarejestruj licencję",
         "registerLicense": "Zarejestruj licencję",
-        "viewPricing": "Zobacz wycenę",
-        "licenseDescription": "Licencję można uzyskać tylko na baserow.io. Jeśli już kupiłeś licencję, zostanie ona dostarczona e-mailem i możesz uzyskać dostęp z przeglądu na swoim koncie. Skopiuj i wklej klucz licencyjny w polu poniżej i kliknij przycisk, aby zarejestrować klucz licencyjny w tej instancji. Nie można używać tego samego klucza w dwóch różnych instalacjach. {pricingLink}, jeśli nie masz jeszcze klucza.",
+        "viewPricing": "Zobacz cennik",
+        "licenseDescription": "Licencję można wykupić wyłącznie na baserow.io. Jeśli masz już licencję, to klucz powinien być na twoim e-mailu, ale możesz go również znaleźć na swoim koncie. Skopiuj i wklej swój klucz w polu poniżej i kliknij przycisk, aby powiązać go z tą instancją. Ten sam klucz nie może być powiązany z dwoma różnymi instancjami. {pricingLink}, jeśli nie masz jeszcze klucza.",
         "licenseError": {
             "invalidTitle": "Nieważny",
-            "invalid": "Dostarczona licencja jest nieważna.",
-            "unsupportedTitle": "Nieobsługiwane",
-            "unsupported": "Dostarczona licencja jest niekompatybilna z Twoją wersją Baserow. Proszę zaktualizować do najnowszej wersji i spróbować ponownie.",
+            "invalid": "Podana licencja jest nieważna.",
+            "unsupportedTitle": "Nierozpoznana licencja",
+            "unsupported": "Podana licencja nie jest kompatybilna z Twoją wersją Baserow. Zaktualizuj Baserow i spróbuj ponownie.",
             "expiredTitle": "Wygasła",
-            "expired": "Dostarczona licencja wygasła.",
-            "duplicateTitle": "Duplikuj",
-            "duplicate": "Dostarczona licencja jest już zarejestrowana w tej instancji.",
+            "expired": "Podana licencja wygasła.",
+            "duplicateTitle": "Duplikat",
+            "duplicate": "Podana licencja jest już zarejestrowana w tej instancji.",
             "instanceMismatchTitle": "Niezgodność instancji",
-            "instanceMismatch": "Podana licencja nie należy do tej instancji."
+            "instanceMismatch": "Podana licencja nie jest powiązana z tą instancją."
         }
     },
     "disconnectLicenseModal": {
-        "disconnectLicense": "Odłącz licencję",
-        "disconnectDescription": "Czy na pewno chcesz odłączyć tę licencję? Jeśli odłączysz tę licencję, gdy jest aktywna, powiązani użytkownicy nie będą już mieli dostępu do planu. Skutecznie usunie licencję. Skontaktuj się z naszym zespołem pomocy technicznej pod adresem {contact}, jeśli chcesz użyć tej licencji w innej instancji hostowanej samodzielnie."
+        "disconnectLicense": "Wyrejestruj licencję",
+        "disconnectDescription": "Czy na pewno chcesz odłączyć tę licencję? Wyrejestrowanie aktywnej licencji spowoduje, że powiązani z nią użytkownicy stracą dostęp do tego planu, a licencja zostanie usunięta. Jeśli chcesz użyć tej licencji w osobnej instancji hostowanej na własnym serwerze, skontaktuj się z zespołem pomocy technicznej pod adresem {contact}."
     },
     "registerLicenseForm": {
         "licenseKey": "Klucz licencyjny"
     },
     "tableJSONExporter": {
-        "encoding": "Kodowanie"
+        "encoding": "Kodowanie znaków"
     },
     "tableXMLExporter": {
-        "encoding": "Kodowanie"
+        "encoding": "Kodowanie znaków"
     },
     "kanbanViewStackContext": {
         "createCard": "Utwórz kartę",
-        "editStack": "Edytuj stos",
-        "deleteStack": "Usuń stos",
+        "editStack": "Edytuj grupowanie kart",
+        "deleteStack": "Usuń grupowanie kart",
         "delete": "Usuń {name}",
-        "deleteDescription": "Czy na pewno chcesz usunąć stos {name}? Usunięcie stosu powoduje usunięcie opcji wyboru pojedynczego pola wyboru, co może spowodować utratę danych, ponieważ wartości wierszy zostaną ustawione na puste."
+        "deleteDescription": "Czy na pewno chcesz usunąć grupowanie kart {name}? Spowoduje to usunięcie opcji z pola wyboru pojedynczego i wyzerowanie wartości wierszy i, w konsekwencji, utratę danych."
     },
     "kanbanViewHeader": {
-        "stackBy": "Stos według",
-        "stackedBy": "Zestawione przez {fieldName}",
-        "customizeCards": "Dostosuj karty"
+        "stackBy": "Pogrupuj karty wg.",
+        "stackedBy": "Pogrupowane wg. pola {fieldName}",
+        "customizeCards": "Edytuj karty"
     },
     "kanbanViewOptionForm": {
         "selectOption": "Wybierz opcję"
     },
     "kanbanViewStakedBy": {
-        "title": "Pole grupowe",
-        "chooseField": "Według którego pola pojedynczego wyboru należy układać karty?"
+        "title": "Pogrupuj pole",
+        "chooseField": "Według którego pola wyboru pojedynczego mają być pogrupowane karty?"
     },
     "kanbanViewStack": {
         "uncategorized": "Bez kategorii",
@@ -100,141 +100,141 @@
     },
     "premiumFeatures": {
         "rowComments": "Komentarze do wierszy",
-        "kanbanView": "Widok kanban",
+        "kanbanView": "Widok Kanban",
         "exports": "Eksport tabeli",
         "admin": "Funkcjonalność administratora",
         "rowColoring": "Kolorowanie wierszy",
-        "surveyForm": "Formularz ankiety",
-        "publicLogoRemoval": "Usunięcie logo publicznego",
-        "personalViews": "Osobiste widoki",
+        "surveyForm": "Formularz w trybie ankiety",
+        "publicLogoRemoval": "Usunięcie logo Baserow",
+        "personalViews": "Prywatne widoki",
         "calendarView": "Widok kalendarza",
-        "aiFeatures": "Funkcjonalności AI",
+        "aiFeatures": "Funkcje AI",
         "timelineView": "Widok osi czasu",
-        "calendarViewContent": "Możesz podejrzeć swoje wiersze w formie kalendarza, wskazując dowolne pole daty. Doskonałe do przeglądania i śledzenia terminów, zdarzeń i harmonogramów.",
-        "rowNotificationsContent": "Bądź na bieżąco za pomocą powiadomień o komentarzach, które możesz dostosowywać. Wybierz między otrzymywaniem wszystkich komentarzy albo tylko tych, w których Ciebie wspomniano.",
-        "exportsContent": "Łatwo wyeksportuj swoje dane do dodatkowych formatów, jak Excel, JSON i XML, albo pobierz wszystkie pliki dołączone do tabeli - doskonałe do kopii zapasowych, raportów i współdzielenia z innymi.",
-        "rowNotifications": "Powiadomienia o wierszu",
-        "surveyFormContent": "Zbierz odpowiedzi na każde pytanie osobno za pomocą trybu ankiety. Uproszczona wersja widoku formularza, bez rozpraszających elementów i łatwa w użyciu.",
-        "aiFeaturesContent": "Używaj AI do automatyzacji i rozszerzania swoich przepływów pracy. Za pomocą pola podpowiedzi AI możesz generować tekst, podsumowania albo analizy bezpośrednio w komórkach na podstawie dynamicznych podpowiedzi, które mogą nawiązywać do innych pól. Możesz też poprosić AI aby wygenerowało dla Ciebie formuły.",
-        "publicLogoRemovalContent": "Usuń logo Baserow z widoków publicznych, aby współdzielona zawartość wyglądała schludniej i bardziej firmowo.",
-        "kanbanViewContent": "Zorganizuj wizualnie swoje dane na tablicy Kanban. Karty są pogrupowane w stosy na podstawie pola pojedynczego wyboru. Możesz je przenosić przeciągając i upuszczając je pomiędzy stosami.",
-        "rowCommentsContent": "Współpracuj bezpośrednio w tabeli. Dodawaj komentarze do poszczególnych wierszy, wzmiankuj członków zespołu i utrzymuj konwersację w kontekście.",
-        "timelineViewContent": "Wyświetlaj wiersze wzdłuż horyzontalnej linii czasu używając daty początkowej i daty końcowej. Doskonałe do planowania projektów i map drogowych.",
-        "chartWidget": "Widget wykresu",
-        "chartWidgetContent": "Wizualizuj swoje dane na wykresach na pulpitach. Użyj dowolnej tabeli jako źródła danych, dodaj wiele serii, grupuj albo sortuj po polach za pomocą bogatych opcji podsumowania.",
-        "rowColoringContent": "Podświetlaj wiersze kolorami na podstawie pola pojedynczego wyboru lub własnych warunków. To pozwala łatwo zauważyć wzorce i priorytety.",
-        "personalViewsContent": "Twórz widoki, które są dostępne tylko dla autora. To daje przestrzeń do eksperymentów, filtrowania i sortowania danych bez wpływania na przestrzeń pracy u innych."
+        "calendarViewContent": "Używając wybranego pola daty, wyświetl wiersze tabeli w formacie kalendarza. Ta opcja świetnie nadaje się do śledzenia terminów, wydarzeń i harmonogramów.",
+        "rowNotificationsContent": "Otrzymuj na bieżąco powiadomienia o komentarzach do wierszy w tabelach. Możesz otrzymywać wszystkie komentarze albo tylko te, w których wspomniano o Tobie.",
+        "exportsContent": "Eksportuj dane w dodatkowych formatach tj. Excel, JSON i XML albo pobierz wszystkie pliki z tabeli – opcja daje dodatkowe możliwości tworzenia kopii zapasowych, raportów i przesyłania danych innym.",
+        "rowNotifications": "Powiadomienia o komentarzach",
+        "surveyFormContent": "W wersji formularza w trybie ankiety pytania są zadawane oddzielnie, jedno po drugim. Ta uproszczona wersja formularza ułatwia uzyskanie bardziej skonkretyzowanych odpowiedzi.",
+        "aiFeaturesContent": "AI pomoże Ci zautomatyzować bazę i rozbudować procesy. Za pomocą pola promptu możesz generować tekst, podsumowania lub analizy bezpośrednio w komórkach i na podstawie dynamicznych powiązań z innymi polami. AI jest również przydatne do generowania formuł.",
+        "publicLogoRemovalContent": "Ta opcja pozwala usunąć logo Baserow z widoków publicznych, dzięki czemu strony będą zawierać wyłącznie branding Twojej firmy.",
+        "kanbanViewContent": "Prezentuj dane przy pomocy tablicy i kart Kanban. Karty Kanban możesz grupować na podstawie wartości w wybranym polu wyboru pojedynczego. Możesz też je łatwo przeciągać między kolumnami.",
+        "rowCommentsContent": "Wymieniaj uwagi z innymi użytkownikami bezpośrednio w tabeli. Dodawaj komentarze do poszczególnych wierszy i komunikuj się z współpracownikami, nie wychodząc z aplikacji.",
+        "timelineViewContent": "Używając dat początkowych i końcowych, wizualizuj dane przy pomocy poziomej osi czasu – ta opcja służy do planowania projektów i przygotowywania harmonogramów.",
+        "chartWidget": "Widżet tworzenia wykresów",
+        "chartWidgetContent": "Wizualizuj dane na pulpitach przy pomocy wykresów. Użyj dowolnej tabeli jako źródła, dodaj zakresy danych oraz grupuj lub sortuj pola, używając różnorodnych opcji podsumowań.",
+        "rowColoringContent": "Zaznacz wiersze kolorami na podstawie pola wyboru pojedynczego lub określonych warunków. Ta opcja jest przydatna do wyróżniania danych, powtarzających się schematów i priorytetów.",
+        "personalViewsContent": "Skonfiguruj widoki dostępne tylko dla Ciebie – to opcja przeznaczona do eksperymentów, filtrowania lub sortowania danych na własne potrzeby i bez “zakłócania” wspólnego obszaru roboczego."
     },
     "licenses": {
         "titleNoLicenses": "Nie znaleziono licencji",
         "titleLicenses": "Licencje",
-        "noLicensesDescription": "Twoja instancja Baserow nie ma zarejestrowanych żadnych licencji. Licencja premium daje Ci natychmiastowy dostęp do wszystkich dodatkowych funkcji. Jeśli masz już licencję, możesz ją zarejestrować tutaj. Alternatywnie możesz ją uzyskać klikając na poniższy przycisk.",
-        "getLicense": "Uzyskaj licencję",
-        "baserowInstanceId": "Twój identyfikator ID instancji Baserow to:",
+        "noLicensesDescription": "Ta instancja Baserow nie jest jeszcze powiązana z żadną licencją. Licencja typu premium umożliwi Ci natychmiastowy dostęp do wszystkich dodatkowych funkcji. Jeśli masz już licencję, możesz ją zarejestrować tutaj. Jeżeli jeszcze nie masz licencji, możesz ją wykupić, klikając na poniższy przycisk.",
+        "getLicense": "Wykup licencję",
+        "baserowInstanceId": "ID Twojej instancji Baserow:",
         "registerLicense": "Zarejestruj licencję",
-        "licenceId": "Identyfikator ID licencji",
+        "licenceId": "ID licencji",
         "premium": "Premium",
         "expired": "Wygasła",
-        "validity": "Obowiązuje od {start} do {end}",
-        "seats": "miejsca",
+        "validity": "Ważna od {start} do {end}",
+        "seats": "stanowiska",
         "premiumFeatures": "Funkcje premium",
         "applicationUsers": "Użytkownicy aplikacji"
     },
     "license": {
-        "title": "Abonament {name}",
+        "title": "Plan {name}",
         "users": "Użytkownicy",
-        "description": "Wybierz użytkowników, którzy mogą korzystać z abonamentu {product_code}. Ta licencja umożliwia przyznanie {product_code} maksymalnie {seats} użytkownikom.",
-        "seatLeft": "Nie masz wolnych miejsc|Masz jedno miejsce|Masz jeszcze {count} miejsc/a",
-        "fillSeats": "Wypełnij miejsca użytkownikami, których nie ma w planie",
+        "description": "Wybierz użytkowników, którzy mogą korzystać z planu {product_code}. Maksymalna liczba użytkowników licencji {product_code}: {seats}.",
+        "seatLeft": "Nie masz wolnych stanowisk | Masz jedno wolne stanowisko | Wolne stanowiska: {count}",
+        "fillSeats": "Przydziel stanowiska użytkownikom, których nie obejmuje plan",
         "removeAll": "Usuń wszystkich użytkowników",
-        "licenseId": "Identyfikator ID licencji",
+        "licenseId": "ID licencji",
         "addUser": "Dodaj użytkownika",
-        "plan": "Abonament",
+        "plan": "Plan",
         "premium": "premium",
         "expired": "Wygasły",
-        "validFrom": "Obowiązuje od",
-        "validThrough": "Ważny przez",
-        "validThroughDescription": "Po wygaśnięciu licencji, Ty i wszyscy przypisani użytkownicy nie będą już mogli korzystać z dodatkowych funkcji przyznanych przez licencję.",
-        "lastCheck": "Ostatnie sprawdzenie",
-        "lastCheckDescription": "Licencja jest okresowo sprawdzana pod kątem zmian. Jeśli na przykład odnowiłeś lub uaktualniłeś swoją licencję, zmiany stają się aktywne po sprawdzeniu.",
-        "checkNow": "sprawdzić teraz",
-        "seats": "Miejsca (amount of users)",
-        "licensedTo": "Licencjonowany dla",
+        "validFrom": "Ważny od",
+        "validThrough": "Ważny do",
+        "validThroughDescription": "Po wygaśnięciu licencji ani Ty, ani przypisani użytkownicy nie będziecie mogli korzystać z dodatkowych funkcji.",
+        "lastCheck": "Data ostatniej weryfikacji",
+        "lastCheckDescription": "Licencja jest okresowo weryfikowana pod kątem zmian. Jeśli na przykład odnowiłeś lub rozszerzyłeś licencję, zmiany staną się widoczne lub aktywne po weryfikacji.",
+        "checkNow": "weryfikuj licencję",
+        "seats": "Stanowiska (liczba użytkowników)",
+        "licensedTo": "Licencjobiorca",
         "premiumFeatures": "Funkcje premium",
-        "applications": "Aplikacje/ bazy danych",
-        "unlimited": "Nieograniczona",
+        "applications": "Aplikacje / bazy danych",
+        "unlimited": "Bez limitu",
         "rowUsage": "Wykorzystanie wierszy",
         "storeUsage": "Wykorzystanie pamięci masowej",
-        "disconnectLicense": "Odłączenie licencji",
-        "disconnectDescription": "Jeśli odłączysz tę licencję, gdy jest aktywna, powiązani użytkownicy nie będą już mieli dostępu do planu. To skutecznie usunie licencję. Skontaktuj się z naszym zespołem pomocy technicznej pod adresem {contact}, jeśli chcesz użyć tej licencji w innej instancji hostowanej samodzielnie.",
-        "premiumFeatureName": "Premium",
-        "supportFeatureName": "Wsparcie",
-        "moreSeatsNeededTitle": "Potrzeba więcej miejsc",
+        "disconnectLicense": "Wyrejestruj licencję",
+        "disconnectDescription": "Wyrejestrowanie aktywnej licencji spowoduje, że powiązani z nią użytkownicy stracą dostęp do tego planu, a licencja zostanie usunięta. Jeśli chcesz użyć tej licencji w osobnej instancji hostowanej na własnym serwerze, skontaktuj się z naszym zespołem pomocy technicznej pod adresem {contact}.",
+        "premiumFeatureName": "Wersja Premium",
+        "supportFeatureName": "Pomoc techniczna",
+        "moreSeatsNeededTitle": "Potrzebujesz więcej stanowisk",
         "enterpriseFeatureName": "Wersja Enterprise",
-        "contactSalesMoreSeats": "Skontaktuj się z działem sprzedaży, aby uzyskać więcej miejsc",
-        "automaticSeatsProgressBarStatus": "{seats_taken} / {seats} płatnych miejsc i {free_users_count} wolnych miejsc w użyciu",
-        "applicationUsersDescription": "Całkowita liczba użytkowników aplikacji w opublikowanych źródłach użytkowników budowniczego aplikacji.",
+        "contactSalesMoreSeats": "Aby wykupić większeą liczbę stanowisk skontaktuj się z działem sprzedaży",
+        "automaticSeatsProgressBarStatus": "masz {seats_taken} / {seats} płatnych i {free_users_count} bezpłatnych stanowisk",
+        "applicationUsersDescription": "Całkowita liczba użytkowników aplikacji w opublikowanych źródłach użytkowników konstruktora aplikacji.",
         "applicationUsers": "Użytkownicy aplikacji",
-        "advancedFeatureName": "Wersja Zaawansowana"
+        "advancedFeatureName": "Wersja Advanced"
     },
     "viewDecoratorType": {
-        "leftBorderColor": "Lewa granica",
-        "leftBorderColorDescription": "Pokoloruj lewą krawędź wiersza",
+        "leftBorderColor": "Lewa krawędź",
+        "leftBorderColorDescription": "Koloruj lewą krawędź wiersza",
         "backgroundColor": "Kolor tła",
         "backgroundColorDescription": "Pokoloruj tło wiersza",
         "onlyForPremium": "Dostępne w wersji premium",
-        "onlyOneDecoratorPerView": "Możesz mieć tylko jedną dekorację tego typu dla widoku"
+        "onlyOneDecoratorPerView": "Możesz mieć tylko jedną dekorację tego typu w widoku"
     },
     "decoratorValueProviderType": {
         "singleSelectColor": "Wybór pojedynczy",
-        "singleSelectColorDescription": "Pokoloruj wiersze tak samo jak pojedyncza wartość wyboru",
+        "singleSelectColorDescription": "Zaznacz wiersze tym samym kolorem co wartość wyboru pojedynczego",
         "conditionalColor": "Warunki",
-        "conditionalColorDescription": "Pokoloruj wiersze, gdy spełniają warunki"
+        "conditionalColorDescription": "Pokoloruj wiersze, gdy zostaną spełnione warunki"
     },
     "singleSelectColorValueProviderForm": {
-        "chooseAColor": "Według którego pojedynczego pola wyboru powinien być pokolorowany wiersz?"
+        "chooseAColor": "Według którego pola wyboru pojedynczego pokolorować wiersz?"
     },
     "conditionalColorValueProviderForm": {
         "addCondition": "Dodaj warunek",
-        "colorAlwaysApply": "Warunki można dodawać, klikając przycisk \"Dodaj warunek\".",
+        "colorAlwaysApply": "Dodaj warunki klikając przycisk \"Dodaj warunek\".",
         "addColor": "Dodaj kolor",
         "deleteColor": "Usuń kolor",
-        "colorAlwaysApplyTitle": "Ten kolor jest stosowany domyślnie.",
+        "colorAlwaysApplyTitle": "Kolor domyślny.",
         "addConditionGroup": "Dodaj grupę warunków",
         "title": "Kolory"
     },
     "redirectToBaserowModal": {
         "title": "Przekierowanie na stronę https://baserow.io",
-        "content": "Opuszczasz samodzielnie hostowaną instancję i zostajesz przekierowany na stronę https://baserow.io."
+        "content": "Jesteś przekierowywany z instancji na własnym serwerze do https://baserow.io."
     },
     "premiumTopSidebar": {
-        "impersonateDescription": "To konto jest obsługiwane przez podszytego użytkownika. Odświeżenie strony zatrzyma to.",
+        "impersonateDescription": "Jesteś obecnie zalogowany w trybie użytkownika. Odświeżenie strony wyłączy ten tryb.",
         "impersonateStop": "Stop",
         "premium": "Premium",
-        "premiumDescription": "Twoje konto ma dostęp do funkcji premium globalnie"
+        "premiumDescription": "Twoje konto ma globalny dostęp do funkcji premium"
     },
     "formViewModePreviewSurvey": {
-        "orderFields": "Pola zamówień",
-        "deactivated": "Formularz ankiety dostępny jest w wersji premium.",
+        "orderFields": "Uporządkuj pola",
+        "deactivated": "Formularz w trybie ankiety jest dostępny w wersji premium.",
         "more": "Więcej informacji"
     },
     "formViewModeType": {
-        "survey": "Ankieta",
-        "surveyDescription": "Jedno pole jest widoczne w tym samym czasie.",
+        "survey": "Tryb ankiety",
+        "surveyDescription": "Jednorazowo widoczne jest tylko jedno pole.",
         "onlyForPremium": "Dostępne w wersji premium"
     },
     "shareLinkOptions": {
         "baserowLogo": {
             "label": "Ukryj logo Baserow w widoku udostępnionym",
-            "premiumModalName": "usuwanie logo publicznego"
+            "premiumModalName": "usuwanie logo z widoku publicznego"
         },
-        "allowPublicExportLabel": "Pozwól na eksport danych z udostępnionego widoku"
+        "allowPublicExportLabel": "Pozwól na eksport z widoku udostępnionego"
     },
     "viewsContext": {
         "personal": "Osobisty"
     },
     "rowCommentMentionNotification": {
-        "title": "{sender} wspomniał o Tobie w wierszu {row} w {table}",
+        "title": "{sender} wspomniał o Tobie w wierszu {row} w tabeli {table}",
         "deletedUser": "Usunięty użytkownik"
     },
     "rowCommentContext": {
@@ -242,11 +242,11 @@
         "delete": "Usuń komentarz"
     },
     "trashType": {
-        "row_comment": "komentarz wiersza"
+        "row_comment": "komentarz do wiersza"
     },
     "calendarViewHeader": {
-        "displayBy": "Wyświetlanie przez",
-        "displayedBy": "Wyświetlane przez pole \"{fieldName}\"",
+        "displayBy": "Wyświetlanie wg.",
+        "displayedBy": "Wyświetlane wg. pola \"{fieldName}\"",
         "labels": "Etykiety"
     },
     "calendarDateSelector": {
@@ -259,84 +259,87 @@
         "tryAgain": "spróbuj ponownie"
     },
     "dateFieldSelectForm": {
-        "dateField": "Które pole ma być używane w tym widoku?",
-        "noCompatibleDateFields": "W tej tabeli nie ma pól daty, należy je najpierw utworzyć."
+        "dateField": "Które pole chciałbyś użyć w tym widoku?",
+        "noCompatibleDateFields": "W tej tabeli nie ma żadnych pól daty. Utwórz pole daty."
     },
     "selectDateFieldModal": {
         "chooseDateField": "Wybierz pole daty",
         "save": "Zapisz"
     },
     "RowEditModalCommentNotificationMode": {
-        "modeMentionsDesc": "Będziesz otrzymywać powiadomienia tylko wtedy, gdy zostaniesz wspomniany.",
+        "modeMentionsDesc": "Otrzymasz powiadomienia wyłącznie, gdy ktoś wspomni o Tobie we wzmiance.",
         "modeAllTitle": "Wszystkie komentarze",
         "modeMentionsTitle": "Tylko wzmianki",
-        "modeAllDesc": "Będziesz otrzymywać powiadomienia o wszystkich komentarzach w tym wierszu."
+        "modeAllDesc": "Otrzymasz powiadomienia o wszystkich komentarzach do tego wiersza."
     },
     "premiumFieldType": {
         "ai": "Prompt AI",
-        "aiDescription": "Pole tylko do odczytu, które przechowuje tekst wygenerowany przez sztuczną inteligencję na podstawie monitu pola."
+        "aiDescription": "Pole tylko do odczytu zawierające tekst wygenerowany przez AI na podstawie promptu."
     },
     "functionalGridViewFieldAI": {
-        "generate": "Generuj"
+        "generate": "Wygeneruj"
     },
     "fieldAISubForm": {
         "AIModel": "Model AI",
-        "premiumFeature": "Pole AI jest funkcją premium",
+        "premiumFeature": "Pole AI zalicza się do funkcji premium",
         "AIType": "Typ AI",
         "prompt": "Prompt",
-        "fileFieldHelp": "Pierwszy zgodny plik w polu zostanie użyty jako baza wiedzy dla monitu. Plik musi być plikiem tekstowym z obsługiwanym rozszerzeniem, takim jak .txt, .md, .pdf, .docx.",
+        "fileFieldHelp": "Pierwszy plik tekstowy w polu z rozszerzeniem .txt, .md, .pdf lub .docx zostanie użyty jako baza wiedzy (knowledge base).",
         "promptPlaceholder": "Czym jest Baserow?",
         "emptyFileField": "Brak",
-        "outputTypeTooltip": "Wybierz oczekiwany format danych wyjściowych aby pokierować LLM w generowaniu odpowiedzi, które pasują do oczekiwanych opcji.",
-        "outputType": "Typ wyjścia",
-        "outputTypeChangedWarning": "Czyści wygenerowane wartości w komórkach."
+        "outputTypeTooltip": "Wybierz format, w jakim LLM ma wygenerować dane wyjściowe.",
+        "outputType": "Format danych wyjściowych",
+        "outputTypeChangedWarning": "Kasuje wygenerowane wartości w komórkach.",
+        "autoUpdate": "Automatyczna aktualizacja",
+        "autoUpdateHelp": "Włączenie tej opcji spowoduje, że po aktualizacji któregoś z pól użytych w promptcie wartość pola AI zostanie automatycznie wygenerowana ponownie.",
+        "autoUpdateDescription": "Wygeneruj ponownie jak zmienią się wartości w polach użytych w promptcie"
     },
     "rowEditFieldAI": {
-        "generate": "Generuj",
-        "createRowBefore": "Wartość AI może zostać wygenerowana po utworzeniu wiersza."
+        "generate": "Wygeneruj",
+        "createRowBefore": "Dane w polu AI zostaną wygenerowane po utworzeniu wiersza."
     },
     "gridViewFieldAI": {
-        "generate": "Generuj",
-        "regenerate": "Regeneracja"
+        "generate": "Wygeneruj",
+        "regenerate": "Wygeneruj ponownie"
     },
     "rowCommentNotification": {
-        "title": "{sender} opublikował komentarz w wierszu {row} w {table}",
+        "title": "{sender} opublikował komentarz w wierszu {row} w tabeli {table}",
         "deletedUser": "Usunięty użytkownik"
     },
     "aiFormulaModal": {
-        "noModels": "Twoja instancja Baserow i obszar roboczy nie mają skonfigurowanych żadnych modeli AI. Kliknij trzy kropki obok obszaru roboczego, a następnie ustawienia, aby je skonfigurować.",
-        "title": "Generowanie formuły przy użyciu sztucznej inteligencji",
-        "description": "Należy pamiętać, że wygenerowane formuły mogą nie zawsze działać zgodnie z oczekiwaniami. Konstruujemy monit dla modelu i ładujemy dane wyjściowe do wejścia formuły. Działa to najlepiej z modelem o wysokich parametrach, takim jak gpt-4-turbo-preview.",
+        "noModels": "Żaden model AI nie został skonfigurowany w tej instancji Baserow bądź w obszarze roboczym. Przejdź do strony głównej, kliknij nazwę obszaru roboczego, następnie ustawienia i wybierz model AI.",
+        "title": "Wygeneruj formułę przy pomocy AI",
+        "description": "Zwróć uwagę, że wygenerowane formuły mogą nie działać tak, jak się tego spodziewasz. Rozbieżności mogą się pojawić, ponieważ konstrukcja formuły zależy od promptu i wybranego modelu, a wynik jest wstawiany bezpośrednio do pola wprowadzania formuły. Funkcja działa najlepiej przy użyciu wysokoparametrycznego modelu, np. gpt-4-turbo-preview.",
         "label": "Prompt",
         "labelDescription": "Opisz formułę, którą chcesz wygenerować",
-        "generate": "Generuj"
+        "generate": "Wygeneruj"
     },
     "calendarViewType": {
-        "sharedViewTitle": "Synchronizacja z kalendarzem zewnętrznym",
-        "sharedViewText": "Zezwalaj każdemu na wyświetlanie danych w tym widoku lub synchronizuj wydarzenia z zewnętrznym kalendarzem.",
-        "sharedViewEnableSyncToExternalCalendar": "Synchronizacja z kalendarzem zewnętrznym",
+        "sharedViewTitle": "Synchronizacja z zewnętrznym kalendarzem",
+        "sharedViewText": "Wszyscy użytkownicy mogą przeglądać dane w tym widoku lub synchronizować wydarzenia z zewnętrznym kalendarzem.",
+        "sharedViewEnableSyncToExternalCalendar": "Synchronizacja z zewnętrznym kalendarzem",
         "sharedViewDisableSyncToExternalCalendar": "Wyłącz synchronizację zewnętrzną",
         "sharedViewDescription": "Wklej ten link do aplikacji kalendarza"
     },
     "formulaFieldAI": {
-        "generateWithAI": "Generowanie przy użyciu sztucznej inteligencji",
-        "featureName": "Wzór generacyjny przy użyciu AI"
+        "generateWithAI": "Wygeneruj za pomocą AI",
+        "featureName": "Wygeneruj formułę za pomocą AI"
     },
     "viewDateSelector": {
         "today": "Dziś"
     },
     "timelineDateSettingsForm": {
-        "incompatibleFieldsErrorMessage": "Pola nie są kompatybilne. Proszę wybrać dwa prawidłowe pola daty z tabeli, które używają tego samego ustawienia dla \"uwzględnić czas\" i używają tej samej strefy czasowej dla współpracowników.",
+        "incompatibleFieldsErrorMessage": "Te pola nie są kompatybilne. Wybierz dwa pola daty z ustawioną opcją godziny oraz z tą samą strefą czasową dla wszystkich współpracowników.",
         "startDateField": "Data początkowa",
         "endDateField": "Data końcowa",
-        "noCompatibleDateFields": "Brakuje pól dat w tabeli. Proszę najpierw dodać datę początkową i końcową do tabeli.",
+        "noCompatibleDateFields": "W tej tabeli nie ma pól dat. Utwórz pola daty początkowej i końcowej.",
         "incompatibleFieldsErrorTitle": "Niekompatybilne pola",
         "dateOnly": "tylko data",
-        "includeTime": "data i czas",
+        "includeTime": "data i godzina",
         "forceTimezone": "{timezone}"
     },
     "timelineTimescaleContext": {
-        "disabledTooltip": "Ta opcja jest dostępna tylko dla pól daty, które mają włączone \"uwzględnij czas\".",
+        "disabledTooltip": "Ta opcja jest dostępna tylko dla pól daty z ustawioną opcją godziny.",
         "hour": "Godzina",
         "day": "Dzień",
         "week": "Tydzień",
@@ -348,13 +351,13 @@
         "export": "Eksport"
     },
     "tableFileExporter": {
-        "organizeFiles": "Grupuj pliki po id wiersza"
+        "organizeFiles": "Grupuj pliki wg. ID wiersza"
     },
     "aiOutputType": {
-        "textDescription": "Wygeneruj dowolny tekst na podstawie podpowiedzi.",
+        "textDescription": "Wygeneruje tekst na podstawie promptu.",
         "choice": "Wybór",
         "text": "Tekst",
-        "choiceDescription": "Wybierz tylko jedną opcję dla pola."
+        "choiceDescription": "Wybiera tylko jedną z opcji pola."
     },
     "timelineViewHeader": {
         "dateSettings": "Ustawienia daty",
@@ -370,13 +373,51 @@
         "settings": "Ustawienia daty"
     },
     "timelineGridRow": {
-        "days": "0|1 dzień| {count} dni"
+        "days": "0 dni | 1 dzień | {count} dni"
     },
     "paidFeaturesModal": {
         "viewPricing": "Zobacz cennik",
-        "description": "Ta funkcjonalność jest dostępna w planie {plan}. Aby uzyskać do niej dostęp, zmień swój plan na wyższy uruchamiając subskrypcję. Kliknij na przycisk poniżej, aby zapoznać się z naszymi płatnymi planami."
+        "description": "Ta funkcja jest dostępna w planie {plan} i wymaga zmiany obecnego planu. Kliknij poniżej, żeby sprawdzić nasze opcje cenowe."
     },
     "kanbanView": {
-        "addStack": "Dodaj stos"
+        "addStack": "Dodaj grupowanie kart"
+    },
+    "chart": {
+        "true": "prawda",
+        "false": "fałsz",
+        "other": "Inne"
+    },
+    "generateAIValuesModal": {
+        "title": "Wygeneruj wszystkie wartości AI",
+        "noPreviousJobs": "Brak poprzednich zadań",
+        "started": "Rozpoczęte",
+        "finished": "Zakończone",
+        "running": "W toku",
+        "failed": "Zakończone niepowodzeniem",
+        "cancelled": "Anulowane",
+        "pending": "Oczekujące",
+        "view": "Widok: {name}",
+        "table": "Tabela: wszystkie wiersze",
+        "deletedView": "Widok: ID {viewId} (usunięty)",
+        "rows": "Liczba wierszy: {count}",
+        "autoUpdate": "Automatyczna aktualizacja: zmiany w przywoływanych polach"
+    },
+    "generateAIValuesForm": {
+        "scopeLabel": "Zakres",
+        "entireTable": "Cała tabela",
+        "skipPopulated": "Wygeneruj tylko wartości w pustych komórkach",
+        "warningTitle": "Ostrzeżenie o zużyciu tokenów",
+        "warningMessage": "W trakcie generowania danych AI korzysta z tokenów API. Ponadto w zależności od liczby wierszy przetwarzanie może potrwać dłuższy okres."
+    },
+    "generateAIValuesFormFooter": {
+        "generate": "Wygeneruj za pomocą AI",
+        "close": "Zamknij"
+    },
+    "jobType": {
+        "generateAIValues": "Wygeneruj ponownie dane w polu AI"
+    },
+    "viewOwnershipType": {
+        "personal": "Osobisty",
+        "personalDescription": "Tylko Ty widzisz ten widok."
     }
 }
