@@ -53,6 +53,7 @@ from django.db.models.functions import Cast, Coalesce, Left, RowNumber
 
 from dateutil import parser
 from dateutil.parser import ParserError
+from drf_spectacular.utils import extend_schema_serializer
 from loguru import logger
 from rest_framework import serializers
 
@@ -598,8 +599,7 @@ class NumberFieldType(FieldType):
             "The number_type option has been removed and can no longer be provided. "
             "Instead set number_decimal_places to 0 for an integer or 1-5 for a "
             "decimal."
-        ),
-        "_spectacular_annotation": {"exclude_fields": ["number_type"]},
+        )
     }
     _can_group_by = True
     _db_column_fields = ["number_decimal_places"]
@@ -615,6 +615,12 @@ class NumberFieldType(FieldType):
                 value = str(value)
             serialized[field_name] = value
         return serialized
+
+    def get_serializer_class(self, *args, **kwargs) -> serializers.ModelSerializer:
+        serializer_class = super().get_serializer_class(*args, **kwargs)
+        return extend_schema_serializer(exclude_fields=["number_type"])(
+            serializer_class
+        )
 
     def serialize_to_input_value(self, field: Field, value: any) -> any:
         if field.specific.number_decimal_places == 0:
