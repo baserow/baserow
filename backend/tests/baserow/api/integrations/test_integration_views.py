@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.urls import reverse
 
 import pytest
@@ -374,3 +376,29 @@ def test_delete_integration_integration_not_exist(api_client, data_fixture):
 
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_INTEGRATION_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_get_integrations_context_data_present_when_databases_raises(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=user)
+    application = data_fixture.create_builder_application(workspace=workspace)
+    data_fixture.create_local_baserow_integration(
+        application=application, authorized_user=user
+    )
+
+    with patch(
+        "baserow.contrib.integrations.local_baserow.integration_types"
+        ".LocalBaserowIntegrationType.get_local_baserow_databases",
+        side_effect=AttributeError("simulated failure"),
+    ):
+        url = reverse(
+            "api:integrations:list", kwargs={"application_id": application.id}
+        )
+        response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json[0]["context_data"] == {"databases": []}
