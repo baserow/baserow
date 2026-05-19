@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
@@ -256,6 +256,28 @@ class NodeGraphHandler:
         """
 
         return [self.get_node(cid) for cid in self.get_info(node).get("children", [])]
+
+    def get_parent_map(self) -> Dict[int, Optional[int]]:
+        """
+        Returns a mapping of node_id to its container parent's node_id (or None
+        if the node has no container parent).
+        """
+
+        parent_map: Dict[int, Optional[int]] = {}
+        for node_id_str, node_info in self.graph.items():
+            if node_id_str == "0" or not isinstance(node_info, dict):
+                continue
+            parent_id = int(node_id_str)
+            for child_id in node_info.get("children", []):
+                parent_map[child_id] = parent_id
+
+        for node_id_str in self.graph:
+            if node_id_str == "0":
+                continue
+            node_id = int(node_id_str)
+            parent_map.setdefault(node_id, None)
+
+        return parent_map
 
     def insert(
         self,

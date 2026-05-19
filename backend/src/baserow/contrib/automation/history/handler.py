@@ -1,10 +1,11 @@
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Set, Union
 
 from django.db.models import Prefetch, QuerySet
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.exceptions import (
+    AutomationNodeHistoryDoesNotExist,
     AutomationWorkflowHistoryDoesNotExist,
     AutomationWorkflowHistoryNodeResultDoesNotExist,
 )
@@ -143,3 +144,108 @@ class AutomationHistoryHandler:
             raise AutomationWorkflowHistoryNodeResultDoesNotExist()
 
         return node_result.result
+
+    def get_node_history(
+        self,
+        node_history_id: int,
+        base_queryset: Optional[QuerySet] = None,
+    ) -> AutomationNodeHistory:
+        """
+        Returns the AutomationNodeHistory for the given id.
+
+        :raises AutomationNodeHistoryDoesNotExist: If the row doesn't exist.
+        """
+
+        if base_queryset is None:
+            base_queryset = AutomationNodeHistory.objects.all()
+
+        try:
+            return base_queryset.select_related(
+                "workflow_history__original_workflow__automation__workspace",
+            ).get(id=node_history_id)
+        except AutomationNodeHistory.DoesNotExist:
+            raise AutomationNodeHistoryDoesNotExist(node_history_id)
+
+    def get_node_history_result(
+        self, node_history: AutomationNodeHistory
+    ) -> AutomationNodeResult:
+        """
+        Returns the first AutomationNodeResult for the given node history.
+        """
+
+        node_result = (
+            AutomationNodeResult.objects.only("result")
+            .filter(node_history=node_history)
+            .first()
+        )
+        if node_result is None:
+            raise AutomationWorkflowHistoryNodeResultDoesNotExist()
+
+        return node_result
+
+    def get_child_node_histories(
+        self,
+        workflow_history: AutomationWorkflowHistory,
+        parent_node_id: Optional[int],
+    ) -> QuerySet[AutomationNodeHistory]:
+        """
+        Returns the AutomationNodeHistory entries for a workflow history
+        that are the immediate children of the given parent workflow node.
+        If the parent_node_id is None, returns the root node histories.
+        """
+
+        parent_map = workflow_history.workflow.get_graph().get_parent_map()
+
+        if parent_node_id is None:
+            child_node_ids = [
+                node_id for node_id, parent in parent_map.items() if parent is None
+            ]
+        else:
+            child_node_ids = [
+                node_id
+                for node_id, parent in parent_map.items()
+                if parent == parent_node_id
+            ]
+
+        return (
+            AutomationNodeHistory.objects.filter(
+                workflow_history=workflow_history,
+                node_id__in=child_node_ids,
+            )
+            .select_related("node", "node__workflow")
+            .prefetch_related("node_results")
+            .order_by("started_on", "id")
+        )
+
+    def get_error_ancestor_node_ids(
+        self, workflow_history: AutomationWorkflowHistory
+    ) -> Set[int]:
+        """
+        Returns the set of workflow node ids that are ancestors of
+        any node history that has an error, for the given history.
+
+        This is used by the frontend to determine if any given history
+        entry should show an error state, due to a descendent node history
+        having an error.
+        """
+
+        errored_node_ids = (
+            AutomationNodeHistory.objects.filter(
+                workflow_history=workflow_history,
+                status=HistoryStatusChoices.ERROR,
+            )
+            .values_list("node_id", flat=True)
+            .distinct()
+        )
+
+        parent_map = workflow_history.workflow.get_graph().get_parent_map()
+        ancestors: Set[int] = set()
+
+        for node_id in errored_node_ids:
+            current = parent_map.get(node_id)
+            # collect all ancestors that have an error
+            while current is not None:
+                ancestors.add(current)
+                current = parent_map.get(current)
+
+        return ancestors
