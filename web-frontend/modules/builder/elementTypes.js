@@ -545,12 +545,14 @@ export class ElementType extends Registerable {
       }
     }
 
-    // AFTER — insert south of the next sibling, or south of this element if it's last
+    // AFTER — insert south of the next sibling
     const nextElement = elementsAround[DIRECTIONS.AFTER]
-    nextPlaces[DIRECTIONS.AFTER] = {
-      referenceElementId: nextElement ? nextElement.id : element.id,
-      position: 'south',
-      placeInContainer: '',
+    if (nextElement) {
+      nextPlaces[DIRECTIONS.AFTER] = {
+        referenceElementId: nextElement.id,
+        position: 'south',
+        placeInContainer: '',
+      }
     }
 
     // LEFT — move to end of the previous container place
