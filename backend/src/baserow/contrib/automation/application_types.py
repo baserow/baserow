@@ -216,6 +216,7 @@ class AutomationApplicationType(ApplicationType):
             progress.increment(
                 state=IMPORT_SERIALIZED_IMPORTING, by=integration_progress
             )
+            id_mapping.setdefault("integrations", {})  # Just in case
         else:
             self.import_integrations_serialized(
                 automation,

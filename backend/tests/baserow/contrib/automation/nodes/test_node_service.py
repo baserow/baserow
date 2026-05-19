@@ -4,6 +4,7 @@ import pytest
 
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeDoesNotExist,
+    AutomationNodeMisconfiguredService,
     AutomationNodeNotMovable,
     AutomationNodeReferenceNodeInvalid,
 )
@@ -141,6 +142,30 @@ def test_create_node_permission_error(data_fixture: Fixtures):
     assert str(e.value) == (
         f"User {another_user.email} doesn't belong to workspace "
         f"{workflow.automation.workspace}."
+    )
+
+
+@pytest.mark.django_db
+def test_create_node_rejects_integration_from_another_application(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    other_integration = data_fixture.create_local_baserow_integration(user=user)
+
+    with pytest.raises(AutomationNodeMisconfiguredService) as exc:
+        AutomationNodeService().create_node(
+            user,
+            automation_node_type_registry.get("local_baserow_create_row"),
+            workflow,
+            reference_node_id=workflow.get_trigger().id,
+            position="south",
+            output="",
+            service={"integration_id": other_integration.id},
+        )
+
+    assert (
+        str(exc.value)
+        == f"The integration with ID {other_integration.id} is not related to the "
+        f"automation {workflow.automation_id}."
     )
 
 
@@ -777,6 +802,26 @@ def test_update_node_updates_workflow_dirty_cache(data_fixture):
     AutomationNodeService().update_node(user, node.id, label="foo label")
 
     assert global_cache.get(cache_key, default=False) is True
+
+
+@pytest.mark.django_db
+def test_update_node_rejects_integration_from_another_application(data_fixture):
+    user = data_fixture.create_user()
+    node = data_fixture.create_local_baserow_create_row_action_node(user=user)
+    other_integration = data_fixture.create_local_baserow_integration(user=user)
+
+    with pytest.raises(AutomationNodeMisconfiguredService) as exc:
+        AutomationNodeService().update_node(
+            user,
+            node.id,
+            service={"integration_id": other_integration.id},
+        )
+
+    assert (
+        str(exc.value)
+        == f"The integration with ID {other_integration.id} is not related to the "
+        f"automation {node.workflow.automation_id}."
+    )
 
 
 @pytest.mark.django_db

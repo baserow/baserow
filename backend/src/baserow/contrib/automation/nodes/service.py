@@ -174,7 +174,10 @@ class AutomationNodeService:
 
         node_type.before_create(workflow, reference_node, position, output)
 
-        prepared_values = node_type.prepare_values(kwargs, user)
+        prepared_values = node_type.prepare_values(
+            {**kwargs, "workflow": workflow},
+            user,
+        )
 
         # Preselect first integration if exactly one exists
         if node_type.get_service_type().integration_type:
@@ -190,7 +193,6 @@ class AutomationNodeService:
 
         new_node = self.handler.create_node(
             node_type,
-            workflow=workflow,
             **prepared_values,
         )
 
