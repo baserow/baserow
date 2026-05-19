@@ -187,6 +187,11 @@ export function useDropElementTarget({
 
     syncDropPosition(event)
 
+    if (!unref(referenceElement)) {
+      dragEnterCount = Math.max(dragEnterCount, 1)
+      dndContext.dropTargetId = uid
+    }
+
     event.preventDefault()
     event.stopPropagation()
   }
