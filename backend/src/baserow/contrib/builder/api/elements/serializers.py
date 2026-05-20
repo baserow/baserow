@@ -240,6 +240,9 @@ class UpdateElementSerializer(serializers.ModelSerializer):
 
 class MoveElementSerializer(serializers.Serializer):
     reference_element_id = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        default=None,
         help_text="If provided, the element is moved as a child of the element with "
         "the given id.",
     )
@@ -295,9 +298,7 @@ class DuplicateElementSerializer(serializers.Serializer):
         elements = obj.get("elements", [])
         if not elements:
             return {}
-        full_graph = elements[0].page.get_graph().graph
-        new_ids = {str(el.id) for el in elements}
-        return {k: v for k, v in full_graph.items() if k in new_ids}
+        return elements[0].page.get_graph().get_patch_for_points(elements)
 
 
 class PageParameterValueSerializer(serializers.Serializer):

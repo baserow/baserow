@@ -548,26 +548,27 @@ def test_update_element_bad_style_property(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_move_element_empty_payload(api_client, data_fixture):
+def test_move_element_null_reference_south_appends_to_end(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    element = data_fixture.create_builder_heading_element(page=page)
+    element1 = data_fixture.create_builder_heading_element(page=page)
+    element2 = data_fixture.create_builder_heading_element(page=page)
 
-    url = reverse("api:builder:element:move", kwargs={"element_id": element.id})
+    # Move element1 (currently first) to the end — null reference + south is the
+    # frontend's convention for "append after the last element."
+    url = reverse("api:builder:element:move", kwargs={"element_id": element1.id})
     response = api_client.patch(
         url,
-        {},
+        {"reference_element_id": None, "position": "south"},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == {
-        "error": "ERROR_REQUEST_BODY_VALIDATION",
-        "detail": {
-            "reference_element_id": [
-                {"error": "This field is required.", "code": "required"}
-            ]
-        },
+    assert response.status_code == HTTP_200_OK
+    page.refresh_from_db(fields=["graph"])
+    assert page.get_graph().graph == {
+        "0": element2.id,
+        str(element2.id): {"next": {"": [element1.id]}},
+        str(element1.id): {},
     }
 
 
@@ -1057,7 +1058,13 @@ def test_duplicate_element(api_client, data_fixture):
     assert len(response_json["elements"]) == 2
     duplicated_container = response_json["elements"][0]
     duplicated_heading = response_json["elements"][1]
+    # The original container is included because its next edge now points to the
+    # duplicated container — clients need it to traverse into the new nodes.
     assert response_json["graph_additions"] == {
+        str(container.id): {
+            "children": {"1": [heading.id]},
+            "next": {"": [duplicated_container["id"]]},
+        },
         str(duplicated_container["id"]): {
             "children": {"1": [duplicated_heading["id"]]}
         },
@@ -1128,9 +1135,15 @@ def test_duplicate_container_preserves_child_order(api_client, data_fixture):
     assert t_copy["type"] == "text"
     assert cb_copy["type"] == "checkbox"
 
+    # The original form_container is included because its next edge now points to
+    # fc_copy — clients need it to traverse from the existing graph into the new nodes.
     # graph_additions must form the same chain as the original:
     # fc_copy → h_copy → it_copy → t_copy → cb_copy
     assert response_json["graph_additions"] == {
+        str(form_container.id): {
+            "children": {"": [heading.id]},
+            "next": {"": [fc_copy["id"]]},
+        },
         str(fc_copy["id"]): {"children": {"": [h_copy["id"]]}},
         str(h_copy["id"]): {"next": {"": [it_copy["id"]]}},
         str(it_copy["id"]): {"next": {"": [t_copy["id"]]}},

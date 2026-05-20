@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+from rest_framework.exceptions import ValidationError as DRFValidationError
 
 from baserow.contrib.builder.elements.exceptions import (
     ElementDoesNotExist,
@@ -118,6 +119,37 @@ def test_create_element_permission_denied(data_fixture, stub_check_permissions):
             element_type,
             page=page,
             **element_type.get_pytest_params(data_fixture),
+        )
+
+
+@pytest.mark.django_db
+def test_create_element_and_shared_page(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    shared_page = page.builder.shared_page
+
+    regular_element_type = next(
+        filter(lambda t: not t.is_multi_page_element, element_type_registry.get_all())
+    )
+
+    with pytest.raises(DRFValidationError):
+        ElementService().create_element(
+            user=user,
+            element_type=regular_element_type,
+            page=shared_page,
+            **regular_element_type.get_pytest_params(data_fixture),
+        )
+
+    shared_element_type = next(
+        filter(lambda t: t.is_multi_page_element, element_type_registry.get_all())
+    )
+
+    with pytest.raises(DRFValidationError):
+        ElementService().create_element(
+            user=user,
+            element_type=shared_element_type,
+            page=page,
+            **shared_element_type.get_pytest_params(data_fixture),
         )
 
 
@@ -356,10 +388,14 @@ def test_duplicate_element(elements_created_mock, data_fixture):
     element = data_fixture.create_builder_heading_element(user=user)
 
     service = ElementService()
-    elements_duplicated = service.duplicate_element(user, element)["elements"]
+    result = service.duplicate_element(user, element)
 
     elements_created_mock.send.assert_called_once_with(
-        service, elements=elements_duplicated, user=user, page=element.page
+        service,
+        elements=result["elements"],
+        workflow_actions=result["workflow_actions"],
+        user=user,
+        page=element.page,
     )
 
 
