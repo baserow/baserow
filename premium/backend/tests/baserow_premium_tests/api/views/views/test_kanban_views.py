@@ -245,6 +245,65 @@ def test_list_all_rows(api_client, premium_data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_list_rows_with_search(api_client, premium_data_fixture):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table, primary=True)
+    single_select_field = premium_data_fixture.create_single_select_field(table=table)
+    option_a = premium_data_fixture.create_select_option(
+        field=single_select_field, value="A", color="blue"
+    )
+    option_b = premium_data_fixture.create_select_option(
+        field=single_select_field, value="B", color="red"
+    )
+    kanban = premium_data_fixture.create_kanban_view(
+        table=table, single_select_field=single_select_field
+    )
+
+    model = table.get_model()
+    row_none = model.objects.create(
+        **{
+            f"field_{text_field.id}": "needle without an option",
+            f"field_{single_select_field.id}_id": None,
+        }
+    )
+    row_a = model.objects.create(
+        **{
+            f"field_{text_field.id}": "needle in option A",
+            f"field_{single_select_field.id}_id": option_a.id,
+        }
+    )
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "not matching",
+            f"field_{single_select_field.id}_id": option_b.id,
+        }
+    )
+
+    url = reverse("api:database:views:kanban:list", kwargs={"view_id": kanban.id})
+    response = api_client.get(
+        f"{url}?search=needle&search_mode=compat",
+        **{"HTTP_AUTHORIZATION": f"JWT {token}"},
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+
+    assert response_json["rows"]["null"]["count"] == 1
+    assert [row["id"] for row in response_json["rows"]["null"]["results"]] == [
+        row_none.id
+    ]
+    assert response_json["rows"][str(option_a.id)]["count"] == 1
+    assert [
+        row["id"] for row in response_json["rows"][str(option_a.id)]["results"]
+    ] == [row_a.id]
+    assert response_json["rows"][str(option_b.id)]["count"] == 0
+    assert response_json["rows"][str(option_b.id)]["results"] == []
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_list_with_specific_select_options(api_client, premium_data_fixture):
     user, token = premium_data_fixture.create_user_and_token(
         has_active_premium_license=True
@@ -1870,6 +1929,69 @@ def test_list_public_rows_doesnt_show_hidden_columns(api_client, premium_data_fi
                 "hidden": True,
                 "order": single_select_field_options.order,
             },
+        },
+    }
+
+
+@pytest.mark.django_db
+def test_list_public_rows_with_search(api_client, premium_data_fixture):
+    user, _ = premium_data_fixture.create_user_and_token()
+    table = premium_data_fixture.create_database_table(user=user)
+
+    kanban_view = premium_data_fixture.create_kanban_view(
+        table=table,
+        user=user,
+        public=True,
+    )
+
+    public_field = premium_data_fixture.create_text_field(table=table, name="public")
+    hidden_field = premium_data_fixture.create_text_field(table=table, name="hidden")
+
+    premium_data_fixture.create_kanban_view_field_option(
+        kanban_view, public_field, hidden=False
+    )
+    premium_data_fixture.create_kanban_view_field_option(
+        kanban_view, hidden_field, hidden=True
+    )
+
+    row_public = RowHandler().create_row(
+        user,
+        table,
+        values={
+            f"field_{public_field.id}": "needle",
+            f"field_{hidden_field.id}": "other",
+        },
+    )
+    RowHandler().create_row(
+        user,
+        table,
+        values={
+            f"field_{public_field.id}": "other",
+            f"field_{hidden_field.id}": "needle",
+        },
+    )
+
+    response = api_client.get(
+        reverse(
+            "api:database:views:kanban:public_rows", kwargs={"slug": kanban_view.slug}
+        )
+        + "?search=needle&search_mode=compat"
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json == {
+        "rows": {
+            "null": {
+                "count": 1,
+                "results": [
+                    {
+                        "id": row_public.id,
+                        "order": "1.00000000000000000000",
+                        f"field_{public_field.id}": "needle",
+                        f"field_{kanban_view.single_select_field_id}": None,
+                    },
+                ],
+            }
         },
     }
 

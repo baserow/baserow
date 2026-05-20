@@ -17,6 +17,8 @@ export default (client) => {
       publicUrl = false,
       publicAuthToken = null,
       orderBy = null,
+      search = '',
+      searchMode = '',
       filters = {},
       limitLinkedItems = null,
     }) {
@@ -30,6 +32,13 @@ export default (client) => {
 
       if (orderBy !== null && orderBy !== '') {
         params.append('order_by', orderBy)
+      }
+
+      if (search) {
+        params.append('search', search)
+        if (searchMode) {
+          params.append('search_mode', searchMode)
+        }
       }
 
       if (includeFieldOptions) {

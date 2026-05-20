@@ -80,21 +80,34 @@
         @update-cover-image-field="updateCoverImageField"
       ></ViewFieldsContext>
     </li>
+    <li
+      v-if="singleSelectFieldId !== -1"
+      class="header__filter-item header__filter-item--full-width"
+    >
+      <ViewSearch
+        :view="view"
+        :fields="fields"
+        :store-prefix="storePrefix"
+        :always-hide-rows-not-matching-search="true"
+        @refresh="$emit('refresh', $event)"
+      ></ViewSearch>
+    </li>
   </ul>
 </template>
 
 <script>
-import { mapState, mapGetters } from 'vuex'
+import { mapState } from 'vuex'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import ViewFieldsContext from '@baserow/modules/database/components/view/ViewFieldsContext'
+import ViewSearch from '@baserow/modules/database/components/view/ViewSearch'
 import KanbanViewStackedBy from '@baserow_premium/components/views/kanban/KanbanViewStackedBy'
 import kanbanViewHelper from '@baserow_premium/mixins/kanbanViewHelper'
 
 export default {
   name: 'KanbanViewHeader',
   emits: ['refresh'],
-  components: { KanbanViewStackedBy, ViewFieldsContext },
+  components: { KanbanViewStackedBy, ViewFieldsContext, ViewSearch },
   mixins: [kanbanViewHelper],
   props: {
     database: {

@@ -4,6 +4,7 @@ import { GroupTaskQueue } from '@baserow/modules/core/utils/queue'
 import ViewService from '@baserow/modules/database/services/view'
 import KanbanService from '@baserow_premium/services/views/kanban'
 import {
+  calculateSingleRowSearchMatches,
   extractRowMetadata,
   getFilters,
   getOrderBy,
@@ -20,11 +21,16 @@ import {
   prepareRowForRequest,
   updateRowMetadataType,
 } from '@baserow/modules/database/utils/row'
+import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 
 export function populateRow(row, metadata = {}, fullyLoaded = true) {
   row._ = {
     metadata: getRowMetadata(row, metadata),
     dragging: false,
+    // Whether the row should be displayed based on the current activeSearchTerm.
+    matchSearch: true,
+    // Contains the field ids which match the activeSearchTerm.
+    fieldSearchMatches: [],
     fetching: false,
     fullyLoaded,
   }
@@ -57,6 +63,11 @@ export const state = () => ({
   adhocFiltering: false,
   // If true, ad hoc sorting is used
   adhocSorting: false,
+  // A user provided optional search term which can be used to filter down rows.
+  activeSearchTerm: '',
+  // If true then the activeSearchTerm will be sent to the server to filter rows
+  // entirely out. Kanban always hides rows that don't match the active search.
+  hideRowsNotMatchingSearch: true,
   // Indicates whether row(s) are currently being created.
   creating: false,
 })
@@ -67,6 +78,12 @@ export const mutations = {
     state.singleSelectFieldId = -1
     state.stacks = {}
     state.fieldOptions = {}
+    state.activeSearchTerm = ''
+    state.hideRowsNotMatchingSearch = true
+  },
+  SET_SEARCH(state, { activeSearchTerm, hideRowsNotMatchingSearch }) {
+    state.activeSearchTerm = activeSearchTerm.trim()
+    state.hideRowsNotMatchingSearch = hideRowsNotMatchingSearch
   },
   SET_LAST_KANBAN_ID(state, kanbanId) {
     state.lastKanbanId = kanbanId
@@ -76,6 +93,10 @@ export const mutations = {
   },
   SET_ROW_LOADING(state, { row, value }) {
     row._.loading = value
+  },
+  SET_ROW_SEARCH_MATCHES(state, { row, matchSearch, fieldSearchMatches }) {
+    row._.matchSearch = matchSearch
+    row._.fieldSearchMatches = [...fieldSearchMatches]
   },
   REPLACE_ALL_STACKS(state, stacks) {
     state.stacks = stacks
@@ -234,10 +255,17 @@ export const actions = {
       includeFieldOptions = true,
     }
   ) {
+    const viewHasChanged = kanbanId !== getters.getLastKanbanId
+    if (viewHasChanged) {
+      commit('SET_SEARCH', {
+        activeSearchTerm: '',
+        hideRowsNotMatchingSearch: true,
+      })
+    }
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_ADHOC_SORTING', adhocSorting)
     commit('SET_LAST_KANBAN_ID', kanbanId)
-    const { $client } = this
+    const { $client, $config } = this
     const view = rootGetters['view/get'](kanbanId)
     const { data } = await KanbanService($client).fetchRows({
       kanbanId,
@@ -248,6 +276,8 @@ export const actions = {
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       orderBy: getOrderBy(view, adhocSorting),
+      search: getters.getServerSearchTerm,
+      searchMode: getDefaultSearchModeFromEnv($config),
       filters: getFilters(view, adhocFiltering),
     })
     // Don't do anything if the kanbanId does not match the current view kanbanId
@@ -274,7 +304,7 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { selectOptionId }
   ) {
-    const { $client } = this
+    const { $client, $config } = this
     const kanbanId = getters.getLastKanbanId
     const stack = getters.getStack(selectOptionId)
     const view = rootGetters['view/get'](kanbanId)
@@ -293,6 +323,8 @@ export const actions = {
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       orderBy: getOrderBy(view, getters.getAdhocSorting),
+      search: getters.getServerSearchTerm,
+      searchMode: getDefaultSearchModeFromEnv($config),
       filters: getFilters(view, getters.getAdhocFiltering),
     })
     // Don't do anything if the kanbanId does not match the current view kanbanId
@@ -473,7 +505,9 @@ export const actions = {
       row,
       fields,
     })
-    if (!matchesFilters) {
+    dispatch('updateSearchMatchesForRow', { row, fields })
+
+    if (!matchesFilters || !row._.matchSearch) {
       return
     }
 
@@ -547,7 +581,9 @@ export const actions = {
       row,
       fields,
     })
-    if (!matchesFilters) {
+    dispatch('updateSearchMatchesForRow', { row, fields })
+
+    if (!matchesFilters || !row._.matchSearch) {
       return
     }
 
@@ -609,13 +645,15 @@ export const actions = {
       row: oldRow,
       fields,
     })
+    dispatch('updateSearchMatchesForRow', { row: oldRow, fields })
     const oldOption = oldRow[fieldName]
     const oldStackId = oldOption !== null ? oldOption.id : 'null'
     const oldStackResults = clone(getters.getStack(oldStackId).results)
     const oldExistingIndex = oldStackResults.findIndex(
       (r) => r.id === oldRow.id
     )
-    const oldExists = oldExistingIndex > -1 && oldRowMatchesFilters
+    const oldExists =
+      oldExistingIndex > -1 && oldRowMatchesFilters && oldRow._.matchSearch
 
     // Second, we need to figure out if the row should be visible in the new stack.
     const newRow = Object.assign(populateRow(clone(row)), values)
@@ -624,6 +662,7 @@ export const actions = {
       row: newRow,
       fields,
     })
+    dispatch('updateSearchMatchesForRow', { row: newRow, fields })
     const newOption = newRow[fieldName]
     const newStackId = newOption !== null ? newOption.id : 'null'
     const newStack = getters.getStack(newStackId)
@@ -643,7 +682,8 @@ export const actions = {
     const newIsLast = newIndex === newStackResults.length - 1
     const newExists =
       (!newIsLast || newStackResults.length === newStackCount) &&
-      newRowMatchesFilters
+      newRowMatchesFilters &&
+      newRow._.matchSearch
 
     commit('UPDATE_ROW', { row, values })
 
@@ -1118,6 +1158,48 @@ export const actions = {
     commit('ADD_FIELD_TO_ALL_ROWS', { field, value })
   },
   /**
+   * Changes the current search parameters if provided and optionally refreshes which
+   * cards match the new search parameters.
+   */
+  updateSearch(
+    { commit, dispatch, getters, state },
+    {
+      fields,
+      activeSearchTerm = state.activeSearchTerm,
+      hideRowsNotMatchingSearch = state.hideRowsNotMatchingSearch,
+      refreshMatchesOnClient = true,
+    }
+  ) {
+    commit('SET_SEARCH', { activeSearchTerm, hideRowsNotMatchingSearch })
+    if (refreshMatchesOnClient) {
+      getters.getAllRows.forEach((row) =>
+        dispatch('updateSearchMatchesForRow', {
+          row,
+          fields,
+          forced: true,
+        })
+      )
+    }
+  },
+  updateSearchMatchesForRow(
+    { commit, getters },
+    { row, fields, overrides, forced = false }
+  ) {
+    const { $config, $registry } = this
+    if (getters.getActiveSearchTerm || forced) {
+      const rowSearchMatches = calculateSingleRowSearchMatches(
+        row,
+        getters.getActiveSearchTerm,
+        getters.isHidingRowsNotMatchingSearch,
+        fields,
+        $registry,
+        getDefaultSearchModeFromEnv($config),
+        overrides
+      )
+      commit('SET_ROW_SEARCH_MATCHES', rowSearchMatches)
+    }
+  },
+  /**
    * Updates a single row's row._.metadata based on the provided rowMetadataType and
    * updateFunction.
    */
@@ -1134,6 +1216,15 @@ export const actions = {
 }
 
 export const getters = {
+  getServerSearchTerm(state) {
+    return state.activeSearchTerm
+  },
+  getActiveSearchTerm(state) {
+    return state.activeSearchTerm
+  },
+  isHidingRowsNotMatchingSearch(state) {
+    return state.hideRowsNotMatchingSearch
+  },
   getLastKanbanId(state) {
     return state.lastKanbanId
   },

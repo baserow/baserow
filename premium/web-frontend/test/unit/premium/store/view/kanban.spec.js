@@ -110,6 +110,7 @@ describe('Kanban view store', () => {
         ],
       },
     }
+
     const state = Object.assign(kanbanStore.state(), {
       singleSelectFieldId: 1,
       stacks,
@@ -137,6 +138,58 @@ describe('Kanban view store', () => {
     expect(store.state.kanban.stacks['1'].results[0].id).toBe(10)
     expect(store.state.kanban.stacks['1'].results[1].id).toBe(9)
     expect(store.state.kanban.stacks['1'].results[2].id).toBe(11)
+  })
+
+  test('createdNewRow respects active search', async () => {
+    const stacks = {
+      null: {
+        count: 0,
+        results: [],
+      },
+    }
+    const state = Object.assign(kanbanStore.state(), {
+      singleSelectFieldId: 1,
+      stacks,
+    })
+    store.replaceState({ ...store.state, kanban: state })
+
+    const fields = [
+      { id: 1, name: 'Status', type: 'single_select' },
+      { id: 2, name: 'Name', type: 'text' },
+    ]
+    await store.dispatch('kanban/updateSearch', {
+      fields,
+      activeSearchTerm: 'keep',
+      hideRowsNotMatchingSearch: true,
+    })
+
+    await store.dispatch('kanban/createdNewRow', {
+      view,
+      values: {
+        id: 1,
+        order: '1.00',
+        field_1: null,
+        field_2: 'discard',
+      },
+      fields,
+    })
+
+    expect(store.state.kanban.stacks.null.count).toBe(0)
+    expect(store.state.kanban.stacks.null.results).toEqual([])
+
+    await store.dispatch('kanban/createdNewRow', {
+      view,
+      values: {
+        id: 2,
+        order: '2.00',
+        field_1: null,
+        field_2: 'keep this row',
+      },
+      fields,
+    })
+
+    expect(store.state.kanban.stacks.null.count).toBe(1)
+    expect(store.state.kanban.stacks.null.results[0].id).toBe(2)
   })
 
   test('deletedExistingRow', async () => {

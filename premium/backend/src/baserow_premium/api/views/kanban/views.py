@@ -4,14 +4,20 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from baserow.api.decorators import allowed_includes, map_exceptions
+from baserow.api.decorators import (
+    allowed_includes,
+    map_exceptions,
+    validate_query_parameters,
+)
 from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
 from baserow.api.schemas import get_error_schema
+from baserow.api.search.serializers import SearchQueryParamSerializer
 from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS,
     ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
     ADHOC_SORTING_API_PARAM,
     LIMIT_LINKED_ITEMS_API_PARAM,
+    SEARCH_MODE_API_PARAM,
 )
 from baserow.contrib.database.api.fields.errors import (
     ERROR_FIELD_DOES_NOT_EXIST,
@@ -124,6 +130,14 @@ class KanbanViewView(APIView):
                     "option id `1` with a limit of `10` and and offset of `20`."
                 ),
             ),
+            OpenApiParameter(
+                name="search",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description="If provided only rows with data that matches the search "
+                "query are going to be returned.",
+            ),
+            SEARCH_MODE_API_PARAM,
             *ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
             LIMIT_LINKED_ITEMS_API_PARAM,
         ],
@@ -167,7 +181,8 @@ class KanbanViewView(APIView):
         }
     )
     @allowed_includes("field_options", "row_metadata")
-    def get(self, request, view_id, field_options, row_metadata):
+    @validate_query_parameters(SearchQueryParamSerializer, return_validated=True)
+    def get(self, request, view_id, field_options, row_metadata, query_params):
         """Responds with the rows grouped by the view's select option field value."""
 
         adhoc_filters = AdHocFilters.from_request(request)
@@ -206,6 +221,13 @@ class KanbanViewView(APIView):
 
         model = view.table.get_model()
         hidden_field_ids = get_hidden_field_ids_for_view_user(request.user, view)
+        only_search_by_field_ids = None
+        if hidden_field_ids:
+            only_search_by_field_ids = [
+                field_id
+                for field_id in model._field_objects.keys()
+                if field_id not in hidden_field_ids
+            ]
 
         limit_linked_items = parse_limit_linked_items_params(request)
         serializer_extra_kwargs = {"limit_linked_items": limit_linked_items}
@@ -225,6 +247,9 @@ class KanbanViewView(APIView):
             option_settings=included_select_options,
             default_limit=default_limit,
             default_offset=default_offset,
+            search=query_params.get("search"),
+            search_mode=query_params.get("search_mode"),
+            only_search_by_field_ids=only_search_by_field_ids,
             model=model,
         )
 
@@ -307,6 +332,14 @@ class PublicKanbanViewView(APIView):
                     "option id `1` with a limit of `10` and and offset of `20`."
                 ),
             ),
+            OpenApiParameter(
+                name="search",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                description="If provided only rows with data that matches the search "
+                "query are going to be returned.",
+            ),
+            SEARCH_MODE_API_PARAM,
             *ADHOC_FILTERS_API_PARAMS,
             ADHOC_SORTING_API_PARAM,
             LIMIT_LINKED_ITEMS_API_PARAM,
@@ -356,7 +389,8 @@ class PublicKanbanViewView(APIView):
         }
     )
     @allowed_includes("field_options")
-    def get(self, request, slug: str, field_options: bool):
+    @validate_query_parameters(SearchQueryParamSerializer, return_validated=True)
+    def get(self, request, slug: str, field_options: bool, query_params):
         """
         Lists all the rows of a kanban view that is publicly shared. The rows are
         grouped by the view's single select field options.
@@ -394,6 +428,8 @@ class PublicKanbanViewView(APIView):
             publicly_visible_field_options,
         ) = ViewHandler().get_public_rows_queryset_and_field_ids(
             view,
+            search=query_params.get("search"),
+            search_mode=query_params.get("search_mode"),
             adhoc_filters=adhoc_filters,
             order_by=order_by,
             table_model=model,
