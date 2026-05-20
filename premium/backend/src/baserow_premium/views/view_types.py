@@ -43,6 +43,8 @@ from baserow_premium.api.views.timeline.errors import (
 from baserow_premium.api.views.timeline.serializers import (
     TimelineViewFieldOptionsSerializer,
 )
+from baserow_premium.license.features import PREMIUM
+from baserow_premium.license.handler import LicenseHandler
 
 from .exceptions import (
     KanbanViewFieldDoesNotBelongToSameTable,
@@ -58,7 +60,13 @@ from .models import (
 )
 
 
-class KanbanViewType(ViewType):
+class PremiumViewTypeMixin:
+    def check_license(self, user: AbstractUser, workspace) -> None:
+        if not workspace.has_template():
+            LicenseHandler.raise_if_user_doesnt_have_feature(PREMIUM, user, workspace)
+
+
+class KanbanViewType(PremiumViewTypeMixin, ViewType):
     type = "kanban"
     model_class = KanbanView
     field_options_model_class = KanbanViewFieldOptions
@@ -308,7 +316,7 @@ class KanbanViewType(ViewType):
             )
 
 
-class CalendarViewType(ViewType):
+class CalendarViewType(PremiumViewTypeMixin, ViewType):
     type = "calendar"
     model_class = CalendarView
     field_options_model_class = CalendarViewFieldOptions
@@ -553,7 +561,7 @@ class CalendarViewType(ViewType):
         CalendarView.objects.filter(date_field_id=field.id).update(date_field_id=None)
 
 
-class TimelineViewType(ViewType):
+class TimelineViewType(PremiumViewTypeMixin, ViewType):
     type = "timeline"
     model_class = TimelineView
     field_options_model_class = TimelineViewFieldOptions

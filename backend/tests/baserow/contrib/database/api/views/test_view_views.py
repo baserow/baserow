@@ -367,6 +367,63 @@ def test_delete_view(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_view_crud_calls_view_type_license_check(api_client, data_fixture):
+    checked_workspaces = []
+
+    class LicenseCheckedGridViewType(GridViewType):
+        def check_license(self, user, workspace):
+            checked_workspaces.append((user.id, workspace.id))
+
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    view = data_fixture.create_grid_view(table=table)
+
+    with patch.dict(
+        view_type_registry.registry, {"grid": LicenseCheckedGridViewType()}
+    ):
+        view_type_registry.get_for_class.cache_clear()
+
+        response = api_client.post(
+            reverse("api:database:views:list", kwargs={"table_id": table.id}),
+            {"type": "grid", "name": "New grid"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+
+        response = api_client.get(
+            reverse("api:database:views:item", kwargs={"view_id": view.id}),
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+
+        response = api_client.patch(
+            reverse("api:database:views:item", kwargs={"view_id": view.id}),
+            {"name": "Updated grid"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+
+        response = api_client.post(
+            reverse("api:database:views:duplicate", kwargs={"view_id": view.id}),
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+
+        response = api_client.delete(
+            reverse("api:database:views:item", kwargs={"view_id": view.id}),
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_204_NO_CONTENT
+
+    assert checked_workspaces == [(user.id, table.database.workspace_id)] * 5
+
+
+@pytest.mark.django_db
 def test_duplicate_views(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token(
         email="test@test.nl", password="password", first_name="Test1"

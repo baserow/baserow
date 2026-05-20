@@ -834,6 +834,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             workspace=view.table.database.workspace,
             context=view,
         )
+        view_type_registry.get_by_model(view).check_license(
+            user, view.table.database.workspace
+        )
         return view
 
     def get_view(
@@ -960,6 +963,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             workspace=workspace,
             context=table,
         )
+        view_type.check_license(user, workspace)
         view_type.before_view_create(kwargs, table, user)
 
         model_class = view_type.model_class
@@ -1027,6 +1031,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         view_type = view_type_registry.get_by_model(original_view)
+        view_type.check_license(user, workspace)
 
         config = ImportExportConfig(
             include_permission_data=True,
@@ -1120,6 +1125,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         view_type = view_type_registry.get_by_model(view)
         view_type.check_view_update_permissions(user, view, data)
+        view_type.check_license(user, view.table.database.workspace)
         view_type.before_view_update(data, view, user)
 
         old_view = deepcopy(view)
@@ -1297,6 +1303,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         CoreHandler().check_permissions(
             user, DeleteViewOperationType.type, workspace=workspace, context=view
         )
+        view_type_registry.get_by_model(view).check_license(user, workspace)
 
         view_id = view.id
 

@@ -227,6 +227,17 @@ class ViewType(
                 ),
             }
 
+    def check_license(self, user: AbstractUser, workspace: Workspace) -> None:
+        """
+        Hook for non-OSS view types to raise when the user cannot use this view type.
+
+        OSS view types do not require an additional license check. Premium and
+        enterprise view types can override this method to enforce their feature gate
+        for generic view CRUD operations.
+        """
+
+        return None
+
     def export_serialized(
         self,
         view: "View",
