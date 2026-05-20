@@ -29,15 +29,27 @@ class GraphModelMixin(models.Model):
 
     def get_graph(self) -> BaseGraphHandler:
         """
-        Returns the graph. Use the same graph instance related to the model
-        ID regardless of the model instance.
+        Returns the shared graph handler for this model's ID within the current
+        request.  A single handler is cached per (model_label, id) so that all
+        callers within a request see the same in-memory graph mutations.
+
+        If the cached handler was seeded by a *different* Python instance of the
+        same row (e.g. a freshly fetched reference_element.page), we rebind it
+        to ``self`` so that mutations remain visible via ``self.graph``.
         """
 
-        handler = self.get_graph_handler()
-        return local_cache.get(
+        handler_class = self.get_graph_handler()
+        handler = local_cache.get(
             f"cached_graph_{self._meta.label}_{self.id}",
-            lambda: handler(self),
+            lambda: handler_class(self),
         )
+        if handler.instance is not self:
+            # Another page object (same DB row, different Python object) seeded
+            # the cache first.  Share the same graph dict so that subsequent
+            # mutations made through the handler are visible on self.graph.
+            self.graph = handler.instance.graph
+            handler.instance = self
+        return handler
 
     def print_graph(self, message=None, original=False):
         """

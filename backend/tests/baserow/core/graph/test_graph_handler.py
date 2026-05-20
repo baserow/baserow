@@ -426,6 +426,35 @@ def test_move_with_target_graph_removes_from_source_inserts_into_target():
     assert target_model.graph["0"] == 1
 
 
+def test_get_patch_for_points():
+    # Empty list → empty patch.
+    model = make_graph_model({"0": 1, "1": {"next": {"": [2]}}, "2": {}})
+    graph = model.get_graph()
+    assert graph.get_patch_for_points([]) == {}
+
+    # p2 is the "new" point; p1 is its predecessor via next edge.
+    p1, p2 = model.points[1], model.points[2]
+    patch = graph.get_patch_for_points([p2])
+    assert set(patch.keys()) == {"1", "2"}
+
+    # p1 + p2 are "new"; the "0" sentinel is the predecessor for p1.
+    patch = graph.get_patch_for_points([p1, p2])
+    assert set(patch.keys()) == {"0", "1", "2"}
+
+    # p1 is first in the graph; "0" is the only predecessor.
+    patch = graph.get_patch_for_points([p1])
+    assert set(patch.keys()) == {"0", "1"}
+
+    # Multiple new points in a chain: p2 + p3, predecessor is p1.
+    model = make_graph_model(
+        {"0": 1, "1": {"next": {"": [2]}}, "2": {"next": {"": [3]}}, "3": {}}
+    )
+    p1, p2, p3 = model.points[1], model.points[2], model.points[3]
+    graph = model.get_graph()
+    patch = graph.get_patch_for_points([p2, p3])
+    assert set(patch.keys()) == {"1", "2", "3"}
+
+
 def test_graph_handler_get_order_map(graph_model_fixture):
     model = graph_model_fixture
     assert BaseGraphHandler.get_order_map(model.graph) == {
