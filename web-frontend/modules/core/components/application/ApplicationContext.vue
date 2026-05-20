@@ -5,6 +5,7 @@
     :max-height-if-outside-viewport="true"
   >
     <div class="context__menu-title">
+      <i v-if="application.locked" class="iconoir-lock"></i>
       {{ application.name }} ({{ application.id }})
     </div>
     <ul class="context__menu">
@@ -91,11 +92,7 @@
       </li>
       <li
         v-if="
-          $hasPermission(
-            'application.delete',
-            application,
-            application.workspace.id
-          )
+          canDeleteApplication
         "
         class="context__menu-item context__menu-item--with-separator"
       >
@@ -171,8 +168,28 @@ export default {
     applicationType() {
       return this.$registry.get('application', this.application.type)
     },
+    canUpdateLock() {
+      return this.$hasPermission(
+        'application.update_lock',
+        this.application,
+        this.application.workspace.id
+      )
+    },
+    canDeleteApplication() {
+      return (
+        this.$hasPermission(
+          'application.delete',
+          this.application,
+          this.application.workspace.id
+        ) &&
+        (!this.application.locked || this.canUpdateLock)
+      )
+    },
   },
   methods: {
+    hide() {
+      this.$refs.context.hide()
+    },
     setLoading(application, value) {
       this.$store.dispatch('application/setItemLoading', {
         application,

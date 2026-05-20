@@ -30,6 +30,7 @@ from baserow.contrib.database.management.commands.fill_table_rows import fill_ta
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.constants import LAST_MODIFIED_BY_COLUMN_NAME
 from baserow.contrib.database.table.exceptions import (
+    CannotDeleteLockedTable,
     InitialTableDataLimitExceeded,
     InvalidInitialTableData,
     TableDoesNotExist,
@@ -39,7 +40,10 @@ from baserow.contrib.database.table.handler import TableHandler, TableUsageHandl
 from baserow.contrib.database.table.models import Table, TableUsage, TableUsageUpdate
 from baserow.contrib.database.views.models import GridView, GridViewFieldOptions, View
 from baserow.core.cache import local_cache
-from baserow.core.exceptions import UserNotInWorkspace
+from baserow.core.exceptions import (
+    UserInvalidWorkspacePermissionsError,
+    UserNotInWorkspace,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.models import Template, TrashEntry, Workspace
 from baserow.core.trash.handler import TrashHandler
@@ -388,6 +392,34 @@ def test_delete_database_table(send_mock, data_fixture):
     assert Table.objects.all().count() == 0
     assert Table.trash.all().count() == 1
     assert f"database_table_{table.id}" in connection.introspection.table_names()
+
+
+@pytest.mark.django_db
+def test_locked_database_table_can_only_be_locked_and_deleted_by_admin(data_fixture):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        user=member, workspace=workspace, permissions="MEMBER"
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+
+    handler = TableHandler()
+
+    with pytest.raises(UserInvalidWorkspacePermissionsError):
+        handler.update_table(member, table, locked=True)
+
+    handler.update_table(admin, table, locked=True)
+    table.refresh_from_db()
+    assert table.locked
+
+    with pytest.raises(CannotDeleteLockedTable):
+        handler.delete_table(member, table)
+
+    handler.delete_table(admin, table)
+    assert Table.objects.count() == 0
+    assert Table.trash.count() == 1
 
 
 @pytest.mark.django_db

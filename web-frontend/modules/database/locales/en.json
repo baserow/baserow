@@ -68,6 +68,8 @@
     "lastSynced": "Last synced",
     "notSynced": "not synced",
     "sync": "Sync table",
+    "lockTable": "Lock table",
+    "unlockTable": "Unlock table",
     "updateSyncConfig": "Update sync configuration"
   },
   "duplicateTableJobType": {

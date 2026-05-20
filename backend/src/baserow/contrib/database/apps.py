@@ -824,6 +824,7 @@ class DatabaseConfig(AppConfig):
             ListRowNamesDatabaseTableOperationType,
             ListRowsDatabaseTableOperationType,
             ReadDatabaseTableOperationType,
+            UpdateDatabaseTableLockOperationType,
             UpdateDatabaseTableOperationType,
         )
         from .tokens.operations import (
@@ -917,6 +918,7 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(ListRowsDatabaseTableOperationType())
         operation_type_registry.register(ReadDatabaseTableOperationType())
         operation_type_registry.register(UpdateDatabaseTableOperationType())
+        operation_type_registry.register(UpdateDatabaseTableLockOperationType())
         operation_type_registry.register(ReadDatabaseRowOperationType())
         operation_type_registry.register(UpdateDatabaseRowOperationType())
         operation_type_registry.register(DeleteDatabaseRowOperationType())

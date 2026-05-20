@@ -51,6 +51,7 @@ from .constants import (
     TABLE_CREATION,
 )
 from .exceptions import (
+    CannotDeleteLockedTable,
     FailedToLockTableDueToConflict,
     InitialTableDataDuplicateName,
     InitialTableDataLimitExceeded,
@@ -62,6 +63,7 @@ from .models import Table, TableUsage, TableUsageUpdate
 from .operations import (
     DeleteDatabaseTableOperationType,
     DuplicateDatabaseTableOperationType,
+    UpdateDatabaseTableLockOperationType,
     UpdateDatabaseTableOperationType,
 )
 from .signals import table_created, table_deleted, table_updated, tables_reordered
@@ -589,27 +591,41 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
         data = []
         return fields, data
 
-    def update_table_by_id(self, user: AbstractUser, table_id: int, name: str) -> Table:
+    def update_table_by_id(
+        self,
+        user: AbstractUser,
+        table_id: int,
+        name: Optional[str] = None,
+        locked: Optional[bool] = None,
+    ) -> Table:
         """
         Updates an existing table instance.
 
         :param user: The user on whose behalf the table is updated.
         :param table_id: The id of the table that needs to be updated.
         :param name: The name to be updated.
+        :param locked: Whether non-admins should be prevented from deleting the table.
         :raises ValueError: When the provided table is not an instance of Table.
         :return: The updated table instance.
         """
 
         table = self.get_table_for_update(table_id)
-        return self.update_table(user, table, name)
+        return self.update_table(user, table, name=name, locked=locked)
 
-    def update_table(self, user: AbstractUser, table: Table, name: str) -> Table:
+    def update_table(
+        self,
+        user: AbstractUser,
+        table: Table,
+        name: Optional[str] = None,
+        locked: Optional[bool] = None,
+    ) -> Table:
         """
         Updates an existing table instance.
 
         :param user: The user on whose behalf the table is updated.
         :param table: The table instance that needs to be updated.
         :param name: The name to be updated.
+        :param locked: Whether non-admins should be prevented from deleting the table.
         :raises ValueError: When the provided table is not an instance of Table.
         :return: The updated table instance.
         """
@@ -624,10 +640,25 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
             context=table,
         )
 
-        table.name = name
-        table.save()
+        if locked is not None and table.locked != locked:
+            CoreHandler().check_permissions(
+                user,
+                UpdateDatabaseTableLockOperationType.type,
+                workspace=table.database.workspace,
+                context=table,
+            )
 
-        table_updated.send(self, table=table, user=user)
+        updated_fields = []
+        if name is not None:
+            table.name = name
+            updated_fields.append("name")
+        if locked is not None:
+            table.locked = locked
+            updated_fields.append("locked")
+
+        if updated_fields:
+            table.save(update_fields=updated_fields)
+            table_updated.send(self, table=table, user=user)
 
         return table
 
@@ -873,6 +904,15 @@ class TableHandler(metaclass=baserow_trace_methods(tracer)):
             workspace=table.database.workspace,
             context=table,
         )
+
+        if table.locked and not CoreHandler().check_permissions(
+            user,
+            UpdateDatabaseTableLockOperationType.type,
+            workspace=table.database.workspace,
+            context=table,
+            raise_permission_exceptions=False,
+        ):
+            raise CannotDeleteLockedTable()
 
         TrashHandler.trash(user, table.database.workspace, table.database, table)
 

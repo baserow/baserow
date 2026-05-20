@@ -19,6 +19,7 @@
         @click="$emit('selected', application)"
       >
         <i class="tree__icon" :class="application._?.type?.iconClass"></i>
+        <i v-if="application.locked" class="iconoir-lock tree__icon"></i>
         <span class="tree__link-text">
           <template v-if="application.name === ''">&nbsp;</template>
           <Editable

@@ -21,6 +21,7 @@ class DatabaseSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "name",
+            "locked",
             "tables",
         )
 

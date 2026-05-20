@@ -241,11 +241,13 @@ class UpdateTableActionType(UndoableActionType):
         database_id: int
         database_name: str
         table_id: int
-        table_name: str
+        table_name: Optional[str]
         original_table_name: str
+        data: Dict[str, Any]
+        original_data: Dict[str, Any]
 
     @classmethod
-    def do(cls, user: AbstractUser, table: Table, name: str) -> Table:
+    def do(cls, user: AbstractUser, table: Table, **kwargs) -> Table:
         """
         Updates the table.
         See baserow.contrib.database.table.handler.TableHandler.update_table
@@ -260,17 +262,25 @@ class UpdateTableActionType(UndoableActionType):
         :return: The updated table instance.
         """
 
+        action_data = kwargs.copy()
+        original_table_data = {
+            key: getattr(table, key) for key in kwargs if hasattr(table, key)
+        }
         original_table_name = table.name
 
-        TableHandler().update_table(user, table, name=name)
+        table = TableHandler().update_table(user, table, **kwargs)
 
         database = table.database
+        action_data.pop("name", None)
+        original_table_data.pop("name", None)
         params = cls.Params(
             database.id,
             database.name,
             table.id,
-            name,
+            kwargs.get("name", original_table_name),
             original_table_name,
+            action_data,
+            original_table_data,
         )
 
         cls.register_action(
@@ -285,12 +295,17 @@ class UpdateTableActionType(UndoableActionType):
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
         TableHandler().update_table_by_id(
-            user, params.table_id, name=params.original_table_name
+            user,
+            params.table_id,
+            name=params.original_table_name,
+            **params.original_data,
         )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
-        TableHandler().update_table_by_id(user, params.table_id, name=params.table_name)
+        TableHandler().update_table_by_id(
+            user, params.table_id, name=params.table_name, **params.data
+        )
 
 
 class DuplicateTableActionType(UndoableActionType):

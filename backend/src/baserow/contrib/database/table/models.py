@@ -854,6 +854,10 @@ class Table(
     database = models.ForeignKey("database.Database", on_delete=models.CASCADE)
     order = models.PositiveIntegerField()
     name = models.CharField(max_length=255)
+    locked = models.BooleanField(
+        default=False,
+        help_text="Indicates whether non-admins are prevented from deleting this table.",
+    )
     _row_count = models.PositiveIntegerField(
         null=True,
         db_column="row_count",

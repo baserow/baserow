@@ -35,6 +35,7 @@ from .exceptions import (
     ApplicationDoesNotExist,
     ApplicationNotInWorkspace,
     BaseURLHostnameNotAllowed,
+    CannotDeleteLockedApplication,
     CannotDeleteYourselfFromWorkspace,
     DuplicateApplicationMaxLocksExceededException,
     InvalidPermissionContext,
@@ -74,6 +75,7 @@ from .operations import (
     DuplicateApplicationOperationType,
     OrderApplicationsOperationType,
     ReadApplicationOperationType,
+    UpdateApplicationLockOperationType,
     UpdateApplicationOperationType,
     UpdateSettingsOperationType,
     UpdateWorkspaceInvitationType,
@@ -1431,6 +1433,14 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         allowed_values = extract_allowed(
             kwargs, self.default_create_allowed_fields + application_type.allowed_fields
         )
+        if allowed_values.get("locked"):
+            CoreHandler().check_permissions(
+                user,
+                UpdateWorkspaceOperationType.type,
+                workspace=workspace,
+                context=workspace,
+            )
+
         prepared_values = application_type.prepare_value_for_db(allowed_values)
 
         application = application_type.create_application(
@@ -1471,6 +1481,19 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         :param kwargs: Additional parameters to pass to the application update.
         :return: The updated application instance.
         """
+
+        if "locked" in kwargs:
+            application = application.specific
+            if (
+                hasattr(application, "locked")
+                and application.locked != kwargs["locked"]
+            ):
+                CoreHandler().check_permissions(
+                    user,
+                    UpdateApplicationLockOperationType.type,
+                    workspace=application.workspace,
+                    context=application,
+                )
 
         CoreHandler().check_permissions(
             user,
@@ -1656,9 +1679,21 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
             context=application,
         )
 
+        specific_application = application.specific
+        if getattr(
+            specific_application, "locked", False
+        ) and not CoreHandler().check_permissions(
+            user,
+            UpdateApplicationLockOperationType.type,
+            workspace=application.workspace,
+            context=specific_application,
+            raise_permission_exceptions=False,
+        ):
+            raise CannotDeleteLockedApplication()
+
         application_id = application.id
         TrashHandler.trash(
-            user, application.workspace, application, application.specific
+            user, application.workspace, application, specific_application
         )
 
         application_deleted.send(

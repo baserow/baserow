@@ -1,3 +1,5 @@
+from django.db import models
+
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.core.models import Application
 
@@ -68,6 +70,11 @@ __all__ = [
 
 
 class Database(Application):
+    locked = models.BooleanField(
+        default=False,
+        help_text="Indicates whether non-admins are prevented from deleting this database.",
+    )
+
     def get_parent(self):
         # This is a bit of a hack to prevent an unecesary query to the database to
         # get the parent workspace that we already have.

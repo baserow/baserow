@@ -136,6 +136,7 @@ from baserow.contrib.database.table.operations import (
     ListRowsDatabaseTableOperationType,
     ReadDatabaseTableOperationType,
     RestoreDatabaseTableOperationType,
+    UpdateDatabaseTableLockOperationType,
     UpdateDatabaseTableOperationType,
 )
 from baserow.contrib.database.tokens.operations import (
@@ -242,6 +243,7 @@ from baserow.core.operations import (
     ReadWorkspaceOperationType,
     RestoreApplicationOperationType,
     RestoreWorkspaceOperationType,
+    UpdateApplicationLockOperationType,
     UpdateApplicationOperationType,
     UpdateWorkspaceInvitationType,
     UpdateWorkspaceOperationType,
@@ -624,5 +626,7 @@ default_roles[ADMIN_ROLE_UID].extend(
         ReadRoleViewOperationType,
         UpdateRoleViewOperationType,
         ExportWorkspaceOperationType,
+        UpdateApplicationLockOperationType,
+        UpdateDatabaseTableLockOperationType,
     ]
 )

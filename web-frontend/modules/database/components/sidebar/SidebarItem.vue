@@ -15,6 +15,7 @@
         "
         class="iconoir-data-transfer-down"
       ></i>
+      <i v-if="table.locked" class="iconoir-lock"></i>
       <Editable
         ref="rename"
         :value="table.name"
@@ -154,6 +155,25 @@
         <li
           v-if="
             $hasPermission(
+              'database.table.update_lock',
+              table,
+              database.workspace.id
+            )
+          "
+          class="context__menu-item"
+        >
+          <a class="context__menu-item-link" @click="toggleTableLock()">
+            <i class="context__menu-item-icon iconoir-lock"></i>
+            {{
+              table.locked
+                ? $t('sidebarItem.unlockTable')
+                : $t('sidebarItem.lockTable')
+            }}
+          </a>
+        </li>
+        <li
+          v-if="
+            $hasPermission(
               'database.table.duplicate',
               table,
               database.workspace.id
@@ -174,7 +194,13 @@
               'database.table.delete',
               table,
               database.workspace.id
-            )
+            ) &&
+            (!table.locked ||
+              $hasPermission(
+                'database.table.update_lock',
+                table,
+                database.workspace.id
+              ))
           "
           class="context__menu-item"
         >
@@ -253,6 +279,11 @@ export default {
         ) ||
         this.$hasPermission(
           'database.table.update',
+          this.table,
+          this.database.workspace.id
+        ) ||
+        this.$hasPermission(
+          'database.table.update_lock',
           this.table,
           this.database.workspace.id
         ) ||
@@ -378,6 +409,24 @@ export default {
       }
 
       this.setLoading(database, false)
+    },
+    async toggleTableLock() {
+      this.$refs.context.hide()
+      this.setLoading(this.database, true)
+
+      try {
+        await this.$store.dispatch('table/update', {
+          database: this.database,
+          table: this.table,
+          values: {
+            locked: !this.table.locked,
+          },
+        })
+      } catch (error) {
+        notifyIf(error, 'table')
+      }
+
+      this.setLoading(this.database, false)
     },
     async deleteTable() {
       this.deleteLoading = true

@@ -60,6 +60,7 @@ def test_list_all_tables_access_to_one_specific_table(api_client, data_fixture):
             "database_id": table_1.database_id,
             "name": table_1.name,
             "order": table_1.order,
+            "locked": False,
         }
     ]
     assert response_json[0]["id"] == table_1.id
@@ -576,6 +577,7 @@ def test_get_table(api_client, data_fixture):
     assert json_response["name"] == table_1.name
     assert json_response["order"] == table_1.order
     assert json_response["database_id"] == table_1.database_id
+    assert json_response["locked"] is False
 
     url = reverse("api:database:tables:item", kwargs={"table_id": table_2.id})
     response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
@@ -606,6 +608,7 @@ def test_update_table(api_client, data_fixture):
 
     assert response_json["id"] == table_1.id
     assert response_json["name"] == table_1.name == "New name"
+    assert response_json["locked"] is False
 
     url = reverse("api:database:tables:item", kwargs={"table_id": table_2.id})
     response = api_client.patch(
@@ -632,6 +635,48 @@ def test_update_table(api_client, data_fixture):
     )
     assert response.status_code == HTTP_404_NOT_FOUND
     assert response.json()["error"] == "ERROR_TABLE_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_locked_table_can_only_be_locked_and_deleted_by_admin(api_client, data_fixture):
+    admin, admin_token = data_fixture.create_user_and_token()
+    member, member_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=member, permissions="MEMBER"
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=database)
+    url = reverse("api:database:tables:item", kwargs={"table_id": table.id})
+
+    response = api_client.patch(
+        url,
+        {"locked": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {member_token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_INVALID_GROUP_PERMISSIONS"
+
+    response = api_client.patch(
+        url,
+        {"locked": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["locked"] is True
+
+    table.refresh_from_db()
+    assert table.locked
+
+    response = api_client.delete(url, HTTP_AUTHORIZATION=f"JWT {member_token}")
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_CANNOT_DELETE_LOCKED_TABLE"
+
+    response = api_client.delete(url, HTTP_AUTHORIZATION=f"JWT {admin_token}")
+    assert response.status_code == HTTP_204_NO_CONTENT
 
 
 @pytest.mark.django_db

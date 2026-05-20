@@ -215,6 +215,7 @@ class CoreConfig(AppConfig):
             ReadWorkspaceOperationType,
             RestoreApplicationOperationType,
             RestoreWorkspaceOperationType,
+            UpdateApplicationLockOperationType,
             UpdateApplicationOperationType,
             UpdateSettingsOperationType,
             UpdateWorkspaceInvitationType,
@@ -255,6 +256,7 @@ class CoreConfig(AppConfig):
         operation_type_registry.register(UpdateWorkspaceUserOperationType())
         operation_type_registry.register(DeleteWorkspaceUserOperationType())
         operation_type_registry.register(UpdateApplicationOperationType())
+        operation_type_registry.register(UpdateApplicationLockOperationType())
         operation_type_registry.register(DuplicateApplicationOperationType())
         operation_type_registry.register(DeleteApplicationOperationType())
         operation_type_registry.register(UpdateSettingsOperationType())

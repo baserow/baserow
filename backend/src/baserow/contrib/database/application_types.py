@@ -68,10 +68,11 @@ class DatabaseApplicationType(ApplicationType):
     model_class = Database
     serializer_mixins = [DatabaseSerializer]
     instance_serializer_class = DatabaseSerializer
-    serializer_field_names = ["tables"]
-    # Mark the request serializer field names as empty, otherwise
-    # the polymorphic request serializer will try and serialize tables.
-    request_serializer_field_names = []
+    allowed_fields = ["locked"]
+    serializer_field_names = ["locked", "tables"]
+    # Exclude tables from requests, otherwise the polymorphic request serializer
+    # will try and serialize nested tables.
+    request_serializer_field_names = ["locked"]
     data_provider_type_registry = database_data_provider_type_registry
 
     # Database applications are imported first.
@@ -203,6 +204,7 @@ class DatabaseApplicationType(ApplicationType):
                 id=table.id,
                 name=table.name,
                 order=table.order,
+                locked=table.locked,
                 fields=serialized_fields,
                 views=serialized_views,
                 rows=serialized_rows,
@@ -266,7 +268,10 @@ class DatabaseApplicationType(ApplicationType):
             database, import_export_config, files_zip, storage
         )
         serialized.update(
-            **DatabaseExportSerializedStructure.database(tables=serialized_tables)
+            **DatabaseExportSerializedStructure.database(
+                tables=serialized_tables,
+                locked=database.locked,
+            )
         )
 
         return serialized
@@ -277,12 +282,10 @@ class DatabaseApplicationType(ApplicationType):
         external_table_fields_to_import: List[Tuple[Table, Dict[str, Any]]] = None,
     ) -> int:
         return (
-            +
             # Creating each table
             len(serialized_tables)
-            +
             # Creating each model table
-            len(serialized_tables)
+            + len(serialized_tables)
             + sum(
                 [
                     # Inserting every field
@@ -983,6 +986,7 @@ class DatabaseApplicationType(ApplicationType):
                 database=database,
                 name=serialized_table["name"],
                 order=serialized_table["order"],
+                locked=serialized_table.get("locked", False),
                 last_modified_by_column_added=True,
             )
             id_mapping["database_tables"][serialized_table["id"]] = table_instance.id
@@ -1026,6 +1030,9 @@ class DatabaseApplicationType(ApplicationType):
         )
 
         database = application.specific
+        database.locked = serialized_values.get("locked", False)
+        database.save(update_fields=["locked"])
+
         if serialized_values["tables"]:
             self.import_tables_serialized(
                 database,

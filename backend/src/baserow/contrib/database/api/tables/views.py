@@ -10,7 +10,10 @@ from rest_framework.views import APIView
 
 from baserow.api.applications.errors import ERROR_APPLICATION_DOES_NOT_EXIST
 from baserow.api.decorators import map_exceptions, validate_body
-from baserow.api.errors import ERROR_USER_NOT_IN_GROUP
+from baserow.api.errors import (
+    ERROR_USER_INVALID_GROUP_PERMISSIONS,
+    ERROR_USER_NOT_IN_GROUP,
+)
 from baserow.api.jobs.errors import ERROR_MAX_JOB_COUNT_EXCEEDED
 from baserow.api.jobs.serializers import JobSerializer
 from baserow.api.schemas import (
@@ -45,6 +48,7 @@ from baserow.contrib.database.table.actions import (
     UpdateTableActionType,
 )
 from baserow.contrib.database.table.exceptions import (
+    CannotDeleteLockedTable,
     InitialSyncTableDataLimitExceeded,
     InitialTableDataDuplicateName,
     InitialTableDataLimitExceeded,
@@ -61,7 +65,11 @@ from baserow.contrib.database.table.operations import (
 )
 from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.core.action.registries import action_type_registry
-from baserow.core.exceptions import ApplicationDoesNotExist, UserNotInWorkspace
+from baserow.core.exceptions import (
+    ApplicationDoesNotExist,
+    UserInvalidWorkspacePermissionsError,
+    UserNotInWorkspace,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
@@ -69,6 +77,7 @@ from baserow.core.jobs.registries import job_type_registry
 from baserow.core.trash.exceptions import CannotDeleteAlreadyDeletedItem
 
 from .errors import (
+    ERROR_CANNOT_DELETE_LOCKED_TABLE,
     ERROR_INITIAL_SYNC_TABLE_DATA_LIMIT_EXCEEDED,
     ERROR_INITIAL_TABLE_DATA_HAS_DUPLICATE_NAMES,
     ERROR_INITIAL_TABLE_DATA_LIMIT_EXCEEDED,
@@ -442,7 +451,11 @@ class TableView(APIView):
         responses={
             200: TableSerializer,
             400: get_error_schema(
-                ["ERROR_USER_NOT_IN_GROUP", "ERROR_REQUEST_BODY_VALIDATION"]
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_USER_INVALID_GROUP_PERMISSIONS",
+                    "ERROR_REQUEST_BODY_VALIDATION",
+                ]
             ),
             404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
         },
@@ -452,6 +465,7 @@ class TableView(APIView):
         {
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            UserInvalidWorkspacePermissionsError: ERROR_USER_INVALID_GROUP_PERMISSIONS,
         }
     )
     @validate_body(TableUpdateSerializer)
@@ -461,7 +475,7 @@ class TableView(APIView):
         table = action_type_registry.get_by_type(UpdateTableActionType).do(
             request.user,
             TableHandler().get_table(table_id),
-            name=data["name"],
+            **data,
         )
 
         serializer = TableSerializer(table)
@@ -487,7 +501,11 @@ class TableView(APIView):
         responses={
             204: None,
             400: get_error_schema(
-                ["ERROR_USER_NOT_IN_GROUP", "ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM"]
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM",
+                    "ERROR_CANNOT_DELETE_LOCKED_TABLE",
+                ]
             ),
             404: get_error_schema(["ERROR_TABLE_DOES_NOT_EXIST"]),
         },
@@ -498,6 +516,7 @@ class TableView(APIView):
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             CannotDeleteAlreadyDeletedItem: ERROR_CANNOT_DELETE_ALREADY_DELETED_ITEM,
+            CannotDeleteLockedTable: ERROR_CANNOT_DELETE_LOCKED_TABLE,
         }
     )
     def delete(self, request, table_id):

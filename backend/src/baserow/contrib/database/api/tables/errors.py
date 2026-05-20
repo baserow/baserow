@@ -16,6 +16,11 @@ ERROR_TABLE_NOT_IN_DATABASE = (
     HTTP_400_BAD_REQUEST,
     "The table id {e.table_id} does not belong to the database.",
 )
+ERROR_CANNOT_DELETE_LOCKED_TABLE = (
+    "ERROR_CANNOT_DELETE_LOCKED_TABLE",
+    HTTP_400_BAD_REQUEST,
+    "This table is locked and can only be deleted by an admin.",
+)
 ERROR_INVALID_INITIAL_TABLE_DATA = (
     "ERROR_INVALID_INITIAL_TABLE_DATA",
     HTTP_400_BAD_REQUEST,

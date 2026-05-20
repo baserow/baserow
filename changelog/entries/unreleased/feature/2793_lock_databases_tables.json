@@ -1,0 +1,7 @@
+{
+  "type": "feature",
+  "message": "Allow admins to lock databases and tables so non-admins can't delete them.",
+  "domain": "database",
+  "bullet_points": [],
+  "created_at": "2026-05-20"
+}

@@ -17,6 +17,10 @@ class TableNotInDatabase(Exception):
         )
 
 
+class CannotDeleteLockedTable(Exception):
+    """Raised when a non-admin tries to delete a locked table."""
+
+
 class InvalidInitialTableData(Exception):
     """Raised when the provided initial table data does not contain a column or row."""
 

@@ -4,6 +4,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.database.field_rules.operations import ReadFieldRuleOperationType
+from baserow.contrib.database.table.operations import (
+    UpdateDatabaseTableLockOperationType,
+)
 from baserow.core.cache import local_cache
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.operations import (
@@ -38,6 +41,7 @@ from .operations import (
     ListWorkspaceUsersWorkspaceOperationType,
     ReadInvitationWorkspaceOperationType,
     ReadWorkspaceOperationType,
+    UpdateApplicationLockOperationType,
     UpdateSettingsOperationType,
     UpdateWorkspaceInvitationType,
     UpdateWorkspaceOperationType,
@@ -303,6 +307,8 @@ class BasicPermissionManagerType(PermissionManagerType):
         DeleteWorkspaceOperationType.type,
         UpdateWorkspaceUserOperationType.type,
         DeleteWorkspaceUserOperationType.type,
+        UpdateApplicationLockOperationType.type,
+        UpdateDatabaseTableLockOperationType.type,
     ]
 
     def check_multiple_permissions(self, checks, workspace=None, include_trash=False):

@@ -25,6 +25,7 @@ from baserow.core.exceptions import (
     ApplicationNotInWorkspace,
     ApplicationTypeDoesNotExist,
     BaseURLHostnameNotAllowed,
+    CannotDeleteLockedApplication,
     DuplicateApplicationMaxLocksExceededException,
     IsNotAdminError,
     LastAdminOfWorkspace,
@@ -1112,6 +1113,35 @@ def test_delete_database_application(send_mock, data_fixture):
 
 
 @pytest.mark.django_db
+def test_locked_database_application_can_only_be_locked_and_deleted_by_admin(
+    data_fixture,
+):
+    admin = data_fixture.create_user()
+    member = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        user=member, workspace=workspace, permissions="MEMBER"
+    )
+    database = data_fixture.create_database_application(workspace=workspace)
+
+    handler = CoreHandler()
+
+    with pytest.raises(UserInvalidWorkspacePermissionsError):
+        handler.update_application(member, database, locked=True)
+
+    handler.update_application(admin, database, locked=True)
+    database.refresh_from_db()
+    assert database.locked
+
+    with pytest.raises(CannotDeleteLockedApplication):
+        handler.delete_application(member, database)
+
+    handler.delete_application(admin, database)
+    database.refresh_from_db()
+    assert database.trashed
+
+
+@pytest.mark.django_db
 def test_get_template(data_fixture):
     data_fixture.create_user()
     template_1 = data_fixture.create_template()
@@ -1136,8 +1166,10 @@ def test_get_template(data_fixture):
 def test_export_import_workspace_application(data_fixture):
     workspace = data_fixture.create_workspace()
     imported_workspace = data_fixture.create_workspace()
-    database = data_fixture.create_database_application(workspace=workspace)
-    data_fixture.create_database_table(database=database)
+    database = data_fixture.create_database_application(
+        workspace=workspace, locked=True
+    )
+    data_fixture.create_database_table(database=database, locked=True)
 
     handler = CoreHandler()
     config = ImportExportConfig(include_permission_data=False)
@@ -1154,6 +1186,8 @@ def test_export_import_workspace_application(data_fixture):
     assert imported_database.name == database.name
     assert imported_database.order == database.order + 1
     assert imported_database.table_set.all().count() == 1
+    assert imported_database.locked is True
+    assert imported_database.table_set.get().locked is True
     assert database.id in id_mapping["applications"]
     assert id_mapping["applications"][database.id] == imported_database.id
 

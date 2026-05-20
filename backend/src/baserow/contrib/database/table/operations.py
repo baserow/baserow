@@ -15,6 +15,10 @@ class UpdateDatabaseTableOperationType(DatabaseTableOperationType):
     type = "database.table.update"
 
 
+class UpdateDatabaseTableLockOperationType(DatabaseTableOperationType):
+    type = "database.table.update_lock"
+
+
 class DuplicateDatabaseTableOperationType(DatabaseTableOperationType):
     type = "database.table.duplicate"
 

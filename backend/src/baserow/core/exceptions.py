@@ -95,6 +95,10 @@ class ApplicationDoesNotExist(Exception):
     """Raised when trying to get an application that does not exist."""
 
 
+class CannotDeleteLockedApplication(Exception):
+    """Raised when a non-admin tries to delete a locked application."""
+
+
 class ApplicationNotInWorkspace(Exception):
     """Raised when a provided application does not belong to a workspace."""
 

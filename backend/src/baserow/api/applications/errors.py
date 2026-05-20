@@ -5,6 +5,11 @@ ERROR_APPLICATION_DOES_NOT_EXIST = (
     HTTP_404_NOT_FOUND,
     "The requested application does not exist.",
 )
+ERROR_CANNOT_DELETE_LOCKED_APPLICATION = (
+    "ERROR_CANNOT_DELETE_LOCKED_APPLICATION",
+    HTTP_400_BAD_REQUEST,
+    "This application is locked and can only be deleted by an admin.",
+)
 ERROR_APPLICATION_NOT_IN_GROUP = (
     "ERROR_APPLICATION_NOT_IN_GROUP",
     HTTP_400_BAD_REQUEST,

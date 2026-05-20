@@ -163,6 +163,7 @@ def test_workspace_restored(mock_broadcast_to_users, data_fixture):
             "generative_ai_models_enabled": {},
         },
         "tables": [],
+        "locked": False,
     }
     assert len(args) == 2
     call_1 = args[1][0]

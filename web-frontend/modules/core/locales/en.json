@@ -32,6 +32,8 @@
   "sidebarApplication": {
     "rename": "Rename",
     "duplicate": "Duplicate",
+    "lock": "Lock",
+    "unlock": "Unlock",
     "viewTrash": "View trash",
     "delete": "Delete",
     "snapshots": "Snapshots"

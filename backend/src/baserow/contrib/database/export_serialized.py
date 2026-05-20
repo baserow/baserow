@@ -1,14 +1,17 @@
 class DatabaseExportSerializedStructure:
     @staticmethod
-    def database(tables):
-        return {"tables": tables}
+    def database(tables, locked=False):
+        return {"tables": tables, "locked": locked}
 
     @staticmethod
-    def table(id, name, order, fields, views, rows, data_sync, field_rules):
+    def table(
+        id, name, order, fields, views, rows, data_sync, field_rules, locked=False
+    ):
         return {
             "id": id,
             "name": name,
             "order": order,
+            "locked": locked,
             "fields": fields,
             "views": views,
             "rows": rows,

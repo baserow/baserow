@@ -112,6 +112,10 @@ class UpdateApplicationOperationType(ApplicationOperationType):
     type = "application.update"
 
 
+class UpdateApplicationLockOperationType(ApplicationOperationType):
+    type = "application.update_lock"
+
+
 class DuplicateApplicationOperationType(ApplicationOperationType):
     type = "application.duplicate"
 

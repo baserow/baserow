@@ -116,9 +116,9 @@ def test_list_applications(api_client, data_fixture, django_assert_num_queries):
             reverse("api:applications:list"), **{"HTTP_AUTHORIZATION": f"JWT {token}"}
         )
 
-        assert len(mock_filter_queryset.mock_calls) <= 2 + 4, (
-            "Should trigger max 1 call by workspace + 1 by applications"
-        )
+        assert (
+            len(mock_filter_queryset.mock_calls) <= 2 + 4
+        ), "Should trigger max 1 call by workspace + 1 by applications"
 
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
@@ -397,6 +397,69 @@ def test_update_application(api_client, data_fixture):
 
     application.refresh_from_db()
     assert application.name == "Test 1"
+
+
+@pytest.mark.django_db
+def test_locked_database_application_can_only_be_locked_and_deleted_by_admin(
+    api_client, data_fixture
+):
+    admin, admin_token = data_fixture.create_user_and_token()
+    member, member_token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(user=admin)
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=member, permissions="MEMBER"
+    )
+    application = data_fixture.create_database_application(workspace=workspace)
+    list_url = reverse("api:applications:list", kwargs={"workspace_id": workspace.id})
+    url = reverse("api:applications:item", kwargs={"application_id": application.id})
+
+    response = api_client.post(
+        list_url,
+        {"name": "Locked database", "type": "database", "locked": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {member_token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_INVALID_GROUP_PERMISSIONS"
+
+    response = api_client.post(
+        list_url,
+        {"name": "Locked database", "type": "database", "locked": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["locked"] is True
+
+    response = api_client.patch(
+        url,
+        {"locked": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {member_token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_INVALID_GROUP_PERMISSIONS"
+
+    response = api_client.patch(
+        url,
+        {"locked": True},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {admin_token}",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+    assert response_json["locked"] is True
+
+    application.refresh_from_db()
+    assert application.locked
+
+    response = api_client.delete(url, HTTP_AUTHORIZATION=f"JWT {member_token}")
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_CANNOT_DELETE_LOCKED_APPLICATION"
+
+    response = api_client.delete(url, HTTP_AUTHORIZATION=f"JWT {admin_token}")
+    assert response.status_code == HTTP_204_NO_CONTENT
 
 
 @pytest.mark.django_db
