@@ -44,8 +44,8 @@ class BaseAuthProviderType(
     Baserow.
     """
 
-    default_create_allowed_fields = ["domain", "enabled"]
-    default_update_allowed_fields = ["domain", "enabled"]
+    default_create_allowed_fields = ["domain", "enabled", "allow_existing_users"]
+    default_update_allowed_fields = ["domain", "enabled", "allow_existing_users"]
 
     def can_create_new_providers(self, **kwargs) -> bool:
         """

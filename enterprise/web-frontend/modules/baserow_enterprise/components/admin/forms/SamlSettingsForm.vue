@@ -58,6 +58,19 @@
       </template>
     </FormGroup>
 
+    <FormGroup
+      :label="$t('authProviderSettings.accountMatching')"
+      small-label
+      class="margin-bottom-2"
+    >
+      <Checkbox v-model="values.allow_existing_users">
+        {{ $t('authProviderSettings.allowExistingUsers') }}
+      </Checkbox>
+      <template #helper>
+        {{ $t('authProviderSettings.allowExistingUsersHelper') }}
+      </template>
+    </FormGroup>
+
     <slot name="config">
       <FormGroup
         small-label
@@ -198,6 +211,7 @@ export default {
         'email_attr_key',
         'first_name_attr_key',
         'last_name_attr_key',
+        'allow_existing_users',
       ],
       serverErrors: {},
       values: {
@@ -206,6 +220,7 @@ export default {
         email_attr_key: 'user.email',
         first_name_attr_key: 'user.first_name',
         last_name_attr_key: 'user.last_name',
+        allow_existing_users: false,
       },
     }
   },

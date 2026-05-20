@@ -14,7 +14,7 @@ class CreateAuthProviderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AuthProviderModel
-        fields = ("domain", "type", "enabled")
+        fields = ("domain", "type", "enabled", "allow_existing_users")
 
 
 class UpdateAuthProviderSerializer(serializers.ModelSerializer):
@@ -29,7 +29,7 @@ class UpdateAuthProviderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AuthProviderModel
-        fields = ("domain", "type", "enabled")
+        fields = ("domain", "type", "enabled", "allow_existing_users")
         extra_kwargs = {
             "domain": {"required": False},
         }

@@ -42,7 +42,9 @@ def test_admin_can_list_saml_provider_with_an_enterprise_license(
 ):
     data_fixture.create_password_provider()
     auth_prov_1 = enterprise_data_fixture.create_saml_auth_provider(domain="test.com")
-    auth_prov_2 = enterprise_data_fixture.create_saml_auth_provider(domain="acme.com")
+    auth_prov_2 = enterprise_data_fixture.create_saml_auth_provider(
+        domain="acme.com", allow_existing_users=True
+    )
 
     _, admin_token = enterprise_data_fixture.create_enterprise_admin_user_and_token()
     _, unauthorized_token = data_fixture.create_user_and_token()
@@ -80,12 +82,14 @@ def test_admin_can_list_saml_provider_with_an_enterprise_license(
     assert response_providers[0]["type"] == SamlAuthProviderType.type
     assert response_providers[0]["metadata"] == auth_prov_2.metadata
     assert response_providers[0]["enabled"] is True
+    assert response_providers[0]["allow_existing_users"] is True
     assert response_providers[0]["is_verified"] is False
     assert response_providers[1]["id"] == auth_prov_1.id
     assert response_providers[1]["domain"] == "test.com"
     assert response_providers[1]["type"] == SamlAuthProviderType.type
     assert response_providers[1]["metadata"] == auth_prov_1.metadata
     assert response_providers[1]["enabled"] is True
+    assert response_providers[1]["allow_existing_users"] is False
     assert response_providers[1]["is_verified"] is False
 
 
@@ -181,7 +185,12 @@ def test_admin_can_create_saml_provider_with_an_enterprise_license(
 
     response = api_client.post(
         reverse("api:enterprise:admin:auth_provider:list"),
-        {"type": SamlAuthProviderType.type, "domain": domain, "metadata": metadata},
+        {
+            "type": SamlAuthProviderType.type,
+            "domain": domain,
+            "metadata": metadata,
+            "allow_existing_users": True,
+        },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -193,6 +202,7 @@ def test_admin_can_create_saml_provider_with_an_enterprise_license(
     assert response_json["metadata"] == metadata
     assert response_json["is_verified"] is False
     assert response_json["enabled"] is True
+    assert response_json["allow_existing_users"] is True
 
     # cannot create another SAML provider for the same domain
     response = api_client.post(
@@ -376,6 +386,7 @@ def test_admin_can_update_saml_provider_with_an_enterprise_license(
         {
             "type": SamlAuthProviderType.type,
             "enabled": False,
+            "allow_existing_users": True,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -384,6 +395,7 @@ def test_admin_can_update_saml_provider_with_an_enterprise_license(
     response_json = response.json()
     assert response_json["id"] == saml_provider_1.id
     assert response_json["enabled"] is False
+    assert response_json["allow_existing_users"] is True
 
     # Test that is_verified is ignored if the user tries to set it
     # This field is updated only when a user correctly logs in

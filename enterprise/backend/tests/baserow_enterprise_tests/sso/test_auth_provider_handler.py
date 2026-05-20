@@ -64,7 +64,10 @@ def test_get_or_create_user_from_sso_user_info(enterprise_data_fixture):
     assert User.objects.count() == 1
     assert not user.auth_providers.filter(id=auth_provider_2.id).exists()
 
-    with override_settings(BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT=True):
+    auth_provider_2.allow_existing_users = True
+    auth_provider_2.save()
+
+    with override_settings(BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT=False):
         (
             user,
             _,
@@ -73,6 +76,20 @@ def test_get_or_create_user_from_sso_user_info(enterprise_data_fixture):
         )
 
     assert user.auth_providers.filter(id=auth_provider_2.id).exists()
+
+    auth_provider_3 = enterprise_data_fixture.create_saml_auth_provider(
+        domain="test3.com"
+    )
+
+    with override_settings(BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT=True):
+        (
+            user,
+            _,
+        ) = auth_provider_3.get_type().get_or_create_user_and_sign_in(
+            auth_provider_3, user_info
+        )
+
+    assert user.auth_providers.filter(id=auth_provider_3.id).exists()
 
     workspace_user = enterprise_data_fixture.create_user_workspace(user=user)
     invitation = enterprise_data_fixture.create_workspace_invitation(

@@ -18,7 +18,7 @@ class AuthProviderSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = AuthProviderModel
-        fields = ("id", "type", "domain", "enabled")
+        fields = ("id", "type", "domain", "enabled", "allow_existing_users")
         extra_kwargs = {
             "id": {"read_only": True},
             "type": {"read_only": True},

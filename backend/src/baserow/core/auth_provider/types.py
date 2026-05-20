@@ -11,6 +11,7 @@ class AuthProviderTypeDict(TypedDict):
     type: str
     domain: str
     enabled: bool
+    allow_existing_users: bool
 
 
 @dataclass

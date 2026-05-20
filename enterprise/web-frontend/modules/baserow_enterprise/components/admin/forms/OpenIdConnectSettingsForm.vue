@@ -108,6 +108,19 @@
       <Checkbox v-model="v$.values.use_id_token.$model"></Checkbox>
     </FormGroup>
 
+    <FormGroup
+      :label="$t('authProviderSettings.accountMatching')"
+      small-label
+      class="margin-bottom-2"
+    >
+      <Checkbox v-model="values.allow_existing_users">
+        {{ $t('authProviderSettings.allowExistingUsers') }}
+      </Checkbox>
+      <template #helper>
+        {{ $t('authProviderSettings.allowExistingUsersHelper') }}
+      </template>
+    </FormGroup>
+
     <Expandable card class="margin-bottom-2">
       <template #header="{ toggle, expanded }">
         <div class="flex flex-100 justify-content-space-between">
@@ -236,6 +249,7 @@ export default {
         'first_name_attr_key',
         'last_name_attr_key',
         'use_id_token',
+        'allow_existing_users',
       ],
       values: {
         name: '',
@@ -246,6 +260,7 @@ export default {
         first_name_attr_key: 'name',
         last_name_attr_key: '',
         use_id_token: false,
+        allow_existing_users: false,
       },
     }
   },

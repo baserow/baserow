@@ -36,6 +36,13 @@ class AuthProviderModel(BaseAuthProviderModel):
         related_name="auth_providers",
         on_delete=models.CASCADE,
     )
+    allow_existing_users = models.BooleanField(
+        help_text=(
+            "Whether existing user accounts with a matching email address can sign "
+            "in with this provider even if they originally used another provider."
+        ),
+        default=False,
+    )
 
     users = models.ManyToManyField(
         "auth.User",

@@ -85,6 +85,19 @@
     </FormGroup>
 
     <FormGroup
+      :label="$t('authProviderSettings.accountMatching')"
+      small-label
+      class="margin-bottom-2"
+    >
+      <Checkbox v-model="values.allow_existing_users">
+        {{ $t('authProviderSettings.allowExistingUsers') }}
+      </Checkbox>
+      <template #helper>
+        {{ $t('authProviderSettings.allowExistingUsersHelper') }}
+      </template>
+    </FormGroup>
+
+    <FormGroup
       :label="$t('oauthSettingsForm.callbackUrl')"
       small-label
       required
@@ -109,12 +122,19 @@ export default {
   },
   data() {
     return {
-      allowedValues: ['name', 'base_url', 'client_id', 'secret'],
+      allowedValues: [
+        'name',
+        'base_url',
+        'client_id',
+        'secret',
+        'allow_existing_users',
+      ],
       values: {
         name: '',
         base_url: 'https://gitlab.com',
         client_id: '',
         secret: '',
+        allow_existing_users: false,
       },
     }
   },

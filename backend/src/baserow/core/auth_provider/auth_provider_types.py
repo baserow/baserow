@@ -120,6 +120,7 @@ class AuthProviderType(BaseAuthProviderType):
 
         is_original_provider_check_needed = (
             not settings.BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT
+            and not auth_provider.allow_existing_users
         )
         if (
             is_original_provider_check_needed

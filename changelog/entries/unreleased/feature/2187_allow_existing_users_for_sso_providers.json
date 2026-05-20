@@ -1,0 +1,9 @@
+{
+  "type": "feature",
+  "message": "Add an auth provider setting that lets existing users sign in with matching SSO accounts",
+  "issue_origin": "github",
+  "issue_number": 2187,
+  "domain": "enterprise",
+  "bullet_points": [],
+  "created_at": "2026-05-20"
+}

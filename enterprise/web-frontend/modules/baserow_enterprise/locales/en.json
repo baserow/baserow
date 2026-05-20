@@ -186,6 +186,11 @@
     "noProviders": "No authentication providers configured yet.",
     "addProvider": "Add provider"
   },
+  "authProviderSettings": {
+    "accountMatching": "Account matching",
+    "allowExistingUsers": "Allow existing users to sign in with this provider",
+    "allowExistingUsersHelper": "When enabled, users with an existing account and matching email address can sign in with this provider even if they originally used another provider."
+  },
   "authProviderTypes": {
     "password": "Email and password authentication",
     "saml": "SSO SAML provider",
