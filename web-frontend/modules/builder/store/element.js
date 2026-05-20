@@ -57,11 +57,6 @@ const mutations = {
     page.elements = elements.map((element) =>
       populateElement(element, $registry)
     )
-    // page.graph is already authoritative from the pages API — don't rebuild it.
-    // Fall back to compat-field reconstruction only for pages without a graph yet.
-    if (!page.graph || Object.keys(page.graph).length === 0) {
-      page.graph = ElementGraphHandler.buildGraphFromElements(elements)
-    }
     updateCachedValues(page)
   },
   ADD_ITEM(state, { page, element, sourcePageId = null }) {
@@ -641,13 +636,11 @@ const actions = {
     // root-chain append when the element is already present in page.graph,
     // so pre-populating prevents duplicated elements from appearing at root
     // level in addition to their correct position inside a container slot.
-    const updatedGraph = { ...page.graph, ...graph }
-    if (!updatedGraph[elementId]) updatedGraph[elementId] = {}
-    if (!updatedGraph[elementId].next) updatedGraph[elementId].next = {}
-    updatedGraph[elementId].next[''] = [elements[0].id]
+    // graph_additions includes the predecessor's updated entry, so no manual
+    // patching of the connection is needed.
     dispatch(
       'page/forceUpdate',
-      { page, values: { graph: updatedGraph } },
+      { page, values: { graph: { ...page.graph, ...graph } } },
       { root: true }
     )
 
@@ -689,18 +682,7 @@ const actions = {
       path: elementNamespacePath,
     })
   },
-  /** Rebuild page.graph from compat fields on all current elements. */
-  rebuildGraph({ dispatch }, { page }) {
-    const rebuiltGraph = ElementGraphHandler.buildGraphFromElements(
-      page.elements
-    )
-    dispatch(
-      'page/forceUpdate',
-      { page, values: { graph: rebuiltGraph } },
-      {
-        root: true,
-      }
-    )
+  refreshCachedValues(_, { page }) {
     updateCachedValues(page)
   },
   setRepeatElementCollapsed({ commit }, { element, collapsed }) {

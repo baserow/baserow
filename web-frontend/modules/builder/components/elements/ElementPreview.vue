@@ -415,11 +415,20 @@ export default {
       const rootElementType = this.$registry.get('element', rootElement.type)
       const pagePlace = rootElementType.getPagePlace()
 
+      // elementsAround uses withSharedPage:true, so nextEl may be a footer element
+      // from the shared page. Restrict to same-page elements so AddElementModal's
+      // cross-page filter doesn't end up with both beforeId and afterId null.
       const nextEl = this.elementsAround[DIRECTIONS.AFTER]
+      const samePageNextEl =
+        nextEl?.page_id === this.elementPage.id ? nextEl : null
       const beforeId =
-        direction === DIRECTIONS.BEFORE ? this.element.id : nextEl?.id || null
+        direction === DIRECTIONS.BEFORE
+          ? this.element.id
+          : samePageNextEl?.id || null
       const afterId =
-        direction === DIRECTIONS.AFTER && !nextEl ? this.element.id : null
+        direction === DIRECTIONS.AFTER && !samePageNextEl
+          ? this.element.id
+          : null
 
       this.$refs.addElementModal.show({
         placeInContainer: this.element.place_in_container,

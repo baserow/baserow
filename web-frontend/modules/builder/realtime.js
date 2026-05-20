@@ -73,11 +73,38 @@ export const registerRealtimeEvents = (realtime) => {
     const ctx = getPageContext(store, data.element.page_id)
     if (!ctx) return
 
+    // Update the graph first so forceCreate's fallback sees the element already
+    // in the correct position and skips the end-of-chain append.
+    if (data.graph) {
+      store.dispatch('page/forceUpdate', {
+        page: ctx.page,
+        values: { graph: data.graph },
+      })
+    }
+
     store.dispatch('element/forceCreate', {
       page: ctx.page,
       element: data.element,
-      rebuildGraph: true,
     })
+  })
+
+  realtime.registerEvent('elements_created', ({ store }, data) => {
+    const ctx = getPageContext(store, data.page_id)
+    if (!ctx) return
+
+    if (data.graph_patch) {
+      store.dispatch('page/forceUpdate', {
+        page: ctx.page,
+        values: { graph: { ...ctx.page.graph, ...data.graph_patch } },
+      })
+    }
+
+    for (const element of data.elements) {
+      store.dispatch('element/forceCreate', {
+        page: ctx.page,
+        element,
+      })
+    }
   })
 
   realtime.registerEvent('element_deleted', ({ store }, data) => {
@@ -107,41 +134,19 @@ export const registerRealtimeEvents = (realtime) => {
     const ctx = getPageContext(store, data.page_id)
     if (!ctx) return
 
-    store.dispatch('element/forceMove', {
-      builder: ctx.builder,
+    store.dispatch('page/forceUpdate', {
       page: ctx.page,
-      elementId: data.element_id,
-      referenceElementId: data.reference_element_id,
-      position: data.position,
-      placeInContainer: data.place_in_container,
+      values: { graph: data.graph },
     })
+    store.dispatch('element/refreshCachedValues', { page: ctx.page })
   })
 
-  realtime.registerEvent('elements_moved', ({ store }, { elements }) => {
-    const affectedPageIds = new Set()
+  realtime.registerEvent('elements_moved', ({ store }, { page_id, graph }) => {
+    const ctx = getPageContext(store, page_id)
+    if (!ctx) return
 
-    elements.forEach((element) => {
-      const ctx = getPageContext(store, element.page_id)
-      if (!ctx) return
-
-      store.dispatch('element/forceUpdate', {
-        builder: ctx.builder,
-        page: ctx.page,
-        element,
-        values: {
-          order: element.order,
-          place_in_container: element.place_in_container,
-        },
-      })
-      affectedPageIds.add(element.page_id)
-    })
-
-    // Rebuild graph for each affected page after all compat fields are updated.
-    affectedPageIds.forEach((pageId) => {
-      const ctx = getPageContext(store, pageId)
-      if (!ctx) return
-      store.dispatch('element/rebuildGraph', { page: ctx.page })
-    })
+    store.dispatch('page/forceUpdate', { page: ctx.page, values: { graph } })
+    store.dispatch('element/refreshCachedValues', { page: ctx.page })
   })
 
   // Data source events
