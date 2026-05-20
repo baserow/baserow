@@ -243,7 +243,53 @@ export default class BaseGraphHandler {
     }
   }
 
-  remove(point) {
+  // Delete pointId plus every node reachable by following its `next` chain AND
+  // recursing into each node's `children`. Used when cascading into a container slot.
+  _deleteChainAndDescendants(pointId) {
+    let currentId = pointId
+    while (currentId) {
+      const info = this.graph[currentId]
+      if (!info || typeof info !== 'object') break
+
+      const allNextIds = Object.values(info.next || {}).flat()
+      const childrenDict = this._getChildrenAsDict(info.children)
+
+      for (const firstChildIds of Object.values(childrenDict)) {
+        for (const cid of firstChildIds) {
+          this._deleteChainAndDescendants(cid)
+        }
+      }
+
+      delete this.graph[currentId]
+
+      // Follow default next; handle other outputs (automation routing) recursively.
+      currentId = allNextIds[0] ?? null
+      for (const nid of allNextIds.slice(1)) {
+        this._deleteChainAndDescendants(nid)
+      }
+    }
+  }
+
+  // Delete pointId's graph entry and all its descendants (children chains).
+  // Does NOT follow the point's own `next` edges — those are siblings handled
+  // by remove() before this is called.
+  _deleteDescendantGraphEntries(pointId) {
+    const info = this.graph[pointId]
+    if (!info || typeof info !== 'object') return
+
+    const childrenDict = this._getChildrenAsDict(info.children)
+    for (const firstChildIds of Object.values(childrenDict)) {
+      for (const cid of firstChildIds) {
+        this._deleteChainAndDescendants(cid)
+      }
+    }
+
+    delete this.graph[pointId]
+  }
+
+  // keepDescendants: when true, the point's own graph entry is deleted but its
+  // subtree entries are NOT removed (used by move() to re-attach the subtree).
+  remove(point, { keepDescendants = false } = {}) {
     const [previousRef, position, output] = this.getPointPosition(point)
 
     const pointInfo = this.graph[point.id]
@@ -282,7 +328,11 @@ export default class BaseGraphHandler {
         throw new Error(`Unexpected position: ${position}`)
     }
 
-    delete this.graph[point.id]
+    if (keepDescendants) {
+      delete this.graph[point.id]
+    } else {
+      this._deleteDescendantGraphEntries(point.id)
+    }
   }
 
   getLastPosition() {
@@ -300,7 +350,7 @@ export default class BaseGraphHandler {
   move(pointToMove, referencePoint, position, output) {
     const previousChildren = this.graph[pointToMove.id].children
 
-    this.remove(pointToMove)
+    this.remove(pointToMove, { keepDescendants: true })
 
     if (referencePoint === null && position === 'south') {
       // null reference + south = append to end of the chain.

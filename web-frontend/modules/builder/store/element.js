@@ -785,13 +785,10 @@ const getters = {
     }
     try {
       const handler = new ElementGraphHandler(page)
-      const positions = handler.getPreviousPositions(element)
-      const childPos = positions.findLast(([, pos]) => pos === 'child')
-      if (childPos) {
-        const [, , slot] = childPos
-        return handler.getChildrenInPlace(parent, slot)
-      }
-      return []
+      return handler.getChildrenInPlace(
+        parent,
+        element.place_in_container ?? ''
+      )
     } catch {
       return []
     }

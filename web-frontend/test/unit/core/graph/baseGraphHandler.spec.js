@@ -314,6 +314,44 @@ describe('BaseGraphHandler', () => {
       h.remove(pt(2))
       expect(h.graph[1].children['']).toEqual([])
     })
+
+    test('cascades deletion to children and their next-chain (default keepDescendants=false)', () => {
+      // Container pt(1) has child pt(2); pt(3) follows pt(2) in the same slot.
+      // pt(4) follows pt(1) as a sibling. Removing pt(1) must delete 1, 2, 3
+      // but preserve pt(4) (a sibling, not a descendant).
+      const h = make(
+        {
+          0: 1,
+          1: { next: { '': [4] }, children: { '': [2] } },
+          2: { next: { '': [3] } },
+          3: {},
+          4: {},
+        },
+        pm(1, 2, 3, 4)
+      )
+      h.remove(pt(1))
+      expect(h.graph[1]).toBeUndefined()
+      expect(h.graph[2]).toBeUndefined()
+      expect(h.graph[3]).toBeUndefined()
+      expect(h.graph['0']).toBe(4)
+      expect(h.graph[4]).toBeDefined()
+    })
+
+    test('keepDescendants=true preserves children entries', () => {
+      const h = make(
+        {
+          0: 1,
+          1: { next: { '': [2] }, children: { '': [3] } },
+          2: {},
+          3: {},
+        },
+        pm(1, 2, 3)
+      )
+      h.remove(pt(1), { keepDescendants: true })
+      expect(h.graph[1]).toBeUndefined()
+      // pt(3) is a child — its entry must survive.
+      expect(h.graph[3]).toBeDefined()
+    })
   })
 
   describe('move', () => {
