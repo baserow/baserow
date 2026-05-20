@@ -5,12 +5,6 @@ import {
   colorContrast,
 } from '@baserow/modules/core/utils/colors'
 
-function expectCloseColor(actual, expected, precision = 5) {
-  for (const [channel, value] of Object.entries(expected)) {
-    expect(actual[channel]).toBeCloseTo(value, precision)
-  }
-}
-
 describe('colorUtils', () => {
   test('resolve', () => {
     expect(resolveColor('#00000000', [])).toBe('#00000000')
@@ -42,12 +36,12 @@ describe('colorUtils', () => {
   })
 
   test('convert hex to oklch', () => {
-    expectCloseColor(conversionsMap.hex.oklch('#ff0000ff'), {
-      l: 0.62796,
-      c: 0.25768,
-      h: 0.08121,
-      a: 1,
-    })
+    const oklchColor = conversionsMap.hex.oklch('#ff0000ff')
+
+    expect(oklchColor.l).toBeCloseTo(0.62796, 5)
+    expect(oklchColor.c).toBeCloseTo(0.25768, 5)
+    expect(oklchColor.h).toBeCloseTo(0.08121, 5)
+    expect(oklchColor.a).toBeCloseTo(1, 5)
   })
 
   test('convert oklch to hex', () => {

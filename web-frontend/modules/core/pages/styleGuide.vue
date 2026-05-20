@@ -2115,6 +2115,11 @@ export default {
       ],
     }
   },
+  head() {
+    return {
+      title: 'Style guide',
+    }
+  },
   computed: {
     contrastedColors() {
       const resolvedPickerColor = resolveColor(this.color, this.colorVariables)
@@ -2128,11 +2133,6 @@ export default {
         contrastedColor: colorContrast(color),
       }))
     },
-  },
-  head() {
-    return {
-      title: 'Style guide',
-    }
   },
   methods: {
     resolveColor,
