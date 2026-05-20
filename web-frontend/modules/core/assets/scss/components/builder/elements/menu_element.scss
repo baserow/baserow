@@ -137,6 +137,10 @@ $bg-color-contrast: var(--page-background-color-contrast, $palette-neutral-100);
   @media (prefers-reduced-motion: reduce) {
     animation: none;
   }
+
+  .element--read-only & {
+    height: 100%;
+  }
 }
 
 .menu-element__burger-menu-close {
