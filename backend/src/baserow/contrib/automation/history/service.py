@@ -10,6 +10,7 @@ from baserow.contrib.automation.history.models import (
     AutomationWorkflowHistory,
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
+from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.operations import (
     ReadAutomationWorkflowOperationType,
 )
@@ -20,6 +21,16 @@ class AutomationHistoryService:
     def __init__(self):
         self.handler = AutomationHistoryHandler()
         self.workflow_handler = AutomationWorkflowHandler()
+
+    def _check_workflow_permissions(
+        self, user: AbstractUser, workflow: AutomationWorkflow
+    ) -> None:
+        CoreHandler().check_permissions(
+            user,
+            ReadAutomationWorkflowOperationType.type,
+            workspace=workflow.automation.workspace,
+            context=workflow,
+        )
 
     def get_workflow_histories(
         self, user: AbstractUser, workflow_id: int
@@ -34,25 +45,9 @@ class AutomationHistoryService:
 
         workflow = self.workflow_handler.get_workflow(workflow_id)
 
-        CoreHandler().check_permissions(
-            user,
-            ReadAutomationWorkflowOperationType.type,
-            workspace=workflow.automation.workspace,
-            context=workflow,
-        )
+        self._check_workflow_permissions(user, workflow)
 
         return self.handler.get_workflow_histories(workflow)
-
-    def _check_workflow_history_permissions(
-        self, user: AbstractUser, workflow_history: AutomationWorkflowHistory
-    ) -> None:
-        workflow = workflow_history.original_workflow
-        CoreHandler().check_permissions(
-            user,
-            ReadAutomationWorkflowOperationType.type,
-            workspace=workflow.automation.workspace,
-            context=workflow,
-        )
 
     def get_child_node_histories(
         self,
@@ -74,7 +69,8 @@ class AutomationHistoryService:
         """
 
         workflow_history = self.handler.get_workflow_history(workflow_history_id)
-        self._check_workflow_history_permissions(user, workflow_history)
+        workflow = workflow_history.original_workflow
+        self._check_workflow_permissions(user, workflow)
 
         node_histories = list(
             self.handler.get_child_node_histories(
@@ -94,5 +90,6 @@ class AutomationHistoryService:
         """
 
         node_history = self.handler.get_node_history(node_history_id)
-        self._check_workflow_history_permissions(user, node_history.workflow_history)
+        workflow = node_history.workflow_history.original_workflow
+        self._check_workflow_permissions(user, workflow)
         return self.handler.get_node_history_result(node_history)
