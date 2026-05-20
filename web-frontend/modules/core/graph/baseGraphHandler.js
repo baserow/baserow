@@ -285,11 +285,31 @@ export default class BaseGraphHandler {
     delete this.graph[point.id]
   }
 
+  getLastPosition() {
+    if (!this.graph['0']) return [null, 'south', '']
+
+    const searchLast = (pointId) => {
+      const next = this.graph[pointId]?.next?.[''] ?? []
+      if (!next.length) return [this.getPoint(pointId), 'south', '']
+      return searchLast(next[0])
+    }
+
+    return searchLast(this.graph['0'])
+  }
+
   move(pointToMove, referencePoint, position, output) {
     const previousChildren = this.graph[pointToMove.id].children
 
     this.remove(pointToMove)
-    this.insert(pointToMove, referencePoint, position, output)
+
+    if (referencePoint === null && position === 'south') {
+      // null reference + south = append to end of the chain.
+      // _insertAt(null, ...) always places at root (first), so use getLastPosition instead.
+      const [lastRef, lastPos, lastOutput] = this.getLastPosition()
+      this._insertAt(pointToMove, lastRef, lastPos, lastOutput)
+    } else {
+      this.insert(pointToMove, referencePoint, position, output)
+    }
 
     this.graph[pointToMove.id].children = previousChildren
   }

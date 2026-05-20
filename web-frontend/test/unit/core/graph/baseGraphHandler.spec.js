@@ -334,6 +334,20 @@ describe('BaseGraphHandler', () => {
       // Children of the moved point must be preserved
       expect(h.graph[1].children).toEqual({ 0: [3] })
     })
+
+    test('null reference + south appends to end of chain', () => {
+      // pt(1) -> pt(2) -> pt(3); move pt(1) to last position
+      const h = make(
+        { 0: 1, 1: { next: { '': [2] } }, 2: { next: { '': [3] } }, 3: {} },
+        pm(1, 2, 3)
+      )
+      h.move(pt(1), null, 'south', '')
+      expect(h.graph['0']).toBe(2)
+      expect(h.graph[2].next['']).toEqual([3])
+      expect(h.graph[3].next['']).toEqual([1])
+      // pt(1) is now last: its next chain is empty
+      expect(h.graph[1].next?.['']).toEqual([])
+    })
   })
 
   describe('replace', () => {
