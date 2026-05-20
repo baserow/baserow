@@ -1,6 +1,7 @@
 .color-picker {
   display: flex;
   gap: 22px;
+  user-select: none;
 }
 
 .color-picker__space {
