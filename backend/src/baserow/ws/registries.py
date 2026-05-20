@@ -26,6 +26,9 @@ class PageType(Instance):
     dynamic groups.
     """
 
+    presence_enabled = False
+    """Opt in to presence join/leave/focus broadcasts on this page's channel."""
+
     def can_add(self, user, web_socket_id, **kwargs):
         """
         Indicates whether the user can be added to the page group. Here can for
