@@ -35,7 +35,7 @@ $bg-color-contrast: var(--page-background-color-contrast, $palette-neutral-100);
   gap: 10px;
   padding: 5px;
   border-radius: 6px;
-  background-color: $bg-color;
+  background: transparent;
 }
 
 .menu-element__sub-link-menu--container {
@@ -86,10 +86,6 @@ $bg-color-contrast: var(--page-background-color-contrast, $palette-neutral-100);
 
   .menu-element__sub-links {
     margin-left: 10px;
-
-    .ab-link {
-      padding-left: 0;
-    }
   }
 }
 
@@ -98,7 +94,7 @@ $bg-color-contrast: var(--page-background-color-contrast, $palette-neutral-100);
 
   .menu-element__sub-links {
     border-radius: 6px;
-    background-color: $bg-color;
+    background: transparent;
   }
 }
 

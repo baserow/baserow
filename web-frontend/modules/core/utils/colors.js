@@ -271,7 +271,7 @@ export const colorRecommendation = (hexColor) => {
  * @param {string} hexColor The hex string of the color.
  * @returns The contrasted color.
  */
-export const colorContrast = (hexColor, amount = 10) => {
+export const colorContrast = (hexColor, amount = 6) => {
   // l is the luminance
   const hsl = conversionsMap.hex.hsl(hexColor)
   if (hsl.l > 0.5) {
