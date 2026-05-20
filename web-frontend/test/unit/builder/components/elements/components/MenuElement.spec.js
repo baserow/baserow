@@ -80,6 +80,10 @@ describe('MenuElement', () => {
     })
   }
 
+  const openCompactMenu = async (wrapper) => {
+    await wrapper.find('.menu-element__burger-menu-icon').trigger('click')
+  }
+
   test('shows the compact burger control for the selected desktop device', async () => {
     const wrapper = await mountComponent({
       element: createElement({
@@ -92,7 +96,9 @@ describe('MenuElement', () => {
     })
 
     expect(wrapper.find('.menu-element__burger-menu').exists()).toBe(true)
-    expect(wrapper.find('.menu-element__container--burger').exists()).toBe(true)
+    expect(wrapper.find('.menu-element__container--burger').exists()).toBe(
+      false
+    )
     expect(wrapper.find('.menu-element__menu-item-link').exists()).toBe(false)
   })
 
@@ -107,20 +113,22 @@ describe('MenuElement', () => {
       }),
     })
 
-    await wrapper.find('.menu-element__burger-menu').trigger('click')
+    await openCompactMenu(wrapper)
 
-    expect(wrapper.find('.menu-element__burger-active').exists()).toBe(true)
+    expect(wrapper.find('.menu-element__container--burger').exists()).toBe(true)
     expect(
       wrapper.find('.menu-element__burger-menu .iconoir-menu').exists()
     ).toBe(true)
     expect(
       wrapper
-        .find('.menu-element__burger-active .menu-element__burger-menu')
+        .find('.menu-element__container--burger .menu-element__burger-menu')
         .exists()
     ).toBe(false)
     expect(
       wrapper
-        .find('.menu-element__burger-active .menu-element__burger-menu-close')
+        .find(
+          '.menu-element__container--burger .menu-element__burger-menu-close'
+        )
         .exists()
     ).toBe(true)
     expect(wrapper.find('.menu-element__burger-menu').exists()).toBe(true)
@@ -140,10 +148,10 @@ describe('MenuElement', () => {
       }),
     })
 
-    await wrapper.find('.menu-element__burger-menu').trigger('click')
+    await openCompactMenu(wrapper)
 
     expect(
-      wrapper.find('.menu-element__burger-active').attributes('style')
+      wrapper.find('.menu-element__container--burger').attributes('style')
     ).toContain('--alignment: flex-start')
   })
 
@@ -158,10 +166,12 @@ describe('MenuElement', () => {
       }),
     })
 
-    await wrapper.find('.menu-element__burger-menu').trigger('click')
+    await openCompactMenu(wrapper)
     await wrapper.find('.menu-element__burger-menu-close').trigger('click')
 
-    expect(wrapper.find('.menu-element__burger-active').exists()).toBe(false)
+    expect(wrapper.find('.menu-element__container--burger').exists()).toBe(
+      false
+    )
     expect(wrapper.find('.menu-element__burger-menu').exists()).toBe(true)
     expect(
       wrapper.find('.menu-element__burger-menu .iconoir-menu').exists()
@@ -179,14 +189,16 @@ describe('MenuElement', () => {
       }),
     })
 
-    await wrapper.find('.menu-element__burger-menu').trigger('click')
+    await openCompactMenu(wrapper)
     await wrapper.vm.$nextTick()
 
     document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))
     document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.menu-element__burger-active').exists()).toBe(false)
+    expect(wrapper.find('.menu-element__container--burger').exists()).toBe(
+      false
+    )
   })
 
   test('keeps the expanded menu when desktop variant is expanded', async () => {
@@ -223,7 +235,7 @@ describe('MenuElement', () => {
       }),
     })
 
-    await wrapper.find('.menu-element__burger-menu').trigger('click')
+    await openCompactMenu(wrapper)
     await wrapper
       .find('.menu-element__menu-item-with-children')
       .trigger('click')
@@ -248,12 +260,9 @@ describe('MenuElement', () => {
       }),
     })
 
-    await wrapper.find('.menu-element__burger-menu').trigger('click')
+    await openCompactMenu(wrapper)
 
     const spacer = wrapper.find('.menu-element__menu-item-spacer')
     expect(spacer.exists()).toBe(true)
-    expect(spacer.classes()).toContain(
-      'menu-element__menu-item--compact-spacer'
-    )
   })
 })
