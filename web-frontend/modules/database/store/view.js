@@ -21,22 +21,12 @@ const groupByQueue = new GroupTaskQueue()
 
 function sortByPriority(items) {
   items.sort((a, b) => {
-    const aPriority = a.priority ?? Number.MAX_SAFE_INTEGER
-    const bPriority = b.priority ?? Number.MAX_SAFE_INTEGER
-
-    if (aPriority !== bPriority) {
-      return aPriority - bPriority
-    }
-
-    const aKey = a.id
-    const bKey = b.id
-
-    if (typeof aKey === 'number' && typeof bKey === 'number') {
-      return aKey - bKey
-    }
-
-    // Fallback for ULIDs. This is only set temporarily while creating a new sort.
-    return String(aKey).localeCompare(String(bKey))
+    const aIsNumeric = typeof a === 'number' || /^\d+$/.test(a)
+    const bIsNumeric = typeof b === 'number' || /^\d+$/.test(b)
+    if (aIsNumeric && bIsNumeric) return Number(a) - Number(b)
+    if (aIsNumeric) return -1 // numeric < ULID → ULIDs land at the end
+    if (bIsNumeric) return 1
+    return String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0
   })
 }
 
