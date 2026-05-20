@@ -53,14 +53,12 @@
         <div
           v-if="childEntry.status === STATUS_LOADING"
           class="node-history__loading"
-          :style="{ marginLeft: '48px' }"
         >
           <div class="loading"></div>
         </div>
         <div
           v-else-if="childEntry.status === STATUS_ERROR"
-          class="node-history__error-info"
-          :style="{ marginLeft: '48px' }"
+          class="node-history__loading"
         >
           {{ $t('historySidePanel.failedToLoad') }}
         </div>

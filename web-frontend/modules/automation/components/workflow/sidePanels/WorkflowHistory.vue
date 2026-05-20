@@ -27,7 +27,7 @@
       <template v-if="item.status !== 'started'">
         <div
           v-if="nodeHistoriesEntry.status === STATUS_LOADING"
-          class="workflow-history__loading"
+          class="workflow-history__message"
         >
           <div class="loading"></div>
         </div>
