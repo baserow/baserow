@@ -64,6 +64,12 @@ init:
 pre-commit-install:
     @just b run pre-commit install --install-hooks
 
+# Uninstall pre-commit Git hooks from the repository
+[group('1 - local-dev')]
+[doc("Uninstall pre-commit Git hooks from the repository")]
+pre-commit-uninstall:
+    @just b run pre-commit uninstall
+
 # Local development environment management
 
 [group('1 - local-dev')]
