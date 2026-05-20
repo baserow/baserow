@@ -105,6 +105,13 @@ export const registerRealtimeEvents = (realtime) => {
         element,
       })
     }
+
+    for (const workflowAction of data.workflow_actions || []) {
+      store.dispatch('builderWorkflowAction/forceCreate', {
+        page: ctx.page,
+        workflowAction,
+      })
+    }
   })
 
   realtime.registerEvent('element_deleted', ({ store }, data) => {
