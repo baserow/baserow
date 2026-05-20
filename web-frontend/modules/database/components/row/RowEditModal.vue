@@ -9,6 +9,14 @@
     @hidden="hidden"
   >
     <template #actions>
+      <ButtonIcon
+        v-if="canPrintRow"
+        v-tooltip="$t('rowEditModal.print')"
+        type="secondary"
+        size="small"
+        icon="iconoir-printer"
+        @click="printRow"
+      ></ButtonIcon>
       <component
         :is="actionComponent"
         v-for="(actionComponent, i) in rowModalActionComponents"
@@ -306,6 +314,14 @@ export default {
         .map((type) => type.getActionComponent(this.row))
         .filter((actionComponent) => actionComponent !== null)
     },
+    canPrintRow() {
+      return Number.isInteger(this.rowId) && this.rowId > 0
+    },
+    printableFields() {
+      return this.showHiddenFields
+        ? [...this.visibleFields, ...this.hiddenFields]
+        : this.visibleFields
+    },
   },
   watch: {
     /**
@@ -390,6 +406,111 @@ export default {
     update(context) {
       context.table = this.table
       this.$emit('update', context)
+    },
+    printRow() {
+      const printWindow = window.open('', '_blank', 'width=900,height=700')
+
+      if (!printWindow) {
+        return
+      }
+
+      printWindow.opener = null
+      printWindow.document.write(this.getPrintDocument())
+      printWindow.document.close()
+      printWindow.focus()
+      printWindow.print()
+    },
+    getPrintDocument() {
+      const title = this.escapeHtml(this.heading || `Row ${this.rowId}`)
+      const tableName = this.escapeHtml(this.table.name)
+      const fields = this.printableFields
+        .map((field) => this.getPrintFieldHtml(field))
+        .join('')
+
+      return `<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>${title}</title>
+    <style>
+      body {
+        color: #111827;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        line-height: 1.4;
+        margin: 40px;
+      }
+
+      h1 {
+        font-size: 24px;
+        margin: 0 0 4px;
+      }
+
+      .row-print__table {
+        color: #6b7280;
+        font-size: 13px;
+        margin-bottom: 28px;
+      }
+
+      .row-print__field {
+        break-inside: avoid;
+        border-top: 1px solid #e5e7eb;
+        padding: 14px 0;
+      }
+
+      .row-print__field-name {
+        color: #374151;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+      }
+
+      .row-print__field-value {
+        font-size: 14px;
+        white-space: pre-wrap;
+        word-break: break-word;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>${title}</h1>
+    <div class="row-print__table">${tableName} &middot; #${this.rowId}</div>
+    ${fields}
+  </body>
+</html>`
+    },
+    getPrintFieldHtml(field) {
+      const name = this.escapeHtml(field.name)
+      const value = this.escapeHtml(this.getPrintableValue(field))
+
+      return `<section class="row-print__field">
+  <div class="row-print__field-name">${name}</div>
+  <div class="row-print__field-value">${value}</div>
+</section>`
+    },
+    getPrintableValue(field) {
+      const name = `field_${field.id}`
+      const value = this.row[name]
+      const fieldType = this.$registry.get('field', field.type)
+
+      if (fieldType?.toHumanReadableString) {
+        return fieldType.toHumanReadableString(field, value)
+      }
+
+      return value ?? ''
+    },
+    escapeHtml(value) {
+      return String(value ?? '').replace(
+        /[&<>"']/g,
+        (character) =>
+          ({
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;',
+          })[character]
+      )
     },
   },
 }

@@ -363,6 +363,7 @@
   },
   "rowEditModal": {
     "addField": "Add field",
+    "print": "Print row",
     "showHiddenFields": "Show hidden fields",
     "hideHiddenFields": "Hide hidden fields"
   },
