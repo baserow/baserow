@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from django.contrib.auth.models import AbstractUser
 from django.db.models import QuerySet
@@ -61,24 +61,30 @@ class AutomationHistoryService:
         parent_node_id: Optional[int],
         iteration_path: str = "",
     ) -> Tuple[
-        QuerySet[AutomationNodeHistory],
+        List[AutomationNodeHistory],
         Dict[int, Optional[int]],
         Set[int],
+        Dict[int, str],
     ]:
         """
         Returns the immediate child node histories for the given history,
-        optionally scoped to a parent's iteration_path.
+        optionally scoped to a parent's iteration_path, along with the
+        parent map, the set of ancestor node ids that have errored
+        descendants, and a per-router-history map of edge labels.
         """
 
         workflow_history = self.handler.get_workflow_history(workflow_history_id)
         self._check_workflow_history_permissions(user, workflow_history)
 
-        queryset = self.handler.get_child_node_histories(
-            workflow_history, parent_node_id, iteration_path
+        node_histories = list(
+            self.handler.get_child_node_histories(
+                workflow_history, parent_node_id, iteration_path
+            )
         )
         parent_map = workflow_history.workflow.get_graph().get_parent_map()
         error_ancestor_ids = self.handler.get_error_ancestor_node_ids(workflow_history)
-        return queryset, parent_map, error_ancestor_ids
+        edge_labels = self.handler.get_router_edge_labels(node_histories)
+        return node_histories, parent_map, error_ancestor_ids, edge_labels
 
     def get_node_history_result(
         self, user: AbstractUser, node_history_id: int

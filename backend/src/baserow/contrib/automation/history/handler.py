@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Dict, List, Optional, Set, Union
 
-from django.db.models import QuerySet
+from django.db.models import Prefetch, QuerySet
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.exceptions import (
@@ -216,9 +216,46 @@ class AutomationHistoryHandler:
 
         return (
             queryset.select_related("node", "node__workflow")
-            .prefetch_related("node_results")
+            .prefetch_related(
+                Prefetch(
+                    "node_results",
+                    queryset=AutomationNodeResult.objects.only(
+                        "id", "node_history_id", "iteration_path"
+                    ),
+                )
+            )
             .order_by("started_on", "id")
         )
+
+    def get_router_edge_labels(
+        self, node_histories: List[AutomationNodeHistory]
+    ) -> Dict[int, str]:
+        """
+        For any router nodes in the histories, return a dict mapping of
+        node_history_id -> the edge label taken on that dispatch.
+        """
+
+        from baserow.contrib.automation.nodes.node_types import (
+            CoreRouterActionNodeType,
+        )
+
+        router_history_ids = [
+            nh.id
+            for nh in node_histories
+            if nh.node.get_type().type == CoreRouterActionNodeType.type
+        ]
+        if not router_history_ids:
+            return {}
+
+        result_qs = AutomationNodeResult.objects.filter(
+            node_history_id__in=router_history_ids,
+        ).only("node_history_id", "result")
+
+        return {
+            nr.node_history_id: label
+            for nr in result_qs
+            if (label := nr.result.get("edge", {}).get("label"))
+        }
 
     def get_error_ancestor_node_ids(
         self, workflow_history: AutomationWorkflowHistory

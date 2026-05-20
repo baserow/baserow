@@ -252,7 +252,14 @@ const nodeIconClass = computed(() => {
 })
 
 const nodeTypeLabel = computed(() => {
-  return props.nodeHistory.node_label || nodeType.value.name
+  const baseLabel = props.nodeHistory.node_label || nodeType.value.name
+  if (props.nodeHistory.node_type === 'router') {
+    const edgeLabel =
+      props.nodeHistory.edge_label ||
+      app.$i18n.t('nodeType.defaultEdgeLabelFallback')
+    return `${baseLabel} (${edgeLabel})`
+  }
+  return baseLabel
 })
 
 const childEntry = computed(() =>

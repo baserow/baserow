@@ -23,6 +23,7 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
     iteration_path = serializers.SerializerMethodField()
     is_container = serializers.SerializerMethodField()
     has_error_descendant = serializers.SerializerMethodField()
+    edge_label = serializers.SerializerMethodField()
 
     class Meta:
         model = AutomationNodeHistory
@@ -41,6 +42,7 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
             "iteration_path",
             "is_container",
             "has_error_descendant",
+            "edge_label",
         )
 
     @extend_schema_field(OpenApiTypes.STR)
@@ -81,6 +83,10 @@ class AutomationNodeHistorySerializer(serializers.ModelSerializer):
     @extend_schema_field(OpenApiTypes.BOOL)
     def get_has_error_descendant(self, obj):
         return obj.node_id in self.context["error_ancestor_ids"]
+
+    @extend_schema_field(OpenApiTypes.STR)
+    def get_edge_label(self, obj):
+        return self.context["edge_labels"].get(obj.id, "")
 
 
 class NodeHistoriesQueryParamsSerializer(serializers.Serializer):

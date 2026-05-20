@@ -84,9 +84,10 @@ class AutomationNodeHistoriesView(APIView):
     @validate_query_parameters(NodeHistoriesQueryParamsSerializer)
     def get(self, request, workflow_history_id: int, query_params):
         (
-            queryset,
+            node_histories,
             parent_map,
             error_ancestor_ids,
+            edge_labels,
         ) = AutomationHistoryService().get_child_node_histories(
             request.user,
             workflow_history_id,
@@ -95,11 +96,12 @@ class AutomationNodeHistoriesView(APIView):
         )
 
         serializer = AutomationNodeHistorySerializer(
-            queryset,
+            node_histories,
             many=True,
             context={
                 "parent_map": parent_map,
                 "error_ancestor_ids": error_ancestor_ids,
+                "edge_labels": edge_labels,
             },
         )
         return Response(serializer.data)
