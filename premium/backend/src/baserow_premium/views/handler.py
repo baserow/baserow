@@ -191,6 +191,7 @@ def get_rows_grouped_by_date_field(
     search_mode: Optional[str] = None,
     limit: int = 40,
     offset: int = 0,
+    apply_view_sorts: bool = True,
     model: Optional[GeneratedTableModel] = None,
     base_queryset: Optional[QuerySet] = None,
     adhoc_filters: Optional[AdHocFilters] = None,
@@ -214,6 +215,9 @@ def get_rows_grouped_by_date_field(
     :param offset: The offset in number of rows to fetch per date bucket. For example
         when offset=0 rows will be returned starting from the 0th row in each bucket,
         when offset=40 the first 40 rows will be skipped in each bucket.
+    :param apply_view_sorts: Whether to apply the view's saved sortings to each
+        date bucket. If there are no saved sortings, rows are ordered by the date
+        field value and then row order.
     :param model: Additionally, an existing model can be provided so that it doesn't
         have to be generated again.
     :param base_queryset: Optionally an alternative base queryset can be provided
@@ -238,11 +242,11 @@ def get_rows_grouped_by_date_field(
     if not date_field_type.can_represent_date(date_field):
         raise CalendarViewHasNoDateField()
     if base_queryset is None:
-        base_queryset = (
-            model.objects.all()
-            .enhance_by_fields()
-            .order_by(f"field_{date_field.id}", "order", "id")
-        )
+        base_queryset = model.objects.all().enhance_by_fields()
+    if apply_view_sorts and view.viewsort_set.exists():
+        base_queryset = ViewHandler().apply_sorting(view, base_queryset)
+    elif not base_queryset.ordered:
+        base_queryset = base_queryset.order_by(f"field_{date_field.id}", "order", "id")
     if search is not None:
         base_queryset = base_queryset.search_all_fields(search, search_mode=search_mode)
 

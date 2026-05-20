@@ -54,6 +54,19 @@ export function populateDateStack(stack, data) {
 
 const updateRowQueue = new GroupTaskQueue()
 
+function getCalendarRowSortings(view, dateFieldId) {
+  return view.sortings && view.sortings.length > 0
+    ? view.sortings
+    : [
+        {
+          field: dateFieldId,
+          value: 'ASC',
+          order: 'ASC',
+          type: DEFAULT_SORT_TYPE_KEY,
+        },
+      ]
+}
+
 export const state = () => ({
   loading: false,
   loadingRows: false,
@@ -606,14 +619,7 @@ export const actions = {
     if (stack === undefined) {
       return
     }
-    const sortings = [
-      {
-        field: dateFieldId,
-        value: 'ASC',
-        order: 'ASC',
-        type: DEFAULT_SORT_TYPE_KEY,
-      },
-    ]
+    const sortings = getCalendarRowSortings(view, dateFieldId)
     const sortedRows = clone(stack.results)
     sortedRows.push(row)
     sortedRows.sort(getRowSortFunction($registry, sortings, fields))
@@ -764,14 +770,7 @@ export const actions = {
       }
       newStackResults.push(newRow)
       newStackCount++
-      const sortings = [
-        {
-          field: dateFieldId,
-          value: 'ASC',
-          order: 'ASC',
-          type: DEFAULT_SORT_TYPE_KEY,
-        },
-      ]
+      const sortings = getCalendarRowSortings(view, dateFieldId)
       newStackResults.sort(getRowSortFunction($registry, sortings, fields))
       newIndex = newStackResults.findIndex((r) => r.id === newRow.id)
       const newIsLast = newIndex === newStackResults.length - 1

@@ -322,7 +322,7 @@ export class CalendarViewType extends PremiumViewType {
   }
 
   canSort() {
-    return false
+    return true
   }
 
   canShare() {

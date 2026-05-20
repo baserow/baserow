@@ -1,6 +1,7 @@
 import calendarStore from '@baserow_premium/store/view/calendar'
 import { TestApp } from '@baserow/test/helpers/testApp'
 import moment from '@baserow/modules/core/moment'
+import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
 
 const fields = [
   {
@@ -318,6 +319,56 @@ describe('Calendar view store', () => {
           expect(resultStack.results[1].id).toBe(3)
           expect(resultStack.results[2].id).toBe(10)
           expect(resultStack.results[3].id).toBe(11)
+        })
+
+        test('new rows use view sortings within the same date', async () => {
+          const dateStacks = {}
+          dateStacks['2023-01-01'] = {
+            count: 100,
+            results: [
+              {
+                id: 10,
+                order: '10.00',
+                field_1: 'Delta',
+                field_2: '2023-01-01T00:00:00Z',
+              },
+              {
+                id: 11,
+                order: '11.00',
+                field_1: 'Echo',
+                field_2: '2023-01-01T00:00:00Z',
+              },
+            ],
+          }
+
+          const state = Object.assign(calendarStore.state(), {
+            dateFieldId: 2,
+            dateStacks,
+          })
+          store.replaceState({ ...store.state, calendar: state })
+
+          await store.dispatch('calendar/createdNewRow', {
+            view: {
+              ...view,
+              sortings: [
+                {
+                  field: 1,
+                  order: 'ASC',
+                  type: DEFAULT_SORT_TYPE_KEY,
+                },
+              ],
+            },
+            values: {
+              id: 1,
+              order: '99.00',
+              field_1: 'Alpha',
+              field_2: '2023-01-01T00:00:00Z',
+            },
+            fields,
+          })
+
+          const resultStack = store.state.calendar.dateStacks['2023-01-01']
+          expect(resultStack.results.map((row) => row.id)).toEqual([1, 10, 11])
         })
 
         test('new rows added across dates', async () => {
@@ -886,6 +937,65 @@ describe('Calendar view store', () => {
           expect(resultStack.results[0].id).toBe(100)
           expect(resultStack.results[1].id).toBe(22)
           expect(resultStack.results[2].id).toBe(10)
+        })
+
+        test('updated rows use view sortings within the same date', async () => {
+          const dateStacks = {}
+          dateStacks['2023-01-01'] = {
+            count: 3,
+            results: [
+              {
+                id: 10,
+                order: '10.00',
+                field_1: 'Charlie',
+                field_2: '2023-01-01T00:00:00Z',
+              },
+              {
+                id: 11,
+                order: '11.00',
+                field_1: 'Delta',
+                field_2: '2023-01-01T00:00:00Z',
+              },
+              {
+                id: 12,
+                order: '12.00',
+                field_1: 'Echo',
+                field_2: '2023-01-01T00:00:00Z',
+              },
+            ],
+          }
+
+          const state = Object.assign(calendarStore.state(), {
+            dateFieldId: 2,
+            dateStacks,
+          })
+          store.replaceState({ ...store.state, calendar: state })
+
+          await store.dispatch('calendar/updatedExistingRow', {
+            view: {
+              ...view,
+              sortings: [
+                {
+                  field: 1,
+                  order: 'ASC',
+                  type: DEFAULT_SORT_TYPE_KEY,
+                },
+              ],
+            },
+            row: {
+              id: 12,
+              order: '12.00',
+              field_1: 'Echo',
+              field_2: '2023-01-01T00:00:00Z',
+            },
+            values: {
+              field_1: 'Alpha',
+            },
+            fields,
+          })
+
+          const resultStack = store.state.calendar.dateStacks['2023-01-01']
+          expect(resultStack.results.map((row) => row.id)).toEqual([12, 10, 11])
         })
 
         test('moving rows across dates', async () => {

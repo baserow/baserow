@@ -340,6 +340,74 @@ def test_list_all_rows(api_client, premium_data_fixture):
 @pytest.mark.django_db
 @pytest.mark.view_calendar
 @override_settings(DEBUG=True)
+def test_list_rows_applies_view_sortings_within_each_day(
+    api_client, premium_data_fixture
+):
+    user, token = premium_data_fixture.create_user_and_token(
+        has_active_premium_license=True
+    )
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table, primary=True)
+    date_field = premium_data_fixture.create_date_field(
+        table=table, date_include_time=True
+    )
+    calendar = premium_data_fixture.create_calendar_view(
+        table=table, date_field=date_field
+    )
+    premium_data_fixture.create_view_sort(view=calendar, field=text_field, order="ASC")
+
+    model = table.get_model()
+    row_jan_1_c = model.objects.create(
+        **{
+            f"field_{text_field.id}": "C",
+            f"field_{date_field.id}": datetime(2023, 1, 1, tzinfo=timezone.utc),
+        }
+    )
+    row_jan_1_a = model.objects.create(
+        **{
+            f"field_{text_field.id}": "A",
+            f"field_{date_field.id}": datetime(2023, 1, 1, tzinfo=timezone.utc),
+        }
+    )
+    row_jan_1_b = model.objects.create(
+        **{
+            f"field_{text_field.id}": "B",
+            f"field_{date_field.id}": datetime(2023, 1, 1, tzinfo=timezone.utc),
+        }
+    )
+    row_jan_2_b = model.objects.create(
+        **{
+            f"field_{text_field.id}": "B",
+            f"field_{date_field.id}": datetime(2023, 1, 2, tzinfo=timezone.utc),
+        }
+    )
+    row_jan_2_a = model.objects.create(
+        **{
+            f"field_{text_field.id}": "A",
+            f"field_{date_field.id}": datetime(2023, 1, 2, tzinfo=timezone.utc),
+        }
+    )
+
+    response = api_client.get(
+        get_list_url(calendar.id), **{"HTTP_AUTHORIZATION": f"JWT {token}"}
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+
+    jan_1_results = response_json["rows"]["2023-01-01"]["results"]
+    assert [r["id"] for r in jan_1_results] == [
+        row_jan_1_a.id,
+        row_jan_1_b.id,
+        row_jan_1_c.id,
+    ]
+
+    jan_2_results = response_json["rows"]["2023-01-02"]["results"]
+    assert [r["id"] for r in jan_2_results] == [row_jan_2_a.id, row_jan_2_b.id]
+
+
+@pytest.mark.django_db
+@pytest.mark.view_calendar
+@override_settings(DEBUG=True)
 def test_list_all_rows_limit_offset(api_client, premium_data_fixture):
     user, token = premium_data_fixture.create_user_and_token(
         has_active_premium_license=True
@@ -1199,6 +1267,62 @@ def test_list_public_rows_limit_offset(api_client, premium_data_fixture):
             "2023-01-10T16:00:00Z",
             "2023-01-10T17:00:00Z",
         ]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_list_public_rows_applies_view_sortings_within_each_day(
+    api_client, premium_data_fixture
+):
+    user, _ = premium_data_fixture.create_user_and_token()
+    table = premium_data_fixture.create_database_table(user=user)
+    text_field = premium_data_fixture.create_text_field(table=table, primary=True)
+    date_field = premium_data_fixture.create_date_field(
+        table=table, date_include_time=True
+    )
+    calendar_view = premium_data_fixture.create_calendar_view(
+        table=table,
+        user=user,
+        public=True,
+        date_field=date_field,
+    )
+    premium_data_fixture.create_calendar_view_field_option(
+        calendar_view, text_field, hidden=False
+    )
+    premium_data_fixture.create_view_sort(
+        view=calendar_view, field=text_field, order="DESC"
+    )
+
+    model = table.get_model()
+    row_jan_1_a = model.objects.create(
+        **{
+            f"field_{text_field.id}": "A",
+            f"field_{date_field.id}": datetime(2023, 1, 1, tzinfo=timezone.utc),
+        }
+    )
+    row_jan_1_c = model.objects.create(
+        **{
+            f"field_{text_field.id}": "C",
+            f"field_{date_field.id}": datetime(2023, 1, 1, tzinfo=timezone.utc),
+        }
+    )
+    row_jan_1_b = model.objects.create(
+        **{
+            f"field_{text_field.id}": "B",
+            f"field_{date_field.id}": datetime(2023, 1, 1, tzinfo=timezone.utc),
+        }
+    )
+
+    response = api_client.get(get_public_list_url(calendar_view.slug))
+    response_json = response.json()
+    assert response.status_code == HTTP_200_OK
+
+    jan_1_results = response_json["rows"]["2023-01-01"]["results"]
+    assert [r["id"] for r in jan_1_results] == [
+        row_jan_1_c.id,
+        row_jan_1_b.id,
+        row_jan_1_a.id,
+    ]
 
 
 @pytest.mark.django_db
