@@ -161,18 +161,15 @@ class AutomationHistoryHandler:
         self, node_history: AutomationNodeHistory
     ) -> AutomationNodeResult:
         """
-        Returns the first AutomationNodeResult for the given node history.
+        Returns the AutomationNodeResult for the given node history.
         """
 
-        node_result = (
-            AutomationNodeResult.objects.only("result")
-            .filter(node_history=node_history)
-            .first()
-        )
-        if node_result is None:
+        try:
+            return AutomationNodeResult.objects.only("result").get(
+                node_history=node_history
+            )
+        except AutomationNodeResult.DoesNotExist:
             raise AutomationWorkflowHistoryNodeResultDoesNotExist()
-
-        return node_result
 
     def get_child_node_histories(
         self,
