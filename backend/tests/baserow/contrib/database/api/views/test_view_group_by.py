@@ -714,7 +714,7 @@ def test_cant_delete_view_group_by_when_view_trashed(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_order_view_group_bys(api_client, data_fixture):
+def test_prioritize_view_group_bys(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     field_1 = data_fixture.create_text_field(table=table)
@@ -727,7 +727,7 @@ def test_order_view_group_bys(api_client, data_fixture):
     group_by_3 = data_fixture.create_view_group_by(view=view, field=field_3)
 
     response = api_client.post(
-        reverse("api:database:views:order_group_bys", kwargs={"view_id": view.id}),
+        reverse("api:database:views:prioritize_group_bys", kwargs={"view_id": view.id}),
         {"view_group_by_ids": [group_by_3.id, group_by_1.id, group_by_2.id]},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -748,7 +748,7 @@ def test_order_view_group_bys(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_order_view_group_bys_user_not_in_workspace(api_client, data_fixture):
+def test_prioritize_view_group_bys_user_not_in_workspace(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table()
     field = data_fixture.create_text_field(table=table)
@@ -756,7 +756,7 @@ def test_order_view_group_bys_user_not_in_workspace(api_client, data_fixture):
     group_by = data_fixture.create_view_group_by(view=view, field=field)
 
     response = api_client.post(
-        reverse("api:database:views:order_group_bys", kwargs={"view_id": view.id}),
+        reverse("api:database:views:prioritize_group_bys", kwargs={"view_id": view.id}),
         {"view_group_by_ids": [group_by.id]},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -766,11 +766,11 @@ def test_order_view_group_bys_user_not_in_workspace(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_order_view_group_bys_view_does_not_exist(api_client, data_fixture):
+def test_prioritize_view_group_bys_view_does_not_exist(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
 
     response = api_client.post(
-        reverse("api:database:views:order_group_bys", kwargs={"view_id": 99999}),
+        reverse("api:database:views:prioritize_group_bys", kwargs={"view_id": 99999}),
         {"view_group_by_ids": [1]},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -780,7 +780,7 @@ def test_order_view_group_bys_view_does_not_exist(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_order_view_group_bys_group_by_not_in_view(api_client, data_fixture):
+def test_prioritize_view_group_bys_group_by_not_in_view(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     field_1 = data_fixture.create_text_field(table=table)
@@ -791,7 +791,9 @@ def test_order_view_group_bys_group_by_not_in_view(api_client, data_fixture):
     )
 
     response = api_client.post(
-        reverse("api:database:views:order_group_bys", kwargs={"view_id": view_1.id}),
+        reverse(
+            "api:database:views:prioritize_group_bys", kwargs={"view_id": view_1.id}
+        ),
         {"view_group_by_ids": [group_by_in_other_view.id]},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -801,7 +803,7 @@ def test_order_view_group_bys_group_by_not_in_view(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_order_view_group_bys_partial_list(api_client, data_fixture):
+def test_prioritize_view_group_bys_partial_list(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     field_1 = data_fixture.create_text_field(table=table)
@@ -817,7 +819,7 @@ def test_order_view_group_bys_partial_list(api_client, data_fixture):
     # its original (first) position because it is not part of the payload —
     # consistent with OrderableMixin.order_objects semantics.
     response = api_client.post(
-        reverse("api:database:views:order_group_bys", kwargs={"view_id": view.id}),
+        reverse("api:database:views:prioritize_group_bys", kwargs={"view_id": view.id}),
         {"view_group_by_ids": [group_by_3.id, group_by_2.id]},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",

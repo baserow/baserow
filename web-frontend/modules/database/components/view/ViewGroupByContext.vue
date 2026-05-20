@@ -24,7 +24,7 @@
           :key="groupBy.id"
           v-sortable="{
             id: groupBy.id,
-            update: orderGroupBys,
+            update: prioritizeGroupBys,
             handle: '[data-group-by-handle]',
             enabled: !disableGroupBy,
             marginTop: -8,
@@ -222,16 +222,16 @@ export default {
         notifyIf(error, 'view')
       }
     },
-    async orderGroupBys(order, oldOrder) {
+    async prioritizeGroupBys(viewGroupByIds, oldViewGroupByIds) {
       if (this.disableGroupBy) {
         return
       }
 
       try {
-        await this.$store.dispatch('view/orderGroupBys', {
+        await this.$store.dispatch('view/prioritizeGroupBys', {
           view: this.view,
-          order,
-          oldOrder,
+          viewGroupByIds,
+          oldViewGroupByIds,
           readOnly: this.readOnly,
         })
         this.$emit('changed')

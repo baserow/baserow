@@ -523,17 +523,23 @@ export const registerRealtimeEvents = (realtime) => {
     }
   })
 
-  realtime.registerEvent('view_sortings_reordered', ({ store, app }, data) => {
-    const view = store.getters['view/get'](data.view_id)
-    if (view !== undefined) {
-      store.dispatch('view/forceOrderSortings', { view, order: data.order })
-      if (store.getters['view/getSelectedId'] === view.id) {
-        app.$bus.$emit('table-refresh', {
-          tableId: store.getters['table/getSelectedId'],
+  realtime.registerEvent(
+    'view_sortings_prioritized',
+    ({ store, app }, data) => {
+      const view = store.getters['view/get'](data.view_id)
+      if (view !== undefined) {
+        store.dispatch('view/forcePrioritizeSortings', {
+          view,
+          viewSortIds: data.view_sort_ids,
         })
+        if (store.getters['view/getSelectedId'] === view.id) {
+          app.$bus.$emit('table-refresh', {
+            tableId: store.getters['table/getSelectedId'],
+          })
+        }
       }
     }
-  })
+  )
 
   realtime.registerEvent('view_group_by_created', ({ store, app }, data) => {
     const view = store.getters['view/get'](data.view_group_by.view)
@@ -587,17 +593,23 @@ export const registerRealtimeEvents = (realtime) => {
     }
   })
 
-  realtime.registerEvent('view_group_bys_reordered', ({ store, app }, data) => {
-    const view = store.getters['view/get'](data.view_id)
-    if (view !== undefined) {
-      store.dispatch('view/forceOrderGroupBys', { view, order: data.order })
-      if (store.getters['view/getSelectedId'] === view.id) {
-        app.$bus.$emit('table-refresh', {
-          tableId: store.getters['table/getSelectedId'],
+  realtime.registerEvent(
+    'view_group_bys_prioritized',
+    ({ store, app }, data) => {
+      const view = store.getters['view/get'](data.view_id)
+      if (view !== undefined) {
+        store.dispatch('view/forcePrioritizeGroupBys', {
+          view,
+          viewGroupByIds: data.view_group_by_ids,
         })
+        if (store.getters['view/getSelectedId'] === view.id) {
+          app.$bus.$emit('table-refresh', {
+            tableId: store.getters['table/getSelectedId'],
+          })
+        }
       }
     }
-  })
+  )
 
   realtime.registerEvent('view_decoration_created', ({ store, app }, data) => {
     const view = store.getters['view/get'](data.view_decoration.view)

@@ -619,23 +619,23 @@ class OrderViewsSerializer(serializers.Serializer):
     )
 
 
-class OrderViewSortingsSerializer(serializers.Serializer):
+class PrioritizeViewSortingsSerializer(serializers.Serializer):
     view_sort_ids = serializers.ListField(
         child=serializers.IntegerField(),
         help_text=(
-            "View sort ids in the desired order. The sort with the lowest position "
-            "in the list is applied first."
+            "View sort ids in the desired priority order. The sort with the lowest "
+            "position in the list is applied first."
         ),
         min_length=1,
     )
 
 
-class OrderViewGroupBysSerializer(serializers.Serializer):
+class PrioritizeViewGroupBysSerializer(serializers.Serializer):
     view_group_by_ids = serializers.ListField(
         child=serializers.IntegerField(),
         help_text=(
-            "View group by ids in the desired order. The group by with the lowest "
-            "position in the list is applied first."
+            "View group by ids in the desired priority order. The group by with the "
+            "lowest position in the list is applied first."
         ),
         min_length=1,
     )

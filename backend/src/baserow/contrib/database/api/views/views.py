@@ -84,9 +84,9 @@ from baserow.contrib.database.views.actions import (
     DeleteViewGroupByActionType,
     DeleteViewSortActionType,
     DuplicateViewActionType,
-    OrderViewGroupBysActionType,
     OrderViewsActionType,
-    OrderViewSortsActionType,
+    PrioritizeViewGroupBysActionType,
+    PrioritizeViewSortsActionType,
     RotateViewSlugActionType,
     UpdateDecorationActionType,
     UpdateViewActionType,
@@ -184,9 +184,9 @@ from .serializers import (
     CreateViewSerializer,
     CreateViewSortSerializer,
     ListQueryParamatersSerializer,
-    OrderViewGroupBysSerializer,
-    OrderViewSortingsSerializer,
     OrderViewsSerializer,
+    PrioritizeViewGroupBysSerializer,
+    PrioritizeViewSortingsSerializer,
     PublicViewAuthRequestSerializer,
     PublicViewAuthResponseSerializer,
     UpdateViewDecorationSerializer,
@@ -1502,7 +1502,7 @@ class ViewDecorationView(APIView):
         return Response(status=204)
 
 
-class OrderViewSortingsView(APIView):
+class PrioritizeViewSortingsView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
@@ -1511,19 +1511,19 @@ class OrderViewSortingsView(APIView):
                 name="view_id",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
-                description="Updates the order of the sortings in the view related "
-                "to the provided value.",
+                description="Updates the priority of the sortings in the view "
+                "related to the provided value.",
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Database table view sortings"],
-        operation_id="order_database_table_view_sortings",
+        operation_id="prioritize_database_table_view_sortings",
         description=(
-            "Reorders the sorts to match the order of the given IDs. Sorts earlier in "
-            "the list are applied first."
+            "Updates the priority of the sorts to match the order of the given "
+            "IDs. Sorts earlier in the list are applied first."
         ),
-        request=OrderViewSortingsSerializer,
+        request=PrioritizeViewSortingsSerializer,
         responses={
             204: None,
             400: get_error_schema(
@@ -1532,7 +1532,7 @@ class OrderViewSortingsView(APIView):
             404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
         },
     )
-    @validate_body(OrderViewSortingsSerializer)
+    @validate_body(PrioritizeViewSortingsSerializer)
     @transaction.atomic
     @map_exceptions(
         {
@@ -1542,10 +1542,10 @@ class OrderViewSortingsView(APIView):
         }
     )
     def post(self, request, data, view_id):
-        """Updates the order of the sortings in a view."""
+        """Updates the priority of the sortings in a view."""
 
         view = ViewHandler().get_view(view_id)
-        action_type_registry.get_by_type(OrderViewSortsActionType).do(
+        action_type_registry.get_by_type(PrioritizeViewSortsActionType).do(
             request.user, view, data["view_sort_ids"]
         )
         return Response(status=204)
@@ -2238,7 +2238,7 @@ class PublicViewInfoView(APIView):
         )
 
 
-class OrderViewGroupBysView(APIView):
+class PrioritizeViewGroupBysView(APIView):
     permission_classes = (IsAuthenticated,)
 
     @extend_schema(
@@ -2247,20 +2247,20 @@ class OrderViewGroupBysView(APIView):
                 name="view_id",
                 location=OpenApiParameter.PATH,
                 type=OpenApiTypes.INT,
-                description="Updates the order of the group bys in the view related "
-                "to the provided value.",
+                description="Updates the priority of the group bys in the view "
+                "related to the provided value.",
             ),
             CLIENT_SESSION_ID_SCHEMA_PARAMETER,
             CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
         ],
         tags=["Database table view groupings"],
-        operation_id="order_database_table_view_group_bys",
+        operation_id="prioritize_database_table_view_group_bys",
         description=(
-            "Changes the order of the provided view group by ids to the matching "
+            "Updates the priority of the provided view group by ids to the matching "
             "position that the id has in the list. The group by with the lowest "
             "position in the list is applied first when ordering rows."
         ),
-        request=OrderViewGroupBysSerializer,
+        request=PrioritizeViewGroupBysSerializer,
         responses={
             204: None,
             400: get_error_schema(
@@ -2269,7 +2269,7 @@ class OrderViewGroupBysView(APIView):
             404: get_error_schema(["ERROR_VIEW_DOES_NOT_EXIST"]),
         },
     )
-    @validate_body(OrderViewGroupBysSerializer)
+    @validate_body(PrioritizeViewGroupBysSerializer)
     @transaction.atomic
     @map_exceptions(
         {
@@ -2279,10 +2279,10 @@ class OrderViewGroupBysView(APIView):
         }
     )
     def post(self, request, data, view_id):
-        """Updates the order of the group bys in a view."""
+        """Updates the priority of the group bys in a view."""
 
         view = ViewHandler().get_view(view_id)
-        action_type_registry.get_by_type(OrderViewGroupBysActionType).do(
+        action_type_registry.get_by_type(PrioritizeViewGroupBysActionType).do(
             request.user, view, data["view_group_by_ids"]
         )
         return Response(status=204)

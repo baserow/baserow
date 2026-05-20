@@ -23,7 +23,7 @@
           :key="sort.id"
           v-sortable="{
             id: sort.id,
-            update: orderSortings,
+            update: prioritizeSortings,
             handle: '[data-sort-handle]',
             enabled: !disableSort,
             marginTop: -8,
@@ -212,16 +212,16 @@ export default {
         notifyIf(error, 'view')
       }
     },
-    async orderSortings(order, oldOrder) {
+    async prioritizeSortings(viewSortIds, oldViewSortIds) {
       if (this.disableSort) {
         return
       }
 
       try {
-        await this.$store.dispatch('view/orderSortings', {
+        await this.$store.dispatch('view/prioritizeSortings', {
           view: this.view,
-          order,
-          oldOrder,
+          viewSortIds,
+          oldViewSortIds,
           readOnly: this.readOnly,
         })
         this.$emit('changed')

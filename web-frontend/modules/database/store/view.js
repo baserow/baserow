@@ -310,7 +310,7 @@ export const mutations = {
     view.sortings.push(sort)
     sortByPriority(view.sortings)
   },
-  ORDER_SORTS(state, { view, order }) {
+  PRIORITIZE_SORTS(state, { view, order }) {
     applyOrderToItems(view.sortings, order)
   },
   FINALIZE_SORT(state, { view, oldId, id, priority }) {
@@ -345,7 +345,7 @@ export const mutations = {
     view.group_bys.push(groupBy)
     sortByPriority(view.group_bys)
   },
-  ORDER_GROUP_BYS(state, { view, order }) {
+  PRIORITIZE_GROUP_BYS(state, { view, order }) {
     applyOrderToItems(view.group_bys, order)
   },
   FINALIZE_GROUP_BY(state, { view, oldId, id, priority }) {
@@ -1312,36 +1312,39 @@ export const actions = {
     commit('DELETE_SORT', { view, id: sort.id })
   },
   /**
-   * Updates the order of the sortings of a view. Optimistically applies the new
-   * order in the store and rolls back on API error.
+   * Updates the priority of the sortings of a view. Optimistically applies the
+   * new priority in the store and rolls back on API error.
    */
-  async orderSortings(
+  async prioritizeSortings(
     { dispatch },
-    { view, order, oldOrder, readOnly = false }
+    { view, viewSortIds, oldViewSortIds, readOnly = false }
   ) {
     const { $client } = this
-    dispatch('forceOrderSortings', { view, order })
+    dispatch('forcePrioritizeSortings', { view, viewSortIds })
 
     if (!readOnly) {
       await sortQueue.add(async () => {
-        const realOrder = view.sortings
+        const realViewSortIds = view.sortings
           .map((sort) => sort.id)
           .filter((id) => typeof id === 'number')
         try {
-          await SortService($client).order(view.id, realOrder)
+          await SortService($client).prioritize(view.id, realViewSortIds)
         } catch (error) {
-          dispatch('forceOrderSortings', { view, order: oldOrder })
+          dispatch('forcePrioritizeSortings', {
+            view,
+            viewSortIds: oldViewSortIds,
+          })
           throw error
         }
       }, view.id)
     }
   },
   /**
-   * Forcefully reorder the sortings of a view without making a request to the
-   * backend.
+   * Forcefully update the priority of the sortings of a view without making a
+   * request to the backend.
    */
-  forceOrderSortings({ commit }, { view, order }) {
-    commit('ORDER_SORTS', { view, order })
+  forcePrioritizeSortings({ commit }, { view, viewSortIds }) {
+    commit('PRIORITIZE_SORTS', { view, order: viewSortIds })
   },
   /**
    * When a field is deleted the related sortings are also automatically deleted in the
@@ -1486,36 +1489,39 @@ export const actions = {
     commit('DELETE_GROUP_BY', { view, id: groupBy.id })
   },
   /**
-   * Updates the order of the group bys of a view. Optimistically applies the new
-   * order in the store and rolls back on API error.
+   * Updates the priority of the group bys of a view. Optimistically applies
+   * the new priority in the store and rolls back on API error.
    */
-  async orderGroupBys(
+  async prioritizeGroupBys(
     { dispatch },
-    { view, order, oldOrder, readOnly = false }
+    { view, viewGroupByIds, oldViewGroupByIds, readOnly = false }
   ) {
     const { $client } = this
-    dispatch('forceOrderGroupBys', { view, order })
+    dispatch('forcePrioritizeGroupBys', { view, viewGroupByIds })
 
     if (!readOnly) {
       await groupByQueue.add(async () => {
-        const realOrder = view.group_bys
+        const realViewGroupByIds = view.group_bys
           .map((groupBy) => groupBy.id)
           .filter((id) => typeof id === 'number')
         try {
-          await GroupByService($client).order(view.id, realOrder)
+          await GroupByService($client).prioritize(view.id, realViewGroupByIds)
         } catch (error) {
-          dispatch('forceOrderGroupBys', { view, order: oldOrder })
+          dispatch('forcePrioritizeGroupBys', {
+            view,
+            viewGroupByIds: oldViewGroupByIds,
+          })
           throw error
         }
       }, view.id)
     }
   },
   /**
-   * Forcefully reorder the group bys of a view without making a request to the
-   * backend.
+   * Forcefully update the priority of the group bys of a view without making a
+   * request to the backend.
    */
-  forceOrderGroupBys({ commit }, { view, order }) {
-    commit('ORDER_GROUP_BYS', { view, order })
+  forcePrioritizeGroupBys({ commit }, { view, viewGroupByIds }) {
+    commit('PRIORITIZE_GROUP_BYS', { view, order: viewGroupByIds })
   },
   /**
    * When a field is deleted the related group bys are also automatically deleted in the

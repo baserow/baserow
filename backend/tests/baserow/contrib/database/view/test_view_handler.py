@@ -5284,8 +5284,8 @@ def test_export_import_default_values_for_all_field_types(data_fixture):
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.database.views.signals.view_sortings_reordered.send")
-def test_order_view_sortings(send_mock, data_fixture):
+@patch("baserow.contrib.database.views.signals.view_sortings_prioritized.send")
+def test_prioritize_view_sortings(send_mock, data_fixture):
     user = data_fixture.create_user()
     other_user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -5304,13 +5304,17 @@ def test_order_view_sortings(send_mock, data_fixture):
     handler = ViewHandler()
 
     with pytest.raises(UserNotInWorkspace):
-        handler.order_sortings(user=other_user, view=view, order=[sort_1.id])
+        handler.prioritize_sortings(
+            user=other_user, view=view, view_sort_ids=[sort_1.id]
+        )
 
     with pytest.raises(ViewSortNotInView):
-        handler.order_sortings(user=user, view=view, order=[foreign_sort.id])
+        handler.prioritize_sortings(
+            user=user, view=view, view_sort_ids=[foreign_sort.id]
+        )
 
-    full_order = handler.order_sortings(
-        user=user, view=view, order=[sort_3.id, sort_1.id, sort_2.id]
+    full_order = handler.prioritize_sortings(
+        user=user, view=view, view_sort_ids=[sort_3.id, sort_1.id, sort_2.id]
     )
     assert full_order == [sort_3.id, sort_1.id, sort_2.id]
 
@@ -5321,13 +5325,17 @@ def test_order_view_sortings(send_mock, data_fixture):
 
     send_mock.assert_called_once()
     assert send_mock.call_args[1]["view"].id == view.id
-    assert send_mock.call_args[1]["order"] == [sort_3.id, sort_1.id, sort_2.id]
+    assert send_mock.call_args[1]["view_sort_ids"] == [
+        sort_3.id,
+        sort_1.id,
+        sort_2.id,
+    ]
     assert send_mock.call_args[1]["user"].id == user.id
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.database.views.signals.view_group_bys_reordered.send")
-def test_order_view_group_bys(send_mock, data_fixture):
+@patch("baserow.contrib.database.views.signals.view_group_bys_prioritized.send")
+def test_prioritize_view_group_bys(send_mock, data_fixture):
     user = data_fixture.create_user()
     other_user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -5348,13 +5356,19 @@ def test_order_view_group_bys(send_mock, data_fixture):
     handler = ViewHandler()
 
     with pytest.raises(UserNotInWorkspace):
-        handler.order_group_bys(user=other_user, view=view, order=[group_by_1.id])
+        handler.prioritize_group_bys(
+            user=other_user, view=view, view_group_by_ids=[group_by_1.id]
+        )
 
     with pytest.raises(ViewGroupByNotInView):
-        handler.order_group_bys(user=user, view=view, order=[foreign_group_by.id])
+        handler.prioritize_group_bys(
+            user=user, view=view, view_group_by_ids=[foreign_group_by.id]
+        )
 
-    full_order = handler.order_group_bys(
-        user=user, view=view, order=[group_by_3.id, group_by_1.id, group_by_2.id]
+    full_order = handler.prioritize_group_bys(
+        user=user,
+        view=view,
+        view_group_by_ids=[group_by_3.id, group_by_1.id, group_by_2.id],
     )
     assert full_order == [group_by_3.id, group_by_1.id, group_by_2.id]
 
@@ -5365,7 +5379,7 @@ def test_order_view_group_bys(send_mock, data_fixture):
 
     send_mock.assert_called_once()
     assert send_mock.call_args[1]["view"].id == view.id
-    assert send_mock.call_args[1]["order"] == [
+    assert send_mock.call_args[1]["view_group_by_ids"] == [
         group_by_3.id,
         group_by_1.id,
         group_by_2.id,

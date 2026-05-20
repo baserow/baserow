@@ -600,7 +600,7 @@ def test_cant_delete_view_sort_when_view_trashed(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_order_view_sortings(api_client, data_fixture):
+def test_prioritize_view_sortings(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     field_1 = data_fixture.create_text_field(table=table)
@@ -613,7 +613,7 @@ def test_order_view_sortings(api_client, data_fixture):
     sort_3 = data_fixture.create_view_sort(view=view, field=field_3)
 
     response = api_client.post(
-        reverse("api:database:views:order_sortings", kwargs={"view_id": view.id}),
+        reverse("api:database:views:prioritize_sortings", kwargs={"view_id": view.id}),
         {"view_sort_ids": [sort_3.id, sort_1.id, sort_2.id]},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -634,7 +634,7 @@ def test_order_view_sortings(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_order_view_sortings_user_not_in_workspace(api_client, data_fixture):
+def test_prioritize_view_sortings_user_not_in_workspace(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table()
     field = data_fixture.create_text_field(table=table)
@@ -642,7 +642,7 @@ def test_order_view_sortings_user_not_in_workspace(api_client, data_fixture):
     sort = data_fixture.create_view_sort(view=view, field=field)
 
     response = api_client.post(
-        reverse("api:database:views:order_sortings", kwargs={"view_id": view.id}),
+        reverse("api:database:views:prioritize_sortings", kwargs={"view_id": view.id}),
         {"view_sort_ids": [sort.id]},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -652,11 +652,11 @@ def test_order_view_sortings_user_not_in_workspace(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_order_view_sortings_view_does_not_exist(api_client, data_fixture):
+def test_prioritize_view_sortings_view_does_not_exist(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
 
     response = api_client.post(
-        reverse("api:database:views:order_sortings", kwargs={"view_id": 99999}),
+        reverse("api:database:views:prioritize_sortings", kwargs={"view_id": 99999}),
         {"view_sort_ids": [1]},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -666,7 +666,7 @@ def test_order_view_sortings_view_does_not_exist(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_order_view_sortings_sort_not_in_view(api_client, data_fixture):
+def test_prioritize_view_sortings_sort_not_in_view(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     field_1 = data_fixture.create_text_field(table=table)
@@ -675,7 +675,9 @@ def test_order_view_sortings_sort_not_in_view(api_client, data_fixture):
     sort_in_other_view = data_fixture.create_view_sort(view=view_2, field=field_1)
 
     response = api_client.post(
-        reverse("api:database:views:order_sortings", kwargs={"view_id": view_1.id}),
+        reverse(
+            "api:database:views:prioritize_sortings", kwargs={"view_id": view_1.id}
+        ),
         {"view_sort_ids": [sort_in_other_view.id]},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
@@ -685,7 +687,7 @@ def test_order_view_sortings_sort_not_in_view(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_order_view_sortings_partial_list(api_client, data_fixture):
+def test_prioritize_view_sortings_partial_list(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     field_1 = data_fixture.create_text_field(table=table)
@@ -701,7 +703,7 @@ def test_order_view_sortings_partial_list(api_client, data_fixture):
     # original (first) position because it is not part of the payload —
     # consistent with OrderableMixin.order_objects semantics.
     response = api_client.post(
-        reverse("api:database:views:order_sortings", kwargs={"view_id": view.id}),
+        reverse("api:database:views:prioritize_sortings", kwargs={"view_id": view.id}),
         {"view_sort_ids": [sort_3.id, sort_2.id]},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",

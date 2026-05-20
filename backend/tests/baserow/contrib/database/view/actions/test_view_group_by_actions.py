@@ -4,7 +4,7 @@ from baserow.contrib.database.action.scopes import ViewActionScopeType
 from baserow.contrib.database.views.actions import (
     CreateViewGroupByActionType,
     DeleteViewGroupByActionType,
-    OrderViewGroupBysActionType,
+    PrioritizeViewGroupBysActionType,
     UpdateViewGroupByActionType,
 )
 from baserow.contrib.database.views.models import ViewGroupBy
@@ -309,7 +309,7 @@ def test_can_undo_redo_deleting_view_group_by_with_type(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
-def test_can_undo_redo_ordering_view_group_bys(data_fixture):
+def test_can_undo_redo_prioritizing_view_group_bys(data_fixture):
     session_id = "1010"
     user = data_fixture.create_user(session_id=session_id)
     table = data_fixture.create_database_table(user=user)
@@ -329,7 +329,7 @@ def test_can_undo_redo_ordering_view_group_bys(data_fixture):
     )
     new_order = [group_by_3.id, group_by_1.id, group_by_2.id]
 
-    action_type_registry.get_by_type(OrderViewGroupBysActionType).do(
+    action_type_registry.get_by_type(PrioritizeViewGroupBysActionType).do(
         user, grid_view, new_order
     )
 
