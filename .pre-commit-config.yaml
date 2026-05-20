@@ -15,6 +15,9 @@ repos:
         args: [--allow-multiple-documents]
         exclude: ^(web-frontend/\.nuxt/|web-frontend/dist/|web-frontend/\.output/|deploy/helm/|\.gitlab/)
       - id: check-added-large-files
+        # Built-in templates ship as multi-MB .zip fixtures; bump the limit so
+        # those are allowed while still flagging unexpectedly large additions.
+        args: [--maxkb=5000]
       - id: check-merge-conflict
 
   - repo: local
@@ -25,7 +28,6 @@ repos:
         language: system
         pass_filenames: false
         files: \.py$
-        require_serial: true
 
       - id: frontend-fix
         name: frontend lint & format (just f fix)
@@ -34,4 +36,3 @@ repos:
         pass_filenames: false
         files: \.(js|jsx|ts|tsx|vue|mjs|css|scss|json|md|html)$
         exclude: ^(web-frontend/\.nuxt/|web-frontend/dist/|web-frontend/\.output/)
-        require_serial: true

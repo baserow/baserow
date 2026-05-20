@@ -71,7 +71,6 @@ pre-commit-uninstall:
     @just b run pre-commit uninstall
 
 # Local development environment management
-
 [group('1 - local-dev')]
 [doc("Local dev: just dev <up|up -d|stop|logs|ps|wipe>")]
 dev *ARGS:

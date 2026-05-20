@@ -13,6 +13,7 @@ Use `just` from the repo root; it wraps the backend and frontend workflows consi
 - `just b test -n=auto` runs backend pytest suites in parallel.
 - `just f test` runs frontend Vitest suites.
 - `just lint` runs both backend and frontend linters; `just fix` applies auto-fixes.
+- `just b run pre-commit run --files $(git diff --name-only HEAD)` lints only the files you've touched on your branch (staged + unstaged); use `origin/develop...HEAD` instead of `HEAD` to scope to the whole branch. See `docs/development/code-quality.md` for details.
 - `just b migrate` runs Django migrations.
 
 For direct package-manager use, backend commands run through `uv` and frontend commands through `yarn`.

@@ -69,6 +69,25 @@ just b run pre-commit run --all-files
 just b run pre-commit run --files path/to/file1.py path/to/file2.js
 ```
 
+#### Tip: lint everything you've touched on this branch
+
+A normal `git commit` runs the hooks on **staged files only**, and `pre-commit run`
+with no arguments does the same. To lint every file you have changed relative to
+`HEAD` (staged *and* unstaged), pass the diff explicitly:
+
+```bash
+just b run pre-commit run --files $(git diff --name-only HEAD)
+```
+
+This is handy before opening a pull request: it scopes the run to your
+work-in-progress without re-linting the entire monorepo the way
+`--all-files` does. Swap `HEAD` for a base ref (for example `origin/develop`) to
+lint everything your branch changes:
+
+```bash
+just b run pre-commit run --files $(git diff --name-only origin/develop...HEAD)
+```
+
 See the [pre-commit documentation](https://pre-commit.com/#usage) for more advanced
 usage (skipping hooks for a commit, running a single hook, updating hook versions,
 etc.).
