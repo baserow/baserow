@@ -1943,6 +1943,37 @@
             :color-variables="colorVariables"
             :allow-opacity="false"
           />
+          <h3>Color contrast</h3>
+          <table class="style-guide__color-contrast-table">
+            <thead>
+              <tr>
+                <th>Preview</th>
+                <th>Initial color</th>
+                <th>Contrasted color</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="colorPair in contrastedColors" :key="colorPair.color">
+                <td>
+                  <div
+                    class="style-guide__color-contrast-preview"
+                    :style="{ backgroundColor: colorPair.color }"
+                  >
+                    <div
+                      class="style-guide__color-contrast-preview-inner"
+                      :style="{ backgroundColor: colorPair.contrastedColor }"
+                    ></div>
+                  </div>
+                </td>
+                <td>
+                  <code>{{ colorPair.color }}</code>
+                </td>
+                <td>
+                  <code>{{ colorPair.contrastedColor }}</code>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <div class="margin-bottom-3">
@@ -2034,7 +2065,7 @@ import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg?url'
 import ColorPickerContext from '@baserow/modules/core/components/ColorPickerContext.vue'
 import ColorPicker from '@baserow/modules/core/components/ColorPicker.vue'
 import Paginator from '@baserow/modules/core/components/Paginator.vue'
-import { resolveColor } from '@baserow/modules/core/utils/colors'
+import { colorContrast, resolveColor } from '@baserow/modules/core/utils/colors'
 
 export default {
   components: {
@@ -2063,6 +2094,13 @@ export default {
         { name: 'Primary', value: 'primary', color: '#985353ff' },
         { name: 'Secondary', value: 'secondary', color: '#545398ff' },
       ],
+      colorContrastSamples: [
+        '#000000ff',
+        '#2c3e50ff',
+        '#5498dbff',
+        '#985353ff',
+        '#ffffff',
+      ],
       radioOptions: [
         { value: 'a', label: 'Option A' },
         { value: 'b', label: 'Option B' },
@@ -2076,6 +2114,20 @@ export default {
         { value: 'c', icon: 'iconoir-align-right' },
       ],
     }
+  },
+  computed: {
+    contrastedColors() {
+      const resolvedPickerColor = resolveColor(this.color, this.colorVariables)
+      return [
+        resolvedPickerColor,
+        ...this.colorContrastSamples.filter(
+          (color) => color !== resolvedPickerColor
+        ),
+      ].map((color) => ({
+        color,
+        contrastedColor: colorContrast(color),
+      }))
+    },
   },
   head() {
     return {

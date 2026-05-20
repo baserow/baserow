@@ -125,6 +125,63 @@ export function convertHwbToHsv(hwb) {
   }
 }
 
+function linearizeRgbChannel(channel) {
+  return channel <= 0.04045
+    ? channel / 12.92
+    : Math.pow((channel + 0.055) / 1.055, 2.4)
+}
+
+function delinearizeRgbChannel(channel) {
+  return channel <= 0.0031308
+    ? 12.92 * channel
+    : 1.055 * Math.pow(channel, 1 / 2.4) - 0.055
+}
+
+function normalizeHue(hue) {
+  if (!Number.isFinite(hue)) {
+    return 0
+  }
+
+  return ((hue % 1) + 1) % 1
+}
+
+function clampRgbChannel(channel) {
+  return Math.max(0, Math.min(1, channel))
+}
+
+export function convertOklchToRgb(oklch) {
+  const hue = oklch.h * 2 * Math.PI
+  const a = oklch.c * Math.cos(hue)
+  const b = oklch.c * Math.sin(hue)
+
+  const lPrime = oklch.l + 0.3963377774 * a + 0.2158037573 * b
+  const mPrime = oklch.l - 0.1055613458 * a - 0.0638541728 * b
+  const sPrime = oklch.l - 0.0894841775 * a - 1.291485548 * b
+
+  const l = lPrime * lPrime * lPrime
+  const m = mPrime * mPrime * mPrime
+  const s = sPrime * sPrime * sPrime
+
+  return {
+    r: clampRgbChannel(
+      delinearizeRgbChannel(
+        4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s
+      )
+    ),
+    g: clampRgbChannel(
+      delinearizeRgbChannel(
+        -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s
+      )
+    ),
+    b: clampRgbChannel(
+      delinearizeRgbChannel(
+        -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s
+      )
+    ),
+    a: oklch.a,
+  }
+}
+
 export function convertRgbToHex(rgb) {
   const hexChannels = Object.values(rgb).map((channel) => {
     const int = channel * 255
@@ -153,6 +210,31 @@ export function convertRgbToHsl(rgb) {
     h: hwb.h,
     s,
     l,
+    a: rgb.a,
+  }
+}
+
+export function convertRgbToOklch(rgb) {
+  const r = linearizeRgbChannel(rgb.r)
+  const g = linearizeRgbChannel(rgb.g)
+  const b = linearizeRgbChannel(rgb.b)
+
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b)
+
+  const oklabL = 0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s
+  const oklabA = 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s
+  const oklabB = 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s
+  const c = Math.sqrt(oklabA * oklabA + oklabB * oklabB)
+
+  return {
+    l: oklabL,
+    c,
+    h:
+      c < 0.000001
+        ? 0
+        : normalizeHue(Math.atan2(oklabB, oklabA) / (2 * Math.PI)),
     a: rgb.a,
   }
 }
@@ -200,22 +282,37 @@ export const conversionsMap = {
     hsl: (hex) => chainConvert(hex, [convertHexToRgb, convertRgbToHsl]),
     hsv: (hex) =>
       chainConvert(hex, [convertHexToRgb, convertRgbToHwb, convertHwbToHsv]),
+    oklch: (hex) => chainConvert(hex, [convertHexToRgb, convertRgbToOklch]),
     rgb: convertHexToRgb,
   },
   hsl: {
     hex: (hsl) => chainConvert(hsl, [convertHslToRgb, convertRgbToHex]),
     hsv: convertHslToHsv,
+    oklch: (hsl) => chainConvert(hsl, [convertHslToRgb, convertRgbToOklch]),
     rgb: convertHslToRgb,
   },
   hsv: {
     hex: (hsv) => chainConvert(hsv, [convertHsvToRgb, convertRgbToHex]),
     hsl: convertHsvToHsl,
+    oklch: (hsv) => chainConvert(hsv, [convertHsvToRgb, convertRgbToOklch]),
     rgb: convertHsvToRgb,
+  },
+  oklch: {
+    hex: (oklch) => chainConvert(oklch, [convertOklchToRgb, convertRgbToHex]),
+    hsl: (oklch) => chainConvert(oklch, [convertOklchToRgb, convertRgbToHsl]),
+    hsv: (oklch) =>
+      chainConvert(oklch, [
+        convertOklchToRgb,
+        convertRgbToHwb,
+        convertHwbToHsv,
+      ]),
+    rgb: convertOklchToRgb,
   },
   rgb: {
     hex: convertRgbToHex,
     hsl: convertRgbToHsl,
     hsv: (rgb) => chainConvert(rgb, [convertRgbToHwb, convertHwbToHsv]),
+    oklch: convertRgbToOklch,
   },
 }
 
@@ -271,15 +368,17 @@ export const colorRecommendation = (hexColor) => {
  * @param {string} hexColor The hex string of the color.
  * @returns The contrasted color.
  */
-export const colorContrast = (hexColor, amount = 6) => {
-  // l is the luminance
-  const hsl = conversionsMap.hex.hsl(hexColor)
-  if (hsl.l > 0.5) {
-    hsl.l -= amount / 100
+export const colorContrast = (hexColor, amount = 5) => {
+  // l is the perceptual lightness.
+  const oklch = conversionsMap.hex.oklch(hexColor)
+  const delta = amount / 100
+  if (oklch.l > 0.5) {
+    oklch.l -= delta
   } else {
-    hsl.l += amount / 100
+    oklch.l = Math.max(oklch.l + delta, 0.15)
   }
-  return conversionsMap.hsl.hex(hsl)
+  oklch.l = Math.max(0, Math.min(1, oklch.l))
+  return conversionsMap.oklch.hex(oklch)
 }
 
 export const colorPalette = [

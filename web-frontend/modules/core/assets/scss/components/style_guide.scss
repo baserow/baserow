@@ -28,3 +28,29 @@
     vertical-align: top;
   }
 }
+
+.style-guide__color-contrast-table {
+  margin-top: 12px;
+  border-collapse: collapse;
+
+  th,
+  td {
+    padding: 8px 12px;
+    border: 1px solid $color-neutral-200;
+    text-align: left;
+  }
+}
+
+.style-guide__color-contrast-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border: 1px solid $color-neutral-200;
+}
+
+.style-guide__color-contrast-preview-inner {
+  width: 28px;
+  height: 28px;
+}
