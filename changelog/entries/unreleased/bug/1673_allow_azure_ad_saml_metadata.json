@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Allow Microsoft Entra ID/Azure AD SAML metadata to be imported without manually removing WS-Federation role descriptors",
+    "issue_origin": "github",
+    "issue_number": 1673,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-05-20"
+}

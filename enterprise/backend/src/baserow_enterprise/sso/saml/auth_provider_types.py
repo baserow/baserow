@@ -14,6 +14,7 @@ from baserow_enterprise.api.sso.saml.errors import (
     ERROR_SAML_PROVIDER_FOR_DOMAIN_ALREADY_EXISTS,
 )
 from baserow_enterprise.api.sso.saml.validators import (
+    normalize_saml_metadata,
     validate_saml_metadata,
     validate_unique_saml_domain,
 )
@@ -105,6 +106,14 @@ class SamlAuthProviderTypeMixin:
         Returns the login URL for this auth_provider. The login URL is used to initiate
         the Saml login process.
         """
+
+    def prepare_values(self, values: Dict[str, Any], user, instance=None):
+        prepared_values = super().prepare_values(values, user, instance=instance)
+        if "metadata" in prepared_values:
+            prepared_values["metadata"] = normalize_saml_metadata(
+                prepared_values["metadata"]
+            )
+        return prepared_values
 
 
 class SamlAuthProviderType(SamlAuthProviderTypeMixin, AuthProviderType):
