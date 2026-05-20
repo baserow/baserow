@@ -144,17 +144,17 @@ class ElementService:
         if reference_element is None:
             return
 
+        if reference_element.page_id != page.id:
+            raise ElementNotInSamePage(
+                f"The reference element {reference_element.id} doesn't exist"
+            )
+
         if (
             reference_element.get_type().is_container
             and position == GraphPointPosition.CHILD
         ):
             element_type.validate_place(
                 page, reference_element, place_in_container, position
-            )
-
-        if reference_element.page_id != page.id:
-            raise ElementNotInSamePage(
-                f"The reference element {reference_element.id} doesn't exist"
             )
 
         if position == "child" and not reference_element.get_type().is_container:
@@ -410,6 +410,9 @@ class ElementService:
         elements_created.send(
             self,
             elements=elements_and_workflow_actions_duplicated["elements"],
+            workflow_actions=elements_and_workflow_actions_duplicated[
+                "workflow_actions"
+            ],
             user=user,
             page=page,
         )
