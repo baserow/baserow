@@ -22,7 +22,7 @@
     @dragleave="onDragLeave"
     @drop="onDrop"
   >
-    <div v-if="isSelected" class="element-preview__tags">
+    <div v-if="isSelected" class="element-preview__tags" data-drag-ghost-hidden>
       <div class="element-preview__name-tag">
         {{ elementType.name }}
         <i v-if="!isVisible" class="iconoir-eye-off" />
@@ -35,6 +35,7 @@
       v-show="isSelected"
       v-if="canCreate"
       class="element-preview__insert element-preview__insert--top"
+      data-drag-ghost-hidden
       @click="showAddElementModal(DIRECTIONS.BEFORE)"
     />
     <ElementMenu
@@ -43,6 +44,7 @@
       :allowed-directions="allowedMoveDirections"
       :is-duplicating="isDuplicating"
       :has-parent="!!parentElement"
+      data-drag-ghost-hidden
       @delete="deleteElement"
       @move="onMove"
       @duplicate="duplicateElement"
@@ -61,6 +63,7 @@
       v-show="isSelected"
       v-if="canCreate"
       class="element-preview__insert element-preview__insert--bottom"
+      data-drag-ghost-hidden
       @click="showAddElementModal(DIRECTIONS.AFTER)"
     />
     <AddElementModal
@@ -130,7 +133,10 @@ export default {
       )
     })
     return {
-      ...useElementDraggable({ element: props.element }),
+      ...useElementDraggable({
+        element: props.element,
+        dragGhostHiddenAttribute: 'data-drag-ghost-hidden',
+      }),
       ...useDropElementTarget({
         parentElement,
         referenceElement: props.element,

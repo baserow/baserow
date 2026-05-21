@@ -15,7 +15,10 @@ const DRAG_IMAGE_SCALE = 0.6
  * @returns {{ isDraggable: Ref<boolean>, onDragHandleMouseDown: Function,
  *   onDragStart: Function, onDragEnd: Function }}
  */
-export function useElementDraggable({ element }) {
+export function useElementDraggable({
+  element,
+  dragGhostHiddenAttribute = null,
+}) {
   const dndContext = inject('dndContext')
 
   const isDraggable = ref(false)
@@ -37,14 +40,21 @@ export function useElementDraggable({ element }) {
 
     const clone = source.cloneNode(true)
     const container = document.createElement('div')
+    const elements = [clone]
 
-    clone
-      .querySelectorAll(
-        '.element-preview__insert, .element-preview__menu, .element-preview__tags'
-      )
-      .forEach((element) => {
+    // Hide all elements that have the dragGhostHiddenAttribute
+    while (elements.length > 0) {
+      const element = elements.pop()
+
+      if (
+        dragGhostHiddenAttribute &&
+        element.hasAttribute(dragGhostHiddenAttribute)
+      ) {
         element.style.display = 'none'
-      })
+      }
+
+      elements.push(...Array.from(element.children))
+    }
 
     Object.assign(container.style, {
       position: 'fixed',
