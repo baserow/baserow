@@ -114,8 +114,8 @@ $bg-color-contrast: var(--page-background-color-contrast, $palette-neutral-100);
   justify-content: var(--alignment);
 
   .element--read-only & {
-    pointer-events: none;
-    user-select: none;
+    pointer-events: auto;
+    user-select: auto;
   }
 }
 
@@ -142,6 +142,14 @@ $bg-color-contrast: var(--page-background-color-contrast, $palette-neutral-100);
 
   .element--read-only & {
     height: 100%;
+    pointer-events: auto;
+    user-select: auto;
+
+    .menu-element__menu-item-link,
+    .menu-element__menu-item-button {
+      pointer-events: none;
+      user-select: none;
+    }
   }
 }
 
