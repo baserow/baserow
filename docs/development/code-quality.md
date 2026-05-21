@@ -17,9 +17,9 @@ you can easily run the linters using [just](./justfile.md) commands.
 
 **Frontend (from project root or `web-frontend/` directory):**
 
-- `just f lint`: check JavaScript and SCSS files with ESLint, Stylelint, and
-  Prettier.
-- `just f fix`: auto-fix code style issues with the same tools.
+- `just f lint`: check the frontend trees with ESLint (JS/TS/Vue), Stylelint
+  (SCSS), and Prettier (also CSS/JSON/Markdown/HTML/YAML).
+- `just f fix`: auto-fix issues with the same tools.
 
 All of the above accept an optional list of file paths and restrict the run to
 just those files:
@@ -40,10 +40,11 @@ A few things to know when passing paths:
   `{premium,enterprise}/web-frontend/`) are silently skipped, as are files with
   extensions the tools don't handle. This lets you pipe in a mixed file list
   without filtering it yourself.
-- **With no arguments the recipe lints the entire monorepo.** This matters when
-  you scope to a diff with `$(...)` — if the diff is empty, the expansion
-  produces no arguments and you'll accidentally trigger a full-tree run. Guard
-  the call when scripting:
+- **With no arguments each recipe lints its full component tree** (`just b`
+  walks all backend trees, `just f` walks all frontend trees; running both
+  covers the monorepo). This matters when you scope to a diff with `$(...)`
+  — if the diff is empty, the expansion produces no arguments and you'll
+  accidentally trigger a full-tree run. Guard the call when scripting:
 
   ```bash
   # Scope to your branch's changes, skipping the run if nothing changed:

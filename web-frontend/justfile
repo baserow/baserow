@@ -87,7 +87,11 @@ install:
 #     "files: [premium/web-frontend/**/*]" path patterns can match correctly)
 #   - stylelint and prettier run from web-frontend/ so their .stylelintignore and
 #     .prettierignore files (which live there) get auto-discovered
-# Per-file results therefore stay identical to the no-args path.
+# Per-file results therefore match the no-args path, with one intentional
+# difference: eslint is invoked with `--no-warn-ignored` so that when
+# pre-commit (or a manual diff-driven invocation) passes a file that lives in
+# an eslint-ignored location, we don't emit a noisy warning per file. The
+# no-args path doesn't need this flag because it walks directories.
 [group('4 - code-quality')]
 [positional-arguments]
 lint *ARGS:
