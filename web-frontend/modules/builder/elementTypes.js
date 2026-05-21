@@ -2740,4 +2740,12 @@ export class MenuElementType extends ElementType {
   getDisplayName(element, applicationContext) {
     return this.name
   }
+
+  getDefaultValues(page, values) {
+    const superValues = super.getDefaultValues(page, values)
+    return {
+      ...superValues,
+      styles: { burger: { body_font_size: 25 } },
+    }
+  }
 }

@@ -113,8 +113,10 @@ $bg-color-contrast: var(--page-background-color-contrast, $palette-neutral-100);
   display: flex;
   justify-content: var(--alignment);
 
-  // Change icon size
-  --body-font-size: 2em;
+  .element--read-only & {
+    pointer-events: none;
+    user-select: none;
+  }
 }
 
 .menu-element__container--burger {

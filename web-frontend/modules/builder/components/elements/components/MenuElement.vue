@@ -7,7 +7,12 @@
     :style="{ '--alignment': menuAlignment }"
   >
     <template v-if="useCompactMenu">
-      <div class="menu-element__burger-menu">
+      <div
+        class="menu-element__burger-menu"
+        :style="{
+          ...getStyleOverride('burger'),
+        }"
+      >
         <ABIcon
           icon="iconoir-menu"
           :class="'menu-element__burger-menu-icon'"

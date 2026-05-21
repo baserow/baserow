@@ -62,10 +62,10 @@ class AuthFormElementType(ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name=["login_button", "input"],
-                theme_config_block_type_name=[
-                    ButtonThemeConfigBlockType.type,
-                    InputThemeConfigBlockType.type,
+                property_names=["login_button", "input"],
+                theme_config_block_type_names=[
+                    [ButtonThemeConfigBlockType.type],
+                    [InputThemeConfigBlockType.type],
                 ],
                 serializer_kwargs={"required": False},
             ),
@@ -211,8 +211,8 @@ class FileInputElementType(InputElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="input",
-                theme_config_block_type_name=[
+                property_names=["input"],
+                theme_config_block_type_names=[
                     [
                         InputThemeConfigBlockType.type,
                         TypographyThemeConfigBlockType.type,

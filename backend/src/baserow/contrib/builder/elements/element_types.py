@@ -269,8 +269,8 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="button",
-                theme_config_block_type_name=ButtonThemeConfigBlockType.type,
+                property_names=["button"],
+                theme_config_block_type_names=[[ButtonThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -334,14 +334,14 @@ class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name=["button", "table", "header_button"],
-                theme_config_block_type_name=[
-                    ButtonThemeConfigBlockType.type,
+                property_names=["button", "table", "header_button"],
+                theme_config_block_type_names=[
+                    [ButtonThemeConfigBlockType.type],
                     [
                         TableThemeConfigBlockType.type,
                         TypographyThemeConfigBlockType.type,
                     ],
-                    ButtonThemeConfigBlockType.type,
+                    [ButtonThemeConfigBlockType.type],
                 ],
                 serializer_kwargs={"required": False},
             ),
@@ -408,10 +408,10 @@ class RepeatElementType(
             **super().serializer_field_overrides,
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name=["button", "header_button"],
-                theme_config_block_type_name=[
-                    ButtonThemeConfigBlockType.type,
-                    ButtonThemeConfigBlockType.type,
+                property_names=["button", "header_button"],
+                theme_config_block_type_names=[
+                    [ButtonThemeConfigBlockType.type],
+                    [ButtonThemeConfigBlockType.type],
                 ],
                 serializer_kwargs={"required": False},
             ),
@@ -713,8 +713,8 @@ class HeadingElementType(ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="typography",
-                theme_config_block_type_name=TypographyThemeConfigBlockType.type,
+                property_names=["typography"],
+                theme_config_block_type_names=[[TypographyThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -782,8 +782,8 @@ class TextElementType(ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="typography",
-                theme_config_block_type_name=TypographyThemeConfigBlockType.type,
+                property_names=["typography"],
+                theme_config_block_type_names=[[TypographyThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -1069,10 +1069,10 @@ class LinkElementType(ElementType):
                 ),
                 "styles": DynamicConfigBlockSerializer(
                     required=False,
-                    property_name=["button", "link"],
-                    theme_config_block_type_name=[
-                        ButtonThemeConfigBlockType.type,
-                        LinkThemeConfigBlockType.type,
+                    property_names=["button", "link"],
+                    theme_config_block_type_names=[
+                        [ButtonThemeConfigBlockType.type],
+                        [LinkThemeConfigBlockType.type],
                     ],
                     serializer_kwargs={"required": False},
                 ),
@@ -1170,8 +1170,8 @@ class ImageElementType(ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="image",
-                theme_config_block_type_name=ImageThemeConfigBlockType.type,
+                property_names=["image"],
+                theme_config_block_type_names=[[ImageThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -1207,8 +1207,8 @@ class ImageElementType(ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="image",
-                theme_config_block_type_name=ImageThemeConfigBlockType.type,
+                property_names=["image"],
+                theme_config_block_type_names=[[ImageThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
                 request_serializer=True,
             ),
@@ -1478,8 +1478,8 @@ class InputTextElementType(InputElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="input",
-                theme_config_block_type_name=InputThemeConfigBlockType.type,
+                property_names=["input"],
+                theme_config_block_type_names=[[InputThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -1563,8 +1563,8 @@ class ButtonElementType(ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="button",
-                theme_config_block_type_name=ButtonThemeConfigBlockType.type,
+                property_names=["button"],
+                theme_config_block_type_names=[[ButtonThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -1617,8 +1617,8 @@ class CheckboxElementType(InputElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="input",
-                theme_config_block_type_name=InputThemeConfigBlockType.type,
+                property_names=["input"],
+                theme_config_block_type_names=[[InputThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -1764,8 +1764,8 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="input",
-                theme_config_block_type_name=InputThemeConfigBlockType.type,
+                property_names=["input"],
+                theme_config_block_type_names=[[InputThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -2208,15 +2208,20 @@ class MenuElementType(ElementType):
         from baserow.contrib.builder.theme.theme_config_block_types import (
             ButtonThemeConfigBlockType,
             LinkThemeConfigBlockType,
+            TypographyThemeConfigBlockType,
         )
 
         overrides = {
             **super().serializer_field_overrides,
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="menu",
-                theme_config_block_type_name=[
-                    [ButtonThemeConfigBlockType.type, LinkThemeConfigBlockType.type]
+                property_names=["menu", "burger"],
+                theme_config_block_type_names=[
+                    [
+                        ButtonThemeConfigBlockType.type,
+                        LinkThemeConfigBlockType.type,
+                    ],
+                    [TypographyThemeConfigBlockType.type],
                 ],
                 serializer_kwargs={"required": False},
             ),

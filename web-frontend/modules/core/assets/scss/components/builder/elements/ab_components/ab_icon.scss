@@ -1,16 +1,15 @@
 .ab-icon {
   font-size: calc(var(--body-font-size, 14px) + 2px);
   font-weight: var(--body-font-weight, 400);
-  color: var(--body-text-color, $black);
   margin: 2px;
+  color: color-mix(
+    in srgb,
+    var(--body-text-color) 50%,
+    var(--body-text-color-complement)
+  );
 
   &.ab-icon--button {
     cursor: pointer;
-    color: color-mix(
-      in srgb,
-      var(--body-text-color, $black),
-      var(--page-background-color, $color-neutral-500) 50%
-    );
 
     &:hover {
       color: var(--body-text-color, $black);

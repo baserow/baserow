@@ -5,7 +5,7 @@
       style-key="menu"
       :config-block-types="['button', 'link']"
       :theme="builder.theme"
-      :extra-args="{ noAlignment: true, noWidth: true }"
+      :extra-args="{ noAlignment: true, noWidth: true, onlyBody: true }"
     />
     <FormGroup
       :label="$t('orientations.label')"
@@ -31,6 +31,18 @@
       <HorizontalAlignmentsSelector v-model="values.alignment" />
     </FormGroup>
 
+    <CustomStyleButton
+      v-model="values.styles"
+      style-key="burger"
+      :config-block-types="['typography']"
+      :theme="builder.theme"
+      :extra-args="{
+        onlyBody: true,
+        noAlignment: true,
+        noFontSelector: true,
+        noFontWeight: true,
+      }"
+    />
     <FormGroup
       :label="$t('menuElementForm.variant')"
       small-label
