@@ -20,6 +20,17 @@ you can easily run the linters using [just](./justfile.md) commands.
 - `just f lint`: check JavaScript and SCSS files with ESLint and Stylelint.
 - `just f fix`: auto-fix code style issues.
 
+All of the above accept an optional list of repo-root-relative paths and will
+restrict the run to just those files (non-matching extensions are skipped):
+
+```bash
+just b fix backend/src/baserow/core/utils.py
+just f fix web-frontend/modules/core/jobTypes.js
+# Scope to your branch's changes:
+just b fix $(git diff --name-only origin/develop...HEAD)
+just f fix $(git diff --name-only origin/develop...HEAD)
+```
+
 ## Running tests
 
 There are also commands to easily run the tests.
@@ -73,7 +84,7 @@ just b run pre-commit run --files path/to/file1.py path/to/file2.js
 
 A normal `git commit` runs the hooks on **staged files only**, and `pre-commit run`
 with no arguments does the same. To lint every file you have changed relative to
-`HEAD` (staged *and* unstaged), pass the diff explicitly:
+`HEAD` (staged _and_ unstaged), pass the diff explicitly:
 
 ```bash
 just b run pre-commit run --files $(git diff --name-only HEAD)
@@ -86,6 +97,16 @@ lint everything your branch changes:
 
 ```bash
 just b run pre-commit run --files $(git diff --name-only origin/develop...HEAD)
+```
+
+If you only want to run the Ruff or ESLint/Stylelint/Prettier steps (and skip the
+ancillary pre-commit hooks like `check-yaml`), call the `just` recipes directly
+with the same file list — they accept a list of paths and route each file to the
+appropriate tool:
+
+```bash
+just b fix $(git diff --name-only origin/develop...HEAD)
+just f fix $(git diff --name-only origin/develop...HEAD)
 ```
 
 See the [pre-commit documentation](https://pre-commit.com/#usage) for more advanced

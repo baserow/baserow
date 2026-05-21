@@ -173,6 +173,9 @@ packages = ["src/baserow"]
 target-version = "py311"
 line-length = 88
 exclude = ["**/migrations/**", "**/generated/**"]
+# Apply `exclude` even when files are passed explicitly on the command line,
+# so per-file invocations (e.g. via pre-commit) skip migrations/generated code.
+force-exclude = true
 
 [tool.ruff.lint]
 select = [
