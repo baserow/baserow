@@ -524,7 +524,7 @@ class ServiceType(
 
         return property_name
 
-    def get_edges(self, service):
+    def get_edges(self, service: Service) -> Dict[str, Dict[str, str]]:
         return {"": {"label": ""}}
 
 

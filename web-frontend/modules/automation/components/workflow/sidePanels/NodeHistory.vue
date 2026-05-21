@@ -85,11 +85,12 @@
             <div class="node-history__nested-scroll">
               <div class="node-history__nested-scroll-inner">
                 <NodeHistory
-                  v-for="nodeHistory in group.histories"
-                  :key="nodeHistory.id"
-                  :node-id="nodeHistory.node"
-                  :node-histories="[nodeHistory]"
+                  v-for="nh in group.histories"
+                  :key="nh.id"
+                  :workflow-history-id="workflowHistoryId"
+                  :node-history="nh"
                   :child-node-histories-by-parent="childNodeHistoriesByParent"
+                  :error-descendant-node-ids="errorDescendantNodeIds"
                   :depth="depth + 1"
                 />
               </div>
@@ -174,6 +175,7 @@
         ref="nodeResultContextToggle"
         type="secondary"
         full-width
+        :loading="fetchingResult"
         icon="iconoir-code-brackets node-history__show-result-button-icon"
         @click="showNodeResultModal"
       >
@@ -184,31 +186,38 @@
     <SampleDataModal
       v-if="!hasChildren"
       ref="nodeResultModal"
-      :sample-data="nodeResultData"
+      :sample-data="resolvedSampleData"
       :title="nodeTypeLabel"
     />
   </div>
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
+import { useStore } from 'vuex'
 
 import SampleDataModal from '@baserow/modules/automation/components/sidebar/SampleDataModal'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const app = useNuxtApp()
+const store = useStore()
 
 const props = defineProps({
-  nodeId: {
+  workflowHistoryId: {
     type: Number,
     required: true,
   },
-  nodeHistories: {
-    type: Array,
-    default: () => [],
+  nodeHistory: {
+    type: Object,
+    required: true,
   },
   childNodeHistoriesByParent: {
     type: Object,
     default: () => ({}),
+  },
+  errorDescendantNodeIds: {
+    type: Set,
+    default: () => new Set(),
   },
   depth: {
     type: Number,
@@ -219,9 +228,11 @@ const props = defineProps({
 const nodeResultButtonContext = ref(null)
 const nodeResultButtonContextToggle = ref(null)
 const nodeResultModal = ref(null)
+const fetchingResult = ref(false)
+const resolvedSampleData = ref(null)
 
 const nodeType = computed(() => {
-  return app.$registry.get('node', props.nodeHistories[0].node_type)
+  return app.$registry.get('node', props.nodeHistory.node_type)
 })
 
 const nodeIconClass = computed(() => {
@@ -229,51 +240,27 @@ const nodeIconClass = computed(() => {
 })
 
 const nodeTypeLabel = computed(() => {
-  const nodeHistory = props.nodeHistories[0]
-  const baseLabel = nodeHistory.node_label || nodeType.value.name
-  const result = nodeHistory.result
-  if (result.edge) {
+  const baseLabel = props.nodeHistory.node_label || nodeType.value.name
+  if (props.nodeHistory.node_type === 'router') {
     // Show which branch was taken.
-    return `${baseLabel} (${result.edge?.label || app.$i18n.t('nodeType.defaultEdgeLabelFallback')})`
+    const edgeLabel =
+      props.nodeHistory.edge_label ||
+      app.$i18n.t('nodeType.defaultEdgeLabelFallback')
+    return `${baseLabel} (${edgeLabel})`
   }
   return baseLabel
 })
 
-const nodeResultData = computed(() => {
-  // Since the SampleDataModal is only shown for final nodes (not nodes with
-  // children), the history will only ever have just one result.
-  const result = props.nodeHistories[0].result
-
-  if (result?._error) {
-    return result._error
-  }
-  if (nodeType.value.serviceType.returnsList && result?.results) {
-    return result.results
-  }
-  return result
-})
-
-const hasDescendantError = (nodeId) => {
-  const children = props.childNodeHistoriesByParent[nodeId] || []
-  return children.some(
-    (child) => child.status === 'error' || hasDescendantError(child.node)
-  )
-}
-
 const iterationHasError = (group) => {
   return group.histories.some(
-    (h) => h.status === 'error' || hasDescendantError(h.node)
+    (h) => h.status === 'error' || props.errorDescendantNodeIds.has(h.node)
   )
 }
 
-const hasOwnError = computed(() =>
-  props.nodeHistories.some((nh) => nh.status === 'error')
-)
+const hasOwnError = computed(() => props.nodeHistory.status === 'error')
 
 const status = computed(() => {
-  if (props.nodeHistories.length === 0) return 'success'
-
-  const childError = hasDescendantError(props.nodeId)
+  const childError = props.errorDescendantNodeIds.has(props.nodeHistory.node)
   return hasOwnError.value || childError ? 'error' : 'success'
 })
 
@@ -283,16 +270,31 @@ const statusLabel = computed(() => {
     : app.$i18n.t('historySidePanel.statusErrorBadge')
 })
 
-const errorMessage = computed(() => {
-  const historyWithError = props.nodeHistories.find(
-    (nh) => nh.status === 'error'
-  )
-  return historyWithError.message
-})
+const errorMessage = computed(() => props.nodeHistory.message)
 
-const childNodeHistories = computed(
-  () => props.childNodeHistoriesByParent[props.nodeId] || []
-)
+/**
+ * Direct children of this node that belong to this node's iteration.
+ */
+const childNodeHistories = computed(() => {
+  const allChildHistories =
+    props.childNodeHistoriesByParent[props.nodeHistory.node]
+  if (!allChildHistories) return []
+
+  // This node's own iteration_path
+  const ownPath = props.nodeHistory.iteration_path
+
+  return allChildHistories.filter((child) => {
+    const childPath = child.iteration_path
+
+    const lastDotIndex = childPath.lastIndexOf('.')
+    // Strip the child's last segment (its own iteration index) to get the
+    // path of the iteration it belongs to. A child at depth 1 has no dot,
+    // so its parent's path is "".
+    const parentPath = lastDotIndex >= 0 ? childPath.slice(0, lastDotIndex) : ''
+    // Keep only the children that belong to this iteration of the parent.
+    return parentPath === ownPath
+  })
+})
 
 const hasChildren = computed(() => childNodeHistories.value.length > 0)
 
@@ -331,7 +333,25 @@ const openNodeResultButtonContext = () => {
   }
 }
 
-const showNodeResultModal = () => {
-  nodeResultModal.value.show()
+const showNodeResultModal = async () => {
+  fetchingResult.value = true
+  try {
+    const nodeHistoryId = props.nodeHistory.id
+    await store.dispatch('automationHistory/fetchNodeResult', {
+      nodeHistoryId,
+    })
+    let result = store.getters['automationHistory/getNodeResult'](nodeHistoryId)
+    if (result?._error) {
+      result = result._error
+    } else if (nodeType.value.serviceType.returnsList && result?.results) {
+      result = result.results
+    }
+    resolvedSampleData.value = result
+    nodeResultModal.value.show()
+  } catch (error) {
+    notifyIf(error)
+  } finally {
+    fetchingResult.value = false
+  }
 }
 </script>

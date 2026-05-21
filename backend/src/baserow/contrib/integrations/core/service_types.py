@@ -1216,7 +1216,7 @@ class CoreRouterServiceType(CoreServiceType):
 
         return super().get_sample_data(service, dispatch_context)
 
-    def get_edges(self, service):
+    def get_edges(self, service: Service) -> Dict[str, Dict[str, str]]:
         return {str(e.uid): {"label": e.label} for e in service.edges.all()} | {
             "": {"label": service.default_edge_label}
         }

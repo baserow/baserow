@@ -19,3 +19,15 @@ class AutomationWorkflowHistoryDoesNotExist(AutomationWorkflowHistoryError):
 
 class AutomationWorkflowHistoryNodeResultDoesNotExist(AutomationWorkflowHistoryError):
     """When the result entry doesn't exist for the given node/history."""
+
+
+class AutomationNodeHistoryDoesNotExist(AutomationWorkflowHistoryError):
+    """When the node history entry doesn't exist."""
+
+    def __init__(self, node_history_id=None, *args, **kwargs):
+        self.node_history_id = node_history_id
+        super().__init__(
+            f"The automation node history {node_history_id} does not exist.",
+            *args,
+            **kwargs,
+        )
