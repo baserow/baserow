@@ -556,5 +556,14 @@
     },
     "generalSettings": {
         "titleOverview": "Ogólne"
+    },
+    "choiceOptionSelector": {
+        "dataSource": "Źródło danych"
+    },
+    "repeatElementForm": {
+        "dataSource": "Źródło danych"
+    },
+    "dataSourceDropdown": {
+        "label": "Źródło danych"
     }
 }
