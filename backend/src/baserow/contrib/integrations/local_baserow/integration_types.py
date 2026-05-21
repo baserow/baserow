@@ -138,7 +138,7 @@ class LocalBaserowIntegrationType(IntegrationType):
                 instance
             )
         except Exception:
-            logger.warning(
+            logger.exception(
                 "Failed to compute context_data for integration %s; "
                 "returning empty databases list.",
                 instance.id,
