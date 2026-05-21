@@ -143,8 +143,8 @@ Run the narrowest relevant test command first.
 
 Examples:
 
-- `just b test backend/tests/baserow/core/test_core_handler.py`
-- `just b test backend/tests/baserow/api/groups/test_workspace_views.py`
+- `just b test baserow/core/test_core_handler.py`
+- `just b test baserow/api/groups/test_workspace_views.py`
 - `just b test premium/backend/tests/baserow_premium_tests/api/license/test_premium_license_views.py`
 - `just b test enterprise/backend/tests/baserow_enterprise_tests/teams/test_team_handler.py`
 

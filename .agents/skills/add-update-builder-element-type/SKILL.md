@@ -164,8 +164,8 @@ Frontend starting points:
 
 Useful validation commands:
 
-- `just b test backend/tests/baserow/contrib/builder/elements/test_element_types.py`
-- `just b test backend/tests/baserow/contrib/builder/api/elements/`
+- `just b test tests/baserow/contrib/builder/elements/test_element_types.py`
+- `just b test tests/baserow/contrib/builder/api/elements/`
 - `just b test enterprise/backend/tests/baserow_enterprise_tests/builder/elements/test_element_types.py`
 - `just f yarn test:core --run test/unit/builder/elementTypes.spec.js`
 - `just f yarn test:core --run test/unit/builder/components/elements/components/<Element>.spec.js`

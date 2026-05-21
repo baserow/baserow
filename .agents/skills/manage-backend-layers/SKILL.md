@@ -212,7 +212,7 @@ Run the narrowest relevant backend test first:
 - Do not duplicate mutation logic in views, actions, services, and handlers. Each layer should delegate down.
 - Do not register an undoable action without enough params to undo and redo deterministically.
 - Do not expose a model mutation through an API view without mapping its domain exceptions.
-- Do not add model fields without a migration.
+- Do not add model fields without a migration. Check with `just b manage makemigrations --check`.
 - Do not forget queryset scoping and `workspace` context in permission checks.
 - Do not rename persisted action types, operation types, or API routes casually.
 - Prefer the closest existing module pattern over a new abstraction.
