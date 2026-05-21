@@ -15,7 +15,7 @@ import { computed, ref, onUnmounted, inject, unref } from 'vue'
  */
 export function useElementDraggable({
   element,
-  dragGhostHiddenAttribute = null,
+  dragImageHiddenAttribute = null,
   dragImageScale = 0.6,
 }) {
   const dndContext = inject('dndContext')
@@ -41,13 +41,13 @@ export function useElementDraggable({
     const container = document.createElement('div')
     const elements = [clone]
 
-    // Hide all elements that have the dragGhostHiddenAttribute
+    // Hide all elements that have the dragImageHiddenAttribute.
     while (elements.length > 0) {
       const element = elements.pop()
 
       if (
-        dragGhostHiddenAttribute &&
-        element.hasAttribute(dragGhostHiddenAttribute)
+        dragImageHiddenAttribute &&
+        element.hasAttribute(dragImageHiddenAttribute)
       ) {
         element.style.display = 'none'
       }
