@@ -484,7 +484,7 @@ export const actions = {
 
     const sortedRows = clone(stack.results)
     sortedRows.push(row)
-    sortedRows.sort(getRowSortFunction($registry, [], fields))
+    sortedRows.sort(getRowSortFunction($registry, view.sortings, fields))
     const index = sortedRows.findIndex((r) => r.id === row.id)
     const isLast = index === sortedRows.length - 1
 

@@ -95,6 +95,50 @@ describe('Kanban view store', () => {
     expect(store.state.kanban.stacks['1'].results[2].id).toBe(11)
   })
 
+  test('createdNewRow respects view sortings when placing the new row', async () => {
+    // Stack '1' has 2 loaded rows out of 100. Rows are sorted by a number
+    // field (field_2) ascending. The new row's field_2 value (10) falls
+    // between the two loaded rows (5 and 15), so it must be inserted at
+    // index 1, not appended to the end.
+    const stacks = {
+      null: { count: 0, results: [] },
+      1: {
+        count: 100,
+        results: [
+          { id: 10, order: '1.00', field_1: { id: 1 }, field_2: 5 },
+          { id: 11, order: '2.00', field_1: { id: 1 }, field_2: 15 },
+        ],
+      },
+    }
+    const state = Object.assign(kanbanStore.state(), {
+      singleSelectFieldId: 1,
+      stacks,
+    })
+    store.replaceState({ ...store.state, kanban: state })
+
+    const fields = [{ id: 2, type: 'number', number_decimal_places: 0 }]
+    const sortedView = {
+      filters: [],
+      filters_disabled: false,
+      sortings: [{ field: 2, order: 'ASC', type: 'default' }],
+    }
+
+    // New row has order '3.00' (which would place it last without sortings),
+    // but field_2=10 which is between 5 and 15, so with sortings it must land
+    // at index 1.
+    await store.dispatch('kanban/createdNewRow', {
+      view: sortedView,
+      values: { id: 9, order: '3.00', field_1: { id: 1 }, field_2: 10 },
+      fields,
+    })
+
+    expect(store.state.kanban.stacks['1'].count).toBe(101)
+    expect(store.state.kanban.stacks['1'].results.length).toBe(3)
+    expect(store.state.kanban.stacks['1'].results[0].id).toBe(10)
+    expect(store.state.kanban.stacks['1'].results[1].id).toBe(9)
+    expect(store.state.kanban.stacks['1'].results[2].id).toBe(11)
+  })
+
   test('deletedExistingRow', async () => {
     const stacks = {}
     stacks.null = {
