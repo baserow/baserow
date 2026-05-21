@@ -1,7 +1,5 @@
 import { computed, ref, onUnmounted, inject, unref } from 'vue'
 
-const DRAG_IMAGE_SCALE = 0.6
-
 /**
  * Manages the drag-source behaviour of a builder element in the page preview.
  *
@@ -18,6 +16,7 @@ const DRAG_IMAGE_SCALE = 0.6
 export function useElementDraggable({
   element,
   dragGhostHiddenAttribute = null,
+  dragImageScale = 0.6,
 }) {
   const dndContext = inject('dndContext')
 
@@ -60,8 +59,8 @@ export function useElementDraggable({
       position: 'fixed',
       top: '0',
       left: '0',
-      width: `${rect.width * DRAG_IMAGE_SCALE}px`,
-      height: `${rect.height * DRAG_IMAGE_SCALE}px`,
+      width: `${rect.width * dragImageScale}px`,
+      height: `${rect.height * dragImageScale}px`,
       overflow: 'hidden',
       opacity: '0.01',
       pointerEvents: 'none',
@@ -71,7 +70,7 @@ export function useElementDraggable({
     Object.assign(clone.style, {
       width: `${rect.width}px`,
       height: `${rect.height}px`,
-      transform: `scale(${DRAG_IMAGE_SCALE})`,
+      transform: `scale(${dragImageScale})`,
       transformOrigin: 'top left',
     })
 
@@ -79,7 +78,7 @@ export function useElementDraggable({
     document.body.appendChild(container)
     dragImageContainer = container
 
-    return { element: container, scale: DRAG_IMAGE_SCALE }
+    return { element: container, scale: dragImageScale }
   }
 
   const isDragged = computed(() => {
