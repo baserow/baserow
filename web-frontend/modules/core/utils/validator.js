@@ -2,10 +2,7 @@ import _ from 'lodash'
 
 import { trueValues, falseValues } from '@baserow/modules/core/utils/constants'
 import moment from '@baserow/modules/core/moment'
-import {
-  DateOnly,
-  Timedelta,
-} from '@baserow/modules/core/utils/date'
+import { DateOnly, Timedelta } from '@baserow/modules/core/utils/date'
 import { parseDurationString } from '@baserow/modules/core/utils/duration'
 
 const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/

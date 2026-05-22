@@ -1,5 +1,8 @@
 import moment from '@baserow/modules/core/moment'
-export { Timedelta, parseDurationString } from '@baserow/modules/core/utils/duration'
+export {
+  Timedelta,
+  parseDurationString,
+} from '@baserow/modules/core/utils/duration'
 
 const SUPPORTED_MOMENT_TOKEN_RE =
   /YYYY|MMMM|dddd|MMM|ddd|SSS|YY|MM|DD|HH|hh|mm|ss|[MDHhmsAaT]/g

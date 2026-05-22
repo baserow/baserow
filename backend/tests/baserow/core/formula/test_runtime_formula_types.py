@@ -2540,6 +2540,16 @@ def test_runtime_number_format_validate_args_raises_human_readable_error_for_bad
         (["45 seconds"], timedelta(seconds=45)),
         (["1 year"], timedelta(days=365)),
         (["1 month"], timedelta(days=30)),
+        (["1:30"], timedelta(seconds=90)),
+        (["1:30:00"], timedelta(hours=1, minutes=30)),
+        (["11:12:13.14"], timedelta(hours=11, minutes=12, seconds=13.14)),
+        (["1d"], timedelta(days=1)),
+        (["5h"], timedelta(hours=5)),
+        (["1d 12h"], timedelta(days=1, hours=12)),
+        (["1d 2h 3m"], timedelta(days=1, hours=2, minutes=3)),
+        (["12.5"], timedelta(seconds=12.5)),
+        (["0 days"], timedelta(0)),
+        (["-1:30"], timedelta(seconds=-90)),
     ],
 )
 def test_runtime_duration_execute(args, expected):
