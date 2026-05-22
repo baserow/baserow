@@ -4,8 +4,8 @@ import { computed, ref, onUnmounted, inject, unref } from 'vue'
  * Manages the drag-source behaviour of a builder element in the page preview.
  *
  * Responsibilities:
- *  - Activate the HTML5 draggable attribute only while the drag handle is held
- *    down
+ *  - Activate the HTML5 draggable attribute only while the drag handle or the
+ *    preview source is held down
  *  - Write / clear the shared dndContext when a drag starts or ends.
  *  - Clean up the mouseup listener automatically when the component unmounts.
  *
@@ -22,10 +22,6 @@ export function useElementDraggable({
 
   const isDraggable = ref(false)
   let dragImageContainer = null
-
-  function resetDraggable() {
-    isDraggable.value = false
-  }
 
   function removeDragImage() {
     if (dragImageContainer?.parentNode) {
@@ -81,13 +77,37 @@ export function useElementDraggable({
     return { element: container, scale: dragImageScale }
   }
 
+  function resetDraggable() {
+    isDraggable.value = false
+  }
+
+  function enableDraggableUntilMouseUp() {
+    isDraggable.value = true
+    window.addEventListener('mouseup', resetDraggable, { once: true })
+  }
+
+  function shouldStartDragFromSource(event) {
+    if (!dragImageHiddenAttribute) {
+      return true
+    }
+
+    // Check if the target or any of its ancestors has the dragImageHiddenAttribute
+    const ignored = event.target.closest(`[${dragImageHiddenAttribute}]`)
+    return !ignored || !event.currentTarget.contains(ignored)
+  }
+
   const isDragged = computed(() => {
     return dndContext.draggedElement?.id === unref(element).id
   })
 
+  function onDragSourceMouseDown(event) {
+    if (shouldStartDragFromSource(event)) {
+      enableDraggableUntilMouseUp()
+    }
+  }
+
   function onDragHandleMouseDown() {
-    isDraggable.value = true
-    window.addEventListener('mouseup', resetDraggable, { once: true })
+    enableDraggableUntilMouseUp()
   }
 
   function onDragStart(event) {
@@ -122,6 +142,7 @@ export function useElementDraggable({
   return {
     isDraggable,
     isDragged,
+    onDragSourceMouseDown,
     onDragHandleMouseDown,
     onDragStart,
     onDragEnd,

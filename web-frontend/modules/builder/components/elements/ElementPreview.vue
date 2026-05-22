@@ -15,6 +15,7 @@
     }"
     :draggable="isDraggable"
     @click="onSelect"
+    @mousedown="canUpdate && onDragSourceMouseDown($event)"
     @dragstart.stop="onDragStart"
     @dragend="onDragEnd"
     @dragenter="onDragEnter"
