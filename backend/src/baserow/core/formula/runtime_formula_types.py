@@ -720,8 +720,8 @@ class RuntimeNumberFormat(RuntimeFormulaFunction):
         return result
 
 
-class RuntimeDuration(RuntimeFormulaFunction):
-    type = "duration"
+class RuntimeToDuration(RuntimeFormulaFunction):
+    type = "to_duration"
 
     args = [DurationBaserowRuntimeFormulaArgumentType()]
 

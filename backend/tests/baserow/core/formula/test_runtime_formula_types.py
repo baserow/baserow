@@ -18,7 +18,6 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeDateTimeFormat,
     RuntimeDay,
     RuntimeDivide,
-    RuntimeDuration,
     RuntimeEqual,
     RuntimeGenerateUUID,
     RuntimeGet,
@@ -57,6 +56,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeToArray,
     RuntimeToDatetime,
     RuntimeToday,
+    RuntimeToDuration,
     RuntimeUpper,
     RuntimeYear,
 )
@@ -2552,9 +2552,9 @@ def test_runtime_number_format_validate_args_raises_human_readable_error_for_bad
         (["-1:30"], timedelta(seconds=-90)),
     ],
 )
-def test_runtime_duration_execute(args, expected):
-    parsed_args = RuntimeDuration().parse_args(args)
-    result = RuntimeDuration().execute({}, parsed_args)
+def test_runtime_to_duration_execute(args, expected):
+    parsed_args = RuntimeToDuration().parse_args(args)
+    result = RuntimeToDuration().execute({}, parsed_args)
     assert result == expected
 
 
@@ -2571,8 +2571,8 @@ def test_runtime_duration_execute(args, expected):
         ([None], [(0, None)]),
     ],
 )
-def test_runtime_duration_validate_type_of_args(args, expected):
-    result = RuntimeDuration().validate_type_of_args(args)
+def test_runtime_to_duration_validate_type_of_args(args, expected):
+    result = RuntimeToDuration().validate_type_of_args(args)
     assert result == expected
 
 
@@ -2584,8 +2584,8 @@ def test_runtime_duration_validate_type_of_args(args, expected):
         (["1 day", "extra"], False),
     ],
 )
-def test_runtime_duration_validate_number_of_args(args, expected):
-    result = RuntimeDuration().validate_number_of_args(args)
+def test_runtime_to_duration_validate_number_of_args(args, expected):
+    result = RuntimeToDuration().validate_number_of_args(args)
     assert result is expected
 
 

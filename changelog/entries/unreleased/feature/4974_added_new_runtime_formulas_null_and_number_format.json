@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Added new runtime formulas: number_format(), abs(), null(), duration(), and to_datetime().",
+    "message": "Added new runtime formulas: number_format(), abs(), null(), to_duration(), and to_datetime().",
     "issue_origin": "github",
     "issue_number": 4974,
     "domain": "core",

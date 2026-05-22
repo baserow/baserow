@@ -4,7 +4,7 @@ import {
   RuntimeAnd,
   RuntimeCapitalize,
   RuntimeConcat,
-  RuntimeDuration,
+  RuntimeToDuration,
   RuntimeDateTimeFormat,
   RuntimeDay,
   RuntimeDivide,
@@ -2062,7 +2062,7 @@ describe('RuntimeNumberFormat', () => {
   })
 })
 
-describe('RuntimeDuration', () => {
+describe('RuntimeToDuration', () => {
   test.each([
     { args: ['1 day'], expected: new Timedelta(86400000) },
     { args: ['2 days'], expected: new Timedelta(2 * 86400000) },
@@ -2073,7 +2073,7 @@ describe('RuntimeDuration', () => {
     { args: ['1 year'], expected: new Timedelta(365 * 86400000) },
     { args: ['1 month'], expected: new Timedelta(30 * 86400000) },
   ])('execute returns expected value', ({ args, expected }) => {
-    const formulaType = new RuntimeDuration()
+    const formulaType = new RuntimeToDuration()
     const parsedArgs = formulaType.parseArgs(args)
     const result = formulaType.execute({}, parsedArgs)
     expect(result).toStrictEqual(expected)
@@ -2089,7 +2089,7 @@ describe('RuntimeDuration', () => {
     { args: [1], expected: [] },
     { args: [null], expected: [[0, null]] },
   ])('validates type of args', ({ args, expected }) => {
-    const formulaType = new RuntimeDuration()
+    const formulaType = new RuntimeToDuration()
     const result = formulaType.validateTypeOfArgs(args)
     expect(result).toStrictEqual(expected)
   })
@@ -2099,7 +2099,7 @@ describe('RuntimeDuration', () => {
     { args: ['1 day'], expected: true },
     { args: ['1 day', 'extra'], expected: false },
   ])('validates number of args', ({ args, expected }) => {
-    const formulaType = new RuntimeDuration()
+    const formulaType = new RuntimeToDuration()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toBe(expected)
   })

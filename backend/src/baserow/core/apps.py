@@ -47,7 +47,6 @@ class CoreConfig(AppConfig):
             RuntimeDateTimeFormat,
             RuntimeDay,
             RuntimeDivide,
-            RuntimeDuration,
             RuntimeEqual,
             RuntimeGenerateUUID,
             RuntimeGet,
@@ -86,6 +85,7 @@ class CoreConfig(AppConfig):
             RuntimeToArray,
             RuntimeToDatetime,
             RuntimeToday,
+            RuntimeToDuration,
             RuntimeUpper,
             RuntimeYear,
         )
@@ -140,7 +140,7 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeToArray())
         formula_runtime_function_registry.register(RuntimeNull())
         formula_runtime_function_registry.register(RuntimeNumberFormat())
-        formula_runtime_function_registry.register(RuntimeDuration())
+        formula_runtime_function_registry.register(RuntimeToDuration())
         formula_runtime_function_registry.register(RuntimeToDatetime())
 
         from baserow.core.permission_manager import (

@@ -700,7 +700,7 @@
     "nullDescription": "Returns null, which can be used as a value or for comparison",
     "numberFormatDescription": "Formats a number as a string with configurable decimal places, thousand separator, and decimal separator.",
     "toDatetimeDescription": "Parses a string into a datetime object. An optional second argument specifies the format (e.g. 'DD/MM/YYYY'). If omitted, ISO 8601 format is assumed.",
-    "durationDescription": "Returns the duration corresponding to the provided argument.",
+    "toDurationDescription": "Returns the duration corresponding to the provided argument.",
     "formulaTypeFormula": "Function | Functions",
     "formulaTypeOperator": "Operator | Operators",
     "formulaTypeData": "Data",

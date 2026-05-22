@@ -2811,9 +2811,9 @@ export class RuntimeToDatetime extends RuntimeFormulaFunction {
   }
 }
 
-export class RuntimeDuration extends RuntimeFormulaFunction {
+export class RuntimeToDuration extends RuntimeFormulaFunction {
   static getType() {
-    return 'duration'
+    return 'to_duration'
   }
 
   static getFormulaType() {
@@ -2834,17 +2834,17 @@ export class RuntimeDuration extends RuntimeFormulaFunction {
 
   getDescription() {
     const { $i18n: i18n } = this.app
-    return i18n.t('runtimeFormulaTypes.durationDescription')
+    return i18n.t('runtimeFormulaTypes.toDurationDescription')
   }
 
   getExamples() {
     return [
       {
-        formula: "duration('1 day')",
+        formula: "to_duration('1 day')",
         result: '86400 seconds',
       },
       {
-        formula: "now() + duration('1 day')",
+        formula: "now() + to_duration('1 day')",
         result: "'2025-10-17 11:05:38'",
       },
     ]
