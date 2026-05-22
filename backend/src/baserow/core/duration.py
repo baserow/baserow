@@ -1,5 +1,4 @@
 import re
-import typing
 from datetime import timedelta
 from typing import List, Optional, Union
 
@@ -38,10 +37,6 @@ DURATION_PATTERNS = [
     (re.compile(r"^(\d+)\s+minutes?$", re.IGNORECASE), "minutes", 1),
     (re.compile(r"^(\d+)\s+seconds?$", re.IGNORECASE), "seconds", 1),
 ]
-
-
-if typing.TYPE_CHECKING:
-    from baserow.contrib.database.fields.models import DurationField
 
 
 def total_secs(
@@ -682,59 +677,57 @@ def is_duration_format_conversion_lossy(new_format, old_format):
     return ordered_tokens.index(old_lst) > ordered_tokens.index(new_lst)
 
 
-def get_duration_search_expression(field) -> Func:
+def get_duration_search_expression(duration_format: str, db_column: str) -> Func:
     """
     Returns a search expression that can be used to search the field as a formatted
     string.
 
-    :param field: The field to get the search expression for.
+    :param duration_format: The duration format to build the expression for.
+    :param db_column: The database column name to extract values from.
     :return: A search expression that can be used to search the field as a formatted
         string.
     """
 
     search_exprs = []
-    for token in tokenize_formatted_duration(field.duration_format):
+    for token in tokenize_formatted_duration(duration_format):
         search_exp_functions = DURATION_FORMAT_TOKENS[token]["search_expr"]
         search_expr_func = search_exp_functions.get(
-            field.duration_format, search_exp_functions["default"]
+            duration_format, search_exp_functions["default"]
         )
-        search_exprs.append(search_expr_func(field.db_column))
+        search_exprs.append(search_expr_func(db_column))
     separators = [Value(" ")] * len(search_exprs)
     # interleave a separator between each extract_expr
     exprs = [expr for pair in zip(search_exprs, separators) for expr in pair][:-1]
     return Func(*exprs, function="CONCAT")
 
 
-def duration_value_sql_to_text(field: "DurationField") -> str:
+def duration_value_sql_to_text(duration_format: str) -> str:
     """
     Returns a SQL expression that can be used to convert the duration value to a
     formatted string.
 
-    :param field: The field to get the SQL expression for.
+    :param duration_format: The duration format to convert to.
     :return: A string containing the SQL expression that can be used to convert the
         duration value to a formatted string.
     """
 
-    field_format = field.duration_format
-    conversion_format = DURATION_FORMATS[field_format]["sql_interval_to_text_format"]
-    ms_precision = DURATION_FORMATS[field_format]["ms_precision"]
+    conversion_format = DURATION_FORMATS[duration_format]["sql_interval_to_text_format"]
+    ms_precision = DURATION_FORMATS[duration_format]["ms_precision"]
     format_func = f"br_interval_to_text(p_in::interval, '{conversion_format}'::text, {ms_precision or 'NULL'})"
     return format_func
 
 
-def text_value_sql_to_duration(field: "DurationField") -> str:
+def text_value_sql_to_duration(duration_format: str) -> str:
     """
     Returns a SQL expression that can be used to convert a text value to duration value.
 
     Note: text value should conform duration format's patterns to be properly extracted.
 
-    :param field: target DurationField
+    :param duration_format: The duration format used to parse the text value.
     :return: SQL expression string
     """
 
-    db_function_args = DURATION_FORMATS[field.duration_format][
-        "sql_text_to_interval_format"
-    ]
+    db_function_args = DURATION_FORMATS[duration_format]["sql_text_to_interval_format"]
     args = [f"'{arg or 'NULL'}'" for arg in db_function_args]
     return f"br_text_to_interval(p_in, {','.join(args)});"
 

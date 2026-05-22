@@ -479,7 +479,7 @@ def test_convert_duration_field_to_text_to_duration_field(
         dest_value,
         updated_value,
         formatted,
-        text_value_sql_to_duration(updated_field),
+        text_value_sql_to_duration(updated_field.duration_format),
     )
 
 

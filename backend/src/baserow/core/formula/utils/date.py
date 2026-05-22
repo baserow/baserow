@@ -35,6 +35,7 @@ RE_VALID_FORMAT = re.compile(
     "|".join(sorted(MOMENT_FORMAT_MAP.keys(), key=len, reverse=True)) + "|T"
 )
 
+
 def is_valid_datetime_format(value: str) -> bool:
     """Return True if the string contains only supported Moment.js format tokens."""
 
