@@ -72,7 +72,7 @@ A quick summary of its features are:
   production deployments of this image, so you can easily connect to the Postgres
   database from any other services or processes you might have.
 * Set `REDIS_URL` or the `REDIS_...` variables to disable the internal redis and instead
-  connect to an external Postgres.
+  connect to an external Redis.
 * Runs all services behind a pre-configured Caddy reverse proxy. Set
   `BASEROW_CADDY_ADDRESSES` to `https://YOUR_DOMAIN.com` and it will
   [automatically enable https](https://caddyserver.com/docs/automatic-https#overview)
