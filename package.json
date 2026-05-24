@@ -1,0 +1,5 @@
+{
+  "devDependencies": {
+    "vitest": "^4.1.7"
+  }
+}

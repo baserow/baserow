@@ -269,3 +269,17 @@ export function collatedStringCompare(stringA, stringB, order) {
 export const reverseString = (value) => {
   return [...value].reverse().join('')
 }
+
+
+export function truncateText(text, maxLength) {
+if (!text || typeof text !== 'string') {
+return ''
+}
+if (maxLength <= 0) {
+return ''
+}
+if (text.length <= maxLength) {
+return text
+}
+return text.substring(0, maxLength) + '...'
+}
