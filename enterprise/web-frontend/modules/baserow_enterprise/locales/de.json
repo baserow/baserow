@@ -1,24 +1,35 @@
 {
-    "enterprise": {
-        "license": "Enterprise",
-        "overflowWarning": "Sie haben zu viele Nicht-Beobachter-Benutzer und haben alle Ihre bezahlten Plätze aufgebraucht. Ändern Sie die Benutzer auf der Mitgliederseite jeder Arbeitsbereich, damit sie zu Beobachtern werden.",
-        "rbac": "RBAC",
-        "sidebarTooltip": "Ihr Konto hat Zugriff auf die Enterprise-Funktionen",
-        "deactivated": "Verfügbar in der Advanced/Enterprise-Version",
-        "sso": "SSO",
-        "licenseDescription": "Betrachter sind bei Baserow Enterprise kostenlos. Wenn ein Benutzer eine andere Rolle in einer Arbeitsbereich hat, wird er automatisch einen kostenpflichtigen Platz verwenden."
-    },
     "clientHandler": {
         "cannotDisableAllAuthProvidersTitle": "Zuletzt aktivierter Anbieter",
         "cannotDisableAllAuthProvidersDescription": "Es ist nicht möglich, den zuletzt aktivierten Anbieter zu deaktivieren oder zu löschen."
     },
+    "advanced": {
+        "license": "Advanced"
+    },
+    "enterprise": {
+        "license": "Enterprise",
+        "sidebarTooltip": "Ihr Konto hat global Zugriff auf die Enterprise-Funktionen",
+        "rbac": "RBAC",
+        "sso": "SSO",
+        "licenseDescription": "Betrachter sind bei Baserow Enterprise kostenlos. Wenn ein Benutzer eine andere Rolle in irgendeinem Arbeitsbereich hat, wird automatisch ein kostenpflichtiger Platz verwendet.",
+        "overflowWarning": "Sie haben zu viele Nicht-Betrachter-Benutzer und haben alle Ihre kostenpflichtigen Plätze aufgebraucht. Ändern Sie die Benutzer auf der Mitgliederseite jedes Arbeitsbereichs zu Betrachtern.",
+        "deactivated": "Verfügbar in der Advanced/Enterprise-Version"
+    },
     "trashType": {
         "team": "Team"
     },
-    "updateTeamModal": {
+    "createTeamModal": {
+        "title": "Team erstellen",
         "invalidNameTitle": "Bitte verwenden Sie einen anderen Namen",
-        "invalidNameMessage": "Dieser Teamname wird bereits in der angegebenen Arbeitsbereich verwendet.",
-        "title": "{teamName} aktualisieren"
+        "invalidNameMessage": "Dieser Teamname wird bereits in dem angegebenen Arbeitsbereich verwendet."
+    },
+    "updateTeamModal": {
+        "title": "{teamName} aktualisieren",
+        "invalidNameTitle": "Bitte verwenden Sie einen anderen Namen",
+        "invalidNameMessage": "Dieser Teamname wird bereits in dem angegebenen Arbeitsbereich verwendet."
+    },
+    "manageTeamModals": {
+        "subheading": "Mit Teams können Sie Berechtigungen mehreren Personen gleichzeitig erteilen oder einschränken."
     },
     "manageTeamForm": {
         "submit": "Speichern",
@@ -29,14 +40,18 @@
         "noSubjectsSelected": "Klicken Sie auf '{buttonLabel}', um optional Teambenutzer hinzuzufügen.",
         "roleHelpText": "Benutzerspezifische Rollen haben immer Vorrang vor Teamrollen."
     },
+    "editTeamContext": {
+        "edit": "Team bearbeiten",
+        "remove": "Team löschen"
+    },
     "teamsTable": {
+        "title": "{teamCount} Teams in {workspaceName}",
         "createNew": "Team erstellen",
         "nameColumn": "Name",
         "createdColumn": "Erstellt am",
         "subjectsColumn": "Mitglieder",
         "roleColumn": "Standard-Rolle",
-        "roleHelpText": "Kann mit Rollen für Datenbanken und Tabellen überschrieben werden.",
-        "title": "{teamCount} Teams in {workspaceName}"
+        "roleHelpText": "Kann durch Rollen für Datenbanken und Tabellen überschrieben werden."
     },
     "subjectSampleField": {
         "titleAttr": "{subjectCount} Mitglieder in diesem Team."
@@ -45,11 +60,100 @@
         "teamsTabTitle": "Teams"
     },
     "adminType": {
-        "AuditLog": "Audit-Log",
-        "Authentication": "Authentifizierung"
+        "AuditLog": "Audit-Protokoll",
+        "Authentication": "Authentifizierung",
+        "DataScanner": "Daten-Scanner"
+    },
+    "dataScanner": {
+        "title": "Daten-Scanner",
+        "scansTab": "Scans",
+        "resultsTab": "Ergebnisse",
+        "createScan": "Daten-Scanner erstellen",
+        "editScan": "Scan bearbeiten",
+        "nameColumn": "Name",
+        "typeColumn": "Typ",
+        "frequencyColumn": "Häufigkeit",
+        "statusColumn": "Status",
+        "runningSince": "Läuft seit {time}",
+        "idle": "Inaktiv",
+        "neverRun": "Nie ausgeführt",
+        "runNow": "Jetzt ausführen",
+        "edit": "Bearbeiten",
+        "delete": "Löschen",
+        "nameLabel": "Name",
+        "namePlaceholder": "Scan-Namen eingeben",
+        "scanTypeLabel": "Scan-Typ",
+        "patternLabel": "Muster",
+        "patternPlaceholder": "z.B. \\N\\LDDAAAADDDDDDDDDD",
+        "patternHelp": "A = beliebiger Buchstabe, D = Ziffer, X = beliebiges Zeichen. Verwenden Sie \\, um ein Literal zu maskieren (z.B. \\N für den Buchstaben N). Beispiel: \\N\\LDDAAAADDDDDDDDDD für niederländische IBAN (NL00BANK0000000000).",
+        "listItemsLabel": "Listenwerte",
+        "listItemsPlaceholder": "Ein Wert pro Zeile eingeben",
+        "listItemsHelp": "Geben Sie einen Wert pro Zeile ein. Jeder Wert wird in allen gescannten Arbeitsbereichen gesucht.",
+        "sourceTableLabel": "Quelltabelle",
+        "selectWorkspace": "Arbeitsbereich auswählen",
+        "selectDatabase": "Datenbank auswählen",
+        "selectTable": "Tabelle auswählen",
+        "selectField": "Feld auswählen",
+        "noCompatibleFieldsTitle": "Keine kompatiblen Felder",
+        "noCompatibleFieldsDescription": "Diese Tabelle hat keine kompatiblen Feldtypen. Nur Text-, URL-, E-Mail-, Zahlen-, Auto-Nummer-, Telefonnummer- und UUID-Felder können als Quelle verwendet werden.",
+        "frequencyLabel": "Häufigkeit",
+        "frequencyManual": "Manuell",
+        "frequencyHourly": "Stündlich",
+        "frequencyDaily": "Täglich",
+        "frequencyWeekly": "Wöchentlich",
+        "hourlyWarning": "Stündliche Scans können Ihre Baserow-Instanz erheblich belasten.",
+        "wholeWordsLabel": "Übereinstimmung",
+        "wholeWordsCheckbox": "Nur ganze Wörter abgleichen",
+        "wholeWordsHelp": "Wenn aktiviert, gleicht der Scanner nur vollständige Wörter oder Token ab. Zum Beispiel passt 'DDDD' auf '1234', aber nicht auf '12345'.",
+        "workspaceScopeLabel": "Zu scannende Arbeitsbereiche",
+        "scanAllWorkspaces": "Alle Arbeitsbereiche scannen",
+        "filterByScan": "Nach Scan filtern",
+        "allScans": "Alle Scans",
+        "scanNameColumn": "Scan",
+        "workspaceColumn": "Arbeitsbereich",
+        "databaseColumn": "Datenbank",
+        "tableColumn": "Tabelle",
+        "fieldColumn": "Feld",
+        "rowIdColumn": "Zeilen-ID",
+        "matchedValueColumn": "Übereinstimmender Wert",
+        "firstIdentifiedColumn": "Erstmals identifiziert",
+        "clearFilters": "Filter löschen",
+        "addWorkspace": "Arbeitsbereich hinzufügen",
+        "scanTypePattern": "Muster",
+        "scanTypeListOfValues": "Liste von Werten",
+        "scanTypeListTable": "Baserow-Tabelle",
+        "lastRunColumn": "Letzte Ausführung",
+        "resultsCountColumn": "Ergebnisse",
+        "viewResults": "Ergebnisse anzeigen",
+        "results": "{count} Ergebnis anzeigen|{count} Ergebnisse anzeigen",
+        "noResults": "Keine Ergebnisse gefunden",
+        "resolveResult": "Lösen",
+        "resultResolved": "Gelöst",
+        "exportToCsv": "Als CSV exportieren",
+        "exportModalTitle": "Ergebnisse als CSV exportieren",
+        "exportFilename": "data_scan_results_{date}.csv",
+        "exportFailedTitle": "Export fehlgeschlagen",
+        "exportFailedDescription": "Der Exportauftrag ist fehlgeschlagen. Bitte versuchen Sie es erneut.",
+        "exportCancelledTitle": "Export abgebrochen",
+        "exportCancelledDescription": "Der Exportauftrag wurde abgebrochen.",
+        "emptyTitle": "Noch keine Daten-Scans",
+        "emptyDescription": "Mit einem Daten-Scanner können Sie automatisch die gesamte Instanz oder bestimmte Arbeitsbereiche überprüfen, um festzustellen, ob Muster (wie IBAN) oder vordefinierte Texte (wie medizinische IDs) irgendwo verwendet werden.",
+        "emptyResultsTitle": "Keine Ergebnisse gefunden",
+        "emptyResultsDescription": "Es gibt noch keine Scan-Ergebnisse. Ergebnisse werden hier angezeigt, sobald ein Daten-Scan ausgeführt wurde und Übereinstimmungen gefunden wurden."
+    },
+    "deleteDataScanModal": {
+        "title": "Daten-Scan löschen",
+        "confirmation": "Möchten Sie diesen Daten-Scan wirklich löschen? Alle Scan-Ergebnisse werden dauerhaft gelöscht.",
+        "delete": "Scan löschen"
+    },
+    "dataScanNewResultsNotification": {
+        "titleSingular": "{count} neues Ergebnis für {scanName} gefunden",
+        "titlePlural": "{count} neue Ergebnisse für {scanName} gefunden",
+        "description": "Überprüfen Sie die Ergebnisse im Admin-Daten-Scanner."
     },
     "auditLog": {
-        "title": "Audit-Log",
+        "adminTitle": "Audit-Protokoll",
+        "workspaceTitle": "Audit-Protokoll - {workspaceName}",
         "filterUserTitle": "Benutzer",
         "filterWorkspaceTitle": "Arbeitsbereich",
         "filterActionTypeTitle": "Ereignistyp",
@@ -61,84 +165,95 @@
         "workspace": "Arbeitsbereich",
         "actionType": "Ereignistyp",
         "description": "Beschreibung",
-        "ip_address": "IP-Adresse",
-        "exportToCsv": "Exportieren in CSV",
-        "exportModalTitle": "Exportieren in CSV",
-        "clearFilters": "Leeren",
-        "allUsers": "Alle Nutzer",
-        "allWorkspaces": "Alle Arbeitsbereiche",
-        "allActionTypes": "Alle Ereignistypen",
         "timestamp": "Zeitstempel",
-        "workspaceTitle": "Audit-Log - {workspaceName}",
-        "adminTitle": "Audit-Log"
+        "ip_address": "IP-Adresse",
+        "exportToCsv": "Als CSV exportieren",
+        "exportModalTitle": "Als CSV exportieren",
+        "clearFilters": "Leeren",
+        "allUsers": "Alle Benutzer",
+        "allWorkspaces": "Alle Arbeitsbereiche",
+        "allActionTypes": "Alle Ereignistypen"
     },
     "auditLogExportModal": {
-        "exportFilename": "Admin Audit-Log-Export - {date}",
+        "title": "Als CSV exportieren",
+        "exportFilename": "Admin Audit-Protokoll-Export - {date}",
+        "exportWorkspaceFilename": " Arbeitsbereich ({workspaceId}) Audit-Protokoll-Export - {date}",
         "cancelledTitle": "Export fehlgeschlagen",
-        "cancelledDescription": "Etwas ging schief, während das Audit-Log exportiert wurde. Bitte versuchen Sie es noch mal.",
-        "title": "Exportieren in CSV",
-        "exportWorkspaceFilename": " Arbeitsbereich ({workspaceId}) Audit-Log-Export - {date}"
+        "cancelledDescription": "Beim Exportieren des Audit-Protokolls ist etwas schiefgegangen. Bitte versuchen Sie es erneut."
     },
     "authProviders": {
         "title": "Authentifizierungsanbieter",
-        "addProvider": "Anbieter hinzufügen",
-        "noProviders": "Es wurden noch keine Authentifizierungsanbieter konfiguriert."
+        "noProviders": "Es wurden noch keine Authentifizierungsanbieter konfiguriert.",
+        "addProvider": "Anbieter hinzufügen"
+    },
+    "authProviderTypes": {
+        "password": "E-Mail- und Passwort-Authentifizierung",
+        "saml": "SSO-SAML-Anbieter",
+        "ssoSamlProviderName": "SSO SAML: {domain}",
+        "ssoSamlProviderNameUnconfigured": "Nicht konfigurierter SSO SAML",
+        "ssoOIDCProviderNameUnconfigured": "Nicht konfigurierter OpenID Connect"
     },
     "editAuthProviderMenuContext": {
         "edit": "Bearbeiten",
         "delete": "Löschen"
     },
     "samlSettingsForm": {
-        "domainPlaceholder": "Geben Sie den Domainnamen des Unternehmens ein...",
-        "domainAlreadyExists": "Es existiert bereits ein SAML-Anbieter für diese Domain",
-        "invalidMetadata": "Ungültige XML-Metadaten für den Identity Provider",
-        "relayStateUrl": "Standard-Relaystatus-URL",
-        "acsUrl": "Single Sign On-URL",
         "domain": "SAML-Domain",
-        "metadataPlaceholder": "Fügen Sie die Metadaten des Identitätsanbieters ein...",
+        "domainPlaceholder": "Geben Sie den Domainnamen des Unternehmens ein...",
         "invalidDomain": "Ungültiger Domainname",
+        "domainAlreadyExists": "Es existiert bereits ein SAML-Anbieter für diese Domain",
         "metadata": "Metadaten",
+        "metadataPlaceholder": "Fügen Sie die Metadaten des Identity Providers ein...",
+        "invalidMetadata": "Ungültige XML-Metadaten für den Identity Provider",
+        "relayStateUrl": "Standard-Relay-State-URL",
+        "acsUrl": "Single Sign-On-URL",
         "providerIsVerified": "Der Anbieter wurde verifiziert",
-        "emailAttrKey": "E-Mail",
-        "firstNameAttrKeyHelper": "Der Vorname des Benutzers oder der vollständige Name, wenn 'Nachname' nicht angegeben ist.",
         "samlResponseSettings": "SAML-Antwortattribute",
-        "emailAttrKeyHelper": "Die E-Mail-Adresse, die als Benutzername für den Benutzer verwendet werden soll.",
-        "lastNameAttrKeyHelper": "Nachname des Benutzers (optional). Löschen Sie diesen Wert, um den vollständigen Namen über 'Vorname' anzugeben.",
         "defaultAttrs": "Standard",
         "customAttrs": "Benutzerdefiniert",
+        "emailAttrKey": "E-Mail",
+        "emailAttrKeyHelper": "Die E-Mail-Adresse, die als Benutzername für den Benutzer verwendet wird.",
         "firstNameAttrKey": "Vorname",
-        "lastNameAttrKey": "Nachname"
+        "firstNameAttrKeyHelper": "Der Vorname des Benutzers oder der vollständige Name, wenn 'Nachname' nicht angegeben ist.",
+        "lastNameAttrKey": "Nachname",
+        "lastNameAttrKeyHelper": "Nachname des Benutzers (optional). Löschen Sie diesen Wert, um den vollständigen Namen über 'Vorname' anzugeben."
+    },
+    "createSettingsAuthProviderModal": {
+        "title": "Neuen {type} hinzufügen"
+    },
+    "updateSettingsAuthProviderModal": {
+        "title": "{name} bearbeiten"
     },
     "deleteAuthProviderModal": {
-        "comment": "Möchten Sie diesen {type} wirklich löschen?",
-        "title": "{name} löschen"
+        "title": "{name} löschen",
+        "comment": "Möchten Sie diesen {type} wirklich löschen?"
     },
     "loginWithSaml": {
         "signInWithSaml": "Anmeldung mit SAML SSO",
+        "redirecting": "Weiterleitung zum Identity Provider...",
         "continueWithSaml": "Weiter zum SAML SSO-Anbieter",
-        "requestError": "Diese Domain ist nicht mit SAML SSO konfiguriert",
-        "loginText": "Haben Sie schon ein Passwort?",
-        "redirecting": "Umleitung zum Identitätsanbieter..."
+        "requestError": "Diese Domain ist nicht für SAML SSO konfiguriert",
+        "loginText": "Haben Sie bereits ein Passwort?"
     },
     "loginError": {
-        "title": "Etwas ist schief gelaufen:",
-        "loginText": "Sie haben bereits ein Konto?",
-        "defaultErrorMessage": "Es war nicht möglich, den SSO-Anmeldevorgang abzuschließen.",
-        "errorSsoFeatureNotActive": "SSO Funktion ist nicht aktiv. Bitte kontaktieren Sie Ihren Administrator.",
+        "title": "Etwas ist schiefgegangen:",
+        "loginText": "Haben Sie bereits ein Konto?",
+        "help": "Bitte kontaktieren Sie Ihren Administrator für Hilfe.",
+        "defaultErrorMessage": "der SSO-Anmeldevorgang konnte nicht abgeschlossen werden.",
+        "errorSsoFeatureNotActive": "Die SSO-Funktion ist nicht aktiv. Bitte kontaktieren Sie Ihren Administrator.",
+        "errorInvalidSamlRequest": "SAML-Anfrage ist ungültig.",
         "errorInvalidSamlResponse": "SAML-Antwort ist ungültig.",
         "errorUserDeactivated": "Benutzer wurde deaktiviert.",
-        "errorWorkspaceInvitationEmailMismatch": "ihre E-Mail-Adresse stimmt nicht mit der Einladung überein.",
-        "errorSignupDisabled": "Die Registrierung wurde vom Administrator deaktiviert.",
-        "errorDifferentProvider": "verwenden Sie bitte den Anbieter, bei dem Sie sich ursprünglich angemeldet haben.",
-        "help": "Bitte kontaktieren Sie Ihren Administrator für Hilfe.",
-        "errorInvalidSamlRequest": "SAML-Anfrage ist ungültig.",
-        "errorProviderDoesNotExist": "Dieser Authentifizierungsanbieter ist nicht vorhanden oder nicht verfügbar.",
-        "errorAuthFlowError": "Während des Authentifizierungsvorgangs mit dem ausgewählten Anbieter ist ein Fehler aufgetreten."
+        "errorProviderDoesNotExist": "Dieser Authentifizierungsanbieter existiert nicht oder ist nicht verfügbar.",
+        "errorAuthFlowError": "Während des Authentifizierungsvorgangs mit dem ausgewählten Anbieter ist ein Fehler aufgetreten.",
+        "errorDifferentProvider": "Bitte verwenden Sie den Anbieter, mit dem Sie sich ursprünglich registriert haben.",
+        "errorWorkspaceInvitationEmailMismatch": "Ihre E-Mail-Adresse stimmt nicht mit der Einladung überein.",
+        "errorSignupDisabled": "Die Registrierung wurde vom Administrator deaktiviert."
     },
     "roles": {
         "admin": {
             "name": "Administrator",
-            "description": "Sie können Arbeitsbereiche und Anwendungen vollständig konfigurieren und bearbeiten."
+            "description": "Kann Arbeitsbereiche und Anwendungen vollständig konfigurieren und bearbeiten."
         },
         "builder": {
             "name": "Ersteller",
@@ -148,6 +263,10 @@
             "name": "Bearbeiter",
             "description": "Kann Daten vollständig bearbeiten, aber keine Anwendungen oder Arbeitsbereiche konfigurieren."
         },
+        "commenter": {
+            "name": "Kommentator",
+            "description": "Kann Daten nur lesen und kommentieren."
+        },
         "viewer": {
             "name": "Betrachter",
             "description": "Kann nur Daten lesen."
@@ -156,71 +275,52 @@
             "name": "Kein Zugriff",
             "description": "Kann auf nichts zugreifen."
         },
-        "commenter": {
-            "description": "Kann nur Daten lesen und kommentieren.",
-            "name": "Kommentator"
-        },
         "noRoleLowPriority": {
             "name": "Keine Rolle",
-            "description": "Holen Sie sich die Standard-Arbeitsbereichrolle aus ihren Teams."
+            "description": "Erhält die Standard-Arbeitsbereichsrolle aus den Teams."
         }
     },
     "memberRolesModal": {
         "memberRolesDatabaseTabTitle": "Datenbank",
-        "memberRolesTableTabTitle": "Aktuelle Tabelle",
+        "memberRolesTableTabTitle": "Tabelle",
+        "memberRolesViewTabTitle": "Ansicht",
         "error": {
             "title": "Daten konnten nicht abgerufen werden",
             "description": "Beim Abrufen der Mitgliedsdaten ist ein Fehler aufgetreten."
         }
     },
-    "manageTeamModals": {
-        "subheading": "Mit Teams können Sie Berechtigungen in großen Mengen an mehrere Personen vergeben oder einschränken."
-    },
-    "createTeamModal": {
-        "invalidNameMessage": "Dieser Teamname wird bereits in der angegebenen Arbeitsbereich verwendet.",
-        "title": "Team erstellen",
-        "invalidNameTitle": "Bitte verwenden Sie einen anderen Namen"
-    },
-    "editTeamContext": {
-        "edit": "Team bearbeiten",
-        "remove": "Team löschen"
-    },
-    "authProviderTypes": {
-        "password": "E-Mail und Passwort-Authentifizierung",
-        "ssoSamlProviderNameUnconfigured": "Nicht konfigurierter SSO SAML",
-        "saml": "SSO-SAML-Provider",
-        "ssoOIDCProviderNameUnconfigured": "Nicht konfigurierter OpenID-Connect",
-        "ssoSamlProviderName": "SSO SAML: {domain}"
-    },
-    "createSettingsAuthProviderModal": {
-        "title": "Neuen {type} hinzufügen"
-    },
-    "updateSettingsAuthProviderModal": {
-        "title": "{name} bearbeiten"
-    },
     "memberRolesTab": {
         "database": {
             "title": "{name} Datenbank",
             "selectMembers": "Mitglieder auswählen",
-            "everyoneHasAccess": "Jeder im Workspace {name} kann auf diese Datenbank zugreifen.",
+            "everyoneHasAccess": "Jeder im Arbeitsbereich {name} kann auf diese Datenbank zugreifen.",
             "onlyYouHaveAccess": "Nur Sie können auf diese Datenbank zugreifen.",
-            "warningTitle": "Andere Benutzer könnten den Zugang erben!",
-            "warningMessage": "Andere Benutzer erben möglicherweise den Zugriff über ihre jeweiligen Rollen in der übergeordneten Arbeitsbereich.",
+            "warningTitle": "Andere Benutzer könnten den Zugriff erben!",
+            "warningMessage": "Andere Benutzer erben möglicherweise den Zugriff über ihre jeweiligen Rollen im übergeordneten Arbeitsbereich.",
             "headerTooltip": "Datenbankrollen überschreiben Arbeitsbereichsrollen."
         },
         "table": {
             "title": "{name} Tabelle",
             "selectMembers": "Mitglieder auswählen",
-            "warningMessage": "Andere Benutzer können den Zugriff über ihre jeweiligen Rollen in der übergeordneten Datenbank oder Arbeitsbereich erben.",
-            "everyoneHasAccess": "Jeder im Workspace {name} kann auf diese Datenbank zugreifen.",
+            "everyoneHasAccess": "Jeder im Arbeitsbereich {name} kann auf diese Tabelle zugreifen.",
             "onlyYouHaveAccess": "Nur Sie können auf diese Tabelle zugreifen.",
             "warningTitle": "Andere Benutzer könnten den Zugriff erben!",
-            "headerTooltip": "Tabellenrollen haben Vorrang vor Arbeitsbereich- und Datenbankrollen."
+            "warningMessage": "Andere Benutzer erben möglicherweise den Zugriff über ihre jeweiligen Rollen in der übergeordneten Datenbank oder dem Arbeitsbereich.",
+            "headerTooltip": "Tabellenrollen überschreiben Arbeitsbereichs- und Datenbankrollen."
+        },
+        "view": {
+            "title": "{name} Ansicht",
+            "selectMembers": "Mitglieder auswählen",
+            "everyoneHasAccess": "Jeder im Arbeitsbereich {name} kann auf diese Ansicht zugreifen.",
+            "onlyYouHaveAccess": "Nur Sie können auf diese Ansicht zugreifen.",
+            "warningTitle": "Andere Benutzer könnten den Zugriff erben!",
+            "warningMessage": "Andere Benutzer erben möglicherweise den Zugriff über ihre jeweiligen Rollen in der übergeordneten Tabelle, Datenbank oder dem Arbeitsbereich.",
+            "headerTooltip": "Ansichtsrollen überschreiben Arbeitsbereichs-, Datenbank- und Tabellenrollen."
         }
     },
     "memberRolesShareToggle": {
         "label": "Mit allen bei {name} teilen",
-        "subLabel": "{totalUserAmount} Workspace-Mitglieder"
+        "subLabel": "{totalUserAmount} Arbeitsbereichsmitglieder"
     },
     "memberRolesDatabaseContexItem": {
         "label": "Mitglieder verwalten",
@@ -231,10 +331,10 @@
         "additionalRoles": "Zusätzliche Rollen"
     },
     "memberRolesMembersList": {
-        "adminHelpText": "Admins können die Rollen anderer Admins einschränken.",
         "remove": "Entfernen",
         "teamMembersCount": "{count} Teammitglieder",
-        "noMembers": "Es wurden keine Mitglieder ausgewählt. Verwenden Sie die Auswahltaste, um eine hinzuzufügen."
+        "adminHelpText": "Administratoren können die Rollen anderer Administratoren einschränken.",
+        "noMembers": "Es wurden keine Mitglieder ausgewählt. Verwenden Sie die Auswahlschaltfläche, um eines hinzuzufügen."
     },
     "roleAssignmentModal": {
         "membersTab": "Mitglieder",
@@ -251,37 +351,132 @@
         "selectedAmountLabel": "{count} Teams ausgewählt"
     },
     "selectSubjectsListFooter": {
-        "types": {
-            "teams": "Teams",
-            "members": "Mitglieder"
-        },
-        "roleSelectorBuilderDataWarningTooltip": "Sie werden in der Lage sein, Formel- und Nachschlagefelder zu erstellen, die beliebige Felder in verknüpften Tabellen anzeigen.",
         "invite": "{count} {type} einladen",
+        "types": {
+            "members": "Mitglieder",
+            "teams": "Teams"
+        },
         "helpTooltip": "Mitglieds-Rollenzuweisungen überschreiben Team-Rollenzuweisungen."
     },
+    "membersRoleField": {
+        "noAccessHelpText": "Dieser Benutzer benötigt expliziten Zugriff auf Ressourcen.",
+        "adminHelpText": "Administratoren können die Rollen anderer Administratoren einschränken."
+    },
+    "membersPagePlugin": {
+        "roleHelpText": "Kann durch Rollen für Datenbanken und Tabellen überschrieben werden."
+    },
     "oauthSettingsForm": {
-        "baseUrl": "URL",
-        "baseUrlPlaceholder": "Basis-URL des Anbieters",
-        "invalidBaseUrl": "Die eingegebene URL ist keine gültige Provider-URL",
-        "callbackUrl": "Rückruf-URL",
         "providerName": "Name",
-        "secretPlaceholder": "Provider-Geheimnis",
-        "secret": "Geheimnis",
+        "providerNamePlaceholder": "Benutzerdefinierter Anbietername",
         "clientId": "Client-ID",
         "clientIdPlaceholder": "Client-ID des Anbieters",
-        "providerNamePlaceholder": "Benutzerdefinierter Anbietername",
-        "duplicateBaseUrl": "Die eingegebene URL existiert bereits in einem anderen Anbieter"
+        "secret": "Geheimnis",
+        "secretPlaceholder": "Geheimnis des Anbieters",
+        "baseUrl": "URL",
+        "baseUrlPlaceholder": "Basis-URL des Anbieters",
+        "duplicateBaseUrl": "Die eingegebene URL existiert bereits bei einem anderen Anbieter",
+        "invalidBaseUrl": "Die eingegebene URL ist keine gültige Anbieter-URL",
+        "useIdToken": "ID-Token verwenden, um Benutzerinformationen abzurufen",
+        "responseSettings": "OIDC-Antwortattribute",
+        "defaultAttrs": "Standard",
+        "customAttrs": "Benutzerdefiniert",
+        "emailAttrKey": "E-Mail",
+        "emailAttrKeyHelper": "Die E-Mail-Adresse, die als Benutzername für den Benutzer verwendet wird. ",
+        "firstNameAttrKey": "Vorname",
+        "lastNameAttrKey": "Nachname",
+        "firstNameAttrKeyHelper": "Der Vorname des Benutzers oder der vollständige Name, wenn 'Nachname' nicht angegeben ist.",
+        "lastNameAttrKeyHelper": "Nachname des Benutzers (optional). Löschen Sie diesen Wert, um den vollständigen Namen über 'Vorname' anzugeben.",
+        "callbackUrl": "Callback-URL"
     },
     "loginButton": {
-        "continueWith": "Weitermachen mit"
+        "continueWith": "Weiter mit"
     },
     "enterpriseFeatures": {
-        "sso": "Single-Sign-On",
-        "rbac": "Rollenbasierte Zugangskontrolle",
-        "coBranding": "Co-Branding Logo-Ersatz",
-        "auditLogs": "Audit-Logs",
+        "sso": "Single Sign-On",
+        "ssoContent": "Ermöglichen Sie sichere und nahtlose Anmeldungen mit SAML, Google, Facebook, GitHub, GitLab oder OpenID Connect. Unterstützt mehrere Anbieter gleichzeitig. Beachten Sie, dass sowohl Baserow als Tool als auch das Authentifizierungssystem des Application Builders SSO unterstützen.",
+        "rbac": "Rollenbasierte Zugriffskontrolle",
+        "rbacContent": "Verwalten Sie Berechtigungen mit Präzision. Weisen Sie Rollen wie Administrator, Ersteller, Bearbeiter, Kommentator oder Betrachter auf Arbeitsbereichs-, Datenbank-, Tabellen- und Ansichtsebene zu. Sie können den Zugriff auch nach Team verwalten.",
+        "auditLogs": "Audit-Protokolle",
+        "auditLogsContent": "Verfolgen Sie alles, was passiert. Zeigen Sie eine vollständige Historie der Aktionen über Ihre Instanz oder Ihren Arbeitsbereich an, filterbar nach Benutzer, Aktion und mehr.",
+        "dataSync": "Datensynchronisation",
+        "dataSyncContent": "Halten Sie Tabellen automatisch auf dem neuesten Stand, indem Sie sie mit anderen Baserow-Tabellen oder externen Quellen wie Jira, GitHub, GitLab oder HubSpot synchronisieren. Es ermöglicht auch periodisches Synchronisieren und ermöglicht eine bidirektionale Datensynchronisation für unterstützte Datensynchronisationstypen.",
+        "coBranding": "Co-Branding-Logo-Ersatz",
+        "coBrandingContent": "Passen Sie die Baserow-Oberfläche mit Ihrem eigenen Logo an. Beachten Sie, dass \"powered by Baserow\" hinzugefügt wird.",
         "support": "Direkte Unterstützung",
-        "dataSync": "Datenabgleich"
+        "supportContent": "Erhalten Sie Hilfe, wenn Sie sie benötigen. Wenden Sie sich direkt aus der Plattform heraus an das Baserow-Team.",
+        "advancedWebhooks": "Erweiterte Webhooks",
+        "advancedWebhooksContent": "Lösen Sie Webhooks aus, wenn eine Zeile in eine bestimmte Ansicht gelangt – ideal zur Automatisierung von Arbeitsabläufen basierend auf Filterbedingungen.",
+        "fieldLevelPermissions": "Feldspezifische Berechtigungen",
+        "fieldLevelPermissionsContent": "Steuern Sie, wer bestimmte Felder in einer Tabelle bearbeiten darf. Legen Sie Berechtigungen für Bearbeiter, Ersteller und Administratoren fest oder deaktivieren Sie Änderungen an Feldwerten vollständig.",
+        "builderBranding": "Anwendungs-Branding",
+        "builderBrandingContent": "Versehen Sie das Branding Ihrer Anwendung mit einem White-Label, indem Sie das 'Made with Baserow'-Branding im Footer Ihrer Anwendung entfernen.",
+        "builderFileInputElement": "Datei-Eingabeelement",
+        "builderFileInputElementContent": "Mit dem Datei-Eingabeelement können Sie Ihren Anwendungsseiten ein Feld zum Hochladen von Dateien hinzufügen. Geben Sie Ihren Benutzern die Möglichkeit, wichtige Dokumente oder Bilder zu speichern.",
+        "builderCustomCode": "Benutzerdefinierter Code für Anwendungen",
+        "builderCustomCodeContent": "Sie können benutzerdefinierten CSS-/JavaScript-Code hinzufügen, um das Aussehen und Verhalten Ihrer Anwendung weiter anzupassen. Beispielsweise können Sie externe Dienste wie Analytics oder soziale Medien integrieren.",
+        "dateDependency": "Datumsabhängigkeit",
+        "dateDependencyContent": "Sie können eine Abhängigkeit zwischen zwei Daten und einer Dauer als Start-/Enddatum und Dauer definieren. Mit der Datumsabhängigkeit werden bei einer Änderung eines Wertes andere Werte entsprechend angepasst.",
+        "dataScanner": "Daten-Scanner",
+        "dataScannerContent": "Scannen Sie alle Daten in Ihrer Baserow-Instanz auf sensible Muster wie IBAN-Nummern oder medizinische IDs oder gleichen Sie sie mit bekannten Wertelisten ab. Konfigurieren Sie automatische Scan-Zeitpläne und sehen Sie sich detaillierte Ergebnisse an."
+    },
+    "assistantSidebarItem": {
+        "title": "Kuma AI"
+    },
+    "assistantPanel": {
+        "title": "AI-Assistent",
+        "close": "AI-Assistent schließen",
+        "history": "Chat-Verlauf",
+        "back": "Zurück"
+    },
+    "assistantWelcomeMessage": {
+        "greet": "Hallo {name}",
+        "question": "ich heiße Kuma!",
+        "subtitle": "Ich helfe Ihnen, die Last zu tragen, sodass sie sich nie schwer anfühlt. Wählen Sie aus den untenstehenden Vorschlägen oder sagen Sie mir einfach, was Sie brauchen!",
+        "subtitleWithoutSuggestions": "Ich helfe Ihnen, die Last zu tragen, sodass sie sich nie schwer anfühlt. Sagen Sie mir einfach, was Sie brauchen!",
+        "promptCreateDatabaseTitle": "Datenbank erstellen",
+        "promptCreateDatabasePrompt": "Erstellen Sie eine Datenbank für Projektmanagement.",
+        "promptCreateAutomationTitle": "Automatisierung erstellen",
+        "promptCreateAutomationPrompt": "Erstellen Sie eine Automatisierung, die jeden Dienstagmorgen im Slack-Entwicklerkanal fragt, ob es etwas zum Vorführen gibt.",
+        "promptInviteUsersTitle": "Benutzer einladen",
+        "promptInviteUsersPrompt": "Wie lade ich Benutzer in meinen Arbeitsbereich ein?",
+        "promptCreateTableTitle": "Tabelle erstellen",
+        "promptCreateTablePrompt": "Erstellen Sie eine neue Tabelle namens Aufgaben.",
+        "promptWhichTablesTitle": "Welche Tabellen",
+        "promptWhichTablesPrompt": "Welche Tabellen habe ich in dieser Datenbank?",
+        "promptCreateFormTitle": "Formular erstellen",
+        "promptCreateFormPrompt": "Erstellen Sie ein Formular für diese Tabelle.",
+        "promptCreateFilterTitle": "Filter erstellen",
+        "promptCreateFilterPrompt": "Zeigen Sie nur Zeilen an, in denen das primäre Feld leer ist."
+    },
+    "assistantInputMessage": {
+        "statusWaiting": "Assistent ist bereit zu helfen",
+        "statusRunning": "Läuft...",
+        "placeholder": "Fragen Sie mich alles...",
+        "send": "Nachricht senden",
+        "stop": "Generierung stoppen"
+    },
+    "assistant": {
+        "statusThinking": "Denkt nach...",
+        "statusAnswering": "Antwortet...",
+        "statusCancelling": "Wird abgebrochen...",
+        "messageCancelled": "Nachricht abgebrochen"
+    },
+    "assistantChatHistoryContext": {
+        "empty": "Kein Chat-Verlauf verfügbar",
+        "loading": "Chat-Verlauf wird geladen..."
+    },
+    "assistantMessageSources": {
+        "sources": "{count} Quelle | {count} Quellen"
+    },
+    "assistantMessageList": {
+        "disclaimer": "Kuma kann Fehler machen, bitte überprüfen Sie die Antworten"
+    },
+    "assistantMessageActions": {
+        "feedbackContextTitle": "Helfen Sie uns, uns zu verbessern",
+        "feedbackContextPlaceholder": "Was könnten wir verbessern? (optional)",
+        "copiedToClipboard": "In Zwischenablage kopiert",
+        "copiedContentToast": "Der Antwortinhalt des Assistenten wurde in Ihre Zwischenablage kopiert",
+        "copyFailed": "Kopieren in die Zwischenablage fehlgeschlagen"
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Direkte Unterstützung"
@@ -289,122 +484,345 @@
     "userTeamsField": {
         "no_records": "Keine Teams"
     },
-    "membersPagePlugin": {
-        "roleHelpText": "Kann mit Rollen für Datenbanken und Tabellen überschrieben werden."
-    },
-    "membersRoleField": {
-        "noAccessHelpText": "Dieser Benutzer benötigt expliziten Zugriff auf Ressourcen.",
-        "adminHelpText": "Administratoren können die Rollen anderer Administratoren einschränken."
-    },
     "snapshotModalWarning": {
         "message": "Bitte beachten Sie, dass ein Snapshot alle Berechtigungen enthält, die für die Anwendung und ihre Tabellen festgelegt wurden."
+    },
+    "exportWorkspaceModalWarning": {
+        "message": "Bitte beachten Sie, dass ein Export keine Berechtigungen enthält, die für die Anwendung und ihre Tabellen festgelegt wurden."
+    },
+    "auditLogSidebarWorkspace": {
+        "title": "Audit-Protokoll"
     },
     "localBaserowUserSourceType": {
         "notConfigured": "Nicht konfiguriert"
     },
     "localBaserowUserSourceForm": {
-        "emailFieldLabel": "Wählen Sie das E-Mail-Feld aus",
+        "description": "Jede Zeile in der Tabelle ist ein Benutzerkonto. Bitte wählen Sie die passenden Felder in der Tabelle aus. Das E-Mail-Feld wird zur Identifizierung verwendet.",
+        "emailFieldLabel": "E-Mail-Feld auswählen",
         "emailFieldLabelPlaceholder": "Wählen Sie ein Feld aus...",
         "noFields": "Keine Felder",
-        "nameFieldLabel": "Wählen Sie das Namensfeld aus",
-        "description": "Jede Zeile in der Tabelle ist ein Benutzerkonto. Bitte wählen Sie die passenden Felder in der Tabelle aus. Das Feld E-Mail wird zur Identifizierung verwendet.",
+        "nameFieldLabel": "Namensfeld auswählen",
         "nameFieldPlaceholder": "Wählen Sie ein Feld aus...",
-        "roleFieldLabel": "Wählen Sie ein Rollen-Feld aus",
+        "roleFieldLabel": "Rollenfeld auswählen",
         "roleFieldPlaceholder": "Wählen Sie ein Feld aus..."
     },
-    "auditLogSidebarWorkspace": {
-        "title": "Audit-Log",
-        "deactivated": "Verfügbar in Advanced/Enterprise"
+    "appAuthProviderType": {
+        "localBaserowPassword": "E-Mail/Passwort",
+        "commonSaml": "SAML SSO",
+        "openIdConnect": "OpenID Connect"
     },
     "localBaserowPasswordAppAuthProviderForm": {
         "passwordFieldLabel": "Passwort-Feld auswählen",
         "noFields": "Keine kompatiblen Felder"
     },
+    "commonSamlSettingForm": {
+        "relayStateTitle": "Standard-Relay-State-URL (Klicken zum Kopieren)",
+        "acsTitle": "Single Sign-On-URL (Klicken zum Kopieren)",
+        "addDomainNotice": "Verfügbar, wenn eine oder mehrere Domains hinzugefügt wurden"
+    },
+    "commonOidcSettingForm": {
+        "callbackTitle": "Callback-URLs (Klicken zum Kopieren)",
+        "callbackHelperText": "Fügen Sie diese URLs zu den Redirect-URI-Einstellungen Ihres OpenID-Connect-Anbieters hinzu.",
+        "preview": "Vorschau"
+    },
     "enterpriseSettings": {
-        "coBrandingLogoDescription": "Ersetzt das Baserow-Logo durch eine individuelle Co-Branding-Alternative (176x29).",
-        "showBaserowHelpMessage": "Hilfe anzeigen",
-        "deactivated": "Verfügbar in der Enterprise-Version",
-        "uploadFileButton": "Bild hochladen",
-        "showBaserowHelpMessageDescription": "Gibt an, ob die Nachricht über die Hilfeanfrage im Dashboard angezeigt werden soll.",
+        "branding": "Branding",
+        "showBaserowHelpMessage": "Hilfemeldung anzeigen",
+        "showBaserowHelpMessageDescription": "Gibt an, ob die Hilfeanfrage-Nachricht im Dashboard angezeigt werden soll.",
+        "deactivated": "Verfügbar in Enterprise",
         "coBrandingLogo": "Logo",
-        "branding": "Branding"
-    },
-    "enterpriseModal": {
-        "description": "Ihr Konto hat keinen Zugriff auf die Advanced / Enterprise-Funktionen. Führen Sie ein Upgrade auf die Advanced / Enterprise-Version durch, um {name} zu verwenden. Sie können Ihr Konto upgraden, indem Sie eine Lizenz erwerben. Klicken Sie auf die Schaltfläche unten, um die Preise anzuzeigen.",
-        "viewPricing": "Preise anzeigen",
-        "title": "Upgraden, um {name} zu verwenden",
-        "enterprise": "Enterprise",
-        "premium": "Premium"
-    },
-    "appAuthProviderType": {
-        "localBaserowPassword": "E-Mailadresse / Passwort"
+        "coBrandingLogoDescription": "Ersetzt das Baserow-Logo durch eine individuelle Co-Branding-Alternative (176x29). Wenn gesetzt, wird auch die Baserow-Beschreibung im Footer aller E-Mails entfernt.",
+        "uploadFileButton": "Bild hochladen"
     },
     "authFormElementForm": {
         "userSource": "Benutzerquelle",
-        "loginButtonLabel": "Label des Login-Buttons",
-        "loginButtonLabelPlaceholder": "Geben Sie das Label ein..."
+        "loginButtonLabel": "Beschriftung der Login-Schaltfläche",
+        "loginButtonLabelPlaceholder": "Beschriftung eingeben..."
     },
     "authFormElement": {
-        "email": "E-Mailadresse",
-        "selectOrConfigureUserSourceFirst": "Wählen Sie eine Benutzerquelle, um dieses Anmeldeelement zu verwenden.",
+        "email": "E-Mail",
         "password": "Passwort",
+        "emailPlaceholder": "Geben Sie Ihre E-Mail ein...",
         "passwordPlaceholder": "Geben Sie Ihr Passwort ein...",
-        "emailPlaceholder": "Geben Sie Ihre E-Mailadresse ein..."
-    },
-    "localBaserowTableDataSync": {
-        "workspace": "Arbeitsbereich",
-        "database": "Datenbank",
-        "name": "ID der Quell-Tabelle",
-        "authorizing": "Sie autorisieren Ihr Konto, die Daten aus der Quelltabelle auszuwählen.",
-        "table": "Tabelle"
+        "selectOrConfigureUserSourceFirst": "Wählen Sie eine Benutzerquelle, um dieses Anmeldeelement zu verwenden."
     },
     "enterpriseDataSyncType": {
-        "localBaserowTable": "Baserow-Tabelle synchronisieren"
+        "localBaserowTable": "Baserow-Tabelle synchronisieren",
+        "jiraIssues": "Jira-Issues synchronisieren",
+        "githubIssues": "GitHub-Issues synchronisieren",
+        "gitlabIssues": "GitLab-Issues synchronisieren",
+        "hubspotContacts": "HubSpot-Kontakte synchronisieren"
     },
-    "samlAuthLink": {
-        "placeholderWithSaml": "{login} mit SAML",
-        "provideEmail": "Geben Sie die E-Mailadresse Ihres SAML-Accounts ein",
-        "emailPlaceholder": "Geben Sie Ihre E-Mailadresse ein..."
+    "localBaserowTableDataSync": {
+        "name": "ID der Quelltabelle",
+        "authorizing": "Sie autorisieren Ihr Konto, die Daten aus der Quelltabelle auszuwählen.",
+        "workspace": "Arbeitsbereich",
+        "database": "Datenbank",
+        "table": "Tabelle",
+        "view": "Ansicht",
+        "viewHelper": "Es werden nur sichtbare Felder und Zeilen synchronisiert, die den Filtern entsprechen."
     },
-    "configureDataSyncPeriodicInterval": {
-        "deactivatedText": "Der periodische Datenabgleich wurde deaktiviert, weil sie zu oft hintereinander fehlgeschlagen ist. Versuchen Sie bitte, den Abgleich manuell durchzuführen. Wenn er wie erwartet funktioniert, klicken Sie auf die Schaltfläche Aktivieren.",
-        "saved": "Gespeichert",
-        "deactivatedTitle": "Periodischer Datenabgleich deaktiviert",
-        "title": "Periodische EInstellungen",
-        "more": "Weitere Informationen",
-        "activate": "Periodischen Datenabgleich aktivieren",
-        "enterprise": "Der periodische Datenabgleich ist eine Advanced/Enterprise-Funktionalität."
+    "jiraIssuesDataSync": {
+        "jiraUrl": "URL der Jira-Instanz",
+        "urlHelper": "Die Basis-URL Ihrer Jira-Instanz (z.B. https://your-domain.atlassian.net).",
+        "authenticationLabel": "Authentifizierung",
+        "authenticationHelper": "Wählen Sie, wie Sie sich bei Jira authentifizieren möchten.",
+        "projectKey": "Jira-Projektschlüssel (optional)",
+        "projectKeyHelper": "Der Projektschlüssel des Jira-Projekts (z.B. PROJ). Sie finden ihn, indem Sie in Jira auf `Project settings` klicken. Wenn nicht angegeben, werden alle Issues zurückgegeben.",
+        "jiraUsername": "Jira-Benutzername",
+        "usernameHelper": "Der Benutzername des Jira-Kontos, das zur Authentifizierung verwendet wird. Dies ist die E-Mail-Adresse, mit der Sie sich anmelden.",
+        "apiToken": "Jira-API-Token",
+        "apiTokenHelper": "Das API-Token des Jira-Kontos, das zur Authentifizierung verwendet wird. Kann unter https://id.atlassian.com/manage-profile/security/api-tokens erstellt werden.",
+        "personalAccessToken": "Jira Personal Access Token",
+        "personalAccessTokenHelper": "Das API-Token des Jira-Kontos, das zur Authentifizierung verwendet wird. Kann unter https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html erstellt werden."
+    },
+    "githubIssuesDataSync": {
+        "owner": "Eigentümer",
+        "ownerHelper": "Benutzername oder Eigentümer des Repositorys. Normalerweise in der oberen linken Ecke `owner / repo`",
+        "repo": "Repository",
+        "repoHelper": "Der Name des Repositorys. Normalerweise in der oberen linken Ecke `owner / repo`",
+        "apiToken": "API-Token",
+        "apiTokenHelper": "Kann hier erstellt werden: https://github.com/settings/tokens, indem Sie auf `Generate new token` klicken, `All repositories` auswählen und unter `Repository permissions` `Issues` auf `read-only` setzen."
     },
     "gitlabIssuesDataSync": {
         "url": "Basis-URL",
-        "accessToken": "Zugriffstoken",
-        "accessTokenHelper": "Kann hier erstellt werden: https://gitlab.com/-/user_settings/personal_access_tokens indem man auf `Add new token` klickt und `read_api` auswählt.",
         "urlHelper": "Die Basis-URL Ihrer GitLab-Instanz. (z.B. https://gitlab.com)",
         "projectId": "Projekt-ID",
-        "projectIdHelper": "Die ID des Projekts, von dem Sie die Tickets synchronisieren möchten. Sie finden sie, indem Sie auf Ihre Projektseite gehen (z.B. https://gitlab.com/baserow/baserow), auf die drei Punkte in der oberen rechten Ecke klicken und anschließend auf 'Projekt-ID kopieren: 12345678'."
+        "projectIdHelper": "Die ID des Projekts, von dem Sie die Issues synchronisieren möchten. Sie finden sie, indem Sie auf Ihre Projektseite gehen (z.B. https://gitlab.com/baserow/baserow), auf die drei Punkte in der oberen rechten Ecke klicken und anschließend auf 'Copy project ID: 12345678'.",
+        "accessToken": "Zugriffstoken",
+        "accessTokenHelper": "Kann hier erstellt werden: https://gitlab.com/-/user_settings/personal_access_tokens, indem Sie auf `Add new token` klicken und `read_api` auswählen."
     },
     "hubspotContactsDataSync": {
         "accessToken": "Zugriffstoken für die private App",
-        "accessTokenHelper": "Um ein Zugriffstoken für eine private App in HubSpot zu erstellen, klicken Sie in der oberen Leiste auf Einstellungen, navigieren Sie zu Integrationen > Private Apps und erstellen Sie eine neue private App. Weisen Sie die folgenden Bereiche zu: crm.objects.contacts.read, crm.schemas.contacts.read, und crm.objects.custom.read. Klicken Sie abschließend auf App erstellen, um das Token zu generieren."
+        "accessTokenHelper": "Um ein Zugriffstoken für eine private App in HubSpot zu erstellen, klicken Sie in der oberen Leiste auf Settings, navigieren Sie zu Integrations > Private Apps und erstellen Sie eine neue private App. Weisen Sie die folgenden Scopes zu: crm.objects.contacts.read, crm.schemas.contacts.read und crm.objects.custom.read. Klicken Sie abschließend auf Create app, um das Token zu generieren."
+    },
+    "samlAuthLink": {
+        "placeholderWithSaml": "{login} mit SAML",
+        "provideEmail": "Geben Sie die E-Mail-Adresse Ihres SAML-Kontos ein",
+        "emailPlaceholder": "Geben Sie Ihre E-Mail ein..."
     },
     "configureDataSyncModal": {
         "periodicInterval": "Periodische Einstellungen"
     },
+    "configureDataSyncPeriodicInterval": {
+        "title": "Periodische Einstellungen",
+        "saved": "Gespeichert",
+        "deactivatedTitle": "Periodische Datensynchronisation deaktiviert",
+        "deactivatedText": "Die periodische Datensynchronisation wurde deaktiviert, weil sie zu oft hintereinander fehlgeschlagen ist. Bitte versuchen Sie, manuell zu synchronisieren. Wenn es wie erwartet funktioniert, klicken Sie auf die Schaltfläche zum Aktivieren.",
+        "activate": "Periodische Synchronisation aktivieren",
+        "enterprise": "Periodische Datensynchronisation ist eine Advanced/Enterprise-Funktion.",
+        "more": "Weitere Informationen"
+    },
     "dataSyncPeriodicIntervalForm": {
         "intervalLabel": "Intervall",
-        "intervalHelper": "Wie häufig der automatische Datenabgleich erfolgen soll.",
+        "intervalHelper": "Wie häufig die Datensynchronisation automatisch erfolgen soll.",
         "manual": "Manuell",
         "daily": "Täglich",
         "hourly": "Stündlich",
-        "whenHelper": "Geben Sie die genaue Stunde, Minute und Sekunde an, zu der die Daten abgeglichen werden sollen.",
+        "whenHelper": "Geben Sie die genaue Stunde, Minute und Sekunde an, zu der die Datensynchronisation erfolgen soll.",
+        "whenHourlyHelper": "Geben Sie die genaue Minute und Sekunde an, zu der die Datensynchronisation erfolgen soll.",
+        "hour": "Stunde",
         "minute": "Minute",
-        "second": "Sekunde",
-        "hour": "Stunde"
+        "second": "Sekunde"
     },
     "oidcAuthLink": {
         "placeholderWithOIDC": "{login} mit {provider}"
     },
-    "advanced": {
-        "license": "Advanced"
+    "chartWidget": {
+        "name": "Diagramm",
+        "bar": "Balkendiagramm",
+        "line": "Liniendiagramm"
+    },
+    "pieChartWidget": {
+        "name": "Kreisdiagramm",
+        "pie": "Kreisdiagramm",
+        "doughnut": "Ringdiagramm",
+        "polarArea": "Polarbereichsdiagramm"
+    },
+    "groupedAggregateRowsDataSourceForm": {
+        "series": "Reihen",
+        "addSeries": "Reihe hinzufügen",
+        "data": "Daten",
+        "sourceFieldLabel": "Quelle",
+        "viewFieldLabel": "Ansicht",
+        "notSelected": "Nicht ausgewählt"
+    },
+    "aggregationSeriesForm": {
+        "aggregationFieldLabel": "Feld",
+        "aggregationTypeLabel": "Zusammenfassung",
+        "deleteSeries": "Reihe löschen",
+        "chartType": "Diagrammtyp",
+        "barChart": "Balken",
+        "lineChart": "Linie",
+        "pieChart": "Kreis",
+        "doughnutChart": "Ring",
+        "polarAreaChart": "Polarbereich"
+    },
+    "aggregationGroupByForm": {
+        "groupByFieldLabel": "Gruppieren nach",
+        "groupByNone": "Keine",
+        "groupByRowId": "Zeilen-ID"
+    },
+    "aggregationSortByForm": {
+        "sortByFieldLabel": "Sortieren nach",
+        "none": "Keine",
+        "ascending": "Aufsteigend",
+        "descending": "Absteigend"
+    },
+    "periodicDataSyncDeactivatedNotification": {
+        "failure": "Die periodische Datensynchronisation für {name} wurde deaktiviert, weil sie zu oft hintereinander fehlgeschlagen ist.",
+        "licenseUnavailable": "Die periodische Datensynchronisation für {name} wurde deaktiviert, weil der Arbeitsbereich keine gültige Lizenz mehr hat. Bitte aktualisieren Sie Ihre Lizenz, um die automatische Synchronisation wiederherzustellen."
+    },
+    "twoWaySyncUpdateFailed": {
+        "title": "Bidirektionales Synchronisations-Update für {name} fehlgeschlagen: {error}"
+    },
+    "twoWaySyncDeactivated": {
+        "title": "Bidirektionale Synchronisation für {name} deaktiviert, weil ein Update zu oft hintereinander fehlgeschlagen ist. Bitte synchronisieren Sie manuell und reaktivieren Sie, wenn das Problem behoben ist."
+    },
+    "webhook": {
+        "rowsEnterVieweventType": "Zeilen treten in Ansicht ein"
+    },
+    "webhookForm": {
+        "triggerWhenRowsEnterView": "Wird ausgelöst, wenn Zeilen in die Ansicht eintreten.",
+        "helpTriggerWhenRowsEnterView": "Wird nur ausgelöst, wenn `Zeilen treten in Ansicht ein` ausgewählt ist und Zeilen, die nun den Filtern entsprechen, in die Ansicht eintreten."
+    },
+    "fileInputElementForm": {
+        "defaultNameTitle": "Initialer Dateiname|Initiale Dateinamen",
+        "defaultNamePlaceholder": "Geben Sie einen Dateinamen ein...|Geben Sie Dateinamen ein...",
+        "defaultNameHelp": "Die Anzahl der Namen muss mit der Anzahl der URLs übereinstimmen.",
+        "defaultUrlTitle": "Initiale Datei-URL|Initiale Datei-URLs",
+        "defaultUrlPlaceholder": "Geben Sie eine Standard-URL ein...|Geben Sie Standard-URLs ein..",
+        "helpTextTitle": "Hilfetext",
+        "helpTextPlaceholder": "Leer lassen für Standard...",
+        "multiple": "Mehrere Dateien?",
+        "required": "Erforderlich",
+        "fileTypes": "Dateitypen",
+        "fileTypesHelper": "Wählen Sie, welche Dateierweiterungen für die Dateieingabe erlaubt sind (eine pro Zeile) (z.B. jpg, png, svg, pdf). Sie können image/*, video/* oder audio/* angeben, um alle Dateien dieser Typen zuzulassen. Leer lassen, um alle Dateitypen zuzulassen.",
+        "preview": "Bildvorschau?",
+        "maxFileSize": "Maximale Dateigröße",
+        "maxFileSizePlaceholder": "Geben Sie eine Zahl ein...",
+        "addFileType": "Dateityp hinzufügen"
+    },
+    "fileInputElement": {
+        "defaultHelpText": "Dateien hierher ziehen und ablegen oder zum Auswählen klicken",
+        "fileSizeExceeded": "Datei zu groß. Maximal {max}MB."
+    },
+    "fieldPermissionModal": {
+        "title": "Feldberechtigungen bearbeiten",
+        "description": "Wählen Sie, wer Werte in {fieldName} bearbeiten kann.",
+        "question": "Wer kann dieses Feld bearbeiten?",
+        "editorTitle": "Bearbeiter und höher (Standard)",
+        "editorDescription": "Benutzer mit den Rollen Bearbeiter, Ersteller und Administrator",
+        "builderTitle": "Ersteller und höher",
+        "builderDescription": "Benutzer mit den Rollen Ersteller und Administrator",
+        "adminTitle": "Nur Administratoren",
+        "adminDescription": "Benutzer mit Administratorrollen",
+        "nobodyTitle": "Niemand",
+        "nobodyDescription": "Keine Benutzer",
+        "allowInForms": "Erlauben, dass dieses Feld in Zeilen gesetzt wird, die über Formulare erstellt werden",
+        "linkRowWarning": "Dies ist ein 'Verknüpfung mit Tabelle'-Feld. Um sicherzustellen, dass die Werte nicht über die verknüpfte Tabelle geändert werden können, stellen Sie bitte sicher, dass auch die richtigen Berechtigungen für die verknüpfte Tabelle festgelegt sind."
+    },
+    "builderSettingTypes": {
+        "customCode": "Benutzerdefiniertes CSS/JS"
+    },
+    "customCodeSettingForm": {
+        "customCSS": "Benutzerdefiniertes CSS",
+        "customJS": "Benutzerdefiniertes JavaScript",
+        "customCSSPlaceholder": "Geben Sie benutzerdefinierten CSS-Code ein...",
+        "customJSPlaceholder": "Geben Sie benutzerdefinierten JS-Code ein...",
+        "externalScripts": "Externe Skripte / Stylesheets",
+        "noScript": "Erweitern Sie Ihre Anwendung mit externen Skripten oder Stylesheets",
+        "customCodeTitle": "Benutzerdefinierter Code",
+        "customCodeHelp": "Benutzerdefinierter Code ist nur in der Vorschau oder in veröffentlichten Anwendungen sichtbar. Die Ergebnisse sind im Editor nicht sichtbar.",
+        "addExternalScript": "Externes Skript hinzufügen"
+    },
+    "customCodeSettingScriptForm": {
+        "type": "Typ",
+        "loadType": "Ladetyp",
+        "url": "URL",
+        "urlPlaceholder": "Geben Sie die Skript-URL ein...",
+        "crossorigin": "Cross-Origin",
+        "includeCredentials": "Anmeldeinformationen einschließen",
+        "typeCSS": "CSS",
+        "typeJS": "Javascript",
+        "loadTypeNone": "Normal",
+        "loadTypeDefer": "Defer",
+        "loadTypeAsync": "Async",
+        "crossoriginTypeNone": "Normal",
+        "crossoriginTypeAnonymous": "Anonym",
+        "crossoriginTypeCredentials": "Anmeldeinformationen verwenden"
+    },
+    "elementType": {
+        "errorUserSourceHasNoLoginOption": "Die ausgewählte Benutzerquelle hat keine Anmeldeoption",
+        "errorUserSourceMissing": "Keine Benutzerquelle ausgewählt"
+    },
+    "fieldPermissionsMenuItem": {
+        "label": "Feldberechtigungen bearbeiten"
+    },
+    "enterpriseTwoWaySyncStrategyType": {
+        "realtimePushDescription": "Ermöglicht die direkte Bearbeitung der Zellwerte in Baserow und überträgt sie in Echtzeit an die Datensynchronisationsquelle. Beachten Sie, dass die Änderungen nicht in Echtzeit gezogen werden, da sie auf den Abschluss der (periodischen) Synchronisationsaktion angewiesen sind. Es wird dringend empfohlen, Backups der PostgreSQL-Datenbank zu erstellen, um versehentliche Änderungen zu vermeiden."
+    },
+    "dateDependencyModal": {
+        "errorTitle": "Datumsabhängigkeit",
+        "dependencyFieldTooltip": "Datumsabhängigkeiten konfigurieren",
+        "dependencyFieldTooltipError": "Eine Feldregel enthält einen Fehler",
+        "contextMenuItemLabel": "Datumsabhängigkeiten konfigurieren",
+        "title": "Datumsabhängigkeit für {tableName}",
+        "description": "Geben Sie an, welche Zeilen von anderen abhängen. Wenn eine Zeile umgeplant wird, werden ihre abhängigen Zeilen automatisch angepasst.",
+        "enableDateDependency": "Datumsabhängigkeiten für Projekte aktivieren",
+        "startDateFieldLabel": "Startdatum",
+        "endDateFieldLabel": "Enddatum",
+        "durationFieldLabel": "Dauer",
+        "durationFieldHint": "Dieses Feld muss das Format „d h“ verwenden.",
+        "dependencyLinkrowFieldLabel": "Vorgänger",
+        "dependencyLinkrowFieldHint": "Verwenden Sie ein Verknüpfung-mit-Tabelle-Feld, um eine Zeile mit ihren Vorgängern zu verbinden.",
+        "dependencyBufferTypeLabel": "Logik der Umplanung",
+        "durationBufferLabel": "Zeitpuffer",
+        "dependencyConnectionTypeLabel": "Typ",
+        "advancedSettingsLabel": "Erweiterte Einstellungen",
+        "includeWeekendsLabel": "Wochenenden bei der Berechnung der Dauer einbeziehen",
+        "dependencyFieldForReaderTooltip": "Dieses Feld ist in der Datumsabhängigkeits-Feldregel enthalten",
+        "fieldInvalidTitle": "Datumsabhängigkeits-Feldfehler",
+        "addNewField": "Neues Feld hinzufügen",
+        "linkRowFieldTitle": "Eltern"
+    },
+    "dateDependency": {
+        "invalidChildRow": "Nachfolgerzeile ist ungültig",
+        "invalidParentRow": "Vorgängerzeile ist ungültig",
+        "invalidParentEndDateAfterChildStartDate": "Das Enddatum der Vorgängerzeile liegt nach dem Startdatum des Nachfolgers",
+        "invalidStartDateEmpty": "Startdatum ist leer",
+        "invalidEndDateEmpty": "Enddatum ist leer",
+        "invalidEndDateBeforeStartDate": "Enddatum liegt vor dem Startdatum",
+        "invalidDurationEmpty": "Dauer ist leer",
+        "invalidDurationValue": "Dauerwert ist nicht gültig",
+        "invalidDurationMismatch": "Dauerwert stimmt nicht überein"
+    },
+    "viewOwnershipType": {
+        "restricted": "Eingeschränkt",
+        "restrictedDescription": "Bearbeiter und niedriger können nur die gefilterten Daten und sichtbaren Felder sehen. Es ist möglich, die Mitglieder zu verwalten."
+    },
+    "databaseStep": {
+        "ai": "Kuma AI"
+    },
+    "aiDatabaseOnboardingForm": {
+        "label": "Beschreiben Sie Ihre Datenbank",
+        "placeholder": "z.B. Erstellen Sie eine Lösung für Projektmanagement",
+        "description": "Beschreiben Sie, was Sie verfolgen möchten. Kuma erstellt die Tabellen und Felder.",
+        "exampleProjectTrackerName": "Projekt-Tracker",
+        "exampleProjectTrackerPrompt": "Erstellen Sie einen Projekt-Tracker mit Projekten, Aufgaben, Verantwortlichen, Status, Priorität, Fälligkeitsdaten und Abhängigkeiten.",
+        "exampleProductRoadmapName": "Produkt-Roadmap",
+        "exampleProductRoadmapPrompt": "Erstellen Sie eine Produkt-Roadmap mit Initiativen, Funktionen, Eigentümern, Status, Priorität, Zielquartal und Versionshinweisen.",
+        "exampleCompanyAssetTrackerName": "Firmen-Asset-Tracker",
+        "exampleCompanyAssetTrackerPrompt": "Erstellen Sie einen Asset-Tracker mit Assets, Kategorien, Seriennummern, Kaufdatum, Zugewiesen an, Standort und Garantieablauf.",
+        "exampleTeamCheckInsName": "Team-Check-ins",
+        "exampleTeamCheckInsPrompt": "Erstellen Sie einen wöchentlichen Team-Check-in-Tracker mit Teammitgliedern, Datum, Erfolgen, Hindernissen, Stimmung, Prioritäten und Folgemaßnahmen.",
+        "exampleBugTrackerName": "Bug-Tracker",
+        "exampleBugTrackerPrompt": "Erstellen Sie einen Bug-Tracker mit Bugs, Schweregrad, Status, Schritten zur Reproduktion, Umgebung, Melder, Zuständigem und Fix-Version."
+    },
+    "aiDatabaseOnboardingStepType": {
+        "prompt": "Erstellen Sie eine Datenbank inklusive Tabellen, Feldern, Beispielzeilen und Beispielansichten, die dieser Beschreibung entsprechen: {prompt}"
+    },
+    "assistantOnboardingMessage": {
+        "instructing": "Kuma wird angewiesen, Ihre Datenbank zu erstellen."
     }
 }

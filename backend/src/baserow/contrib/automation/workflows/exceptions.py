@@ -23,6 +23,13 @@ class AutomationWorkflowDoesNotExist(AutomationWorkflowError):
     pass
 
 
+class AutomationWorkflowNotificationRecipientsInvalid(AutomationWorkflowError):
+    """
+    Raised when a workflow notification recipient doesn't belong to the workflow
+    workspace.
+    """
+
+
 class AutomationWorkflowBeforeRunError(AutomationWorkflowError):
     pass
 

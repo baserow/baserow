@@ -1,15 +1,20 @@
 import logging
-import os
 import sys
+
+from django.http import HttpRequest
 
 from celery import signals
 from opentelemetry import metrics, trace
 from opentelemetry._logs import set_logger_provider
 from opentelemetry.sdk._logs import LoggerProvider, LoggingHandler
+from opentelemetry.trace import Span
 
 from baserow.core.psycopg import is_psycopg3
 from baserow.core.telemetry.provider import DifferentSamplerPerLibraryTracerProvider
 from baserow.core.telemetry.utils import BatchBaggageSpanProcessor, otel_is_enabled
+from baserow.core.utils import get_user_remote_ip_address_from_request
+
+OTEL_CLIENT_IP_ATTRIBUTE_NAMES = ("client.address", "net.peer.ip")
 
 
 class LogGuruCompatibleLoggerHandler(LoggingHandler):
@@ -43,7 +48,7 @@ def setup_logging():
 
     # A slightly customized default loguru format which includes the process id.
     loguru_format = (
-        f"<magenta>{os.getpid()}|</magenta>"
+        "<magenta>{process}|</magenta>"
         "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green>|"
         "<level>{level}</level>|"
         "<cyan>{name}</cyan>:"
@@ -160,12 +165,20 @@ def _setup_standard_backend_instrumentation():
 
     BotocoreInstrumentor().instrument()
     PsycopgInstrumentor().instrument()
-    RedisInstrumentor().instrument()
     RequestsInstrumentor().instrument()
     CeleryInstrumentor().instrument()
+    RedisInstrumentor().instrument()
 
 
 def _setup_django_process_instrumentation():
     from opentelemetry.instrumentation.django import DjangoInstrumentor
 
-    DjangoInstrumentor().instrument()
+    DjangoInstrumentor().instrument(request_hook=_set_real_client_ip_on_request_span)
+
+
+def _set_real_client_ip_on_request_span(span: Span, request: HttpRequest):
+    if span and span.is_recording():
+        ip_address = get_user_remote_ip_address_from_request(request)
+        if ip_address:
+            for attribute_name in OTEL_CLIENT_IP_ATTRIBUTE_NAMES:
+                span.set_attribute(attribute_name, ip_address)

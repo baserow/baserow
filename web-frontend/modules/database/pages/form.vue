@@ -110,7 +110,14 @@ const { data, error } = await useAsyncData(
           }),
         }
       } else {
-        throw createError({ statusCode: 404, message: 'Form not found.' })
+        throw createError({
+          statusCode: 404,
+          message: 'Form not found.',
+          data: {
+            report: false,
+          },
+          fatal: true,
+        })
       }
     }
 
@@ -169,7 +176,14 @@ const { data, error } = await useAsyncData(
         Object.assign(values, rowData)
       } catch (e) {
         if (e.response.status === 404) {
-          throw createError({ statusCode: 404, message: 'Invalid edit token.' })
+          throw createError({
+            statusCode: 404,
+            message: 'Invalid edit token.',
+            data: {
+              report: false,
+            },
+            fatal: true,
+          })
         }
         throw e
       }

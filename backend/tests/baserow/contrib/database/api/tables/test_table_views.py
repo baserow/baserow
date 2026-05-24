@@ -313,6 +313,8 @@ def test_list_tables_with_data_sync(api_client, data_fixture):
         assert response_json[0]["data_sync"] == {
             "id": data_sync_1.id,
             "type": "ical_calendar",
+            "table_id": data_sync_1.table_id,
+            "database_id": data_sync_1.table.database_id,
             "last_sync": None,
             "last_error": None,
             "auto_add_new_properties": False,

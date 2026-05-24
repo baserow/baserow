@@ -50,6 +50,7 @@ def test_view_created_event_type(data_fixture):
             "public": False,
             "slug": view.slug,
             "row_height_size": "small",
+            "frozen_column_count": 1,
         },
     }
 
@@ -93,6 +94,7 @@ def test_view_created_event_type_test_payload(data_fixture):
             "row_identifier_type": "id",
             "public": False,
             "row_height_size": "small",
+            "frozen_column_count": 1,
         },
     }
 
@@ -147,6 +149,7 @@ def test_view_updated_event_type(data_fixture):
             "public": False,
             "slug": view.slug,
             "row_height_size": "small",
+            "frozen_column_count": 1,
         },
     }
 
@@ -190,6 +193,7 @@ def test_view_updated_event_type_test_payload(data_fixture):
             "row_identifier_type": "id",
             "public": False,
             "row_height_size": "small",
+            "frozen_column_count": 1,
         },
     }
 

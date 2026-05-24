@@ -3,7 +3,7 @@
 If you have an [Nginx server](https://www.nginx.com/) this guide will explain how to
 configure it to pass requests through to Baserow.
 
-We strongly recommend you use our `baserow/baserow:2.1.6` image or the example
+We strongly recommend you use our `baserow/baserow:2.2.2` image or the example
 `docker-compose.yml` files (excluding the `.no-caddy.yml` variant) provided in
 our [git repository](https://github.com/baserow/baserow/tree/master/deploy/nginx/).
 
@@ -18,8 +18,8 @@ simplifies your life by:
 > If you do not want to use our embedded Caddy service behind your Nginx then
 > make sure you are using one of the two following deployment methods: 
 >
-> * Your own container setup with our single service `baserow/backend:2.1.6`
-    and `baserow/web-frontend:2.1.6` images.
+> * Your own container setup with our single service `baserow/backend:2.2.2`
+    and `baserow/web-frontend:2.2.2` images.
 > * Or our `docker-compose.no-caddy.yml` example file in our [git repository](https://github.com/baserow/baserow/tree/master/deploy/nginx/).
 > 
 > Then you should use **Option 2: Without our embedded Caddy** section instead.
@@ -32,7 +32,7 @@ simplifies your life by:
 
 Follow this option if you are using:
 
-* The all-in-one Baserow image `baserow/baserow:2.1.6`
+* The all-in-one Baserow image `baserow/baserow:2.2.2`
 * Any of the example compose files found in the root of our git
   repository `docker-compose.yml`/`docker-compose.all-in-one.yml`
 
@@ -61,6 +61,11 @@ Create a new `baserow.conf` in `/etc/nginx/sites-available/` with the following 
 > your particular Baserow deployment.
 
 ```
+map $arg_dl $baserow_media_content_disposition {
+    default "attachment; filename=$arg_dl";
+    "" "";
+}
+
 server {
     server_name baserow.example.com;
 
@@ -107,7 +112,7 @@ You should now be able to access Baserow on you configured subdomain.
 
 Follow this option if you are using:
 
-* Our standalone `baserow/backend:2.1.6` and `baserow/web-frontend:2.1.6` images with
+* Our standalone `baserow/backend:2.2.2` and `baserow/web-frontend:2.2.2` images with
   your own container orchestrator.
 * Or the `docker-compose.no-caddy.yml` example docker compose file in the root of our
   git repository.
@@ -126,7 +131,7 @@ but you might have to run different commands.
 You need to ensure user uploaded files are accessible in a folder for Nginx to serve. In
 the rest of the guide we will use the example `/var/web` folder for this purpose.
 
-If you are using the `baserow/backend:2.1.6` image then you can do this by adding
+If you are using the `baserow/backend:2.2.2` image then you can do this by adding
 `-v /var/web:/baserow/data/media` to your normal `docker run` command used to launch the
 Baserow backend.
 
@@ -168,9 +173,9 @@ server {
     }
 
     location /media/ {
-        if ($arg_dl) {
-            add_header Content-disposition "attachment; filename=$arg_dl";
-        }
+        add_header Content-Disposition $baserow_media_content_disposition always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header Content-Security-Policy "sandbox; default-src 'none'; script-src 'none'; object-src 'none'; base-uri 'none'" always;
         # TODO Change to your media folder location!
         alias /var/www/;
     }
@@ -207,4 +212,3 @@ them (you are getting 403 denied errors when accessing the files) then:
   your Nginx user by running `cd /var/web && chmod 755 *`.
 * Fix any file permissions found inside the `/var/web` sub-folders to be readable by
   your Nginx user.
-

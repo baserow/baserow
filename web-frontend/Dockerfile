@@ -88,8 +88,7 @@ WORKDIR /baserow/web-frontend
 
 # Build, then clean reinstall production only
 RUN --mount=type=cache,target=$YARN_CACHE_FOLDER,uid=$UID,gid=$GID,sharing=locked \
-    yarn run build \
-    && find .output -type f -name "*.map" -delete
+    yarn run build
 
 
 # =============================================================================

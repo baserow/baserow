@@ -106,4 +106,28 @@ export const registerRealtimeEvents = (realtime) => {
       nodeId,
     })
   })
+
+  realtime.registerEvent(
+    'automation_workflow_dispatch_started',
+    ({ store }, data) => {
+      const selectedWorkflow = store.getters['automationWorkflow/getSelected']
+      if (selectedWorkflow && selectedWorkflow.id === data.workflow_id) {
+        store.dispatch('automationHistory/fetchWorkflowHistory', {
+          workflowId: data.workflow_id,
+        })
+      }
+    }
+  )
+
+  realtime.registerEvent(
+    'automation_workflow_dispatch_done',
+    ({ store }, data) => {
+      const selectedWorkflow = store.getters['automationWorkflow/getSelected']
+      if (selectedWorkflow && selectedWorkflow.id === data.workflow_id) {
+        store.dispatch('automationHistory/fetchWorkflowHistory', {
+          workflowId: data.workflow_id,
+        })
+      }
+    }
+  )
 }

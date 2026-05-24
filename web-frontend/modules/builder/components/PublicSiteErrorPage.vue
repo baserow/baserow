@@ -1,15 +1,22 @@
 <template>
   <div v-if="!redirecting" class="placeholder">
     <div class="placeholder__logo">
-      <nuxt-link
-        :to="{
-          name: routeName,
-          params: { pathMatch: '' },
-        }"
-        custom
+      <a
+        :href="
+          $router.resolve({
+            name: routeName,
+            params: { pathMatch: '' },
+          }).fullPath
+        "
+        @click.prevent="
+          clearAndNavigate({
+            name: routeName,
+            params: { pathMatch: '' },
+          })
+        "
       >
         <Logo class="placeholder__logo-image" />
-      </nuxt-link>
+      </a>
     </div>
     <h1 class="placeholder__title">{{ message }}</h1>
     <p v-if="error.statusCode === 404" class="placeholder__content">
@@ -57,7 +64,10 @@ export default {
     },
   },
   methods: {
-    onHome() {
+    clearAndNavigate(to) {
+      window.location.replace(this.$router.resolve(to).fullPath)
+    },
+    async onHome() {
       if (
         ['application-builder-page', 'application-builder-preview'].includes(
           this.routeName
@@ -68,7 +78,7 @@ export default {
           this.$router.go(0)
         } else {
           // Navigate to the home route
-          this.$router.push({
+          this.clearAndNavigate({
             name: this.routeName,
             params: { pathMatch: '' },
             query: null, // Remove query parameters

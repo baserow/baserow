@@ -1,0 +1,7 @@
+{
+  "type": "feature",
+  "message": "Add support for importing Excel files into database tables",
+  "domain": "database",
+  "bullet_points": [],
+  "created_at": "2026-04-26"
+}

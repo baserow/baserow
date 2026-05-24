@@ -118,10 +118,30 @@ class TableCreateSerializer(serializers.ModelSerializer):
         "field names are going to be the values of the first row. Otherwise "
         'they will be called "Field N"',
     )
+    importer_type = serializers.CharField(
+        max_length=32,
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="The frontend importer identifier used to parse the file.",
+    )
+    original_file_name = serializers.CharField(
+        max_length=255,
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="The original name of the uploaded file.",
+    )
 
     class Meta:
         model = Table
-        fields = ("name", "data", "first_row_header")
+        fields = (
+            "name",
+            "data",
+            "first_row_header",
+            "importer_type",
+            "original_file_name",
+        )
         extra_kwargs = {
             "data": {"required": False},
             "first_row_header": {"required": False},
@@ -144,9 +164,23 @@ class TableImportSerializer(serializers.Serializer):
         ),
     )
     configuration = TableImportConfiguration(required=False, default=None)
+    importer_type = serializers.CharField(
+        max_length=32,
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="The frontend importer identifier used to parse the file.",
+    )
+    original_file_name = serializers.CharField(
+        max_length=255,
+        required=False,
+        allow_blank=True,
+        default="",
+        help_text="The original name of the uploaded file.",
+    )
 
     class Meta:
-        fields = ("data",)
+        fields = ("data", "importer_type", "original_file_name")
 
     def validate(self, attrs):
         if attrs.get("configuration"):

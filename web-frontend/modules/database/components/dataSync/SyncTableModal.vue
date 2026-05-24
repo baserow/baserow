@@ -16,13 +16,13 @@
       <Error :error="error"></Error>
       <div class="modal-progress__actions margin-top-2">
         <ProgressBar
-          v-if="syncLoading || jobIsRunning || jobHasSucceeded"
+          v-if="syncLoading || jobIsRunning || jobIsFinished"
           :value="job?.progress_percentage || 0"
           :status="jobHumanReadableState"
         />
         <div class="align-right">
           <Button
-            v-if="!jobHasSucceeded"
+            v-if="!jobIsFinished"
             type="primary"
             size="large"
             :disabled="syncLoading || jobIsRunning"
@@ -59,9 +59,7 @@ export default {
       this.hideError()
       modal.methods.show.bind(this)()
     },
-    hidden() {
-      this.stopPollIfRunning()
-    },
+    hidden() {},
   },
 }
 </script>

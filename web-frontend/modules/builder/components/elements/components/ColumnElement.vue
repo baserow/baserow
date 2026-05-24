@@ -4,13 +4,13 @@
     :style="{
       '--space-between-columns': `${element.column_gap}px`,
       '--alignment': flexAlignment,
+      '--column-amount': columnAmount,
     }"
   >
     <div
       v-for="(childrenInColumn, columnIndex) in childrenElements"
       :key="columnIndex"
       class="column-element__column"
-      :style="{ '--column-width': `${columnWidth}%` }"
     >
       <template v-if="childrenInColumn.length > 0">
         <div
@@ -33,15 +33,16 @@
         </div>
       </template>
       <AddElementZone
-        v-else-if="
-          mode === 'editing' &&
-          $hasPermission(
+        v-else-if="mode === 'editing'"
+        :disabled="
+          !$hasPermission(
             'builder.page.create_element',
             elementPage,
             workspace.id
           )
         "
-        :page="elementPage"
+        :place-in-container="`${columnIndex}`"
+        :parent-element="element"
         @add-element="showAddElementModal(columnIndex)"
       />
     </div>
@@ -114,9 +115,6 @@ export default {
       } else {
         return this.element.column_amount
       }
-    },
-    columnWidth() {
-      return 100 / this.columnAmount - 0.00000000000001
     },
     childrenByColumnOrdered() {
       return _.groupBy(this.children, (child) => {

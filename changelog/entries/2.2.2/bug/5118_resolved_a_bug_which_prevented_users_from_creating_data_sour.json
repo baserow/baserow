@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved a bug which prevented users from creating data sources from the data source dropdown's footer.",
+    "issue_origin": "github",
+    "issue_number": 5118,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-04-22"
+}

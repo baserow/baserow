@@ -181,8 +181,20 @@ const { data, error } = await useAsyncData('licensesPage', async () => {
       instanceId: instanceData.instance_id,
     }
   } catch (e) {
+    const statusCode = e.response?.status || 500
+
+    if (statusCode === 404) {
+      throw createError({
+        statusCode: 404,
+        message: 'Licenses not found.',
+        data: {
+          report: false,
+        },
+        fatal: true,
+      })
+    }
     throw createError({
-      statusCode: 400,
+      statusCode: statusCode,
       message: 'Something went wrong while fetching the licenses.',
       fatal: true,
     })

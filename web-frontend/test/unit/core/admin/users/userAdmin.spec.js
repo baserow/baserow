@@ -114,7 +114,7 @@ describe('User Admin Component Tests', () => {
   test('A user can be deleted', async () => {
     const { user, userAdmin, ui } = await whenThereIsAUserAndYouOpenUserAdmin()
 
-    expect(userAdmin.html()).toContain(user.username)
+    expect(userAdmin.find('tbody').html()).toContain(user.username)
 
     const editUserContext = await ui.openFirstUserActionsMenu()
     await ui.clickDeleteUser(editUserContext)
@@ -125,7 +125,7 @@ describe('User Admin Component Tests', () => {
 
     await flushPromises()
 
-    expect(userAdmin.html()).not.toContain(user.username)
+    expect(userAdmin.find('tbody').html()).not.toContain(user.username)
   })
 
   test('An active user can be deactivated', async () => {

@@ -10,6 +10,7 @@ from baserow.contrib.builder.elements.exceptions import (
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
+from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.core.exceptions import PermissionException
 
 
@@ -316,6 +317,7 @@ def test_move_element(element_moved_mock, data_fixture):
     service = ElementService()
     element_moved = service.move_element(
         user,
+        page,
         element3,
         element3.parent_element,
         element3.place_in_container,
@@ -328,7 +330,7 @@ def test_move_element(element_moved_mock, data_fixture):
 
 
 @pytest.mark.django_db
-def test_move_element_not_same_page(data_fixture, stub_check_permissions):
+def test_move_element_not_same_builder(data_fixture, stub_check_permissions):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     page2 = data_fixture.create_builder_page(user=user)
@@ -336,9 +338,10 @@ def test_move_element_not_same_page(data_fixture, stub_check_permissions):
     element2 = data_fixture.create_builder_heading_element(page=page)
     element3 = data_fixture.create_builder_text_element(page=page2)
 
-    with pytest.raises(ElementNotInSamePage):
+    with pytest.raises(PageNotInBuilder):
         ElementService().move_element(
             user,
+            page,
             element3,
             element3.parent_element,
             element3.place_in_container,
@@ -360,6 +363,7 @@ def test_move_element_permission_denied(data_fixture, stub_check_permissions):
     ):
         ElementService().move_element(
             user,
+            page,
             element3,
             element3.parent_element,
             element3.place_in_container,
@@ -385,6 +389,7 @@ def test_move_element_trigger_order_recalculated(
     service = ElementService()
     service.move_element(
         user,
+        page,
         element3,
         element3.parent_element,
         element3.place_in_container,

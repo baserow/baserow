@@ -5,6 +5,17 @@ from baserow_enterprise.assistant.deps import AssistantDeps
 from baserow_enterprise.assistant.prompts import AGENT_SYSTEM_PROMPT
 from baserow_enterprise.assistant.tools.toolset import tool_manifest_line_compact
 
+FREE_LICENSE_TIER = "free"
+_CANONICAL_LICENSE_TIERS = {
+    FREE_LICENSE_TIER,
+    "premium",
+    "advanced",
+    "enterprise",
+}
+_LICENSE_TIER_ALIASES = {
+    "enterprise_without_support": "enterprise",
+}
+
 main_agent: Agent[AssistantDeps, str] = Agent(
     deps_type=AssistantDeps,
     output_type=str,
@@ -12,6 +23,17 @@ main_agent: Agent[AssistantDeps, str] = Agent(
     retries=3,
     name="main_agent",
 )
+
+
+def _canonical_license_tier(license_tier: str) -> str:
+    """
+    Return the public license tier token that is safe to inject into the prompt.
+    """
+
+    normalized_tier = _LICENSE_TIER_ALIASES.get(license_tier, license_tier)
+    if normalized_tier in _CANONICAL_LICENSE_TIERS:
+        return normalized_tier
+    return FREE_LICENSE_TIER
 
 
 @main_agent.instructions
@@ -29,6 +51,20 @@ def dynamic_mode(ctx) -> str:
     """Inject the current agent mode into the system prompt."""
 
     return f"\n<mode>{ctx.deps.mode.value}</mode>"
+
+
+@main_agent.instructions
+def dynamic_license_tier(ctx) -> str:
+    """Inject the active workspace license tier and its paid features."""
+
+    lt = ctx.deps.license_tier
+    if lt is None:
+        return f"\n<license_tier>{FREE_LICENSE_TIER}</license_tier>"
+    features = ",".join(sorted(lt.features))
+    return (
+        f"\n<license_tier>{_canonical_license_tier(lt.type)}</license_tier>"
+        f"\n<features>{features}</features>"
+    )
 
 
 @main_agent.instructions

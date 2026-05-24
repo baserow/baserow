@@ -1,10 +1,5 @@
-import math
 from datetime import datetime
 from typing import Any, Dict, List, Optional
-
-import requests
-from requests.auth import HTTPBasicAuth
-from requests.exceptions import JSONDecodeError, RequestException
 
 from baserow.contrib.database.data_sync.exceptions import SyncError
 from baserow.contrib.database.data_sync.registries import DataSyncProperty, DataSyncType
@@ -19,11 +14,8 @@ from baserow.core.utils import ChildProgressBuilder, get_value_at_path
 from baserow_enterprise.features import DATA_SYNC
 from baserow_premium.license.handler import LicenseHandler
 
-from .models import (
-    JIRA_ISSUES_DATA_SYNC_API_TOKEN,
-    JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN,
-    JiraIssuesDataSync,
-)
+from .jira_client import fetch_issues
+from .models import JiraIssuesDataSync
 
 
 class JiraIDDataSyncProperty(DataSyncProperty):
@@ -220,97 +212,6 @@ class JiraIssuesDataSyncType(DataSyncType):
         except ValueError:
             raise SyncError(f"The date {value} could not be parsed.")
 
-    def _get_issue_count(self, instance, jql, headers, kwargs):
-        """Get approximate issue count for progress tracking."""
-
-        url = f"{instance.jira_url}/rest/api/2/search/approximate-count"
-        try:
-            response = requests.post(
-                url,
-                headers={**headers, "Content-Type": "application/json"},
-                json={"jql": jql},
-                timeout=10,
-                **kwargs,
-            )
-            if response.ok:
-                return response.json().get("count", 0)
-        except (RequestException, ConnectionError):
-            pass
-        return 0
-
-    def _fetch_issues(self, instance, progress_builder: ChildProgressBuilder):
-        headers = {"Accept": "application/json"}
-        kwargs = {}
-
-        if instance.jira_authentication == JIRA_ISSUES_DATA_SYNC_PERSONAL_ACCESS_TOKEN:
-            headers["Authorization"] = f"Bearer {instance.jira_api_token}"
-
-        if instance.jira_authentication == JIRA_ISSUES_DATA_SYNC_API_TOKEN:
-            kwargs["auth"] = HTTPBasicAuth(
-                instance.jira_username, instance.jira_api_token
-            )
-
-        issues = []
-        max_results = 50
-        next_page_token = None
-
-        if instance.jira_project_key:
-            jql = f"project={instance.jira_project_key} ORDER BY created DESC"
-        else:
-            jql = "created IS NOT EMPTY ORDER BY created DESC"
-
-        issue_count = self._get_issue_count(instance, jql, headers, kwargs)
-        page_count = math.ceil(issue_count / max_results) if issue_count > 0 else 0
-        progress = ChildProgressBuilder.build(
-            progress_builder, child_total=page_count + 1
-        )
-        progress.increment(by=1)
-
-        try:
-            while True:
-                url = f"{instance.jira_url}/rest/api/2/search/jql"
-                params = {
-                    "jql": jql,
-                    "maxResults": max_results,
-                    "fields": "*all",
-                }
-                if next_page_token:
-                    params["nextPageToken"] = next_page_token
-
-                response = requests.get(
-                    url, headers=headers, params=params, timeout=10, **kwargs
-                )
-                if not response.ok:
-                    try:
-                        json = response.json()
-                        if "errorMessages" in json and len(json["errorMessages"]) > 0:
-                            raise SyncError(json["errorMessages"][0])
-                    except JSONDecodeError:
-                        pass
-                    raise SyncError(
-                        "The request to Jira did not return an OK response."
-                    )
-
-                data = response.json()
-
-                progress.increment(by=1)
-
-                if len(data["issues"]) == 0 and next_page_token is None:
-                    raise SyncError(
-                        "No issues found. This is usually because the authentication "
-                        "details are wrong."
-                    )
-
-                issues.extend(data["issues"])
-
-                next_page_token = data.get("nextPageToken")
-                if not next_page_token:
-                    break
-        except (RequestException, ConnectionError) as e:
-            raise SyncError(f"Error connecting to Jira: {str(e)}")
-
-        return issues
-
     def get_all_rows(
         self,
         instance,
@@ -318,10 +219,16 @@ class JiraIssuesDataSyncType(DataSyncType):
     ) -> List[Dict]:
         from jira2markdown import convert
 
+        if instance.jira_project_key:
+            jql = f"project={instance.jira_project_key} ORDER BY created DESC"
+        else:
+            jql = "created IS NOT EMPTY ORDER BY created DESC"
+
         issue_list = []
         progress = ChildProgressBuilder.build(progress_builder, child_total=10)
-        fetched_issues = self._fetch_issues(
+        fetched_issues = fetch_issues(
             instance,
+            jql,
             progress_builder=progress.create_child_builder(represents_progress=9),
         )
         for issue in fetched_issues:

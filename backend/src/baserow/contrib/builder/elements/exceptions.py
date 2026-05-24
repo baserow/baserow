@@ -10,6 +10,10 @@ class ElementNotInSamePage(Exception):
     """Raised when trying to move an element before an element on a different page."""
 
 
+class ElementMoveNotAllowed(Exception):
+    """Raised when trying to move an element to a forbidden position."""
+
+
 class CollectionElementPropertyOptionsNotUnique(Exception):
     """
     Raised when trying to save a collection element property with non-unique options.

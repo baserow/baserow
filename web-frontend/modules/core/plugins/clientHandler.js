@@ -159,15 +159,6 @@ export class ClientErrorMap {
         $i18n.t('clientHandler.modelDoesNotBelongToTypeTitle'),
         $i18n.t('clientHandler.modelDoesNotBelongToTypeDescription')
       ),
-      ERROR_MAX_NUMBER_OF_PENDING_WORKSPACE_INVITES_REACHED:
-        new ResponseErrorMessage(
-          $i18n.t(
-            'clientHandler.maxNumberOfPendingWorkspaceInvitesReachedTitle'
-          ),
-          $i18n.t(
-            'clientHandler.maxNumberOfPendingWorkspaceInvitesReachedDescription'
-          )
-        ),
       ERROR_FIELD_IS_ALREADY_PRIMARY: new ResponseErrorMessage(
         $i18n.t('clientHandler.fieldIsAlreadyPrimaryTitle'),
         $i18n.t('clientHandler.fieldIsAlreadyPrimaryDescription')
@@ -285,6 +276,20 @@ export class ErrorHandler {
 
     if (Object.prototype.hasOwnProperty.call(this.errorMap, this.code)) {
       return this.errorMap[this.code]
+    }
+
+    const status = this.response?.status || 500
+    if (
+      this.detail &&
+      typeof this.detail === 'string' &&
+      status >= 400 &&
+      status < 500 &&
+      this.code != 'ERROR_REQUEST_BODY_VALIDATION'
+    ) {
+      return new ResponseErrorMessage(
+        this.app.$i18n.t('clientHandler.notCompletedTitle'),
+        this.detail
+      )
     }
 
     return this.genericDefaultError()

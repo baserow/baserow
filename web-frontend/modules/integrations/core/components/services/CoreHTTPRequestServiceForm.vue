@@ -168,11 +168,6 @@
     >
       <InjectedFormulaInput
         v-model="values.body_content"
-        :enabled-modes="
-          values.body_type === 'plain'
-            ? BASEROW_FORMULA_MODES
-            : ['raw', 'simple']
-        "
         :placeholder="$t('coreHTTPRequestServiceForm.bodyPlaceholder')"
       />
     </FormGroup>
@@ -266,7 +261,6 @@ import {
   helpers,
 } from '@vuelidate/validators'
 import { uuid } from '@baserow/modules/core/utils/string'
-import { BASEROW_FORMULA_MODES } from '@baserow/modules/core/formula/constants'
 
 export default {
   name: 'CoreHTTPRequestService',
@@ -301,9 +295,6 @@ export default {
     }
   },
   computed: {
-    BASEROW_FORMULA_MODES() {
-      return BASEROW_FORMULA_MODES
-    },
     methods() {
       return [
         { name: 'GET', value: 'GET' },

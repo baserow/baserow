@@ -180,7 +180,28 @@ class FieldRuleHandler:
         self, rule_type_name: str, in_data: dict, primary_key_value: int | None = None
     ) -> FieldRule:
         """
-        Creates a rule of a given type.
+        Creates a rule of a given type after checking rule-type preconditions.
+
+        Delegates to `can_create_rule` on the rule type (which may raise if
+        the required feature or license is unavailable) and then to
+        `force_create_rule`.
+
+        :param rule_type_name: registered rule type name.
+        :param in_data: a dictionary with all rule params.
+        :param primary_key_value: (optional) the primary key value for the rule (if
+            the instance is being restored).
+        :return: rule instance.
+        """
+
+        rule_type = self.get_type_handler(rule_type_name)
+        rule_type.can_create_rule(self.table)
+        return self.force_create_rule(rule_type_name, in_data, primary_key_value)
+
+    def force_create_rule(
+        self, rule_type_name: str, in_data: dict, primary_key_value: int | None = None
+    ) -> FieldRule:
+        """
+        Creates a rule of a given type without checking rule-type preconditions.
 
         This method creates an instance of a field rule. Field rule type is provided
         in `rule_type_name` param. Each field rule type should validate additional
@@ -190,7 +211,7 @@ class FieldRuleHandler:
         This is used in undo/redo operations, because we want to preserve
         rule identification.
 
-        :param rule_type_name: registered rule type name .
+        :param rule_type_name: registered rule type name.
         :param in_data: a dictionary with all rule params.
         :param primary_key_value: (optional) the primary key value for the rule (if
             the instance is being restored).
@@ -597,4 +618,4 @@ class FieldRuleHandler:
         rule_type = self.get_type_handler(rule_type_name)
 
         prepared_values = rule_type.prepare_values_for_import(rule_data, id_mapping)
-        return self.create_rule(rule_type_name, prepared_values)
+        return self.force_create_rule(rule_type_name, prepared_values)

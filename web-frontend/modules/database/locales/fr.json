@@ -462,14 +462,16 @@
         "shareViewText": "Le lien de partage permet à quiconque de consulter les données dans cette vue.",
         "shareViewLinkTitle": "Créer un lien privé",
         "notSharedYetText": "Permettre à quiconque de consulter les données de cette vue ou de synchroniser les événements avec un calendrier externe.",
-        "createPrivateLink": "Créer un lien privé"
+        "createPrivateLink": "Créer un lien privé",
+        "shareViewWarningTitle": "Avertissement"
     },
     "viewSortContext": {
         "noSortTitle": "Vous n'avez configuré aucun tri",
         "noSortText": "Le tri vous permet d'ordonner les lignes selon la valeur d'un champ.",
         "sortBy": "Trier par",
         "thenBy": "Puis par",
-        "addSort": "Ajouter un tri"
+        "addSort": "Ajouter un tri",
+        "hiddenFieldWarning": "Un ou plusieurs tris font référence à des champs masqués qui ne seront pas visibles pour les éditeurs et les utilisateurs disposant de rôles inférieurs."
     },
     "viewSort": {
         "sort": "Tri | 1 Tri | {count} Tris"
@@ -509,7 +511,8 @@
         "duplicateView": "Dupliquer la vue",
         "importFile": "Importer un fichier",
         "toPersonal": "Vers Personnelle",
-        "toCollaborative": "Vers Collaborative"
+        "toCollaborative": "Vers Collaborative",
+        "defaultRowValues": "Valeurs par défaut des lignes"
     },
     "deleteViewModal": {
         "title": "Supprimer la vue {name}",
@@ -681,7 +684,8 @@
         "warningWhenNothingToChooseOrCreate": "Il n’y a pas de champ de sélection unique disponible et vous n’avez pas les permissions nécessaires pour en créer un."
     },
     "viewDecorator": {
-        "decorator": "Couleur | 1 Couleur | {count} Couleurs"
+        "decorator": "Couleur | 1 Couleur | {count} Couleurs",
+        "hiddenFieldWarning": "Les décorations sont supprimées pour les éditeurs et les utilisateurs de niveau inférieur, car elles peuvent faire référence à des champs masqués."
     },
     "shareViewEnablePasswordModal": {
         "newPasswordTitle": "Entrez un mot de passe",
@@ -907,7 +911,8 @@
         "thenBy": "Puis par",
         "addGroupBy": "choisissez un champ de regroupement",
         "noGroupByTitle": "Vous n'avez créé aucun groupe",
-        "noGroupByText": "Regroupez les lignes par un champ."
+        "noGroupByText": "Regroupez les lignes par un champ.",
+        "hiddenFieldWarning": "Un ou plusieurs regroupements font référence à des champs masqués qui ne seront pas visibles pour les Éditeurs et les utilisateurs ayant des rôles inférieurs."
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} vous a assigné à {fieldName} dans la ligne {rowId} de la table {tableName}",
@@ -1193,5 +1198,25 @@
         "ruleDoesNotExist": "La règle n'existe pas",
         "ruleTypeDoesNotExist": "Le type de règle n'existe pas",
         "ruleAlreadyExists": "La règle existe déjà"
+    },
+    "defaultValuesModal": {
+        "title": "Valeurs par défaut pour {name}",
+        "setDefaultValue": "Définir la valeur par défaut",
+        "removeDefaultValue": "Supprimer la valeur par défaut",
+        "staticValue": "Valeur unique"
+    },
+    "fieldFormViewEditRowSubForm": {
+        "selectFormViewLabel": "Vue formulaire",
+        "description": "Chaque ligne disposera d'un lien unique qui ouvrira ce formulaire prérempli avec les données de cette ligne. Notez que toute personne disposant d'un accès en lecture à la table et au champ pourra modifier la ligne via ce formulaire, y compris les spectateurs et les visiteurs d'une vue partagée publiquement.",
+        "notPublicWarning": "Ce formulaire n'est pas accessible au public. Le lien de modification ne fonctionnera pas tant que le formulaire n'aura pas été rendu public.",
+        "notPublic": "(non public)",
+        "formDoesNotExist": "Le formulaire sélectionné n'existe plus."
+    },
+    "editRowLink": {
+        "editRow": "Modifier la ligne"
+    },
+    "rowEditFieldFormViewEditRow": {
+        "copyLink": "Copier le lien",
+        "noFormView": "Aucun formulaire n'est configuré"
     }
 }

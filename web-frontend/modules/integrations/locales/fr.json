@@ -173,8 +173,8 @@
     },
     "serviceRefinementForms": {
         "filterTabTitle": "Filtre | 1 filtre | {count} filtres",
-        "sortTabTitle": "Spell | 1 Spell | {count} Spells",
-        "searchTabTitle": "Trier | 1 tri | {count} tris",
+        "sortTabTitle": "Trier | 1 Tri | {count} Tris",
+        "searchTabTitle": "Recherche | 1 recherche | {count} recherches",
         "searchFieldPlaceHolder": "Entrez une recherche...",
         "noTableChosenForFiltering": "Choisissez une table pour commencer à utiliser les filtres de source de données.",
         "noTableChosenForSorting": "Choisissez une table pour commencer à utiliser les tris de sources de données.",
@@ -200,11 +200,11 @@
         "fromEmailPlaceholder": "expediteur{'@'}exemple.com",
         "fromName": "Nom d'émission",
         "fromNamePlaceholder": "Votre nom",
-        "toEmails": "Adresse mails d'envoi",
-        "toEmailsPlaceholder": "destinataire1{'@'}exemple.com,destinataire2{'@'}exemple.com",
-        "ccEmails": "Adresses mail CC",
+        "toEmails": "Destinataires",
+        "toEmailsPlaceholder": "dest1{'@'}exemple.com,dest2{'@'}exemple.com",
+        "ccEmails": "Courriels en copie",
         "ccEmailsPlaceholder": "cc1{'@'}exemple.com,cc2{'@'}exemple.com",
-        "bccEmails": "Adresses email BCC",
+        "bccEmails": "Courriels en copie cachée",
         "bccEmailsPlaceholder": "bcc1{'@'}exemple.com,bcc2{'@'}exemple.com",
         "subject": "Objet",
         "subjectPlaceholder": "Objet de l'email",
@@ -212,7 +212,9 @@
         "bodyTypePlain": "Texte",
         "bodyTypeHtml": "HTML",
         "body": "Corps",
-        "bodyPlaceholder": "Le contenu de votre e-mail..."
+        "bodyPlaceholder": "Le contenu de votre e-mail...",
+        "smtpConfigurationMode": "Configuration SMTP",
+        "useInstanceSmtpSettings": "Utilisez le serveur SMTP de l'instance"
     },
     "routerForm": {
         "defaultEdgeLabelLabel": "Étiquette de branche par défaut",
@@ -303,14 +305,15 @@
         "supportDescription": "Si vous avez besoin d'aide pour la connexion avec votre application Slack, veuillez suivre les étapes ci-dessous.",
         "supportSetupHeading": "1. Mettre en place l'application",
         "supportSetupDescription": "En fonction des paramètres de votre espace de travail Slack, vous pourrez peut-être créer une nouvelle application Slack. Sinon, un administrateur devra le faire pour vous. Si vous réutilisez une application existante qui peut écrire des messages, passez à la section intitulée \"Connexion avec votre application Slack\".",
-        "supportSetupStep1": "Accédez à la page &lt;a href=\"https://api.slack.com/apps\" target=\"_blank\"&gt;application&lt;/a&gt; de votre espace de travail Slack.",
+        "supportSetupStep1": "Accédez à votre espace de travail Slack : {link}.",
         "supportSetupStep2": "Créez une nouvelle application, choisissez \"A partir de zéro\" et saisissez un nom. Sélectionnez l'espace de travail dans lequel votre application doit fonctionner et cliquez sur \"Créer\".",
-        "supportSetupStep3": "Dans la barre latérale gauche, naviguez vers \"OAuth &amp; Permissions\", descendez jusqu'à \"Scopes\" et sous \"Bot Token Scopes\", sélectionnez \"Add an OAuth Scope\".",
-        "supportSetupStep4": "Pour permettre à votre application de poster des messages, ajoutez la portée &lt;pre&gt;chat:write&lt;/pre&gt;.",
+        "supportSetupStep3": "Dans la barre latérale gauche, naviguez vers \"OAuth > Permissions\", descendez jusqu'à \"Scopes\" et sous \"Bot Token Scopes\", sélectionnez \"Add an OAuth Scope\".",
+        "supportSetupStep4": "Pour permettre à votre application de poster des messages, ajoutez la portée {scope};.",
         "supportPairingHeading": "2. Association avec votre application Slack",
-        "supportPairingStep1": "Si votre application est nouvelle : visitez la page 'Paramètres' &gt; 'Installer application'. Cliquez sur le bouton vert pour installer l'application dans votre Projet.",
+        "supportPairingStep1": "Si votre application est nouvelle : visitez la page 'Paramètres > Installer application'. Cliquez sur le bouton vert pour installer l'application dans votre Projet.",
         "supportPairingStep2": "Copiez votre 'Bot User OAuth Token' et stockez-le dans le champ 'Jeton utilisateur Bot' dans ce formulaire.",
-        "supportPairingStep3": "Enfin, si votre application est nouvelle : dans Slack, invitez votre application dans le canal choisi avec &lt;pre&gt;/invite {'@'}votreAppName votreChannel&lt;/pre&gt;"
+        "supportPairingStep3": "Enfin, si votre application est nouvelle : dans Slack, invitez votre application dans le canal choisi avec {command}",
+        "supportSetupStep1Link": "page des applications"
     },
     "slackWriteMessageServiceForm": {
         "alertMessage": "Cette action doit être associée à une application Slack. Suivez le guide dans la fenêtre de configuration de l'intégration pour procéder.",

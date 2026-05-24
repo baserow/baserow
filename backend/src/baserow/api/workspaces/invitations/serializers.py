@@ -13,7 +13,6 @@ class WorkspaceInvitationSerializer(serializers.ModelSerializer):
             "workspace",
             "email",
             "permissions",
-            "message",
             "created_on",
         )
         extra_kwargs = {"id": {"read_only": True}}
@@ -28,7 +27,7 @@ class CreateWorkspaceInvitationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = WorkspaceInvitation
-        fields = ("email", "permissions", "message", "base_url")
+        fields = ("email", "permissions", "base_url")
 
 
 class UpdateWorkspaceInvitationSerializer(serializers.ModelSerializer):
@@ -54,13 +53,11 @@ class UserWorkspaceInvitationSerializer(serializers.ModelSerializer):
             "invited_by",
             "workspace",
             "email",
-            "message",
             "created_on",
             "email_exists",
         )
         extra_kwargs = {
             "id": {"read_only": True},
-            "message": {"read_only": True},
             "created_on": {"read_only": True},
         }
 

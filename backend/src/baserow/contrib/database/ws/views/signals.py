@@ -302,6 +302,17 @@ def view_sort_deleted(sender, view_sort_id, view_sort, user, **kwargs):
     broadcast_to(user, view_sort.view, payload)
 
 
+@receiver(view_signals.view_sortings_prioritized)
+def view_sortings_prioritized(sender, view, view_sort_ids, user, **kwargs):
+    payload = {
+        "type": "view_sortings_prioritized",
+        "view_id": view.id,
+        "view_sort_ids": view_sort_ids,
+    }
+
+    broadcast_to(user, view, payload)
+
+
 @receiver(view_signals.view_group_by_created)
 def view_group_by_created(sender, view_group_by, user, **kwargs):
     payload = {
@@ -332,6 +343,17 @@ def view_group_by_deleted(sender, view_group_by_id, view_group_by, user, **kwarg
     }
 
     broadcast_to(user, view_group_by.view, payload)
+
+
+@receiver(view_signals.view_group_bys_prioritized)
+def view_group_bys_prioritized(sender, view, view_group_by_ids, user, **kwargs):
+    payload = {
+        "type": "view_group_bys_prioritized",
+        "view_id": view.id,
+        "view_group_by_ids": view_group_by_ids,
+    }
+
+    broadcast_to(user, view, payload)
 
 
 @receiver(view_signals.view_decoration_created)

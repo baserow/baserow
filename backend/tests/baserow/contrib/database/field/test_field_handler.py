@@ -101,6 +101,7 @@ def clean_registry_cache():
 
     field_type_registry.get_for_class.cache_clear()
     yield
+    field_type_registry.get_for_class.cache_clear()
 
 
 def _test_can_convert_between_fields(data_fixture, field_type_to_test):

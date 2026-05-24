@@ -36,6 +36,7 @@ def test_automation_workflow_serializer_fields(workflow_fixture):
         "graph",
         "id",
         "name",
+        "notification_recipient_ids",
         "order",
         "published_on",
         "simulate_until_node_id",
@@ -58,4 +59,7 @@ def test_update_automation_workflow_serializer_fields(workflow_fixture):
 
     serializer = UpdateAutomationWorkflowSerializer(instance=workflow)
 
-    assert sorted(serializer.data.keys()) == ["name", "state"]
+    assert sorted(serializer.data.keys()) == [
+        "name",
+        "state",
+    ]

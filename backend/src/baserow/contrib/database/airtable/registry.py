@@ -259,6 +259,7 @@ class AirtableViewType(Instance):
                 id=sort["id"],
                 field_id=sort["columnId"],
                 order=SORT_ORDER_ASC if sort["ascending"] else SORT_ORDER_DESC,
+                priority=len(view_sorts) + 1,
             )
             view_sorts.append(view_sort)
 
@@ -332,6 +333,7 @@ class AirtableViewType(Instance):
                 id=group["id"],
                 field_id=group["columnId"],
                 order=SORT_ORDER_ASC if ascending else SORT_ORDER_DESC,
+                priority=len(view_group_by) + 1,
             )
             view_group_by.append(view_group)
 
@@ -811,7 +813,7 @@ class AirtableViewType(Instance):
             config,
             import_report,
         )
-        serialized = view_type.export_serialized(view, config)
+        serialized = view_type.export_serialized(view, config, {})
 
         return serialized
 

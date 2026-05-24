@@ -7,7 +7,9 @@
       <a
         ref="databasesToggle"
         class="api-docs__switch"
-        @click.prevent="databasesOpen.value = !databasesOpen.value"
+        :aria-expanded="databasesOpen"
+        aria-controls="api-docs-databases"
+        @click.prevent="databasesOpen = !databasesOpen"
       >
         <i class="api-docs__switch-icon iconoir-db"></i>
         {{ $t('apiDocsDatabase.pageTitle', database) }}
@@ -28,7 +30,12 @@
         >
       </div>
     </div>
-    <div v-show="databasesOpen" ref="databases" class="api-docs__databases">
+    <div
+      v-show="databasesOpen"
+      id="api-docs-databases"
+      ref="databases"
+      class="api-docs__databases"
+    >
       <div class="api-docs__databases-inner">
         <APIDocsSelectDatabase :selected="database.id" />
         <nuxt-link :to="{ name: 'dashboard' }" class="select-application__back">

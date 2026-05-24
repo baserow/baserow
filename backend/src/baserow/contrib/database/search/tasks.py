@@ -33,6 +33,12 @@ def schedule_update_search_data(
     lost updates. Then the singleton task is enqueued; if it’s already scheduled, a
     pending flag is set so new changes will be processed once the current run finishes.
 
+    When ``field_ids`` is provided, pending work is queued for those fields. When
+    ``row_ids`` is provided, pending work is limited to those rows. A bare table-level
+    call should therefore expand to full-field updates before reaching this task, rather
+    than passing ``field_ids=None`` and ``row_ids=None`` and expecting pending work to
+    be created here.
+
     :param table_id: The ID of the table to update the search data for.
     :param field_ids: Optional list of field IDs to update. If provided, only these
         fields will be updated in the search data.
@@ -121,12 +127,27 @@ def update_search_data(table_id: int):
     flag = _get_singleton_autoreschedule_flag(table_id)
     flag.clear()
 
-    SearchHandler.process_search_data_updates(table)
+    # Leave a safety margin so the task can finish cleanly before the hard limit.
+    hard_limit = settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT
+    if hard_limit <= 30:
+        logger.warning(
+            "CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT={}s is at or below the 30s "
+            "safety margin; the task may be killed before it can finish.",
+            hard_limit,
+        )
+    time_budget = max(1, hard_limit - 30)
+    completed = SearchHandler.process_search_data_updates(
+        table, time_budget_seconds=time_budget
+    )
 
-    # If new updates were queued during processing, schedule another update
-    if flag.is_set():
+    # Reschedule if there are still pending updates (time budget exhausted)
+    # or if new updates were queued during processing.
+    if not completed or flag.is_set():
         logger.debug(
-            f"New updates detected, rescheduling the task for table {table_id}."
+            "Rescheduling search update task for table {} (completed={}, flag={}).",
+            table_id,
+            completed,
+            flag.is_set(),
         )
         schedule_update_search_data.delay(table_id)
 

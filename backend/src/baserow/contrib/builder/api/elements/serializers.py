@@ -253,6 +253,12 @@ class MoveElementSerializer(serializers.Serializer):
         default=None,
         help_text="The place in the container.",
     )
+    target_page_id = serializers.IntegerField(
+        allow_null=True,
+        required=False,
+        default=None,
+        help_text="If provided, the new target page for the element.",
+    )
 
 
 class DuplicateElementSerializer(serializers.Serializer):

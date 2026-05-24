@@ -234,7 +234,10 @@ def test_move_element_end_of_page(data_fixture):
     element3 = data_fixture.create_builder_heading_element(page=page)
 
     element_moved = ElementHandler().move_element(
-        element1, element1.parent_element, element1.place_in_container
+        page,
+        element1,
+        element1.parent_element,
+        element1.place_in_container,
     )
 
     assert Element.objects.filter(page=page).last().id == element_moved.id
@@ -248,7 +251,11 @@ def test_move_element_before(data_fixture):
     element3 = data_fixture.create_builder_heading_element(page=page)
 
     ElementHandler().move_element(
-        element3, element3.parent_element, element3.place_in_container, before=element2
+        page,
+        element3,
+        element3.parent_element,
+        element3.place_in_container,
+        before=element2,
     )
 
     assert [e.id for e in Element.objects.filter(page=page).all()] == [
@@ -271,6 +278,7 @@ def test_move_element_before_fails(data_fixture):
 
     with pytest.raises(CannotCalculateIntermediateOrder):
         ElementHandler().move_element(
+            page,
             element3,
             element3.parent_element,
             element3.place_in_container,
@@ -322,6 +330,7 @@ def test_moving_elements_inside_container(data_fixture):
     )
 
     ElementHandler().move_element(
+        page,
         element_inside_container_two,
         element_inside_container_two.parent_element,
         element_inside_container_two.place_in_container,

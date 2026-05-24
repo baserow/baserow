@@ -25,6 +25,10 @@ const { data: notification, error: loadError } = await useAsyncData(
       throw createError({
         statusCode: 404,
         message: 'Notification not found.',
+        data: {
+          report: false,
+        },
+        fatal: true,
       })
     }
   }
@@ -44,6 +48,10 @@ if (!redirectParams) {
   throw createError({
     statusCode: 404,
     message: 'Notification has no route.',
+    data: {
+      report: false,
+    },
+    fatal: true,
   })
 }
 

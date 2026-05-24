@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING
 
+from django.conf import settings
 from django.db import models
 
 from baserow.contrib.automation.constants import WORKFLOW_NAME_MAX_LEN
@@ -76,6 +77,15 @@ class AutomationWorkflow(
     allow_test_run_until = models.DateTimeField(null=True, blank=True)
 
     graph = models.JSONField(default=dict, help_text="Contains the node graph.")
+    notification_recipients = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="automation_notification_workflows",
+        help_text=(
+            "The workspace users that should receive notifications related to "
+            "this workflow."
+        ),
+    )
 
     objects = AutomationWorkflowTrashManager()
     objects_and_trash = models.Manager()
@@ -95,6 +105,7 @@ class AutomationWorkflow(
         """
         Whether this is an original workflow.
         """
+
         return not bool(self.automation.published_from_id)
 
     def get_original(self) -> "AutomationWorkflow":
@@ -104,10 +115,16 @@ class AutomationWorkflow(
         :return: The original workflow that can be the current instance.
         """
 
-        if self.automation.published_from_id:
-            return self.automation.published_from
-        else:
-            return self
+        from .handler import AutomationWorkflowHandler
+
+        return local_cache.get(
+            f"automation_workflow_original_{self.id}",
+            lambda: AutomationWorkflowHandler().get_workflow(
+                self.automation.published_from_id
+            )
+            if self.automation.published_from_id
+            else self,
+        )
 
     def get_trigger(self) -> "AutomationTriggerNode":
         """

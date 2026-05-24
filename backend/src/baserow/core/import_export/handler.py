@@ -758,7 +758,7 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
 
         checksums = manifest["checksums"]
         for file_path, checksum in checksums.items():
-            full_path = join(import_tmp_dir, file_path)
+            full_path = self._validate_safe_path(import_tmp_dir, file_path)
 
             if not storage.exists(full_path):
                 raise ImportExportResourceDoesNotExist(
@@ -799,7 +799,9 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         :return: The imported Application instance.
         """
 
-        data_file_path = join(import_tmp_path, application_manifest["files"]["schema"])
+        data_file_path = self._validate_safe_path(
+            import_tmp_path, application_manifest["files"]["schema"]
+        )
         if not storage.exists(data_file_path):
             raise ImportExportResourceDoesNotExist(
                 f"The file {data_file_path} does not exist."
@@ -935,23 +937,59 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         Application.objects.bulk_update(imported_applications, ["order"])
         return imported_applications
 
+    @staticmethod
+    def _validate_safe_path(base_path: str, filename: str) -> str:
+        """
+        Validates that a filename, when joined with base_path, does not escape
+        the base directory via path traversal sequences.
+
+        :param base_path: The trusted base directory.
+        :param filename: The untrusted filename from the archive or manifest.
+        :return: The safe full path (join of base_path and normalized filename).
+        :raises SuspiciousOperation: If the path would escape the base directory.
+        """
+
+        normalized = os.path.normpath(filename)
+        if normalized.startswith("..") or os.path.isabs(normalized):
+            raise SuspiciousOperation(f"Detected path traversal attempt: {filename}")
+        return join(base_path, normalized)
+
+    @staticmethod
+    def _build_allowed_files(manifest_data: dict) -> list:
+        """
+        Builds the complete list of filenames allowed in an import ZIP archive
+        from the manifest data. Includes checksummed data files plus the
+        manifest and signature meta files.
+
+        :param manifest_data: The parsed manifest dictionary.
+        :return: List of allowed filenames.
+        """
+
+        allowed = list(manifest_data.get("checksums", {}).keys())
+        allowed.append(MANIFEST_NAME)
+        allowed.append(SIGNATURE_NAME)
+        return allowed
+
     def extract_files_from_zip(
         self,
         tmp_import_path: str,
         zip_file: ZipFile,
         storage: Storage,
+        allowed_files: list,
         progress_builder: Optional[ChildProgressBuilder] = None,
     ):
         """
         Extracts files from a zip archive to a specified temporary import path.
 
-        This method iterates over the files in the provided zip archive and saves each
-        file to the specified temporary import path using the provided storage instance.
+        Only files present in allowed_files are extracted. Any file not listed
+        raises an error, ensuring only trusted content is written to storage.
 
         :param tmp_import_path: The temporary directory where the files will be
             extracted.
         :param zip_file: The ZipFile instance containing the files to be extracted.
         :param storage: The storage instance used to save the extracted files.
+        :param allowed_files: List of filenames permitted to be extracted. Files
+            not in this list cause the import to fail.
         :param progress_builder: A progress builder that allows for publishing progress.
         """
 
@@ -961,10 +999,24 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         for file_info in file_list:
-            extracted_file_path = join(tmp_import_path, file_info.filename)
+            if file_info.is_dir():
+                progress.increment()
+                continue
+
+            if file_info.filename not in allowed_files:
+                raise ImportExportResourceInvalidFile(
+                    f"Archive contains unexpected file not listed in "
+                    f"manifest: {file_info.filename}"
+                )
+
+            extracted_file_path = self._validate_safe_path(
+                tmp_import_path, file_info.filename
+            )
+
             with zip_file.open(file_info) as extracted_file:
                 file_content = extracted_file.read()
                 storage.save(extracted_file_path, ContentFile(file_content))
+
             progress.increment()
 
     def import_workspace_applications(
@@ -1036,16 +1088,37 @@ class ImportExportHandler(metaclass=baserow_trace_methods(tracer)):
                     self.mark_resource_invalid(resource)
                     raise
 
-                self.extract_files_from_zip(
-                    import_tmp_path,
-                    zip_file,
-                    storage,
-                    progress.create_child_builder(represents_progress=10),
-                )
+                try:
+                    self.extract_files_from_zip(
+                        import_tmp_path,
+                        zip_file,
+                        storage,
+                        allowed_files=self._build_allowed_files(manifest_data),
+                        progress_builder=progress.create_child_builder(
+                            represents_progress=10
+                        ),
+                    )
+                except SuspiciousOperation:
+                    self.clean_storage(import_tmp_path, storage)
+                    self.mark_resource_invalid(resource)
+                    raise ImportExportResourceInvalidFile(
+                        "The import file contains invalid file paths."
+                    )
+                except Exception:
+                    self.clean_storage(import_tmp_path, storage)
+                    self.mark_resource_invalid(resource)
+                    raise
 
                 try:
                     self.validate_checksums(manifest_data, import_tmp_path, storage)
+                except SuspiciousOperation:
+                    self.clean_storage(import_tmp_path, storage)
+                    self.mark_resource_invalid(resource)
+                    raise ImportExportResourceInvalidFile(
+                        "The import file contains invalid file paths."
+                    )
                 except Exception as e:  # noqa
+                    self.clean_storage(import_tmp_path, storage)
                     self.mark_resource_invalid(resource)
                     raise
 

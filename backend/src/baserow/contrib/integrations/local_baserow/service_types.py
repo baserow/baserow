@@ -30,6 +30,7 @@ from baserow.contrib.database.api.rows.serializers import (
 )
 from baserow.contrib.database.api.utils import extract_field_ids_from_list
 from baserow.contrib.database.fields.exceptions import (
+    FieldDataConstraintException,
     FieldDoesNotExist,
     IncompatibleField,
 )
@@ -1238,7 +1239,7 @@ class LocalBaserowAggregateRowsUserServiceType(
             return {}
 
         # Pluck out the aggregation type which this service uses. We'll use its
-        # `result_type` to inform the schema what the expected `result` format is.
+        # declared result metadata to inform the schema and serialization.
         aggregation_type = field_aggregation_registry.get(service.aggregation_type)
 
         return {
@@ -1247,7 +1248,7 @@ class LocalBaserowAggregateRowsUserServiceType(
             "properties": {
                 "result": {
                     "title": f"{service.field.name} result",
-                    "type": aggregation_type.result_type,
+                    **aggregation_type.get_result_schema(service.field.specific),
                 }
             },
         }
@@ -1510,6 +1511,7 @@ class LocalBaserowAggregateRowsUserServiceType(
                 "data": {"result": result},
                 "baserow_table_model": model,
                 "field": field,
+                "service": service,
             }
         except DjangoFieldDoesNotExist as ex:
             raise ServiceImproperlyConfiguredDispatchException(
@@ -1533,16 +1535,14 @@ class LocalBaserowAggregateRowsUserServiceType(
         :return: A dictionary containing the aggregation result.
         """
 
-        # Use the field type's serializer field to ensure the aggregation result
-        # is serialized correctly. Some aggregations can return values which are not
-        # JSON serializable (e.g. Decimal), so we need to use the serializer field
-        # to convert them into a JSON serializable format.
-        result = (
-            data["field"]
-            .get_type()
-            .get_serializer_field(data["field"])
-            .to_representation(data["data"]["result"])
+        # Use the aggregation type's declared result metadata to serialize the
+        # aggregation output. This avoids reusing a list-like field serializer for
+        # count-like aggregations which return scalars.
+        aggregation_type = field_aggregation_registry.get(
+            data["service"].aggregation_type
         )
+        serializer_field = aggregation_type.get_result_serializer_field(data["field"])
+        result = serializer_field.to_representation(data["data"]["result"])
 
         return DispatchResult(data={"result": result})
 
@@ -2143,6 +2143,10 @@ class LocalBaserowUpsertRowServiceType(
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The row with id {row_id} does not exist."
                 ) from exc
+            except FieldDataConstraintException as exc:
+                raise InvalidContextContentDispatchException(
+                    f"The row with id {row_id} violates a field constraint."
+                ) from exc
         else:
             try:
                 (row,) = CreateRowsActionType.do(
@@ -2155,6 +2159,11 @@ class LocalBaserowUpsertRowServiceType(
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"Cannot create rows in table {table.id} because "
                     "it has a data sync."
+                ) from exc
+            except FieldDataConstraintException as exc:
+                raise InvalidContextContentDispatchException(
+                    f"Cannot create rows in table {table.id} because "
+                    "it violates a field constraint."
                 ) from exc
 
         return {

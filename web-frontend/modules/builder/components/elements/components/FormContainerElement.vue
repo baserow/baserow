@@ -1,13 +1,17 @@
 <template>
   <div :style="getStyleOverride('button')">
-    <div
-      v-if="
-        mode === 'editing' &&
-        children.length === 0 &&
-        $hasPermission('builder.page.create_element', currentPage, workspace.id)
-      "
-    >
-      <AddElementZone @add-element="showAddElementModal"></AddElementZone>
+    <div v-if="mode === 'editing' && children.length === 0">
+      <AddElementZone
+        :disabled="
+          !$hasPermission(
+            'builder.page.create_element',
+            currentPage,
+            workspace.id
+          )
+        "
+        :parent-element="element"
+        @add-element="showAddElementModal"
+      ></AddElementZone>
       <AddElementModal
         ref="addElementModal"
         :page="elementPage"
@@ -97,6 +101,9 @@ export default {
     formElementChildrenAreInvalid() {
       return this.getFormElementDescendants.some(
         ({ descendant, descendantType }) => {
+          if (!this.isFormFieldDisplayed(descendant, descendantType)) {
+            return false
+          }
           const uniqueElementId = descendantType.uniqueElementId({
             element: descendant,
             applicationContext: this.applicationContext,
@@ -110,6 +117,20 @@ export default {
     },
   },
   methods: {
+    isFormFieldDisplayed(descendant, descendantType) {
+      // In the published app PageElement hides misconfigured
+      // elements, so we exclude them from  validation here too.
+      if (
+        this.mode !== 'editing' &&
+        descendantType.isInError(descendant, this.applicationContext)
+      ) {
+        return false
+      }
+      return descendantType.isVisible({
+        element: descendant,
+        applicationContext: this.applicationContext,
+      })
+    },
     /*
      * Responsible for marking all form element descendents in this form container
      * as touched, or not touched, depending on what we're achieving in validation.
@@ -117,6 +138,9 @@ export default {
     setFormElementDescendantsTouched(wasTouched) {
       this.getFormElementDescendants.forEach(
         ({ descendant, descendantType }) => {
+          if (!this.isFormFieldDisplayed(descendant, descendantType)) {
+            return
+          }
           const uniqueElementId = descendantType.uniqueElementId({
             element: descendant,
             applicationContext: this.applicationContext,

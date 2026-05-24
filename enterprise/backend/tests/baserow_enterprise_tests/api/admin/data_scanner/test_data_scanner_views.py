@@ -93,6 +93,7 @@ def test_list_scans(api_client, enterprise_data_fixture):
         "pattern": "AA",
         "frequency": "manual",
         "scan_all_workspaces": True,
+        "whole_words": True,
         "workspace_ids": [],
         "is_running": False,
         "last_run_started_at": None,
@@ -423,6 +424,43 @@ def test_create_scan_list_table_incompatible_source_field(
 @pytest.mark.data_scanner
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_create_scan_whole_words(api_client, enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+    _, token = enterprise_data_fixture.create_user_and_token(is_staff=True)
+
+    # Default should be True.
+    response = api_client.post(
+        reverse("api:enterprise:admin:data_scanner:list"),
+        {
+            "name": "Default whole_words",
+            "scan_type": "pattern",
+            "pattern": "AA",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["whole_words"] is True
+
+    # Explicitly setting whole_words=False should be forwarded.
+    response = api_client.post(
+        reverse("api:enterprise:admin:data_scanner:list"),
+        {
+            "name": "Disable whole_words",
+            "scan_type": "pattern",
+            "pattern": "AA",
+            "whole_words": False,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["whole_words"] is False
+
+
+@pytest.mark.data_scanner
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_workspace_structure_excludes_incompatible_fields(
     api_client, enterprise_data_fixture
 ):
@@ -535,6 +573,7 @@ def test_get_scan(api_client, enterprise_data_fixture):
         "pattern": "AA",
         "frequency": "manual",
         "scan_all_workspaces": True,
+        "whole_words": True,
         "workspace_ids": [],
         "is_running": False,
         "last_run_started_at": None,

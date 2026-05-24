@@ -2,6 +2,7 @@ import { StoreItemLookupError } from '@baserow/modules/core/errors'
 import { ulid } from 'ulid'
 import {
   createFiltersTree,
+  maxPossibleOrderValue,
   readDefaultViewIdFromCookie,
   saveDefaultViewIdInCookie,
 } from '@baserow/modules/database/utils/view'
@@ -11,8 +12,40 @@ import DecorationService from '@baserow/modules/database/services/decoration'
 import SortService from '@baserow/modules/database/services/sort'
 import GroupByService from '@baserow/modules/database/services/groupBy'
 import { clone } from '@baserow/modules/core/utils/object'
+import { GroupTaskQueue } from '@baserow/modules/core/utils/queue'
 import { DATABASE_ACTION_SCOPES } from '@baserow/modules/database/utils/undoRedoConstants'
 import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/action'
+
+const sortQueue = new GroupTaskQueue()
+const groupByQueue = new GroupTaskQueue()
+
+function sortByPriority(items) {
+  items.sort((a, b) => {
+    const aIsNumeric = typeof a === 'number' || /^\d+$/.test(a)
+    const bIsNumeric = typeof b === 'number' || /^\d+$/.test(b)
+    if (aIsNumeric && bIsNumeric) return Number(a) - Number(b)
+    if (aIsNumeric) return -1 // numeric < ULID → ULIDs land at the end
+    if (bIsNumeric) return 1
+    return String(a) < String(b) ? -1 : String(a) > String(b) ? 1 : 0
+  })
+}
+
+function applyOrderToItems(items, order) {
+  const indexById = new Map(order.map((id, index) => [id, index]))
+  items.sort((a, b) => {
+    const aHas = indexById.has(a.id)
+    const bHas = indexById.has(b.id)
+    if (aHas && bHas) {
+      return indexById.get(a.id) - indexById.get(b.id)
+    }
+    if (aHas) return -1
+    if (bHas) return 1
+    return 0
+  })
+  items.forEach((item, index) => {
+    item.priority = index + 1
+  })
+}
 
 export function populateFilter(filter) {
   filter._ = {
@@ -84,6 +117,7 @@ export function populateView(view, registry) {
     view.sortings.forEach((sort) => {
       populateSort(sort)
     })
+    sortByPriority(view.sortings)
   } else {
     view.sortings = []
   }
@@ -91,6 +125,7 @@ export function populateView(view, registry) {
     view.group_bys.forEach((groupBy) => {
       populateGroupBy(groupBy)
     })
+    sortByPriority(view.group_bys)
   } else {
     view.group_bys = []
   }
@@ -261,12 +296,18 @@ export const mutations = {
     decoration._.loading = value
   },
   ADD_SORT(state, { view, sort }) {
+    sort.view = view.id
     view.sortings.push(sort)
+    sortByPriority(view.sortings)
   },
-  FINALIZE_SORT(state, { view, oldId, id }) {
+  PRIORITIZE_SORTS(state, { view, order }) {
+    applyOrderToItems(view.sortings, order)
+  },
+  FINALIZE_SORT(state, { view, oldId, id, priority }) {
     const index = view.sortings.findIndex((item) => item.id === oldId)
     if (index !== -1) {
       view.sortings[index].id = id
+      view.sortings[index].priority = priority
       view.sortings[index]._.loading = false
     }
   },
@@ -290,12 +331,18 @@ export const mutations = {
     sort._.loading = value
   },
   ADD_GROUP_BY(state, { view, groupBy }) {
+    groupBy.view = view.id
     view.group_bys.push(groupBy)
+    sortByPriority(view.group_bys)
   },
-  FINALIZE_GROUP_BY(state, { view, oldId, id }) {
+  PRIORITIZE_GROUP_BYS(state, { view, order }) {
+    applyOrderToItems(view.group_bys, order)
+  },
+  FINALIZE_GROUP_BY(state, { view, oldId, id, priority }) {
     const index = view.group_bys.findIndex((item) => item.id === oldId)
     if (index !== -1) {
       view.group_bys[index].id = id
+      view.group_bys[index].priority = priority
       view.group_bys[index]._.loading = false
     }
   },
@@ -1152,18 +1199,26 @@ export const actions = {
     const sort = Object.assign({}, values)
     populateSort(sort)
     sort.id = ulid()
+    sort.priority = maxPossibleOrderValue
     sort._.loading = !readOnly
 
     commit('ADD_SORT', { view, sort })
 
     if (!readOnly) {
-      try {
-        const { data } = await SortService($client).create(view.id, values)
-        commit('FINALIZE_SORT', { view, oldId: sort.id, id: data.id })
-      } catch (error) {
-        commit('DELETE_SORT', { view, id: sort.id })
-        throw error
-      }
+      await sortQueue.add(async () => {
+        try {
+          const { data } = await SortService($client).create(view.id, values)
+          commit('FINALIZE_SORT', {
+            view,
+            oldId: sort.id,
+            id: data.id,
+            priority: data.priority,
+          })
+        } catch (error) {
+          commit('DELETE_SORT', { view, id: sort.id })
+          throw error
+        }
+      }, view.id)
     }
 
     return { sort }
@@ -1195,16 +1250,21 @@ export const actions = {
 
     dispatch('forceUpdateSort', { sort, values: newValues })
 
-    try {
-      if (!readOnly) {
-        await SortService($client).update(sort.id, values)
-      }
+    if (readOnly) {
       commit('SET_SORT_LOADING', { sort, value: false })
-    } catch (error) {
-      dispatch('forceUpdateSort', { sort, values: oldValues })
-      commit('SET_SORT_LOADING', { sort, value: false })
-      throw error
+      return
     }
+
+    await sortQueue.add(async () => {
+      try {
+        await SortService($client).update(sort.id, values)
+        commit('SET_SORT_LOADING', { sort, value: false })
+      } catch (error) {
+        dispatch('forceUpdateSort', { sort, values: oldValues })
+        commit('SET_SORT_LOADING', { sort, value: false })
+        throw error
+      }
+    }, sort.view)
   },
   /**
    * Forcefully update an existing view sort without making a request to the backend.
@@ -1220,21 +1280,61 @@ export const actions = {
     const { $client } = this
     commit('SET_SORT_LOADING', { sort, value: true })
 
-    try {
-      if (!readOnly) {
-        await SortService($client).delete(sort.id)
-      }
+    if (readOnly) {
       dispatch('forceDeleteSort', { view, sort })
-    } catch (error) {
-      commit('SET_SORT_LOADING', { sort, value: false })
-      throw error
+      return
     }
+
+    await sortQueue.add(async () => {
+      try {
+        await SortService($client).delete(sort.id)
+        dispatch('forceDeleteSort', { view, sort })
+      } catch (error) {
+        commit('SET_SORT_LOADING', { sort, value: false })
+        throw error
+      }
+    }, view.id)
   },
   /**
    * Forcefully delete an existing view sort without making a request to the backend.
    */
   forceDeleteSort({ commit }, { view, sort }) {
     commit('DELETE_SORT', { view, id: sort.id })
+  },
+  /**
+   * Updates the priority of the sortings of a view. Optimistically applies the
+   * new priority in the store and rolls back on API error.
+   */
+  async prioritizeSortings(
+    { dispatch },
+    { view, viewSortIds, oldViewSortIds, readOnly = false }
+  ) {
+    const { $client } = this
+    dispatch('forcePrioritizeSortings', { view, viewSortIds })
+
+    if (!readOnly) {
+      await sortQueue.add(async () => {
+        const realViewSortIds = view.sortings
+          .map((sort) => sort.id)
+          .filter((id) => typeof id === 'number')
+        try {
+          await SortService($client).prioritize(view.id, realViewSortIds)
+        } catch (error) {
+          dispatch('forcePrioritizeSortings', {
+            view,
+            viewSortIds: oldViewSortIds,
+          })
+          throw error
+        }
+      }, view.id)
+    }
+  },
+  /**
+   * Forcefully update the priority of the sortings of a view without making a
+   * request to the backend.
+   */
+  forcePrioritizeSortings({ commit }, { view, viewSortIds }) {
+    commit('PRIORITIZE_SORTS', { view, order: viewSortIds })
   },
   /**
    * When a field is deleted the related sortings are also automatically deleted in the
@@ -1270,18 +1370,26 @@ export const actions = {
     const groupBy = Object.assign({}, values)
     populateGroupBy(groupBy)
     groupBy.id = ulid()
+    groupBy.priority = maxPossibleOrderValue
     groupBy._.loading = !readOnly
 
     commit('ADD_GROUP_BY', { view, groupBy })
 
     if (!readOnly) {
-      try {
-        const { data } = await GroupByService($client).create(view.id, values)
-        commit('FINALIZE_GROUP_BY', { view, oldId: groupBy.id, id: data.id })
-      } catch (error) {
-        commit('DELETE_GROUP_BY', { view, id: groupBy.id })
-        throw error
-      }
+      await groupByQueue.add(async () => {
+        try {
+          const { data } = await GroupByService($client).create(view.id, values)
+          commit('FINALIZE_GROUP_BY', {
+            view,
+            oldId: groupBy.id,
+            id: data.id,
+            priority: data.priority,
+          })
+        } catch (error) {
+          commit('DELETE_GROUP_BY', { view, id: groupBy.id })
+          throw error
+        }
+      }, view.id)
     }
 
     return { groupBy }
@@ -1316,16 +1424,21 @@ export const actions = {
 
     dispatch('forceUpdateGroupBy', { groupBy, values: newValues })
 
-    try {
-      if (!readOnly) {
-        await GroupByService($client).update(groupBy.id, values)
-      }
+    if (readOnly) {
       commit('SET_GROUP_BY_LOADING', { groupBy, value: false })
-    } catch (error) {
-      dispatch('forceUpdateGroupBy', { groupBy, values: oldValues })
-      commit('SET_GROUP_BY_LOADING', { groupBy, value: false })
-      throw error
+      return
     }
+
+    await groupByQueue.add(async () => {
+      try {
+        await GroupByService($client).update(groupBy.id, values)
+        commit('SET_GROUP_BY_LOADING', { groupBy, value: false })
+      } catch (error) {
+        dispatch('forceUpdateGroupBy', { groupBy, values: oldValues })
+        commit('SET_GROUP_BY_LOADING', { groupBy, value: false })
+        throw error
+      }
+    }, groupBy.view)
   },
   /**
    * Forcefully update an existing view groupBy without making a request to the backend.
@@ -1344,21 +1457,61 @@ export const actions = {
     const { $client } = this
     commit('SET_GROUP_BY_LOADING', { groupBy, value: true })
 
-    try {
-      if (!readOnly) {
-        await GroupByService($client).delete(groupBy.id)
-      }
+    if (readOnly) {
       dispatch('forceDeleteGroupBy', { view, groupBy })
-    } catch (error) {
-      commit('SET_GROUP_BY_LOADING', { groupBy, value: false })
-      throw error
+      return
     }
+
+    await groupByQueue.add(async () => {
+      try {
+        await GroupByService($client).delete(groupBy.id)
+        dispatch('forceDeleteGroupBy', { view, groupBy })
+      } catch (error) {
+        commit('SET_GROUP_BY_LOADING', { groupBy, value: false })
+        throw error
+      }
+    }, view.id)
   },
   /**
    * Forcefully delete an existing view groupBy without making a request to the backend.
    */
   forceDeleteGroupBy({ commit }, { view, groupBy }) {
     commit('DELETE_GROUP_BY', { view, id: groupBy.id })
+  },
+  /**
+   * Updates the priority of the group bys of a view. Optimistically applies
+   * the new priority in the store and rolls back on API error.
+   */
+  async prioritizeGroupBys(
+    { dispatch },
+    { view, viewGroupByIds, oldViewGroupByIds, readOnly = false }
+  ) {
+    const { $client } = this
+    dispatch('forcePrioritizeGroupBys', { view, viewGroupByIds })
+
+    if (!readOnly) {
+      await groupByQueue.add(async () => {
+        const realViewGroupByIds = view.group_bys
+          .map((groupBy) => groupBy.id)
+          .filter((id) => typeof id === 'number')
+        try {
+          await GroupByService($client).prioritize(view.id, realViewGroupByIds)
+        } catch (error) {
+          dispatch('forcePrioritizeGroupBys', {
+            view,
+            viewGroupByIds: oldViewGroupByIds,
+          })
+          throw error
+        }
+      }, view.id)
+    }
+  },
+  /**
+   * Forcefully update the priority of the group bys of a view without making a
+   * request to the backend.
+   */
+  forcePrioritizeGroupBys({ commit }, { view, viewGroupByIds }) {
+    commit('PRIORITIZE_GROUP_BYS', { view, order: viewGroupByIds })
   },
   /**
    * When a field is deleted the related group bys are also automatically deleted in the

@@ -12,7 +12,10 @@
   >
     <div
       class="kanban-view__stack"
-      :class="{ 'kanban-view__stack--dragging': draggingRow !== null }"
+      :class="{
+        'kanban-view__stack--dragging': draggingRow !== null,
+        'kanban-view__stack--drag-over': isDragOver,
+      }"
       @mousemove="stackMoveOver($event, stack, id)"
     >
       <div class="kanban-view__stack-head">
@@ -155,6 +158,8 @@ import { populateRow } from '@baserow_premium/store/view/kanban'
 import KanbanViewStackContext from '@baserow_premium/components/views/kanban/KanbanViewStackContext'
 import { getCardHeight } from '@baserow/modules/database/utils/card'
 import viewDecoration from '@baserow/modules/database/mixins/viewDecoration'
+import { clone } from '@baserow/modules/core/utils/object'
+import { getRowSortFunction } from '@baserow/modules/database/utils/view'
 
 export default {
   name: 'KanbanViewStack',
@@ -245,6 +250,32 @@ export default {
       return this.$store.getters[
         this.$props.storePrefix + 'view/kanban/getDraggingOriginalStackId'
       ]
+    },
+    /**
+     * `true` when a card is currently being dragged and its live stack (the one
+     * it has been moved into by the drag handlers) matches this stack. Used to
+     * apply a visual indicator on the destination stack.
+     */
+    isDragOver() {
+      if (this.draggingRow === null) {
+        return false
+      }
+      const findStackIdAndIndex =
+        this.$store.getters[
+          this.storePrefix + 'view/kanban/findStackIdAndIndex'
+        ]
+      const result = findStackIdAndIndex(this.draggingRow.id)
+      return result !== undefined && result[0] === this.id
+    },
+    /**
+     * When the view has one or more sortings configured, the vertical position
+     * of cards within a stack is determined by the sort. Reordering by drag is
+     * therefore disabled within a stack, but moving a card horizontally to a
+     * different stack is still allowed; the card snaps to its sort-determined
+     * position in the destination stack.
+     */
+    dragRestrictedBySort() {
+      return this.view.sortings.length > 0
     },
     singleSelectFieldId() {
       return this.$store.getters[
@@ -375,6 +406,8 @@ export default {
                 {
                   row: this.draggingRow,
                   originalStackId: this.draggingOriginalStackId,
+                  view: this.view,
+                  fields: this.fields,
                 }
               )
             }
@@ -418,6 +451,7 @@ export default {
             {
               table: this.table,
               fields: this.fields,
+              view: this.view,
             }
           )
         } catch (error) {
@@ -447,33 +481,76 @@ export default {
         return
       }
 
+      const findStackIdAndIndex =
+        this.$store.getters[
+          this.storePrefix + 'view/kanban/findStackIdAndIndex'
+        ]
+      const targetStackId = findStackIdAndIndex(row.id)[0]
+      const draggingStackId = findStackIdAndIndex(this.draggingRow.id)[0]
+
       // If the field is read_only, it's not possible to move between stacks because
       // they would change the read_only value.
       const fieldType = this.$registry.get('field', this.singleSelectField.type)
-      if (!fieldType.canWriteFieldValues(this.singleSelectField)) {
-        const target = this.$store.getters[
-          this.storePrefix + 'view/kanban/findStackIdAndIndex'
-        ](row.id)
-        if (target[0] !== this.draggingOriginalStackId) {
-          return
-        }
+      if (
+        !fieldType.canWriteFieldValues(this.singleSelectField) &&
+        targetStackId !== this.draggingOriginalStackId
+      ) {
+        return
       }
 
-      const rect = event.target.getBoundingClientRect()
-      const top = event.clientY - rect.top
-      const half = rect.height / 2
-      const before = top <= half
-      const moved = await this.$store.dispatch(
-        this.storePrefix + 'view/kanban/forceMoveRowBefore',
-        {
-          row: this.draggingRow,
-          targetRow: row,
-          targetBefore: before,
+      let moved = false
+      if (this.dragRestrictedBySort) {
+        // With sortings active, cards within a stack are kept in sort order,
+        // so we don't reorder vertically. We only let the dragged card move to
+        // another stack, where it's placed at the sort-determined position.
+        if (targetStackId === draggingStackId) {
+          return
         }
-      )
+        moved = await this.$store.dispatch(
+          this.storePrefix + 'view/kanban/forceMoveRowTo',
+          {
+            row: this.draggingRow,
+            targetStackId,
+            targetIndex: this.sortedIndexInStack(targetStackId),
+          }
+        )
+      } else {
+        const rect = event.target.getBoundingClientRect()
+        const top = event.clientY - rect.top
+        const half = rect.height / 2
+        const before = top <= half
+        moved = await this.$store.dispatch(
+          this.storePrefix + 'view/kanban/forceMoveRowBefore',
+          {
+            row: this.draggingRow,
+            targetRow: row,
+            targetBefore: before,
+          }
+        )
+      }
+
       if (moved) {
         this.moved(event)
       }
+    },
+    /**
+     * Computes the index where the dragging row should be inserted in the
+     * provided stack so that the order matches the view sortings. The dragging
+     * row is excluded from the existing stack rows before the lookup so that
+     * it's positioned consistently regardless of where it currently lives.
+     */
+    sortedIndexInStack(stackId) {
+      const stack =
+        this.$store.getters[this.storePrefix + 'view/kanban/getStack'](stackId)
+      const candidates = clone(
+        stack.results.filter((r) => r.id !== this.draggingRow.id)
+      )
+      candidates.push(this.draggingRow)
+      candidates.sort(
+        getRowSortFunction(this.$registry, this.view.sortings, this.fields)
+      )
+      const index = candidates.findIndex((r) => r.id === this.draggingRow.id)
+      return index === -1 ? candidates.length - 1 : index
     },
     /**
      * When dragging a row over an empty stack, we want to move that row into it.

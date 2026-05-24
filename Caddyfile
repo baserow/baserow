@@ -6,6 +6,29 @@
     {$BASEROW_CADDY_GLOBAL_CONF}
 }
 
+(baserow_media_files) {
+    handle_path /media/* {
+        @downloads {
+            query dl=*
+        }
+        header @downloads Content-Disposition "attachment; filename={query.dl}"
+        header X-Content-Type-Options "nosniff"
+        header Content-Security-Policy "sandbox; default-src 'none'; script-src 'none'; object-src 'none'; base-uri 'none'"
+
+        # Allow to call head from public url to get size
+        header {
+            Access-Control-Allow-Origin {$BASEROW_PUBLIC_URL:http://localhost}
+            Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
+            Access-Control-Allow-Headers "*"
+            Access-Control-Expose-Headers "Content-Length, Content-Type"
+        }
+
+        file_server {
+            root {$MEDIA_ROOT:/baserow/media/}
+        }
+    }
+}
+
 {$BASEROW_CADDY_ADDRESSES} {
     tls {
         on_demand
@@ -20,30 +43,27 @@
         `
     }
 
+    @is_baserow_media {
+        path /media/*
+        expression `
+            "{$MEDIA_URL:}".startsWith("http://" + {http.request.host} + "/") ||
+            "{$MEDIA_URL:}".startsWith("https://" + {http.request.host} + "/") ||
+            "{$MEDIA_URL:}".startsWith("http://" + {http.request.host} + ":") ||
+            "{$MEDIA_URL:}".startsWith("https://" + {http.request.host} + ":")
+        `
+    }
+
+    handle @is_baserow_media {
+        import baserow_media_files
+    }
+
     handle @is_baserow_tool {
         @backend_routes path /api/* /ws/* /mcp/* /assistant/* {$BASEROW_CADDY_BACKEND_EXTRA_ROUTES:}
         handle @backend_routes {
             reverse_proxy {$PRIVATE_BACKEND_URL:localhost:8000}
         }
 
-        handle_path /media/* {
-            @downloads {
-                query dl=*
-            }
-            header @downloads Content-disposition "attachment; filename={query.dl}"
-
-            # Allow to call head from public url to get size
-            header {
-                Access-Control-Allow-Origin {$BASEROW_PUBLIC_URL:http://localhost}
-                Access-Control-Allow-Methods "GET, HEAD, OPTIONS"
-                Access-Control-Allow-Headers "*"
-                Access-Control-Expose-Headers "Content-Length, Content-Type"
-            }
-
-            file_server {
-                root {$MEDIA_ROOT:/baserow/media/}
-            }
-        }
+        import baserow_media_files
 
         handle_path /static/* {
             file_server {

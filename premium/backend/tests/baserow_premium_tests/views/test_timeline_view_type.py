@@ -117,6 +117,7 @@ def test_timeline_view_import_export(premium_data_fixture, tmpdir):
         serialized = timeline_view_type.export_serialized(
             timeline_view,
             ImportExportConfig(include_permission_data=False),
+            cache={},
             files_zip=files_zip,
             storage=storage,
         )
@@ -153,6 +154,7 @@ def test_timeline_view_import_export(premium_data_fixture, tmpdir):
             serialized,
             ImportExportConfig(include_permission_data=False),
             id_mapping,
+            {},
             files_zip,
             storage,
         )

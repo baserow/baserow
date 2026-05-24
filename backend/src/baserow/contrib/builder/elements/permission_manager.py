@@ -2,7 +2,10 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AbstractUser
 from django.db.models import Q, QuerySet
 
-from baserow.contrib.builder.elements.operations import ListElementsPageOperationType
+from baserow.contrib.builder.elements.operations import (
+    ListElementsPageOperationType,
+    ReadElementOperationType,
+)
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.operations import (
     DispatchBuilderWorkflowActionOperationType,
@@ -17,11 +20,9 @@ from .models import Element
 User = get_user_model()
 
 
-# For now there can be up to three levels of nested elements.
-# E.g. a RepeatElement might contain a ColumnElement, which might contain a
-# HeadingElement.
-# However, later this number could be dynamic depending on the page itself.
-MAX_ELEMENT_NESTING_DEPTH = 3
+# Later this number could be dynamic but for now we set it arbitrary
+# high enough to cover most usages.
+MAX_ELEMENT_NESTING_DEPTH = 9
 
 
 class ElementVisibilityPermissionManager(PermissionManagerType):
@@ -72,6 +73,53 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
         # Return False by default for safety
         return False
 
+    def actor_can_view_page(self, actor, page):
+        """
+        Return True if the actor is allowed to view the page.
+        """
+
+        if isinstance(actor, User):
+            return True
+
+        if page.visibility != Page.VISIBILITY_TYPES.LOGGED_IN:
+            return True
+
+        if not getattr(actor, "is_authenticated", False):
+            return False
+
+        if page.role_type == Page.ROLE_TYPES.ALLOW_ALL:
+            return True
+        elif page.role_type == Page.ROLE_TYPES.ALLOW_ALL_EXCEPT:
+            return actor.role not in page.roles
+        elif page.role_type == Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT:
+            return actor.role in page.roles
+
+        return False
+
+    def actor_can_view_element(self, actor, element):
+        """
+        Return True if the actor is allowed to view the element, taking element
+        and page visibility and role settings into account.
+        """
+
+        if not self.actor_can_view_page(actor, element.page):
+            return False
+
+        current_element = element
+        while current_element is not None:
+            if getattr(actor, "is_authenticated", False):
+                if current_element.visibility == Element.VISIBILITY_TYPES.NOT_LOGGED:
+                    return False
+
+                if not self.auth_user_can_view_element(actor, current_element):
+                    return False
+            elif current_element.visibility == Element.VISIBILITY_TYPES.LOGGED_IN:
+                return False
+
+            current_element = current_element.parent_element
+
+        return True
+
     def check_multiple_permissions(
         self,
         checks,
@@ -87,22 +135,10 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
 
         for check in checks:
             if check.operation_name == DispatchBuilderWorkflowActionOperationType.type:
-                if getattr(check.actor, "is_authenticated", False):
-                    if (
-                        check.context.element.visibility
-                        == Element.VISIBILITY_TYPES.NOT_LOGGED
-                    ):
-                        result[check] = False
-                    elif not self.auth_user_can_view_element(
-                        check.actor, check.context.element
-                    ):
-                        result[check] = False
-                else:
-                    if (
-                        check.context.element.visibility
-                        == Element.VISIBILITY_TYPES.LOGGED_IN
-                    ):
-                        result[check] = False
+                if not self.actor_can_view_element(check.actor, check.context.element):
+                    result[check] = False
+            elif check.operation_name == ReadElementOperationType.type:
+                result[check] = self.actor_can_view_element(check.actor, check.context)
 
         return result
 
@@ -182,11 +218,13 @@ class ElementVisibilityPermissionManager(PermissionManagerType):
             return queryset.exclude(page__visibility=Page.VISIBILITY_TYPES.LOGGED_IN)
 
         return queryset.exclude(
-            page__role_type=Page.ROLE_TYPES.ALLOW_ALL_EXCEPT,
-            page__roles__contains=actor.role,
+            Q(page__visibility=Page.VISIBILITY_TYPES.LOGGED_IN)
+            & Q(page__role_type=Page.ROLE_TYPES.ALLOW_ALL_EXCEPT)
+            & Q(page__roles__contains=[actor.role])
         ).exclude(
-            Q(page__role_type=Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT)
-            & ~Q(page__roles__contains=actor.role),
+            Q(page__visibility=Page.VISIBILITY_TYPES.LOGGED_IN)
+            & Q(page__role_type=Page.ROLE_TYPES.DISALLOW_ALL_EXCEPT)
+            & ~Q(page__roles__contains=[actor.role]),
         )
 
     def exclude_elements_with_visibility(

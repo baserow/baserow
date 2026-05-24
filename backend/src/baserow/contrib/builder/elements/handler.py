@@ -420,6 +420,7 @@ class ElementHandler:
 
     def move_element(
         self,
+        target_page: Page,
         element: ElementForUpdate,
         parent_element: Optional[Element],
         place_in_container: str,
@@ -439,14 +440,14 @@ class ElementHandler:
         :return: The moved element.
         """
 
+        if parent_element is not None:
+            parent_element = parent_element.specific
+
         parent_element_id = getattr(parent_element, "id", None)
 
-        if parent_element is not None and place_in_container is not None:
-            parent_element = parent_element.specific
-            parent_element_type = element_type_registry.get_by_model(parent_element)
-            parent_element_type.validate_place_in_container(
-                place_in_container, parent_element
-            )
+        element.get_type().validate_place(
+            target_page, parent_element, place_in_container
+        )
 
         if before:
             element.order = Element.get_unique_order_before_element(
@@ -454,13 +455,16 @@ class ElementHandler:
             )
         else:
             element.order = Element.get_last_order(
-                element.page, parent_element_id, place_in_container
+                target_page, parent_element_id, place_in_container
             )
 
+        element.page = target_page
         element.parent_element = parent_element
         element.place_in_container = place_in_container
 
         element.save()
+
+        element.get_type().after_move(element)
 
         return element
 

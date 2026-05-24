@@ -91,7 +91,7 @@ class Page(
             "-shared",  # First page is the shared one if any.
             "order",
         )
-        unique_together = [["builder", "name"], ["builder", "path"]]
+        unique_together = [["builder", "path"]]
         indexes = [
             models.Index(fields=["-shared", "order"]),
             models.Index(fields=["builder", "-shared", "order"]),
@@ -104,6 +104,9 @@ class Page(
     def get_last_order(cls, builder: "Builder"):
         queryset = Page.objects_without_shared.filter(builder=builder)
         return cls.get_highest_order_of_queryset(queryset) + 1
+
+    def __str__(self):
+        return f"<Page id={self.id} name={self.name}/>"
 
 
 class DuplicatePageJob(

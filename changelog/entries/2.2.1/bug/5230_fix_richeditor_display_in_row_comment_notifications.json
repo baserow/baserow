@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix RichTextEditor display in row comment notifications",
+    "issue_origin": "github",
+    "issue_number": 5230,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-04-20"
+}

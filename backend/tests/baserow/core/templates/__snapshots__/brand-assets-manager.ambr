@@ -1,0 +1,207 @@
+# serializer version: 1
+# name: test_template_snapshot[brand-assets-manager]
+  dict({
+    'builder': dict({
+      'Asset details': list([
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '1',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '1',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '1',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '1',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '1',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '1',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '0',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '0',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '0',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '0',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '0',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '0',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '0',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '0',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '',
+                  'type': 'choice',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '',
+                  'type': 'choice',
+                }),
+              ]),
+              'place_in_container': '2',
+              'type': 'form_container',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'column',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'link',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'repeat',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'table',
+        }),
+      ]),
+      'Assets': list([
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'table',
+        }),
+      ]),
+      'Login': list([
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'auth_form',
+        }),
+      ]),
+      '__shared__': list([
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'image',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'menu',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'header',
+        }),
+      ]),
+    }),
+  })
+# ---

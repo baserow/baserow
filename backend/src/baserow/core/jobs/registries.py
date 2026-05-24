@@ -23,7 +23,7 @@ from .exceptions import (
     JobTypeDoesNotExist,
     MaxJobCountExceeded,
 )
-from .models import Job
+from .models import Job, JobQuerySet
 from .types import AnyJob
 
 tracer = trace.get_tracer(__name__)
@@ -57,18 +57,42 @@ class JobType(
 
     def can_schedule_or_raise(self, job: Job) -> None:
         """
-        This method can be overridden to add custom logic to check if the given user
-        can schedule a job of this type.
+        Checks whether ``job`` can be scheduled for the given user. Splits into
+        ``_get_running_jobs`` (which jobs already block scheduling) and
+        ``_can_schedule_or_raise`` (the actual rule).
 
         :param job: The job instance that is going to be scheduled.
         :raises MaxJobCountExceeded: If the user cannot schedule a new job of this type.
         """
 
-        # Check how many job of same type are running simultaneously. If count > max
-        # we don't want to create a new one.
-        running_jobs = job.__class__.objects.filter(
-            user_id=job.user.id
-        ).is_pending_or_running()
+        running_jobs = self._get_running_jobs(job)
+        self._can_schedule_or_raise(running_jobs, job)
+
+    def _get_running_jobs(self, job: Job) -> JobQuerySet:
+        """
+        Returns the currently pending or running jobs that should be considered
+        when deciding whether ``job`` can be scheduled. Returns a queryset so
+        subclasses can compose further filters / ``select_related`` / ``exists``
+        on top.
+
+        :param job: The job instance that is going to be scheduled.
+        :return: A queryset of pending/running jobs to evaluate against.
+        """
+
+        return job.__class__.objects.filter(user_id=job.user.id).is_pending_or_running()
+
+    def _can_schedule_or_raise(self, running_jobs: JobQuerySet, new_job: Job) -> None:
+        """
+        Default rule: refuse scheduling once ``max_count`` jobs of the same
+        type are already pending or running for this user. Override to add
+        per-job conflict checks (e.g. one job per application) and call ``super()``
+        to keep the global cap.
+
+        :param running_jobs: The pending/running jobs queryset returned by
+            ``_get_running_jobs``.
+        :param new_job: The job instance that is going to be scheduled.
+        :raises MaxJobCountExceeded: If the user cannot schedule ``new_job``.
+        """
 
         if len(running_jobs) >= self.max_count:
             raise MaxJobCountExceeded(
@@ -125,6 +149,14 @@ class JobType(
         """
         If a job type need to do something before a job deletion, can be done here.
         This method is do nothing by default.
+        """
+
+    def on_cancelled(self, job: AnyJob):
+        """
+        Called after a job has been cancelled and its state saved. Runs outside the
+        main transaction context, so any database changes made here are kept.
+
+        :param job: The specific instance of the related job instance.
         """
 
     def on_error(self, job: AnyJob, error: Exception):

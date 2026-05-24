@@ -37,7 +37,9 @@ class RowHistoryHandler:
         row_history_entries = row_history_provider.get_row_history(user, action)
 
         if row_history_entries:
-            row_history_entries = RowHistory.objects.bulk_create(row_history_entries)
+            row_history_entries = RowHistory.objects.bulk_create(
+                row_history_entries, batch_size=1000
+            )
             for table_id, per_table_row_history_entries in groupby(
                 row_history_entries, lambda e: e.table_id
             ):

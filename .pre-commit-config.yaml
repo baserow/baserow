@@ -1,0 +1,40 @@
+# Pre-commit hooks for Baserow.
+#
+# The lint/format hooks intentionally delegate to the `just` recipes
+# (`just b fix` and `just f fix`) so that pre-commit, CI and manual runs all
+# use the exact same commands and configuration. This avoids drift between
+# the tools and re-running `just fix` after pre-commit will not produce
+# additional changes.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: check-yaml
+        # Helm templates and multi-document GitLab CI files are not valid
+        # standalone YAML and are validated by their own tooling.
+        args: [--allow-multiple-documents]
+        exclude: ^(web-frontend/\.nuxt/|web-frontend/dist/|web-frontend/\.output/|deploy/helm/|\.gitlab/)
+      - id: check-added-large-files
+        # Built-in templates ship as multi-MB .zip fixtures; bump the limit so
+        # those are allowed while still flagging unexpectedly large additions.
+        args: [--maxkb=5000]
+      - id: check-merge-conflict
+
+  - repo: local
+    hooks:
+      - id: backend-fix
+        name: backend lint & format (just b fix)
+        entry: just b fix
+        language: system
+        pass_filenames: true
+        # Mirror the dirs ruff lints in `just b fix` (see backend/justfile)
+        files: ^(backend/(src|tests)|(premium|enterprise)/backend/(src|tests))/.*\.py$
+
+      - id: frontend-fix
+        name: frontend lint & format (just f fix)
+        entry: just f fix
+        language: system
+        pass_filenames: true
+        # Mirror the dirs eslint/stylelint/prettier run on in `just f fix`
+        files: ^(web-frontend|(premium|enterprise)/web-frontend)/.*\.(js|jsx|ts|tsx|vue|mjs|css|scss|json|md|html)$
+        exclude: ^web-frontend/(\.nuxt|dist|\.output)/

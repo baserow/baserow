@@ -3,6 +3,7 @@ from typing import Optional, Union
 
 from .deferred_field_importer import DeferredFieldImporter  # noqa: F401
 from .deferred_foreign_key_updater import DeferredForeignKeyUpdater  # noqa: F401
+from .schema import guess_json_type_from_response_serializer_field  # noqa: F401
 
 field_pattern = re.compile("^field_([0-9]+)$")
 

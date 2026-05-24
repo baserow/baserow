@@ -32,6 +32,7 @@ import {
   DuplicateAutomationWorkflowJobType,
   PublishAutomationWorkflowJobType,
 } from '@baserow/modules/automation/jobTypes'
+import { WorkflowDisabledNotificationType } from '@baserow/modules/automation/notificationTypes.jsx'
 import {
   HistoryEditorSidePanelType,
   NodeEditorSidePanelType,
@@ -117,6 +118,10 @@ export default defineNuxtPlugin({
     // Automation job types
     $registry.register('job', new DuplicateAutomationWorkflowJobType(context))
     $registry.register('job', new PublishAutomationWorkflowJobType(context))
+    $registry.register(
+      'notification',
+      new WorkflowDisabledNotificationType(context)
+    )
 
     // Automation settings
     $registry.registerNamespace('automationSettings')

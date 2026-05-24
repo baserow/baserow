@@ -92,8 +92,6 @@
           />
         </div>
 
-        <ImportWorkspaceForm ref="form" @submitted="importWorkspace" />
-
         <div
           class="import-workspace__button-section"
           :class="{
@@ -115,7 +113,7 @@
             size="large"
             :loading="importing"
             :disabled="importing"
-            @click="submitForm"
+            @click="importWorkspace"
           >
             {{ $t('importWorkspaceModal.import') }}
           </Button>
@@ -134,7 +132,6 @@ import { mimetype2icon } from '@baserow/modules/core/utils/fileTypeToIcon'
 import job from '@baserow/modules/core/mixins/job'
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
-import ImportWorkspaceForm from '@baserow/modules/core/components/import/ImportWorkspaceForm.vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { ImportApplicationsJobType } from '@baserow/modules/core/jobTypes'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
@@ -161,7 +158,6 @@ export default {
   components: {
     UploadFileDropzone,
     SelectedFileDetails,
-    ImportWorkspaceForm,
     ImportApplicationSelector,
   },
   mixins: [modal, error, job],
@@ -217,9 +213,6 @@ export default {
     },
   },
   methods: {
-    submitForm() {
-      this.$refs.form.submit()
-    },
     show(...args) {
       this.hideError()
       this.checkPendingImport()

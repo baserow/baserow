@@ -67,6 +67,7 @@
           <AddElementZone
             :disabled="elementIsInError && !elementHasSourceOfData"
             :tooltip="addElementErrorTooltipMessage"
+            :parent-element="element"
             @add-element="showAddElementModal"
           ></AddElementZone>
           <AddElementModal
@@ -88,6 +89,7 @@
           <AddElementZone
             :disabled="elementIsInError && !elementHasSourceOfData"
             :tooltip="addElementErrorTooltipMessage"
+            :parent-element="element"
             @add-element="showAddElementModal"
           ></AddElementZone>
           <AddElementModal

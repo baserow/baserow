@@ -58,7 +58,8 @@
         "download": "다운로드",
         "copyToClipboard": "클립보드에 복사",
         "reset": "재설정",
-        "hide": "숨기기"
+        "hide": "숨기기",
+        "next": "다음"
     },
     "adminType": {
         "settings": "설정",
@@ -166,7 +167,10 @@
         "password": "비밀번호",
         "ai": "AI 프롬프트",
         "multipleCollaboratorsDropdown": "드롭다운",
-        "multipleCollaboratorsCheckboxes": "체크박스"
+        "multipleCollaboratorsCheckboxes": "체크박스",
+        "formViewEditRow": "행 편집 링크",
+        "formViewEditRowShareWarning": "공유 링크를 가진 사람은 누구나 공개적으로 표시되는 행 편집 링크 필드를 통해 {formNames} 양식에서 행을 편집할 수 있습니다.",
+        "defaultValueFunctionNow": "현재 날짜"
     },
     "fieldErrors": {
         "invalidNumber": "유효하지 않은 숫자",
@@ -178,7 +182,8 @@
         "invalidDuration": "유효하지 않은 형식 ({durationFormat}).",
         "overflowDuration": "값이 범위를 벗어났습니다.",
         "maxChars": "최대 {max}자.",
-        "minChars": "최소 {min}자."
+        "minChars": "최소 {min}자.",
+        "higherThan": "값이 {max}보다 높습니다."
     },
     "fieldDocs": {
         "readOnly": "이 필드는 읽기 전용 필드입니다.",
@@ -213,7 +218,8 @@
         "multipleCollaborators": "각 객체에 사용자 ID가 포함된 객체 배열을 허용합니다.",
         "uuid": "읽기 전용의 고유하고 영구적인 UUID입니다.",
         "autonumber": "각 새 행에 대해 자동으로 번호를 증가시키는 읽기 전용 필드입니다.",
-        "password": "해시된 비밀번호를 보유하는 쓰기 전용 필드입니다. 설정되지 않은 경우 값은 `null`이며, 설정된 경우 `true`입니다. 문자열을 받아서 설정합니다."
+        "password": "해시된 비밀번호를 보유하는 쓰기 전용 필드입니다. 설정되지 않은 경우 값은 `null`이며, 설정된 경우 `true`입니다. 문자열을 받아서 설정합니다.",
+        "formViewEditRow": "읽기 전용 필드로, 연결된 양식 보기를 통해 행을 편집할 수 있도록 고유하고 서명된 URL을 생성합니다."
     },
     "viewFilter": {
         "hasEmptyValue": "값이 비어 있음",
@@ -597,10 +603,14 @@
         "getImageWidthDescription": "index 함수에서 반환된 단일 파일의 이미지 너비를 반환합니다.",
         "getImageHeightDescription": "index 함수에서 반환된 단일 파일의 이미지 높이를 반환합니다.",
         "getIsImageDescription": "index 함수에서 반환된 단일 파일이 이미지인지 아닌지를 반환합니다.",
-        "indexDescription": "파일 필드에서 두 번째 인수로 제공된 위치의 파일을 반환합니다.",
+        "indexDescription": "지정된 0부터 시작하는 위치의 요소를 배열 값(예: 조회, 파일 또는 기타 배열 형식 필드)에서 반환합니다. 음수 인덱스는 끝에서부터 계산됩니다(-1은 마지막 요소).",
         "secondsToDurationDescription": "제공된 초 수를 기간으로 변환합니다.",
         "durationToSecondsDescription": "제공된 기간을 해당 초 수로 변환합니다.",
-        "hasOptionDescription": "첫 번째 인수가 다중 선택 필드이거나 단일 선택 필드로의 조회이고, 두 번째 인수가 옵션 중 하나이면 true를 반환합니다."
+        "hasOptionDescription": "첫 번째 인수가 다중 선택 필드이거나 단일 선택 필드로의 조회이고, 두 번째 인수가 옵션 중 하나이면 true를 반환합니다.",
+        "arrayUniqueDescription": "배열에서 중복을 제거하고 최초 출현 순서를 유지하면서 고유한 항목만 반환합니다.",
+        "arraySliceDescription": "지정된 인덱스(0부터 시작, 음수는 끝에서 시작)부터 부분 배열을 반환합니다. 양수 값은 앞쪽 요소를 가져오고, 0은 남은 모든 요소를 가져오며, 음수 값은 뒤쪽 요소를 역순으로 가져옵니다.",
+        "firstDescription": "배열 값(예: 조회, 파일 또는 기타 배열 형식 필드)에서 첫 번째 요소를 반환합니다.",
+        "lastDescription": "배열 값(예: 조회, 파일 또는 기타 배열 형식 필드)에서 마지막 요소를 반환합니다."
     },
     "functionnalGridViewFieldLinkRow": {
         "unnamed": "이름 없는 행 {value}"
@@ -708,5 +718,11 @@
     "nodeExplorer": {
         "noResults": "검색 결과가 없습니다",
         "resetSearch": "검색 재설정"
+    },
+    "runtimeGetErrors": {
+        "invalidPath": "'get' 인수 '{path}'는 점으로 구분된 경로여야 합니다(예: 'provider.property').",
+        "missingProvider": "'get' 인수 '{path}'에 수식 제공자 접두사가 누락되었습니다.",
+        "unknownProvider": "'{providerName}' 수식 공급자가 존재하지 않습니다.",
+        "invalidProviderPath": "'{providerName}' 수식 공급자가 '{path}'가 유효하지 않다고 판단했습니다."
     }
 }

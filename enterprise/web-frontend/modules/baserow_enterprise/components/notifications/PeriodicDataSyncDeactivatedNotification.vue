@@ -6,7 +6,7 @@
   >
     <div class="notification-panel__notification-content-title">
       <i18n-t
-        :path="
+        :keypath="
           isLicenseUnavailable
             ? 'periodicDataSyncDeactivatedNotification.licenseUnavailable'
             : 'periodicDataSyncDeactivatedNotification.failure'

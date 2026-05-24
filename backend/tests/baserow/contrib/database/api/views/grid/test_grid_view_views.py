@@ -3315,6 +3315,7 @@ def test_get_public_grid_view(api_client, data_fixture):
                     "order": "ASC",
                     "type": "default",
                     "view": grid_view.slug,
+                    "priority": hidden_sort.priority,
                 },
                 {
                     "field": visible_sort.field.id,
@@ -3322,6 +3323,7 @@ def test_get_public_grid_view(api_client, data_fixture):
                     "order": "DESC",
                     "type": "default",
                     "view": grid_view.slug,
+                    "priority": visible_sort.priority,
                 },
             ],
             "group_bys": [
@@ -3332,6 +3334,7 @@ def test_get_public_grid_view(api_client, data_fixture):
                     "view": grid_view.slug,
                     "width": 200,
                     "type": "default",
+                    "priority": hidden_group_by.priority,
                 },
                 {
                     "field": visible_group_by.field.id,
@@ -3340,6 +3343,7 @@ def test_get_public_grid_view(api_client, data_fixture):
                     "view": grid_view.slug,
                     "width": 200,
                     "type": "default",
+                    "priority": visible_group_by.priority,
                 },
             ],
             "table": {
@@ -3349,6 +3353,7 @@ def test_get_public_grid_view(api_client, data_fixture):
             "type": "grid",
             "row_identifier_type": grid_view.row_identifier_type,
             "row_height_size": grid_view.row_height_size,
+            "frozen_column_count": 1,
             "show_logo": True,
             "allow_public_export": False,
             "ownership_type": "collaborative",

@@ -8,6 +8,8 @@ from django.conf import settings
 from django.core.exceptions import SuspiciousFileOperation
 from django.core.files.base import ContentFile
 from django.core.files.storage import FileSystemStorage
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 
 import pytest
 import responses
@@ -18,13 +20,14 @@ from PIL import Image
 from baserow.core.models import UserFile
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_files.exceptions import (
+    ActiveContentBlockedUserFileError,
     FileSizeTooLargeError,
     FileURLCouldNotBeReached,
     InvalidFileStreamError,
     InvalidFileURLError,
     MaximumUniqueTriesError,
 )
-from baserow.core.user_files.handler import UserFileHandler
+from baserow.core.user_files.handler import MIME_TYPE_UNKNOWN, UserFileHandler
 
 GENERATED_FILE_NAME_LENGTH = 16  # 12 hexdigest + '.' + ext
 
@@ -284,6 +287,60 @@ def test_upload_user_file_with_unsupported_image_format(
 
     file_path = tmpdir.join("thumbnails", "tiny", user_file.name)
     assert not file_path.isfile()
+
+
+@pytest.mark.django_db
+@override_settings(FILE_UPLOAD_ACTIVE_CONTENT_POLICY="download")
+def test_upload_user_file_active_content_download_policy(data_fixture, tmpdir):
+    user = data_fixture.create_user()
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    handler = UserFileHandler()
+
+    user_file = handler.upload_user_file(
+        user,
+        "logo.svg",
+        ContentFile(b'<svg xmlns="http://www.w3.org/2000/svg"></svg>'),
+        storage=storage,
+    )
+
+    assert user_file.original_extension == "svg"
+    assert user_file.mime_type == MIME_TYPE_UNKNOWN
+    assert user_file.is_image is False
+    assert user_file.image_width is None
+    assert user_file.image_height is None
+    assert tmpdir.join("user_files", user_file.name).isfile()
+    assert not tmpdir.join("thumbnails", "tiny", user_file.name).isfile()
+
+
+@pytest.mark.django_db
+@override_settings(FILE_UPLOAD_ACTIVE_CONTENT_POLICY="block")
+@pytest.mark.parametrize(
+    "file_name",
+    ["index.html", "index.htm", "page.xhtml", "feed.xml", "logo.svg", "logo.svgz"],
+)
+def test_upload_user_file_active_content_block_policy(data_fixture, tmpdir, file_name):
+    user = data_fixture.create_user()
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+
+    with pytest.raises(ActiveContentBlockedUserFileError):
+        UserFileHandler().upload_user_file(
+            user, file_name, ContentFile(b"active content"), storage=storage
+        )
+
+
+@pytest.mark.django_db
+@override_settings(FILE_UPLOAD_ACTIVE_CONTENT_POLICY="block")
+def test_upload_user_file_active_content_block_policy_uses_mime_type(
+    data_fixture, tmpdir
+):
+    user = data_fixture.create_user()
+    storage = FileSystemStorage(location=str(tmpdir), base_url="http://localhost")
+    file = SimpleUploadedFile(
+        "active-content.txt", b"<html></html>", content_type="text/html"
+    )
+
+    with pytest.raises(ActiveContentBlockedUserFileError):
+        UserFileHandler().upload_user_file(user, file.name, file, storage=storage)
 
 
 @pytest.mark.django_db

@@ -13,6 +13,7 @@
       class="choice-element"
       :placeholder="resolvedPlaceholder"
       :multiple="element.multiple"
+      :clearable="!element.multiple && !element.required"
       :before-show="beforeShow"
       @hide="onFormElementTouch"
       @query-change="adhocSearch = $event"

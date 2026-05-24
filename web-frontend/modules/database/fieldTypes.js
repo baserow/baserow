@@ -114,6 +114,7 @@ import RowCardFieldEmail from '@baserow/modules/database/components/card/RowCard
 import RowCardFieldFile from '@baserow/modules/database/components/card/RowCardFieldFile'
 import RowCardFieldFormula from '@baserow/modules/database/components/card/RowCardFieldFormula'
 import RowCardFieldLinkRow from '@baserow/modules/database/components/card/RowCardFieldLinkRow'
+import GridViewGroupValueLinkRow from '@baserow/modules/database/components/view/grid/GridViewGroupValueLinkRow'
 import RowCardFieldMultipleSelect from '@baserow/modules/database/components/card/RowCardFieldMultipleSelect'
 import RowCardFieldNumber from '@baserow/modules/database/components/card/RowCardFieldNumber'
 import RowCardFieldRating from '@baserow/modules/database/components/card/RowCardFieldRating'
@@ -1400,6 +1401,10 @@ export class LinkRowFieldType extends FieldType {
 
   getCardComponent() {
     return RowCardFieldLinkRow
+  }
+
+  getGroupByComponent(field) {
+    return GridViewGroupValueLinkRow
   }
 
   getRowHistoryEntryComponent() {

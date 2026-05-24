@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix database filters crashing when select option cells are temporarily null during row evaluation.",
+    "issue_origin": "github",
+    "issue_number": 5217,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-16"
+}

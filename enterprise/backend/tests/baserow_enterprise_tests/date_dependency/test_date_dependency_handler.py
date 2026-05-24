@@ -89,6 +89,43 @@ def test_date_dependency_handler_create_rule_serializer(
 
 
 @pytest.mark.django_db
+def test_date_dependency_import_rule_without_license(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    start_date_field = data_fixture.create_date_field(
+        table=table, name="start_date_field"
+    )
+    end_date_field = data_fixture.create_date_field(table=table, name="end_date_field")
+    duration_field = data_fixture.create_duration_field(
+        table=table, name="duration_field", duration_format="d h"
+    )
+
+    serialized_rule = {
+        "type": "date_dependency",
+        "is_active": True,
+        "start_date_field_id": start_date_field.id,
+        "end_date_field_id": end_date_field.id,
+        "duration_field_id": duration_field.id,
+        "dependency_linkrow_field_id": None,
+        "dependency_linkrow_role": "predecessors",
+        "dependency_connection_type": "end-to-start",
+        "dependency_buffer_type": "fixed",
+        "dependency_buffer": 0,
+    }
+    id_mapping = {
+        f.id: f.id for f in [start_date_field, end_date_field, duration_field]
+    }
+
+    handler = FieldRuleHandler(table, user)
+    rule = handler.import_rule(serialized_rule, id_mapping)
+
+    assert rule is not None
+    assert rule.table == table
+    assert DateDependency.objects.filter(pk=rule.pk).exists()
+
+
+@pytest.mark.django_db
 def test_date_dependency_handler_create_rule_no_license(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)

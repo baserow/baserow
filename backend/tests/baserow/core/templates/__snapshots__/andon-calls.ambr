@@ -1,0 +1,217 @@
+# serializer version: 1
+# name: test_template_snapshot[andon-calls]
+  dict({
+    'builder': dict({
+      'Add new call(4/4)': list([
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'link',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'text',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'datetime_picker',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'input_text',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'form_container',
+        }),
+      ]),
+      'Login': list([
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'image',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'auth_form',
+        }),
+      ]),
+      'Select category (2/4)': list([
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'text',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'link',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'link',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'repeat',
+        }),
+      ]),
+      'Select reason (3/4)': list([
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'text',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'text',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'link',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'link',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'repeat',
+        }),
+      ]),
+      'Select stations (1/4)': list([
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'link',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'iframe',
+        }),
+      ]),
+      '__shared__': list([
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'image',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '0',
+                  'type': 'text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '1',
+                  'type': 'button',
+                }),
+              ]),
+              'place_in_container': '',
+              'type': 'column',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'header',
+        }),
+      ]),
+    }),
+  })
+# ---

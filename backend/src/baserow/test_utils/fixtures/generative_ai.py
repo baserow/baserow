@@ -95,6 +95,9 @@ class TestGenerativeAIWithFilesModelType(GenerativeAIModelType):
             break  # first file only
         return [f for f in files if f.content is not None]
 
+    def cleanup_files(self, files, workspace=None, settings_override=None):
+        pass
+
     def delete_file(self, ai_file, workspace=None, settings_override=None):
         pass
 

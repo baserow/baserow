@@ -3545,7 +3545,7 @@ export const actions = {
   setPendingFieldOperations({ commit }, { fieldId, rowIds, value = true }) {
     commit('SET_PENDING_FIELD_OPERATIONS', { fieldId, rowIds, value })
   },
-  AIValuesGenerationError({ commit, dispatch }, { fieldId, rowIds }) {
+  AIValuesGenerationError({ commit, dispatch }, { fieldId, rowIds, error }) {
     const { $registry, $client, $i18n, $config } = this
     // If rowIds is empty, clear ALL pending operations for this field.
     if (rowIds.length === 0) {
@@ -3557,7 +3557,9 @@ export const actions = {
       'toast/error',
       {
         title: $i18n.t('gridView.AIValuesGenerationErrorTitle'),
-        message: $i18n.t('gridView.AIValuesGenerationErrorMessage'),
+        message:
+          (error && error.charAt(0).toUpperCase() + error.slice(1)) ||
+          $i18n.t('gridView.AIValuesGenerationErrorMessage'),
       },
       { root: true }
     )

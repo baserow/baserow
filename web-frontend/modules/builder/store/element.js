@@ -79,9 +79,20 @@ const mutations = {
     )
     updateCachedValues(page)
   },
-  ADD_ITEM(state, { page, element, beforeId = null }) {
+  ADD_ITEM(state, { page, element, sourcePageId = null, beforeId = null }) {
     const { $registry } = this
+    // For same-page moves, preserve the existing content/loading state so the
+    // element doesn't flash a spinner while the Nuxt useAsyncData cache skips
+    // the re-fetch. For cross-page moves, let populateElement reset cleanly so
+    // the new page context fetches fresh content.
+    const isSamePageMove = sourcePageId !== null && sourcePageId === page.id
+    const existingContentState = isSamePageMove ? element._ : null
     page.elements.push(populateElement(element, $registry))
+    if (existingContentState) {
+      element._.content = existingContentState.content
+      element._.hasNextPage = existingContentState.hasNextPage
+      element._.contentLoading = false
+    }
     updateCachedValues(page)
   },
   UPDATE_ITEM(state, { builder, page, element: elementToUpdate, values }) {
@@ -137,7 +148,7 @@ const actions = {
     commit('CLEAR_ITEMS', { page })
   },
   forceCreate({ dispatch, commit }, { page, element }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $registry } = this
     commit('ADD_ITEM', { page, element })
     dispatch('_setElementNamespacePath', { page, element })
 
@@ -145,13 +156,13 @@ const actions = {
     elementType.afterCreate(element, page)
   },
   forceUpdate({ commit }, { builder, page, element, values }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $registry } = this
     commit('UPDATE_ITEM', { builder, page, element, values })
     const elementType = $registry.get('element', element.type)
     elementType.afterUpdate(element, page)
   },
   forceDelete({ commit, getters }, { builder, page, elementId }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $registry } = this
     const elementToDelete = getters.getElementById(page, elementId)
 
     if (getters.getSelected(builder)?.id === elementId) {
@@ -162,51 +173,83 @@ const actions = {
     const elementType = $registry.get('element', elementToDelete.type)
     elementType.afterDelete(elementToDelete, page)
   },
-  forceMove(
-    { commit, getters },
+  forceMoveToPage(
+    { commit, dispatch, getters },
     {
       builder,
       page,
+      targetPage = null,
       elementId,
       beforeElementId,
       parentElementId,
       placeInContainer,
     }
   ) {
+    const resolvedTargetPage = targetPage !== null ? targetPage : page
     const element = getters.getElementById(page, elementId)
 
+    // Compute a temporary order on the target page while waiting for the server.
     let tempOrder = ''
-    // Compute temporary order while waiting for the update from the server
     if (beforeElementId) {
-      // If we have a before element then we should place the element
-      // between the before element and the element before the before element.
-      const beforeElement = getters.getElementById(page, beforeElementId)
+      // Place the element between beforeElement and its predecessor.
+      const beforeElement = getters.getElementById(
+        resolvedTargetPage,
+        beforeElementId
+      )
       const beforeBeforeElement = getters.getPreviousElement(
-        page,
+        resolvedTargetPage,
         beforeElement
       )
-      const afterOrder = getOrder(beforeElement)
-      const beforeOrder = getOrder(beforeBeforeElement)
-      tempOrder = calculateTempOrder(beforeOrder, afterOrder)
+      tempOrder = calculateTempOrder(
+        getOrder(beforeBeforeElement),
+        getOrder(beforeElement)
+      )
     } else {
-      // Otherwise it's should be placed as the last in the column so we get the last
-      // element and we just add one.
+      // Otherwise place at the end of the target container.
       const lastElement = getters
-        .getElementsInPlace(page, parentElementId, placeInContainer)
+        .getElementsInPlace(
+          resolvedTargetPage,
+          parentElementId,
+          placeInContainer
+        )
         .at(-1)
       tempOrder = calculateTempOrder(getOrder(lastElement), null)
     }
 
-    commit('UPDATE_ITEM', {
-      builder,
-      page,
-      element,
-      values: {
-        order: tempOrder,
-        parent_element_id: parentElementId,
-        place_in_container: placeInContainer,
+    const { $registry } = this
+    const elementType = $registry.get('element', element.type)
+
+    elementType.wrapMove(
+      {
+        builder,
+        previousPage: page,
+        page: resolvedTargetPage,
+        element: element,
       },
-    })
+      () => {
+        commit('DELETE_ITEM', { page, elementId: element.id })
+        commit('ADD_ITEM', {
+          page: resolvedTargetPage,
+          sourcePageId: page.id,
+          element: {
+            ...element,
+            order: tempOrder,
+            parent_element_id: parentElementId,
+            place_in_container: placeInContainer,
+            page_id: resolvedTargetPage.id,
+          },
+        })
+
+        const movedElement = getters.getElementById(
+          resolvedTargetPage,
+          elementId
+        )
+        dispatch('_setElementNamespacePath', {
+          page: resolvedTargetPage,
+          element: movedElement,
+        })
+      }
+    )
   },
   select({ commit }, { builder, element }) {
     updateContext.lastUpdatedValues = null
@@ -223,7 +266,7 @@ const actions = {
       forceCreate = true,
     }
   ) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $registry, $client } = this
     const elementType = $registry.get('element', elementTypeName)
     const updatedValues = elementType.getDefaultValues(page, values)
     const { data: element } = await ElementService($client).create(
@@ -242,7 +285,7 @@ const actions = {
     return element
   },
   async update({ dispatch }, { builder, page, element, values }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $client } = this
     const oldValues = {}
     const newValues = {}
     Object.keys(values).forEach((name) => {
@@ -271,7 +314,7 @@ const actions = {
     { dispatch, getters },
     { builder, page, element, values }
   ) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $client } = this
     const oldValues = {}
     Object.keys(values).forEach((name) => {
       if (Object.prototype.hasOwnProperty.call(element, name)) {
@@ -328,7 +371,7 @@ const actions = {
     })
   },
   async delete({ dispatch, getters }, { builder, page, elementId }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $client } = this
     const elementToDelete = getters.getElementById(page, elementId)
     const descendants = getters.getDescendants(page, elementToDelete)
 
@@ -358,7 +401,7 @@ const actions = {
     }
   },
   async fetch({ dispatch, commit }, { builder, page }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $client } = this
     const { data: elements } = await ElementService($client).fetchAll(page.id)
 
     commit('SET_ITEMS', { builder, page, elements })
@@ -373,7 +416,7 @@ const actions = {
     return elements
   },
   async fetchPublished({ dispatch, commit }, { builder, page }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $client } = this
     const { data: elements } =
       await PublicBuilderService($client).fetchElements(page)
 
@@ -397,15 +440,19 @@ const actions = {
       beforeElementId,
       parentElementId = null,
       placeInContainer = null,
+      targetPage = null,
     }
   ) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $client, $registry } = this
     const element = getters.getElementById(page, elementId)
-    const { order: previousOrder, place_in_container: previousPlace } = element
 
-    await dispatch('forceMove', {
+    const resolvedTargetPage = targetPage !== null ? targetPage : page
+    const originalDataSourceId = element?.data_source_id || null
+
+    await dispatch('forceMoveToPage', {
       builder,
       page,
+      targetPage,
       elementId,
       beforeElementId,
       parentElementId,
@@ -415,30 +462,33 @@ const actions = {
     const fire = async () => {
       try {
         const { data: elementUpdated } = await ElementService($client).move(
+          resolvedTargetPage?.id,
           elementId,
           beforeElementId,
           parentElementId,
           placeInContainer
         )
 
+        // Replace the optimistic element with the server values.
         dispatch('forceUpdate', {
           builder,
-          page,
+          page: resolvedTargetPage,
           element: elementUpdated,
           values: {
             order: elementUpdated.order,
             place_in_container: elementUpdated.place_in_container,
             parent_element_id: elementUpdated.parent_element_id,
+            page_id: elementUpdated.page_id,
           },
         })
       } catch (error) {
-        // Restore previous order and place_in_container properties
-        await dispatch('forceUpdate', {
-          builder,
-          page,
-          element,
-          values: { order: previousOrder, place_in_container: previousPlace },
+        // Rollback: remove from target page and restore on source page.
+        commit('DELETE_ITEM', {
+          page: resolvedTargetPage,
+          elementId: element.id,
         })
+        commit('ADD_ITEM', { page, element })
+        dispatch('_setElementNamespacePath', { page, element })
         throw error
       }
     }
@@ -447,7 +497,7 @@ const actions = {
     updateContext.moveTimeout = setTimeout(fire, 1000)
   },
   async duplicate({ commit, dispatch, getters }, { builder, page, elementId }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $client } = this
     const {
       data: { elements, workflow_actions: workflowActions },
     } = await ElementService($client).duplicate(elementId)
@@ -476,14 +526,14 @@ const actions = {
     return elements
   },
   emitElementEvent({ getters }, { event, elements, ...rest }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $registry } = this
     elements.forEach((element) => {
       const elementType = $registry.get('element', element.type)
       elementType.onElementEvent(event, { element, ...rest })
     })
   },
   _setElementNamespacePath({ commit, dispatch, getters }, { page, element }) {
-    const { $registry, $i18n, $client, $config } = this
+    const { $registry } = this
     const elementType = $registry.get('element', element.type)
     const elementNamespacePath = elementType.getElementNamespacePath(
       element,

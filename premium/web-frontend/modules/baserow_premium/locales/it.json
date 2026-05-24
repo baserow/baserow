@@ -194,7 +194,8 @@
         "calendarView": "Vista calendario",
         "personalViews": "Vista personale",
         "aiFeatures": "Campo IA",
-        "timelineView": "Timeline"
+        "timelineView": "Timeline",
+        "aiFeaturesContent": "Usa l'IA per automatizzare e potenziare i tuoi flussi di lavoro. Con il tipo di campo prompt IA puoi generare testo, riassunti o approfondimenti direttamente nelle celle basandoti su prompt dinamici che possono fare riferimento ad altri campi. Separatamente, puoi anche chiedere all'IA di creare formule per te."
     },
     "premiumModal": {
         "title": "Fai l'upgrade per usare {name}",
@@ -342,5 +343,12 @@
         "hour": "Ora",
         "year": "Anno",
         "quarter": "Trimestre"
+    },
+    "aiOutputType": {
+        "text": "Testo",
+        "choice": "Scelta"
+    },
+    "publicViewExport": {
+        "export": "Esporta"
     }
 }

@@ -60,7 +60,8 @@
         "backToHome": "Terug naar home",
         "close": "Sluit",
         "getStarted": "Aan de slag",
-        "hide": "Verberg"
+        "hide": "Verberg",
+        "next": "Volgende"
     },
     "adminType": {
         "settings": "Instellingen",
@@ -168,7 +169,10 @@
         "password": "Wachtwoord",
         "ai": "AI prompt",
         "multipleCollaboratorsDropdown": "Dropdown",
-        "multipleCollaboratorsCheckboxes": "Selectievakjes"
+        "multipleCollaboratorsCheckboxes": "Selectievakjes",
+        "formViewEditRow": "Rij bewerken link",
+        "formViewEditRowShareWarning": "Iedereen met de gedeelde link kan rijen bewerken via het {formNames}-formulier via de openbaar zichtbare linkvelden voor het bewerken van rijen.|Iedereen met de gedeelde link kan rijen bewerken via het {formNames}-formulier via de openbaar zichtbare linkvelden voor het bewerken van rijen.",
+        "defaultValueFunctionNow": "Huidige datum"
     },
     "fieldErrors": {
         "invalidNumber": "Ongeldig nummer",
@@ -180,7 +184,8 @@
         "invalidDuration": "Ongeldig formaat ({durationFormat}).",
         "overflowDuration": "Waarde is te groot.",
         "minChars": "Min {min} tekens.",
-        "maxChars": "Max {max} tekens."
+        "maxChars": "Max {max} tekens.",
+        "higherThan": "De waarde is hoger dan {max}."
     },
     "fieldDocs": {
         "readOnly": "Dit is een alleen-lezen veld.",
@@ -215,7 +220,8 @@
         "uuid": "Een alleen-lezen uniek en blijvende uuid.",
         "createdBy": "Het aangemaakt door veld is een alleen-lezen veld dat de gebruiker toont die de rij heeft aangemaakt.",
         "duration": "Accepteert een tijdsduur als text in het formaat {format} of als een getal dat het totale aantal seconden weergeeft.",
-        "password": "Een alleen schrijven veld dat een gehasht wachtwoord bevat. De waarde is `null` als het niet is ingesteld, of `true` als het is ingesteld. Het accepteert een tekenreeks om het in te stellen."
+        "password": "Een alleen schrijven veld dat een gehasht wachtwoord bevat. De waarde is `null` als het niet is ingesteld, of `true` als het is ingesteld. Het accepteert een tekenreeks om het in te stellen.",
+        "formViewEditRow": "Een alleen-lezen veld dat een unieke, ondertekende URL genereert waarmee de rij via de gekoppelde formulierweergave kan worden bewerkt."
     },
     "viewFilter": {
         "contains": "bevat",
@@ -607,7 +613,11 @@
         "getFileMimeTypeDescription": "Retourneert het mime-type van een bestand dat is geretourneerd met de indexfunctie.",
         "hasOptionDescription": "Geeft true terug als het eerste argument een meervoudig selectie veld is of een lookup naar een enkelvoudige selectie veld en het tweede argument een van de opties is.",
         "secondsToDurationDescription": "Converteert het opgegeven aantal seconden naar een duur.",
-        "durationToSecondsDescription": "Converteert de opgegeven duur naar het overeenkomstige aantal seconden."
+        "durationToSecondsDescription": "Converteert de opgegeven duur naar het overeenkomstige aantal seconden.",
+        "arrayUniqueDescription": "Geeft alleen de unieke elementen uit een array terug, waarbij duplicaten worden verwijderd en de volgorde van de eerste vermelding behouden blijft.",
+        "arraySliceDescription": "Geeft een subarray terug die begint bij de opgegeven index (0-gebaseerd; bij een negatief getal wordt vanaf het einde geteld). Een positief getal geeft het aantal elementen voorwaarts aan, 0 betekent alle resterende elementen, en een negatief getal geeft het aantal elementen achterwaarts in omgekeerde volgorde aan.",
+        "firstDescription": "Geeft het eerste element van een array-waarde terug (bijvoorbeeld uit een opzoekveld, bestand of ander veld van het type array).",
+        "lastDescription": "Geeft het laatste element van een array-waarde terug (bijvoorbeeld uit een opzoekveld, een bestand of een ander veld van het type array)."
     },
     "functionnalGridViewFieldLinkRow": {
         "unnamed": "onbenoemde rij {value}"
@@ -715,5 +725,11 @@
     "nodeExplorer": {
         "noResults": "Geen resultaten gevonden",
         "resetSearch": "Zoeken herstellen"
+    },
+    "runtimeGetErrors": {
+        "invalidPath": "Het 'get'-argument '{path}' moet een pad zijn dat door punten wordt gescheiden (bijvoorbeeld 'provider.property').",
+        "missingProvider": "Het argument 'get' '{path}' mist het voorvoegsel van de formuleprovider.",
+        "unknownProvider": "De formuleprovider '{providerName}' bestaat niet.",
+        "invalidProviderPath": "De formuleprovider '{providerName}' heeft vastgesteld dat '{path}' ongeldig is."
     }
 }

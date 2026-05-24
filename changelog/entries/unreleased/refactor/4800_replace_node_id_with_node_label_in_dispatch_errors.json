@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Remove Node ID in dispatch errors since the error is scoped to the node history.",
+    "issue_origin": "github",
+    "issue_number": 4800,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-05-01"
+}

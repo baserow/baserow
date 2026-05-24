@@ -172,6 +172,13 @@ class ElementType(
             element prior to `after_update` being called.
         """
 
+    def after_move(self, instance: ElementSubClass):
+        """
+        This hook is called right after the element has been moved successfully.
+
+        :param instance: Moved instance.
+        """
+
     def before_delete(self, instance: ElementSubClass):
         """
         This hook is called just before the element will be deleted.

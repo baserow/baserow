@@ -3,72 +3,72 @@ import tempfile
 from pathlib import Path
 from unittest.mock import call, patch
 
-from django.db import connection, transaction
+from django.db import connection
 
 import pytest
 from freezegun import freeze_time
 
-from baserow.contrib.database.table.models import Table
 from baserow.core.management.backup.backup_runner import BaserowBackupRunner
 from baserow.core.management.backup.exceptions import InvalidBaserowBackupArchive
-from baserow.core.psycopg import is_psycopg3
-from baserow.core.trash.handler import TrashHandler
+from baserow.core.psycopg import is_psycopg3, psycopg
+from baserow.test_utils.helpers import setup_interesting_test_table
 
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.once_per_day_in_ci
-def test_can_backup_and_restore_baserow_reverting_changes(data_fixture, environ):
+def test_can_backup_and_restore_baserow_reverting_changes(
+    data_fixture, environ, temporary_database
+):
+    host = connection.settings_dict["HOST"]
+    dbname = connection.settings_dict["NAME"]
+    username = connection.settings_dict["USER"]
+    port = connection.settings_dict["PORT"]
+    password = connection.settings_dict["PASSWORD"]
+    environ["PGPASSWORD"] = password
+
     runner = BaserowBackupRunner(
-        host=connection.settings_dict["HOST"],
-        database=connection.settings_dict["NAME"],
-        username=connection.settings_dict["USER"],
-        port=connection.settings_dict["PORT"],
+        host=host,
+        database=dbname,
+        username=username,
+        port=port,
         jobs=1,
     )
-    environ["PGPASSWORD"] = connection.settings_dict["PASSWORD"]
 
-    table, fields, rows = data_fixture.build_table(
-        columns=[
-            ("Name", "text"),
-        ],
-        rows=[["A"], ["B"], ["C"], ["D"]],
-    )
-    table_to_delete, _, _ = data_fixture.build_table(
-        columns=[
-            ("Name", "text"),
-        ],
-        rows=[["A"], ["B"], ["C"], ["D"]],
-    )
-    deleted_table_name = table_to_delete.get_database_table_name()
+    table, _, _, _, context = setup_interesting_test_table(data_fixture)
+
+    model = table.get_model()
+    original_row_count = model.objects.count()
+    user_table_name = table.get_database_table_name()
 
     with tempfile.TemporaryDirectory() as temporary_directory_name:
         backup_loc = temporary_directory_name + "/backup.tar.gz"
-        # With a batch size of 1 we expect 3 separate pg_dumps to be run.
-        runner.backup_baserow(backup_loc, 1)
+        runner.backup_baserow(backup_loc, batch_size=1)
         assert Path(backup_loc).is_file()
 
-        model = table.get_model(attribute_names=True)
+        restore_runner = BaserowBackupRunner(
+            host=host,
+            database=temporary_database,
+            username=username,
+            port=port,
+            jobs=1,
+        )
+        restore_runner.restore_baserow(backup_loc)
 
-        # Add a new row after we took the back-up that we want to reset by restoring.
-        model.objects.create(**{"name": "E"})
-        # Delete a table to check it is recreated.
-        with transaction.atomic():
-            TrashHandler.permanently_delete(table_to_delete)
+        with psycopg.connect(
+            host=host,
+            port=port,
+            dbname=temporary_database,
+            user=username,
+            password=password,
+        ) as verify_conn:
+            with verify_conn.cursor() as cur:
+                cur.execute(f"SELECT COUNT(*) FROM {user_table_name}")
+                assert cur.fetchone()[0] == original_row_count
 
-        assert model.objects.count() == 5
-        assert Table.objects.count() == 1
-        assert deleted_table_name not in connection.introspection.table_names()
-
-        # --clean will make pg_restore overwrite existing db objects, not safe for
-        # general usage as it will not delete tables/relations created after the
-        # backup.
-        runner.restore_baserow(backup_loc, ["--clean", "--if-exists"])
-
-        # The row we made after the backup has gone
-        assert model.objects.count() == 4
-        # The table we deleted has been restored
-        assert Table.objects.count() == 2
-        assert deleted_table_name in connection.introspection.table_names()
+                autonumber_field_id = context["name_to_field_id"]["autonumber"]
+                seq_name = f"field_{autonumber_field_id}_seq"
+                cur.execute(f"SELECT last_value FROM {seq_name}")
+                assert cur.fetchone()[0] > 0
 
 
 @patch("tempfile.TemporaryDirectory")
@@ -119,6 +119,7 @@ def test_backup_baserow_dumps_database_in_batches(
                     "--exclude-table=database_multipleselect_*",
                     "--exclude-table=database_table_*",
                     "--exclude-table=database_relation_*",
+                    "--exclude-table=field_*_seq",
                     "--file=/fake_tmp_dir/everything_but_user_tables/",
                 ]
             ),
@@ -200,6 +201,7 @@ def test_can_change_num_jobs_and_insert_extra_args_for_baserow_backup(
                     "--exclude-table=database_multipleselect_*",
                     "--exclude-table=database_table_*",
                     "--exclude-table=database_relation_*",
+                    "--exclude-table=field_*_seq",
                     "--file=/fake_tmp_dir/everything_but_user_tables/",
                     extra_arg,
                 ]
@@ -597,6 +599,7 @@ def a_pg_dump_for_everything_else():
             "--exclude-table=database_multipleselect_*",
             "--exclude-table=database_table_*",
             "--exclude-table=database_relation_*",
+            "--exclude-table=field_*_seq",
             "--file=/fake_tmp_dir/everything_but_user_tables/",
         ]
     )

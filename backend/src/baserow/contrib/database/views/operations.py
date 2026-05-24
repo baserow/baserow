@@ -101,6 +101,11 @@ class DeleteViewSortOperationType(ViewSortOperationType):
     type = "database.table.view.sort.delete"
 
 
+class PrioritizeViewSortOperationType(ViewOperationType):
+    type = "database.table.view.prioritize_sortings"
+    object_scope_name = DatabaseViewSortObjectScopeType.type
+
+
 class ViewGroupByOperationType(OperationType, abc.ABC):
     context_scope_name = DatabaseViewGroupByObjectScopeType.type
 
@@ -124,6 +129,11 @@ class UpdateViewGroupByOperationType(ViewGroupByOperationType):
 
 class DeleteViewGroupByOperationType(ViewGroupByOperationType):
     type = "database.table.view.group_by.delete"
+
+
+class PrioritizeViewGroupByOperationType(ViewOperationType):
+    type = "database.table.view.prioritize_group_bys"
+    object_scope_name = DatabaseViewGroupByObjectScopeType.type
 
 
 class UpdateViewSlugOperationType(ViewOperationType):

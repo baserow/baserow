@@ -21,7 +21,6 @@ def test_create_workspace_invitation_action_type(data_fixture):
         email="user@test.com",
         permissions="ADMIN",
         base_url="http://localhost:3000/",
-        message="hello!",
     )
 
     assert invitation.workspace == workspace

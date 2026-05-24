@@ -1,10 +1,10 @@
 import DataSyncService from '@baserow/modules/database/services/dataSync'
 import error from '@baserow/modules/core/mixins/error'
-import jobProgress from '@baserow/modules/core/mixins/jobProgress'
+import job from '@baserow/modules/core/mixins/job'
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 
 export default {
-  mixins: [error, jobProgress],
+  mixins: [error, job],
   data() {
     return {
       loadingProperties: false,
@@ -14,9 +14,6 @@ export default {
       updateLoading: false,
       syncLoading: false,
     }
-  },
-  beforeUnmount() {
-    this.stopPollIfRunning()
   },
   computed: {
     orderedProperties() {
@@ -113,7 +110,7 @@ export default {
         const { data: job } = await DataSyncService(this.$client).syncTable(
           table.data_sync.id
         )
-        this.startJobPoller(job)
+        await this.createAndMonitorJob(job)
       } catch (error) {
         this.handleError(error)
       } finally {
@@ -151,18 +148,12 @@ export default {
       }
     },
     onJobFailed() {
-      const error = new ResponseErrorMessage(
-        this.$t('createDataSync.error'),
-        this.job.human_readable_error
+      this.showError(
+        new ResponseErrorMessage(
+          this.$t('createDataSync.error'),
+          this.job.human_readable_error
+        )
       )
-      this.stopPollAndHandleError(error)
-    },
-    onJobPollingError(error) {
-      this.stopPollAndHandleError(error)
-    },
-    stopPollAndHandleError(error) {
-      this.stopPollIfRunning()
-      error.handler ? this.handleError(error) : this.showError(error)
     },
   },
 }

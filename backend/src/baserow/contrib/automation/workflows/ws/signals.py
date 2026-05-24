@@ -21,6 +21,8 @@ from baserow.contrib.automation.workflows.operations import (
 from baserow.contrib.automation.workflows.signals import (
     automation_workflow_created,
     automation_workflow_deleted,
+    automation_workflow_dispatch_done,
+    automation_workflow_dispatch_started,
     automation_workflow_published,
     automation_workflow_updated,
     automation_workflows_reordered,
@@ -124,5 +126,43 @@ def workflow_reordered(
                 "order": order,
             },
             getattr(user, "web_socket_id", None),
+        )
+    )
+
+
+@receiver(automation_workflow_dispatch_started)
+def workflow_dispatch_started(sender, workflow_history, **kwargs):
+    workflow = workflow_history.original_workflow
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            workflow.automation.workspace_id,
+            ReadAutomationWorkflowOperationType.type,
+            AutomationWorkflowObjectScopeType.type,
+            workflow.id,
+            {
+                "type": "automation_workflow_dispatch_started",
+                "workflow_id": workflow.id,
+                "history_id": workflow_history.id,
+            },
+            None,
+        )
+    )
+
+
+@receiver(automation_workflow_dispatch_done)
+def workflow_dispatch_done(sender, workflow_history, **kwargs):
+    workflow = workflow_history.original_workflow
+    transaction.on_commit(
+        lambda: broadcast_to_permitted_users.delay(
+            workflow.automation.workspace_id,
+            ReadAutomationWorkflowOperationType.type,
+            AutomationWorkflowObjectScopeType.type,
+            workflow.id,
+            {
+                "type": "automation_workflow_dispatch_done",
+                "workflow_id": workflow.id,
+                "history_id": workflow_history.id,
+            },
+            None,
         )
     )

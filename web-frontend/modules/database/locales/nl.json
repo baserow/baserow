@@ -462,14 +462,16 @@
         "shareViewText": "Met een privé-deelbare link kan iedereen de gegevens in deze weergave bekijken.",
         "shareViewLinkTitle": "Een privé link maken",
         "notSharedYetText": "Laat iedereen de gegevens in deze weergave zien of sync gebeurtenissen met je externe agenda.",
-        "createPrivateLink": "Een privé link maken"
+        "createPrivateLink": "Een privé link maken",
+        "shareViewWarningTitle": "Waarschuwing"
     },
     "viewSortContext": {
         "noSortTitle": "Je hebt nog geen sortering",
         "noSortText": "Met sorteren kun je rijen op een veld sorteren.",
         "sortBy": "Sorteer op",
         "thenBy": "Dan op",
-        "addSort": "kies een veld om op te sorteren"
+        "addSort": "kies een veld om op te sorteren",
+        "hiddenFieldWarning": "Een of meer sorteringen verwijzen naar verborgen velden die niet zichtbaar zijn voor editors en gebruikers met een lagere rol."
     },
     "viewSort": {
         "sort": "Sorteren | 1 Sorteren | {count} Sorteren"
@@ -509,7 +511,8 @@
         "duplicateView": "View dupliceren",
         "importFile": "Bestand importeren",
         "toPersonal": "Naar persoonlijk",
-        "toCollaborative": "Naar gedeeld"
+        "toCollaborative": "Naar gedeeld",
+        "defaultRowValues": "Standaard rijwaarden"
     },
     "deleteViewModal": {
         "title": "Verwijder {name}",
@@ -681,7 +684,8 @@
         "warningWhenNothingToChooseOrCreate": "Er zijn geen enkele selectie velden om uit te kiezen en u hebt geen machtigingen om er een te maken."
     },
     "viewDecorator": {
-        "decorator": "Kleur | 1 Kleur | {tellen} Kleuren"
+        "decorator": "Kleur | 1 Kleur | {tellen} Kleuren",
+        "hiddenFieldWarning": "Decoraties worden verwijderd voor editors en lagere functies, omdat ze mogelijk verwijzen naar verborgen velden."
     },
     "viewDecoratorContext": {
         "addDecorator": "decoratie toevoegen"
@@ -907,7 +911,8 @@
         "thenBy": "Dan door",
         "addGroupBy": "kies een veld om op te sorteren",
         "noGroupByTitle": "Je hebt nog geen groepen gemaakt",
-        "noGroupByText": "Groepeer rijen op een veld."
+        "noGroupByText": "Groepeer rijen op een veld.",
+        "hiddenFieldWarning": "Een of meer groeperingen verwijzen naar verborgen velden die niet zichtbaar zijn voor editors en gebruikers met een lagere rol."
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} heeft u toegewezen aan {fieldName} in rij {rowId} in {tableName}",
@@ -1193,5 +1198,29 @@
         "ruleDoesNotExist": "Regel bestaat niet",
         "ruleTypeDoesNotExist": "Regeltype bestaat niet",
         "ruleAlreadyExists": "Regel bestaat al"
+    },
+    "defaultValuesModal": {
+        "title": "Standaardwaarden voor {name}",
+        "setDefaultValue": "Standaardwaarde instellen",
+        "removeDefaultValue": "Standaardwaarde verwijderen",
+        "staticValue": "Statische waarde"
+    },
+    "fieldFormViewEditRowSubForm": {
+        "selectFormViewLabel": "Formulier weergave",
+        "description": "Elke rij krijgt een unieke link waarmee dit formulier wordt geopend, vooraf ingevuld met de gegevens van die rij. Houd er rekening mee dat iedereen met leestoegang tot de tabel en het veld de rij via de formulierweergave kan bewerken, ook kijkers en bezoekers van een openbaar gedeelde weergave.",
+        "notPublicWarning": "Deze weergave van het formulier is niet openbaar gemaakt. De bewerkingslink werkt pas als het formulier openbaar is gemaakt.",
+        "notPublic": "(niet openbaar)",
+        "formDoesNotExist": "Het geselecteerde formulier bestaat niet meer."
+    },
+    "editRowLink": {
+        "editRow": "Rij bewerken"
+    },
+    "rowEditFieldFormViewEditRow": {
+        "copyLink": "Link kopiëren",
+        "noFormView": "Geen formulier weergave geconfigureerd"
+    },
+    "gridViewFreezeHandle": {
+        "freeze": "0 kolommen vastzetten | 1 kolom vastzetten | {count} kolommen vastzetten",
+        "hoverHint": "Sleep om kolommen vast te zetten"
     }
 }

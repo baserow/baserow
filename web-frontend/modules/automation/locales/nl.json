@@ -99,7 +99,9 @@
         "statusDisabled": "Uitgeschakeld door Baserow",
         "completedInSeconds": "Afgerond in {s} seconden.",
         "completedInLessThanSecond": "Afgerond in minder dan 1 seconde.",
-        "testRun": "Test"
+        "testRun": "Test",
+        "statusStarted": "In uitvoering...",
+        "running": "Loopt sinds {at}s"
     },
     "nodeType": {
         "triggerDeletionError": "Activeringen kunnen niet worden verwijderd, alleen vervangen.",

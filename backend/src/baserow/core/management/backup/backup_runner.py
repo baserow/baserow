@@ -172,6 +172,7 @@ class BaserowBackupRunner:
             f"--exclude-table={MultipleSelectField.THROUGH_DATABASE_TABLE_PREFIX}*",
             f"--exclude-table={USER_TABLE_DATABASE_NAME_PREFIX}*",
             f"--exclude-table={LinkRowField.THROUGH_DATABASE_TABLE_PREFIX}*",
+            "--exclude-table=field_*_seq",
             f"--file={temporary_directory_name}/everything_but_user_tables/",
         ]
         self._run_command_in_sub_process(

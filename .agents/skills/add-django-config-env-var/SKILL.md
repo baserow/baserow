@@ -55,7 +55,7 @@ MY_SETTING = int(os.getenv("BASEROW_MY_SETTING", 123))
 3. Add the Nuxt remap if frontend code needs it
 4. Use `settings.<NAME>` in code
 5. Add a focused test if needed
-6. Add a row to `docs/installation/configuration.md`
+6. Add a row to `docs/installation/configuration.md` when necessary
 
 ## Guardrails
 

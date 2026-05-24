@@ -1,6 +1,7 @@
 <template>
-  <div class="ab-checkbox" @click="toggle">
+  <div class="ab-checkbox">
     <input
+      :id="inputId"
       type="checkbox"
       :checked="modelValue"
       :required="required"
@@ -11,14 +12,17 @@
         'ab-checkbox--readonly': readOnly,
       }"
       :aria-disabled="disabled"
+      @change="onChange"
     />
-    <label v-if="hasSlot" class="ab-checkbox__label">
+    <label v-if="hasSlot" :for="inputId" class="ab-checkbox__label">
       <slot></slot>
     </label>
   </div>
 </template>
 
 <script>
+import { useId } from 'vue'
+
 export default {
   name: 'ABCheckbox',
   props: {
@@ -64,15 +68,23 @@ export default {
     },
   },
   emits: ['update:modelValue'],
+  setup() {
+    const uniqId = useId()
+
+    return { uniqId }
+  },
   computed: {
+    inputId() {
+      return `ab-checkbox-${this.uniqId}`
+    },
     hasSlot() {
       return !!this.$slots.default
     },
   },
   methods: {
-    toggle() {
+    onChange(event) {
       if (this.disabled || this.readOnly) return
-      this.$emit('update:modelValue', !this.modelValue)
+      this.$emit('update:modelValue', event.target.checked)
     },
   },
 }

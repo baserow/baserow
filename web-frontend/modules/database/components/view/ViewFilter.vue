@@ -24,6 +24,7 @@
       <ViewFilterForm
         :fields="fields"
         :view="view"
+        :database="database"
         :is-public-view="isPublicView"
         :read-only="readOnly"
         :disable-filter="disableFilter"
@@ -45,6 +46,10 @@ export default {
       required: true,
     },
     view: {
+      type: Object,
+      required: true,
+    },
+    database: {
       type: Object,
       required: true,
     },

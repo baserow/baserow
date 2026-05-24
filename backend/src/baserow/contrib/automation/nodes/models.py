@@ -127,10 +127,12 @@ class AutomationNode(
         the current node instance.
         """
 
+        previous_positions = self.workflow.get_graph().get_previous_positions(self)
+        if previous_positions is None:
+            return []
+
         return [
-            position[0]
-            for position in self.workflow.get_graph().get_previous_positions(self)
-            if position[1] == "child"
+            position[0] for position in previous_positions if position[1] == "child"
         ]
 
     def get_next_nodes(

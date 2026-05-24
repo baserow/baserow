@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+from functools import cached_property
 from typing import TYPE_CHECKING, Any, Optional
 
 from loguru import logger
@@ -8,7 +10,7 @@ from pydantic_ai.messages import UserContent
 from baserow.core.models import Workspace
 from baserow.core.registry import Instance, Registry
 
-from .exceptions import GenerativeAITypeDoesNotExist
+from .exceptions import GenerativeAITypeDoesNotExist, get_user_friendly_error_message
 
 if TYPE_CHECKING:
     from pydantic_ai import Agent
@@ -16,8 +18,310 @@ if TYPE_CHECKING:
     from baserow_premium.fields.ai_file import AIFile
 
 
+class FileHandler:
+    """Handles file processing for an AI provider.
+
+    The cascade tries each strategy in order for every file:
+    inline (text) -> embed (binary) -> upload (API) -> skip.
+
+    Subclasses configure behavior via extension sets and by overriding
+    ``_upload``, ``_can_upload_file``, and ``delete_file`` as needed.
+    """
+
+    _EMBEDDABLE_EXTENSIONS: set[str] = set()
+    _INLINEABLE_EXTENSIONS: set[str] = set()
+    _UPLOADABLE_EXTENSIONS: set[str] = set()
+
+    _MAX_EMBED_PAYLOAD_BYTES = 45 * 1024 * 1024  # 50 MB minus headroom
+    _MAX_EMBEDS_PER_REQUEST = 500
+    _INLINE_UPLOAD_THRESHOLD_BYTES = 10 * 1024  # 10 KB
+
+    def _has_embed_budget(
+        self, file_size: int, embed_count: int, embed_payload_size: int
+    ) -> bool:
+        """
+        Check whether adding a file of the given size would stay within the
+        per-request embed limits.
+
+        :param file_size: Size of the file in bytes.
+        :param embed_count: Number of files already embedded in this request.
+        :param embed_payload_size: Total bytes already embedded in this request.
+        :return: True if the file fits within both count and payload limits.
+        """
+
+        return (
+            embed_count < self._MAX_EMBEDS_PER_REQUEST
+            and embed_payload_size + file_size <= self._MAX_EMBED_PAYLOAD_BYTES
+        )
+
+    def _can_inline_file(
+        self, ext: str, size: int, embed_count: int, embed_payload_size: int
+    ) -> bool:
+        """
+        Check whether a file can be inlined as text content.
+
+        :param ext: Lowercase file extension including the dot.
+        :param size: File size in bytes.
+        :param embed_count: Number of files already embedded in this request.
+        :param embed_payload_size: Total bytes already embedded in this request.
+        :return: True if the file extension is inlineable, the file is small
+            enough, and the embed budget has room.
+        """
+
+        return (
+            ext in self._INLINEABLE_EXTENSIONS
+            and size <= self._INLINE_UPLOAD_THRESHOLD_BYTES
+            and self._has_embed_budget(size, embed_count, embed_payload_size)
+        )
+
+    def _can_embed_file(
+        self, ext: str, size: int, embed_count: int, embed_payload_size: int
+    ) -> bool:
+        """
+        Check whether a file can be embedded as binary content.
+
+        :param ext: Lowercase file extension including the dot.
+        :param size: File size in bytes.
+        :param embed_count: Number of files already embedded in this request.
+        :param embed_payload_size: Total bytes already embedded in this request.
+        :return: True if the file extension is embeddable and the embed budget
+            has room.
+        """
+
+        return ext in self._EMBEDDABLE_EXTENSIONS and self._has_embed_budget(
+            size, embed_count, embed_payload_size
+        )
+
+    def _can_upload_file(self, ext: str, size: int) -> bool:
+        """
+        Check whether a file can be uploaded via the provider API.
+
+        :param ext: Lowercase file extension including the dot.
+        :param size: File size in bytes.
+        :return: True if the file extension is uploadable.
+        """
+
+        return ext in self._UPLOADABLE_EXTENSIONS
+
+    def _embed(self, ai_file: "AIFile") -> None:
+        """
+        Embed a file as binary content by reading its bytes and setting
+        ``ai_file.content`` to a ``BinaryContent`` instance.
+
+        :param ai_file: The file to embed.
+        """
+
+        from pydantic_ai import BinaryContent
+
+        ai_file.content = BinaryContent(
+            data=ai_file.read_content(),
+            media_type=ai_file.mime_type,
+            identifier=ai_file.original_name,
+        )
+
+    def _inline_text(self, ai_file: "AIFile") -> bool:
+        """
+        Try to inline file content as a ``TextContent`` instance. Sets
+        ``ai_file.content`` on success.
+
+        :param ai_file: The file to inline.
+        :return: True if the file was valid UTF-8 and was inlined, False
+            otherwise.
+        """
+
+        from pydantic_ai import TextContent
+
+        try:
+            text = ai_file.read_content().decode("utf-8")
+        except (UnicodeDecodeError, ValueError):
+            return False
+        ai_file.content = TextContent(
+            content=(
+                f"[Content of file '{ai_file.original_name}']\n{text}\n[End of file]"
+            ),
+            metadata={"source": ai_file.original_name},
+        )
+        return True
+
+    def _upload(
+        self,
+        ai_file: "AIFile",
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """
+        Upload a file via the provider API. Must be overridden by subclasses
+        that declare ``_UPLOADABLE_EXTENSIONS``. Sets ``ai_file.content`` and
+        ``ai_file.provider_file_id`` on success.
+
+        :param ai_file: The file to upload.
+        :param workspace: The workspace for settings resolution.
+        :param settings_override: Optional provider settings override.
+        """
+
+        raise NotImplementedError(
+            f"{type(self).__name__} declares _UPLOADABLE_EXTENSIONS but does "
+            f"not implement _upload()"
+        )
+
+    def prepare_files(
+        self,
+        files: list["AIFile"],
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> list["AIFile"]:
+        """
+        Process files into prompt content using the cascade:
+        inline -> embed -> upload -> skip. Only files that were
+        successfully processed (with ``content`` set) are returned.
+
+        :param files: List of AIFile instances to process.
+        :param workspace: The workspace for settings resolution.
+        :param settings_override: Optional provider settings override.
+        :return: The subset of files that were successfully processed.
+        """
+
+        embed_payload_size = 0
+        embed_count = 0
+
+        for ai_file in files:
+            _, ext = os.path.splitext(ai_file.name)
+            ext = ext.lower()
+
+            try:
+                if self._can_inline_file(
+                    ext, ai_file.size, embed_count, embed_payload_size
+                ):
+                    if self._inline_text(ai_file):
+                        embed_payload_size += ai_file.size
+                        embed_count += 1
+                        continue
+
+                if self._can_embed_file(
+                    ext, ai_file.size, embed_count, embed_payload_size
+                ):
+                    self._embed(ai_file)
+                    embed_payload_size += ai_file.size
+                    embed_count += 1
+                    continue
+
+                if self._can_upload_file(ext, ai_file.size):
+                    self._upload(ai_file, workspace, settings_override)
+            except Exception as exc:
+                logger.warning(f"Skipping file {ai_file.name}: {exc}")
+
+        return [f for f in files if f.content is not None]
+
+    def delete_file(
+        self,
+        ai_file: "AIFile",
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """
+        Delete a single uploaded file from the provider. Must be overridden
+        by subclasses that upload files (i.e. that set ``provider_file_id``
+        during ``_upload``).
+
+        :param ai_file: The file to delete.
+        :param workspace: The workspace for settings resolution.
+        :param settings_override: Optional provider settings override.
+        """
+
+        raise NotImplementedError(
+            f"{type(self).__name__} does not implement delete_file()"
+        )
+
+    def cleanup_files(
+        self,
+        files: list["AIFile"],
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """
+        Delete all provider-uploaded files. Only files with a
+        ``provider_file_id`` are processed. Safe to call with an empty list.
+
+        :param files: List of AIFile instances returned by ``prepare_files``.
+        :param workspace: The workspace for settings resolution.
+        :param settings_override: Optional provider settings override.
+        """
+
+        for ai_file in files:
+            if not ai_file.provider_file_id:
+                continue
+            try:
+                self.delete_file(ai_file, workspace, settings_override)
+            except Exception:
+                logger.warning(
+                    f"Failed to delete provider file {ai_file.provider_file_id}."
+                )
+
+
 class GenerativeAIModelType(Instance):
-    supports_files: bool = False
+    @cached_property
+    def file_handler(self) -> FileHandler | None:
+        """
+        Return the file handler for this provider, or None if the provider
+        does not support files. Override in subclasses to return a concrete
+        ``FileHandler`` instance.
+        """
+
+        return None
+
+    @property
+    def supports_files(self) -> bool:
+        """Return True if this provider supports file attachments."""
+
+        return self.file_handler is not None
+
+    def prepare_files(
+        self,
+        files: list["AIFile"],
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> list["AIFile"]:
+        """
+        Prepare files for prompting by processing them through the file handler,
+        if available. Returns the list of AIFile instances that were
+        successfully prepared (i.e. have their `content` attribute set). Should
+        be called before prompting, and the returned files should be passed to
+        the prompt via the `content` parameter for multi-modal input.
+
+        :param files: The list of AIFile instances to prepare.
+        :param workspace: The workspace for settings resolution.
+        :param settings_override: Optional provider settings override.
+        """
+
+        if self.file_handler is None:
+            raise NotImplementedError(
+                f"{type(self).__name__} does not support files. "
+                f"Check supports_files before calling prepare_files()."
+            )
+        return self.file_handler.prepare_files(files, workspace, settings_override)
+
+    def cleanup_files(
+        self,
+        files: list["AIFile"],
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> None:
+        """
+        Cleanup previously uploaded files via the file handler. Should be called
+        in a finally block after prompting, to ensure cleanup happens even if
+        prompting fails.
+
+        :param files: The list of AIFile instances to clean up.
+        :param workspace: The workspace for settings resolution.
+        :param settings_override: Optional provider settings override.
+        """
+
+        if self.file_handler is None:
+            raise NotImplementedError(
+                f"{type(self).__name__} does not support files. "
+                f"Check supports_files before calling cleanup_files()."
+            )
+        self.file_handler.cleanup_files(files, workspace, settings_override)
 
     def get_workspace_setting(
         self,
@@ -45,75 +349,55 @@ class GenerativeAIModelType(Instance):
         type_settings = settings.get(self.type, {})
         return type_settings.get(key, None)
 
-    def is_enabled(self, workspace: Optional[Workspace] = None) -> bool:
-        return False
+    def get_api_key(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> Optional[str]:
+        """
+        Return the API key for this provider, or None if not configured.
 
-    def get_enabled_models(self, workspace: Optional[Workspace] = None) -> list[str]:
+        :param workspace: The workspace for settings resolution.
+        :param settings_override: Optional provider settings override.
+        :return: The API key string, or None.
+        """
+
+        return None
+
+    def is_enabled(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> bool:
+        """
+        Return True if this provider has both an API key and at least one
+        enabled model. Ollama overrides this to check the host instead.
+
+        :param workspace: The workspace for settings resolution.
+        :param settings_override: Optional provider settings override.
+        :return: True if the provider is enabled.
+        """
+
+        return bool(self.get_api_key(workspace, settings_override)) and bool(
+            self.get_enabled_models(
+                workspace=workspace, settings_override=settings_override
+            )
+        )
+
+    def get_enabled_models(
+        self,
+        workspace: Optional[Workspace] = None,
+        settings_override: Optional[dict[str, Any]] = None,
+    ) -> list[str]:
+        """
+        Return the list of enabled model names for this provider.
+
+        :param workspace: The workspace for settings resolution.
+        :param settings_override: Optional provider settings override.
+        :return: List of model name strings, empty if none configured.
+        """
+
         return []
-
-    def prepare_files(
-        self,
-        files: list[AIFile],
-        workspace: Optional[Workspace] = None,
-        settings_override: Optional[dict[str, Any]] = None,
-    ) -> list[AIFile]:
-        """Process files into prompt content. Each provider implements its
-        own logic for deciding what to embed, what to upload, and which files
-        to skip.
-
-        Providers set ``content`` and optionally ``provider_file_id`` on each
-        accepted file. Only processed files (those with ``content`` set) are
-        returned; skipped files are filtered out.
-
-        :param files: List of AIFile instances with metadata and lazy
-            ``read_content()`` method.
-        :param workspace: The workspace for settings resolution.
-        :param settings_override: Optional provider settings override.
-        :return: The processed files with content/provider_file_id set.
-        """
-
-        return []
-
-    def delete_file(
-        self,
-        ai_file: AIFile,
-        workspace: Optional[Workspace] = None,
-        settings_override: Optional[dict[str, Any]] = None,
-    ) -> None:
-        """
-        Delete a single uploaded file from the provider. Override in
-        subclasses that upload files in ``prepare_files``.
-
-        :param ai_file: The AIFile instance representing the file to delete.
-        :param workspace: The workspace for settings resolution.
-        :param settings_override: Optional provider settings override.
-        """
-
-    def cleanup_files(
-        self,
-        files: list[AIFile],
-        workspace: Optional[Workspace] = None,
-        settings_override: Optional[dict[str, Any]] = None,
-    ) -> None:
-        """
-        Clean up provider-uploaded files. Only files with a
-        ``provider_file_id`` are processed. Safe to call with an empty list.
-
-        :param files: List of AIFile instances returned by ``prepare_files``.
-        :param workspace: The workspace for settings resolution.
-        :param settings_override: Optional provider settings override.
-        """
-
-        for ai_file in files:
-            if not ai_file.provider_file_id:
-                continue
-            try:
-                self.delete_file(ai_file, workspace, settings_override)
-            except Exception:
-                logger.warning(
-                    f"Failed to delete file {ai_file.provider_file_id} from "
-                    f"provider {self.type}."
-                )
 
     def get_ai_model(
         self,
@@ -187,7 +471,7 @@ class GenerativeAIModelType(Instance):
         if content:
             prompt = (
                 f"{prompt}\n\n"
-                "The contents of the attached files are included below. "
+                "The following file contents are provided for context. "
                 "Use them to answer the prompt above."
             )
             return [prompt] + content
@@ -298,14 +582,28 @@ class GenerativeAIModelType(Instance):
         except GenerativeAIPromptError:
             raise
         except Exception as e:
-            raise GenerativeAIPromptError(str(e)) from e
+            raise GenerativeAIPromptError(get_user_friendly_error_message(e)) from e
 
     def get_settings_serializer(self) -> type:
+        """
+        Return the DRF serializer class for this provider's workspace-level
+        settings (API key, models list, etc.).
+
+        :return: A serializer class.
+        """
+
         raise NotImplementedError(
             "The get_settings_serializer function must be implemented."
         )
 
     def get_serializer(self) -> type:
+        """
+        Return the DRF serializer class for the provider's public
+        representation (type name, enabled models, etc.).
+
+        :return: A serializer class.
+        """
+
         from baserow.api.generative_ai.serializers import GenerativeAIModelsSerializer
 
         return GenerativeAIModelsSerializer

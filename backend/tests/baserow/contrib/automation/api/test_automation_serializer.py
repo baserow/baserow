@@ -57,5 +57,6 @@ def test_serializer_get_workflows(automation_fixture):
             "simulate_until_node_id": None,
             "published_on": None,
             "graph": {"0": trigger.id, str(trigger.id): {}},
+            "notification_recipient_ids": [],
         }
     ]

@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes search index updates failing for tables with date-only formula fields",
+    "issue_origin": "github",
+    "issue_number": 5363,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-05-13"
+}

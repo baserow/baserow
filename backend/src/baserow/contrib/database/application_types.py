@@ -123,12 +123,16 @@ class DatabaseApplicationType(ApplicationType):
         for table in tables:
             fields = table.field_set.all()
             serialized_fields = []
+            specific_fields = []
             for f in fields:
                 field = f.specific
+                specific_fields.append(field)
                 field_type = field_type_registry.get_by_model(field)
                 serialized_fields.append(field_type.export_serialized(field))
 
-            table_cache: Dict[str, Any] = {}
+            table_cache: Dict[str, Any] = {
+                f"fields_by_id_{table.id}": {f.id: f for f in specific_fields},
+            }
             workspace = table.get_root()
             if workspace is not None:
                 table_cache["workspace_id"] = workspace.id
@@ -939,10 +943,16 @@ class DatabaseApplicationType(ApplicationType):
 
         table = serialized_table["_object"]
         table_name = serialized_table["name"]
+        cache: Dict[str, Any] = {}
         for serialized_view in serialized_table["views"]:
             view_type = view_type_registry.get(serialized_view["type"])
             view_type.import_serialized(
-                table, serialized_view, import_export_config, id_mapping, files_zip
+                table,
+                serialized_view,
+                import_export_config,
+                id_mapping,
+                cache,
+                files_zip,
             )
             progress.increment(
                 state=f"{IMPORT_SERIALIZED_IMPORTING_TABLE_STRUCTURE}{table_name}"

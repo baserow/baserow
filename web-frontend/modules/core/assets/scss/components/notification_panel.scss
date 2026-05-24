@@ -144,6 +144,10 @@
   @include center-text(24px, 15px);
 }
 
+.notification-panel__notification-automation-icon {
+  margin-left: 3px;
+}
+
 .notification-panel__body {
   .infinite-scroll {
     top: 53px;

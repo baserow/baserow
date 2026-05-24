@@ -288,6 +288,9 @@ class DateDependencyFieldRuleType(FieldRuleType):
         )
 
     # lifecycle hooks
+    def can_create_rule(self, table: Table) -> None:
+        self.check_license(table)
+
     def prepare_values_for_create(
         self, table: Table, in_data: dict
     ) -> DateDepenencyDict:
@@ -295,7 +298,6 @@ class DateDependencyFieldRuleType(FieldRuleType):
         Returns a dictionary with values needed to create a new rule.
         """
 
-        self.check_license(table)
         return self._validate_data(table, in_data)
 
     def prepare_values_for_update(

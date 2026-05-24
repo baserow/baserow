@@ -96,7 +96,9 @@
         "statusDisabled": "Baserow에 의해 비활성화됨",
         "completedInSeconds": "{s}초 만에 완료되었습니다.",
         "completedInLessThanSecond": "1초도 안 걸려 완료되었습니다.",
-        "testRun": "테스트"
+        "testRun": "테스트",
+        "statusStarted": "진행 중...",
+        "running": "{at}를 위해 실행 중"
     },
     "nodeType": {
         "triggerDeletionError": "트리거는 삭제할 수 없고, 교체만 가능합니다.",
@@ -198,5 +200,8 @@
         "sampleDataCopy": "복사",
         "errorOccurred": "오류가 발생했습니다...",
         "sampleDataCopied": "페이로드가 클립보드에 복사되었습니다"
+    },
+    "automationWorkflow": {
+        "title": "워크플로"
     }
 }

@@ -22,6 +22,10 @@ from baserow.contrib.builder.workflow_actions.workflow_action_types import (
     NotificationWorkflowActionType,
     UpdateRowWorkflowActionType,
 )
+from baserow.contrib.database.fields.field_constraints import (
+    TextTypeUniqueWithEmptyConstraint,
+)
+from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
@@ -639,6 +643,58 @@ def test_dispatch_local_baserow_create_row_workflow_action(api_client, data_fixt
 
 
 @pytest.mark.django_db
+def test_dispatch_local_baserow_create_row_workflow_action_field_constraint(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    # Create a field that has a constraint, e.g. unique
+    fruit_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="text",
+        name="Unique fruit",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{fruit_field.id}": "Apple"})
+
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=EventTypes.CLICK, user=user
+    )
+    service = workflow_action.service.specific
+    service.table = table
+    service.field_mappings.create(field=fruit_field, value="'Apple'")
+    service.save()
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+    response = api_client.post(
+        url,
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT"
+    assert (
+        response_json["detail"]
+        == f"Cannot create rows in table {table.id} because it violates a field constraint."
+    )
+
+
+@pytest.mark.django_db
 def test_dispatch_local_baserow_update_row_workflow_action(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table, fields, rows = data_fixture.build_table(
@@ -694,6 +750,61 @@ def test_dispatch_local_baserow_update_row_workflow_action(api_client, data_fixt
 
     assert response_json[color_field.name] == "Blue"
     assert animal_field.name not in response_json
+
+
+@pytest.mark.django_db
+def test_dispatch_local_baserow_update_row_workflow_action_field_constraint(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+
+    # Create a field that has a constraint, e.g. unique
+    fruit_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        type_name="text",
+        name="Unique fruit",
+        field_constraints=[
+            {"type_name": TextTypeUniqueWithEmptyConstraint.constraint_name}
+        ],
+    )
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{fruit_field.id}": "Apple"})
+    # Create another row, which we'll update to 'Apple' to simulate a unique constraint
+    second_row = model.objects.create(**{f"field_{fruit_field.id}": "Banana"})
+
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(
+        page=page, element=element, event=EventTypes.CLICK, user=user
+    )
+    service = workflow_action.service.specific
+    service.table = table
+    service.row_id = f"'{second_row.id}'"
+    service.field_mappings.create(field=fruit_field, value="'Apple'")
+    service.save()
+
+    url = reverse(
+        "api:builder:workflow_action:dispatch",
+        kwargs={"workflow_action_id": workflow_action.id},
+    )
+    response = api_client.post(
+        url,
+        {},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    response_json = response.json()
+    assert response_json["error"] == "ERROR_SERVICE_INVALID_DISPATCH_CONTEXT_CONTENT"
+    assert (
+        response_json["detail"]
+        == f"The row with id {second_row.id} violates a field constraint."
+    )
 
 
 @pytest.mark.django_db

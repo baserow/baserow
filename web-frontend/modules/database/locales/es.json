@@ -462,14 +462,16 @@
         "shareViewText": "El enlace privado compartible permite que cualquiera pueda ver los datos en esta vista.",
         "shareViewLinkTitle": "Crear un enlace privado",
         "notSharedYetText": "Permitir que cualquiera pueda ver los datos en esta vista o sincronizar eventos con su calendario externo.",
-        "createPrivateLink": "Crear un enlace privado"
+        "createPrivateLink": "Crear un enlace privado",
+        "shareViewWarningTitle": "Advertencia"
     },
     "viewSortContext": {
         "noSortTitle": "Todavía no has creado una clasificación",
         "noSortText": "Ordenar le permite ordenar filas por un campo.",
         "sortBy": "Ordenar por",
         "thenBy": "Luego por",
-        "addSort": "elegir un campo para ordenar por"
+        "addSort": "elegir un campo para ordenar por",
+        "hiddenFieldWarning": "Uno o más ordenamientos hacen referencia a campos ocultos que no serán visibles para editores y roles inferiores."
     },
     "viewSort": {
         "sort": "Ordenar | 1 Ordenar | {count} clasifica"
@@ -509,7 +511,8 @@
         "importFile": "Importar archivo",
         "duplicateView": "Duplicar vista",
         "toPersonal": "A personal",
-        "toCollaborative": "A colaboración"
+        "toCollaborative": "A colaboración",
+        "defaultRowValues": "Valores predeterminados de fila"
     },
     "deleteViewModal": {
         "title": "Eliminar {name}",
@@ -677,7 +680,8 @@
         "sessionSignatureLabel": "Cookie de firma de sesión (__Host‑airtable‑session.sig)"
     },
     "viewDecorator": {
-        "decorator": "Color | 1 Color | {recuento} Colores"
+        "decorator": "Color | 1 Color | {recuento} Colores",
+        "hiddenFieldWarning": "Las decoraciones se eliminan para editores y roles inferiores porque pueden hacer referencia a campos ocultos."
     },
     "chooseSingleSelectField": {
         "addSelectField": "Añadir campo de selección individual",
@@ -907,7 +911,8 @@
         "thenBy": "Y luego por",
         "addGroupBy": "Elegir un campo por el que agrupar",
         "noGroupByTitle": "Aún no has creado ninguna agrupación",
-        "noGroupByText": "Agrupar filas por un campo."
+        "noGroupByText": "Agrupar filas por un campo.",
+        "hiddenFieldWarning": "Uno o más agrupamientos hacen referencia a campos ocultos que no serán visibles para editores y roles inferiores."
     },
     "collaboratorAddedToRowNotification": {
         "title": "{sender} te asignó a {nombreDeCampo} en la fila {rowId} en {nombreDeTabla}",
@@ -1193,5 +1198,29 @@
         "ruleDoesNotExist": "La regla no existe",
         "ruleTypeDoesNotExist": "El tipo de regla no existe",
         "ruleAlreadyExists": "La regla ya existe"
+    },
+    "fieldFormViewEditRowSubForm": {
+        "description": "Cada fila obtendrá un enlace único que abre este formulario precargado con los datos de esa fila. Ten en cuenta que todos con acceso de lectura a la tabla y al campo podrán editar la fila a través de la vista de formulario, incluidos los espectadores y visitantes de una vista compartida públicamente.",
+        "notPublicWarning": "Esta vista de formulario no se comparte públicamente. El enlace de edición no funcionará hasta que el formulario se haga público.",
+        "formDoesNotExist": "El formulario seleccionado ya no existe.",
+        "selectFormViewLabel": "Vista de formulario",
+        "notPublic": "(no público)"
+    },
+    "rowEditFieldFormViewEditRow": {
+        "noFormView": "No hay vista de formulario configurada",
+        "copyLink": "Copiar enlace"
+    },
+    "defaultValuesModal": {
+        "title": "Valores predeterminados para {name}",
+        "setDefaultValue": "Establecer valor predeterminado",
+        "removeDefaultValue": "Eliminar valor predeterminado",
+        "staticValue": "Valor estático"
+    },
+    "editRowLink": {
+        "editRow": "Editar fila"
+    },
+    "gridViewFreezeHandle": {
+        "hoverHint": "Arrastrar para congelar columnas",
+        "freeze": "Congelar 0 columnas | Congelar 1 columna | Congelar {count} columnas"
     }
 }

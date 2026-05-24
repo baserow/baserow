@@ -272,7 +272,8 @@
         "moveDown": "Bajar",
         "moveUp": "Subir",
         "moveLeft": "Mover a la izquierda",
-        "selectParent": "Seleccionar padre"
+        "selectParent": "Seleccionar padre",
+        "drag": "Arrastrar para reordenar"
     },
     "pageHeaderItemTypes": {
         "labelVariables": "Variables",

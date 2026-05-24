@@ -4,9 +4,8 @@
     :right-sidebar="true"
     :right-sidebar-scrollable="true"
     :close-button="false"
-    :can-close="!importInProgress"
-    @show=";[(importer = ''), reset()]"
-    @hide="stopPollIfRunning()"
+    :can-close="!uploadingBeforeJobCreated"
+    @show="onShow"
   >
     <template #content>
       <div class="import-modal__header">
@@ -30,8 +29,11 @@
             <li v-for="importerType in importerTypes" :key="importerType.type">
               <a
                 class="choice-items__link"
-                :class="{ active: importer === importerType.type }"
-                @click=";[(importer = importerType.type), reset()]"
+                :class="{
+                  active: importer === importerType.type,
+                  disabled: importInProgress || restoredFromStore,
+                }"
+                @click="onImporterClick(importerType.type)"
               >
                 <i
                   class="choice-items__icon"
@@ -48,9 +50,21 @@
         </FormGroup>
       </div>
 
-      <div class="margin-bottom-2">
+      <div
+        v-if="restoredFromStore && job?.original_file_name"
+        class="margin-bottom-2"
+      >
+        <p>
+          {{
+            $t('importFileModal.restoredFile', { name: job.original_file_name })
+          }}
+        </p>
+      </div>
+
+      <div v-if="!restoredFromStore" class="margin-bottom-2">
         <component
           :is="importerComponent"
+          ref="importerRef"
           :disabled="importInProgress"
           @changed="reset()"
           @header="onHeader($event)"
@@ -99,6 +113,7 @@
             class="import-modal__preview"
             :rows="previewImportData"
             :fields="sortedFields"
+            :field-options="importFieldOptions"
           />
         </Tab>
         <Tab :title="$t('importFileModal.filePreview')">
@@ -106,6 +121,7 @@
             class="import-modal__preview"
             :rows="previewFileData"
             :fields="fileFields"
+            :field-options="fileFieldOptions"
           />
         </Tab>
       </Tabs>
@@ -116,21 +132,31 @@
           :value="progressPercentage"
           :status="humanReadableState"
         />
-        <div class="align-right">
-          <Button
-            type="primary"
-            size="large"
-            :loading="importInProgress || (jobHasSucceeded && !isTableCreated)"
-            :disabled="
-              importInProgress ||
-              !canBeSubmitted ||
-              (jobHasSucceeded && !isTableCreated)
-            "
-            @click="submitted"
-          >
-            {{ $t('importFileModal.importButton') }}
-          </Button>
-        </div>
+        <ButtonText
+          v-if="jobIsRunning || cancelLoading"
+          tag="a"
+          type="secondary"
+          class="modal-progress__cancel-button"
+          :loading="cancelLoading"
+          @click="cancelJob"
+        >
+          {{ $t('action.cancel') }}
+        </ButtonText>
+        <Button
+          type="primary"
+          size="large"
+          full-width
+          class="modal-progress__primary-button"
+          :loading="importInProgress || (jobIsFinished && !isTableCreated)"
+          :disabled="
+            importInProgress ||
+            !canBeSubmitted ||
+            (jobIsFinished && !isTableCreated)
+          "
+          @click="submitted"
+        >
+          {{ $t('importFileModal.importButton') }}
+        </Button>
       </div>
       <div v-else class="align-right">
         <Button
@@ -181,7 +207,7 @@
           </div>
         </div>
       </div>
-      <div class="modal__actions">
+      <div v-if="!uploadingBeforeJobCreated" class="modal__actions">
         <a class="modal__close" @click="hide()">
           <i class="iconoir-cancel"></i>
         </a>
@@ -194,7 +220,7 @@
 import { clone } from '@baserow/modules/core/utils/object'
 import modal from '@baserow/modules/core/mixins/modal'
 import error from '@baserow/modules/core/mixins/error'
-import jobProgress from '@baserow/modules/core/mixins/jobProgress'
+import job from '@baserow/modules/core/mixins/job'
 import TableService from '@baserow/modules/database/services/table'
 import {
   uuid,
@@ -205,13 +231,14 @@ import _ from 'lodash'
 
 import { ResponseErrorMessage } from '@baserow/modules/core/plugins/clientHandler'
 import ImportErrorReport from '@baserow/modules/database/components/table/ImportErrorReport.vue'
+import { FileImportJobType } from '@baserow/modules/database/jobTypes'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
 import { nextTick, useNuxtApp } from '#imports'
 
 export default {
   name: 'ImportFileModal',
   components: { ImportErrorReport, SimpleGrid },
-  mixins: [modal, error, jobProgress],
+  mixins: [modal, error, job],
   props: {
     database: {
       type: Object,
@@ -236,6 +263,7 @@ export default {
   data() {
     return {
       importer: '',
+      restoredFromStore: false,
       uploadProgressPercentage: 0,
       importState: null,
       showProgressBar: false,
@@ -292,6 +320,16 @@ export default {
         id: uuid(),
         order: index,
       }))
+    },
+    importFieldOptions() {
+      return Object.fromEntries(
+        this.sortedFields.map((field) => [field.id, { hidden: false }])
+      )
+    },
+    fileFieldOptions() {
+      return Object.fromEntries(
+        this.fileFields.map((field) => [field.id, { hidden: false }])
+      )
     },
     /**
      * All writable fields.
@@ -397,7 +435,18 @@ export default {
       }
     },
     importInProgress() {
-      return this.state !== null && !this.jobIsDone && !this.error.visible
+      return (
+        this.state !== null &&
+        !this.jobIsFinished &&
+        !this.jobHasFailed &&
+        !this.error.visible
+      )
+    },
+    // True only while uploading the file before the backend job exists.
+    // Once the job is created the user can close the modal — the running job
+    // is in the store and will be restored on reopen.
+    uploadingBeforeJobCreated() {
+      return this.job === null && this.importInProgress
     },
     importerTypes() {
       return this.$registry.getAll('importer')
@@ -427,9 +476,6 @@ export default {
       return this.job && Object.keys(this.job.report.failing_rows).length > 0
     },
   },
-  beforeUnmount() {
-    this.stopPollIfRunning()
-  },
   methods: {
     getDefaultName() {
       const excludeNames = this.database.tables.map((table) => table.name)
@@ -438,6 +484,7 @@ export default {
     },
     reset(full = true) {
       this.job = null
+      this.restoredFromStore = false
       this.uploadProgressPercentage = 0
       if (full) {
         this.header = []
@@ -448,6 +495,15 @@ export default {
         this.dataLoaded = false
       }
       this.hideError()
+    },
+    onImporterClick(type) {
+      // Don't let the user change the importer while a job is in progress
+      // or a running job is being restored.
+      if (this.importInProgress || this.restoredFromStore) {
+        return
+      }
+      this.importer = type
+      this.reset()
     },
     onData({ header, previewData }) {
       this.header = header
@@ -612,11 +668,15 @@ export default {
           {
             onUploadProgress,
           },
-          importConfiguration.upsert_fields ? importConfiguration : null
+          importConfiguration.upsert_fields ? importConfiguration : null,
+          {
+            importer_type: this.importer,
+            original_file_name: this.$refs.importerRef?.values?.filename || '',
+          }
         )
-        this.startJobPoller(job)
+        await this.createAndMonitorJob(job)
       } catch (error) {
-        this.stopPollAndHandleError(error, {
+        this.handleError(error, 'application', {
           ERROR_MAX_JOB_COUNT_EXCEEDED: new ResponseErrorMessage(
             this.$t('job.errorJobAlreadyRunningTitle'),
             this.$t('job.errorJobAlreadyRunningDescription')
@@ -645,7 +705,7 @@ export default {
       await nextTick()
       this.hide()
     },
-    onJobDone() {
+    onJobFinished() {
       this.$bus.$emit('table-refresh', {
         tableId: this.job.table_id,
       })
@@ -654,21 +714,40 @@ export default {
       }
     },
     onJobFailed() {
-      const error = new ResponseErrorMessage(
-        this.$t('importFileModal.importError'),
-        this.job.human_readable_error
+      this.showError(
+        new ResponseErrorMessage(
+          this.$t('importFileModal.importError'),
+          this.job.human_readable_error
+        )
       )
-      this.stopPollAndHandleError(error)
     },
-    onJobPollingError(error) {
-      this.stopPollAndHandleError(error)
+    onJobCancelled() {
+      this.importer = ''
+      this.reset()
     },
-    stopPollAndHandleError(error, specificErrorMap = null) {
-      this.stopPollIfRunning()
-      if (error.handler) {
-        this.handleError(error, 'application', specificErrorMap)
-      } else {
-        this.showError(error)
+    onShow() {
+      this.importer = ''
+      this.reset()
+      this.loadRunningJob()
+    },
+    loadRunningJob() {
+      const runningJob = this.$store.getters['job/getUnfinishedJobs'].find(
+        (j) =>
+          j.type === FileImportJobType.getType() &&
+          j.table_id === this.table?.id
+      )
+      if (runningJob) {
+        this.job = runningJob
+        this.restoredFromStore = true
+        this.showProgressBar = true
+        // Restore the importer type if it's still registered; otherwise the
+        // modal shows just the progress bar + file name.
+        if (
+          runningJob.importer_type &&
+          this.$registry.exists('importer', runningJob.importer_type)
+        ) {
+          this.importer = runningJob.importer_type
+        }
       }
     },
   },

@@ -658,9 +658,9 @@ def test_password_reset(data_fixture, client):
     assert response_json["error"] == "BAD_TOKEN_SIGNATURE"
 
     with freeze_time("2020-01-01 12:00"):
-        token = signer.dumps(user.id)
+        token = signer.dumps([user.id, UserHandler._get_password_state_hash(user)])
 
-    with freeze_time("2020-01-04 12:00"):
+    with freeze_time("2020-01-01 15:00"):
         response = client.post(
             reverse("api:user:reset_password"),
             {"token": token, "password": valid_password},
@@ -671,9 +671,9 @@ def test_password_reset(data_fixture, client):
         assert response_json["error"] == "EXPIRED_TOKEN_SIGNATURE"
 
     with freeze_time("2020-01-01 12:00"):
-        token = signer.dumps(9999)
+        token = signer.dumps([9999, "x"])
 
-    with freeze_time("2020-01-02 12:00"):
+    with freeze_time("2020-01-01 12:30"):
         response = client.post(
             reverse("api:user:reset_password"),
             {"token": token, "password": valid_password},
@@ -684,9 +684,9 @@ def test_password_reset(data_fixture, client):
         assert response_json["error"] == "ERROR_USER_NOT_FOUND"
 
     with freeze_time("2020-01-01 12:00"):
-        token = signer.dumps(user.id)
+        token = signer.dumps([user.id, UserHandler._get_password_state_hash(user)])
 
-    with freeze_time("2020-01-02 12:00"):
+    with freeze_time("2020-01-01 12:30"):
         response = client.post(
             reverse("api:user:reset_password"),
             {"token": token, "password": valid_password},
@@ -695,12 +695,13 @@ def test_password_reset(data_fixture, client):
         assert response.status_code == 204
 
     user.refresh_from_db()
+    user.profile.refresh_from_db()
     assert user.check_password(valid_password)
 
-    with freeze_time("2020-01-02 12:00"):
-        token = signer.dumps(user.id)
+    with freeze_time("2020-01-01 12:30"):
+        token = signer.dumps([user.id, UserHandler._get_password_state_hash(user)])
 
-    with freeze_time("2020-01-02 12:00"):
+    with freeze_time("2020-01-01 12:30"):
         response = client.post(
             reverse("api:user:reset_password"),
             {"token": token, "password": short_password},
@@ -721,7 +722,7 @@ def test_password_reset(data_fixture, client):
     user.refresh_from_db()
     assert not user.check_password(short_password)
 
-    with freeze_time("2020-01-02 12:00"):
+    with freeze_time("2020-01-01 12:30"):
         response = client.post(
             reverse("api:user:reset_password"),
             {"token": token, "password": long_password},
@@ -754,6 +755,31 @@ def test_password_reset(data_fixture, client):
     assert response.status_code == HTTP_400_BAD_REQUEST
 
 
+@pytest.mark.django_db
+def test_password_reset_token_reuse_rejected(data_fixture, client):
+    user = data_fixture.create_user(email="test@localhost")
+    handler = UserHandler()
+    signer = handler.get_reset_password_signer()
+
+    token = signer.dumps([user.id, UserHandler._get_password_state_hash(user)])
+
+    response = client.post(
+        reverse("api:user:reset_password"),
+        {"token": token, "password": "thisIsAValidPassword"},
+        format="json",
+    )
+    assert response.status_code == 204
+
+    response = client.post(
+        reverse("api:user:reset_password"),
+        {"token": token, "password": "anotherValidPassword"},
+        format="json",
+    )
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_RESET_PASSWORD_TOKEN_USED"
+
+
 @pytest.mark.django_db(transaction=True)
 def test_password_reset_email_verified_email(data_fixture, client, mailoutbox):
     data_fixture.create_password_provider()
@@ -762,7 +788,7 @@ def test_password_reset_email_verified_email(data_fixture, client, mailoutbox):
     signer = handler.get_reset_password_signer()
 
     with freeze_time("2020-01-01 12:00"):
-        token = signer.dumps(user.id)
+        token = signer.dumps([user.id, UserHandler._get_password_state_hash(user)])
 
         response = client.post(
             reverse("api:user:reset_password"),
@@ -938,7 +964,7 @@ def test_dashboard(data_fixture, client):
         invitation_1.invited_by.first_name
     )
     assert response_json["workspace_invitations"][0]["workspace"] == "Test1"
-    assert response_json["workspace_invitations"][0]["message"] == invitation_1.message
+    assert "message" not in response_json["workspace_invitations"][0]
     assert "created_on" in response_json["workspace_invitations"][0]
 
 

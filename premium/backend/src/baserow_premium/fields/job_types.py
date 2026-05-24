@@ -26,10 +26,12 @@ from baserow.core.exceptions import UserNotInWorkspace, WorkspaceDoesNotExist
 from baserow.core.generative_ai.exceptions import (
     GenerativeAIPromptError,
     ModelDoesNotBelongToType,
+    get_user_friendly_error_message,
 )
 from baserow.core.handler import CoreHandler
 from baserow.core.job_types import _empty_transaction_context
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
+from baserow.core.jobs.models import JobQuerySet
 from baserow.core.jobs.registries import JobType
 from baserow.core.utils import ChildProgressBuilder
 
@@ -91,35 +93,22 @@ class GenerateAIValuesJobType(JobType):
         ),
     }
 
-    def can_schedule_or_raise(self, job: GenerateAIValuesJob):
-        """
-        Checks whether a new job of this type can be scheduled for the given user. It
-        doesn't limit the number of jobs if specific row IDs are provided. It limits to
-        1 job per table and to max_count jobs in total.
+    def _get_running_jobs(self, job) -> JobQuerySet:
+        return (
+            super()
+            ._get_running_jobs(job)
+            .filter(row_ids__isnull=True)
+            .select_related("field")
+        )
 
-        :param job: The job instance that is going to be scheduled.
-        :raises MaxJobCountExceeded: If the user cannot schedule a new job of this type
-        """
-
+    def _can_schedule_or_raise(
+        self, running_jobs: JobQuerySet, job: GenerateAIValuesJob
+    ):
         # No limits when specific row IDs are provided
         if job.row_ids or job.is_auto_update:
             return
 
-        running_jobs = (
-            GenerateAIValuesJob.objects.filter(
-                user_id=job.user.id,
-                row_ids__isnull=True,
-            )
-            .is_pending_or_running()
-            .select_related("field")
-        )
-
-        # No more than max_count jobs in total
-        if len(running_jobs) >= self.max_count:
-            raise MaxJobCountExceeded(
-                f"You can only launch {self.max_count} {self.type} job(s) at "
-                "the same time."
-            )
+        super()._can_schedule_or_raise(running_jobs, job)
 
         # No more than 1 job per field
         for running_job in running_jobs:
@@ -306,7 +295,7 @@ class GenerateAIValuesJobType(JobType):
                     rows=[row],
                     field=ai_field,
                     table=table,
-                    error_message=str(value_update.result),
+                    error_message=get_user_friendly_error_message(value_update.result),
                 )
                 return
 
@@ -409,7 +398,7 @@ class AIValueGenerator:
                 rows=[],
                 field=self.ai_field,
                 table=self.ai_field.table,
-                error_message=str(exc),
+                error_message=get_user_friendly_error_message(exc),
             )
             raise exc
 
@@ -464,9 +453,7 @@ class AIValueGenerator:
         """
 
         if self.error_msg:
-            raise GenerativeAIPromptError(
-                f"AI model responded with errors: {self.error_msg}"
-            )
+            raise GenerativeAIPromptError(self.error_msg)
 
     def process(self, rows: QuerySet[GeneratedTableModel]):
         """

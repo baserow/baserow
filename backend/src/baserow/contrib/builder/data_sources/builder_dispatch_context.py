@@ -104,7 +104,14 @@ class BuilderDispatchContext(DispatchContext):
 
         serializer = DynamicMetadataSerializer(
             data=getattr(self.request, "data", {}).get("metadata", {}),
-            context={"page": self.page},
+            context={
+                "page": self.page,
+                "user": getattr(
+                    self.request,
+                    "user_source_user",
+                    getattr(self.request, "user", None),
+                ),
+            },
         )
         serializer.is_valid(raise_exception=True)
 

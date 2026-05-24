@@ -1081,6 +1081,76 @@ class DeleteViewSortActionType(UndoableActionType):
         ViewHandler().delete_sort(user, view_sort)
 
 
+class PrioritizeViewSortsActionType(UndoableActionType):
+    type = "prioritize_view_sortings"
+    description = ActionTypeDescription(
+        _("Prioritize view sortings"),
+        _("View sortings priority changed"),
+        VIEW_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "view_id",
+        "table_id",
+        "database_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        view_id: int
+        view_name: str
+        table_id: int
+        table_name: str
+        database_id: int
+        database_name: str
+        view_sort_ids: List[int]
+        original_view_sort_ids: List[int]
+
+    @classmethod
+    def do(cls, user: AbstractUser, view: View, view_sort_ids: List[int]) -> List[int]:
+        """
+        Updates the priority of the view sortings of the given view. See
+        baserow.contrib.database.views.handler.ViewHandler.prioritize_sortings
+        for further details. Undoing this action restores the original
+        priority; redoing it reapplies the new priority.
+        """
+
+        original_view_sort_ids = list(
+            ViewSort.objects.filter(view=view)
+            .order_by("priority", "id")
+            .values_list("id", flat=True)
+        )
+
+        view_sort_ids = ViewHandler().prioritize_sortings(user, view, view_sort_ids)
+
+        params = cls.Params(
+            view.id,
+            view.name,
+            view.table.id,
+            view.table.name,
+            view.table.database.id,
+            view.table.database.name,
+            view_sort_ids,
+            original_view_sort_ids,
+        )
+        workspace = view.table.database.workspace
+        cls.register_action(user, params, cls.scope(view.id), workspace)
+        return view_sort_ids
+
+    @classmethod
+    def scope(cls, view_id: int) -> ActionScopeStr:
+        return ViewActionScopeType.value(view_id)
+
+    @classmethod
+    def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
+        view = ViewHandler().get_view(params.view_id)
+        ViewHandler().prioritize_sortings(user, view, params.original_view_sort_ids)
+
+    @classmethod
+    def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
+        view = ViewHandler().get_view(params.view_id)
+        ViewHandler().prioritize_sortings(user, view, params.view_sort_ids)
+
+
 class OrderViewsActionType(UndoableActionType):
     type = "order_views"
     description = ActionTypeDescription(
@@ -2318,6 +2388,82 @@ class DeleteViewGroupByActionType(UndoableActionType):
     def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
         view_group_by = ViewHandler().get_group_by(user, params.view_group_by_id)
         ViewHandler().delete_group_by(user, view_group_by)
+
+
+class PrioritizeViewGroupBysActionType(UndoableActionType):
+    type = "prioritize_view_group_bys"
+    description = ActionTypeDescription(
+        _("Prioritize view group bys"),
+        _("View group bys priority changed"),
+        VIEW_ACTION_CONTEXT,
+    )
+    analytics_params = [
+        "view_id",
+        "table_id",
+        "database_id",
+    ]
+
+    @dataclasses.dataclass
+    class Params:
+        view_id: int
+        view_name: str
+        table_id: int
+        table_name: str
+        database_id: int
+        database_name: str
+        view_group_by_ids: List[int]
+        original_view_group_by_ids: List[int]
+
+    @classmethod
+    def do(
+        cls, user: AbstractUser, view: View, view_group_by_ids: List[int]
+    ) -> List[int]:
+        """
+        Updates the priority of the view group bys of the given view. See
+        baserow.contrib.database.views.handler.ViewHandler.prioritize_group_bys
+        for further details. Undoing this action restores the original
+        priority; redoing it reapplies the new priority.
+        """
+
+        original_view_group_by_ids = list(
+            ViewGroupBy.objects.filter(view=view)
+            .order_by("priority", "id")
+            .values_list("id", flat=True)
+        )
+
+        view_group_by_ids = ViewHandler().prioritize_group_bys(
+            user, view, view_group_by_ids
+        )
+
+        params = cls.Params(
+            view.id,
+            view.name,
+            view.table.id,
+            view.table.name,
+            view.table.database.id,
+            view.table.database.name,
+            view_group_by_ids,
+            original_view_group_by_ids,
+        )
+        workspace = view.table.database.workspace
+        cls.register_action(user, params, cls.scope(view.id), workspace)
+        return view_group_by_ids
+
+    @classmethod
+    def scope(cls, view_id: int) -> ActionScopeStr:
+        return ViewActionScopeType.value(view_id)
+
+    @classmethod
+    def undo(cls, user: AbstractUser, params: Params, action_to_undo: Action):
+        view = ViewHandler().get_view(params.view_id)
+        ViewHandler().prioritize_group_bys(
+            user, view, params.original_view_group_by_ids
+        )
+
+    @classmethod
+    def redo(cls, user: AbstractUser, params: Params, action_to_redo: Action):
+        view = ViewHandler().get_view(params.view_id)
+        ViewHandler().prioritize_group_bys(user, view, params.view_group_by_ids)
 
 
 class SubmitFormActionType(ActionType):

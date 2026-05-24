@@ -8,8 +8,11 @@
 import { Editor, EditorContent } from '@tiptap/vue-3'
 
 import { Document } from '@tiptap/extension-document'
-import { Paragraph } from '@tiptap/extension-paragraph'
 import { Text } from '@tiptap/extension-text'
+
+const CodeEditorDocument = Document.extend({
+  content: 'codeBlock',
+})
 
 export default {
   name: 'CodeEditor',
@@ -36,13 +39,23 @@ export default {
   watch: {
     modelValue(newCode) {
       if (this.editor && newCode !== this.getCurrentCode()) {
-        this.editor.commands.setContent(this.generateCodeBlock(newCode))
+        this.editor.commands.setContent(
+          this.generateCodeBlock(newCode),
+          false,
+          {
+            preserveWhitespace: 'full',
+          }
+        )
       }
     },
     language() {
       if (this.editor) {
         this.editor.commands.setContent(
-          this.generateCodeBlock(this.getCurrentCode())
+          this.generateCodeBlock(this.getCurrentCode()),
+          false,
+          {
+            preserveWhitespace: 'full',
+          }
         )
       }
     },
@@ -60,17 +73,44 @@ export default {
     lowlight.register('javascript', javascript)
     lowlight.register('css', css)
 
+    const LockedCodeBlockLowlight = CodeBlockLowlight.extend({
+      addKeyboardShortcuts() {
+        const parentShortcuts = this.parent?.() || {}
+
+        return {
+          ...parentShortcuts,
+          Backspace: () => {
+            const { empty, $anchor } = this.editor.state.selection
+
+            if (!empty || $anchor.parent.type.name !== this.name) {
+              return false
+            }
+
+            if ($anchor.pos === 1 || !$anchor.parent.textContent.length) {
+              return true
+            }
+
+            return false
+          },
+        }
+      },
+    })
+
     this.editor = new Editor({
       extensions: [
-        Document,
-        Paragraph,
+        CodeEditorDocument,
         Text,
-        CodeBlockLowlight.configure({
+        LockedCodeBlockLowlight.configure({
           lowlight,
+          exitOnTripleEnter: false,
+          exitOnArrowDown: false,
+          HTMLAttributes: {
+            class: 'code-editor__code-wrapper',
+          },
         }),
       ],
       content: this.generateCodeBlock(this.modelValue),
-      onUpdate: ({ editor }) => {
+      onUpdate: () => {
         this.$emit('update:modelValue', this.getCurrentCode())
       },
     })
@@ -80,21 +120,21 @@ export default {
   },
   methods: {
     generateCodeBlock(code) {
-      return `<pre class="code-editor__code-wrapper"><code class="code-editor__code code-editor__code--language-${
-        this.language
-      }">${this.escapeHtml(code)}</code></pre>`
+      return {
+        type: 'doc',
+        content: [
+          {
+            type: 'codeBlock',
+            attrs: {
+              language: this.language,
+            },
+            content: code ? [{ type: 'text', text: code }] : [],
+          },
+        ],
+      }
     },
     getCurrentCode() {
-      const codeNode = this.editor?.getJSON()?.content?.[0]?.content?.[0]
-      return codeNode?.text || ''
-    },
-    escapeHtml(string) {
-      return string
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;')
+      return this.editor?.getText() || ''
     },
   },
 }

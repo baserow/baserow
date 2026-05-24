@@ -9,6 +9,7 @@ from django.db.models import TextField
 from django.urls import reverse
 
 import pytest
+from freezegun import freeze_time
 from rest_framework.status import HTTP_200_OK, HTTP_204_NO_CONTENT
 
 from baserow.contrib.database.fields.dependencies.update_collector import (
@@ -1451,6 +1452,7 @@ def test_updating_formula_field_doesnt_reset_all_fields(data_fixture, api_client
         "formula_type": "date",
         "nullable": True,
         "number_decimal_places": None,
+        "number_negative": True,
     }
     actual = {key: value for key, value in response.json().items() if key in expected}
     assert actual == expected
@@ -2339,3 +2341,197 @@ def test_count_formula_for_link_row_field_with_null_values(data_fixture):
     )
 
     assert getattr(row_a, formula_field.db_column) == 3
+
+
+@pytest.mark.django_db
+def test_count_formula_for_link_row_field_with_array_primary_field(data_fixture):
+    """
+    A links to B, and B's primary field is a lookup array through a B to C link.
+    count(field('<link field>')) must count linked B rows, not each B row's inner
+    primary lookup array length (github issue #5276)
+    """
+
+    user = data_fixture.create_user()
+
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+    table_b_primary = table_b.field_set.get(primary=True)
+    table_b_primary.primary = False
+    table_b_primary.save()
+
+    table_c = data_fixture.create_database_table(user=user)
+    primary_c = data_fixture.create_text_field(
+        table=table_c, name="Field C", primary=True
+    )
+    link_b_to_c = data_fixture.create_link_row_field(
+        table=table_b,
+        link_row_table=table_c,
+        name="Link C",
+    )
+    data_fixture.create_formula_field(
+        table=table_b,
+        name="Primary lookup",
+        primary=True,
+        formula=f"lookup('{link_b_to_c.name}', '{primary_c.name}')",
+    )
+    count_formula = data_fixture.create_formula_field(
+        table=table_a,
+        name="Count",
+        formula=f"count(field('{link_a_to_b.name}'))",
+    )
+
+    row_handler = RowHandler()
+    rows_c = row_handler.force_create_rows(
+        user=user,
+        table=table_c,
+        rows_values=[{primary_c.db_column: "C1"}, {primary_c.db_column: "C2"}],
+        model=table_c.get_model(),
+    ).created_rows
+    rows_b = row_handler.force_create_rows(
+        user=user,
+        table=table_b,
+        rows_values=[
+            {link_b_to_c.db_column: [rows_c[0].id]},
+            {link_b_to_c.db_column: [rows_c[1].id]},
+        ],
+        model=table_b.get_model(),
+    ).created_rows
+    row_a = row_handler.force_create_rows(
+        user=user,
+        table=table_a,
+        rows_values=[{link_a_to_b.db_column: [row.id for row in rows_b]}],
+        model=table_a.get_model(),
+    ).created_rows[0]
+
+    assert getattr(row_a, count_formula.db_column) == 2
+
+
+@pytest.mark.django_db
+def test_count_formula_for_link_row_field_with_file_primary_field(data_fixture):
+    """
+    A links to B, and B's primary field is a file field. count(field('<link field>'))
+    must count linked B rows, not each B row's primary file count.
+    """
+
+    user = data_fixture.create_user()
+
+    table_a, table_b, link_a_to_b = data_fixture.create_two_linked_tables(user=user)
+    table_b_primary = table_b.field_set.get(primary=True)
+    table_b_primary.primary = False
+    table_b_primary.save()
+
+    primary_b = data_fixture.create_file_field(
+        table=table_b, name="Files", primary=True
+    )
+    count_formula = data_fixture.create_formula_field(
+        table=table_a,
+        name="Count",
+        formula=f"count(field('{link_a_to_b.name}'))",
+    )
+
+    user_file_1 = data_fixture.create_user_file()
+    user_file_2 = data_fixture.create_user_file()
+    user_file_3 = data_fixture.create_user_file()
+    row_handler = RowHandler()
+    rows_b = row_handler.force_create_rows(
+        user=user,
+        table=table_b,
+        rows_values=[
+            {
+                primary_b.db_column: [
+                    {"name": user_file_1.name},
+                    {"name": user_file_2.name},
+                ]
+            },
+            {primary_b.db_column: [{"name": user_file_3.name}]},
+        ],
+        model=table_b.get_model(),
+    ).created_rows
+    row_a = row_handler.force_create_rows(
+        user=user,
+        table=table_a,
+        rows_values=[{link_a_to_b.db_column: [row.id for row in rows_b]}],
+        model=table_a.get_model(),
+    ).created_rows[0]
+
+    assert getattr(row_a, count_formula.db_column) == 2
+
+
+@pytest.mark.django_db
+def test_periodic_update_does_not_crash_on_outer_if_after_inner_invalidated(
+    data_fixture,
+):
+    """
+    Regression test for Sentry issue BASEROW-SAAS-BACKEND-5 / GH #5371.
+
+    When deleting a field referenced by a chain of formulas, the propagation
+    used to leave the FieldCache populated with the pre-mutation instance of
+    an inner formula. A later same-cascade re-type of an outer IF formula
+    then read the stale 'boolean' type from the cache, stayed valid as
+    'text', and the next periodic update crashed in BaserowIf with
+    "When() supports a Q object, a boolean expression, or lookups as a
+    condition." because the underlying column is generated as TextField
+    for invalid formulas.
+    """
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+
+    primary = data_fixture.create_text_field(
+        table=table, name="identifier", primary=True
+    )
+    seed = data_fixture.create_text_field(table=table, name="seed")
+    FieldHandler().update_field(
+        user=user,
+        field=primary,
+        new_type_name="formula",
+        formula=f"field('{seed.name}')",
+    )
+
+    inner_flag = data_fixture.create_formula_field(
+        table=table,
+        name="inner_flag",
+        formula=f"field('{primary.name}') = 'yes'",
+    )
+    inner_flag.refresh_from_db()
+    assert inner_flag.formula_type == "boolean"
+
+    with freeze_time("2026-01-01"):
+        ticker = data_fixture.create_formula_field(
+            table=table,
+            name="ticker",
+            formula="now()",
+            date_include_time=True,
+        )
+
+    outer_icon = data_fixture.create_formula_field(
+        table=table,
+        name="outer_icon",
+        formula=(
+            f"if(field('{inner_flag.name}'), "
+            f"datetime_format(field('{ticker.name}'), 'YYYY'), "
+            f"'no')"
+        ),
+    )
+    outer_icon.refresh_from_db()
+    assert outer_icon.formula_type == "text"
+
+    FieldHandler().delete_field(user=user, field=seed)
+
+    fields_for_periodic = list(
+        FormulaFieldType()
+        .get_fields_needing_periodic_update()
+        .filter(table__database__workspace_id=table.database.workspace_id)
+    )
+    assert ticker in fields_for_periodic
+
+    FormulaFieldType().run_periodic_update(
+        fields_for_periodic,
+        skip_search_updates=True,
+        database_id=table.database_id,
+    )
+
+    outer_icon_after = FormulaField.objects.get(pk=outer_icon.pk)
+    assert outer_icon_after.formula_type == "invalid", (
+        f"outer IF formula was not re-typed to invalid when inner_flag "
+        f"became invalid. formula_type={outer_icon_after.formula_type!r}, "
+        f"internal_formula={outer_icon_after.internal_formula!r}"
+    )

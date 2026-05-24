@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Add proper error when an InvalidFormulaError is raised",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-05-12"
+}

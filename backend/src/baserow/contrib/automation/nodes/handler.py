@@ -367,6 +367,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
     def _handle_workflow_error(
         self,
         node_history: AutomationNodeHistory,
+        iteration_path: str,
         error: str,
     ) -> None:
         now = timezone.now()
@@ -380,6 +381,11 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         node_history.status = HistoryStatusChoices.ERROR
         node_history.save()
 
+        AutomationHistoryHandler().create_node_result(
+            node_history=node_history,
+            iteration_path=iteration_path,
+        )
+
     def _handle_simulation_notify(
         self, simulate_until_node: AutomationNode | None, node: AutomationNode
     ) -> bool:
@@ -392,9 +398,11 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         """
 
         if simulate_until_node and simulate_until_node.id == node.id:
-            node.service.specific.refresh_from_db(fields=["sample_data"])
+            service = node.service.specific
+            service.refresh_from_db(fields=["sample_data"])
             automation_node_updated.send(self, user=None, node=node)
             return True
+
         return False
 
     def dispatch_node(
@@ -424,12 +432,27 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             logger.error(str(e))
             return None
 
-        node = self.get_node(node_id)
-        simulate_until_node = (
-            node.workflow.get_graph().get_node(workflow_history.simulate_until_node_id)
-            if workflow_history.simulate_until_node_id
-            else None
+        error = (
+            "Node with ID {} was not found. The node was likely "
+            "deleted before the task was executed."
         )
+        try:
+            node = self.get_node(node_id)
+        except AutomationNodeDoesNotExist:
+            logger.warning(error.format(node_id))
+            return None
+
+        try:
+            simulate_until_node = (
+                node.workflow.get_graph().get_node(
+                    workflow_history.simulate_until_node_id
+                )
+                if workflow_history.simulate_until_node_id
+                else None
+            )
+        except AutomationNodeDoesNotExist:
+            logger.warning(error.format(workflow_history.simulate_until_node_id))
+            return None
 
         if simulate_until_node:
             allowed_nodes = {
@@ -454,14 +477,14 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             simulate_until_node=workflow_history.simulate_until_node,
             current_iterations=current_iterations,
         )
-
+        iteration_path = dispatch_context.get_iteration_path(node)
         node_type: Type[AutomationNodeActionNodeType] = node.get_type()
 
         try:
             dispatch_result = node_type.dispatch(node, dispatch_context)
         except ServiceImproperlyConfiguredDispatchException as e:
-            error = f"The node {node.id} is misconfigured and cannot be dispatched. {str(e)}"
-            self._handle_workflow_error(node_history, error)
+            error = f"The node is misconfigured and cannot be dispatched. {str(e)}"
+            self._handle_workflow_error(node_history, iteration_path, error)
             self._handle_simulation_notify(simulate_until_node, node)
             return None
         except UnexpectedDispatchException as e:
@@ -470,7 +493,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                 f"Error while running workflow {original_workflow.id}. Error: {str(e)}"
             )
             logger.warning(error)
-            self._handle_workflow_error(node_history, error)
+            self._handle_workflow_error(node_history, iteration_path, error)
             self._handle_simulation_notify(simulate_until_node, node)
             return None
         except Exception as e:
@@ -481,7 +504,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
                 f"Error: {str(e)}"
             )
             logger.exception(error)
-            self._handle_workflow_error(node_history, error)
+            self._handle_workflow_error(node_history, iteration_path, error)
             self._handle_simulation_notify(simulate_until_node, node)
             return None
 
@@ -493,7 +516,7 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         history_handler.create_node_result(
             node_history=node_history,
             result=dispatch_result.data,
-            iteration_path=dispatch_context.get_iteration_path(node),
+            iteration_path=iteration_path,
         )
 
         to_chain = []

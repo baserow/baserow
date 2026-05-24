@@ -1,7 +1,23 @@
-import MoveToBody from '@baserow/modules/core/mixins/moveToBody'
+import { getModalTeleportedElement } from '@baserow/modules/core/utils/dom'
 
 export default {
-  mixins: [MoveToBody],
+  mixins: [],
+  provide() {
+    return {
+      registerChild: this.registerChild,
+      unregisterChild: this.unregisterChild,
+    }
+  },
+  inject: {
+    parentRegisterModal: {
+      from: 'registerChild',
+      default: null,
+    },
+    parentUnregisterModal: {
+      from: 'unregisterChild',
+      default: null,
+    },
+  },
   emits: ['hidden', 'show'],
   data() {
     return {
@@ -11,6 +27,7 @@ export default {
       // variable to be set on mousedown to be consistent.
       downElement: null,
       isModal: true,
+      children: [],
     }
   },
   props: {
@@ -23,10 +40,16 @@ export default {
   },
   mounted() {
     this.$bus.$on('close-modals', this.hide)
+    if (this.parentRegisterModal) {
+      this.parentRegisterModal(this)
+    }
   },
   beforeUnmount() {
     this.$bus.$off('close-modals', this.hide)
     window.removeEventListener('keyup', this.keyup)
+    if (this.parentUnregisterModal) {
+      this.parentUnregisterModal(this)
+    }
   },
   methods: {
     /**
@@ -73,13 +96,13 @@ export default {
         return
       }
 
-      const hasOpenModalAsChild = this.moveToBody.children.some((child) => {
-        return child.isModal === true && child.open === true
-      })
+      const hasOpenChild = this.children.some((child) => child.open === true)
+
       // When the `esc` key is pressed and multiple modals are open, then we don't
       // want to close them all. Only last opened modal should close. This will make
-      // sure that if there is an open child modal, it will not hide the parent modal.
-      if (hasOpenModalAsChild) {
+      // sure that if there is an open child (modal or context), it will not hide
+      // the parent modal.
+      if (hasOpenChild) {
         return
       }
 
@@ -105,12 +128,21 @@ export default {
         this.$emit('hidden')
       }
     },
+    registerChild(child) {
+      this.children.push(child)
+    },
+    unregisterChild(child) {
+      const index = this.children.indexOf(child)
+      if (index !== -1) {
+        this.children.splice(index, 1)
+      }
+    },
     /**
      * If someone actually clicked on the modal wrapper and not one of his children the
      * modal should be closed.
      */
     outside() {
-      if (this.downElement === this.$refs.modalWrapper && this.canClose) {
+      if (this.downElement === this.$refs.modalEl && this.canClose) {
         this.hide()
       }
     },
@@ -121,6 +153,9 @@ export default {
       if (event.key === 'Escape' && this.canClose) {
         this.hide()
       }
+    },
+    getTeleportedElement() {
+      return getModalTeleportedElement(this.$refs)
     },
   },
 }

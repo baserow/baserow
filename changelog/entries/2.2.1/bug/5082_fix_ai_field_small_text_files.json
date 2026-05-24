@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix AI field not correctly handling small text files",
+    "issue_origin": "github",
+    "issue_number": 5082,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-08"
+}

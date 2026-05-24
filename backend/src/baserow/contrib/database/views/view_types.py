@@ -85,7 +85,7 @@ class GridViewType(ViewType):
     has_public_info = True
     can_group_by = True
     when_shared_publicly_requires_realtime_events = True
-    allowed_fields = ["row_identifier_type", "row_height_size"]
+    allowed_fields = ["row_identifier_type", "row_height_size", "frozen_column_count"]
     field_options_allowed_fields = [
         "width",
         "hidden",
@@ -93,7 +93,20 @@ class GridViewType(ViewType):
         "aggregation_type",
         "aggregation_raw_type",
     ]
-    serializer_field_names = ["row_identifier_type", "row_height_size"]
+    serializer_field_names = [
+        "row_identifier_type",
+        "row_height_size",
+        "frozen_column_count",
+    ]
+    serializer_field_overrides = {
+        "frozen_column_count": serializers.IntegerField(
+            min_value=0,
+            max_value=4,
+            required=False,
+            default=1,
+            help_text="Number of frozen columns including the primary field.",
+        ),
+    }
 
     api_exceptions_map = {
         GridViewAggregationDoesNotSupportField: ERROR_AGGREGATION_DOES_NOT_SUPPORTED_FIELD,
@@ -110,7 +123,7 @@ class GridViewType(ViewType):
         self,
         grid: View,
         import_export_config: ImportExportConfig,
-        cache: Optional[Dict] = None,
+        cache: Dict,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ):
@@ -123,6 +136,7 @@ class GridViewType(ViewType):
         )
         serialized["row_identifier_type"] = grid.row_identifier_type
         serialized["row_height_size"] = grid.row_height_size
+        serialized["frozen_column_count"] = grid.frozen_column_count
 
         serialized_field_options = []
         for field_option in grid.get_field_options():
@@ -147,6 +161,7 @@ class GridViewType(ViewType):
         serialized_values: Dict[str, Any],
         import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Any],
+        cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Optional[View]:
@@ -157,7 +172,13 @@ class GridViewType(ViewType):
         serialized_copy = serialized_values.copy()
         field_options = serialized_copy.pop("field_options")
         grid_view = super().import_serialized(
-            table, serialized_copy, import_export_config, id_mapping, files_zip, storage
+            table,
+            serialized_copy,
+            import_export_config,
+            id_mapping,
+            cache,
+            files_zip,
+            storage,
         )
         if grid_view is not None:
             if "database_grid_view_field_options" not in id_mapping:
@@ -425,7 +446,7 @@ class GalleryViewType(ViewType):
         self,
         gallery: View,
         import_export_config: ImportExportConfig,
-        cache: Optional[Dict] = None,
+        cache: Dict,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ):
@@ -460,6 +481,7 @@ class GalleryViewType(ViewType):
         serialized_values: Dict[str, Any],
         import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Any],
+        cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Optional[View]:
@@ -477,7 +499,13 @@ class GalleryViewType(ViewType):
         field_options = serialized_copy.pop("field_options")
 
         gallery_view = super().import_serialized(
-            table, serialized_copy, import_export_config, id_mapping, files_zip, storage
+            table,
+            serialized_copy,
+            import_export_config,
+            id_mapping,
+            cache,
+            files_zip,
+            storage,
         )
 
         if gallery_view is not None:
@@ -1121,7 +1149,7 @@ class FormViewType(ViewType):
         self,
         form: View,
         import_export_config: ImportExportConfig,
-        cache: Optional[Dict] = None,
+        cache: Dict,
         files_zip: Optional[ExportZipFile] = None,
         storage: Optional[Storage] = None,
     ):
@@ -1210,6 +1238,7 @@ class FormViewType(ViewType):
         serialized_values: Dict[str, Any],
         import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Any],
+        cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Optional[View]:
@@ -1235,7 +1264,13 @@ class FormViewType(ViewType):
         serialized_copy["logo_image"] = get_file(serialized_copy.pop("logo_image"))
         field_options = serialized_copy.pop("field_options")
         form_view = super().import_serialized(
-            table, serialized_copy, import_export_config, id_mapping, files_zip, storage
+            table,
+            serialized_copy,
+            import_export_config,
+            id_mapping,
+            cache,
+            files_zip,
+            storage,
         )
 
         if form_view is not None:

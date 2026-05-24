@@ -257,7 +257,7 @@
     },
     "login": {
         "title": "Login",
-        "forgotPassword": "Password dimenticata?",
+        "forgotPassword": "Hai dimenticato?",
         "emailPlaceholder": "Inserisci la tua email...",
         "passwordPlaceholder": "Inserisci la tua password...",
         "signUpText": "Non hai un account?",
@@ -565,7 +565,7 @@
         "content": "Riconnettendo con il server."
     },
     "integrationEditForm": {
-        "name": "Nome integrazione",
+        "name": "Nome",
         "namePlaceholder": "Inserisci il nome dell'integrazione..."
     },
     "authorizationErrorToast": {
@@ -737,7 +737,10 @@
         "openaiApiKeyLabel": "Chiave API",
         "openaiApiKeyDescription": "Fornisci una chiave API OpenAI se desideri abilitare l'integrazione. [Istruzioni su come ottenere una chiave API](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key).",
         "ollamaHostDescription": "Fornisci il nome host al tuo server [Ollama](https://ollama.com/). Questo in genere viene eseguito localmente sul tuo dispositivo.",
-        "ollamaModelsDescription": "Fornire un elenco di [modelli installati da Ollama] separati da virgole (https://ollama.com/library). Tieni presente che il modello deve essere scaricato e installato prima di poter essere utilizzato. (ad esempio `llama2, mistral`)"
+        "ollamaModelsDescription": "Fornire un elenco di [modelli installati da Ollama] separati da virgole (https://ollama.com/library). Tieni presente che il modello deve essere scaricato e installato prima di poter essere utilizzato. (ad esempio `llama2, mistral`)",
+        "anthropic": "Anthropic",
+        "mistral": "Mistral",
+        "openRouter": "OpenRouter"
     },
     "generativeAIWorkspaceSettings": {
         "changedTitle": "Impostazioni aggiornate correttamente",
@@ -771,7 +774,7 @@
         "continue": "Continua",
         "failedTitle": "Qualcosa è andato storto",
         "failedDescription": "L'onboarding non è del tutto riuscito, anche se alcune parti sono state completate.",
-        "failedTryAgain": "Riprova",
+        "failedTryAgain": "Ritenta",
         "failedSkip": "Salta l'onboarding",
         "title": "Onboarding",
         "skip": "Salta per ora",
@@ -812,7 +815,8 @@
     "selectAIModelForm": {
         "AIType": "Tipo AI",
         "AIModel": "Modello AI",
-        "fileField": "Campo file"
+        "fileField": "Campo file",
+        "temperatureLabel": "Temperatura"
     },
     "colorInput": {
         "default": "Default"
@@ -933,6 +937,38 @@
         "viewAll": "Vedi tutti"
     },
     "exportWorkspaceModal": {
-        "title": "Esporta"
+        "title": "Esporta",
+        "cancel": "Annulla",
+        "download": "Scarica",
+        "created": "creato",
+        "exportingState": "Esportazione…"
+    },
+    "workspaceSearch": {
+        "title": "Cerca",
+        "searchEverything": "Ricerca..."
+    },
+    "importWorkspaceModal": {
+        "upload": "Carica",
+        "cancel": "Annulla",
+        "done": "Fatto",
+        "close": "Chiudi",
+        "retry": "Riprova",
+        "uploading": "caricamento…",
+        "databases": "Databases",
+        "applications": "Applicazioni",
+        "importingState": "Importazione…"
+    },
+    "mcpEndpoint": {
+        "windsurfInstructions": "Due passaggi semplici per impostare MCP con Cascase in Windsurf.\n\n1. Vai a Windsurf - Impostazioni -> Impostazioni Avanzate o Command Palette -> Apri la pagina delle impostazioni di Windsurf.\n2. Scorri verso il basso fino alla sezione Cascade e troverai l'opzione per aggiungere un nuovo server, visualizzare i server esistenti e un pulsante per visualizzare il file di configurazione JSON grezzo a `mcp_config.json`. Aggiungi quanto segue ad esso:",
+        "claudeInstructions": "Tre passaggi semplici per iniziare con Claude Desktop e il Baserow MCP.\n\n1. Apri le impostazioni di Claude Desktop dalla barra di navigazione. (⌘+,)\n2. Vai alla scheda \"Develop\" e clicca su \"Edit Config\".\n3. Includi la seguente configurazione JSON in `claude_desktop_config.json`."
+    },
+    "saveBackupCode": {
+        "description": "Se perdi l'accesso alla tua app di autenticazione o al telefono e non puoi ricevere o generare codici di autenticazione, puoi usare questo backup. Puoi usarlo solo una volta. Assicurati di scriverlo o copiarlo in un luogo sicuro in modo da poterlo accedere senza effettuare l'accesso."
+    },
+    "controlCenterGuidedTourStep": {
+        "content": "La barra laterale sinistra ti aiuta a gestire il tuo spazio di lavoro:\n\n- Home – Accedi alla tua dashboard principale.\n- Notifiche – Rimani aggiornato su cambiamenti e menzioni.\n- Invita Membri – Collabora aggiungendo membri del team.\n- Cestino – Elenca e recupera tutti i tuoi elementi eliminati."
+    },
+    "mcpEndpointSettings": {
+        "noEndpointsMessage": "Nessun endpoint del server MCP (Model Context Protocol) è stato aggiunto. Questi possono essere usati per integrare direttamente con un LLM come Claude e permettere all'LLM di eseguire azioni direttamente in Baserow. Crea un endpoint del server per iniziare."
     }
 }

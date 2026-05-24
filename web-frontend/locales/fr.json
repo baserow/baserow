@@ -60,11 +60,12 @@
         "backToHome": "Retour à l'accueil",
         "close": "Fermer",
         "hide": "Cacher",
-        "getStarted": "Commencer"
+        "getStarted": "Commencer",
+        "next": "Suivant"
     },
     "adminType": {
         "settings": "Paramètres",
-        "health": "Santé"
+        "health": "Maintenance"
     },
     "applicationType": {
         "database": "Base de données",
@@ -168,7 +169,10 @@
         "password": "Mot de passe",
         "ai": "Prompt pour l'IA",
         "multipleCollaboratorsCheckboxes": "Cases à cocher",
-        "multipleCollaboratorsDropdown": "Liste déroulante"
+        "multipleCollaboratorsDropdown": "Liste déroulante",
+        "formViewEditRow": "Lien vers un formulaire d'édition",
+        "formViewEditRowShareWarning": "Toute personne disposant du lien partagé peut modifier les lignes via le formulaire {formNames} en utilisant la colonne « Modifier la ligne » accessible au public.|Toute personne disposant du lien partagé peut modifier les lignes via le formulaire {formNames} en utilisant les colonnet « Modifier la ligne » accessible au public.",
+        "defaultValueFunctionNow": "Date courante"
     },
     "fieldErrors": {
         "invalidNumber": "Nombre invalide",
@@ -180,7 +184,8 @@
         "invalidDuration": "Format invalide ({durationFormat}).",
         "overflowDuration": "La valeur est hors limites.",
         "maxChars": "Max {max} caractères.",
-        "minChars": "Min {min} caractères."
+        "minChars": "Min {min} caractères.",
+        "higherThan": "La valeur est supérieure à {max}."
     },
     "fieldDocs": {
         "readOnly": "Ce champ est en lecture seule.",
@@ -215,7 +220,8 @@
         "uuid": "Un UUID unique et persistant en lecture seule.",
         "createdBy": "Le champ « Créé par » est un champ en lecture seule qui indique l'utilisateur qui a créé la ligne.",
         "duration": "Accepte une durée temporelle sous la forme d'une chaîne au format {format} ou d'un nombre représentant le nombre total de secondes.",
-        "password": "Un champ en écriture seule qui contient un mot de passe haché. La valeur sera `null` s'il n'est pas défini, ou `true` s'il a été défini. Il accepte une chaîne de caractères pour le définir."
+        "password": "Un champ en écriture seule qui contient un mot de passe haché. La valeur sera `null` s'il n'est pas défini, ou `true` s'il a été défini. Il accepte une chaîne de caractères pour le définir.",
+        "formViewEditRow": "Colonne en lecture seule qui génère une URL unique et signée permettant de modifier la ligne via la vue formulaire associée."
     },
     "viewFilter": {
         "contains": "contient",
@@ -595,7 +601,7 @@
         "whenNanDescription": "Renvoie le premier argument s'il n'est pas 'NaN'. Renvoie le second argument si le premier argument est 'NaN'",
         "datetimeFormatTzDescription": "Convertit la date en texte en donnant un moyen de formater la date dans le fuseau horaire spécifié.",
         "getFileVisibleNameDescription": "Renvoie le nom de fichier à partir du fichier sélectionné par la fonction d'index.",
-        "indexDescription": "Retourne le fichier correspondant à la position fournie par le deuxième argument pour un champ de type fichiers.",
+        "indexDescription": "Renvoie l'élément situé à la position indiquée (à partir de zéro) dans une valeur de tableau (par exemple, issue d'une référence, d'un fichier ou d'un autre champ de type liste de valeurs). Les indices négatifs sont comptés à partir de la fin (-1 correspond au dernier élément).",
         "getFileSizeDescription": "Renvoie la taille du fichier sélectionné par la fonction index.",
         "encodeUriComponentDescription": "Permet d'encoder la chaîne fournie en argument en remplaçant certains caractères par la séquences d'échappement correspondante afin de la rendre compatible avec une URI.",
         "getImageWidthDescription": "Renvoie la largeur de l'image sélectionnée par la fonction index.",
@@ -607,7 +613,11 @@
         "getFileMimeTypeDescription": "Renvoie le type de mime du fichier sélectionné par la fonction index.",
         "hasOptionDescription": "Retourne `true` si le premier argument est un champ de sélection multiple ou une référence à un champ de sélection unique et que le second argument est l'une de ses options.",
         "durationToSecondsDescription": "Convertit la durée fournie en nombre de secondes correspondant.",
-        "secondsToDurationDescription": "Convertit le nombre de secondes indiqué en durée."
+        "secondsToDurationDescription": "Convertit le nombre de secondes indiqué en durée.",
+        "arrayUniqueDescription": "Renvoie uniquement les éléments uniques d'un tableau, en supprimant les doublons tout en conservant l'ordre de leur première occurrence.",
+        "arraySliceDescription": "Renvoie une sous-liste commençant à l'index indiqué (comptage à partir de 0 ; les valeurs négatives comptent à partir de la fin). Une valeur positive permet de parcourir les éléments à l'endroit, 0 correspond à tous les éléments restants, et une valeur négative permet de parcourir les éléments dans l'ordre inverse.",
+        "firstDescription": "Renvoie le premier élément d'une liste de valeurs (par exemple, issu d'une référence, d'un fichier ou d'un autre champ de type liste de valeurs).",
+        "lastDescription": "Renvoie le dernier élément d'une liste de valeurs (par exemple, issu d'une référence, d'un fichier ou d'un autre champ de type liste de valeurs)."
     },
     "functionnalGridViewFieldLinkRow": {
         "unnamed": "Ligne sans nom {value}"
@@ -626,7 +636,7 @@
     },
     "health": {
         "description": "Ces indicateurs indiquent l’état actuel de votre installation de Baserow.",
-        "title": "Bilans de santé de Baserow"
+        "title": "Maintenance de Baserow"
     },
     "fieldConstraint": {
         "uniqueWithEmpty": "Unique avec vide"
@@ -715,5 +725,11 @@
     "nodeExplorer": {
         "noResults": "Aucun résultat trouvé",
         "resetSearch": "Réinitialiser la recherche"
+    },
+    "runtimeGetErrors": {
+        "invalidPath": "L'argument « {path} » de « get » doit être un chemin d'accès séparé par des points (par exemple, « provider.property »).",
+        "missingProvider": "Le préfixe du fournisseur de données est manquant dans l'argument « {path} » de « get ».",
+        "unknownProvider": "Le fournisseur de données « {providerName} » n'existe pas.",
+        "invalidProviderPath": "Le fournisseur de données « {providerName} » a détecté que le chemin « {path} » n'était pas valide."
     }
 }

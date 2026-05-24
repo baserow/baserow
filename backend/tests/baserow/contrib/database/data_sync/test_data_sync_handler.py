@@ -18,10 +18,12 @@ from baserow.contrib.database.data_sync.ical_data_sync_type import (
     ICalCalendarDataSyncType,
     UIDICalCalendarDataSyncProperty,
 )
+from baserow.contrib.database.data_sync.job_types import SyncDataSyncTableJobType
 from baserow.contrib.database.data_sync.models import (
     DataSync,
     DataSyncSyncedProperty,
     ICalCalendarDataSync,
+    SyncDataSyncTableJob,
 )
 from baserow.contrib.database.data_sync.registries import DataSyncTypeRegistry
 from baserow.contrib.database.fields.exceptions import CannotDeletePrimaryField
@@ -69,6 +71,22 @@ DESCRIPTION:Test description 1
 LOCATION:Amsterdam
 END:VEVENT
 END:VCALENDAR"""
+
+
+def _mock_ical_rows(count, updated_index=None):
+    rows = []
+    for index in range(count):
+        summary = f"Test event {index}"
+        if updated_index is not None and index == updated_index:
+            summary = f"{summary} updated"
+        rows.append(
+            {
+                "uid": f"event-{index}",
+                "summary": summary,
+            }
+        )
+    return rows
+
 
 ICAL_FEED_WITH_ONE_ITEMS_WITHOUT_DTEND = """BEGIN:VCALENDAR
 VERSION:2.0
@@ -653,6 +671,103 @@ def test_sync_data_sync_table_create_update_delete_row(data_fixture):
         2024, 9, 1, 9, 0, tzinfo=timezone.utc
     )
     assert getattr(sync_3_rows[0], f"field_{fields['summary'].id}") == "Test event 0"
+
+
+@pytest.mark.django_db
+@responses.activate
+@patch(
+    "baserow.contrib.database.data_sync.handler.SearchHandler.schedule_update_search_data"
+)
+def test_sync_data_sync_table_large_change_uses_full_field_search_update(
+    mock_schedule_update_search_data, data_fixture
+):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS,
+    )
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "summary"],
+        ical_url="https://baserow.io/ical.ics",
+    )
+
+    with patch.object(
+        ICalCalendarDataSyncType,
+        "get_all_rows",
+        return_value=_mock_ical_rows(20),
+    ):
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    args, kwargs = mock_schedule_update_search_data.call_args
+    assert args == (data_sync.table,)
+    assert "fields" in kwargs
+    assert "row_ids" not in kwargs
+
+
+@pytest.mark.django_db
+@responses.activate
+@patch(
+    "baserow.contrib.database.data_sync.handler.SearchHandler.schedule_update_search_data"
+)
+def test_sync_data_sync_table_small_change_uses_row_specific_search_update(
+    mock_schedule_update_search_data, data_fixture
+):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS,
+    )
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "summary"],
+        ical_url="https://baserow.io/ical.ics",
+    )
+
+    with patch.object(
+        ICalCalendarDataSyncType,
+        "get_all_rows",
+        return_value=_mock_ical_rows(20),
+    ):
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    uid_field = DataSyncSyncedProperty.objects.get(
+        data_sync=data_sync, key="uid"
+    ).field_id
+    model = data_sync.table.get_model()
+    changed_row_id = model.objects.values_list("id", flat=True).get(
+        **{f"field_{uid_field}": "event-5"}
+    )
+
+    mock_schedule_update_search_data.reset_mock()
+
+    with patch.object(
+        ICalCalendarDataSyncType,
+        "get_all_rows",
+        return_value=_mock_ical_rows(20, updated_index=5),
+    ):
+        handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    args, kwargs = mock_schedule_update_search_data.call_args
+    assert args == (data_sync.table,)
+    assert "fields" in kwargs
+    assert kwargs["row_ids"] == [changed_row_id]
 
 
 @pytest.mark.django_db
@@ -1818,3 +1933,104 @@ def test_duplicate_data_sync_field(data_fixture):
     assert getattr(rows[0], f"field_{duplicated_field.id}") == getattr(
         rows[0], f"field_{fields[0].id}"
     )
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.table.signals.table_created.send")
+def test_on_cancelled_trashes_table_on_first_sync(send_mock, data_fixture):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "summary"],
+        ical_url="https://baserow.io",
+    )
+    table = data_sync.table
+
+    assert data_sync.last_sync is None
+    assert TrashEntry.objects.count() == 0
+
+    job = SyncDataSyncTableJob.objects.create(user=user, data_sync=data_sync)
+    job_type = SyncDataSyncTableJobType()
+    job_type.on_cancelled(job)
+
+    assert TrashEntry.objects.count() == 1
+    table.refresh_from_db()
+    assert table.trashed is True
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.table.signals.table_created.send")
+@patch("baserow.contrib.database.data_sync.job_types.logger")
+@patch("baserow.contrib.database.data_sync.job_types.TableHandler.delete_table")
+def test_on_cancelled_logs_table_cleanup_errors(
+    delete_table_mock, logger_mock, send_mock, data_fixture
+):
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "summary"],
+        ical_url="https://baserow.io",
+    )
+
+    delete_table_mock.side_effect = RuntimeError("delete failed")
+
+    job = SyncDataSyncTableJob.objects.create(user=user, data_sync=data_sync)
+    job_type = SyncDataSyncTableJobType()
+    job_type.on_cancelled(job)
+
+    delete_table_mock.assert_called_once_with(user, data_sync.table)
+    logger_mock.exception.assert_called_once_with(
+        f"Failed to delete table for cancelled data sync job {job.id}."
+    )
+
+
+@pytest.mark.django_db
+@patch("baserow.contrib.database.table.signals.table_created.send")
+@responses.activate
+def test_on_cancelled_does_not_trash_table_after_successful_sync(
+    send_mock, data_fixture
+):
+    responses.add(
+        responses.GET,
+        "https://baserow.io",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS,
+    )
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "summary"],
+        ical_url="https://baserow.io",
+    )
+    table = data_sync.table
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    data_sync.refresh_from_db()
+    assert data_sync.last_sync is not None
+
+    job = SyncDataSyncTableJob.objects.create(user=user, data_sync=data_sync)
+    job_type = SyncDataSyncTableJobType()
+    job_type.on_cancelled(job)
+
+    assert TrashEntry.objects.count() == 0
+    table.refresh_from_db()
+    assert table.trashed is False

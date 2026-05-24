@@ -9,7 +9,9 @@
 		@downloads {
 			query dl=*
 		}
-		header @downloads Content-disposition "attachment; filename={query.dl}"
+		header @downloads Content-Disposition "attachment; filename={query.dl}"
+		header X-Content-Type-Options "nosniff"
+		header Content-Security-Policy "sandbox; default-src 'none'; script-src 'none'; object-src 'none'; base-uri 'none'"
 
 	    header {
     		Access-Control-Allow-Origin {$PUBLIC_WEB_FRONTEND_URL:http://localhost:3000}

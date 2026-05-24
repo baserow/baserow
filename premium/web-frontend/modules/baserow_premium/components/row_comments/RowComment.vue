@@ -215,9 +215,10 @@ export default {
       this.editing = true
 
       this.onClickOutsideHandler = (evt) => {
+        const contextRoot = this.$refs.commentContext.getTeleportedElement()
         if (
           !this.$el.contains(evt.target) &&
-          !this.$refs.commentContext.$el.contains(evt.target) &&
+          (!contextRoot || !contextRoot.contains(evt.target)) &&
           !evt.composedPath().includes(this.$el)
         ) {
           this.stopEdit()

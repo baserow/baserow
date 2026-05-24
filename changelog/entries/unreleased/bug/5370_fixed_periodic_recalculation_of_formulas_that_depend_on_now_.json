@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed periodic recalculation of formulas that depend on now() across linked tables.",
+    "issue_origin": "github",
+    "issue_number": 5370,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-05-15"
+}

@@ -51,6 +51,16 @@ export class ViewOwnershipType extends Registerable {
   }
 
   /**
+   * Returns whether this ownership type is compatible with the given view type.
+   * Subclasses can override this to prevent certain combinations.
+   *
+   * @param {Object|string} viewType - A ViewType instance.
+   */
+  isCompatibleWithViewType(viewType) {
+    return true
+  }
+
+  /**
    * The order in which workspaces of diff. view ownership
    * types appear in the list views.
    */
@@ -145,6 +155,19 @@ export class ViewOwnershipType extends Registerable {
    * @returns {string|null}
    */
   getDecoratorContextWarning(view, fields, visibleFields, database) {
+    return null
+  }
+
+  /**
+   * Returns a component to display below the filter form, or `null` if nothing extra
+   * is needed. This lets ownership types inject contextual UI (e.g. default-value
+   * warnings) into the filter context menu.
+   *
+   * @param {Object} view - The view object.
+   * @param {Object} database - The database object.
+   * @returns {Object|null} A Vue component or null.
+   */
+  getFilterContextComponent(view, database) {
     return null
   }
 }

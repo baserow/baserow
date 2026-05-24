@@ -1,15 +1,16 @@
+import glob
 import json
 import os
 import shutil
-import glob
+import subprocess
 from datetime import datetime, timezone
 from json import JSONDecodeError
 from pathlib import Path
+from shutil import which
 from typing import Dict, List, Optional, Union
 
-from domains import domain_types
 from changelog_entry import changelog_entry_types
-from pygit2 import Repository
+from domains import domain_types
 
 LINE_BREAK_CHARACTER = "\n"
 INDENT_CHARACTER = "  "
@@ -250,11 +251,18 @@ class ChangelogHandler:
 
     @staticmethod
     def get_issue_number() -> Union[int, None]:
-        potential_issue_number = Repository(".").head.shorthand.split("-")[0]
-
         try:
-            return int(potential_issue_number)
-        except ValueError:
+            git_path = which("git")
+            if git_path is None:
+                return None
+            branch = subprocess.run(  # noqa: S603
+                [git_path, "rev-parse", "--abbrev-ref", "HEAD"],
+                capture_output=True,
+                text=True,
+                check=True,
+            ).stdout.strip()
+            return int(branch.split("-")[0])
+        except (OSError, subprocess.CalledProcessError, ValueError):
             return None
 
     def write_release_meta_data(self, name: str):

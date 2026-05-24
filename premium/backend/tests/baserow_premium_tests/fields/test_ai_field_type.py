@@ -1,3 +1,4 @@
+import json
 from unittest.mock import patch
 
 from django.shortcuts import reverse
@@ -7,14 +8,17 @@ import pytest
 from pytest_unordered import unordered
 from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 
+from baserow.contrib.database.application_types import DatabaseApplicationType
 from baserow.contrib.database.fields.dependencies.models import FieldDependency
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.models import FileField
 from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils.deferred_foreign_key_updater import (
     DeferredForeignKeyUpdater,
 )
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.table.models import Table
 from baserow.core.cache import local_cache
 from baserow.core.db import specific_iterator
 from baserow.core.registries import ImportExportConfig
@@ -743,7 +747,7 @@ def test_duplicate_table_with_ai_field(patched_job_creation, premium_data_fixtur
         table=table,
         order=2,
         name="ai",
-        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_type="test_generative_ai_with_files",
         ai_generative_ai_model="test_1",
         ai_file_field=file_field,
         ai_prompt=f"concat('test:',get('fields.field_{text_field.id}'))",
@@ -761,7 +765,7 @@ def test_duplicate_table_with_ai_field(patched_job_creation, premium_data_fixtur
     duplicated_ai_field = duplicated_fields[2]
 
     assert duplicated_ai_field.name == "ai"
-    assert duplicated_ai_field.ai_generative_ai_type == "test_generative_ai"
+    assert duplicated_ai_field.ai_generative_ai_type == "test_generative_ai_with_files"
     assert duplicated_ai_field.ai_generative_ai_model == "test_1"
     assert duplicated_ai_field.ai_file_field_id == duplicated_file_field.id
     assert (
@@ -1380,6 +1384,216 @@ def test_create_ai_field_auto_doesnt_update_user_if_set(premium_data_fixture):
 
     assert ai_field.ai_auto_update is True
     assert ai_field.ai_auto_update_user_id == user.id  # not changed
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_import_serialized_ai_field_missing_ai_generative_ai_type(premium_data_fixture):
+    user = premium_data_fixture.create_user()
+    table = premium_data_fixture.create_database_table(user=user)
+    premium_data_fixture.register_fake_generate_ai_type()
+    premium_data_fixture.create_text_field(
+        table=table, order=0, name="text", primary=True
+    )
+    ai_field = premium_data_fixture.create_ai_field(
+        table=table,
+        order=1,
+        name="ai",
+        ai_generative_ai_type="missing",
+        ai_generative_ai_model="test_1",
+        ai_prompt="Tell me a joke",
+    )
+    field_type = field_type_registry.get_by_model(ai_field)
+    serialized = field_type.export_serialized(ai_field)
+
+    imported_field = field_type.import_serialized(
+        table,
+        serialized,
+        ImportExportConfig(include_permission_data=False),
+        id_mapping={},
+        deferred_fk_update_collector=DeferredForeignKeyUpdater(),
+    )
+
+    imported_field = AIField.objects.get(id=imported_field.id)
+    assert imported_field.ai_generative_ai_type is None
+    assert imported_field.ai_generative_ai_model == "test_1"
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_import_serialized_ai_field_file_field_mapped_correctly(
+    premium_data_fixture,
+):
+    user = premium_data_fixture.create_user()
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    premium_data_fixture.register_fake_generate_ai_type()
+    premium_data_fixture.create_text_field(
+        table=table, order=0, name="text", primary=True
+    )
+    file_field = premium_data_fixture.create_file_field(
+        table=table, order=0, name="file", primary=True
+    )
+    ai_field = premium_data_fixture.create_ai_field(
+        table=table,
+        order=1,
+        name="ai",
+        ai_generative_ai_type="test_generative_ai_with_files",
+        ai_generative_ai_model="test_1",
+        ai_prompt="'What is in the file'",
+        ai_file_field=file_field,
+    )
+    serialized = DatabaseApplicationType().export_serialized(
+        database, ImportExportConfig(include_permission_data=False)
+    )
+    serialized = json.loads(json.dumps(serialized))
+    new_workspace = premium_data_fixture.create_workspace(user=user)
+
+    imported_database = DatabaseApplicationType().import_serialized(
+        new_workspace,
+        serialized,
+        ImportExportConfig(include_permission_data=True),
+        id_mapping={},
+    )
+
+    imported_table = Table.objects.get(database=imported_database)
+    new_ai_field = AIField.objects.get(table=imported_table)
+
+    assert new_ai_field.ai_file_field is not None
+    assert new_ai_field.ai_file_field.id != ai_field.id
+
+    FileField.objects.get(table=imported_table, id=new_ai_field.ai_file_field.id)
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_import_serialized_ai_field_file_field_not_correct_field_type(
+    premium_data_fixture,
+):
+    user = premium_data_fixture.create_user()
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    premium_data_fixture.register_fake_generate_ai_type()
+    premium_data_fixture.create_text_field(
+        table=table, order=0, name="text", primary=True
+    )
+    fake_file_field = premium_data_fixture.create_text_field(
+        table=table, order=0, name="file", primary=True
+    )
+    ai_field = premium_data_fixture.create_ai_field(
+        table=table,
+        order=1,
+        name="ai",
+        ai_generative_ai_type="test_generative_ai_with_files",
+        ai_generative_ai_model="test_1",
+        ai_prompt="'What is in the file'",
+        ai_file_field=fake_file_field,
+    )
+    serialized = DatabaseApplicationType().export_serialized(
+        database, ImportExportConfig(include_permission_data=False)
+    )
+    serialized = json.loads(json.dumps(serialized))
+    new_workspace = premium_data_fixture.create_workspace(user=user)
+
+    imported_database = DatabaseApplicationType().import_serialized(
+        new_workspace,
+        serialized,
+        ImportExportConfig(include_permission_data=True),
+        id_mapping={},
+    )
+
+    imported_table = Table.objects.get(database=imported_database)
+    new_ai_field = AIField.objects.get(table=imported_table)
+
+    assert new_ai_field.ai_file_field is None
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_import_serialized_ai_field_file_field_not_in_correct_table(
+    premium_data_fixture,
+):
+    user = premium_data_fixture.create_user()
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database, name="table1")
+    table_2 = premium_data_fixture.create_database_table(database=database)
+    premium_data_fixture.register_fake_generate_ai_type()
+    premium_data_fixture.create_text_field(
+        table=table, order=0, name="text", primary=True
+    )
+    file_field_wrong_table = premium_data_fixture.create_file_field(
+        table=table_2, order=0, name="file", primary=True
+    )
+    ai_field = premium_data_fixture.create_ai_field(
+        table=table,
+        order=1,
+        name="ai",
+        ai_generative_ai_type="test_generative_ai_with_files",
+        ai_generative_ai_model="test_1",
+        ai_prompt="'What is in the file'",
+        ai_file_field=file_field_wrong_table,
+    )
+    serialized = DatabaseApplicationType().export_serialized(
+        database, ImportExportConfig(include_permission_data=False)
+    )
+    serialized = json.loads(json.dumps(serialized))
+    new_workspace = premium_data_fixture.create_workspace(user=user)
+
+    imported_database = DatabaseApplicationType().import_serialized(
+        new_workspace,
+        serialized,
+        ImportExportConfig(include_permission_data=True),
+        id_mapping={},
+    )
+
+    imported_table = Table.objects.get(database=imported_database, name="table1")
+
+    new_ai_field = AIField.objects.get(table=imported_table)
+
+    assert new_ai_field.ai_file_field is None
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_import_serialized_ai_field_file_field_not_supported_by_ai_provider(
+    premium_data_fixture,
+):
+    user = premium_data_fixture.create_user()
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    premium_data_fixture.register_fake_generate_ai_type()
+    premium_data_fixture.create_text_field(
+        table=table, order=0, name="text", primary=True
+    )
+    file_field = premium_data_fixture.create_file_field(
+        table=table, order=0, name="file", primary=True
+    )
+    ai_field = premium_data_fixture.create_ai_field(
+        table=table,
+        order=1,
+        name="ai",
+        ai_generative_ai_type="test_generative_ai",
+        ai_generative_ai_model="test_1",
+        ai_prompt="'What is in the file'",
+        ai_file_field=file_field,
+    )
+    serialized = DatabaseApplicationType().export_serialized(
+        database, ImportExportConfig(include_permission_data=False)
+    )
+    serialized = json.loads(json.dumps(serialized))
+    new_workspace = premium_data_fixture.create_workspace(user=user)
+
+    imported_database = DatabaseApplicationType().import_serialized(
+        new_workspace,
+        serialized,
+        ImportExportConfig(include_permission_data=True),
+        id_mapping={},
+    )
+
+    imported_table = Table.objects.get(database=imported_database)
+    new_ai_field = AIField.objects.get(table=imported_table)
+
+    assert new_ai_field.ai_file_field is None
 
 
 @pytest.mark.django_db

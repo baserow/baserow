@@ -9,6 +9,12 @@
   color: $palette-neutral-1200;
 }
 
+.history-side-panel__divider {
+  height: 1px;
+  width: 100%;
+  background-color: $palette-neutral-200;
+}
+
 .history-side-panel__close-side-panel {
   color: $palette-neutral-700;
 }
@@ -26,4 +32,35 @@
 
 .history-side-panel__empty-icon {
   font-size: 40px;
+}
+
+.history-side-panel__counts {
+  display: flex;
+  gap: 16px;
+  padding-top: 16px;
+
+  &-runs {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    flex: 1;
+    height: 90px;
+    padding: 16px;
+    border: 1px solid $palette-neutral-200;
+    border-radius: 6px;
+
+    &-label {
+      font-size: 12px;
+      line-height: 20px;
+      font-weight: 500;
+      color: $palette-neutral-900;
+    }
+
+    &-total {
+      font-size: 24px;
+      line-height: 32px;
+      font-weight: 600;
+      color: $palette-neutral-1200;
+    }
+  }
 }

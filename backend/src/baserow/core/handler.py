@@ -24,6 +24,7 @@ from loguru import logger
 from opentelemetry import trace
 from tqdm import tqdm
 
+from baserow.core.cache import get_cached_settings, set_cached_settings
 from baserow.core.db import specific_queryset
 from baserow.core.registries import plugin_registry
 from baserow.core.user.utils import normalize_email_address
@@ -38,7 +39,6 @@ from .exceptions import (
     DuplicateApplicationMaxLocksExceededException,
     InvalidPermissionContext,
     LastAdminOfWorkspace,
-    MaxNumberOfPendingWorkspaceInvitesReached,
     PermissionDenied,
     PermissionException,
     TemplateDoesNotExist,
@@ -140,7 +140,7 @@ class ApplicationUpdatedResult:
     updated_app_allowed_values: Dict[str, Any]
 
 
-class CoreHandler(metaclass=baserow_trace_methods(tracer)):
+class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context")):
     default_create_allowed_fields = ["name", "init_with_data"]
     default_update_allowed_fields = ["name"]
 
@@ -153,32 +153,40 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
 
         clear_current_workspace_id()
 
-    def get_settings(self):
+    def get_settings(self) -> Settings:
         """
         Returns a settings model instance containing all the admin configured settings.
+        The result is cached in Redis and invalidated by a ``post_save`` receiver
+        on the ``Settings`` model (see ``baserow.core.receivers``).
 
         :return: The settings instance.
-        :rtype: Settings
         """
 
-        try:
-            return Settings.objects.all().select_related("co_branding_logo")[:1].get()
-        except Settings.DoesNotExist:
-            return Settings.objects.create()
+        cached = get_cached_settings()
+        if cached is not None:
+            return cached
 
-    def update_settings(self, user, settings_instance=None, **kwargs):
+        try:
+            instance = (
+                Settings.objects.all().select_related("co_branding_logo")[:1].get()
+            )
+        except Settings.DoesNotExist:
+            instance = Settings.objects.create()
+
+        set_cached_settings(instance)
+        return instance
+
+    def update_settings(
+        self, user: User, settings_instance: Optional[Settings] = None, **kwargs
+    ) -> Settings:
         """
         Updates one or more setting values if the user has staff permissions.
 
         :param user: The user on whose behalf the settings are updated.
-        :type user: User
         :param settings_instance: If already fetched, the settings instance can be
             provided to avoid fetching the values for a second time.
-        :type settings_instance: Settings
         :param kwargs: An dict containing the settings that need to be updated.
-        :type kwargs: dict
         :return: The update settings instance.
-        :rtype: Settings
         """
 
         CoreHandler().check_permissions(
@@ -1080,35 +1088,30 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         return workspace_invitation
 
     def create_workspace_invitation(
-        self, user, workspace, email, permissions, base_url, message=""
-    ):
+        self,
+        user: AbstractUser,
+        workspace: Workspace,
+        email: str,
+        permissions: str,
+        base_url: str,
+    ) -> WorkspaceInvitation:
         """
         Creates a new workspace invitation for the given email address and sends out an
         email containing the invitation.
 
         :param user: The user on whose behalf the invitation is created.
-        :type user: User
         :param workspace: The workspace for which the user is invited.
-        :type workspace: Workspace
         :param email: The email address of the person that is invited to the workspace.
             Can be an existing or not existing user.
-        :type email: str
         :param permissions: The workspace permissions that the user will get once they
             have accepted the invitation.
-        :type permissions: str
         :param base_url: The base url of the frontend, where the user can accept his
             invitation. The signed invitation id is appended to the URL (base_url +
             '/TOKEN'). Only the PUBLIC_WEB_FRONTEND_HOSTNAME is allowed as domain name.
-        :type base_url: str
-        :param message: A custom message that will be included in the invitation email.
-        :type message: Optional[str]
         :raises ValueError: If the provided permissions are not allowed.
         :raises UserInvalidWorkspacePermissionsError: If the user does not belong to the
             workspace or doesn't have right permissions in the workspace.
-        :raises MaxNumberOfPendingWorkspaceInvitesReached: When the maximum number of
-            pending invites have been reached.
         :return: The created workspace invitation.
-        :rtype: WorkspaceInvitation
         """
 
         CoreHandler().check_permissions(
@@ -1127,23 +1130,10 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
                 f"The user {email} is already part of the workspace."
             )
 
-        max_invites = settings.BASEROW_MAX_PENDING_WORKSPACE_INVITES
-        if max_invites > 0 and (
-            WorkspaceInvitation.objects.filter(workspace=workspace)
-            .exclude(email=email)
-            .count()
-            >= max_invites
-        ):
-            raise MaxNumberOfPendingWorkspaceInvitesReached(
-                f"The maximum number of pending workspaces invites {max_invites} has "
-                f"been reached."
-            )
-
         invitation, created = WorkspaceInvitation.objects.update_or_create(
             workspace=workspace,
             email=email,
             defaults={
-                "message": message,
                 "permissions": permissions,
                 "invited_by": user,
             },
@@ -1167,23 +1157,21 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
 
         return invitation
 
-    def update_workspace_invitation(self, user, invitation, permissions):
+    def update_workspace_invitation(
+        self, user: AbstractUser, invitation: WorkspaceInvitation, permissions: str
+    ) -> WorkspaceInvitation:
         """
         Updates the permissions of an existing invitation if the user has ADMIN
         permissions to the related workspace.
 
         :param user: The user on whose behalf the invitation is updated.
-        :type user: User
         :param invitation: The invitation that must be updated.
-        :type invitation: WorkspaceInvitation
         :param permissions: The new permissions of the invitation that the user must
             has after accepting.
-        :type permissions: str
         :raises ValueError: If the provided permissions is not allowed.
         :raises UserInvalidWorkspacePermissionsError: If the user does not belong to the
             workspace or doesn't have right permissions in the workspace.
         :return: The updated workspace permissions instance.
-        :rtype: WorkspaceInvitation
         """
 
         CoreHandler().check_permissions(
@@ -1198,15 +1186,15 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
 
         return invitation
 
-    def delete_workspace_invitation(self, user, invitation):
+    def delete_workspace_invitation(
+        self, user: AbstractUser, invitation: WorkspaceInvitation
+    ) -> None:
         """
         Deletes an existing workspace invitation if the user has ADMIN permissions to
         the related workspace.
 
         :param user: The user on whose behalf the invitation is deleted.
-        :type user: User
         :param invitation: The invitation that must be deleted.
-        :type invitation: WorkspaceInvitation
         :raises UserInvalidWorkspacePermissionsError: If the user does not belong to the
             workspace or doesn't have right permissions in the workspace.
         """
@@ -1406,10 +1394,8 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer)):
         ] = None,
     ) -> QuerySet[Application]:
         if per_content_type_queryset_hook is None:
-            per_content_type_queryset_hook = (
-                lambda model, qs: application_type_registry.get_by_model(
-                    model
-                ).enhance_queryset(qs)
+            per_content_type_queryset_hook = lambda model, qs: (
+                application_type_registry.get_by_model(model).enhance_queryset(qs)
             )
         return specific_queryset(queryset, per_content_type_queryset_hook)
 

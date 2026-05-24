@@ -99,7 +99,9 @@
         "statusDisabled": "Deshabilitado por Baserow",
         "completedInSeconds": "Completado en {s} segundos.",
         "completedInLessThanSecond": "Completado en menos de 1 segundo.",
-        "testRun": "Prueba"
+        "testRun": "Prueba",
+        "statusStarted": "En progreso...",
+        "running": "Ejecutando por {at}s"
     },
     "nodeType": {
         "triggerDeletionError": "Los disparadores no pueden eliminarse, solo reemplazarse.",

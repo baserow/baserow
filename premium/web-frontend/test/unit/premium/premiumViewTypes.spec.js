@@ -3,6 +3,7 @@ import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 import { PremiumTestApp } from '@baserow_premium_test/helpers/premiumTestApp'
 import flushPromises from 'flush-promises'
 import CreateViewModal from '@baserow/modules/database/components/view/CreateViewModal'
+import CreateViewLink from '@baserow/modules/database/components/view/CreateViewLink'
 
 async function openViewContextAndClickOnCreateKanbanView(
   testApp,
@@ -18,17 +19,15 @@ async function openViewContextAndClickOnCreateKanbanView(
   })
 
   await viewsContext.vm.show(viewsContext)
-  // Show runs some extra code in a nextTick so flush them now.
   await flushPromises()
 
   const paidFeaturesModal = viewsContext.findComponent(PaidFeaturesModal)
-  expect(paidFeaturesModal.isVisible()).toBe(false)
+  expect(paidFeaturesModal.vm.$refs.modal.open).toBe(false)
 
-  const kanbanLink = viewsContext
-    .findAll('.select__footer-create-link')
-    .filter((node) => node.text() === 'premium.viewType.kanban')
-    .at(0)
-  await kanbanLink.trigger('click')
+  const kanbanCreateLink = viewsContext
+    .findAllComponents(CreateViewLink)
+    .find((c) => c.vm.viewType.getType() === 'kanban')
+  kanbanCreateLink.vm.select()
   await flushPromises()
   return viewsContext
 }
@@ -48,9 +47,11 @@ describe('Premium View Type Component Tests', () => {
     expect(
       viewsContext
         .findAllComponents(CreateViewModal)
-        .filter((m) => m.isVisible())
+        .filter((m) => m.vm.$refs.modal.open)
     ).toHaveLength(0)
-    expect(viewsContext.findComponent(PaidFeaturesModal).isVisible()).toBe(true)
+    expect(
+      viewsContext.findComponent(PaidFeaturesModal).vm.$refs.modal.open
+    ).toBe(true)
   })
   test('User with global premium features can create Kanban view', async () => {
     testApp.giveCurrentUserGlobalPremiumFeatures()
@@ -60,10 +61,10 @@ describe('Premium View Type Component Tests', () => {
 
     const visibleCreateViewModals = viewsContext
       .findAllComponents(CreateViewModal)
-      .filter((m) => m.isVisible())
+      .filter((m) => m.vm.$refs.modal.open)
     expect(visibleCreateViewModals).toHaveLength(1)
-    expect(viewsContext.findComponent(PaidFeaturesModal).isVisible()).toBe(
-      false
-    )
+    expect(
+      viewsContext.findComponent(PaidFeaturesModal).vm.$refs.modal.open
+    ).toBe(false)
   })
 })

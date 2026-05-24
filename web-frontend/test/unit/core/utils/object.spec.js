@@ -1,5 +1,6 @@
 import {
   clone,
+  deleteValueAtPath,
   isPromise,
   mappingToStringifiedJSONLines,
   getValueAtPath,
@@ -72,6 +73,41 @@ describe('test utils object', () => {
     expect(isPromise({ then: () => null, catch: () => null })).toBeTruthy()
   })
 
+  test('deleteValueAtPath deletes object properties', () => {
+    const obj = {
+      a: { b: { c: 123, d: 456 } },
+    }
+
+    deleteValueAtPath(obj, 'a.b.c')
+
+    expect(obj).toStrictEqual({
+      a: { b: { d: 456 } },
+    })
+  })
+
+  test('deleteValueAtPath removes array entries', () => {
+    const obj = {
+      list: [{ d: 456 }, { d: 789 }, { d: 111 }],
+    }
+
+    deleteValueAtPath(obj, 'list.1')
+
+    expect(obj.list).toStrictEqual([{ d: 456 }, { d: 111 }])
+  })
+
+  test('deleteValueAtPath ignores missing paths', () => {
+    const obj = {
+      a: { b: { c: 123 } },
+    }
+
+    deleteValueAtPath(obj, 'a.x.c')
+    deleteValueAtPath(obj, 'a.b.c.x')
+
+    expect(obj).toStrictEqual({
+      a: { b: { c: 123 } },
+    })
+  })
+
   test.each([
     ['a.b.c', 123],
     ['list.1.d', 789],
@@ -109,5 +145,87 @@ describe('test utils object', () => {
       b: ['1', '2', '3'],
     }
     expect(getValueAtPath(obj, path)).toStrictEqual(result)
+  })
+
+  describe('getValueAtPath defaultValue', () => {
+    const obj = {
+      a: { b: { c: 123 } },
+      nullable: null,
+      list: [{ d: 456 }, { d: 789, e: 111 }],
+      nested: [{ nested: [{ a: 1 }, { a: 2 }] }, { nested: [{ a: 3 }] }],
+    }
+
+    test('returns null by default when the path is not found', () => {
+      expect(getValueAtPath(obj, 'a.b.x')).toBe(null)
+      expect(getValueAtPath(obj, 'a.x.b')).toBe(null)
+      expect(getValueAtPath(obj, 'list.5.d')).toBe(null)
+      expect(getValueAtPath(obj, 'list.0.x')).toBe(null)
+      expect(getValueAtPath(obj, 'nested.0.nested.5.a')).toBe(null)
+      expect(getValueAtPath(obj, 'nested.5.nested.0.a')).toBe(null)
+    })
+
+    test('returns the provided default value when the path is not found', () => {
+      expect(getValueAtPath(obj, 'a.b.x', 'fallback')).toBe('fallback')
+      expect(getValueAtPath(obj, 'a.b.x', 0)).toBe(0)
+      expect(getValueAtPath(obj, 'a.b.x', '')).toBe('')
+      expect(getValueAtPath(obj, 'a.b.x', false)).toBe(false)
+      expect(getValueAtPath(obj, 'list.5.d', 'fallback')).toBe('fallback')
+      expect(getValueAtPath(obj, 'list.0.x', 'fallback')).toBe('fallback')
+      expect(getValueAtPath(obj, 'nested.0.nested.5.a', 'fallback')).toBe(
+        'fallback'
+      )
+      expect(getValueAtPath(obj, 'nested.5.nested.0.a', 'fallback')).toBe(
+        'fallback'
+      )
+    })
+  })
+
+  describe('getValueAtPath defaultValue with wildcards', () => {
+    const obj = {
+      list: [{ d: 456 }, { d: 789, e: 111 }],
+      nested: [{ nested: [{ a: 1 }, { a: 2 }] }, { nested: [{ a: 3 }] }],
+      empty: [],
+    }
+
+    test('returns null when every wildcard branch misses (default)', () => {
+      expect(getValueAtPath(obj, 'list.*.x')).toBe(null)
+      expect(getValueAtPath(obj, 'nested.*.nested.*.x')).toBe(null)
+    })
+
+    test('substitutes the default value at every missing leaf (backend-aligned)', () => {
+      expect(getValueAtPath(obj, 'list.*.x', 'fallback')).toStrictEqual([
+        'fallback',
+        'fallback',
+      ])
+      expect(
+        getValueAtPath(obj, 'nested.*.nested.*.x', 'fallback')
+      ).toStrictEqual([['fallback', 'fallback'], ['fallback']])
+    })
+
+    test('mixes existing values with the default value when only some branches miss', () => {
+      expect(getValueAtPath(obj, 'list.*.e', 'fallback')).toStrictEqual([
+        'fallback',
+        111,
+      ])
+    })
+
+    test('does not substitute the default value when wildcard branches all exist', () => {
+      expect(getValueAtPath(obj, 'list.*.d', 'fallback')).toStrictEqual([
+        456, 789,
+      ])
+      expect(
+        getValueAtPath(obj, 'nested.*.nested.*.a', 'fallback')
+      ).toStrictEqual([[1, 2], [3]])
+    })
+
+    test('returns an empty list when wildcarding an empty array with no remaining path', () => {
+      expect(getValueAtPath(obj, 'empty.*')).toStrictEqual([])
+      expect(getValueAtPath(obj, 'empty.*', 'fallback')).toStrictEqual([])
+    })
+
+    test('returns the default value when wildcarding an empty array with a remaining path', () => {
+      expect(getValueAtPath(obj, 'empty.*.x')).toBe(null)
+      expect(getValueAtPath(obj, 'empty.*.x', 'fallback')).toBe('fallback')
+    })
   })
 })

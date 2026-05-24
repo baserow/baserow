@@ -4,6 +4,7 @@ import csv
 import hashlib
 import inspect
 import io
+import ipaddress
 import math
 import os
 import random
@@ -15,7 +16,18 @@ from decimal import Decimal
 from fractions import Fraction
 from itertools import chain, islice
 from numbers import Number
-from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, Type, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Dict,
+    Iterable,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Type,
+    Union,
+)
 
 from django.conf import settings
 from django.db import transaction
@@ -28,6 +40,9 @@ from requests.utils import guess_json_utf
 from baserow.contrib.database.db.schema import optional_atomic
 
 from .exceptions import CannotCalculateIntermediateOrder
+
+if TYPE_CHECKING:
+    from django.http import HttpRequest
 
 RE_ESCAPE_CHAR = re.compile(r"\\(\\)?")
 RE_PROP_NAME = re.compile(
@@ -58,6 +73,31 @@ def flatten(nested_list: List[Any]):
         for sublist in nested_list
         for element in (flatten(sublist) if isinstance(sublist, list) else [sublist])
     ]
+
+
+def get_user_remote_ip_address_from_request(
+    request: HttpRequest,
+) -> Optional[str]:
+    """
+    Extracts the remote IP address of the user from the request. It checks for
+    X-Forwarded-For and X-Real-IP headers first (commonly set by proxies), and falls
+    back to the REMOTE_ADDR if neither is available.
+
+    :param request: The HTTP request object.
+    :return: The remote IP address as a string, or None if it is unavailable.
+    """
+
+    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+    if x_forwarded_for:
+        # X-Forwarded-For can contain multiple IPs: client, proxy1, proxy2.
+        # The first one is the original client IP.
+        return x_forwarded_for.split(",")[0].strip()
+
+    x_real_ip = request.META.get("HTTP_X_REAL_IP")
+    if x_real_ip:
+        return x_real_ip.strip()
+
+    return request.META.get("REMOTE_ADDR")
 
 
 def split_attrs_and_m2m_fields(
@@ -1202,6 +1242,42 @@ def get_all_ips(hostname: str) -> Set:
         return ips
     except socket.gaierror:
         return set()
+
+
+def is_hostname_safe(hostname: str) -> bool:
+    """
+    Checks if the hostname resolves only to safe addresses.
+
+    Unsafe addresses include:
+    - Wildcard (0.0.0.0, ::)
+    - Loopback (127.0.0.0/8, ::1)
+    - Link-local (169.254.0.0/16, fe80::/10)
+    - Reserved, multicast, etc.
+
+    :param hostname: The hostname to check.
+    :return: True if all resolved IPs are safe.
+    """
+
+    ips = get_all_ips(hostname)
+    if not ips:
+        return False
+
+    for ip in ips:
+        try:
+            ip_obj = ipaddress.ip_address(ip)
+        except ValueError:
+            return False
+
+        if (
+            ip_obj.is_unspecified  # wildcard
+            or ip_obj.is_loopback
+            or ip_obj.is_link_local
+            or ip_obj.is_multicast
+            or ip_obj.is_reserved
+        ):
+            return False
+
+    return True
 
 
 def are_hostnames_same(hostname1: str, hostname2: str) -> bool:

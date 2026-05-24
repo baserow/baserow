@@ -77,7 +77,7 @@
           >
             <component
               :is="appAuthType.formComponent"
-              v-if="hasAtLeastOneOfThisType(appAuthType)"
+              v-if="hasAtLeastOneOfThisType(appAuthType) && fullValues?.type"
               :ref="`authProviderForm`"
               excluded-form
               :application="builder"
@@ -131,7 +131,7 @@ export default {
         name: '',
         auth_providers: [],
       },
-      fullValues: {},
+      fullValues: null,
     }
   },
   computed: {

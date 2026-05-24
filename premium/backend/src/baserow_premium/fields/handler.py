@@ -143,8 +143,8 @@ class AIFieldHandler:
         # 3. Prepare files, call AI, cleanup
         ai_files: list[AIFile] = []
         use_files = (
-            ai_field.ai_file_field_id is not None
-            and generative_ai_model_type.supports_files
+            generative_ai_model_type.supports_files
+            and ai_field.ai_file_field_id is not None
         )
         try:
             if use_files:
@@ -152,6 +152,15 @@ class AIFieldHandler:
                 prepared = generative_ai_model_type.prepare_files(ai_files, workspace)
                 if prepared:
                     prompt_kwargs["content"] = [f.content for f in prepared]
+                skipped = [f for f in ai_files if f.content is None]
+                if skipped:
+                    names = ", ".join(f.original_name for f in skipped)
+                    message += (
+                        f"\n\nNote: the following files were provided but could "
+                        f"not be included due to format, size, or processing "
+                        f"limitations: "
+                        f"{names}"
+                    )
 
             value = generative_ai_model_type.prompt(
                 ai_field.ai_generative_ai_model,
@@ -185,7 +194,7 @@ class AIFieldHandler:
         return [
             AIFile(
                 name=f["name"],
-                original_name=f.get("original_name", f["name"]),
+                original_name=f.get("visible_name", f["name"]),
                 size=f.get("size", 0),
                 mime_type=(
                     f.get("mime_type")

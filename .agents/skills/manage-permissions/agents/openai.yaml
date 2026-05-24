@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage Baserow Permissions"
+  short_description: "Work with permission operations and managers"
+  default_prompt: "Use $manage-permissions to add or update a Baserow permission operation or permission manager."

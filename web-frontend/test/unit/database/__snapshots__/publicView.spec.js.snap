@@ -111,6 +111,15 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                   viewFilter.filter - 0
                 </span>
               </a>
+              <teleport-stub
+                to="body"
+              >
+                <div
+                  class="filters context visibility-hidden"
+                >
+                  <!--v-if-->
+                </div>
+              </teleport-stub>
             </div>
           </li>
           <li
@@ -130,6 +139,15 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                   viewSort.sort - 0
                 </span>
               </a>
+              <teleport-stub
+                to="body"
+              >
+                <div
+                  class="sortings context visibility-hidden"
+                >
+                  <!--v-if-->
+                </div>
+              </teleport-stub>
             </div>
           </li>
           <li
@@ -149,6 +167,15 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                   viewGroupBy.groupBy - 0
                 </span>
               </a>
+              <teleport-stub
+                to="body"
+              >
+                <div
+                  class="group-bys context visibility-hidden"
+                >
+                  <!--v-if-->
+                </div>
+              </teleport-stub>
             </div>
           </li>
           <!--v-if-->
@@ -174,6 +201,15 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                   gridViewHide.hideField - 1
                 </span>
               </a>
+              <teleport-stub
+                to="body"
+              >
+                <div
+                  class="hidings context visibility-hidden"
+                >
+                  <!--v-if-->
+                </div>
+              </teleport-stub>
             </div>
           </li>
           <li
@@ -313,6 +349,24 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                 />
                  
               </a>
+              <a
+                aria-label="viewSearch.clearSearch"
+                class="header__search-clear"
+                style="display: none;"
+              >
+                <i
+                  class="iconoir-cancel"
+                />
+              </a>
+              <teleport-stub
+                to="body"
+              >
+                <div
+                  class="context visibility-hidden context--overflow-scroll"
+                >
+                  <!--v-if-->
+                </div>
+              </teleport-stub>
             </div>
           </li>
         </ul>
@@ -401,19 +455,16 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                 
               </div>
             </div>
-            <div
-              style="display: none;"
-            >
-              <div
-                class="grid-view__field-dragging"
-                style="width: 0px; left: 0px;"
-              />
-              <div
-                class="grid-view__field-target"
-                style="left: 0px;"
-              />
-            </div>
           </div>
+          <teleport-stub
+            to="body"
+          >
+            <div
+              class="context visibility-hidden context--overflow-scroll"
+            >
+              <!--v-if-->
+            </div>
+          </teleport-stub>
           <div
             class="grid-view__divider"
             style="left: 72px;"
@@ -619,6 +670,15 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                       />
                        common.summarize
                     </div>
+                    <teleport-stub
+                      to="body"
+                    >
+                      <div
+                        class="context visibility-hidden"
+                      >
+                        <!--v-if-->
+                      </div>
+                    </teleport-stub>
                   </div>
                 </div>
                 <div
@@ -635,6 +695,15 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                       />
                        common.summarize
                     </div>
+                    <teleport-stub
+                      to="body"
+                    >
+                      <div
+                        class="context visibility-hidden"
+                      >
+                        <!--v-if-->
+                      </div>
+                    </teleport-stub>
                   </div>
                 </div>
                 <div
@@ -651,23 +720,33 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                       />
                        common.summarize
                     </div>
+                    <teleport-stub
+                      to="body"
+                    >
+                      <div
+                        class="context visibility-hidden"
+                      >
+                        <!--v-if-->
+                      </div>
+                    </teleport-stub>
                   </div>
                 </div>
                 
               </div>
             </div>
+          </div>
+          <div
+            class="grid-view__field-dragging-container"
+            style="left: 0px; right: 0px; display: none;"
+          >
             <div
-              style="display: none;"
-            >
-              <div
-                class="grid-view__field-dragging"
-                style="width: 0px; left: 0px;"
-              />
-              <div
-                class="grid-view__field-target"
-                style="left: 0px;"
-              />
-            </div>
+              class="grid-view__field-dragging"
+              style="width: 0px; left: 0px;"
+            />
+            <div
+              class="grid-view__field-target"
+              style="left: 0px;"
+            />
           </div>
           <div
             class="grid-view__row-dragging-container"
@@ -682,6 +761,20 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
               style="width: 672px; top: 0px;"
             />
           </div>
+          <teleport-stub
+            to="body"
+          >
+            <div
+              class="context visibility-hidden context--overflow-scroll"
+            >
+              <!--v-if-->
+            </div>
+          </teleport-stub>
+          <teleport-stub
+            to="body"
+          >
+            <!--v-if-->
+          </teleport-stub>
         </div>
         <!--v-if-->
       </div>

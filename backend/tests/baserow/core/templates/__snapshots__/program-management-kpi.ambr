@@ -1,0 +1,459 @@
+# serializer version: 1
+# name: test_template_snapshot[program-management-kpi]
+  dict({
+    'builder': dict({
+      'Donor Reporting Portal': list([
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '',
+                  'type': 'record_selector',
+                }),
+              ]),
+              'place_in_container': '',
+              'type': 'form_container',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'button',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'table',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'simple_container',
+        }),
+      ]),
+      'Executive Dashboard': list([
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '0',
+                  'type': 'heading',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '0',
+                  'type': 'heading',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '0',
+                  'type': 'text',
+                }),
+              ]),
+              'place_in_container': '',
+              'type': 'column',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'table',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'table',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'simple_container',
+        }),
+      ]),
+      'KPI Performance Tracking': list([
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'table',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'table',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '',
+                  'type': 'input_text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '',
+                  'type': 'input_text',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '',
+                  'type': 'datetime_picker',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '',
+                  'type': 'record_selector',
+                }),
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '',
+                  'type': 'record_selector',
+                }),
+              ]),
+              'place_in_container': '',
+              'type': 'form_container',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'simple_container',
+        }),
+      ]),
+      'Login Page': list([
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'auth_form',
+        }),
+      ]),
+      'Program Health & Deliverables': list([
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '',
+                  'type': 'record_selector',
+                }),
+              ]),
+              'place_in_container': '',
+              'type': 'form_container',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'button',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'table',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'simple_container',
+        }),
+      ]),
+      'Task Execution Board': list([
+        dict({
+          'children': list([
+          ]),
+          'place_in_container': '',
+          'type': 'heading',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                  ]),
+                  'place_in_container': '',
+                  'type': 'record_selector',
+                }),
+              ]),
+              'place_in_container': '',
+              'type': 'form_container',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'button',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'heading',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'heading',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'simple_container',
+        }),
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+                dict({
+                  'children': list([
+                    dict({
+                      'children': list([
+                      ]),
+                      'place_in_container': '',
+                      'type': 'heading',
+                    }),
+                    dict({
+                      'children': list([
+                      ]),
+                      'place_in_container': '',
+                      'type': 'text',
+                    }),
+                    dict({
+                      'children': list([
+                      ]),
+                      'place_in_container': '',
+                      'type': 'text',
+                    }),
+                    dict({
+                      'children': list([
+                      ]),
+                      'place_in_container': '',
+                      'type': 'text',
+                    }),
+                    dict({
+                      'children': list([
+                      ]),
+                      'place_in_container': '',
+                      'type': 'text',
+                    }),
+                    dict({
+                      'children': list([
+                      ]),
+                      'place_in_container': '',
+                      'type': 'text',
+                    }),
+                    dict({
+                      'children': list([
+                      ]),
+                      'place_in_container': '',
+                      'type': 'heading',
+                    }),
+                    dict({
+                      'children': list([
+                        dict({
+                          'children': list([
+                            dict({
+                              'children': list([
+                              ]),
+                              'place_in_container': '1',
+                              'type': 'datetime_picker',
+                            }),
+                            dict({
+                              'children': list([
+                              ]),
+                              'place_in_container': '0',
+                              'type': 'choice',
+                            }),
+                          ]),
+                          'place_in_container': '',
+                          'type': 'column',
+                        }),
+                      ]),
+                      'place_in_container': '',
+                      'type': 'form_container',
+                    }),
+                  ]),
+                  'place_in_container': '',
+                  'type': 'simple_container',
+                }),
+              ]),
+              'place_in_container': '',
+              'type': 'repeat',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'simple_container',
+        }),
+      ]),
+      '__shared__': list([
+        dict({
+          'children': list([
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'image',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'menu',
+            }),
+            dict({
+              'children': list([
+              ]),
+              'place_in_container': '',
+              'type': 'text',
+            }),
+          ]),
+          'place_in_container': '',
+          'type': 'header',
+        }),
+      ]),
+    }),
+  })
+# ---

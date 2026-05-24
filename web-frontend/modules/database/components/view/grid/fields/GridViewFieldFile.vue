@@ -74,7 +74,7 @@
 
 <script>
 import { uuid } from '@baserow/modules/core/utils/string'
-import { isElement } from '@baserow/modules/core/utils/dom'
+import { isInsideTeleportedElement } from '@baserow/modules/core/utils/dom'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import UserFilesModal from '@baserow/modules/core/components/files/UserFilesModal'
 import { UploadFileUserFileUploadType } from '@baserow/modules/core/userFileUploadTypes'
@@ -181,9 +181,8 @@ export default {
      */
     canUnselectByClickingOutside(event) {
       return (
-        (!this.$refs.uploadModal ||
-          !isElement(this.$refs.uploadModal.$el, event.target)) &&
-        !isElement(this.$refs.fileModal.$el, event.target)
+        !isInsideTeleportedElement(this.$refs.uploadModal, event) &&
+        !isInsideTeleportedElement(this.$refs.fileModal, event)
       )
     },
     /**

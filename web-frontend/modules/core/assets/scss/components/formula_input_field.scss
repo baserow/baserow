@@ -51,7 +51,7 @@
 // Atomic comma style
 .formula-input-field__comma,
 .formula-input-field__parenthesis {
-  color: $palette-cyan-800;
+  color: $palette-cyan-900;
   font-weight: 500;
   background-color: $palette-cyan-50;
   padding: 0 8px;
@@ -65,7 +65,7 @@
 
 // Group parenthesis style
 .formula-input-field__group-parenthesis {
-  color: $palette-purple-800;
+  color: $palette-purple-900;
   font-weight: 500;
   background-color: $palette-purple-50;
   padding: 0 8px;
@@ -82,56 +82,40 @@
   padding-left: 0;
 }
 
-// Add margin-right when a function component is followed by another function component
-.function-formula-component:has(+ .function-formula-component) {
-  margin-right: 4px;
+// Spacing between adjacent formula atoms (closing parens, commas, group parens)
+.formula-input-field__parenthesis,
+.formula-input-field__comma,
+.formula-input-field__group-parenthesis {
+  &:has(
+    + :is(
+      .function-formula-component,
+      .formula-input-field__parenthesis,
+      .formula-input-field__comma,
+      .formula-input-field__group-parenthesis
+    )
+  ) {
+    margin-right: 4px;
+  }
 }
 
-// Add margin-right when a function component is followed by a group parenthesis
-.function-formula-component:has(+ .formula-input-field__group-parenthesis) {
-  margin-right: 4px;
-}
-
-// Add margin-right when a parenthesis is followed by another parenthesis
-.formula-input-field__parenthesis:has(+ .formula-input-field__parenthesis) {
-  margin-right: 4px;
-}
-
-// Add margin-right when a parenthesis is followed by a comma
-.formula-input-field__parenthesis:has(+ .formula-input-field__comma) {
-  margin-right: 4px;
-}
-
-// Add margin-right when a comma is followed by a function component
-.formula-input-field__comma:has(+ .function-formula-component) {
-  margin-right: 4px;
-}
-
-// Add margin-right when a comma is followed by a parenthesis
-.formula-input-field__comma:has(+ .formula-input-field__parenthesis) {
-  margin-right: 4px;
-}
-
-// Add margin-left when a comma is preceded by a function component
-.function-formula-component + .formula-input-field__comma {
-  margin-left: 4px;
-}
-
-// Add margin-right when a comma is followed by another comma
-.formula-input-field__comma:has(+ .formula-input-field__comma) {
-  margin-right: 4px;
-}
-
-// Add margin-right when a group parenthesis is followed by another group parenthesis
-.formula-input-field__group-parenthesis:has(
-  + .formula-input-field__group-parenthesis
+// Spacing after function components (but not before their own closing paren)
+.function-formula-component:has(
+  + :is(.function-formula-component, .formula-input-field__group-parenthesis)
 ) {
   margin-right: 4px;
 }
 
-// Add margin-right when a group parenthesis is followed by a function/operator/comma
-.formula-input-field__group-parenthesis:has(+ .function-formula-component),
-.formula-input-field__group-parenthesis:has(+ .formula-input-field__comma) {
+// Spacing before commas preceded by function components
+.function-formula-component + .formula-input-field__comma {
+  margin-left: 4px;
+}
+
+// Spacing between closing parens and operators, and between operators and functions
+:is(
+  .formula-input-field__parenthesis[data-formula-closing-paren='true'],
+  .formula-input-field__group-parenthesis[data-group-closing-paren='true']
+):has(+ .operator-formula-component),
+.operator-formula-component:has(+ .function-formula-component) {
   margin-right: 4px;
 }
 
@@ -144,4 +128,19 @@
 
 .formula-input-field__view-full-error {
   margin-left: 5px;
+}
+
+// Paren match highlight on hover (disabled for no-arg functions)
+.formula-input-field__paren-highlight:not([data-no-args='true']) {
+  &.formula-input-field__parenthesis {
+    box-shadow: inset 0 0 0 1.5px $palette-cyan-800;
+  }
+
+  &.formula-input-field__group-parenthesis {
+    box-shadow: inset 0 0 0 1.5px $palette-purple-800;
+  }
+
+  &.function-formula-component .function-formula-component__name {
+    box-shadow: inset 0 0 0 1.5px $palette-cyan-800;
+  }
 }

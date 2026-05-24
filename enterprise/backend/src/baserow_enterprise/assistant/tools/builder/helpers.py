@@ -436,7 +436,9 @@ def move_element(
 
     place = element_move.place_in_container or ""
 
-    return ElementService().move_element(user, element, parent, place, before=before)
+    return ElementService().move_element(
+        user, element.page, element, parent, place, before=before
+    )
 
 
 def update_element(

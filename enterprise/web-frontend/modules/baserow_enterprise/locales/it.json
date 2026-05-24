@@ -9,7 +9,7 @@
         "overflowWarning": "Le licenze disponibili sono terminate. Imposta gli utenti come \"viewers\" per liberare le licenze necessarie."
     },
     "clientHandler": {
-        "cannotDisableAllAuthProvidersTitle": "Ultimo provider attivo",
+        "cannotDisableAllAuthProvidersTitle": "Ultimo provider attivato",
         "cannotDisableAllAuthProvidersDescription": "Non è possibile disabilitare o cancellare l'ultimo provider attivo."
     },
     "trashType": {
@@ -105,7 +105,9 @@
         "domainAlreadyExists": "Un provider SAML per questo dominio esiste giá",
         "acsUrl": "Single Sign On URL",
         "samlResponseSettings": "Attributi risposta SAML",
-        "defaultAttrs": "Default"
+        "defaultAttrs": "Default",
+        "customAttrs": "Personalizzato",
+        "emailAttrKey": "Email"
     },
     "createSettingsAuthProviderModal": {
         "title": "Aggiungi un nuovo {type}"
@@ -243,7 +245,7 @@
             "title": "Non è stato possibile ottenere i dati",
             "description": "Un errore imprevisto ha impedito di ottenere i dati."
         },
-        "memberRolesTableTabTitle": "Tabella corrente"
+        "memberRolesTableTabTitle": "Tabella"
     },
     "memberRolesTableContexItem": {
         "label": "Gestisci membri",
@@ -347,9 +349,86 @@
         "table": "Tabella",
         "authorizing": "Stai abilitando il tuo account per prelevare i dati dalla tabella sorgente.",
         "workspace": "Workspace",
-        "database": "Database"
+        "database": "Database",
+        "view": "Vista"
     },
     "assistantMessageSources": {
         "sources": "{count} sorgente | {count} sorgenti"
+    },
+    "advanced": {
+        "license": "Avanzato"
+    },
+    "githubIssuesDataSync": {
+        "owner": "Proprietario",
+        "repo": "Repository"
+    },
+    "commonOidcSettingForm": {
+        "preview": "Anteprima"
+    },
+    "configureDataSyncPeriodicInterval": {
+        "saved": "Salvato"
+    },
+    "dataSyncPeriodicIntervalForm": {
+        "intervalLabel": "Intervallo",
+        "manual": "Manuale",
+        "daily": "Giornaliero",
+        "hourly": "Orario",
+        "hour": "Ora",
+        "minute": "Minuto",
+        "second": "Secondo"
+    },
+    "enterpriseTwoWaySyncStrategyType": {
+        "realtimePushDescription": "Consente di modificare i valori delle celle direttamente in Baserow e li spinge in tempo reale alla fonte di sincronizzazione dei dati. Nota che le modifiche non vengono recuperate in tempo reale perché dipendono dall'azione di sincronizzazione (periodica) per completarsi. È altamente raccomandato creare backup del database PostgreSQL per evitare modifiche accidentali."
+    },
+    "hubspotContactsDataSync": {
+        "accessTokenHelper": "Per generare un token di accesso privato per l'app in HubSpot, clicca su Impostazioni nella barra superiore, naviga su Integrazioni > App Private e crea una nuova app privata. Assegna i seguenti ambiti: crm.objects.contacts.read, crm.schemas.contacts.read e crm.objects.custom.read. Infine, clicca su Crea app per generare il token."
+    },
+    "gitlabIssuesDataSync": {
+        "projectIdHelper": "L'ID del progetto da cui vuoi sincronizzare le issue. Può essere trovato andando alla tua pagina del progetto (ad esempio https://gitlab.com/baserow/baserow), cliccando sui tre punti nell'angolo in alto a destra e poi su 'Copy project ID: 12345678'."
+    },
+    "fileInputElementForm": {
+        "fileTypesHelper": "Scegli quali estensioni di file sono consentite (una per riga) dall'input file (ad esempio jpg, png, svg, pdf). Puoi specificare image/*, video/* o audio/* per consentire tutti i file di questi tipi. Lascia vuoto per permettere tutti i tipi di file."
+    },
+    "dataScanner": {
+        "wholeWordsCheckbox": "Riconosci solo parole intere",
+        "wholeWordsHelp": "Quando è attiva, la funzione di scansione rileva solo parole o token completi. Ad esempio, 'DDDD' corrisponde a '1234' ma non a '12345'.",
+        "workspaceScopeLabel": "Spazi di lavoro da scansionare",
+        "scanAllWorkspaces": "Scansiona tutti gli spazi di lavoro",
+        "filterByScan": "Filtra per scansionare",
+        "allScans": "Tutte le scansioni",
+        "scanNameColumn": "Scansiona",
+        "workspaceColumn": "Spazio di lavoro",
+        "databaseColumn": "Database",
+        "tableColumn": "Tabella",
+        "fieldColumn": "Campo",
+        "rowIdColumn": "ID Riga",
+        "matchedValueColumn": "Valore abbinato",
+        "firstIdentifiedColumn": "Prima identificazione",
+        "clearFilters": "Rimuovi filtri",
+        "addWorkspace": "Aggiungi uno spazio di lavoro",
+        "scanTypePattern": "Modello",
+        "scanTypeListOfValues": "Lista di valori",
+        "scanTypeListTable": "Tabella Baserow",
+        "lastRunColumn": "Ultima esecuzione",
+        "resultsCountColumn": "Risultati",
+        "viewResults": "Vedi risultati",
+        "results": "Visualizza {count} risultato|Visualizza i {count} risultati",
+        "noResults": "Nessun risultato trovato",
+        "resolveResult": "Risolvi",
+        "resultResolved": "Risolto",
+        "exportToCsv": "Esporta in CSV",
+        "exportModalTitle": "Esporta risultati in CSV",
+        "exportFilename": "risultati_scansione_dati_{date}.csv",
+        "exportFailedTitle": "Esportazione fallita",
+        "exportFailedDescription": "Il processo di esportazione è fallito. Per favore riprova.",
+        "exportCancelledTitle": "Esportazione cancellata",
+        "exportCancelledDescription": "Il processo di esportazione è stato cancellato.",
+        "emptyTitle": "Nessuna scansione dati ad ora",
+        "emptyDescription": "Una scansione dati ti permette di scansionare automaticamente l'intera istanza o specifici spazi di lavoro per verificare se modelli (come IBAN) o testo predefinito (come identificativi univoci) siano in uso.",
+        "emptyResultsTitle": "Nessun risultato trovato",
+        "emptyResultsDescription": "Non ci sono ancora risultati di scansione. I risultati appariranno qui dopo l'esecuzione di una scansione e l'individuazione di un riscontro."
+    },
+    "deleteDataScanModal": {
+        "title": "Annulla scansione dati"
     }
 }

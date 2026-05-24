@@ -491,6 +491,11 @@ class CoreConfig(AppConfig):
         if settings.SENTRY_DSN:
             patch_user_model_str()
 
+        import baserow.core.receivers  # noqa: F401
+        from baserow.core.telemetry.telemetry import setup_logging
+
+        setup_logging()
+
     def _setup_health_checks(self):
         from health_check.plugins import plugin_dir
 

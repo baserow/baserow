@@ -72,7 +72,9 @@
         "incorrectCredentialMessage": "L'adresse électronique et/ou le mot de passe sont incorrects.",
         "inputRequired": "Ce champ est obligatoire.",
         "disabledPasswordProviderTitle": "L'authentification par mot de passe est désactivée.",
-        "disabledPasswordProviderMessage": "Veuillez utiliser un autre fournisseur d'authentification."
+        "disabledPasswordProviderMessage": "Veuillez utiliser un autre fournisseur d'authentification.",
+        "captchaVerificationFailedTitle": "Échec de la vérification par Captcha",
+        "captchaVerificationFailedMessage": "La vérification par captcha a échoué. Veuillez réessayer."
     },
     "field": {
         "language": "Langue",
@@ -433,7 +435,10 @@
             }
         },
         "prefillOrHideInfoLink": "Pré-remplir ou masquer dynamiquement",
-        "notifyUserOnSubmit": "Recevoir une notification lors de la soumission"
+        "notifyUserOnSubmit": "Recevoir une notification lors de la soumission",
+        "fields": "Colonnes",
+        "rowEditableBy": "Mettre à jour les lignes via les colonnes",
+        "rowEditableByDescription": "Les lignes de cette table peuvent être mises à jour à l'aide de ce formulaire, via les champs de modification des lignes suivants :"
     },
     "deleteAccountSettings": {
         "workspaceNotice": "Les projets sans propriétaires seront être supprimés",
@@ -707,7 +712,9 @@
     },
     "formulaInputField": {
         "errorInvalidFormula": "La formule est invalide.",
-        "advancedFormulaMode": "Mode formule avancée"
+        "advancedFormulaMode": "Mode formule avancée",
+        "invalidFormulaTitle": "Formule invalide",
+        "invalidSyntax": "Formule experte invalide, veuillez vérifier la syntaxe."
     },
     "userPasswordChangedToast": {
         "title": "Mot de passe modifié",
@@ -1252,5 +1259,25 @@
     },
     "adminWorkspaces": {
         "title": "Projets"
+    },
+    "formulaInputErrorContext": {
+        "viewFullError": "Afficher l'erreur complète"
+    },
+    "formulaInputExplorerContext": {
+        "variables": "Variables",
+        "functions": "Fonctions",
+        "operators": "Opérateurs",
+        "search": "Recherche",
+        "useRegularInputModalTitle": "Utiliser la saisie simple pour ce champ ?",
+        "useSimpleInput": "Passer en mode simple",
+        "useSimpleInputModalTitle": "Passer en mode simple ?",
+        "useAdvancedInput": "Passer en mode expert",
+        "useAdvancedInputModalTitle": "Passer en mode expert ?",
+        "modalMessage": "Si vous passez à un autre mode, la formule actuelle sera effacée. Voulez-vous vraiment continuer ?"
+    },
+    "formulaParserErrors": {
+        "invalidArgCountMin": "La fonction « {funcType} » nécessite au moins {minArgs} arguments.",
+        "invalidArgCountExact": "La fonction « {funcType} » attend exactement {minArgs} arguments.",
+        "invalidArgCountRange": "La fonction « {funcType} » attend entre {minArgs} et {maxArgs} arguments."
     }
 }

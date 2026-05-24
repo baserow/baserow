@@ -83,9 +83,6 @@ export const mutations = {
     })
     state.selected = {}
   },
-  CLEAR_CHILDREN_SELECTED(state, { type, application }) {
-    type.clearChildrenSelected(application)
-  },
 }
 
 export const actions = {
@@ -139,18 +136,7 @@ export const actions = {
     commit('UNSELECT')
     commit('SET_LOADED', false)
   },
-  /**
-   * If called all the applications that are in the state will clear their
-   * children active state if they have one.
-   */
-  // TODO MIG see other comment where this action is used
-  /*clearChildrenSelected({ commit, getters }) {
-    const { $registry } = this
-    Object.values(getters.getAll).forEach((application) => {
-      const type = $registry.get('application', application.type)
-      commit('CLEAR_CHILDREN_SELECTED', { type, application })
-    })
-  },*/
+
   /**
    * Creates a new application with the given type and values for the currently
    * selected workspace.

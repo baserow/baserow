@@ -11,7 +11,7 @@
       </p>
       <FormInput
         v-model="values.default_edge_label"
-        :placeholder="$t('nodeType.routerDefaultEdgeLabelFallback')"
+        :placeholder="$t('nodeType.defaultEdgeLabelFallback')"
       />
     </FormGroup>
     <FormSection

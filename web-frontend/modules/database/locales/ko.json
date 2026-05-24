@@ -533,14 +533,16 @@
         "EnablePassword": "비밀번호로 접근 제한",
         "DisablePassword": "비밀번호로 보호됨",
         "ChangePassword": "변경",
-        "notSharedYetText": "이 뷰의 데이터를 누구나 볼 수 있도록 허용하거나 외부 캘린더와 이벤트를 동기화하세요."
+        "notSharedYetText": "이 뷰의 데이터를 누구나 볼 수 있도록 허용하거나 외부 캘린더와 이벤트를 동기화하세요.",
+        "shareViewWarningTitle": "경고"
     },
     "viewGroupByContext": {
         "noGroupByTitle": "아직 그룹을 생성하지 않았습니다",
         "noGroupByText": "필드별로 행을 그룹화합니다.",
         "groupBy": "그룹화 기준",
         "thenBy": "다음 기준",
-        "addGroupBy": "그룹화할 필드 선택"
+        "addGroupBy": "그룹화할 필드 선택",
+        "hiddenFieldWarning": "하나 이상의 그룹화 기준이 편집자 및 하위 권한 사용자에게 표시되지 않는 숨겨진 필드를 참조합니다."
     },
     "viewGroupBy": {
         "groupBy": "그룹 | 1개의 필드로 그룹화 | {count}개의 필드로 그룹화"
@@ -550,13 +552,15 @@
         "noSortText": "정렬을 사용하면 필드별로 행을 정렬할 수 있습니다.",
         "sortBy": "정렬 기준",
         "thenBy": "다음 기준",
-        "addSort": "정렬할 필드 선택"
+        "addSort": "정렬할 필드 선택",
+        "hiddenFieldWarning": "하나 이상의 정렬 항목이 편집자 및 하위 역할 사용자에게는 표시되지 않는 숨겨진 필드를 참조합니다."
     },
     "viewSort": {
         "sort": "정렬 | 1개의 정렬 | {count}개의 정렬"
     },
     "viewDecorator": {
-        "decorator": "색상 | 1개의 색상 | {count}개의 색상"
+        "decorator": "색상 | 1개의 색상 | {count}개의 색상",
+        "hiddenFieldWarning": "편집자 및 하위 직급 사용자의 경우 숨겨진 필드를 참조할 수 있는 장식 요소가 제거됩니다."
     },
     "viewRotateSlugModal": {
         "title": "URL 새로 고침",
@@ -615,7 +619,8 @@
         "toCollaborative": "협업으로",
         "webhooks": "웹훅",
         "importFile": "파일 가져오기",
-        "deleteView": "뷰 삭제"
+        "deleteView": "뷰 삭제",
+        "defaultRowValues": "기본값 행 값"
     },
     "deleteViewModal": {
         "title": "{name} 삭제",
@@ -959,7 +964,8 @@
     "databaseImportStep": {
         "title": "데이터 가져오기",
         "description": "몇 번의 클릭만으로 데이터를 Baserow로 이동하세요.",
-        "tableNameLabel": "테이블 이름"
+        "tableNameLabel": "테이블 이름",
+        "tableNamePrefill": "{name}의 테이블"
     },
     "databaseScratchTrackFieldsStep": {
         "title": "각 행에 대한 필드 선택",
@@ -1037,7 +1043,9 @@
         "scratch": "처음부터",
         "import": "파일",
         "airtable": "에어테이블",
-        "template": "템플릿"
+        "template": "템플릿",
+        "databaseNamePrefill": "{name}의 데이터베이스",
+        "workspaceName": "{name}의 작업공간"
     },
     "ViewFilterTypeDateUpgradeToMultiStep": {
         "migrateButtonText": "다중 단계 날짜 필터로 마이그레이션",
@@ -1154,5 +1162,29 @@
         "ruleDoesNotExist": "규칙이 존재하지 않습니다",
         "ruleTypeDoesNotExist": "규칙 유형이 존재하지 않습니다",
         "ruleAlreadyExists": "규칙이 이미 존재합니다"
+    },
+    "fieldFormViewEditRowSubForm": {
+        "selectFormViewLabel": "폼 보기",
+        "description": "각 행에는 해당 행의 데이터가 미리 채워진 양식을 여는 고유 링크가 부여됩니다. 테이블과 필드에 읽기 권한이 있는 모든 사용자는 양식 보기를 통해 해당 행을 편집할 수 있으며, 공개적으로 공유된 보기의 보기 사용자 및 방문자도 편집할 수 있습니다.",
+        "notPublicWarning": "이 양식 보기 화면은 공개되어 있지 않습니다. 양식이 공개될 때까지 편집 링크가 작동하지 않습니다.",
+        "notPublic": "(비공개)",
+        "formDoesNotExist": "선택한 양식이 더 이상 존재하지 않습니다."
+    },
+    "editRowLink": {
+        "editRow": "행 편집"
+    },
+    "rowEditFieldFormViewEditRow": {
+        "copyLink": "링크 복사",
+        "noFormView": "폼 뷰가 구성되지 않았습니다"
+    },
+    "defaultValuesModal": {
+        "title": "{name}의 기본값",
+        "setDefaultValue": "기본값 설정",
+        "removeDefaultValue": "기본값을 제거합니다",
+        "staticValue": "정적 값"
+    },
+    "gridViewFreezeHandle": {
+        "freeze": "0개 열 고정 | 1개 열 고정 | {count}개 열 고정",
+        "hoverHint": "드래그하여 열을 고정하세요"
     }
 }

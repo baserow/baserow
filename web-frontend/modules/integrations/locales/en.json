@@ -23,7 +23,7 @@
     "slackBotNoToken": "Slack Bot - Not configured"
   },
   "serviceType": {
-    "localBaserowGetRow": "Get single row",
+    "localBaserowGetRow": "Get a single row",
     "localBaserowGetRowDescription": "Read a single row from a Baserow table.",
     "localBaserowListRows": "List multiple rows",
     "localBaserowListRowsDescription": "Reads multiple rows from a Baserow table.",

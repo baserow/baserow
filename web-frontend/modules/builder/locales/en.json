@@ -55,8 +55,6 @@
     "submit": "Add page"
   },
   "pageErrors": {
-    "errorNameNotUnique": "A page with this name already exists",
-    "errorNameNotUniqueDescription": "Please enter a unique name for the page",
     "errorPathNotUnique": "A path with this name already exists",
     "errorStartingSlash": "A path needs to start with a '/'",
     "errorValidPathCharacters": "The path contains invalid characters",
@@ -186,6 +184,7 @@
     "formElement": "Form elements"
   },
   "elementMenu": {
+    "drag": "Drag to reorder",
     "moveUp": "Move up",
     "moveDown": "Move down",
     "moveLeft": "Move left",

@@ -117,6 +117,33 @@ describe('Dropdown component', () => {
     expect(wrapper.element).toMatchSnapshot()
   })
 
+  test('clearable single select clears when choosing the active value', async () => {
+    let wrapper = null
+
+    const onInput = vi.fn(async (newVal) => {
+      wrapper.setProps({ value: newVal })
+      await wrapper.vm.$nextTick()
+    })
+
+    wrapper = await mountComponent({
+      props: { value: 'a', clearable: true },
+      slots: {
+        default: `<DropdownItem value="a" name="A"/>
+          <DropdownItem value="b" name="B"/>`,
+      },
+      listeners: { input: onInput },
+    })
+
+    await wrapper.find('.dropdown__selected').trigger('click')
+    await wrapper
+      .find('.select__items :nth-child(1)')
+      .find('.select__item-link')
+      .trigger('click')
+    await wrapper.vm.$nextTick()
+
+    expect(onInput).toHaveBeenLastCalledWith(null)
+  })
+
   test('focus', async () => {
     let wrapper = null
 

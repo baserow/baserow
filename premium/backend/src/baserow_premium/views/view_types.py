@@ -139,7 +139,7 @@ class KanbanViewType(ViewType):
         self,
         kanban: View,
         import_export_config: ImportExportConfig,
-        cache: Optional[Dict] = None,
+        cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
     ):
@@ -176,6 +176,7 @@ class KanbanViewType(ViewType):
         serialized_values: Dict[str, Any],
         import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Any],
+        cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> Optional[View]:
@@ -196,7 +197,13 @@ class KanbanViewType(ViewType):
 
         field_options = serialized_copy.pop("field_options")
         kanban_view = super().import_serialized(
-            table, serialized_copy, import_export_config, id_mapping, files_zip, storage
+            table,
+            serialized_copy,
+            import_export_config,
+            id_mapping,
+            cache,
+            files_zip,
+            storage,
         )
 
         if kanban_view is not None:
@@ -396,7 +403,7 @@ class CalendarViewType(ViewType):
         self,
         calendar: View,
         import_export_config: ImportExportConfig,
-        cache: Optional[Dict] = None,
+        cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
     ):
@@ -430,6 +437,7 @@ class CalendarViewType(ViewType):
         serialized_values: Dict[str, Any],
         import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Any],
+        cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> View:
@@ -446,7 +454,13 @@ class CalendarViewType(ViewType):
 
         field_options = serialized_copy.pop("field_options")
         calendar_view = super().import_serialized(
-            table, serialized_copy, import_export_config, id_mapping, files_zip, storage
+            table,
+            serialized_copy,
+            import_export_config,
+            id_mapping,
+            cache,
+            files_zip,
+            storage,
         )
 
         if calendar_view is not None:
@@ -712,7 +726,7 @@ class TimelineViewType(ViewType):
         self,
         timeline: View,
         import_export_config: ImportExportConfig,
-        cache: Optional[Dict] = None,
+        cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
     ):
@@ -748,6 +762,7 @@ class TimelineViewType(ViewType):
         serialized_values: Dict[str, Any],
         import_export_config: ImportExportConfig,
         id_mapping: Dict[str, Any],
+        cache: Dict,
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
     ) -> View:
@@ -767,7 +782,13 @@ class TimelineViewType(ViewType):
 
         field_options = serialized_copy.pop("field_options")
         timeline_view = super().import_serialized(
-            table, serialized_copy, import_export_config, id_mapping, files_zip, storage
+            table,
+            serialized_copy,
+            import_export_config,
+            id_mapping,
+            cache,
+            files_zip,
+            storage,
         )
 
         if "database_timeline_view_field_options" not in id_mapping:

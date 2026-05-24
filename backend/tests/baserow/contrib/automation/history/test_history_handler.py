@@ -60,6 +60,7 @@ def test_create_workflow_history(data_fixture):
     now = timezone.now()
     history = AutomationHistoryHandler().create_workflow_history(
         original_workflow,
+        original_workflow,
         now,
         False,
     )
@@ -94,6 +95,7 @@ def test_get_workflow_history(data_fixture):
     workflow = data_fixture.create_automation_workflow()
     history = AutomationHistoryHandler().create_workflow_history(
         workflow,
+        workflow,
         timezone.now(),
         False,
     )
@@ -115,6 +117,7 @@ def test_get_workflow_history_does_not_exist(data_fixture):
 def test_get_workflow_history_respects_base_queryset(data_fixture):
     workflow = data_fixture.create_automation_workflow()
     history = AutomationHistoryHandler().create_workflow_history(
+        workflow,
         workflow,
         timezone.now(),
         False,

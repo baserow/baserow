@@ -9,7 +9,6 @@ from baserow.contrib.builder.pages.exceptions import (
     DuplicatePathParamsInPath,
     InvalidQueryParamName,
     PageDoesNotExist,
-    PageNameNotUnique,
     PageNotInBuilder,
     PagePathNotUnique,
     PathParamNotDefined,
@@ -59,8 +58,8 @@ def test_create_page(data_fixture):
 def test_create_page_page_name_not_unique(data_fixture):
     page = data_fixture.create_builder_page(name="test", path="/test")
 
-    with pytest.raises(PageNameNotUnique):
-        PageHandler().create_page(page.builder, name="test", path="/new")
+    new_page = PageHandler().create_page(page.builder, name="test", path="/new")
+    assert new_page.name == page.name
 
 
 @pytest.mark.django_db
@@ -152,9 +151,9 @@ def test_update_shared_page(data_fixture):
 def test_update_page_page_name_not_unique(data_fixture):
     page = data_fixture.create_builder_page(name="test")
     page_two = data_fixture.create_builder_page(builder=page.builder, name="test2")
-
-    with pytest.raises(PageNameNotUnique):
-        PageHandler().update_page(page_two, name=page.name)
+    PageHandler().update_page(page_two, name=page.name)
+    page_two.refresh_from_db()
+    assert page_two.name == page.name
 
 
 @pytest.mark.django_db

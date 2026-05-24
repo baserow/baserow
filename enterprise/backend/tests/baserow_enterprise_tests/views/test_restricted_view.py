@@ -6,7 +6,12 @@ from django.test.utils import CaptureQueriesContext, override_settings
 from django.urls import reverse
 
 import pytest
-from starlette.status import HTTP_200_OK, HTTP_401_UNAUTHORIZED, HTTP_404_NOT_FOUND
+from starlette.status import (
+    HTTP_200_OK,
+    HTTP_400_BAD_REQUEST,
+    HTTP_401_UNAUTHORIZED,
+    HTTP_404_NOT_FOUND,
+)
 
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
 from baserow.contrib.database.fields.models import DateField
@@ -2843,4 +2848,31 @@ def test_editor_with_view_access_can_comment_on_rows(
     )
     assert response.status_code != 200, (
         "Commenter should not be able to comment on a row outside the view's filters"
+    )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_cannot_create_form_view_with_restricted_ownership_type(
+    enterprise_data_fixture, api_client
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    table = enterprise_data_fixture.create_database_table(user=user)
+
+    response = api_client.post(
+        reverse("api:database:views:list", kwargs={"table_id": table.id}),
+        {
+            "name": "Test Form",
+            "type": "form",
+            "ownership_type": "restricted",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert (
+        response.json()["error"]
+        == "ERROR_VIEW_OWNERSHIP_TYPE_INCOMPATIBLE_WITH_VIEW_TYPE"
     )

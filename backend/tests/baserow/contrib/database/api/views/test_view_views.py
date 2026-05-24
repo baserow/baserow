@@ -43,6 +43,7 @@ def clean_registry_cache():
 
     view_type_registry.get_for_class.cache_clear()
     yield
+    view_type_registry.get_for_class.cache_clear()
 
 
 @pytest.mark.django_db
@@ -1017,6 +1018,7 @@ def test_user_with_password_can_get_info_about_a_public_password_protected_view(
             "type": "grid",
             "row_identifier_type": grid_view.row_identifier_type,
             "row_height_size": grid_view.row_height_size,
+            "frozen_column_count": 1,
             "show_logo": grid_view.show_logo,
             "allow_public_export": grid_view.allow_public_export,
             "ownership_type": "collaborative",
@@ -1048,6 +1050,7 @@ def test_user_with_password_can_get_info_about_a_public_password_protected_view(
             "type": "grid",
             "row_identifier_type": grid_view.row_identifier_type,
             "row_height_size": grid_view.row_height_size,
+            "frozen_column_count": 1,
             "show_logo": grid_view.show_logo,
             "allow_public_export": grid_view.allow_public_export,
             "ownership_type": "collaborative",

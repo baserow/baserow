@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes if() formulas in the Application Builder silently rendering nothing when the condition references an empty field",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-04-21"
+}

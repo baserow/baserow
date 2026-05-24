@@ -35,7 +35,6 @@
         :view="view"
         :all-fields-in-table="allFieldsInTable"
         :visible-fields="visibleFields"
-        :include-field-width-handles="includeFieldWidthHandles"
         :include-row-details="includeRowDetails"
         :include-add-field="includeAddField"
         :include-grid-view-identifier-dropdown="
@@ -46,11 +45,7 @@
         :store-prefix="storePrefix"
         @field-created="$emit('field-created', $event)"
         @refresh="$emit('refresh', $event)"
-        @dragging="
-          canOrderFields &&
-          !$event.field.primary &&
-          $refs.fieldDragging.start($event.field, $event.event)
-        "
+        @dragging="handleFieldDragging($event)"
       ></GridViewHead>
       <div
         ref="body"
@@ -85,11 +80,11 @@
             :view="view"
             :rendered-fields="fieldsToRender"
             :visible-fields="visibleFields"
+            :all-visible-fields="allVisibleFields"
             :all-fields-in-table="allFieldsInTable"
             :workspace-id="database.workspace.id"
             :decorations-by-place="decorationsByPlace"
             :left-offset="fieldsLeftOffset"
-            :primary-field-is-sticky="primaryFieldIsSticky"
             :include-row-details="includeRowDetails"
             :include-group-by="includeGroupBy"
             :rows-at-end-of-groups="rowsAtEndOfGroups"
@@ -165,24 +160,6 @@
         </div>
       </div>
     </div>
-    <GridViewFieldDragging
-      ref="fieldDragging"
-      :view="view"
-      :fields="draggingFields"
-      :offset="draggingOffset"
-      :container-width="width"
-      :read-only="
-        readOnly ||
-        !$hasPermission(
-          'database.table.view.update_field_options',
-          view,
-          database.workspace.id
-        )
-      "
-      :store-prefix="storePrefix"
-      :get-scroll-element="getScrollElement"
-      @scroll="$emit('scroll', $event)"
-    ></GridViewFieldDragging>
   </div>
 </template>
 
@@ -194,7 +171,6 @@ import GridViewPlaceholder from '@baserow/modules/database/components/view/grid/
 import GridViewGroups from '@baserow/modules/database/components/view/grid/GridViewGroups'
 import GridViewRows from '@baserow/modules/database/components/view/grid/GridViewRows'
 import GridViewRowAdd from '@baserow/modules/database/components/view/grid/GridViewRowAdd'
-import GridViewFieldDragging from '@baserow/modules/database/components/view/grid/GridViewFieldDragging'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewFieldFooter from '@baserow/modules/database/components/view/grid/GridViewFieldFooter'
 import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
@@ -209,12 +185,15 @@ export default {
     GridViewGroups,
     GridViewRows,
     GridViewRowAdd,
-    GridViewFieldDragging,
     GridViewFieldFooter,
   },
   mixins: [gridViewHelpers],
   props: {
     visibleFields: {
+      type: Array,
+      required: true,
+    },
+    allVisibleFields: {
       type: Array,
       required: true,
     },
@@ -237,11 +216,6 @@ export default {
     view: {
       type: Object,
       required: true,
-    },
-    includeFieldWidthHandles: {
-      type: Boolean,
-      required: false,
-      default: () => true,
     },
     includeRowDetails: {
       type: Boolean,
@@ -267,11 +241,6 @@ export default {
       type: Boolean,
       required: false,
       default: () => false,
-    },
-    primaryFieldIsSticky: {
-      type: Boolean,
-      required: false,
-      default: () => true,
     },
     readOnly: {
       type: Boolean,
@@ -302,6 +271,7 @@ export default {
     'row-context',
     'scroll',
     'field-created',
+    'field-dragging',
     'refresh',
   ],
   data() {
@@ -336,20 +306,6 @@ export default {
       }
 
       return width
-    },
-    draggingFields() {
-      return this.visibleFields.filter((f) => !f.primary)
-    },
-    draggingOffset() {
-      let offset = this.visibleFields
-        .filter((f) => f.primary)
-        .reduce((sum, f) => sum + this.getFieldWidth(f), 0)
-
-      if (this.includeRowDetails) {
-        offset += this.gridViewRowDetailsWidth
-      }
-
-      return offset
     },
     groupByDividers() {
       if (!this.includeGroupBy) {
@@ -602,6 +558,10 @@ export default {
     }
   },
   methods: {
+    handleFieldDragging(event) {
+      if (!this.canOrderFields || event.field.primary) return
+      this.$emit('field-dragging', event)
+    },
     /**
      * For performance reasons we only want to render the cells are visible in the
      * viewport. This method makes sure that the right cells/fields are visible. It's

@@ -8,7 +8,6 @@ from rest_framework import status
 
 from baserow.config.db_routers import clear_db_state
 from baserow.core.handler import CoreHandler
-from baserow.throttling import ConcurrentUserRequestsThrottle
 
 
 def json_error_404_add_trailing_slash(path: str) -> HttpResponse:
@@ -63,23 +62,6 @@ class BaserowCustomHttp404Middleware:
                 return json_error_404_add_trailing_slash(path)
             else:
                 return json_error_404_not_found(path)
-        return response
-
-
-class ConcurrentUserRequestsMiddleware:
-    """
-    This middleware is used as counterpart of the
-    `ConcurrentUserRequestsThrottle` to remove the request id from the throttle
-    cache once processed. This is needed because the throttle is
-    not aware of the request lifecycle and therefore can't remove it by itself.
-    """
-
-    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]):
-        self.get_response = get_response
-
-    def __call__(self, request: HttpRequest) -> HttpResponse:
-        response = self.get_response(request)
-        ConcurrentUserRequestsThrottle.on_request_processed(request)
         return response
 
 

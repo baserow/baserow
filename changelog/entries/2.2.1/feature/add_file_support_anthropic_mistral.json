@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Add file attachment support for Anthropic, Mistral and other AI field providers",
+    "issue_origin": "github",
+    "issue_number": 5154,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-09"
+}

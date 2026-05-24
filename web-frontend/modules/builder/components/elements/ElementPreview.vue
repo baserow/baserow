@@ -9,8 +9,18 @@
       'element-preview--on-top': isSelected && isAboveThreshold,
       'element-preview--not-visible':
         !isVisible && !isSelected && !isParentOfSelectedElement,
+      'element-preview--dragged': isDragged,
+      'element-preview--drop-before': isDropTarget && dropPosition === 'before',
+      'element-preview--drop-after': isDropTarget && dropPosition === 'after',
     }"
+    :draggable="isDraggable"
     @click="onSelect"
+    @dragstart.stop="onDragStart"
+    @dragend="onDragEnd"
+    @dragenter="onDragEnter"
+    @dragover="onDragOver"
+    @dragleave="onDragLeave"
+    @drop="onDrop"
   >
     <div v-if="isSelected" class="element-preview__tags">
       <div class="element-preview__name-tag">
@@ -37,6 +47,7 @@
       @move="onMove"
       @duplicate="duplicateElement"
       @select-parent="selectParentElement()"
+      @drag-handle-mousedown="onDragHandleMouseDown"
     />
     <PageElement
       :element="element"
@@ -61,15 +72,18 @@
 </template>
 
 <script>
+import { computed, inject } from 'vue'
+import { useStore, mapActions, mapGetters } from 'vuex'
 import ElementMenu from '@baserow/modules/builder/components/elements/ElementMenu'
 import InsertElementButton from '@baserow/modules/builder/components/elements/InsertElementButton'
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { DIRECTIONS } from '@baserow/modules/builder/enums'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { mapActions, mapGetters } from 'vuex'
 import { checkIntermediateElements } from '@baserow/modules/core/utils/dom'
 import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
+import { useElementDraggable } from '@baserow/modules/builder/composables/useElementDraggable'
+import { useDropElementTarget } from '@baserow/modules/builder/composables/useDropElementTarget'
 
 export default {
   name: 'ElementPreview',
@@ -98,6 +112,34 @@ export default {
     },
   },
   emits: ['move'],
+  setup(props) {
+    const store = useStore()
+    const builder = inject('builder')
+
+    const elementPage = computed(() =>
+      store.getters['page/getById'](builder, props.element.page_id)
+    )
+    const parentElement = computed(() => {
+      if (!props.element.parent_element_id) {
+        return null
+      }
+
+      return store.getters['element/getElementById'](
+        elementPage.value,
+        props.element.parent_element_id
+      )
+    })
+    return {
+      ...useElementDraggable({ element: props.element }),
+      ...useDropElementTarget({
+        parentElement,
+        referenceElement: props.element,
+        placeInContainer: props.element.place_in_container,
+      }),
+      parentElement,
+      elementPage,
+    }
+  },
   data() {
     return {
       isDuplicating: false,
@@ -124,13 +166,6 @@ export default {
     },
     elementSelected() {
       return this.getElementSelected(this.builder)
-    },
-    elementPage() {
-      // We use the page from the element itself
-      return this.$store.getters['page/getById'](
-        this.builder,
-        this.element.page_id
-      )
     },
     isVisible() {
       return this.elementType.isVisible({
@@ -206,15 +241,6 @@ export default {
     },
     elementType() {
       return this.$registry.get('element', this.element.type)
-    },
-    parentElement() {
-      if (!this.element.parent_element_id) {
-        return null
-      }
-      return this.$store.getters['element/getElementById'](
-        this.elementPage,
-        this.element.parent_element_id
-      )
     },
     errorMessage() {
       return this.elementType.getErrorMessage(

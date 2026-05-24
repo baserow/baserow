@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix missing data during dispatch because of previous page visibility",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-05-06"
+}

@@ -117,7 +117,7 @@ export default {
     modelTypes() {
       return this.$registry
         .getOrderedList('generativeAIModel')
-        .filter((modelType) => modelType.getSettings() !== null)
+        .filter((modelType) => modelType.getSettings().length > 0)
         .map((modelType) => [modelType.getType(), modelType])
     },
   },

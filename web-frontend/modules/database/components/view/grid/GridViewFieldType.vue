@@ -282,7 +282,6 @@
         </li>
       </FieldContext>
       <HorizontalResize
-        v-if="includeFieldWidthHandles"
         class="grid-view__description-width"
         :width="width"
         :min="GRID_VIEW_MIN_FIELD_WIDTH"
@@ -330,10 +329,6 @@ export default {
     field: {
       type: Object,
       required: true,
-    },
-    includeFieldWidthHandles: {
-      type: Boolean,
-      required: false,
     },
     readOnly: {
       type: Boolean,
@@ -402,6 +397,13 @@ export default {
         )
       )
     },
+    canUpdateField() {
+      return this.$hasPermission(
+        'database.table.field.update',
+        this.field,
+        this.database.workspace.id
+      )
+    },
     synced() {
       if (!this.table.data_sync) {
         return false
@@ -436,7 +438,10 @@ export default {
       this.$refs.context.hide()
     },
     async handleQuickEdit() {
-      if (this.readOnly) return false
+      if (this.readOnly || !this.canUpdateField || !this.$refs.context) {
+        return false
+      }
+
       await this.$refs.context.toggle(
         this.$refs.quickEditLink,
         'bottom',

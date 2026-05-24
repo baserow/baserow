@@ -201,24 +201,77 @@ uv *ARGS:
 # Code Quality & Linting
 # =============================================================================
 
-# Run all lint checks
+# Run all lint checks. Pass file paths to lint only those files (repo-root-relative,
+# e.g. backend/src/foo.py). Paths outside the backend trees are silently skipped.
 [group('4 - code-quality')]
-check: _check-dev
+[positional-arguments]
+check *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-   
-    {{ uv_run }} ruff check --config pyproject.toml {{ backend_source_dirs }} {{ backend_tests_dirs }}
-    {{ uv_run }} ruff format --config pyproject.toml --check {{ backend_source_dirs }} {{ backend_tests_dirs }}
 
-alias lint := check 
+    if [ $# -eq 0 ]; then
+        {{ uv_run }} ruff check --config pyproject.toml {{ backend_source_dirs }} {{ backend_tests_dirs }}
+        {{ uv_run }} ruff format --config pyproject.toml --check {{ backend_source_dirs }} {{ backend_tests_dirs }}
+        exit 0
+    fi
+
+    PY_FILES=()
+    for f in "$@"; do
+        case "$f" in
+            *.py) ;;
+            *) continue ;;
+        esac
+        # Rewrite repo-root-relative paths to backend-relative so ruff runs from
+        # backend/ — matching the no-args invocation. This is required so ruff's
+        # src auto-detection and per-file-ignores resolve consistently.
+        case "$f" in
+            backend/*) PY_FILES+=("${f#backend/}") ;;
+            premium/backend/*|enterprise/backend/*) PY_FILES+=("../$f") ;;
+            *) continue ;;
+        esac
+    done
+    if [ ${#PY_FILES[@]} -eq 0 ]; then
+        exit 0
+    fi
+    {{ uv_run }} ruff check --config pyproject.toml "${PY_FILES[@]}"
+    {{ uv_run }} ruff format --config pyproject.toml --check "${PY_FILES[@]}"
+
+alias lint := check
 alias l := check
 
-# Fix code style (sort imports + format)
+# Fix code style (sort imports + format). Pass file paths to fix only those files
+# (repo-root-relative, e.g. backend/src/foo.py). Paths outside the backend trees
+# are silently skipped.
 [group('4 - code-quality')]
-fix: _check-dev
-    {{ uv_run }} ruff check --config pyproject.toml --fix {{ backend_source_dirs }} {{ backend_tests_dirs }}
-    {{ uv_run }} ruff format --config pyproject.toml {{ backend_source_dirs }} {{ backend_tests_dirs }}
+[positional-arguments]
+fix *ARGS: _check-dev
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    if [ $# -eq 0 ]; then
+        {{ uv_run }} ruff check --config pyproject.toml --fix {{ backend_source_dirs }} {{ backend_tests_dirs }}
+        {{ uv_run }} ruff format --config pyproject.toml {{ backend_source_dirs }} {{ backend_tests_dirs }}
+        exit 0
+    fi
+
+    PY_FILES=()
+    for f in "$@"; do
+        case "$f" in
+            *.py) ;;
+            *) continue ;;
+        esac
+        case "$f" in
+            backend/*) PY_FILES+=("${f#backend/}") ;;
+            premium/backend/*|enterprise/backend/*) PY_FILES+=("../$f") ;;
+            *) continue ;;
+        esac
+    done
+    if [ ${#PY_FILES[@]} -eq 0 ]; then
+        exit 0
+    fi
+    {{ uv_run }} ruff check --config pyproject.toml --fix "${PY_FILES[@]}"
+    {{ uv_run }} ruff format --config pyproject.toml "${PY_FILES[@]}"
 
 alias format := fix
 alias f := fix
@@ -340,7 +393,7 @@ check-migrations: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    
+
     DJANGO_SETTINGS_MODULE={{ django_settings }} {{ uv_run }} baserow makemigrations --dry-run --check
 
 # =============================================================================

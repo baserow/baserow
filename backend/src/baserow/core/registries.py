@@ -627,6 +627,21 @@ class ApplicationType(
 
         return None
 
+    def serialize_for_regression_testing(
+        self, application: "Application"
+    ) -> dict | None:
+        """
+        Optionally serialize the application state for regression snapshot testing.
+
+        Override in subclasses to capture a human-readable, ID-free representation of
+        the application structure. Return None to opt this application type out.
+
+        :param application: The specific application instance.
+        :return: A serializable dict, or None to skip this application type.
+        """
+
+        return None
+
 
 ApplicationSubClassInstance = TypeVar(
     "ApplicationSubClassInstance", bound="Application"

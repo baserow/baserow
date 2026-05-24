@@ -15,5 +15,10 @@ export default (client) => {
     delete(viewGroupById) {
       return client.delete(`/database/views/group_by/${viewGroupById}/`)
     },
+    prioritize(viewId, viewGroupByIds) {
+      return client.post(`/database/views/${viewId}/group_bys/prioritize/`, {
+        view_group_by_ids: viewGroupByIds,
+      })
+    },
   }
 }

@@ -335,17 +335,22 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         self, ai_output_type, ai_type, model_type, ai_file_field_id, workspace=None
     ):
         ai_field_output_registry.get(ai_output_type)
-        ai_type = generative_ai_model_type_registry.get(ai_type)
-        models = ai_type.get_enabled_models(workspace=workspace)
-        if model_type not in models:
-            raise ModelDoesNotBelongToType(model_name=model_type)
+        if ai_type is not None:
+            ai_type = generative_ai_model_type_registry.get(ai_type)
+            models = ai_type.get_enabled_models(workspace=workspace)
+            if model_type not in models:
+                raise ModelDoesNotBelongToType(model_name=model_type)
         if ai_file_field_id is not None and not ai_type.supports_files:
             raise GenerativeAITypeDoesNotSupportFileField()
 
     def get_field_dependencies(
         self, field_instance: AIField, field_cache: "FieldCache"
     ) -> FieldDependencies:
-        field_ids = extract_field_id_dependencies(field_instance.ai_prompt["formula"])
+        field_ids = set(
+            extract_field_id_dependencies(field_instance.ai_prompt["formula"])
+        )
+        if field_instance.ai_file_field_id is not None:
+            field_ids.add(field_instance.ai_file_field_id)
         existing_field_ids = set(
             Field.objects.filter(id__in=field_ids).values_list("id", flat=True)
         )
@@ -504,6 +509,20 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             serialized_values = serialized_values.copy()
             serialized_values.pop("ai_auto_update_user_id", None)
             serialized_values["ai_auto_update"] = False
+
+        ai_type = serialized_values.get("ai_generative_ai_type")
+        generative_ai_type = None
+        if ai_type is not None:
+            try:
+                generative_ai_type = generative_ai_model_type_registry.get(ai_type)
+            except GenerativeAITypeDoesNotExist:
+                serialized_values["ai_generative_ai_type"] = None
+
+        ai_file_field_id = serialized_values.get("ai_file_field_id")
+        if generative_ai_type is not None and ai_file_field_id is not None:
+            if not generative_ai_type.supports_files:
+                serialized_values["ai_file_field_id"] = None
+
         return super().import_serialized(
             table,
             serialized_values,
@@ -520,9 +539,25 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
     ):
         save = False
         if field.ai_file_field_id:
-            field.ai_file_field_id = id_mapping["database_fields"][
+            mapped_ai_file_field_id = id_mapping["database_fields"][
                 field.ai_file_field_id
             ]
+            table_model = field_cache.get_model(field.table)
+
+            try:
+                file_field_object = table_model.get_field_object_by_id(
+                    mapped_ai_file_field_id
+                )
+                file_field = file_field_object.get("field")
+                field_type = file_field_object.get("type")
+            except ValueError:
+                file_field = None
+                field_type = None
+
+            if field_type and field_type.can_represent_files(file_field):
+                field.ai_file_field_id = mapped_ai_file_field_id
+            else:
+                field.ai_file_field_id = None
             save = True
 
         if field.ai_prompt:

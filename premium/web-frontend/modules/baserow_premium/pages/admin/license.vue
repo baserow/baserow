@@ -224,10 +224,23 @@ const { data, error } = await useAsyncData(
         route.params.id
       )
       return licenseData
-    } catch {
+    } catch (e) {
+      const statusCode = e.response?.status || 500
+
+      if (statusCode === 404) {
+        throw createError({
+          statusCode: 404,
+          message: 'The license was not found.',
+          data: {
+            report: false,
+          },
+          fatal: true,
+        })
+      }
       throw createError({
-        statusCode: 404,
-        message: 'The license was not found.',
+        statusCode: statusCode,
+        message: 'Something went wrong while fetching the licenses.',
+        fatal: true,
       })
     }
   }

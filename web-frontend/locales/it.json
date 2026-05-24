@@ -75,7 +75,7 @@
         "builderDefaultName": "Applicazione senza nome",
         "cantSelectPageTitle": "Non è possibile selezionare l'applicazione.",
         "cantSelectPageDescription": "L'application builder non può essere selezionato perché non ci sono pagine. Utilizza il menu laterale per crearne una.",
-        "databases": "Database",
+        "databases": "Databases",
         "databaseDesc": "Crea una collezione di dati strutturati.",
         "builders": "Applicazioni",
         "builderDesc": "Crea facilmente siti web, applicazioni e portali senza codice.",
@@ -148,7 +148,7 @@
         "multipleSelect": "Selezione multipla",
         "phoneNumber": "Numero di telefono",
         "formula": "Formula",
-        "lookup": "Cerca",
+        "lookup": "Ricerca",
         "multipleCollaborators": "Collaboratori",
         "count": "Conteggio",
         "rollup": "Rollup",
@@ -167,7 +167,8 @@
         "lastModifiedBy": "Ultima modifica di",
         "ai": "Prompt IA",
         "multipleCollaboratorsDropdown": "Menu",
-        "multipleCollaboratorsCheckboxes": "Checkbox"
+        "multipleCollaboratorsCheckboxes": "Checkbox",
+        "formViewEditRowShareWarning": "Chiunque abbia il link condiviso può modificare le righe tramite il modulo {formNames} attraverso i campi link per modificare la riga visibili pubblicamente.|Chiunque abbia il link condiviso può modificare le righe tramite i moduli {formNames} attraverso il campo link per modificare la riga visibile pubblicamente."
     },
     "fieldErrors": {
         "invalidNumber": "Numero non valido",

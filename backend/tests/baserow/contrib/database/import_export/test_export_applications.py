@@ -258,7 +258,12 @@ def test_exported_files_checksum(
 
     with zipfile.ZipFile(file_path, "r") as zip_ref:
         manifest_data = handler.validate_manifest(zip_ref)
-        handler.extract_files_from_zip(path, zip_ref, storage)
+        handler.extract_files_from_zip(
+            path,
+            zip_ref,
+            storage,
+            allowed_files=handler._build_allowed_files(manifest_data),
+        )
         checksums = manifest_data["checksums"]
         db_files = manifest_data["applications"]["database"]["items"][0]["files"]
         database_file = db_files["schema"]

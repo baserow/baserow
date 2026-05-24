@@ -2,6 +2,7 @@
   @include absolute(0);
 
   overflow: hidden;
+  isolation: isolate;
 
   .scrollbars__vertical-wrapper {
     // We don't want to scrollbar to go over the header and footer.
@@ -52,6 +53,14 @@
 .grid-view__left {
   left: 0;
   background-color: $palette-neutral-25;
+
+  // Let the last frozen column's resize handle extend past the boundary.
+  overflow: visible;
+  z-index: 4; // Above right section (1) and divider (3).
+
+  .grid-view__inner {
+    overflow: visible;
+  }
 }
 
 // The width of the first column can be adjusted that is why the left offset is
@@ -96,6 +105,82 @@
   z-index: 3;
 }
 
+// The freeze handle starts below the header (33px) so it doesn't block
+// per-field column width resize handles in the header.
+.grid-view__freeze-handle {
+  @include absolute(33px, auto, 0, auto);
+
+  width: 12px;
+  margin-left: -6px;
+  z-index: 4;
+  cursor: col-resize;
+
+  &::before {
+    content: '';
+
+    @include absolute(0, 5px, 0, 5px);
+
+    border-radius: 2px;
+    transition:
+      background-color 0.1s ease,
+      right 0.1s ease,
+      left 0.1s ease;
+  }
+
+  &:hover::before {
+    background-color: $color-primary-500;
+  }
+
+  // During drag, increase z-index to stay on top. Line stays below header.
+  &--dragging {
+    z-index: 5;
+
+    &::before {
+      background-color: $color-primary-500;
+    }
+  }
+}
+
+// Grip handle: small solid pill that follows the cursor along the line.
+.grid-view__freeze-handle-grip {
+  position: absolute;
+  left: 50%;
+  width: 8px;
+  height: 20px;
+  margin-left: -4px;
+  border-radius: 4px;
+  background-color: $color-primary-500;
+  pointer-events: none;
+  z-index: 6;
+  transition: background-color 0.1s ease;
+}
+
+// Vertical snap preview line shown at the target column boundary during drag.
+.grid-view__freeze-snap-line {
+  @include absolute(0, auto, 0, auto);
+
+  width: 2px;
+  margin-left: -1px;
+  background-color: $color-primary-500;
+  opacity: 0.5;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.grid-view__freeze-handle-tooltip {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  padding: 4px 8px;
+  background-color: $palette-neutral-1200;
+  color: $white;
+  font-size: 12px;
+  border-radius: 4px;
+  pointer-events: none;
+  z-index: 10;
+}
+
 .grid-view__head {
   @include absolute(0, 0, auto, 0);
 
@@ -103,6 +188,10 @@
   height: 33px;
   background-color: $palette-neutral-25;
   border-bottom: 1px solid $palette-neutral-400;
+}
+
+.grid-view__left .grid-view__head {
+  overflow: visible;
 }
 
 .grid-view__head-row-identifier {
@@ -213,7 +302,10 @@
 
   border-right: 1px solid $palette-neutral-200;
 
-  &.grid-view__placeholder-column--no-border-right,
+  &.grid-view__placeholder-column--no-border-right {
+    border-right: none;
+  }
+
   .grid-view__left & {
     border-right: none;
   }
@@ -337,8 +429,11 @@
     border-bottom: 0;
   }
 
-  &.grid-view__column--no-border-right,
-  .grid-view__left & {
+  &.grid-view__column--no-border-right {
+    border-right: none;
+  }
+
+  .grid-view__left &:last-child {
     border-right: none;
   }
 
@@ -758,6 +853,14 @@
   &.hover {
     background-color: $palette-neutral-50;
   }
+}
+
+.grid-view__field-dragging-container {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
+  z-index: 4;
 }
 
 .grid-view__field-dragging {

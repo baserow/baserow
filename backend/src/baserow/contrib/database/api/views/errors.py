@@ -59,6 +59,11 @@ ERROR_VIEW_SORT_FIELD_NOT_SUPPORTED = (
     HTTP_400_BAD_REQUEST,
     "The field does not support view sorting on the given type.",
 )
+ERROR_VIEW_SORT_NOT_IN_VIEW = (
+    "ERROR_VIEW_SORT_NOT_IN_VIEW",
+    HTTP_400_BAD_REQUEST,
+    "The view sort id {e.view_sort_id} does not belong to the view.",
+)
 ERROR_VIEW_GROUP_BY_DOES_NOT_EXIST = (
     "ERROR_VIEW_GROUP_BY_DOES_NOT_EXIST",
     HTTP_404_NOT_FOUND,
@@ -78,6 +83,11 @@ ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED = (
     "ERROR_VIEW_GROUP_BY_FIELD_NOT_SUPPORTED",
     HTTP_400_BAD_REQUEST,
     "The field does not support view grouping.",
+)
+ERROR_VIEW_GROUP_BY_NOT_IN_VIEW = (
+    "ERROR_VIEW_GROUP_BY_NOT_IN_VIEW",
+    HTTP_400_BAD_REQUEST,
+    "The view group by id {e.view_group_by_id} does not belong to the view.",
 )
 ERROR_UNRELATED_FIELD = (
     "ERROR_UNRELATED_FIELD",
@@ -133,4 +143,10 @@ ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES = (
     "ERROR_VIEW_DOES_NOT_SUPPORT_DEFAULT_VALUES",
     HTTP_400_BAD_REQUEST,
     "This view type does not support setting default row values.",
+)
+ERROR_VIEW_OWNERSHIP_TYPE_INCOMPATIBLE_WITH_VIEW_TYPE = (
+    "ERROR_VIEW_OWNERSHIP_TYPE_INCOMPATIBLE_WITH_VIEW_TYPE",
+    HTTP_400_BAD_REQUEST,
+    "The ownership type {e.ownership_type} is not compatible with "
+    "view type {e.view_type}.",
 )

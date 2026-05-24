@@ -260,13 +260,17 @@ export const baserowFormulaArrayTypeFilterMixin = {
   },
 }
 
+const getArrayFilterCellValue = (cellValue) => {
+  return Array.isArray(cellValue) ? cellValue : []
+}
+
 export const hasSelectOptionIdEqualMixin = Object.assign(
   {},
   hasValueEqualFilterMixin,
   {
     getHasValueEqualFilterFunction(field) {
       const mapOptionIdsToValues = (cellVal) =>
-        cellVal.map((v) => ({
+        getArrayFilterCellValue(cellVal).map((v) => ({
           id: v.id,
           value: String(v.value?.id ?? ''),
         }))
@@ -292,7 +296,10 @@ export const hasSelectOptionValueContainsFilterMixin = Object.assign(
     getHasValueContainsFilterFunction(field) {
       return (cellValue, filterValue) =>
         genericHasValueContainsFilter(
-          cellValue.map((v) => ({ id: v.id, value: v.value?.value || '' })),
+          getArrayFilterCellValue(cellValue).map((v) => ({
+            id: v.id,
+            value: v.value?.value || '',
+          })),
           filterValue
         )
     },
@@ -306,7 +313,10 @@ export const hasSelectOptionValueContainsWordFilterMixin = Object.assign(
     getHasValueContainsWordFilterFunction(field) {
       return (cellValue, filterValue) =>
         genericHasValueContainsWordFilter(
-          cellValue.map((v) => ({ id: v.id, value: v.value?.value || '' })),
+          getArrayFilterCellValue(cellValue).map((v) => ({
+            id: v.id,
+            value: v.value?.value || '',
+          })),
           filterValue
         )
     },

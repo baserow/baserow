@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
+from django.http import HttpResponse
 from django.test import override_settings
 
 import pytest
@@ -13,7 +14,10 @@ from rest_framework.serializers import CharField
 from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_404_NOT_FOUND
 from rest_framework.test import APIRequestFactory
 
-from baserow.api.exceptions import QueryParameterValidationException
+from baserow.api.exceptions import (
+    QueryParameterValidationException,
+    ThrottledAPIException,
+)
 from baserow.api.registries import RegisteredException, api_exception_registry
 from baserow.api.utils import (
     get_serializer_class,
@@ -29,7 +33,7 @@ from baserow.core.registry import (
     ModelInstanceMixin,
     Registry,
 )
-from baserow.throttling import (
+from baserow.throttling.handler import (
     BASEROW_CONCURRENCY_THROTTLE_REQUEST_ID,
     ConcurrentUserRequestsThrottle,
 )
@@ -123,9 +127,9 @@ def test_map_exceptions_context_manager():
     with pytest.raises(APIException) as api_exception_3:
         with map_exceptions(
             {
-                TemporaryException: lambda ex: "CONDITIONAL_ERROR"
-                if "test" in str(ex)
-                else None
+                TemporaryException: lambda ex: (
+                    "CONDITIONAL_ERROR" if "test" in str(ex) else None
+                )
             }
         ):
             raise TemporaryException("test")
@@ -136,9 +140,9 @@ def test_map_exceptions_context_manager():
     with pytest.raises(TemporaryException):
         with map_exceptions(
             {
-                TemporaryException: lambda ex: "CONDITIONAL_ERROR"
-                if "test" in str(ex)
-                else None
+                TemporaryException: lambda ex: (
+                    "CONDITIONAL_ERROR" if "test" in str(ex) else None
+                )
             }
         ):
             raise TemporaryException("not matching lambda")
@@ -147,9 +151,9 @@ def test_map_exceptions_context_manager():
     with pytest.raises(APIException) as api_exception_5:
         with map_exceptions(
             {
-                TemporaryException: lambda ex: error_tuple
-                if "test" in ex.message
-                else None
+                TemporaryException: lambda ex: (
+                    error_tuple if "test" in ex.message else None
+                )
             }
         ):
             exception = TemporaryException()
@@ -443,7 +447,10 @@ def create_dummy_request(user, path="/api/user/dashboard"):
     return request
 
 
-@override_settings(BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT=30)
+@override_settings(
+    BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT=30,
+    BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS=7,
+)
 @pytest.mark.django_db
 def test_concurrent_user_requests_throttle_non_staff_authenticated_users(data_fixture):
     user = data_fixture.create_user()
@@ -456,8 +463,10 @@ def test_concurrent_user_requests_throttle_non_staff_authenticated_users(data_fi
 
     with freeze_time("2023-03-30 00:00:01"):
         throttle = ConcurrentUserRequestsThrottle()
-        assert not throttle.allow_request(create_dummy_request(user), None)
-        assert throttle.wait() == 29
+        with pytest.raises(ThrottledAPIException) as exc_info:
+            throttle.allow_request(create_dummy_request(user), None)
+        assert exc_info.value.wait == 7
+        assert throttle.wait() == 7
 
     # once the timeout is over, the user should be able to make a new request
     request = create_dummy_request(user)
@@ -473,6 +482,37 @@ def test_concurrent_user_requests_throttle_non_staff_authenticated_users(data_fi
         throttle = ConcurrentUserRequestsThrottle()
         throttle.timer = lambda: time.time()
         assert throttle.allow_request(request, None)
+
+
+@override_settings(
+    BASEROW_CONCURRENT_USER_REQUESTS_THROTTLE_TIMEOUT=30,
+    BASEROW_THROTTLE_BLACKLIST_TTL_SECONDS=0,
+)
+@pytest.mark.django_db
+def test_concurrent_throttle_denies_without_retry_after_when_blacklist_disabled(
+    data_fixture,
+):
+    """
+    With the blacklist off the throttle still raises, but without a
+    Retry-After hint — a concurrency slot can free up at any moment, so any
+    time estimate would be a lie.
+    """
+
+    user = data_fixture.create_user()
+    ConcurrentUserRequestsThrottle.timer = lambda s: time.time()
+    ConcurrentUserRequestsThrottle.rate = 1
+
+    with freeze_time("2023-03-30 00:00:00"):
+        throttle = ConcurrentUserRequestsThrottle()
+        assert throttle.allow_request(create_dummy_request(user), None)
+
+    with freeze_time("2023-03-30 00:00:01"):
+        throttle = ConcurrentUserRequestsThrottle()
+        with pytest.raises(ThrottledAPIException) as exc_info:
+            throttle.allow_request(create_dummy_request(user), None)
+        assert exc_info.value.wait is None
+        assert str(exc_info.value.detail) == "Request was throttled."
+        assert throttle.wait() is None
 
 
 @pytest.mark.django_db
@@ -497,28 +537,39 @@ def test_concurrent_user_requests_does_not_throttle_staff_users(data_fixture):
 @override_settings(
     MIDDLEWARE=[
         *settings.MIDDLEWARE,
-        "baserow.middleware.ConcurrentUserRequestsMiddleware",
+        "baserow.throttling.middleware.ConcurrentUserRequestsMiddleware",
     ],
 )
-@patch("baserow.throttling.ConcurrentUserRequestsThrottle.on_request_processed")
 @pytest.mark.django_db
 def test_throttle_set_baserow_concurrency_throttle_request_id_and_middleware_can_get_it(
-    mock_on_request_processed, data_fixture, api_client
+    data_fixture,
 ):
-    # Looking at
-    # https://github.com/encode/django-rest-framework/blob/3.14.0/rest_framework/views.py#L110
-    # it seems like the throttle_classes are set when the class is created so
-    # @override_settings does not work as expected. We need to set the
-    # throttle_classes on the class itself to be able to override the settings.
-    from baserow.api.user.views import DashboardView
+    from baserow.throttling.middleware import ConcurrentUserRequestsMiddleware
 
     ConcurrentUserRequestsThrottle.rate = 1
-    DashboardView.throttle_classes = [ConcurrentUserRequestsThrottle]
 
-    _, token = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
+    django_request = APIRequestFactory().get("/api/user/dashboard")
+    django_request.user = user
 
-    api_client.get("/api/user/dashboard/", HTTP_AUTHORIZATION=f"JWT {token}")
+    drf_request = APIRequestFactory().get("/api/user/dashboard")
+    drf_request.user = user
+    drf_request._request = django_request
 
+    throttle = ConcurrentUserRequestsThrottle()
+    assert throttle.allow_request(drf_request, None)
+
+    middleware = ConcurrentUserRequestsMiddleware(
+        lambda request: HttpResponse(status=200)
+    )
+
+    with patch(
+        "baserow.throttling.handler.ConcurrentUserRequestsThrottle.on_request_processed",
+        wraps=ConcurrentUserRequestsThrottle.on_request_processed,
+    ) as mock_on_request_processed:
+        response = middleware(django_request)
+
+    assert response.status_code == 200
     assert mock_on_request_processed.call_count == 1
     request = mock_on_request_processed.call_args[0][0]
     assert getattr(request, BASEROW_CONCURRENCY_THROTTLE_REQUEST_ID, None) is not None
@@ -556,11 +607,13 @@ def test_can_set_throttle_per_user_profile_custom_limit(data_fixture):
 
     with freeze_time("2023-03-30 00:00:01"):
         throttle = ConcurrentUserRequestsThrottle()
-        assert not throttle.allow_request(create_dummy_request(user), None)
+        with pytest.raises(ThrottledAPIException):
+            throttle.allow_request(create_dummy_request(user), None)
 
     with freeze_time("2023-03-30 00:00:02"):
         throttle = ConcurrentUserRequestsThrottle()
-        assert not throttle.allow_request(create_dummy_request(user), None)
+        with pytest.raises(ThrottledAPIException):
+            throttle.allow_request(create_dummy_request(user), None)
 
 
 @pytest.mark.django_db

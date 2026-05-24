@@ -169,6 +169,19 @@
     </template>
 
     <FormGroup
+      :label="$t('dataScanner.wholeWordsLabel')"
+      small-label
+      class="margin-bottom-2"
+    >
+      <Checkbox v-model="values.whole_words">
+        {{ $t('dataScanner.wholeWordsCheckbox') }}
+      </Checkbox>
+      <template #helper>
+        {{ $t('dataScanner.wholeWordsHelp') }}
+      </template>
+    </FormGroup>
+
+    <FormGroup
       :label="$t('dataScanner.frequencyLabel')"
       small-label
       class="margin-bottom-2"
@@ -277,6 +290,7 @@ export default {
         list_items: [],
         source_table_id: null,
         source_field_id: null,
+        whole_words: true,
       },
       listItemsText: '',
       selectedWorkspaceId: null,

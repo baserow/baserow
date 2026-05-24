@@ -4,6 +4,7 @@ import {
   addPlugin,
   createResolver,
   extendPages,
+  addRouteMiddleware,
 } from 'nuxt/kit'
 import { routes, rootChildRoutes } from './routes'
 import { locales } from '../../../../web-frontend/config/locales.js'
@@ -25,15 +26,11 @@ export default defineNuxtModule({
         (route) => route.name === 'settings'
       )
 
-      // TODO MIG do we still need that?
-      // Prevent for adding the route multiple times
-      if (!settingsRoute.children.find(({ path }) => path === 'teams')) {
-        settingsRoute.children.push({
-          name: 'settings-teams',
-          path: 'teams',
-          file: path.resolve(__dirname, 'pages/settings/teams.vue'),
-        })
-      }
+      settingsRoute.children.push({
+        name: 'settings-teams',
+        path: 'teams',
+        file: path.resolve(__dirname, 'pages/settings/teams.vue'),
+      })
 
       // Add enterprise routes as children of root (inherit layout and middlewares)
       rootChildRoutes.forEach((route) => {
@@ -76,12 +73,23 @@ export default defineNuxtModule({
       src: resolve('./plugin.js'),
     })
 
+    addPlugin({
+      src: resolve('./plugins/extraClientScriptUrls.js'),
+    })
+
+    addRouteMiddleware({
+      name: 'enterpriseExtraClientScripts',
+      path: resolve('./middleware/extraClientScripts'),
+      global: true,
+    })
+
     // Runtime config defaults - values can be overridden at runtime via NUXT_ prefixed env vars
     // See env-remap.mjs for the env var remapping that enables backwards compatibility
     nuxt.options.runtimeConfig.public = _.defaultsDeep(
       nuxt.options.runtimeConfig.public,
       {
         baserowEnterpriseAssistantLlmModel: '',
+        baserowExtraClientScriptUrls: '',
       }
     )
 

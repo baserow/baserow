@@ -22,7 +22,7 @@
       <Error :error="error"></Error>
       <div class="modal-progress__actions">
         <ProgressBar
-          v-if="jobIsRunning || jobHasSucceeded"
+          v-if="jobIsRunning || jobIsFinished"
           :value="job.progress_percentage"
           :status="jobHumanReadableState"
         />
@@ -100,7 +100,7 @@ export default {
     this.fetchDataSource(this.table)
   },
   methods: {
-    onJobDone() {
+    onJobFinished() {
       this.completed = true
     },
     async fetchDataSource(table) {

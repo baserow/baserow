@@ -39,8 +39,10 @@
       :all-filtered-members-selected="allFilteredMembersSelected"
       :selected-members-count="membersSelected.length"
       :filtered-members-count="membersFiltered.length"
+      :button-label="buttonLabel"
+      :allow-empty-selection="allowEmptySelection"
       @toggle-select-all="toggleSelectAll"
-      @invite="$emit('invite', membersSelected)"
+      @select="$emit('select', membersSelected)"
     />
   </div>
 </template>
@@ -55,12 +57,27 @@ export default {
       type: Array,
       required: true,
     },
+    selectedMembers: {
+      type: Array,
+      required: false,
+      default: () => [],
+    },
+    allowEmptySelection: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    buttonLabel: {
+      type: String,
+      required: false,
+      default: null,
+    },
   },
-  emits: ['invite'],
+  emits: ['select'],
   data() {
     return {
       membersFiltered: this.members,
-      membersSelected: [],
+      membersSelected: [...this.selectedMembers],
       activeSearchTerm: null,
     }
   },
@@ -78,6 +95,12 @@ export default {
   watch: {
     activeSearchTerm(newValue) {
       this.search(newValue)
+    },
+    members(newValue) {
+      this.membersFiltered = newValue
+    },
+    selectedMembers(newValue) {
+      this.membersSelected = [...newValue]
     },
   },
   mounted() {

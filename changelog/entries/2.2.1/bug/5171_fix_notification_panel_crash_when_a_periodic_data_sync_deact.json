@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix notification panel crash when a periodic_data_sync_deactivated notification is rendered",
+    "issue_origin": "github",
+    "issue_number": 5171,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-13"
+}

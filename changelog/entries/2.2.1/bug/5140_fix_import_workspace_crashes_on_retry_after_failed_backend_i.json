@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix import workspace crashes on retry after failed backend import",
+    "issue_origin": "github",
+    "issue_number": 5140,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-04-07"
+}

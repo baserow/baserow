@@ -107,6 +107,7 @@
             :view="view"
             :is-public-view="isPublic"
             :fields="fields"
+            :database="database"
             :read-only="adhocFiltering"
             :disable-filter="disableFilter"
             @changed="refresh()"

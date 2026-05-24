@@ -72,7 +72,9 @@
         "incorrectCredentialMessage": "La dirección de correo electrónico o la contraseña proporcionadas son incorrectas.",
         "inputRequired": "Se requiere entrada.",
         "disabledPasswordProviderTitle": "La autentificación por contraseña está deshabilitada.",
-        "disabledPasswordProviderMessage": "Utilice otro proveedor de autentificación."
+        "disabledPasswordProviderMessage": "Utilice otro proveedor de autentificación.",
+        "captchaVerificationFailedTitle": "Falló la verificación de Captcha",
+        "captchaVerificationFailedMessage": "La verificación de Captcha falló. Por favor, inténtalo de nuevo."
     },
     "field": {
         "language": "Idioma",
@@ -279,7 +281,10 @@
         "errorLinkExpiredMessage": "El enlace de restablecimiento de contraseña ha caducado. Solicite otro.",
         "disabled": "El restablecimiento de la contraseña está desactivado",
         "disabledMessage": "No es posible restablecer la contraseña porque ha sido desactivada.",
-        "message": "Ya puede iniciar sesión en Baserow con su nueva contraseña."
+        "message": "Ya puede iniciar sesión en Baserow con su nueva contraseña.",
+        "repeatPasswordPlaceholder": "Repite tu nueva contraseña",
+        "errorLinkAlreadyUsedTitle": "Enlace ya utilizado",
+        "errorLinkAlreadyUsedMessage": "Este enlace de restablecimiento de contraseña ya ha sido utilizado. Por favor, solicita uno nuevo."
     },
     "signup": {
         "headTitle": "Crear una cuenta",
@@ -433,7 +438,10 @@
             }
         },
         "prefillOrHideInfoLink": "Rellenar u ocultar dinámicamente",
-        "notifyUserOnSubmit": "Recibir una notificación de envío"
+        "notifyUserOnSubmit": "Recibir una notificación de envío",
+        "rowEditableByDescription": "Las filas de esta tabla pueden actualizarse usando este formulario a través de los siguientes campos de edición de fila:",
+        "rowEditableBy": "Actualizar filas mediante campos",
+        "fields": "Campos"
     },
     "deleteAccountSettings": {
         "title": "Borrar cuenta",
@@ -711,7 +719,9 @@
     },
     "formulaInputField": {
         "errorInvalidFormula": "La fórmula es inválida.",
-        "advancedFormulaMode": "Modo de fórmula avanzado"
+        "advancedFormulaMode": "Modo de fórmula avanzado",
+        "invalidSyntax": "No es una fórmula experta válida, por favor verifica la sintaxis.",
+        "invalidFormulaTitle": "Fórmula inválida"
     },
     "integrationDropdown": {
         "noIntegrations": "No se han encontrado integraciones.",
@@ -1133,7 +1143,7 @@
         "rateLimit": "Demasiados intentos."
     },
     "mcpEndpoint": {
-        "windsurfInstructions": "Dos pasos sencillos para configurar MCP con Cascase en Windsurf.\n\n1. Accede a Windsurf → Configuración → Configuración avanzada o abre la Paleta de comandos → Abrir página de configuración de Windsurf.\n2. Desplázate hacia abajo hasta la sección Cascade y encontrarás la opción para añadir un nuevo servidor → Ver los servidores existentes y un botón para ver el archivo de configuración JSON sin procesar en `mcp_config.json`. Añade lo siguiente a ese archivo:",
+        "windsurfInstructions": "Dos pasos sencillos para configurar MCP con Cascase en Windsurf.\n\n1. Accede a Windsurf - Configuración → Configuración avanzada o abre la Paleta de comandos → Abrir página de configuración de Windsurf.\n2. Desplázate hacia abajo hasta la sección Cascade y encontrarás la opción para añadir un nuevo servidor → Ver los servidores existentes y un botón para ver el archivo de configuración JSON sin procesar en `mcp_config.json`. Añade lo siguiente a ese archivo:",
         "claudeInstructions": "Tres pasos sencillos para comenzar con Claude Desktop y el MCP de Baserow.\n\n1. Abre la configuración de Claude Desktop desde la barra de navegación. (⌘+,)\n2. Ve a la pestaña «Desarrollar» y haz clic en «Editar Config».\n3. Incluye la siguiente configuración JSON en c`laude_desktop_config.json`.",
         "detailLabel": "Más detalles",
         "endpointURLIntro": "La URL del servidor MCP (Model Context Protocol) puede añadirse a cualquier cliente que admita servidores MCP. Es un punto final (endpoint) único que le da al LLM acceso directo para realizar acciones en el espacio de trabajo en tu nombre.",
@@ -1252,5 +1262,25 @@
     },
     "adminWorkspaces": {
         "title": "Espacios de trabajo"
+    },
+    "formulaInputExplorerContext": {
+        "modalMessage": "Cambiar a un modo diferente borrará la fórmula actual. ¿Estás seguro de que quieres continuar?",
+        "useRegularInputModalTitle": "¿Usar entrada regular para este campo?",
+        "useSimpleInput": "Cambiar a modo básico",
+        "useSimpleInputModalTitle": "¿Cambiar a modo básico?",
+        "useAdvancedInput": "Cambiar a modo experto",
+        "useAdvancedInputModalTitle": "¿Cambiar a modo experto?",
+        "variables": "Variables",
+        "functions": "Funciones",
+        "operators": "Operadores",
+        "search": "Buscar"
+    },
+    "formulaParserErrors": {
+        "invalidArgCountMin": "La función '{funcType}' espera un mínimo de {minArgs} argumentos.",
+        "invalidArgCountRange": "La función '{funcType}' espera entre {minArgs} y {maxArgs} argumentos.",
+        "invalidArgCountExact": "La función '{funcType}' espera exactamente {minArgs} argumentos."
+    },
+    "formulaInputErrorContext": {
+        "viewFullError": "Ver error completo"
     }
 }

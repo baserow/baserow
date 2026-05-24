@@ -51,7 +51,12 @@ def test_import_export_grid_view(data_fixture):
     view_filter = data_fixture.create_view_filter(
         view=grid_view, field=field, value="test", type="equal"
     )
-    view_sort = data_fixture.create_view_sort(view=grid_view, field=field, order="ASC")
+    view_sort = data_fixture.create_view_sort(
+        view=grid_view, field=field, order="ASC", priority=5
+    )
+    view_group_by = data_fixture.create_view_group_by(
+        view=grid_view, field=field, order="ASC", priority=7
+    )
 
     view_decoration = data_fixture.create_view_decoration(
         view=grid_view,
@@ -69,6 +74,7 @@ def test_import_export_grid_view(data_fixture):
         serialized,
         ImportExportConfig(include_permission_data=False),
         id_mapping,
+        {},
         None,
         None,
     )
@@ -92,6 +98,13 @@ def test_import_export_grid_view(data_fixture):
     assert view_sort.id != imported_view_sort.id
     assert imported_field.id == imported_view_sort.field_id
     assert view_sort.order == imported_view_sort.order
+    assert view_sort.priority == imported_view_sort.priority
+
+    imported_view_group_by = imported_grid_view.viewgroupby_set.all().first()
+    assert view_group_by.id != imported_view_group_by.id
+    assert imported_field.id == imported_view_group_by.field_id
+    assert view_group_by.order == imported_view_group_by.order
+    assert view_group_by.priority == imported_view_group_by.priority
 
     imported_view_decoration = imported_grid_view.viewdecoration_set.all().first()
     assert view_decoration.id != imported_view_decoration.id
@@ -222,6 +235,7 @@ def test_import_export_gallery_view(data_fixture, tmpdir):
             serialized,
             ImportExportConfig(include_permission_data=False),
             id_mapping,
+            {},
             files_zip,
             storage,
         )
@@ -433,6 +447,7 @@ def test_import_export_form_view(data_fixture, tmpdir):
             serialized,
             ImportExportConfig(include_permission_data=False),
             id_mapping,
+            {},
             files_zip,
             storage,
         )
@@ -727,6 +742,7 @@ def test_import_export_form_view_with_grouped_conditions(data_fixture, tmpdir):
             serialized,
             ImportExportConfig(include_permission_data=False),
             id_mapping,
+            {},
             files_zip,
             storage,
         )
@@ -947,6 +963,7 @@ def test_import_export_view_ownership_type(data_fixture):
         serialized,
         ImportExportConfig(include_permission_data=False),
         {},
+        {},
         None,
         None,
     )
@@ -963,6 +980,7 @@ def test_import_export_view_ownership_type(data_fixture):
         grid_view.table,
         serialized,
         ImportExportConfig(include_permission_data=False),
+        {},
         {},
         None,
         None,
@@ -982,6 +1000,7 @@ def test_import_export_view_ownership_type(data_fixture):
         grid_view.table,
         serialized,
         ImportExportConfig(include_permission_data=False),
+        {},
         {},
         None,
         None,
@@ -1014,6 +1033,7 @@ def test_import_export_view_ownership_type_created_by_backward_compatible(data_f
         grid_view.table,
         serialized,
         ImportExportConfig(include_permission_data=False),
+        {},
         {},
         None,
         None,
@@ -1054,6 +1074,7 @@ def test_import_export_view_ownership_type_not_in_registry(data_fixture):
             grid_view.table,
             serialized,
             ImportExportConfig(include_permission_data=False),
+            {},
             {},
             None,
             None,

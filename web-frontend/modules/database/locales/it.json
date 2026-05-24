@@ -274,7 +274,9 @@
         "addDescription": "Aggiungi descrizione",
         "dbIndex": "Indice",
         "dbIndexError": "Questo tipo di campo non può avere un indice. Per favore rimuovilo prima di salvare oppure modifica il tipo di campo.",
-        "dbIndexDescription": "L'indicizzazione può migliorare in modo significativo le prestazioni del filtro, ma rallenta le operazioni di creazione, aggiornamento e cancellazione."
+        "dbIndexDescription": "L'indicizzazione può migliorare in modo significativo le prestazioni del filtro, ma rallenta le operazioni di creazione, aggiornamento e cancellazione.",
+        "defaultValueDisabledByConstraint": "Impossibile impostare un valore predefinito con un vincolo univoco",
+        "dbIndexDisabledTooltip": "L'indicizzazione non è disponibile per questo tipo di campo."
     },
     "fieldLookupSubForm": {
         "noTable": "Serve almeno un campo riga di collegamento per creare un campo di ricerca.",
@@ -297,7 +299,8 @@
         "addField": "Aggiungi campo"
     },
     "selectRowContent": {
-        "search": "Righe di ricerca"
+        "search": "Righe di ricerca",
+        "hideFields": "Nascondi campi"
     },
     "rowEditModal": {
         "addField": "Aggiungi campo",
@@ -319,7 +322,8 @@
         }
     },
     "rowEditFieldLinkRow": {
-        "addLink": "Scegli un collegamento"
+        "addLink": "Scegli un collegamento",
+        "keepOnlyOneValue": "Mantieni un solo valore. Questo campo supporta una sola relazione. Il valore viene salvato se è rimasta una sola relazione."
     },
     "tableCSVImporter": {
         "chooseFileLabel": "Scegli file CSV",
@@ -388,7 +392,9 @@
         "filePreview": "Anteprima contenuto file",
         "importPreview": "Anteprima dei dati che verranno importati",
         "changeImporterType": "Cambia tipo di importazione",
-        "defaultName": "Tabella"
+        "defaultName": "Tabella",
+        "useUpsertField": "Aggiorna le righe se esistono già",
+        "upsertTooltip": "Abbina le righe esistenti utilizzando un campo univoco per sovrascrivere i dati con i valori importati."
     },
     "formulaAdvancedEditContext": {
         "textAreaFormulaInputPlaceholder": "Clicca per modificare la formula",
@@ -481,7 +487,16 @@
         "selected": "Selezionato"
     },
     "viewFilter": {
-        "filter": "Filtro | 1 Filtro | {count} Filtri"
+        "filter": "Filtro | 1 Filtro | {count} Filtri",
+        "hasAllValuesEqual": "ha tutti i valori uguali",
+        "hasValueHigherThan": "ha un valore superiore a",
+        "hasValueHigherThanOrEqual": "ha un valore maggiore o uguale a",
+        "hasValueLowerThan": "ha un valore inferiore a",
+        "hasValueLowerThanOrEqual": "ha valore inferiore o uguale a",
+        "hasNotValueHigherThan": "non ha valore superiore a",
+        "hasNotValueHigherThanOrEqual": "non ha valore superiore o uguale a",
+        "hasNotValueLowerThan": "non ha valore inferiore a",
+        "hasNotValueLowerThanOrEqual": "non ha valore inferiore o uguale a"
     },
     "viewContext": {
         "exportView": "Esporta vista",
@@ -514,7 +529,8 @@
         "createFilter": "Crea filtro",
         "sortField": "Ordina",
         "hideField": "Nascondi campo",
-        "duplicate": "Duplica campo"
+        "duplicate": "Duplica campo",
+        "dataSyncField": "Il campo è di sola lettura e fa parte della sincronizzazione dei dati della tabella."
     },
     "gridViewRow": {
         "rowNotMatchingFilters": "La riga non corrisponde ai filtri",
@@ -593,7 +609,7 @@
         "back": "Torna alla dashboard"
     },
     "viewAggregationType": {
-        "emptyCount": "Vuoto",
+        "emptyCount": "(Vuoto)",
         "notEmptyCount": "Non vuoto",
         "emptyPercentage": "Percentuale vuota",
         "notEmptyPercentage": "Percentuale non vuoti",
@@ -614,7 +630,9 @@
         "stdDev": "Deviazione standard",
         "stdDevShort": "Dev std",
         "variance": "Variazione",
-        "count": "Conteggio"
+        "count": "Conteggio",
+        "distribution": "Distribuzione",
+        "othersCount": "Altri"
     },
     "databaseForm": {
         "importLabel": "Vuoi importare i dati esistenti?",
@@ -623,7 +641,7 @@
     },
     "importFromAirtable": {
         "airtableShareLinkTitle": "Condividi link al tuo Base",
-        "airtableShareLinkDescription": "Per importare il tuo base Airtable, devi avere un link condiviso a tutto il base. In Airtable, clicca sul pulsante di condivisione in alto a destra dopo aver aperto il base. Dopodiché, devi scegliere l'opzione \"Accesso al base\". Nel modale di condivisione puoi cliccare su \"Crea un link condiviso a tutto il base\" e poi su \"Link privato di sola lettura\". Copia il link pubblico e incollalo nell'input sottostante.",
+        "airtableShareLinkDescription": "Per importare la tua base Airtable, devi avere un link condiviso per l'intera tua base. In Airtable, clicca sul pulsante Condividi nell'angolo in alto a destra dopo aver aperto la tua base. Dopo quello devi scegliere l'opzione 'Condividi tramite link'. Nella finestra di condivisione puoi cliccare sulla scheda 'Condividi pubblicamente' e poi su 'Abilita link della base condivisa'. Copia il link pubblico e incollalo nell'input qui sotto.",
         "airtableShareLinkBeta": "Nota che questa funzione è in beta: le tabelle, i campi (eccetto formula, ricerca e conteggio) e i dati saranno importati, le viste non saranno importate.",
         "airtableShareLinkPaste": "Incolla il link qui",
         "importButtonLabel": "Importa da Airtable",
@@ -822,7 +840,8 @@
     },
     "viewOwnershipType": {
         "collaborative": "Collaborativa",
-        "personal": "Personale"
+        "personal": "Personale",
+        "collaborativeDescription": "Tutti possono vedere tutti i dati e modificarne le proprietà se dispongono delle autorizzazioni necessarie."
     },
     "gridViewRowsAddContext": {
         "title": "Crea più righe",
@@ -929,12 +948,13 @@
         "title": "Crea il tuo primo database",
         "description": "Raccontaci su cosa stai lavorando.",
         "databaseNameLabel": "Nome database",
-        "scratch": "Dall'inizio",
-        "airtable": "Da Airtable",
-        "import": "Da file"
+        "scratch": "Da zero",
+        "airtable": "Airtable",
+        "import": "File",
+        "workspaceName": "Il workspace di {name}"
     },
     "ViewFilterTypeDateUpgradeToMultiStep": {
-        "migrateButtonText": "Usa i nuovi filtri per le date",
+        "migrateButtonText": "Migra al filtro multi-step per le date",
         "migrateButtonTooltip": "Abbiamo introdotto nuovi filtri per le date. Clicca per aggiornare. Il risultato è lo stesso, le potenzialità sono molte di più."
     },
     "createTableModal": {
@@ -997,7 +1017,9 @@
         "fieldCategory": "categoria"
     },
     "dataSyncType": {
-        "icalCalendar": "Sincronizza iCal"
+        "icalCalendar": "Sincronizza feed iCal",
+        "syncError": "Errore di sincronizzazione",
+        "postgresql": "Sincronizza la tabella PostgreSQL"
     },
     "iCalCalendarDataSync": {
         "name": "URL iCal",
@@ -1044,5 +1066,22 @@
     },
     "fieldBooleanSubForm": {
         "defaultValue": "Predefinito"
+    },
+    "postgreSQLDataSync": {
+        "host": "Host",
+        "username": "Nome utente",
+        "password": "Password",
+        "database": "Database",
+        "schema": "Schema",
+        "table": "Tabella",
+        "port": "Porta",
+        "description": "Sincronizza una tabella PostgreSQL con una tabella Baserow corrispondente ai dettagli forniti di seguito. Si noti che all'avvio della sincronizzazione, verranno selezionate tutte le righe nella tabella specificata. Sebbene Baserow selezioni solo i dati, si consiglia vivamente di limitare l'utente a una connessione di sola lettura.",
+        "sslMode": "Modalità SSL"
+    },
+    "viewFieldConditionItem": {
+        "filterMisconfigured": "Il campo a cui è associato questo filtro è stato eliminato."
+    },
+    "fieldFormViewEditRowSubForm": {
+        "description": "Ogni riga otterrà un link unico che apre questo modulo pre-compilato con i dati di quella riga. Nota che chiunque abbia accesso in lettura alla tabella e al campo sarà in grado di modificare la riga tramite la vista modulo, anche gli spettatori e i visitatori di una vista condivisa pubblicamente."
     }
 }

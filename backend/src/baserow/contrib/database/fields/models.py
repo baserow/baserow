@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, NewType
 
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.fields import ArrayField
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils.functional import cached_property
@@ -729,18 +730,17 @@ class FormulaField(Field):
         return FormulaHandler.get_formula_type_from_field(self)
 
     def clear_cached_properties(self):
-        try:
-            # noinspection PyPropertyAccess
-            del self.cached_untyped_expression
-        except AttributeError:
-            # It has not been cached yet so nothing to deleted.
-            pass
-        try:
-            # noinspection PyPropertyAccess
-            del self.cached_formula_type
-        except AttributeError:
-            # It has not been cached yet so nothing to deleted.
-            pass
+        for attr in (
+            "cached_untyped_expression",
+            "cached_typed_internal_expression",
+            "cached_formula_type",
+        ):
+            try:
+                # noinspection PyPropertyAccess
+                delattr(self, attr)
+            except AttributeError:
+                # It has not been cached yet so nothing to delete.
+                pass
 
     def recalculate_internal_fields(self, raise_if_invalid=False, field_cache=None):
         self.clear_cached_properties()
@@ -780,6 +780,9 @@ class FormulaField(Field):
                 field_cache=field_cache, raise_if_invalid=raise_if_invalid
             )
         super().save(*args, **kwargs)
+        # Keep field_cache consistent to avoid stale type info downstream. See GH #5371.
+        if field_cache is not None:
+            field_cache.cache_field(self)
 
     def refresh_from_db(self, *args, **kwargs) -> None:
         super().refresh_from_db(*args, **kwargs)
@@ -809,10 +812,15 @@ class CountField(FormulaField):
         from baserow.contrib.database.formula.ast.function_defs import BaserowCount
         from baserow.contrib.database.formula.ast.tree import BaserowFieldReference
 
-        field_reference = BaserowFieldReference(
-            getattr(self.through_field, "name", ""), None, None
-        )
-        self.formula = f"{BaserowCount.type}({field_reference})"
+        try:
+            through_field = getattr(self, "through_field")
+            field_name = getattr(through_field, "name", "")
+        except ObjectDoesNotExist:
+            field_name = "'invalid through'"
+
+        field_ref = BaserowFieldReference(field_name, None, None)
+        self.formula = f"{BaserowCount.type}({field_ref})"
+
         super().save(*args, **kwargs)
 
     def __str__(self):
@@ -852,13 +860,23 @@ class RollupField(FormulaField):
             formula_function_registry,
         )
 
+        try:
+            through_field = getattr(self, "through_field")
+            through_name = getattr(through_field, "name", "")
+        except ObjectDoesNotExist:
+            self.through_field = None
+            through_name = "'invalid through'"
+
+        try:
+            target_field = getattr(self, "target_field")
+            target_name = getattr(target_field, "name", "")
+        except ObjectDoesNotExist:
+            self.target_field = None
+            target_name = "'invalid target'"
+
         formula_function = formula_function_registry.get(self.rollup_function)
-        field_reference = BaserowFieldReference(
-            getattr(self.through_field, "name", ""),
-            getattr(self.target_field, "name", ""),
-            None,
-        )
-        self.formula = f"{formula_function.type}({field_reference})"
+        field_ref = BaserowFieldReference(through_name, target_name, None)
+        self.formula = f"{formula_function.type}({field_ref})"
         super().save(*args, **kwargs)
 
     def __str__(self):

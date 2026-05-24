@@ -60,7 +60,8 @@
         "backToHome": "Volver al inicio",
         "getStarted": "Empezar",
         "close": "Cerrar",
-        "hide": "Ocultar"
+        "hide": "Ocultar",
+        "next": "Siguiente"
     },
     "adminType": {
         "settings": "Ajustes",
@@ -168,7 +169,10 @@
         "password": "Contraseña",
         "ai": "Aviso de IA",
         "multipleCollaboratorsDropdown": "Desplegable",
-        "multipleCollaboratorsCheckboxes": "Casillas de selección"
+        "multipleCollaboratorsCheckboxes": "Casillas de selección",
+        "formViewEditRow": "Editar enlace de fila",
+        "defaultValueFunctionNow": "Fecha actual",
+        "formViewEditRowShareWarning": "Cualquiera con el enlace compartido puede editar filas mediante el formulario {formNames} a través de los campos de enlace de edición de filas visible públicamente.|Cualquiera con el enlace compartido puede editar filas mediante los formularios {formNames} a través de los campos de enlace de edición de filas visible públicamente."
     },
     "fieldErrors": {
         "invalidNumber": "Número invalido",
@@ -180,7 +184,8 @@
         "invalidDuration": "Formato no válido ({durationFormat}).",
         "overflowDuration": "El valor está fuera de los límites.",
         "maxChars": "Máximo {max} caracteres.",
-        "minChars": "Mínimo {min} caracteres."
+        "minChars": "Mínimo {min} caracteres.",
+        "higherThan": "El valor es mayor que {max}."
     },
     "fieldDocs": {
         "readOnly": "Este es un campo de sólo lectura.",
@@ -215,7 +220,8 @@
         "uuid": "Un UUID único y persistente de sólo lectura.",
         "createdBy": "El campo \"Creado por\" es un campo de sólo lectura que muestra el usuario que creó la fila.",
         "duration": "Acepta una duración basada en el tiempo como una cadena con el formato {formato} o como un número que representa el número total de segundos.",
-        "password": "Un campo de sólo escritura que contiene una contraseña con hash. El valor será \"nulo\" si no se ha establecido, o \"verdadero\" si se ha establecido. Acepta una cadena para establecerla."
+        "password": "Un campo de sólo escritura que contiene una contraseña con hash. El valor será \"nulo\" si no se ha establecido, o \"verdadero\" si se ha establecido. Acepta una cadena para establecerla.",
+        "formViewEditRow": "Un campo de solo lectura que genera una URL única y firmada que permite editar la fila a través de la vista de formulario vinculada."
     },
     "viewFilter": {
         "contains": "contiene",
@@ -595,7 +601,7 @@
         "toDateTzDescription": "Devuelve el primer argumento convertido en una fecha dada una cadena de formato de fecha como segundo argumento y la zona horaria proporcionada como tercer argumento.",
         "datetimeFormatTzDescription": "Convierte la fecha en texto dada una forma de formatear la fecha en la zona horaria especificada.",
         "getFileVisibleNameDescription": "Devuelve el nombre de archivo visible de un único archivo devuelto por la función index.",
-        "indexDescription": "Devuelve el archivo de un campo de archivo en la posición proporcionada por el segundo argumento.",
+        "indexDescription": "Devuelve el elemento en la posición basada en 0 dada desde un valor de array (por ejemplo, de una búsqueda, archivo u otro campo de tipo array). Los índices negativos cuentan desde el final (-1 es el último).",
         "getFileSizeDescription": "Devuelve el tamaño del archivo de un único archivo devuelto por la función de índice.",
         "encodeUriComponentDescription": "Devuelve un componente de cadena URL codificado a partir del argumento proporcionado.",
         "getImageWidthDescription": "Devuelve el ancho de la imagen de un único archivo devuelto por la función index.",
@@ -607,7 +613,11 @@
         "getFileMimeTypeDescription": "Devuelve el tipo mime de un único archivo devuelto por la función index.",
         "hasOptionDescription": "Devuelve verdadero si el primer argumento es un campo de selección múltiple o una búsqueda en un campo de selección simple y el segundo argumento es una de las opciones.",
         "secondsToDurationDescription": "Convierte el número de segundos proporcionado en una duración.",
-        "durationToSecondsDescription": "Convierte la duración proporcionada en el número de segundos correspondiente."
+        "durationToSecondsDescription": "Convierte la duración proporcionada en el número de segundos correspondiente.",
+        "arraySliceDescription": "Devuelve una subconjunto de matriz o `sub-array` comenzando en el índice dado (basado en 0, los negativos cuentan desde el final). Un conteo positivo toma elementos hacia adelante, 0 significa todos los restantes, un conteo negativo toma elementos hacia atrás en orden inverso.",
+        "firstDescription": "Devuelve el primer elemento de un valor de matriz (por ejemplo, de una búsqueda, archivo u otro campo de tipo `array` o matriz).",
+        "lastDescription": "Devuelve el último elemento de un valor de matriz (por ejemplo, de una búsqueda, archivo u otro campo de tipo `array` o matriz).",
+        "arrayUniqueDescription": "Devuelve solo los elementos únicos de una matriz o `array`, eliminando duplicados mientras se preserva el orden de la primera aparición."
     },
     "functionnalGridViewFieldLinkRow": {
         "unnamed": "fila sin nombre {value}"
@@ -692,7 +702,7 @@
         "categoryBoolean": "Booleano",
         "categoryDate": "Fecha",
         "categoryCondition": "Condición",
-        "lengthDescription": "Devuelve la longitud del argumento: el número de elementos en un `array`, el número de caracteres en una cadena, o el número de claves en un objeto.",
+        "lengthDescription": "Devuelve la longitud del argumento: el número de elementos en un `array` o matriz, el número de caracteres en una cadena, o el número de claves en un objeto.",
         "splitDescription": "Divide el primer argumento usando el segundo argumento opcional como separador. Si no se proporciona el segundo argumento, usa ' ' como separador.",
         "joinDescription": "Une el primer argumento usando el segundo argumento opcional como separador. Si no se proporciona el segundo argumento, usa ',' como separador.",
         "reverseDescription": "Si el argumento es una cadena, la cadena se invierte. Si es una lista, el orden de la lista se invierte.",
@@ -701,7 +711,7 @@
         "containsDescription": "Devuelve «verdadero» si el primer argumento contiene el segundo argumento.",
         "isEmptyDescription": "Devuelve «verdadero» si el argumento está vacío; de lo contrario devuelve «falso»",
         "stripDescription": "Elimina cualquier espacio en blanco al principio y al final del argumento",
-        "toArrayDescription": "Convierte una cadena delimitada por comas en un `array`.",
+        "toArrayDescription": "Convierte una cadena delimitada por comas en un `array` o matriz.",
         "sumDescription": "Suma los números dentro del argumento.",
         "avgDescription": "Calcula el promedio de los números dentro del argumento."
     },
@@ -715,5 +725,11 @@
     "nodeExplorer": {
         "noResults": "No se encontraron resultados",
         "resetSearch": "Restablecer búsqueda"
+    },
+    "runtimeGetErrors": {
+        "invalidPath": "El argumento 'obtener' o 'get' '{path}' debe ser una ruta delimitada por puntos (ej. 'proveedor.propiedad').",
+        "missingProvider": "El argumento 'obtener' o 'get' '{path}' le falta su prefijo del proveedor de fórmulas.",
+        "invalidProviderPath": "El proveedor de fórmulas '{providerName}' encontró '{path}' como inválido.",
+        "unknownProvider": "El proveedor de fórmulas '{providerName}' no existe."
     }
 }

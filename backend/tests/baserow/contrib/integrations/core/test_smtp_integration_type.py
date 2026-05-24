@@ -275,6 +275,35 @@ def test_smtp_integration_import_serialized(data_fixture):
 
 
 @pytest.mark.django_db
+def test_smtp_integration_import_serialized_with_null_sensitive_fields(data_fixture):
+    user = data_fixture.create_user()
+    application = data_fixture.create_builder_application(user=user)
+
+    integration_type = SMTPIntegrationType()
+
+    serialized_data = {
+        "id": 1,
+        "type": "smtp",
+        "host": None,
+        "port": None,
+        "use_tls": None,
+        "username": None,
+        "password": None,
+    }
+
+    imported_integration = integration_type.import_serialized(
+        application, serialized_data, {}, lambda x, d: x
+    )
+
+    assert imported_integration.host == ""
+    assert imported_integration.port == 587
+    assert imported_integration.use_tls is True
+    assert imported_integration.username is None
+    assert imported_integration.password is None
+    assert imported_integration.application_id == application.id
+
+
+@pytest.mark.django_db
 def test_smtp_integration_deletion(data_fixture):
     user = data_fixture.create_user()
     integration = data_fixture.create_smtp_integration(

@@ -60,6 +60,19 @@
     "cantUpdateAutomationTitle": "Couldn't Update Automation",
     "cantUpdateAutomationDescription": "Sorry, could not update the automation."
   },
+  "workflowGeneralSettings": {
+    "titleOverview": "Workflow settings",
+    "nameLabel": "Workflow name",
+    "workflowDisabledRecipientsLabel": "Notification recipients",
+    "workflowDisabledRecipientsHelp": "These workspace members will get an in-app notification if this workflow is automatically disabled.",
+    "selectWorkflowDisabledRecipients": "Select recipients",
+    "noWorkflowDisabledRecipients": "No recipients selected.",
+    "cantUpdateWorkflowTitle": "Couldn't Update Workflow",
+    "cantUpdateWorkflowDescription": "Sorry, could not update the workflow."
+  },
+  "workflowDisabledNotification": {
+    "body": "The {name} workflow was disabled."
+  },
   "integrationSettings": {
     "title": "Integrations",
     "noIntegrationMessage": "You have not yet created any integrations. They can be created by adding data source, action or user authentication.",
@@ -93,11 +106,20 @@
     "statusStarted": "In progress...",
     "statusSuccess": "Ran successfully",
     "statusError": "Failed to run",
+    "statusSuccessBadge": "Completed",
+    "statusErrorBadge": "Failed",
     "statusDisabled": "Disabled by Baserow",
+    "successfulRuns": "Successful runs",
     "completedInSeconds": "Completed in {s} seconds.",
     "completedInLessThanSecond": "Completed in less than 1 second.",
     "running": "Running for {at}s",
-    "testRun": "Test"
+    "failedRuns": "Failed runs",
+    "errorHideDetails": "Hide details",
+    "errorShowDetails": "Show details",
+    "runNumber": "Run {n}",
+    "runCount": "{n} runs",
+    "testRun": "Test",
+    "showResult": "Show result"
   },
   "nodeType": {
     "triggerDeletionError": "Triggers cannot be deleted, only replaced.",
@@ -114,7 +136,7 @@
     "smtpEmailLabel": "Send an email",
     "routerLabel": "Follow 1 of {edgeCount} branches",
     "iterationLabel": "Iterate on items",
-    "routerDefaultEdgeLabelFallback": "Default",
+    "defaultEdgeLabelFallback": "Default",
     "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
     "routerWithOutputNodesReplaceError": "Cannot be replaced until its {outputCount} output nodes are removed.",
     "iteratorWithChildrenNodesDeleteError": "Cannot be deleted until its child nodes are removed.",

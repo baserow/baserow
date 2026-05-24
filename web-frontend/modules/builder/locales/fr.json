@@ -45,7 +45,7 @@
     "pageHeaderItemTypes": {
         "labelDataSource": "Données",
         "labelVariables": "Variables",
-        "labelSettings": "Configuration",
+        "labelSettings": "Paramètres",
         "labelElements": "Éléments"
     },
     "elementsContext": {
@@ -212,7 +212,7 @@
     },
     "pageActionTypes": {
         "preview": "Aperçu",
-        "publish": "Publication"
+        "publish": "Publier"
     },
     "lastPublishedDomainDate": {
         "neverPublished": "jamais",

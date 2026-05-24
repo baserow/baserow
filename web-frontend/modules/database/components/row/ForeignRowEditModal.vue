@@ -16,6 +16,7 @@
 
 <script>
 import { DatabaseApplicationType } from '@baserow/modules/database/applicationTypes'
+import modal from '@baserow/modules/core/mixins/modal'
 import RowEditModal from '@baserow/modules/database/components/row/RowEditModal'
 import FieldService from '@baserow/modules/database/services/field'
 import RowService from '@baserow/modules/database/services/row'
@@ -34,6 +35,7 @@ import {
 export default {
   name: 'ForeignRowEditModal',
   components: { RowEditModal },
+  mixins: [modal],
   props: {
     tableId: {
       type: Number,

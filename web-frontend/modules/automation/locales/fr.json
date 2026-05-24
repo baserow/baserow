@@ -70,7 +70,7 @@
         "integrationMessage": "Vous pouvez créer de nouvelles intégrations en ajoutant une source de données, une action ou une authentification utilisateur."
     },
     "automationHeader": {
-        "startTestRun": "Lancer un test",
+        "startTestRun": "Tester",
         "stopTestRun": "Annuler le test",
         "publishBtn": "Publier",
         "settingsBtn": "Paramètres",
@@ -99,7 +99,9 @@
         "statusDisabled": "Désactivé par Baserow",
         "completedInSeconds": "Complété en {s} secondes.",
         "completedInLessThanSecond": "Complété en moins d'une seconde.",
-        "testRun": "Essai"
+        "testRun": "Essai",
+        "statusStarted": "En cours…",
+        "running": "S'exécute depuis {at}s"
     },
     "nodeType": {
         "triggerDeletionError": "Les déclencheurs ne peuvent être supprimés, seulement remplacés.",
@@ -192,7 +194,7 @@
         "errorPreviousNodeNotConfigured": "Le nœud précédent « {node} » doit être configuré.",
         "errorPreviousNodesNotTested": "Le nœud précédent « {node} » doit être testé préallablement.",
         "buttonLabelTest": "Tester le déclencheur",
-        "buttonLabelTestAgain": "Tester à nouveau",
+        "buttonLabelTestAgain": "Tester de nouveau",
         "testNodeDescription": "Tester ce déclencheur pour confirmer que la configuration est correcte. Les données de ce test peuvent être utilisées par les nœuds suivants.",
         "buttonLabelShowPayload": "Voir le résultat",
         "buttonLabelShowError": "Voir l'erreur",

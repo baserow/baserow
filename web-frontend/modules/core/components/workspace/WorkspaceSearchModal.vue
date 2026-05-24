@@ -47,7 +47,7 @@
         >
           <!-- Search results -->
           <div v-if="hasResults" class="workspace-search__results">
-            <div class="workspace-search__results-list">
+            <div ref="resultsList" class="workspace-search__results-list">
               <div
                 v-for="(result, index) in allResults"
                 :key="`${result.type}-${result.id}-${index}`"
@@ -173,9 +173,11 @@ import debounce from 'lodash/debounce'
 import { mapGetters, mapState } from 'vuex'
 import { searchTypeRegistry } from '@baserow/modules/core/search/types/registry'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import modal from '@baserow/modules/core/mixins/modal'
 
 export default {
   name: 'WorkspaceSearchModal',
+  mixins: [modal],
 
   data() {
     return {
@@ -250,16 +252,6 @@ export default {
     },
   },
 
-  mounted() {
-    this.$nextTick(() => {
-      this.attachScrollListener()
-    })
-  },
-
-  beforeUnmount() {
-    this.removeScrollListener()
-  },
-
   methods: {
     onMouseMove(event) {
       if (event && (event.movementX !== 0 || event.movementY !== 0)) {
@@ -271,50 +263,11 @@ export default {
         searchTerm: this.searchTerm,
       })
     },
-    attachScrollListener() {
-      try {
-        const modalElement = this.$refs.modal?.$el
-
-        if (modalElement && typeof modalElement.querySelector === 'function') {
-          const modalContent = modalElement.querySelector('.modal__box-content')
-
-          if (modalContent) {
-            modalContent.addEventListener('scroll', this.handleScroll)
-          }
-        }
-      } catch (error) {
-        console.error('Error attaching scroll listener:', error)
-      }
-    },
-
-    removeScrollListener() {
-      try {
-        const modalElement = this.$refs.modal?.$el
-        if (modalElement && typeof modalElement.querySelector === 'function') {
-          const modalContent = modalElement.querySelector('.modal__box-content')
-          if (modalContent) {
-            modalContent.removeEventListener('scroll', this.handleScroll)
-          }
-        }
-      } catch (error) {
-        console.error('Error removing scroll listener:', error)
-      }
-    },
-
-    show() {
-      this.$refs.modal.show()
-    },
-
-    hide() {
-      this.$refs.modal.hide()
-    },
-
     onShow() {
       this.$nextTick(() => {
         if (this.$refs.searchInput) {
           this.$refs.searchInput.focus()
         }
-        this.attachScrollListener()
       })
     },
 
@@ -444,10 +397,7 @@ export default {
           this.allResults &&
           this.allResults.length > 0
         ) {
-          const resultItems = this.$el.querySelectorAll(
-            '.workspace-search__result-item'
-          )
-          const activeItem = resultItems[this.activeIndex]
+          const activeItem = this.$refs.resultsList?.children[this.activeIndex]
 
           if (activeItem) {
             activeItem.scrollIntoView({

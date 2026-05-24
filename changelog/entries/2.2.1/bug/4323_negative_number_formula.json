@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix negative sign in formula output disappearing when a cell is selected",
+    "issue_origin": "github",
+    "issue_number": 4323,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-04-10"
+}

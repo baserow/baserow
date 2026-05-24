@@ -51,6 +51,7 @@ def test_get_automation_application(api_client, data_fixture):
                 "simulate_until_node_id": None,
                 "state": "draft",
                 "published_on": None,
+                "notification_recipient_ids": [],
                 "graph": {"0": trigger.id, str(trigger.id): {}},
             }
         ],
@@ -105,6 +106,7 @@ def test_list_automation_applications(api_client, data_fixture):
                     "simulate_until_node_id": None,
                     "state": "draft",
                     "published_on": None,
+                    "notification_recipient_ids": [],
                     "graph": {"0": trigger.id, str(trigger.id): {}},
                 }
             ],

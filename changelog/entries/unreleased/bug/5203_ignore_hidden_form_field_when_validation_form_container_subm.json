@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Ignore hidden form field when validation form container submit",
+    "issue_origin": "github",
+    "issue_number": 5203,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-05-05"
+}
