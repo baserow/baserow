@@ -15,6 +15,7 @@ describe('colorUtils', () => {
     test('maps each supported branch explicitly', () => {
       expect(getColorClass(' red ')).toBe('color--red')
       expect(getColorClass('BLUE')).toBe('color--blue')
+      expect(getColorClass('GREEN')).toBe('color--green')
       expect(getColorClass('green')).toBe('color--green')
       expect(getColorClass('#aabbcc')).toBe('color--custom')
       expect(getColorClass('violet')).toBe('color--default')

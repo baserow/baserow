@@ -1,0 +1,22 @@
+```mermaid
+flowchart TD
+  Start([start]) --> A{!color || typeof color !== 'string'}
+  A -- yes --> ReturnEmpty["return ''"]
+  A -- no --> Trim["trim().toLowerCase() -> trimmed"]
+  Trim --> B{trimmed === 'red'}
+  B -- yes --> ReturnRed["return 'color--red'"]
+  B -- no --> C{trimmed === 'blue'}
+  C -- yes --> ReturnBlue["return 'color--blue'"]
+  C -- no --> D{trimmed === 'green'}
+  D -- yes --> ReturnGreen["return 'color--green'"]
+  D -- no --> E{trimmed.startsWith('#')}
+  E -- yes --> ReturnCustom["return 'color--custom'"]
+  E -- no --> ReturnDefault["return 'color--default'"]
+
+  ReturnEmpty --> End([end])
+  ReturnRed --> End
+  ReturnBlue --> End
+  ReturnGreen --> End
+  ReturnCustom --> End
+  ReturnDefault --> End
+```
