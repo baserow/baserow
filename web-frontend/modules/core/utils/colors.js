@@ -226,6 +226,26 @@ export function isColorVariable(value) {
   return value.substring(0, 1) !== '#'
 }
 
+export function getColorClass(color) {
+  if (!color || typeof color !== 'string') {
+    return ''
+  }
+
+  const trimmed = color.trim().toLowerCase()
+
+  if (trimmed === 'red') {
+    return 'color--red'
+  } else if (trimmed === 'blue') {
+    return 'color--blue'
+  } else if (trimmed === 'green') {
+    return 'color--green'
+  } else if (trimmed.startsWith('#')) {
+    return 'color--custom'
+  } else {
+    return 'color--default'
+  }
+}
+
 export function resolveColor(value, variables, recursively = true) {
   let varMap = variables
   if (Array.isArray(varMap)) {

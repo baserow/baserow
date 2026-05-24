@@ -1,9 +1,38 @@
 import {
+  getColorClass,
   resolveColor,
   colorRecommendation,
 } from '@baserow/modules/core/utils/colors'
 
 describe('colorUtils', () => {
+  describe('getColorClass white-box', () => {
+    test('returns an empty class for invalid input', () => {
+      expect(getColorClass()).toBe('')
+      expect(getColorClass(null)).toBe('')
+      expect(getColorClass(42)).toBe('')
+    })
+
+    test('maps each supported branch explicitly', () => {
+      expect(getColorClass(' red ')).toBe('color--red')
+      expect(getColorClass('BLUE')).toBe('color--blue')
+      expect(getColorClass('green')).toBe('color--green')
+      expect(getColorClass('#aabbcc')).toBe('color--custom')
+      expect(getColorClass('violet')).toBe('color--default')
+    })
+  })
+
+  describe('getColorClass black-box', () => {
+    test.each([
+      ['red', 'color--red'],
+      ['blue', 'color--blue'],
+      ['green', 'color--green'],
+      ['#123456', 'color--custom'],
+      ['unknown', 'color--default'],
+    ])('resolves %s to %s', (input, expected) => {
+      expect(getColorClass(input)).toBe(expected)
+    })
+  })
+
   test('resolve', () => {
     expect(resolveColor('#00000000', [])).toBe('#00000000')
     expect(resolveColor('test', [])).toBe('test')
