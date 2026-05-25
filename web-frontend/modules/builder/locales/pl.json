@@ -3,10 +3,11 @@
         "submit": "Dodaj aplikację"
     },
     "builderSettingTypes": {
-        "themeName": "Kompozycja",
+        "themeName": "Motyw",
         "integrationsName": "Integracje",
         "domainsName": "Domeny",
-        "userSourcesName": "Użytkownicy"
+        "userSourcesName": "Użytkownicy",
+        "generalName": "Ogólne"
     },
     "createPageModal": {
         "header": "Utwórz stronę",
@@ -19,33 +20,42 @@
         "nameTitle": "Nazwa",
         "nameSubtitle": "Unikalna nazwa strony",
         "pathTitle": "Ścieżka",
-        "pathSubtitle": "Parametr można dodać za pomocą :parameter",
+        "pathSubtitle": "Parametr można dodać za pomocą argumentu :parameter",
         "pathParamsTitle": "Parametry ścieżki",
-        "pathParamsSubtitle": "Są zdefiniowane przez :parameter w ścieżce",
-        "pathParamsSubtitleTutorial": "Parametry ścieżki mogą być używane do dynamicznego ładowania danych, w zależności od dostarczonego parametru. Dodaj :parameter do ścieżki, aby dodać jeden z nich."
+        "pathParamsSubtitle": "Są zdefiniowane przez argument :parameter w ścieżce",
+        "pathParamsSubtitleTutorial": "Parametry ścieżki służą do dynamicznego ładowania danych określonych parametrem. Aby użyć parametru, dodaj argument :parameter do ścieżki.",
+        "namePlaceholder": "Wprowadź nazwę...",
+        "addAnotherParameter": "Dodaj kolejny parametr zapytania",
+        "addParameter": "Dodaj parametr zapytania",
+        "queryParamsSubtitleTutorial": "Parametry zapytania służą do dynamicznego ładowania danych. Dane wyświetlane są w zależności od podanego parametru.",
+        "pathPlaceholder": "Wprowadź ścieżkę...",
+        "queryParamsTitle": "Parametry zapytania"
     },
     "builderSettingsModal": {
         "title": "Aplikacja"
     },
     "sidebarComponentBuilder": {
-        "createPage": "Utwórz stronę",
+        "createPage": "Nowa strona",
         "settings": "Ustawienia"
     },
     "publishActionModal": {
         "openInNewTab": "Otwórz w nowej karcie",
-        "title": "Publikować",
-        "description": "Uruchom aplikację, publikując ją w jednej z domen. Należy pamiętać, że aplikacja może mieć wiele domen, z których każda uruchamia inną wersję aplikacji.",
-        "publish": "Publikować",
-        "publishSucceedTitle": "Strona opublikowana",
-        "publishSucceedDescription": "Strona została pomyślnie opublikowana.",
-        "publishFailedTitle": "Publikacja witryny nie powiodła się",
-        "publishFailedDescription": "Publikacja strony nie powiodła się. Spróbuj ponownie później.",
-        "noDomain": "Musisz posiadać przynajmniej jedną domenę, aby opublikować swoją aplikację.",
-        "importingState": "Importowanie"
+        "title": "Opublikuj",
+        "description": "Uruchom aplikację, publikując ją na jednej z domen. Zwróć uwagę, że aplikacja może mieć wiele domen i każda z nich może obsługiwać inną wersję aplikacji.",
+        "publish": "Opublikuj",
+        "publishSucceedTitle": "Witryna została opublikowana",
+        "publishSucceedDescription": "Witryna została pomyślnie opublikowana.",
+        "publishFailedTitle": "Opublikowanie witryny nie powiodło się",
+        "publishFailedDescription": "Opublikowanie witryny nie powiodło się. Spróbuj ponownie później.",
+        "noDomain": "Musisz mieć przynajmniej jedną domenę, aby opublikować swoją aplikację.",
+        "importingState": "Importowanie",
+        "publishSucceedLink": "Wyświetl witrynę",
+        "addDomain": "Dodaj domenę"
     },
     "duplicatePageJobType": {
         "duplicating": "Duplikowanie",
-        "duplicatedTitle": "Strona zduplikowana"
+        "duplicatedTitle": "Strona została zduplikowana",
+        "name": "Duplikuj stronę"
     },
     "headingElementForm": {
         "levelTitle": "Poziom",
@@ -56,21 +66,25 @@
     },
     "addElementModal": {
         "searchPlaceholder": "Wyszukaj elementy",
-        "title": "Dodaj nowy element"
+        "title": "Dodaj nowy element",
+        "elementInProgress": "Dodawanie elementu..."
     },
     "elementMenu": {
         "moveUp": "Przesuń w górę",
         "moveDown": "Przesuń w dół",
         "moveRight": "Przesuń w prawo",
         "moveLeft": "Przesuń w lewo",
-        "selectParent": "Wybierz rodzica"
+        "selectParent": "Wybierz element nadrzędny",
+        "drag": "Przeciągnij, aby zmienić kolejność"
     },
     "pageErrors": {
         "errorNameNotUnique": "Strona o tej nazwie już istnieje",
         "errorPathNotUnique": "Ścieżka o tej nazwie już istnieje",
-        "errorStartingSlash": "Ścieżka musi zaczynać się od '/'",
-        "errorValidPathCharacters": "Ścieżka zawiera nieprawidłowe znaki",
-        "errorUniquePathParams": "Parametry ścieżki muszą być unikalne."
+        "errorStartingSlash": "Ścieżka musi się zaczynać od '/'",
+        "errorValidPathCharacters": "Ta ścieżka zawiera nieprawidłowe znaki",
+        "errorUniquePathParams": "Parametry ścieżki muszą być unikalne.",
+        "errorNameNotUniqueDescription": "Podaj unikalną nazwę strony",
+        "errorUniqueValidQueryParams": "Nazwy parametrów zapytania muszą być unikalne i poprawnie sformułowane."
     },
     "pageHeaderItemTypes": {
         "labelElements": "Elementy",
@@ -80,43 +94,93 @@
     },
     "pageActionTypes": {
         "preview": "Podgląd",
-        "publish": "Publikować"
+        "publish": "Opublikuj"
     },
     "lastPublishedDomainDate": {
         "neverPublished": "nigdy",
-        "lastPublished": "Ostatnia publikacja:"
+        "lastPublished": "Data ostatniej publikacji:"
     },
     "elementsContext": {
         "searchPlaceholder": "Elementy wyszukiwania",
-        "noElements": "Nie znaleziono żadnych elementów"
+        "noElements": "Nie znaleziono żadnych elementów",
+        "noPageElements": "Nie znaleziono elementów dla tej strony"
     },
     "elementType": {
         "heading": "Nagłówek",
         "headingDescription": "Tytuł nagłówka strony",
-        "text": "Ustęp",
+        "text": "Tekst",
         "textDescription": "Tekst wielowierszowy",
         "link": "Link",
-        "linkDescription": "Link do strony/URL",
+        "linkDescription": "Link do strony/adres URL",
         "image": "Obraz",
         "imageDescription": "Wyświetl obraz",
-        "inputText": "Wprowadzanie tekstu",
-        "inputTextDescription": "Pole wprowadzania tekstu",
+        "inputText": "Wprowadzanie danych",
+        "inputTextDescription": "Pole wprowadzania danych",
         "columnDescription": "Kontener kolumn",
         "column": "Kolumny",
         "button": "Przycisk",
-        "buttonDescription": "Element przycisku",
+        "buttonDescription": "Element zawierający przycisk",
         "table": "Tabela",
         "dropdown": "Lista rozwijana",
         "dropdownDescription": "Element rozwijany",
         "checkbox": "Pole wyboru",
-        "checkboxDescription": "Element pola wyboru",
+        "checkboxDescription": "Element zawierający pole wyboru",
         "iframe": "IFrame",
         "authForm": "Formularz logowania",
         "authFormDescription": "Formularz logowania użytkownika",
-        "formContainerDescription": "Element formularza",
-        "tableDescription": "Element tabeli",
+        "formContainerDescription": "Element zawierający formularz",
+        "tableDescription": "Element zawierający tabelę",
         "formContainer": "Formularz",
-        "iframeDescription": "Ramka Inline"
+        "iframeDescription": "Ramka inline",
+        "choice": "Opcja wyboru",
+        "choiceDescription": "Wybór pojedynczej/wielu wartości",
+        "repeat": "Powtórz",
+        "repeatDescription": "Powtarzalny zestaw elementów",
+        "recordSelector": "Selektor rekordów",
+        "recordSelectorDescription": "Selektor powiązanych rekordów",
+        "dateTimePicker": "Selektor daty i godziny",
+        "dateTimePickerDescription": "Pole wprowadzania daty i godziny",
+        "header": "Nagłówek wielostronicowy",
+        "headerDescription": "Kontener współdzielony między stronami",
+        "footer": "Stopka wielostronicowa",
+        "footerDescription": "Kontener współdzielony między stronami",
+        "notAllowedUnlessTop": "Ten element może być umieszczony tylko na górze strony",
+        "notAllowedUnlessBottom": "Ten element może być umieszczony tylko na dole strony",
+        "notAllowedUnlessHeader": "Ten element może być umieszczony tylko wewnątrz nagłówka strony",
+        "notAllowedUnlessFooter": "Ten element może być umieszczony tylko wewnątrz stopki strony",
+        "notAllowedInsideContainer": "Ten element nie może być umieszczony być wewnątrz kontenera",
+        "notAllowedInsideSameType": "Ten element nie może być umieszczony w kontenerze tego samego typu",
+        "ratingInput": "Pole oceny",
+        "ratingInputDescription": "Element zawierający pole do wprowadzenia oceny",
+        "rating": "Ocena",
+        "ratingDescription": "Element zawierający ocenę",
+        "invalidElementValue": "Nieprawidłowa wartość elementu: {value}",
+        "notAllowedLocation": "Ten element nie jest dozwolony w tym miejscu",
+        "menu": "Menu",
+        "menuDescription": "Element zawierający menu",
+        "simpleContainer": "Kontener",
+        "simpleContainerDescription": "Kontener zawierający inne elementy",
+        "fileInput": "Pole pliku",
+        "fileInputDescription": "Pole do przesyłania plików",
+        "errorValueMissing": "Brak atrybutu wartości",
+        "errorEmptyContainer": "Ten kontener jest pusty",
+        "errorParentWithDataSourceMissing": "Nie wybrano źródła danych dla elementu ani kontenera nadrzędnego",
+        "errorDataSourceMissing": "Nie wybrano źródła danych",
+        "errorSchemaPropertyMissing": "Nie wybrano atrybutu schematu",
+        "errorWorkflowActionInError": "Co najmniej jedna operacja jest nieprawidłowo skonfigurowana",
+        "errorCollectionFieldInError": "Co najmniej jedno pole jest nieprawidłowo skonfigurowane",
+        "errorNavigateToPageMissing": "Brak atrybutu “Przejdź do strony\"",
+        "errorPageParameterInError": "Co najmniej jeden parametr strony jest nieprawidłowo skonfigurowany",
+        "errorNavigationUrlMissing": "Brak atrybutu adresu URL",
+        "errorImageFileMissing": "Brak pliku obrazu",
+        "errorImageUrlMissing": "Brak atrybutu adresu URL obrazu",
+        "errorNoWorkflowAction": "Nie skonfigurowano operacji procesu",
+        "errorOptionsMissing": "Nie skonfigurowano opcji",
+        "errorIframeUrlMissing": "Brak atrybutu adresu URL IFrame",
+        "errorIframeContentMissing": "Brak zawartości IFrame",
+        "errorNoMenuItem": "Nie skonfigurowano elementu menu",
+        "errorMenuItemInError": "Co najmniej jedno menu jest nieprawidłowo skonfigurowane",
+        "errorSubMenuItemInError": "Co najmniej jedno podmenu jest nieprawidłowo skonfigurowane"
     },
     "addElementButton": {
         "label": "Element"
@@ -124,32 +188,37 @@
     "elementForms": {
         "textInputPlaceholder": "Wprowadź tekst...",
         "urlInputPlaceholder": "Wprowadź URL...",
-        "invalidFormula": "Formuła jest nieprawidłowa"
+        "invalidFormula": "Ta formuła jest nieprawidłowa"
     },
     "headingElement": {
-        "noValue": "Bez tytułu..."
+        "noValue": "Bez tytułu...",
+        "missingValue": "Brak tytułu...",
+        "emptyValue": "Pusty tytuł..."
     },
     "pageSidePanelType": {
         "general": "Ogólne",
         "visibility": "Widoczność",
         "events": "Zdarzenia",
         "style": "Styl",
-        "eventsTabDeactivatedNoEvents": "Ten element nie obsługuje żadnych zdarzeń"
+        "eventsTabDeactivatedNoEvents": "Ten element nie obsługuje żadnych zdarzeń",
+        "eventsTabInError": "Co najmniej jedna operacja jest nieprawidłowo skonfigurowana."
     },
     "emptySidePanelState": {
-        "message": "Kliknij jeden z elementów, aby zobaczyć więcej szczegółów"
+        "message": "Kliknij element, aby zobaczyć więcej szczegółów"
     },
     "imageElement": {
-        "emptyState": "Nie zdefiniowano tekstu alternatywnego..."
+        "emptyState": "Nie zdefiniowano tekstu alternatywnego...",
+        "missingValue": "Brak tekstu alternatywnego...",
+        "emptyValue": "Pusty tekst alternatywny..."
     },
     "imageElementForm": {
         "fileLabel": "Plik obrazu",
         "invalidUrlError": "Adres URL jest nieprawidłowy",
         "altTextTitle": "Tekst alternatywny",
-        "altTextDescription": "Jest używany przez czytniki ekranu i wyświetlany, jeśli obraz nie może się załadować",
+        "altTextDescription": "Jest używany przez czytniki ekranu oraz wyświetlany, jeśli obraz nie może się załadować",
         "fileSourceTypeUpload": "Prześlij",
         "fileSourceTypeURL": "URL",
-        "urlWarning": "Uwaga: upewnij się, że masz kontrolę lub ufasz wprowadzonemu adresowi URL.",
+        "urlWarning": "Uwaga: upewnij się, czy masz kontrolę nad podanym adresem URL lub czy jest wiarygodny.",
         "uploadFileButton": "Prześlij plik",
         "imageConstraintContain": "Zawierać",
         "maxWidthLabel": "Maksymalna szerokość",
@@ -163,12 +232,14 @@
         "imageConstraintContainDisabled": "Niedostępne z maksymalną wysokością."
     },
     "domainTypes": {
-        "customName": "Domena niestandardowa",
+        "customName": "Domena użytkownika",
         "subDomainName": "Subdomena",
-        "subDomain": "Subdomena {domain}"
+        "subDomain": "Subdomena domeny {domain}"
     },
     "linkElement": {
-        "noValue": "Bezimienny..."
+        "noValue": "Bezimienny...",
+        "missingValue": "Brak tekstu do linku...",
+        "emptyValue": "Pusty tekst do linku..."
     },
     "linkElementForm": {
         "text": "Tekst",
@@ -204,24 +275,30 @@
     },
     "pageSettings": {
         "title": "Strona",
-        "pageUpdatedTitle": "Zmienione",
+        "pageUpdatedTitle": "Strona zaktualizowana",
         "pageUpdatedDescription": "Ustawienia strony zostały zaktualizowane."
     },
     "pathParamTypes": {
         "textName": "Tekst",
-        "numericName": "Numeryczny"
+        "numericName": "Liczbowy"
     },
     "publicPage": {
         "siteNotFound": "Nie znaleziono witryny",
-        "pageNotFound": "Nie znaleziono strony"
+        "pageNotFound": "Nie znaleziono strony",
+        "loginToastTitle": "Pomyślne uwierzytelnienie",
+        "loginToastMessage": "Logowanie zakończyło się pomyślnie.",
+        "authorizedToastTitle": "Wymagane uwierzytelnienie",
+        "authorizedToastMessage": "Aby uzyskać dostęp do tej strony, musisz się zalogować. Zaloguj się, aby kontynuować."
     },
     "integrationSettings": {
         "title": "Integracje",
-        "integrationMessage": "Możesz skonfigurować nowe integracje, dodając źródło danych, operację lub uwierzytelnianie użytkownika.",
+        "integrationMessage": "Nowe integracje można utworzyć poprzez dodanie źródła danych, operacji lub uwierzytelnienia użytkownika.",
         "noIntegrationMessage": "Nie utworzono jeszcze żadnych integracji. Aby skonfigurować integrację, dodaj źródło danych, operację lub uwierzytelnienie użytkownika."
     },
     "textElement": {
-        "noValue": "Pusty akapit..."
+        "noValue": "Pusty akapit...",
+        "missingValue": "Brak tekstu...",
+        "emptyValue": "Pusty tekst..."
     },
     "textElementForm": {
         "textTitle": "Tekst",
@@ -235,11 +312,11 @@
         "titleOverview": "Domeny",
         "titleAddDomain": "Dodaj domenę",
         "addDomain": "Dodaj domenę",
-        "noDomainMessage": "Nie powiązano jeszcze domeny z tą aplikacją. Musisz dodać domenę, aby móc opublikować swoją aplikację. Możesz publikować różne wersje aplikacji dla każdej domeny wymienionej tutaj."
+        "noDomainMessage": "Z tą aplikacją nie są jeszcze powiązane żadne domeny. Aby opublikować tę aplikację musisz dodać domenę. Możesz opublikować różne wersje aplikacji na każdej z wymienionych tutaj domen."
     },
     "dnsStatus": {
         "typeHeader": "Typ",
-        "description": "Przejdź do ustawień DNS swoich domen i wprowadź następujące zmiany",
+        "description": "Udaj się do panelu konfiguracji swoich domen i wprowadź następujące zmiany w ustawieniach DNS",
         "hostHeader": "Host",
         "valueHeader": "Wartość"
     },
@@ -250,7 +327,8 @@
     },
     "domainCard": {
         "refresh": "Odśwież ustawienia",
-        "detailLabel": "Pokaż szczegóły"
+        "detailLabel": "Pokaż szczegóły",
+        "unpublishedDomainWarning": "Opublikuj aplikację, aby udostępnić ją na tej domenie."
     },
     "dataSourceForm": {
         "namePlaceholder": "Nazwa źródła",
@@ -259,24 +337,31 @@
         "selectTypeFirst": "Najpierw wybierz usługę",
         "servicePlaceholder": "Wybierz usługę",
         "integrationPlaceholder": "Wybierz integrację",
-        "errorUniqueName": "Nazwa źródła danych musi być unikalna."
+        "errorUniqueName": "Nazwa źródła danych musi być unikalna.",
+        "nameLabel": "Nazwa",
+        "actionLabel": "Operacja",
+        "integrationLabel": "Integracja"
     },
     "dataSourceContext": {
         "addDataSource": "Dodaj nowe źródło danych",
-        "noDataSourceMessage": "Źródła danych mogą być używane do pobierania danych z wewnętrznych lub zewnętrznych źródeł i wyświetlania ich na stronie.",
-        "noDataSourceTitle": "Ta strona nie ma źródeł danych."
+        "noDataSourceMessage": "Źródła danych służą do pobierania danych z zasobów wewnętrznych lub zewnętrznych i wyświetlania ich na stronie.",
+        "noDataSourceTitle": "Nie dodałeś jeszcze żadnego źródła danych.",
+        "sharedDataSourceTitle": "Współdzielone między stronami",
+        "pageDataSourceTitle": "Dla tej strony",
+        "sharedDataSourceDescription": "Dostępne na każdej stronie i pobierane raz przy pierwszym załadowaniu strony.",
+        "pageDataSourceDescription": "Pobierane, gdy użytkownik otwiera tę stronę."
     },
     "verticalAlignmentSelector": {
         "alignmentTop": "Góra",
         "alignmentBottom": "Dół",
-        "alignmentCenter": "Środek",
+        "alignmentCenter": "Środek pionowo",
         "alignment": "Wyrównanie pionowe"
     },
     "horizontalAlignmentSelector": {
         "alignmentLeft": "Lewa",
         "alignmentRight": "Prawo",
         "alignment": "Wyrównanie poziome",
-        "alignmentCenter": "Centrum"
+        "alignmentCenter": "Środek poziomo"
     },
     "inputTextElementForm": {
         "placeholderPlaceholder": "Wprowadź symbol zastępczy (opcjonalnie)",
@@ -284,68 +369,81 @@
         "valuePlaceholder": "Wprowadź wartość domyślną (opcjonalnie)",
         "placeholderTitle": "Symbol zastępczy",
         "requiredTitle": "Wymagane",
-        "rowsPlaceholder": "Wprowadź liczbę wierszy tego wejścia",
+        "rowsPlaceholder": "Wprowadź liczbę wierszy tego pola",
         "inputType": "Rodzaj wprowadzanych danych",
         "inputTypeTextLabel": "Tekst",
         "inputTypePasswordLabel": "Hasło",
-        "passwordTypeWarning": "Hasła są danymi wrażliwymi. Należy uważać na sposób obsługi i przechowywania haseł w aplikacji.",
-        "multilineTitle": "Wieloliniowy",
-        "validationTypeIntegerDescription": "Wymusza wartość liczbową w tym wejściu.",
+        "passwordTypeWarning": "Hasła to dane poufne. Prosimy o zachowanie ostrożności przy podawaniu i zapisywaniu haseł w aplikacji.",
+        "multilineTitle": "Wielo-wierszowy",
+        "validationTypeIntegerDescription": "Wymagaj, aby w tym polu była wpisana liczba (akceptowane są liczby całkowite lub ułamki dziesiętne).",
         "rowsTitle": "Liczba wierszy",
-        "validationTypeAnyDescription": "Umożliwia ustawienie dowolnej wartości w tym wejściu.",
+        "validationTypeAnyDescription": "Zezwól na wstawienie dowolnej wartości w tym polu.",
         "validationTypeAnyLabel": "Dowolny",
-        "validationTypeEmailDescription": "Wymuś wartość adresu e-mail w tym polu.",
-        "validationTypeIntegerLabel": "Numer",
+        "validationTypeEmailDescription": "Wymagaj, aby adres e-mail był wpisany w tym polu.",
+        "validationTypeIntegerLabel": "Liczba",
         "validationTypeEmailLabel": "E-mail"
     },
     "defaultStyleForm": {
-        "boxTop": "Top",
+        "boxTop": "Góra",
         "boxBottom": "Dół",
-        "boxLeft": "Lewa",
+        "boxLeft": "Lewo",
         "backgroundLabel": "Tło",
         "backgroundColor": "Kolor tła",
         "widthLabel": "Szerokość",
-        "boxRight": "Prawo"
+        "boxRight": "Prawo",
+        "backgroundImage": "Obraz",
+        "backgroundImageMode": "Tryb wypełnienia",
+        "cssClasses": "Klasy CSS",
+        "cssClassesHelp": "Podaj klasy, które będą użyte w wygenerowanym kodzie HTML. Poszczególne klasy oddziel spacjami.",
+        "cssClassesPlaceholder": "Wprowadź klasy CSS..."
     },
     "columnElementForm": {
         "columnGapPlaceholder": "Wprowadź odstęp między kolumnami...",
         "columnGapTitle": "Odstęp między kolumnami",
-        "columnAmountTitle": "Układ",
-        "columnAmountName": "brak kolumn | 1 kolumna | {columnAmount} kolumny"
+        "columnAmountTitle": "Układ strony",
+        "columnAmountName": "brak kolumn | 1 kolumna | {columnAmount} kolumny/kolumn",
+        "verticalAlignment": "Wyrównanie w pionie"
     },
     "styleBoxForm": {
         "paddingError": "Wartość musi być liczbą całkowitą z zakresu od 0 do 200.",
-        "borderLabel": "Granica",
-        "paddingLabel": "Padding"
+        "borderLabel": "Rozmiar",
+        "paddingLabel": "Padding",
+        "borderColor": "Kolor obramowania",
+        "marginLabel": "Margines"
     },
     "dataProviderType": {
         "dataSource": "Dane",
         "pageParameter": "Parametr",
         "currentRecord": "Źródło danych",
-        "previousAction": "Poprzednie działanie",
+        "previousAction": "Poprzednia operacja",
         "user": "Użytkownik",
-        "formData": "Dane formularza"
+        "formData": "Dane formularza",
+        "dataSourceContext": "Dostępne opcje"
     },
     "generalForm": {
         "labelTitle": "Etykieta",
-        "valueTitle": "Wartość domyślna",
-        "labelPlaceholder": "Wprowadź etykietę (opcjonalnie)",
-        "valuePlaceholder": "Wprowadź wartość domyślną (opcjonalnie)",
-        "placeholderTitle": "Symbol zastępczy",
-        "placeholderPlaceholder": "Wprowadź symbol zastępczy (opcjonalnie)",
+        "valueTitle": "Wartość",
+        "labelPlaceholder": "Wprowadź etykietę",
+        "valuePlaceholder": "Wprowadź wartość",
+        "placeholderTitle": "Tekst-wskazówka (placeholder)",
+        "placeholderPlaceholder": "Wprowadź tekst-wskazówkę (placeholder)",
         "requiredTitle": "Wymagane",
-        "validationTitle": "Walidacja"
+        "validationTitle": "Walidacja",
+        "defaultValueTitle": "Wartość domyślna",
+        "defaultValuePlaceholder": "Wprowadź wartość domyślną"
     },
     "iframeElementForm": {
         "sourceTypeLabel": "Typ źródła",
         "empty": "Pusty IFrame...",
         "urlLabel": "Adres URL",
         "urlPlaceholder": "Link do zewnętrznego zasobu, który ma zostać osadzony",
-        "urlHelp": "Uwaga: „Uważmy, że mamy kontrolę, albo zaufają url.",
-        "embedLabel": "Osadzony",
-        "embedPlaceholder": "Surowa zawartość HTML do osadzenia",
+        "urlHelp": "Uwaga: upewnij się czy masz kontrolę nad podanym adresem URL lub czy jest wiarygodny.",
+        "embedLabel": "Osadź",
+        "embedPlaceholder": "Kod HTML do osadzenia",
         "heightLabel": "Wysokość (px)",
-        "heightPlaceholder": "Wysokość w pikselach"
+        "heightPlaceholder": "Wysokość w pikselach",
+        "missingValue": "Brak źródła IFrame...",
+        "emptyValue": "Puste źródło IFrame..."
     },
     "backgroundTypes": {
         "none": "Brak",
@@ -353,7 +451,7 @@
     },
     "eventTypes": {
         "clickLabel": "Po kliknięciu",
-        "submitLabel": "Po przesłaniu",
+        "submitLabel": "Po wysłaniu",
         "afterLoginLabel": "Po zalogowaniu"
     },
     "getFormulaComponent": {
@@ -361,16 +459,21 @@
     },
     "tableElementForm": {
         "fieldValueLabel": "Wartość",
-        "itemsPerPage": "Elementów na stronę",
+        "itemsPerPage": "Pozycji na stronę",
         "fieldDefaultName": "Kolumna",
         "fieldType": "Typ",
         "itemsPerPagePlaceholder": "Wprowadź wartość...",
-        "selectSourceFirst": "Wybierz źródło danych listy, aby rozpocząć konfigurację pól.",
+        "selectSourceFirst": "Wybierz źródło danych listy i/lub atrybut, aby rozpocząć konfigurację pól.",
         "buttonColor": "Kolor przycisku",
         "addField": "dodaj pole",
         "fieldValuePlaceholder": "Wprowadź wartość...",
         "dataSource": "Źródło danych",
-        "fields": "Pola"
+        "fields": "Pola",
+        "name": "Nazwa",
+        "noName": "Brak nazwy",
+        "refreshFieldsFromDataSource": "odśwież pola ze źródła danych",
+        "buttonLoadMoreLabel": "Etykieta “Pokaż więcej\"",
+        "propertySelectorMissingArrays": "Nie znaleziono pól wielowartościowych do użycia jako wiersze."
     },
     "tableElement": {
         "empty": "Nie znaleziono żadnych elementów.",
@@ -378,10 +481,11 @@
     },
     "currentRecordDataProviderType": {
         "index": "Indeks",
-        "firstPartName": "Źródło danych {name}"
+        "firstPartName": "Źródło danych {name}",
+        "schemaProperty": "{prefixName}: {schemaProperty}"
     },
     "linkFieldForm": {
-        "fieldLinkNameLabel": "Tekst łącza",
+        "fieldLinkNameLabel": "Tekst linku",
         "fieldValueLabel": "Adres URL",
         "fieldValuePlaceholder": "Wprowadź wartość...",
         "fieldLinkNamePlaceholder": "Wprowadź wartość...",
@@ -403,7 +507,8 @@
         "nameFieldPlaceholder": "Wprowadź nazwę...",
         "authTitle": "Uwierzytelnianie",
         "integrationFieldLabel": "Integracja",
-        "nameFieldLabel": "Nazwa"
+        "nameFieldLabel": "Nazwa",
+        "addProvider": "Dodaj dostawcę"
     },
     "dropdownOptionSelector": {
         "name": "Nazwa",
@@ -424,19 +529,39 @@
     },
     "checkboxElementForm": {
         "requiredTitle": "Wymagane",
-        "labelTitle": "Etykieta",
+        "labelTitle": "Nazwa opcji",
         "valueTitle": "Wartość domyślna"
     },
     "userSourceUsersContext": {
         "searchPlaceholder": "Szukaj użytkownika",
-        "anonymous": "Anonimowy",
+        "anonymous": "Niezalogowany",
         "unnamed": "Bez nazwy",
         "noEmail": "Brak wiadomości e-mail"
     },
     "visibilityForm": {
         "allVisitors": "Wszyscy odwiedzający",
         "loggedInVisitors": "Zalogowani odwiedzający",
-        "notLoggedInVisitors": "Wylogowani odwiedzający"
+        "notLoggedInVisitors": "Niezalogowani odwiedzający",
+        "warningTitle": "To jest funkcja zabezpieczająca",
+        "warningMessage": "Kliknij {link}, aby dowiedzieć się więcej o tym, jak zabezpieczamy dane.",
+        "documentationLink": "dokumentacja",
+        "excludedRolesLabel": "wszystkie role z wyjątkiem",
+        "switchAllowLabel": "Zezwalaj",
+        "switchDisallowLabel": "Nie zezwalaj",
+        "rolesSelectAll": "Zaznacz wszystko",
+        "rolesDeselectAll": "Odznacz wszystko",
+        "rolesSelectHint": "Wybierz jedną lub więcej ról",
+        "roleTypesHint": "Wybierz rodzaj roli",
+        "roleTypeAllowAllRoles": "Wszystkie role",
+        "roleTypeAllowAllRolesExcept": "Wykluczone role…",
+        "roleTypeDisallowAllRolesExcept": "Dozwolone role…",
+        "rolesAllMembersOf": "Wszyscy członkowie {name}",
+        "noRole": "Brak roli",
+        "errorFetchingRolesTitle": "Nie udało się pobrać ról użytkowników",
+        "errorFetchingRolesMessage": "Wystąpił problem podczas pobierania ról użytkowników.",
+        "visibilityCondition": "Warunek widoczności",
+        "visibilityConditionHelper": "Jeśli wynik tej formuły jest prawdziwy i powyższy wybór odwiedzającego jest prawdziwy, element będzie widoczny. Ten warunek wpływa tylko na widoczność elementu, a nie na zawartość odpowiedzi serwera. Aby wstrzymać wysyłanie danych w odpowiedzi serwera, użyj powyższej opcji filtrowania według roli użytkownika.",
+        "visibilityConditionPlaceholder": "Warunek..."
     },
     "formDataProviderType": {
         "nodeMissing": "Brakujący"
@@ -444,30 +569,32 @@
     "userSourceSettings": {
         "titleAddUserSource": "Nowe źródło użytkownika",
         "titleUpdateUserSource": "Edytuj źródło użytkownika",
-        "titleOverview": "Źródła użytkownika",
-        "addUserSource": "Dodaj źródło użytkownika",
-        "noUserSourceMessage": "Nie dodano jeszcze źródła użytkownika do tej aplikacji. Musisz dodać źródło użytkownika, jeśli chcesz, aby użytkownicy mogli uwierzytelniać Twoją aplikację."
+        "titleOverview": "Źródła użytkowników",
+        "addUserSource": "Dodaj źródło użytkowników",
+        "noUserSourceMessage": "Nie dodałeś jeszcze źródła użytkowników do tej aplikacji. Jeśli chcesz umożliwić użytkownikom logowanie się do tej aplikacji, potrzebne jest źródło użytkowników."
     },
     "domainForm": {
-        "invalidDomain": "Nazwa domeny jest nieważna",
-        "notUniqueDomain": "Podana domena jest już używana"
+        "invalidDomain": "Nazwa domeny jest niepoprawna",
+        "notUniqueDomain": "Podana domena jest już w użyciu"
     },
     "subDomainForm": {
         "domainNameLabel": "Nazwa domeny"
     },
     "widthSelector": {
         "width": "Szerokość",
-        "widthAuto": "Auto",
+        "widthAuto": "Automatyczna",
         "widthFull": "Pełna szerokość"
     },
     "widthTypes": {
         "full": "Pełna szerokość",
         "normal": "Normalny",
         "medium": "Średni",
-        "small": "Mały"
+        "small": "Mały",
+        "fullBleed": "Całkowite wypełnienie",
+        "fullWidth": "Pełna szerokość"
     },
     "buttonElementForm": {
-        "valueLabel": "Tekst",
+        "valueLabel": "Tekst na przycisku",
         "valuePlaceholder": "Wprowadź tekst...",
         "buttonColor": "Kolor przycisku"
     },
@@ -476,10 +603,16 @@
     },
     "workflowActionTypes": {
         "notificationLabel": "Pokaż powiadomienie",
-        "openPageLabel": "Otwarta strona",
+        "openPageLabel": "Otwórz stronę",
         "createRowLabel": "Utwórz wiersz",
         "updateRowLabel": "Aktualizuj wiersz",
-        "logoutLabel": "Wylogowanie"
+        "logoutLabel": "Wyloguj się",
+        "refreshDataSourceLabel": "Odśwież źródło danych",
+        "httpRequest": "Wyślij żądanie HTTP",
+        "errorNavigateToPageMissing": "Brak atrybutu “Przejdź do strony\"",
+        "errorPageParameterInError": "Przynajmniej jeden z parametrów strony jest nieprawidłowo skonfigurowany",
+        "errorNavigationUrlMissing": "Brak atrybutu adresu URL",
+        "errorDataSourceMissing": "Nie wybrano źródła danych"
     },
     "notificationWorkflowActionForm": {
         "titleLabel": "Tytuł",
@@ -492,26 +625,29 @@
         "urlLabel": "Adres URL"
     },
     "event": {
-        "addAction": "dodać działanie"
+        "addAction": "dodaj operację"
     },
     "formContainerElementForm": {
         "submitButtonPlaceholder": "Wprowadź wartość...",
-        "submitButtonLabel": "Przycisk przesyłania",
+        "submitButtonLabel": "Przycisk wysyłania",
         "buttonColor": "Kolor przycisku",
-        "resetToInitialValuesTitle": "Przywróć wartości domyślne po przesłaniu",
-        "resetToInitialValuesDescription": "Jeśli zaznaczone, domyślne wartości formularza zostaną użyte do zresetowania formularza po pomyślnym przesłaniu. Jeśli opcja nie jest zaznaczona, wartości użytkownika pozostaną."
+        "resetToInitialValuesTitle": "Przywróć wartości domyślne po wysłaniu",
+        "resetToInitialValuesDescription": "Jeśli opcja jest zaznaczona, to po pomyślnym wysłaniu formularz zostanie zresetowany i wypełniony wartościami domyślnymi. Jeśli opcja nie jest zaznaczona, wprowadzone wartości nie zostaną zresetowane."
     },
     "subDomainDetails": {
-        "text": "Ustawienia DNS domeny zostały już skonfigurowane i sprawdzone. Działa to bez wprowadzania dodatkowych zmian."
+        "text": "Ustawienia DNS domeny zostały skonfigurowane i sprawdzone. Nie ma konieczności wprowadzania dodatkowych modyfikacji."
     },
     "linkNavigationSelection": {
         "paramPlaceholder": "Wprowadź wartość...",
         "urlPlaceholder": "Wprowadź adres URL...",
         "url": "Docelowy adres URL",
-        "paramsInErrorDescription": "Zapisane parametry nie są zgodne z parametrami strony. Strona została prawdopodobnie usunięta lub zaktualizowana.",
+        "paramsInErrorDescription": "Zapisane parametry nie są zgodne z parametrami strony. Strona została prawdopodobnie usunięta lub zmieniona.",
         "paramsInErrorButton": "Zaktualizuj parametry",
         "navigateTo": "Przejdź do",
-        "navigateToCustom": "Niestandardowy adres URL"
+        "navigateToCustom": "Adres URL użytkownika",
+        "target": "Otwórz w...",
+        "targetSelf": "Tej samej karcie",
+        "targetNewTab": "Nowej karcie"
     },
     "mainThemeConfigBlock": {
         "colorsLabel": "Kolory",
@@ -522,14 +658,23 @@
         "headingValue": "Nagłówek <h{i}>"
     },
     "buttonElement": {
-        "noValue": "Bezimienny..."
+        "noValue": "Bezimienny...",
+        "missingValue": "Brak tekstu przycisku...",
+        "emptyValue": "Pusty tekst przycisku..."
     },
     "collectionFieldType": {
         "text": "Tekst",
-        "link": "Link"
+        "link": "Link",
+        "boolean": "Wartość logiczna",
+        "button": "Przycisk",
+        "tags": "Tagi",
+        "image": "Obraz",
+        "rating": "Ocena",
+        "errorValueMissing": "Brak atrybutu wartości"
     },
     "formContainerElement": {
-        "submitDeactivatedText": "Wypełnij wszystkie wymagane pola, aby przesłać"
+        "submitDeactivatedText": "Aby wysłać formularz wypełnij wszystkie wymagane pola",
+        "defaultSubmitButtonLabel": "Wyślij"
     },
     "dispatchWorkflowActionError": {
         "defaultTitle": "Błąd zdarzenia",
@@ -548,22 +693,489 @@
         "selectOrConfigureUserSourceFirst": "Wybierz źródło użytkownika, aby rozpocząć korzystanie z tego elementu logowania."
     },
     "pagePreview": {
-        "emptyMessage": "Kliknij, aby utworzyć pierwszy element"
+        "emptyMessage": "Kliknij, aby utworzyć element",
+        "header": "NAGŁÓWEK",
+        "footer": "STOPKA"
     },
     "userSelector": {
-        "viewAs": "Zobacz jak: {user}",
-        "anonymous": "Anonimowy"
+        "viewAs": "Zobacz jako: {user}",
+        "anonymous": "Niezalogowany",
+        "member": "{prefix} - członek"
     },
     "generalSettings": {
-        "titleOverview": "Ogólne"
+        "titleOverview": "Ogólne",
+        "labelForm": "Ikona favicon",
+        "labelDescription": "Wybierz plik ICO, PNG, GIF lub JPEG o wymiarach 128×128 px.",
+        "labelButton": "Prześlij ikonę favicon",
+        "cantUploadFaviconTitle": "Nie udało się przesłać pliku z ikoną favicon",
+        "cantUploadFaviconDescription": "Nie udało się przesłać pliku z ikoną favicon. Sprawdź, czy plik jest unikalny i czy jest zapisany w obsługiwanym formacie.",
+        "cantUpdateApplicationTitle": "Nie udało się zaktualizować aplikacji",
+        "cantUpdateApplicationDescription": "Przepraszamy, nie udało się zaktualizować aplikacji."
     },
     "choiceOptionSelector": {
-        "dataSource": "Źródło danych"
+        "dataSource": "Źródło danych",
+        "label": "Opcje",
+        "value": "Wartości opcji",
+        "valuePlaceholder": "Wprowadź wartość",
+        "name": "Nazwy opcji",
+        "namePlaceholder": "Wprowadź nazwę",
+        "addOption": "dodaj opcję",
+        "addOptionDescription": "Kliknij “dodaj opcję\", aby dodać opcje do listy rozwijanej",
+        "optionType": "Typ opcji",
+        "manual": "Ręcznie",
+        "formulas": "Formuły"
     },
     "repeatElementForm": {
-        "dataSource": "Źródło danych"
+        "dataSource": "Źródło danych",
+        "itemsPerPage": "Pozycji na stronie",
+        "itemsPerPagePlaceholder": "Wprowadź wartość...",
+        "itemsPerRowLabel": "Pozycji w wierszu",
+        "itemsPerRowDescription": "Liczba kolumn w wierszu i według typu urządzenia.",
+        "buttonLoadMoreLabel": "Etykieta „Pokaż więcej\"",
+        "toggleEditorRepetitionsLabel": "Tymczasowo wyłącz powtórzenia",
+        "propertySelectorMissingArrays": "Nie znaleziono pól wielowartościowych do powtarzania.",
+        "gapLabel": "Odstęp między powtórzeniami",
+        "gapVerticalLabel": "Pionowy",
+        "gapHorizontalLabel": "Poziomy"
     },
     "dataSourceDropdown": {
-        "label": "Źródło danych"
+        "label": "Źródło danych",
+        "noDataSources": "Brak dostępnych źródeł danych",
+        "noSharedDataSources": "Brak dostępnych współdzielonych źródeł danych",
+        "shared": "współdzielone",
+        "pageOnly": "ta strona",
+        "addNew": "Dodaj nowe źródło danych"
+    },
+    "common": {
+        "dateFormatTitle": "Format daty",
+        "dateFormatEU": "Europejski",
+        "dateFormatUS": "US",
+        "dateFormatISO": "ISO",
+        "timeFormatTitle": "Format godziny",
+        "timeFormat24Hour": "24 godziny",
+        "timeFormat12Hour": "12 godzin"
+    },
+    "builderToast": {
+        "details": "Szczegóły",
+        "defaultTitle": "Nieoczekiwany błąd",
+        "defaultMessage": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie później.",
+        "invalidContextTitle": "Nieprawidłowe żądanie",
+        "invalidContextMessage": "To żądanie nie jest sformułowane prawidłowo.",
+        "InvalidContentTitle": "Nieprawidłowy formularz",
+        "invalidContentMessage": "Co najmniej jedno pole zawiera nieprawidłową wartość.",
+        "serviceMisconfiguredTitle": "Niekompletna konfiguracja",
+        "serviceMisconfiguredMessage": "Sprawdź konfigurację.",
+        "errorWorkflowActionDispatch": "Operacja “{name}\" nie powiodła się: ",
+        "errorDataSourceDispatch": "Nie udało się załadować danych “{name}\": "
+    },
+    "addElementCategory": {
+        "suggestedElement": "Sugerowane elementy",
+        "baseElement": "Elementy podstawowe",
+        "layoutElement": "Elementy układu strony",
+        "formElement": "Elementy formularza"
+    },
+    "orientations": {
+        "label": "Orientacja",
+        "horizontal": "Pozioma",
+        "vertical": "Pionowa"
+    },
+    "menuElement": {
+        "missingValue": "Brak pozycji w menu",
+        "separator": "Separator",
+        "spacer": "Odstęp",
+        "missingLinkValue": "Brak nazwy linku...",
+        "emptyLinkValue": "Pusta nazwa linku...",
+        "missingButtonValue": "Brak nazwy przycisku...",
+        "emptyButtonValue": "Pusta nazwa przycisku..."
+    },
+    "menuElementForm": {
+        "menuItemsLabel": "Elementy menu",
+        "addMenuItemLink": "Dodaj...",
+        "alignment": "Wyrównanie",
+        "menuItemDefaultName": "Strona",
+        "menuItemLabelLabel": "Etykieta",
+        "menuItemTypeLabel": "Typ",
+        "menuItemTypeSeparator": "Separator",
+        "menuItemVariantLabel": "Wariant",
+        "menuItemVariantLink": "Link",
+        "menuItemVariantButton": "Przycisk",
+        "namePlaceholder": "Strona",
+        "addSubLink": "Dodaj link podrzędny",
+        "menuItemSubLinkDefaultName": "Link podrzędny",
+        "menuItemAddLink": "Link",
+        "menuItemAddButton": "Przycisk",
+        "menuItemAddSeparator": "Separator",
+        "menuItemAddSpacer": "Odstęp",
+        "eventDescription": "Aby skonfigurować operacje dla tego przycisku, otwórz zakładkę “Zdarzenia”.",
+        "noMenuItemsMessage": "Aby dodać pierwszy element menu, kliknij “Dodaj\"."
+    },
+    "simpleContainerElementForm": {
+        "noConfigurationOptions": "Ten kontener nie ma żadnych opcji konfiguracji."
+    },
+    "dateTimePickerElementForm": {
+        "includeTime": "Uwzględnij godzinę",
+        "invalidDateError": "Nieprawidłowa data. Sprawdź, czy wpisana data jest zgodna z podanym formatem."
+    },
+    "themeSettings": {
+        "titleOverview": "Motyw"
+    },
+    "pageVisibilitySettingsTypes": {
+        "pageName": "Widoczność",
+        "logInPageWarningTitle": "Strona logowania nie została jeszcze skonfigurowana",
+        "logInPagewarningMessage": "Gdy użytkownik niezalogowany spróbuje otworzyć tę stronę, zostanie przekierowany na stronę logowania. Ustaw stronę logowania w ustawieniach ogólnych aplikacji.",
+        "logInPageInfoTitle": "Użytkownicy niezalogowani zostaną przekierowani",
+        "logInPageInfoMessage": "Użytkownicy niezalogowani próbujący otworzyć tę stronę zostaną przekierowani na stronę {logInPageName}."
+    },
+    "pageVisibilitySettings": {
+        "title": "Widoczność",
+        "allVisitors": "Wszyscy odwiedzający",
+        "loggedInVisitors": "Zalogowani użytkownicy",
+        "description": "Kto może zobaczyć tę stronę"
+    },
+    "queryParamTypes": {
+        "textName": "Tekst",
+        "numericName": "Liczbowy"
+    },
+    "pageEditor": {
+        "title": "Konfigurator aplikacji",
+        "pageNotFound": "Nie znaleziono strony"
+    },
+    "dataSourceItem": {
+        "notConfigured": "Nieskonfigurowany"
+    },
+    "dataSourceItemContext": {
+        "shareBetweenPages": "Udostępnij między stronami",
+        "unshareBetweenPages": "Wycofaj udostępnienie innym stronom"
+    },
+    "dataSourceCreateEditModal": {
+        "editTitle": "Edytuj źródło danych",
+        "createTitle": "Utwórz źródło danych",
+        "sharedWarning": "To źródło danych jest współdzielone, więc Twoje zmiany mogą mieć wpływ na wiele stron."
+    },
+    "radiusStyleForm": {
+        "cornerRadiusLabel": "Zaokrąglenie narożników",
+        "backgroundRadiusLabel": "Tło",
+        "borderRadiusLabel": "Obramowanie"
+    },
+    "themeConfigBlockType": {
+        "color": "Kolory",
+        "page": "Strona",
+        "typography": "Typografia",
+        "button": "Przycisk",
+        "link": "Link",
+        "image": "Obraz",
+        "input": "Pole wprowadzania",
+        "table": "Tabela"
+    },
+    "colorThemeConfigBlock": {
+        "transparent": "Przezroczysty",
+        "primaryColor": "Główny",
+        "secondaryColor": "Podrzędny",
+        "borderColor": "Obramowanie",
+        "successColor": "Sukces",
+        "warningColor": "Ostrzeżenie",
+        "errorColor": "Błąd",
+        "customColors": "Kolory niestandardowe",
+        "addCustomColor": "Dodaj kolor niestandardowy",
+        "customColorPrefix": "Niestandardowy"
+    },
+    "pageThemeConfigBlock": {
+        "backgroundColor": "Kolor tła",
+        "backgroundImage": "Obraz tła",
+        "backgroundMode": "Tryb tła"
+    },
+    "colorThemeConfigBlockType": {
+        "transparent": "Przezroczysty",
+        "primary": "Główny",
+        "secondary": "Podrzędny",
+        "border": "Obramowanie",
+        "success": "Sukces",
+        "warning": "Ostrzeżenie",
+        "error": "Błąd"
+    },
+    "typographyThemeConfigBlock": {
+        "headingLabel": "Nagłówek {i} (h{i})",
+        "headingValue": "Nagłówek <h{i}>",
+        "color": "Kolor",
+        "size": "Rozmiar",
+        "weight": "Grubość",
+        "textAlignment": "Wyrównanie",
+        "bodyLabel": "Tekst podstawowy",
+        "decoration": "Dekoracja tekstu",
+        "fontFamily": "Czcionka"
+    },
+    "fontWeightType": {
+        "thin": "Cienka",
+        "extraLight": "Bardzo lekka",
+        "light": "Lekka",
+        "regular": "Normalna",
+        "medium": "Średnia",
+        "semiBold": "Pół-pogrubiona",
+        "bold": "Pogrubiona",
+        "extraBold": "Bardzo pogrubiona",
+        "black": "Ekstra pogrubiona",
+        "extraBlack": "Najgrubsza"
+    },
+    "buttonThemeConfigBlock": {
+        "backgroundColor": "Kolor tła",
+        "button": "Przycisk",
+        "defaultState": "Stan domyślny",
+        "hoverState": "Po najechaniu myszą",
+        "activeState": "Stan aktywny",
+        "textAlignment": "Wyrównanie tekstu",
+        "alignment": "Wyrównanie",
+        "width": "Szerokość",
+        "textColor": "Kolor tekstu",
+        "borderColor": "Kolor obramowania",
+        "borderSize": "Grubość obramowania",
+        "borderRadius": "Zaokrąglenie obramowania",
+        "padding": "Padding",
+        "fontFamily": "Czcionka",
+        "size": "Rozmiar czcionki",
+        "weight": "Grubość czcionki"
+    },
+    "linkThemeConfigBlock": {
+        "color": "Kolor",
+        "link": "Link",
+        "defaultState": "Stan domyślny",
+        "hoverState": "Po najechaniu myszą",
+        "activeState": "Stan aktywny",
+        "alignment": "Wyrównanie",
+        "fontFamily": "Czcionka",
+        "size": "Rozmiar czcionki",
+        "weight": "Grubość czcionki",
+        "decoration": "Dekoracja tekstu"
+    },
+    "inputThemeConfigBlock": {
+        "label": "Etykieta",
+        "input": "Pole wprowadzania",
+        "backgroundColor": "Kolor tła",
+        "textColor": "Kolor tekstu",
+        "borderColor": "Kolor obramowania",
+        "borderSize": "Grubość obramowania",
+        "borderRadius": "Zaokrąglenie obramowania",
+        "padding": "Padding",
+        "fontFamily": "Czcionka",
+        "size": "Rozmiar czcionki",
+        "weight": "Grubość czcionki"
+    },
+    "imageThemeConfigBlock": {
+        "alignment": "Wyrównanie",
+        "maxWidthLabel": "Maksymalna szerokość",
+        "maxHeightLabel": "Maksymalna wysokość",
+        "maxHeightPlaceholder": "Wprowadź maksymalną wysokość",
+        "maxWidthPlaceholder": "Wprowadź maksymalną szerokość",
+        "imageConstraintsLabel": "Ograniczenia",
+        "imageConstraintFullWidth": "Rozszerz do maksymalnej szerokości",
+        "imageConstraintCover": "Dopasuj (cover)",
+        "imageConstraintCoverDisabled": "Niedostępne, jeżeli nie podano maksymalnej wysokości.",
+        "imageConstraintContain": "Wypełnij (contain)",
+        "imageConstraintContainDisabled": "Niedostępne, jeżeli podano maksymalną wysokość.",
+        "imageBorderRadiusLabel": "Zaokrąglenie obramowania",
+        "imageBorderRadiusPlaceholder": "Wprowadź wartość zaokrąglenia obramowania obrazu."
+    },
+    "tableThemeConfigBlock": {
+        "borderColor": "Kolor obramowania",
+        "backgroundAlternateColor": "Kolor parzystych wierszy",
+        "backgroundColor": "Kolor tła",
+        "textColor": "Kolor tekstu",
+        "borderSize": "Grubość obramowania",
+        "borderRadius": "Zaokrąglenie obramowania",
+        "padding": "Padding",
+        "fontFamily": "Czcionka",
+        "size": "Rozmiar",
+        "fontSize": "Rozmiar czcionki",
+        "fontWeight": "Grubość czcionki",
+        "table": "Tabela",
+        "header": "Nagłówek",
+        "alignment": "Wyrównanie",
+        "cells": "Komórki",
+        "separators": "Separatory",
+        "verticalSeparatorColor": "Kolor pionowy",
+        "verticalSeparatorSize": "Rozmiar pionowy",
+        "horizontalSeparatorColor": "Kolor poziomy",
+        "horizontalSeparatorSize": "Rozmiar poziomy"
+    },
+    "choiceElementForm": {
+        "multiple": "Zezwalaj na wiele wartości",
+        "display": "Wyświetlanie",
+        "dropdown": "Lista rozwijana",
+        "checkbox": "Pole wyboru",
+        "radio": "Przycisk opcji"
+    },
+    "dropdown": {
+        "empty": "Brak opcji do wyboru"
+    },
+    "abTable": {
+        "loading": "Wczytywanie...",
+        "empty": "Nie znaleziono żadnych pozycji."
+    },
+    "repeatElement": {
+        "empty": "Nie znaleziono żadnych pozycji.",
+        "showMore": "Pokaż więcej",
+        "missingDataSourceTooltip": "Aby rozpocząć dodawanie elementów, wybierz źródło danych.",
+        "missingSchemaPropertyTooltip": "Aby rozpocząć dodawanie elementów, wybierz atrybut.",
+        "emptyState": "Nie znaleziono rekordów."
+    },
+    "collectionElementForm": {
+        "noDataSourceMessage": "Aby wyświetlić wszystkie rezultaty, wybierz źródło danych z wieloma wierszami. Alternatywnie, aby wybrać atrybut we wierszu, wybierz źródło danych z pojedynczym wierszem.",
+        "noSchemaPropertyMessage": "Wybierz atrybut wewnątrz źródła danych, który ma służyć jako dane listy elementu.",
+        "propertyOptionLabel": "Operacje użytkownika"
+    },
+    "propertyOptionForm": {
+        "fieldHeading": "Pole",
+        "filterHeading": "Filtr",
+        "sortHeading": "Sortowanie",
+        "searchHeading": "Szukaj",
+        "optionUnavailable": "Niedostępne",
+        "noPropertiesAvailable": "Brak dostępnych pól.",
+        "formDescription": "Wybierz, które atrybuty w źródle danych tego elementu mogą być filtrowane, sortowane i wyszukiwane przez odwiedzających stronę."
+    },
+    "recordSelectorElement": {
+        "emptyAdhocState": "Nie znaleziono rekordów pasujących do zapytania “{query}\".",
+        "emptyState": "Nie znaleziono rekordów."
+    },
+    "recordSelectorElementForm": {
+        "selectRecordsFrom": "Wybierz rekordy z",
+        "noDataSourceMessage": "Wybierz źródło danych z wieloma wierszami, aby wyświetlić wszystkie wyniki.",
+        "optionNameSuffix": "Sufiks nazwy opcji",
+        "optionNameSuffixPlaceholder": "Wprowadź sufiks...",
+        "optionNameSuffixHelper": "Ten sufiks jest dodawany do nazwy każdej opcji na liście rozwijanej. Pomaga to odróżnić poszczególne pozycje.",
+        "itemsPerPage": "Pozycji na stronie",
+        "itemsPerPagePlaceholder": "Wprowadź wartość...",
+        "multipleLabel": "Zezwalaj na wiele wartości",
+        "record": "Rekord {id}"
+    },
+    "tagsFieldForm": {
+        "fieldValuesLabel": "Wartości",
+        "fieldValuesPlaceholder": "Wprowadź wartości...",
+        "fieldColorsLabel": "Kolory",
+        "fieldColorsPlaceholder": "Wprowadź kolory…"
+    },
+    "imageFieldForm": {
+        "fieldSrcLabel": "Źródło obrazu",
+        "fieldSrcPlaceholder": "Wprowadź wartość",
+        "fieldAltLabel": "Tekst alternatywny",
+        "fieldAltPlaceholder": "Wprowadź wartość...",
+        "fieldAltHelp": "Używany przez czytniki ekranu i wyświetlany, gdy obraz nie może się załadować"
+    },
+    "builderLoginPageForm": {
+        "pageDropdownLabel": "Strona logowania",
+        "pageDropdownPlaceholder": "Wybierz stronę",
+        "pageDropdownDescription": "Wybierz stronę logowania, na którą niezalogowani użytkownicy będą przekierowywani, gdy otworzą stronę z ograniczonym dostępem."
+    },
+    "fieldMappingContext": {
+        "enableField": "Aktywuj pole",
+        "disableField": "Dezaktywuj pole"
+    },
+    "choiceElement": {
+        "addOptions": "Aby użyć tego elementu, dodaj opcje..."
+    },
+    "userDataProviderType": {
+        "isAuthenticated": "Jest uwierzytelniony",
+        "id": "ID",
+        "email": "E-mail",
+        "username": "Nazwa użytkownika",
+        "role": "Rola"
+    },
+    "buttonField": {
+        "noLabel": "Bez nazwy..."
+    },
+    "buttonFieldForm": {
+        "infoMessage": "Aby skonfigurować operacje dla tego przycisku, otwórz zakładkę “Zdarzenia\".",
+        "labelPlaceholder": "Wprowadź etykietę..."
+    },
+    "resetButton": {
+        "reset": "Przywróć domyślne ustawienia motywu"
+    },
+    "backgroundModes": {
+        "fill": "Wypełnienie",
+        "tile": "Kafelek",
+        "fit": "Dopasuj"
+    },
+    "customStyle": {
+        "backToElement": "Powrót do konfiguracji elementu",
+        "configureThemeOverrides": "Skonfiguruj nadpisania motywu dla tego elementu"
+    },
+    "serviceSchemaPropertySelector": {
+        "label": "Atrybut",
+        "noProperties": "Brak dostępnych atrybutów"
+    },
+    "userSourceDropdown": {
+        "label": "Źródło użytkowników",
+        "addUserSource": "Dodaj nowe źródło użytkowników",
+        "noUserSources": "Brak dostępnych źródeł użytkowników"
+    },
+    "multiPageContainerElementForm": {
+        "pagePosition": "Pozycja",
+        "behaviour": "Zachowanie",
+        "display": "Wyświetlanie",
+        "selectAll": "Zaznacz wszystko",
+        "deselectAll": "Odznacz wszystko"
+    },
+    "pageShareType": {
+        "all": "Na wszystkich stronach",
+        "only": "Tylko na wybranych stronach",
+        "except": "Wyklucz wybrane strony"
+    },
+    "authProviderWithModal": {
+        "authProviderInError": "Popraw dane dostawcy, aby naprawić błąd.",
+        "title": "Edycja danych dostawcy: {name}"
+    },
+    "textDecorationSelector": {
+        "underline": "Podkreślenie",
+        "stroke": "Przekreślenie",
+        "italic": "Kursywa",
+        "uppercase": "Wielkie litery"
+    },
+    "ratingFieldForm": {
+        "maxValue": "Wartość maksymalna",
+        "color": "Kolor",
+        "style": "Styl",
+        "star": "Gwiazdka",
+        "heart": "Serduszko",
+        "thumbsUp": "Kciuk",
+        "flag": "Flaga",
+        "value": "Wartość"
+    },
+    "ratingElementForm": {
+        "maxValue": "Maksimum",
+        "color": "Kolor",
+        "ratingStyle": "Styl",
+        "star": "Gwiazdka",
+        "heart": "Serduszko",
+        "smile": "Uśmiech",
+        "thumbsUp": "Kciuk",
+        "flag": "Flaga"
+    },
+    "automationSettingsModal": {
+        "title": "Proces"
+    },
+    "abFileInput": {
+        "delete": "Usuń"
+    },
+    "elementsGuidedTourStep": {
+        "title": "Dodaj elementy do strony",
+        "content": "W każdej aplikacji potrzebne są elementy składowe! Dodaj np. tabele, formularze, przyciski i inne, aby wypełnić swoją aplikację."
+    },
+    "dataGuidedTourStep": {
+        "title": "Połącz swoje dane",
+        "content": "Tutaj możesz połączyć tabele w bazie Baserow i wyświetlać, filtrować oraz dynamicznie aktualizować dane w różnych elementach."
+    },
+    "previewGuidedTourStep": {
+        "title": "Twoje centrum zarządzania",
+        "content": "Tutaj skonfigurujesz strony swojej aplikacji. Wstaw elementy, zobacz, jak działają i dostosuj strukturę aplikacji do swoich potrzeb."
+    },
+    "devicesGuidedTourStep": {
+        "title": "Podgląd na różnych urządzeniach",
+        "content": "Aby zobaczyć, jak aplikacja wygląda na różnych rozmiarach ekranów, przełącz się między podglądami na ekranie komputera, tabletu lub smartfonu. Sprawdź, czy Twój układ wygląda poprawnie na każdym urządzeniu!"
+    },
+    "sidePanelGuidedTourStep": {
+        "title": "Panel boczny: dostosuj elementy",
+        "content": "**Zakładka Ogólne** – skonfiguruj wybrany element.\n\n**Zakładka Styl** – dopasuj padding, marginesy, obramowania itd.\n\n**Zakładka Widoczność** – zdecyduj, kto może zobaczyć element: zalogowani użytkownicy, niezalogowani użytkownicy lub użytkownicy o określonych rolach.\n\n**Zakładka Zdarzenia** – jeśli dany element obsługuje operacje, skonfiguruj je tutaj; umożliwi to dynamiczne wyświetlanie danych."
+    },
+    "previewPublishGuidedTourStep": {
+        "title": "Podgląd i publikacja aplikacji",
+        "content": "Kliknij **Podgląd**, aby przetestować aplikację w trybie prywatnym. Gdy wszystko będzie gotowe, kliknij **Opublikuj**, aby udostępnić aplikację za pośrednictwem domeny."
     }
 }
