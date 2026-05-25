@@ -268,13 +268,13 @@ export default {
       return Object.values(this.$registry.getAll('plugin'))
         .reduce(
           (components, plugin) => {
-            const componentsByType =
+            return components.concat(
               plugin.getAdditionalApplicationChildContextComponents(
                 this.database.workspace,
                 this.database,
                 this.table
               )
-            return components.concat(componentsByType?.database || [])
+            )
           },
           []
         )

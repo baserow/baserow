@@ -47,22 +47,19 @@ export class EnterprisePlugin extends BaserowPlugin {
   }
 
   getAdditionalApplicationChildContextComponents(workspace, application, item) {
+    if (application.type !== DatabaseApplicationType.getType()) {
+      return []
+    }
+
     const databaseComponents = []
-
-    if (application.type === DatabaseApplicationType.getType()) {
-      if (
-        this.app.$hasPermission('database.table.read_role', item, workspace.id)
-      ) {
-        databaseComponents.push(MemberRolesTableContextItem)
-      }
-      databaseComponents.push(DateDependencyMenuItem)
+    if (
+      this.app.$hasPermission('database.table.read_role', item, workspace.id)
+    ) {
+      databaseComponents.push(MemberRolesTableContextItem)
     }
+    databaseComponents.push(DateDependencyMenuItem)
 
-    return {
-      database: databaseComponents,
-      builder: [],
-      automation: [],
-    }
+    return databaseComponents
   }
 
   getRightSidebarWorkspaceComponents(workspace) {

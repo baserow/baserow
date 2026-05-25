@@ -156,13 +156,13 @@ export default {
     additionalContextComponents() {
       return Object.values(this.$registry.getAll('plugin'))
         .reduce((components, plugin) => {
-          const componentsByType =
+          return components.concat(
             plugin.getAdditionalApplicationChildContextComponents(
               this.automation.workspace,
               this.automation,
               this.workflow
             )
-          return components.concat(componentsByType?.automation || [])
+          )
         }, [])
         .filter((component) => component !== null)
     },
