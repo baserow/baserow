@@ -2129,7 +2129,7 @@ class DurationFieldType(FieldType):
         return prepare_duration_value_for_db(value, instance.duration_format)
 
     def get_search_expression(self, field: Field, queryset: QuerySet) -> Expression:
-        return get_duration_search_expression(field.duration_format, field.db_column)
+        return get_duration_search_expression(field)
 
     def random_value(self, instance: DurationField, fake, cache):
         random_seconds = fake.random.random() * 60 * 60 * 24
@@ -2143,7 +2143,7 @@ class DurationFieldType(FieldType):
     ):
         to_field_type = field_type_registry.get_by_model(to_field)
         if to_field_type.type in (TextFieldType.type, LongTextFieldType.type):
-            return f"p_in = {duration_value_sql_to_text(from_field.duration_format)};"
+            return f"p_in = {duration_value_sql_to_text(from_field)};"
         elif to_field_type.type == NumberFieldType.type:
             return "p_in = EXTRACT(EPOCH FROM CAST(p_in AS INTERVAL))::NUMERIC;"
 
@@ -2158,7 +2158,7 @@ class DurationFieldType(FieldType):
 
             return f"p_in = make_interval(secs=>{sql_round_func});"
         elif from_field_type.type in (TextFieldType.type, LongTextFieldType.type):
-            return f"p_in = {text_value_sql_to_duration(to_field.duration_format)}"
+            return f"p_in = {text_value_sql_to_duration(to_field)}"
 
     def serialize_to_input_value(self, field: Field, value: any) -> any:
         return value.total_seconds()
