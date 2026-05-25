@@ -44,6 +44,7 @@ help:
     @echo "IDE Setup:"
     @echo "  docs/development/vscode-setup.md                    - VS Code configuration"
     @echo "  docs/development/intellij-setup.md                  - IntelliJ/PyCharm setup"
+    @echo "  docs/development/zed-setup.md                       - Zed editor setup"
     @echo ""
     @echo "Other:"
     @echo "  docs/development/justfile.md                        - Just command reference"

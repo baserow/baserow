@@ -130,6 +130,10 @@ out/
 .vscode/
 !config/vscode/.vscode/
 
+# zed config files
+.zed
+!config/zed/.zed
+
 # cursor editor config files
 .cursor-config/
 !config/cursor/.cursor-config/
