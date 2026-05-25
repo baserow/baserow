@@ -137,22 +137,36 @@ export class BaserowPlugin extends Registerable {
 
   /**
    * Every registered plugin can display multiple additional context items in the
-   * application context displayed by the sidebar when opening the context menu of a
-   * application.
-   * @returns {*[]}
+   * application context displayed by the sidebar when opening the context menu of
+   * an application, grouped by application type.
+   * @returns {Object<string, *[] | null>}
    */
   getAdditionalApplicationContextComponents(workspace, application) {
-    return []
+    return {
+      database: [],
+      builder: [],
+      automation: [],
+    }
   }
 
   /**
    * Every registered plugin can display multiple additional context items in the
-   * table context displayed by the sidebar when opening the context menu of a
-   * table.
-   * @returns {*[]}
+   * context menu of an application child item, grouped by application type.
+   *
+   * For example, the `database` key is used for table context menus, `builder`
+   * for page context menus, and `automation` for workflow context menus.
+   * @returns {Object<string, *[] | null>}
    */
-  getAdditionalTableContextComponents(workspace, table) {
-    return []
+  getAdditionalApplicationChildContextComponents(
+    workspace,
+    application,
+    item
+  ) {
+    return {
+      database: [],
+      builder: [],
+      automation: [],
+    }
   }
 
   /**

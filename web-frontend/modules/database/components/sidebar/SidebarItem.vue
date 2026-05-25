@@ -241,6 +241,7 @@ export default {
   computed: {
     showOptions() {
       return (
+        this.additionalContextComponents.length > 0 ||
         this.$hasPermission(
           'database.table.run_export',
           this.table,
@@ -266,13 +267,15 @@ export default {
     additionalContextComponents() {
       return Object.values(this.$registry.getAll('plugin'))
         .reduce(
-          (components, plugin) =>
-            components.concat(
-              plugin.getAdditionalTableContextComponents(
+          (components, plugin) => {
+            const componentsByType =
+              plugin.getAdditionalApplicationChildContextComponents(
                 this.database.workspace,
+                this.database,
                 this.table
               )
-            ),
+            return components.concat(componentsByType?.database || [])
+          },
           []
         )
         .filter((component) => component !== null)

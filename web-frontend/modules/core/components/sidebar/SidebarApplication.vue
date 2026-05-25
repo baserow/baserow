@@ -95,13 +95,16 @@ export default {
     additionalContextComponents() {
       return Object.values(this.$registry.getAll('plugin'))
         .reduce(
-          (components, plugin) =>
-            components.concat(
+          (components, plugin) => {
+            const componentsByType =
               plugin.getAdditionalApplicationContextComponents(
                 this.workspace,
                 this.application
               )
-            ),
+            return components.concat(
+              componentsByType?.[this.application.type] || []
+            )
+          },
           []
         )
         .filter((component) => component !== null)

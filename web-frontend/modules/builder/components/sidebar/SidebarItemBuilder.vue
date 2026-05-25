@@ -33,6 +33,19 @@
       <div class="context__menu-title">{{ page.name }} ({{ page.id }})</div>
       <ul class="context__menu">
         <li
+          v-for="(component, index) in additionalContextComponents"
+          :key="index"
+          class="context__menu-item"
+          @click="$refs.context.hide()"
+        >
+          <component
+            :is="component"
+            :application="builder"
+            :builder="builder"
+            :page="page"
+          ></component>
+        </li>
+        <li
           v-if="
             $hasPermission('builder.page.update', page, builder.workspace.id)
           "
@@ -113,6 +126,7 @@ export default {
   computed: {
     showOptions() {
       return (
+        this.additionalContextComponents.length > 0 ||
         this.$hasPermission(
           'builder.page.run_export',
           this.page,
@@ -132,6 +146,19 @@ export default {
     },
     visibilityLoggedIn() {
       return VISIBILITY_LOGGED_IN
+    },
+    additionalContextComponents() {
+      return Object.values(this.$registry.getAll('plugin'))
+        .reduce((components, plugin) => {
+          const componentsByType =
+            plugin.getAdditionalApplicationChildContextComponents(
+              this.builder.workspace,
+              this.builder,
+              this.page
+            )
+          return components.concat(componentsByType?.builder || [])
+        }, [])
+        .filter((component) => component !== null)
     },
     ...mapGetters({ duplicateJob: 'page/getDuplicateJob' }),
   },
