@@ -7,17 +7,15 @@
       :selected-index="selectedTabIndex"
       @update:selected-index="selectedTabIndex = $event"
     >
-      <Tab
-        v-if="canManageDatabase"
-        :title="$t('memberRolesModal.memberRolesDatabaseTabTitle')"
-      >
+      <Tab v-if="canManageApplication" :title="applicationTypeName">
         <MemberRolesTab
           :loading="loading"
           :workspace="workspace"
-          :scope="database"
+          :scope="applicationScope"
           :role-assignments="databaseRoleAssignments"
           :teams="teams"
           scope-type="application"
+          :scope-type-name="applicationTypeNameLower"
           @invite-members="inviteDatabaseMembers"
           @invite-teams="inviteDatabaseTeams"
           @role-updated="
@@ -79,9 +77,15 @@ export default {
   components: { MemberRolesTab },
   mixins: [Modal, error],
   props: {
+    application: {
+      type: Object,
+      required: false,
+      default: null,
+    },
     database: {
       type: Object,
-      required: true,
+      required: false,
+      default: null,
     },
     table: {
       type: Object,
@@ -105,13 +109,30 @@ export default {
     }
   },
   computed: {
-    workspace() {
-      return this.$store.getters['workspace/get'](this.database.workspace.id)
+    applicationScope() {
+      return this.application || this.database
     },
-    canManageDatabase() {
+    workspace() {
+      return this.$store.getters['workspace/get'](
+        this.applicationScope.workspace.id
+      )
+    },
+    applicationType() {
+      return this.$registry.get('application', this.applicationScope.type)
+    },
+    applicationTypeName() {
+      return (
+        this.applicationType?.getName() ||
+        this.$t('memberRolesModal.memberRolesDatabaseTabTitle')
+      )
+    },
+    applicationTypeNameLower() {
+      return this.applicationTypeName.toLowerCase()
+    },
+    canManageApplication() {
       return this.$hasPermission(
         'application.read_role',
-        this.database,
+        this.applicationScope,
         this.workspace.id
       )
     },
@@ -153,11 +174,11 @@ export default {
     },
     async fetchMembers() {
       try {
-        if (this.canManageDatabase) {
+        if (this.canManageApplication) {
           const { data: databaseRoleAssignments } =
             await RoleAssignmentsService(this.$client).getRoleAssignments(
               this.workspace.id,
-              this.database.id,
+              this.applicationScope.id,
               'application'
             )
           this.databaseRoleAssignments = databaseRoleAssignments
@@ -210,7 +231,7 @@ export default {
         'auth.User',
         role,
         'application',
-        this.database.id
+        this.applicationScope.id
       )
       this.databaseRoleAssignments =
         this.databaseRoleAssignments.concat(roleAssignments)
@@ -221,7 +242,7 @@ export default {
         'baserow_enterprise.Team',
         role,
         'application',
-        this.database.id
+        this.applicationScope.id
       )
       this.databaseRoleAssignments =
         this.databaseRoleAssignments.concat(roleAssignments)

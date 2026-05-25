@@ -18,7 +18,7 @@
         <i class="iconoir-lock"></i>
       </div>
     </a>
-    <MemberRolesModal ref="memberRolesModal" :database="application" />
+    <MemberRolesModal ref="memberRolesModal" :application="application" />
     <PaidFeaturesModal
       ref="paidFeaturesModal"
       initial-selected-type="rbac"
@@ -33,7 +33,7 @@ import EnterpriseFeatures from '@baserow_enterprise/features'
 import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
 
 export default {
-  name: 'MemberRolesDatabaseContextItem',
+  name: 'MemberRolesApplicationContextItem',
   components: { PaidFeaturesModal, MemberRolesModal },
   props: {
     application: {

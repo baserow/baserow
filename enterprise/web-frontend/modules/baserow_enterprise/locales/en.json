@@ -314,6 +314,15 @@
     }
   },
   "memberRolesTab": {
+    "application": {
+      "title": "{name} {type}",
+      "selectMembers": "Select members",
+      "everyoneHasAccess": "Everyone at {name} workspace can access this application.",
+      "onlyYouHaveAccess": "Only you can access this application.",
+      "warningTitle": "Other users might inherit access!",
+      "warningMessage": "Other users might inherit access via their respective roles on the parent workspace.",
+      "headerTooltip": "Application roles will override workspace roles."
+    },
     "database": {
       "title": "{name} database",
       "selectMembers": "Select members",

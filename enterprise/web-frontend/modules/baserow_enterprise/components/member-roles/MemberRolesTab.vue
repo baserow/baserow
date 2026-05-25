@@ -3,7 +3,10 @@
     <div class="member-roles-tab__header">
       <h2 class="member-roles-tab__header-title">
         {{
-          $t(`memberRolesTab.${translationPrefix}.title`, { name: scope.name })
+          $t(`memberRolesTab.${translationPrefix}.title`, {
+            name: scope.name,
+            type: scopeTypeName,
+          })
         }}
       </h2>
       <div>
@@ -78,6 +81,11 @@ export default {
       type: String,
       required: true,
     },
+    scopeTypeName: {
+      type: String,
+      required: false,
+      default: '',
+    },
     roleAssignments: {
       type: Array,
       required: false,
@@ -106,6 +114,8 @@ export default {
     },
     translationPrefix() {
       switch (this.scopeType) {
+        case 'application':
+          return 'application'
         case 'database':
           return 'database'
         case 'database_table':
@@ -113,7 +123,7 @@ export default {
         case 'database_view':
           return 'view'
         default:
-          return 'database'
+          return 'application'
       }
     },
     descriptionText() {
