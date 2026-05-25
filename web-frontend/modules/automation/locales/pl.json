@@ -76,7 +76,7 @@
     "integrationSettings": {
         "title": "Integracje",
         "noIntegrationMessage": "Nie utworzono jeszcze żadnych integracji. Aby skonfigurować integrację, dodaj źródło danych, operację lub uwierzytelnienie użytkownika.",
-        "integrationMessage": "Możesz skonfigurować nowe integracje, dodając źródło danych, operację lub uwierzytelnianie użytkownika."
+        "integrationMessage": "Nowe integracje można utworzyć poprzez dodanie źródła danych, operacji lub uwierzytelnienia użytkownika."
     },
     "automationHeader": {
         "startTestRun": "Rozpocznij test",
