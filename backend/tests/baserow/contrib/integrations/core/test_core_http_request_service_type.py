@@ -107,6 +107,39 @@ def test_core_http_request_request_error(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "timeout_exception",
+    [
+        request_exceptions.ReadTimeout(),
+        request_exceptions.ConnectTimeout(),
+        request_exceptions.Timeout(),
+    ],
+)
+def test_core_http_request_timeout_returns_504(data_fixture, timeout_exception):
+    """
+    When the request times out, instead of failing we return a 504
+    status code so that the caller can decide the next step to take.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://foo.localhost/'", timeout=1, http_method=HTTP_METHOD.POST
+    )
+    service_type = service.get_type()
+
+    dispatch_context = FakeDispatchContext()
+
+    with mock_advocate_request(raise_exception=timeout_exception):
+        dispatch_data = service_type.dispatch(service, dispatch_context)
+
+    assert dispatch_data.data == {
+        "raw_body": "",
+        "body": "",
+        "headers": {},
+        "status_code": 504,
+    }
+
+
+@pytest.mark.django_db
 def test_core_http_request_basic_body_raw(
     data_fixture,
 ):

@@ -583,6 +583,10 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             raise UnexpectedDispatchException(
                 f"Invalid URL: {resolved_values['url']}"
             ) from e
+        except request_exceptions.Timeout:
+            return {
+                "data": {"raw_body": "", "body": "", "headers": {}, "status_code": 504}
+            }
         except request_exceptions.RequestException as e:
             raise UnexpectedDispatchException(str(e)) from e
         except Exception as e:
