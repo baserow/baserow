@@ -35,16 +35,6 @@ export default class NodeGraphHandler extends BaseGraphHandler {
   }
 
   getNextNodes(targetNode, output = null) {
-    if (this.getInfo(targetNode)?.next) {
-      return Object.entries(this.getInfo(targetNode).next)
-        .filter(
-          ([uid, nodes]) => nodes.length && (output === null || uid === output)
-        )
-        .map(([, nodes]) => nodes)
-        .flat()
-        .map((id) => this.getNode(id))
-        .filter((node) => node)
-    }
-    return []
+    return this.getNextPoints(targetNode, output)
   }
 }

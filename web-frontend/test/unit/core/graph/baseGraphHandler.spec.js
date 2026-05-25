@@ -140,6 +140,32 @@ describe('BaseGraphHandler', () => {
     })
   })
 
+  describe('getNextPoints', () => {
+    const graph = {
+      0: 1,
+      1: { next: { success: [2], failure: [3, 99], empty: [] } },
+      2: {},
+      3: {},
+    }
+    const points = pm(1, 2, 3)
+
+    test('returns points across all outputs', () => {
+      const h = make(graph, points)
+      expect(h.getNextPoints(pt(1)).map((p) => p.id)).toEqual([2, 3])
+    })
+
+    test('filters by output', () => {
+      const h = make(graph, points)
+      expect(h.getNextPoints(pt(1), 'failure')).toEqual([pt(3)])
+    })
+
+    test('returns an empty array for empty or missing next edges', () => {
+      const h = make(graph, points)
+      expect(h.getNextPoints(pt(1), 'empty')).toEqual([])
+      expect(h.getNextPoints(pt(2))).toEqual([])
+    })
+  })
+
   describe('getPointAtPosition', () => {
     const graph = {
       0: 1,

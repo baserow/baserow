@@ -87,6 +87,21 @@ export default class BaseGraphHandler {
     return result
   }
 
+  getNextPoints(targetPoint, output = null) {
+    const next = this.getInfo(targetPoint)?.next
+    if (!next) return []
+
+    return Object.entries(next)
+      .filter(
+        ([uid, pointIds]) =>
+          pointIds.length && (output === null || uid === output)
+      )
+      .map(([, pointIds]) => pointIds)
+      .flat()
+      .map((id) => this.getPoint(id))
+      .filter((point) => point)
+  }
+
   getPointAtPosition(referencePoint, position, output) {
     output = String(output)
 

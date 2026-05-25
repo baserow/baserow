@@ -44,9 +44,7 @@ export default class ElementGraphHandler extends BaseGraphHandler {
 
   // Returns elements following this element on the default next edge.
   getNextElements(targetElement) {
-    const next = this.getInfo(targetElement)?.next?.['']
-    if (!next?.length) return []
-    return next.map((id) => this.getElement(id)).filter((el) => el)
+    return this.getNextPoints(targetElement, '')
   }
 
   // Depth-first ordered flat list of all elements.
