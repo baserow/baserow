@@ -468,7 +468,7 @@
         "uploadFileViaUrl": "Prześlij plik za pomocą adresu URL",
         "uploadFileViaUrlDescription": "Przesyła plik do Baserow, pobierając go z podanego adresu URL.",
         "fileUploads": "Przesyłanie plików",
-        "sendWebhookEventsDescription": "Flaga parametru zapytania, która wywoła webhook po tej operacji, jeśli ustawiona na `y`, `yes`, `true`, `t`, on, `1` albo pozostawiona pusta. Domyślnie `true`",
+        "sendWebhookEventsDescription": "Flaga parametru zapytania, która wywoła webhook po tej poeracji, jeśli ustawiona na `y`, `yes`, `true`, `t`, `on`, `1` albo pozostawiona pusta. Domyślnie `true`",
         "apiDocs": "Lista wszystkich tabel",
         "listTables": "Lista tabel"
     },
