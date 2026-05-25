@@ -158,13 +158,11 @@ export default {
       return Object.values(this.$registry.getAll('plugin'))
         .reduce(
           (components, plugin) => {
-            const componentsByType =
+            return components.concat(
               plugin.getAdditionalApplicationContextComponents(
                 this.workspace,
                 this.application
               )
-            return components.concat(
-              componentsByType?.[this.application.type] || []
             )
           },
           []

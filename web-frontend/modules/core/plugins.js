@@ -138,16 +138,11 @@ export class BaserowPlugin extends Registerable {
   /**
    * Every registered plugin can display multiple additional context items in the
    * application context displayed by the sidebar when opening the context menu of
-   * an application, grouped by application type.
-   * @returns {Object<string, *[] | null>}
+   * an application.
+   * @returns {*[]}
    */
   getAdditionalApplicationContextComponents(workspace, application) {
-    return {
-      database: [],
-      builder: [],
-      automation: [],
-      dashboard: [],
-    }
+    return []
   }
 
   /**

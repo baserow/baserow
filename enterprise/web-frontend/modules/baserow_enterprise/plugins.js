@@ -43,13 +43,7 @@ export class EnterprisePlugin extends BaserowPlugin {
       applicationComponents.push(MemberRolesApplicationContextItem)
     }
 
-    return {
-      database: applicationComponents,
-      builder: applicationComponents,
-      automation: applicationComponents,
-      dashboard: applicationComponents,
-      [application.type]: applicationComponents,
-    }
+    return applicationComponents
   }
 
   getAdditionalApplicationChildContextComponents(workspace, application, item) {
