@@ -253,7 +253,7 @@ const actions = {
     commit('SELECT_ITEM', { builder, element })
   },
   async create(
-    { dispatch },
+    { dispatch, rootGetters },
     {
       builder,
       page,
@@ -275,6 +275,15 @@ const actions = {
 
     if (forceCreate) {
       await dispatch('forceCreate', { page, element })
+      if (
+        rootGetters['workspace/haveWorkspacePermissionsBeenLoaded'](
+          builder.workspace.id
+        )
+      ) {
+        await dispatch('workspace/forceFetchPermissions', builder.workspace, {
+          root: true,
+        })
+      }
 
       await dispatch('select', { builder, element })
     }

@@ -2,6 +2,7 @@ from django.shortcuts import reverse
 
 import pytest
 
+from baserow.core.handler import CoreHandler
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 
 
@@ -166,3 +167,55 @@ def test_get_automation_application_with_application_role_includes_workflows(
     assert response.status_code == 200
     assert response_json["id"] == automation.id
     assert workflow.id in [w["id"] for w in response_json["workflows"]]
+
+
+@pytest.mark.django_db
+def test_application_role_frontend_permissions_include_builder_elements(
+    data_fixture,
+):
+    admin = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "NO_ACCESS")]
+    )
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    element = data_fixture.create_builder_heading_element(page=page)
+
+    builder_role = RoleAssignmentHandler().get_role_by_uid("BUILDER")
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=builder_role, scope=builder.application_ptr
+    )
+
+    permissions = CoreHandler().get_permissions(user, workspace)
+    role_permissions = next(
+        p["permissions"] for p in permissions if p["name"] == "role"
+    )
+
+    assert element.id in role_permissions["builder.page.element.update"]["exceptions"]
+
+
+@pytest.mark.django_db
+def test_application_role_frontend_permissions_include_automation_nodes(
+    data_fixture,
+):
+    admin = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "NO_ACCESS")]
+    )
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(automation=automation)
+    node = workflow.automation_workflow_nodes.first()
+
+    builder_role = RoleAssignmentHandler().get_role_by_uid("BUILDER")
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=builder_role, scope=automation.application_ptr
+    )
+
+    permissions = CoreHandler().get_permissions(user, workspace)
+    role_permissions = next(
+        p["permissions"] for p in permissions if p["name"] == "role"
+    )
+
+    assert node.id in role_permissions["automation.node.update"]["exceptions"]
