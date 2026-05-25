@@ -158,7 +158,7 @@ const actions = {
     )
   },
   async create(
-    { commit, dispatch, getters, rootGetters },
+    { commit, dispatch, getters },
     { workflow, type, referenceNode, position, output }
   ) {
     // Using the `previousNodeId` and `previousNodeOutput` to determine
@@ -202,17 +202,9 @@ const actions = {
       // Remove temp node and add real one
       commit('DELETE_ITEM', { workflow, nodeId: tempNode.id })
 
-      const automation = rootGetters['application/get'](workflow.automation_id)
-      if (
-        automation?.workspace &&
-        rootGetters['workspace/haveWorkspacePermissionsBeenLoaded'](
-          automation.workspace.id
-        )
-      ) {
-        await dispatch('workspace/forceFetchPermissions', automation.workspace, {
-          root: true,
-        })
-      }
+      await dispatch('application/refreshPermissions', workflow.automation_id, {
+        root: true,
+      })
 
       setTimeout(() => {
         const populatedNode = getters.findById(workflow, node.id)

@@ -196,6 +196,35 @@ def test_application_role_frontend_permissions_include_builder_elements(
 
 
 @pytest.mark.django_db
+def test_application_role_frontend_permissions_include_builder_data_sources(
+    data_fixture,
+):
+    admin = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "NO_ACCESS")]
+    )
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder)
+    data_source = data_fixture.create_builder_data_source(page=page)
+
+    builder_role = RoleAssignmentHandler().get_role_by_uid("BUILDER")
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=builder_role, scope=builder.application_ptr
+    )
+
+    permissions = CoreHandler().get_permissions(user, workspace)
+    role_permissions = next(
+        p["permissions"] for p in permissions if p["name"] == "role"
+    )
+
+    assert (
+        data_source.id
+        in role_permissions["builder.page.data_source.update"]["exceptions"]
+    )
+
+
+@pytest.mark.django_db
 def test_application_role_frontend_permissions_include_automation_nodes(
     data_fixture,
 ):
@@ -219,3 +248,30 @@ def test_application_role_frontend_permissions_include_automation_nodes(
     )
 
     assert node.id in role_permissions["automation.node.update"]["exceptions"]
+
+
+@pytest.mark.django_db
+def test_application_role_frontend_permissions_include_dashboard_data_sources(
+    data_fixture,
+):
+    admin = data_fixture.create_user()
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "NO_ACCESS")]
+    )
+    dashboard = data_fixture.create_dashboard_application(workspace=workspace)
+    data_source = data_fixture.create_dashboard_data_source(dashboard=dashboard)
+
+    builder_role = RoleAssignmentHandler().get_role_by_uid("BUILDER")
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=builder_role, scope=dashboard.application_ptr
+    )
+
+    permissions = CoreHandler().get_permissions(user, workspace)
+    role_permissions = next(
+        p["permissions"] for p in permissions if p["name"] == "role"
+    )
+
+    assert data_source.id in role_permissions["dashboard.data_source.update"][
+        "exceptions"
+    ]

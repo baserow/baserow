@@ -109,6 +109,9 @@ const actions = {
     )
 
     await dispatch('forceCreate', { page, dataSource, beforeId })
+    await dispatch('application/refreshPermissions', page.builder_id, {
+      root: true,
+    })
     commit('SET_LOADING', { page, value: false })
 
     return dataSource

@@ -182,6 +182,23 @@ export const actions = {
     }
     return getters.get(app.id)
   },
+  async refreshPermissions({ dispatch, getters, rootGetters }, applicationOrId) {
+    const application =
+      typeof applicationOrId === 'object'
+        ? applicationOrId
+        : getters.get(applicationOrId)
+
+    if (
+      application?.workspace &&
+      rootGetters['workspace/haveWorkspacePermissionsBeenLoaded'](
+        application.workspace.id
+      )
+    ) {
+      await dispatch('workspace/forceFetchPermissions', application.workspace, {
+        root: true,
+      })
+    }
+  },
   /**
    * Updates the values of an existing application.
    */
