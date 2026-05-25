@@ -9,6 +9,7 @@ class AutomationOperationType(OperationType, metaclass=ABCMeta):
 
 class ListAutomationWorkflowsOperationType(AutomationOperationType):
     type = "automation.list_workflows"
+    object_scope_name = "automation_workflow"
 
 
 class OrderAutomationWorkflowsOperationType(AutomationOperationType):

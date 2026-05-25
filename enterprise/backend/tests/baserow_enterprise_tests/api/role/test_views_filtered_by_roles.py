@@ -110,3 +110,59 @@ def test_get_database_application_with_tables_filtered_by_roles(
 
     assert len(response_json["tables"]) == 1
     assert [t["id"] for t in response_json["tables"]] == [table_1.id]
+
+
+@pytest.mark.django_db
+def test_get_builder_application_with_application_role_includes_pages(
+    api_client, data_fixture
+):
+    admin = data_fixture.create_user()
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "NO_ACCESS")]
+    )
+    builder = data_fixture.create_builder_application(workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Visible page")
+
+    builder_role = RoleAssignmentHandler().get_role_by_uid("BUILDER")
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=builder_role, scope=builder.application_ptr
+    )
+
+    url = reverse("api:applications:item", kwargs={"application_id": builder.id})
+
+    response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+    response_json = response.json()
+
+    assert response.status_code == 200
+    assert response_json["id"] == builder.id
+    assert page.id in [p["id"] for p in response_json["pages"]]
+
+
+@pytest.mark.django_db
+def test_get_automation_application_with_application_role_includes_workflows(
+    api_client, data_fixture
+):
+    admin = data_fixture.create_user()
+    user, token = data_fixture.create_user_and_token()
+    workspace = data_fixture.create_workspace(
+        user=admin, custom_permissions=[(user, "NO_ACCESS")]
+    )
+    automation = data_fixture.create_automation_application(workspace=workspace)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, name="Visible workflow"
+    )
+
+    builder_role = RoleAssignmentHandler().get_role_by_uid("BUILDER")
+    RoleAssignmentHandler().assign_role(
+        user, workspace, role=builder_role, scope=automation.application_ptr
+    )
+
+    url = reverse("api:applications:item", kwargs={"application_id": automation.id})
+
+    response = api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+    response_json = response.json()
+
+    assert response.status_code == 200
+    assert response_json["id"] == automation.id
+    assert workflow.id in [w["id"] for w in response_json["workflows"]]
