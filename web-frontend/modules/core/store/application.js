@@ -182,7 +182,10 @@ export const actions = {
     }
     return getters.get(app.id)
   },
-  async refreshPermissions({ dispatch, getters, rootGetters }, applicationOrId) {
+  async refreshPermissions(
+    { dispatch, getters, rootGetters },
+    applicationOrId
+  ) {
     const application =
       typeof applicationOrId === 'object'
         ? applicationOrId

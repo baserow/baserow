@@ -272,6 +272,6 @@ def test_application_role_frontend_permissions_include_dashboard_data_sources(
         p["permissions"] for p in permissions if p["name"] == "role"
     )
 
-    assert data_source.id in role_permissions["dashboard.data_source.update"][
-        "exceptions"
-    ]
+    assert (
+        data_source.id in role_permissions["dashboard.data_source.update"]["exceptions"]
+    )

@@ -94,17 +94,14 @@ export default {
   computed: {
     additionalContextComponents() {
       return Object.values(this.$registry.getAll('plugin'))
-        .reduce(
-          (components, plugin) => {
-            return components.concat(
-              plugin.getAdditionalApplicationContextComponents(
-                this.workspace,
-                this.application
-              )
+        .reduce((components, plugin) => {
+          return components.concat(
+            plugin.getAdditionalApplicationContextComponents(
+              this.workspace,
+              this.application
             )
-          },
-          []
-        )
+          )
+        }, [])
         .filter((component) => component !== null)
     },
     applicationType() {

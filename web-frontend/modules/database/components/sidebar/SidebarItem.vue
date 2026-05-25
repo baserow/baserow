@@ -266,18 +266,15 @@ export default {
     },
     additionalContextComponents() {
       return Object.values(this.$registry.getAll('plugin'))
-        .reduce(
-          (components, plugin) => {
-            return components.concat(
-              plugin.getAdditionalApplicationChildContextComponents(
-                this.database.workspace,
-                this.database,
-                this.table
-              )
+        .reduce((components, plugin) => {
+          return components.concat(
+            plugin.getAdditionalApplicationChildContextComponents(
+              this.database.workspace,
+              this.database,
+              this.table
             )
-          },
-          []
-        )
+          )
+        }, [])
         .filter((component) => component !== null)
     },
     syncTooltipOptions() {

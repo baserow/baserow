@@ -150,11 +150,7 @@ export class BaserowPlugin extends Registerable {
    * context menu of an application child item.
    * @returns {*[]}
    */
-  getAdditionalApplicationChildContextComponents(
-    workspace,
-    application,
-    item
-  ) {
+  getAdditionalApplicationChildContextComponents(workspace, application, item) {
     return []
   }
 
