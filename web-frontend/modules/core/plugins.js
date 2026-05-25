@@ -146,6 +146,7 @@ export class BaserowPlugin extends Registerable {
       database: [],
       builder: [],
       automation: [],
+      dashboard: [],
     }
   }
 
@@ -166,6 +167,7 @@ export class BaserowPlugin extends Registerable {
       database: [],
       builder: [],
       automation: [],
+      dashboard: [],
     }
   }
 

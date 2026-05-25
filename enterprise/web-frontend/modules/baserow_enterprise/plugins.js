@@ -47,6 +47,7 @@ export class EnterprisePlugin extends BaserowPlugin {
       database: applicationComponents,
       builder: applicationComponents,
       automation: applicationComponents,
+      dashboard: applicationComponents,
       [application.type]: applicationComponents,
     }
   }
