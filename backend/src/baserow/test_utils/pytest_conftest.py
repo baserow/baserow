@@ -1097,12 +1097,17 @@ def baserow_db_setup(django_db_setup, django_db_blocker):
         with connection.cursor() as cursor:
             cursor.execute(f"CREATE SEQUENCE IF NOT EXISTS {sequence_name};")
 
-    all_formula_functions = "\n".join(iter_formula_pgsql_functions())
     with django_db_blocker.unblock():
-        with connection.cursor() as cursor:
-            cursor.execute(all_formula_functions)
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                # In CI, multiple pytest-xdist workers can run this session fixture
+                # against the same database. PostgreSQL function creation is not
+                # concurrency-safe when two workers create the same missing
+                # signature, even with CREATE OR REPLACE.
+                cursor.execute("SELECT pg_advisory_xact_lock(20240503, 1103);")
+                cursor.execute("\n".join(iter_formula_pgsql_functions()))
 
-        init_link_row_sequence()
+            init_link_row_sequence()
 
 
 @pytest.fixture()
