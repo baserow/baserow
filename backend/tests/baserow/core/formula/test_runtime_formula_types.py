@@ -2715,9 +2715,14 @@ def test_runtime_to_datetime_validate_args_raises_for_string_not_matching_format
     assert "could not be parsed using format" in str(exc_info.value)
 
 
-def test_runtime_to_datetime_validate_args_raises_for_unsupported_format_token():
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["2025/06/04 12:23:45", "YYYY/MM/DD HH:mm:SS"],
+        ["2025/06/04 12:23:45", ""],
+    ],
+)
+def test_runtime_to_datetime_validate_args_raises_for_unsupported_format_token(args):
     with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
-        RuntimeToDatetime().validate_args(
-            ["2025/06/04 12:23:45", "YYYY/MM/DD HH:mm:SS"]
-        )
+        RuntimeToDatetime().validate_args(args)
     assert "is not a valid datetime format" in str(exc_info.value)

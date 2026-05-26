@@ -2235,19 +2235,28 @@ describe('RuntimeToDatetime', () => {
     ).toThrow('could not be parsed using format')
   })
 
-  test('validateArgs throws for format with unsupported token', () => {
-    const formulaType = new RuntimeToDatetime({
-      app: {
-        $i18n: {
-          t: (key, params) =>
-            `'${params.value}' is not a valid datetime format.`,
+  test.each([
+    {
+      args: ['2025/06/04 12:23:45', 'YYYY/MM/DD HH:mm:SS'],
+      desc: 'mismatched arg and format',
+    },
+    { args: ['2025/06/04 12:23:45', ''], desc: 'empty format string' },
+  ])(
+    'validateArgs throws for format with unsupported token ($desc)',
+    ({ args }) => {
+      const formulaType = new RuntimeToDatetime({
+        app: {
+          $i18n: {
+            t: (key, params) =>
+              `'${params.value}' is not a valid datetime format.`,
+          },
         },
-      },
-    })
-    expect(() =>
-      formulaType.validateArgs(['2025/06/04 12:23:45', 'YYYY/MM/DD HH:mm:SS'])
-    ).toThrow('is not a valid datetime format')
-  })
+      })
+      expect(() => formulaType.validateArgs(args)).toThrow(
+        'is not a valid datetime format'
+      )
+    }
+  )
 
   test.each([
     { args: ['2024-01-15'], expected: [] },

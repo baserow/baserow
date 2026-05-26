@@ -41,6 +41,11 @@ def is_valid_datetime_format(value: str) -> bool:
 
     if not isinstance(value, str):
         return False
+
+    # An empty string is not a valid datetime format
+    if not value:
+        return False
+
     stripped = RE_VALID_FORMAT.sub("", value)
     return not re.search(r"[a-zA-Z]", stripped)
 

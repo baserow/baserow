@@ -133,7 +133,7 @@ describe('DatetimeFormatBaserowRuntimeFormulaArgumentType', () => {
     { value: 'DD/MM/YYYY HH:mm:ss', expected: true },
     { value: 'HH:mm:ss', expected: true },
     { value: 'SSS', expected: true },
-    { value: '', expected: true },
+    { value: '', expected: false },
     { value: 'SS', expected: false },
     { value: 'S', expected: false },
     { value: 'Z', expected: false },

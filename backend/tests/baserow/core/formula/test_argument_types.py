@@ -320,7 +320,7 @@ def test_duration_string_get_error_message_returns_human_readable_string():
         ("S", False),
         ("Z", False),
         ("YYYY-MM-DD HH:mm:SS", False),
-        ("", True),
+        ("", False),
         (123, False),
         (None, False),
     ],

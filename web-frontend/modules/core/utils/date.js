@@ -9,6 +9,8 @@ const SUPPORTED_MOMENT_TOKEN_RE =
 
 export function isValidDatetimeFormat(value) {
   if (typeof value !== 'string') return false
+  // An empty string is not a valid datetime format
+  if (value === '') return false
   return !/[a-zA-Z]/.test(value.replace(SUPPORTED_MOMENT_TOKEN_RE, ''))
 }
 
