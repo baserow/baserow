@@ -1,9 +1,5 @@
 import UserService from '@baserow/modules/core/services/admin/users'
 
-/**
- * Core impersonate logic, extracted so it can be unit tested without going
- * through Nuxt's auto-imports and the SSR-only guard.
- */
 export const impersonateMiddleware = async (to, { nuxtApp }) => {
   const store = nuxtApp.$store
 
@@ -12,19 +8,21 @@ export const impersonateMiddleware = async (to, { nuxtApp }) => {
     return
   }
 
-  // The impersonate endpoint requires a staff user. If the SSR auth state
-  // hasn't been established yet (e.g. the refresh token cookie is missing or
-  // too close to expiry for `authentication` middleware to refresh), or the
-  // current user isn't staff, calling the endpoint would always yield a 403.
-  // Bail out early so we don't fire a guaranteed-failing request.
-  if (
-    !store.getters['auth/isAuthenticated'] ||
-    !store.getters['auth/isStaff']
-  ) {
+  // No session yet — `authentication` middleware normally redirects first,
+  // but bail if it didn't so we don't fire a request that will 401.
+  if (!store.getters['auth/isAuthenticated']) {
     return
   }
 
   const userId = to.query['__impersonate-user']
+
+  // Already impersonating this user. A redirect after impersonation (e.g.
+  // `dashboardRedirect`) makes Nuxt re-run middlewares with the impersonated
+  // user in the store; without this guard we'd call the endpoint again as
+  // that user.
+  if (String(store.getters['auth/getUserId']) === String(userId)) {
+    return
+  }
 
   // Request the impersonate user data, this contains the `token` and `user` object.
   // This is needed to impersonate the user.

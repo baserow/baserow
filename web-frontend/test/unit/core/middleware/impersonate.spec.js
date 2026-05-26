@@ -11,11 +11,11 @@ vi.mock('@baserow/modules/core/services/admin/users', () => ({
  * Builds a minimal `nuxtApp` stub backed by configurable store getters and a
  * spy-able `dispatch`. Mirrors the surface area the middleware actually uses.
  */
-const buildNuxtApp = ({ isAuthenticated, isStaff } = {}) => {
+const buildNuxtApp = ({ isAuthenticated, userId } = {}) => {
   const dispatch = vi.fn()
   const getters = {
     'auth/isAuthenticated': !!isAuthenticated,
-    'auth/isStaff': !!isStaff,
+    'auth/getUserId': userId,
   }
   return {
     nuxtApp: {
@@ -39,7 +39,7 @@ describe('impersonate middleware', () => {
   test('does nothing when the __impersonate-user query param is missing', async () => {
     const { nuxtApp, dispatch } = buildNuxtApp({
       isAuthenticated: true,
-      isStaff: true,
+      userId: 1,
     })
 
     await impersonateMiddleware({ query: {} }, { nuxtApp })
@@ -51,7 +51,6 @@ describe('impersonate middleware', () => {
   test('bails out when the user is not authenticated, even if the query param is set', async () => {
     const { nuxtApp, dispatch } = buildNuxtApp({
       isAuthenticated: false,
-      isStaff: false,
     })
 
     await impersonateMiddleware(
@@ -63,10 +62,10 @@ describe('impersonate middleware', () => {
     expect(dispatch).not.toHaveBeenCalled()
   })
 
-  test('bails out when the user is authenticated but not staff', async () => {
+  test('bails out when the current user is already the impersonated user', async () => {
     const { nuxtApp, dispatch } = buildNuxtApp({
       isAuthenticated: true,
-      isStaff: false,
+      userId: 5,
     })
 
     await impersonateMiddleware(
@@ -78,10 +77,25 @@ describe('impersonate middleware', () => {
     expect(dispatch).not.toHaveBeenCalled()
   })
 
-  test('impersonates the user and updates the store when staff and authenticated', async () => {
+  test('matches when the store id is already a string equal to the query param', async () => {
     const { nuxtApp, dispatch } = buildNuxtApp({
       isAuthenticated: true,
-      isStaff: true,
+      userId: '5',
+    })
+
+    await impersonateMiddleware(
+      { query: { '__impersonate-user': '5' } },
+      { nuxtApp }
+    )
+
+    expect(impersonate).not.toHaveBeenCalled()
+    expect(dispatch).not.toHaveBeenCalled()
+  })
+
+  test('impersonates the user and updates the store when authenticated as a different user', async () => {
+    const { nuxtApp, dispatch } = buildNuxtApp({
+      isAuthenticated: true,
+      userId: 1,
     })
 
     await impersonateMiddleware(
