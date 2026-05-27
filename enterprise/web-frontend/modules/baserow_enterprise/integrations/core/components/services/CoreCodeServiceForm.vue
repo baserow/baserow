@@ -1,5 +1,5 @@
 <template>
-  <form @submit.prevent>
+  <form @submit.prevent @keydown.enter.stop>
     <FormGroup
       small-label
       :label="$t('coreCodeServiceForm.injectionsLabel')"
@@ -64,18 +64,37 @@
       required
       class="margin-bottom-2"
     >
-      <FormTextarea
-        v-model="values.code"
-        :placeholder="$t('coreCodeServiceForm.codePlaceholder')"
-        :rows="12"
-      />
+      <ButtonText
+        type="secondary"
+        size="small"
+        icon="iconoir-code"
+        @click="$refs.codeEditorModal.show()"
+      >
+        {{ $t('coreCodeServiceForm.editCode') }}
+      </ButtonText>
     </FormGroup>
+    <Modal
+      ref="codeEditorModal"
+      class="core-code-service-form__code-modal"
+      wide
+      content-scrollable
+    >
+      <h2 class="box__title">
+        {{ $t('coreCodeServiceForm.codeLabel') }}
+      </h2>
+      <CodeEditor
+        v-model="values.code"
+        class="core-code-service-form__code-editor"
+        language="javascript"
+      />
+    </Modal>
   </form>
 </template>
 
 <script>
 import form from '@baserow/modules/core/mixins/form'
 import InjectedFormulaInput from '@baserow/modules/core/components/formula/InjectedFormulaInput'
+import CodeEditor from '@baserow/modules/core/components/CodeEditor.vue'
 import { useVuelidate } from '@vuelidate/core'
 import { helpers, maxLength, required } from '@vuelidate/validators'
 import { uuid } from '@baserow/modules/core/utils/string'
@@ -83,6 +102,7 @@ import { uuid } from '@baserow/modules/core/utils/string'
 export default {
   name: 'CoreCodeServiceForm',
   components: {
+    CodeEditor,
     InjectedFormulaInput,
   },
   mixins: [form],

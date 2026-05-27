@@ -75,6 +75,16 @@ def setup(settings):
         or 4
     )
 
+    settings.BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE = os.getenv(
+        "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE", "wasmtime"
+    )
+    settings.BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH = os.getenv(
+        "BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH", ""
+    )
+    settings.BASEROW_ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS = int(
+        os.getenv("BASEROW_ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS", "") or 5
+    )
+
     # AI Assistant settings
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = os.getenv(
         "BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL", ""

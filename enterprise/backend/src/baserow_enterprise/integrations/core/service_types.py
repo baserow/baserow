@@ -1,13 +1,25 @@
-from typing import Dict, Generator, List, Tuple
+from typing import Any, Dict, Generator, List, Tuple
 
+from genson import SchemaBuilder
 from rest_framework import serializers
 
 from baserow.contrib.integrations.core.service_types import CoreServiceType
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.registry import Instance
+from baserow.core.services.dispatch_context import DispatchContext
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+    UnexpectedDispatchException,
+)
 from baserow.core.services.models import Service
 from baserow.core.services.registries import DispatchTypes
-from baserow.core.services.types import ServiceDict
+from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
+from baserow_enterprise.integrations.core.code_runners import (
+    CodeRunnerExecutionError,
+    CodeRunnerImproperlyConfigured,
+    CodeRunnerResultError,
+    get_code_runner,
+)
 from baserow_enterprise.integrations.core.models import (
     CoreCodeService,
     CoreCodeServiceInjection,
@@ -24,6 +36,25 @@ class CoreCodeServiceType(CoreServiceType):
     class SerializedDict(ServiceDict):
         code: str
         injections: List[Dict[str, str]]
+
+    def get_schema_name(self, service: CoreCodeService) -> str:
+        return f"Code{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreCodeService,
+        allowed_fields: List[str] | None = None,
+    ) -> Dict[str, Any] | None:
+        if service.sample_data is None or "data" not in service.sample_data:
+            return None
+
+        schema_builder = SchemaBuilder()
+        schema_builder.add_object(service.sample_data["data"])
+
+        return {
+            **schema_builder.to_schema(),
+            "title": self.get_schema_name(service),
+        }
 
     @property
     def serializer_field_overrides(self):
@@ -64,11 +95,43 @@ class CoreCodeServiceType(CoreServiceType):
 
     def after_update(
         self,
-        instance,
-        values,
+        instance: CoreCodeService,
+        values: Dict,
         changes: Dict[str, Tuple],
     ):
         return self.after_create(instance, values)
+
+    def formulas_to_resolve(self, service: CoreCodeService) -> list[FormulaToResolve]:
+        def passthrough(value):
+            return value
+
+        return [
+            FormulaToResolve(
+                injection.name,
+                injection.formula,
+                passthrough,
+                f'injection "{injection.name}"',
+            )
+            for injection in service.injections.all()
+        ]
+
+    def dispatch_data(
+        self,
+        service: CoreCodeService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Any]:
+        try:
+            return get_code_runner().run(resolved_values, service.code)
+        except CodeRunnerImproperlyConfigured as exc:
+            raise ServiceImproperlyConfiguredDispatchException(str(exc)) from exc
+        except CodeRunnerResultError as exc:
+            raise ServiceImproperlyConfiguredDispatchException(str(exc)) from exc
+        except CodeRunnerExecutionError as exc:
+            raise UnexpectedDispatchException(str(exc)) from exc
+
+    def dispatch_transform(self, data: Dict[str, Any]) -> DispatchResult:
+        return DispatchResult(data=data)
 
     def formula_generator(
         self, service: Service

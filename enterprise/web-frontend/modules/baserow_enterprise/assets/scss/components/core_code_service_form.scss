@@ -1,0 +1,7 @@
+.core-code-service-form__code-editor {
+  /* stylelint-disable-next-line selector-class-pattern */
+  .tiptap.ProseMirror {
+    min-height: 360px;
+    max-height: 60vh;
+  }
+}

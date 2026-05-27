@@ -27,6 +27,7 @@
   "coreCodeServiceForm": {
     "codeLabel": "Code",
     "codePlaceholder": "Enter the code to execute",
+    "editCode": "Edit code",
     "injectionsLabel": "Data injections",
     "nameLabel": "Name",
     "namePlaceholder": "Variable name",
