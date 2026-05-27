@@ -2,18 +2,6 @@
   <form @submit.prevent>
     <FormGroup
       small-label
-      :label="$t('coreCodeServiceForm.codeLabel')"
-      required
-      class="margin-bottom-2"
-    >
-      <FormTextarea
-        v-model="values.code"
-        :placeholder="$t('coreCodeServiceForm.codePlaceholder')"
-        :rows="12"
-      />
-    </FormGroup>
-    <FormGroup
-      small-label
       :label="$t('coreCodeServiceForm.injectionsLabel')"
       required
       class="margin-bottom-2"
@@ -21,10 +9,10 @@
       <template v-if="v$.values.injections.$model.length">
         <div class="row" style="--gap: 6px">
           <label class="col col-5 control__label control__label--small">
-            {{ $t('coreCodeServiceForm.nameLabel') }}
+            {{ $t('coreCodeServiceForm.valueLabel') }}
           </label>
           <label class="col col-7 control__label control__label--small">
-            {{ $t('coreCodeServiceForm.formulaLabel') }}
+            {{ $t('coreCodeServiceForm.nameLabel') }}
           </label>
         </div>
         <div
@@ -34,17 +22,17 @@
           class="row margin-bottom-1"
         >
           <div class="col col-5">
+            <InjectedFormulaInput
+              v-model="injection.formula"
+              :placeholder="$t('coreCodeServiceForm.valuePlaceholder')"
+            />
+          </div>
+          <div class="col col-5">
             <FormInput
               v-model="injection.name"
               :error="!!v$.values.injections.$each.$message[index]?.[0]"
               :placeholder="$t('coreCodeServiceForm.namePlaceholder')"
               @blur="v$.values.injections.$touch()"
-            />
-          </div>
-          <div class="col col-5">
-            <InjectedFormulaInput
-              v-model="injection.formula"
-              :placeholder="$t('coreCodeServiceForm.formulaPlaceholder')"
             />
           </div>
           <div class="col col-2">
@@ -69,6 +57,18 @@
       >
         {{ $t('coreCodeServiceForm.addInjection') }}
       </ButtonText>
+    </FormGroup>
+    <FormGroup
+      small-label
+      :label="$t('coreCodeServiceForm.codeLabel')"
+      required
+      class="margin-bottom-2"
+    >
+      <FormTextarea
+        v-model="values.code"
+        :placeholder="$t('coreCodeServiceForm.codePlaceholder')"
+        :rows="12"
+      />
     </FormGroup>
   </form>
 </template>

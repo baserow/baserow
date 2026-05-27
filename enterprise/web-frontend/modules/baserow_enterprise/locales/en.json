@@ -27,11 +27,11 @@
   "coreCodeServiceForm": {
     "codeLabel": "Code",
     "codePlaceholder": "Enter the code to execute",
-    "injectionsLabel": "Injections",
+    "injectionsLabel": "Data injections",
     "nameLabel": "Name",
     "namePlaceholder": "Variable name",
-    "formulaLabel": "Formula",
-    "formulaPlaceholder": "Formula value",
+    "valueLabel": "Value",
+    "valuePlaceholder": "Value formula",
     "addInjection": "Add injection",
     "nameFieldRequired": "The name field is required.",
     "nameFieldInvalid": "The name must be a valid variable name."
