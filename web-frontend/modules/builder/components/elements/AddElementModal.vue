@@ -44,6 +44,7 @@
                     :place-in-container="placeInContainer"
                     :parent-element="parentElement"
                     :before-element="beforeElement"
+                    :after-element="afterElement"
                     :page-place="pagePlace"
                     @click="addElement(elementType)"
                   />
@@ -146,6 +147,15 @@ export default {
       }
       return null
     },
+    afterElement() {
+      if (this.afterId) {
+        return this.$store.getters['element/getElementByIdInPages'](
+          [this.currentPage, this.sharedPage],
+          this.afterId
+        )
+      }
+      return null
+    },
   },
   methods: {
     ...mapActions({
@@ -217,11 +227,19 @@ export default {
           beforeId = null
         }
 
+        let afterId = this.afterId
+        if (
+          this.afterElement &&
+          this.afterElement.page_id !== destinationPage.id
+        ) {
+          afterId = null
+        }
+
         if (beforeId) {
           referenceElementId = beforeId
           position = 'north'
-        } else if (this.afterId) {
-          referenceElementId = this.afterId
+        } else if (afterId) {
+          referenceElementId = afterId
           position = 'south'
         }
         // else: referenceElementId=null, position='south' → appends to end

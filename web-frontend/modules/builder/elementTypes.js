@@ -2314,6 +2314,7 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     element,
     parentElement,
     beforeElement,
+    afterElement,
     placeInContainer,
     pagePlace,
     referencePagePlace,
@@ -2326,6 +2327,13 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     // Disallow drops when the cursor is hovering over a different page section (e.g. a footer zone).
     if (referencePagePlace && referencePagePlace !== PAGE_PLACES.HEADER) {
       return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
+    }
+
+    // Universal modal guard: a header is north-only — it can never be placed south
+    // of anything. `afterElement !== undefined` distinguishes the Add Element modal
+    // from drag-and-drop (drag-and-drop never passes afterElement).
+    if (afterElement !== undefined && afterElement) {
+      return this.app.$i18n.t('elementType.notAllowedLocation')
     }
 
     const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
@@ -2374,6 +2382,36 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
       // A header element is being dragged to the current page content.
       return this.app.$i18n.t('elementType.notAllowedLocation')
     }
+
+    if (page.id !== sharedPage.id && !parentElement) {
+      // A header must sit north of all content. Disallow if there is content
+      // above the insertion point (afterElement set) or if beforeElement is not
+      // the first visible element across the combined view (existing headers on
+      // the shared page come before content, so they take priority here).
+      if (afterElement) {
+        return this.app.$i18n.t('elementType.notAllowedLocation')
+      }
+      if (beforeElement) {
+        const rootHeaderElements = this.app.$store.getters[
+          'element/getRootElements'
+        ](sharedPage).filter(
+          (e) =>
+            this.app.$registry.get('element', e.type).getPagePlace() ===
+            PAGE_PLACES.HEADER
+        )
+        const firstVisibleElement =
+          rootHeaderElements[0] ??
+          this.app.$store.getters['element/getRootElements'](page)[0] ??
+          null
+        if (
+          !firstVisibleElement ||
+          beforeElement.id !== firstVisibleElement.id
+        ) {
+          return this.app.$i18n.t('elementType.notAllowedLocation')
+        }
+      }
+    }
+
     return null
   }
 }
@@ -2426,6 +2464,7 @@ export class FooterElementType extends HeaderElementType {
     element,
     parentElement,
     beforeElement,
+    afterElement,
     placeInContainer,
     pagePlace,
     referencePagePlace,
@@ -2438,6 +2477,13 @@ export class FooterElementType extends HeaderElementType {
     // Disallow drops when the cursor is hovering over a different page section (e.g. a header zone).
     if (referencePagePlace && referencePagePlace !== PAGE_PLACES.FOOTER) {
       return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
+    }
+
+    // Universal modal guard: a footer is south-only — it can never be placed north
+    // of anything. `afterElement !== undefined` distinguishes the Add Element modal
+    // from drag-and-drop (drag-and-drop never passes afterElement).
+    if (afterElement !== undefined && beforeElement) {
+      return this.app.$i18n.t('elementType.notAllowedLocation')
     }
 
     const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
@@ -2480,6 +2526,33 @@ export class FooterElementType extends HeaderElementType {
       // A footer element is being dragged to the current page content.
       return this.app.$i18n.t('elementType.notAllowedLocation')
     }
+
+    if (page.id !== sharedPage.id && !parentElement) {
+      // A footer must sit south of all content. Disallow if there is content
+      // below the insertion point (beforeElement set) or if afterElement is not
+      // the last visible element across the combined view (existing footers on
+      // the shared page come after content, so they take priority here).
+      if (beforeElement) {
+        return this.app.$i18n.t('elementType.notAllowedLocation')
+      }
+      if (afterElement) {
+        const rootFooterElements = this.app.$store.getters[
+          'element/getRootElements'
+        ](sharedPage).filter(
+          (e) =>
+            this.app.$registry.get('element', e.type).getPagePlace() ===
+            PAGE_PLACES.FOOTER
+        )
+        const lastVisibleElement =
+          rootFooterElements.at(-1) ??
+          this.app.$store.getters['element/getRootElements'](page).at(-1) ??
+          null
+        if (!lastVisibleElement || afterElement.id !== lastVisibleElement.id) {
+          return this.app.$i18n.t('elementType.notAllowedLocation')
+        }
+      }
+    }
+
     return null
   }
 }
