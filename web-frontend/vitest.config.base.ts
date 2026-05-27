@@ -37,15 +37,15 @@ export default {
             // prevents dynamic importing `.../en.json?import`
             lazy: false,
 
-            defaultLocale: 'en',
-            fallbackLocale: 'en',
-            locales: [{ code: 'en', name: 'English' }],
+            defaultLocale: 'zh_Hans',
+            fallbackLocale: 'zh_Hans',
+            locales: [{ code: 'zh_Hans', name: '简体中文' }],
 
             // inline messages so nothing is loaded from disk
             vueI18n: {
               legacy: false,
-              locale: 'en',
-              messages: { en: {} },
+              locale: 'zh_Hans',
+              messages: { zh_Hans: {} },
               missingWarn: false,
               fallbackWarn: false,
             },

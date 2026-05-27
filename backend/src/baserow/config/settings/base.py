@@ -363,9 +363,10 @@ AUTHENTICATION_BACKENDS = ["django.contrib.auth.backends.AllowAllUsersModelBacke
 # Internationalization
 # https://docs.djangoproject.com/en/2.2/topics/i18n/
 
-LANGUAGE_CODE = "en"
+LANGUAGE_CODE = "zh_Hans"
 
 LANGUAGES = [
+    ("zh_Hans", "Simplified Chinese"),
     ("en", "English"),
     ("fr", "French"),
     ("nl", "Dutch"),

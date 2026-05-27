@@ -306,7 +306,7 @@ export const actions = {
       if (
         state.messages.find((m) => m.id === aiMessageId && m.content === '')
       ) {
-        throw new Error('The assistant did not provide a response.')
+        throw new Error($i18n.t('assistant.errorNoResponse'))
       }
     } catch (error) {
       // Don't show error if the request was cancelled by user
@@ -319,7 +319,7 @@ export const actions = {
           content:
             error.data?.detail ||
             error.message ||
-            'Oops! Something went wrong on the server. Please try again.',
+            $i18n.t('assistant.errorServer'),
           loading: false,
           error: true,
           reasoning: false,

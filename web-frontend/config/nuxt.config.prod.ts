@@ -16,7 +16,7 @@ import baseConfig from './nuxt.config.base.ts'
 export default {
   ...baseConfig,
   sourcemap: {
-    server: true,
-    client: true,
+    server: false,
+    client: false,
   },
 }

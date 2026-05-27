@@ -7,6 +7,7 @@
  * 2. Create the corresponding .json translation files in each module's locales/ directory
  */
 export const locales = [
+  { code: 'zh_Hans', name: '简体中文', file: 'zh_Hans.json' },
   { code: 'en', name: 'English', file: 'en.json' },
   { code: 'fr', name: 'Français', file: 'fr.json' },
   { code: 'nl', name: 'Nederlands', file: 'nl.json' },

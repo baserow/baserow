@@ -1,0 +1,202 @@
+{
+  "automationWorkflow": {
+    "title": "工作流"
+  },
+  "automationWorkflowForm": {
+    "defaultName": "工作流",
+    "nameTitle": "Name",
+    "nameSubtitle": "工作流程的唯一名称",
+    "namePlaceholder": "输入名字..."
+  },
+  "duplicateAutomationWorkflowJobType": {
+    "duplicating": "复制",
+    "name": "重复的自动化工作流程",
+    "duplicatedTitle": "工作流程重复"
+  },
+  "trashType": {
+    "workflow": "工作流程",
+    "automation": "自动化"
+  },
+  "generalSettings": {
+    "titleOverview": "常规",
+    "notificationLabel": "通知",
+    "nameLabel": "自动化名称",
+    "notificationCheckboxLabel": "当此自动化失败时收到通知",
+    "cantUpdateAutomationTitle": "无法更新自动化",
+    "cantUpdateAutomationDescription": "抱歉，无法更新自动化。"
+  },
+  "integrationSettings": {
+    "title": "集成",
+    "noIntegrationMessage": "您尚未创建任何集成。它们可以通过添加数据源、操作或用户身份验证来创建。",
+    "integrationMessage": "您可以通过添加数据源、操作或用户身份验证来创建新的集成。"
+  },
+  "automationHeader": {
+    "publishBtn": "发布",
+    "settingsBtn": "设置",
+    "historyBtn": "历史",
+    "docsBtn": "文档",
+    "switchLabelDraft": "草稿",
+    "switchLabelDisabled": "已禁用",
+    "switchLabelPaused": "已暂停",
+    "switchLabelLive": "已发布",
+    "startTestRun": "开始试运行",
+    "stopTestRun": "停止试运行",
+    "lastPublished": "最后发布"
+  },
+  "dataProviderType": {
+    "item": "Item",
+    "currentIteration": "当前迭代",
+    "previousNode": "上一个节点"
+  },
+  "nodeSidePanel": {
+    "labelTitle": "标签"
+  },
+  "historySidePanel": {
+    "title": "历史",
+    "statusSuccessBadge": "完全的",
+    "statusErrorBadge": "失败的",
+    "testRun": "Test",
+    "noRunsTitle": "还没有运行",
+    "noRunsDescription": "当此工作流程运行时，结果将显示在此处。",
+    "statusStarted": "进行中...",
+    "statusSuccess": "跑成功",
+    "statusError": "运行失败",
+    "statusDisabled": "被巴塞罗禁用",
+    "successfulRuns": "成功运行",
+    "completedInSeconds": "在 {s} 秒内完成。",
+    "completedInLessThanSecond": "不到1秒就完成了。",
+    "running": "运行 {at} 秒",
+    "failedRuns": "失败的运行",
+    "errorHideDetails": "隐藏详细信息",
+    "errorShowDetails": "显示详情",
+    "runNumber": "运行 {n}",
+    "runCount": "{n} 运行",
+    "showResult": "显示结果"
+  },
+  "nodeType": {
+    "defaultEdgeLabelFallback": "默认",
+    "aiAgent": "人工智能提示",
+    "triggerDeletionError": "触发器无法删除，只能替换。",
+    "localBaserowRowsCreatedLabel": "行在 {tableName} 中创建",
+    "localBaserowRowsUpdatedLabel": "行已在 {tableName} 中更新",
+    "localBaserowRowsDeletedLabel": "行已在 {tableName} 中删除",
+    "localBaserowCreateRowLabel": "在 {tableName} 中创建一行",
+    "localBaserowUpdateRowLabel": "更新 {tableName} 中的一行",
+    "localBaserowDeleteRowLabel": "删除 {tableName} 中的一行",
+    "localBaserowGetRowLabel": "读取 {tableName} 中的一行",
+    "localBaserowListRowsLabel": "列出 {tableName} 中的行",
+    "localBaserowAggregateRowsLabel": "汇总 {tableName} 中的行",
+    "httpRequestLabel": "发送 HTTP 请求",
+    "smtpEmailLabel": "发送电子邮件",
+    "routerLabel": "关注 {edgeCount} 分支中的 1 个",
+    "iterationLabel": "迭代项目",
+    "routerWithOutputNodesDeleteError": "在删除其 {outputCount} 输出节点之前无法删除。",
+    "routerWithOutputNodesReplaceError": "在删除其 {outputCount} 输出节点之前无法替换。",
+    "iteratorWithChildrenNodesDeleteError": "在删除其子节点之前无法删除。",
+    "iteratorWithChildrenNodesReplaceError": "在删除其子节点之前无法替换。",
+    "periodicTriggerLabel": "周期性触发",
+    "slackWriteMessageName": "发送 Slack 消息",
+    "slackWriteMessageLabel": "发送消息至#{channel}"
+  },
+  "workflowNode": {
+    "actionDelete": "删除",
+    "actionReplace": "代替",
+    "actionDuplicate": "复制",
+    "actionConfigure": "配置",
+    "beforeLabelAction": "Then",
+    "moreEdit": "Edit",
+    "moreReplace": "代替",
+    "moreDuplicate": "复制",
+    "beforeLabelTrigger": "开始时间",
+    "beforeLabelCondition": "如果满足条件",
+    "beforeLabelConditionDefault": "如果不满足任何条件",
+    "beforeLabelRepeat": "对于每个项目",
+    "nodeOptions": "节点选项",
+    "displayLabelDebug": "ID：{id} |上一篇：{previousNodeId} | {outputUid}"
+  },
+  "workflowNodeContext": {
+    "noResults": "没有找到结果",
+    "searchPlaceholderTrigger": "寻找触发器...",
+    "searchPlaceholderActions": "搜索操作..."
+  },
+  "simulateDispatch": {
+    "sampleDataLabel": "输出",
+    "sampleDataCopy": "Copy",
+    "triggerNodeAwaitingEvent": "节点正在等待。请手动触发事件以填充有效负载并完成测试。",
+    "simulationInProgress": "节点测试正在进行中...",
+    "errorNodeNotConfigured": "必须先配置节点才能进行测试。",
+    "errorPreviousNodeNotConfigured": "必须配置前一个节点“{node}”。",
+    "errorPreviousNodesNotTested": "必须首先测试前一个节点“{node}”。",
+    "buttonLabelTest": "测试活动",
+    "buttonLabelTestAgain": "再次测试活动",
+    "testNodeDescription": "测试此事件以确认配置正确。此测试的数据可在后续步骤中使用。",
+    "buttonLabelShowPayload": "显示有效载荷",
+    "buttonLabelShowError": "显示错误",
+    "sampleDataModalTitle": "{nodeLabel} 的有效负载",
+    "sampleDataModalSubTitle": "JSON 负载",
+    "errorOccurred": "发生错误...",
+    "sampleDataCopied": "有效负载已复制到剪贴板"
+  },
+  "automationWelcomeGuidedTourStep": {
+    "title": "欢迎来到巴塞尔自动化公司！",
+    "content": "让我们快速浏览一下。您将了解如何设置触发器、添加操作、测试工作流程并发布它 - 无需编码。"
+  },
+  "automationGraphGuidedTourStep": {
+    "title": "在这里管理您的工作流程图",
+    "content": "在此处创建触发器和操作来定义工作流应执行的操作。选择一个触发器或操作以在侧面板中对其进行配置。"
+  },
+  "automationTestRunGuidedTourStep": {
+    "title": "测试您的工作流程",
+    "content": "准备就绪后，开始测试运行以查看工作流程的实际情况。触发器将运行一次以模拟完整执行。"
+  },
+  "automationHistoryGuidedTourStep": {
+    "title": "查看工作流程历史记录",
+    "content": "使用历史记录面板查看过去的测试运行和已发布的执行。这是调试或确认结果的好方法。"
+  },
+  "automationPublishGuidedTourStep": {
+    "title": "发布您的工作流程",
+    "content": "测试并完善设置后，发布您的工作流程以使其生效。其触发器现在将按计划自动运行。"
+  },
+  "automationWorkflowStateGuidedTourStep": {
+    "title": "控制工作流状态",
+    "content": "从这里，您可以随时暂停或恢复您的工作流程。您始终可以控制它是处于活动状态还是处于禁用状态。"
+  },
+  "automationDocsGuidedTourStep": {
+    "title": "探索文档",
+    "content": "如果您遇到困难或想要了解更多信息，请单击突出显示的按钮以获取有关 Baserow 中构建自动化的详细指南和常见问题解答。"
+  },
+  "sidebarComponentAutomation": {
+    "createAutomationWorkflow": "新的工作流程"
+  },
+  "createAutomationWorkflowModal": {
+    "header": "创建工作流程",
+    "submit": "添加工作流程"
+  },
+  "workflowGeneralSettings": {
+    "titleOverview": "工作流程设置",
+    "nameLabel": "工作流程名称",
+    "workflowDisabledRecipientsLabel": "通知收件人",
+    "workflowDisabledRecipientsHelp": "如果自动禁用此工作流程，这些工作区成员将收到应用内通知。",
+    "selectWorkflowDisabledRecipients": "选择收件人",
+    "noWorkflowDisabledRecipients": "未选择收件人。",
+    "cantUpdateWorkflowTitle": "无法更新工作流程",
+    "cantUpdateWorkflowDescription": "抱歉，无法更新工作流程。"
+  },
+  "workflowDisabledNotification": {
+    "body": "{name} 工作流程已禁用。"
+  },
+  "workflowAddNode": {
+    "displayTitle": "创建自动化节点"
+  },
+  "serviceType": {
+    "periodicTrigger": "周期性触发",
+    "periodicTriggerDescription": "以指定的时间间隔定期触发工作流程",
+    "periodicTriggerTriggeredAt": "触发于",
+    "errorIntervalMissing": "需要有一个间隔。",
+    "coreHTTPTrigger": "HTTP触发器",
+    "coreHTTPTriggerDescription": "接收HTTP请求以触发工作流程"
+  },
+  "workflowEditor": {
+    "chooseEvent": "选择一个活动..."
+  }
+}

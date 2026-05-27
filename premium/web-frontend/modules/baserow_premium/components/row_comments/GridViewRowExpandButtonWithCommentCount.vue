@@ -12,7 +12,7 @@
   <a
     v-else
     class="row-comments-expand-button"
-    :title="rowCommentCount + ' comments'"
+    :title="`${rowCommentCount} ${$t('rowCommentSidebar.name')}`"
     @click="onEditModalClick"
   >
     <template v-if="rowCommentCount < 100">

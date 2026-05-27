@@ -1,1 +1,1075 @@
-{}
+{
+  "common": {
+    "dateFormatTitle": "日期格式",
+    "dateFormatEU": "欧洲格式",
+    "dateFormatUS": "美式",
+    "dateFormatISO": "ISO",
+    "timeFormatTitle": "时间格式",
+    "timeFormat24Hour": "24小时",
+    "timeFormat12Hour": "12小时"
+  },
+  "builderToast": {
+    "details": "详情",
+    "defaultTitle": "意外错误",
+    "defaultMessage": "发生意外错误。请稍后重试。",
+    "invalidContextTitle": "无效请求",
+    "invalidContextMessage": "请求无效。",
+    "InvalidContentTitle": "表格无效",
+    "invalidContentMessage": "一个或多个字段包含无效值。",
+    "serviceMisconfiguredTitle": "配置不完整",
+    "serviceMisconfiguredMessage": "请检查配置。",
+    "errorWorkflowActionDispatch": "“{name}”操作失败：",
+    "errorDataSourceDispatch": "无法加载“{name}”数据："
+  },
+  "dataProviderType": {
+    "dataSource": "数据记录",
+    "dataSourceContext": "可用选项",
+    "pageParameter": "参数",
+    "currentRecord": "数据来源",
+    "formData": "表单数据",
+    "previousAction": "先前的操作",
+    "user": "User"
+  },
+  "formDataProviderType": {
+    "nodeMissing": "丢失的"
+  },
+  "builderForm": {
+    "submit": "添加应用程序"
+  },
+  "sidebarComponentBuilder": {
+    "settings": "设置",
+    "createPage": "新页面"
+  },
+  "builderSettingsModal": {
+    "title": "应用"
+  },
+  "builderSettingTypes": {
+    "generalName": "常规",
+    "integrationsName": "集成",
+    "themeName": "主题",
+    "domainsName": "域名",
+    "userSourcesName": "用户"
+  },
+  "createPageModal": {
+    "header": "创建页面",
+    "submit": "添加页面"
+  },
+  "pageErrors": {
+    "errorPathNotUnique": "具有该名称的路径已存在",
+    "errorStartingSlash": "路径需要以“/”开头",
+    "errorValidPathCharacters": "路径包含无效字符",
+    "errorUniquePathParams": "路径参数必须是唯一的。",
+    "errorUniqueValidQueryParams": "查询参数名称必须是唯一且有效的。"
+  },
+  "pageHeaderItemTypes": {
+    "labelElements": "元素",
+    "labelDataSource": "Data",
+    "labelVariables": "变量",
+    "labelSettings": "页面设置"
+  },
+  "pageActionTypes": {
+    "preview": "预览",
+    "publish": "发布"
+  },
+  "publishActionModal": {
+    "title": "发布",
+    "description": "通过发布到其中一个域来使您的应用程序上线。请注意，您的应用程序可以有多个域，每个域运行不同版本的应用程序。",
+    "publish": "发布",
+    "publishSucceedTitle": "网站已发布",
+    "publishSucceedDescription": "网站已成功发布。",
+    "publishSucceedLink": "查看网站",
+    "publishFailedTitle": "网站发布失败",
+    "publishFailedDescription": "网站发布失败。请稍后重试。",
+    "openInNewTab": "在新选项卡中打开",
+    "importingState": "输入",
+    "noDomain": "您需要至少拥有一个域才能发布您的应用程序。",
+    "addDomain": "添加域名"
+  },
+  "lastPublishedDomainDate": {
+    "neverPublished": "绝不",
+    "lastPublished": "最后发布："
+  },
+  "elementsContext": {
+    "searchPlaceholder": "搜索元素",
+    "noPageElements": "没有找到该页面的元素",
+    "noElements": "没有找到元素"
+  },
+  "elementType": {
+    "heading": "标题",
+    "headingDescription": "页面标题标题",
+    "text": "Text",
+    "textDescription": "多行文本",
+    "link": "Link",
+    "linkDescription": "页面/URL 的链接",
+    "image": "图像",
+    "imageDescription": "显示图像",
+    "inputText": "数据输入",
+    "inputTextDescription": "数据输入字段",
+    "column": "专栏",
+    "columnDescription": "列容器",
+    "button": "按钮",
+    "buttonDescription": "一个按钮元素",
+    "table": "桌子",
+    "tableDescription": "一个表格元素",
+    "formContainer": "Form",
+    "formContainerDescription": "表单元素",
+    "choice": "选择",
+    "choiceDescription": "用于单/多值选择",
+    "checkbox": "复选框",
+    "checkboxDescription": "复选框元素",
+    "iframe": "框架",
+    "iframeDescription": "内联框架",
+    "authForm": "登录表格",
+    "authFormDescription": "用户登录表单",
+    "repeat": "重复",
+    "repeatDescription": "一组可重复的元素",
+    "recordSelector": "记录选择器",
+    "recordSelectorDescription": "相关记录选择器",
+    "dateTimePicker": "日期时间选择器",
+    "dateTimePickerDescription": "日期和时间输入字段",
+    "header": "多页标题",
+    "headerDescription": "跨页面共享的容器",
+    "footer": "多页页脚",
+    "footerDescription": "跨页面共享的容器",
+    "notAllowedUnlessTop": "该元素仅允许出现在页面顶部",
+    "notAllowedUnlessBottom": "该元素仅允许出现在页面底部",
+    "notAllowedUnlessHeader": "该元素只能在页眉内使用",
+    "notAllowedUnlessFooter": "该元素只能在页脚内使用",
+    "notAllowedInsideContainer": "容器内不允许该元素",
+    "notAllowedInsideSameType": "该元素不允许出现在相同类型的容器中",
+    "ratingInput": "评级输入",
+    "ratingInputDescription": "评级输入元素",
+    "rating": "等级",
+    "ratingDescription": "评级要素",
+    "invalidElementValue": "无效元素值：{value}",
+    "notAllowedLocation": "该位置不允许使用该元素",
+    "menu": "Menu",
+    "menuDescription": "菜单元素",
+    "simpleContainer": "容器",
+    "simpleContainerDescription": "其他元素的容器",
+    "fileInput": "文件输入",
+    "fileInputDescription": "上传文件的输入",
+    "errorValueMissing": "缺失值属性",
+    "errorEmptyContainer": "这个容器是空的",
+    "errorParentWithDataSourceMissing": "未在元素或父容器上选择数据源",
+    "errorDataSourceMissing": "未选择数据源",
+    "errorSchemaPropertyMissing": "未选择架构属性",
+    "errorWorkflowActionInError": "至少一项操作配置错误",
+    "errorCollectionFieldInError": "至少有一个字段配置错误",
+    "errorNavigateToPageMissing": "缺少导航至属性",
+    "errorPageParameterInError": "至少有一个页面参数配置错误",
+    "errorNavigationUrlMissing": "缺少导航 URL 属性",
+    "errorImageFileMissing": "缺少图像文件",
+    "errorImageUrlMissing": "缺少图像 URL 属性",
+    "errorNoWorkflowAction": "未配置工作流程操作",
+    "errorOptionsMissing": "没有配置选项",
+    "errorIframeUrlMissing": "缺少 IFrame URL 属性",
+    "errorIframeContentMissing": "缺少 IFrame 内容",
+    "errorNoMenuItem": "未配置菜单项",
+    "errorMenuItemInError": "至少有一个菜单配置错误",
+    "errorSubMenuItemInError": "至少有一个子菜单配置错误"
+  },
+  "addElementButton": {
+    "label": "元素"
+  },
+  "addElementModal": {
+    "title": "添加新元素",
+    "searchPlaceholder": "搜索元素",
+    "elementInProgress": "添加元素..."
+  },
+  "addElementCategory": {
+    "suggestedElement": "建议要素",
+    "baseElement": "基本元素",
+    "layoutElement": "布局元素",
+    "formElement": "表单元素"
+  },
+  "elementMenu": {
+    "drag": "拖动以重新排序",
+    "moveUp": "向上移动",
+    "moveDown": "下移",
+    "moveLeft": "向左移动",
+    "moveRight": "向右移动",
+    "selectParent": "选择父级"
+  },
+  "duplicatePageJobType": {
+    "name": "重复页面",
+    "duplicating": "复制",
+    "duplicatedTitle": "页面重复"
+  },
+  "pageSidePanelType": {
+    "general": "常规",
+    "style": "风格",
+    "visibility": "能见度",
+    "events": "活动",
+    "eventsTabDeactivatedNoEvents": "该元素不支持任何事件",
+    "eventsTabInError": "一项或多项操作配置错误。"
+  },
+  "emptySidePanelState": {
+    "message": "单击其中一个元素可查看更多详细信息"
+  },
+  "pagePreview": {
+    "emptyMessage": "单击以创建元素",
+    "header": "标头",
+    "footer": "页脚"
+  },
+  "elementForms": {
+    "textInputPlaceholder": "输入文字...",
+    "urlInputPlaceholder": "输入网址...",
+    "invalidFormula": "公式无效"
+  },
+  "headingElement": {
+    "missingValue": "缺少标题...",
+    "emptyValue": "标题空..."
+  },
+  "headingElementForm": {
+    "levelTitle": "等级",
+    "textTitle": "Text",
+    "textPlaceholder": "输入文字...",
+    "headingName": "标题 {level} <h{level}>",
+    "textError": "该值无效。"
+  },
+  "textElement": {
+    "missingValue": "缺少文字...",
+    "emptyValue": "空文本..."
+  },
+  "textElementForm": {
+    "textTitle": "Text",
+    "textPlaceholder": "输入文字...",
+    "textError": "该值无效。",
+    "textFormatTypeLabel": "格式",
+    "textFormatTypePlain": "纯文本",
+    "textFormatTypeMarkdown": "降价"
+  },
+  "orientations": {
+    "label": "方向",
+    "horizontal": "水平的",
+    "vertical": "垂直的"
+  },
+  "menuElement": {
+    "missingValue": "缺少菜单项",
+    "separator": "分离器",
+    "spacer": "垫片",
+    "missingLinkValue": "缺少链接名称...",
+    "emptyLinkValue": "链接名称为空...",
+    "missingButtonValue": "缺少按钮名称...",
+    "emptyButtonValue": "按钮名称为空..."
+  },
+  "menuElementForm": {
+    "menuItemsLabel": "菜单项",
+    "addMenuItemLink": "添加...",
+    "alignment": "结盟",
+    "menuItemDefaultName": "Page",
+    "menuItemLabelLabel": "标签",
+    "menuItemTypeLabel": "Type",
+    "menuItemTypeSeparator": "分离器",
+    "menuItemVariantLabel": "变体",
+    "menuItemVariantLink": "Link",
+    "menuItemVariantButton": "按钮",
+    "namePlaceholder": "Page",
+    "addSubLink": "添加子链接",
+    "menuItemSubLinkDefaultName": "子链接",
+    "menuItemAddLink": "Link",
+    "menuItemAddButton": "按钮",
+    "menuItemAddSeparator": "分离器",
+    "menuItemAddSpacer": "垫片",
+    "eventDescription": "要配置此按钮的操作，请打开此元素的“事件”选项卡。",
+    "noMenuItemsMessage": "单击“添加”添加您的第一个菜单项。"
+  },
+  "simpleContainerElementForm": {
+    "noConfigurationOptions": "容器元素没有任何配置选项。"
+  },
+  "imageElement": {
+    "missingValue": "缺少替代文本...",
+    "emptyValue": "空替代文本..."
+  },
+  "generalForm": {
+    "labelTitle": "标签",
+    "labelPlaceholder": "输入标签",
+    "valueTitle": "价值",
+    "defaultValueTitle": "默认值",
+    "defaultValuePlaceholder": "输入默认值",
+    "valuePlaceholder": "输入值",
+    "placeholderTitle": "占位符",
+    "placeholderPlaceholder": "输入占位符",
+    "requiredTitle": "必需的",
+    "validationTitle": "验证"
+  },
+  "inputTextElementForm": {
+    "multilineTitle": "多线",
+    "rowsTitle": "行数",
+    "rowsPlaceholder": "输入此输入的行数",
+    "validationTypeAnyLabel": "Any",
+    "validationTypeAnyDescription": "允许在此输入中设置任何值。",
+    "validationTypeIntegerLabel": "数字",
+    "validationTypeIntegerDescription": "在此输入中强制输入数值（接受整数和小数）。",
+    "validationTypeEmailLabel": "电子邮件",
+    "validationTypeEmailDescription": "在此输入中强制执行电子邮件地址值。",
+    "inputType": "输入类型",
+    "inputTypeTextLabel": "Text",
+    "inputTypePasswordLabel": "密码",
+    "passwordTypeWarning": "密码是敏感数据。请小心您在应用程序中处理和存储密码的方式。"
+  },
+  "dateTimePickerElementForm": {
+    "includeTime": "包括时间",
+    "invalidDateError": "日期无效。请确保输入的日期符合给定的格式。"
+  },
+  "imageElementForm": {
+    "fileLabel": "图像",
+    "invalidUrlError": "网址无效",
+    "altTextTitle": "替代文本",
+    "altTextDescription": "由屏幕阅读器使用并在图像无法加载时显示",
+    "fileSourceTypeUpload": "上传",
+    "fileSourceTypeURL": "URL",
+    "urlWarning": "注意：请确保您可以控制或信任输入的网址。",
+    "uploadFileButton": "上传文件"
+  },
+  "iframeElementForm": {
+    "missingValue": "缺少 IFrame 源...",
+    "emptyValue": "空 IFrame 源...",
+    "sourceTypeLabel": "来源类型",
+    "urlLabel": "URL",
+    "urlPlaceholder": "链接到要嵌入的外部资源",
+    "urlHelp": "注意：请确保您可以控制或信任输入的网址。",
+    "embedLabel": "嵌入",
+    "embedPlaceholder": "要嵌入的原始 HTML 内容",
+    "heightLabel": "高度（像素）",
+    "heightPlaceholder": "高度（以像素为单位）"
+  },
+  "columnElementForm": {
+    "columnAmountTitle": "布局",
+    "verticalAlignment": "垂直对齐",
+    "columnAmountName": "没有列|1 列|{columnAmount} 列",
+    "columnGapTitle": "列之间的空间",
+    "columnGapPlaceholder": "输入列之间的空格..."
+  },
+  "domainSettings": {
+    "titleOverview": "域名",
+    "titleAddDomain": "添加域名",
+    "addDomain": "添加域名",
+    "noDomainMessage": "您尚未将域与此应用程序关联。您必须添加一个域才能发布您的应用程序。您可以为此处列出的每个域发布不同版本的应用程序。"
+  },
+  "userSourceSettings": {
+    "titleAddUserSource": "新用户来源",
+    "titleUpdateUserSource": "编辑用户来源",
+    "noUserSourceMessage": "您尚未向此应用程序添加用户源。如果您希望用户能够对您的应用程序进行身份验证，则必须添加用户源。",
+    "titleOverview": "用户来源",
+    "addUserSource": "添加用户来源"
+  },
+  "themeSettings": {
+    "titleOverview": "主题"
+  },
+  "generalSettings": {
+    "titleOverview": "常规",
+    "labelForm": "网站图标",
+    "labelDescription": "选择 128x128px ICO、PNG、GIF 或 JPEG。",
+    "labelButton": "上传图标",
+    "cantUploadFaviconTitle": "无法上传网站图标文件",
+    "cantUploadFaviconDescription": "抱歉，无法上传网站图标图像。请确保图像文件是唯一的并且是受支持的图像格式。",
+    "cantUpdateApplicationTitle": "无法更新应用程序",
+    "cantUpdateApplicationDescription": "抱歉，无法更新应用程序。"
+  },
+  "dnsStatus": {
+    "description": "访问您域的 DNS 设置并进行以下更改",
+    "typeHeader": "Type",
+    "hostHeader": "Host",
+    "valueHeader": "价值"
+  },
+  "domainForm": {
+    "invalidDomain": "提供的域名无效",
+    "notUniqueDomain": "提供的域名已被使用"
+  },
+  "customDomainForm": {
+    "domainNameLabel": "域名"
+  },
+  "subDomainForm": {
+    "domainNameLabel": "域名"
+  },
+  "subDomainDetails": {
+    "text": "域的 DNS 设置已配置并检查。它无需进行任何额外更改即可工作。"
+  },
+  "domainCard": {
+    "refresh": "刷新设置",
+    "detailLabel": "显示详情",
+    "unpublishedDomainWarning": "请发布该应用程序以使其在此域上可用。"
+  },
+  "domainTypes": {
+    "customName": "自定义域",
+    "subDomainName": "子域",
+    "subDomain": "{domain} 的子域"
+  },
+  "linkElement": {
+    "missingValue": "缺少链接文本...",
+    "emptyValue": "链接文字为空..."
+  },
+  "linkNavigationSelection": {
+    "navigateTo": "导航至",
+    "navigateToCustom": "自定义网址",
+    "paramPlaceholder": "输入一个值...",
+    "urlPlaceholder": "输入网址...",
+    "url": "目标网址",
+    "paramsInErrorDescription": "保存的参数与页面参数不匹配。该页面可能已被删除或更新。",
+    "paramsInErrorButton": "更新参数",
+    "target": "打开于...",
+    "targetSelf": "相同选项卡",
+    "targetNewTab": "新标签页"
+  },
+  "linkElementForm": {
+    "text": "Text",
+    "textPlaceholder": "输入文字...",
+    "variant": "变体",
+    "variantLink": "Link",
+    "variantButton": "按钮",
+    "buttonColor": "按钮颜色"
+  },
+  "widthSelector": {
+    "width": "宽度",
+    "widthAuto": "Auto",
+    "widthFull": "全宽"
+  },
+  "backgroundTypes": {
+    "none": "无",
+    "color": "颜色"
+  },
+  "widthTypes": {
+    "fullBleed": "全出血",
+    "fullWidth": "全宽",
+    "normal": "普通的",
+    "medium": "中等的",
+    "small": "小的"
+  },
+  "horizontalAlignmentSelector": {
+    "alignmentLeft": "Left",
+    "alignmentCenter": "中心",
+    "alignmentRight": "正确的"
+  },
+  "verticalAlignmentSelector": {
+    "alignmentTop": "Top",
+    "alignmentCenter": "中间",
+    "alignmentBottom": "底部"
+  },
+  "pageSettingsTypes": {
+    "pageName": "Page"
+  },
+  "pageVisibilitySettingsTypes": {
+    "pageName": "能见度",
+    "logInPageWarningTitle": "登录页面未设置",
+    "logInPagewarningMessage": "当匿名用户尝试访问此页面时，他们将被重定向到登录页面。请在应用程序的常规设置中设置登录页面。",
+    "logInPageInfoTitle": "匿名用户将被重定向",
+    "logInPageInfoMessage": "尝试访问此页面的匿名用户将被重定向到 {logInPageName} 页面。"
+  },
+  "pageSettings": {
+    "title": "Page",
+    "pageUpdatedTitle": "改变了",
+    "pageUpdatedDescription": "页面设置已更新。"
+  },
+  "pageVisibilitySettings": {
+    "title": "能见度",
+    "allVisitors": "所有访客",
+    "loggedInVisitors": "已登录访客",
+    "description": "谁可以看到此页面"
+  },
+  "pageForm": {
+    "defaultName": "Page",
+    "nameTitle": "Name",
+    "nameSubtitle": "页面的唯一名称",
+    "namePlaceholder": "输入名字...",
+    "pathTitle": "Path",
+    "addAnotherParameter": "添加另一个查询字符串参数",
+    "addParameter": "添加查询字符串参数",
+    "queryParamsSubtitleTutorial": "查询参数可用于动态加载数据，具体取决于提供的参数。",
+    "pathSubtitle": "可以通过 :parameter 添加参数",
+    "pathPlaceholder": "输入路径...",
+    "pathParamsTitle": "路径参数",
+    "queryParamsTitle": "查询字符串参数",
+    "pathParamsSubtitle": "由路径中的:参数定义",
+    "pathParamsSubtitleTutorial": "路径参数可用于动态加载数据，具体取决于提供的参数。在路径中添加:参数即可加一。"
+  },
+  "pathParamTypes": {
+    "textName": "Text",
+    "numericName": "数字"
+  },
+  "queryParamTypes": {
+    "textName": "Text",
+    "numericName": "数字"
+  },
+  "pageEditor": {
+    "title": "应用程序生成器",
+    "pageNotFound": "找不到页面"
+  },
+  "publicPage": {
+    "siteNotFound": "找不到网站",
+    "pageNotFound": "找不到页面",
+    "loginToastTitle": "认证成功",
+    "loginToastMessage": "您已成功登录。",
+    "authorizedToastTitle": "需要身份验证",
+    "authorizedToastMessage": "您必须登录才能访问此页面。请登录以继续。"
+  },
+  "integrationSettings": {
+    "title": "集成",
+    "noIntegrationMessage": "您尚未创建任何集成。它们可以通过添加数据源、操作或用户身份验证来创建。",
+    "integrationMessage": "您可以通过添加数据源、操作或用户身份验证来创建新的集成。"
+  },
+  "dataSourceForm": {
+    "namePlaceholder": "来源名称",
+    "nameLabel": "Name",
+    "actionLabel": "行动",
+    "integrationLabel": "一体化",
+    "servicePlaceholder": "选择服务",
+    "integrationPlaceholder": "选择集成",
+    "errorUniqueName": "数据源名称必须是唯一的。"
+  },
+  "dataSourceContext": {
+    "addDataSource": "添加新数据源",
+    "noDataSourceTitle": "您尚未添加数据源。",
+    "noDataSourceMessage": "数据源可用于从内部或外部源获取数据并将其显示在页面上。",
+    "sharedDataSourceTitle": "页面之间共享",
+    "pageDataSourceTitle": "对于此页面",
+    "sharedDataSourceDescription": "可在每个页面上访问，并在首页加载时获取一次。",
+    "pageDataSourceDescription": "当用户导航到此页面时获取。"
+  },
+  "dataSourceItem": {
+    "notConfigured": "未配置"
+  },
+  "dataSourceItemContext": {
+    "shareBetweenPages": "页面之间共享",
+    "unshareBetweenPages": "取消与其他页面的共享"
+  },
+  "dataSourceCreateEditModal": {
+    "editTitle": "编辑数据源",
+    "createTitle": "创建数据源",
+    "sharedWarning": "此数据源是共享的，因此您的更改可能会影响多个页面。"
+  },
+  "defaultStyleForm": {
+    "boxTop": "Top",
+    "boxBottom": "底部",
+    "boxLeft": "Left",
+    "boxRight": "正确的",
+    "backgroundLabel": "背景",
+    "backgroundColor": "背景颜色",
+    "widthLabel": "宽度",
+    "backgroundImage": "图像",
+    "backgroundImageMode": "填充模式",
+    "cssClasses": "CSS 类",
+    "cssClassesHelp": "为此元素设置一个空格分隔的类列表，该列表将出现在生成的 HTML 中。",
+    "cssClassesPlaceholder": "输入 CSS 类..."
+  },
+  "styleBoxForm": {
+    "borderColor": "边框颜色",
+    "borderLabel": "Size",
+    "paddingLabel": "填充",
+    "marginLabel": "利润"
+  },
+  "radiusStyleForm": {
+    "cornerRadiusLabel": "圆角半径",
+    "backgroundRadiusLabel": "背景",
+    "borderRadiusLabel": "边界"
+  },
+  "themeConfigBlockType": {
+    "color": "颜色",
+    "page": "Page",
+    "typography": "版式",
+    "button": "按钮",
+    "link": "Link",
+    "image": "图像",
+    "input": "输入",
+    "table": "桌子"
+  },
+  "colorThemeConfigBlock": {
+    "transparent": "透明的",
+    "primaryColor": "基本的",
+    "secondaryColor": "中学",
+    "borderColor": "边界",
+    "successColor": "成功",
+    "warningColor": "警告",
+    "errorColor": "错误",
+    "customColors": "定制颜色",
+    "addCustomColor": "添加自定义颜色",
+    "customColorPrefix": "风俗"
+  },
+  "pageThemeConfigBlock": {
+    "backgroundColor": "背景颜色",
+    "backgroundImage": "背景图片",
+    "backgroundMode": "后台模式"
+  },
+  "colorThemeConfigBlockType": {
+    "transparent": "透明的",
+    "primary": "基本的",
+    "secondary": "中学",
+    "border": "边界",
+    "success": "成功",
+    "warning": "警告",
+    "error": "错误"
+  },
+  "typographyThemeConfigBlock": {
+    "headingLabel": "标题 {i} (h{i})",
+    "headingValue": "标题 <h{i}>",
+    "color": "颜色",
+    "size": "Size",
+    "weight": "重量",
+    "textAlignment": "结盟",
+    "bodyLabel": "Body",
+    "decoration": "文字装饰",
+    "fontFamily": "Font"
+  },
+  "fontWeightType": {
+    "thin": "Thin",
+    "extraLight": "超轻",
+    "light": "光",
+    "regular": "常规的",
+    "medium": "中等的",
+    "semiBold": "半粗体",
+    "bold": "Bold",
+    "extraBold": "格外大胆",
+    "black": "黑色的",
+    "extraBlack": "特黑"
+  },
+  "buttonThemeConfigBlock": {
+    "backgroundColor": "背景颜色",
+    "button": "按钮",
+    "defaultState": "默认状态",
+    "hoverState": "悬停状态",
+    "activeState": "活动状态",
+    "textAlignment": "文本对齐",
+    "alignment": "结盟",
+    "width": "宽度",
+    "textColor": "文字颜色",
+    "borderColor": "边框颜色",
+    "borderSize": "边框尺寸",
+    "borderRadius": "边界半径",
+    "padding": "填充",
+    "fontFamily": "Font",
+    "size": "字体大小",
+    "weight": "字体粗细"
+  },
+  "linkThemeConfigBlock": {
+    "color": "颜色",
+    "link": "Link",
+    "defaultState": "默认状态",
+    "hoverState": "悬停状态",
+    "activeState": "活动状态",
+    "alignment": "结盟",
+    "fontFamily": "Font",
+    "size": "字体大小",
+    "weight": "字体粗细",
+    "decoration": "文字装饰"
+  },
+  "inputThemeConfigBlock": {
+    "label": "标签",
+    "input": "输入",
+    "backgroundColor": "背景颜色",
+    "textColor": "文字颜色",
+    "borderColor": "边框颜色",
+    "borderSize": "边框尺寸",
+    "borderRadius": "边界半径",
+    "padding": "填充",
+    "fontFamily": "Font",
+    "size": "字体大小",
+    "weight": "字体粗细"
+  },
+  "imageThemeConfigBlock": {
+    "alignment": "结盟",
+    "maxWidthLabel": "最大宽度",
+    "maxHeightLabel": "最大高度",
+    "maxHeightPlaceholder": "输入最大高度",
+    "maxWidthPlaceholder": "输入最大宽度",
+    "imageConstraintsLabel": "约束条件",
+    "imageConstraintFullWidth": "延伸至最大宽度",
+    "imageConstraintCover": "覆盖",
+    "imageConstraintCoverDisabled": "不适用于空的最大高度。",
+    "imageConstraintContain": "包含",
+    "imageConstraintContainDisabled": "不具备最大高度。",
+    "imageBorderRadiusLabel": "边界半径",
+    "imageBorderRadiusPlaceholder": "输入图像边框半径。"
+  },
+  "tableThemeConfigBlock": {
+    "borderColor": "边框颜色",
+    "backgroundAlternateColor": "均匀行颜色",
+    "backgroundColor": "背景颜色",
+    "textColor": "文字颜色",
+    "borderSize": "边框尺寸",
+    "borderRadius": "边界半径",
+    "padding": "填充",
+    "fontFamily": "Font",
+    "size": "Size",
+    "fontSize": "字体大小",
+    "fontWeight": "字体粗细",
+    "table": "桌子",
+    "header": "标头",
+    "alignment": "结盟",
+    "cells": "细胞",
+    "separators": "分离器",
+    "verticalSeparatorColor": "垂直颜色",
+    "verticalSeparatorSize": "纵向尺寸",
+    "horizontalSeparatorColor": "横色",
+    "horizontalSeparatorSize": "横向尺寸"
+  },
+  "buttonElementForm": {
+    "valueLabel": "按钮文字",
+    "valuePlaceholder": "输入文字..."
+  },
+  "buttonElement": {
+    "missingValue": "缺少按钮文字...",
+    "emptyValue": "按钮文字为空..."
+  },
+  "eventTypes": {
+    "clickLabel": "单击时",
+    "submitLabel": "提交时",
+    "afterLoginLabel": "登录后"
+  },
+  "getFormulaComponent": {
+    "errorTooltip": "参考无效"
+  },
+  "fontSidePanelForm": {
+    "label": "字体颜色"
+  },
+  "choiceElementForm": {
+    "multiple": "允许多个值",
+    "display": "展示",
+    "dropdown": "下拉菜单",
+    "checkbox": "复选框",
+    "radio": "收音机"
+  },
+  "dropdown": {
+    "empty": "没有可用的选项"
+  },
+  "tableElementForm": {
+    "dataSource": "数据来源",
+    "fields": "领域",
+    "fieldValueLabel": "价值",
+    "addField": "添加字段",
+    "fieldValuePlaceholder": "输入值...",
+    "itemsPerPage": "每页项目数",
+    "fieldDefaultName": "柱子",
+    "name": "Name",
+    "noName": "无名",
+    "fieldType": "Type",
+    "itemsPerPagePlaceholder": "输入值...",
+    "selectSourceFirst": "选择数据源和/或属性以开始配置您的字段。",
+    "buttonColor": "按钮颜色",
+    "refreshFieldsFromDataSource": "从数据源刷新字段",
+    "buttonLoadMoreLabel": "显示更多标签",
+    "propertySelectorMissingArrays": "未找到可用作行的多个值字段。"
+  },
+  "tableElement": {
+    "showMore": "显示更多"
+  },
+  "abTable": {
+    "loading": "加载中...",
+    "empty": "没有找到任何物品。"
+  },
+  "repeatElement": {
+    "empty": "没有找到任何物品。",
+    "showMore": "显示更多",
+    "missingDataSourceTooltip": "选择一个数据源以开始添加元素。",
+    "missingSchemaPropertyTooltip": "选择一个属性以开始添加元素。",
+    "emptyState": "没有找到记录。"
+  },
+  "collectionElementForm": {
+    "noDataSourceMessage": "选择具有多行的数据源以列出所有结果，或选择单行数据源以选择该行内的属性。",
+    "noSchemaPropertyMessage": "选择数据源内的一个属性用作元素的列表数据。",
+    "propertyOptionLabel": "用户操作"
+  },
+  "propertyOptionForm": {
+    "fieldHeading": "场地",
+    "filterHeading": "筛选",
+    "sortHeading": "Sort",
+    "searchHeading": "搜索",
+    "optionUnavailable": "不可用",
+    "noPropertiesAvailable": "没有可用字段。",
+    "formDescription": "选择访问者可以在此元素的数据源页面中过滤、排序和搜索的属性。"
+  },
+  "repeatElementForm": {
+    "dataSource": "数据来源",
+    "itemsPerPage": "每页项目数",
+    "itemsPerPagePlaceholder": "输入值...",
+    "itemsPerRowLabel": "每行的项目数",
+    "itemsPerRowDescription": "每行的列数和设备类型。",
+    "buttonLoadMoreLabel": "显示更多标签",
+    "toggleEditorRepetitionsLabel": "暂时禁用重复",
+    "propertySelectorMissingArrays": "未找到重复的多个值字段。",
+    "gapLabel": "重复之间的空间",
+    "gapVerticalLabel": "垂直的",
+    "gapHorizontalLabel": "水平的"
+  },
+  "recordSelectorElement": {
+    "emptyAdhocState": "未找到与“{query}”匹配的记录。",
+    "emptyState": "没有找到记录。"
+  },
+  "recordSelectorElementForm": {
+    "selectRecordsFrom": "从以下位置选择记录",
+    "noDataSourceMessage": "选择具有多行的数据源以列出所有结果。",
+    "optionNameSuffix": "选项名称后缀",
+    "optionNameSuffixPlaceholder": "输入后缀...",
+    "optionNameSuffixHelper": "当您打开下拉列表时，此后缀会附加到每个选项名称，并有助于区分它们。",
+    "itemsPerPage": "每页项目数",
+    "itemsPerPagePlaceholder": "输入值...",
+    "multipleLabel": "允许多个值",
+    "record": "记录 {id}"
+  },
+  "currentRecordDataProviderType": {
+    "index": "指数",
+    "firstPartName": "数据来源：{name}",
+    "schemaProperty": "{prefixName}：{schemaProperty}"
+  },
+  "workflowActionTypes": {
+    "notificationLabel": "显示通知",
+    "openPageLabel": "打开页面",
+    "logoutLabel": "退出登录",
+    "refreshDataSourceLabel": "刷新数据源",
+    "httpRequest": "发送 HTTP 请求",
+    "errorNavigateToPageMissing": "缺少导航至属性",
+    "errorPageParameterInError": "至少有一个页面参数配置错误",
+    "errorNavigationUrlMissing": "缺少导航 URL 属性",
+    "errorDataSourceMissing": "未选择数据源"
+  },
+  "notificationWorkflowActionForm": {
+    "titleLabel": "标题",
+    "titlePlaceholder": "输入文字...",
+    "descriptionLabel": "描述",
+    "descriptionPlaceholder": "输入文字..."
+  },
+  "event": {
+    "addAction": "添加动作"
+  },
+  "collectionFieldType": {
+    "boolean": "布尔值",
+    "button": "按钮",
+    "text": "Text",
+    "link": "Link",
+    "tags": "Tags",
+    "image": "图像",
+    "rating": "等级",
+    "errorValueMissing": "缺失值属性"
+  },
+  "textFieldForm": {
+    "fieldValueLabel": "价值",
+    "fieldValuePlaceholder": "输入值..."
+  },
+  "linkFieldForm": {
+    "fieldValueLabel": "Url",
+    "fieldValuePlaceholder": "输入值...",
+    "fieldLinkNameLabel": "链接文字",
+    "fieldLinkNamePlaceholder": "输入值...",
+    "buttonColor": "按钮颜色"
+  },
+  "tagsFieldForm": {
+    "fieldValuesLabel": "价值观",
+    "fieldValuesPlaceholder": "输入值...",
+    "fieldColorsLabel": "颜色",
+    "fieldColorsPlaceholder": "输入颜色..."
+  },
+  "linkField": {
+    "details": "详情"
+  },
+  "imageFieldForm": {
+    "fieldSrcLabel": "图片来源",
+    "fieldSrcPlaceholder": "输入值",
+    "fieldAltLabel": "替代文本",
+    "fieldAltPlaceholder": "输入值...",
+    "fieldAltHelp": "由屏幕阅读器使用并在图像无法加载时显示"
+  },
+  "createUserSourceForm": {
+    "userSourceType": "Type",
+    "userSourceIntegration": "一体化",
+    "userSourceName": "Name"
+  },
+  "updateUserSourceForm": {
+    "nameFieldLabel": "Name",
+    "nameFieldPlaceholder": "输入名字...",
+    "authTitle": "验证",
+    "integrationFieldLabel": "一体化",
+    "addProvider": "添加提供商"
+  },
+  "builderLoginPageForm": {
+    "pageDropdownLabel": "登录页面",
+    "pageDropdownPlaceholder": "选择一个页面",
+    "pageDropdownDescription": "选择当未登录用户尝试访问受限页面时应重定向到的登录页面。"
+  },
+  "formContainerElement": {
+    "submitDeactivatedText": "填写所有必填字段以提交",
+    "defaultSubmitButtonLabel": "提交"
+  },
+  "formContainerElementForm": {
+    "submitButtonLabel": "提交按钮",
+    "submitButtonPlaceholder": "输入值...",
+    "buttonColor": "按钮颜色",
+    "resetToInitialValuesTitle": "提交后重置为默认值",
+    "resetToInitialValuesDescription": "如果选中，表单的默认值将用于在成功提交后重置表单。如果取消选中，用户的值将保留。"
+  },
+  "choiceOptionSelector": {
+    "label": "选项",
+    "value": "选项值",
+    "valuePlaceholder": "输入值",
+    "name": "选项名称",
+    "namePlaceholder": "输入姓名",
+    "addOption": "添加选项",
+    "addOptionDescription": "点击“添加选项”将选项添加到下拉列表中",
+    "optionType": "期权类型",
+    "manual": "手动的",
+    "dataSource": "数据来源",
+    "formulas": "公式"
+  },
+  "fieldMappingContext": {
+    "enableField": "启用字段",
+    "disableField": "禁用字段"
+  },
+  "checkboxElementForm": {
+    "labelTitle": "选项名称",
+    "valueTitle": "默认值",
+    "requiredTitle": "必需的"
+  },
+  "choiceElement": {
+    "addOptions": "添加选项以开始使用此元素..."
+  },
+  "userSourceUsersContext": {
+    "searchPlaceholder": "搜索用户",
+    "anonymous": "匿名的",
+    "unnamed": "未命名",
+    "noEmail": "没有电子邮件"
+  },
+  "userSelector": {
+    "viewAs": "查看为：{user}",
+    "anonymous": "匿名的",
+    "member": "{prefix} 成员"
+  },
+  "visibilityForm": {
+    "allVisitors": "所有访客",
+    "loggedInVisitors": "已登录访客",
+    "notLoggedInVisitors": "已注销的访客",
+    "warningTitle": "这是一项安全功能",
+    "warningMessage": "检查 {link} 以了解有关我们如何保护数据的更多信息。",
+    "documentationLink": "文档",
+    "excludedRolesLabel": "所有角色，除了",
+    "switchAllowLabel": "允许",
+    "switchDisallowLabel": "不允许",
+    "rolesSelectAll": "选择全部",
+    "rolesDeselectAll": "取消全选",
+    "rolesSelectHint": "选择一个或多个角色",
+    "roleTypesHint": "选择角色类型",
+    "roleTypeAllowAllRoles": "所有角色",
+    "roleTypeAllowAllRolesExcept": "禁止角色...",
+    "roleTypeDisallowAllRolesExcept": "允许角色...",
+    "rolesAllMembersOf": "{name} 的所有成员",
+    "noRole": "没有角色",
+    "errorFetchingRolesTitle": "无法获取用户角色",
+    "errorFetchingRolesMessage": "获取用户角色时出现问题。",
+    "visibilityCondition": "能见度条件",
+    "visibilityConditionHelper": "如果此公式的结果为 true，并且上面的访问者选择为 true，则该元素将可见。此条件仅影响元素的可见性。要从服务器响应中排除数据，请使用上面的用户角色过滤选项。",
+    "visibilityConditionPlaceholder": "健康）状况..."
+  },
+  "userDataProviderType": {
+    "isAuthenticated": "已认证",
+    "id": "Id",
+    "email": "电子邮件",
+    "username": "用户名",
+    "role": "Role"
+  },
+  "buttonField": {
+    "noLabel": "无名..."
+  },
+  "buttonFieldForm": {
+    "infoMessage": "要配置此按钮的操作，请打开当前元素的“事件”选项卡。",
+    "labelPlaceholder": "输入标签..."
+  },
+  "resetButton": {
+    "reset": "重置为默认主题值"
+  },
+  "backgroundModes": {
+    "fill": "填充",
+    "tile": "Tile",
+    "fit": "适应"
+  },
+  "customStyle": {
+    "backToElement": "返回元素配置",
+    "configureThemeOverrides": "为此元素配置主题覆盖"
+  },
+  "serviceSchemaPropertySelector": {
+    "label": "财产",
+    "noProperties": "没有可用的属性"
+  },
+  "userSourceDropdown": {
+    "label": "用户来源",
+    "addUserSource": "添加新用户来源",
+    "noUserSources": "没有可用的用户来源"
+  },
+  "dataSourceDropdown": {
+    "label": "数据来源",
+    "noDataSources": "没有可用的数据源",
+    "noSharedDataSources": "没有可用的共享数据源",
+    "shared": "共享",
+    "pageOnly": "本页",
+    "addNew": "添加新数据源"
+  },
+  "multiPageContainerElementForm": {
+    "pagePosition": "位置",
+    "behaviour": "行为",
+    "display": "展示",
+    "selectAll": "选择全部",
+    "deselectAll": "取消全选"
+  },
+  "pageShareType": {
+    "all": "在所有页面上",
+    "only": "仅在选定的页面上",
+    "except": "排除选定的页面"
+  },
+  "authProviderWithModal": {
+    "authProviderInError": "请编辑此提供程序以修复错误。",
+    "title": "编辑提供者：{name}"
+  },
+  "textDecorationSelector": {
+    "underline": "强调",
+    "stroke": "中风",
+    "italic": "斜体",
+    "uppercase": "大写"
+  },
+  "ratingFieldForm": {
+    "maxValue": "最大值",
+    "color": "颜色",
+    "style": "风格",
+    "star": "Star",
+    "heart": "心",
+    "thumbsUp": "竖起大拇指",
+    "flag": "Flag",
+    "value": "价值"
+  },
+  "ratingElementForm": {
+    "maxValue": "最大限度",
+    "color": "颜色",
+    "ratingStyle": "风格",
+    "star": "Star",
+    "heart": "心",
+    "smile": "微笑",
+    "thumbsUp": "竖起大拇指",
+    "flag": "Flag"
+  },
+  "automationSettingsModal": {
+    "title": "工作流"
+  },
+  "abFileInput": {
+    "delete": "删除"
+  },
+  "elementsGuidedTourStep": {
+    "title": "添加元素到您的页面",
+    "content": "每个应用程序都需要组件！添加表格、表单、按钮等元素，让您的应用程序栩栩如生。"
+  },
+  "dataGuidedTourStep": {
+    "title": "连接您的数据",
+    "content": "在此处链接您的 Baserow 表以跨不同元素动态显示、过滤和更新数据。"
+  },
+  "previewGuidedTourStep": {
+    "title": "您的控制中心",
+    "content": "您可以在此处配置应用程序的页面。添加元素、预览结果并完全按照您想要的方式构建您的应用程序。"
+  },
+  "devicesGuidedTourStep": {
+    "title": "在不同设备上预览",
+    "content": "在桌面、平板电脑和移动预览之间切换，以查看您的应用程序在不同屏幕尺寸上的外观。确保您的设计在所有设备上完美运行！"
+  },
+  "sidePanelGuidedTourStep": {
+    "title": "侧面板：自定义元素",
+    "content": "**常规选项卡** – 配置所选元素。\n\n**样式选项卡** – 自定义内边距、边距、边框等。\n\n**可见性选项卡** – 控制谁可以看到此元素：登录用户、注销用户或特定角色。\n\n**事件选项卡** – 如果元素支持操作，请在此处配置它们以实现动态交互。"
+  },
+  "previewPublishGuidedTourStep": {
+    "title": "预览并发布您的应用程序",
+    "content": "单击 **预览** 私下测试您的应用程序。准备就绪后，单击“**发布**”以通过域与公众共享。"
+  }
+}

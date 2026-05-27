@@ -1,0 +1,47 @@
+{
+  "dashboard": {
+    "descriptionPlaceholder": "描述"
+  },
+  "dashboardHeader": {
+    "doneEditing": "完成编辑"
+  },
+  "emptyDashboard": {
+    "title": "此仪表板还没有任何组件",
+    "subtitle": "先添加一个开始使用。",
+    "addWidget": "添加组件"
+  },
+  "dashboardHeaderMenuItems": {
+    "editMode": "编辑模式"
+  },
+  "createWidgetModal": {
+    "title": "添加新组件"
+  },
+  "widget": {
+    "fixConfiguration": "修复配置"
+  },
+  "summaryWidget": {
+    "name": "摘要"
+  },
+  "emptyDashboardSidebar": {
+    "title": "未选择元素",
+    "message": "点击任一元素以查看详情。"
+  },
+  "widgetSettings": {
+    "title": "标题",
+    "description": "描述"
+  },
+  "aggregateRowsDataSourceForm": {
+    "data": "Data",
+    "sourceFieldLabel": "来源",
+    "viewFieldLabel": "View",
+    "notSelected": "未选择",
+    "aggregationFieldLabel": "场地",
+    "aggregationTypeLabel": "摘要"
+  },
+  "widgetContext": {
+    "delete": "删除"
+  },
+  "trashType": {
+    "widget": "组件"
+  }
+}

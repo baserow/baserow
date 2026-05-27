@@ -125,7 +125,7 @@ export class OldTestApp {
         tc: (key) => key,
       },
       $i18n: {
-        getBrowserLocale: () => 'en',
+        getBrowserLocale: () => 'zh_Hans',
       },
       $router: {
         resolve({ name, params }) {

@@ -1,613 +1,1248 @@
 {
-    "paginator": {
-        "page": "页",
-        "of": "总{pages}页"
+  "paginator": {
+    "page": "页",
+    "of": "总{pages}页"
+  },
+  "copied": {
+    "label": "已复制！"
+  },
+  "sidebarApplication": {
+    "renameApplication": "重命名{type}",
+    "viewTrash": "查看回收站",
+    "deleteApplication": "删除{type}",
+    "rename": "重命名",
+    "duplicate": "创建副本",
+    "delete": "删除",
+    "snapshots": "快照"
+  },
+  "duplicateApplicationJobType": {
+    "duplicating": "正在创建副本",
+    "duplicatedTitle": "应用副本已创建"
+  },
+  "sidebar": {
+    "createWorkspace": "创建群组",
+    "inviteOthers": "邀请他人",
+    "logoff": "注销",
+    "errorNoWorkspace": "你没有任何群组。",
+    "admin": "管理员",
+    "dashboard": "仪表板",
+    "trash": "回收站",
+    "settings": "设置",
+    "members": "成员",
+    "addNewWorkspace": "添加新工作区",
+    "adminTools": "管理工具",
+    "home": "Home",
+    "notifications": "通知",
+    "adminSettings": "管理设置",
+    "general": "常规",
+    "people": "人们",
+    "licenses": "许可证"
+  },
+  "accountForm": {
+    "nameLabel": "你的名字",
+    "languageLabel": "界面语言"
+  },
+  "accountSettings": {
+    "title": "账号",
+    "changedTitle": "已更新",
+    "changedDescription": "您的账户信息已更新。",
+    "submitButton": "更新账号"
+  },
+  "settingsModal": {
+    "title": "设置"
+  },
+  "passwordSettings": {
+    "title": "更改密码",
+    "changedTitle": "密码已更改",
+    "changedDescription": "您的密码已更改，下次登录时必须使用新密码。",
+    "oldPasswordLabel": "旧密码",
+    "oldPasswordRequiredError": "需要旧密码。",
+    "newPasswordLabel": "新密码",
+    "repeatNewPasswordLabel": "重复新密码",
+    "repeatNewPasswordMatchError": "此字段必须与您的新密码字段匹配。",
+    "submitButton": "更改密码",
+    "errorInvalidOldPasswordTitle": "密码无效",
+    "errorInvalidOldPasswordMessage": "无法更改您的密码，因为您的旧密码无效。"
+  },
+  "deleteAccountSettings": {
+    "title": "删除账号",
+    "description": "您可以通过输入当前密码并单击按钮来安排删除您的帐户。您的帐户将在 {days} 天后被永久删除。同时，如果您再次登录，您的帐户将被删除取消。",
+    "workspaceNotice": "孤立组将被删除",
+    "workspaceNoticeDescription": "当您的帐户被永久删除时，您是最后一个具有管理员权限的活动用户的所有组和相关数据也将被删除。下面显示的组是因为您是唯一的管理员而将被删除的组. 为防止他们被删除，您必须在删除您的帐户之前先给另一个用户管理员权限。",
+    "orphanWorkspaces": "宽限期过后也会被永久删除",
+    "orphanWorkspaceMemberCount": "与任何人共享|与一个用户共享|与 {count} 个用户共享",
+    "password": "密码",
+    "passwordConfirm": "重复密码",
+    "repeatPasswordMatchError": "该字段必须匹配第一个密码字段。",
+    "submitButton": "删除账户",
+    "errorInvalidPasswordTitle": "密码无效",
+    "errorInvalidPasswordMessage": "无法删除您的帐户，因为您的密码无效。",
+    "errorUserIsLastAdminTitle": "最后一个管理员",
+    "errorUserIsLastAdminMessage": "无法删除您的帐户，因为您是此 Baserow 实例的最后一位管理员。",
+    "accountDeletedSuccessTitle": "计划删除帐户",
+    "accountDeletedSuccessMessage": "您的帐户已被安排删除。",
+    "workspaceLoadingError": "组检查失败",
+    "workspaceLoadingErrorDescription": "检查要删除的组失败，请刷新页面。"
+  },
+  "error": {
+    "alreadyExistsTitle": "用户已经存在",
+    "alreadyExistsMessage": "具有所提供电子邮件地址的用户已经存在。",
+    "passwordRequired": "需要密码。",
+    "invalidEmail": "请输入有效的电子邮件地址。",
+    "disabledAccountTitle": "帐号被禁用",
+    "disabledAccountMessage": "此用户帐户已被禁用。",
+    "incorrectCredentialTitle": "不正确的凭据",
+    "incorrectCredentialMessage": "提供的电子邮件地址或密码不正确。",
+    "inputRequired": "需要输入。",
+    "disabledPasswordProviderTitle": "密码验证被禁用.",
+    "disabledPasswordProviderMessage": "请使用其它认证方式.",
+    "captchaVerificationFailedTitle": "验证码验证失败",
+    "captchaVerificationFailedMessage": "验证码验证失败。请再试一次。"
+  },
+  "field": {
+    "language": "语言",
+    "emailAddress": "Email地址",
+    "name": "你的名字",
+    "password": "密码",
+    "passwordRepeat": "重复密码"
+  },
+  "invitationTitle": "邀请",
+  "invitationMessage": "{invitedBy} 邀请您加入 {group}。",
+  "workspaceForm": {
+    "nameLabel": "名称"
+  },
+  "leaveWorkspaceModal": {
+    "title": "离开{group}",
+    "message": "您确定要离开群组 {group} 吗？ 您将无法再访问相关应用程序，如果您想重新获得访问权限，其中一位管理员必须再次邀请您。 如果您离开该组，它不会被删除。 所有其他成员仍然可以访问它。 如果您是最后一个管理员，则无法离开组，因为这将使其无人维护。",
+    "leave": "离开群组"
+  },
+  "dashboardWorkspace": {
+    "showMembers": "成员",
+    "createApplication": "新建"
+  },
+  "workspaceInvitation": {
+    "title": "邀请函",
+    "message": "{by} 邀请您加入 {group}。",
+    "reject": "拒绝",
+    "accept": "接受"
+  },
+  "workspaceMemberModal": {
+    "membersModalTitle": "{group}成员",
+    "userDescription": "{user} - {since} 前加入",
+    "invitationDescription": "{since} 前邀请",
+    "sendInvite": "发送邀请",
+    "userAlreadyInWorkspaceTitle": "用户已经在群组中。",
+    "userDescriptionPendingDeletion": "{user} - 待删除",
+    "userAlreadyInWorkspaceText": "当用户已经是群组成员时，无法发送邀请。"
+  },
+  "workspaceInviteForm": {
+    "invitationFormTitle": "通过电子邮件邀请",
+    "optionalMessagePlaceholder": "可选消息",
+    "errorInvalidEmail": "请输入有效的电子邮件地址。",
+    "errorTooLongMessage": "消息限制为 {amount} 个字符.",
+    "additionalRoles": "附加角色"
+  },
+  "workspacesContext": {
+    "search": "搜索群组",
+    "noResults": "没有找到结果",
+    "createWorkspace": "创建群组"
+  },
+  "workspaceContext": {
+    "renameWorkspace": "重命名群组",
+    "members": "成员",
+    "viewTrash": "查看回收站",
+    "leaveWorkspace": "离开群组",
+    "deleteWorkspace": "删除群组",
+    "exportWorkspace": "导出数据",
+    "importWorkspace": "导入数据",
+    "settings": "设置",
+    "auditLog": "审核日志"
+  },
+  "createWorkspaceModal": {
+    "createNew": "创建新群组",
+    "add": "添加群组",
+    "defaultName": "无标题组",
+    "permissionDeniedTitle": "权限被拒绝",
+    "permissionDeniedBody": "您没有创建新组所需的权限."
+  },
+  "templateCategories": {
+    "search": "搜索模板",
+    "title": "模板"
+  },
+  "templateHeader": {
+    "use": "使用这个模板"
+  },
+  "trashSidebar": {
+    "title": "回收站",
+    "unnamedWorkspace": "未命名群组 {id}",
+    "workspaces": "工作空间"
+  },
+  "trashContents": {
+    "message": "恢复过去 {duration} 删除的项目",
+    "empty": "过去三天没有删除任何内容。",
+    "emptyButtonTrashed": "永久删除 {type}",
+    "emptyButtonNotTrashed": "清空这个 {type} 的回收站",
+    "unnamed": "未命名 {type} {id}"
+  },
+  "trashEmptyModal": {
+    "titleIsTrashed": "您确定要永久删除 {name}？",
+    "titleIsNotTrashed": "您确定要清空 {name} 的回收站吗？",
+    "messageIsTrashed": "这将永久删除它及其所有内容。之后它们将无法恢复。",
+    "messageIsNotTrashed": "这将永久删除列出的项目。之后它们将无法恢复。",
+    "buttonIsTrashed": "永久删除",
+    "buttonIsNotTrashed": "空"
+  },
+  "trashEntry": {
+    "deletedUser": "已删除的用户",
+    "fromParent": "来自 {parent}",
+    "name": "{user} 已删除 {type} {title} {parent}",
+    "restore": "恢复",
+    "andMore": "...还有 {count} 条",
+    "unnamed": "未命名 {type} {idid}"
+  },
+  "trashModal": {
+    "emptyTitle": "没有找到组",
+    "emptyMessage": "您不是任何组的成员。数据库等应用程序属于一个组，因此要创建它们，您需要创建一个组。",
+    "emptyMessageWithoutCreatePermission": "您不是任何组的成员.像数据库这样的应用程序来自于一个组，因此要创建它们，您首先需要由管理员发出邀请并加入该组。"
+  },
+  "uploadViaURLUserFileUpload": {
+    "title": "从 URL 上传",
+    "urlLabel": "网址",
+    "urlError": "需要一个有效的 URL。"
+  },
+  "userFilesModal": {
+    "title": "上传自"
+  },
+  "uploadFileUserFileUpload": {
+    "title": "从我的设备上传",
+    "drop": "放在这里",
+    "clickOrDrop": "在此处单击或拖放您的文件",
+    "retry": "重试"
+  },
+  "createApplicationContext": {
+    "fromTemplate": "来自模板",
+    "fromTemplateDesc": "快速开始使用我们推荐的模板之一",
+    "table": "桌子",
+    "tableDesc": "创建一个新位置来管理数据库中的数据。",
+    "importWorkspace": "导入数据",
+    "importWorkspaceDesc": "从 Baserow 实例添加现有数据。"
+  },
+  "applicationForm": {
+    "nameLabel": "名称",
+    "namePlaceholder": "输入名字..."
+  },
+  "connectingNotification": {
+    "title": "重新连接中",
+    "content": "正在重新连接服务器。"
+  },
+  "failedConnectingNotification": {
+    "title": "失败",
+    "content": "连接服务器失败，请刷新页面。",
+    "action": "刷新页面"
+  },
+  "AuthorizationErrorNotification": {
+    "title": "认证错误",
+    "content": "您似乎没有查看该资源的权限。",
+    "action": "刷新页面"
+  },
+  "restoreNotification": {
+    "restore": "恢复已删除的 {type}"
+  },
+  "copyingNotification": {
+    "title": "正在复制...",
+    "content": "准备数据中"
+  },
+  "pastingNotification": {
+    "title": "正在粘贴...",
+    "content": "准备数据中"
+  },
+  "clearingNotification": {
+    "title": "正在清除...",
+    "content": "准备数据中"
+  },
+  "undoRedoNotification": {
+    "undoingTitle": "正在撤消...",
+    "undoingText": "撤消你的动作中",
+    "undoneTitle": "撤消完成",
+    "undoneText": "动作已经被撤消",
+    "noMoreUndo": "没有可撤消的操作",
+    "skippingUndoDueToError": "由于未知错误撤消失败，跳过。",
+    "redoingTitle": "正在重做...",
+    "redoingText": "重做你的动作中",
+    "redoneTitle": "重做完成",
+    "redoneText": "动作已被重做",
+    "noMoreRedo": "没有更多的动作可以重做",
+    "skippingRedoDueToError": "由于未知错误重做失败，跳过。",
+    "failed": "失败"
+  },
+  "errorLayout": {
+    "notFound": "没有找到您要查找的页面。这可能是因为 URL 不正确或您没有权限查看该页面。",
+    "error": "加载页面时出现问题。我们的开发人员已收到此问题的通知。请尝试刷新或返回仪表板。",
+    "backDashboard": "返回仪表板",
+    "backLogin": "返回登录",
+    "wrong": "出了点问题",
+    "refresh": "刷新页面"
+  },
+  "dashboard": {
+    "title": "仪表盘",
+    "alertTitle": "我们需要你的帮助！",
+    "alertText": "如果您觉得 Baserow 有用，我们非常感谢您加注星标或分享我们。通过分享 Baserow，您正在帮助我们改进产品并使其对您更有用。",
+    "tweetContent": "看看{'@'}baserow 一个开源的无代码数据库工具和 Airtable 替代品！",
+    "redditTitle": "'Baserow - 一个开源的无代码数据库",
+    "noWorkspaceTitle": "没有找到群组",
+    "noWorkspaceText": "你不是任何群组的成员。像数据库这样的应用程序属于一个群组，所以为了创建它们你需要创建一个群组。",
+    "createWorkspace": "创建群组",
+    "becomeGithubSponsor": "成为 GitHub 赞助商",
+    "starOnGitlab": "在 GitLab 上给我们加注星标",
+    "shareOnTwitter": "关于 Baserow 的推文",
+    "shareOnReddit": "在 Reddit 上分享",
+    "shareOnFacebook": "在 Facebook 上分享",
+    "shareOnLinkedIn": "在 LinkedIn 上分享",
+    "noWorkspaceTextWithoutCreatePermission": "您不是任何组的成员.像数据库这样的应用程序应属于一个组，因此为了创建它们，您需要首先由管理员邀请您加入一个组.",
+    "starOnGitHub": "在 GitHub 上为我们加注星标",
+    "suggestedTemplates": "建议的模板",
+    "resources": "资源",
+    "knowledgeBase": "知识库",
+    "knowledgeBaseMessage": "找到所有问题的答案",
+    "tutorials": "教程",
+    "tutorialsMessage": "发现巴塞罗的潜力",
+    "apiDocumentation": "API文档",
+    "apiDocumentationMessage": "了解有关我们代码的更多信息",
+    "emptyWorkspace": "该工作区是空的",
+    "emptyWorkspaceMessage": "首先创建新的数据库或应用程序。",
+    "addNew": "添加新...",
+    "noWorkspace": "没有工作空间",
+    "noWorkspaceDescription": "从创建新工作区开始"
+  },
+  "dashboardSidebar": {
+    "workspaces": "群组",
+    "links": "链接",
+    "knowledgeBase": "知识库",
+    "tutorials": "教程",
+    "userSettings": "用户设置",
+    "trash": "回收站",
+    "logoff": "注销"
+  },
+  "login": {
+    "title": "登录",
+    "forgotPassword": "忘记密码?",
+    "signUp": "注册",
+    "emailPlaceholder": "输入您的电子邮箱地址..",
+    "passwordPlaceholder": "输入您的密码..",
+    "signUpText": "没有注册用户?",
+    "displayPasswordLogin": "使用电子邮件和密码登录",
+    "redirecting": "正在重定向到身份验证提供程序..."
+  },
+  "resetPassword": {
+    "title": "重置密码",
+    "newPassword": "新密码",
+    "repeatNewPassword": "重复新密码",
+    "submit": "修改密码",
+    "changed": "密码已更改",
+    "errorInvalidLinkTitle": "无效链接",
+    "errorInvalidLinkMessage": "无法重置密码，因为链接无效。",
+    "errorLinkExpiredTitle": "链接已过期",
+    "errorLinkExpiredMessage": "密码重置链接已过期，请重新申请。",
+    "disabled": "重置密码被禁用",
+    "disabledMessage": "无法重置密码，因为它已被禁用。",
+    "repeatPasswordPlaceholder": "重复您的新密码",
+    "message": "您现在可以使用新密码登录 Baserow。",
+    "errorLinkAlreadyUsedTitle": "链接已使用",
+    "errorLinkAlreadyUsedMessage": "此密码重置链接已被使用。请索取一份新的。"
+  },
+  "signup": {
+    "headTitle": "创建新帐户",
+    "title": "注册",
+    "disabled": "注册被禁用",
+    "disabledMessage": "无法创建帐户，因为注册已被禁用。",
+    "requireFirstUser": "欢迎来到 Baserow！",
+    "requireFirstUserMessage": "请填写下表创建管理员用户。",
+    "emailPlaceholder": "输入您的电子邮箱地址..",
+    "login": "登录",
+    "namePlaceholder": "输入您的名字..",
+    "passwordPlaceholder": "输入您的密码..",
+    "passwordRepeatPlaceholder": "确认您的密码..",
+    "loginText": "用户已注册?"
+  },
+  "forgotPassword": {
+    "title": "忘记密码",
+    "message": "请在表格中输入您的电子邮件地址。如果我们找到一个帐户，我们将发送一封电子邮件，其中包含重置密码的链接。",
+    "submit": "发送链接",
+    "confirmation": "如果您的电子邮件地址存在于我们的数据库中，您将在几分钟后在您的电子邮件地址收到一个密码重置链接。",
+    "disabled": "忘记密码被禁用",
+    "disabledMessage": "无法重置密码，因为该功能已被禁用。",
+    "loginText": "已经存在用户和密码?",
+    "confirmationTitle": "检查您的电子邮件",
+    "goBack": "回去"
+  },
+  "settings": {
+    "settingsTitle": "管理员设置",
+    "baserowInstanceId": "实例 ID",
+    "instanceIdDescription": "实例 ID 是您的 Baserow 副本的唯一标识符。",
+    "accountRestrictions": "账户限制",
+    "settingAllowResetPasswordName": "允许重置密码",
+    "settingAllowResetPasswordDescription": "默认情况下，用户可以请求密码重置链接。",
+    "settingAllowResetPasswordWarning": "请注意，如果您忘记密码，您可能会将自己锁定在系统之外，并且无法恢复访问。",
+    "settingAllowNewAccountsName": "允许创建新账户",
+    "settingAllowNewAccountsDescription": "默认情况下，任何访问您的 Baserow 域的用户都可以注册一个新帐户。",
+    "settingAllowSignupsViaWorkspaceInvitationsName": "允许通过群组邀请注册",
+    "settingAllowSignupsViaWorkspaceInvitationDescription": "即使禁用创建新帐户，此选项仍允许直接邀请的用户创建帐户。",
+    "userDeletionGraceDelay": "用户删除",
+    "settingUserDeletionGraceDelay": "宽限延迟",
+    "settingUserDeletionGraceDelayDescription": "这是未登录的天数，在此之后计划删除的帐户将被永久删除。",
+    "invalidAccountDeletionGraceDelay": "此值为必填项，必须是小于 32000 的正整数",
+    "enabled": "启用",
+    "settingAllowNonStaffCreateWorkspaceOperationDescription": "默认情况下，每个人都可以创建新组.禁用此选项仅允许员工创建新组.",
+    "settingAllowNonStaffCreateWorkspaceOperationWarning": "启用此设置后，新用户将在他们是管理员的身份时自动创建一个组，因此出于计费目的，他们将被通知给管理员.若要防止出现这种情况，请禁用此设置，新邀请的用户将仅以他们被邀请的角色开始.",
+    "settingAllowNonStaffCreateWorkspaceOperation": "允许任何人创建一个新组",
+    "baserowVersion": "基行版本",
+    "baserowVersionDescription": "该实例的版本号。",
+    "settingTrackWorkspaceUsage": "跟踪工作区使用情况",
+    "settingTrackWorkspaceUsageDescription": "启用夜间作业，计算每个工作区的行和文件使用情况，显示在高级工作区管理页面上。",
+    "userSettings": "User",
+    "maintenance": "维护",
+    "emailVerification": "邮箱验证",
+    "emailVerificationDescription": "控制是否必须验证电子邮件地址。",
+    "emailVerificationNoVerification": "没有验证",
+    "emailVerificationRecommended": "受到推崇的",
+    "emailVerificationEnforced": "强制执行",
+    "settingsVerifyImportSignature": "验证导入签名",
+    "settingsVerifyImportSignatureDescription": "启用后，将验证导入数据的签名，以确保数据未被篡改。"
+  },
+  "formSidebar": {
+    "actions": {
+      "addAll": "全部添加",
+      "removeAll": "全部删除",
+      "addField": "添加字段"
     },
-    "copied": {
-        "label": "已复制！"
+    "fieldsDescription": "所有字段都在表单中。",
+    "prefillInfoLink": "动态预填充值",
+    "modal": {
+      "title": "动态预填充值",
+      "descriptionPartOne": "可以预先填写表格以帮助用户更快地填写表格。",
+      "descriptionPartTwo": "表格中所有可用的字段都可以预填。",
+      "howToPrefill": {
+        "title": "如何预填表格",
+        "description": "如果你想用数据预填充表单，你可以通过添加到公共表单 url 的查询参数来实现。这些查询参数以 `prefill` 为前缀，以避免与潜在的未来查询参数发生任何冲突。"
+      },
+      "format": {
+        "title": "格式",
+        "description": "查询参数格式如下：",
+        "codeSnippet": "?prefill_&lt;field_name&gt;=&lt;value&gt;"
+      },
+      "example": {
+        "title": "示例",
+        "description": "在下面的例子中，我们想用 `Mike` 的值预填充一个名为 `Name` 的字段",
+        "codeSnippet": "?prefill_Name=迈克"
+      },
+      "spaces": {
+        "title": "空格",
+        "description": "字段名称中的空格被替换为`+`以避免查询参数出现任何问题。",
+        "codeSnippet": "?prefill_my+field=迈克"
+      },
+      "multipleValues": {
+        "title": "多个值",
+        "description": "如果你想预填多个字段，你可以通过在值之间添加一个`,`来实现。",
+        "codeSnippet": "?prefill_multi+select=迈克、约翰"
+      },
+      "specialFieldTypes": {
+        "title": "特殊字段类型",
+        "description": "一般预填充值与字段值相同。但也有一些例外情况，即值被转换为不同的值。",
+        "ratingField": {
+          "title": "评分字段",
+          "description": "评分字段接受一个数字来表示应该填写多少颗星。",
+          "codeSnippet": "?预填充评级=3"
+        },
+        "linkRowField": {
+          "title": "链接行字段",
+          "description": "链接行字段可以接受选择下拉菜单中显示的值。",
+          "codeSnippet": "?prefill_link+row=迈克"
+        },
+        "selectField": {
+          "title": "单选/多选字段",
+          "description": "单个选择字段可以接受选择下拉菜单中显示的值。多选字段也是如此，但它也可以接受多个值。",
+          "codeSnippet": "?prefill_single+选择=迈克"
+        },
+        "dateField": {
+          "title": "日期字段",
+          "description": "一个日期字段可以接受以下格式的日期，并将使用该字段的日期格式来解析日期。",
+          "codeSnippet": "\n// 标准\nISO_8601\n\n// 通用格式\n'YYYY-MM-DD',\n'YYYY-MM-DD hh:mm A',\n'YYYY-MM -DD HH:mm',\n\n// EU\n'DD/MM/YYYY', \n'DD/MM/YYYY hh:mm A', \n'DD/MM/YYYY HH:mm' \n\n// 美国\n'MM/DD/YYYY', \n'MM/DD/YYYY hh:mm A', \n'MM/DD/YYYY HH:mm'"
+        }
+      },
+      "howToHide": {
+        "title": "如何隐藏字段",
+        "description": "如果您想动态隐藏字段,可以通过从url添加到公共的查询参数来实现.这些查询参数前缀为“hide_”，以避免与未来可能的查询参数冲突."
+      }
     },
-    "sidebarApplication": {
-        "renameApplication": "重命名{type}",
-        "viewTrash": "查看回收站",
-        "deleteApplication": "删除{type}",
-        "rename": "重命名",
-        "duplicate": "创建副本",
-        "delete": "删除",
-        "snapshots": "快照"
+    "prefillOrHideInfoLink": "动态填充或隐藏",
+    "fields": "领域",
+    "rowEditableBy": "通过字段更新行",
+    "rowEditableByDescription": "可以使用此表单通过以下行编辑字段更新此表中的行：",
+    "notifyUserOnSubmit": "收到提交通知"
+  },
+  "job": {
+    "statePending": "等待开始...",
+    "stateStarted": "开始...",
+    "stateFinished": "完成",
+    "stateFailed": "失败",
+    "errorJobAlreadyRunningTitle": "已经在运行",
+    "errorJobAlreadyRunningDescription": "另一个导入作业已经在运行。您需要等待该作业完成后再开始另一个作业。",
+    "stateCanceled": "取消",
+    "errorJobCannotBeCancelledTitle": "无法取消",
+    "errorJobCannotBeCancelledDescription": "无法取消该作业，因为它已经完成。\n请删除下面列表中的第一个快照以将其删除。"
+  },
+  "datetime": {
+    "daysAgo": "0 天前 | 1 天前 | {n} 天前",
+    "monthsAgo": "0 个月前 | 1 个月前 | {n} 个月前",
+    "yearsAgo": "0 年前 | 1 年前 | {n} 年前",
+    "secondsAgo": "刚刚 |1秒前| {n} 秒前",
+    "minutesAgo": "0 分钟前 | 1 分钟前 | {n} 分钟前",
+    "hoursAgo": "0 小时前 | 1 小时前 | {n} 小时前",
+    "lessThanMinuteAgo": "不到一分钟前",
+    "justNow": "现在"
+  },
+  "membersSettings": {
+    "membersInviteModal": {
+      "title": "邀请组成员",
+      "submit": "发送邀请",
+      "errors": {
+        "userAlreadyInWorkspace": {
+          "title": "用户已在组中存在.",
+          "text": "当用户已成为组中成员时，无法发送邀请."
+        }
+      },
+      "helpIconText": "所选角色将是此组中的用户的默认角色."
     },
-    "duplicateApplicationJobType": {
-        "duplicating": "正在创建副本",
-        "duplicatedTitle": "应用副本已创建"
+    "membersTabTitle": "成员",
+    "membersTable": {
+      "columns": {
+        "teams": "团队",
+        "email": "电子邮箱",
+        "role": "默认角色",
+        "name": "名字",
+        "highestRole": "最高角色",
+        "highestRoleHelpText": "该用户直接或从团队分配给他们的在此工作区中任何内容的最高角色",
+        "highestRoleInstanceHelpText": "该用户在实例中拥有的最高角色",
+        "2fa": "2FA"
+      },
+      "actions": {
+        "remove": "从组中移除",
+        "copyEmail": "复制电子邮件"
+      },
+      "title": "{userAmount} 成员在 {groupName}",
+      "inviteMember": "邀请为成员"
     },
-    "sidebar": {
-        "createWorkspace": "创建群组",
-        "inviteOthers": "邀请他人",
-        "logoff": "注销",
-        "errorNoWorkspace": "你没有任何群组。",
-        "admin": "管理员",
-        "dashboard": "仪表板",
-        "trash": "回收站",
-        "settings": "设置",
-        "members": "成员"
+    "invitesTable": {
+      "columns": {
+        "role": "默认角色",
+        "email": "电子邮件",
+        "message": "消息"
+      },
+      "actions": {
+        "copyEmail": "复制电子邮件",
+        "remove": "取消邀请"
+      },
+      "title": "{invitesAmount} 待定邀请在 {groupName}"
     },
-    "accountForm": {
-        "nameLabel": "你的名字",
-        "languageLabel": "界面语言"
-    },
-    "accountSettings": {
-        "title": "账号",
-        "changedTitle": "已更新",
-        "changedDescription": "您的账户信息已更新。",
-        "submitButton": "更新账号"
-    },
-    "settingsModal": {
-        "title": "设置"
-    },
-    "passwordSettings": {
-        "title": "更改密码",
-        "changedTitle": "密码已更改",
-        "changedDescription": "您的密码已更改，下次登录时必须使用新密码。",
-        "oldPasswordLabel": "旧密码",
-        "oldPasswordRequiredError": "需要旧密码。",
-        "newPasswordLabel": "新密码",
-        "repeatNewPasswordLabel": "重复新密码",
-        "repeatNewPasswordMatchError": "此字段必须与您的新密码字段匹配。",
-        "submitButton": "更改密码",
-        "errorInvalidOldPasswordTitle": "密码无效",
-        "errorInvalidOldPasswordMessage": "无法更改您的密码，因为您的旧密码无效。"
-    },
-    "deleteAccountSettings": {
-        "title": "删除账号",
-        "description": "您可以通过输入当前密码并单击按钮来安排删除您的帐户。您的帐户将在 {days} 天后被永久删除。同时，如果您再次登录，您的帐户将被删除取消。",
-        "workspaceNotice": "孤立组将被删除",
-        "workspaceNoticeDescription": "当您的帐户被永久删除时，您是最后一个具有管理员权限的活动用户的所有组和相关数据也将被删除。下面显示的组是因为您是唯一的管理员而将被删除的组. 为防止他们被删除，您必须在删除您的帐户之前先给另一个用户管理员权限。",
-        "orphanWorkspaces": "宽限期过后也会被永久删除",
-        "orphanWorkspaceMemberCount": "与任何人共享|与一个用户共享|与 {count} 个用户共享",
-        "password": "密码",
-        "passwordConfirm": "重复密码",
-        "repeatPasswordMatchError": "该字段必须匹配第一个密码字段。",
-        "submitButton": "删除账户",
-        "errorInvalidPasswordTitle": "密码无效",
-        "errorInvalidPasswordMessage": "无法删除您的帐户，因为您的密码无效。",
-        "errorUserIsLastAdminTitle": "最后一个管理员",
-        "errorUserIsLastAdminMessage": "无法删除您的帐户，因为您是此 Baserow 实例的最后一位管理员。",
-        "accountDeletedSuccessTitle": "计划删除帐户",
-        "accountDeletedSuccessMessage": "您的帐户已被安排删除。",
-        "workspaceLoadingError": "组检查失败",
-        "workspaceLoadingErrorDescription": "检查要删除的组失败，请刷新页面。"
+    "invitesTabTitle": "邀请"
+  },
+  "UserSessionExpiredNotification": {
+    "content": "由于您的认证令牌过期导致被强制注销. 请重新登录",
+    "title": "会话过期"
+  },
+  "crudTableSearch": {
+    "search": "搜索"
+  },
+  "removeFromWorkspaceModal": {
+    "remove": "移除",
+    "title": "确认从组中移除",
+    "confirmation": "是否确实要从{workspaceName}中删除{name}?此操作无法撤消."
+  },
+  "InstallTemplateJobType": {
+    "installing": "安装",
+    "installedTitle": "已安装模板"
+  },
+  "permissionsUpdatedNotification": {
+    "title": "权限已更新",
+    "content": "当前访问的内容可能受到影响，请重新加载页面。",
+    "action": "重载"
+  },
+  "memberSelectionList": {
+    "searchPlaceholder": "查找...",
+    "selectedAmountLabel": "{count} 选择"
+  },
+  "memberAssignmentModalFooter": {
+    "invite": "邀请{count}",
+    "deselectAll": "全部取消",
+    "selectAll": "全选"
+  },
+  "editRoleContext": {
+    "billableRolesLink": "计费角色文档",
+    "additionalRoles": "附加角色"
+  },
+  "user": {
+    "isStaff": "工作人员与否",
+    "isWorkspaceAdmin": "组管理员与否",
+    "active": "生效的",
+    "deactivated": "停用的"
+  },
+  "adminType": {
+    "dashboard": "仪表板",
+    "users": "用户",
+    "workspaces": "团队"
+  },
+  "workspacesAdminTable": {
+    "allWorkspaces": "所有集体",
+    "id": "ID",
+    "name": "名字",
+    "members": "成员",
+    "applications": "应用",
+    "created": "创建",
+    "rowCount": "行数",
+    "freeUsers": "免费用户",
+    "seatsTaken": "座位已满",
+    "storageUsage": "已用存储空间 (MB)",
+    "usageHelpText": "当启用跟踪工作区使用情况设置时每晚计算"
+  },
+  "editWorkspaceContext": {
+    "delete": "永久删除"
+  },
+  "deleteWorkspaceModal": {
+    "title": "删除 {name}",
+    "confirmation": "你确定要删除集体：{name}？",
+    "comment": "该组将被永久删除,包括相关应用程序.此操作无法撤销.",
+    "delete": "删除集体{name}"
+  },
+  "activeUsers": {
+    "newUsers": "新用户",
+    "activeUsers": "活跃用户"
+  },
+  "usersAdminTable": {
+    "allUsers": "所有用户",
+    "id": "",
+    "username": "用户名",
+    "name": "名字",
+    "workspaces": "集体",
+    "lastLogin": "上次登录",
+    "dateJoined": "注册",
+    "active": "活跃的"
+  },
+  "editUserContext": {
+    "changePassword": "更改密码",
+    "delete": "永久删除",
+    "impersonate": "扮演"
+  },
+  "changePasswordForm": {
+    "newPassword": "新密码",
+    "repeatPassword": "重复密码",
+    "changePassword": "更改密码",
+    "error": {
+      "doesntMatch": "此字段必须与密码字段匹配."
+    }
+  },
+  "userForm": {
+    "fullName": "全名",
+    "email": "邮箱",
+    "isActive": "活动状态",
+    "warning": {
+      "changeEmail": "更改此用户的电子邮件地址意味着当他们登录时,必须使用新的电子邮件地址.这必须与该用户进行沟通.",
+      "inactiveUser": "当用户被标记为非活跃时,他们将无法登录.",
+      "userStaff": "让用户成为员工可以让他们对所有用户,所有组进行管理访问,并可以撤销您自己的员工权限."
     },
     "error": {
-        "alreadyExistsTitle": "用户已经存在",
-        "alreadyExistsMessage": "具有所提供电子邮件地址的用户已经存在。",
-        "passwordRequired": "需要密码。",
-        "invalidEmail": "请输入有效的电子邮件地址。",
-        "disabledAccountTitle": "帐号被禁用",
-        "disabledAccountMessage": "此用户帐户已被禁用。",
-        "incorrectCredentialTitle": "不正确的凭据",
-        "incorrectCredentialMessage": "提供的电子邮件地址或密码不正确。",
-        "inputRequired": "需要输入。",
-        "disabledPasswordProviderTitle": "密码验证被禁用.",
-        "disabledPasswordProviderMessage": "请使用其它认证方式."
-    },
-    "field": {
-        "language": "语言",
-        "emailAddress": "Email地址",
-        "name": "你的名字",
-        "password": "密码",
-        "passwordRepeat": "重复密码"
-    },
-    "invitationTitle": "邀请",
-    "invitationMessage": "{invitedBy} 邀请您加入 {group}。",
-    "workspaceForm": {
-        "nameLabel": "名称"
-    },
-    "leaveWorkspaceModal": {
-        "title": "离开{group}",
-        "message": "您确定要离开群组 {group} 吗？ 您将无法再访问相关应用程序，如果您想重新获得访问权限，其中一位管理员必须再次邀请您。 如果您离开该组，它不会被删除。 所有其他成员仍然可以访问它。 如果您是最后一个管理员，则无法离开组，因为这将使其无人维护。",
-        "leave": "离开群组"
-    },
-    "dashboardWorkspace": {
-        "showMembers": "成员",
-        "createApplication": "新建"
-    },
-    "workspaceInvitation": {
-        "title": "邀请函",
-        "message": "{by} 邀请您加入 {group}。",
-        "reject": "拒绝",
-        "accept": "接受"
-    },
-    "workspaceMemberModal": {
-        "membersModalTitle": "{group}成员",
-        "userDescription": "{user} - {since} 前加入",
-        "invitationDescription": "{since} 前邀请",
-        "sendInvite": "发送邀请",
-        "userAlreadyInWorkspaceTitle": "用户已经在群组中。",
-        "userDescriptionPendingDeletion": "{user} - 待删除",
-        "userAlreadyInWorkspaceText": "当用户已经是群组成员时，无法发送邀请。"
-    },
-    "workspaceInviteForm": {
-        "invitationFormTitle": "通过电子邮件邀请",
-        "optionalMessagePlaceholder": "可选消息",
-        "errorInvalidEmail": "请输入有效的电子邮件地址。",
-        "errorTooLongMessage": "消息限制为 {amount} 个字符."
-    },
-    "workspacesContext": {
-        "search": "搜索群组",
-        "noResults": "没有找到结果",
-        "createWorkspace": "创建群组"
-    },
-    "workspaceContext": {
-        "renameWorkspace": "重命名群组",
-        "members": "成员",
-        "viewTrash": "查看回收站",
-        "leaveWorkspace": "离开群组",
-        "deleteWorkspace": "删除群组"
-    },
-    "createWorkspaceModal": {
-        "createNew": "创建新群组",
-        "add": "添加群组",
-        "defaultName": "无标题组",
-        "permissionDeniedTitle": "权限被拒绝",
-        "permissionDeniedBody": "您没有创建新组所需的权限."
-    },
-    "templateCategories": {
-        "search": "搜索模板",
-        "title": "模板"
-    },
-    "templateHeader": {
-        "use": "使用这个模板"
-    },
-    "trashSidebar": {
-        "title": "回收站",
-        "unnamedWorkspace": "未命名群组 {id}"
-    },
-    "trashContents": {
-        "message": "恢复过去 {duration} 删除的项目",
-        "empty": "过去三天没有删除任何内容。",
-        "emptyButtonTrashed": "永久删除 {type}",
-        "emptyButtonNotTrashed": "清空这个 {type} 的回收站",
-        "unnamed": "未命名 {type} {id}"
-    },
-    "trashEmptyModal": {
-        "titleIsTrashed": "您确定要永久删除 {name}？",
-        "titleIsNotTrashed": "您确定要清空 {name} 的回收站吗？",
-        "messageIsTrashed": "这将永久删除它及其所有内容。之后它们将无法恢复。",
-        "messageIsNotTrashed": "这将永久删除列出的项目。之后它们将无法恢复。",
-        "buttonIsTrashed": "永久删除",
-        "buttonIsNotTrashed": "空"
-    },
-    "trashEntry": {
-        "deletedUser": "已删除的用户",
-        "fromParent": "来自 {parent}",
-        "name": "{user} 已删除 {type} {title} {parent}",
-        "restore": "恢复",
-        "andMore": "...还有 {count} 条",
-        "unnamed": "未命名 {type} {idid}"
-    },
-    "trashModal": {
-        "emptyTitle": "没有找到组",
-        "emptyMessage": "您不是任何组的成员。数据库等应用程序属于一个组，因此要创建它们，您需要创建一个组。",
-        "emptyMessageWithoutCreatePermission": "您不是任何组的成员.像数据库这样的应用程序来自于一个组，因此要创建它们，您首先需要由管理员发出邀请并加入该组。"
-    },
-    "uploadViaURLUserFileUpload": {
-        "title": "从 URL 上传",
-        "urlLabel": "网址",
-        "urlError": "需要一个有效的 URL。"
-    },
-    "userFilesModal": {
-        "title": "上传自"
-    },
-    "uploadFileUserFileUpload": {
-        "title": "从我的设备上传",
-        "drop": "放在这里",
-        "clickOrDrop": "在此处单击或拖放您的文件",
-        "retry": "重试"
-    },
-    "createApplicationContext": {
-        "fromTemplate": "来自模板"
-    },
-    "applicationForm": {
-        "nameLabel": "名称"
-    },
-    "connectingNotification": {
-        "title": "重新连接中",
-        "content": "正在重新连接服务器。"
-    },
-    "failedConnectingNotification": {
-        "title": "失败",
-        "content": "连接服务器失败，请刷新页面。",
-        "action": "刷新页面"
-    },
-    "AuthorizationErrorNotification": {
-        "title": "认证错误",
-        "content": "您似乎没有查看该资源的权限。",
-        "action": "刷新页面"
-    },
-    "restoreNotification": {
-        "restore": "恢复已删除的 {type}"
-    },
-    "copyingNotification": {
-        "title": "正在复制...",
-        "content": "准备数据中"
-    },
-    "pastingNotification": {
-        "title": "正在粘贴...",
-        "content": "准备数据中"
-    },
-    "clearingNotification": {
-        "title": "正在清除...",
-        "content": "准备数据中"
-    },
-    "undoRedoNotification": {
-        "undoingTitle": "正在撤消...",
-        "undoingText": "撤消你的动作中",
-        "undoneTitle": "撤消完成",
-        "undoneText": "动作已经被撤消",
-        "noMoreUndo": "没有可撤消的操作",
-        "skippingUndoDueToError": "由于未知错误撤消失败，跳过。",
-        "redoingTitle": "正在重做...",
-        "redoingText": "重做你的动作中",
-        "redoneTitle": "重做完成",
-        "redoneText": "动作已被重做",
-        "noMoreRedo": "没有更多的动作可以重做",
-        "skippingRedoDueToError": "由于未知错误重做失败，跳过。",
-        "failed": "失败"
-    },
-    "errorLayout": {
-        "notFound": "没有找到您要查找的页面。这可能是因为 URL 不正确或您没有权限查看该页面。",
-        "error": "加载页面时出现问题。我们的开发人员已收到此问题的通知。请尝试刷新或返回仪表板。",
-        "backDashboard": "返回仪表板",
-        "backLogin": "返回登录",
-        "wrong": "出了点问题",
-        "refresh": "刷新页面"
-    },
-    "dashboard": {
-        "title": "仪表盘",
-        "alertTitle": "我们需要你的帮助！",
-        "alertText": "如果您觉得 Baserow 有用，我们非常感谢您加注星标或分享我们。通过分享 Baserow，您正在帮助我们改进产品并使其对您更有用。",
-        "tweetContent": "看看{'@'}baserow 一个开源的无代码数据库工具和 Airtable 替代品！",
-        "redditTitle": "'Baserow - 一个开源的无代码数据库",
-        "noWorkspaceTitle": "没有找到群组",
-        "noWorkspaceText": "你不是任何群组的成员。像数据库这样的应用程序属于一个群组，所以为了创建它们你需要创建一个群组。",
-        "createWorkspace": "创建群组",
-        "becomeGithubSponsor": "成为 GitHub 赞助商",
-        "starOnGitlab": "在 GitLab 上给我们加注星标",
-        "shareOnTwitter": "关于 Baserow 的推文",
-        "shareOnReddit": "在 Reddit 上分享",
-        "shareOnFacebook": "在 Facebook 上分享",
-        "shareOnLinkedIn": "在 LinkedIn 上分享",
-        "noWorkspaceTextWithoutCreatePermission": "您不是任何组的成员.像数据库这样的应用程序应属于一个组，因此为了创建它们，您需要首先由管理员邀请您加入一个组."
-    },
-    "dashboardSidebar": {
-        "workspaces": "群组",
-        "links": "链接",
-        "knowledgeBase": "知识库",
-        "tutorials": "教程",
-        "userSettings": "用户设置",
-        "trash": "回收站",
-        "logoff": "注销"
-    },
-    "login": {
-        "title": "登录",
-        "forgotPassword": "忘记密码?",
-        "signUp": "注册",
-        "emailPlaceholder": "输入您的电子邮箱地址..",
-        "passwordPlaceholder": "输入您的密码..",
-        "signUpText": "没有注册用户?",
-        "displayPasswordLogin": "使用电子邮件和密码登录",
-        "redirecting": "正在重定向到身份验证提供程序..."
-    },
-    "resetPassword": {
-        "title": "重置密码",
-        "newPassword": "新密码",
-        "repeatNewPassword": "重复新密码",
-        "submit": "修改密码",
-        "changed": "密码已更改",
-        "errorInvalidLinkTitle": "无效链接",
-        "errorInvalidLinkMessage": "无法重置密码，因为链接无效。",
-        "errorLinkExpiredTitle": "链接已过期",
-        "errorLinkExpiredMessage": "密码重置链接已过期，请重新申请。",
-        "disabled": "重置密码被禁用",
-        "disabledMessage": "无法重置密码，因为它已被禁用。"
-    },
-    "signup": {
-        "headTitle": "创建新帐户",
-        "title": "注册",
-        "disabled": "注册被禁用",
-        "disabledMessage": "无法创建帐户，因为注册已被禁用。",
-        "requireFirstUser": "欢迎来到 Baserow！",
-        "requireFirstUserMessage": "请填写下表创建管理员用户。",
-        "emailPlaceholder": "输入您的电子邮箱地址..",
-        "login": "登录",
-        "namePlaceholder": "输入您的名字..",
-        "passwordPlaceholder": "输入您的密码..",
-        "passwordRepeatPlaceholder": "确认您的密码..",
-        "loginText": "用户已注册?"
-    },
-    "forgotPassword": {
-        "title": "忘记密码",
-        "message": "请在表格中输入您的电子邮件地址。如果我们找到一个帐户，我们将发送一封电子邮件，其中包含重置密码的链接。",
-        "submit": "发送链接",
-        "confirmation": "如果您的电子邮件地址存在于我们的数据库中，您将在几分钟后在您的电子邮件地址收到一个密码重置链接。",
-        "disabled": "忘记密码被禁用",
-        "disabledMessage": "无法重置密码，因为该功能已被禁用。",
-        "loginText": "已经存在用户和密码?"
-    },
-    "settings": {
-        "settingsTitle": "管理员设置",
-        "baserowInstanceId": "实例 ID",
-        "instanceIdDescription": "实例 ID 是您的 Baserow 副本的唯一标识符。",
-        "accountRestrictions": "账户限制",
-        "settingAllowResetPasswordName": "允许重置密码",
-        "settingAllowResetPasswordDescription": "默认情况下，用户可以请求密码重置链接。",
-        "settingAllowResetPasswordWarning": "请注意，如果您忘记密码，您可能会将自己锁定在系统之外，并且无法恢复访问。",
-        "settingAllowNewAccountsName": "允许创建新账户",
-        "settingAllowNewAccountsDescription": "默认情况下，任何访问您的 Baserow 域的用户都可以注册一个新帐户。",
-        "settingAllowSignupsViaWorkspaceInvitationsName": "允许通过群组邀请注册",
-        "settingAllowSignupsViaWorkspaceInvitationDescription": "即使禁用创建新帐户，此选项仍允许直接邀请的用户创建帐户。",
-        "userDeletionGraceDelay": "用户删除",
-        "settingUserDeletionGraceDelay": "宽限延迟",
-        "settingUserDeletionGraceDelayDescription": "这是未登录的天数，在此之后计划删除的帐户将被永久删除。",
-        "invalidAccountDeletionGraceDelay": "此值为必填项，必须是小于 32000 的正整数",
-        "enabled": "启用",
-        "settingAllowNonStaffCreateWorkspaceOperationDescription": "默认情况下，每个人都可以创建新组.禁用此选项仅允许员工创建新组.",
-        "settingAllowNonStaffCreateWorkspaceOperationWarning": "启用此设置后，新用户将在他们是管理员的身份时自动创建一个组，因此出于计费目的，他们将被通知给管理员.若要防止出现这种情况，请禁用此设置，新邀请的用户将仅以他们被邀请的角色开始.",
-        "settingAllowNonStaffCreateWorkspaceOperation": "允许任何人创建一个新组"
-    },
-    "formSidebar": {
-        "actions": {
-            "addAll": "全部添加",
-            "removeAll": "全部删除",
-            "addField": "添加字段"
-        },
-        "fieldsDescription": "所有字段都在表单中。",
-        "prefillInfoLink": "动态预填充值",
-        "modal": {
-            "title": "动态预填充值",
-            "descriptionPartOne": "可以预先填写表格以帮助用户更快地填写表格。",
-            "descriptionPartTwo": "表格中所有可用的字段都可以预填。",
-            "howToPrefill": {
-                "title": "如何预填表格",
-                "description": "如果你想用数据预填充表单，你可以通过添加到公共表单 url 的查询参数来实现。这些查询参数以 `prefill` 为前缀，以避免与潜在的未来查询参数发生任何冲突。"
-            },
-            "format": {
-                "title": "格式",
-                "description": "查询参数格式如下：",
-                "codeSnippet": "?prefill_&lt;field_name&gt;=&lt;value&gt;"
-            },
-            "example": {
-                "title": "示例",
-                "description": "在下面的例子中，我们想用 `Mike` 的值预填充一个名为 `Name` 的字段",
-                "codeSnippet": "?prefill_Name=Mike"
-            },
-            "spaces": {
-                "title": "空格",
-                "description": "字段名称中的空格被替换为`+`以避免查询参数出现任何问题。",
-                "codeSnippet": "?prefill_my+field=Mike"
-            },
-            "multipleValues": {
-                "title": "多个值",
-                "description": "如果你想预填多个字段，你可以通过在值之间添加一个`,`来实现。",
-                "codeSnippet": "?prefill_multi+select=Mike,John"
-            },
-            "specialFieldTypes": {
-                "title": "特殊字段类型",
-                "description": "一般预填充值与字段值相同。但也有一些例外情况，即值被转换为不同的值。",
-                "ratingField": {
-                    "title": "评分字段",
-                    "description": "评分字段接受一个数字来表示应该填写多少颗星。",
-                    "codeSnippet": "?prefill_rating=3"
-                },
-                "linkRowField": {
-                    "title": "链接行字段",
-                    "description": "链接行字段可以接受选择下拉菜单中显示的值。",
-                    "codeSnippet": "?prefill_link+row=Mike"
-                },
-                "selectField": {
-                    "title": "单选/多选字段",
-                    "description": "单个选择字段可以接受选择下拉菜单中显示的值。多选字段也是如此，但它也可以接受多个值。",
-                    "codeSnippet": "?prefill_single+select=Mike"
-                },
-                "dateField": {
-                    "title": "日期字段",
-                    "description": "一个日期字段可以接受以下格式的日期，并将使用该字段的日期格式来解析日期。",
-                    "codeSnippet": "\n// 标准\nISO_8601\n\n// 通用格式\n'YYYY-MM-DD',\n'YYYY-MM-DD hh:mm A',\n'YYYY-MM -DD HH:mm',\n\n// EU\n'DD/MM/YYYY', \n'DD/MM/YYYY hh:mm A', \n'DD/MM/YYYY HH:mm' \n\n// 美国\n'MM/DD/YYYY', \n'MM/DD/YYYY hh:mm A', \n'MM/DD/YYYY HH:mm'"
-                }
-            },
-            "howToHide": {
-                "title": "如何隐藏字段",
-                "description": "如果您想动态隐藏字段,可以通过从url添加到公共的查询参数来实现.这些查询参数前缀为“hide_”，以避免与未来可能的查询参数冲突."
-            }
-        },
-        "prefillOrHideInfoLink": "动态填充或隐藏"
-    },
-    "job": {
-        "statePending": "等待开始...",
-        "stateStarted": "开始...",
-        "stateFinished": "完成",
-        "stateFailed": "失败",
-        "errorJobAlreadyRunningTitle": "已经在运行",
-        "errorJobAlreadyRunningDescription": "另一个导入作业已经在运行。您需要等待该作业完成后再开始另一个作业。"
-    },
-    "datetime": {
-        "daysAgo": "0 天前 | 1 天前 | {n} 天前",
-        "monthsAgo": "0 个月前 | 1 个月前 | {n} 个月前",
-        "yearsAgo": "0 年前 | 1 年前 | {n} 年前",
-        "secondsAgo": "刚刚 |1秒前| {n} 秒前",
-        "minutesAgo": "0 分钟前 | 1 分钟前 | {n} 分钟前",
-        "hoursAgo": "0 小时前 | 1 小时前 | {n} 小时前"
-    },
-    "membersSettings": {
-        "membersInviteModal": {
-            "title": "邀请组成员",
-            "submit": "发送邀请",
-            "errors": {
-                "userAlreadyInWorkspace": {
-                    "title": "用户已在组中存在.",
-                    "text": "当用户已成为组中成员时，无法发送邀请."
-                }
-            },
-            "helpIconText": "所选角色将是此组中的用户的默认角色."
-        },
-        "membersTabTitle": "成员",
-        "membersTable": {
-            "columns": {
-                "teams": "团队",
-                "email": "电子邮箱",
-                "role": "默认角色",
-                "name": "名字"
-            },
-            "actions": {
-                "remove": "从组中移除",
-                "copyEmail": "复制电子邮件"
-            },
-            "title": "{userAmount} 成员在 {groupName}",
-            "inviteMember": "邀请为成员"
-        },
-        "invitesTable": {
-            "columns": {
-                "role": "默认角色",
-                "email": "电子邮件",
-                "message": "消息"
-            },
-            "actions": {
-                "copyEmail": "复制电子邮件",
-                "remove": "取消邀请"
-            },
-            "title": "{invitesAmount} 待定邀请在 {groupName}"
-        },
-        "invitesTabTitle": "邀请"
-    },
-    "UserSessionExpiredNotification": {
-        "content": "由于您的认证令牌过期导致被强制注销. 请重新登录",
-        "title": "会话过期"
-    },
-    "crudTableSearch": {
-        "search": "搜索"
-    },
-    "removeFromWorkspaceModal": {
-        "remove": "移除",
-        "title": "确认从组中移除",
-        "confirmation": "是否确实要从{workspaceName}中删除{name}?此操作无法撤消."
-    },
-    "InstallTemplateJobType": {
-        "installing": "安装",
-        "installedTitle": "已安装模板"
-    },
-    "permissionsUpdatedNotification": {
-        "title": "权限已更新",
-        "content": "当前访问的内容可能受到影响，请重新加载页面。",
-        "action": "重载"
-    },
-    "memberSelectionList": {
-        "searchPlaceholder": "查找...",
-        "selectedAmountLabel": "{count} 选择"
-    },
-    "memberAssignmentModalFooter": {
-        "invite": "邀请{count}",
-        "deselectAll": "全部取消",
-        "selectAll": "全选"
-    },
-    "editRoleContext": {
-        "billableRolesLink": "计费角色文档"
-    },
-    "user": {
-        "isStaff": "工作人员与否",
-        "isWorkspaceAdmin": "组管理员与否",
-        "active": "生效的",
-        "deactivated": "停用的"
-    },
-    "adminType": {
-        "dashboard": "仪表板",
-        "users": "用户",
-        "workspaces": "团队"
-    },
-    "workspacesAdminTable": {
-        "allWorkspaces": "所有集体",
-        "id": "ID",
-        "name": "名字",
-        "members": "成员",
-        "applications": "应用",
-        "created": "创建"
-    },
-    "editWorkspaceContext": {
-        "delete": "永久删除"
-    },
-    "deleteWorkspaceModal": {
-        "title": "删除 {name}",
-        "confirmation": "你确定要删除集体：{name}？",
-        "comment": "该组将被永久删除,包括相关应用程序.此操作无法撤销.",
-        "delete": "删除集体{name}"
-    },
-    "activeUsers": {
-        "newUsers": "新用户",
-        "activeUsers": "活跃用户"
-    },
-    "usersAdminTable": {
-        "allUsers": "所有用户",
-        "id": "",
-        "username": "用户名",
-        "name": "名字",
-        "workspaces": "集体",
-        "lastLogin": "上次登录",
-        "dateJoined": "注册",
-        "active": "活跃的"
-    },
-    "editUserContext": {
-        "changePassword": "更改密码",
-        "delete": "永久删除",
-        "impersonate": "扮演"
-    },
-    "changePasswordForm": {
-        "newPassword": "新密码",
-        "repeatPassword": "重复密码",
-        "changePassword": "更改密码",
-        "error": {
-            "doesntMatch": "此字段必须与密码字段匹配."
-        }
-    },
-    "userForm": {
-        "fullName": "全名",
-        "email": "邮箱",
-        "isActive": "活动状态",
-        "warning": {
-            "changeEmail": "更改此用户的电子邮件地址意味着当他们登录时,必须使用新的电子邮件地址.这必须与该用户进行沟通.",
-            "inactiveUser": "当用户被标记为非活跃时,他们将无法登录.",
-            "userStaff": "让用户成为员工可以让他们对所有用户,所有组进行管理访问,并可以撤销您自己的员工权限."
-        },
-        "error": {
-            "invalidName": "请输入有效的全名,其长度必须大于2个字符,小于150个字符.",
-            "invalidEmail": "请输入有效的电子邮件地址."
-        }
-    },
-    "changeUserPasswordModal": {
-      "changePassword": "为{usermane}更改密码"
-    },
-    "deleteUserModal": {
-        "title": "删除{username}",
-        "confirmation": "你确定要删除这个用户：{name}？",
-        "comment1": "用户帐户将被删除,但用户所属的组将继续存在.即使此用户是组中的最后一个用户,也不会删除用户组.删除组中的最后一个用户将阻止任何人访问该组.",
-        "comment2": "删除用户后,新用户可以使用删除的用户电子邮件地址再次注册.为了确保他们不能再次注册,请禁用用户并不要删除他们.",
-        "delete": "删除用户{username}"
-    },
-    "editUserModal": {
-        "delete": "删除用户",
-        "edit": "编辑{ username }"
-    },
-    "adminDashboard": {
-        "title": "仪表盘",
-        "totals": "总计",
-        "totalUsers": "用户总数",
-        "totalWorkspaces": "组总数",
-        "totalApplications": "应用程序总数",
-        "newUsers": "新用户",
-        "newUsers24h": "最新 24 小时的新用户",
-        "newUsers7days": "最近7天的新用户",
-        "newUsers30days": "最近30天的新用户",
-        "activeUsers": "活跃用户",
-        "activeUsers24h": "活跃用户持续 24 小时",
-        "activeUsers7days": "活跃用户最近 7 天",
-        "activeUsers30days": "活跃用户最近 30 天",
-        "viewAll": "查看全部"
+      "invalidName": "请输入有效的全名,其长度必须大于2个字符,小于150个字符.",
+      "invalidEmail": "请输入有效的电子邮件地址."
     }
+  },
+  "changeUserPasswordModal": {
+    "changePassword": "为{usermane}更改密码"
+  },
+  "deleteUserModal": {
+    "title": "删除{username}",
+    "confirmation": "你确定要删除这个用户：{name}？",
+    "comment1": "用户帐户将被删除,但用户所属的组将继续存在.即使此用户是组中的最后一个用户,也不会删除用户组.删除组中的最后一个用户将阻止任何人访问该组.",
+    "comment2": "删除用户后,新用户可以使用删除的用户电子邮件地址再次注册.为了确保他们不能再次注册,请禁用用户并不要删除他们.",
+    "delete": "删除用户{username}"
+  },
+  "editUserModal": {
+    "delete": "删除用户",
+    "edit": "编辑{ username }"
+  },
+  "adminDashboard": {
+    "title": "仪表盘",
+    "totals": "总计",
+    "totalUsers": "用户总数",
+    "totalWorkspaces": "组总数",
+    "totalApplications": "应用程序总数",
+    "newUsers": "新用户",
+    "newUsers24h": "最新 24 小时的新用户",
+    "newUsers7days": "最近7天的新用户",
+    "newUsers30days": "最近30天的新用户",
+    "activeUsers": "活跃用户",
+    "activeUsers24h": "活跃用户持续 24 小时",
+    "activeUsers7days": "活跃用户最近 7 天",
+    "activeUsers30days": "活跃用户最近 30 天",
+    "viewAll": "查看全部"
+  },
+  "workspaceSearch": {
+    "title": "搜索",
+    "searchEverything": "搜索...",
+    "searching": "正在寻找...",
+    "noResults": "没有找到结果",
+    "noResultsSubtitle": "我们找不到任何匹配 \"{searchTerm}\" 的内容",
+    "welcome": "搜索工作区中的所有内容",
+    "welcomeSubtitle": "使用上面的搜索框查找应用程序、表格、字段等",
+    "navigate": "导航",
+    "select": "选择",
+    "close": "关闭",
+    "empty": "（空的）",
+    "types": {
+      "applications": "应用领域",
+      "tables": "表格",
+      "fields": "领域",
+      "rows": "Rows"
+    }
+  },
+  "action": {
+    "cancel": "取消",
+    "submit": "提交"
+  },
+  "twoFactorAuthSettings": {
+    "title": "双因素身份验证",
+    "loadingError": "无法加载双因素配置。"
+  },
+  "disableTwoFactorAuth": {
+    "title": "您确定要禁用 2FA 吗？",
+    "description": "您的帐户将失去额外的安全层。如果有人发现您的密码，他们可能能够登录您的帐户。",
+    "cancel": "保持开启状态",
+    "disable": "禁用",
+    "successTitle": "双因素身份验证已被禁用",
+    "errorWrongPasswordTitle": "密码错误",
+    "errorWrongPasswordMessage": "输入的密码与您的密码不匹配。"
+  },
+  "enableTwoFactorOptions": {
+    "cancel": "取消",
+    "continue": "继续"
+  },
+  "saveBackupCode": {
+    "description": "如果您无法访问验证器应用程序或手机并且无法接收或生成验证码，您可以使用此备份。您只能使用一次。请务必将其写下来或复制到安全的地方，以便您无需登录即可访问它。",
+    "backupCodes": "备份代码",
+    "copy": "Copy",
+    "continue": "继续",
+    "backupCodesCopiedTitle": "复制了！",
+    "backupCodesCopiedMessage": "备份代码复制到剪贴板。"
+  },
+  "totpAuthType": {
+    "name": "验证器应用程序",
+    "description": "使用应用程序获取双因素身份验证码。我们建议使用 Google Authenticator、Authy 和 Microsoft Authenticator 等应用程序。",
+    "enabledDescription": "您将通过身份验证器应用程序收到验证码。要设置不同的应用程序或方法，只需禁用 2FA 并重新设置即可。",
+    "sideLabel": "受到推崇的"
+  },
+  "twoFactorEnabled": {
+    "enabled": "启用",
+    "disable": "禁用 2FA"
+  },
+  "totpLogin": {
+    "backupCodesTitle": "输入备份代码",
+    "backupCodesDescription": "使用您的一次性备份代码登录。",
+    "authenticate": "认证",
+    "goBack": "回去",
+    "totpTitle": "双因素身份验证",
+    "totpDescription": "输入验证器应用程序中的代码。",
+    "verify": "核实",
+    "useBackupCode": "使用备份代码",
+    "verificationFailed": "验证失败",
+    "verificationFailedDescription": "输入的代码不正确。",
+    "loginExpired": "登录已过期",
+    "loginExpiredDescription": "请再次提供您的密码。",
+    "rateLimit": "尝试次数太多。"
+  },
+  "notificationPanel": {
+    "title": "通知",
+    "markAllAsRead": "全部标记为已读",
+    "clearAll": "全部清除",
+    "noNotificationTitle": "您没有任何通知",
+    "noNotification": "我们会通知您重要更新以及 Baserow 上任何时候提及您的信息。",
+    "newNotificationsAvailable": "新通知可用",
+    "refresh": "刷新"
+  },
+  "clearAllNotificationsConfirmModal": {
+    "title": "您确定要清除所有通知吗？",
+    "message": "所有通知将被永久删除，您将无法再次看到它们。"
+  },
+  "emailSettings": {
+    "title": "更改电子邮件地址",
+    "successTitle": "确认电子邮件已发送",
+    "successDescription": "我们已向您的新地址发送了一封确认电子邮件。请检查您的收件箱并单击链接以完成电子邮件更改。",
+    "currentEmailLabel": "当前电子邮件地址",
+    "newEmailLabel": "新电子邮件地址",
+    "passwordLabel": "当前密码",
+    "submitButton": "发送确认电子邮件",
+    "errorInvalidPasswordTitle": "密码无效",
+    "errorInvalidPasswordMessage": "由于您的密码不正确，无法请求更改电子邮件。",
+    "errorEmailExistsTitle": "电子邮件已存在",
+    "errorEmailExistsMessage": "无法请求更改电子邮件，因为使用此电子邮件地址的帐户已存在。",
+    "errorNotAllowedTitle": "不允许更改电子邮件",
+    "errorNotAllowedMessage": "您无法更改您的电子邮件地址，因为您的帐户使用单点登录 (SSO) 身份验证。"
+  },
+  "exportWorkspaceModal": {
+    "title": "出口",
+    "description": "您的数据将导出为 ZIP 文件，该文件可以导入到其他 Baserow 实例中。",
+    "exportSettings": "导出设置",
+    "export": "导出数据",
+    "reset": "开始新的",
+    "cancel": "取消",
+    "download": "下载",
+    "exportingState": "出口...",
+    "exportingTableState": "导出：{table}",
+    "exportingCreateArchiveState": "创建档案",
+    "noExports": "此工作区尚未导出。",
+    "created": "已创建"
+  },
+  "exportWorkspaceForm": {
+    "exportSettingsLabel": "导出设置",
+    "selectDataToExport": "选择要导出的数据",
+    "selectAll": "选择全部",
+    "deselectAll": "取消全选",
+    "onlyStructureLabel": "仅导出结构",
+    "onlyStructureDescription": "如果启用，则仅导出应用程序的结构。数据将不会被包含在内。"
+  },
+  "importWorkspaceModal": {
+    "title": "导入 Baserow 数据",
+    "description": "您可以通过从其他 Baserow 实例上传 .zip 文件来导入现有 Baserow 数据。",
+    "import": "导入数据",
+    "upload": "上传",
+    "uploadAndImport": "上传和导入",
+    "cancel": "取消",
+    "done": "Done",
+    "close": "关闭",
+    "retry": "重试",
+    "uploading": "正在上传...",
+    "chooseFile": "选择文件",
+    "selectApplications": "选择要导入的数据",
+    "deselectAll": "取消全选",
+    "selectAll": "选择全部",
+    "databases": "数据库",
+    "applications": "应用领域",
+    "successTitle": "成功导入Baserow数据",
+    "successMessage": "导入的 {count} 应用程序",
+    "signatureVerificationNote": "无法从不受信任的来源导入 zip 文件。",
+    "invalidResourceTitle": "资源无效",
+    "invalidResourceMessage": "提供的文件不是有效的 Baserow 导出。",
+    "untrustedPublicKeyTitle": "不可信签名",
+    "untrustedPublicKeyMessage": "提供的文件是使用不受信任的公钥签名的。请您的管理员将公钥添加到受信任密钥列表中或禁用签名验证才能导入此文件。",
+    "importingState": "输入...",
+    "importingTableStructure": "创建：{table}",
+    "importingTableData": "导入数据：{table}"
+  },
+  "importWorkspaceForm": {
+    "selectApplicationsToImport": "选择要导入的应用程序"
+  },
+  "dashboardVerifyEmail": {
+    "title": "请检查您的邮箱并点击链接来验证您的电子邮件。",
+    "resendConfirmationEmail": "重新发送确认电子邮件"
+  },
+  "resendEmailVerification": {
+    "confirmationEmailSentTitle": "确认电子邮件已发送",
+    "confirmationEmailSentDescription": "确认电子邮件已发送。"
+  },
+  "verifyEmailAddress": {
+    "confirmation": "您的电子邮件地址已经过验证。",
+    "goToDashboard": "转到仪表板",
+    "invalidToken": "不是有效的确认令牌。",
+    "disabledPasswordProvider": "密码身份验证提供程序已被禁用。",
+    "emailMismatchWarning": "请注意，经过验证的电子邮件不属于您当前使用的帐户。"
+  },
+  "emailNotVerified": {
+    "title": "需要验证邮箱",
+    "description": "请检查您的邮箱并点击链接进行验证。验证后，您的帐户将被激活。",
+    "resend": "重新发送确认电子邮件"
+  },
+  "workspaceSettingsModal": {
+    "title": "工作区设置"
+  },
+  "workspaceSettingType": {
+    "generativeAI": "生成式人工智能"
+  },
+  "generativeAIModelType": {
+    "openai": "OpenAI",
+    "openaiApiKeyLabel": "API密钥",
+    "openaiApiKeyDescription": "如果您想启用集成，请提供 OpenAI API 密钥。 [Instructions on getting an API key](https://help.openai.com/en/articles/4936850-where-do-i-find-my-openai-api-key)。",
+    "openaiOrganization": "组织（可选）",
+    "openaiModelsLabel": "启用型号",
+    "openaiModelsDescription": "提供可在 Baserow 中使用的逗号分隔的 [OpenAI models](https://platform.openai.com/docs/models/continuous-model-upgrades) 列表。 （例如 `gpt-3.5-turbo,gpt-4`）",
+    "openaiBaseUrl": "基本网址",
+    "openaiBaseUrlDescription": "如果为空，则默认使用默认的 OpenAI 基本 URL。可以选择更改为 https://eu.api.openai.com/v1、https://<your-resource-name>.openai.azure.com 或任何其他 OpenAI 兼容 API。",
+    "anthropic": "Anthropic",
+    "anthropicApiKeyLabel": "API密钥",
+    "anthropicApiKeyDescription": "如果您想启用集成，请提供 Anthropic API 密钥。 [Instructions on getting an API key](https://docs.anthropic.com/en/api/getting-started)。",
+    "anthropicModelsLabel": "启用型号",
+    "anthropicModelsDescription": "提供可在 Baserow 中使用的逗号分隔的 [Anthropic models](https://docs.anthropic.com/en/docs/about-claude/models) 列表。 （例如 `claude-3-5-sonnet-20241022,claude-3-opus-20240229`）",
+    "mistral": "Mistral",
+    "mistralApiKeyLabel": "API密钥",
+    "mistralApiKeyDescription": "如果您想启用集成，请提供 Mistral API 密钥。 [Instructions on getting an API key](https://docs.mistral.ai/getting-started/quickstart/)。",
+    "mistralModelsLabel": "启用型号",
+    "mistralModelsDescription": "提供可在 Baserow 中使用的逗号分隔的 [Mistral models](https://docs.mistral.ai/getting-started/models/models_overview/) 列表。 （例如 `mistral-large-latest,mistral-small-latest`）",
+    "ollama": "Ollama",
+    "ollamaHostLabel": "Host",
+    "ollamaHostDescription": "提供您的 [Ollama](https://ollama.com/) 服务器的主机名。这通常在您自己的设备上本地运行。",
+    "ollamaModelsLabel": "启用型号",
+    "ollamaModelsDescription": "提供以逗号分隔的 [Ollama installed models](https://ollama.com/library) 列表。请注意，该模型必须下载并安装后才能使用。 （例如 `llama2,mistral`）",
+    "openRouter": "OpenRouter",
+    "openRouterApiKeyLabel": "API密钥",
+    "openRouterApiKeyDescription": "如果您想启用集成，请提供 OpenRouter API 密钥。 [get an API key](https://openrouter.ai/settings/keys)。",
+    "openRouterOrganization": "组织（可选）",
+    "openRouterModelsLabel": "启用型号",
+    "openRouterModelsDescription": "提供可在 Baserow 中使用的逗号分隔的 [OpenRouter models](https://openrouter.ai/models) 列表。 （例如 `openai/gpt-4o,anthropic/claude-3-haiku`）"
+  },
+  "generativeAIWorkspaceSettings": {
+    "title": "生成人工智能设置",
+    "description": "这些设置可用于选择性地在工作区级别设置生成式 AI 配置。 AI 字段等功能可能会被禁用，因为它们缺少受支持模型之一的 API 密钥。通过在此处提供设置，您可以启用这些功能。将值留空默认返回全局实例设置。请注意，工作区中的每个人都将共享这些设置。",
+    "changedTitle": "设置已正确更新",
+    "changedDescription": "设置已更新，现在将在此工作区中使用。",
+    "submitButton": "更新设置",
+    "openSettings": "打开设置",
+    "hideSettings": "隐藏设置"
+  },
+  "uploadFileDropzone": {
+    "drop": "放到这里",
+    "clickOrDrop": "单击或将您的文件拖放到此处",
+    "errorTooManyFilesTitle": "文件太多",
+    "errorTooManyFilesMessage": "您只能上传单个文件",
+    "errorWrongFileTypeTitle": "文件类型错误",
+    "errorWrongFileTypeMessage": "您无法上传 {type} 类型的文件"
+  },
+  "connectingToast": {
+    "title": "重新连接",
+    "content": "尝试重新建立实时更新。"
+  },
+  "failedConnectingToast": {
+    "title": "失败的",
+    "content": "无法重新建立实时更新。请刷新以继续。",
+    "action": "刷新页面"
+  },
+  "authorizationErrorToast": {
+    "title": "授权错误",
+    "content": "您似乎没有查看此资源的权限。",
+    "action": "刷新页面"
+  },
+  "userSessionExpiredToast": {
+    "title": "会话已过期",
+    "content": "您已注销，因为您的身份验证令牌已过期。请重新登录。"
+  },
+  "userPasswordChangedToast": {
+    "title": "密码已更改",
+    "content": "您的密码已更改。请重新登录。"
+  },
+  "restoreToast": {
+    "restore": "恢复已删除的 {type}"
+  },
+  "copyingToast": {
+    "title": "复制...",
+    "content": "准备您的数据"
+  },
+  "PastingToast": {
+    "title": "粘贴...",
+    "content": "准备您的数据"
+  },
+  "clearingToast": {
+    "title": "清算...",
+    "content": "准备您的数据"
+  },
+  "undoRedoToast": {
+    "undoingTitle": "正在撤销...",
+    "undoingText": "撤消您的操作",
+    "undoneTitle": "未完成",
+    "undoneText": "操作已撤消",
+    "noMoreUndo": "不再需要撤消任何操作",
+    "skippingUndoDueToError": "由于未知错误，撤消失败，跳过它。",
+    "redoingTitle": "正在重做...",
+    "redoingText": "重做你的动作",
+    "redoneTitle": "重做",
+    "redoneText": "动作已重做",
+    "noMoreRedo": "无需重做更多操作",
+    "skippingRedoDueToError": "由于未知错误，重做失败，跳过它。",
+    "failed": "失败的"
+  },
+  "permissionsUpdatedToast": {
+    "title": "权限已更新",
+    "content": "这可能会影响您可以访问的内容，请重新加载页面。",
+    "action": "重新加载"
+  },
+  "dashboardApplication": {
+    "createdAt": "已创建"
+  },
+  "templateCard": {
+    "viewMore": "查看更多"
+  },
+  "changeEmail": {
+    "title": "确认电子邮件更改",
+    "submit": "确认电子邮件更改",
+    "changed": "电子邮件地址已更改",
+    "message": "您的电子邮件地址已成功更改。您现在可以使用新的电子邮件地址登录 Baserow。",
+    "errorInvalidLinkTitle": "链接无效",
+    "errorInvalidLinkMessage": "无法更改电子邮件地址，因为链接无效。",
+    "errorLinkExpiredTitle": "链接已过期",
+    "errorLinkExpiredMessage": "电子邮件更改链接已过期。请从您的帐户设置中请求一个新的。",
+    "errorEmailExistsTitle": "电子邮件已存在",
+    "errorEmailExistsMessage": "无法更改电子邮件地址，因为使用此电子邮件地址的帐户已存在。",
+    "errorEmailAlreadyChangedTitle": "电子邮件已更改",
+    "errorEmailAlreadyChangedMessage": "电子邮件地址已更改为请求的地址。"
+  },
+  "highestPaidRoleField": {
+    "billable": "可计费"
+  },
+  "integrationCreateEditModal": {
+    "createTitle": "新整合",
+    "editTitle": "编辑集成",
+    "warningTitle": "警告"
+  },
+  "integrationEditForm": {
+    "name": "Name",
+    "namePlaceholder": "输入集成名称..."
+  },
+  "integrationDropdown": {
+    "addIntegration": "添加新的集成",
+    "noIntegrations": "未找到集成。",
+    "selectTypeFirst": "首先选择类型",
+    "integrationPlaceholder": "选择集成"
+  },
+  "dropdown": {
+    "empty": "没有可用的项目"
+  },
+  "richTextEditorMentionsList": {
+    "notFound": "没有找到用户"
+  },
+  "workspaceInvitationAcceptedNotification": {
+    "title": "{sender} 已接受您加入 {workspaceName} 的邀请",
+    "deletedUser": "已删除的用户"
+  },
+  "workspaceInvitationRejectedNotification": {
+    "title": "{sender} 已拒绝您加入 {workspaceName} 的邀请",
+    "deletedUser": "已删除的用户"
+  },
+  "workspaceInvitationCreatedNotification": {
+    "title": "{sender} 邀请您加入 {workspaceName}",
+    "deletedUser": "已删除的用户"
+  },
+  "versionUpgradeNotification": {
+    "title": "{version} 在这里！看看有什么新内容。"
+  },
+  "emailNotifications": {
+    "title": "电子邮件通知",
+    "label": "提及、评论和其他通知",
+    "description": "配置将电子邮件发送到收件箱的频率。",
+    "instant": "立即的",
+    "daily": "日常的",
+    "weekly": "每周",
+    "never": "绝不",
+    "submitButton": "更新频率"
+  },
+  "formulaInputField": {
+    "errorInvalidFormula": "公式无效。",
+    "advancedFormulaMode": "高级公式模式",
+    "invalidFormulaTitle": "公式无效",
+    "invalidSyntax": "不是有效的专家公式，请检查语法。"
+  },
+  "formulaInputErrorContext": {
+    "viewFullError": "查看完整错误"
+  },
+  "formulaInputExplorerContext": {
+    "variables": "变量",
+    "functions": "功能",
+    "operators": "运营商",
+    "search": "搜索",
+    "useRegularInputModalTitle": "在此字段中使用常规输入吗？",
+    "useSimpleInput": "切换到基本模式",
+    "useSimpleInputModalTitle": "切换到基本模式？",
+    "useAdvancedInput": "切换到专家模式",
+    "useAdvancedInputModalTitle": "切换到专家模式？",
+    "modalMessage": "切换到不同模式将清除当前公式。您确定要继续吗？"
+  },
+  "formulaParserErrors": {
+    "invalidArgCountMin": "“{funcType}”函数需要至少 {minArgs} 参数。",
+    "invalidArgCountExact": "“{funcType}”函数需要 {minArgs} 参数。",
+    "invalidArgCountRange": "“{funcType}”函数需要介于 {minArgs} 和 {maxArgs} 之间的参数。"
+  },
+  "dataExplorer": {
+    "noMatchingNodesText": "没有找到匹配的结果。",
+    "noProvidersText": "未找到数据提供者。例如，首先您可以添加数据源或页面参数。"
+  },
+  "dataExplorerNode": {
+    "showMore": "显示更多重复",
+    "selectNode": "选择"
+  },
+  "richTextEditorBubbleMenu": {
+    "bold": "Bold",
+    "italic": "斜体",
+    "underline": "强调",
+    "strikethrough": "罢工",
+    "link": "Link",
+    "linkEditPlaceholder": "链接网址...",
+    "linkEditDone": "Done"
+  },
+  "richTextEditorFloatingMenu": {
+    "hierarchy": "等级制度",
+    "lists": "列表",
+    "paragraph": "段落",
+    "heading1": "标题 1",
+    "heading2": "标题 2",
+    "heading3": "标题 3",
+    "orderedList": "编号列表",
+    "unorderedList": "项目符号列表",
+    "code": "Code",
+    "taskList": "任务清单"
+  },
+  "selectAIModelForm": {
+    "AIType": "人工智能型",
+    "AIModel": "人工智能模型",
+    "fileField": "文件字段",
+    "temperatureLabel": "温度",
+    "temperatureDescription": "LLM 的温度是一个介于 0 和 {max} 之间的参数，可调整响应随机性 - 较低的值会产生集中的答案，而较高的值会增加创造力。"
+  },
+  "onboarding": {
+    "title": "入职",
+    "creating": "创建您的第一个工作区",
+    "continue": "继续",
+    "skip": "暂时跳过",
+    "cancel": "我不需要设置帮助",
+    "failedTitle": "出了点问题",
+    "failedDescription": "尽管某些部分可能已经完成，但入职尚未完全完成。",
+    "failedTryAgain": "再试一次",
+    "failedSkip": "跳过入职"
+  },
+  "moreStep": {
+    "title": "告诉我们更多信息",
+    "how": "您是如何得知我们的？",
+    "howSearchEngine": "搜索引擎（谷歌/必应）",
+    "howSocialMedia": "社交媒体",
+    "howOnlineAds": "在线广告",
+    "howContent": "内容（博客/新闻通讯/视频）",
+    "howReviewSite": "评论网站/市场",
+    "howFriend": "来自朋友",
+    "howColleague": "来自同事",
+    "howEvent": "活动或网络研讨会",
+    "howSales": "销售推广",
+    "howOther": "其他",
+    "country": "国家",
+    "share": "我同意与 Baserow 团队分享此信息"
+  },
+  "teamStep": {
+    "description": "你在哪个队？",
+    "marketingTeam": "营销",
+    "productAndDesignTeam": "产品与设计",
+    "engineeringTeam": "工程",
+    "operationsTeam": "运营",
+    "itAndSupportTeam": "信息技术与支持",
+    "hrAndLegalTeam": "人力资源与法律",
+    "financeTeam": "金融",
+    "creativeProductionTeam": "创意制作",
+    "salesAndAccountManagementTeam": "销售和客户管理",
+    "customerServiceTeam": "客户服务",
+    "manufacturingTeam": "制造业",
+    "otherPersonalTeam": "其他/个人"
+  },
+  "colorInput": {
+    "default": "默认"
+  },
+  "colorPickerContext": {
+    "pickColorPlaceholder": "或者选择预定义的颜色"
+  },
+  "imageInput": {
+    "labelDescription": "选择要上传的图像...",
+    "labelButton": "上传"
+  },
+  "twoFactorAuthField": {
+    "enabled": "启用",
+    "disabled": "已禁用"
+  },
+  "formGroup": {
+    "protectedField": "该字段受保护。单击进行更改。",
+    "cancelProtectedField": "取消更改"
+  },
+  "userSourceType": {
+    "userCountSummary": "{count} 用户 ({lastUpdated})"
+  },
+  "guidedTourStep": {
+    "step": "{step} 共 {totalSteps}",
+    "gotIt": "知道了",
+    "next": "下一步",
+    "back": "Back"
+  },
+  "welcomeGuidedTourStep": {
+    "title": "欢迎来到巴塞罗",
+    "content": "让我们快速浏览一下，让您熟悉基础知识。只需点击几下，您就可以学习如何轻松组织和可视化数据",
+    "buttonText": "开始游览"
+  },
+  "controlCenterGuidedTourStep": {
+    "title": "您的巴塞罗控制中心",
+    "content": "左侧边栏可帮助您管理工作区：\n\n- 主页 – 访问您的主仪表板。\n- 通知 – 随时了解更改和提及的最新情况。\n- 邀请成员 – 通过添加团队成员进行协作。\n- 垃圾箱 – 列出并恢复所有已删除的项目。"
+  },
+  "createNewGuidedTourStep": {
+    "title": "创建新的数据库或应用程序",
+    "content": "单击“添加新...”为您的项目、部门或团队设置新的数据库、应用程序或仪表板。"
+  },
+  "mcpEndpointSettings": {
+    "title": "MCP服务器",
+    "createEndpoint": "创建端点",
+    "createNewTitle": "创建 MCP 服务器端点",
+    "backToOverview": "Back",
+    "noEndpointsMessage": "尚未添加 MCP（模型上下文协议）服务器端点。这些可以用来直接与 Claude 这样的 LLM 集成，并让 LLM 直接在 Baserow 中执行操作。创建一个服务器端点以开始。"
+  },
+  "mcpEndpointForm": {
+    "nameLabel": "Name",
+    "workspaceLabel": "工作空间"
+  },
+  "mcpEndpoint": {
+    "detailLabel": "更多详情",
+    "endpointURLIntro": "MCP（模型上下文协议）服务器 URL 可以添加到任何支持 MCP 服务器的客户端。它是一个独特的端点，使法学硕士能够直接访问以代表您在工作区中执行操作。",
+    "reveal": "显示完整网址",
+    "warning": "将您的 MCP URL 像密码一样对待，因为它能够修改 Baserow 中的数据。",
+    "claudeInstructions": "三个简单步骤即可开始使用 Claude Desktop 和 Baserow MCP。\n\n1. 从导航栏打开 Claude Desktop 设置。 (⌘+,)\n1. 转到“开发”选项卡，然后单击“编辑配置”。\n1. 在 `claude_desktop_config.json` 中包含以下 JSON 配置。",
+    "cursorInstructions": "三个简单步骤即可开始使用 Cursor 和 Baserow MCP。\n\n1. 打开光标设置（⇧+⌘+J）\n1. 导航到“MCP”选项卡并单击“添加 MCP 服务器”\n1. 添加以下 JSON 配置。",
+    "windsurfInstructions": "在 Windsurf 中使用 Cascase 设置 MCP 的两个简单步骤。\n\n1. 导航至 Windsurf - 设置 -> 高级设置或命令面板 -> 打开 Windsurf 设置页面。\n1. 向下滚动到 Cascade 部分，您将找到添加新服务器、查看现有服务器的选项以及用于查看 `mcp_config.json` 处的原始 JSON 配置文件的按钮。添加以下内容："
+  },
+  "coreHTTPTriggerServiceForm": {
+    "title": "网络钩子 URL",
+    "urlVersion": "版本",
+    "urlVersionPublished": "已发表",
+    "urlVersionTest": "Test",
+    "copyUrl": "复制 Webhook URL",
+    "urlCopied": "Webhook URL 已复制到剪贴板",
+    "description": "此 Webhook 将接收 HTTP 请求并以请求数据作为负载触发工作流。",
+    "methodsOptionLabel": "允许的 HTTP 方法",
+    "methodsOptionDescription": "控制此 Webhook 允许使用哪些 HTTP 方法。排除 GET 可以减少意外触发 Webhook 的可能性。",
+    "methodsOptionAll": "全部",
+    "methodsOptionExcludeGet": "排除获取"
+  },
+  "twoFactorAuthEmpty": {
+    "title": "您尚未启用 2FA",
+    "description": "为您的帐户添加额外的安全层。",
+    "enable": "启用 2FA",
+    "notAllowedTitle": "2FA 未启用",
+    "notAllowedDescription": "仅可对基于密码的帐户添加 2FA。"
+  },
+  "nodeHelpTooltip": {
+    "exampleLabel": "例子",
+    "result": "结果：{result}"
+  },
+  "enableWithQRCode": {
+    "scanQRCode": "扫描二维码",
+    "scanQRCodeDescription": "使用 Google Authenticator、Authy 或 Microsoft Authenticator 等应用程序扫描代码。",
+    "clickToCopy": "或者，单击此处复制代码。",
+    "secretCopiedTitle": "秘密已复制",
+    "secretCopiedMessage": "TOTP 秘密已复制到剪贴板。",
+    "enterCode": "输入显示的代码",
+    "enterCodeDescription": "输入应用程序显示的 6 位代码以确认您已正确设置。",
+    "verificationFailed": "验证失败",
+    "verificationFailedDescription": "输入的代码无效。",
+    "provisioningFailed": "配置失败",
+    "checkSuccess": "成功启用双因素身份验证"
+  },
+  "adminUsers": {
+    "title": "用户"
+  },
+  "adminWorkspaces": {
+    "title": "工作空间"
+  }
 }

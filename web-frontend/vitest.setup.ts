@@ -32,7 +32,7 @@ vi.mock('vue-i18n', async (importOriginal) => {
       // Make sure *any* call to global.t returns the key (templates use this)
       if (i18n?.global) {
         i18n.global.t = tMock
-        i18n.global.getBrowserLocale = () => 'en'
+        i18n.global.getBrowserLocale = () => 'zh_Hans'
       }
 
       return i18n
@@ -44,7 +44,7 @@ vi.mock('vue-i18n', async (importOriginal) => {
       return {
         ...composer,
         t: tMock,
-        getBrowserLocale: () => 'en',
+        getBrowserLocale: () => 'zh_Hans',
       }
     },
   }
