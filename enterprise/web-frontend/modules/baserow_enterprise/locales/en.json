@@ -26,7 +26,15 @@
   },
   "coreCodeServiceForm": {
     "codeLabel": "Code",
-    "codePlaceholder": "Enter the code to execute"
+    "codePlaceholder": "Enter the code to execute",
+    "injectionsLabel": "Injections",
+    "nameLabel": "Name",
+    "namePlaceholder": "Variable name",
+    "formulaLabel": "Formula",
+    "formulaPlaceholder": "Formula value",
+    "addInjection": "Add injection",
+    "nameFieldRequired": "The name field is required.",
+    "nameFieldInvalid": "The name must be a valid variable name."
   },
   "nodeType": {
     "codeLabel": "Execute code"

@@ -49,15 +49,49 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "code",
-                    baserow.core.formula.field.FormulaField(
-                        blank=True, help_text="The code to execute."
-                    ),
+                    models.TextField(blank=True, help_text="The code to execute."),
                 ),
             ],
             options={
                 "abstract": False,
             },
             bases=("core.service",),
+        ),
+        migrations.CreateModel(
+            name="CoreCodeServiceInjection",
+            fields=[
+                (
+                    "id",
+                    models.AutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "name",
+                    models.CharField(
+                        help_text="The variable name to use in the code executor context.",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "formula",
+                    baserow.core.formula.field.FormulaField(
+                        blank=True,
+                        help_text="The formula used to extract the variable value from the context.",
+                    ),
+                ),
+                (
+                    "service",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="injections",
+                        to="baserow_enterprise.corecodeservice",
+                    ),
+                ),
+            ],
         ),
         migrations.CreateModel(
             name="CoreCodeWorkflowAction",

@@ -10,7 +10,10 @@ from baserow_enterprise.date_dependency.models import DateDependency
 from baserow_enterprise.integrations.common.sso.saml.models import (
     SamlAppAuthProviderModel,
 )
-from baserow_enterprise.integrations.core.models import CoreCodeService
+from baserow_enterprise.integrations.core.models import (
+    CoreCodeService,
+    CoreCodeServiceInjection,
+)
 from baserow_enterprise.integrations.models import (
     LocalBaserowPasswordAppAuthProvider,
     LocalBaserowUserSource,
@@ -32,6 +35,7 @@ __all__ = [
     "BuilderCustomCode",
     "DateDependency",
     "CoreCodeService",
+    "CoreCodeServiceInjection",
     "CoreCodeWorkflowAction",
     "CoreCodeActionNode",
 ]
