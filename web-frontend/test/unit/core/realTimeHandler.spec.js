@@ -89,10 +89,8 @@ describe('RealTimeHandler realtime_subscribe flow', () => {
 
   test('authentication sends a baseline subscribe on initial connect', () => {
     fire(env.handler, 'authentication', {
-      web_socket_id: 'ws-1',
       success: true,
     })
-    expect(env.handler.currentWebSocketId).toBe('ws-1')
     const subscribe = env.sentMessages.find(
       (m) => m.type === 'realtime_subscribe'
     )
@@ -100,14 +98,12 @@ describe('RealTimeHandler realtime_subscribe flow', () => {
       type: 'realtime_subscribe',
       workspace_id: 7,
       last_seen_id: null,
-      previous_web_socket_id: null,
     })
   })
 
   test('authentication does not subscribe when no workspace is active', () => {
     const local = makeHandler({ workspaceId: null })
     fire(local.handler, 'authentication', {
-      web_socket_id: 'ws-x',
       success: true,
     })
     expect(local.sentMessages).toEqual([])
@@ -118,7 +114,7 @@ describe('RealTimeHandler realtime_subscribe flow', () => {
     env.handler.lastSeenWorkspaceId = 7
     fire(env.handler, 'realtime_subscribe_result', {
       workspace_id: 7,
-      updates: { table: true, users: false },
+      stale: true,
       current_latest_id: 42,
     })
     expect(
@@ -127,7 +123,6 @@ describe('RealTimeHandler realtime_subscribe flow', () => {
       )
     ).toBe(true)
     expect(env.handler.lastSeenRealtimeUpdateId).toBe(42)
-    expect(env.handler.previousWebSocketId).toBeNull()
   })
 
   test('subscribe_result with updates but stale current_latest_id does not toast', () => {
@@ -137,7 +132,7 @@ describe('RealTimeHandler realtime_subscribe flow', () => {
     env.handler.lastSeenWorkspaceId = 7
     fire(env.handler, 'realtime_subscribe_result', {
       workspace_id: 7,
-      updates: { table: true },
+      stale: true,
       current_latest_id: 42,
     })
     expect(
@@ -153,7 +148,7 @@ describe('RealTimeHandler realtime_subscribe flow', () => {
     env.handler.lastSeenWorkspaceId = 7
     fire(env.handler, 'realtime_subscribe_result', {
       workspace_id: 7,
-      updates: { table: false, users: false },
+      stale: false,
       current_latest_id: 99,
     })
     expect(
@@ -167,7 +162,7 @@ describe('RealTimeHandler realtime_subscribe flow', () => {
   test('subscribe_result for an inactive workspace is ignored', () => {
     fire(env.handler, 'realtime_subscribe_result', {
       workspace_id: 999, // not the active workspace (7)
-      updates: { table: true },
+      stale: true,
       current_latest_id: 42,
     })
     expect(env.handler.lastSeenRealtimeUpdateId).toBeNull()
@@ -178,15 +173,15 @@ describe('RealTimeHandler realtime_subscribe flow', () => {
 })
 
 describe('RealTimeHandler high-water mark', () => {
-  test('_advanceLastSeenRealtimeUpdateId takes the max of incoming ids', () => {
+  test('updateLastSeenId takes the max of incoming ids', () => {
     const { handler } = makeHandler({ workspaceId: 1 })
-    handler._advanceLastSeenRealtimeUpdateId({ realtime_update_id: 5 })
+    handler.updateLastSeenId({ realtime_update_id: 5 })
     expect(handler.lastSeenRealtimeUpdateId).toBe(5)
-    handler._advanceLastSeenRealtimeUpdateId({ realtime_update_id: 3 })
+    handler.updateLastSeenId({ realtime_update_id: 3 })
     expect(handler.lastSeenRealtimeUpdateId).toBe(5)
-    handler._advanceLastSeenRealtimeUpdateId({ realtime_update_id: 7 })
+    handler.updateLastSeenId({ realtime_update_id: 7 })
     expect(handler.lastSeenRealtimeUpdateId).toBe(7)
-    handler._advanceLastSeenRealtimeUpdateId({ type: 'no_id' })
+    handler.updateLastSeenId({ type: 'no_id' })
     expect(handler.lastSeenRealtimeUpdateId).toBe(7)
   })
 })
@@ -195,20 +190,18 @@ describe('RealTimeHandler workspace switch', () => {
   test('switching to a new workspace resets baseline and re-subscribes', () => {
     const { handler, store, sentMessages } = makeHandler({ workspaceId: 7 })
     // Connect+authenticate first to capture web_socket_id.
-    fire(handler, 'authentication', { web_socket_id: 'ws-1', success: true })
+    fire(handler, 'authentication', { success: true })
     handler.lastSeenRealtimeUpdateId = 33
     sentMessages.length = 0
 
     store._setSelected({ id: 12, _: { type: 'workspace' } })
 
     expect(handler.lastSeenRealtimeUpdateId).toBeNull()
-    expect(handler.previousWebSocketId).toBeNull()
     const subscribe = sentMessages.find((m) => m.type === 'realtime_subscribe')
     expect(subscribe).toEqual({
       type: 'realtime_subscribe',
       workspace_id: 12,
       last_seen_id: null,
-      previous_web_socket_id: null,
     })
   })
 })
@@ -359,11 +352,10 @@ describe('RealTimeHandler reconnect logic', () => {
 })
 
 describe('RealTimeHandler subscribe params', () => {
-  test('reconnect to same workspace sends last_seen_id and previous_web_socket_id', () => {
+  test('reconnect to same workspace sends last_seen_id', () => {
     const { handler, sentMessages } = makeHandler({ workspaceId: 7 })
     handler.lastSeenRealtimeUpdateId = 42
     handler.lastSeenWorkspaceId = 7
-    handler.previousWebSocketId = 'ws-old'
 
     handler._sendRealtimeSubscribe(7)
 
@@ -372,7 +364,6 @@ describe('RealTimeHandler subscribe params', () => {
       type: 'realtime_subscribe',
       workspace_id: 7,
       last_seen_id: 42,
-      previous_web_socket_id: 'ws-old',
     })
   })
 
@@ -380,7 +371,6 @@ describe('RealTimeHandler subscribe params', () => {
     const { handler, sentMessages } = makeHandler({ workspaceId: 7 })
     handler.lastSeenRealtimeUpdateId = 42
     handler.lastSeenWorkspaceId = 7
-    handler.previousWebSocketId = 'ws-old'
 
     handler._sendRealtimeSubscribe(99)
 
@@ -389,21 +379,16 @@ describe('RealTimeHandler subscribe params', () => {
       type: 'realtime_subscribe',
       workspace_id: 99,
       last_seen_id: null,
-      previous_web_socket_id: null,
     })
   })
 
-  test('onclose stashes currentWebSocketId to previousWebSocketId', () => {
+  test('webSocketId persists across reconnects', () => {
     const { handler } = makeHandler({ workspaceId: 7 })
-    handler.currentWebSocketId = 'ws-123'
-    handler.reconnect = false // prevent delayedReconnect from running
-
-    // Simulate onclose logic
-    handler.previousWebSocketId = handler.currentWebSocketId
-    handler.currentWebSocketId = null
-
-    expect(handler.previousWebSocketId).toBe('ws-123')
-    expect(handler.currentWebSocketId).toBeNull()
+    const id = handler.webSocketId
+    expect(id).toBeTruthy()
+    expect(typeof id).toBe('string')
+    // Simulate onclose + reconnect — id stays the same
+    expect(handler.webSocketId).toBe(id)
   })
 })
 
@@ -412,8 +397,6 @@ describe('RealTimeHandler disconnect', () => {
     const { handler, store } = makeHandler({ workspaceId: 7 })
     handler.lastSeenRealtimeUpdateId = 42
     handler.lastSeenWorkspaceId = 7
-    handler.currentWebSocketId = 'ws-1'
-    handler.previousWebSocketId = 'ws-0'
     handler.attempts = 5
     handler.reconnect = true
     handler.connected = false
@@ -422,8 +405,6 @@ describe('RealTimeHandler disconnect', () => {
 
     expect(handler.lastSeenRealtimeUpdateId).toBeNull()
     expect(handler.lastSeenWorkspaceId).toBeNull()
-    expect(handler.currentWebSocketId).toBeNull()
-    expect(handler.previousWebSocketId).toBeNull()
     expect(handler.attempts).toBe(0)
     expect(handler.reconnect).toBe(false)
     expect(

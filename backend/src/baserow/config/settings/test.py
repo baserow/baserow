@@ -166,6 +166,7 @@ if CACHALOT_ENABLED:
     install_cachalot()
 
 BASEROW_ENABLE_CAPTCHA = ""
+BASEROW_REALTIME_REPLAY_MAX_EVENTS = 100
 
 try:
     from .local_test import *  # noqa: F403, F401

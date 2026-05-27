@@ -23,21 +23,19 @@ async def test_force_disconnect_users(data_fixture):
 
     communicator_1 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_1}",
+        f"ws/core/?jwt_token={token_1}&web_socket_id=ws-1",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_1.connect()
     response_1 = await communicator_1.receive_json_from()
-    response_1["web_socket_id"]
 
     communicator_2 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_2}",
+        f"ws/core/?jwt_token={token_2}&web_socket_id=ws-2",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_2.connect()
     response_2 = await communicator_2.receive_json_from()
-    response_2["web_socket_id"]
 
     await sync_to_async(force_disconnect_users)([user_1.id])
     await communicator_2.receive_nothing(0.1)
@@ -65,21 +63,20 @@ async def test_broadcast_to_users(data_fixture):
 
     communicator_1 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_1}",
+        f"ws/core/?jwt_token={token_1}&web_socket_id=ws-1",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_1.connect()
     response_1 = await communicator_1.receive_json_from()
-    web_socket_id_1 = response_1["web_socket_id"]
+    web_socket_id_1 = "ws-1"
 
     communicator_2 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_2}",
+        f"ws/core/?jwt_token={token_2}&web_socket_id=ws-2",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_2.connect()
     response_2 = await communicator_2.receive_json_from()
-    response_2["web_socket_id"]
 
     await sync_to_async(broadcast_to_users)([user_1.id], {"message": "test"})
     response_1 = await communicator_1.receive_json_from(0.1)
@@ -116,21 +113,20 @@ async def test_broadcast_to_channel_group(data_fixture):
 
     communicator_1 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_1}",
+        f"ws/core/?jwt_token={token_1}&web_socket_id=ws-1",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_1.connect()
     response_1 = await communicator_1.receive_json_from()
-    web_socket_id_1 = response_1["web_socket_id"]
+    web_socket_id_1 = "ws-1"
 
     communicator_2 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_2}",
+        f"ws/core/?jwt_token={token_2}&web_socket_id=ws-2",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_2.connect()
     response_2 = await communicator_2.receive_json_from()
-    response_2["web_socket_id"]
 
     # We don't expect any communicator to receive anything because they didn't join a
     # workspace.
@@ -219,25 +215,25 @@ async def test_broadcast_to_workspace(data_fixture):
 
     communicator_1 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_1}",
+        f"ws/core/?jwt_token={token_1}&web_socket_id=ws-1",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_1.connect()
     response_1 = await communicator_1.receive_json_from()
-    web_socket_id_1 = response_1["web_socket_id"]
+    web_socket_id_1 = "ws-1"
 
     communicator_2 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_2}",
+        f"ws/core/?jwt_token={token_2}&web_socket_id=ws-2",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_2.connect()
     response_2 = await communicator_2.receive_json_from()
-    web_socket_id_2 = response_2["web_socket_id"]
+    web_socket_id_2 = "ws-2"
 
     communicator_3 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_3}",
+        f"ws/core/?jwt_token={token_3}&web_socket_id=ws-3",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_3.connect()
@@ -293,25 +289,25 @@ async def test_broadcast_to_workspaces(data_fixture):
 
     communicator_1 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_1}",
+        f"ws/core/?jwt_token={token_1}&web_socket_id=ws-1",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_1.connect()
     response_1 = await communicator_1.receive_json_from()
-    web_socket_id_1 = response_1["web_socket_id"]
+    web_socket_id_1 = "ws-1"
 
     communicator_2 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_2}",
+        f"ws/core/?jwt_token={token_2}&web_socket_id=ws-2",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_2.connect()
     response_2 = await communicator_2.receive_json_from()
-    web_socket_id_2 = response_2["web_socket_id"]
+    web_socket_id_2 = "ws-2"
 
     communicator_3 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_3}",
+        f"ws/core/?jwt_token={token_3}&web_socket_id=ws-3",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_3.connect()
@@ -339,12 +335,12 @@ async def test_broadcast_to_workspaces(data_fixture):
 
     communicator_4 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_4}",
+        f"ws/core/?jwt_token={token_4}&web_socket_id=ws-4",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_4.connect()
     response_4 = await communicator_4.receive_json_from()
-    web_socket_id_4 = response_4["web_socket_id"]
+    web_socket_id_4 = "ws-4"
 
     await database_sync_to_async(broadcast_to_groups)(
         [workspace_1.id, workspace_2.id],
@@ -377,7 +373,7 @@ async def test_can_broadcast_to_every_single_user(data_fixture):
 
     communicator_1 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_1}",
+        f"ws/core/?jwt_token={token_1}&web_socket_id=ws-1",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_1.connect()
@@ -385,7 +381,7 @@ async def test_can_broadcast_to_every_single_user(data_fixture):
 
     communicator_2 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_2}",
+        f"ws/core/?jwt_token={token_2}&web_socket_id=ws-2",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_2.connect()
@@ -418,16 +414,16 @@ async def test_can_still_ignore_when_sending_to_all_users(data_fixture):
 
     communicator_1 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_1}",
+        f"ws/core/?jwt_token={token_1}&web_socket_id=ws-1",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_1.connect()
     response_1 = await communicator_1.receive_json_from()
-    websocket_id_1 = response_1["web_socket_id"]
+    websocket_id_1 = "ws-1"
 
     communicator_2 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_2}",
+        f"ws/core/?jwt_token={token_2}&web_socket_id=ws-2",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_2.connect()
@@ -460,16 +456,16 @@ async def test_broadcast_to_users_individual_payloads(data_fixture):
 
     communicator_1 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_1}",
+        f"ws/core/?jwt_token={token_1}&web_socket_id=ws-1",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_1.connect()
     response_1 = await communicator_1.receive_json_from()
-    web_socket_id_1 = response_1["web_socket_id"]
+    web_socket_id_1 = "ws-1"
 
     communicator_2 = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_2}",
+        f"ws/core/?jwt_token={token_2}&web_socket_id=ws-2",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator_2.connect()
