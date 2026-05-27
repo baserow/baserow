@@ -1,5 +1,6 @@
 <template>
   <div
+    ref="elementPreviewRef"
     :key="element.id"
     class="element-preview"
     :class="{
@@ -15,7 +16,7 @@
     }"
     :draggable="isDraggable"
     @click="onSelect"
-    @mousedown="canUpdate && onDragSourceMouseDown($event)"
+    @mousedown="canUpdate && isSelected && onDragHandleMouseDown($event)"
     @dragstart.stop="onDragStart"
     @dragend="onDragEnd"
     @dragenter="onDragEnter"
@@ -23,7 +24,7 @@
     @dragleave="onDragLeave"
     @drop="onDrop"
   >
-    <div v-if="isSelected" class="element-preview__tags" data-drag-image-hidden>
+    <div v-if="isSelected" class="element-preview__tags">
       <div class="element-preview__name-tag">
         {{ elementType.name }}
         <i v-if="!isVisible" class="iconoir-eye-off" />
@@ -36,7 +37,6 @@
       v-show="isSelected"
       v-if="canCreate"
       class="element-preview__insert element-preview__insert--top"
-      data-drag-image-hidden
       @click="showAddElementModal(DIRECTIONS.BEFORE)"
     />
     <ElementMenu
@@ -45,14 +45,15 @@
       :allowed-directions="allowedMoveDirections"
       :is-duplicating="isDuplicating"
       :has-parent="!!parentElement"
-      data-drag-image-hidden
       @delete="deleteElement"
       @move="onMove"
       @duplicate="duplicateElement"
       @select-parent="selectParentElement()"
       @drag-handle-mousedown="onDragHandleMouseDown"
+      @mousedown.stop
     />
     <PageElement
+      ref="elementRef"
       :element="element"
       :mode="mode"
       class="element--read-only"
@@ -64,7 +65,6 @@
       v-show="isSelected"
       v-if="canCreate"
       class="element-preview__insert element-preview__insert--bottom"
-      data-drag-image-hidden
       @click="showAddElementModal(DIRECTIONS.AFTER)"
     />
     <AddElementModal
@@ -76,7 +76,7 @@
 </template>
 
 <script>
-import { computed, inject } from 'vue'
+import { computed, inject, ref } from 'vue'
 import { useStore, mapActions, mapGetters } from 'vuex'
 import ElementMenu from '@baserow/modules/builder/components/elements/ElementMenu'
 import InsertElementButton from '@baserow/modules/builder/components/elements/InsertElementButton'
@@ -117,6 +117,8 @@ export default {
   },
   emits: ['move'],
   setup(props) {
+    const elementPreviewRef = ref(null)
+    const elementRef = ref(null)
     const store = useStore()
     const builder = inject('builder')
 
@@ -133,16 +135,72 @@ export default {
         props.element.parent_element_id
       )
     })
+
+    function getDragImageScale(rect) {
+      const defaultDragImageScale = 0.5
+      const maxHeightRatioBeforeScalingDown = 0.3
+      const viewportHeight =
+        window.innerHeight || document.documentElement.clientHeight
+      const maxHeightBeforeScalingDown =
+        viewportHeight * maxHeightRatioBeforeScalingDown
+      const defaultScaledHeight = rect.height * defaultDragImageScale
+
+      if (
+        !viewportHeight ||
+        defaultScaledHeight <= maxHeightBeforeScalingDown
+      ) {
+        return defaultDragImageScale
+      }
+
+      return maxHeightBeforeScalingDown / rect.height
+    }
+
+    function createDragImage() {
+      const source = elementRef.value.$el
+      const rect = source.getBoundingClientRect()
+      const dragImageScale = getDragImageScale(rect)
+
+      const clone = source.cloneNode(true)
+
+      Object.assign(clone.style, {
+        width: `${rect.width}px`,
+        height: `${rect.height}px`,
+        transform: ` scale(${dragImageScale})`,
+        transformOrigin: 'top left',
+      })
+
+      const container = document.createElement('div')
+      Object.assign(container.style, {
+        position: 'fixed',
+        top: '0',
+        left: '0',
+        width: `${rect.width * dragImageScale}px`,
+        height: `${rect.height * dragImageScale}px`,
+        pointerEvents: 'none',
+      })
+      container.appendChild(clone)
+
+      elementPreviewRef.value.appendChild(container)
+      requestAnimationFrame(() => {
+        // immediately remove the cloned element
+        elementPreviewRef.value.removeChild(container)
+      })
+
+      return container
+    }
+
     return {
       ...useElementDraggable({
         element: props.element,
-        dragImageHiddenAttribute: 'data-drag-image-hidden',
+        getDragImage: createDragImage,
       }),
       ...useDropElementTarget({
         parentElement,
         referenceElement: props.element,
         placeInContainer: props.element.place_in_container,
       }),
+      elementPreviewRef,
+      elementRef,
       parentElement,
       elementPage,
     }

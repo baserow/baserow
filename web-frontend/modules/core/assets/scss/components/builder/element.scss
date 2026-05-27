@@ -77,6 +77,8 @@
 }
 
 .element--read-only {
+  user-select: none;
+
   & .ab-button,
   & .ab-input {
     pointer-events: none;

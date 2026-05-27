@@ -77,7 +77,7 @@
   }
 
   &.element-preview--active {
-    cursor: inherit;
+    cursor: grab;
 
     &::before {
       @include absolute(0, 0, 0, 0);
