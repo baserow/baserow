@@ -305,7 +305,7 @@
         "rbac": "Control de acceso basado en funciones",
         "auditLogs": "Registros de auditoría",
         "coBranding": "Sustitución del logotipo de marca compartida",
-        "support": "Apoyo directo",
+        "support": "Soporte directo",
         "dataSync": "Sincronizar datos",
         "ssoContent": "Habilita inicios de sesión seguros y sin interrupciones con SAML, Google, Facebook, GitHub, GitLab o OpenID Connect. Admite varios proveedores a la vez. Ten en cuenta que tanto Baserow como herramienta, como el sistema de autenticación del creador de aplicaciones, soportan SSO.",
         "rbacContent": "Gestiona permisos con precisión. Asigna roles como administrador, creador, editor, comentarista o espectador a nivel de espacio de trabajo, base de datos, tabla y vista. También puedes gestionar el acceso por equipo.",
@@ -329,7 +329,7 @@
         "dataScannerContent": "Escanea todos los datos en tu instancia de Baserow buscando patrones sensibles como números IBAN o IDs médicas, o haz coincidencias contra listas de valores conocidos. Configura programaciones de escaneo automático y visualiza resultados detallados."
     },
     "chatwootSupportSidebarWorkspace": {
-        "directSupport": "Apoyo directo"
+        "directSupport": "Soporte directo"
     },
     "userTeamsField": {
         "no_records": "No hay equipos"
