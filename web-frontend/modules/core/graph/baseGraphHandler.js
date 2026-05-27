@@ -211,6 +211,11 @@ export default class BaseGraphHandler {
     this._insertAt(point, referencePoint, position, output)
   }
 
+  append(point) {
+    const [lastRef, lastPos, lastOutput] = this.getLastPosition()
+    this._insertAt(point, lastRef, lastPos, lastOutput)
+  }
+
   _insertAt(point, referencePoint, position, output) {
     if (!referencePoint) {
       let next = null

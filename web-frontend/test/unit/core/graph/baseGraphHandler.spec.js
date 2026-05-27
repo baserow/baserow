@@ -414,6 +414,25 @@ describe('BaseGraphHandler', () => {
     })
   })
 
+  describe('append', () => {
+    test('appends to empty graph as root', () => {
+      const h = make({}, pm(1))
+      h.append(pt(1))
+      expect(h.graph['0']).toBe(1)
+      expect(h.graph[1]).toEqual({})
+    })
+
+    test('appends to end of existing chain, not at root', () => {
+      // Chain: 1 → 2. Appending 3 should produce 1 → 2 → 3, not 3 → 1 → 2.
+      const h = make({ 0: 1, 1: { next: { '': [2] } }, 2: {} }, pm(1, 2, 3))
+      h.append(pt(3))
+      expect(h.graph['0']).toBe(1)
+      expect(h.graph[1].next['']).toEqual([2])
+      expect(h.graph[2].next['']).toEqual([3])
+      expect(h.graph[3]).toEqual({ next: { '': [] } })
+    })
+  })
+
   describe('replace', () => {
     test('swaps point keeping graph structure', () => {
       const h = make({ 0: 1, 1: { next: { '': [2] } }, 2: {} }, pm(1, 2, 99))

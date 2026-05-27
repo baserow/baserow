@@ -20,6 +20,62 @@ const makePage = (graph, elements = []) => {
 const el = (id) => ({ id, type: 'heading', place_in_container: '' })
 
 describe('element store', () => {
+  describe('graphInsert', () => {
+    test('null+south appends element to end of chain, not at root', () => {
+      // Regression: creating an element without a reference (e.g. from the
+      // elements sidebar) used to call insert(null, 'south') which placed it
+      // at root, pushing existing elements down. It should append to the tail.
+      const el1 = el(1)
+      const el2 = el(2)
+      const el3 = el(3)
+      const page = makePage({ 0: 1, 1: { next: { '': [2] } }, 2: {} }, [
+        el1,
+        el2,
+      ])
+
+      elementStore.actions.graphInsert(
+        { dispatch: makeDispatch(page) },
+        {
+          page,
+          element: el3,
+          referenceElement: null,
+          position: 'south',
+          output: '',
+        }
+      )
+
+      // el3 must be at the tail, not at root.
+      expect(page.graph['0']).toBe(1)
+      expect(page.graph['1'].next['']).toEqual([2])
+      expect(page.graph['2'].next['']).toEqual([3])
+    })
+
+    test('non-null reference delegates to handler.insert', () => {
+      // Inserting south of el1 (which has el2 as next) should splice el3 between them.
+      const el1 = el(1)
+      const el2 = el(2)
+      const el3 = el(3)
+      const page = makePage({ 0: 1, 1: { next: { '': [2] } }, 2: {} }, [
+        el1,
+        el2,
+      ])
+
+      elementStore.actions.graphInsert(
+        { dispatch: makeDispatch(page) },
+        {
+          page,
+          element: el3,
+          referenceElement: el1,
+          position: 'south',
+          output: '',
+        }
+      )
+
+      expect(page.graph['1'].next['']).toEqual([3])
+      expect(page.graph['3'].next['']).toEqual([2])
+    })
+  })
+
   describe('graphMove', () => {
     test('null+south appends element to end of root chain', () => {
       // Chain: 1 → 2. el3 is currently first (root). Moving it to null+south

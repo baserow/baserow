@@ -176,7 +176,13 @@ const actions = {
     { page, element, referenceElement, position, output }
   ) {
     const handler = new ElementGraphHandler(page)
-    handler.insert(element, referenceElement, position, output)
+    if (referenceElement === null && position === 'south') {
+      // No reference + south = append to end, matching backend service behaviour.
+      // handler.insert(null, 'south') would place at root (first) instead.
+      handler.append(element)
+    } else {
+      handler.insert(element, referenceElement, position, output)
+    }
     dispatch(
       'page/forceUpdate',
       { page, values: { graph: handler.graph } },
