@@ -12,3 +12,11 @@ export const passwordValidation = {
   maxLength: maxLength(256),
   minLength: minLength(8),
 }
+
+export function isValidEmail(email) {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!email || typeof email !== 'string') {
+    return false
+  }
+  return emailRegex.test(email.trim())
+}
