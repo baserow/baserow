@@ -37,7 +37,7 @@
     },
     "accountForm": {
         "nameLabel": "Tu nombre",
-        "languageLabel": "Lenguaje de interfaz"
+        "languageLabel": "Idioma de la interfaz"
     },
     "accountSettings": {
         "title": "Cuenta",
@@ -125,7 +125,7 @@
         "createWorkspace": "Crea un grupo"
     },
     "workspaceContext": {
-        "renameWorkspace": "Renombrar grupo",
+        "renameWorkspace": "Renombrar espacio de trabajo",
         "members": "Miembros",
         "viewTrash": "Ver papelera",
         "leaveWorkspace": "Salir del área de trabajo",
@@ -231,7 +231,7 @@
     "dashboard": {
         "title": "Tablero",
         "alertTitle": "¡Necesitamos tu ayuda!",
-        "alertText": "Al compartir Baserow, nos está ayudando a mejorar el producto y a hacerlo más útil para ti.",
+        "alertText": "Al compartir Baserow, nos ayudas a mejorar el producto y a hacerlo más útil para ti.",
         "tweetContent": "¡Eche un vistazo a {'@'}baserow, una herramienta de base de datos sin código de código abierto y una alternativa a Airtable!",
         "redditTitle": "'Baserow: una base de datos sin código de código abierto",
         "noWorkspaceTitle": "No se encontraron grupos",
@@ -493,7 +493,7 @@
     },
     "datetime": {
         "daysAgo": "Hace 0 días | Hace 1 día | Hace {n} días",
-        "monthsAgo": "Hace 0 meses | Hace 1 mes | Hace {n} meses",
+        "monthsAgo": "hace 0 meses | hace 1 mes | hace {n} meses",
         "yearsAgo": "Hace 0 años | Hace 1 año | Hace {n} años",
         "minutesAgo": "Hace 0 minutos | Hace 1 minuto | Hace {n} minutos",
         "hoursAgo": "Hace 0 horas | Hace 1 hora | Hace {n} horas",
