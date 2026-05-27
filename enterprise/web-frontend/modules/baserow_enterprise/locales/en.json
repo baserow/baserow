@@ -19,6 +19,18 @@
   "trashType": {
     "team": "team"
   },
+  "serviceType": {
+    "coreCode": "Execute code",
+    "coreCodeDescription": "Runs arbitrary code as part of a workflow.",
+    "errorCodeMissing": "Missing code property"
+  },
+  "coreCodeServiceForm": {
+    "codeLabel": "Code",
+    "codePlaceholder": "Enter the code to execute"
+  },
+  "nodeType": {
+    "codeLabel": "Execute code"
+  },
   "createTeamModal": {
     "title": "Create team",
     "invalidNameTitle": "Please use a different name",

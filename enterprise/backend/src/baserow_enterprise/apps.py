@@ -226,6 +226,29 @@ class BaserowEnterpriseConfig(AppConfig):
         app_auth_provider_type_registry.register(SamlAppAuthProviderType())
         app_auth_provider_type_registry.register(OpenIdConnectAppAuthProviderType())
 
+        from baserow.core.services.registries import service_type_registry
+        from baserow_enterprise.integrations.core.service_types import (
+            CoreCodeServiceType,
+        )
+
+        service_type_registry.register(CoreCodeServiceType())
+
+        from baserow.contrib.builder.workflow_actions.registries import (
+            builder_workflow_action_type_registry,
+        )
+        from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
+            CoreCodeActionType,
+        )
+
+        builder_workflow_action_type_registry.register(CoreCodeActionType())
+
+        from baserow.contrib.automation.nodes.registries import (
+            automation_node_type_registry,
+        )
+        from baserow_enterprise.automation.nodes.node_types import CoreCodeNodeType
+
+        automation_node_type_registry.register(CoreCodeNodeType())
+
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (
             AuthFormElementType,
