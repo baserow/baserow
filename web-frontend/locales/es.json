@@ -95,7 +95,7 @@
     "settingType": {
         "account": "Cuenta",
         "password": "Contraseña",
-        "tokens": "Fichas de la base de datos",
+        "tokens": "Tokens de la base de datos",
         "deleteAccount": "Borrar cuenta",
         "emailNotifications": "Notificaciones por correo electrónico",
         "mcpEndpoint": "Servidor MCP",
