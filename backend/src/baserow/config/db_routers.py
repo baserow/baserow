@@ -73,6 +73,8 @@ class ReadReplicaRouter:
     """
 
     def db_for_read(self, model, **hints):
+        if getattr(model, "UNLOGGED", False):
+            return DEFAULT_DB_ALIAS
         return set_db_alias_for_read()
 
     def db_for_write(self, model, **hints):

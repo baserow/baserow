@@ -79,7 +79,7 @@ def broadcast_to_users(
         be respected.
     """
 
-    from baserow.ws.realtime_updates import record_realtime_event
+    from baserow.ws.realtime_events import RealtimeEventHandler
 
     channel_layer = get_channel_layer()
     full_message = {
@@ -89,8 +89,9 @@ def broadcast_to_users(
         "ignore_web_socket_id": ignore_web_socket_id,
         "send_to_all_users": send_to_all_users,
     }
-    event_id = record_realtime_event("users", full_message)
-    payload["realtime_update_id"] = event_id
+    if RealtimeEventHandler.is_recording_enabled():
+        event_id = RealtimeEventHandler.record_events([("users", full_message)])[0]
+        payload["realtime_update_id"] = event_id
     async_to_sync(send_message_to_channel_group)(
         channel_layer,
         "users",
@@ -165,7 +166,6 @@ def broadcast_to_permitted_users(
         )
     ]
 
-    payload.setdefault("workspace_id", workspace_id)
     broadcast_to_users(user_ids, payload, ignore_web_socket_id=ignore_web_socket_id)
 
 
@@ -184,7 +184,7 @@ def broadcast_to_users_individual_payloads(
         made the change request.
     """
 
-    from baserow.ws.realtime_updates import record_realtime_event
+    from baserow.ws.realtime_events import RealtimeEventHandler
 
     channel_layer = get_channel_layer()
     full_message = {
@@ -192,10 +192,11 @@ def broadcast_to_users_individual_payloads(
         "payload_map": payload_map,
         "ignore_web_socket_id": ignore_web_socket_id,
     }
-    event_id = record_realtime_event("users", full_message)
-    for inner_payload in payload_map.values():
-        if isinstance(inner_payload, dict):
-            inner_payload["realtime_update_id"] = event_id
+    if RealtimeEventHandler.is_recording_enabled():
+        event_id = RealtimeEventHandler.record_events([("users", full_message)])[0]
+        for inner_payload in payload_map.values():
+            if isinstance(inner_payload, dict):
+                inner_payload["realtime_update_id"] = event_id
     async_to_sync(send_message_to_channel_group)(
         channel_layer,
         "users",
@@ -222,7 +223,7 @@ def broadcast_many_to_channel_group(
         receiving messages.
     """
 
-    from baserow.ws.realtime_updates import record_realtime_events_bulk
+    from baserow.ws.realtime_events import RealtimeEventHandler
 
     full_messages = []
     for channel_group_name, payload in payloads:
@@ -239,18 +240,18 @@ def broadcast_many_to_channel_group(
             )
         )
 
-    event_ids = record_realtime_events_bulk(
-        [
-            (channel_group_name, full_message)
-            for channel_group_name, _, full_message in full_messages
-        ]
-    )
+    if RealtimeEventHandler.is_recording_enabled():
+        event_ids = RealtimeEventHandler.record_events(
+            [
+                (channel_group_name, full_message)
+                for channel_group_name, _, full_message in full_messages
+            ]
+        )
+        for event_id, (_, payload, _) in zip(event_ids, full_messages):
+            payload["realtime_update_id"] = event_id
 
     channel_layer = get_channel_layer()
-    for event_id, (channel_group_name, payload, full_message) in zip(
-        event_ids, full_messages
-    ):
-        payload["realtime_update_id"] = event_id
+    for channel_group_name, payload, full_message in full_messages:
         async_to_sync(send_message_to_channel_group)(
             channel_layer,
             channel_group_name,
@@ -280,7 +281,7 @@ def broadcast_to_channel_group(
         receiving the message.
     """
 
-    from baserow.ws.realtime_updates import record_realtime_event
+    from baserow.ws.realtime_events import RealtimeEventHandler
 
     channel_layer = get_channel_layer()
     full_message = {
@@ -289,8 +290,11 @@ def broadcast_to_channel_group(
         "ignore_web_socket_id": ignore_web_socket_id,
         "exclude_user_ids": exclude_user_ids,
     }
-    event_id = record_realtime_event(channel_group_name, full_message)
-    payload["realtime_update_id"] = event_id
+    if RealtimeEventHandler.is_recording_enabled():
+        event_id = RealtimeEventHandler.record_events(
+            [(channel_group_name, full_message)]
+        )[0]
+        payload["realtime_update_id"] = event_id
     async_to_sync(send_message_to_channel_group)(
         channel_layer,
         channel_group_name,
@@ -328,7 +332,6 @@ def broadcast_to_group(
     if len(user_ids) == 0:
         return
 
-    payload.setdefault("workspace_id", workspace_id)
     broadcast_to_users(user_ids, payload, ignore_web_socket_id)
 
 
@@ -431,16 +434,16 @@ def cleanup_old_realtime_events(self):
     Periodic task that trims ``ws_realtime_events`` by retention age.
     """
 
-    from baserow.ws.realtime_updates import (
-        cleanup_old_realtime_events as _cleanup,
-    )
+    from baserow.ws.realtime_events import RealtimeEventHandler
 
-    _cleanup(settings.BASEROW_REALTIME_EVENTS_RETENTION_HOURS)
+    RealtimeEventHandler.cleanup_old_realtime_events(
+        settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"]
+    )
 
 
 @app.on_after_finalize.connect
 def setup_periodic_ws_realtime_events_cleanup(sender, **kwargs):
-    from baserow.ws.realtime_updates import (
+    from baserow.ws.realtime_events import (
         REALTIME_EVENTS_CLEANUP_INTERVAL_MINUTES,
     )
 

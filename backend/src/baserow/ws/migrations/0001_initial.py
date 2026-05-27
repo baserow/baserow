@@ -25,10 +25,6 @@ class Migration(migrations.Migration):
                         fields=["channel_group", "id"],
                         name="ws_realtime_channel_group_idx",
                     ),
-                    models.Index(
-                        fields=["created_at"],
-                        name="ws_rt_events_created_at_idx",
-                    ),
                 ],
             },
         ),

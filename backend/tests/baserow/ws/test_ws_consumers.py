@@ -66,7 +66,7 @@ def test_page_types():
 async def test_core_consumer_connect_not_authenticated(data_fixture):
     communicator = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token=",
+        "ws/core/?jwt_token=",
         headers=[(b"origin", b"http://localhost")],
     )
     connected, subprotocol = await communicator.connect()
@@ -75,7 +75,6 @@ async def test_core_consumer_connect_not_authenticated(data_fixture):
     response = await communicator.receive_json_from()
     assert response["type"] == "authentication"
     assert response["success"] is False
-    assert response["web_socket_id"] is None
     await communicator.disconnect()
 
 
@@ -86,7 +85,7 @@ async def test_core_consumer_connect_authenticated(data_fixture):
     user_1, token_1 = data_fixture.create_user_and_token()
     communicator = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_1}",
+        f"ws/core/?jwt_token={token_1}&web_socket_id=ws-1",
         headers=[(b"origin", b"http://localhost")],
     )
     connected, subprotocol = await communicator.connect()
@@ -95,7 +94,6 @@ async def test_core_consumer_connect_authenticated(data_fixture):
     response = await communicator.receive_json_from()
     assert response["type"] == "authentication"
     assert response["success"] is True
-    assert response["web_socket_id"] is not None
     await communicator.disconnect()
 
 
@@ -106,7 +104,7 @@ async def test_core_consumer_connect_authenticated_anonymous(data_fixture):
     user_1, token_1 = data_fixture.create_user_and_token()
     communicator = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={ANONYMOUS_USER_TOKEN}",
+        f"ws/core/?jwt_token={ANONYMOUS_USER_TOKEN}&web_socket_id=ws-anon",
         headers=[(b"origin", b"http://localhost")],
     )
     connected, subprotocol = await communicator.connect()
@@ -115,7 +113,6 @@ async def test_core_consumer_connect_authenticated_anonymous(data_fixture):
     response = await communicator.receive_json_from()
     assert response["type"] == "authentication"
     assert response["success"] is True
-    assert response["web_socket_id"] is not None
     await communicator.disconnect()
 
 
@@ -126,7 +123,7 @@ async def test_core_consumer_add_to_page_success(data_fixture, test_page_types):
     user_1, token_1 = data_fixture.create_user_and_token()
     communicator = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_1}",
+        f"ws/core/?jwt_token={token_1}&web_socket_id=ws-1",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator.connect()
@@ -157,7 +154,7 @@ async def test_core_consumer_add_page_doesnt_exist(data_fixture):
     # we do not expect the confirmation
     communicator = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={ANONYMOUS_USER_TOKEN}",
+        f"ws/core/?jwt_token={ANONYMOUS_USER_TOKEN}&web_socket_id=ws-anon",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator.connect()
@@ -175,7 +172,7 @@ async def test_core_consumer_add_to_page_failure(data_fixture, test_page_types):
     user_1, token_1 = data_fixture.create_user_and_token()
     communicator = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_1}",
+        f"ws/core/?jwt_token={token_1}&web_socket_id=ws-1",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator.connect()
@@ -198,7 +195,7 @@ async def test_core_consumer_remove_page_success(data_fixture, test_page_types):
     user_1, token_1 = data_fixture.create_user_and_token()
     communicator = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={token_1}",
+        f"ws/core/?jwt_token={token_1}&web_socket_id=ws-1",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator.connect()
@@ -234,7 +231,7 @@ async def test_core_consumer_remove_page_doesnt_exist(data_fixture):
     # we do not expect the confirmation
     communicator = WebsocketCommunicator(
         application,
-        f"ws/core/?jwt_token={ANONYMOUS_USER_TOKEN}",
+        f"ws/core/?jwt_token={ANONYMOUS_USER_TOKEN}&web_socket_id=ws-anon",
         headers=[(b"origin", b"http://localhost")],
     )
     await communicator.connect()

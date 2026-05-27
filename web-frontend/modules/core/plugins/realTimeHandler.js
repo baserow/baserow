@@ -25,14 +25,12 @@ export class RealTimeHandler {
     this.unloading = false
 
     // Realtime-updates state. The frontend tracks the highest
-    // `realtime_update_id` it has observed for the active workspace and
-    // the previous connection's web_socket_id so it can ask the server, on
-    // reconnect, whether any events from other clients were broadcast while
-    // it was offline.
+    // `realtime_update_id` it has observed for the active workspace.
+    // The web_socket_id is generated once and persists across reconnects —
+    // the server uses it to exclude the client's own events from replay.
     this.lastSeenRealtimeUpdateId = null
     this.lastSeenWorkspaceId = null
-    this.currentWebSocketId = null
-    this.previousWebSocketId = null
+    this.webSocketId = crypto.randomUUID()
 
     this.registerCoreEvents()
 
@@ -49,6 +47,8 @@ export class RealTimeHandler {
         this.reconnect
       ) {
         clearTimeout(this.reconnectTimeout)
+        this.attempts = 0
+        this.context.store.dispatch('toast/setFailedConnecting', false)
         this.connect(true, this.anonymous)
       }
     }
@@ -95,15 +95,13 @@ export class RealTimeHandler {
       this.socket = null
     }
 
-    // Stop if max attempts reached, no token, or server already rejected
-    // this token (avoid retrying with the same bad token).
-    if (
-      this.attempts >= RECONNECT_MAX_ATTEMPTS ||
-      token === null ||
-      (this.authResponseReceived &&
-        !this.authenticationSuccess &&
-        token === this.lastToken)
-    ) {
+    const maxAttemptsReached = this.attempts >= RECONNECT_MAX_ATTEMPTS
+    const noToken = !token
+    const tokenAlreadyRejected =
+      this.authResponseReceived &&
+      !this.authenticationSuccess &&
+      this.lastToken === token
+    if (maxAttemptsReached || noToken || tokenAlreadyRejected) {
       this.context.store.dispatch('toast/setFailedConnecting', true)
       this.context.store.dispatch('toast/setReconnecting', false)
       return
@@ -120,7 +118,9 @@ export class RealTimeHandler {
     url.protocol = isSecureURL(rawUrl) ? 'wss:' : 'ws:'
     url.pathname = '/ws/core/'
 
-    this.socket = new WebSocket(`${url}?jwt_token=${token}`)
+    this.socket = new WebSocket(
+      `${url}?jwt_token=${token}&web_socket_id=${this.webSocketId}`
+    )
     this.socket.onopen = () => {
       this.connected = true
       this.attempts = 0
@@ -147,7 +147,7 @@ export class RealTimeHandler {
         return
       }
 
-      this._advanceLastSeenRealtimeUpdateId(data)
+      this.updateLastSeenId(data)
 
       if (
         Object.prototype.hasOwnProperty.call(data, 'type') &&
@@ -164,14 +164,6 @@ export class RealTimeHandler {
       // By default the user not subscribed to a page a.k.a `null`, so if the current
       // page is already null we can mark it as subscribed.
       this.subscribedToPages = this.pages.length === 0
-      // Stash the just-closed web_socket_id so the next subscribe can tell
-      // the server "this is me, do not flag my own changes as updates I
-      // missed". Clear the cached id to avoid sending a stale one before
-      // the new authentication message arrives.
-      if (this.currentWebSocketId !== null) {
-        this.previousWebSocketId = this.currentWebSocketId
-        this.currentWebSocketId = null
-      }
       this.delayedReconnect()
     }
   }
@@ -295,8 +287,6 @@ export class RealTimeHandler {
     this.connected = false
     this.lastSeenRealtimeUpdateId = null
     this.lastSeenWorkspaceId = null
-    this.currentWebSocketId = null
-    this.previousWebSocketId = null
   }
 
   /**
@@ -311,10 +301,9 @@ export class RealTimeHandler {
 
   /**
    * Sends ``realtime_subscribe`` for the currently active workspace.
-   * On initial connect ``last_seen_id`` and ``previous_web_socket_id`` are both
-   * null, asking the server only for a baseline. On reconnect, both are
-   * populated so the server can answer whether anything new happened while we
-   * were offline.
+   * On initial connect ``last_seen_id`` is null, asking the server only for
+   * a baseline. On reconnect it is populated so the server can answer
+   * whether anything new happened while we were offline.
    */
   _sendRealtimeSubscribe(workspaceId) {
     if (
@@ -326,14 +315,12 @@ export class RealTimeHandler {
     }
     const isSameWorkspace = this.lastSeenWorkspaceId === workspaceId
     const lastSeenId = isSameWorkspace ? this.lastSeenRealtimeUpdateId : null
-    const previousId = isSameWorkspace ? this.previousWebSocketId : null
     this.lastSeenWorkspaceId = workspaceId
     this.socket.send(
       JSON.stringify({
         type: 'realtime_subscribe',
         workspace_id: workspaceId,
         last_seen_id: lastSeenId,
-        previous_web_socket_id: previousId,
       })
     )
   }
@@ -353,7 +340,7 @@ export class RealTimeHandler {
     this._sendRealtimeSubscribe(newWorkspaceId)
   }
 
-  _advanceLastSeenRealtimeUpdateId(data) {
+  updateLastSeenId(data) {
     if (
       data &&
       typeof data === 'object' &&
@@ -384,13 +371,12 @@ export class RealTimeHandler {
     // header — the backend uses it to skip echoing the event back to the
     // originating client.
     this.registerEvent('authentication', ({ store }, data) => {
-      store.dispatch('auth/setWebSocketId', data.web_socket_id)
+      store.dispatch('auth/setWebSocketId', this.webSocketId)
 
       this.authenticationSuccess = data.success
       this.authResponseReceived = true
 
       if (data.success) {
-        this.currentWebSocketId = data.web_socket_id
         const workspaceId = this._getActiveWorkspaceId()
         if (workspaceId) {
           this._sendRealtimeSubscribe(workspaceId)
@@ -405,19 +391,14 @@ export class RealTimeHandler {
         return
       }
       const previous = this.lastSeenRealtimeUpdateId
-      const hasUpdates =
-        data.updates &&
-        typeof data.updates === 'object' &&
-        Object.values(data.updates).some(Boolean)
       const showToast =
-        hasUpdates &&
+        data.stale &&
         typeof data.current_latest_id === 'number' &&
         (previous === null || data.current_latest_id > previous)
       this.lastSeenRealtimeUpdateId = Math.max(
         data.current_latest_id,
         previous ?? 0
       )
-      this.previousWebSocketId = null
       if (showToast) {
         store.dispatch('toast/setWorkspaceStale', true)
       }
