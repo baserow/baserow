@@ -61,7 +61,6 @@ class RealtimeSubscribeContent(TypedDict, total=False):
     type: str
     workspace_id: int | None
     last_seen_id: int | None
-    previous_web_socket_id: str | None
 
 
 class PresenceFocusContent(TypedDict, total=False):

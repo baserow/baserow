@@ -9,17 +9,14 @@ from opentelemetry import metrics
 
 from baserow.config.settings.utils import try_int
 from baserow.ws.presence import PresenceHandler
-from baserow.ws.presence_focus_types import (
-    InvalidPresenceFocus,
-    presence_focus_type_registry,
-)
+from baserow.ws.presence_focus_types import InvalidPresenceFocus
 from baserow.ws.realtime_events import (
     FIRST_CONNECT_CURSOR,
     NO_REPLAY_AVAILABLE,
     RealtimeEventHandler,
     ReplayEventsResult,
 )
-from baserow.ws.registries import PageType, page_registry
+from baserow.ws.registries import PageType, page_registry, presence_focus_type_registry
 from baserow.ws.types import (
     PageSubscribeContent,
     PageUnsubscribeContent,
@@ -201,6 +198,7 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
             return
 
         self.scope["pages"] = SubscribedPages()
+        web_socket_id = self.scope["web_socket_id"]
         self.presence = PresenceHandler(
             channel_layer=self.channel_layer,
             channel_name=self.channel_name,
@@ -324,9 +322,8 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
             "parameters": parameters,
         }
         if page_type.presence_enabled:
-            previous_web_socket_id = self.scope.get("previous_web_socket_id")
             response["presence_snapshot"] = await self.presence.add_presence(
-                group_name, previous_web_socket_id=previous_web_socket_id
+                group_name
             )
             if not already_subscribed:
                 await self.presence.broadcast_join(group_name)
@@ -526,12 +523,6 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
 
         last_seen_id = self._parse_last_seen_id(content)
         web_socket_id = self.scope.get("web_socket_id")
-        previous_web_socket_id = content.get("previous_web_socket_id")
-        if previous_web_socket_id is not None and not isinstance(
-            previous_web_socket_id, str
-        ):
-            previous_web_socket_id = None
-        self.scope["previous_web_socket_id"] = previous_web_socket_id
 
         pages = self.scope.get("pages", SubscribedPages())
         page_group_names = RealtimeEventHandler.get_page_group_names(pages)

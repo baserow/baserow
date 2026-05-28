@@ -1,18 +1,7 @@
-"""
-Pluggable registry for websocket presence focus types.
-
-A "focus type" describes the shape of the ``focus`` object a client may send
-over a presence-enabled page (e.g. which cell/row a user is looking at). The
-transport layer (``baserow.ws.presence`` / ``baserow.ws.consumers``) never
-names a concrete focus type: it resolves the type from ``focus["type"]`` via
-``presence_focus_type_registry`` and delegates validation to it. New focus
-types can therefore be added without touching transport code.
-"""
-
 import json
 from typing import Any, Optional
 
-from baserow.core.registry import Instance, Registry
+from baserow.core.registry import Instance
 
 DEFAULT_MAX_FOCUS_BYTES = 2048
 
@@ -56,8 +45,3 @@ class PresenceFocusType(Instance):
         return focus
 
 
-class PresenceFocusTypeRegistry(Registry):
-    name = "presence_focus_type"
-
-
-presence_focus_type_registry = PresenceFocusTypeRegistry()

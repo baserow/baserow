@@ -149,3 +149,10 @@ class PageRegistry(Registry):
 
 
 page_registry = PageRegistry()
+
+
+class PresenceFocusTypeRegistry(Registry):
+    name = "presence_focus_type"
+
+
+presence_focus_type_registry = PresenceFocusTypeRegistry()

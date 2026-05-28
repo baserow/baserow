@@ -1,362 +1,118 @@
 # Realtime Presence
 
-This document describes the presence system built on top of Baserow's WebSocket infrastructure. For connection lifecycle, reconnection, event durability, and staleness detection, see [realtime-reliability.md](realtime-reliability.md). This document assumes familiarity with that foundation and uses its terminology (web socket ID, page subscriptions, channel groups, `previous_web_socket_id`) without re-defining them.
+This document defines the **language and conceptual model** of Baserow's presence feature.
 
-Presence solves one problem: **users working on the same page should see each other.** Who is here, and where are they focused.
+Presence is built on Baserow's WebSocket infrastructure; see [realtime-reliability.md](realtime-reliability.md) for connection lifecycle, reconnection, and event durability. This document reuses its terms (web socket ID, page subscriptions, channel groups) without re-defining them.
 
-The document is split into six sections:
+Presence answers one question for people working in the same place: **who else is here, and what are they doing?** — bounded by what each viewer is permitted to see.
 
-1. **Terminology** — core concepts and their precise meanings.
-2. **Architecture** — layered design, separation of concerns, Redis layout.
-3. **Presence Lifecycle** — how a connection joins, leaves, and is cleaned up.
-4. **Focus System** — typed focus payloads, validation, registry contract.
-5. **Frontend Contract** — wire messages, client responsibilities, rendering rules.
-6. **Security Boundaries** — what is visible on which page type.
+> **Presence is best-effort and partial by design.** It reflects only what is observable over live connections: who is connected and looking, and their focus. Mutations that arrive through other paths — imports, API calls, data sync, server jobs — have no connection and no focus, and never appear. Presence is descriptive ("who we know is here right now"); it is **never an activity feed, an audit log, or a security/completeness guarantee**. An empty presence space does not mean nobody touched the data.
 
 ---
 
-## Section 1: Terminology
+## Terminology
 
 | Term | Definition |
 |---|---|
-| **Connection** | One WebSocket session, identified by a `web_socket_id` (UUID assigned on authentication). A single user may have multiple connections (e.g., multiple browser tabs). This is the unit that Redis tracks. |
-| **User presence** | The user-visible concept: "User X is on this table." Derived by deduplicating connections by `user_id`. What the avatar bar shows. |
-| **Presence channel** | A Redis hash at `presence:{group_name}` storing all connections present on a page. One hash per presence-enabled page instance (e.g., `presence:table-42`). Distinct from the channel-layer group used for broadcasting. |
-| **Focus** | What a connection is looking at within a page. A typed object (e.g., `{type: "cell", row_id: 1, field_id: 2, editing: false}`) or `null`. Each connection has its own focus. |
-| **Focus type** | A registry entry that defines the schema for one kind of focus (e.g., `cell`, `row`). Pluggable — new focus types can be added without modifying transport code. Not coupled to page types. |
-| **Snapshot** | The list of all current connections in a presence channel, delivered when a connection subscribes. The bootstrap mechanism for populating the presence bar on page load. |
-| **Presence-enabled** | A boolean flag on `PageType` (`presence_enabled = True`). Pages opt in explicitly; default is `False`. |
-| **Self-echo suppression** | Server does not send `presence.join` / `.leave` / `.focus` back to the originating connection. Implemented via `ignore_web_socket_id` on the channel-layer broadcast. |
-| **Self-focus suppression** | Client does not render its own focus through the presence system (cell borders, row highlights). The grid's native selection UI already shows the user's own position. The user's own avatar *does* appear in the presence bar. |
-| **Focus staleness** | A focus state that is no longer trustworthy due to age. Enforced client-side, per focus type. Example: an `editing: true` indicator older than 30 seconds is likely stale. |
+| **Presence** | The feature: who is present on a shared place and what they're doing, bounded by each viewer's permissions. Best-effort and partial — not an activity/audit/security record. |
+| **Connection** | One WebSocket connection, identified by a `web_socket_id`. A single user may have several (multiple tabs). The unit a presence space tracks. |
+| **User presence** | The user-visible roll-up: "User X is here," derived by collapsing a user's connections by `user_id`. An avatar bar is one way to surface it. |
+| **Presence space** | The single logical location presence is tracked for — e.g. one table's grid, whose presence space is `presence-table-42`. Every connection viewing that location shares one space, **independent of how many channel groups back it** (here, the data groups `table-42` and `restricted-view-7`). One space per location; a presence concept, distinct from any single channel group. |
+| **Presence visibility** | The per-recipient decision "should this recipient see that a connection is present *at all*?" Evaluated — depends on how both the observer and the observed entered the space, not a static flag on the connection. |
+| **Presence focus** | What one connection is doing within a space — a typed value (e.g. a selected cell) or nothing. Each connection has at most one current focus **per space**; only the latest matters (it is a current state, not a history). |
+| **Focus visibility** | The per-recipient decision "should this recipient see this focus?" Lets one space serve viewers with different permissions without leaking what a viewer may not see. |
+| **Presence focus type** | A registered kind of focus (e.g. `cell`, `row`) that owns its payload shape, the page types it applies to, and its visibility rule. Pluggable; not owned by any one page type. |
+| **Presence focus staleness** | A focus state no longer trustworthy. Enforced client-side, per focus type (e.g. an `editing: true` indicator older than ~30s). |
 
----
+### Entity relationships
 
-## Section 2: Architecture
-
-### Layers
-
-```
-┌────────────────────────────────────────────────────────┐
-│  L3  Frontend: Store + Rendering                       │
-│  Vuex presence store, avatar bar, cell/row highlights  │
-├────────────────────────────────────────────────────────┤
-│  L2  Focus Types: Registry + Validation                │
-│  PresenceFocusType subclasses, schema validation       │
-├────────────────────────────────────────────────────────┤
-│  L1  Transport: PresenceHandler + Redis                │
-│  Join/leave/focus storage, broadcast, cleanup          │
-└────────────────────────────────────────────────────────┘
-```
-
-**L1 (Transport)** owns Redis state and broadcast mechanics. It never names a concrete focus type — it delegates to L2 for validation and treats the validated focus as an opaque dict.
-
-**L2 (Focus Types)** defines the schema for each kind of focus. Registered via `presence_focus_type_registry`. Each type validates its own payload shape. New types can be added by registering a `PresenceFocusType` subclass — no transport code changes required.
-
-**L3 (Frontend)** consumes wire messages, maintains local state, and renders UI. It owns deduplication (connections → user presence for avatars), focus highlight rendering, and focus staleness enforcement.
-
-### Redis Layout
-
-Each presence channel is a Redis hash:
-
-```
-Key:    presence:{group_name}          (e.g., presence:table-42)
-Fields: {web_socket_id} → JSON({user_id, focus, last_seen})
-TTL:    PRESENCE_STALE_AFTER_SECONDS × 4 (coarse safety net)
-```
-
-No database models, migrations, or Celery tasks. Presence is intentionally ephemeral.
-
----
-
-## Section 3: Presence Lifecycle
-
-### Connection Presence States
-
-```mermaid
-stateDiagram-v2
-    [*] --> Absent
-    Absent --> Present : subscribe to presence-enabled page
-    Present --> Absent : unsubscribe / disconnect
-    Present --> Present : focus update
-    Absent --> [*]
-```
-
-### Join
-
-When a connection subscribes to a presence-enabled page (`_add_page_scope`):
-
-1. **Stale sweep** — prune entries in the presence channel older than the staleness threshold (defense-in-depth, see [Cleanup](#cleanup)).
-2. **Upsert** — write this connection's entry to Redis: `{user_id, focus: null, last_seen: now}`.
-3. **Snapshot** — read all other entries and return them in the `page_add` response as `presence_snapshot`.
-4. **Broadcast** — send `presence.join` to the channel group (excluding this connection via self-echo suppression).
-
-The snapshot gives the subscribing client the full current state. Subsequent changes arrive as individual `presence.join`, `presence.leave`, and `presence.focus` messages.
-
-### Leave
-
-Two paths, same outcome:
-
-**Explicit unsubscribe** (navigate away, close modal):
-- `_remove_page_scope` fires → `remove_presence` deletes the Redis entry → `broadcast_leave` notifies others.
-
-**Disconnect** (close tab, network drop, proxy timeout):
-- `disconnect()` fires → `_remove_all_page_scopes` iterates subscribed pages → same per-page cleanup as explicit unsubscribe.
-
-Both paths are immediate once the event fires. For unclean disconnects (laptop lid, network loss), the proxy idle timeout eventually kills the TCP connection, which triggers the server-side disconnect event. The delay is bounded by the proxy timeout (typically 60 seconds).
-
-### Reconnect
-
-On reconnect, the client gets a new `web_socket_id`. The old connection's presence entry may still exist in Redis if the disconnect event hasn't propagated yet. To prevent ghost focus from the dead session:
-
-1. The reconnecting client sends `previous_web_socket_id` (already part of the `realtime_subscribe` message).
-2. On `add_presence`, the handler purges any entry keyed by `previous_web_socket_id` from the presence channel before inserting the new entry.
-
-This mirrors the pattern used by the realtime event system for self-echo suppression during replay.
-
-### Cleanup
-
-Three mechanisms, in order of priority:
-
-| Mechanism | Handles | Latency |
+| Relationship | Cardinality | Example |
 |---|---|---|
-| `disconnect()` → `remove_presence()` | Clean close + proxy-timeout close | Immediate to proxy timeout |
-| `previous_web_socket_id` purge | Reconnect before old disconnect propagates | On reconnect |
-| Stale sweep on subscribe | True ghosts (disconnect event lost) | Opportunistic, on next join |
-| Redis key TTL | Abandoned channels with zero activity | `STALE × 4` |
+| User → Connections | 1:N | 3 browser tabs = 3 connections |
+| Connection → Presence spaces | 1:N | One tab on a table grid and an expanded-row modal |
+| Presence space → Connections | N:M | A space has 5 connections from 3 users |
+| Connection → Presence focus (per space) | 1:1 | A tab's grid focus and modal focus are independent; within a space only the latest focus is kept |
 
-There is no client heartbeat. The disconnect event is the primary mechanism. The remaining mechanisms are defense-in-depth, each covering a specific failure mode the others miss:
+### Example: one space, many channel groups
 
-| Scenario | Disconnect event | `previous_web_socket_id` purge | Stale sweep | Key TTL |
-|---|---|---|---|---|
-| Clean disconnect (close tab, navigate away) | ✓ | — | — | — |
-| Unclean disconnect (laptop lid, network loss) | ✓ (via proxy timeout) | — | — | — |
-| Reconnect before old disconnect propagates | — | ✓ | — | — |
-| Lost disconnect, user never returns, channel stays active | — | — | ✓ (on next join) | ✗ (TTL refreshed by others) |
-| Lost disconnect, user never returns, channel goes quiet | — | — | ✗ (no new joins) | ✓ |
+Bram (full access) and Davide (a restricted view) both open table 42:
 
-The stale sweep uses a `last_seen` timestamp per entry (server-internal, never exposed on wire). The staleness threshold must be set well above the proxy idle timeout so that connected-but-idle users are never pruned. A user who has a table open but hasn't interacted is genuinely present — not stale.
+- **Bram** subscribes via the `table` page; his connection belongs to the channel group `table-42`. He is looking at rows 1–100.
+- **Davide** cannot listen to the whole table, so he subscribes via the `restricted_view` page; his connection belongs to a *different* channel group, `restricted-view-7`. His view exposes only rows 50–75, and that is what he is looking at.
+
+They are on different channel groups but interact in the **same presence space**, `presence-table-42`. So, where visibility allows, they see each other:
+
+- Whether Davide sees Bram's avatar at all depends on **presence visibility** — because Davide entered via a restricted view, the visibility rule might hide full-access users from him. Bram, with full access, always sees Davide.
+- They see each other's **focus** on rows they can both see (rows 50–75) — **focus visibility**.
+- If Bram selects a cell on row 30, Davide does **not** see it: row 30 is outside what Davide may see, so focus visibility withholds it — even though both are in the same space.
 
 ---
 
-## Section 4: Focus System
+## The conceptual model
 
-### Typing Convention
+### One space per place
 
-All presence data structures use `TypedDict` for type annotations, consistent with the existing wire message types in `ws/types.py` (e.g., `BroadcastToChannelGroupMessage`, `BroadcastToUsersMessage`). This includes focus payloads, wire messages, and snapshot entries. `TypedDict` is a dict at runtime (no conversion overhead for Redis/wire serialization) while providing static type checking and IDE support. Typed structures make the codebase more readable for both humans and LLMs generating or reviewing code.
+A presence space is a logical location, not a transport channel. The same place (e.g. a table) is delivered to different users over different per-permission channel groups; presence collapses all of them into **one** space so that everyone viewing that place can see each other. A host (today a page type) opts in to presence and declares which logical place each subscription belongs to; permission-tiered entry points for the same place resolve to the same space. Presence is not tied to tables — any place a host enables it for (a grid, a dashboard, a builder page, …) is a presence space; table 42 is just the running example.
 
-### Focus Types
+### Joining and leaving
 
-Each focus type is a `PresenceFocusType` subclass registered in `presence_focus_type_registry`. The transport resolves the type from `focus["type"]` and delegates validation.
+A connection becomes present when it subscribes to a presence-enabled place, and is removed when it unsubscribes or disconnects. A connection can be present in several spaces at once (e.g. a grid and an expanded-row modal), each tracked independently; a disconnect clears all of them.
 
-Each focus type defines a corresponding `TypedDict` for its payload:
+Cleanup leans on the **disconnect signal**, which is reliable because both runtime stacks run a server-side WebSocket keepalive that closes connections which stop responding — so a dead client is detected and removed within seconds, while a merely idle-but-connected client (whose browser keeps answering keepalives automatically) correctly stays present. Any further cleanup is a best-effort backstop, never the primary mechanism. Because presence is best-effort, a connection's mere presence is not guaranteed to be complete or permanent.
 
-```python
-class CellFocus(TypedDict):
-    type: str
-    row_id: int
-    field_id: int
-    editing: bool
+### Two-axis visibility
 
-class RowFocus(TypedDict):
-    type: str
-    row_id: int
-```
+Two independent, per-recipient questions decide what a viewer sees. They compose — a connection must be presence-visible before its focus can be seen at all:
 
-| Focus type | `type` string | TypedDict | User action |
+| Axis | Question | Owner | Default |
 |---|---|---|---|
-| Cell | `"cell"` | `CellFocus` | Select a cell in the grid |
-| Row | `"row"` | `RowFocus` | Focus on a row (expand modal, checkbox select, etc.) |
+| **Presence visibility** | May this viewer see that a connection is present at all? | The place's host | Visible |
+| **Focus visibility** | Given the connection is visible, may this viewer see its focus? | The focus type | Visible |
 
-Focus types are registered globally in `presence_focus_type_registry` — they are not grouped by or coupled to page types. A page type opts into presence (`presence_enabled = True`); a focus type defines a valid shape of focus. They don't reference each other. The transport connects them at runtime via `focus["type"]` dispatch. A focus type registered once is usable on any presence-enabled page.
+**Presence visibility** is evaluated per recipient — the host determines who sees whom based on how each entered the space. A full-access viewer may see everyone; a restricted viewer may see only others at the same access level. The rule is **asymmetric by design**: who you see depends on your entry point, not theirs.
 
-A single page type can support multiple focus types. The table page accepts both `cell` and `row` focuses. New focus types (e.g., for dashboard or builder modules) are added by registering a `PresenceFocusType` subclass — no transport or page type changes required.
+**Focus visibility** is how one shared space safely serves viewers with different permissions: a viewer sees focus only on the rows and fields they are permitted to see.
 
-### Validation
+Focus visibility is all-or-nothing: a viewer sees a connection's focus in full, or not at all.
 
-Focus must be a dict because the transport uses `focus["type"]` to dispatch to the correct registry entry. This is the same pattern used throughout Baserow's WebSocket protocol — all messages are dicts with a `type` key for dispatch.
+### Focus
 
-The base `PresenceFocusType.validate()` enforces:
-- `focus` must be a dict.
-- `focus["type"]` must match the registered type string.
-- The serialized payload must be JSON-serializable and within `max_focus_bytes` (default 2048).
+Focus is what a connection is doing within a space — a single current value per space, replaced on each change, with no history.
 
-Subclasses add per-key schema checks matching their `TypedDict` definition (required fields, types). `validate()` returns the validated dict (typed as the corresponding `TypedDict`). Invalid payloads are silently dropped — no broadcast, no error frame to the sender.
+Before a focus is shown, three questions are answered, in order:
 
-### Focus Lifecycle
+1. **Is presence enabled here?** — a property of the place.
+2. **Does this kind of place support this kind of focus?** — *applicability*, not permission. A grid has cells and rows; a dashboard has neither. Both full and restricted grid views support the same focus kinds and emit them identically.
+3. **Is the focus well-formed?** — invalid focus is silently dropped.
 
-```mermaid
-stateDiagram-v2
-    [*] --> NoFocus : connection joins
-    NoFocus --> Focused : presence.focus with valid payload
-    Focused --> Focused : presence.focus with new target
-    Focused --> NoFocus : presence.focus with null
-    Focused --> [*] : connection leaves
-    NoFocus --> [*] : connection leaves
-```
+**Emitting and seeing are separate.** Which page types may *emit* a focus kind is independent of who may *see* it. Two users on the same grid emit cell focus identically; the difference in what each *sees* is purely the area-visibility rule (which rows/fields each may see), never the page type.
 
-Focus is a property of a connection within a presence channel. It changes whenever the user interacts with the grid. Only the latest focus matters — there is no focus history.
-
-### Focus Staleness
-
-Focus staleness is enforced **client-side**. The server does not track or enforce focus TTLs.
-
-Each focus type declares a staleness policy. The client timestamps each received focus event with `Date.now()` on arrival and stops rendering the focus indicator when it exceeds the type's threshold.
-
-This is relevant for states that imply active engagement — `editing: true` becomes misleading after 30–60 seconds of silence. States like `editing: false` (passive selection) have longer or no staleness thresholds.
-
-Server timestamps are not used because clock skew between server and client would make them unreliable for rendering decisions.
-
-### Recipient Filtering (Future)
-
-`PresenceFocusType` declares a `filter_for_recipient(focus, recipient_context)` hook. This is present in the registry contract but not wired in the transport. The default is identity (pass through). A future PR will wire this to enable filtered focus on restricted views (showing focus only for rows/fields the recipient can see, rather than stripping to `null`).
+**Staleness** is judged on the client, per focus type: a state implying active engagement (someone is *editing*) stops being shown after a short silence, because it is no longer trustworthy. Passive states linger longer or indefinitely.
 
 ---
 
-## Section 5: Frontend Contract
+## Membership
 
-### Wire Messages
-
-All wire messages are typed with `TypedDict` in `ws/types.py`, following the existing convention:
-
-```python
-class PresenceSnapshotEntry(TypedDict):
-    user_id: int
-    web_socket_id: str
-    focus: dict | None
-
-class PresenceJoinMessage(TypedDict):
-    type: str
-    channel: str
-    user_id: int
-    web_socket_id: str
-
-class PresenceLeaveMessage(TypedDict):
-    type: str
-    channel: str
-    user_id: int
-    web_socket_id: str
-
-class PresenceFocusMessage(TypedDict):
-    type: str
-    channel: str
-    user_id: int
-    web_socket_id: str
-    focus: dict | None
-```
-
-**Server → Client:**
-
-| Message type | When | TypedDict |
-|---|---|---|
-| `page_add` (extended) | Client subscribes to presence-enabled page | Existing fields + `presence_snapshot: list[PresenceSnapshotEntry]` |
-| `presence.join` | Another connection subscribes | `PresenceJoinMessage` |
-| `presence.leave` | Another connection unsubscribes / disconnects | `PresenceLeaveMessage` |
-| `presence.focus` | Another connection changes focus | `PresenceFocusMessage` |
-
-**Client → Server:**
-
-| Message type | When | Payload |
-|---|---|---|
-| `presence.focus` | User changes selection or editing state | `{type: "presence.focus", page, parameters, focus}` |
-
-### Client Responsibilities
-
-**Self-echo suppression:** The server does not echo presence events back to the sender. The client applies its own state locally (e.g., adds itself to the presence store on subscribe, updates its own focus immediately on interaction).
-
-**Self-focus suppression:** The client does not render its own focus through presence indicators. The grid's native selection UI (blue highlight, active cell border) already shows the user's own position. The user's own avatar appears in the presence bar.
-
-**Deduplication:** The avatar bar shows unique users, not connections. Multiple connections from the same `user_id` (multiple tabs) collapse into one avatar. Focus highlights render per-connection — if a user has two tabs with different focuses, both cells are highlighted in the same color (same `user_id` = same color).
-
-**Debounce:** Focus emission uses a single trailing debounce timer (configurable constant, e.g., `PRESENCE_FOCUS_DEBOUNCE_MS = 150`). Rapid cell navigation emits only the final position. The timer is shared across focus types — switching from cell selection to row focus within the debounce window emits only the row focus.
-
-**Focus staleness:** The client timestamps each received focus event with `Date.now()`. Focus types declare staleness thresholds. The client stops rendering indicators that exceed the threshold (e.g., `editing: true` older than the configured TTL). This is enforced per focus type, not globally.
-
-### Avatar Bar
-
-- Appears in the grid view toolbar.
-- Shows unique users present on the table (deduplicated by `user_id`).
-- Maximum 3 avatars inline; additional users collapsed into "+N" counter.
-  - 1 user → `PK`
-  - 2 users → `PK` `BW`
-  - 3 users → `PK` `BW` `DS`
-  - 4 users → `PK` `BW` `+2`
-- Each avatar: 2-character initials (first + last name), color derived from `user_id` via `hash(user_id) % N` (deterministic, same user = same color everywhere).
-- Unknown users (not in workspace members): color circle with "?" initials.
-- Own avatar included.
-
-### Cell & Row Highlights
-
-**Cell focus (other users):**
-- Colored border in the user's assigned color.
-- Small initials label near the cell.
-- Only rendered for cells in the current viewport/buffer.
-
-**Row focus (other users):**
-- Full row highlight with colored background.
-- Initials label on the row.
-- Cell and row highlights render simultaneously on the same row.
-
-**Editing indicator:**
-- When `editing: true`, an animated `...` typing indicator appears next to the initials.
-- One indicator per cell regardless of how many users are editing.
-- Subject to focus staleness — disappears when the focus age exceeds the threshold.
-
-**Multiple users on same target:**
-- Labels collapse into "Selected by N users."
-- Border/highlight uses the color of the first user to focus that target (first-to-arrive priority).
-- Priority is per-target, based on when each connection's focus event for that target was received by the client (`Date.now()` on arrival).
-- When a user leaves the target (changes focus or disconnects), their priority is lost. If they return, they get a new arrival timestamp.
+Presence uses **one** space per place and enforces visibility *within* it, per recipient — rather than relying on the permission-tiered split of the data channels. A connection is in a space only because it was already allowed to subscribe to a page that maps there — presence adds no separate permission gate.
 
 ---
 
-## Section 6: Security Boundaries
+## Presentation behavior
 
-| Page type | User presence (avatars) | Focus | Enforcement |
-|---|---|---|---|
-| Regular table views | Full | Full (cell, row) | Default behavior |
-| Password-protected shared views | Full | Full | Authenticated = regular |
-| Restricted views (enterprise) | Full | Always `null` — stripped server-side | Server strips focus before broadcast and storage. Client sends focus normally; server guarantees restricted view channels never contain or broadcast non-null focus. No row IDs, field IDs, or cell positions are leaked. |
-| Public views | Disabled | Disabled | `presence_enabled = False`. No join/leave/focus messages, no snapshot. |
-
-Focus stripping on restricted views is server-enforced. The client does not need to know whether it is on a restricted view — it sends focus normally, and the server is the authority on what gets broadcast.
+- **Avatars show unique users**, not connections — multiple tabs of one person collapse to a single avatar, with a deterministic per-user colour. When more users are present than fit, the rest collapse into a counter.
+- **A user does not see their own focus** as a presence indicator — the native selection UI already shows it; their own avatar still appears.
+- **Focus highlights** show another user's selected cell or row (with their colour and initials), and an editing indicator when they are actively editing. Highlights render only for what is currently on screen.
+- **Focus emission is debounced per space.** Rapid navigation within a space emits only the final position (others see where you land, not each step), and activity in one space never interferes with another. Two purposes: a clean end-state for viewers, and protection against flooding.
+- **When several users focus the same target**, their labels collapse into a count.
 
 ---
 
-## Configuration
+## Future capabilities (permitted, not built)
 
-| Setting | Default | Purpose |
-|---|---|---|
-| `BASEROW_PRESENCE_STALE_AFTER_SECONDS` | 300 | How long a presence entry can go without a `last_seen` refresh before the stale sweep considers it dead. Must be well above the proxy idle timeout. |
+The model deliberately *reserves room for* these without building them now; each can be added without changing the concepts or the wire-level contract:
 
----
+- **Filtered focus on restricted views** — showing a viewer only the focus on rows/fields they may see. The focus-visibility rule is the reserved seam; today it passes everything through.
+- **Entry-point-aware presence visibility** — visibility rules that depend on how each party entered the space (e.g. restricted viewers not seeing full-access users, admins seeing anonymous public-view users). The evaluated presence-visibility model is the reserved seam; today everyone in a place is visible to everyone.
+- **Stronger cleanup of abandoned entries** — a backstop for the rare case where a disconnect signal is lost. Disconnect remains the primary mechanism either way.
 
-## Performance Constraints
 
-- Presence must not degrade grid scrolling performance. Focus highlights only render for cells in the current viewport/buffer.
-- Focus emission is debounced — keyboard navigation across cells must not cause visible lag or flood the server.
-
----
-
-## Reference Table
-
-| Concept | Backend | Frontend | Notes |
-|---|---|---|---|
-| Connection identifier | `web_socket_id` (scope) | `currentWebSocketId` | UUID assigned on auth. Used as Redis hash field and on wire. Single name everywhere. |
-| Presence handler | `PresenceHandler` class (`presence.py`) | — | One instance per consumer. Owns all Redis I/O and broadcast issuance. |
-| Presence channel | Redis hash at `presence:{group_name}` | — | Backend-only storage. Frontend consumes via snapshot + events. |
-| Focus type registry | `presence_focus_type_registry` (`presence_focus_types.py`) | `app.$registry` focus type entries | Backend validates inbound. Frontend resolves rendering + staleness. |
-| Focus validation | `PresenceFocusType.validate()` | — | Backend-only. Invalid payloads silently dropped. |
-| Snapshot | `presence_snapshot` in `page_add` response | `presence/handleSnapshot` action | Bootstrap on subscribe. List of `{user_id, web_socket_id, focus}`. |
-| Join broadcast | `presence.join` channel-layer event | `presence/handleJoin` action | Excludes sender via `ignore_web_socket_id`. |
-| Leave broadcast | `presence.leave` channel-layer event | `presence/handleLeave` action | Excludes sender. |
-| Focus broadcast | `presence.focus` channel-layer event | `presence/handleFocus` action | Excludes sender. |
-| Focus emission | — | Debounced `sendPresenceFocus()` | Client → server. Single trailing timer across types. |
-| User deduplication | — | `getUniqueUsersByChannel` getter | Collapses connections by `user_id` for avatar bar. |
-| Color assignment | — | `getPresenceColor(userId)` | `hash(user_id) % N`. Deterministic, isolated function. |
-| Multi-user ordering | — | `getFirstArrivedUser(users)` | Per-target, based on client-local arrival timestamp. Isolated function. |
-| Opt-in flag | `PageType.presence_enabled` | — | Default `False`. Explicit `True` on table, restricted view. Explicit `False` on public view. |
-| Recipient filter | `PresenceFocusType.filter_for_recipient()` | — | Declared but unwired. Future PR. |
-| Self-echo suppression | `ignore_web_socket_id` in broadcast | — | Server-side. Sender never receives own events. |
-| Self-focus suppression | — | Rendering logic | Client-side. Own focus not rendered as presence indicator. |
-| Previous session cleanup | `previous_web_socket_id` in `realtime_subscribe` | `previousWebSocketId` | Purges dead session's presence entry on reconnect. |

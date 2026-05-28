@@ -1,42 +1,3 @@
-"""
-Ephemeral, Redis-only websocket presence transport.
-
-One ``PresenceHandler`` is created per websocket connection (in
-``CoreConsumer.connect``). It owns all Redis I/O and broadcast issuance for
-presence join/leave/focus on presence-enabled pages. There are no database
-models, migrations or Celery tasks involved: presence is intentionally
-ephemeral.
-
-Redis access
-------------
-Uses ``redis.asyncio`` with a dedicated module-level connection pool, separate
-from both ``django_redis`` (sync) and the channel layer's internal pool. This
-avoids two problems:
-
-1. ``database_sync_to_async`` burns a thread from the shared executor pool
-   (``min(32, cpu+4)``) per Redis call — presence is the hottest async path
-   (focus updates on every cell selection) and should not compete for threads.
-2. The channel layer's ``close_pools()`` workaround (channels_redis#332) tears
-   down *all* cached connections after every ``group_send``. Reusing that pool
-   would cause a create/destroy cycle on every presence operation.
-
-The dedicated pool is created lazily on first use and lives for the process
-lifetime.
-
-Staleness / no heartbeat
-------------------------
-Per the design decision there is no client heartbeat/ping. Each entry stores a
-``last_seen`` epoch second, refreshed on join and focus. ``_prune_stale``
-runs opportunistically whenever a *new* user subscribes and prunes entries
-older than ``PRESENCE_STALE_AFTER_SECONDS``. A clean disconnect removes the
-entry immediately (the primary path); the stale sweep only catches unclean
-disconnects (crash / proxy drop). Accepted trade-off: a still-connected user
-who is idle (no join/focus) longer than the window can be pruned from other
-users' snapshots until they next act. Deployments should set the threshold at
-or above their proxy websocket idle timeout, since the proxy kills truly-idle
-sockets anyway (firing a clean disconnect).
-"""
-
 import json
 import time
 from typing import Optional
@@ -170,21 +131,14 @@ class PresenceHandler:
         self,
         group_name: str,
         focus: Optional[dict] = None,
-        previous_web_socket_id: Optional[str] = None,
     ) -> list[PresenceSnapshotEntry]:
         """
-        Prune stale entries, purge previous session if reconnecting, upsert
-        this connection's entry, and return the snapshot of *other* present
-        sessions (this connection is excluded).
+        Prune stale entries, upsert this connection's entry, and return the
+        snapshot of *other* present connections (this connection is excluded).
         """
 
         entries, corrupt = await self._read_all_entries(group_name)
         survivors = await self._prune_stale(group_name, entries, corrupt)
-
-        if previous_web_socket_id and previous_web_socket_id in survivors:
-            redis = _get_async_redis()
-            await redis.hdel(self._key(group_name), previous_web_socket_id)
-            del survivors[previous_web_socket_id]
 
         await self._upsert(group_name, focus)
 

@@ -12,9 +12,8 @@ from baserow.ws.presence import PRESENCE_STALE_AFTER_SECONDS, PresenceHandler
 from baserow.ws.presence_focus_types import (
     InvalidPresenceFocus,
     PresenceFocusType,
-    presence_focus_type_registry,
 )
-from baserow.ws.registries import PageType, page_registry
+from baserow.ws.registries import PageType, page_registry, presence_focus_type_registry
 
 GROUP = "test-presence-page-1"
 PRESENCE_KEY = f"presence:{GROUP}"
@@ -530,40 +529,6 @@ async def test_double_subscribe_does_not_broadcast_duplicate_join(
 
     await comm_a.disconnect()
     await comm_b.disconnect()
-
-
-@pytest.mark.asyncio
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.websockets
-async def test_previous_web_socket_id_purges_ghost_entry(data_fixture, presence_types):
-    redis = get_redis_connection("default")
-    ghost_ws_id = "old-ws-id-that-didnt-disconnect"
-    ghost_entry = json.dumps(
-        {"user_id": 42, "focus": None, "last_seen": int(time.time())}
-    )
-    redis.hset(PRESENCE_KEY, ghost_ws_id, ghost_entry)
-
-    user_a, token_a = data_fixture.create_user_and_token()
-    comm_a, ws_a = await _connect(token_a)
-
-    await comm_a.send_json_to(
-        {
-            "type": "realtime_subscribe",
-            "workspace_id": None,
-            "last_seen_id": None,
-            "previous_web_socket_id": ghost_ws_id,
-        }
-    )
-    await comm_a.receive_json_from(timeout=0.5)  # realtime_subscribe_result
-
-    page_add = await _subscribe(comm_a)
-
-    assert redis.hexists(PRESENCE_KEY, ghost_ws_id) is False
-    assert redis.hexists(PRESENCE_KEY, ws_a) is True
-    snapshot_ws_ids = [e["web_socket_id"] for e in page_add["presence_snapshot"]]
-    assert ghost_ws_id not in snapshot_ws_ids
-
-    await comm_a.disconnect()
 
 
 @pytest.mark.asyncio
