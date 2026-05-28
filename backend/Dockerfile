@@ -27,6 +27,87 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 
 
 # =============================================================================
+# Builder for Wasmtime (used to execute untrusted code in a separate WASI process)
+# =============================================================================
+FROM debian:trixie-slim AS wasmtime-builder
+ARG TARGETARCH
+ARG WASMTIME_VERSION=28.0.0
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# hadolint ignore=DL3008
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates curl xz-utils && \
+    case "${TARGETARCH}" in \
+        amd64) WASMTIME_ARCH="x86_64-linux" ;; \
+        arm64) WASMTIME_ARCH="aarch64-linux" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
+    esac && \
+    curl -fsSL \
+        "https://github.com/bytecodealliance/wasmtime/releases/download/v${WASMTIME_VERSION}/wasmtime-v${WASMTIME_VERSION}-${WASMTIME_ARCH}.tar.xz" \
+        -o /tmp/wasmtime.tar.xz && \
+    tar -xJf /tmp/wasmtime.tar.xz -C /tmp && \
+    mv "/tmp/wasmtime-v${WASMTIME_VERSION}-${WASMTIME_ARCH}/wasmtime" /usr/local/bin/wasmtime && \
+    chmod 0755 /usr/local/bin/wasmtime
+
+
+# =============================================================================
+# Builder for QuickJS-NG WASI runtime
+# =============================================================================
+FROM debian:trixie-slim AS quickjs-wasi-builder
+ARG TARGETARCH
+ARG QUICKJS_NG_VERSION=0.15.0
+ARG WASI_SDK_VERSION=27
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# hadolint ignore=DL3008
+RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,target=/var/lib/apt,sharing=locked \
+    apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates cmake curl make tar && \
+    case "${TARGETARCH}" in \
+        amd64) WASI_SDK_ARCH="x86_64" ;; \
+        arm64) WASI_SDK_ARCH="aarch64" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
+    esac && \
+    curl -fsSL \
+        "https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-${WASI_SDK_VERSION}/wasi-sdk-${WASI_SDK_VERSION}.0-${WASI_SDK_ARCH}-linux.tar.gz" \
+        -o /tmp/wasi-sdk.tar.gz && \
+    tar -xzf /tmp/wasi-sdk.tar.gz -C /opt && \
+    mv "/opt/wasi-sdk-${WASI_SDK_VERSION}.0-${WASI_SDK_ARCH}-linux" /opt/wasi-sdk && \
+    curl -fsSL \
+        "https://github.com/quickjs-ng/quickjs/archive/refs/tags/v${QUICKJS_NG_VERSION}.tar.gz" \
+        -o /tmp/quickjs-ng.tar.gz && \
+    mkdir -p /tmp/quickjs-ng && \
+    tar -xzf /tmp/quickjs-ng.tar.gz -C /tmp/quickjs-ng --strip-components=1 && \
+    cmake \
+        -S /tmp/quickjs-ng \
+        -B /tmp/quickjs-ng/build \
+        -DCMAKE_TOOLCHAIN_FILE=/opt/wasi-sdk/share/cmake/wasi-sdk.cmake \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DQJS_BUILD_WERROR=OFF && \
+    cmake --build /tmp/quickjs-ng/build --target qjs_exe --parallel && \
+    mkdir -p /usr/local/lib/baserow && \
+    if [[ -f /tmp/quickjs-ng/build/qjs.wasm ]]; then \
+        cp /tmp/quickjs-ng/build/qjs.wasm /usr/local/lib/baserow/qjs.wasm; \
+    else \
+        cp /tmp/quickjs-ng/build/qjs /usr/local/lib/baserow/qjs.wasm; \
+    fi
+
+
+# =============================================================================
+# Local/export target for code runner artifacts
+# =============================================================================
+FROM scratch AS code-runner-artifacts
+
+COPY --from=wasmtime-builder /usr/local/bin/wasmtime /bin/wasmtime
+COPY --from=quickjs-wasi-builder /usr/local/lib/baserow/qjs.wasm /lib/baserow/qjs.wasm
+
+
+# =============================================================================
 # Production base builder stage: builds runtime dependencies only
 # =============================================================================
 FROM ${PYTHON_BASE_IMAGE} AS builder-prod-base
@@ -201,6 +282,8 @@ RUN groupadd --system --gid $GID ${DOCKER_USER} && \
 
 COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
+COPY --from=wasmtime-builder /usr/local/bin/wasmtime /usr/local/bin/wasmtime
+COPY --from=quickjs-wasi-builder /usr/local/lib/baserow/qjs.wasm /usr/local/lib/baserow/qjs.wasm
 # hadolint ignore=DL3022
 COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
 
@@ -274,6 +357,8 @@ RUN getent group $GID || groupadd --system --gid $GID ${DOCKER_USER} && \
 COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
 COPY --from=tool-builder /usr/bin/dos2unix /usr/local/bin/dos2unix
+COPY --from=wasmtime-builder /usr/local/bin/wasmtime /usr/local/bin/wasmtime
+COPY --from=quickjs-wasi-builder /usr/local/lib/baserow/qjs.wasm /usr/local/lib/baserow/qjs.wasm
 # hadolint ignore=DL3022
 COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
 
@@ -359,6 +444,8 @@ RUN groupadd --system --gid $GID ${DOCKER_USER} && \
 COPY ./backend/docker/mime.types /etc/
 COPY --from=tool-builder /usr/local/bin/su-exec /usr/local/bin/su-exec
 COPY --from=tool-builder /usr/bin/tini /usr/bin/tini
+COPY --from=wasmtime-builder /usr/local/bin/wasmtime /usr/local/bin/wasmtime
+COPY --from=quickjs-wasi-builder /usr/local/lib/baserow/qjs.wasm /usr/local/lib/baserow/qjs.wasm
 
 RUN mkdir -p /baserow/media && chown -R $UID:$GID /baserow/
 

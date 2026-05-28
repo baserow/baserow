@@ -110,9 +110,11 @@ pytest_extra_args := env("PYTEST_EXTRA_ARGS", "")
 # Setup & Installation
 # =============================================================================
 
-# Initialize: create Python venv with uv, lock deps, and install everything
+# Initialize: create Python venv with uv, lock deps, install everything, and
+# prepare local code runner runtime artifacts.
 [group('1 - setup')]
-init: _setup-env _create-venv
+[doc("Initialize backend deps and local code runner runtime artifacts")]
+init: _setup-env _create-venv code-runtime
     uv lock
     uv sync
     @echo ""
@@ -153,9 +155,63 @@ _create-venv:
         echo "Virtual environment already exists at {{ venv_dir }}"
     fi
 
+# Build local code runner runtime artifacts and update .env.local
+[group('1 - setup')]
+[doc("Build local Wasmtime + QuickJS runtime artifacts and update .env.local")]
+code-runtime:
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    RUNTIME_DIR="{{ repo_root }}/.local/code-runtime"
+    ENV_FILE="{{ repo_root }}/.env.local"
+
+    mkdir -p "$RUNTIME_DIR"
+
+    docker build \
+        -f "{{ repo_root }}/backend/Dockerfile" \
+        --target code-runner-artifacts \
+        --output "type=local,dest=$RUNTIME_DIR" \
+        "{{ repo_root }}"
+
+    chmod +x "$RUNTIME_DIR/bin/wasmtime"
+    touch "$ENV_FILE"
+
+    upsert_env() {
+        local key="$1"
+        local value="$2"
+        local tmp
+        tmp="$(mktemp)"
+
+        if grep -q "^${key}=" "$ENV_FILE"; then
+            awk -v key="$key" -v value="$value" '
+                $0 ~ "^" key "=" {
+                    print key "=" value
+                    next
+                }
+                { print }
+            ' "$ENV_FILE" > "$tmp"
+        else
+            cat "$ENV_FILE" > "$tmp"
+            printf "\n%s=%s\n" "$key" "$value" >> "$tmp"
+        fi
+
+        mv "$tmp" "$ENV_FILE"
+    }
+
+    upsert_env \
+        "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE" \
+        "$RUNTIME_DIR/bin/wasmtime"
+    upsert_env \
+        "BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH" \
+        "$RUNTIME_DIR/lib/baserow/qjs.wasm"
+
+    echo "Code runner runtime installed in $RUNTIME_DIR"
+    echo "Updated $ENV_FILE"
+
 # Install dependencies (includes baserow + premium + enterprise via workspace)
 [group('1 - setup')]
-install: _create-venv
+[doc("Install backend deps and local code runner runtime artifacts")]
+install: _create-venv code-runtime
     uv sync
     @echo "Baserow installed successfully!"
 

@@ -25,6 +25,7 @@ help:
     @echo "  Option 1: Local processes (faster hot-reload, requires local Python/Node)"
     @echo "  -------------------------------------------------------------------------"
     @echo "    just init           # First time: install dependencies"
+    @echo "    just b code-runtime # Build local Wasmtime + QuickJS runtime artifacts"
     @echo "    just dev up         # Start all services (Ctrl+C stops everything)"
     @echo "    just dev up -d      # Start in background"
     @echo "    just dev stop       # Stop background services"
