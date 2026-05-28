@@ -1710,7 +1710,7 @@ describe('elementTypes tests', () => {
       ).not.toBeNull()
     })
 
-    test('disallowed north of first content element when a header already exists', async () => {
+    test('allowed north of first content element even when a header already exists', async () => {
       const headerEl = { id: 340, type: 'header' }
       await testApp.$store.dispatch('element/forceCreate', {
         page: sharedPage,
@@ -1723,7 +1723,8 @@ describe('elementTypes tests', () => {
       })
 
       const headerType = testApp.$registry.get('element', 'header')
-      // heading1 is no longer firstVisible — headerEl is (it lives on the shared page above content)
+      // The first content element is always a valid north-of-first position for a header,
+      // regardless of how many headers already exist on the shared page.
       expect(
         headerType.isDisallowedReason({
           builder,
@@ -1733,7 +1734,7 @@ describe('elementTypes tests', () => {
           afterElement: null,
           pagePlace: 'content',
         })
-      ).not.toBeNull()
+      ).toBeNull()
     })
 
     test('allowed north of the existing header itself (on shared page)', async () => {
@@ -1765,7 +1766,7 @@ describe('elementTypes tests', () => {
       ).toBeNull()
     })
 
-    test('disallowed south of the existing header (on shared page)', async () => {
+    test('allowed south of the existing header (on shared page)', async () => {
       const headerEl = { id: 340, type: 'header' }
       await testApp.$store.dispatch('element/forceCreate', {
         page: sharedPage,
@@ -1781,6 +1782,7 @@ describe('elementTypes tests', () => {
       ]([page, sharedPage], headerEl.id)
 
       const headerType = testApp.$registry.get('element', 'header')
+      // The entire header zone is valid for adding more headers — south is allowed.
       expect(
         headerType.isDisallowedReason({
           builder,
@@ -1790,7 +1792,39 @@ describe('elementTypes tests', () => {
           afterElement: storedHeader,
           pagePlace: 'header',
         })
-      ).not.toBeNull()
+      ).toBeNull()
+    })
+
+    test('allowed north of second header — header zone allows any position', async () => {
+      const header1 = { id: 340, type: 'header' }
+      const header2 = { id: 341, type: 'header' }
+      for (const [i, h] of [header1, header2].entries()) {
+        await testApp.$store.dispatch('element/forceCreate', {
+          page: sharedPage,
+          element: {
+            place_in_container: null,
+            ...h,
+            page_id: sharedPage.id,
+            order: `${i + 1}.0000`,
+          },
+        })
+      }
+      const storedHeader2 = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], header2.id)
+
+      const headerType = testApp.$registry.get('element', 'header')
+      // The entire header zone is valid — north of the second header is allowed.
+      expect(
+        headerType.isDisallowedReason({
+          builder,
+          page: sharedPage,
+          parentElement: null,
+          beforeElement: storedHeader2,
+          afterElement: null,
+          pagePlace: 'header',
+        })
+      ).toBeNull()
     })
 
     test('drag-and-drop is unaffected: afterElement absent means modal guard does not fire', () => {
@@ -1891,7 +1925,7 @@ describe('elementTypes tests', () => {
       ).not.toBeNull()
     })
 
-    test('disallowed south of last content element when a footer already exists', async () => {
+    test('allowed south of last content element even when a footer already exists', async () => {
       const footerEl = { id: 440, type: 'footer' }
       await testApp.$store.dispatch('element/forceCreate', {
         page: sharedPage,
@@ -1904,7 +1938,8 @@ describe('elementTypes tests', () => {
       })
 
       const footerType = testApp.$registry.get('element', 'footer')
-      // heading3 is no longer lastVisible — footerEl is (it lives on the shared page below content)
+      // The last content element is always a valid south-of-last position for a footer,
+      // regardless of how many footers already exist on the shared page.
       expect(
         footerType.isDisallowedReason({
           builder,
@@ -1914,7 +1949,7 @@ describe('elementTypes tests', () => {
           afterElement: heading3,
           pagePlace: 'content',
         })
-      ).not.toBeNull()
+      ).toBeNull()
     })
 
     test('allowed south of the existing footer itself (on shared page)', async () => {
@@ -1945,7 +1980,7 @@ describe('elementTypes tests', () => {
       ).toBeNull()
     })
 
-    test('disallowed north of the existing footer (on shared page)', async () => {
+    test('allowed north of the existing footer (on shared page)', async () => {
       const footerEl = { id: 440, type: 'footer' }
       await testApp.$store.dispatch('element/forceCreate', {
         page: sharedPage,
@@ -1961,6 +1996,7 @@ describe('elementTypes tests', () => {
       ]([page, sharedPage], footerEl.id)
 
       const footerType = testApp.$registry.get('element', 'footer')
+      // The entire footer zone is valid for adding more footers — north is allowed.
       expect(
         footerType.isDisallowedReason({
           builder,
@@ -1970,7 +2006,39 @@ describe('elementTypes tests', () => {
           afterElement: null,
           pagePlace: 'footer',
         })
-      ).not.toBeNull()
+      ).toBeNull()
+    })
+
+    test('allowed south of first footer when two footers exist — footer zone allows any position', async () => {
+      const footer1 = { id: 440, type: 'footer' }
+      const footer2 = { id: 441, type: 'footer' }
+      for (const [i, f] of [footer1, footer2].entries()) {
+        await testApp.$store.dispatch('element/forceCreate', {
+          page: sharedPage,
+          element: {
+            place_in_container: null,
+            ...f,
+            page_id: sharedPage.id,
+            order: `${i + 1}.0000`,
+          },
+        })
+      }
+      const storedFooter1 = testApp.$store.getters[
+        'element/getElementByIdInPages'
+      ]([page, sharedPage], footer1.id)
+
+      const footerType = testApp.$registry.get('element', 'footer')
+      // The entire footer zone is valid — south of the first footer is allowed.
+      expect(
+        footerType.isDisallowedReason({
+          builder,
+          page: sharedPage,
+          parentElement: null,
+          beforeElement: null,
+          afterElement: storedFooter1,
+          pagePlace: 'footer',
+        })
+      ).toBeNull()
     })
 
     test('drag-and-drop is unaffected: afterElement absent means modal guard does not fire', () => {

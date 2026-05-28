@@ -88,10 +88,29 @@ export default {
       parentElementId: null,
       pagePlace: null,
       addingElementType: null,
-      initiallyCollapsedCategories: {},
     }
   },
   computed: {
+    initiallyCollapsedCategories() {
+      const result = {}
+      for (const group of this.elementTypes) {
+        if (group.elementTypes.length > 0) {
+          result[group.subject] = group.elementTypes.every((elementType) =>
+            elementType.isDisallowedReason({
+              workspace: this.workspace,
+              builder: this.builder,
+              page: this.page,
+              placeInContainer: this.placeInContainer,
+              parentElement: this.parentElement,
+              beforeElement: this.beforeElement,
+              afterElement: this.afterElement,
+              pagePlace: this.pagePlace,
+            })
+          )
+        }
+      }
+      return result
+    },
     elementTypes() {
       const elementTypesAll = Object.values(this.$registry.getAll('element'))
       const filteredTypes = elementTypesAll.filter((elementType) =>
@@ -228,11 +247,13 @@ export default {
         }
 
         let afterId = this.afterId
+        let afterNulledCrossPage = false
         if (
           this.afterElement &&
           this.afterElement.page_id !== destinationPage.id
         ) {
           afterId = null
+          afterNulledCrossPage = true
         }
 
         if (beforeId) {
@@ -241,6 +262,25 @@ export default {
         } else if (afterId) {
           referenceElementId = afterId
           position = 'south'
+        } else if (
+          afterNulledCrossPage &&
+          this.afterElement?.page_id === this.sharedPage.id
+        ) {
+          // afterElement was on the shared page (e.g. a header) but the new
+          // element goes to the current page (content zone). The cursor is just
+          // south of the header zone, so the element should appear first in the
+          // content zone — north of whatever is currently first there.
+          // Note: when afterElement is on the current page and destination is the
+          // shared page (e.g. adding a footer south of last content), we fall
+          // through to append, which is the correct behaviour for that case.
+          const firstOnDestination =
+            this.$store.getters['element/getRootElements'](destinationPage)[0]
+          if (firstOnDestination) {
+            referenceElementId = firstOnDestination.id
+            position = 'north'
+          }
+          // else: destination page is empty → append (referenceElementId=null,
+          // position='south') is correct.
         }
         // else: referenceElementId=null, position='south' → appends to end
       }

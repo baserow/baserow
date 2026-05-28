@@ -1,4 +1,3 @@
-import BigNumber from 'bignumber.js'
 import { Registerable } from '@baserow/modules/core/registry'
 import TextElement from '@baserow/modules/builder/components/elements/components/TextElement'
 import HeadingElement from '@baserow/modules/builder/components/elements/components/HeadingElement'
@@ -2304,108 +2303,60 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
   }
 
   /**
-   * We can't have this element inside another container. Not allowed outside of HEADER.
-   * We can add id before the first element though.
+   * Allowed positions for a HeaderElement:
+   *   - Anywhere in the HEADER zone (north or south of any existing header).
+   *   - North of the very first element in the CONTENT zone.
+   * Disallowed everywhere else, including inside containers and in the FOOTER zone.
+   * Drag-and-drop uses `referencePagePlace`; the Add Element modal uses `pagePlace`.
    */
   isDisallowedReason({
-    workspace,
     builder,
     page,
-    element,
     parentElement,
     beforeElement,
     afterElement,
-    placeInContainer,
     pagePlace,
     referencePagePlace,
   }) {
     if (parentElement) {
-      // Can't be inserted inside another container
       return this.app.$i18n.t('elementType.notAllowedInsideContainer')
     }
 
-    // Disallow drops when the cursor is hovering over a different page section (e.g. a footer zone).
-    if (referencePagePlace && referencePagePlace !== PAGE_PLACES.HEADER) {
-      return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
-    }
-
-    // Universal modal guard: a header is north-only — it can never be placed south
-    // of anything. `afterElement !== undefined` distinguishes the Add Element modal
-    // from drag-and-drop (drag-and-drop never passes afterElement).
-    if (afterElement !== undefined && afterElement) {
-      return this.app.$i18n.t('elementType.notAllowedLocation')
-    }
-
-    const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
-
-    if (
-      page.id === sharedPage.id &&
-      pagePlace &&
-      pagePlace !== PAGE_PLACES.HEADER
-    ) {
-      // can't be inserted outside of header
-      return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
-    }
-
-    if (page.id === sharedPage.id) {
-      // A header must only follow another header; filter to headers to avoid
-      // elements with lower order values being treated as the preceding element.
-      const rootHeaderElements = this.app.$store.getters[
-        'element/getRootElements'
-      ](sharedPage).filter(
-        (e) =>
-          this.app.$registry.get('element', e.type).getPagePlace() ===
-          PAGE_PLACES.HEADER
-      )
-
-      // Find the last header before beforeElement's order position (or the last header if placing at end).
-      const precedingElement = beforeElement
-        ? rootHeaderElements
-            .slice()
-            .reverse()
-            .find((e) =>
-              new BigNumber(e.order).lt(new BigNumber(beforeElement.order))
-            ) || null
-        : (rootHeaderElements.at(-1) ?? null)
-
-      if (
-        precedingElement &&
-        this.app.$registry
-          .get('element', precedingElement.type)
-          .getPagePlace() !== PAGE_PLACES.HEADER
-      ) {
+    // ── Drag-and-drop context ──
+    // useDropElementTarget never passes afterElement, so afterElement === undefined
+    // is the reliable signal that we're in a D&D drop, not the Add Element modal.
+    if (afterElement === undefined) {
+      if (referencePagePlace && referencePagePlace !== PAGE_PLACES.HEADER) {
         return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
       }
+      return null
     }
 
-    if (page.id !== sharedPage.id && pagePlace === PAGE_PLACES.HEADER) {
-      // A header element is being dragged to the current page content.
+    // ── Modal context ──
+
+    // Footer zone: headers never belong here
+    if (pagePlace === PAGE_PLACES.FOOTER) {
       return this.app.$i18n.t('elementType.notAllowedLocation')
     }
 
-    if (page.id !== sharedPage.id && !parentElement) {
-      // A header must sit north of all content. Disallow if there is content
-      // above the insertion point (afterElement set) or if beforeElement is not
-      // the first visible element across the combined view (existing headers on
-      // the shared page come before content, so they take priority here).
+    // Header zone: always allowed — north or south of any existing header
+    if (pagePlace === PAGE_PLACES.HEADER) {
+      return null
+    }
+
+    // Content zone: header is only allowed north of the FIRST content element
+    if (pagePlace === PAGE_PLACES.CONTENT) {
+      // South of anything in the content zone → disallowed
       if (afterElement) {
         return this.app.$i18n.t('elementType.notAllowedLocation')
       }
+      // North of a content element → only the very first element is valid
       if (beforeElement) {
-        const rootHeaderElements = this.app.$store.getters[
-          'element/getRootElements'
-        ](sharedPage).filter(
-          (e) =>
-            this.app.$registry.get('element', e.type).getPagePlace() ===
-            PAGE_PLACES.HEADER
-        )
-        const firstVisibleElement =
-          rootHeaderElements[0] ??
-          this.app.$store.getters['element/getRootElements'](page)[0] ??
-          null
+        const firstContentElement =
+          this.app.$store.getters['element/getRootElements'](page)[0] ?? null
         if (
-          !firstVisibleElement ||
-          beforeElement.id !== firstVisibleElement.id
+          !firstContentElement ||
+          beforeElement.id !== firstContentElement.id
         ) {
           return this.app.$i18n.t('elementType.notAllowedLocation')
         }
@@ -2454,100 +2405,59 @@ export class FooterElementType extends HeaderElementType {
   }
 
   /**
-   * We can't have this element inside another container. Not allowed outside of FOOTER.
-   * We can add id after the element of the page though.
+   * Allowed positions for a FooterElement:
+   *   - Anywhere in the FOOTER zone (north or south of any existing footer).
+   *   - South of the very last element in the CONTENT zone.
+   * Disallowed everywhere else, including inside containers and in the HEADER zone.
+   * Drag-and-drop uses `referencePagePlace`; the Add Element modal uses `pagePlace`.
    */
   isDisallowedReason({
-    workspace,
     builder,
     page,
-    element,
     parentElement,
     beforeElement,
     afterElement,
-    placeInContainer,
     pagePlace,
     referencePagePlace,
   }) {
     if (parentElement) {
-      // Can't be inserted inside another container
       return this.app.$i18n.t('elementType.notAllowedInsideContainer')
     }
 
-    // Disallow drops when the cursor is hovering over a different page section (e.g. a header zone).
-    if (referencePagePlace && referencePagePlace !== PAGE_PLACES.FOOTER) {
-      return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
-    }
-
-    // Universal modal guard: a footer is south-only — it can never be placed north
-    // of anything. `afterElement !== undefined` distinguishes the Add Element modal
-    // from drag-and-drop (drag-and-drop never passes afterElement).
-    if (afterElement !== undefined && beforeElement) {
-      return this.app.$i18n.t('elementType.notAllowedLocation')
-    }
-
-    const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
-    if (
-      page.id === sharedPage.id &&
-      pagePlace &&
-      pagePlace !== PAGE_PLACES.FOOTER
-    ) {
-      // can't be inserted outside of footer
-      return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
-    }
-
-    if (page.id === sharedPage.id) {
-      // A footer must only precede another footer; filter to footers to avoid
-      // elements with higher order values being treated as the next element.
-      const rootFooterElements = this.app.$store.getters[
-        'element/getRootElements'
-      ](sharedPage).filter(
-        (e) =>
-          this.app.$registry.get('element', e.type).getPagePlace() ===
-          PAGE_PLACES.FOOTER
-      )
-
-      // Find the first footer at or after beforeElement's order position.
-      const nextFooterElement = beforeElement
-        ? rootFooterElements.find((e) =>
-            new BigNumber(e.order).gte(new BigNumber(beforeElement.order))
-          ) || null
-        : null
-
-      if (nextFooterElement && nextFooterElement.id !== beforeElement?.id) {
-        // There is a footer at or after `beforeElement`, but `beforeElement` itself
-        // is not a footer — inserting here would place the footer before non-footer
-        // content that still precedes another footer.
+    // ── Drag-and-drop context ──
+    // useDropElementTarget never passes afterElement, so afterElement === undefined
+    // is the reliable signal that we're in a D&D drop, not the Add Element modal.
+    if (afterElement === undefined) {
+      if (referencePagePlace && referencePagePlace !== PAGE_PLACES.FOOTER) {
         return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
       }
+      return null
     }
 
-    if (page.id !== sharedPage.id && pagePlace === PAGE_PLACES.FOOTER) {
-      // A footer element is being dragged to the current page content.
+    // ── Modal context ──
+
+    // Header zone: footers never belong here
+    if (pagePlace === PAGE_PLACES.HEADER) {
       return this.app.$i18n.t('elementType.notAllowedLocation')
     }
 
-    if (page.id !== sharedPage.id && !parentElement) {
-      // A footer must sit south of all content. Disallow if there is content
-      // below the insertion point (beforeElement set) or if afterElement is not
-      // the last visible element across the combined view (existing footers on
-      // the shared page come after content, so they take priority here).
+    // Footer zone: always allowed — north or south of any existing footer
+    if (pagePlace === PAGE_PLACES.FOOTER) {
+      return null
+    }
+
+    // Content zone: footer is only allowed south of the LAST content element
+    if (pagePlace === PAGE_PLACES.CONTENT) {
+      // North of anything in the content zone → disallowed
       if (beforeElement) {
         return this.app.$i18n.t('elementType.notAllowedLocation')
       }
+      // South of a content element → only the very last element is valid
       if (afterElement) {
-        const rootFooterElements = this.app.$store.getters[
-          'element/getRootElements'
-        ](sharedPage).filter(
-          (e) =>
-            this.app.$registry.get('element', e.type).getPagePlace() ===
-            PAGE_PLACES.FOOTER
-        )
-        const lastVisibleElement =
-          rootFooterElements.at(-1) ??
+        const lastContentElement =
           this.app.$store.getters['element/getRootElements'](page).at(-1) ??
           null
-        if (!lastVisibleElement || afterElement.id !== lastVisibleElement.id) {
+        if (!lastContentElement || afterElement.id !== lastContentElement.id) {
           return this.app.$i18n.t('elementType.notAllowedLocation')
         }
       }
