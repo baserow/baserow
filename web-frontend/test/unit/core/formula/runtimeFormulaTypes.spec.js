@@ -5,6 +5,7 @@ import {
   RuntimeCapitalize,
   RuntimeConcat,
   RuntimeToDuration,
+  RuntimeDurationFormat,
   RuntimeDateTimeFormat,
   RuntimeDay,
   RuntimeDivide,
@@ -2168,6 +2169,109 @@ describe('RuntimeToDuration', () => {
     expect(() => formulaType.validateArgs(['not a duration', 'h:mm'])).toThrow(
       "'not a duration' could not be parsed using format 'h:mm'."
     )
+  })
+})
+
+describe('RuntimeDurationFormat', () => {
+  const MS_IN_SEC = 1000
+  const MS_IN_MIN = 60 * MS_IN_SEC
+  const MS_IN_HOUR = 60 * MS_IN_MIN
+  const MS_IN_DAY = 24 * MS_IN_HOUR
+
+  test.each([
+    {
+      args: [new Timedelta(MS_IN_HOUR + 30 * MS_IN_MIN), 'h:mm'],
+      expected: '1:30',
+    },
+    {
+      args: [
+        new Timedelta(MS_IN_HOUR + 23 * MS_IN_MIN + 45 * MS_IN_SEC),
+        'h:mm:ss',
+      ],
+      expected: '1:23:45',
+    },
+    {
+      args: [
+        new Timedelta(
+          2 * MS_IN_DAY + 3 * MS_IN_HOUR + 4 * MS_IN_MIN + 5 * MS_IN_SEC
+        ),
+        'd h:mm:ss',
+      ],
+      expected: '2 3:04:05',
+    },
+    // rollup variations
+    {
+      args: [new Timedelta(MS_IN_HOUR + 30 * MS_IN_MIN), 'mm:ss'],
+      expected: '90:00',
+    },
+    {
+      args: [new Timedelta(25 * MS_IN_HOUR + 30 * MS_IN_MIN), 'h:mm'],
+      expected: '25:30',
+    },
+    {
+      args: [new Timedelta(25 * MS_IN_HOUR + 30 * MS_IN_MIN), 'd h:mm'],
+      expected: '1 1:30',
+    },
+    // negative durations
+    {
+      args: [new Timedelta(-(MS_IN_HOUR + 30 * MS_IN_MIN)), 'h:mm'],
+      expected: '-1:30',
+    },
+    // zero
+    { args: [new Timedelta(0), 'h:mm'], expected: '0:00' },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeDurationFormat()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toBe(expected)
+  })
+
+  test('execute returns null for null duration', () => {
+    // The Duration argument type's parse() would reject null, but if a null
+    // value ever reaches execute() (e.g. via direct invocation) we expect null.
+    const formulaType = new RuntimeDurationFormat()
+    const result = formulaType.execute({}, [null, 'h:mm'])
+    expect(result).toBeNull()
+  })
+
+  test.each([
+    { args: [new Timedelta(MS_IN_HOUR), 'h:mm'], expected: [] },
+    { args: [new Timedelta(0), 'd h:mm:ss'], expected: [] },
+    // arg 0 invalid: not a duration-coercible value
+    {
+      args: ['not a duration', 'h:mm'],
+      expected: [[0, 'not a duration']],
+    },
+    { args: [null, 'h:mm'], expected: [[0, null]] },
+    // arg 1 invalid: bad format string
+    {
+      args: [new Timedelta(MS_IN_HOUR), ':::'],
+      expected: [[1, ':::']],
+    },
+    {
+      args: [new Timedelta(MS_IN_HOUR), 'h h'],
+      expected: [[1, 'h h']],
+    },
+    { args: [new Timedelta(MS_IN_HOUR), ''], expected: [[1, '']] },
+    { args: [new Timedelta(MS_IN_HOUR), 123], expected: [[1, 123]] },
+  ])('validates type of args', ({ args, expected }) => {
+    const formulaType = new RuntimeDurationFormat()
+    const result = formulaType.validateTypeOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: [new Timedelta(MS_IN_HOUR)], expected: false },
+    { args: [new Timedelta(MS_IN_HOUR), 'h:mm'], expected: true },
+    {
+      args: [new Timedelta(MS_IN_HOUR), 'h:mm', 'extra'],
+      expected: false,
+    },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeDurationFormat()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toBe(expected)
   })
 })
 

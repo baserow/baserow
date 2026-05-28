@@ -4,6 +4,7 @@ from datetime import timedelta
 import pytest
 
 from baserow.core.duration import (
+    format_value_with_duration_format,
     is_valid_duration_format,
     parse_value_with_duration_format,
     tokenize_duration_format,
@@ -178,3 +179,89 @@ class TestParseValueWithDurationFormat:
     )
     def test_returns_none_for_invalid_input(self, value, format_str):
         assert parse_value_with_duration_format(value, format_str) is None
+
+
+class TestFormatValueWithDurationFormat:
+    @pytest.mark.parametrize(
+        "duration,format_str,expected",
+        [
+            (timedelta(hours=1, minutes=30), "h:mm", "1:30"),
+            (
+                timedelta(hours=1, minutes=23, seconds=45),
+                "h:mm:ss",
+                "1:23:45",
+            ),
+            (
+                timedelta(days=2, hours=3, minutes=4, seconds=5),
+                "d h:mm:ss",
+                "2 3:04:05",
+            ),
+            (timedelta(days=3, hours=4), "d h", "3 4"),
+            # h-only rollup: 1d 2h → 26 total hours
+            (timedelta(days=1, hours=2), "h", "26"),
+            # mm-only rollup: 1h 30m → 90 total minutes (zero-padded by mm)
+            (timedelta(hours=1, minutes=30), "mm", "90"),
+            # mm:ss rollup: 1h 30m → 90 minutes, 0 seconds
+            (timedelta(hours=1, minutes=30), "mm:ss", "90:00"),
+            # ss-only rollup: 5m → 300 total seconds
+            (timedelta(minutes=5), "ss", "300"),
+            # within-day hours when d is present: 25h → 1d 1h
+            (timedelta(hours=25, minutes=30), "d h:mm", "1 1:30"),
+            # without d, hours roll up: 25h → 25 total hours
+            (timedelta(hours=25, minutes=30), "h:mm", "25:30"),
+            # negative values get a leading minus
+            (-timedelta(hours=1, minutes=30), "h:mm", "-1:30"),
+            (-timedelta(hours=1, minutes=30), "mm:ss", "-90:00"),
+            # zero in every position
+            (timedelta(0), "h:mm", "0:00"),
+            (timedelta(0), "d h:mm:ss", "0 0:00:00"),
+            # two-char tokens are zero-padded; one-char tokens are not
+            (timedelta(hours=1, minutes=5), "h:mm", "1:05"),
+            (timedelta(hours=1, minutes=5), "hh:mm", "01:05"),
+            # arbitrary literal chars are preserved
+            (timedelta(days=2, hours=5), "d|h.", "2|5."),
+            # sub-second precision is truncated
+            (timedelta(seconds=1, milliseconds=500), "s", "1"),
+        ],
+    )
+    def test_formats_valid_durations(self, duration, format_str, expected):
+        assert format_value_with_duration_format(duration, format_str) == expected
+
+    @pytest.mark.parametrize(
+        "duration,format_str",
+        [
+            # non-timedelta values
+            (None, "h:mm"),
+            (1, "h:mm"),
+            (1.5, "h:mm"),
+            ("1:30", "h:mm"),
+            ([], "h:mm"),
+            ({}, "h:mm"),
+            # invalid format strings
+            (timedelta(hours=1), None),
+            (timedelta(hours=1), ""),
+            (timedelta(hours=1), "h:h"),
+            (timedelta(hours=1), 123),
+            (timedelta(hours=1), ":::"),
+        ],
+    )
+    def test_returns_none_for_invalid_input(self, duration, format_str):
+        assert format_value_with_duration_format(duration, format_str) is None
+
+    @pytest.mark.parametrize(
+        "duration,format_str",
+        [
+            (timedelta(hours=1, minutes=30), "h:mm"),
+            (timedelta(hours=1, minutes=23, seconds=45), "h:mm:ss"),
+            (
+                timedelta(days=2, hours=3, minutes=4, seconds=5),
+                "d h:mm:ss",
+            ),
+            (-timedelta(hours=1, minutes=30), "h:mm"),
+            (timedelta(hours=25, minutes=30), "h:mm"),
+            (timedelta(hours=1, minutes=30), "mm:ss"),
+        ],
+    )
+    def test_parsed_format_returns_correct_duration(self, duration, format_str):
+        formatted = format_value_with_duration_format(duration, format_str)
+        assert parse_value_with_duration_format(formatted, format_str) == duration

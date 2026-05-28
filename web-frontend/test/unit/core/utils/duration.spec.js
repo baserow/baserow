@@ -1,5 +1,6 @@
 import {
   Timedelta,
+  formatValueWithDurationFormat,
   isValidDurationFormat,
   parseValueWithDurationFormat,
   tokenizeDurationFormat,
@@ -163,6 +164,102 @@ describe('parseValueWithDurationFormat', () => {
     ]
     test.each(cases)('value %p with format %p', (value, formatStr) => {
       expect(parseValueWithDurationFormat(value, formatStr)).toBeNull()
+    })
+  })
+})
+
+describe('formatValueWithDurationFormat', () => {
+  describe('valid durations', () => {
+    const cases = [
+      [new Timedelta(MS_IN_HOUR + 30 * MS_IN_MIN), 'h:mm', '1:30'],
+      [
+        new Timedelta(MS_IN_HOUR + 23 * MS_IN_MIN + 45 * MS_IN_SEC),
+        'h:mm:ss',
+        '1:23:45',
+      ],
+      [
+        new Timedelta(
+          2 * MS_IN_DAY + 3 * MS_IN_HOUR + 4 * MS_IN_MIN + 5 * MS_IN_SEC
+        ),
+        'd h:mm:ss',
+        '2 3:04:05',
+      ],
+      [new Timedelta(3 * MS_IN_DAY + 4 * MS_IN_HOUR), 'd h', '3 4'],
+      // h-only rollup: 1d 2h → 26 total hours
+      [new Timedelta(MS_IN_DAY + 2 * MS_IN_HOUR), 'h', '26'],
+      // mm-only rollup: 1h 30m → 90 total minutes
+      [new Timedelta(MS_IN_HOUR + 30 * MS_IN_MIN), 'mm', '90'],
+      // mm:ss rollup: 1h 30m → 90 minutes, 0 seconds
+      [new Timedelta(MS_IN_HOUR + 30 * MS_IN_MIN), 'mm:ss', '90:00'],
+      // ss-only rollup: 5m → 300 total seconds
+      [new Timedelta(5 * MS_IN_MIN), 'ss', '300'],
+      // within-day hours when d is present: 25h → 1d 1h
+      [new Timedelta(25 * MS_IN_HOUR + 30 * MS_IN_MIN), 'd h:mm', '1 1:30'],
+      // without d, hours roll up: 25h → 25 total hours
+      [new Timedelta(25 * MS_IN_HOUR + 30 * MS_IN_MIN), 'h:mm', '25:30'],
+      // negative values get a leading minus
+      [new Timedelta(-(MS_IN_HOUR + 30 * MS_IN_MIN)), 'h:mm', '-1:30'],
+      [new Timedelta(-(MS_IN_HOUR + 30 * MS_IN_MIN)), 'mm:ss', '-90:00'],
+      // zero
+      [new Timedelta(0), 'h:mm', '0:00'],
+      [new Timedelta(0), 'd h:mm:ss', '0 0:00:00'],
+      // two-char tokens are zero-padded; one-char are not
+      [new Timedelta(MS_IN_HOUR + 5 * MS_IN_MIN), 'h:mm', '1:05'],
+      [new Timedelta(MS_IN_HOUR + 5 * MS_IN_MIN), 'hh:mm', '01:05'],
+      // arbitrary literal chars are preserved
+      [new Timedelta(2 * MS_IN_DAY + 5 * MS_IN_HOUR), 'd|h.', '2|5.'],
+      // sub-second precision is truncated
+      [new Timedelta(1500), 's', '1'],
+    ]
+    test.each(cases)(
+      'formats %p with format %s as %s',
+      (value, formatStr, expected) => {
+        expect(formatValueWithDurationFormat(value, formatStr)).toBe(expected)
+      }
+    )
+  })
+
+  describe('invalid input returns null', () => {
+    const cases = [
+      // non-Timedelta values
+      [null, 'h:mm'],
+      [undefined, 'h:mm'],
+      [1, 'h:mm'],
+      [1.5, 'h:mm'],
+      ['1:30', 'h:mm'],
+      [[], 'h:mm'],
+      [{}, 'h:mm'],
+      // invalid format strings
+      [new Timedelta(MS_IN_HOUR), null],
+      [new Timedelta(MS_IN_HOUR), undefined],
+      [new Timedelta(MS_IN_HOUR), ''],
+      [new Timedelta(MS_IN_HOUR), 'h:h'],
+      [new Timedelta(MS_IN_HOUR), 123],
+      [new Timedelta(MS_IN_HOUR), ':::'],
+    ]
+    test.each(cases)('value %p with format %p', (value, formatStr) => {
+      expect(formatValueWithDurationFormat(value, formatStr)).toBeNull()
+    })
+  })
+
+  describe('parsed format returns correct duration', () => {
+    const cases = [
+      [new Timedelta(MS_IN_HOUR + 30 * MS_IN_MIN), 'h:mm'],
+      [new Timedelta(MS_IN_HOUR + 23 * MS_IN_MIN + 45 * MS_IN_SEC), 'h:mm:ss'],
+      [
+        new Timedelta(
+          2 * MS_IN_DAY + 3 * MS_IN_HOUR + 4 * MS_IN_MIN + 5 * MS_IN_SEC
+        ),
+        'd h:mm:ss',
+      ],
+      [new Timedelta(-(MS_IN_HOUR + 30 * MS_IN_MIN)), 'h:mm'],
+      [new Timedelta(25 * MS_IN_HOUR + 30 * MS_IN_MIN), 'h:mm'],
+      [new Timedelta(MS_IN_HOUR + 30 * MS_IN_MIN), 'mm:ss'],
+    ]
+    test.each(cases)('%p with %s', (duration, formatStr) => {
+      const formatted = formatValueWithDurationFormat(duration, formatStr)
+      const reparsed = parseValueWithDurationFormat(formatted, formatStr)
+      expect(reparsed).toStrictEqual(duration)
     })
   })
 })

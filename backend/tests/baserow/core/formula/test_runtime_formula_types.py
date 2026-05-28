@@ -18,6 +18,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeDateTimeFormat,
     RuntimeDay,
     RuntimeDivide,
+    RuntimeDurationFormat,
     RuntimeEqual,
     RuntimeGenerateUUID,
     RuntimeGet,
@@ -2637,6 +2638,74 @@ def test_runtime_to_duration_validate_args_raises_when_value_does_not_match_form
     with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
         RuntimeToDuration().validate_args(["not a duration", "h:mm"])
     assert "could not be parsed using format 'h:mm'" in str(exc_info.value)
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([timedelta(hours=1, minutes=30), "h:mm"], "1:30"),
+        (
+            [timedelta(hours=1, minutes=23, seconds=45), "h:mm:ss"],
+            "1:23:45",
+        ),
+        (
+            [timedelta(days=2, hours=3, minutes=4, seconds=5), "d h:mm:ss"],
+            "2 3:04:05",
+        ),
+        # rollup variations
+        ([timedelta(hours=1, minutes=30), "mm:ss"], "90:00"),
+        ([timedelta(hours=25, minutes=30), "h:mm"], "25:30"),
+        ([timedelta(hours=25, minutes=30), "d h:mm"], "1 1:30"),
+        # negative durations
+        ([-timedelta(hours=1, minutes=30), "h:mm"], "-1:30"),
+        # zero duration
+        ([timedelta(0), "h:mm"], "0:00"),
+    ],
+)
+def test_runtime_duration_format_execute(args, expected):
+    parsed_args = RuntimeDurationFormat().parse_args(args)
+    result = RuntimeDurationFormat().execute({}, parsed_args)
+    assert result == expected
+
+
+def test_runtime_duration_format_execute_returns_none_for_null_duration():
+    result = RuntimeDurationFormat().execute({}, [None, "h:mm"])
+    assert result is None
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([timedelta(hours=1), "h:mm"], []),
+        ([timedelta(0), "d h:mm:ss"], []),
+        # arg 0 must be a duration/timedelta-coercible value
+        (["not a duration", "h:mm"], [(0, "not a duration")]),
+        ([123, "h:mm"], []),
+        ([None, "h:mm"], [(0, None)]),
+        # arg 1 must be a valid format string
+        ([timedelta(hours=1), ":::"], [(1, ":::")]),
+        ([timedelta(hours=1), "h h"], [(1, "h h")]),
+        ([timedelta(hours=1), ""], [(1, "")]),
+        ([timedelta(hours=1), 123], [(1, 123)]),
+    ],
+)
+def test_runtime_duration_format_validate_type_of_args(args, expected):
+    result = RuntimeDurationFormat().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        ([timedelta(hours=1)], False),
+        ([timedelta(hours=1), "h:mm"], True),
+        ([timedelta(hours=1), "h:mm", "extra"], False),
+    ],
+)
+def test_runtime_duration_format_validate_number_of_args(args, expected):
+    result = RuntimeDurationFormat().validate_number_of_args(args)
+    assert result is expected
 
 
 @pytest.mark.parametrize(
