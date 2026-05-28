@@ -313,7 +313,7 @@ export class RuntimeGet extends RuntimeFormulaFunction {
   }
 
   static getCategoryType() {
-    return FORMULA_CATEGORY.TEXT
+    return FORMULA_CATEGORY.UTILITY
   }
 
   get args() {
@@ -1701,7 +1701,7 @@ export class RuntimeGetProperty extends RuntimeFormulaFunction {
   }
 
   static getCategoryType() {
-    return FORMULA_CATEGORY.TEXT
+    return FORMULA_CATEGORY.UTILITY
   }
 
   get args() {
@@ -1856,7 +1856,7 @@ export class RuntimeGenerateUUID extends RuntimeFormulaFunction {
   }
 
   static getCategoryType() {
-    return FORMULA_CATEGORY.TEXT
+    return FORMULA_CATEGORY.UTILITY
   }
 
   get args() {
@@ -2075,7 +2075,7 @@ export class RuntimeLength extends RuntimeFormulaFunction {
   }
 
   static getCategoryType() {
-    return FORMULA_CATEGORY.TEXT
+    return FORMULA_CATEGORY.UTILITY
   }
 
   get args() {
@@ -2123,7 +2123,7 @@ export class RuntimeContains extends RuntimeFormulaFunction {
   }
 
   static getCategoryType() {
-    return FORMULA_CATEGORY.TEXT
+    return FORMULA_CATEGORY.UTILITY
   }
 
   get args() {
@@ -2177,7 +2177,7 @@ export class RuntimeReverse extends RuntimeFormulaFunction {
   }
 
   static getCategoryType() {
-    return FORMULA_CATEGORY.TEXT
+    return FORMULA_CATEGORY.UTILITY
   }
 
   get args() {
@@ -2333,7 +2333,7 @@ export class RuntimeIsEmpty extends RuntimeFormulaFunction {
   }
 
   static getCategoryType() {
-    return FORMULA_CATEGORY.BOOLEAN
+    return FORMULA_CATEGORY.UTILITY
   }
 
   get args() {
@@ -2529,7 +2529,7 @@ export class RuntimeAt extends RuntimeFormulaFunction {
   }
 
   static getCategoryType() {
-    return FORMULA_CATEGORY.TEXT
+    return FORMULA_CATEGORY.UTILITY
   }
 
   get args() {
@@ -2621,7 +2621,7 @@ export class RuntimeNull extends RuntimeFormulaFunction {
   }
 
   static getCategoryType() {
-    return FORMULA_CATEGORY.TEXT
+    return FORMULA_CATEGORY.UTILITY
   }
 
   get args() {

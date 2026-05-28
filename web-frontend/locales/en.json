@@ -711,7 +711,8 @@
     "categoryNumber": "Number",
     "categoryBoolean": "Boolean",
     "categoryDate": "Date",
-    "categoryCondition": "Condition"
+    "categoryCondition": "Condition",
+    "categoryUtility": "Utility"
   },
   "runtimeFormulaTypeErrors": {
     "invalidTimezone": "'{value}' is not a valid timezone. Use a valid IANA timezone (e.g. 'Europe/Amsterdam').",
