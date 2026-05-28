@@ -2532,6 +2532,7 @@ def test_runtime_number_format_validate_args_raises_human_readable_error_for_bad
 @pytest.mark.parametrize(
     "args,expected",
     [
+        # Single-arg form: delegates to DurationBaserowRuntimeFormulaArgumentType.parse()
         (["1 day"], timedelta(days=1)),
         (["2 days"], timedelta(days=2)),
         (["3 weeks"], timedelta(weeks=3)),
@@ -2550,6 +2551,17 @@ def test_runtime_number_format_validate_args_raises_human_readable_error_for_bad
         (["12.5"], timedelta(seconds=12.5)),
         (["0 days"], timedelta(0)),
         (["-1:30"], timedelta(seconds=-90)),
+        # Two-arg form: value + format string
+        (["1:30", "h:mm"], timedelta(hours=1, minutes=30)),
+        (
+            ["1:23:45", "h:mm:ss"],
+            timedelta(hours=1, minutes=23, seconds=45),
+        ),
+        (
+            ["2 3:04:05", "d h:mm:ss"],
+            timedelta(days=2, hours=3, minutes=4, seconds=5),
+        ),
+        (["-1:30", "h:mm"], -timedelta(hours=1, minutes=30)),
     ],
 )
 def test_runtime_to_duration_execute(args, expected):
@@ -2558,17 +2570,42 @@ def test_runtime_to_duration_execute(args, expected):
     assert result == expected
 
 
+def test_runtime_to_duration_execute_raises_for_timedelta_with_format():
+    # At runtime, arg 0 may resolve to a timedelta (e.g. via a get() on a
+    # duration field), in which case applying a format doesn't make sense.
+    parsed_args = RuntimeToDuration().parse_args([timedelta(hours=1), "h:mm"])
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToDuration().execute({}, parsed_args)
+    assert "A duration format cannot be applied to a timedelta" in str(exc_info.value)
+
+
+def test_runtime_to_duration_execute_raises_when_value_does_not_match_format():
+    parsed_args = RuntimeToDuration().parse_args(["not a duration", "h:mm"])
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToDuration().execute({}, parsed_args)
+    assert "could not be parsed using format 'h:mm'" in str(exc_info.value)
+
+
 @pytest.mark.parametrize(
     "args,expected",
     [
-        # Valid duration strings — arg passes
+        # Single-arg form
         (["1 day"], []),
         (["2 days"], []),
         ([1], []),
-        # Invalid strings — arg is returned as invalid
+        # Invalid single-arg — arg is returned as invalid
         (["foo"], [(0, "foo")]),
         ([""], [(0, "")]),
         ([None], [(0, None)]),
+        # Two-arg form: arg 0 check is deferred to validate_args(), so any
+        # arg 0 is accepted at this stage when the format is valid.
+        (["1:30", "h:mm"], []),
+        (["whatever", "h:mm"], []),
+        # Invalid format strings → arg 1 reported as invalid
+        (["1:30", ":::"], [(1, ":::")]),
+        (["1:30", "h h"], [(1, "h h")]),
+        (["1:30", ""], [(1, "")]),
+        (["1:30", 123], [(1, 123)]),
     ],
 )
 def test_runtime_to_duration_validate_type_of_args(args, expected):
@@ -2581,12 +2618,25 @@ def test_runtime_to_duration_validate_type_of_args(args, expected):
     [
         ([], False),
         (["1 day"], True),
-        (["1 day", "extra"], False),
+        (["1 day", "h:mm"], True),
+        (["1 day", "h:mm", "extra"], False),
     ],
 )
 def test_runtime_to_duration_validate_number_of_args(args, expected):
     result = RuntimeToDuration().validate_number_of_args(args)
     assert result is expected
+
+
+def test_runtime_to_duration_validate_args_raises_for_timedelta_with_format():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToDuration().validate_args([timedelta(hours=1), "h:mm"])
+    assert "A duration format cannot be applied to a timedelta" in str(exc_info.value)
+
+
+def test_runtime_to_duration_validate_args_raises_when_value_does_not_match_format():
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToDuration().validate_args(["not a duration", "h:mm"])
+    assert "could not be parsed using format 'h:mm'" in str(exc_info.value)
 
 
 @pytest.mark.parametrize(
