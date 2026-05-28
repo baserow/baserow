@@ -100,6 +100,65 @@ export const parseValueWithDurationFormat = (value, formatStr) => {
   return new Timedelta(ms)
 }
 
+// Keep in sync with duration.py::format_value_with_duration_format
+export const formatValueWithDurationFormat = (value, formatStr) => {
+  if (!(value instanceof Timedelta)) return null
+  const tokenized = tokenizeDurationFormat(formatStr)
+  if (tokenized === null) return null
+
+  const fieldSet = new Set(tokenized.fields)
+  const negative = value.ms < 0
+  const totalSeconds = Math.trunc(Math.abs(value.ms) / 1000)
+
+  let days = 0
+  let hours = 0
+  let minutes = 0
+  let seconds = 0
+  if (fieldSet.has('days')) {
+    days = Math.trunc(totalSeconds / SECS_IN_DAY)
+  }
+  if (fieldSet.has('hours')) {
+    hours = fieldSet.has('days')
+      ? Math.trunc((totalSeconds % SECS_IN_DAY) / SECS_IN_HOUR)
+      : Math.trunc(totalSeconds / SECS_IN_HOUR)
+  }
+  if (fieldSet.has('minutes')) {
+    minutes =
+      fieldSet.has('hours') || fieldSet.has('days')
+        ? Math.trunc((totalSeconds % SECS_IN_HOUR) / SECS_IN_MIN)
+        : Math.trunc(totalSeconds / SECS_IN_MIN)
+  }
+  if (fieldSet.has('seconds')) {
+    seconds =
+      fieldSet.has('minutes') || fieldSet.has('hours') || fieldSet.has('days')
+        ? totalSeconds % SECS_IN_MIN
+        : totalSeconds
+  }
+
+  const fieldValues = { days, hours, minutes, seconds }
+  const out = []
+  let i = 0
+  while (i < formatStr.length) {
+    let matched = false
+    for (const [token, field] of DURATION_FORMAT_TOKENS) {
+      if (formatStr.startsWith(token, i)) {
+        const v = fieldValues[field]
+        out.push(token.length === 2 ? String(v).padStart(2, '0') : String(v))
+        i += token.length
+        matched = true
+        break
+      }
+    }
+    if (!matched) {
+      out.push(formatStr[i])
+      i += 1
+    }
+  }
+
+  const result = out.join('')
+  return negative ? `-${result}` : result
+}
+
 const DURATION_PATTERNS = [
   { regex: /^(\d+)\s+years?$/i, unit: 'days', factor: 365 },
   { regex: /^(\d+)\s+months?$/i, unit: 'days', factor: 30 },

@@ -7,7 +7,10 @@ from zoneinfo import ZoneInfo
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
-from baserow.core.duration import parse_value_with_duration_format
+from baserow.core.duration import (
+    format_value_with_duration_format,
+    parse_value_with_duration_format,
+)
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula import BaserowFormulaSyntaxError
 from baserow.core.formula.argument_types import (
@@ -791,6 +794,21 @@ class RuntimeToDuration(RuntimeFormulaFunction):
             return result
 
         return args[0]
+
+
+class RuntimeDurationFormat(RuntimeFormulaFunction):
+    type = "duration_format"
+
+    args = [
+        DurationBaserowRuntimeFormulaArgumentType(),
+        DurationFormatBaserowRuntimeFormulaArgumentType(),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        duration, duration_format = args
+        if duration is None:
+            return None
+        return format_value_with_duration_format(duration, duration_format)
 
 
 class RuntimeToDatetime(RuntimeFormulaFunction):

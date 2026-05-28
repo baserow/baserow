@@ -702,6 +702,7 @@
     "numberFormatDescription": "Formats a number as a string with configurable decimal places, thousand separator, and decimal separator.",
     "toDatetimeDescription": "Parses a string into a datetime object. An optional second argument specifies the format (e.g. 'DD/MM/YYYY'). If omitted, ISO 8601 format is assumed.",
     "toDurationDescription": "Returns the duration corresponding to the provided argument.",
+    "durationFormatDescription": "Formats a duration as text using a format string with tokens 'd' (days), 'h' (hours), 'm' (minutes), 's' (seconds), e.g. 'h:mm', 'd h:mm:ss'.",
     "formulaTypeFormula": "Function | Functions",
     "formulaTypeOperator": "Operator | Operators",
     "formulaTypeData": "Data",

@@ -129,6 +129,90 @@ def parse_value_with_duration_format(
     return -delta if negative else delta
 
 
+# Keep in sync with duration.js::formatValueWithDurationFormat
+def format_value_with_duration_format(
+    duration: timedelta, format_str: object
+) -> Optional[str]:
+    """
+    Format a timedelta into a string using a token-based format.
+
+    Returns the formatted string, or None if format_str is invalid or
+    duration is not a timedelta.
+    """
+
+    if not isinstance(duration, timedelta):
+        return None
+
+    tokenized = tokenize_duration_format(format_str)
+    if tokenized is None:
+        return None
+
+    _, fields = tokenized
+    field_set = set(fields)
+
+    negative = duration < timedelta(0)
+    abs_duration = -duration if negative else duration
+    total_seconds = int(abs_duration.total_seconds())
+
+    if "days" in field_set:
+        days = total_seconds // 86400
+    else:
+        days = 0
+
+    if "hours" in field_set:
+        if "days" in field_set:
+            hours = (total_seconds % 86400) // 3600
+        else:
+            hours = total_seconds // 3600
+    else:
+        hours = 0
+
+    if "minutes" in field_set:
+        if "hours" in field_set or "days" in field_set:
+            minutes = (total_seconds % 3600) // 60
+        else:
+            minutes = total_seconds // 60
+    else:
+        minutes = 0
+
+    if "seconds" in field_set:
+        if "minutes" in field_set or "hours" in field_set or "days" in field_set:
+            seconds = total_seconds % 60
+        else:
+            seconds = total_seconds
+    else:
+        seconds = 0
+
+    field_values = {
+        "days": days,
+        "hours": hours,
+        "minutes": minutes,
+        "seconds": seconds,
+    }
+
+    out = []
+    i = 0
+    while i < len(format_str):
+        matched = False
+        for token, field in DURATION_FORMAT_TOKENS:
+            if format_str.startswith(token, i):
+                value = field_values[field]
+                if len(token) == 2:
+                    out.append(f"{value:02d}")
+                else:
+                    out.append(str(value))
+                i += len(token)
+                matched = True
+                break
+
+        if not matched:
+            out.append(format_str[i])
+            i += 1
+
+    result = "".join(out)
+    return f"-{result}" if negative else result
+
+
 DURATION_PATTERNS = [
     (re.compile(r"^(\d+)\s+years?$", re.IGNORECASE), "days", 365),
     (re.compile(r"^(\d+)\s+months?$", re.IGNORECASE), "days", 30),

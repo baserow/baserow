@@ -29,7 +29,10 @@ import {
   ensureArray,
   ensureDateTime,
 } from '@baserow/modules/core/utils/validator'
-import { parseValueWithDurationFormat } from '@baserow/modules/core/utils/duration'
+import {
+  formatValueWithDurationFormat,
+  parseValueWithDurationFormat,
+} from '@baserow/modules/core/utils/duration'
 import { Node, VueNodeViewRenderer } from '@tiptap/vue-3'
 import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
 import { mergeAttributes } from '@tiptap/core'
@@ -2930,6 +2933,53 @@ export class RuntimeToDuration extends RuntimeFormulaFunction {
       {
         formula: "now() + to_duration('1 day')",
         result: "'2025-10-17 11:05:38'",
+      },
+    ]
+  }
+}
+
+export class RuntimeDurationFormat extends RuntimeFormulaFunction {
+  static getType() {
+    return 'duration_format'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.DATE
+  }
+
+  get args() {
+    return [
+      new DurationBaserowRuntimeFormulaArgumentType(),
+      new DurationFormatBaserowRuntimeFormulaArgumentType(),
+    ]
+  }
+
+  execute(context, args) {
+    const [duration, durationFormat] = args
+    if (duration === null || duration === undefined) {
+      return null
+    }
+    return formatValueWithDurationFormat(duration, durationFormat)
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.durationFormatDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: "duration_format(to_duration('1:30', 'h:mm'), 'h:mm')",
+        result: "'1:30'",
+      },
+      {
+        formula: "duration_format(get('Duration'), 'd h:mm')",
+        result: "'1 2:30'",
       },
     ]
   }
