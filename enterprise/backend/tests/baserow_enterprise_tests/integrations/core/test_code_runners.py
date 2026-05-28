@@ -1,4 +1,5 @@
 import json
+import os
 import subprocess
 
 from django.test import override_settings
@@ -10,6 +11,13 @@ from baserow_enterprise.integrations.core.code_runners import (
     CodeRunnerImproperlyConfigured,
     CodeRunnerResultError,
     WasmtimeQuickJSCodeRunner,
+)
+
+runtime_variables_are_configured = all(
+    [
+        os.environ.get("BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE"),
+        os.environ.get("BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH"),
+    ]
 )
 
 
@@ -45,7 +53,8 @@ def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
     assert result == {"newValue": 4}
     command, kwargs = calls[0]
     assert command[:3] == ["wasmtime-test", "run", "--dir"]
-    assert command[4:] == ["/runtime/qjs.wasm", "runner.mjs"]
+    assert command[3] == f"{kwargs['cwd']}::."
+    assert command[4:] == ["/runtime/qjs.wasm", "--std", "runner.mjs"]
     assert kwargs["capture_output"] is True
     assert kwargs["text"] is True
     assert kwargs["timeout"] == 7
@@ -85,3 +94,31 @@ def test_wasmtime_quickjs_code_runner_maps_process_errors(monkeypatch):
     ):
         with pytest.raises(CodeRunnerExecutionError, match="boom"):
             WasmtimeQuickJSCodeRunner().run({}, "export default function main() {}")
+
+
+@pytest.mark.skipif(
+    not runtime_variables_are_configured,
+    reason="Code runner runtime environment variables are not configured.",
+)
+def test_wasmtime_quickjs_code_runner_executes_real_javascript():
+    runner = WasmtimeQuickJSCodeRunner(
+        wasmtime_executable=os.environ[
+            "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE"
+        ],
+        quickjs_wasm_path=os.environ[
+            "BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH"
+        ],
+    )
+
+    result = runner.run(
+        {"value": 21},
+        """
+export default function main(context) {
+  return {
+    newValue: context.value * 2,
+  }
+}
+""",
+    )
+
+    assert result == {"newValue": 42}

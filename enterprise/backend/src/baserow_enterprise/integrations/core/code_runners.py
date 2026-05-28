@@ -103,8 +103,9 @@ class WasmtimeQuickJSCodeRunner(CodeRunner):
             self.wasmtime_executable,
             "run",
             "--dir",
-            str(temporary_path),
+            f"{temporary_path}::.",
             self.quickjs_wasm_path,
+            "--std",
             runner_file_name,
         ]
 
@@ -127,7 +128,6 @@ class WasmtimeQuickJSCodeRunner(CodeRunner):
 
     def _runner_source(self) -> str:
         return """
-import * as std from "std";
 import main from "./user_code.mjs";
 
 try {
