@@ -325,7 +325,7 @@ _pytest := 'PYTHONPATH="' + test_pythonpath + ':${PYTHONPATH:-}" ' + uv_run + ' 
 test *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
-    {{ _set_pythonpath }}
+    {{ _load_env }}
     {{ _pytest }} {{ ARGS }}
 
 # Run tests with coverage report

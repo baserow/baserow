@@ -1,4 +1,5 @@
 from django.http import HttpRequest
+from django.test import override_settings
 
 import pytest
 
@@ -14,6 +15,7 @@ from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
+from baserow_enterprise.apps import register_code_runner_features
 from baserow_enterprise.automation.nodes.node_types import CoreCodeNodeType
 from baserow_enterprise.builder.workflow_actions.models import CoreCodeWorkflowAction
 from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
@@ -22,9 +24,21 @@ from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 
+@pytest.fixture
+def code_runner_registered(
+    mutable_builder_workflow_action_registry,
+    mutable_automation_node_type_registry,
+    mutable_service_type_registry,
+    mutable_code_runner_type_registry,
+):
+    with override_settings(ENTERPRISE_CODE_RUNNER_DEFAULT_TYPE="wasmtime_quickjs"):
+        register_code_runner_features()
+        yield
+
+
 @pytest.mark.django_db
 def test_core_code_workflow_action_requires_enterprise_license(
-    enterprise_data_fixture,
+    enterprise_data_fixture, code_runner_registered
 ):
     user = enterprise_data_fixture.create_user()
     page = enterprise_data_fixture.create_builder_page(user=user)
@@ -44,14 +58,14 @@ def test_core_code_workflow_action_requires_enterprise_license(
             event=EventTypes.CLICK,
         )
 
-    enterprise_data_fixture.enable_enterprise()
-
-    assert not workflow_action_type.is_deactivated(page.builder.workspace)
+    with override_settings(DEBUG=True):
+        enterprise_data_fixture.enable_enterprise()
+        assert not workflow_action_type.is_deactivated(page.builder.workspace)
 
 
 @pytest.mark.django_db
 def test_core_code_automation_node_requires_enterprise_license(
-    enterprise_data_fixture,
+    enterprise_data_fixture, code_runner_registered
 ):
     user = enterprise_data_fixture.create_user()
     workflow = enterprise_data_fixture.create_automation_workflow(user)
@@ -71,14 +85,14 @@ def test_core_code_automation_node_requires_enterprise_license(
             output="",
         )
 
-    enterprise_data_fixture.enable_enterprise()
-
-    assert not node_type.is_deactivated(workflow.automation.workspace)
+    with override_settings(DEBUG=True):
+        enterprise_data_fixture.enable_enterprise()
+        assert not node_type.is_deactivated(workflow.automation.workspace)
 
 
 @pytest.mark.django_db
 def test_core_code_workflow_action_dispatch_requires_enterprise_license(
-    enterprise_data_fixture,
+    enterprise_data_fixture, code_runner_registered
 ):
     user = enterprise_data_fixture.create_user()
     page = enterprise_data_fixture.create_builder_page(user=user)
@@ -103,7 +117,7 @@ def test_core_code_workflow_action_dispatch_requires_enterprise_license(
 
 @pytest.mark.django_db
 def test_core_code_automation_node_dispatch_requires_enterprise_license(
-    enterprise_data_fixture,
+    enterprise_data_fixture, code_runner_registered
 ):
     user = enterprise_data_fixture.create_user()
     workflow = enterprise_data_fixture.create_automation_workflow(user)

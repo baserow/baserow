@@ -6,7 +6,6 @@ from django.test import override_settings
 import pytest
 
 from baserow.core.code_runner.registries import (
-    code_runner_type_registry,
     get_code_runner,
 )
 from baserow_enterprise.apps import register_code_runner_features

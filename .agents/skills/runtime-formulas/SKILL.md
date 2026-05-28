@@ -319,7 +319,7 @@ Frontend areas to inspect:
 
 Useful commands:
 
-- `just b test backend/tests/path/to/test.py`
+- `just b test tests/path/to/test.py`
 - `just f yarn test:core web-frontend/test/unit/path/to/test.spec.js`
 - `just f test`
 

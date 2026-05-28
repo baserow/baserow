@@ -374,7 +374,9 @@ def mutable_builder_workflow_action_registry():
 
 @pytest.fixture()
 def mutable_automation_node_type_registry():
-    from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
 
     before = automation_node_type_registry.registry.copy()
     automation_node_type_registry.get_for_class.cache_clear()

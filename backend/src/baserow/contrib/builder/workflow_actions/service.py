@@ -197,7 +197,9 @@ class BuilderWorkflowActionService:
         else:
             workflow_action_type = workflow_action.get_type()
 
-        workflow_action_type.raise_if_deactivated(workflow_action.page.builder.workspace)
+        workflow_action_type.raise_if_deactivated(
+            workflow_action.page.builder.workspace
+        )
 
         if has_type_changed:
             # When a workflow action's type changes, due our polymorphism, we need
