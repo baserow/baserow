@@ -5,7 +5,8 @@ from django.test import override_settings
 
 import pytest
 
-from baserow_enterprise.integrations.core.code_runners import (
+from baserow.core.code_runner.registries import code_runner_registry
+from baserow_enterprise.code_runner.code_runners import (
     CodeRunnerExecutionError,
     CodeRunnerImproperlyConfigured,
     CodeRunnerResultError,
@@ -53,6 +54,13 @@ def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
     assert kwargs["text"] is True
     assert kwargs["timeout"] == 7
     assert kwargs["check"] is True
+
+
+def test_wasmtime_quickjs_code_runner_is_registered():
+    assert isinstance(
+        code_runner_registry.get("wasmtime_quickjs"),
+        WasmtimeQuickJSCodeRunner,
+    )
 
 
 def test_wasmtime_quickjs_code_runner_requires_quickjs_wasm_path():

@@ -1,14 +1,14 @@
 import pytest
 
+from baserow.core.code_runner.registries import (
+    CodeRunnerExecutionError,
+    CodeRunnerResultError,
+)
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
 )
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
-from baserow_enterprise.integrations.core.code_runners import (
-    CodeRunnerExecutionError,
-    CodeRunnerResultError,
-)
 
 
 class FakeCodeRunner:

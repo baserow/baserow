@@ -4,6 +4,12 @@ from genson import SchemaBuilder
 from rest_framework import serializers
 
 from baserow.contrib.integrations.core.service_types import CoreServiceType
+from baserow.core.code_runner.registries import (
+    CodeRunnerExecutionError,
+    CodeRunnerImproperlyConfigured,
+    CodeRunnerResultError,
+    get_code_runner,
+)
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
@@ -14,12 +20,6 @@ from baserow.core.services.exceptions import (
 from baserow.core.services.models import Service
 from baserow.core.services.registries import DispatchTypes
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
-from baserow_enterprise.integrations.core.code_runners import (
-    CodeRunnerExecutionError,
-    CodeRunnerImproperlyConfigured,
-    CodeRunnerResultError,
-    get_code_runner,
-)
 from baserow_enterprise.integrations.core.models import (
     CoreCodeService,
     CoreCodeServiceInjection,
