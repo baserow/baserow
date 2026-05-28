@@ -1,8 +1,6 @@
 import json
 import subprocess  # nosec
-import tempfile
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import Any
 
 from django.conf import settings
@@ -30,8 +28,8 @@ class CodeRunner(ABC):
         """
         Execute the provided code with the given context data.
 
-        The JavaScript code must export a default `main(context)` function and return
-        a plain object.
+        The JavaScript code must define a `main(context)` function and return a plain
+        object.
         """
 
 
@@ -68,17 +66,7 @@ class WasmtimeQuickJSCodeRunner(CodeRunner):
                 "The QuickJS WASM runtime path is not configured."
             )
 
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            temporary_path = Path(temporary_directory)
-            context_path = temporary_path / "context.json"
-            user_code_path = temporary_path / "user_code.mjs"
-            runner_path = temporary_path / "runner.mjs"
-
-            context_path.write_text(json.dumps(context_data), encoding="utf-8")
-            user_code_path.write_text(code, encoding="utf-8")
-            runner_path.write_text(self._runner_source(), encoding="utf-8")
-
-            completed_process = self._run_process(temporary_path, runner_path.name)
+        completed_process = self._run_process(context_data, code)
 
         try:
             payload = json.loads(completed_process.stdout)
@@ -97,22 +85,22 @@ class WasmtimeQuickJSCodeRunner(CodeRunner):
         return result
 
     def _run_process(
-        self, temporary_path: Path, runner_file_name: str
+        self, context_data: dict[str, Any], code: str
     ) -> subprocess.CompletedProcess:
         command = [
             self.wasmtime_executable,
             "run",
-            "--dir",
-            f"{temporary_path}::.",
             self.quickjs_wasm_path,
             "--std",
-            runner_file_name,
+            "--eval",
+            self._runner_source(),
         ]
+        payload = json.dumps({"context": context_data, "code": code})
 
         try:
             return subprocess.run(  # noqa: S603
                 command,
-                cwd=temporary_path,
+                input=payload,
                 capture_output=True,
                 text=True,
                 timeout=self.timeout_seconds,
@@ -128,15 +116,19 @@ class WasmtimeQuickJSCodeRunner(CodeRunner):
 
     def _runner_source(self) -> str:
         return """
-import main from "./user_code.mjs";
-
 try {
-  const context = JSON.parse(std.loadFile("context.json"));
-  const result = main(context);
-  std.out.puts(JSON.stringify({ result }) + "\\n");
+  const input = JSON.parse(std.in.getline());
+  const write = std.out.puts.bind(std.out);
+  delete globalThis.std;
+  delete globalThis.os;
+  delete globalThis.bjson;
+  globalThis.eval(input.code);
+  const result = globalThis.main(input.context);
+  delete globalThis.main;
+  write(JSON.stringify({ result }) + "\\n");
 } catch (error) {
   const message = String(error && error.message || error);
-  std.out.puts(JSON.stringify({ error: message }) + "\\n");
+  print(JSON.stringify({ error: message }));
 }
 """.strip()
 

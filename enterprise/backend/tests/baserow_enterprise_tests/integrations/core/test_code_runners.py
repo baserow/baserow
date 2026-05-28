@@ -1,4 +1,3 @@
-import json
 import os
 import subprocess
 
@@ -31,13 +30,8 @@ def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
 
     def fake_run(command, **kwargs):
         calls.append((command, kwargs))
-        temporary_path = kwargs["cwd"]
-
-        assert (temporary_path / "context.json").read_text() == json.dumps(
-            {"value": 2}
-        )
-        assert (temporary_path / "user_code.mjs").read_text() == "export default main"
-        assert "import main" in (temporary_path / "runner.mjs").read_text()
+        assert '"context": {"value": 2}' in kwargs["input"]
+        assert "function main(context)" in kwargs["input"]
 
         return subprocess.CompletedProcess(
             command, 0, stdout='{"result": {"newValue": 4}}', stderr=""
@@ -47,14 +41,14 @@ def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
 
     result = WasmtimeQuickJSCodeRunner().run(
         {"value": 2},
-        "export default main",
+        "function main(context) { return { newValue: context.value * 2 } }",
     )
 
     assert result == {"newValue": 4}
     command, kwargs = calls[0]
-    assert command[:3] == ["wasmtime-test", "run", "--dir"]
-    assert command[3] == f"{kwargs['cwd']}::."
-    assert command[4:] == ["/runtime/qjs.wasm", "--std", "runner.mjs"]
+    assert command[:4] == ["wasmtime-test", "run", "/runtime/qjs.wasm", "--std"]
+    assert command[4] == "--eval"
+    assert "std.in.getline()" in command[5]
     assert kwargs["capture_output"] is True
     assert kwargs["text"] is True
     assert kwargs["timeout"] == 7
@@ -64,7 +58,7 @@ def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
 def test_wasmtime_quickjs_code_runner_requires_quickjs_wasm_path():
     with override_settings(BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH=""):
         with pytest.raises(CodeRunnerImproperlyConfigured):
-            WasmtimeQuickJSCodeRunner().run({}, "export default function main() {}")
+            WasmtimeQuickJSCodeRunner().run({}, "function main() {}")
 
 
 def test_wasmtime_quickjs_code_runner_rejects_non_object_result(monkeypatch):
@@ -80,7 +74,7 @@ def test_wasmtime_quickjs_code_runner_rejects_non_object_result(monkeypatch):
         BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH="/runtime/qjs.wasm"
     ):
         with pytest.raises(CodeRunnerResultError):
-            WasmtimeQuickJSCodeRunner().run({}, "export default function main() {}")
+            WasmtimeQuickJSCodeRunner().run({}, "function main() {}")
 
 
 def test_wasmtime_quickjs_code_runner_maps_process_errors(monkeypatch):
@@ -93,7 +87,7 @@ def test_wasmtime_quickjs_code_runner_maps_process_errors(monkeypatch):
         BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH="/runtime/qjs.wasm"
     ):
         with pytest.raises(CodeRunnerExecutionError, match="boom"):
-            WasmtimeQuickJSCodeRunner().run({}, "export default function main() {}")
+            WasmtimeQuickJSCodeRunner().run({}, "function main() {}")
 
 
 @pytest.mark.skipif(
@@ -113,7 +107,7 @@ def test_wasmtime_quickjs_code_runner_executes_real_javascript():
     result = runner.run(
         {"value": 21},
         """
-export default function main(context) {
+function main(context) {
   return {
     newValue: context.value * 2,
   }

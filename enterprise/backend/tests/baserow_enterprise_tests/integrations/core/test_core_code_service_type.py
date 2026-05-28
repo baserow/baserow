@@ -29,7 +29,7 @@ def test_core_code_service_type_dispatch_resolves_injections(
     enterprise_data_fixture, monkeypatch
 ):
     service = enterprise_data_fixture.create_enterprise_core_code_service(
-        code="export default function main(context) { return { newValue: 4 } }"
+        code="function main(context) { return { newValue: 4 } }"
     )
     service.injections.create(name="value", formula="get('value')")
 
@@ -48,7 +48,7 @@ def test_core_code_service_type_dispatch_resolves_injections(
     assert code_runner.calls == [
         (
             {"value": 2},
-            "export default function main(context) { return { newValue: 4 } }",
+            "function main(context) { return { newValue: 4 } }",
         )
     ]
 
