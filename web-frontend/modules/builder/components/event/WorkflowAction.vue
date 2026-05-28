@@ -46,7 +46,7 @@ export default {
   name: 'WorkflowAction',
   components: { SidebarExpandable },
   mixins: [applicationContext],
-  inject: ['builder', 'elementPage', 'mode'],
+  inject: ['workspace', 'builder', 'elementPage', 'mode'],
   props: {
     availableWorkflowActionTypes: {
       type: Array,

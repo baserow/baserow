@@ -161,6 +161,8 @@ class AutomationNodeService:
             context=workflow,
         )
 
+        node_type.raise_if_deactivated(workflow.automation.workspace)
+
         try:
             reference_node = (
                 self.handler.get_node(reference_node_id) if reference_node_id else None
@@ -237,6 +239,8 @@ class AutomationNodeService:
             workspace=node.workflow.automation.workspace,
             context=node,
         )
+
+        node_type.raise_if_deactivated(node.workflow.automation.workspace)
 
         # Export the 'original' node values now, as `prepare_values`
         # will be changing the service first, and then `update_node`
@@ -334,6 +338,8 @@ class AutomationNodeService:
 
         source_node.get_type().before_create(workflow, source_node, "south", "")
 
+        source_node.get_type().raise_if_deactivated(workflow.automation.workspace)
+
         duplicated_node = self.handler.duplicate_node(source_node)
 
         workflow.get_graph().insert(duplicated_node, source_node, "south", "")
@@ -383,6 +389,7 @@ class AutomationNodeService:
 
         if not existing_node:
             new_node_type = automation_node_type_registry.get(new_node_type_str)
+            new_node_type.raise_if_deactivated(automation.workspace)
             node_type.before_replace(node_to_replace, new_node_type)
 
             prepared_values = new_node_type.prepare_values({}, user)

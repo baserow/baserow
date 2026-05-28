@@ -147,7 +147,12 @@ const isErrorSample = computed(() => {
  * data and shouldn't be in error.
  */
 const cantBeTestedReason = computed(() => {
-  if (nodeType.value.isInError({ service: props.node.service })) {
+  if (
+    nodeType.value.isInError({
+      service: props.node.service,
+      workspace: workspace.value,
+    })
+  ) {
     return $i18n.t('simulateDispatch.errorNodeNotConfigured')
   }
 
@@ -161,7 +166,12 @@ const cantBeTestedReason = computed(() => {
       automation: automation.value,
       node: previousNode,
     })
-    if (previousNodeType.isInError(previousNode)) {
+    if (
+      previousNodeType.isInError({
+        service: previousNode.service,
+        workspace: workspace.value,
+      })
+    ) {
       return $i18n.t('simulateDispatch.errorPreviousNodeNotConfigured', {
         node: nodeLabel,
       })

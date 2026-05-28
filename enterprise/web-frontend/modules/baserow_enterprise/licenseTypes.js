@@ -112,6 +112,7 @@ export class EnterpriseWithoutSupportLicenseType extends AdvancedLicenseType {
       ...commonAdvancedFeatures,
       EnterpriseFeaturesObject.ENTERPRISE_SETTINGS,
       EnterpriseFeaturesObject.DATA_SCANNER,
+      EnterpriseFeaturesObject.CODE_RUNNER,
     ]
   }
 

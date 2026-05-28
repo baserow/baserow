@@ -2,6 +2,8 @@ from typing import Any, Dict, Optional
 
 from django.contrib.auth.models import AbstractUser
 
+from rest_framework.exceptions import PermissionDenied
+
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
@@ -13,6 +15,7 @@ from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.types import AutomationNodeDict, NodePositionType
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.core.integrations.models import Integration
+from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
@@ -22,6 +25,9 @@ from baserow.core.registry import (
     ModelRegistryMixin,
     PublicCustomFieldsInstanceMixin,
     Registry,
+)
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import ServiceTypeSubClass, service_type_registry
@@ -50,6 +56,17 @@ class AutomationNodeType(
     is_container = False
 
     class SerializedDict(AutomationNodeDict): ...
+
+    def is_deactivated(self, workspace: Workspace) -> bool:
+        """
+        Returns whether this automation node type is deactivated for the workspace.
+        """
+
+        return False
+
+    def raise_if_deactivated(self, workspace: Workspace) -> None:
+        if self.is_deactivated(workspace):
+            raise PermissionDenied("This automation node type is deactivated.")
 
     @property
     def allowed_fields(self):
@@ -325,6 +342,11 @@ class AutomationNodeType(
         automation_node: AutomationNode,
         dispatch_context: AutomationDispatchContext,
     ) -> DispatchResult:
+        if self.is_deactivated(automation_node.workflow.automation.workspace):
+            raise ServiceImproperlyConfiguredDispatchException(
+                "This node type is not available for this workspace."
+            )
+
         return ServiceHandler().dispatch_service(
             automation_node.service.specific, dispatch_context
         )

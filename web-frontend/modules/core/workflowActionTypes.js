@@ -45,6 +45,13 @@ export class WorkflowActionType extends Registerable {
    * @returns The error message or null if everything is good
    */
   getErrorMessage(workflowAction, applicationContext) {
+    const deactivatedReason =
+      applicationContext?.workspace &&
+      this.isDeactivatedReason({ workspace: applicationContext.workspace })
+    if (deactivatedReason) {
+      return deactivatedReason
+    }
+
     return null
   }
 
@@ -56,5 +63,13 @@ export class WorkflowActionType extends Registerable {
    */
   isInError(workflowAction, applicationContext) {
     return Boolean(this.getErrorMessage(workflowAction, applicationContext))
+  }
+
+  isDeactivatedReason({ workspace }) {
+    return null
+  }
+
+  isDeactivated({ workspace }) {
+    return !!this.isDeactivatedReason({ workspace })
   }
 }

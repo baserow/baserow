@@ -6,8 +6,10 @@
       class="context__menu-item"
     >
       <a
+        v-tooltip="nodeType.isDeactivatedReason({ workspace })"
         class="context__menu-item-link context__menu-item-link--with-desc"
-        @click="onChange(nodeType.getType())"
+        :class="{ disabled: nodeType.isDeactivated({ workspace }) }"
+        @click="onChange(nodeType)"
       >
         <span class="context__menu-item-title" :title="nodeType.name">
           <i
@@ -36,6 +38,7 @@ import context from '@baserow/modules/core/mixins/context'
 export default {
   name: 'WorkflowNodeContext',
   mixins: [context],
+  inject: ['workspace'],
   props: {
     node: {
       type: Object,
@@ -76,7 +79,10 @@ export default {
   },
   methods: {
     onChange(nodeType) {
-      this.$emit('change', nodeType)
+      if (nodeType.isDeactivated({ workspace: this.workspace })) {
+        return
+      }
+      this.$emit('change', nodeType.getType())
     },
   },
 }

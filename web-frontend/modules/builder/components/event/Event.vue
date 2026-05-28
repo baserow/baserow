@@ -29,18 +29,23 @@
       </ButtonText>
       <Context ref="workflowActionAddContext" :hide-on-click-outside="true">
         <div class="event__add-action-context">
-          <ButtonText
+          <span
             v-for="workflowActionType in availableWorkflowActionTypes"
             :key="workflowActionType.getType()"
-            :value="workflowActionType.getType()"
-            :icon="workflowActionType.icon"
-            :image="workflowActionType.image"
-            type="primary"
-            size="small"
-            @click="addWorkflowAction(workflowActionType.getType())"
+            v-tooltip="workflowActionType.isDeactivatedReason({ workspace })"
           >
-            {{ workflowActionType.label }}
-          </ButtonText>
+            <ButtonText
+              :value="workflowActionType.getType()"
+              :icon="workflowActionType.icon"
+              :image="workflowActionType.image"
+              type="primary"
+              size="small"
+              :disabled="workflowActionType.isDeactivated({ workspace })"
+              @click="addWorkflowAction(workflowActionType)"
+            >
+              {{ workflowActionType.label }}
+            </ButtonText>
+          </span>
         </div>
       </Context>
     </div>
@@ -146,13 +151,17 @@ export default {
         [workflow.id]: !this.expanded[workflow.id],
       }
     },
-    async addWorkflowAction(type) {
+    async addWorkflowAction(workflowActionType) {
+      if (workflowActionType.isDeactivated({ workspace: this.workspace })) {
+        return
+      }
+
       this.addingAction = true
       this.$refs.workflowActionAddContext.hide()
       try {
         await this.actionCreateWorkflowAction({
           page: this.elementPage,
-          workflowActionType: type,
+          workflowActionType: workflowActionType.getType(),
           eventType: this.event.name,
           configuration: {
             element_id: this.element.id,

@@ -144,7 +144,10 @@ export class NodeType extends Registerable {
    * method, but can be overridden by the node type.
    * @returns {boolean} - Whether the properties are in-error.
    */
-  isInError({ service }) {
+  isInError({ service, workspace = null }) {
+    if (workspace && this.isDeactivated({ workspace })) {
+      return true
+    }
     return this.serviceType.isInError({ service })
   }
 
@@ -157,7 +160,12 @@ export class NodeType extends Registerable {
    *  error message is being retrieved.
    * @returns {string} - The error message.
    */
-  getErrorMessage({ service, node }) {
+  getErrorMessage({ service, node, workspace = null }) {
+    const deactivatedReason =
+      workspace && this.isDeactivatedReason({ workspace })
+    if (deactivatedReason) {
+      return deactivatedReason
+    }
     return this.serviceType.getErrorMessage({ service })
   }
 
@@ -259,6 +267,14 @@ export class NodeType extends Registerable {
 
   getEdges({ node }) {
     return [{ uid: '', label: '' }]
+  }
+
+  isDeactivatedReason({ workspace }) {
+    return null
+  }
+
+  isDeactivated({ workspace }) {
+    return !!this.isDeactivatedReason({ workspace })
   }
 }
 

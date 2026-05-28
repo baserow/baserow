@@ -161,6 +161,7 @@ export default defineComponent({
     const app = useNuxtApp()
     const isDev = inject('isDev')
     const workflow = inject('workflow')
+    const workspace = inject('workspace')
 
     const debug = ref(false)
     const isPublishing = ref(false)
@@ -186,7 +187,10 @@ export default defineComponent({
 
       const _nodes = workflow.value.nodes.filter((node) => {
         const nodeType = app.$registry.get('node', node.type)
-        const isInError = nodeType.isInError({ service: node.service })
+        const isInError = nodeType.isInError({
+          service: node.service,
+          workspace: workspace.value,
+        })
         return nodeType.isWorkflowAction === true && !isInError
       })
 
