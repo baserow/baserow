@@ -22,9 +22,9 @@ runtime_variables_are_configured = all(
 
 
 @override_settings(
-    BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE="wasmtime-test",
-    BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH="/runtime/qjs.wasm",
-    BASEROW_ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS=7,
+    ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE="wasmtime-test",
+    ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH="/runtime/qjs.wasm",
+    ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS=7,
 )
 def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
     calls = []
@@ -64,7 +64,7 @@ def test_wasmtime_quickjs_code_runner_type_is_registered():
 
 
 def test_wasmtime_quickjs_code_runner_requires_quickjs_wasm_path():
-    with override_settings(BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH=""):
+    with override_settings(ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH=""):
         with pytest.raises(CodeRunnerImproperlyConfigured):
             WasmtimeQuickJSCodeRunnerType().run({}, "function main() {}")
 
@@ -79,7 +79,7 @@ def test_wasmtime_quickjs_code_runner_rejects_non_object_result(monkeypatch):
     )
 
     with override_settings(
-        BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH="/runtime/qjs.wasm"
+        ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH="/runtime/qjs.wasm"
     ):
         with pytest.raises(CodeRunnerResultError):
             WasmtimeQuickJSCodeRunnerType().run({}, "function main() {}")
@@ -92,7 +92,7 @@ def test_wasmtime_quickjs_code_runner_maps_process_errors(monkeypatch):
     monkeypatch.setattr(subprocess, "run", fake_run)
 
     with override_settings(
-        BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH="/runtime/qjs.wasm"
+        ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH="/runtime/qjs.wasm"
     ):
         with pytest.raises(CodeRunnerExecutionError, match="boom"):
             WasmtimeQuickJSCodeRunnerType().run({}, "function main() {}")

@@ -174,29 +174,6 @@ code-runtime:
         "{{ repo_root }}"
 
     chmod +x "$RUNTIME_DIR/bin/wasmtime"
-    touch "$ENV_FILE"
-
-    upsert_env() {
-        local key="$1"
-        local value="$2"
-        local tmp
-        tmp="$(mktemp)"
-
-        if grep -q "^${key}=" "$ENV_FILE"; then
-            awk -v key="$key" -v value="$value" '
-                $0 ~ "^" key "=" {
-                    print key "=" value
-                    next
-                }
-                { print }
-            ' "$ENV_FILE" > "$tmp"
-        else
-            cat "$ENV_FILE" > "$tmp"
-            printf "\n%s=%s\n" "$key" "$value" >> "$tmp"
-        fi
-
-        mv "$tmp" "$ENV_FILE"
-    }
 
     upsert_env \
         "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE" \
@@ -206,7 +183,9 @@ code-runtime:
         "$RUNTIME_DIR/lib/baserow/qjs.wasm"
 
     echo "Code runner runtime installed in $RUNTIME_DIR"
-    echo "Updated $ENV_FILE"
+    echo "Add these vars to your env file to enable the code runner:"
+    echo "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE=$RUNTIME_DIR/bin/wasmtime"
+    echo "BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH=$RUNTIME_DIR/lib/baserow/qjs.wasm"
 
 # Install dependencies (includes baserow + premium + enterprise via workspace)
 [group('1 - setup')]

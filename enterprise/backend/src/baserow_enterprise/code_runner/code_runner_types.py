@@ -27,17 +27,17 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
     ):
         self.wasmtime_executable = wasmtime_executable or getattr(
             settings,
-            "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE",
+            "ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE",
             "wasmtime",
         )
         self.quickjs_wasm_path = quickjs_wasm_path or getattr(
             settings,
-            "BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH",
+            "ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH",
             "",
         )
         self.timeout_seconds = timeout_seconds or getattr(
             settings,
-            "BASEROW_ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS",
+            "ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS",
             5,
         )
 

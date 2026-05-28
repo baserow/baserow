@@ -75,14 +75,14 @@ def setup(settings):
         or 4
     )
 
-    settings.BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE = os.getenv(
+    settings.ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE = os.getenv(
         "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE", "wasmtime"
     )
-    settings.BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH = os.getenv(
+    settings.ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH = os.getenv(
         "BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH",
         "/usr/local/lib/baserow/qjs.wasm",
     )
-    settings.BASEROW_ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS = int(
+    settings.ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS = int(
         os.getenv("BASEROW_ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS", "") or 5
     )
 
