@@ -1,6 +1,6 @@
 import re
 from datetime import timedelta
-from typing import Optional, Union
+from typing import List, Optional, Tuple, Union
 
 H_M = "h:mm"
 H_M_S = "h:mm:ss"
@@ -14,6 +14,120 @@ D_H_M_NO_COLONS = "d h mm"  # 1d 2h 3m, 1d 3m
 D_H_M_S_NO_COLONS = "d h mm ss"  # 1d2h3m4s, 1h 2m
 
 MOST_ACCURATE_DURATION_FORMAT = H_M_S_SSS
+
+# Keep in sync with duration.js::tokenizeDurationFormat
+DURATION_FORMAT_TOKENS = [
+    ("hh", "hours"),
+    ("mm", "minutes"),
+    ("ss", "seconds"),
+    ("d", "days"),
+    ("h", "hours"),
+    ("m", "minutes"),
+    ("s", "seconds"),
+]
+
+
+def tokenize_duration_format(
+    format_str: str,
+) -> Optional[Tuple[re.Pattern[str], List[str]]]:
+    """
+    Compile a duration format string into a (regex, fields) pair.
+
+    The format string is a template like "h:mm" or "d h:mm:ss". Each
+    duration unit ("d", "hh", etc) can appear at most once. All other
+    characters are matched literally.
+
+    E.g. given a format_str like "d h:mm", the return value would be:
+    (
+        re.compile("^-?(\\d+):(\\d+):(\\d+)$"),
+        ["hours", "minutes", "seconds"]
+    )
+
+    Returns None if the format_str is invalid.
+    """
+
+    if not isinstance(format_str, str) or not format_str:
+        return None
+
+    pattern = ["^-?"]
+    fields = []
+    seen = set()
+    i = 0
+    while i < len(format_str):
+        matched = False
+        for token, field in DURATION_FORMAT_TOKENS:
+            if format_str.startswith(token, i):
+                # If the token was already seen, it means that the token
+                # was repeated, which is invalid. E.g. for "h:mm:h", the
+                # "h" token is repeated.
+                if field in seen:
+                    return None
+                else:
+                    seen.add(field)
+
+                fields.append(field)
+                pattern.append(r"(\d+)")
+                # moves the index to the end of the token, e.g.
+                # if the format is "h:mm:s" and the current token is "mm",
+                # we move on to the "s" token.
+                i += len(token)
+                matched = True
+                break
+
+        if not matched:
+            # If there is no match, that means it's a literal char, like an
+            # empty space, colon, etc, which we add to the regex as-is.
+            pattern.append(re.escape(format_str[i]))
+            i += 1
+
+    if not fields:
+        return None
+
+    pattern.append("$")
+    return re.compile("".join(pattern)), fields
+
+
+def is_valid_duration_format(value: object) -> bool:
+    """Return True if the value is a valid duration format string."""
+
+    return tokenize_duration_format(value) is not None
+
+
+def parse_value_with_duration_format(
+    value: object, format_str: object
+) -> Optional[timedelta]:
+    """
+    Parse value against format_str using token-based matching.
+
+    Returns a timedelta, or None if the value or format_str are invalid.
+    """
+
+    if not isinstance(value, str):
+        return None
+
+    tokenized = tokenize_duration_format(format_str)
+    if tokenized is None:
+        return None
+
+    regex, fields = tokenized
+    stripped = value.strip()
+    negative = stripped.startswith("-")
+    match = regex.match(stripped)
+    if match is None:
+        return None
+
+    parts = {"days": 0, "hours": 0, "minutes": 0, "seconds": 0}
+    for field, group in zip(fields, match.groups()):
+        parts[field] = int(group)
+
+    delta = timedelta(
+        days=parts["days"],
+        hours=parts["hours"],
+        minutes=parts["minutes"],
+        seconds=parts["seconds"],
+    )
+    return -delta if negative else delta
+
 
 DURATION_PATTERNS = [
     (re.compile(r"^(\d+)\s+years?$", re.IGNORECASE), "days", 365),

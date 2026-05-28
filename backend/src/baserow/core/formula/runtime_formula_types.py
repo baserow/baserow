@@ -7,6 +7,7 @@ from zoneinfo import ZoneInfo
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
+from baserow.core.duration import parse_value_with_duration_format
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula import BaserowFormulaSyntaxError
 from baserow.core.formula.argument_types import (
@@ -18,6 +19,7 @@ from baserow.core.formula.argument_types import (
     DecimalSeparatorBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
     DurationBaserowRuntimeFormulaArgumentType,
+    DurationFormatBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
     ThousandSeparatorBaserowRuntimeFormulaArgumentType,
@@ -723,9 +725,71 @@ class RuntimeNumberFormat(RuntimeFormulaFunction):
 class RuntimeToDuration(RuntimeFormulaFunction):
     type = "to_duration"
 
-    args = [DurationBaserowRuntimeFormulaArgumentType()]
+    args = [
+        DurationBaserowRuntimeFormulaArgumentType(),
+        DurationFormatBaserowRuntimeFormulaArgumentType(optional=True),
+    ]
+
+    def _format_error(self, value, duration_format):
+        return f"'{value}' could not be parsed using format '{duration_format}'."
+
+    def validate_type_of_args(self, args) -> list[tuple[int, FormulaArg]]:
+        # When a format is provided, arg 0's validity depends on the format.
+        # Defer checking arg 0 to validate_args() in that case.
+        if len(args) == 2:
+            if not self.args[1].test(args[1]):
+                return [(1, args[1])]
+            return []
+
+        return super().validate_type_of_args(args)
+
+    def validate_args(self, args, validation_context=None):
+        super().validate_args(args, validation_context)
+
+        if len(args) != 2:
+            return
+
+        value, duration_format = args
+        # The validation visitor pre-parses arg 0 via the argument type's
+        # parse(). By the time validate_args() is called, arg 0 may already
+        # be a timedelta.
+        if isinstance(value, timedelta):
+            raise BaserowFormulaSyntaxError(
+                "A duration format cannot be applied to a timedelta value."
+            )
+        if isinstance(value, str):
+            if parse_value_with_duration_format(value, duration_format) is None:
+                raise BaserowFormulaSyntaxError(
+                    self._format_error(value, duration_format)
+                )
+
+    def parse_args(self, args: FormulaArgs) -> FormulaArgs:
+        # When the format arg is provided, defer parsing of the 1st arg to
+        # execute() so the raw value arg is checked later in combination
+        # with the format arg.
+        if len(args) == 2:
+            return [args[0], self.args[1].parse(args[1])]
+
+        return super().parse_args(args)
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
+        if len(args) == 2:
+            value, duration_format = args
+            # Arg 0 may resolve to a timedelta at runtime (e.g. from a
+            # get() on a duration field), in which case it doesn't make sense
+            # to apply the format.
+            if isinstance(value, timedelta):
+                raise BaserowFormulaSyntaxError(
+                    "A duration format cannot be applied to a timedelta value."
+                )
+
+            result = parse_value_with_duration_format(value, duration_format)
+            if result is None:
+                raise BaserowFormulaSyntaxError(
+                    self._format_error(value, duration_format)
+                )
+            return result
+
         return args[0]
 
 

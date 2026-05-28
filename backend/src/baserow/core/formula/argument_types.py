@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 
 import pytz
 
+from baserow.core.duration import is_valid_duration_format
 from baserow.core.formula.utils.date import (
     is_valid_datetime_format,
 )
@@ -237,4 +238,21 @@ class DatetimeFormatBaserowRuntimeFormulaArgumentType(
         return (
             f"'{value}' is not a valid datetime format. "
             f"Examples: 'YYYY-MM-DD' or 'DD/MM/YYYY HH:mm:ss'."
+        )
+
+
+class DurationFormatBaserowRuntimeFormulaArgumentType(
+    BaserowRuntimeFormulaArgumentType
+):
+    def test(self, value):
+        return is_valid_duration_format(value)
+
+    def parse(self, value):
+        return ensure_string(value)
+
+    def get_error_message(self, value) -> Optional[str]:
+        return (
+            f"'{value}' is not a valid duration format. "
+            f"Use 'd' (days), 'h' (hours), 'm' (minutes), 's' (seconds), "
+            f"e.g. 'd:h', 'd h:mm:ss'."
         )

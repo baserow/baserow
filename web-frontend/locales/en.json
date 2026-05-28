@@ -718,7 +718,8 @@
     "invalidDecimalSeparator": "'{value}' is not a valid decimal separator. Valid options are: ',' or '.'.",
     "sameSeparators": "The thousand separator and decimal separator cannot be the same.",
     "invalidDuration": "'{value}' is not a valid duration. Valid options are: '1 day', '2 hours', etc.",
-    "invalidDatetimeFormat": "'{value}' is not a valid datetime format. Valid options are: 'YYYY-MM-DD', 'DD/MM/YYYY HH:mm:ss', etc."
+    "invalidDatetimeFormat": "'{value}' is not a valid datetime format. Valid options are: 'YYYY-MM-DD', 'DD/MM/YYYY HH:mm:ss', etc.",
+    "invalidDurationFormat": "'{value}' is not a valid duration format. Use 'd' (days), 'h' (hours), 'm' (minutes), 's' (seconds), e.g. 'd:h', 'd h:mm:ss'."
   },
   "runtimeGetErrors": {
     "invalidPath": "The 'get' argument '{path}' must be a dot-delimited path (e.g., 'provider.property').",

@@ -28,6 +28,78 @@ export class Timedelta {
   }
 }
 
+// Keep in sync with duration.py::tokenize_duration_format
+const DURATION_FORMAT_TOKENS = [
+  ['hh', 'hours'],
+  ['mm', 'minutes'],
+  ['ss', 'seconds'],
+  ['d', 'days'],
+  ['h', 'hours'],
+  ['m', 'minutes'],
+  ['s', 'seconds'],
+]
+
+const escapeRegExp = (str) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+export const tokenizeDurationFormat = (formatStr) => {
+  if (typeof formatStr !== 'string' || formatStr.length === 0) return null
+
+  const pattern = ['^-?']
+  const fields = []
+  const seen = new Set()
+  let i = 0
+  while (i < formatStr.length) {
+    let matched = false
+    for (const [token, field] of DURATION_FORMAT_TOKENS) {
+      if (formatStr.startsWith(token, i)) {
+        if (seen.has(field)) return null
+        seen.add(field)
+        fields.push(field)
+        pattern.push('(\\d+)')
+        i += token.length
+        matched = true
+        break
+      }
+    }
+    if (!matched) {
+      pattern.push(escapeRegExp(formatStr[i]))
+      i += 1
+    }
+  }
+
+  if (fields.length === 0) return null
+
+  pattern.push('$')
+  return { pattern: new RegExp(pattern.join('')), fields }
+}
+
+export const isValidDurationFormat = (value) =>
+  tokenizeDurationFormat(value) !== null
+
+export const parseValueWithDurationFormat = (value, formatStr) => {
+  if (typeof value !== 'string') return null
+  const tokenized = tokenizeDurationFormat(formatStr)
+  if (tokenized === null) return null
+
+  const stripped = value.trim()
+  const negative = stripped.startsWith('-')
+  const match = stripped.match(tokenized.pattern)
+  if (match === null) return null
+
+  const parts = { days: 0, hours: 0, minutes: 0, seconds: 0 }
+  tokenized.fields.forEach((field, idx) => {
+    parts[field] = parseInt(match[idx + 1], 10)
+  })
+
+  let ms =
+    parts.days * SECS_IN_DAY * 1000 +
+    parts.hours * SECS_IN_HOUR * 1000 +
+    parts.minutes * SECS_IN_MIN * 1000 +
+    parts.seconds * 1000
+  if (negative) ms = -ms
+  return new Timedelta(ms)
+}
+
 const DURATION_PATTERNS = [
   { regex: /^(\d+)\s+years?$/i, unit: 'days', factor: 365 },
   { regex: /^(\d+)\s+months?$/i, unit: 'days', factor: 30 },

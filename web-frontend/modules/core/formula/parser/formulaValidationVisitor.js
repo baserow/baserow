@@ -116,24 +116,24 @@ export default class BaserowFormulaValidationVisitor extends BaserowFormulaVisit
    * Parse arguments for validation, skipping DeferredValue instances.
    *
    * During validation, nested function calls return DeferredValue markers
-   * since their actual values aren't available yet. We pass these through
-   * unchanged rather than attempting to parse/cast them.
+   * since their actual values aren't available yet. When any arg is deferred
+   * we pass the list through unchanged since the caller will detect the
+   * DeferredValue and skip validateArgs.
+   *
+   * Otherwise we defer to the function type's `parseArgs` so per-function
+   * overrides (e.g. RuntimeToDuration leaving arg 0 as a string when a
+   * format is provided) take effect during validation too.
    */
   _parseArgsForValidation(formulaFunctionType, acceptedArgs) {
     if (!formulaFunctionType.args) {
       return acceptedArgs
     }
 
-    return acceptedArgs.map((arg, index) => {
-      if (arg === DeferredValue) {
-        // Preserve deferred values - they'll be resolved at execution time
-        return arg
-      } else if (index < formulaFunctionType.args.length) {
-        return formulaFunctionType.args[index].parse(arg)
-      } else {
-        return arg
-      }
-    })
+    if (acceptedArgs.some((arg) => arg === DeferredValue)) {
+      return acceptedArgs
+    }
+
+    return formulaFunctionType.parseArgs(acceptedArgs)
   }
 
   /**

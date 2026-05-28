@@ -14,6 +14,7 @@ import {
   TimedeltaBaserowRuntimeFormulaArgumentType,
   DatetimeFormatBaserowRuntimeFormulaArgumentType,
   DurationBaserowRuntimeFormulaArgumentType,
+  DurationFormatBaserowRuntimeFormulaArgumentType,
   Timedelta,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 import {
@@ -28,6 +29,7 @@ import {
   ensureArray,
   ensureDateTime,
 } from '@baserow/modules/core/utils/validator'
+import { parseValueWithDurationFormat } from '@baserow/modules/core/utils/duration'
 import { Node, VueNodeViewRenderer } from '@tiptap/vue-3'
 import GetFormulaComponent from '@baserow/modules/core/components/formula/GetFormulaComponent'
 import { mergeAttributes } from '@tiptap/core'
@@ -2825,10 +2827,88 @@ export class RuntimeToDuration extends RuntimeFormulaFunction {
   }
 
   get args() {
-    return [new DurationBaserowRuntimeFormulaArgumentType()]
+    return [
+      new DurationBaserowRuntimeFormulaArgumentType(),
+      new DurationFormatBaserowRuntimeFormulaArgumentType({ optional: true }),
+    ]
+  }
+
+  formatMismatchError(value, durationFormat) {
+    return `'${value}' could not be parsed using format '${durationFormat}'.`
+  }
+
+  timedeltaWithFormatError() {
+    return 'A duration format cannot be applied to a timedelta value.'
+  }
+
+  validateTypeOfArgs(args) {
+    // When a format is provided, arg 0's validity depends on the format.
+    // Defer checking arg 0 to validateArgs() in that case.
+    if (args.length === 2) {
+      if (!this.args[1].test(args[1])) {
+        return [[1, args[1]]]
+      }
+      return []
+    }
+    return super.validateTypeOfArgs(args)
+  }
+
+  validateArgs(args, { ctx = null, validationContext = {} } = {}) {
+    super.validateArgs(args, { ctx, validationContext })
+
+    if (args.length !== 2) {
+      return
+    }
+
+    const [value, durationFormat] = args
+    // The validation visitor pre-parses arg 0 via the argument type's parse(),
+    // so by the time we get here a literal string may already be a Timedelta.
+    if (value instanceof Timedelta) {
+      throw new InvalidFormulaArgument(
+        this.getType(),
+        this.timedeltaWithFormatError()
+      )
+    }
+    if (typeof value === 'string') {
+      if (parseValueWithDurationFormat(value, durationFormat) === null) {
+        throw new InvalidFormulaArgument(
+          this.getType(),
+          this.formatMismatchError(value, durationFormat)
+        )
+      }
+    }
+  }
+
+  parseArgs(args) {
+    // When the format arg is provided, defer parsing of the 1st arg to
+    // execute() so the raw value string is checked later.
+    if (args.length === 2) {
+      return [args[0], this.args[1].parse(args[1])]
+    }
+    return super.parseArgs(args)
   }
 
   execute(context, args) {
+    if (args.length === 2) {
+      const [value, durationFormat] = args
+      // Arg 0 may resolve to a Timedelta at runtime (e.g. from a get() on
+      // a duration field), in which case it doesn't make sense to
+      // apply a format.
+      if (value instanceof Timedelta) {
+        throw new InvalidFormulaArgument(
+          this.getType(),
+          this.timedeltaWithFormatError()
+        )
+      }
+      const result = parseValueWithDurationFormat(value, durationFormat)
+      if (result === null) {
+        throw new InvalidFormulaArgument(
+          this.getType(),
+          this.formatMismatchError(value, durationFormat)
+        )
+      }
+      return result
+    }
     return args[0]
   }
 
@@ -2842,6 +2922,10 @@ export class RuntimeToDuration extends RuntimeFormulaFunction {
       {
         formula: "to_duration('1 day')",
         result: '86400 seconds',
+      },
+      {
+        formula: "to_duration('1:30', 'h:mm')",
+        result: '5400 seconds',
       },
       {
         formula: "now() + to_duration('1 day')",
