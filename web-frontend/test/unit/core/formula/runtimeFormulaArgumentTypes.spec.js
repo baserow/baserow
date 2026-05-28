@@ -6,6 +6,7 @@ import {
   ThousandSeparatorBaserowRuntimeFormulaArgumentType,
   DecimalSeparatorBaserowRuntimeFormulaArgumentType,
   DurationBaserowRuntimeFormulaArgumentType,
+  DurationFormatBaserowRuntimeFormulaArgumentType,
   Timedelta,
 } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
 
@@ -153,5 +154,34 @@ describe('DatetimeFormatBaserowRuntimeFormulaArgumentType', () => {
     }
     const message = argType.getErrorMessage('SS', mocki18n)
     expect(message).toContain("'SS' is not a valid datetime format.")
+  })
+})
+
+describe('DurationFormatBaserowRuntimeFormulaArgumentType', () => {
+  test.each([
+    { value: 'h:mm', expected: true },
+    { value: 'h:mm:ss', expected: true },
+    { value: 'd h:mm:ss', expected: true },
+    { value: 'd h mm ss', expected: true },
+    { value: 'd', expected: true },
+    { value: 'hh:mm:ss', expected: true },
+    { value: 'h:mm:h', expected: false }, // repeated token
+    { value: ':::', expected: false }, // only literals
+    { value: '', expected: false },
+    { value: 123, expected: false },
+    { value: null, expected: false },
+  ])('test() returns $expected for "$value"', ({ value, expected }) => {
+    expect(
+      new DurationFormatBaserowRuntimeFormulaArgumentType().test(value)
+    ).toBe(expected)
+  })
+
+  test('getErrorMessage returns a human-readable message', () => {
+    const argType = new DurationFormatBaserowRuntimeFormulaArgumentType()
+    const mocki18n = {
+      t: (key, params) => `'${params.value}' is not a valid duration format.`,
+    }
+    const message = argType.getErrorMessage('not valid', mocki18n)
+    expect(message).toContain("'not valid' is not a valid duration format.")
   })
 })

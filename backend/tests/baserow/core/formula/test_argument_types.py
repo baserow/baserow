@@ -8,6 +8,7 @@ from baserow.core.formula.argument_types import (
     DecimalSeparatorBaserowRuntimeFormulaArgumentType,
     DictBaserowRuntimeFormulaArgumentType,
     DurationBaserowRuntimeFormulaArgumentType,
+    DurationFormatBaserowRuntimeFormulaArgumentType,
     NumberBaserowRuntimeFormulaArgumentType,
     TextBaserowRuntimeFormulaArgumentType,
     ThousandSeparatorBaserowRuntimeFormulaArgumentType,
@@ -333,3 +334,31 @@ def test_datetime_format_get_error_message_returns_human_readable_string():
     arg_type = DatetimeFormatBaserowRuntimeFormulaArgumentType()
     message = arg_type.get_error_message("SS")
     assert "is not a valid datetime format" in message
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("h:mm", True),
+        ("h:mm:ss", True),
+        ("d h:mm:ss", True),
+        ("d h mm ss", True),
+        ("d", True),
+        ("hh:mm:ss", True),
+        # repeated token
+        ("h:mm:h", False),
+        # only literals, no token
+        (":::", False),
+        ("", False),
+        (123, False),
+        (None, False),
+    ],
+)
+def test_duration_format_test_method(value, expected):
+    assert DurationFormatBaserowRuntimeFormulaArgumentType().test(value) == expected
+
+
+def test_duration_format_get_error_message_returns_human_readable_string():
+    arg_type = DurationFormatBaserowRuntimeFormulaArgumentType()
+    message = arg_type.get_error_message("not valid")
+    assert "is not a valid duration format" in message
