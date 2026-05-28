@@ -24,11 +24,7 @@ export class CoreCodeServiceType extends WorkflowActionServiceTypeMixin(
   }
 
   getErrorMessage({ service }) {
-    if (
-      service !== undefined &&
-      service.code !== undefined &&
-      !service.code.formula
-    ) {
+    if (service !== undefined && service.code !== undefined && !service.code) {
       return this.app.$i18n.t('serviceType.errorCodeMissing')
     }
 
