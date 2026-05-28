@@ -1,0 +1,4 @@
+interface:
+  display_name: "Baserow Registry"
+  short_description: "Guide Baserow registry patterns and mixins"
+  default_prompt: "Use $baserow-registry to explain or update a Baserow registry and choose the right registry mixins."

@@ -5,12 +5,12 @@ from django.test import override_settings
 
 import pytest
 
-from baserow.core.code_runner.registries import code_runner_registry
-from baserow_enterprise.code_runner.code_runners import (
+from baserow.core.code_runner.registries import code_runner_type_registry
+from baserow_enterprise.code_runner.code_runner_types import (
     CodeRunnerExecutionError,
     CodeRunnerImproperlyConfigured,
     CodeRunnerResultError,
-    WasmtimeQuickJSCodeRunner,
+    WasmtimeQuickJSCodeRunnerType,
 )
 
 runtime_variables_are_configured = all(
@@ -40,7 +40,7 @@ def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
 
     monkeypatch.setattr(subprocess, "run", fake_run)
 
-    result = WasmtimeQuickJSCodeRunner().run(
+    result = WasmtimeQuickJSCodeRunnerType().run(
         {"value": 2},
         "function main(context) { return { newValue: context.value * 2 } }",
     )
@@ -56,17 +56,17 @@ def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
     assert kwargs["check"] is True
 
 
-def test_wasmtime_quickjs_code_runner_is_registered():
+def test_wasmtime_quickjs_code_runner_type_is_registered():
     assert isinstance(
-        code_runner_registry.get("wasmtime_quickjs"),
-        WasmtimeQuickJSCodeRunner,
+        code_runner_type_registry.get("wasmtime_quickjs"),
+        WasmtimeQuickJSCodeRunnerType,
     )
 
 
 def test_wasmtime_quickjs_code_runner_requires_quickjs_wasm_path():
     with override_settings(BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH=""):
         with pytest.raises(CodeRunnerImproperlyConfigured):
-            WasmtimeQuickJSCodeRunner().run({}, "function main() {}")
+            WasmtimeQuickJSCodeRunnerType().run({}, "function main() {}")
 
 
 def test_wasmtime_quickjs_code_runner_rejects_non_object_result(monkeypatch):
@@ -82,7 +82,7 @@ def test_wasmtime_quickjs_code_runner_rejects_non_object_result(monkeypatch):
         BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH="/runtime/qjs.wasm"
     ):
         with pytest.raises(CodeRunnerResultError):
-            WasmtimeQuickJSCodeRunner().run({}, "function main() {}")
+            WasmtimeQuickJSCodeRunnerType().run({}, "function main() {}")
 
 
 def test_wasmtime_quickjs_code_runner_maps_process_errors(monkeypatch):
@@ -95,7 +95,7 @@ def test_wasmtime_quickjs_code_runner_maps_process_errors(monkeypatch):
         BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH="/runtime/qjs.wasm"
     ):
         with pytest.raises(CodeRunnerExecutionError, match="boom"):
-            WasmtimeQuickJSCodeRunner().run({}, "function main() {}")
+            WasmtimeQuickJSCodeRunnerType().run({}, "function main() {}")
 
 
 @pytest.mark.skipif(
@@ -103,7 +103,7 @@ def test_wasmtime_quickjs_code_runner_maps_process_errors(monkeypatch):
     reason="Code runner runtime environment variables are not configured.",
 )
 def test_wasmtime_quickjs_code_runner_executes_real_javascript():
-    runner = WasmtimeQuickJSCodeRunner(
+    runner = WasmtimeQuickJSCodeRunnerType(
         wasmtime_executable=os.environ[
             "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE"
         ],

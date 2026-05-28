@@ -11,7 +11,7 @@ from baserow.core.services.exceptions import (
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
 
-class FakeCodeRunner:
+class FakeCodeRunnerType:
     def __init__(self, result=None, exception=None):
         self.result = result or {"newValue": 4}
         self.exception = exception
@@ -33,7 +33,7 @@ def test_core_code_service_type_dispatch_resolves_injections(
     )
     service.injections.create(name="value", formula="get('value')")
 
-    code_runner = FakeCodeRunner()
+    code_runner = FakeCodeRunnerType()
     monkeypatch.setattr(
         "baserow_enterprise.integrations.core.service_types.get_code_runner",
         lambda: code_runner,
@@ -58,7 +58,7 @@ def test_core_code_service_type_dispatch_maps_execution_errors(
     enterprise_data_fixture, monkeypatch
 ):
     service = enterprise_data_fixture.create_enterprise_core_code_service(code="")
-    code_runner = FakeCodeRunner(exception=CodeRunnerExecutionError("boom"))
+    code_runner = FakeCodeRunnerType(exception=CodeRunnerExecutionError("boom"))
     monkeypatch.setattr(
         "baserow_enterprise.integrations.core.service_types.get_code_runner",
         lambda: code_runner,
@@ -73,7 +73,7 @@ def test_core_code_service_type_dispatch_maps_result_errors(
     enterprise_data_fixture, monkeypatch
 ):
     service = enterprise_data_fixture.create_enterprise_core_code_service(code="")
-    code_runner = FakeCodeRunner(exception=CodeRunnerResultError("object required"))
+    code_runner = FakeCodeRunnerType(exception=CodeRunnerResultError("object required"))
     monkeypatch.setattr(
         "baserow_enterprise.integrations.core.service_types.get_code_runner",
         lambda: code_runner,

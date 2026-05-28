@@ -226,16 +226,16 @@ class BaserowEnterpriseConfig(AppConfig):
         app_auth_provider_type_registry.register(SamlAppAuthProviderType())
         app_auth_provider_type_registry.register(OpenIdConnectAppAuthProviderType())
 
-        from baserow.core.code_runner.registries import code_runner_registry
+        from baserow.core.code_runner.registries import code_runner_type_registry
         from baserow.core.services.registries import service_type_registry
-        from baserow_enterprise.code_runner.code_runners import (
-            WasmtimeQuickJSCodeRunner,
+        from baserow_enterprise.code_runner.code_runner_types import (
+            WasmtimeQuickJSCodeRunnerType,
         )
         from baserow_enterprise.integrations.core.service_types import (
             CoreCodeServiceType,
         )
 
-        code_runner_registry.register(WasmtimeQuickJSCodeRunner())
+        code_runner_type_registry.register(WasmtimeQuickJSCodeRunnerType())
         service_type_registry.register(CoreCodeServiceType())
 
         from baserow.contrib.builder.workflow_actions.registries import (
