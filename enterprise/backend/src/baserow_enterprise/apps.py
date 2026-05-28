@@ -5,6 +5,33 @@ from django.db.models.signals import post_migrate
 from tqdm import tqdm
 
 
+def register_code_runner_features():
+    if not getattr(settings, "ENTERPRISE_CODE_RUNNER_DEFAULT_TYPE", ""):
+        return
+
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
+    from baserow.contrib.builder.workflow_actions.registries import (
+        builder_workflow_action_type_registry,
+    )
+    from baserow.core.code_runner.registries import code_runner_type_registry
+    from baserow.core.services.registries import service_type_registry
+    from baserow_enterprise.automation.nodes.node_types import CoreCodeNodeType
+    from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
+        CoreCodeActionType,
+    )
+    from baserow_enterprise.code_runner.code_runner_types import (
+        WasmtimeQuickJSCodeRunnerType,
+    )
+    from baserow_enterprise.integrations.core.service_types import CoreCodeServiceType
+
+    code_runner_type_registry.register(WasmtimeQuickJSCodeRunnerType())
+    service_type_registry.register(CoreCodeServiceType())
+    builder_workflow_action_type_registry.register(CoreCodeActionType())
+    automation_node_type_registry.register(CoreCodeNodeType())
+
+
 class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
 
@@ -226,33 +253,7 @@ class BaserowEnterpriseConfig(AppConfig):
         app_auth_provider_type_registry.register(SamlAppAuthProviderType())
         app_auth_provider_type_registry.register(OpenIdConnectAppAuthProviderType())
 
-        from baserow.core.code_runner.registries import code_runner_type_registry
-        from baserow.core.services.registries import service_type_registry
-        from baserow_enterprise.code_runner.code_runner_types import (
-            WasmtimeQuickJSCodeRunnerType,
-        )
-        from baserow_enterprise.integrations.core.service_types import (
-            CoreCodeServiceType,
-        )
-
-        code_runner_type_registry.register(WasmtimeQuickJSCodeRunnerType())
-        service_type_registry.register(CoreCodeServiceType())
-
-        from baserow.contrib.builder.workflow_actions.registries import (
-            builder_workflow_action_type_registry,
-        )
-        from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
-            CoreCodeActionType,
-        )
-
-        builder_workflow_action_type_registry.register(CoreCodeActionType())
-
-        from baserow.contrib.automation.nodes.registries import (
-            automation_node_type_registry,
-        )
-        from baserow_enterprise.automation.nodes.node_types import CoreCodeNodeType
-
-        automation_node_type_registry.register(CoreCodeNodeType())
+        register_code_runner_features()
 
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (

@@ -373,6 +373,37 @@ def mutable_builder_workflow_action_registry():
 
 
 @pytest.fixture()
+def mutable_automation_node_type_registry():
+    from baserow.contrib.automation.nodes.registries import automation_node_type_registry
+
+    before = automation_node_type_registry.registry.copy()
+    automation_node_type_registry.get_for_class.cache_clear()
+    yield automation_node_type_registry
+    automation_node_type_registry.get_for_class.cache_clear()
+    automation_node_type_registry.registry = before
+
+
+@pytest.fixture()
+def mutable_service_type_registry():
+    from baserow.core.services.registries import service_type_registry
+
+    before = service_type_registry.registry.copy()
+    service_type_registry.get_for_class.cache_clear()
+    yield service_type_registry
+    service_type_registry.get_for_class.cache_clear()
+    service_type_registry.registry = before
+
+
+@pytest.fixture()
+def mutable_code_runner_type_registry():
+    from baserow.core.code_runner.registries import code_runner_type_registry
+
+    before = code_runner_type_registry.registry.copy()
+    yield code_runner_type_registry
+    code_runner_type_registry.registry = before
+
+
+@pytest.fixture()
 def mutable_job_type_registry():
     with patch.object(job_type_registry, "registry", {}):
         job_type_registry.get_for_class.cache_clear()

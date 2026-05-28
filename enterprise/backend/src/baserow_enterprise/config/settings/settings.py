@@ -78,6 +78,9 @@ def setup(settings):
     settings.ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE = os.getenv(
         "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE", "wasmtime"
     )
+    settings.ENTERPRISE_CODE_RUNNER_DEFAULT_TYPE = os.getenv(
+        "BASEROW_ENTERPRISE_CODE_RUNNER_DEFAULT_TYPE", ""
+    )
     settings.ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH = os.getenv(
         "BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH",
         "/usr/local/lib/baserow/qjs.wasm",

@@ -101,7 +101,7 @@ export default defineNuxtPlugin({
   name: 'enterprise',
   dependsOn: ['premium', 'registry'],
   setup(nuxtApp) {
-    const { $registry, $store } = nuxtApp
+    const { $config, $registry, $store } = nuxtApp
 
     const context = { app: nuxtApp }
 
@@ -160,9 +160,11 @@ export default defineNuxtPlugin({
     $registry.register('license', new EnterpriseLicenseType(context))
 
     $registry.register('userSource', new LocalBaserowUserSourceType(context))
-    $registry.register('service', new CoreCodeServiceType(context))
-    $registry.register('workflowAction', new CoreCodeWorkflowActionType(context))
-    $registry.register('node', new CoreCodeNodeType(context))
+    if ($config.public.baserowEnterpriseCodeRunnerDefaultType) {
+      $registry.register('service', new CoreCodeServiceType(context))
+      $registry.register('workflowAction', new CoreCodeWorkflowActionType(context))
+      $registry.register('node', new CoreCodeNodeType(context))
+    }
 
     $registry.register(
       'appAuthProvider',

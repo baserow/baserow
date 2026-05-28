@@ -1,10 +1,10 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from django.conf import settings
+
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.registry import Instance, Registry
-
-DEFAULT_CODE_RUNNER_TYPE = "wasmtime_quickjs"
 
 
 class CodeRunnerException(Exception):
@@ -47,7 +47,14 @@ code_runner_type_registry: CodeRunnerTypeRegistry = CodeRunnerTypeRegistry()
 
 
 def get_code_runner(code_runner_type: str | None = None) -> CodeRunnerType:
-    code_runner_type = code_runner_type or DEFAULT_CODE_RUNNER_TYPE
+    code_runner_type = code_runner_type or getattr(
+        settings, "ENTERPRISE_CODE_RUNNER_DEFAULT_TYPE", ""
+    )
+
+    if not code_runner_type:
+        raise CodeRunnerImproperlyConfigured(
+            "The default code runner type is not configured."
+        )
 
     try:
         return code_runner_type_registry.get(code_runner_type)
