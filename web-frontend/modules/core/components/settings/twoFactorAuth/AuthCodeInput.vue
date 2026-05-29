@@ -11,7 +11,7 @@
       inputmode="numeric"
       class="auth-code-input__input"
       :class="{ 'auth-code-input__input--filled': allFilled }"
-      @keyup="handleKeyUp"
+      @input="handleInput"
       @keydown="handleKeyDown"
       @paste="pasteAt(1, $event)"
     />
@@ -23,7 +23,7 @@
       inputmode="numeric"
       class="auth-code-input__input"
       :class="{ 'auth-code-input__input--filled': allFilled }"
-      @keyup="handleKeyUp"
+      @input="handleInput"
       @keydown="handleKeyDown"
       @paste="pasteAt(2, $event)"
     />
@@ -35,7 +35,7 @@
       inputmode="numeric"
       class="auth-code-input__input"
       :class="{ 'auth-code-input__input--filled': allFilled }"
-      @keyup="handleKeyUp"
+      @input="handleInput"
       @keydown="handleKeyDown"
       @paste="pasteAt(3, $event)"
     />
@@ -47,7 +47,7 @@
       inputmode="numeric"
       class="auth-code-input__input"
       :class="{ 'auth-code-input__input--filled': allFilled }"
-      @keyup="handleKeyUp"
+      @input="handleInput"
       @keydown="handleKeyDown"
       @paste="pasteAt(4, $event)"
     />
@@ -59,7 +59,7 @@
       inputmode="numeric"
       class="auth-code-input__input"
       :class="{ 'auth-code-input__input--filled': allFilled }"
-      @keyup="handleKeyUp"
+      @input="handleInput"
       @keydown="handleKeyDown"
       @paste="pasteAt(5, $event)"
     />
@@ -71,7 +71,7 @@
       inputmode="numeric"
       class="auth-code-input__input"
       :class="{ 'auth-code-input__input--filled': allFilled }"
-      @keyup="handleKeyUp"
+      @input="handleInput"
       @keydown="handleKeyDown"
       @paste="pasteAt(6, $event)"
     />
@@ -210,9 +210,9 @@ export default {
         }
       }
     },
-    handleKeyUp(event) {
+    handleInput(event) {
       const input = event.target
-      const value = input.value
+      const value = this.sanitizeInput(input.value)
       const isDigit = /\d/g.test(value)
 
       // Auto-focus to next input when a digit is entered
