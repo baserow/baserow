@@ -348,6 +348,8 @@ class ElementService:
             else None
         )
 
+        is_cross_page_move = target_page.id != source_graph.instance.id
+
         source_graph.move(
             element,
             reference_element,
@@ -363,6 +365,14 @@ class ElementService:
         # Check if the type has any after-move logic. Pass source_graph so `after_move`
         # can look up children even though the graph has already been mutated.
         element_type.after_move(element, source_graph)
+
+        if is_cross_page_move:
+            # move() used keep_info=True to preserve the source-graph entry for
+            # after_move traversal above. Now that after_move is done, those
+            # stale entries must be removed so that the source page's graph
+            # stays consistent (prevents orphaned "X": {} nodes that would
+            # later break export/import or graph traversal).
+            source_graph.remove_isolated_point(element)
 
         self.handler.invalidate_element_cache(element.page)
 

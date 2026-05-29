@@ -530,3 +530,62 @@ def test_moving_elements_inside_container(data_fixture):
         str(element_inside_container_one.id): {},
         str(root_element.id): {},
     }
+
+
+@pytest.mark.django_db
+def test_move_element_cross_page_removes_entry_from_source_graph(data_fixture):
+    """
+    Moving an element from one page to another must remove the element's graph
+    entry from the source page's graph.  Before this fix, move() preserved the
+    entry (via remove(keep_info=True)) and never cleaned it up, leaving stale
+    'X: {}' nodes that broke export/import.
+    """
+
+    user = data_fixture.create_user()
+    page1 = data_fixture.create_builder_page(user=user)
+    page2 = data_fixture.create_builder_page(builder=page1.builder)
+
+    element1 = data_fixture.create_builder_heading_element(page=page1)
+    element2 = data_fixture.create_builder_heading_element(page=page1)
+    element3 = data_fixture.create_builder_heading_element(page=page1)
+
+    # Sanity-check initial state: page1 has a clean chain, page2 is empty.
+    assert page1.graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [element2.id]}},
+        str(element2.id): {"next": {"": [element3.id]}},
+        str(element3.id): {},
+    }
+    assert page2.graph == {}
+
+    # Move element2 from page1 to page2 (append to end, i.e. null reference + south).
+    ElementService().move_element(
+        user,
+        page2,
+        element2,
+        element2.place_in_container,
+        None,
+        GraphPointPosition.SOUTH,
+    )
+
+    page1.refresh_from_db(fields=["graph"])
+    page2.refresh_from_db(fields=["graph"])
+
+    # element2 must NOT appear as a key in the source graph.
+    assert str(element2.id) not in page1.graph, (
+        f"Stale entry for element {element2.id} found in source page graph: "
+        f"{page1.graph}"
+    )
+
+    # Source chain relinked correctly: element1 → element3.
+    assert page1.graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [element3.id]}},
+        str(element3.id): {},
+    }
+
+    # element2 is properly placed in the target graph.
+    assert page2.graph == {
+        "0": element2.id,
+        str(element2.id): {},
+    }
