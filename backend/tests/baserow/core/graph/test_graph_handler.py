@@ -397,8 +397,10 @@ def test_move_with_target_graph_removes_from_source_inserts_into_target():
     """
     Cross-graph move: point leaves the source graph and appears in the target graph.
 
-    remove(keep_info=True) is used so the source entry (including children info)
-    stays intact for post-move traversal (e.g. after_move hooks).
+    move() uses remove(keep_info=True) so the source entry — including any
+    children info — is preserved for post-move traversal by after_move hooks.
+    Callers are responsible for calling remove_isolated_point() once those
+    hooks have finished.
     """
 
     source_model = make_graph_model({})
@@ -417,12 +419,48 @@ def test_move_with_target_graph_removes_from_source_inserts_into_target():
 
     source_graph.move(p1, None, "south", target_graph=target_graph)
 
-    # Source: p2 is now the root; p1's entry is preserved with its children info
+    # After move(): p2 is root; p1's entry is deliberately preserved (with its
+    # children dict) so that callers can traverse it during after_move hooks.
     assert source_model.graph["0"] == 2
     assert "1" in source_model.graph
     assert source_model.graph["1"]["children"]["0"] == [3]
 
     # Target: p1 is at the root
+    assert target_model.graph["0"] == 1
+
+
+def test_remove_isolated_point_cleans_up_cross_graph_move_stale_entries():
+    """
+    After a cross-graph move, remove_isolated_point() removes the moved
+    point's stale entry (and any descendants) from the source graph so that
+    no orphaned nodes are left behind.
+    """
+
+    source_model = make_graph_model({})
+    source_graph = source_model.get_graph()
+    target_model = make_graph_model({})
+    target_graph = target_model.get_graph()
+
+    p1 = make_point(1, source_model)
+    p2 = make_point(2, source_model)
+    p3 = make_point(3, source_model)
+
+    # Source: root → p1 → p2; p1 has child p3 in slot "0"
+    source_graph.insert(p1, None, "south")
+    source_graph.insert(p2, p1, "south")
+    source_graph.insert(p3, p1, "child", output="0")
+
+    source_graph.move(p1, None, "south", target_graph=target_graph)
+    # Simulate the service calling remove_isolated_point after after_move hooks.
+    source_graph.remove_isolated_point(p1)
+
+    # Source: p1 and its child p3 are both gone; only p2 remains.
+    assert source_model.graph["0"] == 2
+    assert "1" not in source_model.graph
+    assert "3" not in source_model.graph
+    assert str(p2.id) in source_model.graph
+
+    # Target graph is unchanged.
     assert target_model.graph["0"] == 1
 
 

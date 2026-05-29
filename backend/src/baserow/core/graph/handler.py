@@ -964,6 +964,25 @@ class BaseGraphHandler(ABC):
         else:
             target.insert(point_to_move, reference_point, position, output)
 
+    def remove_isolated_point(self, point: GraphPoint) -> None:
+        """
+        Remove a point — and all of its graph-reachable descendants — from the
+        graph without performing any unlinking.  This is intended for cleaning
+        up entries that have already been unlinked (e.g. the stale source-graph
+        entries preserved by ``move(keep_info=True)`` for post-move traversal).
+
+        Descendants are collected before the parent entry is removed so that
+        the ``children`` dict is still readable during traversal.
+
+        :param point: The point whose graph entry (and descendants) should be
+            removed.
+        """
+
+        for dep in self._collect_all_descendants(point):
+            self.graph.pop(str(dep.id), None)
+        self.graph.pop(str(point.id), None)
+        self._update_graph()
+
     def migrate_graph(self, id_mapping: Dict[str, Any]):
         """
         Updates the point IDs and edge UIDs in the graph from the id_mapping.
