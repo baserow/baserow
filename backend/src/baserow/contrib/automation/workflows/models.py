@@ -5,7 +5,6 @@ from django.db import models
 
 from baserow.contrib.automation.constants import WORKFLOW_NAME_MAX_LEN
 from baserow.contrib.automation.workflows.constants import WorkflowState
-from baserow.core.graph.models import GraphModelMixin
 from baserow.core.cache import local_cache
 from baserow.core.graph.models import GraphModelMixin
 from baserow.core.jobs.mixins import (
