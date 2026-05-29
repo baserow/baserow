@@ -13,6 +13,7 @@ class PageGraphHandler(BaseGraphHandler):
     """
 
     base_point_class = Element
+    container_fk_name = "page"
     instance_id_mapping = "builder_page_elements"
     does_not_exist_exception = ElementDoesNotExist
 

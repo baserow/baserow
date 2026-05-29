@@ -15,6 +15,7 @@ class AutomationWorkflowGraphHandler(BaseGraphHandler):
     """
 
     base_point_class = AutomationNode
+    container_fk_name = "workflow"
     outputs_id_mapping = "automation_edge_outputs"
     instance_id_mapping = "automation_workflow_nodes"
     does_not_exist_exception = AutomationNodeDoesNotExist
