@@ -1,7 +1,16 @@
 from decimal import Decimal
 
+from django.test import override_settings
+
+import pytest
+
+from baserow.core.graph.exceptions import GraphConsistencyError
 from baserow.core.graph.handler import BaseGraphHandler
-from tests.baserow.core.graph.fixtures import make_graph_model, make_point
+from tests.baserow.core.graph.fixtures import (
+    MockGraphHandler,
+    make_graph_model,
+    make_point,
+)
 
 
 def get_place_chain_ids(model, container_id, place):
@@ -509,3 +518,108 @@ def test_graph_handler_get_order_map(graph_model_fixture):
         10: Decimal("2.00000000000000000000"),
         11: Decimal("3.00000000000000000000"),
     }
+
+
+# ── assert_graph_consistency tests ─────────────────────────────────────────
+
+
+class ConsistencyMockHandler(MockGraphHandler):
+    """
+    A MockGraphHandler subclass that accepts an explicit set of DB point IDs
+    so we can test assert_graph_consistency without a real DB.
+    """
+
+    def __init__(self, instance, db_ids):
+        super().__init__(instance)
+        self._db_ids = db_ids
+
+    def get_point_ids_from_db(self):
+        return self._db_ids
+
+
+def make_consistency_graph(graph_dict, db_ids):
+    """
+    Build a MockGraphModel with *graph_dict*, then wrap it in a
+    ConsistencyMockHandler that reports *db_ids* from get_point_ids_from_db.
+    """
+    from tests.baserow.core.graph.fixtures import MockGraphModel
+
+    model = MockGraphModel(graph_dict)
+    return ConsistencyMockHandler(model, db_ids)
+
+
+@override_settings(DEBUG=True)
+def test_assert_graph_consistency_passes_when_consistent():
+    """A graph whose keys exactly match DB IDs should not raise."""
+    handler = make_consistency_graph(
+        {"0": 1, "1": {}, "2": {"next": {"": [3]}}, "3": {}},
+        db_ids=[1, 2, 3],
+    )
+    handler.assert_graph_consistency()  # should not raise
+
+
+@override_settings(DEBUG=True)
+def test_assert_graph_consistency_raises_for_stale_entry():
+    """
+    A graph with a key that has no DB record (stale entry) must raise
+    GraphConsistencyError and report it in the `stale` attribute.
+    """
+    handler = make_consistency_graph(
+        {"0": 1, "1": {}, "99": {}},
+        db_ids=[1],  # 99 is in the graph but not in DB
+    )
+    with pytest.raises(GraphConsistencyError) as exc_info:
+        handler.assert_graph_consistency()
+    assert 99 in exc_info.value.stale
+    assert not exc_info.value.missing
+
+
+@override_settings(DEBUG=True)
+def test_assert_graph_consistency_raises_for_missing_entry():
+    """
+    A DB record absent from the graph must raise GraphConsistencyError and
+    report it in the `missing` attribute.
+    """
+    handler = make_consistency_graph(
+        {"0": 1, "1": {}},
+        db_ids=[1, 2],  # 2 is in DB but not in graph
+    )
+    with pytest.raises(GraphConsistencyError) as exc_info:
+        handler.assert_graph_consistency()
+    assert 2 in exc_info.value.missing
+    assert not exc_info.value.stale
+
+
+@override_settings(DEBUG=True)
+def test_assert_graph_consistency_raises_for_both_stale_and_missing():
+    """Both a stale entry and a missing entry reported in the same error."""
+    handler = make_consistency_graph(
+        {"0": 1, "1": {}, "99": {}},
+        db_ids=[1, 2],  # 99 stale, 2 missing
+    )
+    with pytest.raises(GraphConsistencyError) as exc_info:
+        handler.assert_graph_consistency()
+    assert 99 in exc_info.value.stale
+    assert 2 in exc_info.value.missing
+
+
+@override_settings(DEBUG=False)
+def test_assert_graph_consistency_is_noop_outside_debug():
+    """
+    When DEBUG is False the check must not raise even if the graph is corrupt.
+    """
+    handler = make_consistency_graph(
+        {"0": 1, "1": {}, "99": {}},
+        db_ids=[1],  # 99 is stale — would raise in DEBUG mode
+    )
+    handler.assert_graph_consistency()  # must not raise
+
+
+@override_settings(DEBUG=True)
+def test_assert_graph_consistency_ignores_the_zero_key():
+    """The sentinel key "0" stores a pointer, not a node ID — must be ignored."""
+    handler = make_consistency_graph(
+        {"0": 1, "1": {}},
+        db_ids=[1],
+    )
+    handler.assert_graph_consistency()  # "0" must not be treated as a node ID

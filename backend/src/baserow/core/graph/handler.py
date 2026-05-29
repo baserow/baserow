@@ -3,6 +3,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 from baserow.core.graph.exceptions import (
+    GraphConsistencyError,
     GraphPointDoesNotExist,
     GraphPointNotFoundInGraph,
 )
@@ -39,7 +40,7 @@ class BaseGraphHandler(ABC):
 
     ```
     {
-        "0": 1,
+        GRAPH_ROOT_KEY: 1,
         "1": {"next": {"": [2]}},
         "2": {
             "next": {
@@ -87,10 +88,15 @@ class BaseGraphHandler(ABC):
       point 42 at edge/place "0".
     """
 
+    # The key in the graph which denotes that it's the 'first'
+    # or 'root' of the graph. This is not a point ID.
+    GRAPH_ROOT_KEY = "0"
+
     outputs_id_mapping: str = ""
     instance_id_mapping: str = ""
     does_not_exist_exception = GraphPointDoesNotExist
     base_point_class: Type["GraphPointMixin"] = None
+    container_fk_name: str = ""  # FK on base_point_class pointing to the container
 
     def __init__(self, instance: GraphModelInstance):
         self.instance = instance
@@ -114,13 +120,13 @@ class BaseGraphHandler(ABC):
 
         self.instance.save(update_fields=["graph"])
 
-    @staticmethod
-    def get_order_map(graph: SerializedGraph) -> Dict[int, Decimal]:
+    @classmethod
+    def get_order_map(cls, graph: SerializedGraph) -> Dict[int, Decimal]:
         """
         Returns a mapping of point_id to order Decimal for all points in the graph.
 
         Root-level points are ordered by their position in the `next[""]` chain
-        starting from graph["0"]. Children in each place are ordered by their
+        starting from graph[GRAPH_ROOT_KEY]. Children in each place are ordered by their
         position in the `next[""]` chain starting from the first child in that place
         — including points reachable only via `next`, not just those listed
         explicitly in `children`.
@@ -145,13 +151,13 @@ class BaseGraphHandler(ABC):
                 current = next_ids[0] if next_ids else None
                 i += 1
 
-        # Root-level points: follow next chain from graph["0"]
-        if "0" in graph:
-            _follow_chain(graph["0"])
+        # Root-level points: follow next chain from graph[GRAPH_ROOT_KEY]
+        if cls.GRAPH_ROOT_KEY in graph:
+            _follow_chain(graph[cls.GRAPH_ROOT_KEY])
 
         # Children: for each place, follow next chain from the first child
         for point_id, info in graph.items():
-            if point_id == "0" or not isinstance(info, dict):
+            if point_id == cls.GRAPH_ROOT_KEY or not isinstance(info, dict):
                 continue
             children = info.get("children", {})
             if isinstance(children, list):
@@ -174,7 +180,7 @@ class BaseGraphHandler(ABC):
         """
 
         if point is None:
-            point_id = self.graph["0"]
+            point_id = self.graph[self.GRAPH_ROOT_KEY]
 
         elif hasattr(point, "id"):
             point_id = point.id
@@ -290,8 +296,8 @@ class BaseGraphHandler(ABC):
         if position == "south":
             # First point
             if reference_point is None:
-                if "0" in self.graph:
-                    return self.get_point(self.graph["0"])
+                if self.GRAPH_ROOT_KEY in self.graph:
+                    return self.get_point(self.graph[self.GRAPH_ROOT_KEY])
                 else:
                     return None
 
@@ -313,7 +319,7 @@ class BaseGraphHandler(ABC):
         each point. Mostly used to place points in tests.
         """
 
-        if self.graph.get("0") is None:
+        if self.graph.get(self.GRAPH_ROOT_KEY) is None:
             return None, "south", ""
 
         def search_last(point_id):
@@ -323,7 +329,7 @@ class BaseGraphHandler(ABC):
             else:
                 return search_last(next_points[0])
 
-        return search_last(self.graph["0"])
+        return search_last(self.graph[self.GRAPH_ROOT_KEY])
 
     def append(self, point: GraphPoint) -> None:
         """
@@ -346,11 +352,11 @@ class BaseGraphHandler(ABC):
         """
 
         # Is it the root point?
-        if point.id == self.graph.get("0", None):
+        if point.id == self.graph.get(self.GRAPH_ROOT_KEY, None):
             return None, "south", ""
 
         for point_id, point_info in self.graph.items():
-            if point_id == "0" or point_id == str(point.id):
+            if point_id == self.GRAPH_ROOT_KEY or point_id == str(point.id):
                 continue
 
             for output_uid, next_points in point_info.get("next", {}).items():
@@ -486,15 +492,14 @@ class BaseGraphHandler(ABC):
     def generate_parent_map_cache_key(cls, graph_model: GraphModelInstance) -> str:
         return f"parent_map_{graph_model._meta.label}_{graph_model.id}"
 
-    @staticmethod
-    def build_parent_map(graph: SerializedGraph | None) -> Dict[int, int]:
+    @classmethod
+    def build_parent_map(cls, graph: SerializedGraph | None) -> Dict[int, int]:
         """
         Build and return a mapping of `{child_id: parent_id}` for all points
         that are direct children (or chained via `next[""]`) of a container,
         given a raw graph dict.
 
-        This static method is the canonical implementation; the instance method
-        `get_parent_map` delegates to it with `self.graph`.
+        The instance method `get_parent_map` delegates to this with `self.graph`.
 
         :param graph: A raw serialized graph dict (maybe `None`).
         :return: A dict mapping each child point ID (int) to its parent
@@ -503,11 +508,11 @@ class BaseGraphHandler(ABC):
 
         parent_map: Dict[int, int] = {}
         for str_id, info in (graph or {}).items():
-            if str_id == "0" or not isinstance(info, dict):
+            if str_id == cls.GRAPH_ROOT_KEY or not isinstance(info, dict):
                 continue
             node_id = int(str_id)
 
-            # Inline _get_children_dict logic so this can be a static method.
+            # Inline _get_children_dict logic to avoid needing an instance.
             children = info.get("children")
             if children is None:
                 children_dict = {}
@@ -547,12 +552,12 @@ class BaseGraphHandler(ABC):
 
         That subset is:
         - The graph entry for each new point.
-        - The predecessor entry — the existing node whose `next` edge (or the `"0"`
+        - The predecessor entry — the existing node whose `next` edge (or the `GRAPH_ROOT_KEY`
           sentinel) now points at the first new point. Without it, a client holding a
           stale local graph has no traversal path into the new nodes.
 
         :param new_points: The newly inserted points, in insertion order.
-        :return: A dict of graph entries keyed by string point ID (plus "0" if the
+        :return: A dict of graph entries keyed by string point ID (plus GRAPH_ROOT_KEY if the
             first new point became the root).
         """
 
@@ -565,7 +570,7 @@ class BaseGraphHandler(ABC):
         for node_id, info in self.graph.items():
             if node_id in affected_ids:
                 continue
-            # "0" stores a raw ID scalar, not a dict.
+            # GRAPH_ROOT_KEY stores a raw ID scalar, not a dict.
             if not isinstance(info, dict):
                 if str(info) == first_new_id:
                     affected_ids.add(node_id)
@@ -749,11 +754,11 @@ class BaseGraphHandler(ABC):
         # of the graph to point to the new point, and make the old root (if it exists)
         # a child of the new point.
         if reference_point is None:
-            if "0" in graph:
-                new_next = [graph["0"]]
+            if self.GRAPH_ROOT_KEY in graph:
+                new_next = [graph[self.GRAPH_ROOT_KEY]]
 
             # Our `point` is now the root of the graph.
-            graph["0"] = point.id
+            graph[self.GRAPH_ROOT_KEY] = point.id
 
             if new_next:
                 point_info["next"] = {"": new_next}
@@ -772,7 +777,7 @@ class BaseGraphHandler(ABC):
             # If the reference itself has no reference ID, then it's the root.
             # We'll then replace the root with our new `point`.
             if ref_position_id is None:
-                graph["0"] = point.id
+                graph[self.GRAPH_ROOT_KEY] = point.id
             elif ref_position == "south":
                 self.get_info(ref_position_id)["next"][ref_output] = _replace(
                     self.get_info(ref_position_id)["next"][ref_output],
@@ -863,9 +868,9 @@ class BaseGraphHandler(ABC):
         if point_position_id is None:
             next_points = self._get_all_next_points(point_to_delete)
             if next_points:
-                graph["0"] = next_points[0]
+                graph[self.GRAPH_ROOT_KEY] = next_points[0]
             else:
-                del graph["0"]
+                del graph[self.GRAPH_ROOT_KEY]
 
         elif position == "south":
             graph[point_position_id]["next"][output] = _replace(
@@ -912,7 +917,7 @@ class BaseGraphHandler(ABC):
 
         if position == "south":
             if reference_point_id is None:
-                self.graph["0"] = new_point.id
+                self.graph[self.GRAPH_ROOT_KEY] = new_point.id
             else:
                 self.graph[reference_point_id]["next"][output] = _replace(
                     self.graph[reference_point_id]["next"][output],
@@ -983,6 +988,48 @@ class BaseGraphHandler(ABC):
         self.graph.pop(str(point.id), None)
         self._update_graph()
 
+    def get_point_ids_from_db(self):
+        """
+        Return a queryset of all point IDs currently in the database for this
+        container. Requires ``container_fk_name`` to be set on the subclass.
+        """
+
+        return self.base_point_class.objects.filter(
+            **{self.container_fk_name: self.instance}
+        ).values_list("id", flat=True)
+
+    def assert_graph_consistency(self):
+        """
+        Verify that the set of graph node keys matches the set of point IDs
+        stored in the database.
+
+        This method is a no-op when ``settings.DEBUG`` is ``False``, so it
+        carries zero cost in production.  In development it raises
+        :exc:`GraphConsistencyError` when the two sets diverge, surfacing bugs
+        immediately rather than letting stale graph entries cause subtle
+        failures later.
+
+        Call this at service layer after every fully-settled mutation (i.e.
+        after both the graph *and* the DB are in their final state).
+        """
+
+        from django.conf import settings
+
+        if not settings.DEBUG:
+            return
+
+        graph_ids = {int(k) for k in self.graph if k != self.GRAPH_ROOT_KEY}
+        db_ids = set(self.get_point_ids_from_db())
+
+        stale = graph_ids - db_ids
+        missing = db_ids - graph_ids
+        if stale or missing:
+            raise GraphConsistencyError(
+                instance=self.instance,
+                stale=stale,
+                missing=missing,
+            )
+
     def migrate_graph(self, id_mapping: Dict[str, Any]):
         """
         Updates the point IDs and edge UIDs in the graph from the id_mapping.
@@ -1002,8 +1049,10 @@ class BaseGraphHandler(ABC):
             return id_mapping[self.outputs_id_mapping][uid]
 
         for key, info in self.graph.items():
-            if key == "0":
-                migrated["0"] = id_mapping[self.instance_id_mapping][info]
+            if key == self.GRAPH_ROOT_KEY:
+                migrated[self.GRAPH_ROOT_KEY] = id_mapping[self.instance_id_mapping][
+                    info
+                ]
 
             else:
                 migrated[str(map_point(key))] = {}
@@ -1049,7 +1098,7 @@ class BaseGraphHandler(ABC):
 
         result = {}
         for key, point_info in self.graph.items():
-            if key == "0":
+            if key == self.GRAPH_ROOT_KEY:
                 result[key] = get_label(point_info)
             else:
                 result[get_label(key)] = {}

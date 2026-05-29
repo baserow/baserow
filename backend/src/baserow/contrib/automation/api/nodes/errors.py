@@ -74,3 +74,9 @@ ERROR_AUTOMATION_NODE_NOT_MOVABLE = (
     HTTP_400_BAD_REQUEST,
     "{e}",
 )
+
+ERROR_GRAPH_INCONSISTENT = (
+    "ERROR_GRAPH_INCONSISTENT",
+    HTTP_400_BAD_REQUEST,
+    "The graph is inconsistent: {e}",
+)
