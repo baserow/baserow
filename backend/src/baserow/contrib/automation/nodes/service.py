@@ -200,6 +200,8 @@ class AutomationNodeService:
 
         workflow.get_graph().insert(new_node, reference_node, position, output)
 
+        workflow.get_graph().assert_graph_consistency()
+
         cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
         global_cache.update(cache_key, lambda _: True)
 
@@ -294,6 +296,8 @@ class AutomationNodeService:
             automation,
             node,
         )
+
+        workflow.get_graph().assert_graph_consistency()
 
         cache_key = WORKFLOW_DIRTY_CACHE_KEY.format(workflow.id)
         global_cache.update(cache_key, lambda _: True)
@@ -501,6 +505,8 @@ class AutomationNodeService:
         )
 
         workflow.get_graph().move(node_to_move, reference_node, position, output)
+
+        workflow.get_graph().assert_graph_consistency()
 
         automation_workflow_updated.send(self, workflow=workflow, user=user)
 
