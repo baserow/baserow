@@ -738,9 +738,6 @@ def test_remove_dependent_count_rollup_field_through_field(
     assert test_field.error == "references the deleted or unknown field "
 
 
-# Regression test for https://github.com/baserow/baserow/issues/3925
-# The rollup field's API response must include `number_negative` so the
-# frontend filter input allows typing negative numbers.
 @pytest.mark.django_db
 def test_rollup_field_api_response_includes_number_negative(data_fixture, api_client):
     user, token = data_fixture.create_user_and_token()
@@ -776,6 +773,4 @@ def test_rollup_field_api_response_includes_number_negative(data_fixture, api_cl
     assert response.status_code == HTTP_200_OK
     response_json = response.json()
     assert response_json["type"] == "rollup"
-    # Rollup fields are formula-backed and never enforce a "no negatives"
-    # restriction, so they must always serialize as `number_negative: True`.
     assert response_json["number_negative"] is True

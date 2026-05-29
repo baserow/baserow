@@ -6229,21 +6229,22 @@ class RollupFieldType(FormulaFieldType):
         "target_field_id",
         "rollup_function",
     ]
-    serializer_field_names = BASEROW_FORMULA_TYPE_ALLOWED_FIELDS + [
+    request_serializer_field_names = (
+        BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES
+        + [
+            "through_field_id",
+            "target_field_id",
+            "rollup_function",
+            "formula_type",
+        ]
+    )
+    serializer_field_names = BASEROW_FORMULA_TYPE_SERIALIZER_FIELD_NAMES + [
         "through_field_id",
         "target_field_id",
         "rollup_function",
         "formula_type",
-        # `number_negative` is added explicitly so the frontend can correctly
-        # handle negative numbers in rollup fields (the user-visible symptom in
-        # issue #3925 is the grid view filter input swallowing the "-" key, but
-        # the same flag also gates negative-sign parsing/formatting). Unlike
-        # regular number fields, formula-backed number fields have no storage
-        # for this flag and no "no negatives" restriction, so the serializer
-        # override below returns a constant `True`.
-        "number_negative",
     ]
-    serializer_field_overrides = {
+    request_serializer_field_overrides = {
         "through_field_id": serializers.IntegerField(
             required=False,
             allow_null=True,
@@ -6258,18 +6259,7 @@ class RollupFieldType(FormulaFieldType):
             "through_field to rollup.",
         ),
         "nullable": serializers.BooleanField(required=False, read_only=True),
-        "number_negative": serializers.BooleanField(
-            required=False, read_only=True, default=True
-        ),
     }
-
-    @property
-    def request_serializer_field_names(self):
-        return self.serializer_field_names
-
-    @property
-    def request_serializer_field_overrides(self):
-        return self.serializer_field_overrides
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs
