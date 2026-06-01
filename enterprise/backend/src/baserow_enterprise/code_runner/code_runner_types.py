@@ -24,6 +24,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         wasmtime_executable: str | None = None,
         quickjs_wasm_path: str | None = None,
         timeout_seconds: int | None = None,
+        memory_limit_bytes: int | None = None,
     ):
         self.wasmtime_executable = wasmtime_executable or getattr(
             settings,
@@ -39,6 +40,11 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
             settings,
             "ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS",
             5,
+        )
+        self.memory_limit_bytes = memory_limit_bytes or getattr(
+            settings,
+            "ENTERPRISE_CODE_RUNNER_MEMORY_LIMIT_BYTES",
+            64 * 1024 * 1024,
         )
 
     def run(self, context_data: dict[str, Any], code: str) -> dict[str, Any]:
@@ -71,6 +77,12 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         command = [
             self.wasmtime_executable,
             "run",
+            "-W",
+            f"timeout={self.timeout_seconds}s",
+            "-W",
+            f"max-memory-size={self.memory_limit_bytes}",
+            "-W",
+            "trap-on-grow-failure=true",
             self.quickjs_wasm_path,
             "--std",
             "--eval",

@@ -88,6 +88,10 @@ def setup(settings):
     settings.ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS = int(
         os.getenv("BASEROW_ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS", "") or 5
     )
+    settings.ENTERPRISE_CODE_RUNNER_MEMORY_LIMIT_BYTES = int(
+        os.getenv("BASEROW_ENTERPRISE_CODE_RUNNER_MEMORY_LIMIT_BYTES", "")
+        or 64 * 1024 * 1024
+    )
 
     # AI Assistant settings
     settings.BASEROW_ENTERPRISE_ASSISTANT_LLM_MODEL = os.getenv(

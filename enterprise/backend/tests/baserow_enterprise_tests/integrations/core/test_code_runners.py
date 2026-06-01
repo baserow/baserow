@@ -1,5 +1,7 @@
 import os
 import subprocess
+from pathlib import Path
+from shutil import which
 
 from django.test import override_settings
 
@@ -16,11 +18,15 @@ from baserow_enterprise.code_runner.code_runner_types import (
     WasmtimeQuickJSCodeRunnerType,
 )
 
-runtime_variables_are_configured = all(
-    [
-        os.environ.get("BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE"),
-        os.environ.get("BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH"),
-    ]
+wasmtime_executable = os.environ.get(
+    "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE"
+)
+quickjs_wasm_path = os.environ.get("BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH")
+runtime_variables_are_configured = (
+    wasmtime_executable
+    and (Path(wasmtime_executable).is_file() or which(wasmtime_executable))
+    and quickjs_wasm_path
+    and Path(quickjs_wasm_path).is_file()
 )
 
 
@@ -28,6 +34,7 @@ runtime_variables_are_configured = all(
     ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE="wasmtime-test",
     ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH="/runtime/qjs.wasm",
     ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS=7,
+    ENTERPRISE_CODE_RUNNER_MEMORY_LIMIT_BYTES=1024 * 1024,
 )
 def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
     calls = []
@@ -50,13 +57,45 @@ def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
 
     assert result == {"newValue": 4}
     command, kwargs = calls[0]
-    assert command[:4] == ["wasmtime-test", "run", "/runtime/qjs.wasm", "--std"]
-    assert command[4] == "--eval"
-    assert "std.in.getline()" in command[5]
+    assert command[:9] == [
+        "wasmtime-test",
+        "run",
+        "-W",
+        "timeout=7s",
+        "-W",
+        "max-memory-size=1048576",
+        "-W",
+        "trap-on-grow-failure=true",
+        "/runtime/qjs.wasm",
+    ]
+    assert command[9] == "--std"
+    assert command[10] == "--eval"
+    assert "std.in.getline()" in command[11]
     assert kwargs["capture_output"] is True
     assert kwargs["text"] is True
     assert kwargs["timeout"] == 7
     assert kwargs["check"] is True
+
+
+def test_wasmtime_quickjs_code_runner_uses_explicit_memory_limit(monkeypatch):
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append((command, kwargs))
+        return subprocess.CompletedProcess(
+            command, 0, stdout='{"result": {"newValue": 4}}', stderr=""
+        )
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    runner = WasmtimeQuickJSCodeRunnerType(
+        quickjs_wasm_path="/runtime/qjs.wasm",
+        memory_limit_bytes=2 * 1024 * 1024,
+    )
+
+    runner.run({}, "function main() { return { newValue: 4 } }")
+
+    assert "max-memory-size=2097152" in calls[0][0]
 
 
 def unregister_code_runner_features(

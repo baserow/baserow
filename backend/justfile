@@ -155,9 +155,9 @@ _create-venv:
         echo "Virtual environment already exists at {{ venv_dir }}"
     fi
 
-# Build local code runner runtime artifacts and update .env.local
+# Build local code runner runtime artifacts
 [group('1 - setup')]
-[doc("Build local Wasmtime + QuickJS runtime artifacts and update .env.local")]
+[doc("Build local Wasmtime + QuickJS runtime artifacts")]
 code-runtime:
     #!/usr/bin/env bash
     set -euo pipefail
