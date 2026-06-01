@@ -64,7 +64,6 @@ describe('ChoiceElement', () => {
     const wrapper = await mountComponentForElement({
       id: 42,
       defaultValue: '1',
-      parent_element_id: null,
       type: 'choice',
       multiple: false,
       option_type: 'manual',
@@ -80,7 +79,6 @@ describe('ChoiceElement', () => {
     const wrapper = await mountComponentForElement({
       id: 42,
       defaultValue: '1',
-      parent_element_id: null,
       type: 'choice',
       multiple: false,
       option_type: 'manual',
@@ -99,7 +97,6 @@ describe('ChoiceElement', () => {
     const wrapper = await mountComponentForElement({
       id: 42,
       defaultValue: '1',
-      parent_element_id: null,
       type: 'choice',
       multiple: false,
       option_type: 'manual',
@@ -126,7 +123,6 @@ describe('ChoiceElement', () => {
     const wrapper = await mountComponentForElement({
       id: 42,
       defaultValue: '1',
-      parent_element_id: null,
       type: 'choice',
       multiple: false,
       option_type: 'manual',
@@ -145,7 +141,6 @@ describe('ChoiceElement', () => {
     const wrapper = await mountComponentForElement({
       id: 42,
       defaultValue: '1',
-      parent_element_id: null,
       type: 'choice',
       multiple: true,
       option_type: 'manual',

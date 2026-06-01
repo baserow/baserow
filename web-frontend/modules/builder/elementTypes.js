@@ -1,4 +1,3 @@
-import BigNumber from 'bignumber.js'
 import { Registerable } from '@baserow/modules/core/registry'
 import TextElement from '@baserow/modules/builder/components/elements/components/TextElement'
 import HeadingElement from '@baserow/modules/builder/components/elements/components/HeadingElement'
@@ -392,14 +391,8 @@ export class ElementType extends Registerable {
    * @param {object} values the current values for the element to create.
    * @returns an object containing values updated with the default values.
    */
-  getDefaultValues(page, values) {
-    // By default if an element is inside a container we apply the
-    // `.getDefaultChildValues()` method of the parent to it.
-    if (values?.parent_element_id) {
-      const parentElement = this.app.$store.getters['element/getElementById'](
-        page,
-        values.parent_element_id
-      )
+  getDefaultValues(page, values, parentElement = null) {
+    if (parentElement) {
       const parentElementType = this.app.$registry.get(
         'element',
         parentElement.type
@@ -526,21 +519,18 @@ export class ElementType extends Registerable {
    * that can be used to move the element.
    */
   getNextPlaces({ builder, page, element }) {
-    const parentElementId = element.parent_element_id
-      ? element.parent_element_id
-      : null
+    let placeInContainer = element.place_in_container
 
     const elementPage = this.app.$store.getters['page/getById'](
       builder,
       element.page_id
     )
 
-    const parentElement = element.parent_element_id
-      ? this.app.$store.getters['element/getElementById'](
-          elementPage,
-          element.parent_element_id
-        )
-      : null
+    const parentElement = this.app.$store.getters['element/getParent'](
+      elementPage,
+      element
+    )
+    const parentElementId = parentElement?.id ?? null
     const parentElementType = parentElement
       ? this.app.$registry.get('element', parentElement.type)
       : null
@@ -554,42 +544,27 @@ export class ElementType extends Registerable {
       [DIRECTIONS.RIGHT]: null,
     }
 
-    // BEFORE
+    // BEFORE — insert before the previous sibling using 'north'
     const previousElement = elementsAround[DIRECTIONS.BEFORE]
     if (previousElement) {
-      // If we have a previous element, let place it before it.
       nextPlaces[DIRECTIONS.BEFORE] = {
-        beforeElementId: previousElement.id,
-        parentElementId,
-        placeInContainer: previousElement.place_in_container,
+        referenceElementId: previousElement.id,
+        position: 'north',
+        placeInContainer: '',
       }
     }
 
-    // AFTER
+    // AFTER — insert south of the next sibling
     const nextElement = elementsAround[DIRECTIONS.AFTER]
     if (nextElement) {
-      const nextNextElement = this.app.$store.getters['element/getNextElement'](
-        elementPage,
-        nextElement
-      )
-      if (!nextNextElement) {
-        // We have to place this element as last element in the given place
-        nextPlaces[DIRECTIONS.AFTER] = {
-          beforeElementId: null,
-          parentElementId,
-          placeInContainer: element.place_in_container,
-        }
-      } else {
-        // Otherwise it must be placed just before the next next element
-        nextPlaces[DIRECTIONS.AFTER] = {
-          beforeElementId: nextNextElement.id,
-          parentElementId,
-          placeInContainer: nextNextElement.place_in_container,
-        }
+      nextPlaces[DIRECTIONS.AFTER] = {
+        referenceElementId: nextElement.id,
+        position: 'south',
+        placeInContainer: '',
       }
     }
 
-    // LEFT
+    // LEFT — move to end of the previous container place
     if (parentElement) {
       const places = parentElementType.getElementPlaces(parentElement)
       const placeIndex = places.findIndex(
@@ -597,38 +572,50 @@ export class ElementType extends Registerable {
       )
 
       if (placeIndex > 0) {
-        // Let's move it as last of the previous container place
-        nextPlaces[DIRECTIONS.LEFT] = {
-          beforeElementId: null,
-          parentElementId,
-          placeInContainer: places[placeIndex - 1],
+        const prevPlace = places[placeIndex - 1]
+        const elementsInPrevPlace = this.app.$store.getters[
+          'element/getElementsInPlace'
+        ](elementPage, parentElementId, prevPlace)
+
+        if (elementsInPrevPlace.length) {
+          nextPlaces[DIRECTIONS.LEFT] = {
+            referenceElementId: elementsInPrevPlace.at(-1).id,
+            position: 'south',
+            placeInContainer: '',
+          }
+        } else {
+          nextPlaces[DIRECTIONS.LEFT] = {
+            referenceElementId: parentElementId,
+            position: 'child',
+            placeInContainer: prevPlace,
+          }
         }
       }
     }
 
-    // RIGHT
+    // RIGHT — move to end of the next container place
     if (parentElement) {
       const places = parentElementType.getElementPlaces(parentElement)
       const placeIndex = places.findIndex(
         (place) => place === element.place_in_container
       )
       if (placeIndex < places.length - 1) {
-        const placeInContainer = places[placeIndex + 1]
+        const nextPlace = places[placeIndex + 1]
         const elementsInNextPlace = this.app.$store.getters[
           'element/getElementsInPlace'
-        ](elementPage, element.parent_element_id, placeInContainer)
+        ](elementPage, parentElementId, nextPlace)
+
         if (elementsInNextPlace.length) {
-          // Let's place it as first element in the next container place
           nextPlaces[DIRECTIONS.RIGHT] = {
-            beforeElementId: elementsInNextPlace[0].id,
-            parentElementId,
-            placeInContainer,
+            referenceElementId: elementsInNextPlace.at(-1).id,
+            position: 'south',
+            placeInContainer: '',
           }
         } else {
           nextPlaces[DIRECTIONS.RIGHT] = {
-            beforeElementId: null,
-            parentElementId,
-            placeInContainer,
+            referenceElementId: parentElementId,
+            position: 'child',
+            placeInContainer: nextPlace,
           }
         }
       }
@@ -658,20 +645,25 @@ export class ElementType extends Registerable {
   getElementsAround({ builder, page, element, withSharedPage = false }) {
     const elementType = this.app.$registry.get('element', element.type)
     const elementPlace = elementType.getPagePlace()
-    const isRootElement = !element.parent_element_id
 
     const elementPage = this.app.$store.getters['page/getById'](
       builder,
       element.page_id
     )
 
+    const parentElement = this.app.$store.getters['element/getParent'](
+      elementPage,
+      element
+    )
+    const isRootElement = !parentElement
+
     const siblings = this.app.$store.getters['element/getElementsInPlace'](
       elementPage,
-      element.parent_element_id,
+      parentElement?.id ?? null,
       element.place_in_container
     ).filter(
       (sibling) =>
-        Boolean(element.parent_element_id) ||
+        Boolean(parentElement) ||
         this.app.$registry.get('element', sibling.type).getPagePlace() ===
           elementPlace
     )
@@ -748,11 +740,7 @@ export class ElementType extends Registerable {
     let rightElement = null
 
     // We have a parent, so we can find left and right elements.
-    if (element.parent_element_id) {
-      const parentElement = this.app.$store.getters['element/getElementById'](
-        elementPage,
-        element.parent_element_id
-      )
+    if (parentElement) {
       const parentElementType = this.app.$registry.get(
         'element',
         parentElement.type
@@ -766,7 +754,7 @@ export class ElementType extends Registerable {
       while (placeLeftIndex >= 0) {
         const elementsInNextPlace = this.app.$store.getters[
           'element/getElementsInPlace'
-        ](elementPage, element.parent_element_id, places[placeLeftIndex])
+        ](elementPage, parentElement.id, places[placeLeftIndex])
         if (elementsInNextPlace.length > 0) {
           leftElement = elementsInNextPlace.at(-1)
           break
@@ -777,7 +765,7 @@ export class ElementType extends Registerable {
       while (placeRightIndex <= places.length - 1) {
         const elementsInNextPlace = this.app.$store.getters[
           'element/getElementsInPlace'
-        ](elementPage, element.parent_element_id, places[placeRightIndex])
+        ](elementPage, parentElement.id, places[placeRightIndex])
         if (elementsInNextPlace.length > 0) {
           rightElement = elementsInNextPlace[0]
           break
@@ -1199,8 +1187,8 @@ export class SimpleContainerElementType extends ContainerElementTypeMixin(
     return SimpleContainerElementForm
   }
 
-  getDefaultValues(page, values) {
-    const superValues = super.getDefaultValues(page, values)
+  getDefaultValues(page, values, parentElement = null) {
+    const superValues = super.getDefaultValues(page, values, parentElement)
     return {
       ...superValues,
       style_padding_left: 0,
@@ -2315,8 +2303,8 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     return {}
   }
 
-  getDefaultValues(page, values) {
-    const superValues = super.getDefaultValues(page, values)
+  getDefaultValues(page, values, parentElement = null) {
+    const superValues = super.getDefaultValues(page, values, parentElement)
     return {
       ...superValues,
       style_padding_left: 0,
@@ -2325,77 +2313,66 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
   }
 
   /**
-   * We can't have this element inside another container. Not allowed outside of HEADER.
-   * We can add id before the first element though.
+   * Allowed positions for a HeaderElement:
+   *   - Anywhere in the HEADER zone (north or south of any existing header).
+   *   - North of the very first element in the CONTENT zone.
+   * Disallowed everywhere else, including inside containers and in the FOOTER zone.
+   * Drag-and-drop uses `referencePagePlace`; the Add Element modal uses `pagePlace`.
    */
   isDisallowedReason({
-    workspace,
     builder,
     page,
-    element,
     parentElement,
     beforeElement,
-    placeInContainer,
+    afterElement,
     pagePlace,
     referencePagePlace,
   }) {
     if (parentElement) {
-      // Can't be inserted inside another container
       return this.app.$i18n.t('elementType.notAllowedInsideContainer')
     }
 
-    // Disallow drops when the cursor is hovering over a different page section (e.g. a footer zone).
-    if (referencePagePlace && referencePagePlace !== PAGE_PLACES.HEADER) {
-      return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
-    }
-
-    const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
-
-    if (
-      page.id === sharedPage.id &&
-      pagePlace &&
-      pagePlace !== PAGE_PLACES.HEADER
-    ) {
-      // can't be inserted outside of header
-      return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
-    }
-
-    if (page.id === sharedPage.id) {
-      // A header must only follow another header; filter to headers to avoid
-      // elements with lower order values being treated as the preceding element.
-      const rootHeaderElements = this.app.$store.getters[
-        'element/getElementsOrdered'
-      ](sharedPage).filter(
-        (e) =>
-          !e.parent_element_id &&
-          this.app.$registry.get('element', e.type).getPagePlace() ===
-            PAGE_PLACES.HEADER
-      )
-
-      // Find the last header before beforeElement's order position (or the last header if placing at end).
-      const precedingElement = beforeElement
-        ? rootHeaderElements
-            .slice()
-            .reverse()
-            .find((e) =>
-              new BigNumber(e.order).lt(new BigNumber(beforeElement.order))
-            ) || null
-        : (rootHeaderElements.at(-1) ?? null)
-
-      if (
-        precedingElement &&
-        this.app.$registry
-          .get('element', precedingElement.type)
-          .getPagePlace() !== PAGE_PLACES.HEADER
-      ) {
+    // ── Drag-and-drop context ──
+    // useDropElementTarget never passes afterElement, so afterElement === undefined
+    // is the reliable signal that we're in a D&D drop, not the Add Element modal.
+    if (afterElement === undefined) {
+      if (referencePagePlace && referencePagePlace !== PAGE_PLACES.HEADER) {
         return this.app.$i18n.t('elementType.notAllowedUnlessHeader')
+      }
+      return null
+    }
+
+    // ── Modal context ──
+
+    // Footer zone: headers never belong here
+    if (pagePlace === PAGE_PLACES.FOOTER) {
+      return this.app.$i18n.t('elementType.notAllowedLocation')
+    }
+
+    // Header zone: always allowed — north or south of any existing header
+    if (pagePlace === PAGE_PLACES.HEADER) {
+      return null
+    }
+
+    // Content zone: header is only allowed north of the FIRST content element
+    if (pagePlace === PAGE_PLACES.CONTENT) {
+      // South of anything in the content zone → disallowed
+      if (afterElement) {
+        return this.app.$i18n.t('elementType.notAllowedLocation')
+      }
+      // North of a content element → only the very first element is valid
+      if (beforeElement) {
+        const firstContentElement =
+          this.app.$store.getters['element/getRootElements'](page)[0] ?? null
+        if (
+          !firstContentElement ||
+          beforeElement.id !== firstContentElement.id
+        ) {
+          return this.app.$i18n.t('elementType.notAllowedLocation')
+        }
       }
     }
 
-    if (page.id !== sharedPage.id && pagePlace === PAGE_PLACES.HEADER) {
-      // A header element is being dragged to the current page content.
-      return this.app.$i18n.t('elementType.notAllowedLocation')
-    }
     return null
   }
 }
@@ -2438,71 +2415,64 @@ export class FooterElementType extends HeaderElementType {
   }
 
   /**
-   * We can't have this element inside another container. Not allowed outside of FOOTER.
-   * We can add id after the element of the page though.
+   * Allowed positions for a FooterElement:
+   *   - Anywhere in the FOOTER zone (north or south of any existing footer).
+   *   - South of the very last element in the CONTENT zone.
+   * Disallowed everywhere else, including inside containers and in the HEADER zone.
+   * Drag-and-drop uses `referencePagePlace`; the Add Element modal uses `pagePlace`.
    */
   isDisallowedReason({
-    workspace,
     builder,
     page,
-    element,
     parentElement,
     beforeElement,
-    placeInContainer,
+    afterElement,
     pagePlace,
     referencePagePlace,
   }) {
     if (parentElement) {
-      // Can't be inserted inside another container
       return this.app.$i18n.t('elementType.notAllowedInsideContainer')
     }
 
-    // Disallow drops when the cursor is hovering over a different page section (e.g. a header zone).
-    if (referencePagePlace && referencePagePlace !== PAGE_PLACES.FOOTER) {
-      return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
-    }
-
-    const sharedPage = this.app.$store.getters['page/getSharedPage'](builder)
-    if (
-      page.id === sharedPage.id &&
-      pagePlace &&
-      pagePlace !== PAGE_PLACES.FOOTER
-    ) {
-      // can't be inserted outside of footer
-      return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
-    }
-
-    if (page.id === sharedPage.id) {
-      // A footer must only precede another footer; filter to footers to avoid
-      // elements with higher order values being treated as the next element.
-      const rootFooterElements = this.app.$store.getters[
-        'element/getElementsOrdered'
-      ](sharedPage).filter(
-        (e) =>
-          !e.parent_element_id &&
-          this.app.$registry.get('element', e.type).getPagePlace() ===
-            PAGE_PLACES.FOOTER
-      )
-
-      // Find the first footer at or after beforeElement's order position.
-      const nextFooterElement = beforeElement
-        ? rootFooterElements.find((e) =>
-            new BigNumber(e.order).gte(new BigNumber(beforeElement.order))
-          ) || null
-        : null
-
-      if (nextFooterElement && nextFooterElement.id !== beforeElement?.id) {
-        // There is a footer at or after `beforeElement`, but `beforeElement` itself
-        // is not a footer — inserting here would place the footer before non-footer
-        // content that still precedes another footer.
+    // ── Drag-and-drop context ──
+    // useDropElementTarget never passes afterElement, so afterElement === undefined
+    // is the reliable signal that we're in a D&D drop, not the Add Element modal.
+    if (afterElement === undefined) {
+      if (referencePagePlace && referencePagePlace !== PAGE_PLACES.FOOTER) {
         return this.app.$i18n.t('elementType.notAllowedUnlessFooter')
+      }
+      return null
+    }
+
+    // ── Modal context ──
+
+    // Header zone: footers never belong here
+    if (pagePlace === PAGE_PLACES.HEADER) {
+      return this.app.$i18n.t('elementType.notAllowedLocation')
+    }
+
+    // Footer zone: always allowed — north or south of any existing footer
+    if (pagePlace === PAGE_PLACES.FOOTER) {
+      return null
+    }
+
+    // Content zone: footer is only allowed south of the LAST content element
+    if (pagePlace === PAGE_PLACES.CONTENT) {
+      // North of anything in the content zone → disallowed
+      if (beforeElement) {
+        return this.app.$i18n.t('elementType.notAllowedLocation')
+      }
+      // South of a content element → only the very last element is valid
+      if (afterElement) {
+        const lastContentElement =
+          this.app.$store.getters['element/getRootElements'](page).at(-1) ??
+          null
+        if (!lastContentElement || afterElement.id !== lastContentElement.id) {
+          return this.app.$i18n.t('elementType.notAllowedLocation')
+        }
       }
     }
 
-    if (page.id !== sharedPage.id && pagePlace === PAGE_PLACES.FOOTER) {
-      // A footer element is being dragged to the current page content.
-      return this.app.$i18n.t('elementType.notAllowedLocation')
-    }
     return null
   }
 }

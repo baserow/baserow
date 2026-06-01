@@ -79,9 +79,9 @@ describe('useDropElementTarget', () => {
       builder,
       page,
       elementId: draggedElement.id,
-      beforeElementId: null,
-      parentElementId: null,
-      placeInContainer: null,
+      referenceElementId: null,
+      position: 'south',
+      placeInContainer: '',
       targetPage: page,
     })
     expect(dndContext.dropTargetId).toBe(null)

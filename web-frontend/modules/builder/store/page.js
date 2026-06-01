@@ -9,6 +9,7 @@ import { BUILDER_ACTION_SCOPES } from '@baserow/modules/builder/utils/undoRedoCo
 export function populatePage(page) {
   return {
     ...page,
+    graph: page.graph || {},
     _: {
       selected: false,
       dataSourceContentLoading: false,
