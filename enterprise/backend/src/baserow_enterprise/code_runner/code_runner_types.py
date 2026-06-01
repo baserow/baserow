@@ -195,13 +195,35 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
 try {
   const input = JSON.parse(std.in.getline());
   const write = std.out.puts.bind(std.out);
+  const createFunction = Function;
+  const originalEval = globalThis.eval;
+  const originalFunction = globalThis.Function;
   delete globalThis.std;
   delete globalThis.os;
   delete globalThis.bjson;
-  globalThis.eval(input.code);
-  const result = globalThis.main(input.context);
-  delete globalThis.main;
-  write(JSON.stringify({ result }) + "\\n");
+  globalThis.eval = undefined;
+  globalThis.Function = undefined;
+  try {
+    const run = createFunction("context", `
+      "use strict";
+      const std = undefined;
+      const os = undefined;
+      const bjson = undefined;
+      const Function = undefined;
+      const print = undefined;
+      const globalThis = undefined;
+      ${input.code}
+      if (typeof main !== "function") {
+        throw new Error("The code must define a main function.");
+      }
+      return main(context);
+    `);
+    const result = run(input.context);
+    write(JSON.stringify({ result }) + "\\n");
+  } finally {
+    globalThis.eval = originalEval;
+    globalThis.Function = originalFunction;
+  }
 } catch (error) {
   const message = String(error && error.message || error);
   print(JSON.stringify({ error: message }));

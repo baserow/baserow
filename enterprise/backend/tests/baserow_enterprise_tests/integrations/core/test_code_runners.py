@@ -81,6 +81,8 @@ def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
     assert command[9] == "--std"
     assert command[10] == "--eval"
     assert "std.in.getline()" in command[11]
+    assert 'createFunction("context"' in command[11]
+    assert "globalThis.eval(input.code)" not in command[11]
     assert kwargs["stdin"] == subprocess.PIPE
     assert kwargs["stdout"] == subprocess.PIPE
     assert kwargs["stderr"] == subprocess.PIPE
@@ -292,6 +294,20 @@ def test_wasmtime_quickjs_code_runner_limits_stderr(monkeypatch):
         runner.run({}, "function main() {}")
 
 
+def test_wasmtime_quickjs_code_runner_uses_isolated_function_wrapper():
+    source = WasmtimeQuickJSCodeRunnerType(
+        quickjs_wasm_path="/runtime/qjs.wasm"
+    )._runner_source()
+
+    assert 'createFunction("context"' in source
+    assert "globalThis.eval = undefined;" in source
+    assert "globalThis.Function = undefined;" in source
+    assert "const std = undefined;" in source
+    assert "const os = undefined;" in source
+    assert "const Function = undefined;" in source
+    assert "const globalThis = undefined;" in source
+
+
 @pytest.mark.skipif(
     not runtime_variables_are_configured,
     reason="Code runner runtime environment variables are not configured.",
@@ -318,3 +334,49 @@ function main(context) {
     )
 
     assert result == {"newValue": 42}
+
+
+@pytest.mark.skipif(
+    not runtime_variables_are_configured,
+    reason="Code runner runtime environment variables are not configured.",
+)
+def test_wasmtime_quickjs_code_runner_hides_wrapper_and_std_globals():
+    runner = WasmtimeQuickJSCodeRunnerType(
+        wasmtime_executable=os.environ[
+            "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE"
+        ],
+        quickjs_wasm_path=os.environ[
+            "BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH"
+        ],
+    )
+
+    result = runner.run(
+        {},
+        """
+function main() {
+  return {
+    std: typeof std,
+    os: typeof os,
+    bjson: typeof bjson,
+    eval: typeof eval,
+    Function: typeof Function,
+    print: typeof print,
+    globalThis: typeof globalThis,
+    input: typeof input,
+    write: typeof write,
+  }
+}
+""",
+    )
+
+    assert result == {
+        "std": "undefined",
+        "os": "undefined",
+        "bjson": "undefined",
+        "eval": "undefined",
+        "Function": "undefined",
+        "print": "undefined",
+        "globalThis": "undefined",
+        "input": "undefined",
+        "write": "undefined",
+    }
