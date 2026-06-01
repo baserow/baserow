@@ -1410,11 +1410,13 @@ describe('elementTypes tests', () => {
       const page = { id: 1 }
       const parentElement = { id: 10, type: 'column' }
       const values = { style_padding_top: 20 }
-      expect(elementType.getDefaultValues(page, values, parentElement)).toEqual({
-        style_padding_top: 20,
-        style_padding_left: 0,
-        style_padding_right: 0,
-      })
+      expect(elementType.getDefaultValues(page, values, parentElement)).toEqual(
+        {
+          style_padding_top: 20,
+          style_padding_left: 0,
+          style_padding_right: 0,
+        }
+      )
     })
 
     test('parent whose getDefaultChildValues returns {} leaves values unchanged', () => {
@@ -1422,9 +1424,11 @@ describe('elementTypes tests', () => {
       const page = { id: 1 }
       const parentElement = { id: 10, type: 'simple_container' }
       const values = { style_padding_top: 20 }
-      expect(elementType.getDefaultValues(page, values, parentElement)).toEqual({
-        style_padding_top: 20,
-      })
+      expect(elementType.getDefaultValues(page, values, parentElement)).toEqual(
+        {
+          style_padding_top: 20,
+        }
+      )
     })
   })
 
