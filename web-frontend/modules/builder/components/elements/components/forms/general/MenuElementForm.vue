@@ -67,6 +67,22 @@
         </template>
       </DeviceSelector>
     </FormGroup>
+    <FormGroup
+      v-if="isCompactMenuSelected"
+      small-label
+      required
+      class="margin-bottom-2"
+      :label="$t('menuElementForm.previewCompactMenuLabel')"
+      :helper-text="editorCompactMenuHelper"
+    >
+      <Button
+        :icon="editorCompactMenuToggleIcon"
+        size="small"
+        @click="toggleEditorCompactMenu"
+      >
+        {{ editorCompactMenuToggleLabel }}
+      </Button>
+    </FormGroup>
 
     <div
       ref="menuItemAddContainer"
@@ -222,6 +238,27 @@ export default {
     element() {
       return this.getElementSelected(this.builder)
     },
+    editorCompactMenuOpen() {
+      return this.$store.getters['element/getMenuElementCompactMenuOpen'](
+        this.element
+      )
+    },
+    isCompactMenuSelected() {
+      return this.values.variant?.[this.deviceTypeSelected] === 'compact'
+    },
+    editorCompactMenuToggleIcon() {
+      return this.editorCompactMenuOpen ? 'iconoir-cancel' : 'iconoir-menu'
+    },
+    editorCompactMenuToggleLabel() {
+      return this.editorCompactMenuOpen
+        ? this.$t('menuElementForm.closeEditorCompactMenu')
+        : this.$t('menuElementForm.openEditorCompactMenu')
+    },
+    editorCompactMenuHelper() {
+      return this.editorCompactMenuOpen
+        ? this.$t('menuElementForm.previewCompactMenuHelper')
+        : null
+    },
     orientationOptions() {
       return [
         {
@@ -243,7 +280,15 @@ export default {
     },
     ...mapActions({
       actionSetDeviceTypeSelected: 'page/setDeviceTypeSelected',
+      actionSetMenuElementCompactMenuOpen:
+        'element/setMenuElementCompactMenuOpen',
     }),
+    toggleEditorCompactMenu() {
+      this.actionSetMenuElementCompactMenuOpen({
+        element: this.element,
+        open: !this.editorCompactMenuOpen,
+      })
+    },
     addMenuItem(type) {
       const name = getNextAvailableNameInSequence(
         this.$t('menuElementForm.menuItemDefaultName'),

@@ -54,12 +54,19 @@ describe('MenuElement', () => {
       tablet: 'compact',
       smartphone: 'compact',
     },
+    _: {
+      compactMenuOpen: false,
+    },
     styles: {},
     menu_items: [createMenuItem()],
     ...overrides,
   })
 
-  const mountComponent = async ({ element, deviceType = 'desktop' }) => {
+  const mountComponent = async ({
+    element,
+    deviceType = 'desktop',
+    componentMode = 'public',
+  }) => {
     await store.dispatch('page/setDeviceTypeSelected', deviceType)
     return mountSuspended(MenuElement, {
       props: { element },
@@ -68,8 +75,8 @@ describe('MenuElement', () => {
           builder,
           currentPage: page,
           elementPage: page,
-          mode,
-          applicationContext: { builder, page, mode },
+          mode: componentMode,
+          applicationContext: { builder, page, mode: componentMode },
           element,
           workspace,
         },
@@ -81,10 +88,12 @@ describe('MenuElement', () => {
   }
 
   const openCompactMenu = async (wrapper) => {
-    await wrapper.find('.menu-element__burger-menu-icon').trigger('click')
+    await wrapper
+      .find('.menu-element__compact-menu-trigger-icon')
+      .trigger('click')
   }
 
-  test('shows the compact burger control for the selected desktop device', async () => {
+  test('shows the compact menu trigger for the selected desktop device', async () => {
     const wrapper = await mountComponent({
       element: createElement({
         variant: {
@@ -95,14 +104,16 @@ describe('MenuElement', () => {
       }),
     })
 
-    expect(wrapper.find('.menu-element__burger-menu').exists()).toBe(true)
-    expect(wrapper.find('.menu-element__container--burger').exists()).toBe(
+    expect(wrapper.find('.menu-element__compact-menu-trigger').exists()).toBe(
+      true
+    )
+    expect(wrapper.find('.menu-element__container--compact').exists()).toBe(
       false
     )
     expect(wrapper.find('.menu-element__menu-item-link').exists()).toBe(false)
   })
 
-  test('opens compact menu items when the burger control is clicked', async () => {
+  test('opens compact menu items when the trigger is clicked', async () => {
     const wrapper = await mountComponent({
       element: createElement({
         variant: {
@@ -115,25 +126,116 @@ describe('MenuElement', () => {
 
     await openCompactMenu(wrapper)
 
-    expect(wrapper.find('.menu-element__container--burger').exists()).toBe(true)
+    expect(wrapper.find('.menu-element__container--compact').exists()).toBe(
+      true
+    )
     expect(
-      wrapper.find('.menu-element__burger-menu .iconoir-menu').exists()
+      wrapper.find('.menu-element__compact-menu-trigger .iconoir-menu').exists()
     ).toBe(true)
     expect(
       wrapper
-        .find('.menu-element__container--burger .menu-element__burger-menu')
+        .find(
+          '.menu-element__container--compact .menu-element__compact-menu-trigger'
+        )
         .exists()
     ).toBe(false)
     expect(
       wrapper
         .find(
-          '.menu-element__container--burger .menu-element__burger-menu-close'
+          '.menu-element__container--compact .menu-element__compact-menu-close'
         )
         .exists()
     ).toBe(true)
-    expect(wrapper.find('.menu-element__burger-menu').exists()).toBe(true)
+    expect(wrapper.find('.menu-element__compact-menu-trigger').exists()).toBe(
+      true
+    )
     expect(wrapper.find('.menu-element__menu-item-link').exists()).toBe(true)
     expect(wrapper.text()).toContain('Page')
+  })
+
+  test('does not open compact menu from trigger control in edit mode', async () => {
+    const wrapper = await mountComponent({
+      componentMode: mode,
+      element: createElement({
+        variant: {
+          desktop: 'compact',
+          tablet: 'compact',
+          smartphone: 'compact',
+        },
+      }),
+    })
+
+    await openCompactMenu(wrapper)
+
+    expect(wrapper.find('.menu-element__container--compact').exists()).toBe(
+      false
+    )
+  })
+
+  test('opens compact menu in edit mode from editor state', async () => {
+    const wrapper = await mountComponent({
+      componentMode: mode,
+      element: createElement({
+        _: {
+          compactMenuOpen: true,
+        },
+        variant: {
+          desktop: 'compact',
+          tablet: 'compact',
+          smartphone: 'compact',
+        },
+      }),
+    })
+
+    expect(wrapper.find('.menu-element__container--compact').exists()).toBe(
+      true
+    )
+    expect(
+      wrapper.find('.menu-element__compact-menu-editor-overlay').exists()
+    ).toBe(true)
+    expect(wrapper.find('.menu-element__menu-item-link').exists()).toBe(true)
+  })
+
+  test('resets compact menu editor state when unmounted', async () => {
+    const element = createElement({
+      _: {
+        compactMenuOpen: true,
+      },
+      variant: {
+        desktop: 'compact',
+        tablet: 'compact',
+        smartphone: 'compact',
+      },
+    })
+    const wrapper = await mountComponent({
+      componentMode: mode,
+      element,
+    })
+
+    wrapper.unmount()
+
+    expect(element._.compactMenuOpen).toBe(false)
+  })
+
+  test('does not render compact menu editor overlay outside edit mode', async () => {
+    const wrapper = await mountComponent({
+      element: createElement({
+        variant: {
+          desktop: 'compact',
+          tablet: 'compact',
+          smartphone: 'compact',
+        },
+      }),
+    })
+
+    await openCompactMenu(wrapper)
+
+    expect(wrapper.find('.menu-element__container--compact').exists()).toBe(
+      true
+    )
+    expect(
+      wrapper.find('.menu-element__compact-menu-editor-overlay').exists()
+    ).toBe(false)
   })
 
   test('keeps default alignment inside the compact panel', async () => {
@@ -151,7 +253,7 @@ describe('MenuElement', () => {
     await openCompactMenu(wrapper)
 
     expect(
-      wrapper.find('.menu-element__container--burger').attributes('style')
+      wrapper.find('.menu-element__container--compact').attributes('style')
     ).toContain('--alignment: flex-start')
   })
 
@@ -167,14 +269,16 @@ describe('MenuElement', () => {
     })
 
     await openCompactMenu(wrapper)
-    await wrapper.find('.menu-element__burger-menu-close').trigger('click')
+    await wrapper.find('.menu-element__compact-menu-close').trigger('click')
 
-    expect(wrapper.find('.menu-element__container--burger').exists()).toBe(
+    expect(wrapper.find('.menu-element__container--compact').exists()).toBe(
       false
     )
-    expect(wrapper.find('.menu-element__burger-menu').exists()).toBe(true)
+    expect(wrapper.find('.menu-element__compact-menu-trigger').exists()).toBe(
+      true
+    )
     expect(
-      wrapper.find('.menu-element__burger-menu .iconoir-menu').exists()
+      wrapper.find('.menu-element__compact-menu-trigger .iconoir-menu').exists()
     ).toBe(true)
   })
 
@@ -196,7 +300,7 @@ describe('MenuElement', () => {
     document.body.dispatchEvent(new MouseEvent('click', { bubbles: true }))
     await wrapper.vm.$nextTick()
 
-    expect(wrapper.find('.menu-element__container--burger').exists()).toBe(
+    expect(wrapper.find('.menu-element__container--compact').exists()).toBe(
       false
     )
   })
@@ -206,7 +310,9 @@ describe('MenuElement', () => {
       element: createElement(),
     })
 
-    expect(wrapper.find('.menu-element__burger-menu').exists()).toBe(false)
+    expect(wrapper.find('.menu-element__compact-menu-trigger').exists()).toBe(
+      false
+    )
     expect(wrapper.find('.menu-element__container--horizontal').exists()).toBe(
       true
     )

@@ -141,6 +141,9 @@ const mutations = {
   SET_REPEAT_ELEMENT_COLLAPSED(state, { element, collapsed }) {
     element._.collapsed = collapsed
   },
+  SET_MENU_ELEMENT_COMPACT_MENU_OPEN(state, { element, open }) {
+    element._.compactMenuOpen = open
+  },
 }
 
 const actions = {
@@ -550,6 +553,12 @@ const actions = {
       collapsed,
     })
   },
+  setMenuElementCompactMenuOpen({ commit }, { element, open }) {
+    commit('SET_MENU_ELEMENT_COMPACT_MENU_OPEN', {
+      element,
+      open,
+    })
+  },
 }
 
 const getters = {
@@ -717,6 +726,9 @@ const getters = {
   },
   getRepeatElementCollapsed: (state) => (element) => {
     return element._.collapsed
+  },
+  getMenuElementCompactMenuOpen: (state) => (element) => {
+    return element._.compactMenuOpen
   },
 }
 

@@ -8,31 +8,40 @@
   >
     <template v-if="useCompactMenu">
       <div
-        class="menu-element__burger-menu"
+        v-if="isEditMode && isCompactMenuOpen"
+        class="menu-element__compact-menu-editor-overlay"
+        @click.stop
+        @mousedown.stop
+      />
+
+      <div
+        class="menu-element__compact-menu-trigger"
         :style="{
           ...getStyleOverride('burger'),
         }"
       >
         <ABIcon
           icon="iconoir-menu"
-          :class="'menu-element__burger-menu-icon'"
+          :class="'menu-element__compact-menu-trigger-icon'"
           is-button
-          @click.stop="compactMenuOpen = !compactMenuOpen"
+          @click.stop="toggleCompactMenu"
         />
       </div>
 
       <div
-        v-if="compactMenuOpen"
+        v-if="isCompactMenuOpen"
         v-click-outside="closeCompactMenu"
         :class="compactPanelClasses"
         :style="{
           ...getStyleOverride('menu'),
           '--alignment': 'flex-start',
         }"
+        @mousedown.stop
+        @dragstart.prevent.stop
       >
         <ABIcon
           icon="iconoir-cancel"
-          class="menu-element__burger-menu-close"
+          class="menu-element__compact-menu-close"
           is-button
           @click="closeCompactMenu"
         />
@@ -85,6 +94,11 @@ export default {
   name: 'MenuElement',
   components: { MenuItem },
   mixins: [element],
+  inject: {
+    setPagePreviewLocked: {
+      default: null,
+    },
+  },
   props: {
     element: {
       type: Object,
@@ -101,7 +115,7 @@ export default {
       return [
         'menu-element__container',
         'menu-element__container--vertical',
-        'menu-element__container--burger',
+        'menu-element__container--compact',
       ]
     },
     menuContainerClasses() {
@@ -126,10 +140,53 @@ export default {
         this.$store.getters['page/getDeviceTypeSelected'] || 'desktop'
       return this.element.variant?.[deviceType] === 'compact'
     },
+    isCompactMenuOpen() {
+      if (this.isEditMode) {
+        return this.$store.getters['element/getMenuElementCompactMenuOpen'](
+          this.element
+        )
+      }
+      return this.compactMenuOpen
+    },
+  },
+  watch: {
+    isCompactMenuOpen(isOpen) {
+      this.setCompactMenuPreviewLock(this.isEditMode && isOpen)
+    },
+  },
+  mounted() {
+    this.setCompactMenuPreviewLock(this.isEditMode && this.isCompactMenuOpen)
+  },
+  beforeUnmount() {
+    this.setCompactMenuPreviewLock(false)
+    this.resetEditorCompactMenu()
   },
   methods: {
+    toggleCompactMenu() {
+      if (this.isEditMode) {
+        return
+      }
+      this.compactMenuOpen = !this.compactMenuOpen
+    },
     closeCompactMenu() {
+      if (this.isEditMode) {
+        return
+      }
       this.compactMenuOpen = false
+    },
+    setCompactMenuPreviewLock(locked) {
+      // the setPagePreviewLocked is not provided in public mode
+      this.setPagePreviewLocked?.(locked)
+    },
+    resetEditorCompactMenu() {
+      if (!this.isEditMode) {
+        return
+      }
+
+      this.$store.dispatch('element/setMenuElementCompactMenuOpen', {
+        element: this.element,
+        open: false,
+      })
     },
   },
 }

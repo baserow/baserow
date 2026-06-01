@@ -109,24 +109,36 @@ $bg-color-contrast: var(--page-background-color-contrast, $palette-neutral-100);
   flex: 1;
 }
 
-.menu-element__burger-menu {
+.menu-element__compact-menu-trigger {
   display: flex;
   justify-content: var(--alignment);
 
   .element--read-only & {
-    pointer-events: auto;
-    user-select: auto;
+    pointer-events: none;
+    user-select: none;
   }
 }
 
-.menu-element__container--burger {
+.menu-element__compact-menu-editor-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: $z-index-layout-col-3-1;
+  cursor: default;
+}
+
+.menu-element__compact-menu-close {
+  font-size: 2em;
+  align-self: flex-end;
+}
+
+.menu-element__container--compact {
   position: fixed;
   top: 0;
   left: 0;
   height: 100vh;
   background-color: $bg-color;
   padding: 1em;
-  z-index: 1;
+  z-index: $z-index-layout-resize;
   overflow-y: auto;
   max-width: 420px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -143,17 +155,14 @@ $bg-color-contrast: var(--page-background-color-contrast, $palette-neutral-100);
   .element--read-only & {
     height: 100%;
     pointer-events: auto;
-    user-select: auto;
+    user-select: none;
+    cursor: default;
 
+    .menu-element__compact-menu-close,
     .menu-element__menu-item-link,
     .menu-element__menu-item-button {
       pointer-events: none;
-      user-select: none;
+      cursor: default;
     }
   }
-}
-
-.menu-element__burger-menu-close {
-  font-size: 2em;
-  align-self: flex-end;
 }

@@ -59,6 +59,15 @@
     }
   }
 
+  .page-preview__scaled--preview-locked &:hover {
+    & > .element-preview__insert,
+    & > .element-preview__menu {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+  }
+
   &--in-error:not(.element-preview--active):not(
       .element-preview--drop-before
     )::before {

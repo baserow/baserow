@@ -2644,6 +2644,10 @@ export class MenuElementType extends ElementType {
       .flat()
   }
 
+  getPopulateStoreProperties() {
+    return { compactMenuOpen: false }
+  }
+
   getErrorMessage(element, applicationContext) {
     const { builder } = applicationContext
     // There must be at least one menu item
