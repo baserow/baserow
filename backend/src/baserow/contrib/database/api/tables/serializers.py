@@ -102,6 +102,7 @@ class TableCreateSerializer(serializers.ModelSerializer):
     data = serializers.ListField(
         min_length=1,
         default=None,
+        child=serializers.ListField(allow_empty=False),
         help_text=(
             "A list of rows that needs to be created as initial table data. "
             "Each row is a list of values that are going to be added in the new "
@@ -152,6 +153,7 @@ class TableImportSerializer(serializers.Serializer):
     data = serializers.ListField(
         min_length=1,
         required=True,
+        child=serializers.ListField(allow_empty=False),
         help_text=(
             "A list of rows you want to add to the specified table. "
             "Each row is a list of values, one for each **writable** field. "
