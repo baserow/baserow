@@ -1,5 +1,6 @@
 import os
 import subprocess
+import sys
 from pathlib import Path
 from shutil import which
 
@@ -38,17 +39,26 @@ runtime_variables_are_configured = (
 )
 def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
     calls = []
+    popen = subprocess.Popen
 
-    def fake_run(command, **kwargs):
+    def fake_popen(command, **kwargs):
         calls.append((command, kwargs))
-        assert '"context": {"value": 2}' in kwargs["input"]
-        assert "function main(context)" in kwargs["input"]
-
-        return subprocess.CompletedProcess(
-            command, 0, stdout='{"result": {"newValue": 4}}', stderr=""
+        return popen(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import sys;"
+                    "payload = sys.stdin.read();"
+                    'assert \'"context": {"value": 2}\' in payload;'
+                    "assert 'function main(context)' in payload;"
+                    'sys.stdout.write(\'{"result": {"newValue": 4}}\')'
+                ),
+            ],
+            **kwargs,
         )
 
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
 
     result = WasmtimeQuickJSCodeRunnerType().run(
         {"value": 2},
@@ -71,22 +81,27 @@ def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
     assert command[9] == "--std"
     assert command[10] == "--eval"
     assert "std.in.getline()" in command[11]
-    assert kwargs["capture_output"] is True
-    assert kwargs["text"] is True
-    assert kwargs["timeout"] == 7
-    assert kwargs["check"] is True
+    assert kwargs["stdin"] == subprocess.PIPE
+    assert kwargs["stdout"] == subprocess.PIPE
+    assert kwargs["stderr"] == subprocess.PIPE
 
 
 def test_wasmtime_quickjs_code_runner_uses_explicit_memory_limit(monkeypatch):
     calls = []
+    popen = subprocess.Popen
 
-    def fake_run(command, **kwargs):
+    def fake_popen(command, **kwargs):
         calls.append((command, kwargs))
-        return subprocess.CompletedProcess(
-            command, 0, stdout='{"result": {"newValue": 4}}', stderr=""
+        return popen(
+            [
+                sys.executable,
+                "-c",
+                "import sys; sys.stdin.read(); sys.stdout.write('{\"result\": {}}')",
+            ],
+            **kwargs,
         )
 
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
 
     runner = WasmtimeQuickJSCodeRunnerType(
         quickjs_wasm_path="/runtime/qjs.wasm",
@@ -186,13 +201,19 @@ def test_wasmtime_quickjs_code_runner_requires_quickjs_wasm_path():
 
 
 def test_wasmtime_quickjs_code_runner_rejects_non_object_result(monkeypatch):
-    monkeypatch.setattr(
-        subprocess,
-        "run",
-        lambda command, **kwargs: subprocess.CompletedProcess(
-            command, 0, stdout='{"result": 1}', stderr=""
-        ),
-    )
+    popen = subprocess.Popen
+
+    def fake_popen(command, **kwargs):
+        return popen(
+            [
+                sys.executable,
+                "-c",
+                "import sys; sys.stdin.read(); sys.stdout.write('{\"result\": 1}')",
+            ],
+            **kwargs,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
 
     with override_settings(
         ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH="/runtime/qjs.wasm"
@@ -202,16 +223,73 @@ def test_wasmtime_quickjs_code_runner_rejects_non_object_result(monkeypatch):
 
 
 def test_wasmtime_quickjs_code_runner_maps_process_errors(monkeypatch):
-    def fake_run(command, **kwargs):
-        raise subprocess.CalledProcessError(1, command, stderr="boom")
+    popen = subprocess.Popen
 
-    monkeypatch.setattr(subprocess, "run", fake_run)
+    def fake_popen(command, **kwargs):
+        return popen(
+            [
+                sys.executable,
+                "-c",
+                "import sys; sys.stdin.read(); sys.stderr.write('boom'); sys.exit(1)",
+            ],
+            **kwargs,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
 
     with override_settings(
         ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH="/runtime/qjs.wasm"
     ):
         with pytest.raises(CodeRunnerExecutionError, match="boom"):
             WasmtimeQuickJSCodeRunnerType().run({}, "function main() {}")
+
+
+def test_wasmtime_quickjs_code_runner_limits_stdout(monkeypatch):
+    popen = subprocess.Popen
+
+    def fake_popen(command, **kwargs):
+        return popen(
+            [
+                sys.executable,
+                "-c",
+                "import sys; sys.stdin.read(); sys.stdout.write('x' * 32)",
+            ],
+            **kwargs,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    runner = WasmtimeQuickJSCodeRunnerType(
+        quickjs_wasm_path="/runtime/qjs.wasm",
+        output_size_limit_bytes=16,
+    )
+
+    with pytest.raises(CodeRunnerExecutionError, match="too much output"):
+        runner.run({}, "function main() {}")
+
+
+def test_wasmtime_quickjs_code_runner_limits_stderr(monkeypatch):
+    popen = subprocess.Popen
+
+    def fake_popen(command, **kwargs):
+        return popen(
+            [
+                sys.executable,
+                "-c",
+                "import sys; sys.stdin.read(); sys.stderr.write('x' * 32)",
+            ],
+            **kwargs,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    runner = WasmtimeQuickJSCodeRunnerType(
+        quickjs_wasm_path="/runtime/qjs.wasm",
+        output_size_limit_bytes=16,
+    )
+
+    with pytest.raises(CodeRunnerExecutionError, match="too much output"):
+        runner.run({}, "function main() {}")
 
 
 @pytest.mark.skipif(

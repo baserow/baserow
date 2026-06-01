@@ -1,5 +1,8 @@
 import json
+import os
+import selectors
 import subprocess  # nosec
+import time
 from typing import Any
 
 from django.conf import settings
@@ -18,6 +21,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
     """
 
     type = "wasmtime_quickjs"
+    output_size_limit_bytes = 1024 * 1024
 
     def __init__(
         self,
@@ -25,6 +29,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         quickjs_wasm_path: str | None = None,
         timeout_seconds: int | None = None,
         memory_limit_bytes: int | None = None,
+        output_size_limit_bytes: int | None = None,
     ):
         self.wasmtime_executable = wasmtime_executable or getattr(
             settings,
@@ -45,6 +50,9 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
             settings,
             "ENTERPRISE_CODE_RUNNER_MEMORY_LIMIT_BYTES",
             64 * 1024 * 1024,
+        )
+        self.output_size_limit_bytes = (
+            output_size_limit_bytes or self.output_size_limit_bytes
         )
 
     def run(self, context_data: dict[str, Any], code: str) -> dict[str, Any]:
@@ -91,14 +99,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         payload = json.dumps({"context": context_data, "code": code})
 
         try:
-            return subprocess.run(  # noqa: S603
-                command,
-                input=payload,
-                capture_output=True,
-                text=True,
-                timeout=self.timeout_seconds,
-                check=True,
-            )
+            completed_process = self._communicate_with_output_limit(command, payload)
         except subprocess.TimeoutExpired as exc:
             raise CodeRunnerExecutionError("The code runner timed out.") from exc
         except subprocess.CalledProcessError as exc:
@@ -106,6 +107,88 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
             raise CodeRunnerExecutionError(message) from exc
         except OSError as exc:
             raise CodeRunnerExecutionError(str(exc)) from exc
+
+        if completed_process.returncode != 0:
+            message = (
+                completed_process.stderr.strip()
+                or completed_process.stdout.strip()
+                or f"Command returned non-zero exit status {completed_process.returncode}."
+            )
+            raise CodeRunnerExecutionError(message)
+
+        return completed_process
+
+    def _communicate_with_output_limit(
+        self, command: list[str], payload: str
+    ) -> subprocess.CompletedProcess:
+        process = subprocess.Popen(  # noqa: S603
+            command,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+        try:
+            if process.stdin is None:
+                raise CodeRunnerExecutionError(
+                    "The code runner stdin pipe was not created."
+                )
+            process.stdin.write(payload.encode())
+            process.stdin.close()
+
+            stdout, stderr = self._read_bounded_process_output(process)
+            return subprocess.CompletedProcess(
+                command,
+                process.wait(timeout=0),
+                stdout=stdout.decode(errors="replace"),
+                stderr=stderr.decode(errors="replace"),
+            )
+        except Exception:
+            if process.poll() is None:
+                process.kill()
+                process.wait()
+            raise
+
+    def _read_bounded_process_output(
+        self, process: subprocess.Popen
+    ) -> tuple[bytes, bytes]:
+        if process.stdout is None or process.stderr is None:
+            raise CodeRunnerExecutionError(
+                "The code runner output pipes were not created."
+            )
+
+        selector = selectors.DefaultSelector()
+        streams = {
+            process.stdout: bytearray(),
+            process.stderr: bytearray(),
+        }
+
+        for stream in streams:
+            os.set_blocking(stream.fileno(), False)
+            selector.register(stream, selectors.EVENT_READ)
+
+        deadline = time.monotonic() + self.timeout_seconds
+
+        while selector.get_map():
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(process.args, self.timeout_seconds)
+
+            for key, _ in selector.select(timeout=remaining):
+                stream = key.fileobj
+                chunk = stream.read(8192)
+                if not chunk:
+                    selector.unregister(stream)
+                    continue
+
+                output = streams[stream]
+                output.extend(chunk)
+                if len(output) > self.output_size_limit_bytes:
+                    raise CodeRunnerExecutionError(
+                        "The code runner produced too much output."
+                    )
+
+        return bytes(streams[process.stdout]), bytes(streams[process.stderr])
 
     def _runner_source(self) -> str:
         return """
