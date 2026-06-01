@@ -9,7 +9,10 @@ import { InvalidFormulaType, UnknownOperatorError } from '@baserow/modules/core/
  * because we can't type-check an unknown value, we return this marker to indicate
  * "this will be a valid value at runtime, skip type validation for now."
  */
-export const DeferredValue = Symbol('DeferredValue')
+// Use the global symbol registry so identity checks hold even if this module
+// is evaluated more than once (e.g. when the alias resolves through both the
+// `.js` and extensionless paths under Vitest/Nuxt).
+export const DeferredValue = Symbol.for('baserow.formula.DeferredValue')
 
 /**
  * A visitor that validates formula functions and their arguments during parsing.
