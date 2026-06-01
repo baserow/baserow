@@ -8,6 +8,7 @@ from asgiref.sync import sync_to_async
 from channels.testing import WebsocketCommunicator
 
 from baserow.config.asgi import application
+from baserow.ws.exceptions import EventReplayNotPossible
 from baserow.ws.models import RealtimeEvent
 from baserow.ws.realtime_events import RealtimeEventHandler
 from baserow.ws.tasks import (
@@ -44,11 +45,11 @@ def test_record_returns_monotonically_increasing_ids():
 
 @pytest.mark.django_db
 @pytest.mark.websockets
-def test_check_baseline_returns_not_stale():
+def test_check_baseline_returns_no_refresh_needed():
     _record_event("table-1", {"type": "broadcast_to_group", "payload": {}})
     stale, latest = RealtimeEventHandler.check_realtime_events(
         user_id=1,
-        channel_group_names=[("table-1", "table"), ("users", "users")],
+        channel_group_names=["table-1", "users"],
         last_seen_id=None,
         web_socket_id=None,
     )
@@ -61,7 +62,7 @@ def test_check_baseline_returns_not_stale():
 def test_check_no_events_returns_zero_latest():
     stale, latest = RealtimeEventHandler.check_realtime_events(
         user_id=1,
-        channel_group_names=[("table-99", "table"), ("users", "users")],
+        channel_group_names=["table-99", "users"],
         last_seen_id=None,
         web_socket_id=None,
     )
@@ -71,7 +72,7 @@ def test_check_no_events_returns_zero_latest():
 
 @pytest.mark.django_db
 @pytest.mark.websockets
-def test_check_detects_stale_page_group():
+def test_check_detects_missed_events_in_page_group():
     base_id = _record_event(
         "table-5",
         {
@@ -91,7 +92,7 @@ def test_check_detects_stale_page_group():
 
     stale, _ = RealtimeEventHandler.check_realtime_events(
         user_id=1,
-        channel_group_names=[("table-5", "table"), ("users", "users")],
+        channel_group_names=["table-5", "users"],
         last_seen_id=base_id,
         web_socket_id="ws-me",
     )
@@ -109,7 +110,7 @@ def test_check_excludes_originator():
 
     stale, _ = RealtimeEventHandler.check_realtime_events(
         user_id=1,
-        channel_group_names=[("table-6", "table")],
+        channel_group_names=["table-6"],
         last_seen_id=base_id,
         web_socket_id="ws-me",
     )
@@ -127,7 +128,7 @@ def test_check_null_originator_counts_as_someone_else():
 
     stale, _ = RealtimeEventHandler.check_realtime_events(
         user_id=1,
-        channel_group_names=[("table-7", "table")],
+        channel_group_names=["table-7"],
         last_seen_id=base_id,
         web_socket_id="ws-me",
     )
@@ -151,7 +152,7 @@ def test_check_users_group_filters_by_user_id():
 
     stale_target, _ = RealtimeEventHandler.check_realtime_events(
         user_id=42,
-        channel_group_names=[("users", "users")],
+        channel_group_names=["users"],
         last_seen_id=base_id,
         web_socket_id=None,
     )
@@ -159,7 +160,7 @@ def test_check_users_group_filters_by_user_id():
 
     stale_other, _ = RealtimeEventHandler.check_realtime_events(
         user_id=999,
-        channel_group_names=[("users", "users")],
+        channel_group_names=["users"],
         last_seen_id=base_id,
         web_socket_id=None,
     )
@@ -183,7 +184,7 @@ def test_check_users_group_send_to_all_users():
 
     stale, _ = RealtimeEventHandler.check_realtime_events(
         user_id=999,
-        channel_group_names=[("users", "users")],
+        channel_group_names=["users"],
         last_seen_id=base_id,
         web_socket_id=None,
     )
@@ -205,7 +206,7 @@ def test_check_users_group_individual_payloads():
 
     stale_target, _ = RealtimeEventHandler.check_realtime_events(
         user_id=7,
-        channel_group_names=[("users", "users")],
+        channel_group_names=["users"],
         last_seen_id=base_id,
         web_socket_id=None,
     )
@@ -213,7 +214,7 @@ def test_check_users_group_individual_payloads():
 
     stale_other, _ = RealtimeEventHandler.check_realtime_events(
         user_id=8,
-        channel_group_names=[("users", "users")],
+        channel_group_names=["users"],
         last_seen_id=base_id,
         web_socket_id=None,
     )
@@ -222,7 +223,7 @@ def test_check_users_group_individual_payloads():
 
 @pytest.mark.django_db
 @pytest.mark.websockets
-def test_check_detects_staleness_across_groups():
+def test_check_detects_missed_events_across_groups():
     base_id = _record_event("x", {"type": "x", "ignore_web_socket_id": None})
     _record_event(
         "table-1",
@@ -231,7 +232,7 @@ def test_check_detects_staleness_across_groups():
 
     stale, _ = RealtimeEventHandler.check_realtime_events(
         user_id=1,
-        channel_group_names=[("table-1", "table"), ("table-2", "table")],
+        channel_group_names=["table-1", "table-2"],
         last_seen_id=base_id,
         web_socket_id=None,
     )
@@ -258,8 +259,8 @@ def test_get_channel_group_names_includes_users_for_authenticated():
         ]
     )
     result = RealtimeEventHandler.get_channel_group_names(pages, authenticated=True)
-    assert ("table-42", "table") in result
-    assert ("users", "users") in result
+    assert "table-42" in result
+    assert "users" in result
 
 
 @pytest.mark.django_db
@@ -271,8 +272,8 @@ def test_get_channel_group_names_excludes_users_for_unauthenticated():
         ]
     )
     result = RealtimeEventHandler.get_channel_group_names(pages, authenticated=False)
-    assert ("table-42", "table") in result
-    assert ("users", "users") not in result
+    assert "table-42" in result
+    assert "users" not in result
 
 
 @pytest.mark.django_db
@@ -310,20 +311,19 @@ def test_replay_returns_events_in_id_order():
         },
     )
 
-    result = RealtimeEventHandler.get_replay_events(
+    events = RealtimeEventHandler.get_replay_events(
         user_id=1,
-        channel_group_names=[("table-1", "table"), ("users", "users")],
+        channel_group_names=["table-1", "users"],
         last_seen_id=base_id,
         web_socket_id=None,
     )
-    assert not result.degraded
-    assert len(result.events) == 2
-    assert result.events[0].id < result.events[1].id
+    assert len(events) == 2
+    assert events[0].id < events[1].id
 
 
 @pytest.mark.django_db
 @pytest.mark.websockets
-def test_replay_degrades_when_over_threshold():
+def test_replay_raises_when_over_threshold():
     base_id = _record_event("x", {"type": "x"})
     for i in range(settings.BASEROW_REALTIME_REPLAY_MAX_EVENTS + 1):
         _record_event(
@@ -335,30 +335,53 @@ def test_replay_degrades_when_over_threshold():
             },
         )
 
-    result = RealtimeEventHandler.get_replay_events(
-        user_id=1,
-        channel_group_names=[("table-1", "table")],
-        last_seen_id=base_id,
-        web_socket_id=None,
-    )
-    assert result.degraded
+    with pytest.raises(EventReplayNotPossible):
+        RealtimeEventHandler.get_replay_events(
+            user_id=1,
+            channel_group_names=["table-1"],
+            last_seen_id=base_id,
+            web_socket_id=None,
+        )
 
 
 @pytest.mark.django_db
 @pytest.mark.websockets
-def test_replay_degrades_when_last_seen_id_not_in_table():
+def test_replay_raises_when_last_seen_id_not_in_table():
     _record_event(
         "table-1",
         {"type": "broadcast_to_group", "payload": {}, "ignore_web_socket_id": None},
     )
 
-    result = RealtimeEventHandler.get_replay_events(
+    with pytest.raises(EventReplayNotPossible):
+        RealtimeEventHandler.get_replay_events(
+            user_id=1,
+            channel_group_names=["table-1"],
+            last_seen_id=999999,
+            web_socket_id=None,
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.websockets
+def test_replay_succeeds_at_exactly_max_events():
+    base_id = _record_event("x", {"type": "x"})
+    for i in range(settings.BASEROW_REALTIME_REPLAY_MAX_EVENTS):
+        _record_event(
+            "table-1",
+            {
+                "type": "broadcast_to_group",
+                "payload": {"i": i},
+                "ignore_web_socket_id": None,
+            },
+        )
+
+    events = RealtimeEventHandler.get_replay_events(
         user_id=1,
-        channel_group_names=[("table-1", "table")],
-        last_seen_id=999999,
+        channel_group_names=["table-1"],
+        last_seen_id=base_id,
         web_socket_id=None,
     )
-    assert result.degraded
+    assert len(events) == settings.BASEROW_REALTIME_REPLAY_MAX_EVENTS
 
 
 @pytest.mark.django_db
@@ -378,15 +401,14 @@ def test_replay_excludes_own_web_socket_id():
         },
     )
 
-    result = RealtimeEventHandler.get_replay_events(
+    events = RealtimeEventHandler.get_replay_events(
         user_id=1,
-        channel_group_names=[("table-1", "table")],
+        channel_group_names=["table-1"],
         last_seen_id=base_id,
         web_socket_id="ws-me",
     )
-    assert not result.degraded
-    assert len(result.events) == 1
-    assert result.events[0].payload["ignore_web_socket_id"] == "ws-other"
+    assert len(events) == 1
+    assert events[0].payload["ignore_web_socket_id"] == "ws-other"
 
 
 @pytest.mark.django_db
@@ -397,14 +419,13 @@ def test_replay_returns_empty_list_when_no_new_events():
         {"type": "broadcast_to_group", "payload": {}, "ignore_web_socket_id": None},
     )
 
-    result = RealtimeEventHandler.get_replay_events(
+    events = RealtimeEventHandler.get_replay_events(
         user_id=1,
-        channel_group_names=[("table-1", "table")],
+        channel_group_names=["table-1"],
         last_seen_id=base_id,
         web_socket_id=None,
     )
-    assert not result.degraded
-    assert len(result.events) == 0
+    assert len(events) == 0
 
 
 @pytest.mark.django_db
@@ -424,15 +445,14 @@ def test_replay_includes_events_from_all_subscribed_groups():
         {"type": "broadcast_to_group", "payload": {}, "ignore_web_socket_id": None},
     )
 
-    result = RealtimeEventHandler.get_replay_events(
+    events = RealtimeEventHandler.get_replay_events(
         user_id=1,
-        channel_group_names=[("table-1", "table"), ("dashboard-2", "dashboard")],
+        channel_group_names=["table-1", "dashboard-2"],
         last_seen_id=base_id,
         web_socket_id=None,
     )
-    assert not result.degraded
-    assert len(result.events) == 2
-    groups = {e.channel_group for e in result.events}
+    assert len(events) == 2
+    groups = {e.channel_group for e in events}
     assert groups == {"table-1", "dashboard-2"}
 
 
@@ -479,15 +499,14 @@ def test_replay_filters_users_group_by_user_id():
         },
     )
 
-    result = RealtimeEventHandler.get_replay_events(
+    events = RealtimeEventHandler.get_replay_events(
         user_id=1,
-        channel_group_names=[("users", "users")],
+        channel_group_names=["users"],
         last_seen_id=base_id,
         web_socket_id=None,
     )
-    assert not result.degraded
-    assert len(result.events) == 2
-    types = [e.payload["type"] for e in result.events]
+    assert len(events) == 2
+    types = [e.payload["type"] for e in events]
     assert "broadcast_to_users" in types
 
 
@@ -511,15 +530,14 @@ def test_replay_users_does_not_inflate_count():
         {"type": "broadcast_to_group", "payload": {}, "ignore_web_socket_id": None},
     )
 
-    result = RealtimeEventHandler.get_replay_events(
+    events = RealtimeEventHandler.get_replay_events(
         user_id=1,
-        channel_group_names=[("table-1", "table"), ("users", "users")],
+        channel_group_names=["table-1", "users"],
         last_seen_id=base_id,
         web_socket_id=None,
     )
-    assert not result.degraded
-    assert len(result.events) == 1
-    assert result.events[0].channel_group == "table-1"
+    assert len(events) == 1
+    assert events[0].channel_group == "table-1"
 
 
 @pytest.mark.django_db
@@ -543,15 +561,14 @@ def test_replay_includes_individual_payloads_for_matching_user():
         },
     )
 
-    result = RealtimeEventHandler.get_replay_events(
+    events = RealtimeEventHandler.get_replay_events(
         user_id=1,
-        channel_group_names=[("users", "users")],
+        channel_group_names=["users"],
         last_seen_id=base_id,
         web_socket_id=None,
     )
-    assert not result.degraded
-    assert len(result.events) == 1
-    assert "1" in result.events[0].payload["payload_map"]
+    assert len(events) == 1
+    assert "1" in events[0].payload["payload_map"]
 
 
 @pytest.mark.django_db
@@ -579,15 +596,14 @@ def test_replay_excludes_own_web_socket_id_on_users_group():
         },
     )
 
-    result = RealtimeEventHandler.get_replay_events(
+    events = RealtimeEventHandler.get_replay_events(
         user_id=1,
-        channel_group_names=[("users", "users")],
+        channel_group_names=["users"],
         last_seen_id=base_id,
         web_socket_id="ws-me",
     )
-    assert not result.degraded
-    assert len(result.events) == 1
-    assert result.events[0].payload["payload"]["type"] == "should_include"
+    assert len(events) == 1
+    assert events[0].payload["payload"]["type"] == "should_include"
 
 
 @pytest.mark.django_db
@@ -643,32 +659,32 @@ def test_cleanup_zero_retention_does_nothing():
     assert RealtimeEvent.objects.count() == 1
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
 def test_broadcast_to_channel_group_records_event():
     payload = {"type": "rows_created", "table_id": 5}
     broadcast_to_channel_group("table-5", payload)
 
-    assert "realtime_update_id" in payload
-    event = RealtimeEvent.objects.get(id=payload["realtime_update_id"])
+    assert "_event_id" in payload
+    event = RealtimeEvent.objects.get(id=payload["_event_id"])
     assert event.channel_group == "table-5"
     assert event.payload["type"] == "broadcast_to_group"
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
 def test_broadcast_to_users_records_event():
     payload = {"type": "user_data_updated"}
     broadcast_to_users([1, 2], payload)
 
-    assert "realtime_update_id" in payload
-    event = RealtimeEvent.objects.get(id=payload["realtime_update_id"])
+    assert "_event_id" in payload
+    event = RealtimeEvent.objects.get(id=payload["_event_id"])
     assert event.channel_group == "users"
     assert event.payload["type"] == "broadcast_to_users"
     assert event.payload["user_ids"] == [1, 2]
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
 def test_broadcast_to_users_individual_payloads_records_event():
     payload_map = {
@@ -677,8 +693,8 @@ def test_broadcast_to_users_individual_payloads_records_event():
     }
     broadcast_to_users_individual_payloads(payload_map)
 
-    id_1 = payload_map["1"]["realtime_update_id"]
-    id_2 = payload_map["2"]["realtime_update_id"]
+    id_1 = payload_map["1"]["_event_id"]
+    id_2 = payload_map["2"]["_event_id"]
     assert id_1 == id_2
 
     event = RealtimeEvent.objects.get(id=id_1)
@@ -686,13 +702,13 @@ def test_broadcast_to_users_individual_payloads_records_event():
     assert event.payload["type"] == "broadcast_to_users_individual_payloads"
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
 def test_broadcast_to_users_without_workspace_id_still_records():
     payload = {"type": "user_data_updated"}
     broadcast_to_users([1], payload)
 
-    assert "realtime_update_id" in payload
+    assert "_event_id" in payload
     assert RealtimeEvent.objects.filter(channel_group="users").exists()
 
 
@@ -700,17 +716,18 @@ def test_broadcast_to_users_without_workspace_id_still_records():
 @pytest.mark.websockets
 @override_settings(BASEROW_REALTIME_REPLAY_MAX_EVENTS=0)
 def test_broadcast_skips_recording_when_disabled():
+    RealtimeEvent.objects.all().delete()
     payload = {"type": "rows_created", "table_id": 5}
     broadcast_to_channel_group("table-5", payload)
 
-    assert "realtime_update_id" not in payload
+    assert "_event_id" not in payload
     assert not RealtimeEvent.objects.exists()
 
 
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-async def test_subscribe_baseline_returns_not_stale(data_fixture):
+async def test_subscribe_baseline_returns_no_refresh_needed(data_fixture):
     user, token = await sync_to_async(data_fixture.create_user_and_token)()
     await sync_to_async(data_fixture.create_workspace)(user=user)
 
@@ -726,13 +743,12 @@ async def test_subscribe_baseline_returns_not_stale(data_fixture):
     await communicator.send_json_to(
         {
             "type": "realtime_subscribe",
-            "workspace_id": 1,
             "last_seen_id": None,
         }
     )
     response = await communicator.receive_json_from(timeout=1)
     assert response["type"] == "realtime_subscribe_result"
-    assert response["stale"] is False
+    assert response["outdated"] is False
 
     await communicator.disconnect()
 
@@ -771,7 +787,6 @@ async def test_subscribe_replays_user_event(data_fixture):
     await communicator.send_json_to(
         {
             "type": "realtime_subscribe",
-            "workspace_id": 1,
             "last_seen_id": base_id,
         }
     )
@@ -781,7 +796,7 @@ async def test_subscribe_replays_user_event(data_fixture):
 
     response = await communicator.receive_json_from(timeout=1)
     assert response["type"] == "realtime_subscribe_result"
-    assert response["stale"] is False
+    assert response["outdated"] is False
     assert response["current_latest_id"] > base_id
 
     await communicator.disconnect()
@@ -790,7 +805,7 @@ async def test_subscribe_replays_user_event(data_fixture):
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-async def test_subscribe_falls_back_to_staleness_when_too_many_events(data_fixture):
+async def test_subscribe_cant_replay_when_too_many_events(data_fixture):
     user, token = await sync_to_async(data_fixture.create_user_and_token)()
     await sync_to_async(data_fixture.create_workspace)(user=user)
 
@@ -822,13 +837,12 @@ async def test_subscribe_falls_back_to_staleness_when_too_many_events(data_fixtu
     await communicator.send_json_to(
         {
             "type": "realtime_subscribe",
-            "workspace_id": 1,
             "last_seen_id": base_id,
         }
     )
     response = await communicator.receive_json_from(timeout=1)
     assert response["type"] == "realtime_subscribe_result"
-    assert response["stale"] is True
+    assert response["outdated"] is True
 
     await communicator.disconnect()
 
@@ -867,12 +881,11 @@ async def test_subscribe_excludes_own_session(data_fixture):
     await communicator.send_json_to(
         {
             "type": "realtime_subscribe",
-            "workspace_id": 1,
             "last_seen_id": base_id,
         }
     )
     response = await communicator.receive_json_from(timeout=1)
-    assert response["stale"] is False
+    assert response["outdated"] is False
 
     await communicator.disconnect()
 
@@ -917,7 +930,6 @@ async def test_subscribe_replays_page_group_event(data_fixture):
     await communicator.send_json_to(
         {
             "type": "realtime_subscribe",
-            "workspace_id": workspace.id,
             "last_seen_id": base_id,
         }
     )
@@ -925,11 +937,11 @@ async def test_subscribe_replays_page_group_event(data_fixture):
     replayed = await communicator.receive_json_from(timeout=1)
     assert replayed["type"] == "rows_created"
     assert replayed["table_id"] == table.id
-    assert "realtime_update_id" in replayed
+    assert "_event_id" in replayed
 
     result = await communicator.receive_json_from(timeout=1)
     assert result["type"] == "realtime_subscribe_result"
-    assert result["stale"] is False
+    assert result["outdated"] is False
     assert result["current_latest_id"] > base_id
 
     await communicator.disconnect()
@@ -969,7 +981,6 @@ async def test_subscribe_replays_individual_payloads_event(data_fixture):
     await communicator.send_json_to(
         {
             "type": "realtime_subscribe",
-            "workspace_id": 1,
             "last_seen_id": base_id,
         }
     )
@@ -977,11 +988,11 @@ async def test_subscribe_replays_individual_payloads_event(data_fixture):
     replayed = await communicator.receive_json_from(timeout=1)
     assert replayed["type"] == "app_created"
     assert replayed["name"] == "Test"
-    assert "realtime_update_id" in replayed
+    assert "_event_id" in replayed
 
     result = await communicator.receive_json_from(timeout=1)
     assert result["type"] == "realtime_subscribe_result"
-    assert result["stale"] is False
+    assert result["outdated"] is False
 
     await communicator.disconnect()
 
@@ -989,7 +1000,7 @@ async def test_subscribe_replays_individual_payloads_event(data_fixture):
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-async def test_subscribe_degrades_when_last_seen_expired(data_fixture):
+async def test_subscribe_cant_replay_when_last_seen_expired(data_fixture):
     user, token = await sync_to_async(data_fixture.create_user_and_token)()
     await sync_to_async(data_fixture.create_workspace)(user=user)
 
@@ -1014,18 +1025,17 @@ async def test_subscribe_degrades_when_last_seen_expired(data_fixture):
     await communicator.receive_json_from()
 
     # last_seen_id=1 does not exist — retention cleaned it (simulated by
-    # never having created id=1). Replay should degrade to staleness.
+    # never having created id=1). Replay can't proceed — client must refresh.
     await communicator.send_json_to(
         {
             "type": "realtime_subscribe",
-            "workspace_id": 1,
             "last_seen_id": 1,
         }
     )
 
     response = await communicator.receive_json_from(timeout=1)
     assert response["type"] == "realtime_subscribe_result"
-    assert response["stale"] is True
+    assert response["outdated"] is True
 
     await communicator.disconnect()
 
@@ -1067,13 +1077,12 @@ async def test_subscribe_replays_table_events_only_when_subscribed(data_fixture)
     await communicator.send_json_to(
         {
             "type": "realtime_subscribe",
-            "workspace_id": workspace.id,
             "last_seen_id": base_id,
         }
     )
 
     response = await communicator.receive_json_from(timeout=1)
     assert response["type"] == "realtime_subscribe_result"
-    assert response["stale"] is False
+    assert response["outdated"] is False
 
     await communicator.disconnect()

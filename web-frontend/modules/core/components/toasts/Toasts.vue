@@ -8,7 +8,7 @@
       <UserPasswordChangedToast
         v-if="isUserPasswordChanged"
       ></UserPasswordChangedToast>
-      <WorkspaceStaleToast v-if="workspaceStale && !reconnecting" />
+      <WorkspaceOutdatedToast v-if="workspaceOutdated && !reconnecting" />
       <ConnectingToast v-if="reconnecting" />
       <FailedConnectingToast v-if="failedConnecting"></FailedConnectingToast>
       <AuthorizationErrorToast v-if="unauthorized"></AuthorizationErrorToast>
@@ -58,13 +58,13 @@ import UserPasswordChangedToast from '@baserow/modules/core/components/toasts/Us
 import UndoRedoToast from '@baserow/modules/core/components/toasts/UndoRedoToast'
 import { UNDO_REDO_STATES } from '@baserow/modules/core/utils/undoRedoConstants'
 import PermissionsUpdatedToast from '@baserow/modules/core/components/toasts/PermissionsUpdatedToast'
-import WorkspaceStaleToast from '@baserow/modules/core/components/toasts/WorkspaceStaleToast'
+import WorkspaceOutdatedToast from '@baserow/modules/core/components/toasts/WorkspaceOutdatedToast'
 
 export default {
   name: 'Toasts',
   components: {
     PermissionsUpdatedToast,
-    WorkspaceStaleToast,
+    WorkspaceOutdatedToast,
     RestoreToast,
     Toast,
     ConnectingToast,
@@ -99,7 +99,7 @@ export default {
       isUserSessionExpired: (state) => state.toast.userSessionExpired,
       isUserPasswordChanged: (state) => state.toast.userPasswordChanged,
       permissionsUpdated: (state) => state.toast.permissionsUpdated,
-      workspaceStale: (state) => state.toast.workspaceStale,
+      workspaceOutdated: (state) => state.toast.workspaceOutdated,
     }),
     ...mapGetters({ isAuthenticated: 'auth/isAuthenticated' }),
   },

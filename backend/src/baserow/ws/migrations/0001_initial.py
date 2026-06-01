@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
                     "id",
                     models.BigAutoField(primary_key=True, serialize=False),
                 ),
-                ("channel_group", models.CharField(max_length=255)),
+                ("channel_group", models.TextField()),
                 ("payload", models.JSONField()),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
             ],

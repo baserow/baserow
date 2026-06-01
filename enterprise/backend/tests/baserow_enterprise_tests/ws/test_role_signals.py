@@ -518,7 +518,7 @@ async def test_unsubscribe_user_from_tables_and_rows_when_role_updated(data_fixt
     assert response == {
         "type": "permissions_updated",
         "workspace_id": workspace_1.id,
-        "realtime_update_id": AnyInt(),
+        "_event_id": AnyInt(),
     }
 
     # User should not receive any messages to a table in workspace 1
@@ -611,7 +611,7 @@ async def test_unsubscribe_user_from_tables_and_rows_when_team_trashed(
     assert response == {
         "type": "permissions_updated",
         "workspace_id": workspace_1.id,
-        "realtime_update_id": AnyInt(),
+        "_event_id": AnyInt(),
     }
 
     # User should not receive any messages to a table in workspace 1

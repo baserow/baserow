@@ -259,7 +259,7 @@ async def test_join_view_page_as_anonymous_user(data_fixture):
 
     # Join the public view page.
     await communicator_1.send_json_to({"page": "view", "slug": public_grid_view.slug})
-    response = await communicator_1.receive_json_from(0.1)
+    response = await communicator_1.receive_json_from()
     assert response["type"] == "page_add"
     assert response["page"] == "view"
     assert response["parameters"]["slug"] == public_grid_view.slug
@@ -325,7 +325,7 @@ async def test_join_view_page_as_anonymous_user(data_fixture):
             "token": public_view_token,
         }
     )
-    response = await communicator_2.receive_json_from(0.1)
+    response = await communicator_2.receive_json_from()
     assert response["type"] == "page_add"
     assert response["page"] == "view"
     assert response["parameters"]["slug"] == password_protected_grid_view.slug
@@ -342,7 +342,7 @@ async def test_join_view_page_as_anonymous_user(data_fixture):
     await communicator_3.send_json_to(
         {"page": "view", "slug": password_protected_grid_view.slug}
     )
-    response = await communicator_3.receive_json_from(0.1)
+    response = await communicator_3.receive_json_from()
     assert response["type"] == "page_add"
     assert response["page"] == "view"
     assert response["parameters"]["slug"] == password_protected_grid_view.slug

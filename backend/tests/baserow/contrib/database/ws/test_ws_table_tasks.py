@@ -100,7 +100,7 @@ async def test_unsubscribe_user_from_tables_and_rows_when_removed_from_workspace
         },
     )
     response = await communicator.receive_json_from(timeout=0.1)
-    assert response == {"test": "message"}
+    assert response["test"] == "message"
 
     assert communicator.output_queue.qsize() == 0
     await communicator.disconnect()

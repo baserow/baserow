@@ -61,25 +61,25 @@ describe('toast store — connection state mutual exclusivity', () => {
   })
 })
 
-describe('toast store — workspaceStale', () => {
-  test('setWorkspaceStale sets and clears the flag', () => {
+describe('toast store — workspaceOutdated', () => {
+  test('setWorkspaceOutdated sets and clears the flag', () => {
     const s = makeState()
     const commit = commitTracker(s)
 
-    actions.setWorkspaceStale({ commit }, true)
-    expect(s.workspaceStale).toBe(true)
+    actions.setWorkspaceOutdated({ commit }, true)
+    expect(s.workspaceOutdated).toBe(true)
 
-    actions.setWorkspaceStale({ commit }, false)
-    expect(s.workspaceStale).toBe(false)
+    actions.setWorkspaceOutdated({ commit }, false)
+    expect(s.workspaceOutdated).toBe(false)
   })
 })
 
 describe('toast store — userLoggedOut', () => {
-  test('userLoggedOut clears reconnecting, failedConnecting, and workspaceStale', () => {
+  test('userLoggedOut clears reconnecting, failedConnecting, and workspaceOutdated', () => {
     const s = makeState()
     s.reconnecting = true
     s.failedConnecting = true
-    s.workspaceStale = true
+    s.workspaceOutdated = true
     s.copying = true
     const commit = commitTracker(s)
 
@@ -87,7 +87,7 @@ describe('toast store — userLoggedOut', () => {
 
     expect(s.reconnecting).toBe(false)
     expect(s.failedConnecting).toBe(false)
-    expect(s.workspaceStale).toBe(false)
+    expect(s.workspaceOutdated).toBe(false)
     expect(s.copying).toBe(false)
   })
 })

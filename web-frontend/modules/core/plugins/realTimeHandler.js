@@ -24,13 +24,8 @@ export class RealTimeHandler {
     this.authResponseReceived = false
     this.unloading = false
 
-    // Realtime-updates state. The frontend tracks the highest
-    // `realtime_update_id` it has observed for the active workspace.
-    // The web_socket_id is generated once and persists across reconnects —
-    // the server uses it to exclude the client's own events from replay.
-    this.lastSeenRealtimeUpdateId = null
-    this.lastSeenWorkspaceId = null
-    this.webSocketId = crypto.randomUUID()
+    this.lastSeenEventId = null
+    this.webSocketId = this.context.store.getters['auth/webSocketId']
 
     this.registerCoreEvents()
 
@@ -57,13 +52,6 @@ export class RealTimeHandler {
       window.addEventListener('beforeunload', this._onPageHide)
       window.addEventListener('pagehide', this._onPageHide)
       document.addEventListener('visibilitychange', this._onVisibilityChange)
-
-      // Re-subscribe when the active workspace changes.
-      this.context.store.subscribe((mutation) => {
-        if (mutation.type === 'workspace/SET_SELECTED') {
-          this._onActiveWorkspaceChanged()
-        }
-      })
     }
   }
 
@@ -280,75 +268,41 @@ export class RealTimeHandler {
 
     this.context.store.dispatch('toast/setFailedConnecting', false)
     this.context.store.dispatch('toast/setReconnecting', false)
-    this.context.store.dispatch('toast/setWorkspaceStale', false)
+    this.context.store.dispatch('toast/setWorkspaceOutdated', false)
     clearTimeout(this.reconnectTimeout)
     this.reconnect = false
     this.attempts = 0
     this.connected = false
-    this.lastSeenRealtimeUpdateId = null
-    this.lastSeenWorkspaceId = null
+    this.lastSeenEventId = null
   }
 
   /**
-   * Returns the id of the currently active workspace, or null if no workspace
-   * is selected.
-   */
-  _getActiveWorkspaceId() {
-    const workspace = this.context.store.getters['workspace/getSelected']
-    if (!workspace || !workspace.id) return null
-    return workspace.id
-  }
-
-  /**
-   * Sends ``realtime_subscribe`` for the currently active workspace.
+   * Sends ``realtime_subscribe`` to the server.
    * On initial connect ``last_seen_id`` is null, asking the server only for
-   * a baseline. On reconnect it is populated so the server can answer
-   * whether anything new happened while we were offline.
+   * a baseline. On reconnect it carries ``lastSeenEventId`` so the server
+   * can replay missed events or ask the client to refresh.
    */
-  _sendRealtimeSubscribe(workspaceId) {
-    if (
-      !this.socket ||
-      this.socket.readyState !== WebSocket.OPEN ||
-      !workspaceId
-    ) {
+  _sendRealtimeSubscribe() {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       return
     }
-    const isSameWorkspace = this.lastSeenWorkspaceId === workspaceId
-    const lastSeenId = isSameWorkspace ? this.lastSeenRealtimeUpdateId : null
-    this.lastSeenWorkspaceId = workspaceId
     this.socket.send(
       JSON.stringify({
         type: 'realtime_subscribe',
-        workspace_id: workspaceId,
-        last_seen_id: lastSeenId,
+        last_seen_id: this.lastSeenEventId,
       })
     )
-  }
-
-  _onActiveWorkspaceChanged() {
-    // Switching workspaces re-baselines: the new workspace has its own id
-    // space so we drop the cached high-water mark. Any pending "workspace
-    // stale" toast belonged to the previous workspace and is irrelevant in
-    // the new context.
-    const newWorkspaceId = this._getActiveWorkspaceId()
-    if (newWorkspaceId === this.lastSeenWorkspaceId) {
-      return
-    }
-    this.lastSeenRealtimeUpdateId = null
-    this.lastSeenWorkspaceId = null
-    this.context.store.dispatch('toast/setWorkspaceStale', false)
-    this._sendRealtimeSubscribe(newWorkspaceId)
   }
 
   updateLastSeenId(data) {
     if (
       data &&
       typeof data === 'object' &&
-      typeof data.realtime_update_id === 'number'
+      typeof data._event_id === 'number'
     ) {
-      const current = this.lastSeenRealtimeUpdateId
-      if (current === null || data.realtime_update_id > current) {
-        this.lastSeenRealtimeUpdateId = data.realtime_update_id
+      const current = this.lastSeenEventId
+      if (current === null || data._event_id > current) {
+        this.lastSeenEventId = data._event_id
       }
     }
   }
@@ -367,41 +321,23 @@ export class RealTimeHandler {
    * Registers all the core event handlers, which is for the workspaces and applications.
    */
   registerCoreEvents() {
-    // web_socket_id is stored in auth so every AJAX request includes it as a
-    // header — the backend uses it to skip echoing the event back to the
-    // originating client.
     this.registerEvent('authentication', ({ store }, data) => {
-      store.dispatch('auth/setWebSocketId', this.webSocketId)
-
       this.authenticationSuccess = data.success
       this.authResponseReceived = true
 
       if (data.success) {
-        const workspaceId = this._getActiveWorkspaceId()
-        if (workspaceId) {
-          this._sendRealtimeSubscribe(workspaceId)
-        }
+        this._sendRealtimeSubscribe()
       }
     })
 
     this.registerEvent('realtime_subscribe_result', ({ store }, data) => {
-      // Ignore results for a workspace that is no longer active (the user
-      // may have switched workspaces while the response was in flight).
-      if (data.workspace_id !== this._getActiveWorkspaceId()) {
-        return
-      }
-      const previous = this.lastSeenRealtimeUpdateId
-      const showToast =
-        data.stale &&
+      const previous = this.lastSeenEventId
+      const showOutdated =
+        data.outdated &&
         typeof data.current_latest_id === 'number' &&
         (previous === null || data.current_latest_id > previous)
-      this.lastSeenRealtimeUpdateId = Math.max(
-        data.current_latest_id,
-        previous ?? 0
-      )
-      if (showToast) {
-        store.dispatch('toast/setWorkspaceStale', true)
-      }
+      this.lastSeenEventId = Math.max(data.current_latest_id, previous ?? 0)
+      store.dispatch('toast/setWorkspaceOutdated', showOutdated)
     })
 
     this.registerEvent('user_data_updated', ({ store }, data) => {

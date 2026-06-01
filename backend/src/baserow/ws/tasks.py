@@ -4,6 +4,7 @@ from typing import Any, Dict, Iterable, List, Optional
 from django.conf import settings
 
 from asgiref.sync import async_to_sync
+from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
 
 from baserow.config.celery import app
@@ -37,24 +38,45 @@ def force_disconnect_users(
 
 async def send_message_to_channel_group(
     channel_layer, channel_group_name: str, message: dict
-):
+) -> Optional[int]:
     """
-    Sends a message to a channel group.
-
-    All channel_layer.*send* methods must have close_pools called after due to a
-    bug in channels 4.0.0 as recommended on
-    https://github.com/django/channels_redis/issues/332
+    Sends a message to a channel group.  When event recording is enabled
+    and the message contains a ``payload`` or ``payload_map`` key, a
+    ``RealtimeEvent`` row is created and its id is injected into the
+    inner payload(s) **before** the message is sent.
 
     :param channel_layer: The channel layer instance to use.
-    :param channel_group_name: The channel group name identifying the channel group
-        that should receive the message.
-    :param messsage: JSON to send.
+    :param channel_group_name: The channel group name identifying the
+        channel group that should receive the message.
+    :param message: JSON to send.
+    :returns: The recorded event id, or ``None`` when recording is
+        disabled or the message is not recordable.
     """
+
+    from baserow.ws.realtime_events import RealtimeEventHandler
+
+    event_id = None
+    if RealtimeEventHandler.is_recording_enabled():
+        inner = message.get("payload")
+        payload_map = message.get("payload_map")
+        if inner is not None or payload_map is not None:
+            event_id = (
+                await database_sync_to_async(RealtimeEventHandler.record_events)(
+                    [(channel_group_name, message)]
+                )
+            )[0]
+            if isinstance(inner, dict):
+                inner["_event_id"] = event_id
+            if isinstance(payload_map, dict):
+                for user_payload in payload_map.values():
+                    if isinstance(user_payload, dict):
+                        user_payload["_event_id"] = event_id
 
     await channel_layer.group_send(channel_group_name, message)
     if hasattr(channel_layer, "close_pools"):
-        # The inmemory channel layer in tests does not have this function.
         await channel_layer.close_pools()
+
+    return event_id
 
 
 @app.task(bind=True)
@@ -79,23 +101,17 @@ def broadcast_to_users(
         be respected.
     """
 
-    from baserow.ws.realtime_events import RealtimeEventHandler
-
     channel_layer = get_channel_layer()
-    full_message = {
-        "type": "broadcast_to_users",
-        "user_ids": user_ids,
-        "payload": payload,
-        "ignore_web_socket_id": ignore_web_socket_id,
-        "send_to_all_users": send_to_all_users,
-    }
-    if RealtimeEventHandler.is_recording_enabled():
-        event_id = RealtimeEventHandler.record_events([("users", full_message)])[0]
-        payload["realtime_update_id"] = event_id
     async_to_sync(send_message_to_channel_group)(
         channel_layer,
         "users",
-        full_message,
+        {
+            "type": "broadcast_to_users",
+            "user_ids": user_ids,
+            "payload": payload,
+            "ignore_web_socket_id": ignore_web_socket_id,
+            "send_to_all_users": send_to_all_users,
+        },
     )
 
 
@@ -184,23 +200,15 @@ def broadcast_to_users_individual_payloads(
         made the change request.
     """
 
-    from baserow.ws.realtime_events import RealtimeEventHandler
-
     channel_layer = get_channel_layer()
-    full_message = {
-        "type": "broadcast_to_users_individual_payloads",
-        "payload_map": payload_map,
-        "ignore_web_socket_id": ignore_web_socket_id,
-    }
-    if RealtimeEventHandler.is_recording_enabled():
-        event_id = RealtimeEventHandler.record_events([("users", full_message)])[0]
-        for inner_payload in payload_map.values():
-            if isinstance(inner_payload, dict):
-                inner_payload["realtime_update_id"] = event_id
     async_to_sync(send_message_to_channel_group)(
         channel_layer,
         "users",
-        full_message,
+        {
+            "type": "broadcast_to_users_individual_payloads",
+            "payload_map": payload_map,
+            "ignore_web_socket_id": ignore_web_socket_id,
+        },
     )
 
 
@@ -223,39 +231,17 @@ def broadcast_many_to_channel_group(
         receiving messages.
     """
 
-    from baserow.ws.realtime_events import RealtimeEventHandler
-
-    full_messages = []
-    for channel_group_name, payload in payloads:
-        full_messages.append(
-            (
-                channel_group_name,
-                payload,
-                {
-                    "type": "broadcast_to_group",
-                    "payload": payload,
-                    "ignore_web_socket_id": ignore_web_socket_id,
-                    "exclude_user_ids": exclude_user_ids,
-                },
-            )
-        )
-
-    if RealtimeEventHandler.is_recording_enabled():
-        event_ids = RealtimeEventHandler.record_events(
-            [
-                (channel_group_name, full_message)
-                for channel_group_name, _, full_message in full_messages
-            ]
-        )
-        for event_id, (_, payload, _) in zip(event_ids, full_messages):
-            payload["realtime_update_id"] = event_id
-
     channel_layer = get_channel_layer()
-    for channel_group_name, payload, full_message in full_messages:
+    for channel_group_name, payload in payloads:
         async_to_sync(send_message_to_channel_group)(
             channel_layer,
             channel_group_name,
-            full_message,
+            {
+                "type": "broadcast_to_group",
+                "payload": payload,
+                "ignore_web_socket_id": ignore_web_socket_id,
+                "exclude_user_ids": exclude_user_ids,
+            },
         )
 
 
@@ -281,24 +267,16 @@ def broadcast_to_channel_group(
         receiving the message.
     """
 
-    from baserow.ws.realtime_events import RealtimeEventHandler
-
     channel_layer = get_channel_layer()
-    full_message = {
-        "type": "broadcast_to_group",
-        "payload": payload,
-        "ignore_web_socket_id": ignore_web_socket_id,
-        "exclude_user_ids": exclude_user_ids,
-    }
-    if RealtimeEventHandler.is_recording_enabled():
-        event_id = RealtimeEventHandler.record_events(
-            [(channel_group_name, full_message)]
-        )[0]
-        payload["realtime_update_id"] = event_id
     async_to_sync(send_message_to_channel_group)(
         channel_layer,
         channel_group_name,
-        full_message,
+        {
+            "type": "broadcast_to_group",
+            "payload": payload,
+            "ignore_web_socket_id": ignore_web_socket_id,
+            "exclude_user_ids": exclude_user_ids,
+        },
     )
 
 

@@ -25,7 +25,7 @@ export const state = () => ({
   signedUserSession: null,
   authenticated: false,
   additional: {},
-  webSocketId: null,
+  webSocketId: uuid(),
   // Indicates whether a token should be set persistently as a cookie using the
   // `setToken` function.
   preventSetToken: false,
