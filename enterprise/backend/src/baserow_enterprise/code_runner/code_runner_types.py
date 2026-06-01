@@ -88,6 +88,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
     def _run_process(
         self, context_data: dict[str, Any], code: str
     ) -> subprocess.CompletedProcess:
+        # Using wastime with no host access at all for best security
         command = [
             self.wasmtime_executable,
             "run",
@@ -227,56 +228,66 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
 
     def _runner_source(self) -> str:
         """
-        Build the JavaScript wrapper executed by QuickJS around user code.
+        Build the JavaScript wrapper that QuickJS evaluates before running
+        user-submitted code.
 
-        Script structure:
-        - Host setup: read the JSON request from stdin and keep local references
-          to the output function and Function constructor before restricting the
-          global scope.
-        - Global hardening: remove direct access to QuickJS host modules such as
-          std, os, and bjson, then disable global eval and Function so submitted
-          code cannot easily reach those capabilities.
-        - User execution: run the submitted code in strict mode, shadow
-          dangerous or host-specific names as undefined, require main(context),
-          and serialize the returned object to stdout.
-        - Error handling: convert thrown errors into structured JSON responses so
-          Python can report execution failures without exposing host internals.
+        Security model
+        --------------
+        The real isolation boundary is Wasmtime + WASI: the guest is launched
+        with no --dir, no --env, and no inherit-network/env capabilities, so
+        user code has no host I/O surface even with arbitrary JS execution
+        inside the guest. Do not weaken those flags on the assumption that the
+        scrubbing in this wrapper provides containment — it does not.
+
+        Defense in depth (this wrapper)
+        -------------------------------
+        qjs --std injects bridge globals (std, os, bjson, print, console,
+        scriptArgs, ...) that connect JS to host capabilities. We capture the
+        I/O we need into closure-local references and then ``delete`` those
+        globals so user code cannot reach them, even after recovering a real
+        ``Function`` via tricks like ``(function(){}).constructor``. This is
+        safe because this QuickJS build does NOT register std/os/bjson as
+        importable modules either (dynamic ``import("std")`` raises
+        "could not load module"), so deletion from globalThis is sufficient at
+        the JS layer.
+
+        We intentionally do NOT shadow ECMAScript intrinsics such as
+        ``Function``, ``eval``, or ``globalThis``: such shadowing is bypassed
+        in one line via the constructor-escape trick, and pretending otherwise
+        creates a false sense of security. Those intrinsics are harmless on
+        their own — they grant no host access without bridge globals.
         """
         return """
+const _stdOutPuts = std.out.puts.bind(std.out);
 try {
-  const input = JSON.parse(std.in.getline());
-  const write = std.out.puts.bind(std.out);
-  const createFunction = Function;
-  const originalEval = globalThis.eval;
-  const originalFunction = globalThis.Function;
-  delete globalThis.std;
-  delete globalThis.os;
-  delete globalThis.bjson;
-  globalThis.eval = undefined;
-  globalThis.Function = undefined;
-  try {
-    const run = createFunction("context", `
-      "use strict";
-      const std = undefined;
-      const os = undefined;
-      const bjson = undefined;
-      const Function = undefined;
-      const print = undefined;
-      const globalThis = undefined;
-      ${input.code}
-      if (typeof main !== "function") {
-        throw new Error("The code must define a main function.");
-      }
-      return main(context);
-    `);
-    const result = run(input.context);
-    write(JSON.stringify({ result }) + "\\n");
-  } finally {
-    globalThis.eval = originalEval;
-    globalThis.Function = originalFunction;
+  const _input = JSON.parse(std.in.getline());
+  const _createFunction = Function;
+
+  // Delete the qjs --std bridge globals so user code cannot reach host I/O.
+  // Wasmtime + WASI is the real isolation boundary; this is defense in
+  // depth. Keep this list in sync with what qjs --std injects.
+  const _HOST_GLOBALS = [
+    "std", "os", "bjson",
+    "print", "console",
+    "scriptArgs", "execArgv", "argv0",
+    "gc", "queueMicrotask", "performance", "navigator",
+    "atob", "btoa",
+  ];
+  for (const _name of _HOST_GLOBALS) {
+    delete globalThis[_name];
   }
+
+  const run = _createFunction("context", `
+    "use strict";
+    ${_input.code}
+    if (typeof main !== "function") {
+      throw new Error("The code must define a main function.");
+    }
+    return main(context);
+  `);
+  const result = run(_input.context);
+  _stdOutPuts(JSON.stringify({ result }) + "\\n");
 } catch (error) {
-  const message = String(error && error.message || error);
-  print(JSON.stringify({ error: message }));
+  _stdOutPuts(JSON.stringify({ error: String(error && error.message || error) }) + "\\n");
 }
 """.strip()

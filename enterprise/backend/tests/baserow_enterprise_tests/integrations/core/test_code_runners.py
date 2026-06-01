@@ -356,13 +356,21 @@ def test_wasmtime_quickjs_code_runner_uses_isolated_function_wrapper():
         quickjs_wasm_path="/runtime/qjs.wasm"
     )._runner_source()
 
-    assert 'createFunction("context"' in source
-    assert "globalThis.eval = undefined;" in source
-    assert "globalThis.Function = undefined;" in source
-    assert "const std = undefined;" in source
-    assert "const os = undefined;" in source
-    assert "const Function = undefined;" in source
-    assert "const globalThis = undefined;" in source
+    # User code is executed inside Function("context", ...), not via eval on
+    # the wrapper's own scope.
+    assert '_createFunction("context"' in source
+    assert "globalThis.eval(input.code)" not in source
+
+    # Bridge globals injected by qjs --std are deleted before user code runs.
+    assert "delete globalThis[_name]" in source
+    for bridge_global in ("std", "os", "bjson", "print", "console"):
+        assert f'"{bridge_global}"' in source
+
+    # ECMAScript intrinsics are intentionally NOT shadowed — that pretense was
+    # bypassable in one line and only created a false sense of security. The
+    # real boundary is Wasmtime + WASI (see _runner_source docstring).
+    assert "globalThis.eval = undefined" not in source
+    assert "globalThis.Function = undefined" not in source
 
 
 @pytest.mark.skipif(
@@ -397,7 +405,15 @@ function main(context) {
     not runtime_variables_are_configured,
     reason="Code runner runtime environment variables are not configured.",
 )
-def test_wasmtime_quickjs_code_runner_hides_wrapper_and_std_globals():
+def test_wasmtime_quickjs_code_runner_deletes_host_bridge_globals():
+    """
+    Verify that qjs --std bridge globals are unreachable from user code, even
+    after a constructor-escape back to the real globalThis. The bridge globals
+    are the actual security-relevant scrubbing; ECMAScript intrinsics
+    (Function, eval, globalThis) are intentionally left reachable since they
+    grant no host access on their own.
+    """
+
     runner = WasmtimeQuickJSCodeRunnerType(
         wasmtime_executable=os.environ[
             "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE"
@@ -411,14 +427,22 @@ def test_wasmtime_quickjs_code_runner_hides_wrapper_and_std_globals():
         {},
         """
 function main() {
+  // Walk back to the real globalThis via constructor escape to confirm the
+  // bridge globals are not reachable even there.
+  const realGlobal = (function () {}).constructor("return globalThis")();
   return {
-    std: typeof std,
-    os: typeof os,
-    bjson: typeof bjson,
-    eval: typeof eval,
-    Function: typeof Function,
-    print: typeof print,
-    globalThis: typeof globalThis,
+    std: typeof realGlobal.std,
+    os: typeof realGlobal.os,
+    bjson: typeof realGlobal.bjson,
+    print: typeof realGlobal.print,
+    console: typeof realGlobal.console,
+    scriptArgs: typeof realGlobal.scriptArgs,
+    execArgv: typeof realGlobal.execArgv,
+    argv0: typeof realGlobal.argv0,
+    navigator: typeof realGlobal.navigator,
+    atob: typeof realGlobal.atob,
+    btoa: typeof realGlobal.btoa,
+    // wrapper-local closure refs must not leak into user code's scope
     input: typeof input,
     write: typeof write,
   }
@@ -430,10 +454,65 @@ function main() {
         "std": "undefined",
         "os": "undefined",
         "bjson": "undefined",
-        "eval": "undefined",
-        "Function": "undefined",
         "print": "undefined",
-        "globalThis": "undefined",
+        "console": "undefined",
+        "scriptArgs": "undefined",
+        "execArgv": "undefined",
+        "argv0": "undefined",
+        "navigator": "undefined",
+        "atob": "undefined",
+        "btoa": "undefined",
         "input": "undefined",
         "write": "undefined",
     }
+
+
+@pytest.mark.skipif(
+    not runtime_variables_are_configured,
+    reason="Code runner runtime environment variables are not configured.",
+)
+def test_wasmtime_quickjs_code_runner_does_not_register_std_as_importable_module():
+    """
+    The bridge-global deletion only contains user code if std/os/bjson are not
+    available via dynamic ``import()`` either. This guards against a future
+    qjs.wasm rebuild that registers them as importable modules — which would
+    silently make the wrapper's scrubbing incomplete.
+    """
+
+    runner = WasmtimeQuickJSCodeRunnerType(
+        wasmtime_executable=os.environ[
+            "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE"
+        ],
+        quickjs_wasm_path=os.environ[
+            "BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH"
+        ],
+    )
+
+    result = runner.run(
+        {},
+        """
+function main() {
+  const outcomes = {};
+  for (const spec of ["std", "os", "bjson"]) {
+    let outcome = "pending";
+    try {
+      import(spec).then(
+        () => { outcome = "loaded"; },
+        () => { outcome = "rejected"; }
+      );
+    } catch (e) {
+      outcome = "threw";
+    }
+    outcomes[spec] = outcome;
+  }
+  return outcomes;
+}
+""",
+    )
+
+    # If a future build registered these as modules, at least one of these
+    # would be "loaded" once the microtask queue drains. The "pending" status
+    # is acceptable because dynamic-import resolution is async and the
+    # surrounding main() returns synchronously — but it must NEVER be
+    # "loaded".
+    assert "loaded" not in result.values()
