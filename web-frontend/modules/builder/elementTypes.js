@@ -391,7 +391,17 @@ export class ElementType extends Registerable {
    * @param {object} values the current values for the element to create.
    * @returns an object containing values updated with the default values.
    */
-  getDefaultValues(page, values) {
+  getDefaultValues(page, values, parentElement = null) {
+    if (parentElement) {
+      const parentElementType = this.app.$registry.get(
+        'element',
+        parentElement.type
+      )
+      return {
+        ...values,
+        ...parentElementType.getDefaultChildValues(page, values),
+      }
+    }
     return values
   }
 
@@ -1177,8 +1187,8 @@ export class SimpleContainerElementType extends ContainerElementTypeMixin(
     return SimpleContainerElementForm
   }
 
-  getDefaultValues(page, values) {
-    const superValues = super.getDefaultValues(page, values)
+  getDefaultValues(page, values, parentElement = null) {
+    const superValues = super.getDefaultValues(page, values, parentElement)
     return {
       ...superValues,
       style_padding_left: 0,
@@ -2293,8 +2303,8 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     return {}
   }
 
-  getDefaultValues(page, values) {
-    const superValues = super.getDefaultValues(page, values)
+  getDefaultValues(page, values, parentElement = null) {
+    const superValues = super.getDefaultValues(page, values, parentElement)
     return {
       ...superValues,
       style_padding_left: 0,

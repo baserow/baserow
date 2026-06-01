@@ -250,15 +250,28 @@ const actions = {
   ) {
     const { $registry, $client } = this
     const elementType = $registry.get('element', elementTypeName)
-    const updatedValues = elementType.getDefaultValues(page, values)
-
-    // Placeholder used only for graph bookkeeping — never stored in page.elements
-    // so we never render an element with incomplete field data while in-flight.
-    const tempElement = { id: uuid() }
 
     const referenceElement = referenceElementId
       ? getters.getElementById(page, referenceElementId)
       : null
+
+    let parentElement = null
+    if (referenceElement) {
+      parentElement =
+        position === 'child'
+          ? referenceElement
+          : getters.getParent(page, referenceElement)
+    }
+
+    const updatedValues = elementType.getDefaultValues(
+      page,
+      values,
+      parentElement
+    )
+
+    // Placeholder used only for graph bookkeeping — never stored in page.elements
+    // so we never render an element with incomplete field data while in-flight.
+    const tempElement = { id: uuid() }
     const initialGraph = clone(page.graph)
 
     dispatch('graphInsert', {

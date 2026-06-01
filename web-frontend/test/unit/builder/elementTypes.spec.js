@@ -1395,6 +1395,39 @@ describe('elementTypes tests', () => {
     })
   })
 
+  describe('ElementType getDefaultValues tests', () => {
+    test('returns values unchanged when no parent element', () => {
+      const elementType = testApp.$registry.get('element', 'heading')
+      const page = { id: 1 }
+      const values = { style_padding_top: 20 }
+      expect(elementType.getDefaultValues(page, values, null)).toEqual({
+        style_padding_top: 20,
+      })
+    })
+
+    test('merges parent container child defaults when parent provided', () => {
+      const elementType = testApp.$registry.get('element', 'heading')
+      const page = { id: 1 }
+      const parentElement = { id: 10, type: 'column' }
+      const values = { style_padding_top: 20 }
+      expect(elementType.getDefaultValues(page, values, parentElement)).toEqual({
+        style_padding_top: 20,
+        style_padding_left: 0,
+        style_padding_right: 0,
+      })
+    })
+
+    test('parent whose getDefaultChildValues returns {} leaves values unchanged', () => {
+      const elementType = testApp.$registry.get('element', 'heading')
+      const page = { id: 1 }
+      const parentElement = { id: 10, type: 'simple_container' }
+      const values = { style_padding_top: 20 }
+      expect(elementType.getDefaultValues(page, values, parentElement)).toEqual({
+        style_padding_top: 20,
+      })
+    })
+  })
+
   describe('elementType elementAround tests', () => {
     let page, sharedPage, builder
     beforeEach(async () => {
