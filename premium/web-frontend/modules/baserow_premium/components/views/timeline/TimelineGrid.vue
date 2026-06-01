@@ -119,18 +119,17 @@ export default {
     TimelineGridShowRowButton,
   },
   provide: function () {
-    const that = this
     return {
       getRowPosition: (rowItem) => {
         if (!rowItem.item) {
           return
         }
-        const pos = that.getRowStyleProps(rowItem.item)
+        const pos = this.getRowStyleProps(rowItem.item)
         const out = {
           left: pos.leftPadding + pos.left,
           top: rowItem.position.top,
           width: pos.width,
-          height: that.rowHeight,
+          height: this.rowHeight,
         }
         return out
       },

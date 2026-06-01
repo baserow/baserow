@@ -214,20 +214,19 @@ export default {
     this.v$.$touch()
   },
   validations() {
-    const self = this
     return {
       values: {
         aggregation_type: {
           required,
           isValidAggregationType: (value) => {
-            const aggregationTypeNames = self.aggregationTypeNames
+            const aggregationTypeNames = this.aggregationTypeNames
             return includes(aggregationTypeNames)(value)
           },
         },
         field_id: {
           required,
           isValidFieldId: (value) => {
-            const compatibleTableFieldIds = self.compatibleTableFieldIds
+            const compatibleTableFieldIds = this.compatibleTableFieldIds
             return includes(compatibleTableFieldIds)(value)
           },
         },

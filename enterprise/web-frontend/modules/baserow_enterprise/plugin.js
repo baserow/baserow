@@ -162,7 +162,10 @@ export default defineNuxtPlugin({
     $registry.register('userSource', new LocalBaserowUserSourceType(context))
     if ($config.public.baserowEnterpriseCodeRunnerDefaultType) {
       $registry.register('service', new CoreCodeServiceType(context))
-      $registry.register('workflowAction', new CoreCodeWorkflowActionType(context))
+      $registry.register(
+        'workflowAction',
+        new CoreCodeWorkflowActionType(context)
+      )
       $registry.register('node', new CoreCodeNodeType(context))
     }
 
