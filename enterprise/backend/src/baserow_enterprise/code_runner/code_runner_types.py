@@ -92,23 +92,26 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
             self.wasmtime_executable,
             "run",
             "-W",
-            f"timeout={self.timeout_seconds}s",
+            f"timeout={self.timeout_seconds}s",  # Limits the execution time
             "-W",
-            f"max-memory-size={self.memory_limit_bytes}",
+            f"max-memory-size={self.memory_limit_bytes}",  # Limits memory consumption
             "-W",
-            "trap-on-grow-failure=true",
+            "trap-on-grow-failure=true",  # Ensure a proper exception on memory limit
         ]
+        # Fuel limit allow a precise number of instruction to be executed
+        # Extra security in addition to memory and timeout.
         if self.fuel_limit > 0:
             command.extend(["-W", f"fuel={self.fuel_limit}"])
 
         command.extend(
             [
                 self.quickjs_wasm_path,
-                "--std",
+                "--std",  # Give access to STD but it's removed in JS code
                 "--eval",
                 self._runner_source(),
             ]
         )
+        # We send the context data and the code through STDIN to the js process
         payload = json.dumps({"context": context_data, "code": code})
 
         try:
@@ -134,6 +137,16 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
     def _communicate_with_output_limit(
         self, command: list[str], payload: str
     ) -> subprocess.CompletedProcess:
+        """
+        Run the code runner command with the given stdin payload.
+
+        This intentionally avoids subprocess.communicate() so stdout and stderr can
+        be read incrementally by _read_bounded_process_output(), enforcing both the
+        execution timeout and per-stream output size limit while the process is
+        still running. If setup, writing, reading, or waiting fails, the child
+        process is killed before the original exception is re-raised.
+        """
+
         process = subprocess.Popen(  # noqa: S603
             command,
             stdin=subprocess.PIPE,
@@ -165,6 +178,15 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
     def _read_bounded_process_output(
         self, process: subprocess.Popen
     ) -> tuple[bytes, bytes]:
+        """
+        Read stdout and stderr from a running process without blocking indefinitely.
+
+        Both streams are switched to nonblocking mode and monitored together so a
+        full stderr pipe cannot block stdout, or vice versa. Reading continues
+        until both streams close, the configured timeout expires, or either stream
+        exceeds the configured output size limit.
+        """
+
         if process.stdout is None or process.stderr is None:
             raise CodeRunnerExecutionError(
                 "The code runner output pipes were not created."
@@ -204,6 +226,22 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         return bytes(streams[process.stdout]), bytes(streams[process.stderr])
 
     def _runner_source(self) -> str:
+        """
+        Build the JavaScript wrapper executed by QuickJS around user code.
+
+        Script structure:
+        - Host setup: read the JSON request from stdin and keep local references
+          to the output function and Function constructor before restricting the
+          global scope.
+        - Global hardening: remove direct access to QuickJS host modules such as
+          std, os, and bjson, then disable global eval and Function so submitted
+          code cannot easily reach those capabilities.
+        - User execution: run the submitted code in strict mode, shadow
+          dangerous or host-specific names as undefined, require main(context),
+          and serialize the returned object to stdout.
+        - Error handling: convert thrown errors into structured JSON responses so
+          Python can report execution failures without exposing host internals.
+        """
         return """
 try {
   const input = JSON.parse(std.in.getline());
