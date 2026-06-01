@@ -13,7 +13,7 @@ export const state = () => ({
   // See UNDO_REDO_STATES for all possible values.
   undoRedoState: UNDO_REDO_STATES.HIDDEN,
   permissionsUpdated: false,
-  workspaceStale: false,
+  workspaceOutdated: false,
   items: [],
 })
 
@@ -55,8 +55,8 @@ export const mutations = {
   SET_USER_PASSWORD_CHANGED(state, value) {
     state.userPasswordChanged = value
   },
-  SET_WORKSPACE_STALE(state, value) {
-    state.workspaceStale = value
+  SET_WORKSPACE_OUTDATED(state, value) {
+    state.workspaceOutdated = value
   },
 }
 
@@ -130,8 +130,8 @@ export const actions = {
   setPermissionsUpdated({ commit }, value) {
     commit('SET_PERMISSIONS_UPDATED', value)
   },
-  setWorkspaceStale({ commit }, value) {
-    commit('SET_WORKSPACE_STALE', value)
+  setWorkspaceOutdated({ commit }, value) {
+    commit('SET_WORKSPACE_OUTDATED', value)
   },
   userLoggedOut({ commit }) {
     commit('SET_PERMISSIONS_UPDATED', false)
@@ -141,7 +141,7 @@ export const actions = {
     commit('SET_UNDO_REDO_STATE', UNDO_REDO_STATES.HIDDEN)
     commit('SET_RECONNECTING', false)
     commit('SET_FAILED_CONNECTING', false)
-    commit('SET_WORKSPACE_STALE', false)
+    commit('SET_WORKSPACE_OUTDATED', false)
   },
 }
 

@@ -8,7 +8,7 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
 from baserow.config.settings.utils import try_int
-from baserow.ws.models import RealtimeEvent
+from baserow.ws.exceptions import EventReplayNotPossible
 from baserow.ws.realtime_events import RealtimeEventHandler
 from baserow.ws.registries import PageType, page_registry
 
@@ -347,7 +347,7 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
 
     async def _replay_missed_events(
         self,
-        channel_group_names: list[tuple[str, str]],
+        channel_group_names: list[str],
         last_seen_id: int,
         web_socket_id: Optional[str],
     ) -> Optional[int]:
@@ -355,25 +355,30 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         Attempt to replay missed events through existing consumer handlers.
 
         Returns the latest replayed event id on success, or ``None`` if
-        replay is not possible (degraded path).
+        replay is not possible.
         """
 
-        result = await database_sync_to_async(RealtimeEventHandler.get_replay_events)(
-            self.scope["user"].id,
-            channel_group_names,
-            last_seen_id,
-            web_socket_id,
-        )
-        if result.degraded:
+        try:
+            events = await database_sync_to_async(
+                RealtimeEventHandler.get_replay_events
+            )(
+                self.scope["user"].id,
+                channel_group_names,
+                last_seen_id,
+                web_socket_id,
+            )
+        except EventReplayNotPossible:
             return None
 
-        if not result.events:
+        if not events:
+            from baserow.ws.models import RealtimeEvent
+
             latest = await database_sync_to_async(
                 lambda: RealtimeEvent.objects.aggregate(m=Max("id"))["m"]
             )()
             return latest if latest is not None else last_seen_id
 
-        for event in result.events:
+        for event in events:
             event_type = event.payload.get("type", "")
             if event_type.startswith("broadcast_to_"):
                 handler = getattr(self, event_type, None)
@@ -381,40 +386,43 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
                     self._inject_replay_event_id(event)
                     await handler(event.payload)
 
-        return result.events[-1].id
+        return events[-1].id
 
     @staticmethod
     def _inject_replay_event_id(event):
         """
-        Inject ``RealtimeEvent.id`` as ``realtime_update_id`` into the
-        payload dicts so the frontend can advance its high-water mark
+        Inject ``RealtimeEvent.id`` as ``_event_id`` into the
+        payload dicts so the frontend can advance ``lastSeenEventId``
         per replayed event (same as normal delivery).
         """
 
         event_id = event.id
         inner = event.payload.get("payload")
         if isinstance(inner, dict):
-            inner["realtime_update_id"] = event_id
+            inner["_event_id"] = event_id
         payload_map = event.payload.get("payload_map")
         if isinstance(payload_map, dict):
             for user_payload in payload_map.values():
                 if isinstance(user_payload, dict):
-                    user_payload["realtime_update_id"] = event_id
+                    user_payload["_event_id"] = event_id
 
     async def _realtime_subscribe(self, content: dict):
         """
-        On every websocket open the frontend sends this message with the active
-        workspace. It either baselines the client (``last_seen_id`` is null) or
-        checks whether anything was broadcast to the user's subscribed channel
-        groups by another ``web_socket_id`` since ``last_seen_id``.
-        Authentication is required; unauthorized requests are silently dropped.
+        Handle ``realtime_subscribe`` from the frontend.  Three outcomes:
+
+        1. **Baseline** (``last_seen_id`` is null) — return the current
+           latest event id so the client can start tracking.
+        2. **Replay** — re-deliver missed events since ``last_seen_id``.
+        3. **Can't replay** — gap too large or ``last_seen_id`` expired; tell the
+           client to refresh (``outdated=true``).
+
+        Authentication is required; unauthorized requests are silently
+        dropped.
         """
 
         user = self.scope.get("user")
         if user is None or not getattr(user, "is_authenticated", False):
             return
-
-        workspace_id = try_int(content.get("workspace_id"))
 
         raw_last_seen = content.get("last_seen_id")
         last_seen_id = try_int(raw_last_seen) if raw_last_seen is not None else None
@@ -425,12 +433,11 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         pages = self.scope.get("pages", SubscribedPages())
         channel_group_names = RealtimeEventHandler.get_channel_group_names(pages)
 
-        async def send_result(stale: bool, current_latest_id: int):
+        async def send_result(outdated: bool, current_latest_id: int):
             await self.send_json(
                 {
                     "type": "realtime_subscribe_result",
-                    "workspace_id": workspace_id,
-                    "stale": stale,
+                    "outdated": outdated,
                     "current_latest_id": current_latest_id,
                 }
             )
@@ -447,11 +454,19 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
                 await send_result(False, replayed_up_to)
                 return
 
-        stale, current_latest_id = await database_sync_to_async(
+            from baserow.ws.models import RealtimeEvent
+
+            current_latest_id = await database_sync_to_async(
+                lambda: RealtimeEvent.objects.aggregate(m=Max("id"))["m"] or 0
+            )()
+            await send_result(True, current_latest_id)
+            return
+
+        outdated, current_latest_id = await database_sync_to_async(
             RealtimeEventHandler.check_realtime_events
         )(user.id, channel_group_names, last_seen_id, web_socket_id)
 
-        await send_result(stale, current_latest_id)
+        await send_result(outdated, current_latest_id)
 
     # Event handlers
 

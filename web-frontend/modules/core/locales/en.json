@@ -450,7 +450,7 @@
     "content": "Real-time updates could not be reestablished. Please refresh to continue.",
     "action": "Refresh page"
   },
-  "workspaceStaleToast": {
+  "workspaceOutdatedToast": {
     "title": "Too many changes",
     "content": "Too many changes occurred while you were away. Refresh to see the latest data.",
     "action": "Refresh data",
