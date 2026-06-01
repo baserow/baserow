@@ -54,6 +54,7 @@ import {
   RuntimeToDatetime,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 import { Timedelta } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
+import { DeferredValue } from '@baserow/modules/core/formula/parser/formulaValidationVisitor'
 import { expect } from 'vitest'
 
 /** Tests for the RuntimeConcat class. */
@@ -137,6 +138,11 @@ describe('RuntimeAdd', () => {
       args: [new Timedelta(86400 * 1000), new Date(2025, 0, 1, 12, 0, 0)],
       expected: new Date(2025, 0, 2, 12, 0, 0),
     },
+    // Date + timedelta (sub-day)
+    {
+      args: [new Date(2025, 5, 15), new Timedelta(3 * 3600 * 1000)],
+      expected: new Date(2025, 5, 15, 3, 0, 0),
+    },
   ])('execute returns expected value with timedelta', ({ args, expected }) => {
     const formulaType = new RuntimeAdd()
     const parsedArgs = formulaType.parseArgs(args)
@@ -200,6 +206,30 @@ describe('RuntimeAdd', () => {
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })
+
+  test.each([
+    // Deferred values are accepted at either position
+    { args: [DeferredValue, 5], expected: [] },
+    { args: [5, DeferredValue], expected: [] },
+    { args: [DeferredValue, DeferredValue], expected: [] },
+    // Deferred does not excuse a concrete invalid value
+    { args: [DeferredValue, 'foo'], expected: [[1, 'foo']] },
+    { args: ['foo', DeferredValue], expected: [[0, 'foo']] },
+    // Empty literals are rejected
+    { args: [null, 5], expected: [[0, null]] },
+    { args: [5, null], expected: [[1, null]] },
+    { args: ['', 5], expected: [[0, '']] },
+    { args: [5, ''], expected: [[1, '']] },
+    { args: [undefined, 5], expected: [[0, undefined]] },
+    { args: [5, undefined], expected: [[1, undefined]] },
+  ])(
+    'validates type of args with deferred or empty literal',
+    ({ args, expected }) => {
+      const formulaType = new RuntimeAdd()
+      const result = formulaType.validateTypeOfArgs(args)
+      expect(result).toStrictEqual(expected)
+    }
+  )
 })
 
 describe('RuntimeMinus', () => {
@@ -234,6 +264,11 @@ describe('RuntimeMinus', () => {
     {
       args: [new Date(2025, 0, 2, 12, 0, 0), new Timedelta(86400 * 1000)],
       expected: new Date(2025, 0, 1, 12, 0, 0),
+    },
+    // Date - timedelta (sub-day)
+    {
+      args: [new Date(2025, 5, 15, 3, 0, 0), new Timedelta(3 * 3600 * 1000)],
+      expected: new Date(2025, 5, 15, 0, 0, 0),
     },
   ])('execute returns expected value with timedelta', ({ args, expected }) => {
     const formulaType = new RuntimeMinus()
@@ -274,6 +309,11 @@ describe('RuntimeMinus', () => {
       args: [new Timedelta(1000), new Date(2025, 0, 1)],
       expected: [[1, new Date(2025, 0, 1)]],
     },
+    // Invalid: string - timedelta
+    {
+      args: ['foo', new Timedelta(1000)],
+      expected: [[0, 'foo']],
+    },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeMinus()
     const result = formulaType.validateTypeOfArgs(args)
@@ -290,6 +330,30 @@ describe('RuntimeMinus', () => {
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })
+
+  test.each([
+    // Deferred values are accepted at either position
+    { args: [DeferredValue, 5], expected: [] },
+    { args: [5, DeferredValue], expected: [] },
+    { args: [DeferredValue, DeferredValue], expected: [] },
+    // Deferred does not excuse a concrete invalid value
+    { args: [DeferredValue, 'foo'], expected: [[1, 'foo']] },
+    { args: ['foo', DeferredValue], expected: [[0, 'foo']] },
+    // Empty literals are rejected
+    { args: [null, 5], expected: [[0, null]] },
+    { args: [5, null], expected: [[1, null]] },
+    { args: ['', 5], expected: [[0, '']] },
+    { args: [5, ''], expected: [[1, '']] },
+    { args: [undefined, 5], expected: [[0, undefined]] },
+    { args: [5, undefined], expected: [[1, undefined]] },
+  ])(
+    'validates type of args with deferred or empty literal',
+    ({ args, expected }) => {
+      const formulaType = new RuntimeMinus()
+      const result = formulaType.validateTypeOfArgs(args)
+      expect(result).toStrictEqual(expected)
+    }
+  )
 })
 
 describe('RuntimeMultiply', () => {
@@ -375,6 +439,30 @@ describe('RuntimeMultiply', () => {
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })
+
+  test.each([
+    // Deferred values are accepted at either position
+    { args: [DeferredValue, 5], expected: [] },
+    { args: [5, DeferredValue], expected: [] },
+    { args: [DeferredValue, DeferredValue], expected: [] },
+    // Deferred does not excuse a concrete invalid value
+    { args: [DeferredValue, 'foo'], expected: [[1, 'foo']] },
+    { args: ['foo', DeferredValue], expected: [[0, 'foo']] },
+    // Empty literals are rejected
+    { args: [null, 5], expected: [[0, null]] },
+    { args: [5, null], expected: [[1, null]] },
+    { args: ['', 5], expected: [[0, '']] },
+    { args: [5, ''], expected: [[1, '']] },
+    { args: [undefined, 5], expected: [[0, undefined]] },
+    { args: [5, undefined], expected: [[1, undefined]] },
+  ])(
+    'validates type of args with deferred or empty literal',
+    ({ args, expected }) => {
+      const formulaType = new RuntimeMultiply()
+      const result = formulaType.validateTypeOfArgs(args)
+      expect(result).toStrictEqual(expected)
+    }
+  )
 })
 
 describe('RuntimeDivide', () => {
@@ -458,6 +546,35 @@ describe('RuntimeDivide', () => {
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })
+
+  test.each([
+    // Deferred values are accepted at either position
+    { args: [DeferredValue, 5], expected: [] },
+    { args: [5, DeferredValue], expected: [] },
+    { args: [DeferredValue, DeferredValue], expected: [] },
+    // Deferred does not excuse a concrete invalid value
+    { args: [DeferredValue, 'foo'], expected: [[1, 'foo']] },
+    { args: ['foo', DeferredValue], expected: [[0, 'foo']] },
+    // Divisor must be a number even when dividend is deferred
+    {
+      args: [DeferredValue, new Timedelta(1000)],
+      expected: [[1, new Timedelta(1000)]],
+    },
+    // Empty literals are rejected
+    { args: [null, 5], expected: [[0, null]] },
+    { args: [5, null], expected: [[1, null]] },
+    { args: ['', 5], expected: [[0, '']] },
+    { args: [5, ''], expected: [[1, '']] },
+    { args: [undefined, 5], expected: [[0, undefined]] },
+    { args: [5, undefined], expected: [[1, undefined]] },
+  ])(
+    'validates type of args with deferred or empty literal',
+    ({ args, expected }) => {
+      const formulaType = new RuntimeDivide()
+      const result = formulaType.validateTypeOfArgs(args)
+      expect(result).toStrictEqual(expected)
+    }
+  )
 })
 
 describe('RuntimeEqual', () => {
@@ -2454,88 +2571,6 @@ describe('RuntimeDurationFormat', () => {
     const formulaType = new RuntimeDurationFormat()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toBe(expected)
-  })
-})
-
-describe('RuntimeAdd with datetime and timedelta', () => {
-  test.each([
-    {
-      args: [new Date(2025, 0, 1, 12, 0, 0), new Timedelta(86400000)],
-      expected: new Date(2025, 0, 2, 12, 0, 0),
-    },
-    {
-      args: [new Timedelta(86400000), new Date(2025, 0, 1, 12, 0, 0)],
-      expected: new Date(2025, 0, 2, 12, 0, 0),
-    },
-    {
-      args: [new Date(2025, 5, 15), new Timedelta(3 * 3600000)],
-      expected: new Date(2025, 5, 15, 3, 0, 0),
-    },
-  ])(
-    'execute returns expected value with datetime+timedelta',
-    ({ args, expected }) => {
-      const formulaType = new RuntimeAdd()
-      const parsedArgs = formulaType.parseArgs(args)
-      const result = formulaType.execute({}, parsedArgs)
-      expect(result).toStrictEqual(expected)
-    }
-  )
-
-  test.each([
-    {
-      args: [new Date(2025, 0, 1), new Timedelta(86400000)],
-      expected: [],
-    },
-    {
-      args: [new Timedelta(86400000), new Date(2025, 0, 1)],
-      expected: [],
-    },
-    {
-      args: [new Timedelta(86400000), new Timedelta(86400000)],
-      expected: [],
-    },
-    { args: ['foo', new Timedelta(86400000)], expected: [[0, 'foo']] },
-  ])('validates type of args with timedelta', ({ args, expected }) => {
-    const formulaType = new RuntimeAdd()
-    const result = formulaType.validateTypeOfArgs(args)
-    expect(result).toStrictEqual(expected)
-  })
-})
-
-describe('RuntimeMinus with datetime and timedelta', () => {
-  test.each([
-    {
-      args: [new Date(2025, 0, 2, 12, 0, 0), new Timedelta(86400000)],
-      expected: new Date(2025, 0, 1, 12, 0, 0),
-    },
-    {
-      args: [new Date(2025, 5, 15, 3, 0, 0), new Timedelta(3 * 3600000)],
-      expected: new Date(2025, 5, 15, 0, 0, 0),
-    },
-  ])(
-    'execute returns expected value with datetime-timedelta',
-    ({ args, expected }) => {
-      const formulaType = new RuntimeMinus()
-      const parsedArgs = formulaType.parseArgs(args)
-      const result = formulaType.execute({}, parsedArgs)
-      expect(result).toStrictEqual(expected)
-    }
-  )
-
-  test.each([
-    {
-      args: [new Date(2025, 0, 2), new Timedelta(86400000)],
-      expected: [],
-    },
-    {
-      args: [new Timedelta(86400000), new Date(2025, 0, 1)],
-      expected: [[1, new Date(2025, 0, 1)]],
-    },
-    { args: ['foo', new Timedelta(86400000)], expected: [[0, 'foo']] },
-  ])('validates type of args with timedelta', ({ args, expected }) => {
-    const formulaType = new RuntimeMinus()
-    const result = formulaType.validateTypeOfArgs(args)
-    expect(result).toStrictEqual(expected)
   })
 })
 

@@ -628,8 +628,8 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
       if (td.test(a) && td.test(b)) return []
       if ((td.test(a) && num.test(b)) || (num.test(a) && td.test(b))) return []
       if (dt.test(a) && td.test(b)) return []
-      if (!(num.test(a) || dt.test(a))) return [[0, a]]
 
+      // Reject invalid pairs, e.g.: datetime - number, timedelta - datetime, etc.
       return [[1, b]]
     }
 

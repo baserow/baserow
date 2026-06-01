@@ -2810,6 +2810,10 @@ def test_runtime_minus_with_datetime_and_timedelta(args, expected):
             [datetime(2025, 1, 2), datetime(2025, 1, 1)],
             [(1, datetime(2025, 1, 1))],
         ),
+        # datetime - number is invalid
+        ([datetime(2025, 1, 1), 5], [(1, 5)]),
+        # number - datetime is invalid
+        ([5, datetime(2025, 1, 1)], [(1, datetime(2025, 1, 1))]),
     ],
 )
 def test_runtime_minus_validate_type_of_args_with_timedelta(args, expected):
@@ -2847,6 +2851,13 @@ def test_runtime_multiply_with_timedelta(args, expected):
         ),
         (["foo", timedelta(hours=1)], [(0, "foo")]),
         ([timedelta(hours=1), "foo"], [(1, "foo")]),
+        # datetime operands are invalid for multiply
+        ([datetime(2025, 1, 1), 2], [(0, datetime(2025, 1, 1))]),
+        ([2, datetime(2025, 1, 1)], [(1, datetime(2025, 1, 1))]),
+        (
+            [datetime(2025, 1, 1), timedelta(hours=1)],
+            [(0, datetime(2025, 1, 1))],
+        ),
     ],
 )
 def test_runtime_multiply_validate_type_of_args_with_timedelta(args, expected):
@@ -2882,6 +2893,13 @@ def test_runtime_divide_with_timedelta(args, expected):
         ),
         (["foo", timedelta(hours=1)], [(0, "foo")]),
         ([timedelta(hours=1), "foo"], [(1, "foo")]),
+        # datetime operands are invalid for divide
+        ([datetime(2025, 1, 1), 2], [(0, datetime(2025, 1, 1))]),
+        ([2, datetime(2025, 1, 1)], [(1, datetime(2025, 1, 1))]),
+        (
+            [datetime(2025, 1, 1), timedelta(hours=1)],
+            [(0, datetime(2025, 1, 1))],
+        ),
     ],
 )
 def test_runtime_divide_validate_type_of_args_with_timedelta(args, expected):
