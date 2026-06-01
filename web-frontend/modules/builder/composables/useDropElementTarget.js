@@ -260,14 +260,42 @@ export function useDropElementTarget({
 
     const draggedPage = store.getters['page/getById'](builder, dragged.page_id)
 
+    // Translate beforeElement + parentElement into the new positioning API.
+    const resolvedBefore = resolvedBeforeElement.value
+    const resolvedParent = resolvedParentElement.value
+    const resolvedPlace = unref(placeInContainer)
+
+    let referenceElementId = null
+    let position = 'south'
+    let resolvedPlaceInContainer = ''
+
+    if (resolvedBefore) {
+      referenceElementId = resolvedBefore.id
+      position = 'north'
+    } else if (resolvedParent) {
+      const elementsInPlace = store.getters['element/getElementsInPlace'](
+        targetPage.value,
+        resolvedParent.id,
+        resolvedPlace
+      )
+      if (elementsInPlace.length > 0) {
+        referenceElementId = elementsInPlace.at(-1).id
+        position = 'south'
+      } else {
+        referenceElementId = resolvedParent.id
+        position = 'child'
+        resolvedPlaceInContainer = resolvedPlace
+      }
+    }
+
     try {
       await store.dispatch('element/move', {
         builder,
         page: draggedPage,
         elementId: dragged.id,
-        beforeElementId: resolvedBeforeElement.value?.id || null,
-        parentElementId: resolvedParentElement.value?.id || null,
-        placeInContainer: unref(placeInContainer),
+        referenceElementId,
+        position,
+        placeInContainer: resolvedPlaceInContainer,
         targetPage: targetPage.value,
       })
     } catch (error) {
