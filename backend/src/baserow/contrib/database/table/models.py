@@ -1048,9 +1048,11 @@ class Table(
             if not field:
                 return f"unnamed row {self.id}"
 
-            return field["type"].get_human_readable_value(
-                getattr(self, field["name"]), field
-            )
+            value = getattr(self, field["name"])
+            readable = field["type"].get_human_readable_value(value, field)
+            if not readable:
+                return f"unnamed row {self.id}"
+            return readable
 
         attrs = {
             "Meta": meta,
