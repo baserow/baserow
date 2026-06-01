@@ -163,9 +163,11 @@ export default {
       const clone = source.cloneNode(true)
 
       Object.assign(clone.style, {
+        boxSizing: 'border-box',
         width: `${rect.width}px`,
-        height: `${rect.height}px`,
-        transform: ` scale(${dragImageScale})`,
+        minWidth: `${rect.width}px`,
+        maxWidth: `${rect.width}px`,
+        transform: `scale(${dragImageScale})`,
         transformOrigin: 'top left',
       })
 
@@ -174,12 +176,9 @@ export default {
         position: 'fixed',
         top: '0',
         left: '0',
-        width: `${rect.width * dragImageScale}px`,
-        height: `${rect.height * dragImageScale}px`,
         pointerEvents: 'none',
       })
       container.appendChild(clone)
-
       elementPreviewRef.value.appendChild(container)
       requestAnimationFrame(() => {
         // immediately remove the cloned element
