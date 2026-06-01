@@ -872,7 +872,8 @@
   "formulaParserErrors": {
     "invalidArgCountMin": "The '{funcType}' function expects a minimum of {minArgs} arguments.",
     "invalidArgCountExact": "The '{funcType}' function expects exactly {minArgs} arguments.",
-    "invalidArgCountRange": "The '{funcType}' function expects between {minArgs} and {maxArgs} arguments."
+    "invalidArgCountRange": "The '{funcType}' function expects between {minArgs} and {maxArgs} arguments.",
+    "invalidArgumentType": "'{value}' is not a valid argument for the '{funcType}' function."
   },
   "dataExplorer": {
     "noMatchingNodesText": "No matching results were found.",

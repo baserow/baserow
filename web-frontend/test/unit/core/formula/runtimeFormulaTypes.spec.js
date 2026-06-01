@@ -107,6 +107,44 @@ describe('RuntimeAdd', () => {
   })
 
   test.each([
+    // timedelta + timedelta
+    {
+      args: [new Timedelta(3600 * 1000), new Timedelta(1800 * 1000)],
+      expected: new Timedelta(5400 * 1000),
+    },
+    // timedelta + number (seconds)
+    {
+      args: [new Timedelta(3600 * 1000), 60],
+      expected: new Timedelta(3660 * 1000),
+    },
+    // number + timedelta (seconds)
+    {
+      args: [60, new Timedelta(3600 * 1000)],
+      expected: new Timedelta(3660 * 1000),
+    },
+    // fractional seconds
+    {
+      args: [new Timedelta(1000), 1.5],
+      expected: new Timedelta(2500),
+    },
+    // Date + timedelta
+    {
+      args: [new Date(2025, 0, 1, 12, 0, 0), new Timedelta(86400 * 1000)],
+      expected: new Date(2025, 0, 2, 12, 0, 0),
+    },
+    // timedelta + Date
+    {
+      args: [new Timedelta(86400 * 1000), new Date(2025, 0, 1, 12, 0, 0)],
+      expected: new Date(2025, 0, 2, 12, 0, 0),
+    },
+  ])('execute returns expected value with timedelta', ({ args, expected }) => {
+    const formulaType = new RuntimeAdd()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
     // These are invalid
     { args: ['foo'], expected: [[0, 'foo']] },
     { args: [true], expected: [[0, true]] },
@@ -122,6 +160,30 @@ describe('RuntimeAdd', () => {
     { args: [3.14], expected: [] },
     { args: ['23'], expected: [] },
     { args: ['23.23'], expected: [] },
+    // Timedelta combinations are valid
+    {
+      args: [new Timedelta(1000), new Timedelta(2000)],
+      expected: [],
+    },
+    { args: [new Timedelta(1000), 60], expected: [] },
+    { args: [60, new Timedelta(1000)], expected: [] },
+    {
+      args: [new Date(2025, 0, 1), new Timedelta(1000)],
+      expected: [],
+    },
+    {
+      args: [new Timedelta(1000), new Date(2025, 0, 1)],
+      expected: [],
+    },
+    // Invalid combinations
+    {
+      args: ['foo', new Timedelta(1000)],
+      expected: [[0, 'foo']],
+    },
+    {
+      args: [new Timedelta(1000), 'foo'],
+      expected: [[1, 'foo']],
+    },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeAdd()
     const result = formulaType.validateTypeOfArgs(args)
@@ -153,6 +215,34 @@ describe('RuntimeMinus', () => {
   })
 
   test.each([
+    // timedelta - timedelta
+    {
+      args: [new Timedelta(3600 * 1000), new Timedelta(1800 * 1000)],
+      expected: new Timedelta(1800 * 1000),
+    },
+    // timedelta - number (seconds)
+    {
+      args: [new Timedelta(30 * 1000), 1],
+      expected: new Timedelta(29 * 1000),
+    },
+    // number - timedelta (seconds)
+    {
+      args: [90, new Timedelta(30 * 1000)],
+      expected: new Timedelta(60 * 1000),
+    },
+    // Date - timedelta
+    {
+      args: [new Date(2025, 0, 2, 12, 0, 0), new Timedelta(86400 * 1000)],
+      expected: new Date(2025, 0, 1, 12, 0, 0),
+    },
+  ])('execute returns expected value with timedelta', ({ args, expected }) => {
+    const formulaType = new RuntimeMinus()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
     // These are invalid
     { args: ['foo'], expected: [[0, 'foo']] },
     { args: [true], expected: [[0, true]] },
@@ -168,6 +258,22 @@ describe('RuntimeMinus', () => {
     { args: [3.14], expected: [] },
     { args: ['23'], expected: [] },
     { args: ['23.23'], expected: [] },
+    // Timedelta combinations are valid
+    {
+      args: [new Timedelta(2000), new Timedelta(1000)],
+      expected: [],
+    },
+    { args: [new Timedelta(1000), 1], expected: [] },
+    { args: [90, new Timedelta(1000)], expected: [] },
+    {
+      args: [new Date(2025, 0, 2), new Timedelta(1000)],
+      expected: [],
+    },
+    // Invalid: timedelta - Date
+    {
+      args: [new Timedelta(1000), new Date(2025, 0, 1)],
+      expected: [[1, new Date(2025, 0, 1)]],
+    },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeMinus()
     const result = formulaType.validateTypeOfArgs(args)
@@ -199,6 +305,29 @@ describe('RuntimeMultiply', () => {
   })
 
   test.each([
+    // timedelta * number
+    {
+      args: [new Timedelta(3600 * 1000), 2],
+      expected: new Timedelta(7200 * 1000),
+    },
+    // number * timedelta
+    {
+      args: [2, new Timedelta(3600 * 1000)],
+      expected: new Timedelta(7200 * 1000),
+    },
+    // fractional scaling
+    {
+      args: [new Timedelta(10000), 0.5],
+      expected: new Timedelta(5000),
+    },
+  ])('execute returns expected value with timedelta', ({ args, expected }) => {
+    const formulaType = new RuntimeMultiply()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
     // These are invalid
     { args: ['foo'], expected: [[0, 'foo']] },
     { args: [true], expected: [[0, true]] },
@@ -214,6 +343,22 @@ describe('RuntimeMultiply', () => {
     { args: [3.14], expected: [] },
     { args: ['23'], expected: [] },
     { args: ['23.23'], expected: [] },
+    // Timedelta * number combinations are valid
+    { args: [new Timedelta(1000), 2], expected: [] },
+    { args: [2, new Timedelta(1000)], expected: [] },
+    // timedelta * timedelta is invalid
+    {
+      args: [new Timedelta(1000), new Timedelta(2000)],
+      expected: [[1, new Timedelta(2000)]],
+    },
+    {
+      args: ['foo', new Timedelta(1000)],
+      expected: [[0, 'foo']],
+    },
+    {
+      args: [new Timedelta(1000), 'foo'],
+      expected: [[1, 'foo']],
+    },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeMultiply()
     const result = formulaType.validateTypeOfArgs(args)
@@ -245,6 +390,23 @@ describe('RuntimeDivide', () => {
   })
 
   test.each([
+    // timedelta / number
+    {
+      args: [new Timedelta(3600 * 1000), 2],
+      expected: new Timedelta(1800 * 1000),
+    },
+    {
+      args: [new Timedelta(30 * 1000), 2],
+      expected: new Timedelta(15 * 1000),
+    },
+  ])('execute returns expected value with timedelta', ({ args, expected }) => {
+    const formulaType = new RuntimeDivide()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
     // These are invalid
     { args: ['foo'], expected: [[0, 'foo']] },
     { args: [true], expected: [[0, true]] },
@@ -260,6 +422,26 @@ describe('RuntimeDivide', () => {
     { args: [3.14], expected: [] },
     { args: ['23'], expected: [] },
     { args: ['23.23'], expected: [] },
+    // timedelta / number is valid
+    { args: [new Timedelta(1000), 2], expected: [] },
+    // number / timedelta is invalid
+    {
+      args: [2, new Timedelta(1000)],
+      expected: [[1, new Timedelta(1000)]],
+    },
+    // timedelta / timedelta is invalid
+    {
+      args: [new Timedelta(1000), new Timedelta(2000)],
+      expected: [[1, new Timedelta(2000)]],
+    },
+    {
+      args: ['foo', new Timedelta(1000)],
+      expected: [[0, 'foo']],
+    },
+    {
+      args: [new Timedelta(1000), 'foo'],
+      expected: [[1, 'foo']],
+    },
   ])('validates type of args', ({ args, expected }) => {
     const formulaType = new RuntimeDivide()
     const result = formulaType.validateTypeOfArgs(args)
@@ -2310,7 +2492,7 @@ describe('RuntimeAdd with datetime and timedelta', () => {
     },
     {
       args: [new Timedelta(86400000), new Timedelta(86400000)],
-      expected: [[1, new Timedelta(86400000)]],
+      expected: [],
     },
     { args: ['foo', new Timedelta(86400000)], expected: [[0, 'foo']] },
   ])('validates type of args with timedelta', ({ args, expected }) => {
@@ -2347,7 +2529,7 @@ describe('RuntimeMinus with datetime and timedelta', () => {
     },
     {
       args: [new Timedelta(86400000), new Date(2025, 0, 1)],
-      expected: [[0, new Timedelta(86400000)]],
+      expected: [[1, new Date(2025, 0, 1)]],
     },
     { args: ['foo', new Timedelta(86400000)], expected: [[0, 'foo']] },
   ])('validates type of args with timedelta', ({ args, expected }) => {

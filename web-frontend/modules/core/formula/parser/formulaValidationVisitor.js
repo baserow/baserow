@@ -162,16 +162,20 @@ export default class BaserowFormulaValidationVisitor extends BaserowFormulaVisit
       acceptedArgs
     )
 
-    // Only run validateArgs if none of the arguments are DeferredValue.
+    // Only run validateArgs if none of the arguments are DeferredValue,
+    // or the function opts in to deferred-aware validation.
+    // 
     // DeferredValue represents nested function calls whose values aren't
-    // available until execution time, so we can't type-check them.
+    // available until execution time, so we usually can't type-check them.
+    // But a function that knows how to ignore deferred slots can still catch
+    // type errors on literal args.
     const hasDeferred = argsParsed.some((arg) => arg === DeferredValue)
-    if (!hasDeferred) {
+    if (!hasDeferred || formulaFunctionType.canValidateWithDeferred) {
       formulaFunctionType.validateArgs(argsParsed, { ctx, validationContext: this.validationContext})
     }
 
-    // Return DeferredValue to indicate this function's result
-    // will only be available at execution time
+    // Return DeferredValue to indicate this function's result will only
+    // be available at execution time.
     return DeferredValue
   }
 }

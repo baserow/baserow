@@ -87,6 +87,10 @@ export class NumberBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormu
     }
     return val
   }
+
+  getErrorMessage(value, i18n) {
+    return i18n.t('runtimeFormulaTypeErrors.invalidNumber', { value })
+  }
 }
 
 export class TextBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {

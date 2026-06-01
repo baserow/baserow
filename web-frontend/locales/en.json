@@ -715,6 +715,7 @@
     "categoryUtility": "Utility"
   },
   "runtimeFormulaTypeErrors": {
+    "invalidNumber": "'{value}' is not a valid number.",
     "invalidTimezone": "'{value}' is not a valid timezone. Use a valid IANA timezone (e.g. 'Europe/Amsterdam').",
     "invalidThousandSeparator": "'{value}' is not a valid thousand separator. Valid options are: ',', '.', ' ', or '' (empty string).",
     "invalidDecimalSeparator": "'{value}' is not a valid decimal separator. Valid options are: ',' or '.'.",
