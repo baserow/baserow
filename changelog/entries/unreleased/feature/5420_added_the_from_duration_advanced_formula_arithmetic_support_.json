@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Added the duration_format() advanced formula, arithmetic support for durations, and an optional duration format argument for the to_duration() function.",
+    "issue_origin": "github",
+    "issue_number": 5420,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-06-01"
+}
