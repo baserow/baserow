@@ -29,6 +29,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         quickjs_wasm_path: str | None = None,
         timeout_seconds: int | None = None,
         memory_limit_bytes: int | None = None,
+        fuel_limit: int | None = None,
         output_size_limit_bytes: int | None = None,
     ):
         self.wasmtime_executable = wasmtime_executable or getattr(
@@ -50,6 +51,11 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
             settings,
             "ENTERPRISE_CODE_RUNNER_MEMORY_LIMIT_BYTES",
             64 * 1024 * 1024,
+        )
+        self.fuel_limit = (
+            fuel_limit
+            if fuel_limit is not None
+            else getattr(settings, "ENTERPRISE_CODE_RUNNER_FUEL_LIMIT", 100_000_000)
         )
         self.output_size_limit_bytes = (
             output_size_limit_bytes or self.output_size_limit_bytes
@@ -91,11 +97,18 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
             f"max-memory-size={self.memory_limit_bytes}",
             "-W",
             "trap-on-grow-failure=true",
-            self.quickjs_wasm_path,
-            "--std",
-            "--eval",
-            self._runner_source(),
         ]
+        if self.fuel_limit > 0:
+            command.extend(["-W", f"fuel={self.fuel_limit}"])
+
+        command.extend(
+            [
+                self.quickjs_wasm_path,
+                "--std",
+                "--eval",
+                self._runner_source(),
+            ]
+        )
         payload = json.dumps({"context": context_data, "code": code})
 
         try:

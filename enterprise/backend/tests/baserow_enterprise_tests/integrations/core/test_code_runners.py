@@ -36,6 +36,7 @@ runtime_variables_are_configured = (
     ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH="/runtime/qjs.wasm",
     ENTERPRISE_CODE_RUNNER_TIMEOUT_SECONDS=7,
     ENTERPRISE_CODE_RUNNER_MEMORY_LIMIT_BYTES=1024 * 1024,
+    ENTERPRISE_CODE_RUNNER_FUEL_LIMIT=100_000,
 )
 def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
     calls = []
@@ -67,7 +68,7 @@ def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
 
     assert result == {"newValue": 4}
     command, kwargs = calls[0]
-    assert command[:9] == [
+    assert command[:11] == [
         "wasmtime-test",
         "run",
         "-W",
@@ -76,13 +77,15 @@ def test_wasmtime_quickjs_code_runner_runs_code_in_subprocess(monkeypatch):
         "max-memory-size=1048576",
         "-W",
         "trap-on-grow-failure=true",
+        "-W",
+        "fuel=100000",
         "/runtime/qjs.wasm",
     ]
-    assert command[9] == "--std"
-    assert command[10] == "--eval"
-    assert "std.in.getline()" in command[11]
-    assert 'createFunction("context"' in command[11]
-    assert "globalThis.eval(input.code)" not in command[11]
+    assert command[11] == "--std"
+    assert command[12] == "--eval"
+    assert "std.in.getline()" in command[13]
+    assert 'createFunction("context"' in command[13]
+    assert "globalThis.eval(input.code)" not in command[13]
     assert kwargs["stdin"] == subprocess.PIPE
     assert kwargs["stdout"] == subprocess.PIPE
     assert kwargs["stderr"] == subprocess.PIPE
@@ -113,6 +116,60 @@ def test_wasmtime_quickjs_code_runner_uses_explicit_memory_limit(monkeypatch):
     runner.run({}, "function main() { return { newValue: 4 } }")
 
     assert "max-memory-size=2097152" in calls[0][0]
+
+
+def test_wasmtime_quickjs_code_runner_uses_explicit_fuel_limit(monkeypatch):
+    calls = []
+    popen = subprocess.Popen
+
+    def fake_popen(command, **kwargs):
+        calls.append((command, kwargs))
+        return popen(
+            [
+                sys.executable,
+                "-c",
+                "import sys; sys.stdin.read(); sys.stdout.write('{\"result\": {}}')",
+            ],
+            **kwargs,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    runner = WasmtimeQuickJSCodeRunnerType(
+        quickjs_wasm_path="/runtime/qjs.wasm",
+        fuel_limit=200_000,
+    )
+
+    runner.run({}, "function main() { return { newValue: 4 } }")
+
+    assert "fuel=200000" in calls[0][0]
+
+
+def test_wasmtime_quickjs_code_runner_can_disable_fuel_limit(monkeypatch):
+    calls = []
+    popen = subprocess.Popen
+
+    def fake_popen(command, **kwargs):
+        calls.append((command, kwargs))
+        return popen(
+            [
+                sys.executable,
+                "-c",
+                "import sys; sys.stdin.read(); sys.stdout.write('{\"result\": {}}')",
+            ],
+            **kwargs,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    runner = WasmtimeQuickJSCodeRunnerType(
+        quickjs_wasm_path="/runtime/qjs.wasm",
+        fuel_limit=0,
+    )
+
+    runner.run({}, "function main() { return { newValue: 4 } }")
+
+    assert not any(arg.startswith("fuel=") for arg in calls[0][0])
 
 
 def unregister_code_runner_features(
