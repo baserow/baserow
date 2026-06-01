@@ -247,17 +247,14 @@ export default class BaseGraphHandler {
       }
 
       case 'child': {
-        // Normalise legacy bare-array children to dict format before mutating, so
-        // moves/inserts into a container whose children haven't been rewritten yet
-        // don't bolt a string key onto an array (which getChildren would discard).
-        const refInfo = this.graph[referencePoint.id]
-        const childrenDict = this._getChildrenAsDict(refInfo.children)
-        if (!childrenDict[output]) {
-          childrenDict[output] = []
+        if (!this.graph[referencePoint.id].children) {
+          this.graph[referencePoint.id].children = {}
         }
-        newPointNext = childrenDict[output]
-        childrenDict[output] = [point.id]
-        refInfo.children = childrenDict
+        if (!this.graph[referencePoint.id].children[output]) {
+          this.graph[referencePoint.id].children[output] = []
+        }
+        newPointNext = this.graph[referencePoint.id].children[output]
+        this.graph[referencePoint.id].children[output] = [point.id]
         break
       }
 
