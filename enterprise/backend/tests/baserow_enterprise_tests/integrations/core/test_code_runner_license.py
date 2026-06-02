@@ -24,6 +24,18 @@ from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 
 
+def unregister_code_runner_features(
+    builder_workflow_action_registry,
+    automation_node_type_registry,
+    service_type_registry,
+    code_runner_type_registry,
+):
+    builder_workflow_action_registry.registry.pop("code", None)
+    automation_node_type_registry.registry.pop("code", None)
+    service_type_registry.registry.pop("code", None)
+    code_runner_type_registry.registry.pop("wasmtime_quickjs", None)
+
+
 @pytest.fixture
 def code_runner_registered(
     mutable_builder_workflow_action_registry,
@@ -31,6 +43,13 @@ def code_runner_registered(
     mutable_service_type_registry,
     mutable_code_runner_type_registry,
 ):
+    unregister_code_runner_features(
+        mutable_builder_workflow_action_registry,
+        mutable_automation_node_type_registry,
+        mutable_service_type_registry,
+        mutable_code_runner_type_registry,
+    )
+
     with override_settings(ENTERPRISE_CODE_RUNNER_DEFAULT_TYPE="wasmtime_quickjs"):
         register_code_runner_features()
         yield

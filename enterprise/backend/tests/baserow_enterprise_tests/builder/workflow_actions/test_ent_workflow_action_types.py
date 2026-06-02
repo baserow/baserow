@@ -22,10 +22,12 @@ def pytest_generate_tests(metafunc):
 
 
 @pytest.mark.django_db
-def test_export_workflow_action(data_fixture, workflow_action_type: WorkflowActionType):
-    page = data_fixture.create_builder_page()
-    pytest_params = workflow_action_type.get_pytest_params(data_fixture)
-    workflow_action = data_fixture.create_workflow_action(
+def test_export_workflow_action(
+    enterprise_data_fixture, workflow_action_type: WorkflowActionType
+):
+    page = enterprise_data_fixture.create_builder_page()
+    pytest_params = workflow_action_type.get_pytest_params(enterprise_data_fixture)
+    workflow_action = enterprise_data_fixture.create_workflow_action(
         workflow_action_type.model_class, page=page, **pytest_params
     )
 
@@ -42,12 +44,16 @@ def test_export_workflow_action(data_fixture, workflow_action_type: WorkflowActi
 
 
 @pytest.mark.django_db
-def test_import_workflow_action(data_fixture, workflow_action_type: WorkflowActionType):
-    page = data_fixture.create_builder_page()
-    pytest_params = workflow_action_type.get_pytest_params(data_fixture)
+def test_import_workflow_action(
+    enterprise_data_fixture, workflow_action_type: WorkflowActionType
+):
+    page = enterprise_data_fixture.create_builder_page()
+    pytest_params = workflow_action_type.get_pytest_params(enterprise_data_fixture)
 
-    page_after_import = data_fixture.create_builder_page()
-    element = data_fixture.create_builder_button_element(page=page_after_import)
+    page_after_import = enterprise_data_fixture.create_builder_page()
+    element = enterprise_data_fixture.create_builder_button_element(
+        page=page_after_import
+    )
 
     serialized = {
         "id": 9999,
