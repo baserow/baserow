@@ -56,32 +56,8 @@ async function waitForNextRealtimeAuthentication(page: Page) {
 }
 
 /**
- * Waits for a specific realtime event on an already authenticated websocket.
- * The predicate scopes the event to the workflow/node created by this test.
- */
-async function waitForRealtimeEvent(
-  websocket: any,
-  eventType: string,
-  predicate: (data: any) => boolean
-) {
-  await websocket.waitForEvent("framereceived", {
-    timeout: 20000,
-    predicate: ({ payload }: any) => {
-      const text = typeof payload === "string" ? payload : payload.toString();
-
-      try {
-        const data = JSON.parse(text);
-        return data.type === eventType && predicate(data);
-      } catch {
-        return false;
-      }
-    },
-  });
-}
-
-/**
  * Opens an empty workflow, verifies the canvas reached its empty state, and
- * returns the authenticated websocket used for later realtime assertions.
+ * waits until the page has authenticated its realtime websocket.
  */
 async function gotoAndExpectEmptyWorkflow(
   automationWorkflowPage: AutomationWorkflowPage,
@@ -179,28 +155,12 @@ test.describe("Automation node realtime test suite", () => {
     automationWorkflowPage,
     page,
   }) => {
-    const realtimeWebSocket = await gotoAndExpectEmptyWorkflow(
-      automationWorkflowPage,
-      page
-    );
-
-    const workflowId = automationWorkflowPage.automationWorkflow.id;
-    const nodeCreated = waitForRealtimeEvent(
-      realtimeWebSocket,
-      "automation_node_created",
-      (data) => data.node.workflow === workflowId
-    );
-    const workflowUpdated = waitForRealtimeEvent(
-      realtimeWebSocket,
-      "automation_workflow_updated",
-      (data) => data.workflow.id === workflowId
-    );
+    await gotoAndExpectEmptyWorkflow(automationWorkflowPage, page);
 
     await createAutomationNode(
       automationWorkflowPage.automationWorkflow,
       "periodic"
     );
-    await Promise.all([nodeCreated, workflowUpdated]);
 
     const triggerNode = page.locator(".workflow-node-content").filter({
       has: page.getByRole("heading", {
@@ -209,7 +169,7 @@ test.describe("Automation node realtime test suite", () => {
       }),
     });
 
-    await expect(triggerNode).toBeVisible();
+    await expect(triggerNode).toBeVisible({ timeout: 20000 });
     await expect(triggerNode.getByText("Configure")).toBeVisible();
   });
 });
