@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Add code runner service to execute arbitrary Javascript code in worflow/builder",
+    "issue_origin": "github",
+    "issue_number": 5424,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-06-02"
+}
