@@ -1,14 +1,25 @@
 import pytest
+from django.conf import settings
 
-from baserow.core.code_runner.registries import (
+from baserow.core.code_runner.exceptions import (
     CodeRunnerExecutionError,
     CodeRunnerResultError,
 )
+from baserow.core.code_runner.registries import code_runner_type_registry
 from baserow.core.services.exceptions import (
     ServiceImproperlyConfiguredDispatchException,
     UnexpectedDispatchException,
 )
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
+
+pytestmark = [
+    pytest.mark.django_db,
+    pytest.mark.skipif(
+        settings.ENTERPRISE_CODE_RUNNER_DEFAULT_TYPE
+        not in code_runner_type_registry.registry,
+        reason="The enterprise code runner is not configured.",
+    ),
+]
 
 
 class FakeCodeRunnerType:
@@ -24,7 +35,6 @@ class FakeCodeRunnerType:
         return self.result
 
 
-@pytest.mark.django_db
 def test_core_code_service_type_dispatch_resolves_injections(
     enterprise_data_fixture, monkeypatch
 ):
@@ -53,7 +63,6 @@ def test_core_code_service_type_dispatch_resolves_injections(
     ]
 
 
-@pytest.mark.django_db
 def test_core_code_service_type_dispatch_maps_execution_errors(
     enterprise_data_fixture, monkeypatch
 ):
@@ -68,7 +77,6 @@ def test_core_code_service_type_dispatch_maps_execution_errors(
         service.get_type().dispatch(service, FakeDispatchContext())
 
 
-@pytest.mark.django_db
 def test_core_code_service_type_dispatch_maps_result_errors(
     enterprise_data_fixture, monkeypatch
 ):

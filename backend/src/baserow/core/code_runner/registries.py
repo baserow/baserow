@@ -3,28 +3,11 @@ from typing import Any
 
 from django.conf import settings
 
-from baserow.core.exceptions import InstanceTypeDoesNotExist
+from baserow.core.code_runner.exceptions import (
+    CodeRunnerImproperlyConfigured,
+    CodeRunnerTypeDoesNotExist,
+)
 from baserow.core.registry import Instance, Registry
-
-
-class CodeRunnerException(Exception):
-    """Base exception for code runner failures."""
-
-
-class CodeRunnerTypeDoesNotExist(InstanceTypeDoesNotExist):
-    """Raised when the requested code runner type does not exist."""
-
-
-class CodeRunnerImproperlyConfigured(CodeRunnerException):
-    """Raised when a code runner is missing required configuration."""
-
-
-class CodeRunnerExecutionError(CodeRunnerException):
-    """Raised when the underlying code runtime fails."""
-
-
-class CodeRunnerResultError(CodeRunnerException):
-    """Raised when the executed code returns an unsupported result."""
 
 
 class CodeRunnerType(Instance, ABC):

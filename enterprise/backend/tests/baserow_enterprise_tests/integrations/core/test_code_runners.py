@@ -8,14 +8,16 @@ from django.test import override_settings
 
 import pytest
 
+from baserow.core.code_runner.exceptions import (
+    CodeRunnerExecutionError,
+    CodeRunnerImproperlyConfigured,
+    CodeRunnerResultError,
+)
 from baserow.core.code_runner.registries import (
     get_code_runner,
 )
 from baserow_enterprise.apps import register_code_runner_features
 from baserow_enterprise.code_runner.code_runner_types import (
-    CodeRunnerExecutionError,
-    CodeRunnerImproperlyConfigured,
-    CodeRunnerResultError,
     WasmtimeQuickJSCodeRunnerType,
 )
 

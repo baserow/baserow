@@ -7,10 +7,12 @@ from typing import Any
 
 from django.conf import settings
 
-from baserow.core.code_runner.registries import (
+from baserow.core.code_runner.exceptions import (
     CodeRunnerExecutionError,
     CodeRunnerImproperlyConfigured,
     CodeRunnerResultError,
+)
+from baserow.core.code_runner.registries import (
     CodeRunnerType,
 )
 

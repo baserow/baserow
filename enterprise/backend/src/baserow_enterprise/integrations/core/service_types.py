@@ -4,10 +4,12 @@ from genson import SchemaBuilder
 from rest_framework import serializers
 
 from baserow.contrib.integrations.core.service_types import CoreServiceType
-from baserow.core.code_runner.registries import (
+from baserow.core.code_runner.exceptions import (
     CodeRunnerExecutionError,
     CodeRunnerImproperlyConfigured,
     CodeRunnerResultError,
+)
+from baserow.core.code_runner.registries import (
     get_code_runner,
 )
 from baserow.core.formula.types import BaserowFormulaObject
