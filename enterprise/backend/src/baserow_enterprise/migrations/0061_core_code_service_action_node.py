@@ -1,3 +1,4 @@
+import django.core.validators
 import django.db.models.deletion
 from django.db import migrations, models
 
@@ -49,7 +50,12 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "code",
-                    models.TextField(blank=True, help_text="The code to execute."),
+                    models.TextField(
+                        blank=True,
+                        help_text="The code to execute.",
+                        max_length=4096,
+                        validators=[django.core.validators.MaxLengthValidator(4096)],
+                    ),
                 ),
             ],
             options={
