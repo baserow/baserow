@@ -1052,5 +1052,8 @@
             "tables": "Tabele",
             "fields": "Pola"
         }
+    },
+    "action": {
+        "cancel": "Anuluj"
     }
 }
