@@ -1,8 +1,30 @@
+import { Page } from "@playwright/test";
+
 import { expect, test } from "../baserowTest";
+import { AutomationWorkflowPage } from "../../pages/automation/automationWorkflowPage";
+
+/**
+ * Opens the automation workflow page and waits until the sidebar workflow link
+ * is available. A single retry covers stale first renders after fixture setup.
+ */
+async function gotoAndExpectWorkflowPage(
+  automationWorkflowPage: AutomationWorkflowPage,
+  page: Page
+) {
+  await automationWorkflowPage.goto();
+
+  const workflow = page.getByRole("link", { name: "Default workflow" });
+  try {
+    await expect(workflow).toBeVisible({ timeout: 5000 });
+  } catch {
+    await automationWorkflowPage.goto();
+    await expect(workflow).toBeVisible();
+  }
+}
 
 test.describe("Automation workflow test suite", () => {
-  test.beforeEach(async ({ automationWorkflowPage }) => {
-    await automationWorkflowPage.goto();
+  test.beforeEach(async ({ automationWorkflowPage, page }) => {
+    await gotoAndExpectWorkflowPage(automationWorkflowPage, page);
   });
 
   test("Can create a workflow", async ({ page }) => {
@@ -50,8 +72,13 @@ test.describe("Automation workflow test suite", () => {
     });
     await expect(
       workflowLink,
+      "Ensure the duplicated workflow is only displayed once in the sidebar."
+    ).toHaveCount(1);
+    await expect(
+      workflowLink,
       "Ensure the duplicated workflow is displayed in the sidebar."
     ).toBeVisible();
+    await workflowLink.click();
 
     const chooseTriggerTitle = page.getByText("Choose an event...");
     await expect(
