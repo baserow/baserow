@@ -283,6 +283,64 @@ def test_wasmtime_quickjs_code_runner_rejects_non_object_result(monkeypatch):
             WasmtimeQuickJSCodeRunnerType().run({}, "function main() {}")
 
 
+def test_wasmtime_quickjs_code_runner_rejects_oversized_integer_result(monkeypatch):
+    popen = subprocess.Popen
+
+    def fake_popen(command, **kwargs):
+        return popen(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import sys;"
+                    "sys.stdin.read();"
+                    "sys.stdout.write("
+                    '\'{"result": {"nested": [{"value": 18446744073709551616}]}}\''
+                    ")"
+                ),
+            ],
+            **kwargs,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    runner = WasmtimeQuickJSCodeRunnerType(quickjs_wasm_path="/runtime/qjs.wasm")
+
+    with pytest.raises(CodeRunnerResultError, match="outside the supported range"):
+        runner.run({}, "function main() {}")
+
+
+def test_wasmtime_quickjs_code_runner_allows_msgpack_range_integer_result(
+    monkeypatch,
+):
+    popen = subprocess.Popen
+
+    def fake_popen(command, **kwargs):
+        return popen(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import sys;"
+                    "sys.stdin.read();"
+                    "sys.stdout.write("
+                    '\'{"result": {"value": 18446744073709551615, "ok": true}}\''
+                    ")"
+                ),
+            ],
+            **kwargs,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    runner = WasmtimeQuickJSCodeRunnerType(quickjs_wasm_path="/runtime/qjs.wasm")
+
+    assert runner.run({}, "function main() {}") == {
+        "value": 18446744073709551615,
+        "ok": True,
+    }
+
+
 def test_wasmtime_quickjs_code_runner_maps_process_errors(monkeypatch):
     popen = subprocess.Popen
 

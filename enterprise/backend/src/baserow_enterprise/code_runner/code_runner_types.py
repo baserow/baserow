@@ -16,6 +16,9 @@ from baserow.core.code_runner.registries import (
     CodeRunnerType,
 )
 
+_MSGPACK_MIN_INTEGER = -(2**63)
+_MSGPACK_MAX_INTEGER = 2**64 - 1
+
 
 class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
     """
@@ -58,7 +61,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         self.fuel_limit = (
             fuel_limit
             if fuel_limit is not None
-            else getattr(settings, "ENTERPRISE_CODE_RUNNER_FUEL_LIMIT", 100_000_000)
+            else getattr(settings, "ENTERPRISE_CODE_RUNNER_FUEL_LIMIT", 1_000_000_000)
         )
         self.output_size_limit_bytes = (
             output_size_limit_bytes or self.output_size_limit_bytes
@@ -86,7 +89,37 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         if not isinstance(result, dict):
             raise CodeRunnerResultError("The code must return an object.")
 
+        self._validate_result(result)
+
         return result
+
+    def _validate_result(self, value: Any) -> None:
+        """
+        Validate that the returned JSON value can be sent through Channels Redis.
+
+        Channels Redis serializes websocket payloads with msgpack. Python can
+        parse JSON integers with arbitrary precision, but msgpack can only
+        encode integers in the 64-bit signed/unsigned range.
+        """
+
+        if isinstance(value, bool):
+            return
+
+        if isinstance(value, int):
+            if value < _MSGPACK_MIN_INTEGER or value > _MSGPACK_MAX_INTEGER:
+                raise CodeRunnerResultError(
+                    "The code returned an integer outside the supported range."
+                )
+            return
+
+        if isinstance(value, dict):
+            for child_value in value.values():
+                self._validate_result(child_value)
+            return
+
+        if isinstance(value, list):
+            for child_value in value:
+                self._validate_result(child_value)
 
     def _run_process(
         self, context_data: dict[str, Any], code: str
@@ -138,9 +171,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
                 or completed_process.stdout.strip()
                 or f"Command returned non-zero exit status {completed_process.returncode}."
             )
-            raise CodeRunnerExecutionError(
-                self._format_process_error_message(message)
-            )
+            raise CodeRunnerExecutionError(self._format_process_error_message(message))
 
         return completed_process
 

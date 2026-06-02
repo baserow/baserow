@@ -93,7 +93,7 @@ def setup(settings):
         or 64 * 1024 * 1024
     )
     settings.ENTERPRISE_CODE_RUNNER_FUEL_LIMIT = int(
-        os.getenv("BASEROW_ENTERPRISE_CODE_RUNNER_FUEL_LIMIT", "") or 100_000_000
+        os.getenv("BASEROW_ENTERPRISE_CODE_RUNNER_FUEL_LIMIT", "") or 1_000_000_000
     )
 
     # AI Assistant settings
