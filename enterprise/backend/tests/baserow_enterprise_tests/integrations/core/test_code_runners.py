@@ -305,6 +305,67 @@ def test_wasmtime_quickjs_code_runner_maps_process_errors(monkeypatch):
             WasmtimeQuickJSCodeRunnerType().run({}, "function main() {}")
 
 
+def test_wasmtime_quickjs_code_runner_formats_fuel_exhaustion_error(monkeypatch):
+    popen = subprocess.Popen
+    wasmtime_path = "/opt/baserow/runtime/bin/wasmtime"
+    quickjs_path = "/opt/baserow/runtime/modules/qjs.wasm"
+
+    def fake_popen(command, **kwargs):
+        return popen(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import sys;"
+                    "sys.stdin.read();"
+                    "sys.stderr.write("
+                    f"'error while executing {wasmtime_path}: "
+                    f"failed to run main module {quickjs_path}: all fuel consumed'"
+                    ");"
+                    "sys.exit(1)"
+                ),
+            ],
+            **kwargs,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    runner = WasmtimeQuickJSCodeRunnerType(
+        wasmtime_executable=wasmtime_path,
+        quickjs_wasm_path=quickjs_path,
+    )
+
+    with pytest.raises(CodeRunnerExecutionError) as exc_info:
+        runner.run({}, "function main() {}")
+
+    message = str(exc_info.value)
+    assert message == "The code runner instruction limit was reached."
+    assert wasmtime_path not in message
+    assert quickjs_path not in message
+    assert "all fuel consumed" not in message
+
+
+def test_wasmtime_quickjs_code_runner_redacts_startup_error_paths(monkeypatch):
+    wasmtime_path = "/opt/baserow/runtime/bin/wasmtime"
+
+    def fake_popen(command, **kwargs):
+        raise OSError(f"No such file or directory: '{wasmtime_path}'")
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    runner = WasmtimeQuickJSCodeRunnerType(
+        wasmtime_executable=wasmtime_path,
+        quickjs_wasm_path="/opt/baserow/runtime/modules/qjs.wasm",
+    )
+
+    with pytest.raises(CodeRunnerExecutionError) as exc_info:
+        runner.run({}, "function main() {}")
+
+    message = str(exc_info.value)
+    assert wasmtime_path not in message
+    assert "wasmtime" in message
+
+
 def test_wasmtime_quickjs_code_runner_limits_stdout(monkeypatch):
     popen = subprocess.Popen
 

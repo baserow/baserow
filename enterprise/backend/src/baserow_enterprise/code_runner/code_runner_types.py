@@ -24,6 +24,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
 
     type = "wasmtime_quickjs"
     output_size_limit_bytes = 1024 * 1024
+    fuel_exhausted_error_message = "The code runner instruction limit was reached."
 
     def __init__(
         self,
@@ -123,9 +124,13 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
             raise CodeRunnerExecutionError("The code runner timed out.") from exc
         except subprocess.CalledProcessError as exc:
             message = exc.stderr.strip() or exc.stdout.strip() or str(exc)
-            raise CodeRunnerExecutionError(message) from exc
+            raise CodeRunnerExecutionError(
+                self._format_process_error_message(message)
+            ) from exc
         except OSError as exc:
-            raise CodeRunnerExecutionError(str(exc)) from exc
+            raise CodeRunnerExecutionError(
+                self._format_process_error_message(str(exc))
+            ) from exc
 
         if completed_process.returncode != 0:
             message = (
@@ -133,9 +138,34 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
                 or completed_process.stdout.strip()
                 or f"Command returned non-zero exit status {completed_process.returncode}."
             )
-            raise CodeRunnerExecutionError(message)
+            raise CodeRunnerExecutionError(
+                self._format_process_error_message(message)
+            )
 
         return completed_process
+
+    def _format_process_error_message(self, message: str) -> str:
+        if self._is_fuel_exhausted_error(message):
+            return self.fuel_exhausted_error_message
+
+        return self._sanitize_process_error_message(message)
+
+    def _is_fuel_exhausted_error(self, message: str) -> bool:
+        return "all fuel consumed" in message.lower()
+
+    def _sanitize_process_error_message(self, message: str) -> str:
+        """
+        Remove configured host paths from runtime errors before exposing them.
+
+        Wasmtime can include the executable and WASM module paths in trap
+        messages, for example when fuel is exhausted. Those paths are host
+        implementation details and must not be visible to code-runner callers.
+        """
+
+        for path in (self.wasmtime_executable, self.quickjs_wasm_path):
+            if path and os.path.sep in path:
+                message = message.replace(path, os.path.basename(path))
+        return message
 
     def _communicate_with_output_limit(
         self, command: list[str], payload: str
