@@ -1959,6 +1959,10 @@ export class NumberFieldType extends FieldType {
     return parseNumberValue(field, value)
   }
 
+  prepareValueForDuplicate(field, value) {
+    return parseNumberValue(field, new BigNumber(value))
+  }
+
   parseFromLinkedRowItemValue(field, value) {
     if (value === '') {
       return null

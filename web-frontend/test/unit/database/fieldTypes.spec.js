@@ -783,6 +783,34 @@ describe('FieldType tests', () => {
     }
   )
 
+  test.each([
+    '',
+    'SPACE_COMMA',
+    'SPACE_PERIOD',
+    'COMMA_PERIOD',
+    'PERIOD_COMMA',
+  ])(
+    'Verify that NumberFieldType preserves canonical decimal values when duplicating rows with %s formatting',
+    (numberSeparator) => {
+      const field = {
+        number_decimal_places: 2,
+        number_negative: false,
+        number_prefix: '',
+        number_suffix: '',
+        number_separator: numberSeparator,
+      }
+      const fieldType = new NumberFieldType()
+
+      const duplicatedValue = fieldType.prepareValueForDuplicate(field, '78.40')
+      const requestValue = fieldType.prepareValueForUpdate(
+        field,
+        duplicatedValue
+      )
+
+      expect(requestValue.toString()).toBe('78.4')
+    }
+  )
+
   test.each(queryParametersForParsing)(
     'Verify that parseQueryParameter returns the expected output for each field type',
     ({ input, output, fieldType }) => {
