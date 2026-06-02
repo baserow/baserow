@@ -1438,6 +1438,19 @@ def test_builder_application_imports_login_page(data_fixture):
 
 
 @pytest.mark.django_db
+def test_builder_is_published(data_fixture):
+    builder = data_fixture.create_builder_application()
+    published_builder = data_fixture.create_builder_application(workspace=None)
+
+    data_fixture.create_builder_custom_domain(
+        builder=builder, published_to=published_builder
+    )
+
+    assert builder.is_published is False
+    assert published_builder.is_published is True
+
+
+@pytest.mark.django_db
 def test_delete_builder_application_with_published_builder(data_fixture):
     builder = data_fixture.create_builder_application()
     builder_to = data_fixture.create_builder_application(workspace=None)

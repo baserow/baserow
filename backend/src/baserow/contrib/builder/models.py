@@ -68,6 +68,10 @@ class Builder(Application):
 
         return PageHandler().get_shared_page(self)
 
+    @property
+    def is_published(self) -> bool:
+        return hasattr(self, "published_from")
+
     def get_workspace(self):
         from baserow.contrib.builder.domains.handler import DomainHandler
 

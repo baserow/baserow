@@ -2,17 +2,17 @@
   <Modal ref="modal" class="sample-data-modal">
     <h2 class="box__title">{{ title }}</h2>
     <div class="sample-data-modal__sub-title">
-      {{ $t('simulateDispatch.sampleDataModalSubTitle') }}
+      {{ subtitle }}
       <Button
         type="secondary"
-        icon="iconoir-copy simulate-dispatch-node__button-icon"
+        icon="iconoir-copy sample-data-modal__button-icon"
         @click="copyToClipboard"
       >
-        {{ $t('simulateDispatch.sampleDataCopy') }}
+        {{ copyLabel }}
       </Button>
     </div>
     <div class="sample-data-modal__code">
-      <pre><code>{{ sampleData }}</code></pre>
+      <pre><code>{{ formattedSampleData }}</code></pre>
     </div>
   </Modal>
 </template>
@@ -33,15 +33,32 @@ export default {
       type: String,
       required: true,
     },
+    subtitle: {
+      type: String,
+      required: true,
+    },
+    copyLabel: {
+      type: String,
+      required: true,
+    },
+    copiedToastTitle: {
+      type: String,
+      required: true,
+    },
+  },
+  computed: {
+    formattedSampleData() {
+      return typeof this.sampleData === 'string'
+        ? this.sampleData
+        : JSON.stringify(this.sampleData, null, 2)
+    },
   },
   methods: {
     async copyToClipboard() {
       try {
-        await navigator.clipboard.writeText(
-          JSON.stringify(this.sampleData, null, 2)
-        )
+        await navigator.clipboard.writeText(this.formattedSampleData)
         this.$store.dispatch('toast/success', {
-          title: this.$t('simulateDispatch.sampleDataCopied'),
+          title: this.copiedToastTitle,
         })
       } catch (error) {
         notifyIf(error)

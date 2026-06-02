@@ -188,6 +188,9 @@
       ref="nodeResultModal"
       :sample-data="resolvedSampleData"
       :title="nodeTypeLabel"
+      :subtitle="$t('simulateDispatch.sampleDataModalSubTitle')"
+      :copy-label="$t('simulateDispatch.sampleDataCopy')"
+      :copied-toast-title="$t('simulateDispatch.sampleDataCopied')"
     />
   </div>
 </template>
@@ -196,7 +199,7 @@
 import { ref, computed } from 'vue'
 import { useStore } from 'vuex'
 
-import SampleDataModal from '@baserow/modules/automation/components/sidebar/SampleDataModal'
+import SampleDataModal from '@baserow/modules/core/components/SampleDataModal'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 
 const app = useNuxtApp()

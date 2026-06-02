@@ -10,11 +10,7 @@
       {{ buttonLabel }}
     </Button>
 
-    <Alert
-      v-if="cantBeTestedReason"
-      type="info-neutral"
-      class="margin-bottom-0"
-    >
+    <Alert v-if="cantBeTestedReason" type="warning" class="margin-bottom-0">
       <p>{{ cantBeTestedReason }}</p>
     </Alert>
 
@@ -30,48 +26,25 @@
         }}
       </p>
     </Alert>
+
     <Alert v-else-if="!hasSampleData" type="info-neutral">
       <p>
         {{ $t('simulateDispatch.testNodeDescription') }}
       </p>
     </Alert>
 
-    <div
+    <SampleDataViewer
       v-if="hasSampleData && !isLoading"
-      :class="{
-        'simulate-dispatch-node__sample-data--error': isErrorSample,
-      }"
-    >
-      <div class="simulate-dispatch-node__sample-data-label">
-        {{
-          isErrorSample
-            ? $t('simulateDispatch.errorOccurred')
-            : $t('simulateDispatch.sampleDataLabel')
-        }}
-      </div>
-      <div class="simulate-dispatch-node__sample-data-code">
-        <pre><code>{{ sampleData }}</code></pre>
-      </div>
-    </div>
-
-    <Button
-      v-if="sampleData"
-      class="simulate-dispatch-node__button"
-      type="secondary"
-      icon="iconoir-code-brackets simulate-dispatch-node__button-icon"
-      @click="showSampleDataModal"
-    >
-      {{
-        isErrorSample
-          ? $t('simulateDispatch.buttonLabelShowError')
-          : $t('simulateDispatch.buttonLabelShowPayload')
-      }}
-    </Button>
-
-    <SampleDataModal
-      ref="sampleDataModalRef"
-      :sample-data="sampleData || {}"
-      :title="sampleDataModalTitle"
+      :sample-data="sampleData"
+      :is-error="isErrorSample"
+      :payload-label="$t('simulateDispatch.sampleDataLabel')"
+      :error-label="$t('simulateDispatch.errorOccurred')"
+      :show-payload-label="$t('simulateDispatch.buttonLabelShowPayload')"
+      :show-error-label="$t('simulateDispatch.buttonLabelShowError')"
+      :modal-title="sampleDataModalTitle"
+      :modal-subtitle="$t('simulateDispatch.sampleDataModalSubTitle')"
+      :copy-label="$t('simulateDispatch.sampleDataCopy')"
+      :copied-toast-title="$t('simulateDispatch.sampleDataCopied')"
     />
   </div>
 </template>
@@ -80,7 +53,7 @@
 import { useStore } from 'vuex'
 import { computed, ref } from 'vue'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import SampleDataModal from '@baserow/modules/automation/components/sidebar/SampleDataModal'
+import SampleDataViewer from '@baserow/modules/core/components/SampleDataViewer'
 
 const { $i18n, $hasPermission, $registry } = useNuxtApp()
 const store = useStore()
@@ -88,7 +61,6 @@ const store = useStore()
 const workspace = inject('workspace')
 const automation = inject('automation')
 const workflow = inject('workflow')
-const sampleDataModalRef = ref(null)
 
 const props = defineProps({
   node: {
@@ -198,7 +170,7 @@ const sampleDataModalTitle = computed(() => {
   const nodeType = $registry.get('node', props.node.type)
   return $i18n.t('simulateDispatch.sampleDataModalTitle', {
     nodeLabel: nodeType.getLabel({
-      automation: props.automation,
+      automation: automation.value,
       node: props.node,
     }),
   })
@@ -222,9 +194,5 @@ const simulateDispatchNode = async () => {
   }
 
   queryInProgress.value = false
-}
-
-const showSampleDataModal = () => {
-  sampleDataModalRef.value.show()
 }
 </script>

@@ -818,6 +818,17 @@
     "firstPartName": "Data source: {name}",
     "schemaProperty": "{prefixName}: {schemaProperty}"
   },
+  "workflowAction": {
+    "payloadLabel": "Output",
+    "buttonLabelShowPayload": "Show payload",
+    "buttonLabelShowError": "Show error",
+    "sampleDataModalTitle": "Payload for {actionLabel}",
+    "sampleDataModalSubTitle": "JSON payload",
+    "sampleDataCopy": "Copy",
+    "errorOccurred": "An error occurred...",
+    "sampleDataCopied": "Payload copied to clipboard",
+    "testActionDescription": "Run this action in preview to capture its output and make it available to following actions."
+  },
   "workflowActionTypes": {
     "notificationLabel": "Show Notification",
     "openPageLabel": "Open Page",

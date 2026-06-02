@@ -26,6 +26,24 @@
         :default-values="workflowAction"
         @values-changed="updateWorkflowAction($event)"
       />
+      <div v-if="isServiceWorkflowAction" class="workflow-action__payload">
+        <SampleDataViewer
+          v-if="sampleData"
+          :sample-data="sampleData"
+          :is-error="isErrorSample"
+          :payload-label="$t('workflowAction.payloadLabel')"
+          :error-label="$t('workflowAction.errorOccurred')"
+          :show-payload-label="$t('workflowAction.buttonLabelShowPayload')"
+          :show-error-label="$t('workflowAction.buttonLabelShowError')"
+          :modal-title="sampleDataModalTitle"
+          :modal-subtitle="$t('workflowAction.sampleDataModalSubTitle')"
+          :copy-label="$t('workflowAction.sampleDataCopy')"
+          :copied-toast-title="$t('workflowAction.sampleDataCopied')"
+        />
+        <Alert v-else type="info-neutral" class="margin-bottom-0">
+          <p>{{ $t('workflowAction.testActionDescription') }}</p>
+        </Alert>
+      </div>
     </template>
     <template #footer>
       <ButtonText icon="iconoir-bin" @click="$emit('delete')">
@@ -37,6 +55,7 @@
 
 <script>
 import SidebarExpandable from '@baserow/modules/builder/components/SidebarExpandable.vue'
+import SampleDataViewer from '@baserow/modules/core/components/SampleDataViewer'
 import _ from 'lodash'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import { mapActions } from 'vuex'
@@ -44,7 +63,7 @@ import applicationContext from '@baserow/modules/builder/mixins/applicationConte
 
 export default {
   name: 'WorkflowAction',
-  components: { SidebarExpandable },
+  components: { SampleDataViewer, SidebarExpandable },
   mixins: [applicationContext],
   inject: ['workspace', 'builder', 'elementPage', 'mode'],
   props: {
@@ -83,6 +102,26 @@ export default {
         this.workflowAction,
         this.applicationContext
       )
+    },
+    isServiceWorkflowAction() {
+      return Boolean(this.workflowAction.service)
+    },
+    serviceSampleData() {
+      return this.workflowAction.service?.sample_data || null
+    },
+    sampleData() {
+      if (this.serviceSampleData?._error) {
+        return this.serviceSampleData._error
+      }
+      return this.serviceSampleData?.data || null
+    },
+    isErrorSample() {
+      return Boolean(this.serviceSampleData?._error)
+    },
+    sampleDataModalTitle() {
+      return this.$t('workflowAction.sampleDataModalTitle', {
+        actionLabel: this.workflowActionType.label,
+      })
     },
   },
   methods: {
