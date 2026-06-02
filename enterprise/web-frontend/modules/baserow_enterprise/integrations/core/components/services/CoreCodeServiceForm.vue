@@ -61,6 +61,7 @@
     <FormGroup
       small-label
       :label="$t('coreCodeServiceForm.codeLabel')"
+      :error-message="getFirstErrorMessage('code')"
       required
       class="margin-bottom-2"
     >
@@ -81,6 +82,8 @@ import CodeEditor from '@baserow/modules/core/components/CodeEditor.vue'
 import { useVuelidate } from '@vuelidate/core'
 import { helpers, maxLength, required } from '@vuelidate/validators'
 import { uuid } from '@baserow/modules/core/utils/string'
+
+const CORE_CODE_SERVICE_CODE_MAX_LENGTH = 4096
 
 export default {
   name: 'CoreCodeServiceForm',
@@ -124,6 +127,14 @@ export default {
 
     return {
       values: {
+        code: {
+          maxLength: helpers.withMessage(
+            this.$t('error.maxLength', {
+              max: CORE_CODE_SERVICE_CODE_MAX_LENGTH,
+            }),
+            maxLength(CORE_CODE_SERVICE_CODE_MAX_LENGTH)
+          ),
+        },
         injections: {
           $each: helpers.forEach({
             name: {

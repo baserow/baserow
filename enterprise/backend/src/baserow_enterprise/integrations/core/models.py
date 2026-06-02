@@ -1,7 +1,10 @@
+from django.core.validators import MaxLengthValidator
 from django.db import models
 
 from baserow.core.formula.field import FormulaField
 from baserow.core.services.models import Service
+
+CORE_CODE_SERVICE_CODE_MAX_LENGTH = 4096
 
 
 class CoreCodeService(Service):
@@ -9,7 +12,12 @@ class CoreCodeService(Service):
     A service for executing arbitrary code.
     """
 
-    code = models.TextField(blank=True, help_text="The code to execute.")
+    code = models.TextField(
+        blank=True,
+        help_text="The code to execute.",
+        max_length=CORE_CODE_SERVICE_CODE_MAX_LENGTH,
+        validators=[MaxLengthValidator(CORE_CODE_SERVICE_CODE_MAX_LENGTH)],
+    )
 
 
 class CoreCodeServiceInjection(models.Model):

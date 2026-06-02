@@ -23,6 +23,7 @@ from baserow.core.services.models import Service
 from baserow.core.services.registries import DispatchTypes
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow_enterprise.integrations.core.models import (
+    CORE_CODE_SERVICE_CODE_MAX_LENGTH,
     CoreCodeService,
     CoreCodeServiceInjection,
 )
@@ -68,6 +69,7 @@ class CoreCodeServiceType(CoreServiceType):
             "code": serializers.CharField(
                 help_text=CoreCodeService._meta.get_field("code").help_text,
                 allow_blank=True,
+                max_length=CORE_CODE_SERVICE_CODE_MAX_LENGTH,
                 required=False,
             ),
             "injections": CoreCodeServiceInjectionSerializer(
