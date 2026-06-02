@@ -3,6 +3,7 @@
     <FormGroup
       small-label
       :label="$t('coreCodeServiceForm.injectionsLabel')"
+      :helper-text="$t('coreCodeServiceForm.injectionsHelperText')"
       required
       class="margin-bottom-2"
     >
@@ -61,6 +62,7 @@
     <FormGroup
       small-label
       :label="$t('coreCodeServiceForm.codeLabel')"
+      :helper-text="$t('coreCodeServiceForm.codeHelperText')"
       :error-message="getFirstErrorMessage('code')"
       required
       class="margin-bottom-2"
@@ -92,6 +94,17 @@ export default {
     InjectedFormulaInput,
   },
   mixins: [form],
+  props: {
+    service: {
+      type: Object,
+      required: false,
+      default: null,
+    },
+    serviceType: {
+      type: Object,
+      required: true,
+    },
+  },
   setup() {
     return { v$: useVuelidate() }
   },
@@ -105,6 +118,10 @@ export default {
     }
   },
   methods: {
+    getDefaultValues() {
+      const defaultValues = form.methods.getDefaultValues.call(this)
+      return this.serviceType.getDefaultValues(this.service, defaultValues)
+    },
     createInjection() {
       this.v$.values.injections.$model.push({
         name: `value${this.v$.values.injections.$model.length + 1}`,

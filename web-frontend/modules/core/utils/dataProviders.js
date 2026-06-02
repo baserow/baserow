@@ -1,6 +1,6 @@
 const transformNode = (node) => ({
   name: node.name,
-  type: node.type === 'array' ? 'array' : 'data',
+  type: node.type,
   identifier: node.identifier || node.name,
   description: node.description || null,
   icon: node.icon || 'iconoir-database',

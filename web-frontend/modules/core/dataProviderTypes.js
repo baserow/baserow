@@ -234,6 +234,7 @@ export class DataProviderType extends Registerable {
         name,
         identifier,
         order,
+        type: 'object',
         icon: this.getIconForNode(schema),
         nodes: schema.properties
           ? Object.entries(schema.properties).map(([identifier, subSchema]) =>

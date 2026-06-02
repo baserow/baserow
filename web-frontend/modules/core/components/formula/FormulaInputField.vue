@@ -538,12 +538,6 @@ export default {
     handleNodeSelected(data) {
       const { path, node } = data
       switch (node.type) {
-        case 'data':
-          this.editor.commands.insertDataComponent(path)
-          break
-        case 'array':
-          this.editor.commands.insertDataComponent(path)
-          break
         case 'function':
           this.editor.commands.insertFunction(node)
           break
@@ -551,6 +545,7 @@ export default {
           this.editor.commands.insertOperator(node)
           break
         default:
+          this.editor.commands.insertDataComponent(path)
           break
       }
     },

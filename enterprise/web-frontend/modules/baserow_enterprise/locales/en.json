@@ -21,14 +21,16 @@
   },
   "serviceType": {
     "coreCode": "Execute code",
-    "coreCodeDescription": "Runs arbitrary code as part of a workflow.",
+    "coreCodeDescription": "Runs arbitrary Javascript code.",
     "errorCodeMissing": "Missing code property"
   },
   "coreCodeServiceForm": {
     "codeLabel": "Code",
+    "codeHelperText": "Baserow calls the main(context) function when the action runs. Use context to read injected values and return an object whose properties can be used by later actions.",
     "codePlaceholder": "Enter the code to execute",
     "editCode": "Edit code",
     "injectionsLabel": "Data injections",
+    "injectionsHelperText": "Injections are formulas evaluated before the code runs. Each injection name becomes a property on context, for example an injection named customerName is available as context.customerName.",
     "nameLabel": "Name",
     "namePlaceholder": "Variable name",
     "valueLabel": "Value",

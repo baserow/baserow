@@ -189,7 +189,8 @@ export default {
   methods: {
     allowArraySelection(node) {
       return (
-        node.type === 'array' &&
+        this.depth > 0 &&
+        ['object', 'array'].includes(node.type) &&
         (this.allowNodeSelection || this.getFormulaMode() === 'advanced')
       )
     },

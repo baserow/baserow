@@ -24,6 +24,16 @@ export class ServiceType extends Registerable {
   }
 
   /**
+   * Allow to hook into default values for this service type.
+   * @param {object} service the service being edited.
+   * @param {object} values the current default values for the service form.
+   * @returns an object containing values updated with the default values.
+   */
+  getDefaultValues(service, values) {
+    return values
+  }
+
+  /**
    * Whether the service is valid.
    * @param service - The service object.
    * @returns {String} - The error message
