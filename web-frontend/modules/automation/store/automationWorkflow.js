@@ -33,6 +33,16 @@ const state = {
 
 const mutations = {
   ADD_ITEM(state, { automation, workflow }) {
+    const existing = automation.workflows.find(
+      (item) => item.id === workflow.id
+    )
+    if (existing) {
+      // Workflow duplication can arrive through both the realtime
+      // `automation_workflow_created` event and the duplicate job completion.
+      Object.assign(existing, workflow)
+      return
+    }
+
     automation.workflows.push(populateAutomationWorkflow(workflow))
   },
   UPDATE_ITEM(state, { workflow, values }) {

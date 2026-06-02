@@ -21,18 +21,46 @@ export class BaserowPage {
 
   async authenticate(user: User) {
     await this.page.goto(`${this.baseUrl}?token=${user.refreshToken}`);
+    await this.recoverFromNuxtError();
   }
 
   async goto(params = {}) {
     await this.page.waitForTimeout(100); // Small delay before navigation to help with Firefox timing issues
-    const options = { waitUntil: "hydration", ...params };
     try {
-      await this._goto(this.getFullUrl(), options);
+      await this._goto(this.getFullUrl(), {
+        waitUntil: "hydration",
+        ...params,
+      });
+      await this.recoverFromNuxtError();
+    }
     } catch (e) {
       // Firefox aborts the in-flight navigation when the app client-side
       // redirects after load. Retry once; the redirect target is the page we want.
       if (!String(e).includes("NS_BINDING_ABORTED")) throw e;
       await this._goto(this.getFullUrl(), options);
+    }
+  }
+
+  /**
+   * Retries navigation when Nuxt briefly renders its error placeholder during
+   * e2e startup. This only handles known placeholder titles before assertions.
+   */
+  async recoverFromNuxtError() {
+    const errorTitle = this.page.locator(".placeholder__title");
+
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const title = await errorTitle
+        .textContent({ timeout: 500 })
+        .catch(() => "");
+
+      if (
+        !title.includes("[nuxt] instance unavailable") &&
+        !title.includes("Server Error")
+      ) {
+        return;
+      }
+
+      await this.page.goto(this.getFullUrl(), { waitUntil: "load" });
     }
   }
 
