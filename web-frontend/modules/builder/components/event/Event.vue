@@ -33,6 +33,7 @@
             v-for="workflowActionType in availableWorkflowActionTypes"
             :key="workflowActionType.getType()"
             v-tooltip="workflowActionType.isDeactivatedReason({ workspace })"
+            tooltip-position="bottom-left"
           >
             <ButtonText
               :value="workflowActionType.getType()"

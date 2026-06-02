@@ -342,7 +342,9 @@ class AutomationNodeType(
         automation_node: AutomationNode,
         dispatch_context: AutomationDispatchContext,
     ) -> DispatchResult:
-        if self.is_deactivated(automation_node.workflow.automation.workspace):
+        if self.is_deactivated(
+            automation_node.workflow.get_original().automation.workspace
+        ):
             raise ServiceImproperlyConfiguredDispatchException(
                 "This node type is not available for this workspace."
             )

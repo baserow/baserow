@@ -81,6 +81,13 @@
 
 .button-text__image {
   width: 18px;
+  opacity: 0.7;
+  filter: grayscale(1);
+
+  .button-text:hover & {
+    filter: grayscale(0);
+    opacity: 1;
+  }
 }
 
 .button-text--no-underline {

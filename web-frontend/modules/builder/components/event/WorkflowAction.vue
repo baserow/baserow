@@ -13,6 +13,7 @@
         v-if="errorMessage"
         :key="errorMessage"
         v-tooltip="errorMessage"
+        tooltip-position="bottom-left"
         icon="iconoir-warning-circle"
         size="medium"
         type="error"
