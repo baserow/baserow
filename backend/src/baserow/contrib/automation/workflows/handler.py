@@ -47,6 +47,7 @@ from baserow.contrib.automation.workflows.exceptions import (
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.signals import (
+    automation_workflow_before_run,
     automation_workflow_dispatch_started,
     automation_workflow_updated,
 )
@@ -1128,6 +1129,8 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         self._check_too_many_errors(workflow)
 
         self._check_is_rate_limited(workflow)
+
+        automation_workflow_before_run.send(sender=self, workflow=workflow)
 
     def async_start_workflow(
         self,
