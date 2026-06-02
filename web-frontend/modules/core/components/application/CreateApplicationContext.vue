@@ -71,12 +71,9 @@
           :workspace="workspace"
         ></TemplateModal>
       </li>
-      <li class="context__menu-item">
+      <li v-if="canImportWorkspace" class="context__menu-item">
         <a
           class="context__menu-item-link context__menu-item-link--with-desc"
-          :class="{
-            disabled: !canCreateCreateApplication,
-          }"
           @click="openImportWorkspaceModal()"
         >
           <span class="context__menu-item-title">
@@ -135,6 +132,13 @@ export default {
         this.workspace.id
       )
     },
+    canImportWorkspace() {
+      return this.$hasPermission(
+        'workspace.export',
+        this.workspace,
+        this.workspace.id
+      )
+    },
   },
   methods: {
     async fetchRolesAndPermissions() {
@@ -150,7 +154,7 @@ export default {
       this.hide()
     },
     openImportWorkspaceModal() {
-      if (!this.canCreateCreateApplication) {
+      if (!this.canImportWorkspace) {
         return
       }
 
