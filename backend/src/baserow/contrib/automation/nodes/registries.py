@@ -55,8 +55,6 @@ class AutomationNodeType(
 
     is_container = False
 
-    dispatch_cost = 0
-
     class SerializedDict(AutomationNodeDict): ...
 
     def is_deactivated(self, workspace: Workspace) -> bool:
@@ -338,18 +336,6 @@ class AutomationNodeType(
         return values
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]: ...
-
-    def get_dispatch_cost(self) -> int:
-        """
-        Returns the cost of dispatching this node.
-
-        - 0 means the the cost is free.
-        - 1 means the cost is "1 dispatch".
-
-        Override this method if the cost must be calculated differently.
-        """
-
-        return self.dispatch_cost
 
     def dispatch(
         self,

@@ -698,37 +698,3 @@ def test_periodic_trigger_node_on_event_only_updates_dispatched_services(data_fi
         # `trigger_node_b2` is the only due service which we've found to be
         # appropriate for dispatching (its workflow is live/published).
         assert list(services_dispatched) == [trigger_node_b2.service]
-
-
-@pytest.mark.parametrize(
-    "node_type,expected_cost",
-    [
-        # The following should be free since they're triggers
-        ("local_baserow_rows_created", 0),
-        ("local_baserow_rows_updated", 0),
-        ("local_baserow_rows_deleted", 0),
-        ("periodic", 0),
-        ("http_trigger", 0),
-        # The following should be free since they're containers
-        ("router", 0),
-        ("iterator", 0),
-        # The HTTP Request is free for now.
-        # TODO: change this if we decide to charge for HTTP requests.
-        ("http_request", 0),
-        # By default, all action nodes are not free.
-        ("local_baserow_create_row", 1),
-        ("local_baserow_update_row", 1),
-        ("local_baserow_delete_row", 1),
-        ("local_baserow_get_row", 1),
-        ("local_baserow_list_rows", 1),
-        ("local_baserow_aggregate_rows", 1),
-        ("smtp_email", 1),
-        ("ai_agent", 1),
-        ("slack_write_message", 1),
-    ],
-)
-def test_node_type_dispatch_cost(node_type, expected_cost):
-    assert (
-        automation_node_type_registry.get(node_type).get_dispatch_cost()
-        == expected_cost
-    )
