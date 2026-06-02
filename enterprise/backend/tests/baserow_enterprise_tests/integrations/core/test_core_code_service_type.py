@@ -1,5 +1,6 @@
-import pytest
 from django.conf import settings
+
+import pytest
 
 from baserow.core.code_runner.exceptions import (
     CodeRunnerExecutionError,

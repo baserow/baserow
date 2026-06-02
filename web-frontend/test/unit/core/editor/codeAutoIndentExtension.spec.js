@@ -57,8 +57,6 @@ describe('CodeAutoIndentExtension', () => {
   })
 
   it('computes indentation from the current line only', () => {
-    expect(getCodeAutoIndentText('if (true) {\n  nested()', '  ')).toBe(
-      '\n  '
-    )
+    expect(getCodeAutoIndentText('if (true) {\n  nested()', '  ')).toBe('\n  ')
   })
 })
