@@ -1,11 +1,37 @@
 <template>
-  <div class="code-editor">
-    <EditorContent :editor="editor" />
+  <div class="code-editor__container">
+    <div class="code-editor">
+      <EditorContent :editor="editor" />
+      <ButtonIcon
+        class="code-editor__expand"
+        icon="iconoir-expand"
+        size="small"
+        type="secondary"
+        :title="modalTitle"
+        :aria-label="modalTitle"
+        @click="showModal"
+      />
+    </div>
+    <Modal
+      ref="modal"
+      class="code-editor__modal"
+      wide
+      content-scrollable
+      @show="focusModalEditor"
+    >
+      <h2 class="box__title">
+        {{ modalTitle }}
+      </h2>
+      <div class="code-editor code-editor--modal">
+        <EditorContent :editor="modalEditor" />
+      </div>
+    </Modal>
   </div>
 </template>
 
 <script>
 import { Editor, EditorContent } from '@tiptap/vue-3'
+import { Placeholder } from '@tiptap/extension-placeholder'
 
 import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
@@ -29,35 +55,32 @@ export default {
       type: String,
       default: '',
     },
+    placeholder: {
+      type: String,
+      default: '',
+    },
+    modalTitle: {
+      type: String,
+      default: 'Code',
+    },
   },
   emits: ['update:modelValue'],
   data() {
     return {
       editor: null,
+      modalEditor: null,
+      LockedCodeBlockLowlight: null,
+      lowlight: null,
     }
   },
   watch: {
     modelValue(newCode) {
-      if (this.editor && newCode !== this.getCurrentCode()) {
-        this.editor.commands.setContent(
-          this.generateCodeBlock(newCode),
-          false,
-          {
-            preserveWhitespace: 'full',
-          }
-        )
-      }
+      this.setEditorContent(this.editor, newCode)
+      this.setEditorContent(this.modalEditor, newCode)
     },
     language() {
-      if (this.editor) {
-        this.editor.commands.setContent(
-          this.generateCodeBlock(this.getCurrentCode()),
-          false,
-          {
-            preserveWhitespace: 'full',
-          }
-        )
-      }
+      this.setEditorContent(this.editor, this.modelValue)
+      this.setEditorContent(this.modalEditor, this.modelValue)
     },
   },
   async mounted() {
@@ -73,7 +96,8 @@ export default {
     lowlight.register('javascript', javascript)
     lowlight.register('css', css)
 
-    const LockedCodeBlockLowlight = CodeBlockLowlight.extend({
+    this.lowlight = lowlight
+    this.LockedCodeBlockLowlight = CodeBlockLowlight.extend({
       addKeyboardShortcuts() {
         const parentShortcuts = this.parent?.() || {}
 
@@ -96,29 +120,40 @@ export default {
       },
     })
 
-    this.editor = new Editor({
-      extensions: [
-        CodeEditorDocument,
-        Text,
-        LockedCodeBlockLowlight.configure({
-          lowlight,
-          exitOnTripleEnter: false,
-          exitOnArrowDown: false,
-          HTMLAttributes: {
-            class: 'code-editor__code-wrapper',
-          },
-        }),
-      ],
-      content: this.generateCodeBlock(this.modelValue),
-      onUpdate: () => {
-        this.$emit('update:modelValue', this.getCurrentCode())
-      },
-    })
+    this.editor = this.createEditor()
+    this.modalEditor = this.createEditor()
   },
   beforeUnmount() {
     this.editor?.destroy()
+    this.modalEditor?.destroy()
   },
   methods: {
+    createEditor() {
+      return new Editor({
+        extensions: [
+          CodeEditorDocument,
+          Text,
+          Placeholder.configure({
+            placeholder: this.placeholder,
+          }),
+          this.LockedCodeBlockLowlight.configure({
+            lowlight: this.lowlight,
+            exitOnTripleEnter: false,
+            exitOnArrowDown: false,
+            HTMLAttributes: {
+              class: 'code-editor__code-wrapper',
+            },
+          }),
+        ],
+        content: this.generateCodeBlock(this.modelValue),
+        onUpdate: ({ editor }) => {
+          const currentCode = editor.getText()
+          if (this.modelValue !== currentCode) {
+            this.$emit('update:modelValue', currentCode)
+          }
+        },
+      })
+    },
     generateCodeBlock(code) {
       return {
         type: 'doc',
@@ -133,8 +168,20 @@ export default {
         ],
       }
     },
-    getCurrentCode() {
-      return this.editor?.getText() || ''
+    setEditorContent(editor, code) {
+      if (editor && code !== editor.getText()) {
+        editor.commands.setContent(this.generateCodeBlock(code), false, {
+          preserveWhitespace: 'full',
+        })
+      }
+    },
+    showModal() {
+      this.$refs.modal.show()
+    },
+    focusModalEditor() {
+      this.$nextTick(() => {
+        this.modalEditor?.commands.focus('end')
+      })
     },
   },
 }

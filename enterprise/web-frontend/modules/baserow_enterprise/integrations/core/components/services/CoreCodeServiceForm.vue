@@ -8,11 +8,11 @@
     >
       <template v-if="v$.values.injections.$model.length">
         <div class="row" style="--gap: 6px">
-          <label class="col col-5 control__label control__label--small">
-            {{ $t('coreCodeServiceForm.valueLabel') }}
-          </label>
           <label class="col col-7 control__label control__label--small">
             {{ $t('coreCodeServiceForm.nameLabel') }}
+          </label>
+          <label class="col col-5 control__label control__label--small">
+            {{ $t('coreCodeServiceForm.valueLabel') }}
           </label>
         </div>
         <div
@@ -22,17 +22,17 @@
           class="row margin-bottom-1"
         >
           <div class="col col-5">
-            <InjectedFormulaInput
-              v-model="injection.formula"
-              :placeholder="$t('coreCodeServiceForm.valuePlaceholder')"
-            />
-          </div>
-          <div class="col col-5">
             <FormInput
               v-model="injection.name"
               :error="!!v$.values.injections.$each.$message[index]?.[0]"
               :placeholder="$t('coreCodeServiceForm.namePlaceholder')"
               @blur="v$.values.injections.$touch()"
+            />
+          </div>
+          <div class="col col-5">
+            <InjectedFormulaInput
+              v-model="injection.formula"
+              :placeholder="$t('coreCodeServiceForm.valuePlaceholder')"
             />
           </div>
           <div class="col col-2">
@@ -64,30 +64,13 @@
       required
       class="margin-bottom-2"
     >
-      <ButtonText
-        type="secondary"
-        size="small"
-        icon="iconoir-code"
-        @click="$refs.codeEditorModal.show()"
-      >
-        {{ $t('coreCodeServiceForm.editCode') }}
-      </ButtonText>
-    </FormGroup>
-    <Modal
-      ref="codeEditorModal"
-      class="core-code-service-form__code-modal"
-      wide
-      content-scrollable
-    >
-      <h2 class="box__title">
-        {{ $t('coreCodeServiceForm.codeLabel') }}
-      </h2>
       <CodeEditor
         v-model="values.code"
-        class="core-code-service-form__code-editor"
         language="javascript"
+        :placeholder="$t('coreCodeServiceForm.codePlaceholder')"
+        :modal-title="$t('coreCodeServiceForm.codeLabel')"
       />
-    </Modal>
+    </FormGroup>
   </form>
 </template>
 
