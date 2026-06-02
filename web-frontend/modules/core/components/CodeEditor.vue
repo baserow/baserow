@@ -35,6 +35,7 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 
 import { Document } from '@tiptap/extension-document'
 import { Text } from '@tiptap/extension-text'
+import CodeAutoIndentExtension from '@baserow/modules/core/editor/codeAutoIndentExtension'
 
 const CodeEditorDocument = Document.extend({
   content: 'codeBlock',
@@ -136,6 +137,7 @@ export default {
           Placeholder.configure({
             placeholder: this.placeholder,
           }),
+          CodeAutoIndentExtension,
           this.LockedCodeBlockLowlight.configure({
             lowlight: this.lowlight,
             exitOnTripleEnter: false,
