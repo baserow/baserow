@@ -37,14 +37,8 @@
       v-if="hasSampleData && !isLoading"
       :sample-data="sampleData"
       :is-error="isErrorSample"
-      :payload-label="$t('simulateDispatch.sampleDataLabel')"
-      :error-label="$t('simulateDispatch.errorOccurred')"
-      :show-payload-label="$t('simulateDispatch.buttonLabelShowPayload')"
-      :show-error-label="$t('simulateDispatch.buttonLabelShowError')"
       :modal-title="sampleDataModalTitle"
       :modal-subtitle="$t('simulateDispatch.sampleDataModalSubTitle')"
-      :copy-label="$t('simulateDispatch.sampleDataCopy')"
-      :copied-toast-title="$t('simulateDispatch.sampleDataCopied')"
     />
   </div>
 </template>

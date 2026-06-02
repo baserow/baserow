@@ -6,7 +6,7 @@
       }"
     >
       <div class="sample-data-viewer__label">
-        {{ isError ? errorLabel : payloadLabel }}
+        {{ viewerLabel }}
       </div>
       <div class="sample-data-viewer__code">
         <pre><code>{{ formattedSampleData }}</code></pre>
@@ -19,7 +19,7 @@
       icon="iconoir-code-brackets sample-data-viewer__button-icon"
       @click="showSampleDataModal"
     >
-      {{ isError ? showErrorLabel : showPayloadLabel }}
+      {{ showViewerLabel }}
     </Button>
 
     <SampleDataModal
@@ -27,8 +27,6 @@
       :sample-data="sampleData"
       :title="modalTitle"
       :subtitle="modalSubtitle"
-      :copy-label="copyLabel"
-      :copied-toast-title="copiedToastTitle"
     />
   </div>
 </template>
@@ -50,22 +48,6 @@ export default {
       required: false,
       default: false,
     },
-    payloadLabel: {
-      type: String,
-      required: true,
-    },
-    errorLabel: {
-      type: String,
-      required: true,
-    },
-    showPayloadLabel: {
-      type: String,
-      required: true,
-    },
-    showErrorLabel: {
-      type: String,
-      required: true,
-    },
     modalTitle: {
       type: String,
       required: true,
@@ -74,16 +56,18 @@ export default {
       type: String,
       required: true,
     },
-    copyLabel: {
-      type: String,
-      required: true,
-    },
-    copiedToastTitle: {
-      type: String,
-      required: true,
-    },
   },
   computed: {
+    viewerLabel() {
+      return this.isError
+        ? this.$t('sampleDataViewer.errorLabel')
+        : this.$t('sampleDataViewer.payloadLabel')
+    },
+    showViewerLabel() {
+      return this.isError
+        ? this.$t('sampleDataViewer.showErrorLabel')
+        : this.$t('sampleDataViewer.showPayloadLabel')
+    },
     formattedSampleData() {
       return typeof this.sampleData === 'string'
         ? this.sampleData

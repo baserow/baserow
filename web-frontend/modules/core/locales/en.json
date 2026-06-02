@@ -25,6 +25,12 @@
   "copied": {
     "label": "Copied!"
   },
+  "sampleDataViewer": {
+    "payloadLabel": "Output",
+    "errorLabel": "An error occurred...",
+    "showPayloadLabel": "Show payload",
+    "showErrorLabel": "Show error"
+  },
   "action": {
     "cancel": "Cancel",
     "submit": "Submit"

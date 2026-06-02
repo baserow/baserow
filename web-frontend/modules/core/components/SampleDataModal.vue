@@ -8,7 +8,7 @@
         icon="iconoir-copy sample-data-modal__button-icon"
         @click="copyToClipboard"
       >
-        {{ copyLabel }}
+        {{ $t('action.copy') }}
       </Button>
     </div>
     <div class="sample-data-modal__code">
@@ -37,14 +37,6 @@ export default {
       type: String,
       required: true,
     },
-    copyLabel: {
-      type: String,
-      required: true,
-    },
-    copiedToastTitle: {
-      type: String,
-      required: true,
-    },
   },
   computed: {
     formattedSampleData() {
@@ -58,7 +50,7 @@ export default {
       try {
         await navigator.clipboard.writeText(this.formattedSampleData)
         this.$store.dispatch('toast/success', {
-          title: this.copiedToastTitle,
+          title: this.$t('copied.label'),
         })
       } catch (error) {
         notifyIf(error)

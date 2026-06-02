@@ -189,8 +189,6 @@
       :sample-data="resolvedSampleData"
       :title="nodeTypeLabel"
       :subtitle="$t('simulateDispatch.sampleDataModalSubTitle')"
-      :copy-label="$t('simulateDispatch.sampleDataCopy')"
-      :copied-toast-title="$t('simulateDispatch.sampleDataCopied')"
     />
   </div>
 </template>

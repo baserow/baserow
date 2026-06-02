@@ -31,14 +31,8 @@
           v-if="sampleData"
           :sample-data="sampleData"
           :is-error="isErrorSample"
-          :payload-label="$t('workflowAction.payloadLabel')"
-          :error-label="$t('workflowAction.errorOccurred')"
-          :show-payload-label="$t('workflowAction.buttonLabelShowPayload')"
-          :show-error-label="$t('workflowAction.buttonLabelShowError')"
           :modal-title="sampleDataModalTitle"
           :modal-subtitle="$t('workflowAction.sampleDataModalSubTitle')"
-          :copy-label="$t('workflowAction.sampleDataCopy')"
-          :copied-toast-title="$t('workflowAction.sampleDataCopied')"
         />
         <Alert v-else type="info-neutral" class="margin-bottom-0">
           <p>{{ $t('workflowAction.testActionDescription') }}</p>
