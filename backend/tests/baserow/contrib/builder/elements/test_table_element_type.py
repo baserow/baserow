@@ -447,7 +447,7 @@ def test_table_element_import_export(data_fixture):
 
     # After importing the table element the fields should be properly imported too
     id_mapping = defaultdict(lambda: MirrorDict())
-    table_element_type.import_serialized(page, exported, id_mapping)
+    ElementHandler().import_element(page, exported, id_mapping)
     assert (
         TableElement.objects.filter(
             page=page,
