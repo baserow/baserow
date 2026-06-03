@@ -521,26 +521,6 @@ class ElementHandler:
 
         return element
 
-    def delete_element(self, element: Element):
-        """
-        Deletes an element and all of its graph-reachable descendants.
-
-        :param element: The to-be-deleted element.
-        """
-
-        page = element.page
-        element.get_type().before_delete(element)
-
-        result = page.get_graph().remove(element)
-        element.delete()
-
-        for dep in result.dependencies_removed:
-            specific = dep.specific
-            specific.get_type().before_delete(specific)
-            specific.delete()
-
-        self.invalidate_element_cache(page)
-
     def update_element(self, element: ElementForUpdate, **kwargs) -> Element:
         """
         Updates and element with values. Will also check if the values are allowed

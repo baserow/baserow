@@ -347,13 +347,15 @@
   "trashType": {
     "workspace": "workspace",
     "application": "application",
-    "automation_workflow": "automation workflow",
-    "automation_node": "automation node",
     "table": "table",
     "field": "field",
     "row": "row",
     "rows": "rows",
-    "view": "view"
+    "view": "view",
+    "automation_workflow": "automation workflow",
+    "automation_node": "automation node",
+    "builder_page": "builder page",
+    "builder_element": "builder element"
   },
   "webhook": {
     "request": "Request",

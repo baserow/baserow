@@ -4,7 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import router
 from django.db.models import Q
 from django.utils import timezone
-from django.utils.translation import gettext as _
+from django.utils.translation import gettext_lazy as _
 
 from baserow.contrib.automation.nodes.exceptions import (
     AutomationNodeFirstNodeMustBeTrigger,
@@ -130,18 +130,21 @@ class LocalBaserowUpsertRowNodeType(AutomationNodeActionNodeType):
 
 
 class LocalBaserowCreateRowNodeType(LocalBaserowUpsertRowNodeType):
+    display_name = _("Local Baserow create row")
     type = "local_baserow_create_row"
     compat_type = "create_row"
     model_class = LocalBaserowCreateRowActionNode
 
 
 class LocalBaserowUpdateRowNodeType(LocalBaserowUpsertRowNodeType):
+    display_name = _("Local Baserow update row")
     type = "local_baserow_update_row"
     compat_type = "update_row"
     model_class = LocalBaserowUpdateRowActionNode
 
 
 class LocalBaserowDeleteRowNodeType(AutomationNodeActionNodeType):
+    display_name = _("Local Baserow delete row")
     type = "local_baserow_delete_row"
     compat_type = "delete_row"
     model_class = LocalBaserowDeleteRowActionNode
@@ -149,6 +152,7 @@ class LocalBaserowDeleteRowNodeType(AutomationNodeActionNodeType):
 
 
 class LocalBaserowGetRowNodeType(AutomationNodeActionNodeType):
+    display_name = _("Local Baserow get row")
     type = "local_baserow_get_row"
     compat_type = "get_row"
     model_class = LocalBaserowGetRowActionNode
@@ -156,6 +160,7 @@ class LocalBaserowGetRowNodeType(AutomationNodeActionNodeType):
 
 
 class LocalBaserowListRowsNodeType(AutomationNodeActionNodeType):
+    display_name = _("Local Baserow list rows")
     type = "local_baserow_list_rows"
     compat_type = "list_rows"
     model_class = LocalBaserowListRowsActionNode
@@ -163,6 +168,7 @@ class LocalBaserowListRowsNodeType(AutomationNodeActionNodeType):
 
 
 class LocalBaserowAggregateRowsNodeType(AutomationNodeActionNodeType):
+    display_name = _("Local Baserow aggregate rows")
     type = "local_baserow_aggregate_rows"
     compat_type = "aggregate_rows"
     model_class = LocalBaserowAggregateRowsActionNode
@@ -170,12 +176,14 @@ class LocalBaserowAggregateRowsNodeType(AutomationNodeActionNodeType):
 
 
 class CoreHttpRequestNodeType(AutomationNodeActionNodeType):
+    display_name = _("HTTP request")
     type = "http_request"
     model_class = CoreHTTPRequestActionNode
     service_type = CoreHTTPRequestServiceType.type
 
 
 class CoreIteratorNodeType(ContainerNodeTypeMixin, AutomationNodeActionNodeType):
+    display_name = _("Iterator")
     type = "iterator"
     model_class = CoreIteratorActionNode
     service_type = CoreIteratorServiceType.type
@@ -188,18 +196,21 @@ class CoreCSVFileReaderNodeType(AutomationNodeActionNodeType):
 
 
 class CoreSMTPEmailNodeType(AutomationNodeActionNodeType):
+    display_name = _("Send email")
     type = "smtp_email"
     model_class = CoreSMTPEmailActionNode
     service_type = CoreSMTPEmailServiceType.type
 
 
 class AIAgentActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("AI agent")
     type = "ai_agent"
     model_class = AIAgentActionNode
     service_type = AIAgentServiceType.type
 
 
 class CoreRouterActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Router")
     type = "router"
     model_class = CoreRouterActionNode
     service_type = CoreRouterServiceType.type
@@ -394,6 +405,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
 
 
 class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):
+    display_name = _("Local Baserow rows created")
     type = "local_baserow_rows_created"
     compat_type = "rows_created"
     model_class = LocalBaserowRowsCreatedTriggerNode
@@ -401,6 +413,7 @@ class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):
 
 
 class LocalBaserowRowsUpdatedNodeTriggerType(AutomationNodeTriggerType):
+    display_name = _("Local Baserow rows updated")
     type = "local_baserow_rows_updated"
     compat_type = "rows_updated"
     model_class = LocalBaserowRowsUpdatedTriggerNode
@@ -408,6 +421,7 @@ class LocalBaserowRowsUpdatedNodeTriggerType(AutomationNodeTriggerType):
 
 
 class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeTriggerType):
+    display_name = _("Local Baserow rows deleted")
     type = "local_baserow_rows_deleted"
     compat_type = "rows_deleted"
     model_class = LocalBaserowRowsDeletedTriggerNode
@@ -417,18 +431,21 @@ class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeTriggerType):
 class CorePeriodicTriggerNodeType(
     AutomationNodeTriggerType,
 ):
+    display_name = _("Periodic trigger")
     type = "periodic"
     model_class = CorePeriodicTriggerNode
     service_type = CorePeriodicServiceType.type
 
 
 class CoreHTTPTriggerNodeType(AutomationNodeTriggerType):
+    display_name = _("HTTP trigger")
     type = "http_trigger"
     model_class = CoreHTTPTriggerNode
     service_type = CoreHTTPTriggerServiceType.type
 
 
 class SlackWriteMessageActionNodeType(AutomationNodeActionNodeType):
+    display_name = _("Slack write message")
     type = "slack_write_message"
     model_class = SlackWriteMessageActionNode
     service_type = SlackWriteMessageServiceType.type

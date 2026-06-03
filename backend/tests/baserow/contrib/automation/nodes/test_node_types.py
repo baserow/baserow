@@ -698,3 +698,15 @@ def test_periodic_trigger_node_on_event_only_updates_dispatched_services(data_fi
         # `trigger_node_b2` is the only due service which we've found to be
         # appropriate for dispatching (its workflow is live/published).
         assert list(services_dispatched) == [trigger_node_b2.service]
+
+
+@pytest.mark.parametrize(
+    "node_type",
+    [pytest.param(nt, id=nt.type) for nt in automation_node_type_registry.get_all()],
+)
+def test_automation_node_type_has_display_name(node_type):
+    from django.utils.translation import gettext_lazy as _
+
+    assert node_type.display_name != _("Unnamed"), (
+        f"{type(node_type).__name__}.display_name is still the default 'Unnamed'"
+    )

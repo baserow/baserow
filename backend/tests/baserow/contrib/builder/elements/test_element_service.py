@@ -343,21 +343,62 @@ def test_get_builder_elements(data_fixture, stub_check_permissions):
 
 
 @pytest.mark.django_db
-@patch("baserow.contrib.builder.elements.service.element_deleted")
-def test_delete_element(element_deleted_mock, data_fixture):
+def test_delete_element(data_fixture):
     user = data_fixture.create_user()
     element = data_fixture.create_builder_heading_element(user=user)
+    element_id = element.id
 
-    service = ElementService()
-    service.delete_element(user, element)
+    ElementService().delete_element(user, element)
 
-    element_deleted_mock.send.assert_called_once_with(
-        service,
-        element_id=element.id,
-        descendant_ids=[],
-        page=element.page,
-        user=user,
+    element.refresh_from_db()
+    assert element.trashed is True
+    assert not Element.objects.filter(id=element_id, trashed=False).exists()
+
+
+@pytest.mark.django_db
+def test_delete_container_element_removes_container_and_graph_entries(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    container = data_fixture.create_builder_column_element(page=page, column_amount=2)
+    child1 = data_fixture.create_builder_heading_element(
+        page=page,
+        position=GraphPointPosition.CHILD,
+        reference_element=container,
+        place_in_container="0",
     )
+    child2 = data_fixture.create_builder_column_element(
+        page=page,
+        column_amount=1,
+        position=GraphPointPosition.CHILD,
+        reference_element=container,
+        place_in_container="1",
+    )
+    grandchild = data_fixture.create_builder_heading_element(
+        page=page,
+        position=GraphPointPosition.CHILD,
+        reference_element=child2,
+        place_in_container="0",
+    )
+
+    ElementService().delete_element(user, container)
+
+    container.refresh_from_db()
+    assert container.trashed is True
+
+    # Children are soft-deleted (trashed) alongside the container so they can be
+    # restored if the container is restored. Not accessible via the default manager.
+    assert not Element.objects.filter(
+        id__in=[child1.id, child2.id, grandchild.id]
+    ).exists()
+    assert (
+        Element.trash.filter(id__in=[child1.id, child2.id, grandchild.id]).count() == 3
+    )
+
+    # All graph entries for the container and its descendants are gone.
+    page.refresh_from_db(fields=["graph"])
+    for element_id in [container.id, child1.id, child2.id, grandchild.id]:
+        assert str(element_id) not in page.graph
+    assert page.graph == {}
 
 
 @pytest.mark.django_db(transaction=True)

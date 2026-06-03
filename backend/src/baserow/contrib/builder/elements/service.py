@@ -19,7 +19,6 @@ from baserow.contrib.builder.elements.operations import (
 from baserow.contrib.builder.elements.registries import ElementType
 from baserow.contrib.builder.elements.signals import (
     element_created,
-    element_deleted,
     element_moved,
     element_updated,
     elements_created,
@@ -37,6 +36,7 @@ from baserow.core.graph.exceptions import (
 )
 from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.handler import CoreHandler
+from baserow.core.trash.handler import TrashHandler
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
@@ -246,8 +246,6 @@ class ElementService:
         :param element: The to-be-deleted element.
         """
 
-        page = element.page
-
         CoreHandler().check_permissions(
             user,
             DeleteElementOperationType.type,
@@ -255,20 +253,10 @@ class ElementService:
             context=element,
         )
 
-        # Collect the descendants before deletion so realtime receivers can tell
-        # other clients which records to remove — deleting a container removes its
-        # whole subtree.
-        descendant_ids = [d.id for d in page.get_graph().get_descendants(element)]
+        element.get_type().before_delete(element.specific)
 
-        self.handler.delete_element(element)
-
-        element_deleted.send(
-            self,
-            element_id=element.id,
-            descendant_ids=descendant_ids,
-            page=page,
-            user=user,
-        )
+        builder = element.page.builder
+        TrashHandler.trash(user, builder.workspace, builder, element)
 
     def move_element(
         self,

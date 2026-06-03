@@ -26,7 +26,7 @@ class AutomationNodeTrashableItemType(TrashableItemType):
         return trashed_item.workflow
 
     def get_name(self, trashed_item: AutomationActionNode) -> str:
-        return f"{trashed_item.get_type().type} ({trashed_item.id})"
+        return f"{trashed_item} ({trashed_item.id})".lower()
 
     def get_additional_restoration_data(self, trashed_item: AutomationActionNode):
         # We save the previous position for the restoration

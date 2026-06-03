@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.operations import OrderPagesBuilderOperationType
+from baserow.contrib.builder.pages.exceptions import SharedPageIsReadOnly
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.operations import (
@@ -15,12 +16,12 @@ from baserow.contrib.builder.pages.operations import (
 )
 from baserow.contrib.builder.pages.signals import (
     page_created,
-    page_deleted,
     page_updated,
     pages_reordered,
 )
 from baserow.contrib.builder.pages.types import PagePathParams, PageQueryParams
 from baserow.core.handler import CoreHandler
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import ChildProgressBuilder, extract_allowed
 
 
@@ -91,6 +92,9 @@ class PageService:
         :param page: The page that must be deleted
         """
 
+        if page.shared:
+            raise SharedPageIsReadOnly()
+
         CoreHandler().check_permissions(
             user,
             DeletePageOperationType.type,
@@ -98,11 +102,8 @@ class PageService:
             context=page,
         )
 
-        page_id = page.id
-
-        self.handler.delete_page(page)
-
-        page_deleted.send(self, builder=page.builder, page_id=page_id, user=user)
+        builder = page.builder
+        TrashHandler.trash(user, builder.workspace, builder, page)
 
     def update_page(self, user: AbstractUser, page: Page, **kwargs) -> Page:
         """

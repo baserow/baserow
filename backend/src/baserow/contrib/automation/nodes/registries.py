@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional
 
 from django.contrib.auth.models import AbstractUser
+from django.utils.translation import gettext_lazy as _
 
 from rest_framework.exceptions import PermissionDenied
 
@@ -43,6 +44,8 @@ class AutomationNodeType(
     ModelInstanceMixin,
     Instance,
 ):
+    display_name = _("Unnamed")
+
     service_type = None
     parent_property_name = "workflow"
     id_mapping_name = "automation_workflow_nodes"

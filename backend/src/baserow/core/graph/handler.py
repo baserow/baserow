@@ -540,9 +540,9 @@ class BaseGraphHandler(ABC):
         :return: The list of descendant points.
         """
 
-        return self._collect_all_descendants(point)
+        return self.collect_all_descendants(point)
 
-    def _collect_all_descendants(self, point: GraphPoint) -> List[GraphPoint]:
+    def collect_all_descendants(self, point: GraphPoint) -> List[GraphPoint]:
         """
         Returns all descendants (direct and transitive children) of a point in
         depth-first order, by recursing into each child returned by get_children.
@@ -551,7 +551,7 @@ class BaseGraphHandler(ABC):
         result = []
         for child in self.get_children(point):
             result.append(child)
-            result.extend(self._collect_all_descendants(child))
+            result.extend(self.collect_all_descendants(child))
         return result
 
     def merge_children_into_place(
@@ -786,7 +786,7 @@ class BaseGraphHandler(ABC):
         if not keep_info:
             # Collect all descendants before touching the graph so that the traversal
             # still has access to the full graph structure.
-            dependencies = self._collect_all_descendants(point_to_delete)
+            dependencies = self.collect_all_descendants(point_to_delete)
             for dep in dependencies:
                 graph.pop(str(dep.id), None)
 
@@ -948,7 +948,7 @@ class BaseGraphHandler(ABC):
             removed.
         """
 
-        for dep in self._collect_all_descendants(point):
+        for dep in self.collect_all_descendants(point):
             self.graph.pop(str(dep.id), None)
         self.graph.pop(str(point.id), None)
         self._update_graph()

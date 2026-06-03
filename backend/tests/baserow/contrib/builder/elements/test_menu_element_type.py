@@ -8,6 +8,7 @@ import pytest
 from baserow.contrib.builder.api.elements.serializers import MenuItemSerializer
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
+from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
@@ -28,6 +29,7 @@ def menu_element_fixture(data_fixture):
     menu_element = data_fixture.create_builder_menu_element(user=user, page=page_a)
 
     return {
+        "user": user,
         "page_a": page_a,
         "page_b": page_b,
         "menu_element": menu_element,
@@ -391,8 +393,8 @@ def test_all_workflow_actions_removed_when_menu_element_deleted(
     assert updated_menu_element.menu_items.count() == 2
     assert NotificationWorkflowAction.objects.count() == 2
 
-    # Delete the Menu element, which will cascade delete all menu items
-    ElementHandler().delete_element(menu_element)
+    # Trash the Menu element; before_delete cleans up menu items and workflow actions.
+    ElementService().delete_element(menu_element_fixture["user"], menu_element)
 
     # There should be no Menu Element, Menu items, or Notifications remaining
     assert MenuElement.objects.count() == 0
@@ -450,7 +452,7 @@ def test_import_export(menu_element_fixture, data_fixture):
     exported = menu_element_type.export_serialized(menu_element)
     assert json.dumps(exported)
 
-    ElementHandler().delete_element(menu_element)
+    ElementService().delete_element(menu_element_fixture["user"], menu_element)
 
     assert MenuElement.objects.count() == 0
     assert MenuItemElement.objects.count() == 0
@@ -514,7 +516,7 @@ def test_delete_duplicated_menu_doesnt_affect_initial_element(
 
     assert NotificationWorkflowAction.objects.count() == 2
 
-    ElementHandler().delete_element(element)
+    ElementService().delete_element(menu_element_fixture["user"], element)
 
     # We want to make sure that deleting the clone doesn't delete the initial event
     assert NotificationWorkflowAction.objects.count() == 1

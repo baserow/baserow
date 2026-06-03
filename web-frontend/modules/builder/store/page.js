@@ -47,6 +47,7 @@ const mutations = {
   },
   DELETE_ITEM(state, { builder, id }) {
     const index = builder.pages.findIndex((item) => item.id === id)
+    if (index === -1) return
     // Clear the elements to void the page and prevent errors
     builder.pages[index].elements = []
     builder.pages[index].elementMap = {}

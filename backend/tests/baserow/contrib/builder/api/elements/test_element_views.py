@@ -20,7 +20,16 @@ from baserow.contrib.builder.elements.models import (
 )
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
+from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.core.graph.types import GraphPointPosition
+
+
+def pytest_generate_tests(metafunc):
+    if "element_type" in metafunc.fixturenames:
+        metafunc.parametrize(
+            "element_type",
+            [pytest.param(e, id=e.type) for e in element_type_registry.get_all()],
+        )
 
 
 @pytest.mark.django_db
@@ -1247,12 +1256,11 @@ def test_choice_options_updated(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_choice_options_deleted(api_client, data_fixture):
+def test_choice_options_preserved_on_trash(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
     choice_element = data_fixture.create_builder_choice_element(page=page)
 
-    # Add an existing option
     ChoiceElementOption.objects.create(choice=choice_element)
 
     url = reverse("api:builder:element:item", kwargs={"element_id": choice_element.id})
@@ -1263,7 +1271,10 @@ def test_choice_options_deleted(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_204_NO_CONTENT
-    assert ChoiceElementOption.objects.count() == 0
+    # Trashing soft-deletes the element; options survive so they can be
+    # restored together with the element. Django's CASCADE only fires on
+    # permanent deletion (permanently_delete_item → .delete()).
+    assert ChoiceElementOption.objects.count() == 1
 
 
 @pytest.mark.django_db
@@ -1489,3 +1500,69 @@ def test_list_elements_heals_orphan_on_shared_page(api_client, data_fixture):
     graph_patch = json.loads(response["X-Baserow-Builder-Graph-Patch"])
     assert str(orphan.id) in graph_patch
     assert str(header.id) in graph_patch
+
+
+@pytest.mark.django_db
+def test_element_trash_and_restore_lifecycle(api_client, data_fixture, element_type):
+    user, token = data_fixture.create_user_and_token()
+
+    if element_type.is_multi_page_element:
+        builder = data_fixture.create_builder_application(user=user)
+        page = builder.shared_page
+    else:
+        page = data_fixture.create_builder_page(user=user)
+
+    if element_type.is_deactivated(page.builder.workspace):
+        pytest.skip(f"{element_type.type} is deactivated in this workspace")
+
+    response = api_client.post(
+        reverse("api:builder:element:list", kwargs={"page_id": page.id}),
+        {"type": element_type.type},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    element_id = response.json()["id"]
+
+    # For containers, add a HeadingElement child so we can assert that children
+    # are soft-deleted alongside the parent and restored with it.
+    # Refresh the page so its cached graph reflects the element just created by the API.
+    child_id = None
+    if element_type.is_container:
+        page.refresh_from_db(fields=["graph"])
+        parent_element = Element.objects.get(id=element_id)
+        child = data_fixture.create_builder_heading_element(
+            page=page,
+            position=GraphPointPosition.CHILD,
+            reference_element=parent_element,
+            place_in_container="0",
+        )
+        child_id = child.id
+
+    response = api_client.delete(
+        reverse("api:builder:element:item", kwargs={"element_id": element_id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    element_row = Element.objects_and_trash.get(id=element_id)
+    assert element_row.trashed is True
+
+    if child_id is not None:
+        child_row = Element.objects_and_trash.get(id=child_id)
+        assert child_row.trashed is True
+
+    response = api_client.patch(
+        reverse("api:trash:restore"),
+        {"trash_item_type": "builder_element", "trash_item_id": element_id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    element_row.refresh_from_db()
+    assert element_row.trashed is False
+
+    if child_id is not None:
+        child_row.refresh_from_db()
+        assert child_row.trashed is False

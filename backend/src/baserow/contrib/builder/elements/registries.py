@@ -18,6 +18,7 @@ from zipfile import ZipFile
 
 from django.core.files.storage import Storage
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -63,6 +64,8 @@ class ElementType(
     SerializedDict: Type[ElementDictSubClass]
     parent_property_name = "page"
     id_mapping_name = BUILDER_PAGE_ELEMENTS
+
+    display_name = _("Unnamed")
 
     # Is this element type a container-type element?
     is_container = False

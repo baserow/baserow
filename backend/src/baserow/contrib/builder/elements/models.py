@@ -349,6 +349,9 @@ class Element(
 
         return element_type_registry
 
+    def __str__(self):
+        return str(self.get_type().display_name)
+
     def get_parent(self):
         return self.page
 
