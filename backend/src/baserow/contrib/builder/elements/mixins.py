@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from typing import Any, Dict, Generator, List, Optional, Tuple, Type
+from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Type
 
 from django.db import IntegrityError
 from django.db.models import Q
@@ -503,7 +503,7 @@ class CollectionElementTypeMixin:
 
         return results
 
-    def create_instance_from_serialized(
+    def before_import(
         self,
         serialized_values: Dict[str, Any],
         id_mapping,
@@ -511,10 +511,12 @@ class CollectionElementTypeMixin:
         storage=None,
         cache=None,
         **kwargs,
-    ) -> CollectionElementSubClass:
+    ) -> Optional[
+        Callable[[CollectionElementSubClass, Dict[str, Any], Dict[str, Any]], None]
+    ]:
         """
-        Responsible for creating the collection element instance and stashing
-        property options for deferred processing in after_import.
+        Extracts property options before the element instance is created and returns
+        a callback to import them once the import context is available.
 
         :param serialized_values: The serialized values of the element.
         :param id_mapping: A dictionary containing the mapping of the old and new ids.
@@ -522,12 +524,12 @@ class CollectionElementTypeMixin:
         :param storage: The storage that can be used to store files.
         :param cache: A dictionary that can be used to cache data.
         :param kwargs: Additional keyword arguments.
-        :return: The created instance.
+        :return: A callable that imports the property options, or None if there is
+            no deferred work.
         """
 
         property_options_values = serialized_values.pop("property_options", [])
-
-        instance = super().create_instance_from_serialized(
+        parent_callback = super().before_import(
             serialized_values,
             id_mapping,
             files_zip=files_zip,
@@ -536,69 +538,57 @@ class CollectionElementTypeMixin:
             **kwargs,
         )
 
-        # Stash on the instance for after_import — no cache dict needed.
-        instance._deferred_property_options = property_options_values
+        if not property_options_values:
+            return parent_callback
 
-        return instance
+        def import_property_options(
+            instance: CollectionElementSubClass,
+            id_mapping: Dict[str, Any],
+            import_context: Dict[str, Any],
+        ):
+            if parent_callback is not None:
+                parent_callback(instance, id_mapping, import_context)
 
-    def after_import(
-        self,
-        instance: CollectionElementSubClass,
-        id_mapping: Dict[str, Any],
-        import_context: Dict[str, Any],
-    ):
-        """
-        Post-processing that runs after all elements are created.
-        Processes property options and schema property mapping using
-        the provided import context (no graph traversal needed).
+            data_source_id = import_context.get("data_source_id")
+            service = None
+            if data_source_id:
+                data_source = DataSourceHandler().get_data_source(data_source_id)
+                service = data_source.service.specific
 
-        :param instance: The already-created element instance.
-        :param id_mapping: A map of old->new id per data type.
-        :param import_context: Context dict with data_source_id, schema_property, etc.
-        """
+            service_type = (
+                service_type_registry.get_by_model(service) if service else None
+            )
 
-        property_options_values = getattr(instance, "_deferred_property_options", None)
-        if property_options_values is None:
-            return
-
-        del instance._deferred_property_options
-
-        data_source_id = import_context.get("data_source_id")
-        service = None
-        if data_source_id:
-            data_source = DataSourceHandler().get_data_source(data_source_id)
-            service = data_source.service.specific
-
-        service_type = service_type_registry.get_by_model(service) if service else None
-
-        if service_type:
-            # Map the schema_property to the new ID.
-            if instance.schema_property:
-                imported_schema_property = service_type.import_property_name(
-                    instance.schema_property, id_mapping
-                )
-                if instance.schema_property != imported_schema_property:
-                    instance.schema_property = imported_schema_property
-                    instance.save(update_fields=["schema_property"])
-
-            # Map property_options schema_property values to new IDs.
-            property_options = []
-            for po in property_options_values:
-                imported_field_dbname = service_type.import_property_name(
-                    po["schema_property"], id_mapping
-                )
-                # Trashed fields won't be included — skip them.
-                if imported_field_dbname is not None:
-                    property_options.append(
-                        {**po, "schema_property": imported_field_dbname}
+            if service_type:
+                # Map the schema_property to the new ID.
+                if instance.schema_property:
+                    imported_schema_property = service_type.import_property_name(
+                        instance.schema_property, id_mapping
                     )
+                    if instance.schema_property != imported_schema_property:
+                        instance.schema_property = imported_schema_property
+                        instance.save(update_fields=["schema_property"])
 
-            options = [
-                CollectionElementPropertyOptions(**po, element=instance)
-                for po in property_options
-            ]
-            CollectionElementPropertyOptions.objects.bulk_create(options)
-            instance.property_options.add(*options)
+                # Map property_options schema_property values to new IDs.
+                property_options = []
+                for po in property_options_values:
+                    imported_field_dbname = service_type.import_property_name(
+                        po["schema_property"], id_mapping
+                    )
+                    # Trashed fields won't be included — skip them.
+                    if imported_field_dbname is not None:
+                        property_options.append(
+                            {**po, "schema_property": imported_field_dbname}
+                        )
+
+                options = [
+                    CollectionElementPropertyOptions(**po, element=instance)
+                    for po in property_options
+                ]
+                CollectionElementPropertyOptions.objects.bulk_create(options)
+                instance.property_options.add(*options)
+
+        return import_property_options
 
     def extract_properties(self, instance: Element, **kwargs) -> Dict[int, List[str]]:
         """
@@ -806,23 +796,6 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
         instance.fields.add(*created_fields)
 
         return instance
-
-    def after_import(
-        self,
-        instance,
-        id_mapping: Dict[str, Any],
-        import_context: Dict[str, Any],
-    ):
-        """
-        Post-processing that runs after all elements are created.
-        Handles property options via the parent mixin.
-
-        :param instance: The already-created element instance.
-        :param id_mapping: A map of old->new id per data type.
-        :param import_context: Context dict with data_source_id, schema_property, etc.
-        """
-
-        super().after_import(instance, id_mapping, import_context)
 
     def import_formulas(
         self,

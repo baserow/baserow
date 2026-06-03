@@ -49,6 +49,8 @@ from baserow.core.utils import MirrorDict, extract_allowed
 
 old_element_type_map = {"dropdown": "choice"}
 
+DeferredImportCallback = Callable[[Element, Dict[str, Any], Dict[str, Any]], None]
+
 
 class ElementHandler:
     allowed_fields_create = [
@@ -668,6 +670,7 @@ class ElementHandler:
         element_type: ElementType,
         created_instance: Element,
         id_mapping: Dict[str, Dict[int, int]],
+        deferred_import_callback: Optional[DeferredImportCallback] = None,
     ):
         """
         Run the import post-processing for direct element imports.
@@ -681,7 +684,9 @@ class ElementHandler:
             created_instance.id, {created_instance.id: created_instance}
         )
 
-        element_type.after_import(created_instance, id_mapping, import_context)
+        if deferred_import_callback is not None:
+            deferred_import_callback(created_instance, id_mapping, import_context)
+
         updated_models = element_type.import_formulas(
             created_instance,
             id_mapping,
@@ -699,7 +704,7 @@ class ElementHandler:
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
-        defer_import_postprocessing: bool = False,
+        deferred_import_callbacks: Optional[Dict[int, DeferredImportCallback]] = None,
         **kwargs,
     ) -> Element:
         """
@@ -712,6 +717,8 @@ class ElementHandler:
             when we have foreign keys that need to be migrated.
         :param files_zip: Contains files to import if any.
         :param storage: Storage to get the files from.
+        :param deferred_import_callbacks: When provided, import post-processing is
+            deferred and callbacks are collected in this dict keyed by element id.
         :return: the newly created instance.
         """
 
@@ -723,6 +730,15 @@ class ElementHandler:
         if element_type in old_element_type_map:
             # We met an old element type name. Let's migrate it.
             element_type = old_element_type_map[element_type]
+
+        deferred_import_callback = element_type.before_import(
+            serialized_element,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
 
         created_instance = element_type.import_serialized(
             page,
@@ -738,11 +754,14 @@ class ElementHandler:
             created_instance.id
         )
 
-        if not defer_import_postprocessing:
+        if deferred_import_callbacks is None:
             self._postprocess_imported_element(
                 element_type,
                 created_instance,
                 id_mapping,
+                deferred_import_callback=deferred_import_callback,
             )
+        elif deferred_import_callback is not None:
+            deferred_import_callbacks[created_instance.id] = deferred_import_callback
 
         return created_instance

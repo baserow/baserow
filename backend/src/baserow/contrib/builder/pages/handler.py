@@ -849,6 +849,7 @@ class PageHandler:
             cache = {}
 
         imported_elements = []
+        deferred_import_callbacks = {}
 
         def element_priority_sort(element_to_sort):
             return element_type_registry.get(
@@ -880,7 +881,7 @@ class PageHandler:
                         files_zip=files_zip,
                         storage=storage,
                         cache=cache,
-                        defer_import_postprocessing=True,
+                        deferred_import_callbacks=deferred_import_callbacks,
                     )
 
                     imported_elements.append(imported_element)
@@ -915,7 +916,8 @@ class PageHandler:
                 element.id, element_map=element_map
             )
 
-            element_type.after_import(element, id_mapping, import_context)
+            if deferred_import_callback := deferred_import_callbacks.get(element.id):
+                deferred_import_callback(element, id_mapping, import_context)
 
             updated_models |= element_type.import_formulas(
                 element,
