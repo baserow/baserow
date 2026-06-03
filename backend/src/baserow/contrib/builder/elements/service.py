@@ -3,8 +3,6 @@ from typing import TYPE_CHECKING, List
 from django.contrib.auth.models import AbstractUser
 from django.utils import translation
 
-from rest_framework.exceptions import ValidationError
-
 from baserow.contrib.builder.elements.exceptions import (
     ElementDoesNotExist,
     ElementNotInSamePage,
@@ -34,7 +32,7 @@ from baserow.contrib.builder.elements.types import (
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
-from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
+from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.handler import CoreHandler
 
 if TYPE_CHECKING:
@@ -110,58 +108,6 @@ class ElementService:
 
         return self.handler.get_builder_elements(builder, base_queryset=user_elements)
 
-    def _check_position(
-        self,
-        element_type: ElementType,
-        page: Page,
-        reference_element: Element | None,
-        position: GraphPointPositionType,
-        place_in_container: str = "",
-    ):
-        """
-        Validates the position.
-        """
-
-        # Determine if the new element will be root-level on the page.
-        # CHILD always has a parent; NORTH/SOUTH share the parent of the reference.
-        if position == GraphPointPosition.CHILD:
-            will_be_root = False
-        elif reference_element is None:
-            will_be_root = True
-        else:
-            will_be_root = reference_element.get_parent_point() is None
-
-        if (
-            will_be_root
-            and getattr(element_type, "is_multi_page_element", False) != page.shared
-        ):
-            raise ValidationError(
-                "This element type can't be added as root of a "
-                f"{'an unshared' if element_type.is_multi_page_element else 'the shared'} "
-                "page."
-            )
-
-        if reference_element is None:
-            return
-
-        if reference_element.page_id != page.id:
-            raise ElementNotInSamePage(
-                f"The reference element {reference_element.id} doesn't exist"
-            )
-
-        if (
-            reference_element.get_type().is_container
-            and position == GraphPointPosition.CHILD
-        ):
-            element_type.validate_place(
-                page, reference_element, place_in_container, position
-            )
-
-        if position == "child" and not reference_element.get_type().is_container:
-            raise GraphPointReferencePointInvalid(
-                f"The reference node {reference_element.id} can't have child"
-            )
-
     def create_element(
         self,
         user: AbstractUser,
@@ -205,8 +151,12 @@ class ElementService:
                 f"The reference element {reference_element_id} doesn't exist"
             ) from e
 
-        # Confirm the position triplet is valid for this reference.
-        self._check_position(element_type, page, reference_element, position, output)
+        if reference_element is not None and reference_element.page_id != page.id:
+            raise ElementNotInSamePage(
+                f"The reference element {reference_element.id} doesn't exist"
+            )
+
+        element_type.validate_position(page, reference_element, output, position)
 
         with translation.override(user.profile.language):
             new_element = self.handler.create_element(
@@ -328,9 +278,16 @@ class ElementService:
         if target_page.builder != element.page.builder:
             raise PageNotInBuilder()
 
-        # Confirm the position triplet is valid for this reference.
-        self._check_position(
-            element_type, target_page, reference_element, position, place_in_container
+        if (
+            reference_element is not None
+            and reference_element.page_id != target_page.id
+        ):
+            raise ElementNotInSamePage(
+                f"The reference element {reference_element.id} doesn't exist"
+            )
+
+        element_type.validate_position(
+            target_page, reference_element, place_in_container, position
         )
 
         source_graph = element.page.get_graph()

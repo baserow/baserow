@@ -158,7 +158,7 @@ class ContainerElementTypeMixin:
 
         return super().prepare_value_for_db(values, instance)
 
-    def validate_place_in_container(
+    def validate_position_as_child(
         self, place_in_container: str, instance: ContainerElement
     ):
         """
@@ -876,6 +876,33 @@ class FormElementTypeMixin:
 
 class MultiPageElementTypeMixin:
     is_multi_page_element = True
+
+    def validate_position(
+        self,
+        page,
+        reference_element,
+        place_in_container: str,
+        position: GraphPointPositionType = None,
+    ):
+        parent_element = (
+            reference_element
+            if position == GraphPointPosition.CHILD
+            else reference_element.get_parent_point()
+            if reference_element is not None
+            else None
+        )
+
+        if parent_element is not None:
+            raise DRFValidationError(
+                "This element type can't be added as child of another element."
+            )
+
+        if not page.shared:
+            raise DRFValidationError(
+                "This element type can't be added as root of an unshared page."
+            )
+
+        return None
 
     @property
     def serializer_field_names(self):

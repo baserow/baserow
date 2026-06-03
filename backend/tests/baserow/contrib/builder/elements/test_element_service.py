@@ -12,6 +12,7 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.core.exceptions import PermissionException
+from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 from baserow.core.graph.types import GraphPointPosition
 
 
@@ -151,6 +152,102 @@ def test_create_element_and_shared_page(data_fixture):
             page=page,
             **shared_element_type.get_pytest_params(data_fixture),
         )
+
+
+@pytest.mark.django_db
+def test_element_type_validate_position_rejects_invalid_root_page(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    shared_page = page.builder.shared_page
+
+    regular_element_type = element_type_registry.get("heading")
+    shared_element_type = next(
+        filter(lambda t: t.is_multi_page_element, element_type_registry.get_all())
+    )
+
+    with pytest.raises(DRFValidationError):
+        regular_element_type.validate_position(
+            shared_page, None, "", GraphPointPosition.SOUTH
+        )
+
+    shared_element_type.validate_position(
+        shared_page, None, "", GraphPointPosition.SOUTH
+    )
+
+    with pytest.raises(DRFValidationError):
+        shared_element_type.validate_position(page, None, "", GraphPointPosition.SOUTH)
+
+
+@pytest.mark.django_db
+def test_link_element_type_validate_position_uses_base_validation(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    shared_page = page.builder.shared_page
+
+    link_element_type = element_type_registry.get("link")
+
+    with pytest.raises(DRFValidationError):
+        link_element_type.validate_position(
+            shared_page, None, "", GraphPointPosition.SOUTH
+        )
+
+
+@pytest.mark.django_db
+def test_element_type_validate_position_rejects_child_of_non_container(data_fixture):
+    page = data_fixture.create_builder_page()
+    reference_element = data_fixture.create_builder_heading_element(page=page)
+    element_type = element_type_registry.get("text")
+
+    with pytest.raises(GraphPointReferencePointInvalid):
+        element_type.validate_position(
+            page,
+            reference_element,
+            "",
+            GraphPointPosition.CHILD,
+        )
+
+
+@pytest.mark.django_db
+def test_multi_page_element_type_validate_position_rejects_child_position(
+    data_fixture,
+):
+    page = data_fixture.create_builder_page()
+    shared_page = page.builder.shared_page
+    reference_element = data_fixture.create_builder_column_element(page=shared_page)
+    shared_element_type = next(
+        filter(lambda t: t.is_multi_page_element, element_type_registry.get_all())
+    )
+
+    with pytest.raises(DRFValidationError):
+        shared_element_type.validate_position(
+            shared_page,
+            reference_element,
+            "",
+            GraphPointPosition.CHILD,
+        )
+
+    child_element = data_fixture.create_builder_heading_element(
+        page=shared_page,
+        reference_element=reference_element,
+        position=GraphPointPosition.CHILD,
+    )
+
+    with pytest.raises(DRFValidationError):
+        shared_element_type.validate_position(
+            shared_page,
+            child_element,
+            "",
+            GraphPointPosition.SOUTH,
+        )
+
+
+@pytest.mark.django_db
+def test_element_type_validate_position_as_child_rejects_by_default(data_fixture):
+    page = data_fixture.create_builder_page()
+    reference_element = data_fixture.create_builder_heading_element(page=page)
+
+    with pytest.raises(GraphPointReferencePointInvalid):
+        reference_element.get_type().validate_position_as_child("", reference_element)
 
 
 @pytest.mark.django_db

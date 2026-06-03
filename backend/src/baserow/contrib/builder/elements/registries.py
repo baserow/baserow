@@ -25,6 +25,7 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.models import Workspace
 from baserow.core.registry import (
@@ -95,15 +96,33 @@ class ElementType(
 
         return values
 
-    def validate_place(
+    def validate_position_as_child(
+        self, place_in_container: str, instance: ElementSubClass
+    ):
+        """
+        Validate that this element type accepts children in the given place.
+
+        By default, element types can't have children. Container element types
+        override this method to accept and validate child placement.
+
+        :param place_in_container: The place in container being set.
+        :param instance: The reference element instance.
+        :raises GraphPointReferencePointInvalid: If the element can't have children.
+        """
+
+        raise GraphPointReferencePointInvalid(
+            f"The reference node {instance.id} can't have child"
+        )
+
+    def validate_position(
         self,
         page: Page,
-        reference_element: ElementSubClass,
+        reference_element: ElementSubClass | None,
         place_in_container: str,
         position: GraphPointPositionType = None,
     ):
         """
-        Validates the page/reference_element/place_in_container for this element.
+        Validates the page/reference_element/position for this element.
         Can be overridden to change the behavior.
 
         :param page: the page we want to add/move the element to.
@@ -113,18 +132,31 @@ class ElementType(
         :raises ValidationError: if the element place is disallowed.
         """
 
-        reference_type = reference_element.get_type()
-        if self.type not in [e.type for e in reference_type.child_types_allowed]:
-            raise ValidationError(
-                f"Container of type {reference_type.type} can't have "
-                f"child of type {self.type}"
+        if position == GraphPointPosition.CHILD and reference_element is not None:
+            reference_element.get_type().validate_position_as_child(
+                place_in_container, reference_element
             )
 
-        # We know the reference is a container, but are we actively trying
-        # to validate the place of the element as a child of this container?
-        if position == GraphPointPosition.CHILD:
-            reference_type.validate_place_in_container(
-                place_in_container, reference_element
+        parent_element = (
+            reference_element
+            if position == GraphPointPosition.CHILD
+            else reference_element.get_parent_point()
+            if reference_element is not None
+            else None
+        )
+
+        if parent_element is None:
+            if page.shared:
+                raise ValidationError(
+                    "This element type can't be added as root of the shared page."
+                )
+            return
+
+        parent_type = parent_element.get_type()
+        if self.type not in [e.type for e in parent_type.child_types_allowed]:
+            raise ValidationError(
+                f"Container of type {parent_type.type} can't have "
+                f"child of type {self.type}"
             )
 
     def before_import(
