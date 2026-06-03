@@ -28,8 +28,8 @@ from baserow.contrib.database.db.schema import (
     safe_django_schema_editor,
 )
 from baserow.contrib.database.db.sql_queries import (
-    sql_create_try_cast,
-    sql_drop_try_cast,
+    sql_create_pg_temp_try_cast,
+    sql_drop_pg_temp_try_cast,
 )
 from baserow.contrib.database.fields.constants import (
     RESERVED_BASEROW_FIELD_NAMES,
@@ -1454,9 +1454,9 @@ class FieldHandler(metaclass=baserow_trace_methods(tracer)):
         # the that if the casting fails, the query doesn't fail hard, but falls back
         # `null`.
         with connection.cursor() as cursor:
-            cursor.execute(sql_drop_try_cast)
+            cursor.execute(sql_drop_pg_temp_try_cast)
             cursor.execute(
-                sql_create_try_cast
+                sql_create_pg_temp_try_cast
                 % {
                     "alter_column_prepare_old_value": alter_column_prepare_old_value
                     or "",
