@@ -1024,11 +1024,25 @@ class ObjectScopeType(Instance, ModelInstanceMixin):
                 parent_scope_types.add(object_scope_type)
 
         if parent_scopes:
-            query_result = list(
-                self.get_enhanced_queryset().filter(
-                    self.get_filter_for_scopes(parent_scopes)
+            scopes_by_type = defaultdict(list)
+            for scope in parent_scopes:
+                scopes_by_type[object_scope_type_registry.get_by_model(scope)].append(
+                    scope
                 )
+
+            enhanced_queryset = self.get_enhanced_queryset()
+            branches = [
+                enhanced_queryset.filter(
+                    self.get_filter_for_scope_type(scope_type, typed_scopes)
+                )
+                for scope_type, typed_scopes in scopes_by_type.items()
+            ]
+            combined = (
+                branches[0]
+                if len(branches) == 1
+                else branches[0].union(*branches[1:], all=True)
             )
+            query_result = list(combined)
 
             # We have all the objects in the queryset, but now we want to sort them
             # into buckets per original scope they are a child of.
