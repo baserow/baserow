@@ -5,6 +5,7 @@ from django.core.files.storage import FileSystemStorage
 
 import pytest
 
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.pages.service import PageService
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE, BaserowFormulaObject
@@ -66,9 +67,7 @@ def test_import_export_image_collection_field_type(data_fixture, fake, storage):
     # Export the table element and import it, applying the id mapping of the
     # second data source created
     exported = table_element.get_type().export_serialized(table_element)
-    imported_table_element = table_element.get_type().import_serialized(
-        page, exported, id_mapping
-    )
+    imported_table_element = ElementHandler().import_element(page, exported, id_mapping)
 
     images = imported_table_element.fields.get(name="Images")
     assert images.config == {

@@ -11,9 +11,9 @@ from baserow.contrib.builder.elements.element_types import (
     InputTextElementType,
     LinkElementType,
     MenuElementType,
-    TableElementType,
     TextElementType,
 )
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import (
     ButtonElement,
     CheckboxElement,
@@ -203,7 +203,7 @@ def test_table_element_formula_generator(data_fixture, formula_generator_fixture
         "database_fields": {999: 111},
     }
 
-    table_element = TableElementType().import_serialized(
+    table_element = ElementHandler().import_element(
         formula_generator_fixture["page"],
         exported,
         id_mapping,

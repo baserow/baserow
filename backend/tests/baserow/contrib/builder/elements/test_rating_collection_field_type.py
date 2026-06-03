@@ -4,6 +4,7 @@ Test the RatingCollectionFieldType class.
 
 import pytest
 
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.service import PageService
 from baserow.core.formula import BaserowFormulaObject
@@ -70,14 +71,7 @@ def test_import_export_rating_collection_field_type(data_fixture):
     table_element.delete()
 
     # Import it back
-    imported_element = element_type_registry.get_by_model(
-        table_element
-    ).import_serialized(
-        page,
-        serialized,
-        id_mapping,
-        None,
-    )
+    imported_element = ElementHandler().import_element(page, serialized, id_mapping)
 
     # The imported element should have the same field configuration
     # with updated data source ID
