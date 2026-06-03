@@ -331,8 +331,7 @@ export default {
     element: {
       handler(newValue, old) {
         if (
-          (newValue.place_in_container !== old.place_in_container ||
-            newValue.order !== old.order) &&
+          newValue.place_in_container !== old.place_in_container &&
           this.isSelected
         ) {
           this.$el.scrollIntoView({ behavior: 'smooth', block: 'center' })

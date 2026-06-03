@@ -75,9 +75,8 @@ export default {
         )
       )
 
-      // The `order` and `place_in_container` properties are not meant to be
-      // changed here. In the event that we've detected a difference here, remove them.
-      delete differences.order
+      // The `place_in_container` property is not meant to be changed here.
+      // In the event that we've detected a difference here, remove it.
       delete differences.place_in_container
 
       if (Object.keys(differences).length > 0) {

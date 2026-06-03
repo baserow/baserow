@@ -93,6 +93,8 @@ def test_get_elements(api_client, data_fixture):
     assert response_json[0]["id"] == element1.id
     assert response_json[0]["type"] == "heading"
     assert "level" in response_json[0]
+    assert "order" not in response_json[0]
+    assert "place_in_container" not in response_json[0]
     assert response_json[1]["id"] == element2.id
     assert response_json[1]["type"] == "heading"
     assert response_json[2]["id"] == element3.id
