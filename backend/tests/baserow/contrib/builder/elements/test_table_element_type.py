@@ -527,13 +527,11 @@ def test_table_element_import_field_with_formula_with_current_record(data_fixtur
         ],
         "data_source_id": 42,
     }
-    table_element_type = data_fixture.create_builder_table_element().get_type()
-
     id_mapping = defaultdict(MirrorDict)
     id_mapping["builder_data_sources"] = {42: data_source.id}
     id_mapping["database_fields"] = {424: fields[0].id}
 
-    table_element = table_element_type.import_serialized(page, exported, id_mapping)
+    table_element = ElementHandler().import_element(page, exported, id_mapping)
     assert (
         table_element.fields.first().config["label"]["formula"]
         == f"get('current_record.field_{fields[0].id}')"

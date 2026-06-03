@@ -35,7 +35,6 @@ from baserow.contrib.builder.elements.types import (
     CollectionElementSubClass,
     ElementSubClass,
 )
-from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.pages.graph_handler import PageGraphHandler
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.types import ElementDict
@@ -788,63 +787,39 @@ class CollectionElementWithFieldsTypeMixin(CollectionElementTypeMixin):
     ):
         """
         Post-processing that runs after all elements are created.
-        Imports collection field formulas and handles property options
-        via the parent mixin.
+        Handles property options via the parent mixin.
 
         :param instance: The already-created element instance.
         :param id_mapping: A map of old->new id per data type.
         :param import_context: Context dict with data_source_id, schema_property, etc.
         """
 
-        # Run the parent mixin's after_import first (property options)
         super().after_import(instance, id_mapping, import_context)
 
-        # Import the collection field formulas
+    def import_formulas(
+        self,
+        instance,
+        id_mapping: Dict[str, Any],
+        import_formula,
+        **import_context,
+    ):
+        updated_models = super().import_formulas(
+            instance,
+            id_mapping,
+            import_formula,
+            **import_context,
+        )
+
         for collection_field in instance.fields.all():
-            collection_field.get_type().import_formulas(
+            updated_models |= collection_field.get_type().import_formulas(
                 collection_field,
                 id_mapping,
                 import_formula,
                 **import_context,
             )
-            collection_field.save()
+            updated_models.add(collection_field)
 
-    def import_serialized(
-        self,
-        page,
-        serialized_values,
-        id_mapping,
-        files_zip=None,
-        storage=None,
-        cache=None,
-        **kwargs,
-    ):
-        created_instance = super().import_serialized(
-            page,
-            serialized_values,
-            id_mapping,
-            files_zip=files_zip,
-            storage=storage,
-            cache=cache,
-            **kwargs,
-        )
-
-        # Direct call (no cache) — handle post-processing immediately.
-        # When called via import_elements with a cache, after_import
-        # is called separately after all elements are created.
-        if cache is None:
-            # Build import context from the instance's own attributes.
-            # We can't traverse the graph here because the newly created
-            # element hasn't been added to the page graph yet.
-            specific = created_instance.specific
-            import_context = {}
-            if getattr(specific, "data_source_id", None):
-                import_context["data_source_id"] = specific.data_source_id
-            if getattr(specific, "schema_property", None) is not None:
-                import_context["schema_property"] = specific.schema_property
-            self.after_import(created_instance, id_mapping, import_context)
-
-        return created_instance
+        return updated_models
 
     def extract_properties(
         self,

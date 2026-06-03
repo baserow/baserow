@@ -211,7 +211,7 @@ def test_link_collection_field_import_export_formula(data_fixture):
         }
     }
 
-    imported_element = element_type.import_serialized(page, serialized, id_mapping)
+    imported_element = ElementHandler().import_element(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     expected_query_formula = f"get('data_source.{data_source_2.id}.field_2')"

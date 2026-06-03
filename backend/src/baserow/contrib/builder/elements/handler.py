@@ -33,6 +33,7 @@ from baserow.contrib.builder.elements.types import (
     ElementForUpdate,
     ElementsAndWorkflowActions,
 )
+from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.models import Builder
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
@@ -545,8 +546,10 @@ class ElementHandler:
 
         serialized = element_type.export_serialized(element)
 
-        element_duplicated = element_type.import_serialized(
-            element.page, serialized, id_mapping
+        element_duplicated = self.import_element(
+            element.page,
+            serialized,
+            id_mapping,
         )
         page.get_graph().insert(
             element_duplicated,
@@ -660,6 +663,34 @@ class ElementHandler:
             current_element.parent_element_id, element_map
         ) | current_element.get_type().import_context_addition(current_element)
 
+    def _postprocess_imported_element(
+        self,
+        element_type: ElementType,
+        created_instance: Element,
+        id_mapping: Dict[str, Dict[int, int]],
+    ):
+        """
+        Run the import post-processing for direct element imports.
+
+        The bulk page import path calls these hooks centrally after all elements have
+        been created and the graph has been migrated. Direct callers don't have that
+        later phase, so the handler owns it here.
+        """
+
+        import_context = self.get_import_context_addition(
+            created_instance.id, {created_instance.id: created_instance}
+        )
+
+        element_type.after_import(created_instance, id_mapping, import_context)
+        updated_models = element_type.import_formulas(
+            created_instance,
+            id_mapping,
+            import_formula,
+            **import_context,
+        )
+        for model in updated_models:
+            model.save()
+
     def import_element(
         self,
         page: Page,
@@ -668,6 +699,7 @@ class ElementHandler:
         files_zip: Optional[ZipFile] = None,
         storage: Optional[Storage] = None,
         cache: Optional[Dict] = None,
+        defer_import_postprocessing: bool = False,
         **kwargs,
     ) -> Element:
         """
@@ -705,5 +737,12 @@ class ElementHandler:
         id_mapping["builder_page_elements"][serialized_element["id"]] = (
             created_instance.id
         )
+
+        if not defer_import_postprocessing:
+            self._postprocess_imported_element(
+                element_type,
+                created_instance,
+                id_mapping,
+            )
 
         return created_instance

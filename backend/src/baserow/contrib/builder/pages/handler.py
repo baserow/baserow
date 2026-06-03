@@ -845,6 +845,9 @@ class PageHandler:
         """
 
         # ── Phase 1: Create all elements ─────────────────────────────
+        if cache is None:
+            cache = {}
+
         imported_elements = []
 
         def element_priority_sort(element_to_sort):
@@ -877,6 +880,7 @@ class PageHandler:
                         files_zip=files_zip,
                         storage=storage,
                         cache=cache,
+                        defer_import_postprocessing=True,
                     )
 
                     imported_elements.append(imported_element)

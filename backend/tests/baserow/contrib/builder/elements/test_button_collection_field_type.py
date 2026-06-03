@@ -9,6 +9,7 @@ import pytest
 from baserow.contrib.builder.elements.collection_field_types import (
     ButtonCollectionFieldType,
 )
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.pages.service import PageService
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
@@ -133,9 +134,7 @@ def test_import_export_button_collection_field_type(data_fixture):
     id_mapping = {"builder_data_sources": {data_source.id: data_source2.id}}
 
     exported = table_element.get_type().export_serialized(table_element)
-    imported_table_element = table_element.get_type().import_serialized(
-        page, exported, id_mapping
-    )
+    imported_table_element = ElementHandler().import_element(page, exported, id_mapping)
 
     imported_field = imported_table_element.fields.get(name="Foo Button")
     assert imported_field.config == {

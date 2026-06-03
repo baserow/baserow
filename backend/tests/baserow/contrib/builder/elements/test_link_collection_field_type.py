@@ -7,6 +7,7 @@ import pytest
 from baserow.contrib.builder.elements.collection_field_types import (
     LinkCollectionFieldType,
 )
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import LinkElement
 from baserow.contrib.builder.elements.receivers import (
     page_deleted_update_link_collection_fields,
@@ -100,9 +101,7 @@ def test_import_export_link_collection_field_type(data_fixture):
     # `serializer_field_overrides`
     exported["fields"][0]["config"].pop("variant")
 
-    imported_table_element = table_element.get_type().import_serialized(
-        page, exported, id_mapping
-    )
+    imported_table_element = ElementHandler().import_element(page, exported, id_mapping)
 
     imported_field = imported_table_element.fields.get(name="Foo Link Field")
     assert imported_field.config == {
@@ -195,9 +194,7 @@ def test_import_link_collection_field_with_stale_page_id(data_fixture):
 
     exported = table_element.get_type().export_serialized(table_element)
     # This shouldn't fail if page 100 isn't in the mapping
-    imported_table_element = table_element.get_type().import_serialized(
-        page, exported, id_mapping
-    )
+    imported_table_element = ElementHandler().import_element(page, exported, id_mapping)
     imported_field = imported_table_element.fields.get(name="Foo Link Field")
     assert imported_field.config["navigate_to_page_id"] is None
     assert imported_field.config["navigation_type"] == "custom"
