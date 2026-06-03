@@ -218,6 +218,8 @@ class ElementHandler:
             if isinstance(ancestor.get_type(), target_type):
                 return ancestor
 
+        return None
+
     def get_element_for_update(
         self, element_id: int, base_queryset: Optional[QuerySet] = None
     ) -> ElementForUpdate:
@@ -562,9 +564,6 @@ class ElementHandler:
             workflow_actions=workflow_actions_duplicated,
         )
 
-        # Use get_child_points() rather than element.children (ORM queryset) because
-        # the queryset orders by pk, which diverges from graph order when elements have
-        # been moved after creation.
         for child in element.get_child_points():
             children_duplicated = self._duplicate_element_recursive(
                 child.specific, id_mapping, element_duplicated, GraphPointPosition.CHILD
