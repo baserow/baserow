@@ -529,6 +529,7 @@ class CollectionElementTypeMixin:
         """
 
         property_options_values = serialized_values.pop("property_options", [])
+        schema_property_value = serialized_values.get("schema_property")
         parent_callback = super().before_import(
             serialized_values,
             id_mapping,
@@ -538,7 +539,7 @@ class CollectionElementTypeMixin:
             **kwargs,
         )
 
-        if not property_options_values:
+        if not property_options_values and not schema_property_value:
             return parent_callback
 
         def import_property_options(
