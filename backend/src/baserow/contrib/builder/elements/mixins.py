@@ -1,4 +1,5 @@
-from typing import Any, Dict, List, Optional, Tuple, Type
+from contextlib import contextmanager
+from typing import Any, Dict, Generator, List, Optional, Tuple, Type
 
 from django.db import IntegrityError
 from django.db.models import Q
@@ -35,10 +36,9 @@ from baserow.contrib.builder.elements.types import (
     CollectionElementSubClass,
     ElementSubClass,
 )
-from baserow.contrib.builder.pages.graph_handler import PageGraphHandler
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.types import ElementDict
-from baserow.core.graph.types import GraphPointPositionType
+from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.registries import service_type_registry
 from baserow.core.utils import merge_dicts_no_duplicates
@@ -54,12 +54,15 @@ class ContainerElementTypeMixin:
     class SerializedDict(ElementDict):
         pass
 
-    def before_move(
+    @contextmanager
+    def wrap_move(
         self,
         element: ContainerElement,
         reference_element: Element | None,
         position: GraphPointPositionType,
-    ):
+        target_page,
+        place_in_container: str,
+    ) -> Generator[None, None, None]:
         """
         Check the container node is not moved inside itself.
         """
@@ -67,7 +70,36 @@ class ContainerElementTypeMixin:
         if reference_element and element in reference_element.get_parent_points():
             raise ElementNotMovable("A container element cannot be moved inside itself")
 
-        super().before_move(element, reference_element, position)
+        source_graph = element.page.get_graph()
+
+        with super().wrap_move(
+            element,
+            reference_element,
+            position,
+            target_page,
+            place_in_container,
+        ):
+            yield
+
+        target_page = element.page
+        children = Element.objects.only("page_id").filter(
+            pk__in=[c.id for c in source_graph.get_children(element)]
+        )
+        for child in children:
+            _, _, place_in_container = source_graph.get_position(child)
+            specific_child = child.specific
+
+            with specific_child.get_type().wrap_move(
+                specific_child,
+                None,
+                GraphPointPosition.SOUTH,
+                target_page,
+                place_in_container,
+            ):
+                if child.page_id != target_page.id:
+                    child.page_id = target_page.id
+                    child.save()
+                    specific_child.page = target_page
 
     @property
     def child_types_allowed(self) -> List[str]:
@@ -138,25 +170,6 @@ class ContainerElementTypeMixin:
         """
 
         return True
-
-    def after_move(
-        self, instance: ElementSubClass, source_graph: PageGraphHandler = None
-    ):
-        """
-        If the instance page has changed, we ensure that all children are on the same
-        page (pun intended).
-        """
-
-        target_page = instance.page
-        children = Element.objects.only("page_id").filter(
-            pk__in=[c.id for c in source_graph.get_children(instance)]
-        )
-        for child in children:
-            if child.page_id != target_page.id:
-                child.page_id = target_page.id
-                child.save()
-
-            child.get_type().after_move(child.specific, source_graph)
 
 
 class CollectionElementTypeMixin:
@@ -236,13 +249,28 @@ class CollectionElementTypeMixin:
                     raise CollectionElementPropertyOptionsNotUnique()
                 raise e
 
-    def after_move(
-        self, element: ElementSubClass, source_graph: PageGraphHandler = None
-    ):
+    @contextmanager
+    def wrap_move(
+        self,
+        element: ElementSubClass,
+        reference_element: Element | None,
+        position: GraphPointPositionType,
+        target_page,
+        place_in_container: str,
+    ) -> Generator[None, None, None]:
         """
         Unlink the data source if we moved to shared page and the data source isn't
         on shared page.
         """
+        with super().wrap_move(
+            element,
+            reference_element,
+            position,
+            target_page,
+            place_in_container,
+        ):
+            yield
+
         if (
             element.data_source_id is not None
             and element.page.id == element.page.builder.shared_page.id

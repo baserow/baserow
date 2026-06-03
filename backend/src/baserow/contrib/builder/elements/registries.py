@@ -1,7 +1,7 @@
 import uuid
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from typing import (
-    TYPE_CHECKING,
     Any,
     Dict,
     Generator,
@@ -46,9 +46,6 @@ from .types import ElementDictSubClass, ElementSubClass
 BUILDER_PAGE_ELEMENTS = "builder_page_elements"
 ELEMENT_IDS_PROCESSED_FOR_ROLES = "_element_ids_processed_for_roles"
 EXISTING_USER_SOURCE_ROLES = "_existing_user_source_roles"
-
-if TYPE_CHECKING:
-    from baserow.contrib.builder.pages.graph_handler import PageGraphHandler
 
 
 class ElementType(
@@ -169,18 +166,6 @@ class ElementType(
             element prior to `after_update` being called.
         """
 
-    def after_move(
-        self, instance: ElementSubClass, source_graph: "PageGraphHandler" = None
-    ):
-        """
-        This hook is called right after the element has been moved successfully.
-
-        :param instance: Moved instance.
-        :param source_graph: The graph the element lived in before the move. Passed
-            so implementations can still look up children even after the graph has
-            been mutated.
-        """
-
     def before_delete(self, instance: ElementSubClass):
         """
         This hook is called just before the element will be deleted.
@@ -188,15 +173,26 @@ class ElementType(
         :param instance: The to be deleted element instance.
         """
 
-    def before_move(
+    @contextmanager
+    def wrap_move(
         self,
         element: Element,
         reference_element: Element | None,
         position: GraphPointPositionType,
-    ):
+        target_page: Page,
+        place_in_container: str,
+    ) -> Generator[None, None, None]:
         """
-        Called before an element is moved.
+        Wraps moving the element so element types can run logic before and after the
+        move while keeping any context captured before the move.
+
+        :param element: The element being moved.
+        :param reference_element: The target reference element.
+        :param position: The target position relative to the reference element.
+        :param target_page: The page the element is being moved to.
+        :param place_in_container: The target place in container.
         """
+        yield
 
     def import_context_addition(self, instance: ElementSubClass) -> Dict[str, Any]:
         """
