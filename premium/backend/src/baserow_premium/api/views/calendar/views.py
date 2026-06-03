@@ -406,6 +406,11 @@ class PublicCalendarViewView(APIView):
             authorization_token=get_public_view_authorization_token(request),
         )
 
+        # Check that the workspace still has an active premium license.
+        # The public view is accessible without authentication, so we need
+        # to verify the license status via the resource's workspace.
+        LicenseHandler.raise_if_resource_doesnt_have_feature(PREMIUM, view)
+        
         date_field = view.date_field
         if not date_field:
             raise CalendarViewHasNoDateField(
@@ -518,6 +523,13 @@ class ICalView(APIView):
         )
         if not view.ical_public:
             raise ViewDoesNotExist()
+
+        # Check that the workspace still has an active premium license.
+        # Without this check, the iCal feed would remain accessible even
+        # after the premium license has expired, because there is no
+        # authenticated user context in this public endpoint.
+        LicenseHandler.raise_if_resource_doesnt_have_feature(PREMIUM, view)
+
         qs = view_handler.get_queryset(request.user, view)
         cal = build_calendar(qs, view, limit=settings.BASEROW_ICAL_VIEW_MAX_EVENTS)
         return HttpResponse(
