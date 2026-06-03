@@ -21,7 +21,11 @@ For direct package-manager use, backend commands run through `uv` and frontend c
 
 ## Coding Style & Naming Conventions
 
-Python targets Python 3.14, uses 4-space indentation, and is formatted and linted with Ruff (`ruff check`, `ruff format`) with an 88-character line length. Follow existing Django app/module naming and keep new tests in `test_*.py` or `*_test.py` files. Frontend code uses ESLint, Stylelint, and Prettier; SCSS should follow BEM-style naming already used in `web-frontend/modules`.
+Python targets Python 3.14, uses 4-space indentation, and is formatted and linted with Ruff (`ruff check`, `ruff format`) with an 88-character line length. Follow existing Django app/module naming and keep new tests in `test_*.py` or `*_test.py` files. Frontend code uses ESLint, Stylelint, and Prettier; SCSS should follow BEM-style naming already used in `web-frontend/modules`. Use `$palette-*` color variables in CSS; `$color-*` variables are legacy compatibility aliases and should not be used for new styles.
+
+## Localization
+
+When adding or changing UI copy, update the English locale files only. Do not add or edit non-English locale files such as `fr.json`, `es.json`, or `de.json` unless explicitly requested; those translations are managed through Weblate.
 
 ## Technology Stack
 

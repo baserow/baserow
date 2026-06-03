@@ -80,6 +80,11 @@ export const VERTICAL_ALIGNMENTS = {
   BOTTOM: 'bottom',
 }
 
+export const COLUMN_STACKING = {
+  HORIZONTAL: 'horizontal',
+  STACKED: 'stacked',
+}
+
 export const WIDTHS = {
   AUTO: { value: 'auto', name: 'widthSelector.widthAuto' },
   FULL: { value: 'full', name: 'widthSelector.widthFull' },

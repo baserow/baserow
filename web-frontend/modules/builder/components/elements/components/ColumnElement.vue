@@ -4,7 +4,7 @@
     :style="{
       '--space-between-columns': `${element.column_gap}px`,
       '--alignment': flexAlignment,
-      '--column-amount': columnAmount,
+      'grid-template-columns': gridTemplateColumns,
     }"
   >
     <div
@@ -58,7 +58,10 @@ import AddElementModal from '@baserow/modules/builder/components/elements/AddEle
 import containerElement from '@baserow/modules/builder/mixins/containerElement'
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
-import { VERTICAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
+import {
+  COLUMN_STACKING,
+  VERTICAL_ALIGNMENTS,
+} from '@baserow/modules/builder/enums'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 
 export default {
@@ -76,6 +79,9 @@ export default {
      * @property {number} column_amount - The amount of columns
      * @property {number} column_gap - The space between the columns
      * @property {string} alignment - The alignment of the columns
+     * @property {string} layout_type - The selected column layout preset
+     * @property {Array} column_weights - The custom column weights
+     * @property {Object} column_stacking - The stacking behavior per device type
      */
     element: {
       type: Object,
@@ -97,43 +103,104 @@ export default {
       }
       return alignmentMapping[this.element.alignment]
     },
-    breakingPoint() {
-      const minColumnWidth = 130
-      const totalColumnWidth = minColumnWidth * this.element.column_amount
-      const totalColumnGap =
-        this.element.column_gap * (this.element.column_amount - 1)
-      const extraPadding = 120
 
-      return totalColumnWidth + totalColumnGap + extraPadding
-    },
-    columnAmount() {
-      if (
-        this.dimensions.width !== null &&
-        this.dimensions.width < this.breakingPoint
-      ) {
-        return 1
-      } else {
-        return this.element.column_amount
+    currentDeviceType() {
+      const width = this.dimensions.width
+      if (width !== null) {
+        const smartphoneMaxWidth = this.$registry.get(
+          'device',
+          'smartphone'
+        ).maxWidth
+        const tabletMaxWidth = this.$registry.get('device', 'tablet').maxWidth
+
+        if (width <= smartphoneMaxWidth) {
+          return 'smartphone'
+        }
+
+        if (width <= tabletMaxWidth) {
+          return 'tablet'
+        }
       }
+
+      return this.$store.getters['page/getDeviceTypeSelected'] || 'desktop'
     },
+
+    shouldStackColumns() {
+      return (
+        this.element.column_stacking?.[this.currentDeviceType] ===
+        COLUMN_STACKING.STACKED
+      )
+    },
+
+    gridTemplateColumns() {
+      if (this.element.column_amount === 1) {
+        return '1fr'
+      }
+
+      if (this.shouldStackColumns) {
+        return '1fr'
+      }
+
+      const layoutType = this.element.layout_type
+      if (
+        layoutType === 'custom' &&
+        this.element.column_weights &&
+        this.element.column_weights.length === this.element.column_amount
+      ) {
+        return this.element.column_weights
+          .map((weight) => this.customWeightToGridTrack(weight))
+          .join(' ')
+      }
+
+      const predefinedLayouts = {
+        '1:2': ['1fr', '2fr'],
+        '2:1': ['2fr', '1fr'],
+        '1:3': ['1fr', '3fr'],
+        '3:1': ['3fr', '1fr'],
+        '1:1:2': ['1fr', '1fr', '2fr'],
+        '2:1:1': ['2fr', '1fr', '1fr'],
+        '1:2:1': ['1fr', '2fr', '1fr'],
+      }
+
+      if (
+        predefinedLayouts[layoutType] &&
+        predefinedLayouts[layoutType].length === this.element.column_amount
+      ) {
+        return predefinedLayouts[layoutType].join(' ')
+      }
+
+      return `repeat(${this.element.column_amount}, minmax(0, 1fr))`
+    },
+
     childrenByColumnOrdered() {
       return _.groupBy(this.children, (child) => {
         const childCol = parseInt(child.place_in_container, 10)
-        return childCol > this.columnAmount - 1
-          ? this.columnAmount - 1
+        return childCol > this.element.column_amount - 1
+          ? this.element.column_amount - 1
           : childCol
       })
     },
     childrenElements() {
-      return [...Array(this.columnAmount).keys()].map(
+      return [...Array(this.element.column_amount).keys()].map(
         (columnIndex) => this.childrenByColumnOrdered[columnIndex] || []
       )
     },
   },
+
   mounted() {
     this.dimensions.targetElement = this.$el.parentElement
   },
   methods: {
+    customWeightToGridTrack(weight) {
+      const parsedWeight =
+        typeof weight === 'number' ? weight : parseFloat(weight)
+
+      if (Number.isNaN(parsedWeight) || parsedWeight < 0) {
+        return '1fr'
+      }
+
+      return parsedWeight === 0 ? 'auto' : `${parsedWeight}fr`
+    },
     showAddElementModal(columnIndex) {
       this.$refs.addElementModal.show({
         placeInContainer: `${columnIndex}`,

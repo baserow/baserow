@@ -347,7 +347,14 @@
     "verticalAlignment": "Vertical alignment",
     "columnAmountName": "no columns | 1 column | {columnAmount} columns",
     "columnGapTitle": "Space between columns",
-    "columnGapPlaceholder": "Enter space between columns..."
+    "columnGapPlaceholder": "Enter space between columns...",
+    "customLayout": "Custom",
+    "customWeightsTitle": "Custom column weights",
+    "customWeightsHelper": "Use 0 when a column should only be as wide as its content. Other columns will share the remaining space.",
+    "errorCustomWeightsMinimum": "Column weights must be 0 or greater",
+    "columnStackingTitle": "Stack columns per device type",
+    "columnStackingHorizontal": "Side by side",
+    "columnStackingStacked": "Stacked"
   },
   "domainSettings": {
     "titleOverview": "Domains",

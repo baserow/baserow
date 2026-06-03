@@ -77,6 +77,13 @@ def test_repeat_element_import_child_with_formula_with_current_record(data_fixtu
                 "place_in_container": "",
                 "visibility": "all",
                 "column_amount": 3,
+                "column_weights": [],
+                "column_stacking": {
+                    "smartphone": "stacked",
+                    "tablet": "horizontal",
+                    "desktop": "horizontal",
+                },
+                "layout_type": "auto",
                 "column_gap": 20,
                 "alignment": "top",
                 "roles": [],

@@ -1,6 +1,5 @@
 .column-element {
   display: grid;
-  grid-template-columns: repeat(var(--column-amount), minmax(0, 1fr));
   width: 100%;
   gap: var(--space-between-columns);
   align-items: stretch;

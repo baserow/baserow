@@ -1,7 +1,7 @@
 import abc
 import uuid
 from datetime import datetime
-from decimal import InvalidOperation
+from decimal import Decimal, InvalidOperation
 from typing import (
     Any,
     Callable,
@@ -67,6 +67,7 @@ from baserow.contrib.builder.elements.models import (
     TableElement,
     TextElement,
     VerticalAlignments,
+    get_default_column_stacking,
     get_default_table_orientation,
 )
 from baserow.contrib.builder.elements.registries import (
@@ -142,6 +143,9 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
         column_amount: int
         column_gap: int
         alignment: str
+        layout_type: str
+        column_weights: list
+        column_stacking: Dict[str, str]
 
     @property
     def serializer_field_names(self):
@@ -149,6 +153,9 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
             "column_amount",
             "column_gap",
             "alignment",
+            "layout_type",
+            "column_weights",
+            "column_stacking",
         ]
 
     @property
@@ -157,14 +164,121 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
             "column_amount",
             "column_gap",
             "alignment",
+            "layout_type",
+            "column_weights",
+            "column_stacking",
         ]
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            **super().serializer_field_overrides,
+            "layout_type": serializers.ChoiceField(
+                choices=ColumnElement.LAYOUT_TYPES.choices,
+                default=ColumnElement.LAYOUT_TYPES.AUTO,
+                help_text=ColumnElement._meta.get_field("layout_type").help_text,
+                required=False,
+            ),
+            "column_weights": serializers.JSONField(
+                default=list,
+                help_text=ColumnElement._meta.get_field("column_weights").help_text,
+                required=False,
+            ),
+            "column_stacking": serializers.JSONField(
+                default=get_default_column_stacking,
+                help_text=ColumnElement._meta.get_field("column_stacking").help_text,
+                required=False,
+            ),
+        }
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
             "column_amount": 2,
             "column_gap": 10,
             "alignment": VerticalAlignments.TOP,
+            "layout_type": ColumnElement.LAYOUT_TYPES.AUTO,
+            "column_weights": [],
+            "column_stacking": {
+                "smartphone": ColumnElement.COLUMN_STACKING_TYPES.STACKED,
+                "tablet": ColumnElement.COLUMN_STACKING_TYPES.HORIZONTAL,
+                "desktop": ColumnElement.COLUMN_STACKING_TYPES.HORIZONTAL,
+            },
         }
+
+    def _parse_custom_weight(self, weight: Any) -> Decimal:
+        if isinstance(weight, bool) or not isinstance(weight, (int, float, Decimal)):
+            raise ValueError("Column weights must be numeric values.")
+
+        parsed_weight = Decimal(str(weight))
+
+        if not parsed_weight.is_finite() or parsed_weight < 0:
+            raise ValueError("Column weights must be 0 or greater.")
+
+        return parsed_weight
+
+    def prepare_value_for_db(
+        self, values: Dict, instance: Optional[ColumnElement] = None
+    ):
+        preset_column_amounts = {
+            ColumnElement.LAYOUT_TYPES.RATIO_1_2: 2,
+            ColumnElement.LAYOUT_TYPES.RATIO_2_1: 2,
+            ColumnElement.LAYOUT_TYPES.RATIO_1_3: 2,
+            ColumnElement.LAYOUT_TYPES.RATIO_3_1: 2,
+            ColumnElement.LAYOUT_TYPES.RATIO_1_1_2: 3,
+            ColumnElement.LAYOUT_TYPES.RATIO_2_1_1: 3,
+            ColumnElement.LAYOUT_TYPES.RATIO_1_2_1: 3,
+        }
+        layout_type = values.get(
+            "layout_type",
+            getattr(instance, "layout_type", ColumnElement.LAYOUT_TYPES.AUTO),
+        )
+        column_weights = values.get(
+            "column_weights", getattr(instance, "column_weights", [])
+        )
+        column_amount = values.get(
+            "column_amount", getattr(instance, "column_amount", 3)
+        )
+
+        if layout_type == ColumnElement.LAYOUT_TYPES.CUSTOM:
+            if (
+                not isinstance(column_weights, list)
+                or len(column_weights) != column_amount
+            ):
+                raise DRFValidationError(
+                    {
+                        "column_weights": (
+                            f"column_weights must have {column_amount} entries "
+                            "for custom layout"
+                        )
+                    }
+                )
+            try:
+                for weight in column_weights:
+                    self._parse_custom_weight(weight)
+            except (InvalidOperation, ValueError) as exc:
+                raise DRFValidationError(
+                    {
+                        "column_weights": (
+                            "column_weights must contain numeric weights of 0 or "
+                            "greater for custom layout"
+                        )
+                    }
+                ) from exc
+
+        if (
+            layout_type in preset_column_amounts
+            and preset_column_amounts[layout_type] != column_amount
+        ):
+            raise DRFValidationError(
+                {
+                    "layout_type": (
+                        f"{layout_type} layout requires "
+                        f"{preset_column_amounts[layout_type]} columns"
+                    )
+                }
+            )
+
+        return super().prepare_value_for_db(values, instance)
 
     def get_new_place_in_container(
         self, container_element_before_update: ColumnElement, places_removed: List[str]
