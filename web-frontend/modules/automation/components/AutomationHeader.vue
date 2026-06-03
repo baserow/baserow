@@ -60,6 +60,13 @@
           }}</span>
         </a>
       </li>
+      <li
+        v-for="(component, index) in automationHeaderComponents"
+        :key="index"
+        class="header__filter-item"
+      >
+        <component :is="component" :workspace="automation.workspace" />
+      </li>
     </ul>
 
     <div
@@ -230,6 +237,16 @@ export default defineComponent({
       return store.getters['automationWorkflow/getActiveSidePanel']
     })
 
+    const automationHeaderComponents = computed(() => {
+      return Object.values(app.$registry.getAll('plugin')).reduce(
+        (components, plugin) =>
+          components.concat(
+            plugin.getAutomationHeaderComponents(props.automation.workspace)
+          ),
+        []
+      )
+    })
+
     const toggleTestRun = async () => {
       try {
         await store.dispatch('automationWorkflow/testRun', {
@@ -313,6 +330,7 @@ export default defineComponent({
       testRunDisabled,
       openSettingsModal,
       workflowSettingsModal,
+      automationHeaderComponents,
     }
   },
 })

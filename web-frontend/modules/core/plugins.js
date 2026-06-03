@@ -164,6 +164,16 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can display multiple additional components in the
+   * automation editor header, positioned directly after the built-in header items.
+   * This can for example be used to warn the user about automation usage limits.
+   * @returns {*[]}
+   */
+  getAutomationHeaderComponents(workspace) {
+    return []
+  }
+
+  /**
    * Provides additional icons before 'standard' icons in the field header in a
    * grid view.
    *
