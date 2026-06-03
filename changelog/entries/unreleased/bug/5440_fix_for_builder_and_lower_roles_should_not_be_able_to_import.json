@@ -1,9 +1,9 @@
 {
     "type": "bug",
-    "message": "Fix for Builder and lower roles should not be able to import/export workspace",
+    "message": "Hide workspace import/export options for Builder and lower roles.",
     "issue_origin": "github",
     "issue_number": 5440,
-    "domain": "database",
+    "domain": "core",
     "bullet_points": [],
     "created_at": "2026-06-02"
 }
