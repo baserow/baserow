@@ -1851,3 +1851,130 @@ class CoreIteratorServiceType(ListServiceTypeMixin, ServiceType):
         data: Any,
     ) -> DispatchResult:
         return DispatchResult(data=data)
+
+
+class CoreCreateSnapshotServiceType(CoreServiceType):
+    type = "create_snapshot"
+    model_class = CoreCreateSnapshotService
+    dispatch_types = [DispatchTypes.ACTION]
+
+    allowed_fields = [
+        "application_id",
+        "name",
+    ]
+
+    serializer_field_names = [
+        "application_id",
+        "name",
+    ]
+
+    class SerializedDict(ServiceDict):
+        application_id: int
+        name: BaserowFormulaObject
+
+    simple_formula_fields = [
+        "name",
+    ]
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "application_id": serializers.IntegerField(
+                required=True,
+                help_text="The ID of the application to snapshot.",
+            ),
+            "name": FormulaSerializerField(
+                required=False,
+                allow_blank=True,
+                default="",
+                help_text=CoreCreateSnapshotService._meta.get_field("name").help_text,
+            ),
+        }
+
+    @property
+    def public_serializer_field_overrides(self):
+        return self.serializer_field_overrides
+
+    def dispatch_data(
+        self,
+        service: CoreCreateSnapshotService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Any:
+        from baserow.core.snapshots.handler import SnapshotHandler
+
+        application_id = resolved_values.get("application_id") or service.application_id
+        name = resolved_values.get("name", "") or ""
+
+        if not application_id:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "An application ID is required to create a snapshot."
+            )
+
+        if not name:
+            name = f"Automated snapshot - {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}"
+
+        user = dispatch_context.user
+        snapshot, job = SnapshotHandler().start_create_job(
+            application_id=application_id,
+            performed_by=user,
+            name=name,
+        )
+        return {
+            "data": {
+                "snapshot_id": snapshot.id,
+                "snapshot_name": snapshot.name,
+                "job_id": job.id,
+            }
+        }
+
+    def dispatch_transform(self, data):
+        return DispatchResult(data=data)
+
+    def formulas_to_resolve(
+        self, service: CoreCreateSnapshotService
+    ) -> list[FormulaToResolve]:
+        formulas = []
+        if service.name:
+            formulas.append(
+                FormulaToResolve(
+                    "name",
+                    service.name,
+                    lambda v: str(v) if v else "",
+                    'property "name"',
+                )
+            )
+        return formulas
+
+    def get_schema_name(self, service: CoreCreateSnapshotService) -> str:
+        return f"CreateSnapshot{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreCreateSnapshotService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        properties = {}
+        if allowed_fields is None or "snapshot_id" in allowed_fields:
+            properties["snapshot_id"] = {
+                "type": "integer",
+                "title": _("Snapshot ID"),
+            }
+        if allowed_fields is None or "snapshot_name" in allowed_fields:
+            properties["snapshot_name"] = {
+                "type": "string",
+                "title": _("Snapshot Name"),
+            }
+        if allowed_fields is None or "job_id" in allowed_fields:
+            properties["job_id"] = {
+                "type": "integer",
+                "title": _("Job ID"),
+            }
+        return {
+            "title": self.get_schema_name(service),
+            "type": "object",
+            "properties": properties,
+        }
+
