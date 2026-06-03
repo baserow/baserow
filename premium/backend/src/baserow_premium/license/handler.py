@@ -169,6 +169,98 @@ class LicenseHandler:
         return license_plugin.user_has_feature_instance_wide(feature, user)
 
     @classmethod
+
+    @classmethod
+    def raise_if_resource_doesnt_have_feature(
+        cls, feature: str, resource
+    ):
+        """
+        Raises the `FeaturesNotAvailableError` if the resource's workspace
+        does not have an active license granting the provided feature.
+        This works without requiring a user context, making it suitable
+        for public endpoints (e.g. iCal feeds, public shared views).
+
+        :param feature: The feature to check.
+        :param resource: The resource (e.g. a View, Application, etc.)
+            that belongs to a workspace.
+        :raises FeaturesNotAvailableError: When the feature is not available.
+        """
+
+        if not cls.resource_has_feature(feature, resource):
+            raise FeaturesNotAvailableError()
+
+    @classmethod
+    def resource_has_feature(cls, feature: str, resource) -> bool:
+        """
+        Checks if a resource's workspace has a particular feature granted
+        by an active license, without requiring a user context.
+
+        :param feature: The feature to check.
+        :param resource: The resource (e.g. a View, Application, etc.)
+            that belongs to a workspace.
+        :return: True if the feature is available for the resource's workspace.
+        """
+
+        workspace = cls._get_workspace_from_resource(resource)
+        if workspace is None:
+            return False
+        return cls.workspace_has_feature(feature, workspace)
+
+    @classmethod
+    def _get_workspace_from_resource(cls, resource) -> Optional[Workspace]:
+        """
+        Tries to extract a Workspace from any resource object by following
+        common relationship paths:
+
+        - View -> table -> database -> workspace
+        - Application -> workspace
+        - Workspace -> itself
+
+        :param resource: The resource to extract the workspace from.
+        :return: The workspace, or None if it cannot be determined.
+        """
+
+        from baserow.contrib.database.views.models import View
+        from baserow.contrib.database.table.models import Table
+        from baserow.core.models import Application
+
+        if hasattr(resource, "workspace") and isinstance(
+            getattr(resource, "workspace", None), Workspace
+        ):
+            return resource.workspace
+
+        if isinstance(resource, View):
+            try:
+                return resource.table.database.workspace
+            except AttributeError:
+                pass
+
+        if isinstance(resource, Application):
+            return resource.workspace
+
+        if isinstance(resource, Table):
+            try:
+                return resource.database.workspace
+            except AttributeError:
+                pass
+
+        # Try duck-typing: look for common workspace relation patterns
+        for attr in ["workspace", "group"]:
+            candidate = getattr(resource, attr, None)
+            if isinstance(candidate, Workspace):
+                return candidate
+
+        # Try following model relations
+        if hasattr(resource, "_meta"):
+            for field in resource._meta.get_fields():
+                if hasattr(field, "related_model") and field.related_model == Workspace:
+                    try:
+                        return getattr(resource, field.name)
+                    except Exception:
+                        pass
+
+        return None
+
     def _get_license_plugin(cls):
         from baserow_premium.plugins import PremiumPlugin
 
