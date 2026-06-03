@@ -1552,6 +1552,9 @@ class DateFieldType(FieldType):
 class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
     can_be_in_form_view = False
     field_data_is_derived_from_attrs = True
+    # Moving a row only changes its order, not the row itself, so the created/last
+    # modified fields must not be marked as updated when a row is moved.
+    include_in_row_move_updated_fields = False
 
     source_field_name = None
     model_field_class = SyncedDateTimeField

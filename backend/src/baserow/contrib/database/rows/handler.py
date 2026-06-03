@@ -2824,7 +2824,11 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         row.order = self.get_unique_orders_before_row(before_row, model)[0]
-        row.save(update_fields=["order", "updated_on"])
+        # Only the `order` is persisted because changing the position of a row is not
+        # considered an edit of the row itself. Including `updated_on` would bump the
+        # `last_modified` value without a matching entry in the row edit history, which
+        # is confusing because moving one row also re-orders many other rows.
+        row.save(update_fields=["order"])
 
         # All fields must be marked as updated because the lookup fields can depend
         # on the row order. Only fields that are specifically marked as

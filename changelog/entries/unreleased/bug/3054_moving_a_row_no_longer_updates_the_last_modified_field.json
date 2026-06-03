@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Moving a row no longer updates its last modified date, because re-ordering a row is not an edit of the row itself.",
+    "issue_origin": "github",
+    "issue_number": 3054,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-06-03"
+}

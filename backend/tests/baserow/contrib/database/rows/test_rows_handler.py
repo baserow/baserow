@@ -1245,6 +1245,32 @@ def test_move_row(before_send_mock, send_mock, data_fixture):
 
 
 @pytest.mark.django_db
+def test_move_row_does_not_update_last_modified(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    handler = RowHandler()
+
+    with freeze_time("2020-01-01 12:00"):
+        row_1 = handler.create_row(user=user, table=table)
+        row_2 = handler.create_row(user=user, table=table)
+
+    created_on = datetime(2020, 1, 1, 12, 0, tzinfo=timezone.utc)
+    assert row_1.updated_on == created_on
+    assert row_2.updated_on == created_on
+
+    # Moving a row at a later point in time must not bump its `updated_on`
+    # (last modified) value, because re-ordering a row is not an edit of the row
+    # itself and isn't recorded in the row edit history.
+    with freeze_time("2020-01-02 12:00"):
+        handler.move_row_by_id(user=user, table=table, row_id=row_1.id)
+
+    row_1.refresh_from_db()
+    row_2.refresh_from_db()
+    assert row_1.updated_on == created_on
+    assert row_2.updated_on == created_on
+
+
+@pytest.mark.django_db
 @patch("baserow.contrib.database.rows.signals.rows_deleted.send")
 @patch("baserow.contrib.database.rows.signals.before_rows_delete.send")
 def test_delete_row(before_send_mock, send_mock, data_fixture):
