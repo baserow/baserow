@@ -76,7 +76,6 @@ const mutations = {
     page.elements.forEach((element) => {
       if (element.id === elementToUpdate.id) {
         if (
-          (values.order !== undefined && values.order !== element.order) ||
           (values.place_in_container !== undefined &&
             values.place_in_container !== element.place_in_container)
         ) {
@@ -554,8 +553,6 @@ const actions = {
           page: resolvedTargetPage,
           element: elementUpdated,
           values: {
-            order: elementUpdated.order,
-            place_in_container: elementUpdated.place_in_container,
             page_id: elementUpdated.page_id,
           },
         })

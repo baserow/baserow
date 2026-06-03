@@ -46,7 +46,6 @@ class ElementSerializer(serializers.ModelSerializer):
     """
 
     type = serializers.SerializerMethodField(help_text="The type of the element.")
-    order = serializers.CharField(read_only=True, help_text="Lowest first.")
 
     @extend_schema_field(OpenApiTypes.STR)
     def get_type(self, instance):
@@ -68,8 +67,6 @@ class ElementSerializer(serializers.ModelSerializer):
             "id",
             "page_id",
             "type",
-            "order",
-            "place_in_container",
             "css_classes",
             "visibility",
             "visibility_condition",
@@ -105,8 +102,6 @@ class ElementSerializer(serializers.ModelSerializer):
             "id": {"read_only": True},
             "page_id": {"read_only": True},
             "type": {"read_only": True},
-            "order": {"read_only": True, "help_text": "Lowest first."},
-            "place_in_container": {"read_only": True},
         }
 
 
