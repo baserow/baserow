@@ -271,3 +271,19 @@ class CoreHTTPTriggerService(Service):
         default=False,
         help_text="Defines whether the service is published or not.",
     )
+
+class CoreCreateSnapshotService(Service):
+    """
+    A service for creating snapshots of applications via automations.
+    """
+
+    application_id = models.PositiveIntegerField(
+        help_text="The ID of the application to snapshot.",
+    )
+    name = FormulaField(
+        blank=True,
+        default="",
+        help_text="The snapshot name. Supports formulas. Leave empty to auto-generate "
+        "a name based on the application name and timestamp.",
+    )
+
