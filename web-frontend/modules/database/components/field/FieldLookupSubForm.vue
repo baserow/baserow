@@ -26,6 +26,9 @@
       >
       </FormulaTypeSubForms>
     </template>
+    <div v-if="errorFromServer" class="error formula-field__error">
+      {{ errorFromServer }}
+    </div>
   </div>
 </template>
 
