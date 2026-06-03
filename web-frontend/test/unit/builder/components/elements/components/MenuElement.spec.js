@@ -67,6 +67,7 @@ describe('MenuElement', () => {
     deviceType = 'desktop',
     componentMode = 'public',
   }) => {
+    page.elements = [element]
     await store.dispatch('page/setDeviceTypeSelected', deviceType)
     return mountSuspended(MenuElement, {
       props: { element },
