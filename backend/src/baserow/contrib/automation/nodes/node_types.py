@@ -19,6 +19,7 @@ from baserow.contrib.automation.nodes.models import (
     AIAgentActionNode,
     AutomationNode,
     AutomationTriggerNode,
+    CoreCreateSnapshotActionNode,
     CoreHTTPRequestActionNode,
     CoreHTTPTriggerNode,
     CoreIteratorActionNode,
@@ -42,6 +43,7 @@ from baserow.contrib.automation.workflows.constants import WorkflowState
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
 from baserow.contrib.integrations.core.service_types import (
+    CoreCreateSnapshotServiceType,
     CoreHTTPRequestServiceType,
     CoreHTTPTriggerServiceType,
     CoreIteratorServiceType,
@@ -424,3 +426,11 @@ class SlackWriteMessageActionNodeType(AutomationNodeActionNodeType):
     type = "slack_write_message"
     model_class = SlackWriteMessageActionNode
     service_type = SlackWriteMessageServiceType.type
+
+
+
+class CoreCreateSnapshotActionNodeType(AutomationNodeActionNodeType):
+    type = "create_snapshot"
+    model_class = CoreCreateSnapshotActionNode
+    service_type = CoreCreateSnapshotServiceType.type
+
