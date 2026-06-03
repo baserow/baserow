@@ -99,7 +99,7 @@ class PostgresqlLenientDatabaseSchemaEditor:
         )
 
         if try_cast_function is not None:
-            # The cast function is for one-time use only. We want to drop is
+            # The cast function is for one-time use only. We want to drop it
             # immediately after because we don't want to have millions of functions
             # lingering at some point.
             self.execute(sql_drop_field_try_cast % {"function_name": try_cast_function})
