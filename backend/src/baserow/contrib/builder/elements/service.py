@@ -333,46 +333,46 @@ class ElementService:
             element_type, target_page, reference_element, position, place_in_container
         )
 
-        # Check if the type has any before-move requirements.
-        element_type.before_move(element, reference_element, position)
-
         source_graph = element.page.get_graph()
 
-        # We extract the current element position
-        # to restore it if we undo the operation.
-        [
-            previous_reference_element_id,
-            previous_position,
-            previous_output,
-        ] = source_graph.get_position(element)
-
-        previous_reference_element = (
-            self.handler.get_element(previous_reference_element_id)
-            if previous_reference_element_id
-            else None
-        )
-
-        is_cross_page_move = target_page.id != source_graph.instance.id
-
-        source_graph.move(
+        with element_type.wrap_move(
             element,
             reference_element,
             position,
+            target_page,
             place_in_container,
-            target_graph=target_page.get_graph(),
-        )
+        ):
+            # We extract the current element position
+            # to restore it if we undo the operation.
+            [
+                previous_reference_element_id,
+                previous_position,
+                previous_output,
+            ] = source_graph.get_position(element)
 
-        if target_page.id != element.page.id:
-            element.page = target_page
-            element.save(update_fields=["page"])
+            previous_reference_element = (
+                self.handler.get_element(previous_reference_element_id)
+                if previous_reference_element_id
+                else None
+            )
 
-        # Check if the type has any after-move logic. Pass source_graph so `after_move`
-        # can look up children even though the graph has already been mutated.
-        element_type.after_move(element, source_graph)
+            is_cross_page_move = target_page.id != source_graph.instance.id
+
+            source_graph.move(
+                element,
+                reference_element,
+                position,
+                place_in_container,
+                target_graph=target_page.get_graph(),
+            )
+
+            if target_page.id != element.page.id:
+                element.page = target_page
+                element.save(update_fields=["page"])
 
         if is_cross_page_move:
             # move() used keep_info=True to preserve the source-graph entry for
-            # after_move traversal above. Now that after_move is done, those
+            # post-move traversal above. Now that wrap_move is done, those
             # stale entries must be removed so that the source page's graph
             # stays consistent (prevents orphaned "X": {} nodes that would
             # later break export/import or graph traversal).

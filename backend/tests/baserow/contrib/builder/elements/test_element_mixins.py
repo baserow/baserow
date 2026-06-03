@@ -1,6 +1,5 @@
 import pytest
 
-from baserow.contrib.builder.elements.mixins import CollectionElementTypeMixin
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.core.graph.types import GraphPointPosition
 
@@ -73,10 +72,15 @@ def test_after_move_unlinks_non_shared_data_source_when_moved_to_shared_page(
     table_element.save(update_fields=["schema_property"])
     table_element.property_options.create(schema_property="field_1", sortable=True)
 
-    table_element.page = shared_page
-    table_element.save(update_fields=["page"])
-
-    CollectionElementTypeMixin().after_move(table_element)
+    with table_element.get_type().wrap_move(
+        table_element,
+        None,
+        GraphPointPosition.SOUTH,
+        shared_page,
+        "",
+    ):
+        table_element.page = shared_page
+        table_element.save(update_fields=["page"])
 
     table_element.refresh_from_db()
 
