@@ -22,6 +22,7 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.core.graph.types import GraphPointPosition
+from baserow.core.trash.handler import TrashHandler
 
 
 def pytest_generate_tests(metafunc):
@@ -1503,7 +1504,8 @@ def test_list_elements_heals_orphan_on_shared_page(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_element_trash_and_restore_lifecycle(api_client, data_fixture, element_type):
+def test_element_full_lifecycle(api_client, data_fixture, element_type):
+    # create → trash → verify → restore → verify → trash → permanently delete → verify
     user, token = data_fixture.create_user_and_token()
 
     if element_type.is_multi_page_element:
@@ -1566,3 +1568,15 @@ def test_element_trash_and_restore_lifecycle(api_client, data_fixture, element_t
     if child_id is not None:
         child_row.refresh_from_db()
         assert child_row.trashed is False
+
+    response = api_client.delete(
+        reverse("api:builder:element:item", kwargs={"element_id": element_id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    TrashHandler.permanently_delete(element_row)
+
+    assert not Element.objects_and_trash.filter(id=element_id).exists()
+    if child_id is not None:
+        assert not Element.objects_and_trash.filter(id=child_id).exists()
