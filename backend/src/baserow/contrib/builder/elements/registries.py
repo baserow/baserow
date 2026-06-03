@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from typing import (
     Any,
+    Callable,
     Dict,
     Generator,
     List,
@@ -126,21 +127,30 @@ class ElementType(
                 place_in_container, reference_element
             )
 
-    def after_import(
+    def before_import(
         self,
-        instance: ElementSubClass,
+        serialized_values: Dict[str, Any],
         id_mapping: Dict[str, Any],
-        import_context: Dict[str, Any],
-    ):
+        files_zip: ZipFile | None = None,
+        storage: Storage | None = None,
+        cache: Dict[str, Any] | None = None,
+        **kwargs,
+    ) -> Optional[Callable[[ElementSubClass, Dict[str, Any], Dict[str, Any]], None]]:
         """
-        This hook is called after all elements have been created but before
-        graph migration. Used for post-processing that needs import context
-        (e.g. property options, collection field formulas).
+        This hook is called before the element is imported. It can mutate the
+        serialized values before instance creation and return a callback that will be
+        called once the import context is available.
 
-        :param instance: The imported element instance.
+        :param serialized_values: The serialized element values.
         :param id_mapping: A map of old->new id per data type.
-        :param import_context: Context dict with data_source_id, schema_property, etc.
+        :param files_zip: The zip file containing the files that can be used.
+        :param storage: The storage that can be used to store files.
+        :param cache: A dictionary that can be used to cache data.
+        :return: A callable receiving the imported instance, id_mapping and import
+            context, or None if no deferred work is needed.
         """
+
+        return None
 
     def after_create(self, instance: ElementSubClass, values: Dict):
         """
