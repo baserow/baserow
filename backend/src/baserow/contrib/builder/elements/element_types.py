@@ -186,7 +186,7 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
 
         return [str(place) for place in places_removed]
 
-    def validate_place_in_container(
+    def validate_position_as_child(
         self, place_in_container: str, instance: ColumnElement
     ):
         max_place_in_container = instance.column_amount - 1
@@ -896,16 +896,6 @@ class NavigationElementManager:
             "query_parameters": [],
             "target": "blank",
         }
-
-    def validate_place(
-        self,
-        page: Page,
-        parent_element: Optional[Element],
-        place_in_container: str,
-    ):
-        """
-        We need it because it's called in the prepare_value_for_db.
-        """
 
     def prepare_value_for_db(
         self, values: Dict, instance: Optional[LinkElement] = None

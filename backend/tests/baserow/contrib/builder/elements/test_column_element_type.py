@@ -42,14 +42,14 @@ def test_get_places_in_container_removed(data_fixture):
 
 
 @pytest.mark.django_db
-def test_validate_place_in_container(data_fixture):
+def test_validate_position_as_child(data_fixture):
     column_element = data_fixture.create_builder_column_element(column_amount=2)
 
     with pytest.raises(ValidationError):
-        ColumnElementType().validate_place_in_container("5", column_element)
+        ColumnElementType().validate_position_as_child("5", column_element)
 
     try:
-        ColumnElementType().validate_place_in_container("1", column_element)
+        ColumnElementType().validate_position_as_child("1", column_element)
     except ValidationError:
         pytest.fail("Should not have raised since 1 is between 0-1")
 
