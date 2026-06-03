@@ -73,7 +73,7 @@
       required
       class="margin-bottom-2"
       :label="$t('menuElementForm.previewCompactMenuLabel')"
-      :helper-text="editorCompactMenuHelper"
+      :helper-text="$t('menuElementForm.previewCompactMenuHelper')"
     >
       <Button
         :icon="editorCompactMenuToggleIcon"
@@ -239,9 +239,7 @@ export default {
       return this.getElementSelected(this.builder)
     },
     editorCompactMenuOpen() {
-      return this.$store.getters['element/getMenuElementCompactMenuOpen'](
-        this.element
-      )
+      return this.element._.compactMenuOpen
     },
     isCompactMenuSelected() {
       return this.values.variant?.[this.deviceTypeSelected] === 'compact'
@@ -253,11 +251,6 @@ export default {
       return this.editorCompactMenuOpen
         ? this.$t('menuElementForm.closeEditorCompactMenu')
         : this.$t('menuElementForm.openEditorCompactMenu')
-    },
-    editorCompactMenuHelper() {
-      return this.editorCompactMenuOpen
-        ? this.$t('menuElementForm.previewCompactMenuHelper')
-        : null
     },
     orientationOptions() {
       return [
@@ -280,13 +273,19 @@ export default {
     },
     ...mapActions({
       actionSetDeviceTypeSelected: 'page/setDeviceTypeSelected',
-      actionSetMenuElementCompactMenuOpen:
-        'element/setMenuElementCompactMenuOpen',
+      actionForceUpdateElement: 'element/forceUpdate',
     }),
     toggleEditorCompactMenu() {
-      this.actionSetMenuElementCompactMenuOpen({
+      this.actionForceUpdateElement({
+        builder: this.builder,
+        page: this.elementPage,
         element: this.element,
-        open: !this.editorCompactMenuOpen,
+        values: {
+          _: {
+            ...this.element._,
+            compactMenuOpen: !this.element._.compactMenuOpen,
+          },
+        },
       })
     },
     addMenuItem(type) {

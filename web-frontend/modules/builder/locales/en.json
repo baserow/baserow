@@ -272,7 +272,7 @@
     "expanded": "Expanded",
     "compact": "Compact",
     "previewCompactMenuLabel": "Preview compact menu",
-    "previewCompactMenuHelper": "Close the compact menu preview to edit the page again.",
+    "previewCompactMenuHelper": "Show/hide the compact menu preview.",
     "openEditorCompactMenu": "Open menu",
     "closeEditorCompactMenu": "Close menu",
     "menuItemAddLink": "Link",

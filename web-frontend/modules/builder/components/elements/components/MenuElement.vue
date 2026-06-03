@@ -142,9 +142,7 @@ export default {
     },
     isCompactMenuOpen() {
       if (this.isEditMode) {
-        return this.$store.getters['element/getMenuElementCompactMenuOpen'](
-          this.element
-        )
+        return this.element._.compactMenuOpen
       }
       return this.compactMenuOpen
     },
@@ -183,9 +181,16 @@ export default {
         return
       }
 
-      this.$store.dispatch('element/setMenuElementCompactMenuOpen', {
+      this.$store.dispatch('element/forceUpdate', {
+        builder: this.builder,
+        page: this.elementPage,
         element: this.element,
-        open: false,
+        values: {
+          _: {
+            ...this.element._,
+            compactMenuOpen: false,
+          },
+        },
       })
     },
   },

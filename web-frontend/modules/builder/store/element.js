@@ -138,12 +138,6 @@ const mutations = {
   _SET_ELEMENT_NAMESPACE_PATH(state, { element, path }) {
     element._.elementNamespacePath = path
   },
-  SET_REPEAT_ELEMENT_COLLAPSED(state, { element, collapsed }) {
-    element._.collapsed = collapsed
-  },
-  SET_MENU_ELEMENT_COMPACT_MENU_OPEN(state, { element, open }) {
-    element._.compactMenuOpen = open
-  },
 }
 
 const actions = {
@@ -547,18 +541,6 @@ const actions = {
       path: elementNamespacePath,
     })
   },
-  setRepeatElementCollapsed({ commit }, { element, collapsed }) {
-    commit('SET_REPEAT_ELEMENT_COLLAPSED', {
-      element,
-      collapsed,
-    })
-  },
-  setMenuElementCompactMenuOpen({ commit }, { element, open }) {
-    commit('SET_MENU_ELEMENT_COMPACT_MENU_OPEN', {
-      element,
-      open,
-    })
-  },
 }
 
 const getters = {
@@ -723,12 +705,6 @@ const getters = {
     }
 
     return null
-  },
-  getRepeatElementCollapsed: (state) => (element) => {
-    return element._.collapsed
-  },
-  getMenuElementCompactMenuOpen: (state) => (element) => {
-    return element._.compactMenuOpen
   },
 }
 
