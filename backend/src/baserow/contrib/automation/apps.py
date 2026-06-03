@@ -19,6 +19,7 @@ class AutomationConfig(AppConfig):
         )
         from baserow.contrib.automation.nodes.node_types import (
             AIAgentActionNodeType,
+            CoreCreateSnapshotActionNodeType,
             CoreHttpRequestNodeType,
             CoreHTTPTriggerNodeType,
             CoreIteratorNodeType,
@@ -182,6 +183,7 @@ class AutomationConfig(AppConfig):
         automation_node_type_registry.register(CorePeriodicTriggerNodeType())
         automation_node_type_registry.register(CoreHTTPTriggerNodeType())
         automation_node_type_registry.register(AIAgentActionNodeType())
+        automation_node_type_registry.register(CoreCreateSnapshotActionNodeType())
         automation_node_type_registry.register(SlackWriteMessageActionNodeType())
 
         from baserow.core.trash.registries import trash_operation_type_registry
