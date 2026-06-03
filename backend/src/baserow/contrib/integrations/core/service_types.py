@@ -1914,19 +1914,37 @@ class CoreCreateSnapshotServiceType(CoreServiceType):
             )
 
         if not name:
+            from django.utils import timezone
             name = f"Automated snapshot - {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}"
 
-        user = dispatch_context.user
-        snapshot, job = SnapshotHandler().start_create_job(
+        # Get the user from the automation workflow's workspace.
+        # The dispatch context contains the workflow which is associated with
+        # an automation application in a specific workspace.
+        from baserow.contrib.automation.automation_dispatch_context import (
+            AutomationDispatchContext,
+        )
+        if isinstance(dispatch_context, AutomationDispatchContext):
+            workspace = dispatch_context.workflow.automation.workspace
+            user = workspace.users.first()
+        else:
+            user = None
+
+        if not user:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "No user available to create the snapshot. "
+                "The automation workflow must be in a workspace with at least one member."
+            )
+
+        result = SnapshotHandler().start_create_job(
             application_id=application_id,
             performed_by=user,
             name=name,
         )
         return {
             "data": {
-                "snapshot_id": snapshot.id,
-                "snapshot_name": snapshot.name,
-                "job_id": job.id,
+                "snapshot_id": result["snapshot"].id,
+                "snapshot_name": result["snapshot"].name,
+                "job_id": result["job"].id,
             }
         }
 
