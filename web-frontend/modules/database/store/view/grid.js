@@ -2369,14 +2369,6 @@ export const actions = {
       return
     }
 
-    commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-      fields,
-      registry: $registry,
-      row,
-      increase: true,
-      decrease: false,
-    })
-
     handleRowCreated({
       context: createRowLifecycleContext({
         client: $client,
@@ -2388,6 +2380,14 @@ export const actions = {
       }),
       mutations: {
         insertAtPosition: (insertedRow, { sortedIndex, isFirst, isLast }) => {
+          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+            fields,
+            registry: $registry,
+            row: insertedRow,
+            increase: true,
+            decrease: false,
+          })
+
           const inBuffer =
             (isFirst && getters.getBufferStartIndex === 0) ||
             (isLast && getters.getBufferEndIndex === getters.getCount) ||
@@ -3190,8 +3190,16 @@ export const actions = {
     }
 
     const applyMatchFlags = (rowId, { matchFilters, matchSortings }) => {
-      commit('SET_ROW_MATCH_FILTERS', { row: newRow, value: matchFilters })
-      commit('SET_ROW_MATCH_SORTINGS', { row: newRow, value: matchSortings })
+      const targetRow = getters.getAllRows.find((row) => row.id === rowId)
+      if (!targetRow?._) {
+        return
+      }
+
+      commit('SET_ROW_MATCH_FILTERS', { row: targetRow, value: matchFilters })
+      commit('SET_ROW_MATCH_SORTINGS', {
+        row: targetRow,
+        value: matchSortings,
+      })
     }
 
     const rowsForMatchCheck = () => getters.getAllRows
@@ -3331,14 +3339,6 @@ export const actions = {
       return
     }
 
-    commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-      fields,
-      registry: $registry,
-      row,
-      increase: false,
-      decrease: true,
-    })
-
     handleRowDeleted({
       context: createRowLifecycleContext({
         client: $client,
@@ -3350,6 +3350,14 @@ export const actions = {
       }),
       mutations: {
         remove: (rowId) => {
+          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+            fields,
+            registry: $registry,
+            row,
+            increase: false,
+            decrease: true,
+          })
+
           const allRows = getters.getAllRows
           const idx = allRows.findIndex((r) => r.id === rowId)
           if (idx >= 0) {

@@ -56,6 +56,7 @@ const config: PlaywrightTestConfig = {
       name: "chrome",
       use: {
         ...devices["Desktop Chrome"],
+        ...(process.env.CI ? { channel: "chrome" } : {}),
       },
     },
     {

@@ -985,10 +985,10 @@ test.describe("2.2.5 Edit with formula-field filter (deferred)", () => {
     await grid.confirmWithTab();
     await pausedUpdate.intercepted;
 
-    // Typed value visible immediately (field edit is optimistic); no loading
-    // spinner because the row update is optimistic.
+    // Typed value is visible immediately, but formula-derived filter results
+    // need the backend response, so the row remains loading while pending.
     await grid.expectPrimaryText(0, "Al");
-    await grid.expectRowNotLoading(0);
+    await grid.expectRowLoading(0);
     // No warning while pending — formula filter cannot be evaluated locally
     await grid.expectRowNoWarning(0);
     await grid.expectRowCount(1);
@@ -997,6 +997,7 @@ test.describe("2.2.5 Edit with formula-field filter (deferred)", () => {
     // Warning appears only after the backend responds with the formula result
     await grid.expectRowHasWarning(0);
     await grid.expectRowWarningText(0, "Row does not match filters");
+    await grid.expectRowNotLoading(0);
     await grid.expectRowCount(1);
   });
 
@@ -1162,7 +1163,7 @@ test.describe("2.3 Edit with active sort on the edited field", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const failed = failNextRequest(
+    const pausedUpdate = await pauseNextRequestWithSignal(
       page,
       `**/api/database/rows/table/${g.table.id}/**`,
       { method: "PATCH" },
@@ -1170,11 +1171,13 @@ test.describe("2.3 Edit with active sort on the edited field", () => {
     await startEditingPrimary(grid, 0);
     await grid.type("Zara");
     await grid.confirmWithEnter();
-    // Optimistic state: typed value and sort warning visible before the PATCH resolves.
-    await grid.expectPrimaryText(0, "Zara");
-    await grid.expectRowHasWarning(0);
-    await grid.expectRowWarningText(0, "Row has moved");
-    await failed;
+    await pausedUpdate.intercepted;
+    // Enter commits and clears the selection, so the locally-sortable row moves
+    // immediately while the PATCH is still pending.
+    await grid.expectPrimaryText(0, "Bob");
+    await grid.expectPrimaryText(1, "Zara");
+    await grid.expectRowNoWarning(1);
+    pausedUpdate.fail();
     await grid.expectErrorToast();
     await grid.expectRowCount(2);
     await grid.expectPrimaryText(0, "Alice");
@@ -1243,10 +1246,10 @@ test.describe("2.3.4 Edit with formula-field sort (deferred)", () => {
     await grid.confirmWithTab();
     await pausedUpdate.intercepted;
 
-    // Typed value visible immediately (field edit is optimistic); no loading
-    // spinner because the row update is optimistic.
+    // Typed value is visible immediately, but formula-derived sort results
+    // need the backend response, so the row remains loading while pending.
     await grid.expectPrimaryText(0, "Alexander");
-    await grid.expectRowNotLoading(0);
+    await grid.expectRowLoading(0);
     // No move warning while pending — formula sort cannot be evaluated locally
     await grid.expectRowNoWarning(0);
     await grid.expectRowCount(2);
@@ -1255,6 +1258,7 @@ test.describe("2.3.4 Edit with formula-field sort (deferred)", () => {
     // Warning appears only after the backend responds with the formula result
     await grid.expectRowHasWarning(0);
     await grid.expectRowWarningText(0, "Row has moved");
+    await grid.expectRowNotLoading(0);
     await grid.expectPrimaryText(0, "Alexander");
     await grid.expectRowCount(2);
 
@@ -1301,7 +1305,7 @@ test.describe("2.3.4 Edit with formula-field sort (deferred)", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const failed = failNextRequest(
+    const pausedUpdate = await pauseNextRequestWithSignal(
       page,
       `**/api/database/rows/table/${g.table.id}/**`,
       { method: "PATCH" },
@@ -1309,11 +1313,13 @@ test.describe("2.3.4 Edit with formula-field sort (deferred)", () => {
     await startEditingPrimary(grid, 0);
     await grid.type("Alexander");
     await grid.confirmWithEnter();
+    await pausedUpdate.intercepted;
     // Optimistic state: typed value visible immediately; no warning because the
     // frontend cannot evaluate the formula sort locally.
     await grid.expectPrimaryText(0, "Alexander");
+    await grid.expectRowLoading(0);
     await grid.expectRowNoWarning(0);
-    await failed;
+    pausedUpdate.fail();
     await grid.expectErrorToast();
     await grid.expectRowCount(2);
     await grid.expectPrimaryText(0, "Al");

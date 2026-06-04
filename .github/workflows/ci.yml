@@ -675,6 +675,8 @@ jobs:
       packages: read
       checks: write
       pull-requests: write
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
     strategy:
       fail-fast: false
       matrix:
@@ -827,22 +829,8 @@ jobs:
           cd e2e-tests
           yarn install
 
-      - name: Get Playwright version
-        id: playwright-version
-        run: echo "version=$(cd e2e-tests && yarn list @playwright/test --depth=0 | grep @playwright/test | sed 's/.*@//')" >> $GITHUB_OUTPUT
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: |
-          cd e2e-tests
-          npx playwright install --with-deps firefox
+      - name: Verify Google Chrome
+        run: google-chrome --version
 
       - name: Wait for services
         env:
