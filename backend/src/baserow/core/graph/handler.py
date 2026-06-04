@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
+from baserow.core.cache import local_cache
 from baserow.core.graph.exceptions import (
     GraphConsistencyError,
     GraphPointDoesNotExist,
@@ -119,6 +120,7 @@ class BaseGraphHandler(ABC):
             self.instance.graph = graph
 
         self.instance.save(update_fields=["graph"])
+        local_cache.delete(self.generate_previous_position_map_cache_key(self.instance))
 
     @classmethod
     def get_order_map(cls, graph: SerializedGraph) -> Dict[int, Decimal]:
@@ -372,7 +374,7 @@ class BaseGraphHandler(ABC):
 
     def get_previous_positions(
         self, target_point: GraphPoint
-    ) -> GraphPointPositionTriplet | None:
+    ) -> List[GraphPointPositionTriplet] | None:
         """
         Given a `GraphPoint`, generates the list of all positions to get to the
         target `GraphPoint`. The positions are represented as a list of triplets of
@@ -384,46 +386,25 @@ class BaseGraphHandler(ABC):
             in the graph, it will return `None`.
         """
 
-        def explore(current_position: GraphPoint, path):
-            point = self.get_point_at_position(*current_position)
-
-            point_id = str(point.id)
-
-            if point_id == str(target_point.id):
-                return path
-
-            point_info = self.get_info(point_id)
-
-            next_positions = []
-            # Collect all possible positions
-            next_positions.extend(
-                [
-                    (point_id, "south", uid)
-                    for uid, points in point_info.get("next", {}).items()
-                    if points
-                ]
+        previous_position_map = self.get_previous_position_map()
+        positions = []
+        current_id = target_point.id
+        found = False
+        while previous_position := previous_position_map.get(current_id):
+            found = True
+            reference_id, position, output = previous_position
+            if reference_id is None:
+                break
+            reference_point = (
+                self.get_point(reference_id) if reference_id is not None else None
             )
-            children_dict = self._get_children_dict(point_info)
-            next_positions.extend(
-                [
-                    (point_id, "child", edge_key)
-                    for edge_key, children in children_dict.items()
-                    if children
-                ]
-            )
+            positions.append((reference_point, position, output))
+            current_id = reference_id
 
-            for next_position in next_positions:
-                found = explore(next_position, path + [next_position])
-                if found is not None:
-                    return found
-
+        if not found:
             return None
 
-        full_path = explore((None, "south", ""), [])
-        if full_path is not None:
-            return [(self.get_point(nid), p, o) for [nid, p, o] in full_path]
-
-        return None
+        return list(reversed(positions))
 
     def _get_all_next_points(self, point: GraphPoint) -> List[str]:
         """
@@ -489,61 +470,81 @@ class BaseGraphHandler(ABC):
         return result
 
     @classmethod
-    def generate_parent_map_cache_key(cls, graph_model: GraphModelInstance) -> str:
-        return f"parent_map_{graph_model._meta.label}_{graph_model.id}"
+    def generate_previous_position_map_cache_key(
+        cls, graph_model: GraphModelInstance
+    ) -> str:
+        return f"previous_position_map_{graph_model._meta.label}_{graph_model.id}"
+
+    def get_previous_position_map(
+        self,
+    ) -> Dict[int, tuple[int | None, GraphPointPositionType, str]]:
+        """
+        Returns the cached mapping of each point ID to its immediate incoming
+        graph position.
+        """
+
+        return local_cache.get(
+            self.generate_previous_position_map_cache_key(self.instance),
+            lambda: self.build_previous_position_map(self.graph),
+        )
 
     @classmethod
-    def build_parent_map(cls, graph: SerializedGraph | None) -> Dict[int, int]:
-        """
-        Build and return a mapping of `{child_id: parent_id}` for all points
-        that are direct children (or chained via `next[""]`) of a container,
-        given a raw graph dict.
+    def _get_children_dict_from_info(
+        cls, point_info: Dict[str, Any]
+    ) -> Dict[str, List[int | str]]:
+        children = point_info.get("children")
+        if children is None:
+            return {}
+        if isinstance(children, list):
+            return {"": children} if children else {}
+        return children
 
-        The instance method `get_parent_map` delegates to this with `self.graph`.
+    @classmethod
+    def build_previous_position_map(
+        cls, graph: SerializedGraph | None
+    ) -> Dict[int, tuple[int | None, GraphPointPositionType, str]]:
+        """
+        Build and return a mapping of `{point_id: incoming_position}` for every
+        point in the graph, including the root.
 
         :param graph: A raw serialized graph dict (maybe `None`).
-        :return: A dict mapping each child point ID (int) to its parent
-            point ID (int).
+        :return: A dict mapping each point ID to the immediate position that
+            reaches it as `(reference_point_id, position, output)`.
         """
 
-        parent_map: Dict[int, int] = {}
+        previous_position_map: Dict[
+            int, tuple[int | None, GraphPointPositionType, str]
+        ] = {}
+        if graph and cls.GRAPH_ROOT_KEY in graph:
+            previous_position_map[int(graph[cls.GRAPH_ROOT_KEY])] = (
+                None,
+                GraphPointPosition.SOUTH,
+                "",
+            )
+
         for str_id, info in (graph or {}).items():
             if str_id == cls.GRAPH_ROOT_KEY or not isinstance(info, dict):
                 continue
-            node_id = int(str_id)
 
-            # Inline _get_children_dict logic to avoid needing an instance.
-            children = info.get("children")
-            if children is None:
-                children_dict = {}
-            elif isinstance(children, list):
-                children_dict = {"": children} if children else {}
-            else:
-                children_dict = children
+            reference_id = int(str_id)
+            for output, next_ids in info.get("next", {}).items():
+                for next_id in next_ids:
+                    previous_position_map[int(next_id)] = (
+                        reference_id,
+                        GraphPointPosition.SOUTH,
+                        output,
+                    )
 
-            for child_ids in children_dict.values():
-                for chain_head in child_ids:
-                    current_id = chain_head
-                    while current_id is not None:
-                        parent_map[int(current_id)] = node_id
-                        child_info = (graph or {}).get(str(current_id), {})
-                        next_ids = child_info.get("next", {}).get("", [])
-                        current_id = next_ids[0] if next_ids else None
-        return parent_map
+            children_dict = cls._get_children_dict_from_info(info)
+            for output, child_ids in children_dict.items():
+                if child_ids:
+                    previous_position_map[int(child_ids[0])] = (
+                        reference_id,
+                        GraphPointPosition.CHILD,
+                        output,
+                    )
 
-    def get_parent_map(self) -> Dict[int, int]:
-        """
-        Build and return a mapping of `{child_id: parent_id}` for all points
-        that are direct children (or chained via `next[""]`) of a container.
-
-        Walks the `next[""]` chains within each children place so that all
-        points in a chain share the same parent container.
-
-        :return: A dict mapping each child point ID (int) to its parent
-            point ID (int).
-        """
-
-        return self.build_parent_map(self.graph)
+        return previous_position_map
 
     def get_patch_for_points(self, new_points: List[GraphPoint]) -> Dict[str, Any]:
         """

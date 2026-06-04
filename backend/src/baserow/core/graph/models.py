@@ -6,7 +6,11 @@ from django.utils.translation import gettext_lazy as _
 
 from baserow.core.cache import local_cache
 from baserow.core.graph.handler import BaseGraphHandler
-from baserow.core.graph.types import GraphPointPosition, SerializedGraph
+from baserow.core.graph.types import (
+    GraphPointPosition,
+    GraphPointPositionType,
+    SerializedGraph,
+)
 
 
 class GraphModelMixin(models.Model):
@@ -124,43 +128,24 @@ class GraphPointMixin:
 
     def get_previous_edge_name(self) -> str:
         """
-        Responsible for walking backwards to the previous point, and assuming
-        it has a `next` in its point info, finding the edge that `self` is along.
+        Returns the nearest `next` edge used to reach this point.
         """
 
-        previous_points = self.get_previous_points()
-        if not previous_points:
-            return ""
-
-        previous_point = previous_points[-1]
-        previous_point_info = self._get_graph().get_info(previous_point.id)
-        previous_point_next_info = previous_point_info.get("next", {})
-        for edge_name, point_ids_on_edge in previous_point_next_info.items():
-            if self.id in point_ids_on_edge:
-                return edge_name
-
+        previous_positions = self.get_previous_positions()
+        for _previous_point, position, output in reversed(previous_positions):
+            if position == GraphPointPosition.SOUTH:
+                return output
         return ""
 
     def get_place_name(self) -> str:
         """
-        Responsible for walking backwards, starting at `self`, and finding the
-        first point which has a position of "child". This point will be inside
-        point info containing "children", and will have a place name to return.
+        Returns the nearest parent place used to reach this point.
         """
 
-        # Collect all previous points, and add this current point to the end.
-        previous_points_and_self = self.get_previous_points() + [self]
-
-        # Reverse it, so we start with our current point, and we can
-        # walk backwards through the hierarchy one point at a time.
-        previous_points_and_self.reverse()
-        for point in previous_points_and_self:
-            # Get this point's position. The first child that we find
-            # will be the immediate point along the same edge.
-            _, position, output = self.get_parent().get_graph().get_position(point)
+        previous_positions = self.get_previous_positions()
+        for _previous_point, position, output in reversed(previous_positions):
             if position == GraphPointPosition.CHILD:
                 return output
-
         return ""
 
     def graph_point_edge_label(self, uid: str) -> str:
@@ -198,7 +183,10 @@ class GraphPointMixin:
         :return: True if the point is nested.
         """
 
-        return self.id in self._get_parent_map()
+        return any(
+            position == GraphPointPosition.CHILD
+            for _previous_point, position, _output in self.get_previous_positions()
+        )
 
     def get_previous_points(self) -> list[Self]:
         """
@@ -206,10 +194,11 @@ class GraphPointMixin:
         `previous point` or a `parent point`.
         """
 
-        positions = self._get_graph().get_previous_positions(self)
-        if positions is None:
-            return []
-        return [position[0] for position in positions]
+        return [
+            previous_point
+            for previous_point, _position, _output in self.get_previous_positions()
+            if previous_point is not None
+        ]
 
     def get_child_points(self) -> list[Self]:
         """
@@ -225,49 +214,44 @@ class GraphPointMixin:
 
         return self._get_graph().get_siblings(self)
 
-    def _get_parent_map(self) -> dict[int, int]:
+    def get_previous_positions(
+        self,
+    ) -> list[tuple[Self | None, GraphPointPositionType, str]]:
         """
-        Returns the cached ``{child_id: parent_id}`` mapping for every point
-        on this point's parent model (page/workflow). The map is built once
-        per parent model per request and stored in ``local_cache`` so that
-        all points on the same page/workflow share a single traversal.
+        Returns the path of graph positions used to reach this point, ordered
+        from root to this point. Uses the cached previous-position map so the
+        path is resolved with O(depth) dict lookups.
         """
 
-        parent_model = self.get_parent()
-        return local_cache.get(
-            BaseGraphHandler.generate_parent_map_cache_key(parent_model),
-            lambda: BaseGraphHandler.build_parent_map(self._get_graph().graph),
-        )
+        return self._get_graph().get_previous_positions(self) or []
 
     def get_parent_point(self) -> Self | None:
         """
         Returns the direct parent container point, or ``None`` if this point
-        has no parent. Uses the cached parent map for an O(1) lookup instead
-        of a full graph traversal.
+        has no parent. Uses the cached previous-position map so the chain is
+        resolved with O(depth) dict lookups rather than a full graph traversal.
         """
 
-        parent_id = self._get_parent_map().get(self.id)
-        if parent_id is None:
-            return None
-        return self._get_graph().get_point(parent_id)
+        for previous_point, position, _output in reversed(
+            self.get_previous_positions()
+        ):
+            if position == GraphPointPosition.CHILD:
+                return previous_point
+        return None
 
     def get_parent_points(self) -> list[Self]:
         """
         Returns the ancestor container points that contain this point, ordered
         from outermost to innermost (direct parent last). Uses the cached
-        parent map so the chain is resolved with O(depth) dict lookups rather
-        than a full graph traversal per element.
+        previous-position map so the chain is resolved with O(depth) dict
+        lookups rather than a full graph traversal per element.
         """
 
-        parent_map = self._get_parent_map()
-        graph = self._get_graph()
-        ancestors: list[Self] = []
-        current_id = parent_map.get(self.id)
-        while current_id is not None:
-            ancestors.append(graph.get_point(current_id))
-            current_id = parent_map.get(current_id)
-        ancestors.reverse()  # outermost first
-        return ancestors
+        return [
+            previous_point
+            for previous_point, position, _output in self.get_previous_positions()
+            if position == GraphPointPosition.CHILD
+        ]
 
     def get_next_points(self, output_uid: str | None = None) -> list[Self]:
         """

@@ -50,6 +50,7 @@ from baserow.contrib.builder.workflow_actions.handler import (
 from baserow.core.cache import global_cache
 from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.graph.handler import BaseGraphHandler
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_sources.user_source_user import UserSourceUser
@@ -860,14 +861,32 @@ class PageHandler:
             serialized_elements, key=element_priority_sort, reverse=True
         )
 
-        parent_map = BaseGraphHandler.build_parent_map(page.graph)
+        previous_position_map = BaseGraphHandler.build_previous_position_map(page.graph)
+        parent_element_id_cache = {}
+
+        def get_parent_element_id(element_id):
+            if element_id in parent_element_id_cache:
+                return parent_element_id_cache[element_id]
+
+            previous_position = previous_position_map.get(element_id)
+            if previous_position is None:
+                return None
+
+            reference_id, position, _output = previous_position
+            parent_element_id = (
+                reference_id
+                if position == GraphPointPosition.CHILD
+                else get_parent_element_id(reference_id)
+            )
+            parent_element_id_cache[element_id] = parent_element_id
+            return parent_element_id
 
         was_imported = True
         while was_imported:
             was_imported = False
 
             for serialized_element in prioritized_elements:
-                parent_element_id = parent_map.get(serialized_element["id"])
+                parent_element_id = get_parent_element_id(serialized_element["id"])
                 if serialized_element["id"] not in id_mapping.get(
                     "builder_page_elements", {}
                 ) and (
