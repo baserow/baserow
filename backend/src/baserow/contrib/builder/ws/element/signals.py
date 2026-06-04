@@ -58,7 +58,7 @@ def elements_created(
     workflow_actions=None,
     **kwargs,
 ):
-    graph_patch = page.get_graph().get_patch_for_points(elements)
+    graph = page.get_graph().graph
     serialized_workflow_actions = [
         builder_workflow_action_type_registry.get_serializer(
             wa, BuilderWorkflowActionSerializer
@@ -81,7 +81,7 @@ def elements_created(
                     for element in elements
                 ],
                 "workflow_actions": serialized_workflow_actions,
-                "graph_patch": graph_patch,
+                "graph": graph,
             },
             getattr(user, "web_socket_id", None),
         )

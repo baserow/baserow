@@ -92,10 +92,10 @@ export const registerRealtimeEvents = (realtime) => {
     const ctx = getPageContext(store, data.page_id)
     if (!ctx) return
 
-    if (data.graph_patch) {
+    if (data.graph) {
       store.dispatch('page/forceUpdate', {
         page: ctx.page,
-        values: { graph: { ...ctx.page.graph, ...data.graph_patch } },
+        values: { graph: data.graph },
       })
     }
 

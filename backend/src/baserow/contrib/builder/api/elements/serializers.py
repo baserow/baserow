@@ -269,9 +269,7 @@ class DuplicateElementSerializer(serializers.Serializer):
     workflow_actions = serializers.SerializerMethodField(
         help_text="The duplicated workflow actions"
     )
-    graph_additions = serializers.SerializerMethodField(
-        help_text="The graph entries for the newly duplicated elements."
-    )
+    graph = serializers.SerializerMethodField(help_text="The updated page graph.")
 
     @extend_schema_field(ElementSerializer(many=True))
     def get_elements(self, obj: ElementsAndWorkflowActions):
@@ -289,11 +287,11 @@ class DuplicateElementSerializer(serializers.Serializer):
             for workflow_action in obj["workflow_actions"]
         ]
 
-    def get_graph_additions(self, obj: ElementsAndWorkflowActions):
+    def get_graph(self, obj: ElementsAndWorkflowActions):
         elements = obj.get("elements", [])
         if not elements:
             return {}
-        return elements[0].page.get_graph().get_patch_for_points(elements)
+        return elements[0].page.get_graph().graph
 
 
 class PageParameterValueSerializer(serializers.Serializer):

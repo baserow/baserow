@@ -546,43 +546,6 @@ class BaseGraphHandler(ABC):
 
         return previous_position_map
 
-    def get_patch_for_points(self, new_points: List[GraphPoint]) -> Dict[str, Any]:
-        """
-        Given the full graph and a set of newly-inserted points, returns the minimal
-        subset of graph entries a client needs to apply in order to reach those points.
-
-        That subset is:
-        - The graph entry for each new point.
-        - The predecessor entry — the existing node whose `next` edge (or the `GRAPH_ROOT_KEY`
-          sentinel) now points at the first new point. Without it, a client holding a
-          stale local graph has no traversal path into the new nodes.
-
-        :param new_points: The newly inserted points, in insertion order.
-        :return: A dict of graph entries keyed by string point ID (plus GRAPH_ROOT_KEY if the
-            first new point became the root).
-        """
-
-        if not new_points:
-            return {}
-
-        affected_ids = {str(p.id) for p in new_points}
-        first_new_id = str(new_points[0].id)
-
-        for node_id, info in self.graph.items():
-            if node_id in affected_ids:
-                continue
-            # GRAPH_ROOT_KEY stores a raw ID scalar, not a dict.
-            if not isinstance(info, dict):
-                if str(info) == first_new_id:
-                    affected_ids.add(node_id)
-                continue
-            for edge_ids in (info.get("next") or {}).values():
-                if any(str(x) == first_new_id for x in edge_ids):
-                    affected_ids.add(node_id)
-                    break
-
-        return {k: v for k, v in self.graph.items() if k in affected_ids}
-
     def _get_chain_tail_id(self, first_id: str | int) -> str:
         """
         Follow the default next[""] chain from first_id and return the string ID of
