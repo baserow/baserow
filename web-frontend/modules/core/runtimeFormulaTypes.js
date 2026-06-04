@@ -2950,14 +2950,6 @@ export class RuntimeToDuration extends RuntimeFormulaFunction {
     }
 
     const [value, durationFormat] = args
-    // The validation visitor pre-parses arg 0 via the argument type's parse(),
-    // so by the time we get here a literal string may already be a Timedelta.
-    if (value instanceof Timedelta) {
-      throw new InvalidFormulaArgument(
-        this.getType(),
-        this.timedeltaWithFormatError()
-      )
-    }
     if (typeof value === 'string') {
       if (parseValueWithDurationFormat(value, durationFormat) === null) {
         throw new InvalidFormulaArgument(

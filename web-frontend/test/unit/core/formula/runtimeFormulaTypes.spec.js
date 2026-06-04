@@ -2354,13 +2354,6 @@ describe('RuntimeToDuration', () => {
     expect(result).toBe(expected)
   })
 
-  test('validateArgs throws when value is a Timedelta and format is provided', () => {
-    const formulaType = new RuntimeToDuration()
-    expect(() =>
-      formulaType.validateArgs([new Timedelta(3600000), 'h:mm'])
-    ).toThrow('A duration format cannot be applied to a timedelta value.')
-  })
-
   test('validateArgs throws when value does not match format', () => {
     const formulaType = new RuntimeToDuration()
     expect(() => formulaType.validateArgs(['not a duration', 'h:mm'])).toThrow(

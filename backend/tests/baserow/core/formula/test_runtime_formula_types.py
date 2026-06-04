@@ -2628,12 +2628,6 @@ def test_runtime_to_duration_validate_number_of_args(args, expected):
     assert result is expected
 
 
-def test_runtime_to_duration_validate_args_raises_for_timedelta_with_format():
-    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
-        RuntimeToDuration().validate_args([timedelta(hours=1), "h:mm"])
-    assert "A duration format cannot be applied to a timedelta" in str(exc_info.value)
-
-
 def test_runtime_to_duration_validate_args_raises_when_value_does_not_match_format():
     with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
         RuntimeToDuration().validate_args(["not a duration", "h:mm"])

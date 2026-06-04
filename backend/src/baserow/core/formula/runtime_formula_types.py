@@ -829,13 +829,6 @@ class RuntimeToDuration(RuntimeFormulaFunction):
             return
 
         value, duration_format = args
-        # The validation visitor pre-parses arg 0 via the argument type's
-        # parse(). By the time validate_args() is called, arg 0 may already
-        # be a timedelta.
-        if isinstance(value, timedelta):
-            raise BaserowFormulaSyntaxError(
-                "A duration format cannot be applied to a timedelta value."
-            )
         if isinstance(value, str):
             if parse_value_with_duration_format(value, duration_format) is None:
                 raise BaserowFormulaSyntaxError(
