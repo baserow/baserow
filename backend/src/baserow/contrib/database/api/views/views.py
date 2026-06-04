@@ -201,6 +201,17 @@ from .serializers import (
     ViewSortSerializer,
 )
 from .utils import get_public_view_authorization_token
+# Premium plugin license check - only available if baserow_premium is installed.
+try:
+    from baserow_premium.license.features import PREMIUM
+    from baserow_premium.license.handler import LicenseHandler
+    from baserow_premium.license.exceptions import FeaturesNotAvailableError
+    PREMIUM_INSTALLED = True
+except ImportError:
+    PREMIUM_INSTALLED = False
+    # Define a dummy so map_exceptions doesn't fail when premium is absent
+    FeaturesNotAvailableError = type('_FeaturesNotAvailableError', (Exception,), {})
+
 
 view_field_options_mapping_serializer = MappingSerializer(
     "ViewFieldOptions",
@@ -501,6 +512,7 @@ class ViewView(APIView):
         {
             ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            FeaturesNotAvailableError: ERROR_FEATURE_NOT_AVAILABLE,
         }
     )
     @allowed_includes(
@@ -519,6 +531,16 @@ class ViewView(APIView):
         """Selects a single view and responds with a serialized version."""
 
         view = ViewHandler().get_view_as_user(request.user, view_id)
+
+        # If the view is a non-OSS type (premium/enterprise), verify the user
+        # has the required license for the workspace.
+        if PREMIUM_INSTALLED:
+            specific_view = view.specific
+            view_type = view_type_registry.get_by_model(specific_view)
+            if view_type.type in ('kanban', 'calendar', 'timeline'):
+                LicenseHandler.raise_if_user_doesnt_have_feature(
+                    PREMIUM, request.user, specific_view.table.database.workspace
+                )
 
         serializer = view_type_registry.get_serializer(
             view,
@@ -584,6 +606,7 @@ class ViewView(APIView):
         {
             ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            FeaturesNotAvailableError: ERROR_FEATURE_NOT_AVAILABLE,
         }
     )
     @allowed_includes("filters", "sortings", "decorations", "group_bys")
@@ -600,6 +623,13 @@ class ViewView(APIView):
 
         view = ViewHandler().get_view_for_update(request.user, view_id).specific
         view_type = view_type_registry.get_by_model(view)
+
+        # If the view is a non-OSS type, verify the user has the required license.
+        if PREMIUM_INSTALLED and view_type.type in ('kanban', 'calendar', 'timeline'):
+            LicenseHandler.raise_if_user_doesnt_have_feature(
+                PREMIUM, request.user, view.table.database.workspace
+            )
+
         data = validate_data_custom_fields(
             view_type.type,
             view_type_registry,
@@ -654,12 +684,22 @@ class ViewView(APIView):
         {
             ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            FeaturesNotAvailableError: ERROR_FEATURE_NOT_AVAILABLE,
         }
     )
     def delete(self, request: Request, view_id: int):
         """Deletes an existing view."""
 
         view = ViewHandler().get_view(view_id)
+
+        # If the view is a non-OSS type, verify the user has the required license.
+        if PREMIUM_INSTALLED:
+            specific_view = view.specific
+            view_type = view_type_registry.get_by_model(specific_view)
+            if view_type.type in ('kanban', 'calendar', 'timeline'):
+                LicenseHandler.raise_if_user_doesnt_have_feature(
+                    PREMIUM, request.user, specific_view.table.database.workspace
+                )
 
         action_type_registry.get_by_type(DeleteViewActionType).do(request.user, view)
 
