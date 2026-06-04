@@ -59,8 +59,12 @@ export default {
   },
   methods: {
     rowName(id) {
-      return this.entry.fields_metadata[this.fieldIdentifier].linked_rows[id]
-        ?.value
+      const value =
+        this.entry.fields_metadata[this.fieldIdentifier].linked_rows[id]?.value
+      return (
+        value ||
+        this.$t('functionnalGridViewFieldLinkRow.unnamed', { value: id })
+      )
     },
   },
 }
