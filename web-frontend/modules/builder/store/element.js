@@ -76,8 +76,8 @@ const mutations = {
     page.elements.forEach((element) => {
       if (element.id === elementToUpdate.id) {
         if (
-          (values.place_in_container !== undefined &&
-            values.place_in_container !== element.place_in_container)
+          values.place_in_container !== undefined &&
+          values.place_in_container !== element.place_in_container
         ) {
           updateCached = true
         }
