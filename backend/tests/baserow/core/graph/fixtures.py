@@ -10,6 +10,9 @@ class MockGraphHandler(BaseGraphHandler):
 
 
 class MockGraphModel:
+    class _meta:
+        label = "test.MockGraphModel"
+
     def __init__(self, graph):
         self.id = 1
         self.graph = graph

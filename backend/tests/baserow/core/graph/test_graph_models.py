@@ -4,7 +4,8 @@ import pytest
 
 from baserow.core.cache import local_cache
 from baserow.core.graph.models import GraphModelMixin
-from tests.baserow.core.graph.fixtures import MockGraphHandler
+from baserow.core.graph.types import GraphPointPosition
+from tests.baserow.core.graph.fixtures import MockGraphHandler, make_graph_model
 
 
 class MockCachedGraphModel:
@@ -89,6 +90,100 @@ def test_graph_model_get_place_name(point_id, expected_place, graph_model_fixtur
 
 
 @pytest.mark.parametrize(
+    "point_id, expected_place",
+    [
+        (2, "outer"),
+        (3, "inner"),
+        (4, "inner"),
+    ],
+)
+def test_graph_model_get_place_name_nested_places(point_id, expected_place):
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"children": {"outer": [2]}},
+            "2": {"children": {"inner": [3]}},
+            "3": {"next": {"": [4]}},
+            "4": {},
+        }
+    )
+
+    assert model.points[point_id].get_place_name() == expected_place
+
+
+@pytest.mark.parametrize(
+    "point_id, expected_parent_ids",
+    [
+        (1, []),
+        (2, [1]),
+        (3, [1, 2]),
+        (4, [1, 2]),
+    ],
+)
+def test_graph_model_get_parent_points_nested_places(point_id, expected_parent_ids):
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"children": {"outer": [2]}},
+            "2": {"children": {"inner": [3]}},
+            "3": {"next": {"": [4]}},
+            "4": {},
+        }
+    )
+
+    assert [
+        parent.id for parent in model.points[point_id].get_parent_points()
+    ] == expected_parent_ids
+
+
+@pytest.mark.parametrize(
+    "point_id, expected_previous_ids",
+    [
+        (1, []),
+        (2, [1]),
+        (3, [1, 2]),
+        (4, [1, 2, 3]),
+    ],
+)
+def test_graph_model_get_previous_points_nested_places(point_id, expected_previous_ids):
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"children": {"outer": [2]}},
+            "2": {"children": {"inner": [3]}},
+            "3": {"next": {"": [4]}},
+            "4": {},
+        }
+    )
+
+    assert [
+        point.id for point in model.points[point_id].get_previous_points()
+    ] == expected_previous_ids
+
+
+def test_graph_model_get_previous_positions_nested_places():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"children": {"outer": [2]}},
+            "2": {"children": {"inner": [3]}},
+            "3": {"next": {"": [4]}},
+            "4": {},
+        }
+    )
+
+    assert model.points[1].get_previous_positions() == []
+    assert [
+        (point.id if point else None, position, output)
+        for point, position, output in model.points[4].get_previous_positions()
+    ] == [
+        (1, GraphPointPosition.CHILD, "outer"),
+        (2, GraphPointPosition.CHILD, "inner"),
+        (3, GraphPointPosition.SOUTH, ""),
+    ]
+
+
+@pytest.mark.parametrize(
     "point_id, expected_edge",
     [
         (1, ""),
@@ -102,6 +197,7 @@ def test_graph_model_get_place_name(point_id, expected_place, graph_model_fixtur
         (9, ""),
         (10, ""),
         (11, ""),
+        (12, ""),
     ],
 )
 def test_graph_model_get_previous_edge_name(

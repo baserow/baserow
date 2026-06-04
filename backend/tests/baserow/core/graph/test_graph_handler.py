@@ -6,6 +6,7 @@ import pytest
 
 from baserow.core.graph.exceptions import GraphConsistencyError
 from baserow.core.graph.handler import BaseGraphHandler
+from baserow.core.graph.types import GraphPointPosition
 from tests.baserow.core.graph.fixtures import (
     MockGraphHandler,
     make_graph_model,
@@ -288,45 +289,23 @@ def test_append_permutations():
     assert model.graph["3"] == {}
 
 
-def test_get_parent_map_permutations():
-    model = make_graph_model({})
-    graph = model.get_graph()
+def test_build_previous_position_map_nested_graph():
+    graph = {
+        "0": 1,
+        "1": {"children": {"outer": [2, 6]}},
+        "2": {"children": {"inner": [3]}},
+        "3": {"next": {"": [4], "branch": [5]}},
+        "4": {},
+        "5": {},
+    }
 
-    # Empty graph — no containers, no children
-    assert graph.get_parent_map() == {}
-
-    # Add a flat chain: 1 → 2 → 3 (no children) — still empty
-    p1 = make_point(1, model)
-    graph.insert(p1, None, "south", output="")
-    p2 = make_point(2, model)
-    graph.insert(p2, p1, "south", output="")
-    p3 = make_point(3, model)
-    graph.insert(p3, p2, "south", output="")
-    assert graph.get_parent_map() == {}
-
-    # Insert p4 as child of p2 in place "0" — p4 maps to p2
-    p4 = make_point(4, model)
-    graph.insert(p4, p2, "child", output="0")
-    assert graph.get_parent_map() == {4: 2}
-
-    # Chain p5 south of p4 (still under p2) — p5 also maps to p2
-    p5 = make_point(5, model)
-    graph.insert(p5, p2, "child", output="0")
-    assert graph.get_parent_map() == {4: 2, 5: 2}
-
-    # Add p6 as child of p2 in a different place "1"
-    p6 = make_point(6, model)
-    graph.insert(p6, p2, "child", output="1")
-    assert graph.get_parent_map() == {4: 2, 5: 2, 6: 2}
-
-    # Add p7 as child of p4 (nested) — p7 maps to p4, not p2
-    p7 = make_point(7, model)
-    graph.insert(p7, p4, "child", output="")
-    assert graph.get_parent_map() == {4: 2, 5: 2, 6: 2, 7: 4}
-
-    # None graph — should return empty without raising
-    model.graph = None
-    assert graph.get_parent_map() == {}
+    assert BaseGraphHandler.build_previous_position_map(graph) == {
+        1: (None, GraphPointPosition.SOUTH, ""),
+        2: (1, GraphPointPosition.CHILD, "outer"),
+        3: (2, GraphPointPosition.CHILD, "inner"),
+        4: (3, GraphPointPosition.SOUTH, ""),
+        5: (3, GraphPointPosition.SOUTH, "branch"),
+    }
 
 
 def test_get_children_permutations():

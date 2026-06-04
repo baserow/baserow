@@ -369,7 +369,9 @@ class ElementHandler:
 
         local_cache.delete(self._get_elements_cache_key(page, True))
         local_cache.delete(self._get_elements_cache_key(page, False))
-        local_cache.delete(BaseGraphHandler.generate_parent_map_cache_key(page))
+        local_cache.delete(
+            BaseGraphHandler.generate_previous_position_map_cache_key(page)
+        )
         ElementVisibilityPermissionManager.invalidate_builder_element_visibility_cache(
             page.builder_id
         )
