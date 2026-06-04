@@ -9,10 +9,7 @@ import { InvalidFormulaType, UnknownOperatorError } from '@baserow/modules/core/
  * because we can't type-check an unknown value, we return this marker to indicate
  * "this will be a valid value at runtime, skip type validation for now."
  */
-// Use the global symbol registry so identity checks hold even if this module
-// is evaluated more than once (e.g. when the alias resolves through both the
-// `.js` and extensionless paths under Vitest/Nuxt).
-export const DeferredValue = Symbol.for('baserow.formula.DeferredValue')
+export const DeferredValue = Symbol('DeferredValue')
 
 /**
  * A visitor that validates formula functions and their arguments during parsing.
@@ -165,20 +162,16 @@ export default class BaserowFormulaValidationVisitor extends BaserowFormulaVisit
       acceptedArgs
     )
 
-    // Only run validateArgs if none of the arguments are DeferredValue,
-    // or the function opts in to deferred-aware validation.
-    // 
+    // Only run validateArgs if none of the arguments are DeferredValue.
     // DeferredValue represents nested function calls whose values aren't
-    // available until execution time, so we usually can't type-check them.
-    // But a function that knows how to ignore deferred slots can still catch
-    // type errors on literal args.
+    // available until execution time, so we can't type-check them.
     const hasDeferred = argsParsed.some((arg) => arg === DeferredValue)
-    if (!hasDeferred || formulaFunctionType.canValidateWithDeferred) {
+    if (!hasDeferred) {
       formulaFunctionType.validateArgs(argsParsed, { ctx, validationContext: this.validationContext})
     }
 
-    // Return DeferredValue to indicate this function's result will only
-    // be available at execution time.
+    // Return DeferredValue to indicate this function's result
+    // will only be available at execution time
     return DeferredValue
   }
 }

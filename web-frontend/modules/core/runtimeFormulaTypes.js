@@ -22,7 +22,6 @@ import {
   InvalidFormulaArgumentType,
   InvalidNumberOfArguments,
 } from '@baserow/modules/core/formula/parser/errors'
-import { DeferredValue } from '@baserow/modules/core/formula/parser/formulaValidationVisitor.js'
 import { reverseString, generateUUID } from '@baserow/modules/core/utils/string'
 import { avg, sum } from '@baserow/modules/core/utils/number'
 import {
@@ -232,17 +231,6 @@ export class RuntimeFormulaFunction extends Registerable {
    */
   get getOperatorSymbol() {
     return null
-  }
-
-  /**
-   * Whether this function's validateArgs() can tolerate args that are deferred.
-   *
-   * When true, the validation visitor still calls validateArgs() even if some arguments
-   * are deferred, allowing validateTypeOfArgs() to type-check the literal args.
-   * @returns {boolean}
-   */
-  get canValidateWithDeferred() {
-    return false
   }
 }
 
@@ -483,10 +471,6 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
     return '+'
   }
 
-  get canValidateWithDeferred() {
-    return true
-  }
-
   get args() {
     return [
       new NumberBaserowRuntimeFormulaArgumentType(),
@@ -497,31 +481,17 @@ export class RuntimeAdd extends RuntimeFormulaFunction {
   validateTypeOfArgs(args) {
     if (args.length === 2) {
       const [a, b] = args
-      const isDeferred = (x) => x === DeferredValue
-      const isEmptyLiteral = (x) => x === '' || x === null || x === undefined
       const num = new NumberBaserowRuntimeFormulaArgumentType()
       const dt = new DateTimeBaserowRuntimeFormulaArgumentType()
       const td = new TimedeltaBaserowRuntimeFormulaArgumentType()
-      if (
-        !isDeferred(a) &&
-        (isEmptyLiteral(a) || !(num.test(a) || dt.test(a) || td.test(a)))
-      ) {
-        return [[0, a]]
-      }
-      if (
-        !isDeferred(b) &&
-        (isEmptyLiteral(b) || !(num.test(b) || dt.test(b) || td.test(b)))
-      ) {
-        return [[1, b]]
-      }
-      if (isDeferred(a) || isDeferred(b)) return []
       if (num.test(a) && num.test(b)) return []
       if (td.test(a) && td.test(b)) return []
       if ((td.test(a) && num.test(b)) || (num.test(a) && td.test(b))) return []
       if ((dt.test(a) && td.test(b)) || (td.test(a) && dt.test(b))) return []
+      if (!(num.test(a) || dt.test(a) || td.test(a))) return [[0, a]]
+      if (!(num.test(b) || dt.test(b) || td.test(b))) return [[1, b]]
 
-      // Ensure invalid pairs aren't allowed, e.g.: datetime + number,
-      // datetime + datetime, etc.
+      // Reject invalid pairs, e.g.: datetime + number, datetime + datetime, etc.
       return [[0, a]]
     }
 
@@ -591,10 +561,6 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
     return '-'
   }
 
-  get canValidateWithDeferred() {
-    return true
-  }
-
   get args() {
     return [
       new NumberBaserowRuntimeFormulaArgumentType(),
@@ -605,29 +571,14 @@ export class RuntimeMinus extends RuntimeFormulaFunction {
   validateTypeOfArgs(args) {
     if (args.length === 2) {
       const [a, b] = args
-      const isDeferred = (x) => x === DeferredValue
-      const isEmptyLiteral = (x) => x === '' || x === null || x === undefined
       const num = new NumberBaserowRuntimeFormulaArgumentType()
       const dt = new DateTimeBaserowRuntimeFormulaArgumentType()
       const td = new TimedeltaBaserowRuntimeFormulaArgumentType()
-
-      if (
-        !isDeferred(a) &&
-        (isEmptyLiteral(a) || !(num.test(a) || dt.test(a) || td.test(a)))
-      ) {
-        return [[0, a]]
-      }
-      if (
-        !isDeferred(b) &&
-        (isEmptyLiteral(b) || !(num.test(b) || dt.test(b) || td.test(b)))
-      ) {
-        return [[1, b]]
-      }
-      if (isDeferred(a) || isDeferred(b)) return []
       if (num.test(a) && num.test(b)) return []
       if (td.test(a) && td.test(b)) return []
       if ((td.test(a) && num.test(b)) || (num.test(a) && td.test(b))) return []
       if (dt.test(a) && td.test(b)) return []
+      if (!(num.test(a) || dt.test(a) || td.test(a))) return [[0, a]]
 
       // Reject invalid pairs, e.g.: datetime - number, timedelta - datetime, etc.
       return [[1, b]]
@@ -696,10 +647,6 @@ export class RuntimeMultiply extends RuntimeFormulaFunction {
     return '*'
   }
 
-  get canValidateWithDeferred() {
-    return true
-  }
-
   get args() {
     return [
       new NumberBaserowRuntimeFormulaArgumentType(),
@@ -710,27 +657,13 @@ export class RuntimeMultiply extends RuntimeFormulaFunction {
   validateTypeOfArgs(args) {
     if (args.length === 2) {
       const [a, b] = args
-      const isDeferred = (x) => x === DeferredValue
-      const isEmptyLiteral = (x) => x === '' || x === null || x === undefined
       const num = new NumberBaserowRuntimeFormulaArgumentType()
       const td = new TimedeltaBaserowRuntimeFormulaArgumentType()
-
-      if (
-        !isDeferred(a) &&
-        (isEmptyLiteral(a) || !(num.test(a) || td.test(a)))
-      ) {
-        return [[0, a]]
-      }
-      if (
-        !isDeferred(b) &&
-        (isEmptyLiteral(b) || !(num.test(b) || td.test(b)))
-      ) {
-        return [[1, b]]
-      }
-      if (isDeferred(a) || isDeferred(b)) return []
       if (num.test(a) && num.test(b)) return []
       if ((td.test(a) && num.test(b)) || (num.test(a) && td.test(b))) return []
+      if (!(num.test(a) || td.test(a))) return [[0, a]]
 
+      // Reject invalid pairs, e.g.: timedelta * timedelta, etc.
       return [[1, b]]
     }
 
@@ -791,10 +724,6 @@ export class RuntimeDivide extends RuntimeFormulaFunction {
     return '/'
   }
 
-  get canValidateWithDeferred() {
-    return true
-  }
-
   get args() {
     return [
       new NumberBaserowRuntimeFormulaArgumentType(),
@@ -805,24 +734,13 @@ export class RuntimeDivide extends RuntimeFormulaFunction {
   validateTypeOfArgs(args) {
     if (args.length === 2) {
       const [a, b] = args
-      const isDeferred = (x) => x === DeferredValue
-      const isEmptyLiteral = (x) => x === '' || x === null || x === undefined
       const num = new NumberBaserowRuntimeFormulaArgumentType()
       const td = new TimedeltaBaserowRuntimeFormulaArgumentType()
-
-      if (
-        !isDeferred(a) &&
-        (isEmptyLiteral(a) || !(num.test(a) || td.test(a)))
-      ) {
-        return [[0, a]]
-      }
-      if (!isDeferred(b) && (isEmptyLiteral(b) || !num.test(b))) {
-        return [[1, b]]
-      }
-      if (isDeferred(a) || isDeferred(b)) return []
       if (num.test(a) && num.test(b)) return []
       if (td.test(a) && num.test(b)) return []
+      if (!(num.test(a) || td.test(a))) return [[0, a]]
 
+      // Reject invalid pairs, e.g.: number / timedelta, timedelta / timedelta, etc.
       return [[1, b]]
     }
 

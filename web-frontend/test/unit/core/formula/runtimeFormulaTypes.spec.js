@@ -54,7 +54,6 @@ import {
   RuntimeToDatetime,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 import { Timedelta } from '@baserow/modules/core/runtimeFormulaArgumentTypes'
-import { DeferredValue } from '@baserow/modules/core/formula/parser/formulaValidationVisitor'
 import { expect } from 'vitest'
 
 /** Tests for the RuntimeConcat class. */
@@ -206,30 +205,6 @@ describe('RuntimeAdd', () => {
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })
-
-  test.each([
-    // Deferred values are accepted at either position
-    { args: [DeferredValue, 5], expected: [] },
-    { args: [5, DeferredValue], expected: [] },
-    { args: [DeferredValue, DeferredValue], expected: [] },
-    // Deferred does not excuse a concrete invalid value
-    { args: [DeferredValue, 'foo'], expected: [[1, 'foo']] },
-    { args: ['foo', DeferredValue], expected: [[0, 'foo']] },
-    // Empty literals are rejected
-    { args: [null, 5], expected: [[0, null]] },
-    { args: [5, null], expected: [[1, null]] },
-    { args: ['', 5], expected: [[0, '']] },
-    { args: [5, ''], expected: [[1, '']] },
-    { args: [undefined, 5], expected: [[0, undefined]] },
-    { args: [5, undefined], expected: [[1, undefined]] },
-  ])(
-    'validates type of args with deferred or empty literal',
-    ({ args, expected }) => {
-      const formulaType = new RuntimeAdd()
-      const result = formulaType.validateTypeOfArgs(args)
-      expect(result).toStrictEqual(expected)
-    }
-  )
 })
 
 describe('RuntimeMinus', () => {
@@ -330,30 +305,6 @@ describe('RuntimeMinus', () => {
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })
-
-  test.each([
-    // Deferred values are accepted at either position
-    { args: [DeferredValue, 5], expected: [] },
-    { args: [5, DeferredValue], expected: [] },
-    { args: [DeferredValue, DeferredValue], expected: [] },
-    // Deferred does not excuse a concrete invalid value
-    { args: [DeferredValue, 'foo'], expected: [[1, 'foo']] },
-    { args: ['foo', DeferredValue], expected: [[0, 'foo']] },
-    // Empty literals are rejected
-    { args: [null, 5], expected: [[0, null]] },
-    { args: [5, null], expected: [[1, null]] },
-    { args: ['', 5], expected: [[0, '']] },
-    { args: [5, ''], expected: [[1, '']] },
-    { args: [undefined, 5], expected: [[0, undefined]] },
-    { args: [5, undefined], expected: [[1, undefined]] },
-  ])(
-    'validates type of args with deferred or empty literal',
-    ({ args, expected }) => {
-      const formulaType = new RuntimeMinus()
-      const result = formulaType.validateTypeOfArgs(args)
-      expect(result).toStrictEqual(expected)
-    }
-  )
 })
 
 describe('RuntimeMultiply', () => {
@@ -439,30 +390,6 @@ describe('RuntimeMultiply', () => {
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })
-
-  test.each([
-    // Deferred values are accepted at either position
-    { args: [DeferredValue, 5], expected: [] },
-    { args: [5, DeferredValue], expected: [] },
-    { args: [DeferredValue, DeferredValue], expected: [] },
-    // Deferred does not excuse a concrete invalid value
-    { args: [DeferredValue, 'foo'], expected: [[1, 'foo']] },
-    { args: ['foo', DeferredValue], expected: [[0, 'foo']] },
-    // Empty literals are rejected
-    { args: [null, 5], expected: [[0, null]] },
-    { args: [5, null], expected: [[1, null]] },
-    { args: ['', 5], expected: [[0, '']] },
-    { args: [5, ''], expected: [[1, '']] },
-    { args: [undefined, 5], expected: [[0, undefined]] },
-    { args: [5, undefined], expected: [[1, undefined]] },
-  ])(
-    'validates type of args with deferred or empty literal',
-    ({ args, expected }) => {
-      const formulaType = new RuntimeMultiply()
-      const result = formulaType.validateTypeOfArgs(args)
-      expect(result).toStrictEqual(expected)
-    }
-  )
 })
 
 describe('RuntimeDivide', () => {
@@ -546,35 +473,6 @@ describe('RuntimeDivide', () => {
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
   })
-
-  test.each([
-    // Deferred values are accepted at either position
-    { args: [DeferredValue, 5], expected: [] },
-    { args: [5, DeferredValue], expected: [] },
-    { args: [DeferredValue, DeferredValue], expected: [] },
-    // Deferred does not excuse a concrete invalid value
-    { args: [DeferredValue, 'foo'], expected: [[1, 'foo']] },
-    { args: ['foo', DeferredValue], expected: [[0, 'foo']] },
-    // Divisor must be a number even when dividend is deferred
-    {
-      args: [DeferredValue, new Timedelta(1000)],
-      expected: [[1, new Timedelta(1000)]],
-    },
-    // Empty literals are rejected
-    { args: [null, 5], expected: [[0, null]] },
-    { args: [5, null], expected: [[1, null]] },
-    { args: ['', 5], expected: [[0, '']] },
-    { args: [5, ''], expected: [[1, '']] },
-    { args: [undefined, 5], expected: [[0, undefined]] },
-    { args: [5, undefined], expected: [[1, undefined]] },
-  ])(
-    'validates type of args with deferred or empty literal',
-    ({ args, expected }) => {
-      const formulaType = new RuntimeDivide()
-      const result = formulaType.validateTypeOfArgs(args)
-      expect(result).toStrictEqual(expected)
-    }
-  )
 })
 
 describe('RuntimeEqual', () => {
