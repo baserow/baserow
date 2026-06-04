@@ -37,7 +37,7 @@ def tokenize_duration_format(
     duration unit ("d", "hh", etc) can appear at most once. All other
     characters are matched literally.
 
-    E.g. given a format_str like "d h:mm", the return value would be:
+    E.g. given a format_str like "h:mm:ss", the return value would be:
     (
         re.compile("^-?(\\d+):(\\d+):(\\d+)$"),
         ["hours", "minutes", "seconds"]
