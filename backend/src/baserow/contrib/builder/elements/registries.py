@@ -154,6 +154,16 @@ class ElementType(
                 f"child of type {self.type}"
             )
 
+    def get_graph_point_label(self, instance: ElementSubClass) -> str:
+        """
+        Returns the label used by the graph handler's labeled graph representation.
+
+        :param instance: The element instance to label.
+        :return: A stable, human-readable label for the element in test/debug graphs.
+        """
+
+        return self.type
+
     def before_import(
         self,
         serialized_values: Dict[str, Any],

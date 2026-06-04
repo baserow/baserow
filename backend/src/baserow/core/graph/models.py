@@ -1,4 +1,3 @@
-from decimal import Decimal
 from typing import Self
 
 from django.db import models
@@ -106,10 +105,6 @@ class GraphPointMixin:
         """
 
         return self.get_parent().get_graph()
-
-    def get_order(self) -> Decimal:
-        order_map = self._get_graph().get_order_map(self.get_parent().graph)
-        return order_map[self.id]
 
     @property
     def graph_point_label(self) -> str:
