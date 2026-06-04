@@ -70,11 +70,6 @@ class ElementType(
     # Whether this element is a multi-page element and should be placed on shared page.
     is_multi_page_element = False
 
-    # The order in which this element type is imported in `import_elements`.
-    # By default, the priority is `0`, the lowest value. If this property is
-    # not overridden, then the instance is imported last.
-    import_element_priority = 0
-
     def is_deactivated(self, workspace: Workspace) -> bool:
         """
         Returns whether this element type is deactivated for the given workspace.

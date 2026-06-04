@@ -347,7 +347,7 @@ def test_import_element(data_fixture):
 
 
 @pytest.mark.django_db
-def test_import_element_has_to_import_parent_first(data_fixture):
+def test_import_element_parent_child_graph_is_migrated(data_fixture):
     page = data_fixture.create_builder_page()
     parent_column = data_fixture.create_builder_column_element(
         page=page, column_amount=15
@@ -385,7 +385,9 @@ def test_import_element_has_to_import_parent_first(data_fixture):
 
 
 @pytest.mark.django_db
-def test_import_element_has_to_instance_already_created(data_fixture):
+def test_import_element_parent_child_graph_is_migrated_when_child_is_imported_first(
+    data_fixture,
+):
     page = data_fixture.create_builder_page()
     parent_column = data_fixture.create_builder_column_element(
         page=page, column_amount=15
@@ -409,7 +411,7 @@ def test_import_element_has_to_instance_already_created(data_fixture):
         builder=text_element.page.builder, graph=page.graph
     )
 
-    [imported_column, imported_text] = PageHandler().import_elements(
+    [imported_text, imported_column] = PageHandler().import_elements(
         new_page,
         [element_serialized, parent_serialized],
         {},

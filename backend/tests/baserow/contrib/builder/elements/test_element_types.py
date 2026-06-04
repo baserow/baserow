@@ -35,9 +35,6 @@ from baserow.contrib.builder.elements.element_types import (
 )
 from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
 from baserow.contrib.builder.elements.handler import ElementHandler
-from baserow.contrib.builder.elements.mixins import (
-    ContainerElementTypeMixin,
-)
 from baserow.contrib.builder.elements.models import (
     CheckboxElement,
     ChoiceElement,
@@ -753,30 +750,6 @@ def test_choice_element_is_valid_formula_context(data_fixture):
     # Call is_valid with a valid option simply returns its value
     assert (
         ChoiceElementType().is_valid(choice, "Germany", dispatch_context) == "Germany"
-    )
-
-
-def test_element_type_import_element_priority():
-    element_types = element_type_registry.get_all()
-    container_element_types = [
-        element_type
-        for element_type in element_types
-        if isinstance(element_type, ContainerElementTypeMixin)
-    ]
-    other_element_types = [
-        element_type
-        for element_type in element_types
-        if not isinstance(element_type, ContainerElementTypeMixin)
-    ]
-    manual_ordering = container_element_types + other_element_types
-    expected_ordering = sorted(
-        element_types,
-        key=lambda element_type: element_type.import_element_priority,
-        reverse=True,
-    )
-    assert manual_ordering == expected_ordering, (
-        "The element types ordering are expected to be: "
-        "containers first, then everything else."
     )
 
 

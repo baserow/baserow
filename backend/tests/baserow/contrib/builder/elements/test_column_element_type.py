@@ -4,7 +4,6 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.builder.elements.element_types import (
     ColumnElementType,
 )
-from baserow.core.db import specific_iterator
 from baserow.core.graph.types import GraphPointPosition
 from baserow_enterprise.builder.elements.element_types import AuthFormElementType
 
@@ -131,7 +130,7 @@ def test_column_element_type_can_have_children(data_fixture):
         place_in_container="1",
     )
 
-    assert list(specific_iterator(container.get_child_points())) == [
+    assert [instance.specific for instance in container.get_child_points()] == [
         element_inside_container_one,
         element_inside_container_two,
         element_inside_container_three,

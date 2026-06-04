@@ -1,5 +1,4 @@
 import uuid
-from decimal import Decimal
 from typing import List, Optional
 
 from django.contrib.contenttypes.models import ContentType
@@ -308,10 +307,6 @@ class Element(
 
     class Meta:
         ordering = ("id",)
-
-    @property
-    def order(self) -> Decimal:
-        return self.get_order()
 
     @property
     def place_in_container(self) -> str:
