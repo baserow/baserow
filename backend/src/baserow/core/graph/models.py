@@ -218,18 +218,6 @@ class GraphPointMixin:
 
         return self._get_graph().get_children(self)
 
-    @property
-    def children(self) -> models.QuerySet[Self]:
-        """
-        Provides a compatibility interface which we used to have on models with a
-        parent <-> child relationship in the ORM.
-
-        :return: A QuerySet of models which are a child of `self`.
-        """
-
-        child_ids = [child.id for child in self.get_child_points()]
-        return self._get_graph().base_point_class.objects.filter(pk__in=child_ids)
-
     def get_sibling_points(self) -> list[Self]:
         """
         Returns the siblings of the given point.
