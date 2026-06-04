@@ -1154,24 +1154,31 @@ def test_builder_application_import(data_fixture):
     assert button_config_block.button_background_color == "#ccccccff"
     assert button_config_block.button_hover_background_color == "#ccccccff"
 
-    [
-        container_element,
-        element1,
-        element2,
-        table_element,
-        element_inside_container,
-        element_inside_container2,
-    ] = specific_iterator(page1.element_set.all())
+    page1.assert_reference(
+        {
+            "0": "foo-0",
+            "foo-0": {"next": {"": ["text-1"]}},
+            "text-1": {"next": {"": ["table-2"]}},
+            "table-2": {"next": {"": ["column-4"]}},
+            "column-4": {"children": {"0": ["text-5"], "1": ["text-3"]}},
+            "text-3": {},
+            "text-5": {},
+        }
+    )
 
-    assert isinstance(element1, HeadingElement)
-    assert isinstance(element2, TextElement)
-    assert isinstance(container_element, ColumnElement)
-    assert isinstance(table_element, TableElement)
+    element1 = HeadingElement.objects.get(page=page1)
+    table_element = TableElement.objects.get(page=page1)
+    container_element = ColumnElement.objects.get(page=page1)
+    text_elements = list(TextElement.objects.filter(page=page1))
+    element_inside_container, element_inside_container2 = [
+        e
+        for e in text_elements
+        if e.parent_element and e.parent_element.specific == container_element
+    ]
 
     assert table_element.fields.count() == 2
     assert table_element.items_per_page == 42
 
-    assert element1.order == 1
     assert element1.level == 2
 
     assert element_inside_container.parent_element.specific == container_element
@@ -1540,14 +1547,19 @@ def test_builder_application_import_compat(data_fixture):
 
     assert builder.login_page == page2
 
-    [
-        container_element,
-        element1,
-        element2,
-        table_element,
-        element_inside_container,
-        element_inside_container2,
-    ] = specific_iterator(page1.element_set.all())
+    elements_by_id = {e.id: e for e in specific_iterator(page1.element_set.all())}
+    element1 = elements_by_id[page1.graph["0"]]
+    element2 = elements_by_id[page1.graph[str(element1.id)]["next"][""][0]]
+    table_element = elements_by_id[page1.graph[str(element2.id)]["next"][""][0]]
+    container_element = elements_by_id[
+        page1.graph[str(table_element.id)]["next"][""][0]
+    ]
+    element_inside_container = elements_by_id[
+        page1.graph[str(container_element.id)]["children"]["1"][0]
+    ]
+    element_inside_container2 = elements_by_id[
+        page1.graph[str(container_element.id)]["children"]["0"][0]
+    ]
 
     assert isinstance(element1, HeadingElement)
     assert isinstance(element2, TextElement)
@@ -1557,7 +1569,6 @@ def test_builder_application_import_compat(data_fixture):
     assert table_element.fields.count() == 2
     assert table_element.items_per_page == 42
 
-    assert element1.order == 1
     assert element1.level == 2
 
     # The compat migration must have reconstructed the graph so that

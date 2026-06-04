@@ -638,11 +638,7 @@ const actions = {
   async duplicate({ commit, dispatch }, { builder, page, elementId }) {
     const { $client } = this
     const {
-      data: {
-        elements,
-        workflow_actions: workflowActions,
-        graph,
-      },
+      data: { elements, workflow_actions: workflowActions, graph },
     } = await ElementService($client).duplicate(elementId)
 
     // Apply the graph BEFORE calling forceCreate. forceCreate skips the
@@ -651,11 +647,7 @@ const actions = {
     // level in addition to their correct position inside a container slot.
     // The backend returns the full graph, so replace the local graph instead of
     // merging a patch into it.
-    dispatch(
-      'page/forceUpdate',
-      { page, values: { graph } },
-      { root: true }
-    )
+    dispatch('page/forceUpdate', { page, values: { graph } }, { root: true })
 
     const elementPromises = elements.map((element) =>
       dispatch('forceCreate', { page, element })

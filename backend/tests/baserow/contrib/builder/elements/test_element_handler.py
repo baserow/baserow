@@ -228,25 +228,35 @@ def test_update_element_invalid_values(data_fixture):
 def test_creating_element_in_container_starts_its_own_order_sequence(data_fixture):
     page = data_fixture.create_builder_page()
     container = data_fixture.create_builder_column_element(page=page)
-    root_element = data_fixture.create_builder_heading_element(page=page)
-    element_inside_container_one = data_fixture.create_builder_heading_element(
+    data_fixture.create_builder_heading_element(page=page, value="'Root'")
+    data_fixture.create_builder_heading_element(
         page=page,
+        value="'Inside one'",
         place_in_container="1",
         reference_element=container,
         position=GraphPointPosition.CHILD,
     )
-    element_inside_container_two = data_fixture.create_builder_heading_element(
+    data_fixture.create_builder_heading_element(
         page=page,
+        value="'Inside two'",
         place_in_container="1",
         reference_element=container,
         position=GraphPointPosition.CHILD,
     )
 
-    # Irrespective of the order the elements were created, we need to assert that a new
-    # order has started inside the container
-    assert container.order < root_element.order
-    assert element_inside_container_one.order < element_inside_container_two.order
-    assert element_inside_container_one.order < root_element.order
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "column-0",
+            "column-0": {
+                "next": {"": ["Root-1"]},
+                "children": {"1": ["Inside one-2"]},
+            },
+            "Root-1": {},
+            "Inside one-2": {"next": {"": ["Inside two-3"]}},
+            "Inside two-3": {},
+        }
+    )
 
 
 @pytest.mark.django_db
@@ -258,12 +268,14 @@ def test_before_places_in_container_removed(data_fixture):
 
     element_one = data_fixture.create_builder_heading_element(
         page=page,
+        value="'One'",
         reference_element=column_element,
         position=GraphPointPosition.CHILD,
         place_in_container="2",
     )
     element_two = data_fixture.create_builder_heading_element(
         page=page,
+        value="'Two'",
         reference_element=column_element,
         position=GraphPointPosition.CHILD,
         place_in_container="1",
@@ -279,7 +291,15 @@ def test_before_places_in_container_removed(data_fixture):
 
     assert element_one.place_in_container == "0"
     assert element_two.place_in_container == "0"
-    assert element_one.order > element_two.order
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "column-0",
+            "column-0": {"children": {"0": ["Two-2"]}},
+            "Two-2": {"next": {"": ["One-1"]}},
+            "One-1": {},
+        }
+    )
     assert result_specific == [element_two, element_one]
 
 
@@ -324,7 +344,14 @@ def test_duplicate_element_single_element(data_fixture):
     assert element.id != element_duplicated.id
     assert element.value == element_duplicated.value
     assert element.page_id == element_duplicated.page_id
-    assert element.order < element_duplicated.order
+    element.page.refresh_from_db()
+    element.page.assert_reference(
+        {
+            "0": "text-0",
+            "text-0": {"next": {"": ["text-1"]}},
+            "text-1": {},
+        }
+    )
 
 
 @pytest.mark.django_db
