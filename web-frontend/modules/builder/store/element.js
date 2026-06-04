@@ -641,7 +641,7 @@ const actions = {
       data: {
         elements,
         workflow_actions: workflowActions,
-        graph_additions: graph,
+        graph,
       },
     } = await ElementService($client).duplicate(elementId)
 
@@ -649,11 +649,11 @@ const actions = {
     // root-chain append when the element is already present in page.graph,
     // so pre-populating prevents duplicated elements from appearing at root
     // level in addition to their correct position inside a container slot.
-    // graph_additions includes the predecessor's updated entry, so no manual
-    // patching of the connection is needed.
+    // The backend returns the full graph, so replace the local graph instead of
+    // merging a patch into it.
     dispatch(
       'page/forceUpdate',
-      { page, values: { graph: { ...page.graph, ...graph } } },
+      { page, values: { graph } },
       { root: true }
     )
 

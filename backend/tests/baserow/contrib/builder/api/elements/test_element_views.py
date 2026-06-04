@@ -1060,13 +1060,13 @@ def test_duplicate_element(api_client, data_fixture):
     assert len(response_json["elements"]) == 2
     duplicated_container = response_json["elements"][0]
     duplicated_heading = response_json["elements"][1]
-    # The original container is included because its next edge now points to the
-    # duplicated container — clients need it to traverse into the new nodes.
-    assert response_json["graph_additions"] == {
+    assert response_json["graph"] == {
+        "0": container.id,
         str(container.id): {
             "children": {"1": [heading.id]},
             "next": {"": [duplicated_container["id"]]},
         },
+        str(heading.id): {},
         str(duplicated_container["id"]): {
             "children": {"1": [duplicated_heading["id"]]}
         },
@@ -1137,15 +1137,18 @@ def test_duplicate_container_preserves_child_order(api_client, data_fixture):
     assert t_copy["type"] == "text"
     assert cb_copy["type"] == "checkbox"
 
-    # The original form_container is included because its next edge now points to
-    # fc_copy — clients need it to traverse from the existing graph into the new nodes.
-    # graph_additions must form the same chain as the original:
+    # The full graph includes the original and duplicated chains:
     # fc_copy → h_copy → it_copy → t_copy → cb_copy
-    assert response_json["graph_additions"] == {
+    assert response_json["graph"] == {
+        "0": form_container.id,
         str(form_container.id): {
             "children": {"": [heading.id]},
             "next": {"": [fc_copy["id"]]},
         },
+        str(heading.id): {"next": {"": [input_text.id]}},
+        str(input_text.id): {"next": {"": [text.id]}},
+        str(text.id): {"next": {"": [checkbox.id]}},
+        str(checkbox.id): {},
         str(fc_copy["id"]): {"children": {"": [h_copy["id"]]}},
         str(h_copy["id"]): {"next": {"": [it_copy["id"]]}},
         str(it_copy["id"]): {"next": {"": [t_copy["id"]]}},
