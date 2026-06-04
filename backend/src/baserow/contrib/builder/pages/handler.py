@@ -16,7 +16,6 @@ from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.permission_manager import (
     ElementVisibilityPermissionManager,
 )
-from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.types import ElementDictSubClass
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.models import Builder
@@ -49,8 +48,6 @@ from baserow.contrib.builder.workflow_actions.handler import (
 )
 from baserow.core.cache import global_cache
 from baserow.core.exceptions import IdDoesNotExist
-from baserow.core.graph.handler import BaseGraphHandler
-from baserow.core.graph.types import GraphPointPosition
 from baserow.core.psycopg import is_unique_violation_error
 from baserow.core.storage import ExportZipFile
 from baserow.core.user_sources.user_source_user import UserSourceUser
@@ -852,62 +849,21 @@ class PageHandler:
         imported_elements = []
         deferred_import_callbacks = {}
 
-        def element_priority_sort(element_to_sort):
-            return element_type_registry.get(
-                element_to_sort["type"]
-            ).import_element_priority
-
-        prioritized_elements = sorted(
-            serialized_elements, key=element_priority_sort, reverse=True
-        )
-
-        previous_position_map = BaseGraphHandler.build_previous_position_map(page.graph)
-        parent_element_id_cache = {}
-
-        def get_parent_element_id(element_id):
-            if element_id in parent_element_id_cache:
-                return parent_element_id_cache[element_id]
-
-            previous_position = previous_position_map.get(element_id)
-            if previous_position is None:
-                return None
-
-            reference_id, position, _output = previous_position
-            parent_element_id = (
-                reference_id
-                if position == GraphPointPosition.CHILD
-                else get_parent_element_id(reference_id)
+        for serialized_element in serialized_elements:
+            imported_element = ElementHandler().import_element(
+                page,
+                serialized_element,
+                id_mapping,
+                files_zip=files_zip,
+                storage=storage,
+                cache=cache,
+                deferred_import_callbacks=deferred_import_callbacks,
             )
-            parent_element_id_cache[element_id] = parent_element_id
-            return parent_element_id
 
-        was_imported = True
-        while was_imported:
-            was_imported = False
+            imported_elements.append(imported_element)
 
-            for serialized_element in prioritized_elements:
-                parent_element_id = get_parent_element_id(serialized_element["id"])
-                if serialized_element["id"] not in id_mapping.get(
-                    "builder_page_elements", {}
-                ) and (
-                    parent_element_id is None
-                    or parent_element_id in id_mapping.get("builder_page_elements", {})
-                ):
-                    imported_element = ElementHandler().import_element(
-                        page,
-                        serialized_element,
-                        id_mapping,
-                        files_zip=files_zip,
-                        storage=storage,
-                        cache=cache,
-                        deferred_import_callbacks=deferred_import_callbacks,
-                    )
-
-                    imported_elements.append(imported_element)
-
-                    was_imported = True
-                    if progress:
-                        progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
+            if progress:
+                progress.increment(state=IMPORT_SERIALIZED_IMPORTING)
 
         # ── Phase 2: Migrate graph ───────────────────────────────────
         # Graph now has new IDs, so parent_element_id works.

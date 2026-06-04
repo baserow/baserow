@@ -48,9 +48,6 @@ class ContainerElementTypeMixin:
     # Yes we're a container.
     is_container = True
 
-    # Container element types are imported first.
-    import_element_priority = 1
-
     class SerializedDict(ElementDict):
         pass
 
