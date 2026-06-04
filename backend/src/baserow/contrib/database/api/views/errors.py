@@ -1,6 +1,7 @@
 from rest_framework.status import (
     HTTP_400_BAD_REQUEST,
     HTTP_401_UNAUTHORIZED,
+    HTTP_402_PAYMENT_REQUIRED,
     HTTP_404_NOT_FOUND,
 )
 
@@ -149,4 +150,10 @@ ERROR_VIEW_OWNERSHIP_TYPE_INCOMPATIBLE_WITH_VIEW_TYPE = (
     HTTP_400_BAD_REQUEST,
     "The ownership type {e.ownership_type} is not compatible with "
     "view type {e.view_type}.",
+)
+
+ERROR_FEATURE_NOT_AVAILABLE = (
+    "ERROR_FEATURE_NOT_AVAILABLE",
+    HTTP_402_PAYMENT_REQUIRED,
+    "The related user does not have access to these features.",
 )
