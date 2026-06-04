@@ -1,4 +1,4 @@
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from typing import Any, Callable, Dict, Generator, List, Optional, Tuple, Type
 
 from django.db import IntegrityError
@@ -71,6 +71,15 @@ class ContainerElementTypeMixin:
             raise ElementNotMovable("A container element cannot be moved inside itself")
 
         source_graph = element.page.get_graph()
+        children_to_move = [
+            (
+                child.specific,
+                source_graph.get_position(child)[2],
+            )
+            for child in Element.objects.only("page_id").filter(
+                pk__in=[c.id for c in source_graph.get_children(element)]
+            )
+        ]
 
         with super().wrap_move(
             element,
@@ -79,27 +88,29 @@ class ContainerElementTypeMixin:
             target_page,
             place_in_container,
         ):
-            yield
+            with ExitStack() as child_move_stack:
+                for child, child_place_in_container in children_to_move:
+                    # Keep every child move wrapper active until all page
+                    # updates are done, so their after-move hooks see the final
+                    # moved state.
+                    child_move_stack.enter_context(
+                        child.get_type().wrap_move(
+                            child,
+                            None,
+                            GraphPointPosition.SOUTH,
+                            target_page,
+                            child_place_in_container,
+                        )
+                    )
 
-        target_page = element.page
-        children = Element.objects.only("page_id").filter(
-            pk__in=[c.id for c in source_graph.get_children(element)]
-        )
-        for child in children:
-            _, _, place_in_container = source_graph.get_position(child)
-            specific_child = child.specific
+                yield
 
-            with specific_child.get_type().wrap_move(
-                specific_child,
-                None,
-                GraphPointPosition.SOUTH,
-                target_page,
-                place_in_container,
-            ):
-                if child.page_id != target_page.id:
-                    child.page_id = target_page.id
-                    child.save()
-                    specific_child.page = target_page
+                target_page = element.page
+                for child, _ in children_to_move:
+                    if child.page_id != target_page.id:
+                        child.page_id = target_page.id
+                        child.save()
+                        child.page = target_page
 
     @property
     def child_types_allowed(self) -> List[str]:
