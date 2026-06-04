@@ -34,7 +34,11 @@
         >
           {{ $t('licenses.registerLicense') }}
         </Button>
-        <RedirectToBaserowModal :href="getLicenseURL" target="_blank">
+        <RedirectToBaserowModal
+          :href="getLicenseURL"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
           {{ $t('licenses.getLicense') }}
         </RedirectToBaserowModal>
       </div>

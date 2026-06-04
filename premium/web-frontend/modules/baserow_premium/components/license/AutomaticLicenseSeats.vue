@@ -31,6 +31,7 @@
         tag="a"
         :href="moreSeatsButton.href"
         target="_blank"
+        rel="noopener noreferrer"
       >
         {{ moreSeatsButton.text }}
       </Button>

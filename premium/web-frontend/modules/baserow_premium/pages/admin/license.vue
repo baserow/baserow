@@ -178,12 +178,18 @@
             </div>
             <i18n-t keypath="license.disconnectDescription" tag="p">
               <template #subscriptions>
-                <a href="https://baserow.io/subscriptions" target="_blank"
+                <a
+                  href="https://baserow.io/subscriptions"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   >baserow.io/subscriptions</a
                 >
               </template>
               <template #contact>
-                <a href="https://baserow.io/contact" target="_blank"
+                <a
+                  href="https://baserow.io/contact"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   >baserow.io/contact</a
                 >
               </template>
@@ -218,7 +224,7 @@ definePageMeta({
 
 const route = useRoute()
 const router = useRouter()
-const { $client, $registry } = useNuxtApp()
+const { $client, $registry, $i18n } = useNuxtApp()
 
 // Fetch license data
 const { data, error } = await useAsyncData(
@@ -263,6 +269,10 @@ const disconnectModal = ref(null)
 const licenseType = computed(() => {
   if (!license.value) return null
   return $registry.get('license', license.value.product_code)
+})
+
+useHead({
+  title: $i18n.t('license.title', { name: licenseType.value?.getName() || '' }),
 })
 
 const licenseFeatureDescription = computed(() => {
