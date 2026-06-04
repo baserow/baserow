@@ -131,7 +131,7 @@ def test_column_element_type_can_have_children(data_fixture):
         place_in_container="1",
     )
 
-    assert list(specific_iterator(container.children.all())) == [
+    assert list(specific_iterator(container.get_child_points())) == [
         element_inside_container_one,
         element_inside_container_two,
         element_inside_container_three,

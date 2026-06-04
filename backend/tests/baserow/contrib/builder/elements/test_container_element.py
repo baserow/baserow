@@ -20,7 +20,7 @@ def test_column_element_can_have_children(data_fixture):
         reference_element=column,
     )
 
-    child_ids = [child.id for child in column.children.all()]
+    child_ids = [child.id for child in column.get_child_points()]
     assert child_ids == [
         child_element_one.id,
         child_element_two.id,
