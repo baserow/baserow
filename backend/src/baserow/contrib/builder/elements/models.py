@@ -328,6 +328,10 @@ class Element(
     def parent_element_id(self) -> Optional[int]:
         return self.parent_element.id if self.parent_element else None
 
+    @property
+    def graph_point_label(self) -> str:
+        return self.get_type().get_graph_point_label(self)
+
     def graph_point_edge_label(self, uid: str) -> str:
         return (
             self.get_place_name()

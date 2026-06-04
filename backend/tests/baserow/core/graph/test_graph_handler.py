@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from django.test import override_settings
 
 import pytest
@@ -450,24 +448,6 @@ def test_remove_isolated_point_cleans_up_cross_graph_move_stale_entries():
 
     # Target graph is unchanged.
     assert target_model.graph["0"] == 1
-
-
-def test_graph_handler_get_order_map(graph_model_fixture):
-    model = graph_model_fixture
-    assert BaseGraphHandler.get_order_map(model.graph) == {
-        1: Decimal("1.00000000000000000000"),
-        2: Decimal("2.00000000000000000000"),
-        3: Decimal("1.00000000000000000000"),
-        5: Decimal("1.00000000000000000000"),
-        12: Decimal("2.00000000000000000000"),
-        4: Decimal("3.00000000000000000000"),
-        6: Decimal("4.00000000000000000000"),
-        7: Decimal("1.00000000000000000000"),
-        8: Decimal("1.00000000000000000000"),
-        9: Decimal("1.00000000000000000000"),
-        10: Decimal("2.00000000000000000000"),
-        11: Decimal("3.00000000000000000000"),
-    }
 
 
 # ── assert_graph_consistency tests ─────────────────────────────────────────

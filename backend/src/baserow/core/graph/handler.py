@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from decimal import Decimal
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 from baserow.core.cache import local_cache
@@ -121,54 +120,6 @@ class BaseGraphHandler(ABC):
 
         self.instance.save(update_fields=["graph"])
         local_cache.delete(self.generate_previous_position_map_cache_key(self.instance))
-
-    @classmethod
-    def get_order_map(cls, graph: SerializedGraph) -> Dict[int, Decimal]:
-        """
-        Returns a mapping of point_id to order Decimal for all points in the graph.
-
-        Root-level points are ordered by their position in the `next[""]` chain
-        starting from graph[GRAPH_ROOT_KEY]. Children in each place are ordered by their
-        position in the `next[""]` chain starting from the first child in that place
-        — including points reachable only via `next`, not just those listed
-        explicitly in `children`.
-
-        :param graph: The serialized graph to compute orders from.
-        :return: A dict mapping each point ID (int) to its Decimal order.
-        """
-
-        orders = {}
-
-        def _follow_chain(start_id):
-            current = start_id
-            i = 1
-            while current is not None:
-                orders[int(current)] = Decimal(f"{i}.{'0' * 20}")
-                point_next = graph.get(str(current), {}).get("next", {})
-                # Each non-default branch starts its own chain at order 1
-                for output, next_ids in point_next.items():
-                    if output != "" and next_ids:
-                        _follow_chain(next_ids[0])
-                next_ids = point_next.get("", [])
-                current = next_ids[0] if next_ids else None
-                i += 1
-
-        # Root-level points: follow next chain from graph[GRAPH_ROOT_KEY]
-        if cls.GRAPH_ROOT_KEY in graph:
-            _follow_chain(graph[cls.GRAPH_ROOT_KEY])
-
-        # Children: for each place, follow next chain from the first child
-        for point_id, info in graph.items():
-            if point_id == cls.GRAPH_ROOT_KEY or not isinstance(info, dict):
-                continue
-            children = info.get("children", {})
-            if isinstance(children, list):
-                children = {"": children}
-            for child_ids in children.values():
-                if child_ids:
-                    _follow_chain(child_ids[0])
-
-        return orders
 
     def get_info(self, point: GraphPoint | str | int | None) -> Dict[str, Any]:
         """

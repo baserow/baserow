@@ -681,6 +681,14 @@ class HeadingElementType(ElementType):
         value: BaserowFormulaObject
         level: int
 
+    def get_graph_point_label(self, instance: HeadingElement) -> str:
+        value = instance.value
+        if isinstance(value, dict):
+            formula = value.get("formula", "")
+            if len(formula) >= 2 and formula[0] == "'" and formula[-1] == "'":
+                return formula[1:-1]
+        return self.type
+
     @property
     def serializer_field_overrides(self):
         from baserow.contrib.builder.api.theme.serializers import (
