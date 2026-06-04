@@ -727,11 +727,12 @@ class ElementHandler:
         if "builder_page_elements" not in id_mapping:
             id_mapping["builder_page_elements"] = {}
 
-        element_type = element_type_registry.get(serialized_element["type"])
-
-        if element_type in old_element_type_map:
+        element_type_name = serialized_element["type"]
+        if element_type_name in old_element_type_map:
             # We met an old element type name. Let's migrate it.
-            element_type = old_element_type_map[element_type]
+            element_type_name = old_element_type_map[element_type_name]
+
+        element_type = element_type_registry.get(element_type_name)
 
         deferred_import_callback = element_type.before_import(
             serialized_element,

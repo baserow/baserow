@@ -51,6 +51,13 @@ class ContainerElementTypeMixin:
     class SerializedDict(ElementDict):
         pass
 
+    def get_places(self, instance: ContainerElement) -> Dict[str, Dict[str, str]]:
+        """
+        Returns the child slots available for this container element.
+        """
+
+        return {"": {"label": ""}}
+
     @contextmanager
     def wrap_move(
         self,

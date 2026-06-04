@@ -186,6 +186,11 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
 
         return [str(place) for place in places_removed]
 
+    def get_places(self, instance: ColumnElement) -> Dict[str, Dict[str, str]]:
+        return {
+            str(place): {"label": str(place)} for place in range(instance.column_amount)
+        }
+
     def validate_position_as_child(
         self, place_in_container: str, instance: ColumnElement
     ):
@@ -686,7 +691,9 @@ class HeadingElementType(ElementType):
         if isinstance(value, dict):
             formula = value.get("formula", "")
             if len(formula) >= 2 and formula[0] == "'" and formula[-1] == "'":
-                return formula[1:-1]
+                label = formula[1:-1]
+                if label:
+                    return label
         return self.type
 
     @property

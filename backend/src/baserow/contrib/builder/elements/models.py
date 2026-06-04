@@ -330,14 +330,18 @@ class Element(
 
     @property
     def graph_point_label(self) -> str:
-        return self.get_type().get_graph_point_label(self)
+        label = self.get_type().get_graph_point_label(self)
+        graph = self.get_parent().graph
+        element_ids = sorted(
+            int(point_id)
+            for point_id in graph
+            if point_id != self._get_graph().GRAPH_ROOT_KEY
+        )
+        return f"{label}-{element_ids.index(self.id)}"
 
     def graph_point_edge_label(self, uid: str) -> str:
-        return (
-            self.get_place_name()
-            if self.get_type().is_container
-            else self.get_previous_edge_name()
-        )
+        places = self.get_type().get_places(self)
+        return places.get(uid, {"label": uid})["label"]
 
     @staticmethod
     def get_type_registry():

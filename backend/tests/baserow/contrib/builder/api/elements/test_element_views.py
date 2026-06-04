@@ -125,9 +125,9 @@ def test_create_element_north_position(api_client, data_fixture):
     page.refresh_from_db()
     page.assert_reference(
         {
-            "0": "heading",
-            "heading": {"next": {"": ["heading-"]}},
-            "heading-": {},
+            "0": "heading-1",
+            "heading-0": {},
+            "heading-1": {"next": {"": ["heading-0"]}},
         }
     )
 
@@ -155,9 +155,9 @@ def test_create_element_south_position(api_client, data_fixture):
     page.refresh_from_db()
     page.assert_reference(
         {
-            "0": "heading",
-            "heading": {"next": {"": ["heading-"]}},
-            "heading-": {},
+            "0": "heading-0",
+            "heading-0": {"next": {"": ["heading-1"]}},
+            "heading-1": {},
         }
     )
 
@@ -244,11 +244,11 @@ def test_create_elements_in_container_slot_ordering(api_client, data_fixture):
     page.refresh_from_db()
     page.assert_reference(
         {
-            "0": "column",
-            "column": {"children": {"": ["heading"]}},
-            "heading": {"next": {"": ["heading-"]}},
-            "heading-": {"next": {"": ["heading--"]}},
-            "heading--": {},
+            "0": "column-0",
+            "column-0": {"children": {"0": ["heading-2"]}},
+            "heading-2": {"next": {"": ["heading-1"]}},
+            "heading-1": {"next": {"": ["heading-3"]}},
+            "heading-3": {},
         }
     )
 
@@ -1076,11 +1076,11 @@ def test_duplicate_element(api_client, data_fixture):
     page.refresh_from_db(fields=["graph"])
     page.assert_reference(
         {
-            "0": "column",
-            "column": {"next": {"": ["column-"]}, "children": {"": ["heading"]}},
-            "heading": {},
-            "column-": {"children": {"": ["heading-"]}},
-            "heading-": {},
+            "0": "column-0",
+            "column-0": {"next": {"": ["column-2"]}, "children": {"1": ["test-1"]}},
+            "test-1": {},
+            "column-2": {"children": {"1": ["test-3"]}},
+            "test-3": {},
         }
     )
 

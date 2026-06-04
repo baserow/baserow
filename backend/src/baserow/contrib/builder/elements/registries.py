@@ -70,6 +70,16 @@ class ElementType(
     # Whether this element is a multi-page element and should be placed on shared page.
     is_multi_page_element = False
 
+    def get_places(self, instance: ElementSubClass) -> Dict[str, Dict[str, str]]:
+        """
+        Returns the places available from this element in the graph.
+
+        The default builder element place is the unnamed ``next`` edge.
+        Container elements override this to expose their child slots.
+        """
+
+        return {"": {"label": ""}}
+
     def is_deactivated(self, workspace: Workspace) -> bool:
         """
         Returns whether this element type is deactivated for the given workspace.

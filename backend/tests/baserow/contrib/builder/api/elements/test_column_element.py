@@ -174,9 +174,17 @@ def test_elements_moved_when_column_is_removed(api_client, data_fixture):
     assert column_element_column_1_1.place_in_container == "0"
     assert column_element_column_2.place_in_container == "0"
 
-    assert column_element_column_0.order < column_element_column_1.order
-    assert column_element_column_1.order < column_element_column_1_1.order
-    assert column_element_column_1_1.order < column_element_column_2.order
+    column.page.refresh_from_db()
+    column.page.assert_reference(
+        {
+            "0": "column-0",
+            "column-0": {"children": {"0": ["text-1"]}},
+            "text-1": {"next": {"": ["text-2"]}},
+            "text-2": {"next": {"": ["text-3"]}},
+            "text-3": {"next": {"": ["text-4"]}},
+            "text-4": {},
+        }
+    )
 
 
 @pytest.mark.django_db

@@ -88,9 +88,9 @@ def test_move_element_before_another(data_fixture):
     page.refresh_from_db()
     page.assert_reference(
         {
-            "0": "Second",
-            "First": {},
-            "Second": {"next": {"": ["First"]}},
+            "0": "Second-1",
+            "First-0": {},
+            "Second-1": {"next": {"": ["First-0"]}},
         }
     )
 
@@ -110,9 +110,9 @@ def test_move_element_to_end(data_fixture):
     page.refresh_from_db()
     page.assert_reference(
         {
-            "0": "Second",
-            "Second": {"next": {"": ["First"]}},
-            "First": {},
+            "0": "Second-1",
+            "Second-1": {"next": {"": ["First-0"]}},
+            "First-0": {},
         }
     )
 
@@ -164,9 +164,9 @@ def test_move_element_into_container(data_fixture):
     page.refresh_from_db()
     page.assert_reference(
         {
-            "0": "column",
-            "column": {"children": {"": ["Hello"]}},
-            "Hello": {},
+            "0": "column-0",
+            "column-0": {"children": {"1": ["Hello-1"]}},
+            "Hello-1": {},
         }
     )
 
@@ -222,8 +222,8 @@ def test_move_element_to_root(data_fixture):
     page.refresh_from_db()
     page.assert_reference(
         {
-            "0": "column",
-            "column": {"next": {"": ["Inside"]}},
-            "Inside": {},
+            "0": "column-0",
+            "column-0": {"next": {"": ["Inside-1"]}},
+            "Inside-1": {},
         }
     )
