@@ -1,3 +1,5 @@
+from contextlib import contextmanager
+
 import pytest
 
 from baserow.contrib.builder.elements.service import ElementService
@@ -56,6 +58,53 @@ def test_move_container_element_updates_child_page_ids_recursively(data_fixture)
     ]:
         element.refresh_from_db()
         assert element.page_id == target_page.id
+
+
+@pytest.mark.django_db
+def test_move_container_element_wraps_child_moves_around_parent_move(
+    data_fixture, monkeypatch
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    target_page = data_fixture.create_builder_page(user=user, builder=builder)
+
+    container = data_fixture.create_builder_form_container_element(page=page)
+    child = data_fixture.create_builder_text_element(
+        page=page, reference_element=container, position=GraphPointPosition.CHILD
+    )
+    child_type = child.get_type()
+    original_wrap_move = child_type.wrap_move
+    calls = []
+
+    @contextmanager
+    def spy_wrap_move(*args, **kwargs):
+        container.refresh_from_db()
+        child.refresh_from_db()
+        calls.append(("before", container.page_id, child.page_id))
+
+        with original_wrap_move(*args, **kwargs):
+            yield
+
+        container.refresh_from_db()
+        child.refresh_from_db()
+        calls.append(("after", container.page_id, child.page_id))
+
+    monkeypatch.setattr(child_type, "wrap_move", spy_wrap_move)
+
+    ElementService().move_element(
+        user,
+        target_page,
+        container,
+        place_in_container="",
+        reference_element_id=None,
+        position=GraphPointPosition.SOUTH,
+    )
+
+    assert calls == [
+        ("before", page.id, page.id),
+        ("after", target_page.id, target_page.id),
+    ]
 
 
 @pytest.mark.django_db
