@@ -8,6 +8,7 @@ import {
   ensureViewFieldOptions,
   createViewFilter,
   createViewSort,
+  createViewGroupBy,
 } from "./view";
 import {
   Field,
@@ -60,6 +61,11 @@ export interface SortSpec {
   order?: "ASC" | "DESC";
 }
 
+export interface GroupBySpec {
+  fieldName: string;
+  order?: "ASC" | "DESC";
+}
+
 // Setup options
 
 export interface GridSetupOptions {
@@ -79,6 +85,8 @@ export interface GridSetupOptions {
   filters?: FilterSpec[];
   /** View-level sorts applied via the API before the test starts */
   sorts?: SortSpec[];
+  /** View-level group-bys applied via the API before the test starts */
+  groupBys?: GroupBySpec[];
 }
 
 // Setup result
@@ -271,6 +279,16 @@ export async function setupGrid(
     );
   }
 
+  // 8. Apply view-level group-bys
+  for (const g of options.groupBys ?? []) {
+    await createViewGroupBy(
+      user,
+      view,
+      fieldByName[g.fieldName],
+      g.order ?? "ASC",
+    );
+  }
+
   return { user, database, table, view, fieldByName, rowIds, getOptionId };
 }
 
@@ -315,7 +333,10 @@ export async function resetRows(
   const resolved = newRows.map((row) => {
     const out: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(row)) {
-      if (g.fieldByName[key]?.type === "single_select" && typeof value === "string") {
+      if (
+        g.fieldByName[key]?.type === "single_select" &&
+        typeof value === "string"
+      ) {
         out[key] = g.getOptionId(key, value);
       } else {
         out[key] = value;

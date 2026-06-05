@@ -850,6 +850,8 @@ BATCH_ROWS_SIZE_LIMIT = int(
     os.getenv("BATCH_ROWS_SIZE_LIMIT", 200)
 )  # How many rows can be modified at once.
 
+VIEW_GROUP_TREE_MAX_NODES = int(os.getenv("BASEROW_VIEW_GROUP_TREE_MAX_NODES", 50000))
+
 SEARCH_UPDATE_BATCH_SIZE = int(
     os.getenv("BASEROW_SEARCH_UPDATE_BATCH_SIZE", 2000)
 )  # How many rows to process per batch in search index updates.

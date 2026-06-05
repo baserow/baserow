@@ -1,6 +1,7 @@
 import {
   prepareRowForRequest,
   prepareNewOldAndUpdateRequestValues,
+  prepareRowMultiFieldUpdate,
   extractRowReadOnlyValues,
   computeMultiSelectPosition,
   computeRowMatchFlags,
@@ -186,6 +187,83 @@ describe('Row utilities', () => {
     expect(updateRequestValues).toEqual({
       field_1: 1,
       id: row.id,
+    })
+  })
+
+  test('prepareRowMultiFieldUpdate', () => {
+    const row = {
+      id: 1,
+      field_1: { id: 2, value: 'Option 2', color: 'green' },
+      field_2: 'Old text',
+      field_3: '2024-01-04T15:15:59.163126Z',
+    }
+    const allFields = [
+      {
+        id: 1,
+        name: 'Single Select',
+        type: 'single_select',
+        select_options: [
+          {
+            id: 1,
+            value: 'Option 1',
+            color: 'blue',
+          },
+          {
+            id: 2,
+            value: 'Option 2',
+            color: 'green',
+          },
+        ],
+      },
+      {
+        id: 2,
+        name: 'Text',
+        type: 'text',
+      },
+      {
+        id: 3,
+        name: 'Last modified',
+        type: 'last_modified',
+        date_include_time: true,
+      },
+    ]
+
+    const { newRowValues, oldRowValues, updateRequestValues } =
+      prepareRowMultiFieldUpdate(
+        row,
+        allFields,
+        [
+          {
+            field: allFields[0],
+            value: { id: 1, value: 'Option 1', color: 'blue' },
+            oldValue: row.field_1,
+          },
+          {
+            field: allFields[1],
+            value: 'New text',
+            oldValue: row.field_2,
+          },
+        ],
+        store.$registry
+      )
+
+    expect(newRowValues.field_3).not.toBe(oldRowValues.field_3)
+    expect(newRowValues).toEqual({
+      id: row.id,
+      field_1: { id: 1, value: 'Option 1', color: 'blue' },
+      field_2: 'New text',
+      field_3: newRowValues.field_3,
+    })
+    expect(oldRowValues).toEqual({
+      id: row.id,
+      field_1: { id: 2, value: 'Option 2', color: 'green' },
+      field_2: 'Old text',
+      field_3: '2024-01-04T15:15:59.163126Z',
+    })
+    expect(updateRequestValues).toEqual({
+      id: row.id,
+      field_1: 1,
+      field_2: 'New text',
     })
   })
 

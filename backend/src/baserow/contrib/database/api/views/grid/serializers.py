@@ -53,3 +53,28 @@ class GridViewFilterSerializer(serializers.Serializer):
         child=serializers.IntegerField(),
         help_text="Only rows related to the provided ids are added to the response.",
     )
+
+
+class GridViewGroupTreeNodeSerializer(serializers.Serializer):
+    path = serializers.DictField(
+        help_text=(
+            "Mapping of group-by field db_column names to the serialized group "
+            "value at every depth from 0 up to this node's depth."
+        )
+    )
+    depth = serializers.IntegerField(
+        help_text="Zero-based depth of this node in the group-by hierarchy."
+    )
+    row_count = serializers.IntegerField(
+        help_text="Number of leaf rows descending from this node."
+    )
+    children_count = serializers.IntegerField(
+        required=False,
+        help_text="Number of immediate sub-groups. Omitted at leaf depth.",
+    )
+
+
+class GridViewGroupTreeSerializer(serializers.Serializer):
+    nodes = GridViewGroupTreeNodeSerializer(many=True)
+    truncated = serializers.BooleanField()
+    total_nodes = serializers.IntegerField()

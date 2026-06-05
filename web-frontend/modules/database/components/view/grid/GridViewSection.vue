@@ -41,6 +41,7 @@
           includeGridViewIdentifierDropdown
         "
         :include-group-by="includeGroupBy"
+        :show-group-by-field-background="!useGroupByRows"
         :read-only="readOnly"
         :store-prefix="storePrefix"
         @field-created="$emit('field-created', $event)"
@@ -62,6 +63,7 @@
       >
         <div class="grid-view__body-inner">
           <GridViewPlaceholder
+            v-if="!useGroupByRows"
             :visible-fields="visibleFields"
             :view="view"
             :include-row-details="includeRowDetails"
@@ -69,13 +71,52 @@
             :store-prefix="storePrefix"
           ></GridViewPlaceholder>
           <GridViewGroups
-            v-if="includeGroupBy && activeGroupBys.length > 0"
+            v-if="
+              includeGroupBy && activeGroupBys.length > 0 && !useGroupByRows
+            "
             :all-fields-in-table="allFieldsInTable"
             :group-by-value-sets="groupByValueSets"
             :store-prefix="storePrefix"
           ></GridViewGroups>
+          <GridViewGroupByRows
+            v-if="useGroupByRows"
+            ref="rows"
+            :view="view"
+            :rendered-fields="fieldsToRender"
+            :visible-fields="visibleFields"
+            :all-visible-fields="allVisibleFields"
+            :all-fields-in-table="allFieldsInTable"
+            :workspace-id="database.workspace.id"
+            :decorations-by-place="decorationsByPlace"
+            :left-offset="fieldsLeftOffset"
+            :include-row-details="includeRowDetails"
+            :read-only="readOnly"
+            :store-prefix="storePrefix"
+            @update="$emit('update', $event)"
+            @paste="$emit('paste', $event)"
+            @edit="$emit('edit', $event)"
+            @cell-mousedown-left="$emit('cell-mousedown-left', $event)"
+            @cell-mouseover="$emit('cell-mouseover', $event)"
+            @cell-mouseup-left="$emit('cell-mouseup-left', $event)"
+            @cell-shift-click="$emit('cell-shift-click', $event)"
+            @cell-selected="$emit('cell-selected', $event)"
+            @selected="$emit('selected', $event)"
+            @unselected="$emit('unselected', $event)"
+            @select="$emit('select', $event)"
+            @unselect="$emit('unselect', $event)"
+            @select-next="$emit('select-next', $event)"
+            @add-row="$emit('add-row', $event)"
+            @add-row-after="$emit('add-row-after', $event)"
+            @edit-modal="$emit('edit-modal', $event)"
+            @refresh-row="$emit('refresh-row', $event)"
+            @row-dragging="$emit('row-dragging', $event)"
+            @row-hover="$emit('row-hover', $event)"
+            @row-context="$emit('row-context', $event)"
+          ></GridViewGroupByRows>
           <GridViewRows
-            v-if="includeRowDetails || visibleFields.length > 0"
+            v-if="
+              !useGroupByRows && (includeRowDetails || visibleFields.length > 0)
+            "
             ref="rows"
             :view="view"
             :rendered-fields="fieldsToRender"
@@ -119,6 +160,7 @@
           ></GridViewRows>
           <GridViewRowAdd
             v-if="
+              !useGroupByRows &&
               !readOnly &&
               (!table.data_sync || table.data_sync.two_way_sync) &&
               (includeRowDetails || visibleFields.length > 0) &&
@@ -170,6 +212,7 @@ import GridViewHead from '@baserow/modules/database/components/view/grid/GridVie
 import GridViewPlaceholder from '@baserow/modules/database/components/view/grid/GridViewPlaceholder'
 import GridViewGroups from '@baserow/modules/database/components/view/grid/GridViewGroups'
 import GridViewRows from '@baserow/modules/database/components/view/grid/GridViewRows'
+import GridViewGroupByRows from '@baserow/modules/database/components/view/grid/GridViewGroupByRows'
 import GridViewRowAdd from '@baserow/modules/database/components/view/grid/GridViewRowAdd'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewFieldFooter from '@baserow/modules/database/components/view/grid/GridViewFieldFooter'
@@ -184,6 +227,7 @@ export default {
     GridViewPlaceholder,
     GridViewGroups,
     GridViewRows,
+    GridViewGroupByRows,
     GridViewRowAdd,
     GridViewFieldFooter,
   },
@@ -324,6 +368,9 @@ export default {
         })
 
       return dividers
+    },
+    useGroupByRows() {
+      return this.activeGroupBys.length > 0
     },
     /**
      * Computes an object that can be used by the `GridViewGroups` and `GridViewRows`

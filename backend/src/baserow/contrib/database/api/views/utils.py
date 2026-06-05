@@ -24,6 +24,7 @@ from baserow.contrib.database.api.rows.serializers import (
     get_row_serializer_class,
 )
 from baserow.contrib.database.api.views.serializers import serialize_group_by_metadata
+from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.rows.registries import row_metadata_registry
 from baserow.contrib.database.table.models import GeneratedTableModel
 from baserow.contrib.database.views.filters import AdHocFilters
@@ -342,3 +343,40 @@ def serialize_group_by_fields_metadata(
     )
     serialized_group_by_metadata = serialize_group_by_metadata(group_by_metadata)
     return serialized_group_by_metadata
+
+
+def serialize_group_by_tree(
+    tree: Dict[str, Any],
+    group_by_fields: List[Field],
+) -> Dict[str, Any]:
+    serializer_by_db_column = {
+        field.db_column: field_type_registry.get_by_model(
+            field.specific_class
+        ).get_group_by_serializer_field(field)
+        for field in group_by_fields
+    }
+
+    nodes = []
+    for node in tree.get("nodes", []):
+        serialized_path = {}
+        for db_column, value in node["path"].items():
+            serializer_field = serializer_by_db_column.get(db_column)
+            if value is None or serializer_field is None:
+                serialized_path[db_column] = None if value is None else value
+            else:
+                serialized_path[db_column] = serializer_field.to_representation(value)
+
+        out_node = {
+            "path": serialized_path,
+            "depth": node["depth"],
+            "row_count": node["row_count"],
+        }
+        if "children_count" in node:
+            out_node["children_count"] = node["children_count"]
+        nodes.append(out_node)
+
+    return {
+        "nodes": nodes,
+        "truncated": tree.get("truncated", False),
+        "total_nodes": tree.get("total_nodes", 0),
+    }

@@ -28,9 +28,9 @@
       :database="database"
       :table="table"
       :view="view"
-      :include-row-details="!viewHasGroupBys"
-      :include-grid-view-identifier-dropdown="!viewHasGroupBys"
-      :include-group-by="true"
+      :include-row-details="true"
+      :include-grid-view-identifier-dropdown="true"
+      :include-group-by="!viewHasGroupBys"
       :can-order-fields="frozenColumnCount > 1"
       :read-only="
         readOnly ||
@@ -58,7 +58,7 @@
       @cell-mouseover="multiSelectHold"
       @cell-mouseup-left="multiSelectStop"
       @cell-shift-click="multiSelectShiftClick"
-      @add-row="addRow()"
+      @add-row="addRow($event)"
       @add-rows="$refs.rowsAddContext.toggleNextToMouse($event)"
       @add-row-after="addRowAfter($event)"
       @update="updateValue"
@@ -79,9 +79,7 @@
       :style="{ left: leftWidth + 'px' }"
     ></div>
     <GridViewFreezeHandle
-      v-if="
-        canFitFrozenColumns && !viewHasGroupBys && allDraggableFields.length > 0
-      "
+      v-if="canFitFrozenColumns && allDraggableFields.length > 0"
       :view="view"
       :database="database"
       :fields="fields"
@@ -99,25 +97,6 @@
       :get-field-width="getFieldWidth"
       @frozen-count-change="onFrozenCountDragChange"
     ></GridViewFreezeHandle>
-    <HorizontalResize
-      v-else-if="viewHasGroupBys && leftFields.length === 0"
-      class="grid-view__divider-width"
-      :style="{ left: leftWidth + 'px' }"
-      :width="activeGroupBys[activeGroupBys.length - 1].width"
-      :min="GRID_VIEW_MIN_FIELD_WIDTH"
-      @move="
-        moveGroupWidth(activeGroupBys[activeGroupBys.length - 1], view, $event)
-      "
-      @update="
-        updateGroupWidth(
-          activeGroupBys[activeGroupBys.length - 1],
-          view,
-          database,
-          readOnly,
-          $event
-        )
-      "
-    ></HorizontalResize>
     <GridViewSection
       ref="right"
       class="grid-view__right"
@@ -128,8 +107,8 @@
       :database="database"
       :table="table"
       :view="view"
-      :include-row-details="viewHasGroupBys"
-      :include-grid-view-identifier-dropdown="viewHasGroupBys"
+      :include-row-details="false"
+      :include-grid-view-identifier-dropdown="false"
       :include-add-field="true"
       :can-order-fields="true"
       :read-only="
@@ -152,7 +131,7 @@
       @field-dragging="startCrossSectionFieldDrag($event.field, $event.event)"
       @row-hover="setRowHover($event.row, $event.value)"
       @row-context="showRowContext($event.event, $event.row)"
-      @add-row="addRow()"
+      @add-row="addRow($event)"
       @add-rows="$refs.rowsAddContext.toggleNextToMouse($event)"
       @add-row-after="addRowAfter($event)"
       @update="updateValue"
@@ -197,7 +176,7 @@
       :all-visible-fields="allVisibleFields"
       :all-fields-in-table="fields"
       :store-prefix="storePrefix"
-      :offset="activeGroupByWidth"
+      :offset="0"
       :get-scroll-element="getVerticalScrollbarElement"
       @scroll="scroll($event.pixelY, $event.pixelX)"
     ></GridViewRowDragging>
@@ -334,7 +313,6 @@ import { mapGetters } from 'vuex'
 
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import GridViewSection from '@baserow/modules/database/components/view/grid/GridViewSection'
-import HorizontalResize from '@baserow/modules/core/components/HorizontalResize'
 import GridViewFieldDragging from '@baserow/modules/database/components/view/grid/GridViewFieldDragging'
 import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid/GridViewFreezeHandle'
 import GridViewRowDragging from '@baserow/modules/database/components/view/grid/GridViewRowDragging'
@@ -363,7 +341,6 @@ import {
 export default {
   name: 'GridView',
   components: {
-    HorizontalResize,
     GridViewFieldDragging,
     GridViewFreezeHandle,
     GridViewRowsAddContext,
@@ -495,11 +472,7 @@ export default {
       return this.view.frozen_column_count ?? 1
     },
     hasFrozenColumns() {
-      return (
-        this.canFitFrozenColumns &&
-        !this.viewHasGroupBys &&
-        this.frozenColumnCount > 0
-      )
+      return this.canFitFrozenColumns && this.frozenColumnCount > 0
     },
     isEditable() {
       return (
@@ -544,11 +517,7 @@ export default {
       )
     },
     leftWidth() {
-      return (
-        this.leftFieldsWidth +
-        (this.viewHasGroupBys ? 0 : this.gridViewRowDetailsWidth) +
-        this.activeGroupByWidth
-      )
+      return this.leftFieldsWidth + this.gridViewRowDetailsWidth
     },
     /**
      * All non-primary visible fields in order, used by the cross-section
@@ -560,7 +529,6 @@ export default {
     crossSectionDraggingOffset() {
       const primary = this.fields.find((f) => f.primary)
       return (
-        this.activeGroupByWidth +
         this.gridViewRowDetailsWidth +
         (primary ? this.getFieldWidth(primary) : 0)
       )
@@ -1043,6 +1011,20 @@ export default {
     },
     async addRow(before = null, values = {}) {
       try {
+        if (before?.groupPath) {
+          await this.$store.dispatch(
+            this.storePrefix + 'view/grid/createNewRowInGroup',
+            {
+              view: this.view,
+              table: this.table,
+              fields: this.fields,
+              path: before.groupPath,
+              selectPrimaryCell: true,
+            }
+          )
+          return
+        }
+
         await this.$store.dispatch(
           this.storePrefix + 'view/grid/createNewRow',
           {
@@ -1375,15 +1357,12 @@ export default {
      */
     async refresh() {
       await this.$store.dispatch(
-        this.storePrefix + 'view/grid/visibleByScrollTop',
-        this.$refs.right.$refs.body.scrollTop
-      )
-      // The grid view store keeps a copy of the group bys that must only be updated
-      // after the refresh of the page. This is because the group by depends on the rows
-      // being sorted, and this will only be the case after a refresh.
-      await this.$store.dispatch(
         this.storePrefix + 'view/grid/updateActiveGroupBys',
         clone(this.view.group_bys || [])
+      )
+      await this.$store.dispatch(
+        this.storePrefix + 'view/grid/visibleByScrollTop',
+        this.$refs.right.$refs.body.scrollTop
       )
       this.$nextTick(() => {
         this.fieldsUpdated()

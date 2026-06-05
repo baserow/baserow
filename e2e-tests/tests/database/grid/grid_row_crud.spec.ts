@@ -6,7 +6,8 @@
  *
  */
 
-import { test } from "../../baserowTest";
+import type { Page, Request } from "@playwright/test";
+import { test, expect } from "../../baserowTest";
 import { GridPage } from "../../../pages/database/gridPage";
 import {
   GridSetupResult,
@@ -56,6 +57,32 @@ function numberedRows(count: number): Record<string, unknown>[] {
     Name: `Row ${String(index + 1).padStart(3, "0")}`,
     Score: index + 1,
   }));
+}
+
+async function collectGridViewGetRequests(
+  page: Page,
+  viewId: number,
+  action: () => Promise<void>,
+): Promise<string[]> {
+  const urls: string[] = [];
+  const listener = (request: Request): void => {
+    const url = new URL(request.url());
+    if (
+      request.method() === "GET" &&
+      url.pathname.startsWith(`/api/database/views/grid/${viewId}/`)
+    ) {
+      urls.push(request.url());
+    }
+  };
+
+  page.on("request", listener);
+  try {
+    await action();
+    await page.waitForTimeout(300);
+  } finally {
+    page.off("request", listener);
+  }
+  return urls;
 }
 
 // -----------------------------------------------------------------------------
@@ -130,6 +157,263 @@ test.describe("1.1 Basic add row", () => {
     const grid = new GridPage(page, g.user);
     await addRowAndWaitForCreatedRow(grid, 2);
     await grid.expectPrimarySelected(1);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// section 1.5  Create with active group-by
+// -----------------------------------------------------------------------------
+
+test.describe("1.5 Create with active group-by", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "CrudGroupByDb",
+      fields: [
+        { name: "Team", type: "text" },
+        { name: "Score", type: "number" },
+      ],
+      groupBys: [{ fieldName: "Team", order: "ASC" }],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await resetRows(g, [
+      { Name: "Alice", Team: "A", Score: 10 },
+      { Name: "Bob", Team: "A", Score: 20 },
+      { Name: "Carol", Team: "B", Score: 30 },
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.expectGroupByBanner("A", 2, true);
+    await grid.expectGroupByBanner("B", 1, true);
+    await grid.expectRowCount(0);
+  });
+
+  test("1.5.0 grouped views load collapsed and the context menu can expand/collapse all groups", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+
+    await grid.expectGroupByBanner("A", 2, true);
+    await grid.expectGroupByBanner("B", 1, true);
+    await grid.expectRowCount(0);
+
+    const expandRequests = await collectGridViewGetRequests(
+      page,
+      g.view.id,
+      async () => {
+        await grid.expandAllGroupsFromContext();
+        await waitForInitialRows(grid, 3);
+      },
+    );
+    expect(expandRequests).toHaveLength(1);
+    expect(new URL(expandRequests[0]).pathname).toBe(
+      `/api/database/views/grid/${g.view.id}/`,
+    );
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+
+    await grid.collapseAllGroupsFromContext();
+    await grid.expectGroupByBanner("A", 2, true);
+    await grid.expectGroupByBanner("B", 1, true);
+    await grid.expectRowCount(0);
+  });
+
+  test("1.5.1 adding a row from a group add-row line appends it at the bottom of that group", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.expandAllGroupsFromContext();
+    await waitForInitialRows(grid, 3);
+    const pausedCreate = await pauseNextRequestWithSignal(
+      page,
+      `**/api/database/rows/table/${g.table.id}/**`,
+      { method: "POST" },
+    );
+
+    await grid.addRow();
+    await pausedCreate.intercepted;
+
+    await grid.expectRowCount(4);
+    await grid.expectPrimaryText(0, "Alice");
+    await grid.expectPrimaryText(1, "Bob");
+    await grid.expectPrimaryEmpty(2);
+    await grid.expectFieldText(2, 0, "A");
+    await grid.expectPrimaryText(3, "Carol");
+    await grid.expectGroupByBanner("A", 3);
+    await grid.expectGroupByBanner("B", 1);
+    await grid.expectRowLoading(2);
+
+    pausedCreate.release();
+
+    await grid.expectRowNotLoading(2);
+    await grid.expectPrimaryEmpty(2);
+    await grid.expectFieldText(2, 0, "A");
+    await grid.expectPrimarySelected(2);
+  });
+
+  test("1.5.2 collapsing and expanding a group hides and restores its rows", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.expandAllGroupsFromContext();
+    await waitForInitialRows(grid, 3);
+
+    await grid.toggleGroupBy("A");
+    await grid.expectGroupByBanner("A", 2, true);
+    await grid.expectRowCount(1);
+    await grid.expectPrimaryText(0, "Carol");
+
+    await grid.toggleGroupBy("A");
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectRowCount(3);
+    await grid.expectPrimaryText(0, "Alice");
+    await grid.expectPrimaryText(1, "Bob");
+    await grid.expectPrimaryText(2, "Carol");
+  });
+});
+
+test.describe("2.2.6 Edit with active filter and group-by", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "CrudFilterGroupByDb",
+      fields: [{ name: "Team", type: "text" }],
+      filters: [{ fieldName: "Name", type: "contains", value: "Keep" }],
+      groupBys: [{ fieldName: "Team", order: "ASC" }],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await resetRows(g, [
+      { Name: "Keep one", Team: "A" },
+      { Name: "Keep two", Team: "A" },
+      { Name: "Keep three", Team: "B" },
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.expectGroupByBanner("A", 2, true);
+    await grid.expectGroupByBanner("B", 1, true);
+    await grid.expectRowCount(0);
+    await grid.expandAllGroupsFromContext();
+    await grid.expectRowCount(3);
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+  });
+
+  test("2.2.6a grouped filtered edit shows warning on the last group row and shrinks the group on deselect", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const pausedUpdate = await pauseNextRequestWithSignal(
+      page,
+      `**/api/database/rows/table/${g.table.id}/**`,
+      { method: "PATCH" },
+    );
+
+    await startEditingPrimary(grid, 1);
+    await grid.type("Hidden");
+    await grid.confirmWithTab();
+    await pausedUpdate.intercepted;
+    await grid.expectPrimaryText(1, "Hidden");
+    await grid.expectRowHasWarning(1);
+    await grid.expectRowWarningVisible(1);
+    await grid.expectRowWarningText(1, "Row does not match filters");
+
+    pausedUpdate.release();
+    await grid.expectRowHasWarning(1);
+    await grid.expectRowWarningVisible(1);
+
+    await grid.clickAway();
+    await grid.expectRowCount(2);
+    await grid.expectGroupByBanner("A", 1);
+    await grid.expectGroupByBanner("B", 1);
+    await grid.expectPrimaryText(0, "Keep one");
+    await grid.expectPrimaryText(1, "Keep three");
+    await grid.expectPrimaryNotVisible("Hidden");
+  });
+});
+
+test.describe("2.2.7 Edit single-select group-by", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "CrudSingleSelectGroupByDb",
+      fields: [
+        {
+          name: "Category",
+          type: "single_select",
+          options: ["Design", "Development"],
+        },
+      ],
+      groupBys: [{ fieldName: "Category", order: "ASC" }],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await resetRows(g, [
+      { Name: "Rebranding website", Category: "Design" },
+      { Name: "User portal", Category: "Development" },
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.expectGroupByBanner("Design", 1, true);
+    await grid.expectGroupByBanner("Development", 1, true);
+    await grid.expectRowCount(0);
+    await grid.expandAllGroupsFromContext();
+    await grid.expectGroupByBanner("Design", 1);
+    await grid.expectGroupByBanner("Development", 1);
+    await grid.expectRowCount(2);
+  });
+
+  test("2.2.7a changing a selected row category warns, then moves it locally on deselect", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const pausedUpdate = await pauseNextRequestWithSignal(
+      page,
+      `**/api/database/rows/table/${g.table.id}/**`,
+      { method: "PATCH" },
+    );
+
+    const gridViewGets = await collectGridViewGetRequests(
+      page,
+      g.view.id,
+      async () => {
+        await grid.selectSingleSelectOption(0, 0, "Development");
+        await pausedUpdate.intercepted;
+
+        await grid.expectPrimaryText(0, "Rebranding website");
+        await grid.expectFieldText(0, 0, "Development");
+        await grid.expectRowHasWarning(0);
+        await grid.expectRowWarningVisible(0);
+        await grid.expectRowWarningText(0, "Row has moved");
+        await grid.expectGroupByBanner("Design", 1);
+        await grid.expectGroupByBanner("Development", 1);
+
+        pausedUpdate.release();
+        await grid.expectRowHasWarning(0);
+        await grid.expectRowWarningText(0, "Row has moved");
+
+        await grid.clickAway();
+        await grid.expectGroupByBanner("Design", 0);
+        await grid.expectGroupByBanner("Development", 2);
+        await grid.expectRowCount(2);
+        await grid.expectPrimaryText(0, "Rebranding website");
+        await grid.expectFieldText(0, 0, "Development");
+        await grid.expectPrimaryText(1, "User portal");
+        await grid.expectRowNoWarning(0);
+      },
+    );
+
+    expect(gridViewGets).toEqual([]);
   });
 });
 

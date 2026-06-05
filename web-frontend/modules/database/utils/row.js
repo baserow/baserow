@@ -90,6 +90,51 @@ export function prepareNewOldAndUpdateRequestValues(
   return { newRowValues, oldRowValues, updateRequestValues }
 }
 
+export function prepareRowMultiFieldUpdate(
+  row,
+  allFields,
+  fieldValuePairs,
+  registry
+) {
+  const newRowValues = { id: row.id }
+  const oldRowValues = { id: row.id }
+  const updateRequestValues = { id: row.id }
+  const editedFieldIds = new Set(fieldValuePairs.map((pair) => pair.field.id))
+
+  for (const { field, value, oldValue } of fieldValuePairs) {
+    const fieldKey = `field_${field.id}`
+    const fieldType = registry.get('field', field.type)
+    newRowValues[fieldKey] = value
+    oldRowValues[fieldKey] = oldValue
+    updateRequestValues[fieldKey] = fieldType.prepareValueForUpdate(
+      field,
+      value
+    )
+  }
+
+  const virtualRow = { ...row, ...newRowValues }
+  for (const field of allFields) {
+    if (editedFieldIds.has(field.id)) {
+      continue
+    }
+
+    const fieldKey = `field_${field.id}`
+    const fieldType = registry.get('field', field.type)
+    const currentFieldValue = row[fieldKey]
+    const optimisticFieldValue = fieldType.onRowChange(
+      virtualRow,
+      field,
+      currentFieldValue
+    )
+    if (currentFieldValue !== optimisticFieldValue) {
+      newRowValues[fieldKey] = optimisticFieldValue
+      oldRowValues[fieldKey] = currentFieldValue
+    }
+  }
+
+  return { newRowValues, oldRowValues, updateRequestValues }
+}
+
 /**
  * Compute the row-form values a brand-new row should start with,
  * combining: explicit caller-supplied values (highest priority),

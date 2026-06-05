@@ -1,5 +1,7 @@
 from decimal import Decimal
 
+from django.conf import settings
+
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -52,6 +54,12 @@ from baserow.contrib.database.api.views.errors import (
     ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
     ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
 )
+from baserow.contrib.database.api.views.grid.group_visibility import (
+    GROUP_VISIBILITY_MODE_COLLAPSE,
+    build_group_visibility_paths_q,
+    parse_group_visibility_mode,
+    parse_group_visibility_paths,
+)
 from baserow.contrib.database.api.views.grid.serializers import (
     GridViewFieldOptionsSerializer,
 )
@@ -63,6 +71,7 @@ from baserow.contrib.database.api.views.utils import (
     get_view_filtered_queryset,
     paginate_and_serialize_queryset,
     serialize_group_by_fields_metadata,
+    serialize_group_by_tree,
     serialize_rows_metadata,
     serialize_view_field_options,
 )
@@ -74,6 +83,7 @@ from baserow.contrib.database.fields.exceptions import (
     OrderByFieldNotPossible,
 )
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils import get_field_id_from_field_key
 from baserow.contrib.database.table.operations import ListRowsDatabaseTableOperationType
 from baserow.contrib.database.views.exceptions import (
@@ -101,11 +111,88 @@ from .schemas import (
     field_aggregation_response_schema,
     field_aggregations_response_schema,
 )
-from .serializers import GridViewFilterSerializer
+from .serializers import GridViewFilterSerializer, GridViewGroupTreeSerializer
 
 
 def get_available_aggregation_type():
     return [f.type for f in view_aggregation_type_registry.get_all()]
+
+
+GROUP_VISIBILITY_PATHS_API_PARAM = OpenApiParameter(
+    name="group_visibility_paths",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.STR,
+    required=False,
+    description=(
+        "Optional JSON array of group path objects used to decide which grouped rows "
+        "are visible before pagination."
+    ),
+)
+GROUP_VISIBILITY_MODE_API_PARAM = OpenApiParameter(
+    name="group_visibility_mode",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.STR,
+    required=False,
+    description=(
+        "Optional group visibility mode. Use `expand` to exclude the provided "
+        "`group_visibility_paths`, or `collapse` to include only those paths."
+    ),
+)
+
+
+def _parse_max_depth_param(raw):
+    if raw is None or raw == "":
+        return None
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None
+    return value if value >= 0 else None
+
+
+def _deserialize_expanded_paths(raw_paths, group_by_fields):
+    if not raw_paths:
+        return []
+
+    serializer_fields = {
+        field.db_column: field_type_registry.get_by_model(
+            field.specific_class
+        ).get_group_by_serializer_field(field)
+        for field in group_by_fields
+    }
+    deserialized_paths = []
+
+    for raw in raw_paths:
+        if not isinstance(raw, dict):
+            continue
+
+        deserialized = {}
+        valid = True
+        for field in group_by_fields:
+            db_column = field.db_column
+            if db_column not in raw:
+                break
+
+            raw_value = raw[db_column]
+            if raw_value is None:
+                deserialized[db_column] = None
+                continue
+
+            serializer_field = serializer_fields.get(db_column)
+            if serializer_field is None:
+                deserialized[db_column] = raw_value
+                continue
+
+            try:
+                deserialized[db_column] = serializer_field.to_internal_value(raw_value)
+            except Exception:
+                valid = False
+                break
+
+        if valid and deserialized:
+            deserialized_paths.append(deserialized)
+
+    return deserialized_paths
 
 
 class GridViewView(APIView):
@@ -149,6 +236,8 @@ class GridViewView(APIView):
             SEARCH_VALUE_API_PARAM,
             SEARCH_MODE_API_PARAM,
             LIMIT_LINKED_ITEMS_API_PARAM,
+            GROUP_VISIBILITY_PATHS_API_PARAM,
+            GROUP_VISIBILITY_MODE_API_PARAM,
         ],
         tags=["Database table grid view"],
         operation_id="list_database_table_grid_view_rows",
@@ -226,6 +315,12 @@ class GridViewView(APIView):
         exclude_fields = request.GET.get("exclude_fields")
         adhoc_filters = AdHocFilters.from_request(request)
         order_by = request.GET.get("order_by")
+        group_visibility_paths = parse_group_visibility_paths(
+            request.GET.get("group_visibility_paths")
+        )
+        group_visibility_mode = parse_group_visibility_mode(
+            request.GET.get("group_visibility_mode")
+        )
 
         view_handler = ViewHandler()
         view = view_handler.get_view_as_user(
@@ -260,6 +355,28 @@ class GridViewView(APIView):
             hidden_field_ids=hidden_field_ids,
         )
         model = queryset.model
+        group_by_fields = []
+
+        if view_type.can_group_by and view.viewgroupby_set.all():
+            group_by_fields = [
+                model._field_objects[group_by.field_id]["field"]
+                for group_by in view.viewgroupby_set.all()
+            ]
+            if group_visibility_mode == GROUP_VISIBILITY_MODE_COLLAPSE:
+                if group_visibility_paths:
+                    queryset = queryset.filter(
+                        build_group_visibility_paths_q(
+                            group_by_fields, group_visibility_paths, queryset
+                        )
+                    )
+                else:
+                    queryset = queryset.none()
+            elif group_visibility_paths:
+                queryset = queryset.exclude(
+                    build_group_visibility_paths_q(
+                        group_by_fields, group_visibility_paths, queryset
+                    )
+                )
 
         if ONLY_COUNT_API_PARAM.name in request.GET:
             return Response({"count": queryset.count()})
@@ -268,11 +385,15 @@ class GridViewView(APIView):
             queryset, request, field_ids, exclude_field_ids=hidden_field_ids
         )
 
-        if view_type.can_group_by and view.viewgroupby_set.all():
-            group_by_fields = [
-                model._field_objects[group_by.field_id]["field"]
-                for group_by in view.viewgroupby_set.all()
-            ]
+        # Group headers are rendered from the group-tree endpoint when collapsible
+        # group-by is active. Keeping row responses focused on rows avoids an extra
+        # metadata GROUP BY query for every viewport fetch.
+        if (
+            view_type.can_group_by
+            and view.viewgroupby_set.all()
+            and not group_visibility_paths
+            and group_visibility_mode != GROUP_VISIBILITY_MODE_COLLAPSE
+        ):
             serialized_group_by_metadata = serialize_group_by_fields_metadata(
                 queryset, group_by_fields, page
             )
@@ -369,6 +490,117 @@ class GridViewView(APIView):
         )
         serializer = serializer_class(results, many=True)
         return Response(serializer.data)
+
+
+class GridViewGroupTreeView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def get_permissions(self):
+        if self.request.method == "GET":
+            return [AllowAny()]
+
+        return super().get_permissions()
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="view_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The id of the grid view to fetch the group tree for.",
+            ),
+            OpenApiParameter(
+                name="max_depth",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                required=False,
+                description="Optional maximum outline depth.",
+            ),
+            OpenApiParameter(
+                name="expanded",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                required=False,
+                description="Optional JSON array of expanded path objects.",
+            ),
+            *ADHOC_FILTERS_API_PARAMS,
+            SEARCH_VALUE_API_PARAM,
+            SEARCH_MODE_API_PARAM,
+        ],
+        tags=["Database table grid view"],
+        operation_id="get_database_table_grid_view_group_tree",
+        responses={
+            200: GridViewGroupTreeSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_USER_NOT_IN_GROUP",
+                    "ERROR_FILTER_FIELD_NOT_FOUND",
+                    "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
+                    "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
+                    "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+                ]
+            ),
+            404: get_error_schema(["ERROR_GRID_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
+            ViewDoesNotExist: ERROR_GRID_DOES_NOT_EXIST,
+            FilterFieldNotFound: ERROR_FILTER_FIELD_NOT_FOUND,
+            ViewFilterTypeDoesNotExist: ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
+            ViewFilterTypeNotAllowedForField: ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
+        }
+    )
+    @validate_query_parameters(SearchQueryParamSerializer, return_validated=True)
+    def get(self, request, view_id, query_params):
+        adhoc_filters = AdHocFilters.from_request(request)
+        view_handler = ViewHandler()
+        view = view_handler.get_view_as_user(
+            request.user,
+            view_id,
+            GridView,
+            base_queryset=GridView.objects.prefetch_related(
+                "viewsort_set", "viewgroupby_set"
+            ),
+        )
+        view_type = view_type_registry.get_by_model(view)
+
+        check_permissions_with_view_fallback(
+            ListRowsDatabaseTableOperationType.type,
+            ListViewRowsOperationType.type,
+            request.user,
+            view.table,
+            view,
+        )
+
+        view_group_bys = list(view.viewgroupby_set.all())
+        if not (view_type.can_group_by and view_group_bys):
+            return Response({"nodes": [], "truncated": False, "total_nodes": 0})
+
+        queryset = get_view_filtered_queryset(
+            request.user,
+            view,
+            adhoc_filters,
+            order_by=None,
+            query_params=query_params,
+        )
+        model = queryset.model
+        group_by_fields = [
+            model._field_objects[group_by.field_id]["field"]
+            for group_by in view_group_bys
+        ]
+
+        expanded_paths = parse_group_visibility_paths(request.GET.get("expanded"))
+        tree = view_handler.get_group_by_tree(
+            group_by_fields,
+            queryset,
+            view_group_bys,
+            settings.VIEW_GROUP_TREE_MAX_NODES,
+            max_depth=_parse_max_depth_param(request.GET.get("max_depth")),
+            expanded_paths=_deserialize_expanded_paths(expanded_paths, group_by_fields),
+        )
+        return Response(serialize_group_by_tree(tree, group_by_fields))
 
 
 class GridViewFieldAggregationsView(APIView):
@@ -701,6 +933,97 @@ class GridViewFieldAggregationView(APIView):
         return Response(result)
 
 
+class PublicGridViewGroupTreeView(APIView):
+    permission_classes = (AllowAny,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="slug",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.STR,
+                description="The public grid view slug.",
+            ),
+            OpenApiParameter(
+                name="max_depth",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                required=False,
+                description="Optional maximum outline depth.",
+            ),
+            OpenApiParameter(
+                name="expanded",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.STR,
+                required=False,
+                description="Optional JSON array of expanded path objects.",
+            ),
+            *ADHOC_FILTERS_API_PARAMS,
+            SEARCH_VALUE_API_PARAM,
+            SEARCH_MODE_API_PARAM,
+        ],
+        tags=["Database table grid view"],
+        operation_id="get_database_table_public_grid_view_group_tree",
+        responses={
+            200: GridViewGroupTreeSerializer,
+            400: get_error_schema(
+                [
+                    "ERROR_FILTER_FIELD_NOT_FOUND",
+                    "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
+                    "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
+                    "ERROR_FILTERS_PARAM_VALIDATION_ERROR",
+                ]
+            ),
+            401: get_error_schema(["ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW"]),
+            404: get_error_schema(["ERROR_GRID_DOES_NOT_EXIST"]),
+        },
+    )
+    @map_exceptions(
+        {
+            ViewDoesNotExist: ERROR_GRID_DOES_NOT_EXIST,
+            FilterFieldNotFound: ERROR_FILTER_FIELD_NOT_FOUND,
+            ViewFilterTypeDoesNotExist: ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
+            ViewFilterTypeNotAllowedForField: ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
+            NoAuthorizationToPubliclySharedView: ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
+        }
+    )
+    @validate_query_parameters(SearchQueryParamSerializer, return_validated=True)
+    def get(self, request, slug, query_params):
+        view_handler = ViewHandler()
+        view = view_handler.get_public_view_by_slug(
+            request.user,
+            slug,
+            GridView,
+            authorization_token=get_public_view_authorization_token(request),
+        )
+        view_type = view_type_registry.get_by_model(view)
+        view_group_bys = list(view.viewgroupby_set.all())
+
+        if not (view_type.can_group_by and view_group_bys):
+            return Response({"nodes": [], "truncated": False, "total_nodes": 0})
+
+        queryset, _field_ids, _field_options = get_public_view_filtered_queryset(
+            view, request, query_params
+        )
+        model = queryset.model
+        group_by_fields = [
+            model._field_objects[group_by.field_id]["field"]
+            for group_by in view_group_bys
+            if group_by.field_id in model._field_objects
+        ]
+
+        expanded_paths = parse_group_visibility_paths(request.GET.get("expanded"))
+        tree = view_handler.get_group_by_tree(
+            group_by_fields,
+            queryset,
+            view_group_bys,
+            settings.VIEW_GROUP_TREE_MAX_NODES,
+            max_depth=_parse_max_depth_param(request.GET.get("max_depth")),
+            expanded_paths=_deserialize_expanded_paths(expanded_paths, group_by_fields),
+        )
+        return Response(serialize_group_by_tree(tree, group_by_fields))
+
+
 class PublicGridViewRowsView(APIView):
     permission_classes = (AllowAny,)
 
@@ -735,6 +1058,8 @@ class PublicGridViewRowsView(APIView):
             SEARCH_MODE_API_PARAM,
             *ADHOC_FILTERS_API_PARAMS,
             LIMIT_LINKED_ITEMS_API_PARAM,
+            GROUP_VISIBILITY_PATHS_API_PARAM,
+            GROUP_VISIBILITY_MODE_API_PARAM,
             OpenApiParameter(
                 name="group_by",
                 location=OpenApiParameter.QUERY,
@@ -830,6 +1155,37 @@ class PublicGridViewRowsView(APIView):
             publicly_visible_field_options,
         ) = get_public_view_filtered_queryset(view, request, query_params)
         model = queryset.model
+        group_visibility_paths = parse_group_visibility_paths(
+            request.GET.get("group_visibility_paths")
+        )
+        group_visibility_mode = parse_group_visibility_mode(
+            request.GET.get("group_visibility_mode")
+        )
+        group_by_fields = []
+        group_by = request.GET.get("group_by")
+
+        if group_by:
+            group_by_fields = [
+                model._field_objects[get_field_id_from_field_key(field_string, False)][
+                    "field"
+                ]
+                for field_string in split_comma_separated_string(group_by)
+            ]
+            if group_visibility_mode == GROUP_VISIBILITY_MODE_COLLAPSE:
+                if group_visibility_paths:
+                    queryset = queryset.filter(
+                        build_group_visibility_paths_q(
+                            group_by_fields, group_visibility_paths, queryset
+                        )
+                    )
+                else:
+                    queryset = queryset.none()
+            elif group_visibility_paths:
+                queryset = queryset.exclude(
+                    build_group_visibility_paths_q(
+                        group_by_fields, group_visibility_paths, queryset
+                    )
+                )
 
         if ONLY_COUNT_API_PARAM.name in request.GET:
             return Response({"count": queryset.count()})
@@ -845,8 +1201,7 @@ class PublicGridViewRowsView(APIView):
             )
             response.data.update(**public_view_field_options)
 
-        group_by = request.GET.get("group_by")
-        if group_by:
+        if group_by and not group_visibility_paths:
             group_by_fields = [
                 # We can safely do this without having to check whether the
                 # `group_by` input is valid because this has already been validated

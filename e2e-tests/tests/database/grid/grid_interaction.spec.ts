@@ -47,6 +47,7 @@ function multiSelectedFieldCells(page: Page) {
 test.describe("9.1 Selection mechanics", () => {
   test.describe.configure({ mode: "serial" });
   let g: Setup;
+  let groupBy: Setup;
 
   test.beforeAll(async () => {
     g = await setupGrid({
@@ -60,6 +61,19 @@ test.describe("9.1 Selection mechanics", () => {
         { Name: "Bob", Score: 20, Notes: "note B" },
         { Name: "Carol", Score: 30, Notes: "note C" },
       ],
+    });
+    groupBy = await setupGrid({
+      dbName: "SelectionGroupByDb",
+      fields: [
+        { name: "Score", type: "number" },
+        { name: "Notes", type: "text" },
+      ],
+      rows: [
+        { Name: "Alice", Score: 10, Notes: "note A" },
+        { Name: "Bob", Score: 20, Notes: "note B" },
+        { Name: "Carol", Score: 30, Notes: "note C" },
+      ],
+      groupBys: [{ fieldName: "Name", order: "ASC" }],
     });
   });
 
@@ -163,6 +177,26 @@ test.describe("9.1 Selection mechanics", () => {
       0,
       { timeout: 5_000 },
     );
+  });
+
+  test("9.1.6 group-by cell selection and shift range use visible row indexes", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, groupBy.user);
+    await grid.goTo(groupBy.database, groupBy.table);
+    await grid.expectGroupByBanner("Alice", 1, true);
+    await grid.expectGroupByBanner("Bob", 1, true);
+    await grid.expandAllGroupsFromContext();
+    await grid.expectGroupByBanner("Alice", 1);
+    await grid.expectGroupByBanner("Bob", 1);
+
+    await grid.selectFieldCell(0, 0);
+    await grid.expectFieldSelected(0, 0);
+    await grid.fieldCellAt(1, 1).click({ modifiers: ["Shift"] });
+
+    await expect(multiSelectedFieldCells(page)).toHaveCount(4, {
+      timeout: 5_000,
+    });
   });
 });
 
@@ -705,6 +739,7 @@ test.describe("11.2 Row context menu actions", () => {
 test.describe("12.1 Checkbox row selection", () => {
   test.describe.configure({ mode: "serial" });
   let g: Setup;
+  let groupBy: Setup;
 
   test.beforeAll(async () => {
     g = await setupGrid({
@@ -718,6 +753,18 @@ test.describe("12.1 Checkbox row selection", () => {
         { Name: "Bob", Score: 20, Notes: "note B" },
       ],
     });
+    groupBy = await setupGrid({
+      dbName: "CheckboxSelectionGroupByDb",
+      fields: [
+        { name: "Score", type: "number" },
+        { name: "Notes", type: "text" },
+      ],
+      rows: [
+        { Name: "Alice", Score: 10, Notes: "note A" },
+        { Name: "Bob", Score: 20, Notes: "note B" },
+      ],
+      groupBys: [{ fieldName: "Name", order: "ASC" }],
+    });
   });
 
   test.beforeEach(async ({ page }) => {
@@ -729,6 +776,26 @@ test.describe("12.1 Checkbox row selection", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
+
+    await grid.selectFieldCell(0, 0);
+    await grid.fieldCellAt(1, 1).click({ modifiers: ["Shift"] });
+    await grid.expectMultiSelectedCellCount(4);
+
+    await grid.hoverRow(0);
+    await grid.checkboxAt(0).click();
+
+    await grid.expectRowCheckboxChecked(0);
+    await grid.expectMultiSelectedCellCount(0);
+  });
+
+  test("12.1.2 grouped row checkbox selection clears an active multi-cell selection", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, groupBy.user);
+    await grid.goTo(groupBy.database, groupBy.table);
+    await grid.expectGroupByBanner("Alice", 1, true);
+    await grid.expandAllGroupsFromContext();
+    await grid.expectGroupByBanner("Alice", 1);
 
     await grid.selectFieldCell(0, 0);
     await grid.fieldCellAt(1, 1).click({ modifiers: ["Shift"] });

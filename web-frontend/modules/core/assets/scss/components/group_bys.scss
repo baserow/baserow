@@ -173,3 +173,13 @@
 .group-bys__add {
   @include absolute(calc(100% + 4px), auto, auto, 0);
 }
+
+.group-bys__footer {
+  justify-content: space-between;
+}
+
+.group-bys__footer-actions {
+  margin-left: auto;
+
+  @include flex-align-items(20px);
+}

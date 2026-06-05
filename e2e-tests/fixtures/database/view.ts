@@ -145,6 +145,18 @@ export async function createViewSort(
   });
 }
 
+export async function createViewGroupBy(
+  user: User,
+  view: View,
+  field: Field,
+  order: "ASC" | "DESC" = "ASC",
+): Promise<void> {
+  await getClient(user).post(`database/views/${view.id}/group_bys/`, {
+    field: field.id,
+    order,
+  });
+}
+
 export interface ViewDecorationPayload {
   type: string;
   value_provider_type?: string;

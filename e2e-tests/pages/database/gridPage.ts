@@ -76,14 +76,20 @@ export class GridPage {
   /** All rows in the LEFT section (primary field + row controls) */
   leftRows(): Locator {
     return this.page.locator(
-      ".grid-view__left .grid-view__rows .grid-view__row",
+      [
+        ".grid-view__left .grid-view__rows > .grid-view__row",
+        ".grid-view__left .grid-view__group-by-rows__row > .grid-view__row",
+      ].join(", "),
     );
   }
 
   /** All rows in the RIGHT section (non-primary fields) */
   rightRows(): Locator {
     return this.page.locator(
-      ".grid-view__right .grid-view__rows .grid-view__row",
+      [
+        ".grid-view__right .grid-view__rows > .grid-view__row",
+        ".grid-view__right .grid-view__group-by-rows__row > .grid-view__row",
+      ].join(", "),
     );
   }
 
@@ -191,13 +197,71 @@ export class GridPage {
     });
   }
 
+  groupByBannerByValue(value: string): Locator {
+    return this.page
+      .locator(".grid-view__left .grid-view__group-by-banner", {
+        has: this.page.locator(".grid-view__group-by-banner__value", {
+          hasText: value,
+        }),
+      })
+      .first();
+  }
+
+  groupByContextToggle(): Locator {
+    return this.page
+      .locator(".header__filter-link", {
+        has: this.page.locator(".iconoir-book-stack"),
+      })
+      .first();
+  }
+
+  groupByContext(): Locator {
+    return this.page.locator(".context.group-bys").first();
+  }
+
   // -- Grid actions ------------------------------------------------------------
 
   /** Click "+ Add row" at the bottom of the right section */
   async addRow(): Promise<void> {
-    const addRow = this.page.locator(".grid-view__right .grid-view__add-row");
+    const addRow = this.page
+      .locator(".grid-view__right .grid-view__add-row")
+      .first();
     await expect(addRow).toBeVisible({ timeout: 10_000 });
     await addRow.click();
+  }
+
+  async toggleGroupBy(value: string): Promise<void> {
+    const banner = this.groupByBannerByValue(value);
+    await expect(banner).toBeVisible({ timeout: 10_000 });
+    await banner.locator(".grid-view__group-by-banner__toggle").click();
+  }
+
+  async openGroupByContext(): Promise<void> {
+    const toggle = this.groupByContextToggle();
+    await expect(toggle).toBeVisible({ timeout: 10_000 });
+    await toggle.click();
+    await expect(this.groupByContext()).toBeVisible({ timeout: 10_000 });
+  }
+
+  async collapseAllGroupsFromContext(): Promise<void> {
+    await this.openGroupByContext();
+    await this.groupByContext()
+      .getByText("Collapse all", { exact: true })
+      .click();
+    await this.closeGroupByContext();
+  }
+
+  async expandAllGroupsFromContext(): Promise<void> {
+    await this.openGroupByContext();
+    await this.groupByContext()
+      .getByText("Expand all", { exact: true })
+      .click();
+    await this.closeGroupByContext();
+  }
+
+  async closeGroupByContext(): Promise<void> {
+    await this.page.mouse.click(5, 5);
+    await expect(this.groupByContext()).toBeHidden({ timeout: 10_000 });
   }
 
   /** Single-click a non-primary cell to select it without entering edit mode */
@@ -271,6 +335,23 @@ export class GridPage {
    */
   async confirmWithTab(): Promise<void> {
     await this.page.keyboard.press("Tab");
+  }
+
+  async selectSingleSelectOption(
+    rowIndex: number,
+    fieldIndex: number,
+    option: string,
+  ): Promise<void> {
+    await this.selectFieldCell(rowIndex, fieldIndex);
+    await this.page.keyboard.press("Enter");
+
+    const optionItem = this.page
+      .locator(".select-options__dropdown-item:not(.hidden)", {
+        hasText: this.exactTextRegex(option),
+      })
+      .first();
+    await expect(optionItem).toBeVisible({ timeout: 10_000 });
+    await optionItem.locator(".select-options__dropdown-link").click();
   }
 
   /** Press Escape: cancels the edit and reverts to the original value */
@@ -728,6 +809,31 @@ export class GridPage {
     });
   }
 
+  async expectGroupByBanner(
+    value: string,
+    count: number,
+    collapsed = false,
+  ): Promise<void> {
+    const banner = this.groupByBannerByValue(value);
+    await expect(banner).toBeVisible({ timeout: 10_000 });
+    await expect(
+      banner.locator(".grid-view__group-by-banner__value"),
+    ).toHaveText(new RegExp(`^\\s*${this.escapeRegex(value)}\\s*$`), {
+      timeout: 10_000,
+    });
+    await expect(
+      banner.locator(".grid-view__group-by-banner__count"),
+    ).toHaveText(
+      new RegExp(`^\\s*${count}\\s*$`),
+      { timeout: 10_000 },
+    );
+    await expect(banner).toHaveAttribute(
+      "data-collapsed",
+      collapsed ? "true" : "false",
+      { timeout: 10_000 },
+    );
+  }
+
   /**
    * Assert that the row at `rowIndex` has the warning class
    * (shown when matchFilters, matchSortings, or matchSearch is false
@@ -738,6 +844,12 @@ export class GridPage {
       /grid-view__row--warning/,
       { timeout: 10_000 },
     );
+  }
+
+  async expectRowWarningVisible(rowIndex: number): Promise<void> {
+    await expect(this.rowWarningAt(rowIndex)).toBeVisible({
+      timeout: 10_000,
+    });
   }
 
   async expectRowWarningText(rowIndex: number, text: string): Promise<void> {

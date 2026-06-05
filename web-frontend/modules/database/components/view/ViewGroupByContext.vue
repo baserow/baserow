@@ -93,10 +93,11 @@
         </div>
       </div>
       <div
-        v-if="view.group_bys.length < availableFieldsLength && !disableGroupBy"
-        class="context__footer"
+        v-if="canAddGroupBy || view.group_bys.length > 0"
+        class="context__footer group-bys__footer"
       >
         <ButtonText
+          v-if="canAddGroupBy"
           ref="addDropdownToggle"
           icon="iconoir-plus"
           @click="$refs.addDropdown.toggle($refs.addDropdownToggle.$el)"
@@ -118,6 +119,14 @@
               :icon="getFieldType(field).iconClass"
             ></DropdownItem>
           </Dropdown>
+        </div>
+        <div v-if="view.group_bys.length > 0" class="group-bys__footer-actions">
+          <ButtonText @click.prevent="setGroupByCollapseAll(true)">
+            {{ $t('viewGroupByContext.collapseAllGroups') }}
+          </ButtonText>
+          <ButtonText @click.prevent="setGroupByCollapseAll(false)">
+            {{ $t('viewGroupByContext.expandAllGroups') }}
+          </ButtonText>
         </div>
       </div>
     </div>
@@ -171,6 +180,12 @@ export default {
     },
     availableFields() {
       return this.fields.filter((f) => this.isFieldAvailable(f))
+    },
+    canAddGroupBy() {
+      return (
+        this.view.group_bys.length < this.availableFieldsLength &&
+        !this.disableGroupBy
+      )
     },
     contextWarning() {
       const ownershipType = this.$registry.get(
@@ -281,6 +296,24 @@ export default {
     },
     getSortTypes(field) {
       return this.getFieldType(field).getSortTypes(field)
+    },
+    async setGroupByCollapseAll(collapse) {
+      try {
+        await this.$store.dispatch(
+          this.storePrefix + 'view/grid/setGroupByCollapseAll',
+          {
+            view: this.view,
+            fields: this.fields,
+            collapse,
+            adhocFiltering:
+              this.$store.getters[
+                this.storePrefix + 'view/grid/getAdhocFiltering'
+              ],
+          }
+        )
+      } catch (error) {
+        notifyIf(error, 'view')
+      }
     },
   },
 }

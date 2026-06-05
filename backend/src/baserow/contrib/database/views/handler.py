@@ -3982,6 +3982,212 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         return by_level
 
+    def get_group_by_tree(
+        self,
+        fields: List[Field],
+        base_queryset: QuerySet,
+        view_group_bys: Optional[List[Any]],
+        max_nodes: int,
+        max_depth: Optional[int] = None,
+        expanded_paths: Optional[List[Dict[str, Any]]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Returns a display-ordered group-by tree for the provided filtered queryset.
+        """
+
+        n_fields = len(fields)
+        if n_fields == 0:
+            return {"nodes": [], "truncated": False, "total_nodes": 0}
+
+        expanded_paths = expanded_paths or []
+        depth_filters: Dict[int, Optional[List[Dict[str, Any]]]] = {}
+
+        if max_depth is None and not expanded_paths:
+            for depth in range(n_fields):
+                depth_filters[depth] = None
+        else:
+            if max_depth is not None and max_depth > 0:
+                for depth in range(min(max_depth, n_fields)):
+                    depth_filters[depth] = None
+
+            for path in expanded_paths:
+                if not isinstance(path, dict):
+                    continue
+                path_depth = sum(1 for f in fields if f.db_column in path)
+                if path_depth == 0 or path_depth > n_fields:
+                    continue
+                for depth in range(path_depth, n_fields):
+                    if depth in depth_filters and depth_filters[depth] is None:
+                        continue
+                    depth_filters.setdefault(depth, []).append(path)
+
+        cte: Dict[str, Any] = {}
+        all_annotations: Dict[str, Any] = {}
+        for field in fields:
+            field_type = field_type_registry.get_by_model(field.specific_class)
+            if not field_type.check_can_group_by(field, DEFAULT_SORT_TYPE_KEY):
+                raise ValueError(f"Can't group by {field.db_column}.")
+            _, annotations = field_type.get_group_by_field_filters_and_annotations(
+                field, field.db_column, base_queryset, None, cte, []
+            )
+            all_annotations.update(**annotations)
+
+        nodes_by_path: Dict[Tuple[Any, ...], Dict[str, Any]] = {}
+        emit_order: List[Tuple[int, Tuple[Any, ...]]] = []
+        total_nodes = 0
+
+        for depth in sorted(depth_filters.keys()):
+            level_fields = fields[: depth + 1]
+            field_names = [f.db_column for f in level_fields]
+            is_leaf = depth == n_fields - 1
+            child_field = None if is_leaf else fields[depth + 1]
+
+            queryset = base_queryset.model.objects.filter(
+                id__in=base_queryset.clear_multi_field_prefetch().values("id")
+            ).values()
+
+            if all_annotations:
+                queryset = queryset.annotate(**all_annotations)
+
+            filter_paths = depth_filters[depth]
+            if filter_paths is not None:
+                if not filter_paths:
+                    continue
+                combined_q = Q()
+                for path in filter_paths:
+                    path_q = Q()
+                    for field in fields:
+                        field_name = field.db_column
+                        if field_name not in path:
+                            break
+                        path_q &= Q(**{field_name: path[field_name]})
+                    if path_q != Q():
+                        combined_q |= path_q
+                if combined_q == Q():
+                    continue
+                queryset = queryset.filter(combined_q)
+
+            order_by_args, queryset = self._build_group_by_tree_order_by(
+                level_fields,
+                view_group_bys[: depth + 1] if view_group_bys else None,
+                queryset,
+            )
+
+            annotations = {"row_count": Count("id")}
+            if child_field is not None:
+                annotations["children_count"] = Count(
+                    child_field.db_column, distinct=True
+                )
+
+            queryset = (
+                queryset.values(*field_names)
+                .annotate(**annotations)
+                .order_by(*order_by_args)
+            )
+
+            for cte_with in cte.values():
+                queryset = queryset.with_cte(cte_with)
+
+            for entry in queryset:
+                key = tuple(entry[name] for name in field_names)
+                if key in nodes_by_path:
+                    continue
+                node = {
+                    "path": {name: entry[name] for name in field_names},
+                    "depth": depth,
+                    "row_count": entry["row_count"],
+                }
+                if child_field is not None:
+                    node["children_count"] = entry["children_count"]
+                nodes_by_path[key] = node
+                emit_order.append((depth, key))
+                total_nodes += 1
+                if total_nodes > max_nodes:
+                    return {
+                        "nodes": [],
+                        "truncated": True,
+                        "total_nodes": total_nodes,
+                    }
+
+        children_by_parent: Dict[Tuple[Any, ...], List[Tuple[Any, ...]]] = defaultdict(
+            list
+        )
+        for _depth, key in emit_order:
+            children_by_parent[key[:-1]].append(key)
+
+        synthetic_roots: List[Tuple[Any, ...]] = []
+        seen_synthetic: Set[Tuple[Any, ...]] = set()
+        for path in expanded_paths:
+            if not isinstance(path, dict):
+                continue
+            path_tuple = tuple(path[f.db_column] for f in fields if f.db_column in path)
+            if (
+                path_tuple
+                and path_tuple not in nodes_by_path
+                and path_tuple in children_by_parent
+                and path_tuple not in seen_synthetic
+            ):
+                synthetic_roots.append(path_tuple)
+                seen_synthetic.add(path_tuple)
+
+        ordered_nodes: List[Dict[str, Any]] = []
+        walked: Set[Tuple[Any, ...]] = set()
+        self._emit_group_tree_walk(
+            children_by_parent, nodes_by_path, (), ordered_nodes, walked
+        )
+        for synthetic in synthetic_roots:
+            self._emit_group_tree_walk(
+                children_by_parent, nodes_by_path, synthetic, ordered_nodes, walked
+            )
+
+        return {
+            "nodes": ordered_nodes,
+            "truncated": False,
+            "total_nodes": len(ordered_nodes),
+        }
+
+    def _emit_group_tree_walk(
+        self,
+        children_by_parent: Dict[Tuple[Any, ...], List[Tuple[Any, ...]]],
+        nodes_by_path: Dict[Tuple[Any, ...], Dict[str, Any]],
+        parent_key: Tuple[Any, ...],
+        out: List[Dict[str, Any]],
+        walked: Set[Tuple[Any, ...]],
+    ) -> None:
+        for child_key in children_by_parent.get(parent_key, []):
+            if child_key in walked:
+                continue
+            walked.add(child_key)
+            out.append(nodes_by_path[child_key])
+            self._emit_group_tree_walk(
+                children_by_parent, nodes_by_path, child_key, out, walked
+            )
+
+    def _build_group_by_tree_order_by(
+        self,
+        fields: List[Field],
+        view_group_bys: Optional[List[Any]],
+        queryset: QuerySet,
+    ) -> Tuple[List[Any], QuerySet]:
+        if not view_group_bys:
+            return [], queryset
+
+        order_by = []
+        for field, view_group_by in zip(fields, view_group_bys):
+            field_type = field_type_registry.get_by_model(field.specific_class)
+            annotated_order_by = field_type.get_order(
+                field,
+                field.db_column,
+                view_group_by.order,
+                view_group_by.type,
+                table_model=queryset.model,
+            )
+            if annotated_order_by.annotation is not None:
+                queryset = queryset.annotate(**annotated_order_by.annotation)
+            order_by.extend(annotated_order_by.order_bys)
+
+        return order_by, queryset
+
     def _get_prepared_values_for_data(
         self, view_type: ViewType, view: View, changed_allowed_keys: Iterable[str]
     ) -> Dict[str, Any]:

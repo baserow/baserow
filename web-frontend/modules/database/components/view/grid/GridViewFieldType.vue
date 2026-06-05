@@ -6,8 +6,9 @@
         !view.filters_disabled &&
         view.filters.findIndex((filter) => filter.field === field.id) !== -1,
       'grid-view__column--grouped':
+        showGroupByFieldBackground &&
         view.group_bys.findIndex((groupBy) => groupBy.field === field.id) !==
-        -1,
+          -1,
       'grid-view__column--sorted':
         view.sortings.findIndex((sort) => sort.field === field.id) !== -1,
     }"
@@ -337,6 +338,11 @@ export default {
     allFieldsInTable: {
       type: Array,
       required: true,
+    },
+    showGroupByFieldBackground: {
+      type: Boolean,
+      required: false,
+      default: () => true,
     },
   },
   emits: ['dragging', 'field-created', 'move-field', 'refresh', 'updated'],
