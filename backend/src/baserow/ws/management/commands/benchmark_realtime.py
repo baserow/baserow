@@ -33,11 +33,11 @@ rare user   A user_id that does not appear in any user_ids arrays or
 
 import time
 
+from django.conf import settings
 from django.core.management.base import BaseCommand
 from django.db import connection
 from django.db.models import Max
 
-from baserow.ws.exceptions import EventReplayNotPossible
 from baserow.ws.models import RealtimeEvent
 from baserow.ws.realtime_events import RealtimeEventHandler
 
@@ -76,14 +76,23 @@ class Command(BaseCommand):
 
         rare_user_id = 99999
 
-
         scenarios = [
             ("replay: 50 behind, page_types", max_id - 50, groups_pages, user_id),
             ("replay: 1k behind, page_types", max_id - 1000, groups_pages, user_id),
             ("replay: 50 behind, users only", max_id - 50, groups_users, user_id),
             ("replay: 1k behind, users only", max_id - 1000, groups_users, user_id),
-            ("replay fails: 50k behind, page_types", max_id - 50000, groups_pages, user_id),
-            ("replay fails: 50k behind, users only", max_id - 50000, groups_users, user_id),
+            (
+                "replay fails: 50k behind, page_types",
+                max_id - 50000,
+                groups_pages,
+                user_id,
+            ),
+            (
+                "replay fails: 50k behind, users only",
+                max_id - 50000,
+                groups_users,
+                user_id,
+            ),
             ("worst: full gap, rare user", min_id, groups_users, rare_user_id),
             ("replay fails: last_seen_id gone", 1, groups_pages, user_id),
             ("replay fails: last_seen_id gone, users", 1, groups_users, user_id),
@@ -120,166 +129,47 @@ class Command(BaseCommand):
         iterations,
         show_explain,
     ):
-        if last_seen_id is None:
-            avg, best, result = self._time(
-                lambda: RealtimeEventHandler.check_realtime_events(
-                    user_id,
-                    groups,
-                    None,
-                    web_socket_id,
-                ),
-                iterations,
+        def run_replay_events_result():
+            result = RealtimeEventHandler.get_replay_events_result(
+                user_id,
+                groups,
+                last_seen_id,
+                web_socket_id,
             )
-            self.stdout.write(
-                f"{label:<45} {'check_realtime_events':<25} "
-                f"{avg:>8.2f} {best:>8.2f} {str(result):<25}"
+            return (
+                f"force_refresh={result.force_refresh}, "
+                f"replay={len(result.replay_events)}, "
+                f"latest={result.latest_event_id}"
             )
-            return
 
-        # get_replay_events
-        def run_replay():
-            try:
-                events = RealtimeEventHandler.get_replay_events(
-                    user_id,
-                    groups,
-                    last_seen_id,
-                    web_socket_id,
-                )
-                return f"{len(events)} events"
-            except EventReplayNotPossible:
-                return "EventReplayNotPossible"
-
-        avg_r, best_r, result_r = self._time(run_replay, iterations)
+        avg_r, best_r, result_r = self._time(run_replay_events_result, iterations)
         self.stdout.write(
-            f"{label:<45} {'get_replay_events':<25} "
+            f"{label:<45} {'replay_events_result':<25} "
             f"{avg_r:>8.2f} {best_r:>8.2f} {result_r:<25}"
         )
 
         if show_explain and last_seen_id is not None:
             self._explain_replay(user_id, groups, last_seen_id, web_socket_id)
 
-        # If replay fails, also measure the fallback path
-        if result_r == "EventReplayNotPossible":
-            # MAX(id) — the short-circuit path
-            avg_m, best_m, result_m = self._time(
-                lambda: RealtimeEvent.objects.aggregate(m=Max("id"))["m"],
-                iterations,
-            )
-            self.stdout.write(
-                f"{'':<45} {'MAX(id)':<25} "
-                f"{avg_m:>8.2f} {best_m:>8.2f} {str(result_m):<25}"
-            )
-
-            # check_realtime_events — the old fallback (for comparison)
-            avg_c, best_c, result_c = self._time(
-                lambda: RealtimeEventHandler.check_realtime_events(
-                    user_id,
-                    groups,
-                    last_seen_id,
-                    web_socket_id,
-                ),
-                iterations,
-            )
-            self.stdout.write(
-                f"{'':<45} {'check_realtime_events':<25} "
-                f"{avg_c:>8.2f} {best_c:>8.2f} {str(result_c):<25}"
-            )
-
-            if show_explain:
-                self._explain_check_events(user_id, groups, last_seen_id, web_socket_id)
-
     def _explain_replay(self, user_id, groups, last_seen_id, web_socket_id):
         from django.db.models import Q
 
-        page_group_names = [n for n in groups if n != "users"]
-        has_users = "users" in groups
-        user_id_str = str(user_id)
-
-        base_q = Q(id__gte=last_seen_id)
-        conditions = Q()
-        if page_group_names:
-            conditions |= Q(channel_group__in=page_group_names)
-        if has_users:
-            conditions |= Q(channel_group="users") & (
-                Q(
-                    payload__contains={
-                        "type": "broadcast_to_users",
-                        "send_to_all_users": True,
-                    }
-                )
-                | Q(
-                    payload__contains={
-                        "type": "broadcast_to_users",
-                        "user_ids": [user_id],
-                    }
-                )
-                | Q(
-                    payload__contains={
-                        "type": "broadcast_to_users_individual_payloads",
-                        "payload_map": {user_id_str: {}},
-                    }
-                )
-            )
-        if not conditions:
-            return
-        qs = RealtimeEvent.objects.filter(base_q & conditions)
-        if web_socket_id:
-            qs = qs.exclude(payload__ignore_web_socket_id=web_socket_id)
-        qs = qs.order_by("id")[:102]
-        self._run_explain(qs, "get_replay_events")
-
-    def _explain_check_events(self, user_id, groups, last_seen_id, web_socket_id):
-        from django.db.models import Q
-
-        page_group_names = [n for n in groups if n != "users"]
-        has_users = "users" in groups
-        user_id_str = str(user_id)
-
-        base_q = Q(id__gt=last_seen_id)
-        conditions = Q()
-        if page_group_names:
-            conditions |= Q(channel_group__in=page_group_names)
-        if has_users:
-            conditions |= Q(channel_group="users") & (
-                Q(
-                    payload__contains={
-                        "type": "broadcast_to_users",
-                        "send_to_all_users": True,
-                    }
-                )
-                | Q(
-                    payload__contains={
-                        "type": "broadcast_to_users",
-                        "user_ids": [user_id],
-                    }
-                )
-                | Q(
-                    payload__contains={
-                        "type": "broadcast_to_users_individual_payloads",
-                        "payload_map": {user_id_str: {}},
-                    }
-                )
-            )
-        if not conditions:
-            return
-        qs = RealtimeEvent.objects.filter(base_q & conditions)
-        if web_socket_id:
-            qs = qs.exclude(payload__ignore_web_socket_id=web_socket_id)
-        self._run_explain_exists(qs, "check_realtime_events (EXISTS)")
+        conditions = RealtimeEventHandler.get_relevant_events_filter(
+            user_id,
+            groups,
+        )
+        qs = RealtimeEvent.objects.filter(
+            Q(id__gte=last_seen_id)
+            & RealtimeEventHandler.get_not_own_event_filter(web_socket_id)
+            & conditions
+        )
+        qs = qs.order_by("id")[: settings.BASEROW_REALTIME_REPLAY_MAX_EVENTS + 2]
+        self._run_explain(qs, "replay_events replay query")
 
     def _run_explain(self, qs, label):
         sql, params = qs.query.sql_with_params()
         with connection.cursor() as cursor:
             cursor.execute(f"EXPLAIN (ANALYZE, BUFFERS) {sql}", params)
-            plan = "\n".join(row[0] for row in cursor.fetchall())
-        self.stdout.write(f"\n  EXPLAIN: {label}")
-        self.stdout.write(f"  {plan.replace(chr(10), chr(10) + '  ')}\n")
-
-    def _run_explain_exists(self, qs, label):
-        sql, params = qs.query.sql_with_params()
-        exists_sql = f"SELECT EXISTS ({sql} LIMIT 1)"
-        with connection.cursor() as cursor:
-            cursor.execute(f"EXPLAIN (ANALYZE, BUFFERS) {exists_sql}", params)
             plan = "\n".join(row[0] for row in cursor.fetchall())
         self.stdout.write(f"\n  EXPLAIN: {label}")
         self.stdout.write(f"  {plan.replace(chr(10), chr(10) + '  ')}\n")

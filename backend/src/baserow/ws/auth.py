@@ -1,3 +1,4 @@
+import uuid
 from urllib.parse import parse_qs
 
 from django.conf import settings
@@ -42,23 +43,24 @@ def get_user(token):
 
 class JWTTokenAuthMiddleware(BaseMiddleware):
     """
-    The auth middleware adds a user object to the scope if a valid JWT token is
-    provided via the GET parameters when requesting the web socket. It reads
-    the client-generated ``web_socket_id`` from the query string.
+    The auth middleware adds a user object and a unique web_socket_id to the scope if a
+    valid JWT token is provided via the GET parameters when requesting the web socket.
     """
 
     def __init__(self, inner):
         self.inner = inner
 
     async def __call__(self, scope, receive, send):
-        get = parse_qs(scope["query_string"].decode("utf8"))
+        query_params = parse_qs(scope["query_string"].decode("utf8"))
         scope["user"] = None
 
-        jwt_token = get.get("jwt_token")
+        jwt_token = query_params.get("jwt_token")
         if jwt_token:
             scope["user"] = await get_user(jwt_token[0])
 
-        web_socket_id = get.get("web_socket_id")
-        scope["web_socket_id"] = web_socket_id[0] if web_socket_id else None
+        web_socket_id = query_params.get("web_socket_id")
+        scope["web_socket_id"] = (
+            web_socket_id[0] if web_socket_id else str(uuid.uuid4())
+        )
 
         return await self.inner(scope, receive, send)
