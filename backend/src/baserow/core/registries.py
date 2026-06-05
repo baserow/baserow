@@ -1038,9 +1038,7 @@ class ObjectScopeType(Instance, ModelInstanceMixin):
                 for scope_type, typed_scopes in scopes_by_type.items()
             ]
             combined = (
-                branches[0]
-                if len(branches) == 1
-                else branches[0].union(*branches[1:])
+                branches[0] if len(branches) == 1 else branches[0].union(*branches[1:])
             )
             query_result = list(combined)
 
