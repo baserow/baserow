@@ -156,6 +156,7 @@ import isObject from 'lodash/isObject'
  *          Two slot props are provided `updateRow` and `deleteRow` which are functions
  *          called when your menu has changed the row state which trigger the CrudTable
  *          to rerender the rows with the new data.
+ *  #rows: Can optionally replace the rows in the table.
  */
 export default {
   name: 'CrudTable',
