@@ -1040,7 +1040,7 @@ class ObjectScopeType(Instance, ModelInstanceMixin):
             combined = (
                 branches[0]
                 if len(branches) == 1
-                else branches[0].union(*branches[1:], all=True)
+                else branches[0].union(*branches[1:])
             )
             query_result = list(combined)
 
