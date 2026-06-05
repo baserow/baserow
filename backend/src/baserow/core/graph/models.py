@@ -1,4 +1,3 @@
-from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional, Self
 
 from django.core.exceptions import ObjectDoesNotExist
