@@ -9,7 +9,7 @@
         <PaginatedDropdown
           :fetch-page="fetchPage"
           :value="value[index].id"
-          :initial-display-name="value[index].value"
+          :initial-display-name="rowDisplayName(value[index])"
           :error="touched && !valid && isInvalidValue(value[index])"
           :fetch-on-open="lazyLoad"
           :disabled="readOnly"
@@ -90,10 +90,21 @@ export default {
     isInvalidValue(value) {
       return !Number.isInteger(value.id)
     },
-    fetchPage(page, search) {
+    rowDisplayName(row) {
+      if (row.value) {
+        return row.value
+      }
+      if (!Number.isInteger(row.id)) {
+        return row.value
+      }
+      return this.$t('functionnalGridViewFieldLinkRow.unnamed', {
+        value: row.id,
+      })
+    },
+    async fetchPage(page, search) {
       const publicAuthToken =
         this.$store.getters['page/view/public/getAuthToken']
-      return ViewService(this.$client).linkRowFieldLookup(
+      const response = await ViewService(this.$client).linkRowFieldLookup(
         this.slug,
         this.field.id,
         page,
@@ -101,6 +112,11 @@ export default {
         100,
         publicAuthToken
       )
+      response.data.results = response.data.results.map((row) => ({
+        ...row,
+        value: this.rowDisplayName(row),
+      }))
+      return response
     },
     add() {
       const newValue = clone(this.value)

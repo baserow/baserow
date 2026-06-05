@@ -50,14 +50,20 @@ export default {
       return this.value.length === 0 ? false : this.value[0].id
     },
     initialDisplayName() {
-      return this.value.length === 0 ? '' : this.value[0].value
+      return this.value.length === 0 ? '' : this.rowDisplayName(this.value[0])
     },
   },
   methods: {
-    fetchPage(page, search) {
+    rowDisplayName(row) {
+      return (
+        row.value ||
+        this.$t('functionnalGridViewFieldLinkRow.unnamed', { value: row.id })
+      )
+    },
+    async fetchPage(page, search) {
       const publicAuthToken =
         this.$store.getters['page/view/public/getAuthToken']
-      return ViewService(this.$client).linkRowFieldLookup(
+      const response = await ViewService(this.$client).linkRowFieldLookup(
         this.slug,
         this.field.id,
         page,
@@ -65,6 +71,11 @@ export default {
         100,
         publicAuthToken
       )
+      response.data.results = response.data.results.map((row) => ({
+        ...row,
+        value: this.rowDisplayName(row),
+      }))
+      return response
     },
     updateValue({ value, displayName }) {
       const selection =
