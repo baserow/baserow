@@ -1031,15 +1031,21 @@ class ObjectScopeType(Instance, ModelInstanceMixin):
                 )
 
             enhanced_queryset = self.get_enhanced_queryset()
+            ordering = (
+                enhanced_queryset.query.order_by
+                or enhanced_queryset.model._meta.ordering
+            )
+
             branches = [
                 enhanced_queryset.filter(
                     self.get_filter_for_scope_type(scope_type, typed_scopes)
-                )
+                ).order_by()
                 for scope_type, typed_scopes in scopes_by_type.items()
             ]
             combined = (
                 branches[0] if len(branches) == 1 else branches[0].union(*branches[1:])
             )
+            combined = combined.order_by(*ordering)
             query_result = list(combined)
 
             # We have all the objects in the queryset, but now we want to sort them
