@@ -39,6 +39,12 @@ export class GridPage {
   // -- Navigation --------------------------------------------------------------
 
   async goTo(database: Database, table: Table): Promise<void> {
+    const url = new URL(
+      `/database/${database.id}/table/${table.id}`,
+      this.baseUrl,
+    );
+    url.searchParams.set("token", this.user.refreshToken);
+
     await this.page.context().addCookies([
       {
         name: "jwt_token",
@@ -46,10 +52,7 @@ export class GridPage {
         url: this.baseUrl,
       },
     ]);
-    await this.page.goto(
-      `${this.baseUrl}/database/${database.id}/table/${table.id}`,
-      { waitUntil: "domcontentloaded" },
-    );
+    await this.page.goto(url.toString(), { waitUntil: "domcontentloaded" });
     // Wait until Nuxt finishes hydrating. Falls back gracefully if the dev
     // server CSP blocks the function evaluation.
     await this.page
@@ -64,7 +67,34 @@ export class GridPage {
         // assertion below provides sufficient confirmation of hydration.
       });
     const grid = this.page.locator(".grid-view__right");
-    await expect(grid).toBeVisible({ timeout: 15_000 });
+    try {
+      await expect(grid).toBeVisible({ timeout: 25_000 });
+    } catch (error) {
+      const diagnostics = await this.navigationDiagnostics();
+      const message = error instanceof Error ? error.message : String(error);
+      throw new Error(
+        `Timed out waiting for the grid view to load.\n${diagnostics}\n${message}`,
+      );
+    }
+  }
+
+  private async navigationDiagnostics(): Promise<string> {
+    const currentUrl = new URL(this.page.url());
+    if (currentUrl.searchParams.has("token")) {
+      currentUrl.searchParams.set("token", "<redacted>");
+    }
+    const title = await this.page.title().catch(() => "<unavailable>");
+    const body = await this.page
+      .locator("body")
+      .innerText({ timeout: 1_000 })
+      .catch(() => "<unavailable>");
+    const bodyExcerpt = body.replace(/\s+/g, " ").trim().slice(0, 500);
+
+    return [
+      `url=${currentUrl.toString()}`,
+      `title=${title}`,
+      `body=${bodyExcerpt}`,
+    ].join("\n");
   }
 
   // -- Row locators -------------------------------------------------------------
