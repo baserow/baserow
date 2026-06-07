@@ -3,6 +3,19 @@ import flushPromises from 'flush-promises'
 
 import FormViewFieldLinkRow from '@baserow/modules/database/components/view/form/FormViewFieldLinkRow'
 import FormViewFieldMultipleLinkRow from '@baserow/modules/database/components/view/form/FormViewFieldMultipleLinkRow'
+import ViewService from '@baserow/modules/database/services/view'
+
+vi.mock('@baserow/modules/database/services/view', () => ({
+  default: vi.fn(),
+}))
+
+const mockLinkRowFieldLookup = (rows) => {
+  const linkRowFieldLookup = vi
+    .fn()
+    .mockResolvedValue({ data: { results: rows, count: rows.length } })
+  ViewService.mockReturnValue({ linkRowFieldLookup })
+  return linkRowFieldLookup
+}
 
 const linkRowField = {
   id: 1,
@@ -58,6 +71,58 @@ describe('FormViewFieldLinkRow', () => {
     await flushPromises()
     expect(wrapper.text()).toContain('Hello world')
   })
+
+  test('fetchPage caches original rows and exposes display under label', async () => {
+    mockLinkRowFieldLookup([
+      { id: 42, value: '' },
+      { id: 43, value: 'Real name' },
+    ])
+    const wrapper = await mountComponent({ value: [] })
+    const { data } = await wrapper.vm.fetchPage(1, null)
+
+    expect(data.results[0].label).toBe(
+      'functionnalGridViewFieldLinkRow.unnamed'
+    )
+    expect(data.results[0].value).toBe('')
+    expect(data.results[1].label).toBe('Real name')
+    expect(data.results[1].value).toBe('Real name')
+    expect(wrapper.vm.rowLookup[42]).toEqual({ id: 42, value: '' })
+    expect(wrapper.vm.rowLookup[43]).toEqual({ id: 43, value: 'Real name' })
+  })
+
+  test('updateValue stores the original empty value, not the fallback label', async () => {
+    mockLinkRowFieldLookup([{ id: 42, value: '' }])
+    const wrapper = await mountComponent({ value: [] })
+    await wrapper.vm.fetchPage(1, null)
+
+    wrapper.vm.updateValue({
+      value: 42,
+      displayName: 'functionnalGridViewFieldLinkRow.unnamed',
+    })
+
+    const emitted = wrapper.emitted('update')
+    expect(emitted).toBeTruthy()
+    expect(emitted[emitted.length - 1][0]).toEqual([{ id: 42, value: '' }])
+  })
+
+  test('updateValue falls back to displayName when row not in cache', async () => {
+    const wrapper = await mountComponent({ value: [] })
+    // No fetchPage call; rowLookup is empty.
+    wrapper.vm.updateValue({ value: 99, displayName: 'pre-existing' })
+
+    const emitted = wrapper.emitted('update')
+    expect(emitted[emitted.length - 1][0]).toEqual([
+      { id: 99, value: 'pre-existing' },
+    ])
+  })
+
+  test('updateValue with null emits an empty selection', async () => {
+    const wrapper = await mountComponent({ value: [{ id: 42, value: '' }] })
+    wrapper.vm.updateValue({ value: null, displayName: '' })
+
+    const emitted = wrapper.emitted('update')
+    expect(emitted[emitted.length - 1][0]).toEqual([])
+  })
 })
 
 describe('FormViewFieldMultipleLinkRow', () => {
@@ -101,5 +166,57 @@ describe('FormViewFieldMultipleLinkRow', () => {
     expect(wrapper.text()).not.toContain(
       'functionnalGridViewFieldLinkRow.unnamed'
     )
+  })
+
+  test('fetchPage caches original rows and exposes display under label', async () => {
+    mockLinkRowFieldLookup([
+      { id: 42, value: '' },
+      { id: 43, value: 'Real name' },
+    ])
+    const wrapper = await mountComponent({ value: [{ id: false, value: '' }] })
+    const { data } = await wrapper.vm.fetchPage(1, null)
+
+    expect(data.results[0].label).toBe(
+      'functionnalGridViewFieldLinkRow.unnamed'
+    )
+    expect(data.results[0].value).toBe('')
+    expect(data.results[1].label).toBe('Real name')
+    expect(wrapper.vm.rowLookup[42]).toEqual({ id: 42, value: '' })
+  })
+
+  test('updateValue stores the original empty value, not the fallback label', async () => {
+    mockLinkRowFieldLookup([{ id: 42, value: '' }])
+    const wrapper = await mountComponent({ value: [{ id: false, value: '' }] })
+    await wrapper.vm.fetchPage(1, null)
+
+    wrapper.vm.updateValue(
+      {
+        value: 42,
+        displayName: 'functionnalGridViewFieldLinkRow.unnamed',
+      },
+      0
+    )
+
+    const emitted = wrapper.emitted('update')
+    expect(emitted).toBeTruthy()
+    expect(emitted[emitted.length - 1][0]).toEqual([{ id: 42, value: '' }])
+  })
+
+  test('updateValue falls back to displayName when row not in cache', async () => {
+    const wrapper = await mountComponent({ value: [{ id: false, value: '' }] })
+    wrapper.vm.updateValue({ value: 99, displayName: 'pre-existing' }, 0)
+
+    const emitted = wrapper.emitted('update')
+    expect(emitted[emitted.length - 1][0]).toEqual([
+      { id: 99, value: 'pre-existing' },
+    ])
+  })
+
+  test('updateValue with null clears the slot', async () => {
+    const wrapper = await mountComponent({ value: [{ id: 42, value: '' }] })
+    wrapper.vm.updateValue({ value: null, displayName: '' }, 0)
+
+    const emitted = wrapper.emitted('update')
+    expect(emitted[emitted.length - 1][0]).toEqual([{ id: null, value: '' }])
   })
 })

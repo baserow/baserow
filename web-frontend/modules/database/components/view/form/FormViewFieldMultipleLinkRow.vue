@@ -14,6 +14,7 @@
           :fetch-on-open="lazyLoad"
           :disabled="readOnly"
           :include-display-name-in-selected-event="true"
+          :value-name="'label'"
           @input="updateValue($event, index)"
         ></PaginatedDropdown>
       </div>
@@ -69,6 +70,12 @@ export default {
     },
   },
   emits: ['update'],
+  data() {
+    return {
+      /** Map of row id → original row object, populated by fetchPage. */
+      rowLookup: {},
+    }
+  },
   created() {
     if (this.value.length === 0 && this.required) {
       this.add()
@@ -112,9 +119,14 @@ export default {
         100,
         publicAuthToken
       )
+      // Cache original rows so updateValue can store the real value
+      // (not the display label) to preserve conditional visibility checks.
+      response.data.results.forEach((row) => {
+        this.rowLookup[row.id] = row
+      })
       response.data.results = response.data.results.map((row) => ({
         ...row,
-        value: this.rowDisplayName(row),
+        label: this.rowDisplayName(row),
       }))
       return response
     },
@@ -133,7 +145,18 @@ export default {
     },
     updateValue({ value, displayName }, index) {
       const newValue = clone(this.value)
-      newValue[index] = { id: value, value: displayName }
+      // Store the original row value (e.g. '' for empty primary fields) so
+      // conditional visibility checks work correctly. Fall back to displayName
+      // if the row isn't in the cache (e.g. pre-existing selection).
+      if (value === null || value === '') {
+        newValue[index] = { id: value, value: '' }
+      } else {
+        const originalRow = this.rowLookup[value]
+        newValue[index] = {
+          id: value,
+          value: originalRow ? originalRow.value : displayName,
+        }
+      }
       this.$emit('update', newValue, this.value)
     },
   },
