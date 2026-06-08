@@ -30,7 +30,7 @@
     "codePlaceholder": "Enter the code to execute",
     "editCode": "Edit code",
     "injectionsLabel": "Data injections",
-    "injectionsHelperText": "Injections are formulas evaluated before the code runs. Each injection name becomes a property on context, for example an injection named customerName is available as context.customerName.",
+    "injectionsHelperText": "Injections are formulas evaluated before the code runs. Each injection name becomes a property of context. For example an injection named customerName is available as context.customerName.",
     "nameLabel": "Name",
     "namePlaceholder": "Variable name",
     "valueLabel": "Value",

@@ -1,0 +1,26 @@
+.core-code-service-form__injections-header,
+.core-code-service-form__injection {
+  display: flex;
+  gap: 6px;
+}
+
+.core-code-service-form__injection {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+
+.core-code-service-form__injection-name {
+  flex: 0 0 calc(30% - 3px);
+}
+
+.core-code-service-form__injection-formula {
+  flex: 1;
+}
+
+.core-code-service-form__injection-delete {
+  flex: 0;
+}
+
+.core-code-service-form__injection-error {
+  flex: 0 0 100%;
+}

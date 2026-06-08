@@ -8,21 +8,24 @@
       class="margin-bottom-2"
     >
       <template v-if="v$.values.injections.$model.length">
-        <div class="row" style="--gap: 6px">
-          <label class="col col-7 control__label control__label--small">
+        <div class="core-code-service-form__injections-header">
+          <label
+            class="core-code-service-form__injection-name control__label control__label--small"
+          >
             {{ $t('coreCodeServiceForm.nameLabel') }}
           </label>
-          <label class="col col-5 control__label control__label--small">
+          <label
+            class="core-code-service-form__injection-formula control__label control__label--small"
+          >
             {{ $t('coreCodeServiceForm.valueLabel') }}
           </label>
         </div>
         <div
           v-for="(injection, index) in v$.values.injections.$model"
           :key="injection.id"
-          style="--gap: 6px"
-          class="row margin-bottom-1"
+          class="core-code-service-form__injection margin-bottom-1"
         >
-          <div class="col col-5">
+          <div class="core-code-service-form__injection-name">
             <FormInput
               v-model="injection.name"
               :error="!!v$.values.injections.$each.$message[index]?.[0]"
@@ -30,13 +33,13 @@
               @blur="v$.values.injections.$touch()"
             />
           </div>
-          <div class="col col-5">
+          <div class="core-code-service-form__injection-formula">
             <InjectedFormulaInput
               v-model="injection.formula"
               :placeholder="$t('coreCodeServiceForm.valuePlaceholder')"
             />
           </div>
-          <div class="col col-2">
+          <div class="core-code-service-form__injection-delete">
             <ButtonIcon
               icon="iconoir-bin"
               @click="deleteInjection(injection)"
@@ -44,7 +47,7 @@
           </div>
           <div
             v-show="v$.values.injections.$each.$message[index]?.[0]"
-            class="error margin-left-1"
+            class="core-code-service-form__injection-error error"
           >
             {{ v$.values.injections.$each.$message[index]?.[0] }}
           </div>
