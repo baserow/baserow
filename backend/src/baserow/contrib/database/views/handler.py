@@ -666,6 +666,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         group_bys: bool = True,
         default_row_values: bool = False,
         limit: int | None = None,
+        prefetch_field_options: bool = True,
     ) -> Iterable[View]:
         """
         Lists available views for a user/table combination.
@@ -676,8 +677,10 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param filters: If filters should be prefetched.
         :param sortings: If sorts should be prefetched.
         :param decorations: If view decorations should be prefetched.
+        :param group_bys: If group bys should be prefetched.
         :param default_row_values: If default row values should be prefetched.
         :param limit: To limit the number of returned views.
+        :param prefetch_field_options: If field options should be prefetched.
         :return: Iterator over returned views.
         """
 
@@ -721,7 +724,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             per_content_type_queryset_hook=(
                 lambda model, queryset: view_type_registry.get_by_model(
                     model
-                ).enhance_queryset(queryset)
+                ).enhance_queryset(
+                    queryset, prefetch_field_options=prefetch_field_options
+                )
             ),
         )
 

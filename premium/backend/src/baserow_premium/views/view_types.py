@@ -294,8 +294,10 @@ class KanbanViewType(ViewType):
 
         return hidden_field_ids
 
-    def enhance_queryset(self, queryset):
-        return queryset.prefetch_related("kanbanviewfieldoptions_set")
+    def enhance_queryset(self, queryset, prefetch_field_options=True):
+        if prefetch_field_options:
+            queryset = queryset.prefetch_related("kanbanviewfieldoptions_set")
+        return queryset
 
     def after_field_delete(self, field: Field) -> None:
         if isinstance(field, FileField):
@@ -546,8 +548,10 @@ class CalendarViewType(ViewType):
 
         return hidden_field_ids
 
-    def enhance_queryset(self, queryset):
-        return queryset.prefetch_related("calendarviewfieldoptions_set")
+    def enhance_queryset(self, queryset, prefetch_field_options=True):
+        if prefetch_field_options:
+            queryset = queryset.prefetch_related("calendarviewfieldoptions_set")
+        return queryset
 
     def after_field_delete(self, field: Field) -> None:
         CalendarView.objects.filter(date_field_id=field.id).update(date_field_id=None)
@@ -887,7 +891,8 @@ class TimelineViewType(ViewType):
     def after_field_delete(self, field: Field) -> None:
         self._reset_views_with_incpompatible_fields(field)
 
-    def enhance_queryset(self, queryset):
-        return queryset.select_related(
-            "start_date_field", "end_date_field"
-        ).prefetch_related("timelineviewfieldoptions_set")
+    def enhance_queryset(self, queryset, prefetch_field_options=True):
+        queryset = queryset.select_related("start_date_field", "end_date_field")
+        if prefetch_field_options:
+            queryset = queryset.prefetch_related("timelineviewfieldoptions_set")
+        return queryset

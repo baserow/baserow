@@ -366,8 +366,10 @@ class GridViewType(ViewType):
 
         return hidden_field_ids
 
-    def enhance_queryset(self, queryset):
-        return queryset.prefetch_related("gridviewfieldoptions_set")
+    def enhance_queryset(self, queryset, prefetch_field_options=True):
+        if prefetch_field_options:
+            queryset = queryset.prefetch_related("gridviewfieldoptions_set")
+        return queryset
 
 
 class GalleryViewType(ViewType):
@@ -595,8 +597,10 @@ class GalleryViewType(ViewType):
 
         return hidden_field_ids
 
-    def enhance_queryset(self, queryset):
-        return queryset.prefetch_related("galleryviewfieldoptions_set")
+    def enhance_queryset(self, queryset, prefetch_field_options=True):
+        if prefetch_field_options:
+            queryset = queryset.prefetch_related("galleryviewfieldoptions_set")
+        return queryset
 
     def after_field_delete(self, field: Field) -> None:
         if isinstance(field, FileField):
@@ -1438,10 +1442,11 @@ class FormViewType(ViewType):
 
         return values
 
-    def enhance_queryset(self, queryset):
-        return queryset.prefetch_related(
-            "formviewfieldoptions_set", "users_to_notify_on_submit"
-        )
+    def enhance_queryset(self, queryset, prefetch_field_options=True):
+        queryset = queryset.prefetch_related("users_to_notify_on_submit")
+        if prefetch_field_options:
+            queryset = queryset.prefetch_related("formviewfieldoptions_set")
+        return queryset
 
     def enhance_field_options_queryset(self, queryset):
         return queryset.prefetch_related(

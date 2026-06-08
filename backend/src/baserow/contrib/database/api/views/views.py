@@ -333,6 +333,7 @@ class ViewsView(APIView):
             group_bys,
             default_row_values,
             query_params["limit"],
+            prefetch_field_options=False,
         )
 
         views_by_type = defaultdict(list)

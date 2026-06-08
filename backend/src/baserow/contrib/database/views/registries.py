@@ -925,7 +925,9 @@ class ViewType(
         return values
 
     def enhance_queryset(
-        self, queryset: django_models.QuerySet
+        self,
+        queryset: django_models.QuerySet,
+        prefetch_field_options: bool = True,
     ) -> django_models.QuerySet:
         """
         This hook can be used to enhance a queryset when fetching multiple views of a
@@ -936,6 +938,7 @@ class ViewType(
         `get_hidden_fields` method.
 
         :param queryset: The specific queryset that must be enhanced.
+        :param prefetch_field_options: If field options should be prefetched.
         :return: The enhanced queryset.
         """
 

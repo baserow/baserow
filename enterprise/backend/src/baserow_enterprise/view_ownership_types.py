@@ -1,7 +1,8 @@
+from collections import defaultdict
 from typing import List, Optional, Set
 
 from django.contrib.auth.models import AbstractUser
-from django.db.models import QuerySet
+from django.db.models import QuerySet, prefetch_related_objects
 
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.handler import ViewHandler
@@ -119,6 +120,25 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
             permission_checks.values(), workspace=views[0].table.database.workspace
         )
 
+        # The `view_type.get_hidden_fields` needs to have the field options in order
+        # to calculate the hidden fields. In order to keep things performant,
+        # they must be prefetched.
+        specifics_by_class = defaultdict(list)
+        for view in views:
+            if not check_results[permission_checks[f"update_field_options{view.id}"]]:
+                specific = view.specific
+                specifics_by_class[type(specific)].append(specific)
+
+        for model_class, specifics in specifics_by_class.items():
+            view_type = view_type_registry.get_by_model(model_class)
+            field_option_lookups = view_type.enhance_queryset(
+                model_class.objects.all(), prefetch_field_options=True
+            )._prefetch_related_lookups
+            if field_option_lookups:
+                # Only prefetches the related objects if they're not already set on
+                # the specific objects.
+                prefetch_related_objects(specifics, *field_option_lookups)
+
         for view in views:
             if not hasattr(view, "_prefetched_objects_cache"):
                 view._prefetched_objects_cache = {}
@@ -140,10 +160,6 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
             if not field_options_check_result:
                 # Cache hidden field IDs to avoid repeated permission checks.
                 view_type = view_type_registry.get_by_model(view.specific_class)
-                # This could cause N number of queries, but if the views are fetched
-                # using the `ViewHandler::list_views`, which is used when listing the
-                # views via the API, it won't be a problem because everything is then
-                # prefetched.
                 hidden_field_ids = view_type.get_hidden_fields(view.specific)
                 view._hidden_field_ids = hidden_field_ids
 
