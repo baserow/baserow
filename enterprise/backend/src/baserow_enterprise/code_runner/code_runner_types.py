@@ -28,6 +28,10 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
     type = "wasmtime_quickjs"
     output_size_limit_bytes = 1024 * 1024
     fuel_exhausted_error_message = "The code instruction limit was reached."
+    memory_or_stack_limit_error_message = (
+        "The code exceeded the runtime memory or stack limit."
+    )
+    wasm_trap_error_message = "The code stopped because of a runtime execution error."
 
     def __init__(
         self,
@@ -179,10 +183,26 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         if self._is_fuel_exhausted_error(message):
             return self.fuel_exhausted_error_message
 
+        if self._is_memory_or_stack_limit_error(message):
+            return self.memory_or_stack_limit_error_message
+
+        if self._is_wasm_trap_error(message):
+            return self.wasm_trap_error_message
+
         return self._sanitize_process_error_message(message)
 
     def _is_fuel_exhausted_error(self, message: str) -> bool:
         return "all fuel consumed" in message.lower()
+
+    def _is_memory_or_stack_limit_error(self, message: str) -> bool:
+        lower_message = message.lower()
+        return (
+            "memory fault at wasm address" in lower_message
+            or "out of bounds memory access" in lower_message
+        )
+
+    def _is_wasm_trap_error(self, message: str) -> bool:
+        return "wasm trap:" in message.lower()
 
     def _sanitize_process_error_message(self, message: str) -> str:
         """

@@ -306,8 +306,6 @@ def ensure_json(value: Any) -> Any:
     """
 
     try:
-        return json.loads(
-            json.dumps(value, cls=DjangoJSONEncoder, allow_nan=False)
-        )
+        return json.loads(json.dumps(value, cls=DjangoJSONEncoder, allow_nan=False))
     except (TypeError, ValueError) as exc:
         raise ValidationError("Value cannot be converted to a JSON value.") from exc

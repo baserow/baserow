@@ -403,6 +403,78 @@ def test_wasmtime_quickjs_code_runner_formats_fuel_exhaustion_error(monkeypatch)
     assert "all fuel consumed" not in message
 
 
+def test_wasmtime_quickjs_code_runner_formats_memory_trap_error(monkeypatch):
+    popen = subprocess.Popen
+
+    def fake_popen(command, **kwargs):
+        return popen(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import sys;"
+                    "sys.stdin.read();"
+                    "sys.stderr.write("
+                    "'Error: failed to run main module `qjs.wasm`\\n\\n"
+                    "Caused by:\\n"
+                    "      0: failed to invoke command default\\n"
+                    "      1: error while executing at wasm backtrace:\\n"
+                    "             0: 0x1acfc - qjs!JS_CallInternal\\n"
+                    "           537: 0x11c0 - qjs!_start\\n"
+                    "      2: memory fault at wasm address 0x100000094 "
+                    "in linear memory of size 0x50000\\n"
+                    "      3: wasm trap: out of bounds memory access'"
+                    ");"
+                    "sys.exit(1)"
+                ),
+            ],
+            **kwargs,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    runner = WasmtimeQuickJSCodeRunnerType(quickjs_wasm_path="/runtime/qjs.wasm")
+
+    with pytest.raises(CodeRunnerExecutionError) as exc_info:
+        runner.run({}, "function main(context) { return main() }")
+
+    message = str(exc_info.value)
+    assert message == "The code exceeded the runtime memory or stack limit."
+    assert "wasm backtrace" not in message
+    assert "qjs!JS_CallInternal" not in message
+
+
+def test_wasmtime_quickjs_code_runner_formats_generic_wasm_trap_error(monkeypatch):
+    popen = subprocess.Popen
+
+    def fake_popen(command, **kwargs):
+        return popen(
+            [
+                sys.executable,
+                "-c",
+                (
+                    "import sys;"
+                    "sys.stdin.read();"
+                    "sys.stderr.write('error while executing at wasm backtrace: "
+                    "wasm trap: unreachable');"
+                    "sys.exit(1)"
+                ),
+            ],
+            **kwargs,
+        )
+
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+
+    runner = WasmtimeQuickJSCodeRunnerType(quickjs_wasm_path="/runtime/qjs.wasm")
+
+    with pytest.raises(CodeRunnerExecutionError) as exc_info:
+        runner.run({}, "function main() {}")
+
+    message = str(exc_info.value)
+    assert message == "The code stopped because of a runtime execution error."
+    assert "wasm trap" not in message
+
+
 def test_wasmtime_quickjs_code_runner_redacts_startup_error_paths(monkeypatch):
     wasmtime_path = "/opt/baserow/runtime/bin/wasmtime"
 
