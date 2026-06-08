@@ -168,11 +168,8 @@ export default {
       })
     },
     isValid() {
-      const component = this.$refs.field
-      if (!component || typeof component.isValid !== 'function') {
-        return true
-      }
-      return component.isValid()
+      // Fail open if not yet mounted.
+      return this.$refs.field?.isValid() ?? true
     },
   },
 }

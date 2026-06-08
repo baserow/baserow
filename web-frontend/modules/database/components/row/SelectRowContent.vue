@@ -437,6 +437,7 @@ export default {
       this.$refs.search?.focus()
     },
     async createRow({ row, callback }) {
+      let rowCreated
       try {
         const preparedRow = prepareRowForRequest(
           row,
@@ -444,42 +445,35 @@ export default {
           this.$registry
         )
 
-        const { data: rowCreated } = await RowService(this.$client).create(
+        const response = await RowService(this.$client).create(
           this.table.id,
           preparedRow
         )
+        rowCreated = response.data
 
         await this.fetch(this.page)
-
-        // When you create a new row from a linked row that links to its own table,the
-        // realtime update will be sent from you, and you won't receive it.Since you
-        // don't receive the realtime update we have to manually add the new row to the
-        // state. We can do that by using the same function that is used by the
-        // realtime update. (`viewType.rowCreated`)
-        const view = this.$store.getters['view/getSelected']
-
-        // The `view.type` check ensures that the Builder doesn't crash when
-        // creating a new row in the Data Source modal.
-        //
-        // In AB's Data Source modal, it is possible to create a new row for
-        // fields of the type "Link to table". Since there is no selected view,
-        // there is no view type.
-        callback()
-
-        if (view.type) {
-          const viewType = this.$registry.get('view', view.type)
-          viewType.rowCreated(
-            { store: this.$store },
-            this.table.id,
-            this.allFields,
-            rowCreated,
-            {},
-            'page/'
-          )
-          this.select(populateRow(rowCreated))
-        }
       } catch (error) {
         callback(error)
+        return
+      }
+
+      // Close before the selection below hides the parent modal, else it
+      // unmounts mid-close and loses its loading state.
+      callback()
+
+      // Self-referencing link rows don't receive their own realtime update.
+      const view = this.$store.getters['view/getSelected']
+      if (view.type) {
+        const viewType = this.$registry.get('view', view.type)
+        viewType.rowCreated(
+          { store: this.$store },
+          this.table.id,
+          this.allFields,
+          rowCreated,
+          {},
+          'page/'
+        )
+        this.select(populateRow(rowCreated))
       }
     },
     toggleFieldsContext() {
