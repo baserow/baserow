@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Add code service to execute arbitrary Javascript code in worflow/builder",
+    "message": "Add code service to execute arbitrary JavaScript code in workflow/builder",
     "issue_origin": "github",
     "issue_number": 5424,
     "domain": "integration",

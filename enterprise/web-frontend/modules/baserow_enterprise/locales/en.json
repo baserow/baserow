@@ -21,7 +21,7 @@
   },
   "serviceType": {
     "coreCode": "Execute code",
-    "coreCodeDescription": "Runs arbitrary Javascript code.",
+    "coreCodeDescription": "Runs arbitrary JavaScript code.",
     "errorCodeMissing": "Missing code property"
   },
   "coreCodeServiceForm": {
