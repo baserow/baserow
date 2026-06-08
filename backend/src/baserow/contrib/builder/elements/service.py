@@ -227,11 +227,22 @@ class ElementService:
             context=element,
         )
 
+        # Collect the descendants before deletion so realtime receivers can tell
+        # other clients which records to remove — deleting a container removes its
+        # whole subtree.
+        descendant_ids = [d.id for d in page.get_graph().get_descendants(element)]
+
         self.handler.delete_element(element)
 
         page.get_graph().assert_graph_consistency()
 
-        element_deleted.send(self, element_id=element.id, page=page, user=user)
+        element_deleted.send(
+            self,
+            element_id=element.id,
+            descendant_ids=descendant_ids,
+            page=page,
+            user=user,
+        )
 
     def move_element(
         self,
@@ -291,6 +302,9 @@ class ElementService:
         )
 
         source_graph = element.page.get_graph()
+        # Captured before the move reassigns element.page, so realtime receivers
+        # can tell whether this was a cross-page move and notify the source page.
+        source_page = element.page
 
         with element_type.wrap_move(
             element,
@@ -343,6 +357,7 @@ class ElementService:
         element_moved.send(
             self,
             element=element,
+            source_page=source_page,
             position=position,
             reference_element=reference_element,
             user=user,

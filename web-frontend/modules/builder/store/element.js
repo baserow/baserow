@@ -479,6 +479,30 @@ const actions = {
       ? clone(resolvedTargetPage.graph)
       : null
 
+    // For a cross-page move the whole subtree (the element AND its descendants)
+    // relocates. Capture it (root first) and pre-compute the resulting graphs.
+    // wrapMove relocates each record via forceCreate, which would otherwise
+    // append the children at the target root (they aren't in the target graph
+    // yet → "unfurled"); we overwrite the graphs with the correct result below.
+    let subtreeElements = [element]
+    let finalSourceGraph = null
+    let finalTargetGraph = null
+    if (isCrossPage) {
+      const sourceHandler = new ElementGraphHandler(page)
+      subtreeElements = [element, ...sourceHandler.getDescendants(element)]
+
+      const targetHandler = new ElementGraphHandler(resolvedTargetPage)
+      sourceHandler.move(
+        element,
+        referenceElement,
+        position ?? 'south',
+        placeInContainer ?? '',
+        targetHandler
+      )
+      finalSourceGraph = sourceHandler.graph
+      finalTargetGraph = targetHandler.graph
+    }
+
     const elementType = $registry.get('element', element.type)
 
     elementType.wrapMove(
@@ -490,23 +514,14 @@ const actions = {
       },
       () => {
         if (isCrossPage) {
-          // Cross-page: remove from source graph, insert into target graph at the
-          // requested position (same params used by the confirmed API call below).
-          dispatch('graphRemove', { page, element })
+          // wrapMove already relocated the descendant records; relocate the root
+          // record here. The graphs are corrected once below.
           commit('DELETE_ITEM', { page, elementId: element.id })
           commit('ADD_ITEM', {
             page: resolvedTargetPage,
             sourcePageId: page.id,
             element: { ...element, page_id: resolvedTargetPage.id },
           })
-          dispatch('graphInsert', {
-            page: resolvedTargetPage,
-            element,
-            referenceElement,
-            position: position ?? 'south',
-            output: placeInContainer ?? '',
-          })
-
           dispatch('_setElementNamespacePath', {
             page: resolvedTargetPage,
             element: getters.getElementById(resolvedTargetPage, elementId),
@@ -523,6 +538,23 @@ const actions = {
         }
       }
     )
+
+    if (isCrossPage) {
+      // Overwrite both graphs with the subtree-aware result, replacing the
+      // transient root-level entries forceCreate produced during wrapMove.
+      dispatch(
+        'page/forceUpdate',
+        { page, values: { graph: finalSourceGraph } },
+        { root: true }
+      )
+      dispatch(
+        'page/forceUpdate',
+        { page: resolvedTargetPage, values: { graph: finalTargetGraph } },
+        { root: true }
+      )
+      updateCachedValues(page)
+      updateCachedValues(resolvedTargetPage)
+    }
 
     const fire = async () => {
       try {
@@ -544,27 +576,14 @@ const actions = {
         })
 
         if (isCrossPage) {
-          // Fix the cross-page graph using the original move parameters rather than
-          // rebuilding from compat fields.
-          const movedElement = getters.getElementById(
-            resolvedTargetPage,
-            elementId
+          // The optimistic graph already matches the confirmed move (identical
+          // params); re-apply it defensively in case forceUpdate disturbed it.
+          dispatch(
+            'page/forceUpdate',
+            { page: resolvedTargetPage, values: { graph: finalTargetGraph } },
+            { root: true }
           )
-          dispatch('graphRemove', {
-            page: resolvedTargetPage,
-            element: movedElement,
-          })
-          const confirmedRef = referenceElementId
-            ? (getters.getElementById(resolvedTargetPage, referenceElementId) ??
-              getters.getElementById(page, referenceElementId))
-            : null
-          dispatch('graphInsert', {
-            page: resolvedTargetPage,
-            element: movedElement,
-            referenceElement: confirmedRef,
-            position,
-            output: placeInContainer,
-          })
+          updateCachedValues(resolvedTargetPage)
         }
       } catch (error) {
         // Restore source graph
@@ -576,18 +595,26 @@ const actions = {
         updateCachedValues(page)
 
         if (isCrossPage) {
-          // Restore target graph and move element back to source
+          // Restore target graph and move the whole subtree back to the source.
           dispatch(
             'page/forceUpdate',
             { page: resolvedTargetPage, values: { graph: initialTargetGraph } },
             { root: true }
           )
-          commit('DELETE_ITEM', {
-            page: resolvedTargetPage,
-            elementId: element.id,
-          })
-          commit('ADD_ITEM', { page, element })
-          dispatch('_setElementNamespacePath', { page, element })
+          for (const subtreeElement of subtreeElements) {
+            commit('DELETE_ITEM', {
+              page: resolvedTargetPage,
+              elementId: subtreeElement.id,
+            })
+            commit('ADD_ITEM', {
+              page,
+              element: { ...subtreeElement, page_id: page.id },
+            })
+            dispatch('_setElementNamespacePath', {
+              page,
+              element: getters.getElementById(page, subtreeElement.id),
+            })
+          }
           updateCachedValues(resolvedTargetPage)
         }
         throw error

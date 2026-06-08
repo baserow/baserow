@@ -310,6 +310,49 @@ export default class BaseGraphHandler {
     delete this.graph[pointId]
   }
 
+  // Collect the IDs of every descendant of pointId (direct and transitive),
+  // following next[''] chains within each slot and recursing into each child.
+  getDescendantIds(pointId) {
+    const result = []
+    const info = this.graph[pointId]
+    if (!info || typeof info !== 'object') return result
+    const childrenDict = this._getChildrenAsDict(info.children)
+    for (const headIds of Object.values(childrenDict)) {
+      for (const cid of headIds) {
+        this._collectChainAndDescendants(cid, result)
+      }
+    }
+    return result
+  }
+
+  _collectChainAndDescendants(pointId, acc) {
+    let currentId = pointId
+    while (currentId != null) {
+      const info = this.graph[currentId]
+      if (!info || typeof info !== 'object') break
+      acc.push(currentId)
+      const childrenDict = this._getChildrenAsDict(info.children)
+      for (const headIds of Object.values(childrenDict)) {
+        for (const cid of headIds) {
+          this._collectChainAndDescendants(cid, acc)
+        }
+      }
+      const allNext = Object.values(info.next || {}).flat()
+      currentId = allNext[0] ?? null
+      for (const nid of allNext.slice(1)) {
+        this._collectChainAndDescendants(nid, acc)
+      }
+    }
+  }
+
+  // Returns the descendant points (records) of the given point.
+  getDescendants(point) {
+    const id = point?.id ?? point
+    return this.getDescendantIds(id)
+      .map((pid) => this.getPoint(pid))
+      .filter((p) => p)
+  }
+
   // keepDescendants: when true, the point's own graph entry is deleted but its
   // subtree entries are NOT removed (used by move() to re-attach the subtree).
   remove(point, { keepDescendants = false } = {}) {
@@ -370,21 +413,44 @@ export default class BaseGraphHandler {
     return searchLast(this.graph['0'])
   }
 
-  move(pointToMove, referencePoint, position, output) {
+  // When targetHandler is supplied (and differs from this handler) the point is
+  // moved across graphs: its whole subtree (children + descendants) is migrated
+  // into the target graph and removed from this (source) one. Its `next` (old
+  // siblings) is NOT carried — insert() sets the new one.
+  move(pointToMove, referencePoint, position, output, targetHandler = null) {
+    const target = targetHandler || this
+    const isCrossGraph = target !== this
+
     const previousChildren = this.graph[pointToMove.id].children
 
-    this.remove(pointToMove, { keepDescendants: true })
+    let migratedDescendants = null
+    if (isCrossGraph) {
+      migratedDescendants = this.getDescendantIds(pointToMove.id).map((id) => [
+        id,
+        clone(this.graph[id]),
+      ])
+    }
+
+    // Same-graph: keep descendants in place and just relink the point.
+    // Cross-graph: cascade-remove the subtree from the source graph.
+    this.remove(pointToMove, { keepDescendants: !isCrossGraph })
+
+    if (isCrossGraph) {
+      for (const [id, entry] of migratedDescendants) {
+        target.graph[id] = entry
+      }
+    }
 
     if (referencePoint === null && position === 'south') {
       // null reference + south = append to end of the chain.
       // _insertAt(null, ...) always places at root (first), so use getLastPosition instead.
-      const [lastRef, lastPos, lastOutput] = this.getLastPosition()
-      this._insertAt(pointToMove, lastRef, lastPos, lastOutput)
+      const [lastRef, lastPos, lastOutput] = target.getLastPosition()
+      target._insertAt(pointToMove, lastRef, lastPos, lastOutput)
     } else {
-      this.insert(pointToMove, referencePoint, position, output)
+      target.insert(pointToMove, referencePoint, position, output)
     }
 
-    this.graph[pointToMove.id].children = previousChildren
+    target.graph[pointToMove.id].children = previousChildren
   }
 
   replace(pointToReplace, newPoint) {
