@@ -13,6 +13,7 @@ import {
   LocalBaserowRowsCreatedTriggerServiceType,
   LocalBaserowRowsUpdatedTriggerServiceType,
   LocalBaserowRowsDeletedTriggerServiceType,
+  LocalBaserowFieldUpdatedTriggerServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import {
   CoreCSVFileReaderServiceType,
@@ -77,6 +78,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'service',
       new LocalBaserowRowsDeletedTriggerServiceType(context)
+    )
+    $registry.register(
+      'service',
+      new LocalBaserowFieldUpdatedTriggerServiceType(context)
     )
   },
 })

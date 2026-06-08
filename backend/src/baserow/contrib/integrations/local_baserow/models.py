@@ -170,6 +170,21 @@ class LocalBaserowRowsDeleted(LocalBaserowTableService):
     """
 
 
+class LocalBaserowFieldUpdated(LocalBaserowTableService):
+    """
+    A model for the local baserow field updated trigger service. Unlike
+    `LocalBaserowRowsUpdated`, which triggers when any field of a row changes,
+    this service only triggers when the value of `field` changes.
+    """
+
+    field = models.ForeignKey(
+        "database.Field",
+        help_text="Only trigger when this field's value changes.",
+        null=True,
+        on_delete=models.SET_NULL,
+    )
+
+
 class LocalBaserowTableServiceRefinementManager(models.Manager):
     """
     Kept for legacy purposes (in migrations)

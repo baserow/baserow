@@ -26,6 +26,7 @@ class IntegrationsConfig(AppConfig):
         from baserow.contrib.integrations.local_baserow.service_types import (
             LocalBaserowAggregateRowsUserServiceType,
             LocalBaserowDeleteRowServiceType,
+            LocalBaserowFieldUpdatedServiceType,
             LocalBaserowGetRowUserServiceType,
             LocalBaserowListRowsUserServiceType,
             LocalBaserowRowsCreatedServiceType,
@@ -42,6 +43,7 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(LocalBaserowRowsCreatedServiceType())
         service_type_registry.register(LocalBaserowRowsUpdatedServiceType())
         service_type_registry.register(LocalBaserowRowsDeletedServiceType())
+        service_type_registry.register(LocalBaserowFieldUpdatedServiceType())
 
         from baserow.contrib.integrations.slack.service_types import (
             SlackWriteMessageServiceType,

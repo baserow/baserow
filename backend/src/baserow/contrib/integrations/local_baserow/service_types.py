@@ -90,6 +90,7 @@ from baserow.contrib.integrations.local_baserow.mixins import (
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowAggregateRows,
     LocalBaserowDeleteRow,
+    LocalBaserowFieldUpdated,
     LocalBaserowGetRow,
     LocalBaserowListRows,
     LocalBaserowRowsCreated,
@@ -2360,22 +2361,48 @@ class LocalBaserowRowsSignalServiceType(
             # Make sure we have an up to date model
             local_model = model.baserow_table.get_model()
 
-            serializer = get_row_serializer_class(
-                local_model, RowSerializer, is_response=True, user_field_names=True
-            )
-
             data_to_process = {
-                "results": serializer(rows, many=True).data,
+                "results": self._serialize_signal_rows(service, local_model, rows),
                 "has_next_page": False,
             }
 
             return self._prepare_result(local_model, data_to_process)
 
         self._process_event(
-            self.model_class.objects.filter(table=table),
+            self._get_services_to_dispatch(table, **kwargs),
             get_data,
             user=user,
         )
+
+    def _serialize_signal_rows(self, service, local_model, rows) -> List[Dict]:
+        """
+        Serializes the rows carried by the signal into the dispatched `results`.
+        By default every field of the row is included; subclasses can narrow this
+        down (e.g. to only the field the service is watching).
+
+        :param service: The service being dispatched.
+        :param local_model: An up to date model for the service's table.
+        :param rows: The rows carried by the signal.
+        :return: A list of serialized rows.
+        """
+
+        serializer = get_row_serializer_class(
+            local_model, RowSerializer, is_response=True, user_field_names=True
+        )
+        return serializer(rows, many=True).data
+
+    def _get_services_to_dispatch(self, table: "Table", **signal_kwargs):
+        """
+        Returns the queryset of services which should be dispatched for this signal.
+        Subclasses can narrow this down (e.g. only services watching a field which
+        actually changed) by overriding this method and using the signal kwargs.
+
+        :param table: The table the signal was sent for.
+        :param signal_kwargs: The remaining kwargs sent with the signal.
+        :return: A queryset of `model_class` instances to dispatch.
+        """
+
+        return self.model_class.objects.filter(table=table)
 
     def _signal_receiver(self, *args, **kwargs):
         transaction.on_commit(lambda: self._handle_signal(*args, **kwargs))
@@ -2434,3 +2461,192 @@ class LocalBaserowRowsDeletedServiceType(LocalBaserowRowsSignalServiceType):
     signal = rows_deleted
     type = "local_baserow_rows_deleted"
     model_class = LocalBaserowRowsDeleted
+
+
+class LocalBaserowFieldUpdatedServiceType(LocalBaserowRowsSignalServiceType):
+    """
+    Like `LocalBaserowRowsUpdatedServiceType`, this service listens to the
+    `rows_updated` signal, but it only dispatches when the configured `field`
+    is among the fields that actually changed (`updated_field_ids`). This lets
+    users avoid recursive trigger loops by watching a single specific field.
+    """
+
+    signal = rows_updated
+    type = "local_baserow_field_updated"
+    model_class = LocalBaserowFieldUpdated
+
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + ["field"]
+
+    @property
+    def serializer_field_names(self):
+        return super().serializer_field_names + ["field_id"]
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            **super().serializer_field_overrides,
+            "field_id": serializers.IntegerField(
+                required=False,
+                allow_null=True,
+                help_text="The id of the field whose change triggers the workflow.",
+            ),
+        }
+
+    class SerializedDict(LocalBaserowRowsSignalServiceType.SerializedDict):
+        field_id: int
+
+    def generate_schema(
+        self,
+        service: LocalBaserowFieldUpdated,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """
+        Like `LocalBaserowTableServiceType.generate_schema`, this returns a list
+        (array) schema, but it only exposes the single `field` the service is
+        watching (alongside the row `id`) instead of every field in the table.
+
+        :param service: A `LocalBaserowFieldUpdated` instance.
+        :param allowed_fields: The properties which are allowed to be included in
+            the generated schema.
+        :return: A schema dictionary, or None if no `table` or `field` is set.
+        """
+
+        if service.table_id is None or service.field_id is None:
+            return None
+
+        # Reuse the cached, fully-built table properties and then narrow them down
+        # to just the row `id` and the watched field.
+        properties = global_cache.get(
+            f"table_{service.table_id}__service_schema",
+            default=lambda: self._get_table_properties(service),
+            invalidate_key=f"table_{service.table_id}__service_invalidate_key",
+            timeout=SCHEMA_CACHE_TTL,
+        )
+
+        watched_field_keys = {"id", f"field_{service.field_id}"}
+        properties = {
+            field: value
+            for field, value in properties.items()
+            if field in watched_field_keys
+        }
+
+        if allowed_fields is not None:
+            allowed_fields = set(allowed_fields)
+            properties = {
+                field: value
+                for field, value in properties.items()
+                if field in allowed_fields
+            }
+
+        return self.get_schema_for_return_type(service, properties)
+
+    def _get_services_to_dispatch(
+        self, table: "Table", updated_field_ids=None, **signal_kwargs
+    ):
+        # Only dispatch services whose watched field actually changed. When no
+        # field is configured (`field_id` is null) the service never matches.
+        return (
+            super()
+            ._get_services_to_dispatch(table, **signal_kwargs)
+            .filter(field_id__in=updated_field_ids or [])
+        )
+
+    def _process_event(self, services, *args, **kwargs):
+        # Unlike the other row signal triggers, this trigger should stay quiet
+        # when no service's watched field changed, to avoid recursive loops.
+        if not services:
+            return None
+        return super()._process_event(services, *args, **kwargs)
+
+    def _serialize_signal_rows(self, service, local_model, rows) -> List[Dict]:
+        # Only expose the watched field (and the row id), so the dispatched data
+        # matches the schema generated by `generate_schema`.
+        serializer = get_row_serializer_class(
+            local_model,
+            RowSerializer,
+            is_response=True,
+            user_field_names=True,
+            field_ids=[service.field_id],
+        )
+        field_name = service.field.name
+        return [
+            {"id": row["id"], field_name: row.get(field_name)}
+            for row in serializer(rows, many=True).data
+        ]
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: Optional[ServiceSubClass] = None,
+    ) -> Dict[str, Any]:
+        """
+        Validate that the watched `field` belongs to the service's table, and
+        reset the field if the table changed. Mirrors the field/table validation
+        in `LocalBaserowAggregateRowsServiceType.prepare_values`.
+        """
+
+        values = super().prepare_values(values, user, instance)
+
+        if "table" in values:
+            # Reset the field if the table has changed.
+            if (
+                "field_id" not in values
+                and instance
+                and instance.field_id
+                and instance.table != values["table"]
+            ):
+                values["field"] = None
+
+        if "field_id" in values:
+            field_id = values.pop("field_id")
+            if field_id is not None:
+                field = FieldHandler().get_field(field_id)
+                # Validate against the `table` in the user-provided `values`,
+                # otherwise validate against the persisted `instance.table`.
+                table_to_validate = values.get(
+                    "table", getattr(instance, "table", None)
+                )
+                if table_to_validate is None or field.table_id != table_to_validate.id:
+                    raise DRFValidationError(
+                        detail=f"The field with ID {field_id} is not "
+                        "related to the given table.",
+                        code="invalid_field",
+                    )
+                values["field"] = field
+            else:
+                values["field"] = None
+
+        return values
+
+    def export_prepared_values(self, instance: Service) -> dict[str, any]:
+        values = super().export_prepared_values(instance)
+        if values.get("field"):
+            del values["field"]
+            values["field_id"] = instance.field_id
+        return values
+
+    def deserialize_property(
+        self,
+        prop_name: str,
+        value: Any,
+        id_mapping: Dict[str, Any],
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        if prop_name == "field_id":
+            return id_mapping.get("database_fields", {}).get(value, value)
+
+        return super().deserialize_property(
+            prop_name,
+            value,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )

@@ -41,6 +41,8 @@
     "localBaserowRowsUpdatedDescription": "Triggered when rows are updated in a Baserow table.",
     "localBaserowRowsDeleted": "Rows are deleted",
     "localBaserowRowsDeletedDescription": "Triggered when rows are deleted in a Baserow table.",
+    "localBaserowFieldUpdated": "A field is updated",
+    "localBaserowFieldUpdatedDescription": "Triggered only when a specific field's value changes in a Baserow table.",
     "coreHTTPTrigger": "Receive an HTTP Request",
     "coreHTTPTriggerDescription": "Triggered when an HTTP request is received.",
     "coreHTTPRequest": "Send an HTTP request",
@@ -152,6 +154,10 @@
     "aggregationTypeLabel": "Aggregation",
     "searchFieldPlaceHolder": "Enter a search term...",
     "noTableChosenForFiltering": "Choose a table to begin using data source filters."
+  },
+  "localBaserowFieldUpdatedForm": {
+    "fieldLabel": "Field",
+    "fieldHelper": "The workflow only triggers when this field's value changes."
   },
   "localBaserowTableServiceConditionalForm": {
     "addFilter": "Add additional filter",

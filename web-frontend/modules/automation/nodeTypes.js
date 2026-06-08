@@ -12,6 +12,7 @@ import {
   LocalBaserowRowsCreatedTriggerServiceType,
   LocalBaserowRowsDeletedTriggerServiceType,
   LocalBaserowRowsUpdatedTriggerServiceType,
+  LocalBaserowFieldUpdatedTriggerServiceType,
   LocalBaserowGetRowServiceType,
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
@@ -401,6 +402,58 @@ export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin
       'service',
       LocalBaserowRowsDeletedTriggerServiceType.getType()
     )
+  }
+}
+
+export class LocalBaserowFieldUpdatedTriggerNodeType extends TriggerNodeTypeMixin(
+  LocalBaserowSignalTriggerType
+) {
+  static getType() {
+    return 'local_baserow_field_updated'
+  }
+
+  getOrder() {
+    return 4
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowFieldUpdatedLabel'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowFieldUpdatedTriggerServiceType.getType()
+    )
+  }
+
+  /**
+   * Resolves the name of the watched field from the service schema, which
+   * carries each field's metadata (including its name). Returns null when no
+   * field is selected, or its metadata isn't available yet.
+   */
+  getFieldName(node) {
+    const fieldId = node.service?.field_id
+    if (!fieldId) {
+      return null
+    }
+    const properties = node.service?.schema?.items?.properties || {}
+    const field = Object.values(properties).find(
+      (property) => property?.metadata?.id === fieldId
+    )
+    return field?.metadata?.name || null
+  }
+
+  getDefaultLabel({ automation, node }) {
+    const { tableName } = this.getLabelContext({ automation, node })
+    const fieldName = this.getFieldName(node)
+    if (fieldName && tableName) {
+      return this.app.$i18n.t('nodeType.localBaserowFieldUpdatedLabel', {
+        fieldName,
+        tableName,
+      })
+    }
+    return this.app.$i18n.t('nodeType.localBaserowFieldUpdatedNoFieldLabel')
   }
 }
 
