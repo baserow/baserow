@@ -811,6 +811,22 @@ describe('FieldType tests', () => {
     }
   )
 
+  test.each([null, ''])(
+    'Verify that NumberFieldType prepareValueForDuplicate returns null for %s',
+    (emptyValue) => {
+      const field = {
+        number_decimal_places: 2,
+        number_negative: false,
+        number_prefix: '',
+        number_suffix: '',
+        number_separator: 'PERIOD_COMMA',
+      }
+      const fieldType = new NumberFieldType()
+
+      expect(fieldType.prepareValueForDuplicate(field, emptyValue)).toBeNull()
+    }
+  )
+
   test.each(queryParametersForParsing)(
     'Verify that parseQueryParameter returns the expected output for each field type',
     ({ input, output, fieldType }) => {

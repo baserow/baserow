@@ -1960,6 +1960,9 @@ export class NumberFieldType extends FieldType {
   }
 
   prepareValueForDuplicate(field, value) {
+    if (value == null || value === '') {
+      return null
+    }
     return parseNumberValue(field, new BigNumber(value))
   }
 
