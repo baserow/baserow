@@ -8,6 +8,7 @@
       </div>
       <Error :error="error" />
       <RowEditModalFieldsList
+        ref="visibleFieldsList"
         :primary-is-sortable="primaryIsSortable"
         :fields="visibleFields"
         :sortable="sortable"
@@ -19,6 +20,7 @@
         :database="database"
         :can-modify-fields="canModifyFields"
         :all-fields-in-table="allFieldsInTable"
+        :touched="touched"
         @field-updated="$emit('field-updated', $event)"
         @field-deleted="$emit('field-deleted')"
         @order-fields="$emit('order-fields', $event)"
@@ -33,6 +35,7 @@
         "
       >
         <RowEditModalFieldsList
+          ref="hiddenFieldsList"
           :primary-is-sortable="primaryIsSortable"
           :fields="hiddenFields"
           :sortable="false"
@@ -44,6 +47,7 @@
           :database="database"
           :can-modify-fields="canModifyFields"
           :all-fields-in-table="allFieldsInTable"
+          :touched="touched"
           @field-updated="$emit('field-updated', $event)"
           @field-deleted="$emit('field-deleted')"
           @toggle-field-visibility="$emit('toggle-field-visibility', $event)"
@@ -145,6 +149,7 @@ export default {
     return {
       row: {},
       loading: false,
+      touched: false,
     }
   },
   computed: {
@@ -208,6 +213,7 @@ export default {
       })
       Object.assign(row, defaults)
       this.row = row
+      this.touched = false
       return modal.methods.show.call(this, ...args)
     },
     update(event) {
@@ -215,6 +221,16 @@ export default {
       this.row[name] = event.value
     },
     create() {
+      this.touched = true
+
+      const valid = [this.$refs.visibleFieldsList, this.$refs.hiddenFieldsList]
+        .filter(Boolean)
+        .every((list) => list.isValid())
+
+      if (!valid) {
+        return
+      }
+
       this.loading = true
       this.$emit('created', {
         row: this.row,

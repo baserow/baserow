@@ -1180,7 +1180,7 @@ export class BaserowFormulaLinkType extends BaserowFormulaTypeDefinition {
     if (value?.label) {
       return `${value.label} (${value.url})`
     } else {
-      return value.url
+      return value?.url ?? ''
     }
   }
 
@@ -1248,7 +1248,7 @@ export class BaserowFormulaURLType extends mix(
     if (value?.label) {
       return `${value.label} (${value.url})`
     } else {
-      return value.url
+      return value?.url ?? ''
     }
   }
 

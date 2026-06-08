@@ -464,6 +464,8 @@ export default {
         // In AB's Data Source modal, it is possible to create a new row for
         // fields of the type "Link to table". Since there is no selected view,
         // there is no view type.
+        callback()
+
         if (view.type) {
           const viewType = this.$registry.get('view', view.type)
           viewType.rowCreated(
@@ -476,8 +478,6 @@ export default {
           )
           this.select(populateRow(rowCreated))
         }
-
-        callback()
       } catch (error) {
         callback(error)
       }
