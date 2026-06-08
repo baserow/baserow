@@ -56,7 +56,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         self.memory_limit_bytes = memory_limit_bytes or getattr(
             settings,
             "ENTERPRISE_CODE_RUNNER_MEMORY_LIMIT_BYTES",
-            64 * 1024 * 1024,
+            16 * 1024 * 1024,
         )
         self.fuel_limit = (
             fuel_limit

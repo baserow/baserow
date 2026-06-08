@@ -90,7 +90,7 @@ def setup(settings):
     )
     settings.ENTERPRISE_CODE_RUNNER_MEMORY_LIMIT_BYTES = int(
         os.getenv("BASEROW_ENTERPRISE_CODE_RUNNER_MEMORY_LIMIT_BYTES", "")
-        or 64 * 1024 * 1024
+        or 16 * 1024 * 1024
     )
     settings.ENTERPRISE_CODE_RUNNER_FUEL_LIMIT = int(
         os.getenv("BASEROW_ENTERPRISE_CODE_RUNNER_FUEL_LIMIT", "") or 1_000_000_000
