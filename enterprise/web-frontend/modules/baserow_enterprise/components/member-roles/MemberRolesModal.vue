@@ -15,7 +15,6 @@
           :role-assignments="databaseRoleAssignments"
           :teams="teams"
           scope-type="application"
-          :scope-type-name="applicationTypeNameLower"
           @invite-members="inviteDatabaseMembers"
           @invite-teams="inviteDatabaseTeams"
           @role-updated="
@@ -125,9 +124,6 @@ export default {
         this.applicationType?.getName() ||
         this.$t('memberRolesModal.memberRolesDatabaseTabTitle')
       )
-    },
-    applicationTypeNameLower() {
-      return this.applicationTypeName.toLowerCase()
     },
     canManageApplication() {
       return this.$hasPermission(
