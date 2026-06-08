@@ -15,6 +15,13 @@ from baserow.contrib.database.webhooks.models import TableWebhook, TableWebhookE
 from baserow.core.utils import truncate_middle
 
 
+@pytest.fixture(autouse=True)
+def _bypass_webhook_url_dns_check(mocker):
+    mocker.patch(
+        "baserow.contrib.database.webhooks.validators.validating_create_connection"
+    )
+
+
 @pytest.mark.django_db
 def test_list_webhooks(api_client, data_fixture):
     user, jwt_token = data_fixture.create_user_and_token()
