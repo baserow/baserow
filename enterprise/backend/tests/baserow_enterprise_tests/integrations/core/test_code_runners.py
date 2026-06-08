@@ -397,7 +397,7 @@ def test_wasmtime_quickjs_code_runner_formats_fuel_exhaustion_error(monkeypatch)
         runner.run({}, "function main() {}")
 
     message = str(exc_info.value)
-    assert message == "The code runner instruction limit was reached."
+    assert message == "The code instruction limit was reached."
     assert wasmtime_path not in message
     assert quickjs_path not in message
     assert "all fuel consumed" not in message

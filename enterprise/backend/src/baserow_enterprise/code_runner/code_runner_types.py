@@ -27,7 +27,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
 
     type = "wasmtime_quickjs"
     output_size_limit_bytes = 1024 * 1024
-    fuel_exhausted_error_message = "The code runner instruction limit was reached."
+    fuel_exhausted_error_message = "The code instruction limit was reached."
 
     def __init__(
         self,
@@ -79,7 +79,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
             payload = json.loads(completed_process.stdout)
         except json.JSONDecodeError as exc:
             raise CodeRunnerExecutionError(
-                "The code runner returned an invalid response."
+                "The code returned an invalid response."
             ) from exc
 
         if "error" in payload:
@@ -154,7 +154,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         try:
             completed_process = self._communicate_with_output_limit(command, payload)
         except subprocess.TimeoutExpired as exc:
-            raise CodeRunnerExecutionError("The code runner timed out.") from exc
+            raise CodeRunnerExecutionError("The code timed out.") from exc
         except subprocess.CalledProcessError as exc:
             message = exc.stderr.strip() or exc.stdout.strip() or str(exc)
             raise CodeRunnerExecutionError(
@@ -221,7 +221,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         try:
             if process.stdin is None:
                 raise CodeRunnerExecutionError(
-                    "The code runner stdin pipe was not created."
+                    "The code stdin pipe was not created."
                 )
             process.stdin.write(payload.encode())
             process.stdin.close()
@@ -253,7 +253,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
 
         if process.stdout is None or process.stderr is None:
             raise CodeRunnerExecutionError(
-                "The code runner output pipes were not created."
+                "The code output pipes were not created."
             )
 
         selector = selectors.DefaultSelector()
@@ -284,7 +284,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
                 output.extend(chunk)
                 if len(output) > self.output_size_limit_bytes:
                     raise CodeRunnerExecutionError(
-                        "The code runner produced too much output."
+                        "The code produced too much output."
                     )
 
         return bytes(streams[process.stdout]), bytes(streams[process.stderr])
