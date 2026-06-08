@@ -63,12 +63,13 @@
       small-label
       :label="$t('coreCodeServiceForm.codeLabel')"
       :helper-text="$t('coreCodeServiceForm.codeHelperText')"
+      :error="fieldHasErrors('code')"
       :error-message="getFirstErrorMessage('code')"
       required
       class="margin-bottom-2"
     >
       <CodeEditor
-        v-model="values.code"
+        v-model="v$.values.code.$model"
         language="javascript"
         :placeholder="$t('coreCodeServiceForm.codePlaceholder')"
         :modal-title="$t('coreCodeServiceForm.codeLabel')"

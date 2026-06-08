@@ -35,6 +35,7 @@ class CoreCodeServiceType(CoreServiceType):
     dispatch_types = [DispatchTypes.ACTION]
     allowed_fields = ["code"]
     serializer_field_names = ["code", "injections"]
+    request_serializer_field_names = ["code", "injections"]
 
     class SerializedDict(ServiceDict):
         code: str
@@ -78,6 +79,10 @@ class CoreCodeServiceType(CoreServiceType):
                 help_text="The values to inject into the code executor context.",
             ),
         }
+
+    @property
+    def request_serializer_field_overrides(self):
+        return self.serializer_field_overrides
 
     def after_create(
         self,
