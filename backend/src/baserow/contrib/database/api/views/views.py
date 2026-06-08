@@ -754,6 +754,11 @@ class DuplicateViewView(APIView):
 
         view_type = view_type_registry.get_by_model(view)
 
+        if PREMIUM_INSTALLED and view_type.type in ('kanban', 'calendar', 'timeline'):
+            LicenseHandler.raise_if_user_doesnt_have_feature(
+                PREMIUM, request.user, view.table.database.workspace
+            )
+
         with view_type.map_api_exceptions():
             duplicate_view = action_type_registry.get_by_type(
                 DuplicateViewActionType
