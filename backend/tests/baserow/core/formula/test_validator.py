@@ -9,6 +9,7 @@ from baserow.core.formula.validator import (
     ensure_datetime,
     ensure_duration,
     ensure_integer,
+    ensure_json,
     ensure_string,
 )
 
@@ -73,6 +74,27 @@ def test_ensure_datetime_throws_exception_for_invalid_value(value):
     with pytest.raises(ValidationError) as exc:
         ensure_datetime(value)
     assert exc.value.args[0] == "Value cannot be converted to a datetime."
+
+
+def test_ensure_json_returns_json_compatible_values():
+    assert ensure_json(
+        {
+            "datetime": datetime(2024, 12, 17, 12, 0, 0),
+            "date": date(2024, 12, 17),
+            "array": [1, True, None],
+        }
+    ) == {
+        "datetime": "2024-12-17T12:00:00",
+        "date": "2024-12-17",
+        "array": [1, True, None],
+    }
+
+
+@pytest.mark.parametrize("value", [float("nan"), object()])
+def test_ensure_json_throws_exception_for_invalid_value(value):
+    with pytest.raises(ValidationError) as exc:
+        ensure_json(value)
+    assert exc.value.args[0] == "Value cannot be converted to a JSON value."
 
 
 @pytest.mark.parametrize(

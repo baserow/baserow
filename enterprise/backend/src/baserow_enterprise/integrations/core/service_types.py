@@ -13,6 +13,7 @@ from baserow.core.code_runner.registries import (
     get_code_runner,
 )
 from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.formula.validator import ensure_json
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
@@ -111,14 +112,11 @@ class CoreCodeServiceType(CoreServiceType):
         return self.after_create(instance, values)
 
     def formulas_to_resolve(self, service: CoreCodeService) -> list[FormulaToResolve]:
-        def passthrough(value):
-            return value
-
         return [
             FormulaToResolve(
                 injection.name,
                 injection.formula,
-                passthrough,
+                ensure_json,
                 f'injection "{injection.name}"',
             )
             for injection in service.injections.all()

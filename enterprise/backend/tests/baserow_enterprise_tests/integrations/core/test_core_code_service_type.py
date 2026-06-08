@@ -1,4 +1,5 @@
 import json
+from datetime import datetime
 
 from django.test import override_settings
 from django.urls import reverse
@@ -96,6 +97,33 @@ def test_core_code_service_type_dispatch_resolves_injections(
         (
             {"value": 2},
             "function main(context) { return { newValue: 4 } }",
+        )
+    ]
+
+
+def test_core_code_service_type_dispatch_converts_injections_to_json_values(
+    enterprise_data_fixture, monkeypatch, code_runner_registered
+):
+    service = enterprise_data_fixture.create_enterprise_core_code_service(
+        code="function main(context) { return { value: context.value } }"
+    )
+    service.injections.create(name="value", formula="get('value')")
+
+    code_runner = FakeCodeRunnerType()
+    monkeypatch.setattr(
+        "baserow_enterprise.integrations.core.service_types.get_code_runner",
+        lambda: code_runner,
+    )
+
+    service.get_type().dispatch(
+        service,
+        FakeDispatchContext(context={"value": datetime(2024, 12, 17, 12, 0, 0)}),
+    )
+
+    assert code_runner.calls == [
+        (
+            {"value": "2024-12-17T12:00:00"},
+            "function main(context) { return { value: context.value } }",
         )
     ]
 

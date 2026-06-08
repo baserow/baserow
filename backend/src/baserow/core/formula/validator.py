@@ -6,6 +6,7 @@ from json.decoder import JSONDecodeError
 from typing import Any, List, Optional, Union
 
 from django.core.exceptions import ValidationError
+from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import validate_email
 
 from baserow.contrib.database.fields.constants import (
@@ -291,3 +292,22 @@ def ensure_object(value: Any) -> Optional[dict]:
             raise ValidationError("Value is not a JSON.") from exc
 
     raise ValidationError("Value cannot be converted to a dict.")
+
+
+def ensure_json(value: Any) -> Any:
+    """
+    Ensures that the value can be converted to a JSON value.
+    Python types supported by Django's JSON encoder, like dates and datetimes, are
+    converted to their JSON representation.
+
+    :param value: The value to ensure as a JSON value.
+    :return: The JSON-compatible value.
+    :raises ValidationError: If the value cannot be converted to JSON.
+    """
+
+    try:
+        return json.loads(
+            json.dumps(value, cls=DjangoJSONEncoder, allow_nan=False)
+        )
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("Value cannot be converted to a JSON value.") from exc
