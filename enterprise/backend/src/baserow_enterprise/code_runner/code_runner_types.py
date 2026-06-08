@@ -83,7 +83,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
             ) from exc
 
         if "error" in payload:
-            raise CodeRunnerExecutionError(payload["error"])
+            raise CodeRunnerExecutionError(f"Code execution failed: {payload['error']}")
 
         result = payload.get("result")
         if not isinstance(result, dict):
@@ -220,9 +220,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
 
         try:
             if process.stdin is None:
-                raise CodeRunnerExecutionError(
-                    "The code stdin pipe was not created."
-                )
+                raise CodeRunnerExecutionError("The code stdin pipe was not created.")
             process.stdin.write(payload.encode())
             process.stdin.close()
 
@@ -252,9 +250,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         """
 
         if process.stdout is None or process.stderr is None:
-            raise CodeRunnerExecutionError(
-                "The code output pipes were not created."
-            )
+            raise CodeRunnerExecutionError("The code output pipes were not created.")
 
         selector = selectors.DefaultSelector()
         streams = {
@@ -283,9 +279,7 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
                 output = streams[stream]
                 output.extend(chunk)
                 if len(output) > self.output_size_limit_bytes:
-                    raise CodeRunnerExecutionError(
-                        "The code produced too much output."
-                    )
+                    raise CodeRunnerExecutionError("The code produced too much output.")
 
         return bytes(streams[process.stdout]), bytes(streams[process.stderr])
 

@@ -238,6 +238,17 @@ Baserow can throttle the number of concurrent requests a single user (or, option
 | BASEROW\_AUTOMATION\_WORKFLOW\_HISTORY\_MAX\_DAYS                   | The number of days automation workflow history entries are retained.                                                                         | 30       |
 | BASEROW\_AUTOMATION\_WORKFLOW\_HISTORY\_MAX\_ENTRIES                | The maximum number of workflow history entries retained per workflow.                                                                        | 50       |
 
+### Code runner Configuration
+
+| Name                                                       | Description                                                                                                                                                                                                  | Defaults                       |
+|------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|--------------------------------|
+| BASEROW\_ENTERPRISE\_CODE\_RUNNER\_DEFAULT\_TYPE           | The default enterprise code runner type used to execute custom code services. Set to an empty value to disable enterprise code runner registration.                                                           | wasmtime_quickjs               |
+| BASEROW\_ENTERPRISE\_CODE\_RUNNER\_WASMTIME\_EXECUTABLE   | The wasmtime executable used by the `wasmtime_quickjs` code runner.                                                                                                                                          | wasmtime                       |
+| BASEROW\_ENTERPRISE\_CODE\_RUNNER\_QUICKJS\_WASM\_PATH    | The path to the QuickJS WASM runtime used by the `wasmtime_quickjs` code runner.                                                                                                                             | /usr/local/lib/baserow/qjs.wasm |
+| BASEROW\_ENTERPRISE\_CODE\_RUNNER\_TIMEOUT\_SECONDS       | The maximum number of seconds a code runner process can execute before it times out.                                                                                                                         | 5                              |
+| BASEROW\_ENTERPRISE\_CODE\_RUNNER\_MEMORY\_LIMIT\_BYTES   | The maximum memory size in bytes available to a code runner process.                                                                                                                                         | 16777216                       |
+| BASEROW\_ENTERPRISE\_CODE\_RUNNER\_FUEL\_LIMIT            | The wasmtime fuel limit used to cap code runner instruction execution. Set to 0 to disable the fuel limit.                                                                                                   | 1000000000                     |
+
 ### Backend Application Builder Configuration
 | Name                      | Description                                                                                                              | Defaults               |
 |---------------------------|--------------------------------------------------------------------------------------------------------------------------|------------------------|
