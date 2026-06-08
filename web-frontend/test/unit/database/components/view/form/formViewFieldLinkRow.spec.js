@@ -4,6 +4,7 @@ import flushPromises from 'flush-promises'
 import FormViewFieldLinkRow from '@baserow/modules/database/components/view/form/FormViewFieldLinkRow'
 import FormViewFieldMultipleLinkRow from '@baserow/modules/database/components/view/form/FormViewFieldMultipleLinkRow'
 import ViewService from '@baserow/modules/database/services/view'
+import { LinkRowFieldType } from '@baserow/modules/database/fieldTypes'
 
 vi.mock('@baserow/modules/database/services/view', () => ({
   default: vi.fn(),
@@ -123,6 +124,53 @@ describe('FormViewFieldLinkRow', () => {
     const emitted = wrapper.emitted('update')
     expect(emitted[emitted.length - 1][0]).toEqual([])
   })
+
+  test('emitted value of an unnamed row is treated as empty by LinkRowFieldType', async () => {
+    mockLinkRowFieldLookup([{ id: 42, value: '' }])
+    const wrapper = await mountComponent({ value: [] })
+    await wrapper.vm.fetchPage(1, null)
+
+    wrapper.vm.updateValue({
+      value: 42,
+      displayName: 'functionnalGridViewFieldLinkRow.unnamed',
+    })
+
+    const emitted = wrapper.emitted('update')
+    const newValue = emitted[emitted.length - 1][0]
+
+    // The fix is correct iff isEmpty returns true for an unnamed row, so the
+    // "show when not empty" form-condition correctly hides the dependent field.
+    const fieldType = new LinkRowFieldType({ app: testApp.store.$app })
+    expect(fieldType.isEmpty(linkRowField, newValue)).toBe(true)
+  })
+
+  test('required + picked unnamed row passes validation (no false require error)', async () => {
+    const wrapper = await mountComponent({
+      value: [{ id: 42, value: '' }],
+      required: true,
+    })
+    expect(wrapper.vm.getValidationError(wrapper.vm.value)).toBeNull()
+  })
+
+  test('required + empty selection fails validation', async () => {
+    const wrapper = await mountComponent({ value: [], required: true })
+    expect(wrapper.vm.getValidationError(wrapper.vm.value)).toBe(
+      'error.requiredField'
+    )
+  })
+
+  test('required + named row passes validation', async () => {
+    const wrapper = await mountComponent({
+      value: [{ id: 42, value: 'Hello' }],
+      required: true,
+    })
+    expect(wrapper.vm.getValidationError(wrapper.vm.value)).toBeNull()
+  })
+
+  test('non-required + empty selection passes validation', async () => {
+    const wrapper = await mountComponent({ value: [], required: false })
+    expect(wrapper.vm.getValidationError(wrapper.vm.value)).toBeNull()
+  })
 })
 
 describe('FormViewFieldMultipleLinkRow', () => {
@@ -218,5 +266,68 @@ describe('FormViewFieldMultipleLinkRow', () => {
 
     const emitted = wrapper.emitted('update')
     expect(emitted[emitted.length - 1][0]).toEqual([{ id: null, value: '' }])
+  })
+
+  test('emitted value of an unnamed row is treated as empty by LinkRowFieldType', async () => {
+    mockLinkRowFieldLookup([{ id: 42, value: '' }])
+    const wrapper = await mountComponent({ value: [{ id: false, value: '' }] })
+    await wrapper.vm.fetchPage(1, null)
+
+    wrapper.vm.updateValue(
+      {
+        value: 42,
+        displayName: 'functionnalGridViewFieldLinkRow.unnamed',
+      },
+      0
+    )
+
+    const emitted = wrapper.emitted('update')
+    const newValue = emitted[emitted.length - 1][0]
+
+    const fieldType = new LinkRowFieldType({ app: testApp.store.$app })
+    expect(fieldType.isEmpty(linkRowField, newValue)).toBe(true)
+  })
+
+  test('required + every slot has a real id passes validation (no false require error)', async () => {
+    const wrapper = await mountComponent({
+      value: [{ id: 42, value: '' }],
+      required: true,
+    })
+    expect(wrapper.vm.getValidationError(wrapper.vm.value)).toBeNull()
+  })
+
+  test('required + a placeholder slot {id:false} fails validation', async () => {
+    const wrapper = await mountComponent({
+      value: [
+        { id: 42, value: '' },
+        { id: false, value: '' },
+      ],
+      required: true,
+    })
+    expect(wrapper.vm.getValidationError(wrapper.vm.value)).toBe(
+      'error.requiredField'
+    )
+  })
+
+  test('required + empty array fails validation', async () => {
+    const wrapper = await mountComponent({ value: [], required: true })
+    expect(wrapper.vm.getValidationError(wrapper.vm.value)).toBe(
+      'error.requiredField'
+    )
+  })
+
+  test('non-required + placeholder slot still fails validation', async () => {
+    const wrapper = await mountComponent({
+      value: [{ id: false, value: '' }],
+      required: false,
+    })
+    expect(wrapper.vm.getValidationError(wrapper.vm.value)).toBe(
+      'error.requiredField'
+    )
+  })
+
+  test('non-required + empty array passes validation', async () => {
+    const wrapper = await mountComponent({ value: [], required: false })
+    expect(wrapper.vm.getValidationError(wrapper.vm.value)).toBeNull()
   })
 })

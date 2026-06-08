@@ -43,6 +43,7 @@
 
 <script>
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
+import baseField from '@baserow/modules/database/mixins/baseField'
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import ViewService from '@baserow/modules/database/services/view'
 import { clone } from '@baserow/modules/core/utils/object'
@@ -83,16 +84,20 @@ export default {
   },
   methods: {
     getValidationError(value) {
-      const error = rowEditField.methods.getValidationError.call(this, value)
-
-      if (!this.required && error === null) {
-        const empty = value.some((v) => this.isInvalidValue(v))
-        if (empty) {
-          return this.$t('error.requiredField')
-        }
+      // A picked row with an empty primary stores value:'' so that conditional
+      // visibility ("is not empty") correctly treats it as empty. That makes
+      // fieldType.isEmpty return true even when the user *did* select rows,
+      // which would falsely fail required validation. Treat "filled in" as
+      // "every slot contains a row with a real id", regardless of primary.
+      const valueArr = Array.isArray(value) ? value : []
+      const hasInvalidSlot = valueArr.some((v) => this.isInvalidValue(v))
+      if (this.required && (valueArr.length === 0 || hasInvalidSlot)) {
+        return this.$t('error.requiredField')
       }
-
-      return error
+      if (!this.required && hasInvalidSlot) {
+        return this.$t('error.requiredField')
+      }
+      return baseField.methods.getValidationError.call(this, value)
     },
     isInvalidValue(value) {
       return !Number.isInteger(value.id)

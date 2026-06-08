@@ -20,6 +20,7 @@
 
 <script>
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
+import baseField from '@baserow/modules/database/mixins/baseField'
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
 import ViewService from '@baserow/modules/database/services/view'
 
@@ -61,6 +62,23 @@ export default {
     },
   },
   methods: {
+    getValidationError(value) {
+      // A picked row with an empty primary stores value:'' so that conditional
+      // visibility ("is not empty") correctly treats it as empty. That makes
+      // fieldType.isEmpty return true even when the user *did* select a row,
+      // which would falsely fail required validation. Treat "required" as
+      // "the user picked any row with a real id", not "isEmpty is false".
+      if (this.required) {
+        const hasSelection =
+          Array.isArray(value) &&
+          value.length > 0 &&
+          value.every((v) => Number.isInteger(v.id))
+        if (!hasSelection) {
+          return this.$t('error.requiredField')
+        }
+      }
+      return baseField.methods.getValidationError.call(this, value)
+    },
     rowDisplayName(row) {
       if (row.value) {
         return row.value
