@@ -70,7 +70,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get install -y --no-install-recommends ca-certificates cmake curl make tar && \
     case "${TARGETARCH}" in \
         amd64) WASI_SDK_ARCH="x86_64" ;; \
-        arm64) WASI_SDK_ARCH="aarch64" ;; \
+        arm64) WASI_SDK_ARCH="arm64" ;; \
         *) echo "Unsupported architecture: ${TARGETARCH}" && exit 1 ;; \
     esac && \
     curl -fsSL \
