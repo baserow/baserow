@@ -1882,6 +1882,23 @@ describe('elementTypes tests', () => {
         })
       ).toBeNull()
     })
+
+    test('drag-and-drop into the content zone is disallowed (referencePagePlace=content)', () => {
+      // The empty content drop zone supplies referencePagePlace=content via
+      // targetPagePlace, which must keep a header out of the content zone.
+      const headerType = testApp.$registry.get('element', 'header')
+      expect(
+        headerType.isDisallowedReason({
+          builder,
+          page,
+          parentElement: null,
+          beforeElement: null,
+          // afterElement intentionally absent (undefined) → D&D context
+          pagePlace: 'header',
+          referencePagePlace: 'content',
+        })
+      ).not.toBeNull()
+    })
   })
 
   describe('FooterElementType isDisallowedReason tests', () => {
@@ -2095,6 +2112,23 @@ describe('elementTypes tests', () => {
           referencePagePlace: 'footer',
         })
       ).toBeNull()
+    })
+
+    test('drag-and-drop into the content zone is disallowed (referencePagePlace=content)', () => {
+      // The empty content drop zone supplies referencePagePlace=content via
+      // targetPagePlace, which must keep a footer out of the content zone.
+      const footerType = testApp.$registry.get('element', 'footer')
+      expect(
+        footerType.isDisallowedReason({
+          builder,
+          page,
+          parentElement: null,
+          beforeElement: null,
+          // afterElement intentionally absent (undefined) → D&D context
+          pagePlace: 'footer',
+          referencePagePlace: 'content',
+        })
+      ).not.toBeNull()
     })
   })
 })

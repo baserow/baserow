@@ -8,6 +8,7 @@ export function useDropElementTarget({
   referenceElement = null,
   placeInContainer = null,
   page = null,
+  targetPagePlace = null,
 }) {
   const store = useStore()
   const uid = useId()
@@ -76,10 +77,12 @@ export function useDropElementTarget({
 
   const referencePagePlace = computed(() => {
     const reference = unref(referenceElement)
-    if (!reference || !$registry.exists('element', reference.type)) {
-      return null
+    if (reference && $registry.exists('element', reference.type)) {
+      return $registry.get('element', reference.type).getPagePlace()
     }
-    return $registry.get('element', reference.type).getPagePlace()
+    // Empty drop zones have no reference element; fall back to the zone's
+    // declared place so shared-element guards can still reject the drop.
+    return unref(targetPagePlace) ?? null
   })
 
   const draggedElementType = computed(() => {

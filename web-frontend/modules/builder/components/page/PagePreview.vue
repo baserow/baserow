@@ -49,6 +49,7 @@
             <AddElementZone
               class="add-element-zone--full-height"
               :page="currentPage"
+              :target-page-place="PAGE_PLACES.CONTENT"
               :label="$t('pagePreview.emptyMessage')"
               @add-element="$refs.addElementModal.show()"
             />
@@ -176,6 +177,7 @@ export default {
   },
   computed: {
     DIRECTIONS: () => DIRECTIONS,
+    PAGE_PLACES: () => PAGE_PLACES,
     ...mapGetters({
       deviceTypeSelected: 'page/getDeviceTypeSelected',
       getElementSelected: 'element/getSelected',
