@@ -129,21 +129,10 @@ const actions = {
     // restores page.graph via page/forceUpdate before calling forceCreate, so
     // the element is already present in the graph.
     if (!(String(element.id) in (page.graph || {}))) {
-      const handler = new ElementGraphHandler(page)
-      let lastElement = null
-      if (page.graph?.['0']) {
-        let currentId = page.graph['0']
-        while (currentId) {
-          const el = handler.getElement(currentId)
-          if (!el) break
-          lastElement = el
-          currentId = handler.getInfo(currentId)?.next?.['']?.[0] ?? null
-        }
-      }
       dispatch('graphInsert', {
         page,
         element,
-        referenceElement: lastElement,
+        referenceElement: null,
         position: 'south',
         output: '',
       })
