@@ -11,16 +11,21 @@ import responses
 from rest_framework import serializers
 
 from baserow.contrib.database.airtable.config import AirtableImportConfig
+from baserow.contrib.database.airtable.constants import (
+    AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH,
+)
 from baserow.contrib.database.airtable.exceptions import (
     AirtableBaseRequiresAuthentication,
     AirtableShareIsNotABase,
+    FileDownloadFailed,
 )
 from baserow.contrib.database.airtable.handler import (
     AirtableFileImport,
     AirtableHandler,
+    download_airtable_file,
 )
 from baserow.contrib.database.airtable.job_types import AirtableImportJobType
-from baserow.contrib.database.airtable.models import AirtableImportJob
+from baserow.contrib.database.airtable.models import AirtableImportJob, DownloadFile
 from baserow.contrib.database.fields.models import TextField
 from baserow.core.exceptions import UserNotInWorkspace
 from baserow.core.jobs.constants import JOB_PENDING
@@ -28,6 +33,14 @@ from baserow.core.jobs.exceptions import JobDoesNotExist, MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.user_files.models import UserFile
 from baserow.core.utils import Progress
+
+STUB_AIRTABLE_FETCH_DOWNLOAD_FILE = DownloadFile(
+    url="https://example.com/file.pdf",
+    row_id="",
+    column_id="",
+    attachment_id="",
+    type=AIRTABLE_DOWNLOAD_FILE_TYPE_FETCH,
+)
 
 
 @pytest.mark.django_db
@@ -1427,3 +1440,141 @@ def test_get_airtable_import_job(data_fixture):
     job = JobHandler.get_job(user, job_1.id, job_model=AirtableImportJob)
     assert isinstance(job, AirtableImportJob)
     assert job.id == job_1.id
+
+
+@responses.activate
+def test_download_airtable_file_chunked_no_content_length():
+    file_content = b"%PDF-1.4 fake pdf content" * 1000
+    responses.add(
+        responses.GET,
+        STUB_AIRTABLE_FETCH_DOWNLOAD_FILE.url,
+        body=file_content,
+        status=200,
+        headers={"Transfer-Encoding": "chunked"},
+    )
+
+    response = download_airtable_file(
+        name="test.pdf",
+        download_file=STUB_AIRTABLE_FETCH_DOWNLOAD_FILE,
+        init_data={},
+        request_id="req1",
+        cookies={},
+    )
+    assert response.content == file_content
+
+
+@responses.activate
+def test_download_airtable_file_with_content_length():
+    file_content = b"some file bytes"
+    responses.add(
+        responses.GET,
+        STUB_AIRTABLE_FETCH_DOWNLOAD_FILE.url,
+        body=file_content,
+        status=200,
+        headers={"Content-Length": str(len(file_content))},
+    )
+
+    response = download_airtable_file(
+        name="file.txt",
+        download_file=STUB_AIRTABLE_FETCH_DOWNLOAD_FILE,
+        init_data={},
+        request_id="req1",
+        cookies={},
+    )
+    assert response.content == file_content
+
+
+@responses.activate
+def test_download_airtable_file_partial_content_range():
+    responses.add(
+        responses.GET,
+        STUB_AIRTABLE_FETCH_DOWNLOAD_FILE.url,
+        body=b"012345",
+        status=206,
+        headers={"Content-Range": "bytes 0-5/500000"},
+    )
+
+    response = download_airtable_file(
+        name="file.pdf",
+        download_file=STUB_AIRTABLE_FETCH_DOWNLOAD_FILE,
+        init_data={},
+        request_id="req1",
+        cookies={},
+    )
+    assert response.status_code == 206
+
+
+@responses.activate
+def test_download_airtable_file_exceeds_size_limit():
+    file_content = b"x" * 100
+    responses.add(
+        responses.GET,
+        STUB_AIRTABLE_FETCH_DOWNLOAD_FILE.url,
+        body=file_content,
+        status=200,
+        headers={"Content-Length": str(len(file_content))},
+    )
+
+    with patch("baserow.contrib.database.airtable.handler.settings") as mock_settings:
+        mock_settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = 50
+        with pytest.raises(FileDownloadFailed, match="exceeds the size limit"):
+            download_airtable_file(
+                name="big.bin",
+                download_file=STUB_AIRTABLE_FETCH_DOWNLOAD_FILE,
+                init_data={},
+                request_id="req1",
+                cookies={},
+            )
+
+
+@responses.activate
+def test_download_airtable_file_chunked_exceeds_size_limit():
+    file_content = b"x" * 100
+    responses.add(
+        responses.GET,
+        STUB_AIRTABLE_FETCH_DOWNLOAD_FILE.url,
+        body=file_content,
+        status=200,
+        headers={"Transfer-Encoding": "chunked"},
+    )
+
+    with patch("baserow.contrib.database.airtable.handler.settings") as mock_settings:
+        mock_settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB = 50
+        with pytest.raises(FileDownloadFailed, match="exceeds the size limit"):
+            download_airtable_file(
+                name="big.bin",
+                download_file=STUB_AIRTABLE_FETCH_DOWNLOAD_FILE,
+                init_data={},
+                request_id="req1",
+                cookies={},
+            )
+
+
+@responses.activate
+def test_download_airtable_file_http_error():
+    responses.add(responses.GET, STUB_AIRTABLE_FETCH_DOWNLOAD_FILE.url, status=404)
+
+    with pytest.raises(FileDownloadFailed, match="HTTP 404"):
+        download_airtable_file(
+            name="missing.pdf",
+            download_file=STUB_AIRTABLE_FETCH_DOWNLOAD_FILE,
+            init_data={},
+            request_id="req1",
+            cookies={},
+        )
+
+
+@responses.activate
+def test_airtable_file_import_open_download_failure_raises_key_error():
+    responses.add(responses.GET, STUB_AIRTABLE_FETCH_DOWNLOAD_FILE.url, status=500)
+
+    file_import = AirtableFileImport(
+        init_data={},
+        request_id="req1",
+        cookies={},
+    )
+    file_import.add_files({"broken.pdf": STUB_AIRTABLE_FETCH_DOWNLOAD_FILE})
+
+    with pytest.raises(KeyError, match="could not be downloaded"):
+        with file_import.open("broken.pdf"):
+            pass

@@ -150,9 +150,11 @@ def download_airtable_file(
             except (TypeError, ValueError):
                 file_size_bytes = None
 
-    # If we cannot determine the size from headers, treat this as a download failure
+    # Fall back to measuring the actual downloaded content. This handles
+    # responses with Transfer-Encoding: chunked and Content-Encoding: gzip
+    # where no Content-Length header is present.
     if file_size_bytes is None:
-        raise FileDownloadFailed(f"Could not determine the size of file {name}.")
+        file_size_bytes = len(response.content)
 
     # Prevent upload to Baserow failures by excluding oversized files
     max_size_bytes = settings.BASEROW_FILE_UPLOAD_SIZE_LIMIT_MB
@@ -192,14 +194,17 @@ class AirtableFileImport:
         if name not in self.files_to_download:
             raise KeyError(f"File '{name}' not found in files_to_download")
 
-        response = download_airtable_file(
-            name=name,
-            download_file=self.files_to_download[name],
-            init_data=self.init_data,
-            request_id=self.request_id,
-            cookies=self.cookies,
-            headers=BASE_HEADERS,
-        )
+        try:
+            response = download_airtable_file(
+                name=name,
+                download_file=self.files_to_download[name],
+                init_data=self.init_data,
+                request_id=self.request_id,
+                cookies=self.cookies,
+                headers=BASE_HEADERS,
+            )
+        except FileDownloadFailed:
+            raise KeyError(f"File '{name}' could not be downloaded")
 
         stream = BytesIO(response.content)
         try:
