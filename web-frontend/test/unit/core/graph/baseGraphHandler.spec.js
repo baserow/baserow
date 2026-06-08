@@ -293,6 +293,27 @@ describe('BaseGraphHandler', () => {
       expect(h.graph[1].next['']).toEqual([3])
       expect(h.graph[3]).toEqual({ next: { '': [2] } })
     })
+
+    test('north before a node on a named branch preserves the branch (output ignored)', () => {
+      // Mirrors WorkflowEdge emitting north with output:'' onto a router branch:
+      // the passed output must be ignored and the named edge preserved.
+      const h = make(
+        { 0: 1, 1: { next: { 'branch-uuid': [2] } }, 2: {} },
+        pm(1, 2, 3)
+      )
+      h.insert(pt(3), pt(2), 'north', '')
+      expect(h.graph[1].next).toEqual({ 'branch-uuid': [3] })
+      expect(h.graph[3]).toEqual({ next: { '': [2] } })
+    })
+
+    test('child insert normalizes legacy-array children to dict', () => {
+      // Container pt(1) still has legacy bare-array children [2]. Inserting must
+      // upgrade it to dict format instead of bolting a string key onto the array.
+      const h = make({ 0: 1, 1: { children: [2] }, 2: {} }, pm(1, 2, 3))
+      h.insert(pt(3), pt(1), 'child', '')
+      expect(h.graph[1].children).toEqual({ '': [3] })
+      expect(h.graph[3]).toEqual({ next: { '': [2] } })
+    })
   })
 
   describe('remove', () => {
@@ -397,6 +418,34 @@ describe('BaseGraphHandler', () => {
       expect(h.graph[2].next['']).toEqual([1])
       // Children of the moved point must be preserved
       expect(h.graph[1].children).toEqual({ 0: [3] })
+    })
+
+    test('north before the first child of a legacy-array container (router-branch node)', () => {
+      // Mirrors the reported bug: container 16 holds router 17 as its (legacy
+      // bare-array) child; action 18 sits on the router's named branch. Dragging
+      // 18 to before the router must make it the first child of 16 — not append it
+      // onto the router's default edge.
+      const h = make(
+        {
+          0: 16,
+          16: { children: [17] }, // legacy bare-array children
+          17: { next: { 'branch-uuid': [18] } }, // router with a named branch
+          18: {},
+        },
+        pm(16, 17, 18)
+      )
+      h.move(pt(18), pt(17), 'north', '')
+
+      // 18 is now the first child of 16 (dict format), with 17 chained after it.
+      expect(h.graph[16].children).toEqual({ '': [18] })
+      expect(h.graph[18]).toEqual({ next: { '': [17] } })
+      // The router's named branch no longer holds 18.
+      expect(h.getNextPoints(pt(17), 'branch-uuid')).toEqual([])
+      // 18 is reachable as a child of 16 (regression for the "vanish") and sits
+      // before the router.
+      expect(
+        h.getChildren(pt(16), { followChains: true }).map((p) => p.id)
+      ).toEqual([18, 17])
     })
 
     test('null reference + south appends to end of chain', () => {
