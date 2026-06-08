@@ -553,3 +553,61 @@ def test_assert_graph_consistency_ignores_the_zero_key():
         db_ids=[1],
     )
     handler.assert_graph_consistency()  # "0" must not be treated as a node ID
+
+
+def test_get_descendants_returns_full_subtree():
+    """
+    get_descendants returns all direct and transitive children of a point.
+    """
+
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"children": {"": [2]}},
+            "2": {"next": {"": [3]}, "children": {"": [4]}},
+            "3": {},
+            "4": {},
+        }
+    )
+    graph = model.get_graph()
+
+    descendants = graph.get_descendants(model.points[1])
+
+    assert sorted(p.id for p in descendants) == [2, 3, 4]
+    # A leaf point has no descendants.
+    assert graph.get_descendants(model.points[4]) == []
+
+
+def test_cross_graph_move_migrates_subtree_not_siblings():
+    """
+    A cross-graph move must carry the moved point's whole subtree (its children
+    and their descendants) into the target graph, but NOT its old siblings (its
+    `next`), which stay behind in the source graph.
+    """
+
+    source_model = make_graph_model({})
+    source_graph = source_model.get_graph()
+    target_model = make_graph_model({})
+    target_graph = target_model.get_graph()
+
+    p1 = make_point(1, source_model)  # container
+    p2 = make_point(2, source_model)  # child of the container
+    p3 = make_point(3, source_model)  # sibling after the container (stays behind)
+
+    # Source: root → p1 → p3 ; p1 has child p2.
+    source_graph.insert(p1, None, "south")
+    source_graph.insert(p3, p1, "south")
+    source_graph.insert(p2, p1, "child", output="")
+
+    source_graph.move(p1, None, "south", target_graph=target_graph)
+
+    # The container AND its child reached the target graph.
+    assert target_model.graph["0"] == 1
+    assert target_model.graph["1"]["children"][""] == [2]
+    assert "2" in target_model.graph
+    # The sibling did NOT travel; the root's old `next` was not carried over.
+    assert "3" not in target_model.graph
+    assert target_model.graph["1"].get("next", {}).get("", []) == []
+
+    # The sibling was relinked as the new source root.
+    assert source_model.graph["0"] == 3

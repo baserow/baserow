@@ -1,5 +1,7 @@
 from unittest.mock import patch
 
+from django.test import override_settings
+
 import pytest
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -351,7 +353,11 @@ def test_delete_element(element_deleted_mock, data_fixture):
     service.delete_element(user, element)
 
     element_deleted_mock.send.assert_called_once_with(
-        service, element_id=element.id, page=element.page, user=user
+        service,
+        element_id=element.id,
+        descendant_ids=[],
+        page=element.page,
+        user=user,
     )
 
 
@@ -430,6 +436,7 @@ def test_move_element(element_moved_mock, data_fixture):
     element_moved_mock.send.assert_called_once_with(
         service,
         element=element3,
+        source_page=page,
         position=GraphPointPosition.NORTH,
         reference_element=element2,
         user=user,
@@ -627,6 +634,74 @@ def test_moving_elements_inside_container(data_fixture):
         str(element_inside_container_one.id): {},
         str(root_element.id): {},
     }
+
+
+@pytest.mark.django_db
+def test_move_element_cross_page_migrates_container_subtree(data_fixture):
+    """
+    Moving a container element across pages must migrate its whole subtree (the
+    container *and* its descendants) into the target page's graph. Previously the
+    cross-graph move only relocated the root point, so the children's page_id was
+    updated in the DB but their graph entries never reached the target page,
+    leaving the target graph inconsistent (the DEBUG-only consistency check
+    raised GraphConsistencyError).
+    """
+
+    user = data_fixture.create_user()
+    page1 = data_fixture.create_builder_page(user=user)
+    page2 = data_fixture.create_builder_page(builder=page1.builder)
+
+    container = ElementService().create_element(
+        user=user,
+        element_type=element_type_registry.get("column"),
+        page=page1,
+    )
+    child = ElementService().create_element(
+        user=user,
+        element_type=element_type_registry.get("heading"),
+        page=page1,
+        reference_element_id=container.id,
+        position=GraphPointPosition.CHILD,
+        place_in_container="0",
+    )
+
+    assert str(container.id) in page1.graph
+    assert str(child.id) in page1.graph
+
+    # Reproduce the reported failure: with DEBUG=True the move runs the graph
+    # consistency check internally — it must not raise.
+    with override_settings(DEBUG=True):
+        ElementService().move_element(
+            user,
+            page2,
+            container,
+            "",
+            None,
+            GraphPointPosition.SOUTH,
+        )
+
+    page1.refresh_from_db(fields=["graph"])
+    page2.refresh_from_db(fields=["graph"])
+    container.refresh_from_db(fields=["page"])
+    child.refresh_from_db(fields=["page"])
+
+    # Both elements moved to page2 in the DB.
+    assert container.page_id == page2.id
+    assert child.page_id == page2.id
+
+    # The whole subtree is present in the target graph (not just the container).
+    assert str(container.id) in page2.graph
+    assert str(child.id) in page2.graph
+    assert page2.graph[str(container.id)]["children"]["0"] == [child.id]
+
+    # The source graph no longer references either element.
+    assert str(container.id) not in page1.graph
+    assert str(child.id) not in page1.graph
+
+    # Both pages' graphs match their DB rows exactly.
+    with override_settings(DEBUG=True):
+        page1.get_graph().assert_graph_consistency()
+        page2.get_graph().assert_graph_consistency()
 
 
 @pytest.mark.django_db

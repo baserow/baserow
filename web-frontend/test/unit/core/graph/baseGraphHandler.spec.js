@@ -448,6 +448,30 @@ describe('BaseGraphHandler', () => {
       ).toEqual([18, 17])
     })
 
+    test('cross-graph move migrates the subtree (children) but not the siblings', () => {
+      const points = pm(1, 2, 3)
+      // Source: root → container(1) → sibling(3); container(1) has child(2).
+      const source = make(
+        { 0: 1, 1: { next: { '': [3] }, children: { '': [2] } }, 2: {}, 3: {} },
+        points
+      )
+      const target = make({}, points)
+
+      source.move(pt(1), null, 'south', '', target)
+
+      // The container AND its child reached the target, correctly nested.
+      expect(target.graph['0']).toBe(1)
+      expect(target.graph[1].children['']).toEqual([2])
+      expect(target.graph[2]).toBeDefined()
+      // The sibling did not travel.
+      expect(target.graph[3]).toBeUndefined()
+
+      // Source no longer holds the subtree; the sibling became the new root.
+      expect(source.graph[1]).toBeUndefined()
+      expect(source.graph[2]).toBeUndefined()
+      expect(source.graph['0']).toBe(3)
+    })
+
     test('null reference + south appends to end of chain', () => {
       // pt(1) -> pt(2) -> pt(3); move pt(1) to last position
       const h = make(

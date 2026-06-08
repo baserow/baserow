@@ -118,11 +118,24 @@ export const registerRealtimeEvents = (realtime) => {
     const ctx = getPageContext(store, data.page_id)
     if (!ctx) return
 
-    store.dispatch('element/forceDelete', {
-      builder: ctx.builder,
-      page: ctx.page,
-      elementId: data.element_id,
-    })
+    // Remove the deleted element and its whole subtree's records...
+    const elementIds = data.element_ids ?? [data.element_id]
+    for (const elementId of elementIds) {
+      store.dispatch('element/forceDelete', {
+        builder: ctx.builder,
+        page: ctx.page,
+        elementId,
+      })
+    }
+
+    // ...then apply the relinked graph so the remaining siblings/children of the
+    // deleted element stay connected (forceDelete doesn't touch the graph).
+    if (data.graph) {
+      store.dispatch('page/forceUpdate', {
+        page: ctx.page,
+        values: { graph: data.graph },
+      })
+    }
   })
 
   realtime.registerEvent('element_updated', ({ store }, { element }) => {
@@ -138,6 +151,46 @@ export const registerRealtimeEvents = (realtime) => {
   })
 
   realtime.registerEvent('element_moved', ({ store }, data) => {
+    // Cross-page move: the element (and any descendants that travelled with it)
+    // left the source page for the target page. Relocate the records and apply
+    // both pages' refreshed graphs. Same-page moves omit these fields.
+    if (data.source_page_id != null && data.source_page_id !== data.page_id) {
+      const sourceCtx = getPageContext(store, data.source_page_id)
+      const targetCtx = getPageContext(store, data.page_id)
+
+      // Remove the moved elements from the source page (only if it's loaded —
+      // a client viewing another page won't have it) and refresh its graph.
+      if (sourceCtx) {
+        for (const element of data.elements) {
+          store.dispatch('element/forceDelete', {
+            builder: sourceCtx.builder,
+            page: sourceCtx.page,
+            elementId: element.id,
+          })
+        }
+        store.dispatch('page/forceUpdate', {
+          page: sourceCtx.page,
+          values: { graph: data.source_graph },
+        })
+      }
+
+      // Add the moved elements to the target page. Apply the graph first so
+      // forceCreate sees them already positioned and skips the root-chain append.
+      if (targetCtx) {
+        store.dispatch('page/forceUpdate', {
+          page: targetCtx.page,
+          values: { graph: data.graph },
+        })
+        for (const element of data.elements) {
+          store.dispatch('element/forceCreate', {
+            page: targetCtx.page,
+            element,
+          })
+        }
+      }
+      return
+    }
+
     const ctx = getPageContext(store, data.page_id)
     if (!ctx) return
 

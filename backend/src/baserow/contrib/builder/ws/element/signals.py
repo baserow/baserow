@@ -108,26 +108,67 @@ def element_updated(sender, element: Element, user: AbstractUser, **kwargs):
 
 
 @receiver(element_signals.element_moved)
-def element_moved(sender, element: Element, user: AbstractUser, **kwargs):
-    graph = element.page.get_graph().graph
+def element_moved(
+    sender,
+    element: Element,
+    user: AbstractUser,
+    source_page: Page = None,
+    **kwargs,
+):
+    target_page = element.page
+    target_graph = target_page.get_graph()
+
+    payload = {
+        "type": "element_moved",
+        "page_id": target_page.id,
+        "graph": target_graph.graph,
+    }
+
+    # On a cross-page move the element (and any descendants that travelled with
+    # it) leaves the source page and joins the target page. A same-page move only
+    # reorders the graph, so the receiving client already has every element. For
+    # a cross-page move we additionally send the source page's refreshed graph and
+    # the serialized moved elements so clients can relocate them: remove them from
+    # the source page (if loaded) and add them to the target page.
+    is_cross_page = source_page is not None and source_page.id != target_page.id
+    if is_cross_page:
+        moved_elements = [
+            element,
+            *(d.specific for d in target_graph.get_descendants(element)),
+        ]
+        payload["source_page_id"] = source_page.id
+        payload["source_graph"] = source_page.get_graph().graph
+        payload["elements"] = [
+            element_type_registry.get_serializer(e, ElementSerializer).data
+            for e in moved_elements
+        ]
+
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
-            element.page.builder.workspace_id,
+            target_page.builder.workspace_id,
             ReadElementOperationType.type,
             BuilderElementObjectScopeType.type,
             element.id,
-            {
-                "type": "element_moved",
-                "page_id": element.page.id,
-                "graph": graph,
-            },
+            payload,
             getattr(user, "web_socket_id", None),
         )
     )
 
 
 @receiver(element_signals.element_deleted)
-def element_deleted(sender, page: Page, element_id: int, user: AbstractUser, **kwargs):
+def element_deleted(
+    sender,
+    page: Page,
+    element_id: int,
+    user: AbstractUser,
+    descendant_ids: List[int] = None,
+    **kwargs,
+):
+    # Send the relinked graph so other clients re-stitch the page (a deleted
+    # element's siblings/children would otherwise be orphaned), and the full set
+    # of deleted ids so they remove the whole subtree's records.
+    graph = page.get_graph().graph
+    element_ids = [element_id, *(descendant_ids or [])]
     transaction.on_commit(
         lambda: broadcast_to_permitted_users.delay(
             page.builder.workspace_id,
@@ -137,7 +178,9 @@ def element_deleted(sender, page: Page, element_id: int, user: AbstractUser, **k
             {
                 "type": "element_deleted",
                 "element_id": element_id,
+                "element_ids": element_ids,
                 "page_id": page.id,
+                "graph": graph,
             },
             getattr(user, "web_socket_id", None),
         )

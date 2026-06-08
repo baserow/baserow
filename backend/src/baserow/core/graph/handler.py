@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 from baserow.core.cache import local_cache
@@ -532,6 +533,17 @@ class BaseGraphHandler(ABC):
             current = str(next_ids[0]) if next_ids else None
         return result
 
+    def get_descendants(self, point: GraphPoint) -> List[GraphPoint]:
+        """
+        Returns all descendants (direct and transitive children) of the given
+        point in depth-first order.
+
+        :param point: The point whose descendants should be collected.
+        :return: The list of descendant points.
+        """
+
+        return self._collect_all_descendants(point)
+
     def _collect_all_descendants(self, point: GraphPoint) -> List[GraphPoint]:
         """
         Returns all descendants (direct and transitive children) of a point in
@@ -875,8 +887,33 @@ class BaseGraphHandler(ABC):
         """
 
         output = str(output)  # When it's a UUID
-        self.remove(point_to_move, keep_info=True)
         target = target_graph or self
+        is_cross_graph = target is not self
+
+        if is_cross_graph:
+            # On a cross-graph move the point's whole subtree travels with it, but
+            # a plain insert() would create a fresh root entry — dropping the
+            # `children` dict — and would leave the descendants' entries behind in
+            # the source graph. Capture the subtree before removal so it can be
+            # migrated. Note we keep the root's `children` (its descendants) but
+            # NOT its `next` (its old siblings, which stay in the source graph);
+            # insert() sets the correct `next` for the new position.
+            descendant_entries = {
+                str(d.id): deepcopy(self.get_info(d))
+                for d in self._collect_all_descendants(point_to_move)
+            }
+            root_children = deepcopy(self.get_info(point_to_move).get("children"))
+
+        self.remove(point_to_move, keep_info=True)
+
+        if is_cross_graph:
+            for point_id, entry in descendant_entries.items():
+                target.graph[point_id] = entry
+            if root_children is not None:
+                # Seed the moved point's target entry with only its children, so
+                # insert()'s setdefault keeps the subtree intact.
+                target.graph[str(point_to_move.id)] = {"children": root_children}
+
         if reference_point is None and position == GraphPointPosition.SOUTH:
             # null reference + south = "append to end of the chain".
             # insert(None, ...) always places at root (first), so use append() instead.
