@@ -119,6 +119,13 @@ class CoreCodeServiceType(CoreServiceType):
             for injection in service.injections.all()
         ]
 
+    def extract_properties(
+        self, service: Service, path: List[str], **kwargs
+    ) -> List[str]:
+        if path:
+            return [path[0]]
+        return []
+
     def dispatch_data(
         self,
         service: CoreCodeService,
