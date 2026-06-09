@@ -165,8 +165,8 @@
     },
     "integrationSettings": {
         "title": "Integrazioni",
-        "noIntegrationMessage": "Non hai ancora creato una connessione. Possono essere create aggiungendo una sorgente di dati, un azione o un'autenticazione utente.",
-        "integrationMessage": "Puoi creare una nuova integrazione aggiungendo una sorgente di dati, un'azione o un'autenticazione utente."
+        "noIntegrationMessage": "Non hai ancora creato alcuna integrazione. Puoi crearle aggiungendo un'origine dati, un'azione o l'autenticazione dell'utente.",
+        "integrationMessage": "È possibile creare nuove integrazioni aggiungendo un'origine dati, un'azione o l'autenticazione dell'utente."
     },
     "dataSourceContext": {
         "noDataSourceMessage": "La sorgente dati può essere usata per caricare i dati da sorgenti interne o esterne per mostrarli sulla pagina.",
