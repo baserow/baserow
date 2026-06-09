@@ -599,7 +599,11 @@ export class ElementType extends Registerable {
       const placeIndex = places.findIndex(
         (place) => place === element.place_in_container
       )
-      if (placeIndex < places.length - 1) {
+      // placeIndex === -1 means the element's place isn't one of the parent's
+      // places (e.g. a single-slot container), so there's no place to move into.
+      // Guard it explicitly: -1 < length - 1 is otherwise true and would wrongly
+      // offer a RIGHT move that references the element itself.
+      if (placeIndex !== -1 && placeIndex < places.length - 1) {
         const nextPlace = places[placeIndex + 1]
         const elementsInNextPlace = this.app.$store.getters[
           'element/getElementsInPlace'

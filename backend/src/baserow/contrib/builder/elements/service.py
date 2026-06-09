@@ -326,6 +326,14 @@ class ElementService:
                 f"The reference element {reference_element_id} doesn't exist"
             ) from e
 
+        # An element can't be moved relative to itself: the graph removes it before
+        # re-inserting, so referencing itself would leave it dangling. Guard it as a
+        # handled error rather than letting the graph raise an unhandled exception.
+        if reference_element is not None and reference_element.id == element.id:
+            raise GraphPointReferencePointInvalid(
+                "An element cannot be moved relative to itself."
+            )
+
         # Check we are on the same builder.
         if target_page.builder != element.page.builder:
             raise PageNotInBuilder()

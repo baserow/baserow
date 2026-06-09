@@ -419,6 +419,13 @@ export default class BaseGraphHandler {
   // into the target graph and removed from this (source) one. Its `next` (old
   // siblings) is NOT carried — insert() sets the new one.
   move(pointToMove, referencePoint, position, output, targetHandler = null) {
+    // Moving a point relative to itself is a no-op. Without this guard remove()
+    // would delete the point's graph entry before insert() tries to reference it,
+    // throwing "Cannot read properties of undefined".
+    if (referencePoint && referencePoint.id === pointToMove.id) {
+      return
+    }
+
     const target = targetHandler || this
     const isCrossGraph = target !== this
 

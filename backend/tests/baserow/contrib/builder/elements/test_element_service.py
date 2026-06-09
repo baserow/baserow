@@ -670,6 +670,23 @@ def test_move_element_not_same_builder(data_fixture, stub_check_permissions):
 
 
 @pytest.mark.django_db
+def test_move_element_relative_to_itself_is_disallowed(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_heading_element(page=page)
+
+    with pytest.raises(GraphPointReferencePointInvalid):
+        ElementService().move_element(
+            user,
+            page,
+            element,
+            element.place_in_container,
+            element.id,  # the element references itself
+            GraphPointPosition.SOUTH,
+        )
+
+
+@pytest.mark.django_db
 def test_move_element_permission_denied(data_fixture, stub_check_permissions):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
