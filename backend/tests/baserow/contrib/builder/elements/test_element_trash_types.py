@@ -16,9 +16,9 @@ def test_trashing_and_restoring_element_updates_graph(data_fixture):
 
     page.assert_reference(
         {
-            "0": "heading",
-            "heading": {"next": {"": ["heading-"]}},
-            "heading-": {},
+            "0": "heading-0",
+            "heading-0": {"next": {"": ["heading-1"]}},
+            "heading-1": {},
         }
     )
 
@@ -34,8 +34,8 @@ def test_trashing_and_restoring_element_updates_graph(data_fixture):
     page.refresh_from_db()
     page.assert_reference(
         {
-            "0": "heading",
-            "heading": {},
+            "0": "heading-0",
+            "heading-0": {},
         }
     )
 
@@ -48,9 +48,9 @@ def test_trashing_and_restoring_element_updates_graph(data_fixture):
     page.refresh_from_db()
     page.assert_reference(
         {
-            "0": "heading",
-            "heading": {"next": {"": ["heading-"]}},
-            "heading-": {},
+            "0": "heading-0",
+            "heading-0": {"next": {"": ["heading-1"]}},
+            "heading-1": {},
         }
     )
 

@@ -913,7 +913,7 @@ class BaseGraphHandler(ABC):
             # insert() sets the correct `next` for the new position.
             descendant_entries = {
                 str(d.id): deepcopy(self.get_info(d))
-                for d in self._collect_all_descendants(point_to_move)
+                for d in self.collect_all_descendants(point_to_move)
             }
             root_children = deepcopy(self.get_info(point_to_move).get("children"))
 

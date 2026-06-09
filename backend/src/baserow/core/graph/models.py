@@ -416,11 +416,22 @@ class GraphPointTrashableItemType(TrashableItemType):
         item_to_trash: "GraphPointMixin",
         requesting_user,
         trash_entry: "TrashEntry",
-    ):
+    ) -> List["GraphPointMixin"]:
+        """
+        Trash the point and (unless the graph is left untouched) the subtree it
+        cascades to.
+
+        :return: The definitive set of records that were trashed, as `.specific`
+            instances, starting with the point itself followed by any cascaded
+            descendants in DFS order. Mirrors `restore`, which returns the same
+            shape for the records it brings back, so subclasses can broadcast the
+            full set without recomputing the cascade.
+        """
+
         super().trash(item_to_trash, requesting_user, trash_entry)
 
         if not self._should_mutate_graph(trash_entry):
-            return
+            return [item_to_trash.specific]
 
         result = item_to_trash.get_parent().get_graph().remove(item_to_trash)
 
@@ -431,6 +442,11 @@ class GraphPointTrashableItemType(TrashableItemType):
             self._before_cascade_delete(specific)
             specific.trashed = True
             specific.save(update_fields=["trashed"])
+
+        return [
+            item_to_trash.specific,
+            *(dep.specific for dep in result.dependencies_removed),
+        ]
 
     def restore(self, trashed_item: "GraphPointMixin", trash_entry: "TrashEntry"):
         position_triplet, children_positions, hierarchical_parent_id = (

@@ -42,13 +42,20 @@ class ElementTrashableItemType(GraphPointTrashableItemType):
         was deleted and invalidate the page's element cache.
         """
 
-        super().trash(item_to_trash, requesting_user, trash_entry)
+        # The base returns the full set of trashed records (the element plus any
+        # cascaded descendants). Realtime receivers need the descendants separately
+        # so other clients can remove a trashed container's whole subtree.
+        trashed = super().trash(item_to_trash, requesting_user, trash_entry)
+        descendant_ids = [
+            record.id for record in trashed if record.id != item_to_trash.id
+        ]
 
         element_deleted.send(
             self,
             element_id=item_to_trash.id,
             page=item_to_trash.page,
             user=requesting_user,
+            descendant_ids=descendant_ids,
         )
         ElementHandler().invalidate_element_cache(item_to_trash.page)
 
