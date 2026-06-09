@@ -1,6 +1,10 @@
 import { vi, describe, beforeEach, test, expect } from 'vitest'
 
 import { RealTimeHandler } from '@baserow/modules/core/plugins/realTimeHandler'
+import {
+  FIRST_CONNECT_CURSOR,
+  NO_REPLAY_AVAILABLE,
+} from '@baserow/modules/core/plugins/realtimeProtocol'
 
 vi.mock('#imports', () => ({
   useRuntimeConfig: () => ({
@@ -43,7 +47,7 @@ function makeHandler() {
   const store = makeStore()
   const context = { store, app: { router: {} } }
   const handler = new RealTimeHandler(context)
-  // Stand-in for an open websocket so _sendRealtimeSubscribe goes
+  // Stand-in for an open websocket so _sendReplayEventsRequest goes
   // through.
   const sentMessages = []
   handler.socket = {
@@ -63,74 +67,109 @@ function fire(handler, type, data) {
   }
 }
 
-describe('RealTimeHandler realtime_subscribe flow', () => {
+describe('RealTimeHandler replay_events flow', () => {
   let env
   beforeEach(() => {
     env = makeHandler()
   })
 
-  test('authentication sends a baseline subscribe on initial connect', () => {
+  test('authentication sends a baseline replay request when replay is enabled', () => {
     fire(env.handler, 'authentication', {
       success: true,
+      replay_enabled: true,
     })
-    const subscribe = env.sentMessages.find(
-      (m) => m.type === 'realtime_subscribe'
+    const replayRequest = env.sentMessages.find(
+      (m) => m.type === 'replay_events'
     )
-    expect(subscribe).toEqual({
-      type: 'realtime_subscribe',
-      last_seen_id: null,
+    expect(replayRequest).toEqual({
+      type: 'replay_events',
+      last_seen_id: FIRST_CONNECT_CURSOR,
     })
   })
 
-  test('authentication subscribes even without active workspace', () => {
+  test('authentication does not send replay_events when replay is disabled', () => {
+    fire(env.handler, 'authentication', {
+      success: true,
+      replay_enabled: false,
+    })
+    const replayRequest = env.sentMessages.find(
+      (m) => m.type === 'replay_events'
+    )
+    expect(replayRequest).toBeUndefined()
+    expect(env.handler.replayEnabled).toBe(false)
+  })
+
+  test('authentication requests replay even without active workspace', () => {
     const local = makeHandler()
     fire(local.handler, 'authentication', {
       success: true,
+      replay_enabled: true,
     })
-    const subscribe = local.sentMessages.find(
-      (m) => m.type === 'realtime_subscribe'
+    const replayRequest = local.sentMessages.find(
+      (m) => m.type === 'replay_events'
     )
-    expect(subscribe).toEqual({
-      type: 'realtime_subscribe',
-      last_seen_id: null,
+    expect(replayRequest).toEqual({
+      type: 'replay_events',
+      last_seen_id: FIRST_CONNECT_CURSOR,
     })
   })
 
-  test('subscribe_result needing refresh with newer id fires the toast', () => {
+  test('client stores NO_REPLAY_AVAILABLE from server and sends it back on reconnect', () => {
+    // Server can return NO_REPLAY_AVAILABLE as latest_event_id when replay is
+    // enabled but no events have been recorded yet.
+    env.handler.replayEnabled = true
+    fire(env.handler, 'replay_events_result', {
+      force_refresh: false,
+      latest_event_id: NO_REPLAY_AVAILABLE,
+    })
+    expect(env.handler.lastSeenEventId).toBe(NO_REPLAY_AVAILABLE)
+
+    // Reconnect: client must send NO_REPLAY_AVAILABLE so the server keeps
+    // treating it as "can't replay" instead of as a first connection.
+    env.sentMessages.length = 0
+    env.handler._sendReplayEventsRequest()
+    const replayRequest = env.sentMessages.find(
+      (m) => m.type === 'replay_events'
+    )
+    expect(replayRequest).toEqual({
+      type: 'replay_events',
+      last_seen_id: NO_REPLAY_AVAILABLE,
+    })
+  })
+
+  test('replay_events_result needing refresh fires the toast', () => {
     env.handler.lastSeenEventId = 10
-    fire(env.handler, 'realtime_subscribe_result', {
-      outdated: true,
-      current_latest_id: 42,
+    fire(env.handler, 'replay_events_result', {
+      force_refresh: true,
+      latest_event_id: 42,
     })
     expect(
       env.store._dispatched.some(
         ([n, v]) => n === 'toast/setWorkspaceOutdated' && v === true
       )
     ).toBe(true)
-    expect(env.handler.lastSeenEventId).toBe(42)
+    expect(env.handler.lastSeenEventId).toBe(10)
   })
 
-  test('subscribe_result with outdated current_latest_id does not toast', () => {
-    // Mimics a race where a fresh broadcast advanced lastSeen above
-    // current_latest_id before the response arrived.
+  test('replay_events_result with force_refresh does not advance latest_event_id', () => {
     env.handler.lastSeenEventId = 50
-    fire(env.handler, 'realtime_subscribe_result', {
-      outdated: true,
-      current_latest_id: 42,
+    fire(env.handler, 'replay_events_result', {
+      force_refresh: true,
+      latest_event_id: 42,
     })
     expect(
       env.store._dispatched.some(
         ([n, v]) => n === 'toast/setWorkspaceOutdated' && v === true
       )
-    ).toBe(false)
+    ).toBe(true)
     // The high-water mark must not regress below the live-message value.
     expect(env.handler.lastSeenEventId).toBe(50)
   })
 
-  test('subscribe_result with all-false updates advances baseline without toast', () => {
-    fire(env.handler, 'realtime_subscribe_result', {
-      outdated: false,
-      current_latest_id: 99,
+  test('replay_events_result with force_refresh false advances baseline without toast', () => {
+    fire(env.handler, 'replay_events_result', {
+      force_refresh: false,
+      latest_event_id: 99,
     })
     expect(
       env.store._dispatched.some(
@@ -260,10 +299,6 @@ describe('RealTimeHandler reconnect logic', () => {
     handler.reconnectTimeout = setTimeout(() => {}, 99999)
 
     const connectSpy = vi.spyOn(handler, 'connect')
-    handler._onVisibilityChange.call(handler)
-
-    // visibilityState is not 'visible' in test env by default, so
-    // simulate by setting it
     Object.defineProperty(document, 'visibilityState', {
       value: 'visible',
       writable: true,
@@ -272,6 +307,44 @@ describe('RealTimeHandler reconnect logic', () => {
     handler._onVisibilityChange()
 
     expect(connectSpy).toHaveBeenCalledWith(true, false)
+    expect(handler.attempts).toBe(0)
+    expect(
+      env.store._dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === false
+      )
+    ).toBe(true)
+    // The "Reconnecting" toast stays up across the immediate retry — only
+    // ``onopen`` clears it — so it should NOT be dispatched false here.
+    expect(
+      env.store._dispatched.some(
+        ([n, v]) => n === 'toast/setReconnecting' && v === false
+      )
+    ).toBe(false)
+    connectSpy.mockRestore()
+  })
+
+  test('visibility reconnect retries after max attempts without keeping failure toast', () => {
+    const { handler } = env
+    handler.connected = false
+    handler.reconnect = true
+    handler.attempts = 11
+
+    const connectSpy = vi.spyOn(handler, 'connect')
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'visible',
+      writable: true,
+      configurable: true,
+    })
+
+    handler._onVisibilityChange()
+
+    expect(handler.attempts).toBe(0)
+    expect(connectSpy).toHaveBeenCalledWith(true, false)
+    expect(
+      env.store._dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === false
+      )
+    ).toBe(true)
     connectSpy.mockRestore()
   })
 
@@ -300,39 +373,41 @@ describe('RealTimeHandler reconnect logic', () => {
   })
 })
 
-describe('RealTimeHandler subscribe params', () => {
+describe('RealTimeHandler replay request params', () => {
   test('reconnect sends last_seen_id', () => {
     const { handler, sentMessages } = makeHandler()
+    handler.replayEnabled = true
     handler.lastSeenEventId = 42
 
-    handler._sendRealtimeSubscribe()
+    handler._sendReplayEventsRequest()
 
-    const msg = sentMessages.find((m) => m.type === 'realtime_subscribe')
+    const msg = sentMessages.find((m) => m.type === 'replay_events')
     expect(msg).toEqual({
-      type: 'realtime_subscribe',
+      type: 'replay_events',
       last_seen_id: 42,
     })
   })
 
-  test('initial subscribe sends null for last_seen_id', () => {
+  test('initial replay request sends FIRST_CONNECT_CURSOR for last_seen_id', () => {
     const { handler, sentMessages } = makeHandler()
+    handler.replayEnabled = true
 
-    handler._sendRealtimeSubscribe()
+    handler._sendReplayEventsRequest()
 
-    const msg = sentMessages.find((m) => m.type === 'realtime_subscribe')
+    const msg = sentMessages.find((m) => m.type === 'replay_events')
     expect(msg).toEqual({
-      type: 'realtime_subscribe',
-      last_seen_id: null,
+      type: 'replay_events',
+      last_seen_id: FIRST_CONNECT_CURSOR,
     })
   })
 
-  test('webSocketId persists across reconnects', () => {
-    const { handler } = makeHandler()
-    const id = handler.webSocketId
-    expect(id).toBeTruthy()
-    expect(typeof id).toBe('string')
-    // Simulate onclose + reconnect — id stays the same
-    expect(handler.webSocketId).toBe(id)
+  test('_sendReplayEventsRequest is a no-op when replay is disabled', () => {
+    const { handler, sentMessages } = makeHandler()
+    handler.replayEnabled = false
+
+    handler._sendReplayEventsRequest()
+
+    expect(sentMessages.find((m) => m.type === 'replay_events')).toBeUndefined()
   })
 })
 
@@ -346,7 +421,8 @@ describe('RealTimeHandler disconnect', () => {
 
     handler.disconnect()
 
-    expect(handler.lastSeenEventId).toBeNull()
+    // Reset to FIRST_CONNECT_CURSOR so the next connection is treated as fresh.
+    expect(handler.lastSeenEventId).toBe(FIRST_CONNECT_CURSOR)
     expect(handler.attempts).toBe(0)
     expect(handler.reconnect).toBe(false)
     expect(
@@ -382,9 +458,13 @@ describe('RealTimeHandler disconnect', () => {
 })
 
 describe('RealTimeHandler connect early-exit', () => {
-  test('connect clears reconnecting toast when max attempts exceeded', () => {
+  test('connect keeps retrying past max attempts without firing the Failed toast', () => {
+    // Transient network failures should not surface the hard "Failed —
+    // refresh to continue" toast: we keep reconnecting forever with capped
+    // backoff so users coming back to a long-disconnected tab recover
+    // without a refresh.
     const { handler, store } = makeHandler()
-    handler.attempts = 11
+    handler.attempts = 99
     handler.reconnect = true
     handler.socket = null
 
@@ -394,7 +474,30 @@ describe('RealTimeHandler connect early-exit', () => {
       store._dispatched.some(
         ([n, v]) => n === 'toast/setFailedConnecting' && v === true
       )
-    ).toBe(true)
+    ).toBe(false)
+  })
+
+  test('connect does not show failed toast while tab is hidden', () => {
+    const { handler, store } = makeHandler()
+    // Genuine auth rejection — the path that still raises the Failed toast.
+    handler.authResponseReceived = true
+    handler.authenticationSuccess = false
+    handler.lastToken = 'token'
+    handler.reconnect = true
+    handler.socket = null
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'hidden',
+      writable: true,
+      configurable: true,
+    })
+
+    handler.connect(true, false)
+
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === true
+      )
+    ).toBe(false)
     expect(
       store._dispatched.some(
         ([n, v]) => n === 'toast/setReconnecting' && v === false

@@ -1,19 +1,41 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import timedelta
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from django.conf import settings
 from django.db.models import Max, Q
 from django.db.models.functions import Coalesce
+from django.db.models.query import QuerySet
 from django.utils import timezone
 
-from baserow.ws.exceptions import EventReplayNotPossible
-
+# Lazy-imported: a module-level import here chains through the WS router
+# before ``get_asgi_application()`` runs and triggers AppRegistryNotReady
+# under gunicorn/uvicorn workers.
 if TYPE_CHECKING:
     from baserow.ws.models import RealtimeEvent
 
 REALTIME_EVENTS_CLEANUP_INTERVAL_MINUTES = 60
+
+# ``replay_events`` cursor sentinels. Must match the constants in
+# web-frontend/modules/core/plugins/realtimeProtocol.js.
+#
+# FIRST_CONNECT_CURSOR: first connect of a session, ask for a baseline only.
+# NO_REPLAY_AVAILABLE:  reconnect with no usable high-water mark, force refresh.
+FIRST_CONNECT_CURSOR = -1
+NO_REPLAY_AVAILABLE = 0
+
+
+@dataclass(frozen=True)
+class ReplayEventsResult:
+    """
+    The server decision for a ``replay_events`` client message.
+    """
+
+    force_refresh: bool
+    latest_event_id: int
+    replay_events: list[RealtimeEvent]
 
 
 class RealtimeEventHandler:
@@ -26,7 +48,9 @@ class RealtimeEventHandler:
         return settings.BASEROW_REALTIME_REPLAY_MAX_EVENTS > 0
 
     @staticmethod
-    def record_events(events_data: list[tuple[str, dict]]) -> list[int]:
+    def record_events(
+        events_data: list[tuple[str, dict[str, Any]]],
+    ) -> list[int]:
         """
         Insert rows into ``ws_realtime_events`` and return their ids
         in the same order as the input.
@@ -43,6 +67,86 @@ class RealtimeEventHandler:
         ]
         created = RealtimeEvent.objects.bulk_create(objects)
         return [obj.id for obj in created]
+
+    @staticmethod
+    def add_event_id_to_payload(event_id: int, payload: dict[str, Any]) -> None:
+        """
+        Inject the persisted event id into dict payloads sent to clients.
+
+        :param event_id: The ``RealtimeEvent`` id that identifies the broadcast.
+        :param payload: The channel-layer message that contains either ``payload``
+            or ``payload_map`` entries.
+        """
+
+        inner_payload = payload.get("payload")
+        if isinstance(inner_payload, dict):
+            inner_payload["_event_id"] = event_id
+            return
+
+        payload_map = payload.get("payload_map")
+        if isinstance(payload_map, dict):
+            for mapped_payload in payload_map.values():
+                if isinstance(mapped_payload, dict):
+                    mapped_payload["_event_id"] = event_id
+            return
+
+        raise ValueError(
+            "Invalid payload structure, missing 'payload' or 'payload_map'"
+        )
+
+    @staticmethod
+    def should_deliver_users_channel_event(
+        user_id: int,
+        event: dict[str, Any],
+    ) -> bool:
+        """
+        Decide whether a shared ``users`` channel event targets a user.
+
+        :param user_id: The id of the websocket user.
+        :param event: The channel-layer ``users`` event.
+        :return: Whether the user should receive the event.
+        """
+
+        event_type = event.get("type")
+        if event_type == "broadcast_to_users":
+            return event["send_to_all_users"] or user_id in event["user_ids"]
+        if event_type == "broadcast_to_users_individual_payloads":
+            return str(user_id) in event["payload_map"]
+        return False
+
+    @staticmethod
+    def get_users_channel_live_delivery_filter(user_id: int) -> Q:
+        """
+        Build the replay-side equivalent of live users-channel delivery.
+
+        This must mirror ``should_deliver_users_channel_event`` because replay
+        and live delivery must target the same users for this channel.
+
+        :param user_id: The id of the reconnecting user.
+        :return: A ``Q`` object matching users-channel events the user receives.
+        """
+
+        user_id_str = str(user_id)
+        return Q(channel_group="users") & (
+            Q(
+                payload__contains={
+                    "type": "broadcast_to_users",
+                    "send_to_all_users": True,
+                },
+            )
+            | Q(
+                payload__contains={
+                    "type": "broadcast_to_users",
+                    "user_ids": [user_id],
+                },
+            )
+            | Q(
+                payload__contains={
+                    "type": "broadcast_to_users_individual_payloads",
+                },
+                payload__payload_map__has_key=user_id_str,
+            )
+        )
 
     @staticmethod
     def cleanup_old_realtime_events(retention: timedelta) -> int:
@@ -62,13 +166,14 @@ class RealtimeEventHandler:
         return deleted
 
     @staticmethod
-    def get_channel_group_names(pages, authenticated: bool = True) -> list[str]:
+    def get_page_group_names(pages) -> list[str]:
         """
-        Collect channel group names from a ``SubscribedPages`` instance.
+        Collect page channel group names from a ``SubscribedPages`` instance.
+        Never returns ``"users"`` — that channel is handled separately by
+        ``get_relevant_events_filter``.
 
         :param pages: A ``SubscribedPages`` instance.
-        :param authenticated: Whether to include the ``"users"`` group.
-        :returns: List of channel group name strings.
+        :returns: Page channel group name strings.
         """
 
         from baserow.ws.registries import page_registry
@@ -80,164 +185,191 @@ class RealtimeEventHandler:
             except page_registry.does_not_exist_exception_class:
                 continue
             result.append(page_type.get_group_name(**page.page_parameters))
-        if authenticated:
-            result.append("users")
         return result
 
     @staticmethod
-    def get_replay_events(
+    def get_replay_events_result(
         user_id: int,
-        channel_group_names: list[str],
+        page_group_names: list[str],
         last_seen_id: int,
         web_socket_id: Optional[str],
-    ) -> list[RealtimeEvent]:
+    ) -> ReplayEventsResult:
         """
-        Fetch events for replay on reconnect.
-
-        The ``"users"`` group is filtered to only include events relevant to
-        ``user_id``, preventing unrelated user events from inflating the count.
+        Decide how a realtime client should catch up after connecting. Only
+        called when replay recording is enabled — well-behaved clients skip
+        ``replay_events`` when the authentication handshake says it is off,
+        and ``_handle_replay_events`` drops the message otherwise.
 
         :param user_id: The id of the reconnecting user.
-        :param channel_group_names: Channel group names from
-            ``get_channel_group_names``.
+        :param page_group_names: Page channel group names the user is
+            subscribed to. Must not include ``"users"`` — that channel is
+            added unconditionally by
+            ``get_users_channel_live_delivery_filter``.
+        :param last_seen_id: ``FIRST_CONNECT_CURSOR`` for a fresh connection,
+            ``NO_REPLAY_AVAILABLE`` for a reconnect with no usable high-water
+            mark, or a positive event id the client last saw.
+        :param web_socket_id: The client's persistent web socket id, used to
+            exclude events the client itself originated.
+        :returns: A result containing replay events or a force-refresh instruction.
+        """
+
+        if last_seen_id == FIRST_CONNECT_CURSOR:
+            # Connecting for the first time - clients only need the latest event id to
+            # know where to start for future reconnects.
+            return ReplayEventsResult(
+                force_refresh=False,
+                latest_event_id=RealtimeEventHandler.get_latest_event_id(),
+                replay_events=[],
+            )
+
+        if last_seen_id == NO_REPLAY_AVAILABLE:
+            # Reconnect without a high-water mark — we can't prove what was
+            # missed, so the client has to refresh.
+            return ReplayEventsResult(
+                force_refresh=True,
+                latest_event_id=NO_REPLAY_AVAILABLE,
+                replay_events=[],
+            )
+
+        replay_window_events = list(
+            RealtimeEventHandler.get_replay_window(
+                user_id, page_group_names, last_seen_id, web_socket_id
+            )
+        )
+
+        if replay_window_events:
+            # The first event must be the last seen event, and we must not exceed the
+            # replay limit with the remaining events, for a successful replay.
+            latest_event_id = replay_window_events[-1].id
+            replay_events = replay_window_events[1:]
+            max_events = settings.BASEROW_REALTIME_REPLAY_MAX_EVENTS
+            can_replay = (
+                replay_window_events[0].id == last_seen_id
+                and len(replay_events) <= max_events
+            )
+            if can_replay:
+                return ReplayEventsResult(
+                    force_refresh=False,
+                    latest_event_id=latest_event_id,
+                    replay_events=replay_events,
+                )
+
+        # Empty window or unable to anchor against ``last_seen_id`` — the
+        # cursor has expired, the client missed too many events, or the
+        # filter excluded the baseline. Force a refresh.
+        return ReplayEventsResult(
+            force_refresh=True,
+            latest_event_id=NO_REPLAY_AVAILABLE,
+            replay_events=[],
+        )
+
+    @staticmethod
+    def get_latest_event_id() -> int:
+        """
+        Return the latest persisted realtime event id.
+
+        :return: The highest event id, or ``0`` when no events exist.
+        """
+
+        from baserow.ws.models import RealtimeEvent
+
+        return RealtimeEvent.objects.aggregate(latest=Coalesce(Max("id"), 0))["latest"]
+
+    @staticmethod
+    def get_replay_window(
+        user_id: int,
+        page_group_names: list[str],
+        last_seen_id: int,
+        web_socket_id: Optional[str],
+    ) -> QuerySet[RealtimeEvent]:
+        """
+        Return the baseline event followed by replayable events.
+
+        :param user_id: The id of the reconnecting user.
+        :param page_group_names: Page channel group names the user is
+            subscribed to. Must not include ``"users"``.
         :param last_seen_id: Highest event id the client has already processed.
         :param web_socket_id: The client's persistent web socket id, used to
             exclude events the client itself originated.
-        :returns: Ordered list of events to replay. Empty list means nothing
-            was missed.
-        :raises EventReplayNotPossible: When the event gap is too large to
-            replay or ``last_seen_id`` has been cleaned up by retention.
+        :return: An ordered queryset containing ``last_seen_id`` when it still
+            exists, plus relevant events after it. The queryset is capped at
+            baseline plus one more than the configured replay limit so the caller
+            can detect that the client must refresh.
         """
 
         from baserow.ws.models import RealtimeEvent
 
-        first_row = (
-            RealtimeEvent.objects.filter(id__gte=last_seen_id)
-            .values("id")
-            .order_by("id")
-            .first()
+        replay_filter = (
+            Q(id__gt=last_seen_id)
+            & RealtimeEventHandler.get_not_own_event_filter(web_socket_id)
+            & RealtimeEventHandler.get_relevant_events_filter(user_id, page_group_names)
         )
-        if first_row is None or first_row["id"] != last_seen_id:
-            raise EventReplayNotPossible()
 
-        page_group_names = [name for name in channel_group_names if name != "users"]
-        has_users_group = "users" in channel_group_names
+        replay_filter |= Q(id=last_seen_id)
 
-        base_q = Q(id__gt=last_seen_id)
-        conditions = Q()
-
-        if page_group_names:
-            conditions |= Q(channel_group__in=page_group_names)
-
-        if has_users_group:
-            user_id_str = str(user_id)
-            user_q = Q(channel_group="users") & (
-                Q(
-                    payload__contains={
-                        "type": "broadcast_to_users",
-                        "send_to_all_users": True,
-                    },
-                )
-                | Q(
-                    payload__contains={
-                        "type": "broadcast_to_users",
-                        "user_ids": [user_id],
-                    },
-                )
-                | Q(
-                    payload__contains={
-                        "type": "broadcast_to_users_individual_payloads",
-                        "payload_map": {user_id_str: {}},
-                    },
-                )
-            )
-            conditions |= user_q
-
-        if not conditions:
-            return []
-
-        qs = RealtimeEvent.objects.filter(base_q & conditions)
-        if web_socket_id is not None:
-            qs = qs.exclude(payload__ignore_web_socket_id=web_socket_id)
-
-        max_events = settings.BASEROW_REALTIME_REPLAY_MAX_EVENTS
-        result = list(qs.order_by("id")[: max_events + 1])
-
-        if len(result) > max_events:
-            raise EventReplayNotPossible()
-
-        return result
+        return RealtimeEvent.objects.filter(replay_filter).order_by("id")[
+            : settings.BASEROW_REALTIME_REPLAY_MAX_EVENTS + 2
+        ]
 
     @staticmethod
-    def check_realtime_events(
+    def get_relevant_events_filter(
         user_id: int,
-        channel_group_names: list[str],
-        last_seen_id: Optional[int],
-        web_socket_id: Optional[str],
-    ) -> tuple[bool, int]:
+        page_group_names: list[str],
+    ) -> Q:
         """
-        Check whether any relevant events exist since ``last_seen_id``.
-
-        Used for the baseline path (``last_seen_id=None``) to return the
-        current latest event id without replay.
+        Build the database filter for events relevant to a user: page-group events plus
+        the user's events on the shared ``users`` channel.
 
         :param user_id: The id of the reconnecting user.
-        :param channel_group_names: Channel group names from
-            ``get_channel_group_names``.
-        :param last_seen_id: Highest event id the client has already processed,
-            or ``None`` for a baseline check.
-        :param web_socket_id: The client's persistent web socket id, used to
-            exclude events the client itself originated.
-        :returns: ``(outdated, current_latest_id)`` tuple.
+        :param page_group_names: Page channel group names the user is subscribed to.
+            Must not include ``"users"`` — that channel is added unconditionally by
+            `get_users_channel_live_delivery_filter`.
+        :return: A `Q` object matching relevant events.
         """
 
-        from baserow.ws.models import RealtimeEvent
-
-        current_latest_id = RealtimeEvent.objects.aggregate(
-            latest=Coalesce(Max("id"), 0)
-        )["latest"]
-
-        if last_seen_id is None:
-            return False, current_latest_id
-
-        page_group_names = [name for name in channel_group_names if name != "users"]
-        has_users_group = "users" in channel_group_names
-
-        base_q = Q(id__gt=last_seen_id)
         conditions = Q()
 
         if page_group_names:
             conditions |= Q(channel_group__in=page_group_names)
 
-        if has_users_group:
-            user_id_str = str(user_id)
-            user_q = Q(channel_group="users") & (
-                Q(
-                    payload__contains={
-                        "type": "broadcast_to_users",
-                        "send_to_all_users": True,
-                    },
-                )
-                | Q(
-                    payload__contains={
-                        "type": "broadcast_to_users",
-                        "user_ids": [user_id],
-                    },
-                )
-                | Q(
-                    payload__contains={
-                        "type": "broadcast_to_users_individual_payloads",
-                        "payload_map": {user_id_str: {}},
-                    },
-                )
-            )
-            conditions |= user_q
+        # The users-channel filter must mirror the live delivery logic used by
+        # CoreConsumer.broadcast_to_users and broadcast_to_users_individual_payloads.
+        conditions |= RealtimeEventHandler.get_users_channel_live_delivery_filter(
+            user_id
+        )
+        conditions &= RealtimeEventHandler.get_not_user_filtered_group_event_filter(
+            user_id
+        )
 
-        if not conditions:
-            return False, current_latest_id
+        return conditions
 
-        qs = RealtimeEvent.objects.filter(base_q & conditions)
-        if web_socket_id is not None:
-            qs = qs.exclude(payload__ignore_web_socket_id=web_socket_id)
+    @staticmethod
+    def get_not_own_event_filter(web_socket_id: Optional[str]) -> Q:
+        """
+        Build a filter that excludes events from the same websocket connection.
 
-        return qs.exists(), current_latest_id
+        :param web_socket_id: The client's persistent web socket id.
+        :return: A ``Q`` object that can be combined with replay filters.
+        """
+
+        return (
+            ~Q(payload__ignore_web_socket_id=web_socket_id)
+            if web_socket_id is not None
+            else Q()
+        )
+
+    @staticmethod
+    def get_not_user_filtered_group_event_filter(user_id: int) -> Q:
+        """
+        Build a filter that excludes group events skipped by live delivery.
+
+        :param user_id: The id of the reconnecting user.
+        :return: A ``Q`` object that can be combined with replay filters.
+        """
+
+        return ~Q(
+            payload__contains={
+                "type": "broadcast_to_group",
+                "exclude_user_ids": [user_id],
+            }
+        )

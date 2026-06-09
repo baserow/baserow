@@ -1,5 +1,6 @@
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
+import { FIRST_CONNECT_CURSOR } from '@baserow/modules/core/plugins/realtimeProtocol'
 import { useRuntimeConfig } from '#imports'
 
 const RECONNECT_BASE_DELAY = 1000
@@ -24,34 +25,33 @@ export class RealTimeHandler {
     this.authResponseReceived = false
     this.unloading = false
 
-    this.lastSeenEventId = null
-    this.webSocketId = this.context.store.getters['auth/webSocketId']
+    this.lastSeenEventId = FIRST_CONNECT_CURSOR
+    this.replayEnabled = false
 
     this.registerCoreEvents()
 
     this._onPageHide = () => {
       this.unloading = true
     }
+    // Immediate retry on tab refocus or network restoration.
+    this._onShouldRetryNow = () => {
+      if (!this.connected && this.reconnect) {
+        this._retryReconnectNow()
+      }
+    }
     this._onVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        this.unloading = false
+      if (!this._isDocumentVisible()) {
+        return
       }
-      if (
-        document.visibilityState === 'visible' &&
-        !this.connected &&
-        this.reconnect
-      ) {
-        clearTimeout(this.reconnectTimeout)
-        this.attempts = 0
-        this.context.store.dispatch('toast/setFailedConnecting', false)
-        this.connect(true, this.anonymous)
-      }
+      this.unloading = false
+      this._onShouldRetryNow()
     }
 
     if (import.meta.client) {
       window.addEventListener('beforeunload', this._onPageHide)
       window.addEventListener('pagehide', this._onPageHide)
       document.addEventListener('visibilitychange', this._onVisibilityChange)
+      window.addEventListener('online', this._onShouldRetryNow)
     }
   }
 
@@ -83,14 +83,17 @@ export class RealTimeHandler {
       this.socket = null
     }
 
-    const maxAttemptsReached = this.attempts >= RECONNECT_MAX_ATTEMPTS
+    // "Failed — refresh" is only for genuine auth problems; transient
+    // network failures keep retrying with capped backoff.
     const noToken = !token
     const tokenAlreadyRejected =
       this.authResponseReceived &&
       !this.authenticationSuccess &&
       this.lastToken === token
-    if (maxAttemptsReached || noToken || tokenAlreadyRejected) {
-      this.context.store.dispatch('toast/setFailedConnecting', true)
+    if (noToken || tokenAlreadyRejected) {
+      if (!this._isDocumentHidden()) {
+        this.context.store.dispatch('toast/setFailedConnecting', true)
+      }
       this.context.store.dispatch('toast/setReconnecting', false)
       return
     }
@@ -105,9 +108,10 @@ export class RealTimeHandler {
     const url = new URL(rawUrl)
     url.protocol = isSecureURL(rawUrl) ? 'wss:' : 'ws:'
     url.pathname = '/ws/core/'
+    const webSocketId = this.context.store.getters['auth/webSocketId']
 
     this.socket = new WebSocket(
-      `${url}?jwt_token=${token}&web_socket_id=${this.webSocketId}`
+      `${url}?jwt_token=${token}&web_socket_id=${webSocketId}`
     )
     this.socket.onopen = () => {
       this.connected = true
@@ -149,8 +153,11 @@ export class RealTimeHandler {
 
     this.socket.onclose = () => {
       this.connected = false
-      // By default the user not subscribed to a page a.k.a `null`, so if the current
-      // page is already null we can mark it as subscribed.
+      // Surface the disconnect immediately — the toast persists through the
+      // hidden/offline wait and through retry attempts until ``onopen`` runs.
+      if (this.reconnect) {
+        this.context.store.dispatch('toast/setReconnecting', true)
+      }
       this.subscribedToPages = this.pages.length === 0
       this.delayedReconnect()
     }
@@ -158,9 +165,17 @@ export class RealTimeHandler {
 
   /**
    * Schedules a reconnection attempt with exponential backoff and jitter.
+   * Bails when the tab is hidden or the navigator is offline; the
+   * ``visibilitychange`` / ``online`` handlers resume via
+   * ``_retryReconnectNow`` the moment either clears.
    */
   delayedReconnect() {
-    if (!this.reconnect || this.unloading) {
+    if (
+      !this.reconnect ||
+      this.unloading ||
+      this._isDocumentHidden() ||
+      !this._isNavigatorOnline()
+    ) {
       return
     }
 
@@ -168,8 +183,11 @@ export class RealTimeHandler {
     this.attempts++
     this.context.store.dispatch('toast/setReconnecting', true)
 
+    // Cap the exponent so retries past the threshold stay at
+    // ``RECONNECT_MAX_DELAY`` instead of computing huge values.
+    const exponent = Math.min(this.attempts, RECONNECT_MAX_ATTEMPTS) - 1
     const delay = Math.min(
-      RECONNECT_BASE_DELAY * Math.pow(2, this.attempts - 1) +
+      RECONNECT_BASE_DELAY * Math.pow(2, exponent) +
         Math.floor(Math.random() * RECONNECT_JITTER),
       RECONNECT_MAX_DELAY
     )
@@ -177,6 +195,32 @@ export class RealTimeHandler {
     this.reconnectTimeout = setTimeout(() => {
       this.connect(true, this.anonymous)
     }, delay)
+  }
+
+  _isDocumentVisible() {
+    return (
+      typeof document !== 'undefined' && document.visibilityState === 'visible'
+    )
+  }
+
+  _isDocumentHidden() {
+    return (
+      typeof document !== 'undefined' && document.visibilityState === 'hidden'
+    )
+  }
+
+  _isNavigatorOnline() {
+    // ``navigator.onLine === false`` is the only reliable signal.
+    return typeof navigator === 'undefined' || navigator.onLine !== false
+  }
+
+  _retryReconnectNow() {
+    clearTimeout(this.reconnectTimeout)
+    this.attempts = 0
+    this.context.store.dispatch('toast/setFailedConnecting', false)
+    // Keep the "Reconnecting" toast up until ``onopen`` clears it; flickering
+    // it off here just confuses the user during the retry round-trip.
+    this.connect(true, this.anonymous)
   }
 
   /**
@@ -273,22 +317,26 @@ export class RealTimeHandler {
     this.reconnect = false
     this.attempts = 0
     this.connected = false
-    this.lastSeenEventId = null
+    this.lastSeenEventId = FIRST_CONNECT_CURSOR
+    // Reset until the next auth message confirms replay is enabled.
+    this.replayEnabled = false
   }
 
   /**
-   * Sends ``realtime_subscribe`` to the server.
-   * On initial connect ``last_seen_id`` is null, asking the server only for
-   * a baseline. On reconnect it carries ``lastSeenEventId`` so the server
-   * can replay missed events or ask the client to refresh.
+   * Sends ``replay_events`` when replay is enabled. The cursor is
+   * FIRST_CONNECT_CURSOR (fresh session), NO_REPLAY_AVAILABLE (reconnect
+   * without a high-water mark), or the highest ``_event_id`` seen so far.
    */
-  _sendRealtimeSubscribe() {
+  _sendReplayEventsRequest() {
+    if (!this.replayEnabled) {
+      return
+    }
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
       return
     }
     this.socket.send(
       JSON.stringify({
-        type: 'realtime_subscribe',
+        type: 'replay_events',
         last_seen_id: this.lastSeenEventId,
       })
     )
@@ -298,12 +346,10 @@ export class RealTimeHandler {
     if (
       data &&
       typeof data === 'object' &&
-      typeof data._event_id === 'number'
+      typeof data._event_id === 'number' &&
+      data._event_id > this.lastSeenEventId
     ) {
-      const current = this.lastSeenEventId
-      if (current === null || data._event_id > current) {
-        this.lastSeenEventId = data._event_id
-      }
+      this.lastSeenEventId = data._event_id
     }
   }
 
@@ -324,20 +370,21 @@ export class RealTimeHandler {
     this.registerEvent('authentication', ({ store }, data) => {
       this.authenticationSuccess = data.success
       this.authResponseReceived = true
+      this.replayEnabled = data.replay_enabled === true
 
       if (data.success) {
-        this._sendRealtimeSubscribe()
+        this._sendReplayEventsRequest()
       }
     })
 
-    this.registerEvent('realtime_subscribe_result', ({ store }, data) => {
-      const previous = this.lastSeenEventId
-      const showOutdated =
-        data.outdated &&
-        typeof data.current_latest_id === 'number' &&
-        (previous === null || data.current_latest_id > previous)
-      this.lastSeenEventId = Math.max(data.current_latest_id, previous ?? 0)
-      store.dispatch('toast/setWorkspaceOutdated', showOutdated)
+    this.registerEvent('replay_events_result', ({ store }, data) => {
+      const latestEventId = data.latest_event_id
+      if (!data.force_refresh && typeof latestEventId === 'number') {
+        // ``latest_event_id`` can be NO_REPLAY_AVAILABLE (0) when the
+        // server has no events recorded yet; store it verbatim.
+        this.lastSeenEventId = Math.max(latestEventId, this.lastSeenEventId)
+      }
+      store.dispatch('toast/setWorkspaceOutdated', data.force_refresh === true)
     })
 
     this.registerEvent('user_data_updated', ({ store }, data) => {

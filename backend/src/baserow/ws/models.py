@@ -1,3 +1,4 @@
+from django.contrib.postgres.indexes import GinIndex
 from django.db import models
 
 
@@ -15,5 +16,12 @@ class RealtimeEvent(models.Model):
             models.Index(
                 fields=["channel_group", "id"],
                 name="ws_realtime_channel_group_idx",
+            ),
+            # Supports ``payload @> {...}`` containment queries.
+            # ``jsonb_path_ops`` is ~5x smaller and sufficient for ``@>`` only.
+            GinIndex(
+                fields=["payload"],
+                opclasses=["jsonb_path_ops"],
+                name="ws_realtime_payload_gin_idx",
             ),
         ]

@@ -22,7 +22,7 @@ class BroadcastToChannelGroupMessage(TypedDict, total=False):
     exclude_user_ids: list[int] | None
 
 
-PayloadMap = dict[str, dict[str, Any]]
+PayloadMap = dict[str, Any]
 
 
 class BroadcastToUsersIndividualPayloadsMessage(TypedDict, total=False):

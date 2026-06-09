@@ -65,12 +65,7 @@ async def send_message_to_channel_group(
                     [(channel_group_name, message)]
                 )
             )[0]
-            if isinstance(inner, dict):
-                inner["_event_id"] = event_id
-            if isinstance(payload_map, dict):
-                for user_payload in payload_map.values():
-                    if isinstance(user_payload, dict):
-                        user_payload["_event_id"] = event_id
+            RealtimeEventHandler.add_event_id_to_payload(event_id, message)
 
     await channel_layer.group_send(channel_group_name, message)
     if hasattr(channel_layer, "close_pools"):
