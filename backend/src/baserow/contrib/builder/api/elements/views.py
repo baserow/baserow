@@ -46,6 +46,13 @@ from baserow.contrib.builder.api.pages.errors import (
 )
 from baserow.contrib.builder.application_types import BuilderApplicationType
 from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
+from baserow.contrib.builder.elements.actions import (
+    CreateElementActionType,
+    DeleteElementActionType,
+    DuplicateElementActionType,
+    MoveElementActionType,
+    UpdateElementActionType,
+)
 from baserow.contrib.builder.elements.exceptions import (
     CollectionElementPropertyOptionsNotUnique,
     ElementDoesNotExist,
@@ -187,9 +194,7 @@ class ElementsView(APIView):
         page = PageHandler().get_page(page_id)
 
         element_type = element_type_registry.get(type_name)
-        element = ElementService().create_element(
-            request.user, element_type, page, **data
-        )
+        element = CreateElementActionType.do(request.user, element_type, page, data)
 
         serializer = element_type_registry.get_serializer(element, ElementSerializer)
         return Response(serializer.data)
@@ -261,7 +266,7 @@ class ElementView(APIView):
             return_validated=True,
         )
 
-        element_updated = ElementService().update_element(request.user, element, **data)
+        element_updated = UpdateElementActionType.do(request.user, element, data)
 
         serializer = element_type_registry.get_serializer(
             element_updated, ElementSerializer
@@ -305,7 +310,7 @@ class ElementView(APIView):
 
         element = ElementHandler().get_element_for_update(element_id)
 
-        ElementService().delete_element(request.user, element)
+        DeleteElementActionType.do(request.user, element)
 
         return Response(status=204)
 
@@ -378,12 +383,12 @@ class MoveElementView(APIView):
         except PageDoesNotExist as e:
             raise PageNotInBuilder(target_page_id) from e
 
-        element_move = ElementService().move_element(
-            request.user, target_page, element, **data
+        moved_element = MoveElementActionType.do(
+            request.user, element, target_page, **data
         )
 
         serializer = element_type_registry.get_serializer(
-            element_move.element, ElementSerializer
+            moved_element, ElementSerializer
         )
         return Response(serializer.data)
 
@@ -426,7 +431,7 @@ class DuplicateElementView(APIView):
 
         element = ElementHandler().get_element_for_update(element_id)
 
-        elements_and_workflow_actions_duplicated = ElementService().duplicate_element(
+        elements_and_workflow_actions_duplicated = DuplicateElementActionType.do(
             request.user, element
         )
 

@@ -420,10 +420,10 @@ def test_update_element(element_updated_mock, data_fixture):
     element = data_fixture.create_builder_heading_element(user=user)
 
     service = ElementService()
-    element_updated = service.update_element(user, element, value="newValue")
+    updated = service.update_element(user, element, value="newValue")
 
     element_updated_mock.send.assert_called_once_with(
-        service, element=element_updated, user=user
+        service, element=updated.element, user=user
     )
 
 

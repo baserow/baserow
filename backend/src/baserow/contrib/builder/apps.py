@@ -234,6 +234,29 @@ class BuilderConfig(AppConfig):
         trash_item_type_registry.register(PageTrashableItemType())
         trash_item_type_registry.register(ElementTrashableItemType())
 
+        from baserow.core.action.registries import (
+            action_scope_registry,
+            action_type_registry,
+        )
+
+        from .action_scopes import PageActionScopeType, SharedPageActionScopeType
+        from .elements.actions import (
+            CreateElementActionType,
+            DeleteElementActionType,
+            DuplicateElementActionType,
+            MoveElementActionType,
+            UpdateElementActionType,
+        )
+
+        action_scope_registry.register(PageActionScopeType())
+        action_scope_registry.register(SharedPageActionScopeType())
+
+        action_type_registry.register(CreateElementActionType())
+        action_type_registry.register(UpdateElementActionType())
+        action_type_registry.register(DeleteElementActionType())
+        action_type_registry.register(DuplicateElementActionType())
+        action_type_registry.register(MoveElementActionType())
+
         from baserow.contrib.builder.data_providers.registries import (
             builder_data_provider_type_registry,
         )

@@ -27,6 +27,7 @@ from baserow.contrib.builder.elements.types import (
     ElementForUpdate,
     ElementMove,
     ElementsAndWorkflowActions,
+    UpdatedElement,
 )
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
@@ -213,7 +214,7 @@ class ElementService:
 
     def update_element(
         self, user: AbstractUser, element: ElementForUpdate, **kwargs
-    ) -> Element:
+    ) -> UpdatedElement:
         """
         Updates and element with values. Will also check if the values are allowed
         to be set on the element first.
@@ -222,7 +223,8 @@ class ElementService:
         :param element: The element that should be updated.
         :param values: The values that should be set on the element.
         :param kwargs: Additional attributes of the element.
-        :return: The updated element.
+        :return: An `UpdatedElement` holding the updated element and the original and
+            new values of the changed fields (used by undo/redo).
         """
 
         CoreHandler().check_permissions(
@@ -232,11 +234,31 @@ class ElementService:
             context=element,
         )
 
+        element_type = element.get_type()
+
+        # Snapshot only the fields actually being changed so undo/redo never tries to
+        # re-apply unrelated relation fields (which don't round-trip from an id).
+        original_values = {
+            key: value
+            for key, value in element_type.export_prepared_values(element).items()
+            if key in kwargs
+        }
+
         element = self.handler.update_element(element, **kwargs)
+
+        new_values = {
+            key: value
+            for key, value in element_type.export_prepared_values(element).items()
+            if key in kwargs
+        }
 
         element_updated.send(self, element=element, user=user)
 
-        return element
+        return UpdatedElement(
+            element=element,
+            original_values=original_values,
+            new_values=new_values,
+        )
 
     def delete_element(self, user: AbstractUser, element: ElementForUpdate):
         """

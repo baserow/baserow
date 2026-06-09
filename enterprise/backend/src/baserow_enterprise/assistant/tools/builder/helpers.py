@@ -504,7 +504,7 @@ def update_element(
     element_type = element.get_type().type
     kwargs = element_update.to_update_kwargs(element_type)
     if kwargs:
-        element = ElementService().update_element(user, element, **kwargs)
+        element = ElementService().update_element(user, element, **kwargs).element
 
     # Headers/footers are containers — menu_items belong on a child menu.
     if element_type in ("header", "footer") and element_update.menu_items:
@@ -587,7 +587,7 @@ def update_element_style(
     existing_styles = getattr(element, "styles", None) or {}
     kwargs = style_update.to_update_kwargs(element_type, existing_styles)
     if kwargs:
-        element = ElementService().update_element(user, element, **kwargs)
+        element = ElementService().update_element(user, element, **kwargs).element
     return element, element_type
 
 

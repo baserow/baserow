@@ -102,9 +102,13 @@ const actions = {
     // Check if the provided page id is found in the just selected builder.
     const page = getters.getById(builder, pageId)
 
+    // Send the shared page id alongside the content page id so that edits to
+    // shared (header/footer) elements remain undoable while editing this page.
+    const sharedPage = getters.getSharedPage(builder)
+
     dispatch(
       'undoRedo/updateCurrentScopeSet',
-      BUILDER_ACTION_SCOPES.page(page.id),
+      BUILDER_ACTION_SCOPES.page(page.id, sharedPage?.id ?? null),
       { root: true }
     )
 
