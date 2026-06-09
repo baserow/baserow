@@ -294,6 +294,14 @@ def ensure_object(value: Any) -> Optional[dict]:
     raise ValidationError("Value cannot be converted to a dict.")
 
 
+class BaserowFormulaJSONEncoder(DjangoJSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, timedelta):
+            return ensure_integer(obj)
+
+        return super().default(obj)
+
+
 def ensure_json(value: Any) -> Any:
     """
     Ensures that the value can be converted to a JSON value.
@@ -306,6 +314,8 @@ def ensure_json(value: Any) -> Any:
     """
 
     try:
-        return json.loads(json.dumps(value, cls=DjangoJSONEncoder, allow_nan=False))
+        return json.loads(
+            json.dumps(value, cls=BaserowFormulaJSONEncoder, allow_nan=False)
+        )
     except (TypeError, ValueError) as exc:
         raise ValidationError("Value cannot be converted to a JSON value.") from exc

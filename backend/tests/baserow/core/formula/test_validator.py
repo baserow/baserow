@@ -81,11 +81,13 @@ def test_ensure_json_returns_json_compatible_values():
         {
             "datetime": datetime(2024, 12, 17, 12, 0, 0),
             "date": date(2024, 12, 17),
+            "duration": timedelta(days=1, hours=2, minutes=3, seconds=4),
             "array": [1, True, None],
         }
     ) == {
         "datetime": "2024-12-17T12:00:00",
         "date": "2024-12-17",
+        "duration": 93784,
         "array": [1, True, None],
     }
 
