@@ -121,8 +121,8 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
         )
 
         # The `view_type.get_hidden_fields` needs to have the field options in order
-        # to calculate the hidden fields. In order to keep things performant,
-        # they must be prefetched.
+        # to calculate the hidden fields. To keep things performant, they must be
+        # prefetched.
         specifics_by_class = defaultdict(list)
         for view in views:
             if not check_results[permission_checks[f"update_field_options{view.id}"]]:
@@ -131,13 +131,11 @@ class RestrictedViewOwnershipType(ViewOwnershipType):
 
         for model_class, specifics in specifics_by_class.items():
             view_type = view_type_registry.get_by_model(model_class)
-            field_option_lookups = view_type.enhance_queryset(
-                model_class.objects.all(), prefetch_field_options=True
-            )._prefetch_related_lookups
-            if field_option_lookups:
-                # Only prefetches the related objects if they're not already set on
-                # the specific objects.
-                prefetch_related_objects(specifics, *field_option_lookups)
+            if view_type.field_options_model_class is not None:
+                prefetch_name = (
+                    f"{view_type.field_options_model_class._meta.model_name}_set"
+                )
+                prefetch_related_objects(specifics, prefetch_name)
 
         for view in views:
             if not hasattr(view, "_prefetched_objects_cache"):

@@ -19,6 +19,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import (
     GalleryViewFieldOptions,
+    GridView,
     GridViewFieldOptions,
     View,
     ViewDecoration,
@@ -2576,6 +2577,109 @@ def test_default_values_list_views_no_n_plus_one_queries(
 
     # The query count should be the same regardless of view count.
     assert three_views_query_count == baseline_query_count
+
+
+def _setup_prepare_views_field_options_test(enterprise_data_fixture, view_count=3):
+    enterprise_data_fixture.enable_enterprise()
+
+    admin = enterprise_data_fixture.create_user()
+    editor_user = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(
+        user=admin, members=[editor_user]
+    )
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    visible_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    hidden_field = enterprise_data_fixture.create_text_field(table=table)
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        editor_user, workspace, role=no_access_role, scope=workspace
+    )
+
+    views = []
+    for _ in range(view_count):
+        view = enterprise_data_fixture.create_grid_view(
+            table=table, ownership_type=RestrictedViewOwnershipType.type
+        )
+        _set_field_hidden(view, hidden_field, visible_fields=[visible_field])
+        RoleAssignmentHandler().assign_role(
+            editor_user,
+            workspace,
+            role=editor_role,
+            scope=View.objects.get(id=view.id),
+        )
+        views.append(view)
+
+    return editor_user, hidden_field, views
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_prepare_views_for_user_prefetches_field_options_in_bulk(
+    enterprise_data_fixture,
+):
+    editor_user, hidden_field, views = _setup_prepare_views_field_options_test(
+        enterprise_data_fixture
+    )
+
+    # Fetch the views without the field options prefetched, like the list views
+    # API endpoint does because it doesn't include them in the response.
+    views = list(GridView.objects.filter(id__in=[v.id for v in views]))
+    assert all(
+        "gridviewfieldoptions_set" not in getattr(v, "_prefetched_objects_cache", {})
+        for v in views
+    )
+
+    with CaptureQueriesContext(connection) as context:
+        prepared = RestrictedViewOwnershipType().prepare_views_for_user(
+            editor_user, views, includes=set()
+        )
+
+    field_option_queries = [
+        query["sql"]
+        for query in context.captured_queries
+        if "database_gridviewfieldoptions" in query["sql"]
+    ]
+    assert len(field_option_queries) == 1
+
+    # The hidden fields must have been computed correctly from the prefetched
+    # field options.
+    for view in prepared:
+        assert view._hidden_field_ids == {hidden_field.id}
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_prepare_views_for_user_does_not_refetch_prefetched_field_options(
+    enterprise_data_fixture,
+):
+    editor_user, hidden_field, views = _setup_prepare_views_field_options_test(
+        enterprise_data_fixture
+    )
+
+    views = list(
+        GridView.objects.filter(id__in=[v.id for v in views]).prefetch_related(
+            "gridviewfieldoptions_set"
+        )
+    )
+    assert all("gridviewfieldoptions_set" in v._prefetched_objects_cache for v in views)
+
+    with CaptureQueriesContext(connection) as context:
+        prepared = RestrictedViewOwnershipType().prepare_views_for_user(
+            editor_user, views, includes=set()
+        )
+
+    field_option_queries = [
+        query["sql"]
+        for query in context.captured_queries
+        if "database_gridviewfieldoptions" in query["sql"]
+    ]
+    assert len(field_option_queries) == 0
+
+    for view in prepared:
+        assert view._hidden_field_ids == {hidden_field.id}
 
 
 @pytest.mark.django_db
