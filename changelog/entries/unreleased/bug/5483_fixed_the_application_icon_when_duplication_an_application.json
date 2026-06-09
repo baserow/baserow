@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed the application icon when duplication an application.",
+    "issue_origin": "github",
+    "issue_number": 5483,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-06-09"
+}
