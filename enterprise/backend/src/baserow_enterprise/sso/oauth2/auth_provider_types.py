@@ -22,7 +22,10 @@ from baserow.core.auth_provider.types import UserInfo
 from baserow.core.cache import global_cache
 from baserow_enterprise.api.sso.oauth2.errors import ERROR_INVALID_PROVIDER_URL
 from baserow_enterprise.sso.exceptions import AuthFlowError, InvalidProviderUrl
-from baserow_enterprise.sso.utils import is_sso_feature_active
+from baserow_enterprise.sso.utils import (
+    get_sso_request_function,
+    is_sso_feature_active,
+)
 
 from .models import (
     FacebookAuthProviderModel,
@@ -526,7 +529,9 @@ class OpenIdConnectAuthProviderTypeMixin:
 
         try:
             wellknown_url = f"{base_url}/.well-known/openid-configuration"
-            json_response = requests.get(wellknown_url, timeout=120).json()  # nosec B113
+            json_response = get_sso_request_function()(
+                "GET", wellknown_url, timeout=120
+            ).json()
 
             return WellKnownUrls(
                 authorization_url=json_response["authorization_endpoint"],
@@ -662,7 +667,9 @@ class OpenIdConnectAuthProviderTypeMixin:
         try:
             jwks = global_cache.get(
                 cache_key,
-                default=lambda: requests.get(jwks_url, timeout=60).json(),
+                default=lambda: get_sso_request_function()(
+                    "GET", jwks_url, timeout=60
+                ).json(),
                 timeout=3600,
             )
         except Exception as exc:

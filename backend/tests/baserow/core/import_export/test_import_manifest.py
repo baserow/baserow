@@ -142,6 +142,53 @@ def test_import_without_signature_data(data_fixture, use_tmp_media_root, tmp_pat
 
 @pytest.mark.import_export_workspace
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize(
+    "malicious_version",
+    [
+        "1.0.0/../../../../etc/passwd",
+        "../../../../etc/passwd",
+        "1.0",
+        "latest",
+        "",
+    ],
+)
+def test_import_manifest_rejects_path_traversal_version(
+    data_fixture, use_tmp_media_root, tmp_path, malicious_version
+):
+    # The manifest `version` is used to build a schema file path. A version that is
+    # not a strict `x.y.z` must be rejected before the path is opened so that the
+    # untrusted archive can't trigger an arbitrary file read (path traversal).
+    user = data_fixture.create_user()
+
+    data_fixture.create_import_export_trusted_source()
+    zip_name = "interesting_database_malicious_version.zip"
+
+    resource = data_fixture.create_import_export_resource(
+        created_by=user, original_name=zip_name, is_valid=True
+    )
+
+    new_zip_path = change_file_content_in_zip(
+        INTERESTING_DB_EXPORT_PATH,
+        f"{tmp_path}/{zip_name}",
+        "manifest.json",
+        json.dumps({"version": malicious_version}),
+    )
+
+    with open(new_zip_path, "rb") as export_file:
+        content = export_file.read()
+        data_fixture.create_import_export_resource_file(
+            resource=resource, content=content
+        )
+
+    with open(new_zip_path, "rb") as zip_file_handle:
+        with zipfile.ZipFile(zip_file_handle, "r") as zip_file:
+            with pytest.raises(ImportExportResourceInvalidFile) as err:
+                ImportExportHandler().validate_manifest(zip_file=zip_file)
+    assert str(err.value) == "Manifest file is corrupted: invalid version."
+
+
+@pytest.mark.import_export_workspace
+@pytest.mark.django_db(transaction=True)
 def test_import_no_trusted_source(data_fixture, use_tmp_media_root, tmp_path):
     user = data_fixture.create_user()
 

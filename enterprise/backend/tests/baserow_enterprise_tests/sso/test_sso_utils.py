@@ -1,10 +1,28 @@
-import pytest
+from django.test.utils import override_settings
 
+import pytest
+import requests
+
+import advocate
 from baserow_enterprise.api.sso.utils import (
     get_valid_frontend_url,
     redirect_user_on_success,
     urlencode_user_tokens,
 )
+from baserow_enterprise.sso.utils import get_sso_request_function
+
+
+@override_settings(BASEROW_SSO_ALLOW_PRIVATE_ADDRESS=False)
+def test_get_sso_request_function_blocks_private_address_by_default():
+    # By default SSO requests to the OpenID Connect well-known/JWKS endpoints must go
+    # through advocate so that an admin/builder configured provider URL can't be used
+    # to reach Baserow's internal network (SSRF protection).
+    assert get_sso_request_function() is advocate.request
+
+
+@override_settings(BASEROW_SSO_ALLOW_PRIVATE_ADDRESS=True)
+def test_get_sso_request_function_allows_private_address_when_enabled():
+    assert get_sso_request_function() is requests.request
 
 
 def test_get_valid_front_url():

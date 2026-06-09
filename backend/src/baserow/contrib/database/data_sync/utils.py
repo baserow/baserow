@@ -1,8 +1,28 @@
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
-from typing import List
+from typing import Callable, List
 
+from django.conf import settings
+
+import requests
+
+import advocate
 from baserow.contrib.database.fields.models import Field, SelectOption
+
+
+def get_data_sync_request_function() -> Callable:
+    """
+    Returns the request function that must be used for outgoing data sync HTTP
+    requests. In production the advocate library is used so that user configured URLs
+    (e.g. a self-hosted GitLab instance) can't be used to reach Baserow's internal
+    network. This SSRF protection can be disabled by setting the
+    `BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS` Django setting to `True`.
+    """
+
+    if settings.BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS is True:
+        return requests.request
+    else:
+        return advocate.request
 
 
 def normalize_datetime(d):

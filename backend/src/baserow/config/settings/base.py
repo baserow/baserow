@@ -1205,6 +1205,20 @@ OAUTH_BACKEND_URL = os.getenv("BASEROW_OAUTH_BACKEND_URL") or PUBLIC_BACKEND_URL
 INTEGRATIONS_ALLOW_PRIVATE_ADDRESS = bool(
     os.getenv("BASEROW_INTEGRATIONS_ALLOW_PRIVATE_ADDRESS", False)
 )
+# When `False` (default) outgoing data sync requests to user configured URLs (e.g. a
+# self-hosted GitLab instance) are routed through the advocate library so that
+# Baserow's internal network can't be reached (SSRF protection). Self-hosters that
+# legitimately need to sync from a private address can set this to `True`.
+BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS = bool(
+    os.getenv("BASEROW_DATA_SYNC_ALLOW_PRIVATE_ADDRESS", False)
+)
+# When `False` (default) outgoing SSO requests to admin/builder configured OpenID
+# Connect provider URLs (the well-known and JWKS endpoints) are routed through the
+# advocate library to prevent SSRF against Baserow's internal network. Set to `True`
+# if the identity provider is hosted on a private address.
+BASEROW_SSO_ALLOW_PRIVATE_ADDRESS = bool(
+    os.getenv("BASEROW_SSO_ALLOW_PRIVATE_ADDRESS", False)
+)
 INTEGRATIONS_PERIODIC_TASK_CRONTAB = crontab(minute="*")
 # The minimum amount of minutes the periodic task's "minute" interval
 # supports. Self-hosters can run every minute, if they choose to.

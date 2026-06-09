@@ -168,7 +168,11 @@ class OpenIdConnectAppAuthProviderType(
 
         from unittest.mock import MagicMock, patch
 
-        with patch("requests.get") as mock_get:
+        # The wellknown URLs are fetched via the request function returned by
+        # `get_sso_request_function`, so that's what must be mocked here.
+        with patch(
+            "baserow_enterprise.sso.oauth2.auth_provider_types.get_sso_request_function"
+        ) as mock_get_request_function:
             response_mock = MagicMock()
             response_mock.json.return_value = {
                 "authorization_endpoint": "https://example.com/auth",
@@ -177,6 +181,7 @@ class OpenIdConnectAppAuthProviderType(
                 "jwks_uri": "http://example.com/jwks",
                 "issuer": "http://example.com/issuer",
             }
-            mock_get.return_value = response_mock
+            mock_request = mock_get_request_function.return_value
+            mock_request.return_value = response_mock
 
-            yield mock_get
+            yield mock_request
