@@ -1,3 +1,5 @@
+from django.utils.translation import gettext_lazy as _
+
 from baserow.contrib.automation.nodes.node_types import AutomationNodeActionNodeType
 from baserow_enterprise.automation.nodes.models import (
     CoreCodeActionNode,
@@ -15,6 +17,7 @@ class CoreCodeNodeType(AutomationNodeActionNodeType):
     type = "code"
     model_class = CoreCodeActionNode
     service_type = CoreCodeServiceType.type
+    display_name = _("Code")
 
     def is_deactivated(self, workspace) -> bool:
         return not LicenseHandler.workspace_has_feature(CODE_RUNNER, workspace)
