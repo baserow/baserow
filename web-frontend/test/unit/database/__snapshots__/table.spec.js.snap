@@ -124,6 +124,12 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             </teleport-stub>
           </div>
         </li>
+        <li class="header__filter-item">
+          <div class="presence-bar">
+            <div class="avatar avatar--large avatar--rounded presence-bar__avatar" style="background-color: #4C6EF5;" title="Unknown">?</div>
+            <!--v-if-->
+          </div>
+        </li>
       </ul>
     </header>
     <div class="layout__col-2-2 content">
@@ -452,6 +458,12 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                 <!--v-if-->
               </div>
             </teleport-stub>
+          </div>
+        </li>
+        <li class="header__filter-item">
+          <div class="presence-bar">
+            <div class="avatar avatar--large avatar--rounded presence-bar__avatar" style="background-color: #4C6EF5;" title="Unknown">?</div>
+            <!--v-if-->
           </div>
         </li>
       </ul>

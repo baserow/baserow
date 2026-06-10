@@ -26,9 +26,6 @@ class PageType(Instance):
     dynamic groups.
     """
 
-    presence_enabled = False
-    """Opt in to presence join/leave/focus broadcasts on this page's channel."""
-
     def can_add(self, user, web_socket_id, **kwargs):
         """
         Indicates whether the user can be added to the page group. Here can for
@@ -80,6 +77,38 @@ class PageType(Instance):
         """
 
         return None
+
+    def get_presence_space_name(self, **kwargs) -> str | None:
+        """
+        Return the presence space name for this page, or None to opt out of
+        presence tracking. Override to enable presence for a page type.
+
+        :param kwargs: The additional parameters including their provided values.
+        :return: A presence space name string, or None if this page type does
+            not participate in presence.
+        """
+
+        return None
+
+    def filter_focus_for_recipient(self, page_parameters, focus, focus_type) -> bool:
+        """
+        Decide whether a recipient on this page should see the given focus
+        event. Called per-recipient during focus broadcast.
+
+        Must be overridden by every page type that enables presence (returns a
+        non-None space name). Raises NotImplementedError by default to prevent
+        data leaks from unimplemented filtering.
+
+        :param page_parameters: The recipient's page subscription parameters.
+        :param focus: The focus event payload.
+        :param focus_type: The focus type instance.
+        :return: True if the recipient should see this focus event.
+        """
+
+        raise NotImplementedError(
+            "Each presence-enabled page type must explicitly declare "
+            "focus filtering behavior to prevent data leaks."
+        )
 
     def broadcast(
         self, payload, ignore_web_socket_id=None, exclude_user_ids=None, **kwargs
@@ -149,10 +178,3 @@ class PageRegistry(Registry):
 
 
 page_registry = PageRegistry()
-
-
-class PresenceFocusTypeRegistry(Registry):
-    name = "presence_focus_type"
-
-
-presence_focus_type_registry = PresenceFocusTypeRegistry()

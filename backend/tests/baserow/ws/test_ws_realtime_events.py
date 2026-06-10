@@ -1525,6 +1525,8 @@ async def test_replay_events_replays_page_group_event(data_fixture):
     await communicator.send_json_to({"page": "table", "table_id": table.id})
     page_response = await communicator.receive_json_from(timeout=1)
     assert page_response["type"] == "page_add"
+    members_resp = await communicator.receive_json_from(timeout=1)
+    assert members_resp["type"] == "presence.members"
 
     await communicator.send_json_to(
         {
@@ -1584,6 +1586,8 @@ async def test_replay_events_forces_refresh_when_replay_event_type_is_unsupporte
     await communicator.send_json_to({"page": "table", "table_id": table.id})
     page_response = await communicator.receive_json_from(timeout=1)
     assert page_response["type"] == "page_add"
+    members_resp = await communicator.receive_json_from(timeout=1)
+    assert members_resp["type"] == "presence.members"
 
     log_messages: list[str] = []
     sink_id = logger.add(

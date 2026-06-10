@@ -6,6 +6,7 @@ from channels.testing import WebsocketCommunicator
 from baserow.config.asgi import application
 from baserow.ws.auth import ANONYMOUS_USER_TOKEN
 from baserow.ws.consumers import CoreConsumer, PageContext, PageScope, SubscribedPages
+from baserow.ws.presence import PresenceHandler
 from baserow.ws.realtime_events import FIRST_CONNECT_CURSOR, NO_REPLAY_AVAILABLE
 from baserow.ws.registries import PageType, page_registry
 
@@ -297,9 +298,14 @@ async def test_core_consumer_remove_all_page_scopes(data_fixture, test_page_type
     pages.add(scope_2)
 
     consumer = CoreConsumer()
-    consumer.scope = {"pages": pages, "user": user_1, "web_socket_id": 123}
+    consumer.scope = {"pages": pages, "user": user_1, "web_socket_id": "ws-test"}
     consumer.channel_name = "test_channel_name"
     consumer.channel_layer = AsyncMock()
+    consumer.presence = PresenceHandler(
+        consumer=consumer,
+        web_socket_id="ws-test",
+        user_id=user_1.id,
+    )
 
     async def base_send(message):
         pass

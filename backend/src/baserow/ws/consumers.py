@@ -8,21 +8,18 @@ from loguru import logger
 from opentelemetry import metrics
 
 from baserow.config.settings.utils import try_int
-from baserow.ws.presence import PresenceHandler
-from baserow.ws.presence_focus_types import InvalidPresenceFocus
+from baserow.ws.presence import (
+    NullPresenceHandler,
+    PresenceHandler,
+    PresenceHandlerProtocol,
+)
 from baserow.ws.realtime_events import (
     FIRST_CONNECT_CURSOR,
     NO_REPLAY_AVAILABLE,
     RealtimeEventHandler,
     ReplayEventsResult,
 )
-from baserow.ws.registries import PageType, page_registry, presence_focus_type_registry
-from baserow.ws.types import (
-    PageSubscribeContent,
-    PageUnsubscribeContent,
-    PresenceFocusContent,
-    RealtimeSubscribeContent,
-)
+from baserow.ws.registries import PageType, page_registry
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
@@ -174,7 +171,7 @@ class SubscribedPages:
 
 
 class CoreConsumer(AsyncJsonWebsocketConsumer):
-    presence: Optional[PresenceHandler] = None
+    presence: PresenceHandlerProtocol = NullPresenceHandler()
 
     async def connect(self):
         await self.accept()
@@ -200,8 +197,7 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         self.scope["pages"] = SubscribedPages()
         web_socket_id = self.scope["web_socket_id"]
         self.presence = PresenceHandler(
-            channel_layer=self.channel_layer,
-            channel_name=self.channel_name,
+            consumer=self,
             web_socket_id=web_socket_id,
             user_id=user.id,
         )
@@ -213,7 +209,8 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         # eager connect counter would drift ahead during infrastructure failures,
         # exactly when the metric matters most.
         try:
-            await self._remove_all_page_scopes(send_confirmation=False)
+            await self.presence.leave_all_spaces()
+            await self._discard_all_channel_groups()
             await self.channel_layer.group_discard("users", self.channel_name)
         finally:
             websocket_disconnects_counter.add(
@@ -228,10 +225,6 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
 
         if msg_type == "replay_events":
             await self._handle_replay_events(content)
-            return
-
-        if msg_type == "presence.focus":
-            await self._handle_presence_focus(content)
             return
 
         if "page" in content:
@@ -276,7 +269,7 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
             web_socket_id=web_socket_id,
         )
 
-    async def _add_page_scope(self, content: PageSubscribeContent):
+    async def _add_page_scope(self, content: dict):
         """
         Subscribes the connection to a page abstraction. Based on the provided page
         type we can figure out to which page the connection wants to subscribe to. This
@@ -313,26 +306,19 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
             await self.channel_layer.group_add(permission_group_name, self.channel_name)
 
         page_scope = PageScope(page_type=page_type.type, page_parameters=parameters)
-        already_subscribed = page_scope in self.scope["pages"].pages
         self.scope["pages"].add(page_scope)
 
-        response = {
-            "type": "page_add",
-            "page": page_type.type,
-            "parameters": parameters,
-        }
-        if page_type.presence_enabled:
-            response["presence_snapshot"] = await self.presence.add_presence(
-                group_name
-            )
-            if not already_subscribed:
-                await self.presence.broadcast_join(group_name)
+        await self.send_json(
+            {
+                "type": "page_add",
+                "page": page_type.type,
+                "parameters": parameters,
+            }
+        )
 
-        await self.send_json(response)
+        await self.presence.handle_page_subscribed(page_type.type, parameters)
 
-    async def _remove_page_scope(
-        self, content: PageUnsubscribeContent, send_confirmation=True
-    ):
+    async def _remove_page_scope(self, content: dict, send_confirmation=True):
         """
         Unsubscribes the connection from a page. Based on the provided page
         type and its params we can figure out to which page the connection wants
@@ -357,12 +343,9 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         await self.channel_layer.group_discard(group_name, self.channel_name)
 
         page_scope = PageScope(page_type=page_type.type, page_parameters=parameters)
-
         self.scope["pages"].remove(page_scope)
 
-        if page_type.presence_enabled:
-            await self.presence.remove_presence(group_name)
-            await self.presence.broadcast_leave(group_name)
+        await self.presence.handle_page_unsubscribed(page_type.type, parameters)
 
         permission_group_name = page_type.get_permission_channel_group_name(
             **parameters
@@ -386,18 +369,53 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
     async def _remove_all_page_scopes(self, send_confirmation=True):
         """
         Unsubscribes the connection from all currently subscribed pages.
+        Used for live connections (e.g. permission revocation that affects
+        all pages). For disconnect cleanup, use _discard_all_channel_groups.
         """
 
         if self.scope.get("pages"):
             for page_scope in self.scope["pages"].copy():
-                content = {
-                    "user": self.scope["user"],
-                    "web_socket_id": self.scope["web_socket_id"],
-                    "remove_page": page_scope.page_type,
-                    **page_scope.page_parameters,
-                }
-                await self._remove_page_scope(
-                    content, send_confirmation=send_confirmation
+                try:
+                    content = {
+                        "user": self.scope["user"],
+                        "web_socket_id": self.scope["web_socket_id"],
+                        "remove_page": page_scope.page_type,
+                        **page_scope.page_parameters,
+                    }
+                    await self._remove_page_scope(
+                        content, send_confirmation=send_confirmation
+                    )
+                except Exception:
+                    logger.exception(
+                        "Failed to remove page scope {} during cleanup",
+                        page_scope.page_type,
+                    )
+
+    async def _discard_all_channel_groups(self) -> None:
+        """
+        Tears down all channel group memberships without sending client
+        messages or touching presence. Used during disconnect — presence
+        cleanup is handled separately by leave_all_spaces().
+        """
+
+        if not self.scope.get("pages"):
+            return
+
+        for page_scope in self.scope["pages"].copy():
+            try:
+                page_type = page_registry.get(page_scope.page_type)
+                group_name = page_type.get_group_name(**page_scope.page_parameters)
+                await self.channel_layer.group_discard(group_name, self.channel_name)
+                perm = page_type.get_permission_channel_group_name(
+                    **page_scope.page_parameters
+                )
+                if perm:
+                    await self.channel_layer.group_discard(perm, self.channel_name)
+            except Exception:
+                logger.exception(
+                    "Failed to discard channel groups for page scope {} "
+                    "during disconnect",
+                    page_scope.page_type,
                 )
 
     async def _remove_page_scopes_associated_with_perm_group(
@@ -540,49 +558,6 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
                 replay_events=[],
             )
         await self._send_replay_events_result(result)
-
-    async def _handle_presence_focus(self, content: PresenceFocusContent):
-        """Validate inbound focus, store it, and broadcast to other subscribers.
-        Invalid or unauthorized messages are silently dropped."""
-
-        context = await self._get_page_context(content, "page")
-        if not context:
-            return
-
-        page_type, parameters = attrgetter(
-            "resolved_page_type", "page_scope.page_parameters"
-        )(context)
-
-        if not page_type.presence_enabled:
-            logger.debug("focus drop: page not presence_enabled")
-            return
-
-        page_scope = PageScope(page_type=page_type.type, page_parameters=parameters)
-        if page_scope not in self.scope["pages"].pages:
-            logger.debug("focus drop: sender not subscribed")
-            return
-
-        focus = content.get("focus")
-        validated_focus = None
-        if focus is not None:
-            if not isinstance(focus, dict):
-                logger.debug("focus drop: focus must be an object")
-                return
-            focus_type_name = focus.get("type")
-            try:
-                focus_type = presence_focus_type_registry.get(focus_type_name)
-            except presence_focus_type_registry.does_not_exist_exception_class:
-                logger.debug("focus drop: unknown focus.type={}", focus_type_name)
-                return
-            try:
-                validated_focus = focus_type.validate(focus)
-            except InvalidPresenceFocus as exc:
-                logger.debug("focus drop: invalid ({})", exc)
-                return
-
-        group_name = page_type.get_group_name(**parameters)
-        await self.presence.update_focus(group_name, validated_focus)
-        await self.presence.broadcast_focus(group_name, validated_focus)
 
     # Event handlers
 

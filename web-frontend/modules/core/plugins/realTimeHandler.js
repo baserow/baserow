@@ -573,6 +573,32 @@ export class RealTimeHandler {
       store.dispatch('notification/forceClearAll')
     })
 
+    this.registerEvent('presence.members', ({ store }, data) => {
+      store.dispatch('presence/handleMembers', {
+        space: data.space,
+        entries: data.entries,
+      })
+    })
+
+    this.registerEvent('presence.space_discard', ({ store }, data) => {
+      store.dispatch('presence/clearSpace', { space: data.space })
+    })
+
+    this.registerEvent('presence.join', ({ store }, data) => {
+      store.dispatch('presence/handleJoin', {
+        space: data.space,
+        presence_id: data.presence_id,
+        user_id: data.user_id,
+      })
+    })
+
+    this.registerEvent('presence.leave', ({ store }, data) => {
+      store.dispatch('presence/handleLeave', {
+        space: data.space,
+        presence_id: data.presence_id,
+      })
+    })
+
     this.registerEvent('force_disconnect', ({ store }) => {
       this.reconnect = false
       logoutAndRedirectToLogin(this.context.app.router, store, false, true)

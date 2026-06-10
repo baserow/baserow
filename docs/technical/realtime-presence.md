@@ -15,8 +15,9 @@ Presence answers one question for people working in the same place: **who else i
 | Term | Definition |
 |---|---|
 | **Presence** | The feature: who is present on a shared place and what they're doing, bounded by each viewer's permissions. Best-effort and partial — not an activity/audit/security record. |
-| **Connection** | One WebSocket connection, identified by a `web_socket_id`. A single user may have several (multiple tabs). The unit a presence space tracks. |
-| **User presence** | The user-visible roll-up: "User X is here," derived by collapsing a user's connections by `user_id`. An avatar bar is one way to surface it. |
+| **Connection** | One WebSocket connection, identified by a `web_socket_id` at the transport layer. A single user may have several (multiple tabs). |
+| **Member** | A connection's representation within a presence space, identified by a `presence_id` (an opaque UUID generated per connection, separate from `web_socket_id`). `presence_id` is the key in Redis, in WS payloads, and in the frontend store. `web_socket_id` is never exposed in presence payloads — it stays in the transport layer for routing and self-echo suppression. |
+| **User presence** | The user-visible roll-up: "User X is here," derived by collapsing a space's members by `user_id`. An avatar bar is one way to surface it. |
 | **Presence space** | The single logical location presence is tracked for — e.g. one table's grid, whose presence space is `presence-table-42`. Every connection viewing that location shares one space, **independent of how many channel groups back it** (here, the data groups `table-42` and `restricted-view-7`). One space per location; a presence concept, distinct from any single channel group. |
 | **Presence visibility** | The per-recipient decision "should this recipient see that a connection is present *at all*?" Evaluated — depends on how both the observer and the observed entered the space, not a static flag on the connection. |
 | **Presence focus** | What one connection is doing within a space — a typed value (e.g. a selected cell) or nothing. Each connection has at most one current focus **per space**; only the latest matters (it is a current state, not a history). |
@@ -30,8 +31,8 @@ Presence answers one question for people working in the same place: **who else i
 |---|---|---|
 | User → Connections | 1:N | 3 browser tabs = 3 connections |
 | Connection → Presence spaces | 1:N | One tab on a table grid and an expanded-row modal |
-| Presence space → Connections | N:M | A space has 5 connections from 3 users |
-| Connection → Presence focus (per space) | 1:1 | A tab's grid focus and modal focus are independent; within a space only the latest focus is kept |
+| Presence space → Members | N:M | A space has 5 members from 3 users |
+| Member → Presence focus (per space) | 1:1 | A tab's grid focus and modal focus are independent; within a space only the latest focus is kept |
 
 ### Example: one space, many channel groups
 

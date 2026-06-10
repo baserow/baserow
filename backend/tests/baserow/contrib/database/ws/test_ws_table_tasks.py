@@ -9,6 +9,7 @@ from baserow.contrib.database.table.tasks import (
 )
 from baserow.ws.tasks import send_messages_to_channel_group
 from baserow.ws.types import ChannelGroupMessage
+from tests.baserow.contrib.database.utils import get_message, received_message
 
 
 @pytest.mark.asyncio
@@ -42,24 +43,25 @@ async def test_unsubscribe_user_from_tables_and_rows_when_removed_from_workspace
 
     # Subscribe user to a table and a row from workspace 1
     await communicator.send_json_to({"page": "table", "table_id": table_1.id})
-    response = await communicator.receive_json_from(timeout=0.1)
+    assert await received_message(communicator, "page_add") is True
 
     await communicator.send_json_to(
         {"page": "row", "table_id": table_1.id, "row_id": row_1.id}
     )
-    response = await communicator.receive_json_from(timeout=0.1)
+    assert await received_message(communicator, "page_add") is True
 
     # Subscribe user to a table from workspace 2
     await communicator.send_json_to({"page": "table", "table_id": table_2.id})
-    response = await communicator.receive_json_from(timeout=0.1)
+    assert await received_message(communicator, "page_add") is True
 
     # Send a message to consumers that user was removed from the workspace 1
     await sync_to_async(unsubscribe_user_from_tables_when_removed_from_workspace)(
         user_1.id, workspace_1.id
     )
 
-    # Receiving messages about being removed from the pages
-    response = await communicator.receive_json_from(timeout=0.1)
+    # Receiving messages about being removed from the pages (presence
+    # messages may be interleaved, so use get_message to skip them).
+    response = await get_message(communicator, "page_discard")
     assert response == {
         "page": "table",
         "parameters": {
@@ -68,7 +70,7 @@ async def test_unsubscribe_user_from_tables_and_rows_when_removed_from_workspace
         "type": "page_discard",
     }
 
-    response = await communicator.receive_json_from(timeout=0.1)
+    response = await get_message(communicator, "page_discard")
     assert response == {
         "page": "row",
         "parameters": {

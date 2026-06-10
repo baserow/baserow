@@ -68,7 +68,7 @@ export class RestrictedViewOwnershipType extends ViewOwnershipType {
     }
 
     payload.page = 'restricted_view'
-    payload.params = { restricted_view_id: view.id }
+    payload.params = { restricted_view_id: view.id, table_id: table.id }
     return payload
   }
 

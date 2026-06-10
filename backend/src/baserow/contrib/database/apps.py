@@ -575,7 +575,11 @@ class DatabaseConfig(AppConfig):
 
         application_type_registry.register(DatabaseApplicationType())
 
-        from .ws.pages import PublicViewPageType, RowPageType, TablePageType
+        from .ws.pages import (
+            PublicViewPageType,
+            RowPageType,
+            TablePageType,
+        )
 
         page_registry.register(TablePageType())
         page_registry.register(PublicViewPageType())

@@ -596,11 +596,40 @@ describe('RealTimeHandler max attempts', () => {
         ([n, v]) => n === 'toast/setFailedConnecting' && v === true
       )
     ).toBe(true)
+  })
+
+  test('connect does not show failed toast while tab is hidden', () => {
+    const { handler, store } = makeHandler()
+    // Genuine auth rejection — the path that still raises the Failed toast.
+    handler.authResponseReceived = true
+    handler.authenticationSuccess = false
+    handler.lastToken = 'token'
+    handler.reconnect = true
+    handler.socket = null
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'hidden',
+      writable: true,
+      configurable: true,
+    })
+
+    handler.connect(true, false)
+
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === true
+      )
+    ).toBe(false)
     expect(
       store._dispatched.some(
         ([n, v]) => n === 'toast/setReconnecting' && v === false
       )
     ).toBe(true)
+
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'visible',
+      writable: true,
+      configurable: true,
+    })
   })
 
   test('delayedReconnect still schedules retry at exactly max attempts', () => {
@@ -693,6 +722,70 @@ describe('RealTimeHandler connect early-exit', () => {
     expect(
       store._dispatched.some(
         ([n, v]) => n === 'toast/setReconnecting' && v === false
+      )
+    ).toBe(true)
+  })
+})
+
+describe('RealTimeHandler presence events', () => {
+  test('presence.members dispatches handleMembers', () => {
+    const { handler, store } = makeHandler()
+    fire(handler, 'presence.members', {
+      space: 'table-1',
+      entries: [{ presence_id: 'pid-1', user_id: 10 }],
+    })
+    expect(
+      store._dispatched.some(
+        ([n, v]) =>
+          n === 'presence/handleMembers' &&
+          v.space === 'table-1' &&
+          v.entries.length === 1
+      )
+    ).toBe(true)
+  })
+
+  test('presence.join dispatches handleJoin', () => {
+    const { handler, store } = makeHandler()
+    fire(handler, 'presence.join', {
+      space: 'table-1',
+      presence_id: 'pid-2',
+      user_id: 20,
+    })
+    expect(
+      store._dispatched.some(
+        ([n, v]) =>
+          n === 'presence/handleJoin' &&
+          v.space === 'table-1' &&
+          v.presence_id === 'pid-2' &&
+          v.user_id === 20
+      )
+    ).toBe(true)
+  })
+
+  test('presence.leave dispatches handleLeave', () => {
+    const { handler, store } = makeHandler()
+    fire(handler, 'presence.leave', {
+      space: 'table-1',
+      presence_id: 'pid-3',
+    })
+    expect(
+      store._dispatched.some(
+        ([n, v]) =>
+          n === 'presence/handleLeave' &&
+          v.space === 'table-1' &&
+          v.presence_id === 'pid-3'
+      )
+    ).toBe(true)
+  })
+
+  test('presence.space_discard dispatches clearSpace', () => {
+    const { handler, store } = makeHandler()
+    fire(handler, 'presence.space_discard', {
+      space: 'table-1',
+    })
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'presence/clearSpace' && v.space === 'table-1'
       )
     ).toBe(true)
   })

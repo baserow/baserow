@@ -156,6 +156,8 @@ async def test_broadcast_to_channel_group(data_fixture):
     assert response["type"] == "page_add"
     assert response["page"] == "table"
     assert response["parameters"]["table_id"] == table_1.id
+    members_resp = await communicator_1.receive_json_from(0.1)
+    assert members_resp["type"] == "presence.members"
 
     await sync_to_async(broadcast_to_channel_group)(
         f"table-{table_1.id}", {"message": "test"}
@@ -170,12 +172,19 @@ async def test_broadcast_to_channel_group(data_fixture):
     assert response["type"] == "page_add"
     assert response["page"] == "table"
     assert response["parameters"]["table_id"] == table_3.id
+    members_resp = await communicator_1.receive_json_from(0.1)
+    assert members_resp["type"] == "presence.members"
 
     await communicator_2.send_json_to({"page": "table", "table_id": table_3.id})
     response = await communicator_2.receive_json_from(0.1)
     assert response["type"] == "page_add"
     assert response["page"] == "table"
     assert response["parameters"]["table_id"] == table_3.id
+    members_resp = await communicator_2.receive_json_from(0.1)
+    assert members_resp["type"] == "presence.members"
+    # comm_1 receives presence.join when comm_2 subscribes to the same table
+    join = await communicator_1.receive_json_from(0.1)
+    assert join["type"] == "presence.join"
 
     await sync_to_async(broadcast_to_channel_group)(
         f"table-{table_3.id}", {"message": "test2"}

@@ -25,6 +25,9 @@
         @refresh="$emit('refresh', $event)"
       ></ViewSearch>
     </li>
+    <li class="header__filter-item">
+      <GridViewPresenceBar :space-name="activePresenceSpace" />
+    </li>
   </ul>
 </template>
 
@@ -33,11 +36,17 @@ import { mapState } from 'vuex'
 
 import GridViewRowHeight from '@baserow/modules/database/components/view/grid/GridViewRowHeight'
 import GridViewHide from '@baserow/modules/database/components/view/grid/GridViewHide'
+import GridViewPresenceBar from '@baserow/modules/database/components/view/grid/GridViewPresenceBar'
 import ViewSearch from '@baserow/modules/database/components/view/ViewSearch'
 
 export default {
   name: 'GridViewHeader',
-  components: { GridViewRowHeight, GridViewHide, ViewSearch },
+  components: {
+    GridViewRowHeight,
+    GridViewHide,
+    GridViewPresenceBar,
+    ViewSearch,
+  },
   props: {
     database: {
       type: Object,
@@ -65,6 +74,11 @@ export default {
     ...mapState({
       tableLoading: (state) => state.table.loading,
     }),
+    activePresenceSpace() {
+      const table = this.$store.state.table.selected
+      if (!table || !table.id) return ''
+      return `table-${table.id}`
+    },
     fieldsAllowedToBeHidden() {
       return this.fields.filter((field) => !field.primary)
     },

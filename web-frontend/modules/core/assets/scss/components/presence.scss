@@ -1,0 +1,19 @@
+.presence-bar {
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+.presence-bar__avatar {
+  margin-left: -8px;
+  border: 2px solid $white;
+
+  &:first-child {
+    margin-left: 0;
+  }
+}
+
+.presence-bar__overflow {
+  background-color: $palette-neutral-500;
+  font-size: 10px;
+}

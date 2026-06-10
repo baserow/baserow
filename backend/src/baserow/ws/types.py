@@ -49,55 +49,15 @@ RealtimeEventPayload = Union[
 ]
 
 
-class PageSubscribeContent(TypedDict, total=False):
-    page: str
-
-
-class PageUnsubscribeContent(TypedDict, total=False):
-    remove_page: str
-
-
-class RealtimeSubscribeContent(TypedDict, total=False):
-    type: str
-    workspace_id: int | None
-    last_seen_id: int | None
-
-
-class PresenceFocusContent(TypedDict, total=False):
-    type: str
-    page: str
-    focus: dict[str, Any] | None
-
-
-class PresenceEntry(TypedDict):
+class ActivePresenceEntry(TypedDict):
     user_id: int
-    focus: dict[str, Any] | None
-    last_seen: int
+    presence_id: str
 
 
-class PresenceSnapshotEntry(TypedDict):
-    user_id: int
-    web_socket_id: str
-    focus: dict[str, Any] | None
+class PresenceMembershipMessage(TypedDict):
+    """A presence join or leave event broadcast to a space's channel group."""
 
-
-class PresenceJoinMessage(TypedDict):
     type: str
-    channel: str
+    space: str
     user_id: int
-    web_socket_id: str
-
-
-class PresenceLeaveMessage(TypedDict):
-    type: str
-    channel: str
-    user_id: int
-    web_socket_id: str
-
-
-class PresenceFocusMessage(TypedDict):
-    type: str
-    channel: str
-    user_id: int
-    web_socket_id: str
-    focus: dict[str, Any] | None
+    presence_id: str
