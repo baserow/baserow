@@ -75,5 +75,15 @@ class ElementTrashableItemType(GraphPointTrashableItemType):
             user=None,
         )
 
+    def _before_permanent_delete(self, item: Element) -> None:
+        """
+        Clean up the element's owned related data (e.g. a collection element's
+        fields, a menu element's items) when it is permanently deleted. This runs
+        only on permanent deletion — never at trash time — so that a restore brings
+        the element back with its related data intact.
+        """
+
+        item.get_type().before_delete(item)
+
     def get_restore_operation_type(self) -> str:
         return RestoreElementOperationType.type

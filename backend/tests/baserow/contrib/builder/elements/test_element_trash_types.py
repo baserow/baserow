@@ -1,6 +1,8 @@
 import pytest
 
-from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.elements.handler import ElementHandler
+from baserow.contrib.builder.elements.models import CollectionField, Element
+from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.elements.trash_types import ElementTrashableItemType
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.trash.exceptions import TrashItemRestorationDisallowed
@@ -228,3 +230,76 @@ def test_restoring_child_before_parent_is_disallowed(data_fixture):
     page.refresh_from_db(fields=["graph"])
     assert str(child.id) in page.graph
     assert str(container.id) in page.graph
+
+
+@pytest.mark.django_db
+def test_trashing_collection_element_preserves_its_fields(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_builder_table_element(page=page, user=user)
+
+    field_ids = set(table.fields.values_list("id", flat=True))
+    assert len(field_ids) > 0
+
+    ElementService().delete_element(
+        user, ElementHandler().get_element_for_update(table.id)
+    )
+
+    table.refresh_from_db()
+    assert table.trashed is True
+    # The fields must not be destroyed by the soft delete.
+    assert set(table.fields.values_list("id", flat=True)) == field_ids
+
+    TrashHandler.restore_item(user, ElementTrashableItemType.type, table.id)
+
+    table.refresh_from_db()
+    assert table.trashed is False
+    assert set(table.fields.values_list("id", flat=True)) == field_ids
+
+
+@pytest.mark.django_db
+def test_trashing_container_preserves_child_collection_fields(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    container = data_fixture.create_builder_column_element(page=page, user=user)
+    table = data_fixture.create_builder_table_element(
+        page=page,
+        user=user,
+        reference_element=container,
+        position=GraphPointPosition.CHILD,
+        place_in_container="0",
+    )
+
+    field_ids = set(table.fields.values_list("id", flat=True))
+    assert len(field_ids) > 0
+
+    ElementService().delete_element(
+        user, ElementHandler().get_element_for_update(container.id)
+    )
+
+    table.refresh_from_db()
+    assert table.trashed is True
+    assert set(table.fields.values_list("id", flat=True)) == field_ids
+
+    TrashHandler.restore_item(user, ElementTrashableItemType.type, container.id)
+
+    table.refresh_from_db()
+    assert table.trashed is False
+    assert set(table.fields.values_list("id", flat=True)) == field_ids
+
+
+@pytest.mark.django_db
+def test_permanently_deleting_collection_element_removes_its_fields(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_builder_table_element(page=page, user=user)
+    field_ids = list(table.fields.values_list("id", flat=True))
+    assert len(field_ids) > 0
+
+    element = ElementHandler().get_element_for_update(table.id)
+    ElementService().delete_element(user, element)
+
+    TrashHandler.permanently_delete(element)
+
+    assert not Element.objects.filter(id=table.id).exists()
+    assert not CollectionField.objects.filter(id__in=field_ids).exists()

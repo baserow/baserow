@@ -297,12 +297,20 @@ class GraphPointTrashableItemType(TrashableItemType):
     def _before_cascade_delete(self, descendant: "GraphPointMixin"):
         """
         Run on each descendant soft-deleted by the trash cascade, before it is
-        marked trashed. Defaults to running the type's `before_delete` so related
-        data is cleaned up. Subclasses can override (e.g. to skip a container guard
-        that would otherwise reject deleting a node that still has children).
+        marked trashed. Defaults to a no-op: trashing must be fully reversible, so a
+        type's owned related data is cleaned up only on permanent deletion (see
+        `_before_permanent_delete`), never here. Subclasses may override to react to
+        the cascade without destroying restorable data.
         """
 
-        descendant.get_type().before_delete(descendant)
+    def _before_permanent_delete(self, item: "GraphPointMixin"):
+        """
+        Run on the point (and each cascaded child) just before it is permanently
+        deleted, so types can clean up owned related data that the database cascade
+        won't remove (e.g. a collection element's fields). Defaults to a no-op.
+
+        :param item: The `.specific` instance about to be permanently deleted.
+        """
 
     def _validate_reference(self, reference: Optional["GraphPointMixin"], output: str):
         """
@@ -505,6 +513,7 @@ class GraphPointTrashableItemType(TrashableItemType):
         # Permanently delete any children that were soft-deleted alongside this
         # container. They have no TrashEntry of their own, so they must be cleaned
         # up here using the IDs we stored in additional_restoration_data.
+        child_ids: List[int] = []
         try:
             trash_entry = TrashEntry.objects.get(
                 trash_item_type=self.type,
@@ -513,9 +522,19 @@ class GraphPointTrashableItemType(TrashableItemType):
             data = trash_entry.additional_restoration_data
             if isinstance(data, dict):
                 child_ids = [row[0] for row in data.get("children", [])]
-                if child_ids:
-                    self.model_class.trash.filter(id__in=child_ids).delete()
         except TrashEntry.DoesNotExist:
             pass
+
+        children = list(self.model_class.trash.filter(id__in=child_ids))
+
+        # Clean up owned related data (e.g. collection fields) now, at permanent
+        # deletion. This is intentionally not done at trash time so a restore can
+        # bring the item back intact.
+        self._before_permanent_delete(trashed_item.specific)
+        for child in children:
+            self._before_permanent_delete(child.specific)
+
+        if child_ids:
+            self.model_class.trash.filter(id__in=child_ids).delete()
 
         trashed_item.delete()
