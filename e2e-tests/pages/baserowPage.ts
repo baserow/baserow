@@ -25,10 +25,15 @@ export class BaserowPage {
 
   async goto(params = {}) {
     await this.page.waitForTimeout(100); // Small delay before navigation to help with Firefox timing issues
-    await this._goto(this.getFullUrl(), {
-      waitUntil: "hydration",
-      ...params,
-    });
+    const options = { waitUntil: "hydration", ...params };
+    try {
+      await this._goto(this.getFullUrl(), options);
+    } catch (e) {
+      // Firefox aborts the in-flight navigation when the app client-side
+      // redirects after load. Retry once; the redirect target is the page we want.
+      if (!String(e).includes("NS_BINDING_ABORTED")) throw e;
+      await this._goto(this.getFullUrl(), options);
+    }
   }
 
   async checkOnPage() {
