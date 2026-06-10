@@ -8,6 +8,7 @@ from django.test import override_settings
 
 import pytest
 
+from baserow.contrib.integrations.core.constants import SMTP_EMAIL_TIMEOUT
 from baserow.contrib.integrations.core.service_types import CoreSMTPEmailServiceType
 from baserow.core.services.exceptions import (
     InvalidContextContentDispatchException,
@@ -91,6 +92,7 @@ def test_send_smtp_email_basic(data_fixture):
             username="user@example.com",
             password="password123",
             use_tls=True,
+            timeout=SMTP_EMAIL_TIMEOUT,
         )
         mock_email.assert_called_once_with(
             "Test Subject",
@@ -143,6 +145,7 @@ def test_send_smtp_email_with_integration_ignores_global_celery_email_backend(
             username="user@example.com",
             password="password123",
             use_tls=True,
+            timeout=SMTP_EMAIL_TIMEOUT,
         )
         mock_email.assert_called_once_with(
             "Test Subject",
@@ -183,6 +186,7 @@ def test_send_smtp_email_uses_instance_smtp_settings(data_fixture):
         result = service_type.dispatch(service, dispatch_context)
         mock_connection.assert_called_once_with(
             backend="django.core.mail.backends.smtp.EmailBackend",
+            timeout=SMTP_EMAIL_TIMEOUT,
         )
         mock_email.assert_called_once_with(
             "Test Subject",

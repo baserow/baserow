@@ -30,6 +30,7 @@ from baserow.contrib.integrations.core.constants import (
     HTTP_METHOD,
     PERIODIC_INTERVAL_CHOICES,
     PERIODIC_INTERVAL_MINUTE,
+    SMTP_EMAIL_TIMEOUT,
 )
 from baserow.contrib.integrations.core.exceptions import (
     CoreHTTPTriggerServiceDoesNotExist,
@@ -835,6 +836,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
             from_email = settings.DEFAULT_FROM_EMAIL
             connection = get_connection(
                 backend=settings.CELERY_EMAIL_BACKEND,
+                timeout=SMTP_EMAIL_TIMEOUT,
             )
             smtp_host = settings.EMAIL_HOST
             smtp_port = settings.EMAIL_PORT
@@ -859,6 +861,7 @@ class CoreSMTPEmailServiceType(CoreServiceType):
                 username=smtp_integration.username,
                 password=smtp_integration.password,
                 use_tls=smtp_integration.use_tls,
+                timeout=SMTP_EMAIL_TIMEOUT,
             )
             smtp_host = smtp_integration.host
             smtp_port = smtp_integration.port

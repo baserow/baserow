@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Set a timeout for the SMTP email service.",
+    "issue_origin": "github",
+    "issue_number": 3867,
+    "domain": "integration",
+    "bullet_points": [],
+    "created_at": "2026-06-10"
+}
