@@ -106,6 +106,37 @@ describe('element store', () => {
       // el3 is now the tail — no successors.
       expect(page.graph['3']?.next?.[''] ?? []).toHaveLength(0)
     })
+
+    test('moving an element absent from the graph makes it join the graph', () => {
+      // Regression: moving an orphan (present on the page but missing from the
+      // graph) used to throw "Cannot read properties of undefined (reading
+      // 'children')". It must instead join the graph at the requested position.
+      const el1 = el(1)
+      const el2 = el(2)
+      const orphan = el(99)
+      const page = makePage({ 0: 1, 1: { next: { '': [2] } }, 2: {} }, [
+        el1,
+        el2,
+        orphan,
+      ])
+
+      expect(() =>
+        elementStore.actions.graphMove(
+          { dispatch: makeDispatch(page) },
+          {
+            page,
+            elementToMove: orphan,
+            referenceElement: el1,
+            position: 'south',
+            output: '',
+          }
+        )
+      ).not.toThrow()
+
+      // The orphan is now spliced into the graph between el1 and el2.
+      expect(page.graph['1'].next['']).toEqual([99])
+      expect(page.graph['99'].next['']).toEqual([2])
+    })
   })
 
   describe('graphRemove', () => {
@@ -199,6 +230,38 @@ describe('element store', () => {
       )
 
       expect(dispatched).toContain('graphInsert')
+    })
+  })
+
+  describe('getRootElements', () => {
+    test('appends elements absent from the graph as bottom root elements', () => {
+      // Regression: an Element that exists on the page but is missing from the
+      // graph (e.g. created during a not-yet-zero-downtime deployment) must still
+      // be shown, at the bottom of the root list, rather than silently hidden.
+      const orphan = el(99)
+      const page = makePage({ 0: 1, 1: { next: { '': [2] } }, 2: {} }, [
+        el(1),
+        el(2),
+        orphan,
+      ])
+
+      const result = elementStore.getters.getRootElements(null, null)(page)
+
+      expect(result.map((e) => e.id)).toEqual([1, 2, 99])
+    })
+
+    test('does not promote container children to root', () => {
+      // Child 2 lives inside container 1's slot "0". It is present in the graph,
+      // so it is not an orphan and must not appear as a root element.
+      const page = makePage({ 0: 1, 1: { children: { 0: [2] } }, 2: {} }, [
+        el(1),
+        el(2),
+        el(99),
+      ])
+
+      const result = elementStore.getters.getRootElements(null, null)(page)
+
+      expect(result.map((e) => e.id)).toEqual([1, 99])
     })
   })
 })

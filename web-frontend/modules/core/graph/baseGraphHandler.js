@@ -421,10 +421,15 @@ export default class BaseGraphHandler {
     const target = targetHandler || this
     const isCrossGraph = target !== this
 
-    const previousChildren = this.graph[pointToMove.id].children
+    // An orphaned point (present in the point map but absent from the graph, e.g.
+    // created during a not-yet-zero-downtime deployment) has no graph entry yet.
+    // Moving it makes it *join* the graph as a fresh insert: there are no previous
+    // children to preserve and nothing to remove from the source graph.
+    const existingEntry = this.graph[pointToMove.id]
+    const previousChildren = existingEntry?.children
 
     let migratedDescendants = null
-    if (isCrossGraph) {
+    if (isCrossGraph && existingEntry) {
       migratedDescendants = this.getDescendantIds(pointToMove.id).map((id) => [
         id,
         clone(this.graph[id]),
@@ -433,9 +438,12 @@ export default class BaseGraphHandler {
 
     // Same-graph: keep descendants in place and just relink the point.
     // Cross-graph: cascade-remove the subtree from the source graph.
-    this.remove(pointToMove, { keepDescendants: !isCrossGraph })
+    // Orphan: nothing to remove — it isn't in the source graph yet.
+    if (existingEntry) {
+      this.remove(pointToMove, { keepDescendants: !isCrossGraph })
+    }
 
-    if (isCrossGraph) {
+    if (isCrossGraph && migratedDescendants) {
       for (const [id, entry] of migratedDescendants) {
         target.graph[id] = entry
       }

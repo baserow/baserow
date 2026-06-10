@@ -890,7 +890,14 @@ class BaseGraphHandler(ABC):
         target = target_graph or self
         is_cross_graph = target is not self
 
-        if is_cross_graph:
+        # An orphaned point (in the DB but absent from this graph, e.g. created
+        # during a not-yet-zero-downtime deployment) has no entry or subtree to
+        # capture or remove; the move simply inserts it, making it join the graph.
+        point_in_graph = str(point_to_move.id) in self.graph
+
+        descendant_entries = {}
+        root_children = None
+        if is_cross_graph and point_in_graph:
             # On a cross-graph move the point's whole subtree travels with it, but
             # a plain insert() would create a fresh root entry — dropping the
             # `children` dict — and would leave the descendants' entries behind in
