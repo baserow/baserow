@@ -13,10 +13,12 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 from unittest.mock import patch
 
 from django.conf import settings as django_settings
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.management import call_command
 from django.db import DEFAULT_DB_ALIAS, OperationalError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
+from django.db.models.options import Options
 from django.test.utils import CaptureQueriesContext
 
 import pytest
@@ -165,6 +167,14 @@ def clear_cache():
 
     _generate_search_table_model.cache_clear()
     _workspace_search_table_exists.cache_clear()
+
+    # baserow.contrib.database.apps pins User._meta._expire_cache to a no-op
+    # for prod safety, but in tests that causes generated-table reverse FKs
+    # (LastModifiedBy/CreatedBy/Collaborators -> User, on_delete=SET_NULL) to
+    # leak into User._meta._relation_tree across tests in the same xdist
+    # worker. A later user.delete() then UPDATEs dropped database_table_* rows.
+    # Call the original class-level _expire_cache, bypassing the instance patch.
+    Options._expire_cache(get_user_model()._meta)
 
     # Thread-local cache
     with local_cache.context():
