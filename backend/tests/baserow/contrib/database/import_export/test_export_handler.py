@@ -794,6 +794,72 @@ def test_can_export_csv_without_header(get_storage_mock, data_fixture):
 
 
 @pytest.mark.django_db
+@patch("baserow.core.storage.get_default_storage")
+def test_can_export_csv_without_row_id(get_storage_mock, data_fixture):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+
+    _, contents = setup_table_and_run_export_decoding_result(
+        data_fixture,
+        storage_mock,
+        options={"exporter_type": "csv", "include_row_id": False},
+    )
+    expected = (
+        "\ufeff"
+        "text_field,option_field,date_field,File,Price,Customer\r\n"
+        "atest,A,02/01/2020 01:23,,-10.20,linked_row_1\r\n"
+        'test,B,02/01/2020 01:23,,10.20,"linked_row_1,linked_row_2"\r\n'
+    )
+    assert expected == contents
+
+
+@pytest.mark.django_db
+@patch("baserow.core.storage.get_default_storage")
+def test_can_export_csv_without_primary_field(get_storage_mock, data_fixture):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+
+    _, contents = setup_table_and_run_export_decoding_result(
+        data_fixture,
+        storage_mock,
+        options={"exporter_type": "csv", "include_primary_field": False},
+    )
+    expected = (
+        "\ufeff"
+        "id,option_field,date_field,File,Price,Customer\r\n"
+        "2,A,02/01/2020 01:23,,-10.20,linked_row_1\r\n"
+        '1,B,02/01/2020 01:23,,10.20,"linked_row_1,linked_row_2"\r\n'
+    )
+    assert expected == contents
+
+
+@pytest.mark.django_db
+@patch("baserow.core.storage.get_default_storage")
+def test_can_export_csv_without_row_id_and_primary_field(
+    get_storage_mock, data_fixture
+):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+
+    _, contents = setup_table_and_run_export_decoding_result(
+        data_fixture,
+        storage_mock,
+        options={
+            "exporter_type": "csv",
+            "include_row_id": False,
+            "include_primary_field": False,
+        },
+    )
+    expected = (
+        "\ufeff"
+        "option_field,date_field,File,Price,Customer\r\n"
+        "A,02/01/2020 01:23,,-10.20,linked_row_1\r\n"
+        'B,02/01/2020 01:23,,10.20,"linked_row_1,linked_row_2"\r\n'
+    )
+    assert expected == contents
+
+
+@pytest.mark.django_db
 @pytest.mark.once_per_day_in_ci
 @patch("baserow.core.storage.get_default_storage")
 def test_can_export_csv_with_different_charsets(get_storage_mock, data_fixture):
