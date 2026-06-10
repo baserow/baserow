@@ -32,12 +32,11 @@ export class BaserowPage {
         ...params,
       });
       await this.recoverFromNuxtError();
-    }
     } catch (e) {
       // Firefox aborts the in-flight navigation when the app client-side
       // redirects after load. Retry once; the redirect target is the page we want.
       if (!String(e).includes("NS_BINDING_ABORTED")) throw e;
-      await this._goto(this.getFullUrl(), options);
+      await this._goto(this.getFullUrl(), { waitUntil: "hydration", ...params });
     }
   }
 
