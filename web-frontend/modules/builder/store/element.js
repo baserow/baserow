@@ -427,7 +427,22 @@ const actions = {
   },
   async fetch({ dispatch, commit }, { builder, page }) {
     const { $client } = this
-    const { data: elements } = await ElementService($client).fetchAll(page.id)
+    const response = await ElementService($client).fetchAll(page.id)
+    const elements = response.data
+
+    // The backend may have healed the page graph (inserting elements that existed
+    // in the DB but were missing from it) and returned a small patch of the changed
+    // entries. We loaded the graph before this request, so apply the patch in-band
+    // — the graph is a flat dict, so a shallow merge is enough. Do it before
+    // SET_ITEMS so updateCachedValues recomputes from the repaired graph.
+    const patchHeader = response.headers?.['x-baserow-builder-graph-patch']
+    if (patchHeader) {
+      dispatch(
+        'page/forceUpdate',
+        { builder, page, values: { graph: { ...(page.graph || {}), ...JSON.parse(patchHeader) } } },
+        { root: true }
+      )
+    }
 
     commit('SET_ITEMS', { builder, page, elements })
 

@@ -1,4 +1,5 @@
 from collections import defaultdict
+from copy import deepcopy
 from typing import (
     Any,
     Callable,
@@ -14,6 +15,7 @@ from typing import (
 from zipfile import ZipFile
 
 from django.core.files.storage import Storage
+from django.db import transaction
 from django.db.models import QuerySet
 
 from baserow.contrib.builder.elements.exceptions import (
@@ -302,6 +304,109 @@ class ElementHandler:
                 _get_elements,
             )
         return _get_elements()
+
+    def heal_orphan_elements(self, page: Page) -> Dict[str, Any]:
+        """
+        Insert any elements that exist in the database for ``page`` but are absent
+        from ``page.graph`` ("orphans"). These can appear during a non-zero-downtime
+        deploy when older code creates an element row without updating the graph,
+        which would otherwise leave the element invisible and unusable. Healing them
+        keeps the graph the single source of truth, so downstream operations (move,
+        delete, …) never have to special-case a missing graph entry.
+
+        Placement mirrors where a newly added element would land:
+
+        - Unshared page: append the orphan to the end of the page's root chain.
+        - Shared page: append the orphan to the end of the first shared element
+          (the Header/Footer container at the root of the shared page).
+
+        :param page: The page whose graph should be healed.
+        :return: A graph "patch" — the top-level graph entries that changed, keyed by
+            point id, each holding its full new value. Empty when nothing was healed.
+            Because the graph is a flat dict, a client can apply it with a shallow
+            merge (``{...graph, ...patch}``).
+        """
+
+        root_key = page.get_graph().GRAPH_ROOT_KEY
+
+        def orphan_ids(graph) -> set:
+            graph_ids = {int(k) for k in graph if k != root_key}
+            db_ids = set(Element.objects.filter(page=page).values_list("id", flat=True))
+            return db_ids - graph_ids
+
+        # Fast path: nothing to heal (the steady state). Avoid any locking or writes.
+        if not orphan_ids(page.get_graph().graph):
+            return {}
+
+        # Re-check under a row lock so concurrent reads can't race on the same graph.
+        with transaction.atomic():
+            locked_page = Page.objects.select_for_update().get(id=page.id)
+            graph_handler = locked_page.get_graph()
+            missing = orphan_ids(graph_handler.graph)
+            if not missing:
+                return {}
+
+            # Snapshot before mutating so we can return only what changed.
+            before = deepcopy(graph_handler.graph)
+
+            # On a shared page, append orphans to the first shared element (the root
+            # Header/Footer container); otherwise append to the end of the page.
+            container = None
+            if locked_page.shared:
+                root_id = graph_handler.graph.get(root_key)
+                container = (
+                    graph_handler.get_point(root_id) if root_id is not None else None
+                )
+
+            for orphan in Element.objects.filter(id__in=missing).order_by("id"):
+                if container is not None:
+                    graph_handler.insert(
+                        orphan, container, GraphPointPosition.CHILD, ""
+                    )
+                else:
+                    graph_handler.append(orphan)
+
+            after = graph_handler.graph
+            patch = {k: v for k, v in after.items() if before.get(k) != v}
+
+        # Reflect the healed graph on the caller's page and drop any cached elements.
+        page.graph = locked_page.graph
+        self.invalidate_element_cache(page)
+
+        self._report_orphan_heal(page, missing, patch)
+
+        return patch
+
+    def _report_orphan_heal(
+        self, page: Page, healed_ids: set, graph_patch: Dict[str, Any]
+    ) -> None:
+        """
+        Surface an orphan heal in Sentry so we know it happened. A heal means the
+        page graph had drifted from the DB — typically an element row written by
+        older code during a non-zero-downtime deploy — and has now been repaired.
+        Reported at "warning" level (it signals an upstream inconsistency, even
+        though it's self-corrected), with the count, ids and the applied patch.
+        """
+
+        import sentry_sdk
+
+        with sentry_sdk.new_scope() as scope:
+            scope.set_context(
+                "orphan_heal",
+                {
+                    "page_id": page.id,
+                    "builder_id": page.builder_id,
+                    "shared": page.shared,
+                    "healed_element_count": len(healed_ids),
+                    "healed_element_ids": sorted(healed_ids),
+                    "graph_patch": graph_patch,
+                },
+            )
+            sentry_sdk.capture_message(
+                f"Healed {len(healed_ids)} orphan element(s) missing from the graph "
+                f"of builder page {page.id}.",
+                level="warning",
+            )
 
     def _get_builder_elements_cache_key(self, builder_id: int, specific: bool) -> str:
         return f"ab_get_{builder_id}_builder_elements_{specific}"

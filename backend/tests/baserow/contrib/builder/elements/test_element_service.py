@@ -484,6 +484,131 @@ def test_move_orphan_element_makes_it_join_the_graph(data_fixture):
 
 
 @pytest.mark.django_db
+def test_heal_orphan_elements_appends_to_unshared_page_root(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    element1 = data_fixture.create_builder_heading_element(page=page)
+
+    # An element in the DB but missing from the graph (created without a graph
+    # insert, mimicking an old-code write during a non-zero-downtime deploy).
+    orphan = ElementHandler().create_element(
+        element_type_registry.get("heading"), page=page
+    )
+    page.refresh_from_db(fields=["graph"])
+    assert str(orphan.id) not in page.graph
+
+    patch = ElementHandler().heal_orphan_elements(page)
+
+    # The patch contains only the entries that changed: the orphan's new entry and
+    # the element it was linked after.
+    assert patch == {
+        str(element1.id): {"next": {"": [orphan.id]}},
+        str(orphan.id): {},
+    }
+
+    page.refresh_from_db(fields=["graph"])
+    # The orphan is appended to the end of the (unshared) page's root chain.
+    assert page.graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [orphan.id]}},
+        str(orphan.id): {},
+    }
+
+
+@pytest.mark.django_db
+def test_heal_orphan_elements_is_a_noop_when_graph_is_consistent(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    data_fixture.create_builder_heading_element(page=page)
+
+    page.refresh_from_db(fields=["graph"])
+    before = dict(page.graph)
+
+    assert ElementHandler().heal_orphan_elements(page) == {}
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == before
+
+
+@pytest.mark.django_db
+def test_heal_orphan_elements_appends_to_first_shared_element_on_shared_page(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    shared_page = page.builder.shared_page
+
+    # The first shared element (a Header container) lives at the root of the
+    # shared page.
+    header = ElementService().create_element(
+        user, element_type_registry.get("header"), page=shared_page
+    )
+
+    # A regular element on the shared page that's missing from the graph.
+    orphan = ElementHandler().create_element(
+        element_type_registry.get("heading"), page=shared_page
+    )
+    shared_page.refresh_from_db(fields=["graph"])
+    assert str(orphan.id) not in shared_page.graph
+
+    patch = ElementHandler().heal_orphan_elements(shared_page)
+
+    # The patch carries the orphan and the header (whose children changed).
+    assert str(orphan.id) in patch
+    assert str(header.id) in patch
+
+    shared_page.refresh_from_db(fields=["graph"])
+    # The orphan is appended to the end of the first shared element (the header).
+    assert shared_page.graph[str(header.id)]["children"][""] == [orphan.id]
+
+
+@pytest.mark.django_db
+def test_heal_orphan_elements_service_returns_patch_and_persists(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    data_fixture.create_builder_heading_element(page=page)
+    orphan = ElementHandler().create_element(
+        element_type_registry.get("heading"), page=page
+    )
+
+    patch = ElementService().heal_orphan_elements(user, page)
+
+    assert str(orphan.id) in patch
+    page.refresh_from_db(fields=["graph"])
+    assert str(orphan.id) in page.graph
+
+
+@pytest.mark.django_db
+@patch("sentry_sdk.capture_message")
+def test_heal_orphan_elements_reports_to_sentry(capture_message_mock, data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    data_fixture.create_builder_heading_element(page=page)
+    ElementHandler().create_element(element_type_registry.get("heading"), page=page)
+
+    ElementHandler().heal_orphan_elements(page)
+
+    capture_message_mock.assert_called_once()
+    # The message reports how many elements were healed, at warning level.
+    assert "1 orphan" in capture_message_mock.call_args[0][0]
+    assert capture_message_mock.call_args.kwargs["level"] == "warning"
+
+
+@pytest.mark.django_db
+@patch("sentry_sdk.capture_message")
+def test_heal_orphan_elements_does_not_report_when_consistent(
+    capture_message_mock, data_fixture
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    data_fixture.create_builder_heading_element(page=page)
+
+    ElementHandler().heal_orphan_elements(page)
+
+    capture_message_mock.assert_not_called()
+
+
+@pytest.mark.django_db
 def test_move_element_not_same_builder(data_fixture, stub_check_permissions):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)

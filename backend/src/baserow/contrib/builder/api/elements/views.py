@@ -1,3 +1,4 @@
+import json
 from typing import Dict
 
 from django.db import transaction
@@ -108,13 +109,28 @@ class ElementsView(APIView):
 
         page = PageHandler().get_page(page_id)
 
-        elements = ElementService().get_elements(request.user, page)
+        service = ElementService()
+
+        # Repair the graph if any elements are missing from it (orphans). The patch
+        # is returned so the requesting client can apply it to its already-loaded
+        # graph in-band — connected clients are updated via the realtime broadcast.
+        graph_patch = service.heal_orphan_elements(request.user, page)
+
+        elements = service.get_elements(request.user, page)
 
         data = [
             element_type_registry.get_serializer(element, ElementSerializer).data
             for element in elements
         ]
-        return Response(data)
+        response = Response(data)
+
+        # A small, page-scoped delta (a handful of graph entries) — kept in a header
+        # so the list response body stays a bare array. Tiny by construction, so it
+        # never risks a reverse proxy's response-header size limit.
+        if graph_patch:
+            response["X-Baserow-Builder-Graph-Patch"] = json.dumps(graph_patch)
+
+        return response
 
     @extend_schema(
         parameters=[
