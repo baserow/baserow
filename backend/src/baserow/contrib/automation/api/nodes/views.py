@@ -33,7 +33,6 @@ from baserow.contrib.automation.api.nodes.errors import (
     ERROR_AUTOMATION_TRIGGER_ALREADY_EXISTS,
     ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE,
     ERROR_AUTOMATION_UNEXPECTED_ERROR,
-    ERROR_GRAPH_INCONSISTENT,
 )
 from baserow.contrib.automation.api.nodes.serializers import (
     AutomationNodeSerializer,
@@ -75,10 +74,7 @@ from baserow.contrib.automation.workflows.exceptions import (
 )
 from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.automation.workflows.service import AutomationWorkflowService
-from baserow.core.graph.exceptions import (
-    GraphConsistencyError,
-    GraphPointReferencePointInvalid,
-)
+from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 
 AUTOMATION_NODES_TAG = "Automation nodes"
 
@@ -132,7 +128,6 @@ class AutomationNodesView(APIView):
             AutomationNodeFirstNodeMustBeTrigger: ERROR_AUTOMATION_FIRST_NODE_MUST_BE_TRIGGER,
             AutomationNodeTriggerMustBeFirstNode: ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE,
             AutomationNodeError: ERROR_AUTOMATION_UNEXPECTED_ERROR,
-            GraphConsistencyError: ERROR_GRAPH_INCONSISTENT,
         }
     )
     @validate_body(CreateAutomationNodeSerializer)
@@ -289,7 +284,6 @@ class AutomationNodeView(APIView):
             AutomationNodeNotDeletable: ERROR_AUTOMATION_NODE_NOT_DELETABLE,
             AutomationNodeFirstNodeMustBeTrigger: ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE,
             AutomationNodeError: ERROR_AUTOMATION_UNEXPECTED_ERROR,
-            GraphConsistencyError: ERROR_GRAPH_INCONSISTENT,
         }
     )
     @transaction.atomic
@@ -338,7 +332,6 @@ class DuplicateAutomationNodeView(APIView):
             AutomationNodeTriggerAlreadyExists: ERROR_AUTOMATION_TRIGGER_ALREADY_EXISTS,
             AutomationNodeFirstNodeMustBeTrigger: ERROR_AUTOMATION_FIRST_NODE_MUST_BE_TRIGGER,
             AutomationNodeError: ERROR_AUTOMATION_UNEXPECTED_ERROR,
-            GraphConsistencyError: ERROR_GRAPH_INCONSISTENT,
         }
     )
     def post(self, request, node_id: int):
@@ -384,7 +377,6 @@ class ReplaceAutomationNodeView(APIView):
             AutomationNodeNotReplaceable: ERROR_AUTOMATION_NODE_NOT_REPLACEABLE,
             AutomationNodeNotInWorkflow: ERROR_AUTOMATION_NODE_NOT_IN_WORKFLOW,
             AutomationNodeError: ERROR_AUTOMATION_UNEXPECTED_ERROR,
-            GraphConsistencyError: ERROR_GRAPH_INCONSISTENT,
         }
     )
     @validate_body(ReplaceAutomationNodeSerializer)
@@ -473,7 +465,6 @@ class MoveAutomationNodeView(APIView):
             AutomationNodeTriggerMustBeFirstNode: ERROR_AUTOMATION_TRIGGER_MUST_BE_FIRST_NODE,
             GraphPointReferencePointInvalid: ERROR_AUTOMATION_NODE_REFERENCE_NODE_INVALID,
             AutomationNodeError: ERROR_AUTOMATION_UNEXPECTED_ERROR,
-            GraphConsistencyError: ERROR_GRAPH_INCONSISTENT,
         }
     )
     @validate_body(MoveAutomationNodeSerializer)

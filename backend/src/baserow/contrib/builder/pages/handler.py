@@ -904,8 +904,6 @@ class PageHandler:
         for m in updated_models:
             m.save()
 
-        page.get_graph().assert_graph_consistency()
-
         return imported_elements
 
     def import_workflow_actions(
