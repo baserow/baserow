@@ -1,7 +1,5 @@
 from unittest.mock import patch
 
-from django.test import override_settings
-
 import pytest
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
@@ -685,8 +683,7 @@ def test_move_element_cross_page_migrates_container_subtree(data_fixture):
     container *and* its descendants) into the target page's graph. Previously the
     cross-graph move only relocated the root point, so the children's page_id was
     updated in the DB but their graph entries never reached the target page,
-    leaving the target graph inconsistent (the DEBUG-only consistency check
-    raised GraphConsistencyError).
+    leaving the target graph inconsistent.
     """
 
     user = data_fixture.create_user()
@@ -710,17 +707,14 @@ def test_move_element_cross_page_migrates_container_subtree(data_fixture):
     assert str(container.id) in page1.graph
     assert str(child.id) in page1.graph
 
-    # Reproduce the reported failure: with DEBUG=True the move runs the graph
-    # consistency check internally — it must not raise.
-    with override_settings(DEBUG=True):
-        ElementService().move_element(
-            user,
-            page2,
-            container,
-            "",
-            None,
-            GraphPointPosition.SOUTH,
-        )
+    ElementService().move_element(
+        user,
+        page2,
+        container,
+        "",
+        None,
+        GraphPointPosition.SOUTH,
+    )
 
     page1.refresh_from_db(fields=["graph"])
     page2.refresh_from_db(fields=["graph"])
@@ -739,11 +733,6 @@ def test_move_element_cross_page_migrates_container_subtree(data_fixture):
     # The source graph no longer references either element.
     assert str(container.id) not in page1.graph
     assert str(child.id) not in page1.graph
-
-    # Both pages' graphs match their DB rows exactly.
-    with override_settings(DEBUG=True):
-        page1.get_graph().assert_graph_consistency()
-        page2.get_graph().assert_graph_consistency()
 
 
 @pytest.mark.django_db

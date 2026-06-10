@@ -35,9 +35,3 @@ ERROR_ELEMENT_INVALID_FORMULA = (
     HTTP_400_BAD_REQUEST,
     "Error with element formula: {e}.",
 )
-
-ERROR_GRAPH_INCONSISTENT = (
-    "ERROR_GRAPH_INCONSISTENT",
-    HTTP_400_BAD_REQUEST,
-    "The graph is inconsistent: {e}",
-)

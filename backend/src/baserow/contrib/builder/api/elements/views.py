@@ -31,7 +31,6 @@ from baserow.contrib.builder.api.elements.errors import (
     ERROR_ELEMENT_NOT_IN_SAME_PAGE,
     ERROR_ELEMENT_PROPERTY_OPTIONS_NOT_UNIQUE,
     ERROR_ELEMENT_TYPE_DEACTIVATED,
-    ERROR_GRAPH_INCONSISTENT,
 )
 from baserow.contrib.builder.api.elements.serializers import (
     CreateElementSerializer,
@@ -59,10 +58,7 @@ from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist, PageNotInBuilder
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
-from baserow.core.graph.exceptions import (
-    GraphConsistencyError,
-    GraphPointReferencePointInvalid,
-)
+from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 
 
 class ElementsView(APIView):
@@ -161,7 +157,6 @@ class ElementsView(APIView):
             ElementTypeDeactivated: ERROR_ELEMENT_TYPE_DEACTIVATED,
             InvalidRuntimeFormula: ERROR_ELEMENT_INVALID_FORMULA,
             GraphPointReferencePointInvalid: ERROR_ELEMENT_DOES_NOT_EXIST,
-            GraphConsistencyError: ERROR_GRAPH_INCONSISTENT,
         }
     )
     @validate_body_custom_fields(
@@ -284,7 +279,6 @@ class ElementView(APIView):
     @map_exceptions(
         {
             ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
-            GraphConsistencyError: ERROR_GRAPH_INCONSISTENT,
         }
     )
     @transaction.atomic
@@ -341,7 +335,6 @@ class MoveElementView(APIView):
             ElementMoveNotAllowed: ERROR_ELEMENT_MOVE_NOT_ALLOWED,
             ElementNotInSamePage: ERROR_ELEMENT_NOT_IN_SAME_PAGE,
             GraphPointReferencePointInvalid: ERROR_ELEMENT_DOES_NOT_EXIST,
-            GraphConsistencyError: ERROR_GRAPH_INCONSISTENT,
         }
     )
     @validate_body(MoveElementSerializer)
@@ -408,7 +401,6 @@ class DuplicateElementView(APIView):
     @map_exceptions(
         {
             ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
-            GraphConsistencyError: ERROR_GRAPH_INCONSISTENT,
         }
     )
     def post(self, request, element_id: int):

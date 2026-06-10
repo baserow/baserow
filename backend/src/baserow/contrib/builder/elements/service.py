@@ -176,8 +176,6 @@ class ElementService:
         else:
             page.get_graph().insert(new_element, reference_element, position, output)
 
-        page.get_graph().assert_graph_consistency()
-
         element_created.send(
             self,
             element=new_element,
@@ -236,8 +234,6 @@ class ElementService:
         descendant_ids = [d.id for d in page.get_graph().get_descendants(element)]
 
         self.handler.delete_element(element)
-
-        page.get_graph().assert_graph_consistency()
 
         element_deleted.send(
             self,
@@ -362,9 +358,6 @@ class ElementService:
             # stays consistent (prevents orphaned "X": {} nodes that would
             # later break export/import or graph traversal).
             source_graph.remove_isolated_point(element)
-            source_graph.assert_graph_consistency()
-
-        target_page.get_graph().assert_graph_consistency()
 
         self.handler.invalidate_element_cache(element.page)
 

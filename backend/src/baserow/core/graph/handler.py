@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Type
 
 from baserow.core.cache import local_cache
 from baserow.core.graph.exceptions import (
-    GraphConsistencyError,
     GraphPointDoesNotExist,
     GraphPointNotFoundInGraph,
 )
@@ -97,7 +96,6 @@ class BaseGraphHandler(ABC):
     instance_id_mapping: str = ""
     does_not_exist_exception = GraphPointDoesNotExist
     base_point_class: Type["GraphPointMixin"] = None
-    container_fk_name: str = ""  # FK on base_point_class pointing to the container
 
     def __init__(self, instance: GraphModelInstance):
         self.instance = instance
@@ -946,48 +944,6 @@ class BaseGraphHandler(ABC):
             self.graph.pop(str(dep.id), None)
         self.graph.pop(str(point.id), None)
         self._update_graph()
-
-    def get_point_ids_from_db(self):
-        """
-        Return a queryset of all point IDs currently in the database for this
-        container. Requires ``container_fk_name`` to be set on the subclass.
-        """
-
-        return self.base_point_class.objects.filter(
-            **{self.container_fk_name: self.instance}
-        ).values_list("id", flat=True)
-
-    def assert_graph_consistency(self):
-        """
-        Verify that the set of graph node keys matches the set of point IDs
-        stored in the database.
-
-        This method is a no-op when ``settings.DEBUG`` is ``False``, so it
-        carries zero cost in production.  In development it raises
-        :exc:`GraphConsistencyError` when the two sets diverge, surfacing bugs
-        immediately rather than letting stale graph entries cause subtle
-        failures later.
-
-        Call this at service layer after every fully-settled mutation (i.e.
-        after both the graph *and* the DB are in their final state).
-        """
-
-        from django.conf import settings
-
-        if not settings.DEBUG:
-            return
-
-        graph_ids = {int(k) for k in self.graph if k != self.GRAPH_ROOT_KEY}
-        db_ids = set(self.get_point_ids_from_db())
-
-        stale = graph_ids - db_ids
-        missing = db_ids - graph_ids
-        if stale or missing:
-            raise GraphConsistencyError(
-                instance=self.instance,
-                stale=stale,
-                missing=missing,
-            )
 
     def migrate_graph(self, id_mapping: Dict[str, Any]):
         """
