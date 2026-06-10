@@ -9,6 +9,7 @@ from baserow.contrib.builder.elements.exceptions import (
     ElementDoesNotExist,
     ElementNotInSamePage,
 )
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
@@ -441,6 +442,47 @@ def test_move_element(element_moved_mock, data_fixture):
         reference_element=element2,
         user=user,
     )
+
+
+@pytest.mark.django_db
+def test_move_orphan_element_makes_it_join_the_graph(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    element1 = data_fixture.create_builder_heading_element(page=page)
+
+    # An element that exists in the DB but isn't in the page graph (an "orphan",
+    # e.g. created during a not-yet-zero-downtime deployment). create_element does
+    # not insert into the graph, so this leaves it absent from it.
+    orphan = ElementHandler().create_element(
+        element_type_registry.get("heading"), page=page
+    )
+
+    page.refresh_from_db(fields=["graph"])
+    assert str(orphan.id) not in page.graph
+
+    # Moving the orphan must not raise; it should join the graph at the requested
+    # position.
+    move = ElementService().move_element(
+        user,
+        page,
+        ElementHandler().get_element_for_update(orphan.id),
+        "",
+        element1.id,
+        GraphPointPosition.SOUTH,
+    )
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [orphan.id]}},
+        str(orphan.id): {},
+    }
+
+    # There is no prior position for an orphan, so the move records an
+    # append-to-end-of-root position (used by undo to send it back to the bottom).
+    assert move.previous_reference_element is None
+    assert move.previous_position == GraphPointPosition.SOUTH
+    assert move.previous_output == ""
 
 
 @pytest.mark.django_db

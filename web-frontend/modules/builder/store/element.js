@@ -738,6 +738,20 @@ const getters = {
       if (el) result.push(el)
       currentId = handler.getInfo(currentId)?.next?.['']?.[0] ?? null
     }
+
+    // Elements that exist on the page but are absent from the graph entirely (e.g.
+    // records created during a not-yet-zero-downtime deployment) have no parent, so
+    // surface them as root elements at the bottom rather than hiding them. A graphed
+    // element — root or nested — always has its id as a key in the graph, so this
+    // only picks up true orphans, never container children.
+    const graph = page.graph || {}
+    const elementMap = handler.getPointMap()
+    for (const id of Object.keys(elementMap)) {
+      if (!(id in graph)) {
+        result.push(elementMap[id])
+      }
+    }
+
     return result
   },
   getChildren: (state, getters) => (page, element) => {

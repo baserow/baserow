@@ -31,8 +31,11 @@ from baserow.contrib.builder.elements.types import (
 )
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
-from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
-from baserow.core.graph.types import GraphPointPositionType
+from baserow.core.graph.exceptions import (
+    GraphPointNotFoundInGraph,
+    GraphPointReferencePointInvalid,
+)
+from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.handler import CoreHandler
 
 if TYPE_CHECKING:
@@ -315,11 +318,22 @@ class ElementService:
         ):
             # We extract the current element position
             # to restore it if we undo the operation.
-            [
-                previous_reference_element_id,
-                previous_position,
-                previous_output,
-            ] = source_graph.get_position(element)
+            try:
+                [
+                    previous_reference_element_id,
+                    previous_position,
+                    previous_output,
+                ] = source_graph.get_position(element)
+            except GraphPointNotFoundInGraph:
+                # The element isn't in the graph yet — an "orphan" (e.g. created
+                # during a not-yet-zero-downtime deployment, surfaced at the bottom
+                # of the editor). Moving it makes it join the graph. There's no prior
+                # position to restore, so record an append-to-end-of-root position;
+                # undoing the move then returns the element to the bottom of the page
+                # rather than back into orphan limbo.
+                previous_reference_element_id = None
+                previous_position = GraphPointPosition.SOUTH
+                previous_output = ""
 
             previous_reference_element = (
                 self.handler.get_element(previous_reference_element_id)

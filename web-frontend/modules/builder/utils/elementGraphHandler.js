@@ -73,6 +73,18 @@ export default class ElementGraphHandler extends BaseGraphHandler {
     }
 
     if (this.graph['0']) visitChain(this.graph['0'])
+
+    // Elements that exist on the page but aren't present in the graph (e.g. records
+    // created during a not-yet-zero-downtime deployment) are appended at the bottom
+    // so they stay visible and editable rather than silently disappearing.
+    const orderedIds = new Set(result.map((el) => `${el.id}`))
+    const elementMap = this.getPointMap()
+    for (const id of Object.keys(elementMap)) {
+      if (!orderedIds.has(id)) {
+        result.push(elementMap[id])
+      }
+    }
+
     return result
   }
 
