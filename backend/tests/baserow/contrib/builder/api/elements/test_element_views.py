@@ -1,3 +1,5 @@
+import json
+
 from django.urls import reverse
 
 import pytest
@@ -10,11 +12,14 @@ from rest_framework.status import (
 )
 
 from baserow.contrib.builder.elements.element_types import HeaderElementType
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import (
     ChoiceElementOption,
     Element,
     LinkElement,
 )
+from baserow.contrib.builder.elements.registries import element_type_registry
+from baserow.contrib.builder.elements.service import ElementService
 from baserow.core.graph.types import GraphPointPosition
 
 
@@ -1399,3 +1404,88 @@ def test_create_collection_element_with_blank_property_option_schema_property(
             ]
         },
     }
+
+
+@pytest.mark.django_db
+def test_list_elements_does_not_mutate_graph_when_consistent(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    data_fixture.create_builder_heading_element(page=page)
+
+    page.refresh_from_db(fields=["graph"])
+    graph_before = dict(page.graph)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+
+    # No orphans → the graph is untouched and no patch header is sent.
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == graph_before
+    assert "X-Baserow-Builder-Graph-Patch" not in response.headers
+
+
+@pytest.mark.django_db
+def test_list_elements_heals_orphan_on_unshared_page(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element1 = data_fixture.create_builder_heading_element(page=page)
+
+    # An element in the DB but missing from the graph.
+    orphan = ElementHandler().create_element(
+        element_type_registry.get("heading"), page=page
+    )
+    page.refresh_from_db(fields=["graph"])
+    assert str(orphan.id) not in page.graph
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+
+    # The orphan is appended to the end of the unshared page's root chain.
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [orphan.id]}},
+        str(orphan.id): {},
+    }
+
+    # The same change is returned in-band as a small graph-patch header so the
+    # requesting client can apply it to its already-loaded graph immediately.
+    graph_patch = json.loads(response["X-Baserow-Builder-Graph-Patch"])
+    assert graph_patch == {
+        str(element1.id): {"next": {"": [orphan.id]}},
+        str(orphan.id): {},
+    }
+
+
+@pytest.mark.django_db
+def test_list_elements_heals_orphan_on_shared_page(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    shared_page = page.builder.shared_page
+
+    # The first shared element (a Header container) at the root of the shared page.
+    header = ElementService().create_element(
+        user, element_type_registry.get("header"), page=shared_page
+    )
+
+    # A regular element on the shared page that's missing from the graph.
+    orphan = ElementHandler().create_element(
+        element_type_registry.get("heading"), page=shared_page
+    )
+    shared_page.refresh_from_db(fields=["graph"])
+    assert str(orphan.id) not in shared_page.graph
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": shared_page.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+
+    # The orphan is appended to the end of the first shared element (the header).
+    shared_page.refresh_from_db(fields=["graph"])
+    assert shared_page.graph[str(header.id)]["children"][""] == [orphan.id]
+
+    # The in-band patch header carries the changed entries (orphan + header).
+    graph_patch = json.loads(response["X-Baserow-Builder-Graph-Patch"])
+    assert str(orphan.id) in graph_patch
+    assert str(header.id) in graph_patch

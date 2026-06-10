@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, List
+from typing import TYPE_CHECKING, Any, Dict, List
 
 from django.contrib.auth.models import AbstractUser
 from django.utils import translation
@@ -90,6 +90,33 @@ class ElementService:
         )
 
         return self.handler.get_elements(page, base_queryset=user_elements)
+
+    def heal_orphan_elements(self, user: AbstractUser, page: Page) -> Dict[str, Any]:
+        """
+        Repair ``page``'s graph by inserting any elements that exist in the DB but
+        are missing from it (e.g. created by older code during a non-zero-downtime
+        deploy). Intended to run on the editor's element-list read so the graph
+        stays the single source of truth — NOT on the public/published read.
+
+        The returned patch is handed to the requesting client in-band (see the
+        view), so it sees the repair immediately. Other connected clients converge
+        on their next element fetch — which returns the healed graph *and* the
+        orphan's element data together — so no realtime broadcast is needed (a
+        graph-only broadcast couldn't render an element they don't yet have).
+
+        :param user: The user the heal is performed on behalf of.
+        :param page: The page whose graph should be healed.
+        :return: The graph patch (changed entries), empty when nothing was healed.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            ListElementsPageOperationType.type,
+            workspace=page.builder.workspace,
+            context=page,
+        )
+
+        return self.handler.heal_orphan_elements(page)
 
     def get_builder_elements(
         self, user: AbstractUser, builder: "Builder"
