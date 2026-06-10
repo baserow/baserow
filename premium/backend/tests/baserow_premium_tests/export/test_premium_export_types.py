@@ -1313,3 +1313,126 @@ def test_export_non_empty_files_group_by_row(premium_data_fixture, use_tmp_media
             assert f"row_{row_1.id}/{user_file_2.name}" in file_list
             assert f"row_{row_2.id}/{user_file_2.name}" in file_list
             assert f"row_{row_2.id}/{user_file_3.name}" in file_list
+
+
+def _setup_simple_premium_table(premium_data_fixture):
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    table = premium_data_fixture.create_database_table(user=user)
+    primary_field = premium_data_fixture.create_text_field(
+        table=table, name="Name", primary=True
+    )
+    notes_field = premium_data_fixture.create_text_field(table=table, name="Notes")
+    grid_view = premium_data_fixture.create_grid_view(table=table)
+    RowHandler().create_row(
+        user,
+        table,
+        {f"field_{primary_field.id}": "Joe", f"field_{notes_field.id}": "hi"},
+    )
+    return user, table, grid_view
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow.core.storage.get_default_storage")
+def test_can_export_json_without_row_id_and_primary_field(
+    get_storage_mock, premium_data_fixture
+):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    user, table, grid_view = _setup_simple_premium_table(premium_data_fixture)
+
+    _, contents = run_export_job_with_mock_storage(
+        table,
+        grid_view,
+        storage_mock,
+        user,
+        {
+            "exporter_type": "json",
+            "include_row_id": False,
+            "include_primary_field": False,
+        },
+    )
+    assert '"id":' not in contents
+    assert '"Name":' not in contents
+    assert '"Notes": "hi"' in contents
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow.core.storage.get_default_storage")
+def test_can_export_xml_without_row_id_and_primary_field(
+    get_storage_mock, premium_data_fixture
+):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    user, table, grid_view = _setup_simple_premium_table(premium_data_fixture)
+
+    _, contents = run_export_job_with_mock_storage(
+        table,
+        grid_view,
+        storage_mock,
+        user,
+        {
+            "exporter_type": "xml",
+            "include_row_id": False,
+            "include_primary_field": False,
+        },
+    )
+    assert "<id>" not in contents
+    assert "<Name>" not in contents
+    assert "<Notes>hi</Notes>" in contents
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow.core.storage.get_default_storage")
+def test_can_export_excel_without_row_id_and_primary_field(
+    get_storage_mock, premium_data_fixture
+):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    user, table, grid_view = _setup_simple_premium_table(premium_data_fixture)
+
+    _, wb_bytes = run_export_job_with_mock_storage(
+        table,
+        grid_view,
+        storage_mock,
+        user,
+        {
+            "exporter_type": "excel",
+            "export_charset": None,
+            "excel_include_header": True,
+            "include_row_id": False,
+            "include_primary_field": False,
+        },
+    )
+    workbook = load_workbook(filename=BytesIO(wb_bytes))
+    worksheet = workbook.active
+    header = [cell.value for cell in worksheet[1]]
+    assert header == ["Notes"]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow.core.storage.get_default_storage")
+def test_can_export_excel_without_primary_field(get_storage_mock, premium_data_fixture):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    user, table, grid_view = _setup_simple_premium_table(premium_data_fixture)
+
+    _, wb_bytes = run_export_job_with_mock_storage(
+        table,
+        grid_view,
+        storage_mock,
+        user,
+        {
+            "exporter_type": "excel",
+            "export_charset": None,
+            "excel_include_header": True,
+            "include_primary_field": False,
+        },
+    )
+    workbook = load_workbook(filename=BytesIO(wb_bytes))
+    worksheet = workbook.active
+    header = [cell.value for cell in worksheet[1]]
+    assert header == ["id", "Notes"]
