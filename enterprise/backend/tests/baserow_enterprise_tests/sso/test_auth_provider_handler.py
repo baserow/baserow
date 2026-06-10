@@ -18,7 +18,8 @@ def test_get_or_create_user_from_sso_user_info(enterprise_data_fixture):
     user_info = UserInfo("john@acme.com", "John")
 
     User = get_user_model()
-    assert User.objects.count() == 0
+    initial_user_count = User.objects.count()
+    assert not User.objects.filter(email=user_info.email).exists()
 
     # test the user is created if not already present in the database
     (
@@ -33,7 +34,7 @@ def test_get_or_create_user_from_sso_user_info(enterprise_data_fixture):
     assert user.email == user_info.email
     assert user.first_name == user_info.name
     assert user.password == ""
-    assert User.objects.count() == 1
+    assert User.objects.count() == initial_user_count + 1
     assert user.workspaceuser_set.count() == 0
     assert user.auth_providers.filter(id=auth_provider_1.id).exists()
 
@@ -61,7 +62,7 @@ def test_get_or_create_user_from_sso_user_info(enterprise_data_fixture):
                 auth_provider_2, user_info
             )
 
-    assert User.objects.count() == 1
+    assert User.objects.count() == initial_user_count + 1
     assert not user.auth_providers.filter(id=auth_provider_2.id).exists()
 
     with override_settings(BASEROW_ALLOW_MULTIPLE_SSO_PROVIDERS_FOR_SAME_ACCOUNT=True):
@@ -101,7 +102,7 @@ def test_get_or_create_user_from_sso_user_info(enterprise_data_fixture):
     assert user2.first_name == user2_info.name
     assert user2.profile.language == user2_info.language
     assert user2.password == ""
-    assert User.objects.count() == 2
+    assert User.objects.count() == initial_user_count + 2
     assert user2.workspaceuser_set.count() == 1
     assert user2.workspaceuser_set.first().workspace == workspace_user.workspace
     assert user2.auth_providers.filter(id=auth_provider_1.id).exists()
