@@ -20,7 +20,6 @@ from baserow.contrib.builder.elements.models import (
 )
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
-from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.core.graph.types import GraphPointPosition
 from baserow.core.trash.handler import TrashHandler
 
