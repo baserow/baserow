@@ -1,6 +1,6 @@
 {
   "type": "feature",
-  "message": "Introduced `drop_tsv_columns` management command that can drops the tsv_field_* columns that are not used anymore.",
+  "message": "Introduced `drop_tsv_columns` management command that can drop the tsv_field_* columns that are not used anymore.",
   "issue_origin": "github",
   "issue_number": null,
   "domain": "database",

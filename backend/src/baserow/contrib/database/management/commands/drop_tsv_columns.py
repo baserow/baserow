@@ -5,6 +5,7 @@ from baserow.contrib.database.table.constants import (
     TSV_FIELD_PREFIX,
     USER_TABLE_DATABASE_NAME_PREFIX,
 )
+from baserow.core.psycopg import sql
 
 
 class Command(BaseCommand):
@@ -81,7 +82,6 @@ class Command(BaseCommand):
         table_items = list(tables.items())
         total_batches = (total_tables + batch_size - 1) // batch_size
         total_dropped_columns = 0
-        total_dropped_indexes = 0
 
         for batch_num, batch_start in enumerate(
             range(0, total_tables, batch_size), start=1
@@ -95,51 +95,34 @@ class Command(BaseCommand):
             )
 
             for table_name, column_names in batch:
-                indexes = self._find_tsv_indexes(table_name)
-
                 self.stdout.write(
-                    f"  {table_name}: dropping {len(column_names)} column(s)"
-                    + (f" and {len(indexes)} index(es)" if indexes else "")
-                    + f" [{', '.join(column_names)}]"
+                    f"  {table_name}: dropping {len(column_names)} column(s) "
+                    f"[{', '.join(column_names)}]"
                 )
 
                 if not dry_run:
-                    for index_name in indexes:
-                        self._drop_index(index_name)
                     self._drop_columns(table_name, column_names)
 
                 total_dropped_columns += len(column_names)
-                total_dropped_indexes += len(indexes)
 
         action = "Would drop" if dry_run else "Dropped"
         self.stdout.write(
             self.style.SUCCESS(
-                f"\nDone! {action} {total_dropped_columns} column(s) and "
-                f"{total_dropped_indexes} index(es) across {total_tables} table(s)."
+                f"\nDone! {action} {total_dropped_columns} column(s) "
+                f"across {total_tables} table(s)."
             )
         )
-
-    def _find_tsv_indexes(self, table_name: str) -> list[str]:
-        with connection.cursor() as cursor:
-            cursor.execute(
-                """
-                SELECT indexname
-                FROM pg_indexes
-                WHERE schemaname = current_schema()
-                  AND tablename = %s
-                  AND indexname LIKE 'tbl_tsv_%%_idx'
-                """,
-                [table_name],
-            )
-            return [row[0] for row in cursor.fetchall()]
-
-    def _drop_index(self, index_name: str) -> None:
-        with connection.cursor() as cursor:
-            cursor.execute(f'DROP INDEX IF EXISTS "{index_name}"')
 
     def _drop_columns(self, table_name: str, column_names: list[str]) -> None:
-        drop_clauses = ", ".join(
-            f'DROP COLUMN IF EXISTS "{col}"' for col in column_names
+        # Dropping a column automatically drops any indexes that depend on it.
+        query = sql.SQL("ALTER TABLE {table} {drop_clauses}").format(
+            table=sql.Identifier(table_name),
+            drop_clauses=sql.SQL(", ").join(
+                sql.SQL("DROP COLUMN IF EXISTS {column}").format(
+                    column=sql.Identifier(col)
+                )
+                for col in column_names
+            ),
         )
         with connection.cursor() as cursor:
-            cursor.execute(f'ALTER TABLE "{table_name}" {drop_clauses}')
+            cursor.execute(query)
