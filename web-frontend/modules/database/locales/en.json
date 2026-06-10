@@ -766,7 +766,9 @@
   },
   "exportTableForm": {
     "viewLabel": "Select the view to export:",
-    "typeError": "No exporter type available please select a different view or entire table."
+    "typeError": "No exporter type available please select a different view or entire table.",
+    "includeRowId": "Include row ID",
+    "includePrimaryField": "Include primary field"
   },
   "exportTableLoadingBar": {
     "export": "Export",
