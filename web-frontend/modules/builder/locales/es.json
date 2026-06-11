@@ -324,7 +324,7 @@
         "notificationLabel": "Mostrar notificación",
         "openPageLabel": "Abrir página",
         "logoutLabel": "Cerrar sesión",
-        "refreshDataSourceLabel": "Refrescar fuente de datos",
+        "refreshDataSourceLabel": "Recargar fuente de datos",
         "deleteRowLabel": "Borrar fila",
         "httpRequest": "Enviar solicitud HTTP",
         "errorNavigateToPageMissing": "Falta la propiedad «Navegar a»",
