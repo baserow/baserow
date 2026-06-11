@@ -736,19 +736,17 @@ class BaseGraphHandler(ABC):
             ref_info = self.get_info(reference_point)
             children_dict = self._get_children_dict(ref_info)
 
+            # The new point always becomes the *head* of the slot's children
+            # chain; the previous head (if any) becomes the new point's next on
+            # the default edge. This mirrors `get_position`, which only ever
+            # reports `(ref, "child", output)` for the head child (subsequent
+            # children are `(prev_sibling, "south", "")`), so prepending keeps
+            # insert the faithful inverse of get_position — required for move
+            # undo/redo to round-trip. It also matches the frontend's
+            # `_insertAt('child')`, keeping the optimistic graph consistent.
             if output in children_dict:
-                # Follow the next[""] chain from the first child to find the
-                # last element in the chain, then append the new point there.
-                current_id = children_dict[output][0]
-                while True:
-                    next_ids = self.get_info(current_id).get("next", {}).get("", [])
-                    if not next_ids:
-                        break
-                    current_id = next_ids[0]
-                self.get_info(current_id).setdefault("next", {})[""] = [point.id]
-            else:
-                # No children yet in this slot — set as the first child.
-                self._set_children(ref_info, output, [point.id])
+                new_next = children_dict[output]
+            self._set_children(ref_info, output, [point.id])
 
         if new_next:
             point_info["next"] = {"": new_next}

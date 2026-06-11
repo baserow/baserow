@@ -656,10 +656,25 @@ class ElementHandler:
             workflow_actions=workflow_actions_duplicated,
         )
 
+        # The first child duplicated into a given place becomes the head of that
+        # slot (inserted as a CHILD of the duplicated parent); every subsequent
+        # child in the same place chains SOUTH of the previously duplicated
+        # sibling. This reproduces the original slot order faithfully and is
+        # independent of how insert(..., CHILD, ...) orders multiple children
+        # (which prepends, to stay the inverse of get_position).
+        last_duplicated_in_place: Dict[str, Element] = {}
         for child in element.get_child_points():
+            place = child.place_in_container
+            if place in last_duplicated_in_place:
+                child_reference = last_duplicated_in_place[place]
+                child_position = GraphPointPosition.SOUTH
+            else:
+                child_reference = element_duplicated
+                child_position = GraphPointPosition.CHILD
             children_duplicated = self._duplicate_element_recursive(
-                child.specific, id_mapping, element_duplicated, GraphPointPosition.CHILD
+                child.specific, id_mapping, child_reference, child_position
             )
+            last_duplicated_in_place[place] = children_duplicated["elements"][0]
             elements_and_workflow_actions_duplicated["elements"] += children_duplicated[
                 "elements"
             ]

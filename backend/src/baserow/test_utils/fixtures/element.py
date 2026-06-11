@@ -163,11 +163,23 @@ class ElementFixtures:
         place_in_container = kwargs.pop("place_in_container", None)
         # For "child" positions, the output determines the container slot.
         # For all other positions (south/north), the graph edge is always "".
-        output = (
-            place_in_container
-            if position == GraphPointPosition.CHILD and place_in_container is not None
-            else last_output
-        )
+        if position == GraphPointPosition.CHILD and place_in_container is not None:
+            # Mirror the real editor, which appends a new element after the last
+            # existing child of the target slot. A raw insert(..., CHILD, ...)
+            # would instead make it the slot's new head (CHILD prepends, to stay
+            # the inverse of get_position), reversing the order tests create
+            # their children in. Only an empty slot falls back to a CHILD insert.
+            existing_children = page.get_graph().get_children(
+                reference_element, output=place_in_container, first_only=False
+            )
+            if existing_children:
+                reference_element = existing_children[-1]
+                position = GraphPointPosition.SOUTH
+                output = ""
+            else:
+                output = place_in_container
+        else:
+            output = last_output
 
         with local_cache.context():  # We make sure the cache is empty
             created_element = ElementHandler().create_element(

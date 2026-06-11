@@ -13,9 +13,12 @@ from baserow.contrib.builder.elements.actions import (
     MoveElementActionType,
     UpdateElementActionType,
 )
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.elements.registries import element_type_registry
+from baserow.contrib.builder.elements.service import ElementService
 from baserow.core.action.handler import ActionHandler
+from baserow.core.graph.types import GraphPointPosition
 
 
 def _next_id(page, element_id):
@@ -162,6 +165,69 @@ def test_move_element_action(data_fixture):
     ActionHandler.redo(user, [PageActionScopeType.value(page.id)], session_id)
 
     assert _next_id(page, first.id) == third.id
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_move_element_out_of_container_undo_restores_head_child_position(
+    data_fixture,
+):
+    # Regression: moving the *first* child out of a container and then undoing
+    # must put it back as the head of the container's child chain (before its
+    # former sibling), not appended after it. get_position reports "child" only
+    # for the head child, so the move undo replays insert(..., "child", ...),
+    # which must therefore prepend.
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+
+    container = ElementService().create_element(
+        user, element_type_registry.get("simple_container"), page=page
+    )
+    child1 = data_fixture.create_builder_heading_element(
+        page=page,
+        position=GraphPointPosition.CHILD,
+        reference_element=container,
+        place_in_container="",
+    )
+    child2 = data_fixture.create_builder_heading_element(
+        page=page,
+        position=GraphPointPosition.SOUTH,
+        reference_element=child1,
+        place_in_container="",
+    )
+    outside = data_fixture.create_builder_heading_element(page=page)
+
+    # The container's "" slot chain is child1 -> child2.
+    assert page.get_graph().graph[str(container.id)]["children"][""] == [child1.id]
+    assert _next_id(page, child1.id) == child2.id
+
+    # Move child1 (the head child) out, to be south of the outside element.
+    MoveElementActionType.do(
+        user,
+        ElementHandler().get_element_for_update(child1.id),
+        page,
+        "",
+        outside.id,
+        GraphPointPosition.SOUTH,
+    )
+
+    graph = page.get_graph().graph
+    assert graph[str(container.id)]["children"][""] == [child2.id]
+    assert _next_id(page, outside.id) == child1.id
+
+    ActionHandler.undo(user, [PageActionScopeType.value(page.id)], session_id)
+
+    # child1 is back as the *head* child, before child2 — not appended after it.
+    graph = page.get_graph().graph
+    assert graph[str(container.id)]["children"][""] == [child1.id]
+    assert _next_id(page, child1.id) == child2.id
+
+    ActionHandler.redo(user, [PageActionScopeType.value(page.id)], session_id)
+
+    graph = page.get_graph().graph
+    assert graph[str(container.id)]["children"][""] == [child2.id]
+    assert _next_id(page, outside.id) == child1.id
 
 
 @pytest.mark.django_db
