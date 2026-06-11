@@ -316,6 +316,51 @@ def test_create_heading_element(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_assistant_created_element_is_undoable(data_fixture):
+    # The assistant runs its element mutations through the undoable action types,
+    # registered under the user's session + a per-message action group (set on the
+    # user by the assistant view). This lets the client undo them with the standard
+    # session-scoped undo. Regression for "No more actions to undo" after the
+    # assistant created an element.
+    import uuid as uuid_module
+
+    from django.db import transaction
+
+    from baserow.api.sessions import set_client_undo_redo_action_group_id
+    from baserow.contrib.builder.action_scopes import PageActionScopeType
+    from baserow.contrib.builder.elements.models import Element
+    from baserow.core.action.handler import ActionHandler
+
+    session_id = str(uuid_module.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
+    page = data_fixture.create_builder_page(builder=builder, name="Home", path="/home")
+
+    # Mirror the assistant view: a per-message action group on the acting user.
+    set_client_undo_redo_action_group_id(user, str(uuid_module.uuid4()))
+
+    ctx = make_test_ctx(user, workspace)
+    create_display_elements(
+        ctx,
+        page_id=page.id,
+        elements=[
+            DisplayElementCreate(ref="h1", type="heading", value="Welcome", level=1),
+        ],
+        thought="test",
+    )
+
+    element = Element.objects.get(page=page)
+
+    # The undo view runs inside a transaction (ActionHandler uses select_for_update).
+    with transaction.atomic():
+        ActionHandler.undo(user, [PageActionScopeType.value(page.id)], session_id)
+
+    # The element created by the assistant is gone after undo.
+    assert not Element.objects.filter(id=element.id).exists()
+
+
+@pytest.mark.django_db(transaction=True)
 def test_create_column_with_children(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)

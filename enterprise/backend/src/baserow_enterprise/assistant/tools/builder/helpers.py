@@ -11,6 +11,11 @@ from django.contrib.auth.models import AbstractUser
 
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.data_sources.service import DataSourceService
+from baserow.contrib.builder.elements.actions import (
+    CreateElementActionType,
+    MoveElementActionType,
+    UpdateElementActionType,
+)
 from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.registries import element_type_registry
@@ -396,13 +401,15 @@ def create_element(
         reference_element_id = None
         position = "south"
 
-    element = ElementService().create_element(
+    element = CreateElementActionType.do(
         user,
         element_type,
         target_page,
-        reference_element_id=reference_element_id,
-        position=position,
-        **kwargs,
+        {
+            "reference_element_id": reference_element_id,
+            "position": position,
+            **kwargs,
+        },
     )
 
     action_pairs = element_create.post_create(user, element, target_page)
@@ -473,10 +480,9 @@ def move_element(
         position = "south"
         reference_element_id = last_ref.id if last_ref is not None else None
 
-    element_move_result = ElementService().move_element(
-        user, element.page, element, place, reference_element_id, position
+    return MoveElementActionType.do(
+        user, element, element.page, place, reference_element_id, position
     )
-    return element_move_result.element
 
 
 def update_element(
@@ -504,7 +510,7 @@ def update_element(
     element_type = element.get_type().type
     kwargs = element_update.to_update_kwargs(element_type)
     if kwargs:
-        element = ElementService().update_element(user, element, **kwargs).element
+        element = UpdateElementActionType.do(user, element, kwargs)
 
     # Headers/footers are containers — menu_items belong on a child menu.
     if element_type in ("header", "footer") and element_update.menu_items:
@@ -547,16 +553,18 @@ def _ensure_child_menu(
     ]
 
     if menu_child is not None:
-        ElementService().update_element(user, menu_child, menu_items=menu_items_orm)
+        UpdateElementActionType.do(user, menu_child, {"menu_items": menu_items_orm})
     else:
         menu_type = element_type_registry.get("menu")
-        ElementService().create_element(
+        CreateElementActionType.do(
             user,
             menu_type,
             header_element.page,
-            reference_element_id=header_element.id,
-            position="child",
-            menu_items=menu_items_orm,
+            {
+                "reference_element_id": header_element.id,
+                "position": "child",
+                "menu_items": menu_items_orm,
+            },
         )
 
 
@@ -587,7 +595,7 @@ def update_element_style(
     existing_styles = getattr(element, "styles", None) or {}
     kwargs = style_update.to_update_kwargs(element_type, existing_styles)
     if kwargs:
-        element = ElementService().update_element(user, element, **kwargs).element
+        element = UpdateElementActionType.do(user, element, kwargs)
     return element, element_type
 
 
@@ -1012,15 +1020,14 @@ def create_login_page(
     """
 
     from baserow.contrib.builder.elements.registries import element_type_registry
-    from baserow.contrib.builder.elements.service import ElementService
     from baserow.contrib.builder.pages.service import PageService
     from baserow.core.handler import CoreHandler
 
     page = PageService().create_page(user, builder, "Login", "/login")
 
     auth_form_type = element_type_registry.get("auth_form")
-    ElementService().create_element(
-        user, auth_form_type, page, user_source_id=user_source_id
+    CreateElementActionType.do(
+        user, auth_form_type, page, {"user_source_id": user_source_id}
     )
 
     CoreHandler().update_application(user, builder, login_page_id=page.id)
