@@ -280,12 +280,12 @@ class GraphPointTrashableItemType(TrashableItemType):
     Subclasses override `trash` / `restore` to call `super()` and then send
     their own realtime signals and invalidate their own caches. `restore`
     returns the list of restored (`.specific`) records so subclasses can
-    broadcast them. The small hooks below (`_should_mutate_graph`,
-    `_before_cascade_delete`, `_validate_reference`) cover the per-type
+    broadcast them. The small hooks below (`should_mutate_graph`,
+    `before_cascade_delete`, `validate_reference`) cover the per-type
     differences without forcing every subclass to reimplement the algorithm.
     """
 
-    def _should_mutate_graph(self, trash_entry: "TrashEntry") -> bool:
+    def should_mutate_graph(self, trash_entry: "TrashEntry") -> bool:
         """
         Whether trash/restore should mutate the graph. Defaults to `True`.
         Subclasses whose trash operation rearranges the graph itself (e.g. an
@@ -294,16 +294,16 @@ class GraphPointTrashableItemType(TrashableItemType):
 
         return True
 
-    def _before_cascade_delete(self, descendant: "GraphPointMixin"):
+    def before_cascade_delete(self, descendant: "GraphPointMixin"):
         """
         Run on each descendant soft-deleted by the trash cascade, before it is
         marked trashed. Defaults to a no-op: trashing must be fully reversible, so a
         type's owned related data is cleaned up only on permanent deletion (see
-        `_before_permanent_delete`), never here. Subclasses may override to react to
+        `before_permanent_delete`), never here. Subclasses may override to react to
         the cascade without destroying restorable data.
         """
 
-    def _before_permanent_delete(self, item: "GraphPointMixin"):
+    def before_permanent_delete(self, item: "GraphPointMixin"):
         """
         Run on the point (and each cascaded child) just before it is permanently
         deleted, so types can clean up owned related data that the database cascade
@@ -312,7 +312,7 @@ class GraphPointTrashableItemType(TrashableItemType):
         :param item: The `.specific` instance about to be permanently deleted.
         """
 
-    def _validate_reference(self, reference: Optional["GraphPointMixin"], output: str):
+    def validate_reference(self, reference: Optional["GraphPointMixin"], output: str):
         """
         Validate the resolved reference point before re-insertion on restore.
         Defaults to a no-op. Subclasses can override (e.g. to check the reference's
@@ -438,7 +438,7 @@ class GraphPointTrashableItemType(TrashableItemType):
 
         super().trash(item_to_trash, requesting_user, trash_entry)
 
-        if not self._should_mutate_graph(trash_entry):
+        if not self.should_mutate_graph(trash_entry):
             return [item_to_trash.specific]
 
         result = item_to_trash.get_parent().get_graph().remove(item_to_trash)
@@ -447,7 +447,7 @@ class GraphPointTrashableItemType(TrashableItemType):
         # alongside their container.
         for dep in result.dependencies_removed:
             specific = dep.specific
-            self._before_cascade_delete(specific)
+            self.before_cascade_delete(specific)
             specific.trashed = True
             specific.save(update_fields=["trashed"])
 
@@ -461,7 +461,7 @@ class GraphPointTrashableItemType(TrashableItemType):
             self._parse_restoration_data(trash_entry.additional_restoration_data)
         )
 
-        mutate_graph = self._should_mutate_graph(trash_entry)
+        mutate_graph = self.should_mutate_graph(trash_entry)
         if mutate_graph:
             # Block restoration up-front (before un-trashing) when the parent
             # container is still trashed, naming the record to restore first.
@@ -477,7 +477,7 @@ class GraphPointTrashableItemType(TrashableItemType):
 
         reference_id, position_type, output = position_triplet
         reference = self._resolve_reference(reference_id)
-        self._validate_reference(reference, output)
+        self.validate_reference(reference, output)
 
         graph = trashed_item.get_parent().get_graph()
         graph.insert(trashed_item, reference, position_type, output)
@@ -530,9 +530,9 @@ class GraphPointTrashableItemType(TrashableItemType):
         # Clean up owned related data (e.g. collection fields) now, at permanent
         # deletion. This is intentionally not done at trash time so a restore can
         # bring the item back intact.
-        self._before_permanent_delete(trashed_item.specific)
+        self.before_permanent_delete(trashed_item.specific)
         for child in children:
-            self._before_permanent_delete(child.specific)
+            self.before_permanent_delete(child.specific)
 
         if child_ids:
             self.model_class.trash.filter(id__in=child_ids).delete()

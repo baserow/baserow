@@ -278,7 +278,7 @@ class ElementService:
         # NB: we deliberately do not call `before_delete` here. Deletion is a soft
         # trash, and `before_delete` permanently removes owned related data (e.g. a
         # collection element's fields) that a restore needs to bring back. That
-        # cleanup is deferred to permanent deletion via `_before_permanent_delete`
+        # cleanup is deferred to permanent deletion via `before_permanent_delete`
         # on the trashable item type.
         builder = element.page.builder
         TrashHandler.trash(user, builder.workspace, builder, element)

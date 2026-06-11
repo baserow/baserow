@@ -75,7 +75,7 @@ class ElementTrashableItemType(GraphPointTrashableItemType):
             user=None,
         )
 
-    def _before_permanent_delete(self, item: Element) -> None:
+    def before_permanent_delete(self, item: Element) -> None:
         """
         Clean up the element's owned related data (e.g. a collection element's
         fields, a menu element's items) when it is permanently deleted. This runs

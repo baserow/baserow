@@ -27,10 +27,10 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
     inherited from `GraphPointTrashableItemType`. This class layers on the
     automation-specific concerns:
 
-    - Skipping the graph mutation during a node "replace" (see `_should_mutate_graph`),
-    - Not running the container guard while cascading (see `_before_cascade_delete`),
+    - Skipping the graph mutation during a node "replace" (see `should_mutate_graph`),
+    - Not running the container guard while cascading (see `before_cascade_delete`),
     - Rejecting a restore whose reference branch/output no longer exists (see
-      `_validate_reference`),
+      `validate_reference`),
     - Emitting the node/workflow realtime signals and invalidating the workflow's
       node cache.
     """
@@ -44,7 +44,7 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
     def get_restore_operation_type(self) -> str:
         return RestoreAutomationNodeOperationType.type
 
-    def _should_mutate_graph(self, trash_entry: TrashEntry) -> bool:
+    def should_mutate_graph(self, trash_entry: TrashEntry) -> bool:
         """
         A "replace" rearranges the graph itself (swapping one node for another), so
         trash/restore must not also remove/insert the node.
@@ -55,14 +55,14 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
             != ReplaceAutomationNodeTrashOperationType.type
         )
 
-    def _before_cascade_delete(self, descendant: AutomationNode):
+    def before_cascade_delete(self, descendant: AutomationNode):
         """
         Container nodes guard against deletion while they still have children
         (raising `AutomationNodeNotDeletable`). During a trash cascade the whole
         subtree is soft-deleted together, so we skip that per-descendant guard.
         """
 
-    def _validate_reference(self, reference: Optional[AutomationNode], output: str):
+    def validate_reference(self, reference: Optional[AutomationNode], output: str):
         """
         The reference node's output must still exist for the node to re-attach to
         it; the branch it was on may have been deleted in the meantime.
@@ -90,7 +90,7 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
 
         super().trash(item_to_trash, requesting_user, trash_entry)
 
-        if self._should_mutate_graph(trash_entry):
+        if self.should_mutate_graph(trash_entry):
             item_to_trash.workflow.refresh_from_db()
             automation_workflow_updated.send(
                 self, workflow=item_to_trash.workflow, user=requesting_user
@@ -115,7 +115,7 @@ class AutomationNodeTrashableItemType(GraphPointTrashableItemType):
 
         AutomationNodeHandler().invalidate_node_cache(trashed_item.workflow)
 
-        if self._should_mutate_graph(trash_entry):
+        if self.should_mutate_graph(trash_entry):
             for node in restored_nodes:
                 automation_node_created.send(self, node=node, user=None)
             automation_workflow_updated.send(
