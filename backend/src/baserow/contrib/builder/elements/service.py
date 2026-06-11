@@ -293,6 +293,11 @@ class ElementService:
 
         element_type = element.get_type()
 
+        # A null/absent place_in_container means the default "" edge — never the
+        # string "None". Coerce here so validation and the graph agree (mirrors
+        # create_element).
+        place_in_container = place_in_container or ""
+
         CoreHandler().check_permissions(
             user,
             UpdateElementOperationType.type,
