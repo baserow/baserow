@@ -44,7 +44,7 @@ class AutomationNodeType(
     ModelInstanceMixin,
     Instance,
 ):
-    display_name = _("Unnamed")
+    display_name = _("Unnamed node")
 
     service_type = None
     parent_property_name = "workflow"

@@ -65,7 +65,7 @@ class ElementType(
     parent_property_name = "page"
     id_mapping_name = BUILDER_PAGE_ELEMENTS
 
-    display_name = _("Unnamed")
+    display_name = _("Unnamed element")
 
     # Is this element type a container-type element?
     is_container = False

@@ -1607,6 +1607,6 @@ def test_datetime_picker_element_is_valid(
 def test_element_type_has_display_name(element_type):
     from django.utils.translation import gettext_lazy as _
 
-    assert element_type.display_name != _("Unnamed"), (
-        f"{type(element_type).__name__}.display_name is still the default 'Unnamed'"
+    assert element_type.display_name != _("Unnamed node"), (
+        f"{type(element_type).__name__}.display_name is still the default 'Unnamed node'"
     )

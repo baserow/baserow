@@ -707,6 +707,6 @@ def test_periodic_trigger_node_on_event_only_updates_dispatched_services(data_fi
 def test_automation_node_type_has_display_name(node_type):
     from django.utils.translation import gettext_lazy as _
 
-    assert node_type.display_name != _("Unnamed"), (
-        f"{type(node_type).__name__}.display_name is still the default 'Unnamed'"
+    assert node_type.display_name != _("Unnamed element"), (
+        f"{type(node_type).__name__}.display_name is still the default 'Unnamed element'"
     )
