@@ -256,7 +256,9 @@ class Command(BaseCommand):
         query = sql.SQL("ALTER TABLE {table} {drop_clauses}").format(
             table=sql.Identifier(table_name),
             drop_clauses=sql.SQL(", ").join(
-                sql.SQL("DROP COLUMN {column}").format(column=sql.Identifier(col))
+                sql.SQL("DROP COLUMN IF EXISTS {column}").format(
+                    column=sql.Identifier(col)
+                )
                 for col in column_names
             ),
         )
