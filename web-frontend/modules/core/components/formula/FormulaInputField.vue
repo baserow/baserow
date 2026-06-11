@@ -187,9 +187,10 @@ export default {
       default: () => [],
     },
     allowNodeSelection: {
-      type: Boolean,
+      type: String,
       required: false,
-      default: false,
+      default: 'none',
+      validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
     },
     mode: {
       type: String,

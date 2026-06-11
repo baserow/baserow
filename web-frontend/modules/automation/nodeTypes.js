@@ -19,6 +19,7 @@ import {
 import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg?url'
 import {
+  CoreCSVFileReaderServiceType,
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
   CoreSMTPEmailServiceType,
@@ -701,6 +702,31 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
 
   isDuplicable({ workflow, node }) {
     return false
+  }
+}
+
+export class CoreCSVFileReaderNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'csv_file_reader'
+  }
+
+  getOrder() {
+    return 9
+  }
+
+  get name() {
+    return this.app.$i18n.t('nodeType.csvFileReaderLabel')
+  }
+
+  get dataType() {
+    return 'array'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreCSVFileReaderServiceType.getType()
+    )
   }
 }
 

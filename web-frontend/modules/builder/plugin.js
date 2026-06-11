@@ -118,6 +118,7 @@ import {
   LogoutWorkflowActionType,
   RefreshDataSourceWorkflowActionType,
   DeleteRowWorkflowActionType,
+  CoreCSVFileReaderWorkflowActionType,
   CoreHTTPRequestWorkflowActionType,
   CoreSMTPEmailWorkflowActionType,
   AIAgentWorkflowActionType,
@@ -354,6 +355,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'workflowAction',
       new CoreSMTPEmailWorkflowActionType(context)
+    )
+    $registry.register(
+      'workflowAction',
+      new CoreCSVFileReaderWorkflowActionType(context)
     )
     $registry.register('workflowAction', new AIAgentWorkflowActionType(context))
     $registry.register(

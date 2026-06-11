@@ -2,6 +2,7 @@ from uuid import uuid4
 
 from baserow.contrib.integrations.ai.models import AIAgentService
 from baserow.contrib.integrations.core.models import (
+    CoreCSVFileReaderService,
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
     CoreIteratorService,
@@ -111,6 +112,9 @@ class ServiceFixtures:
 
     def create_core_iterator_service(self, **kwargs):
         return self.create_service(CoreIteratorService, **kwargs)
+
+    def create_core_csv_file_reader_service(self, **kwargs):
+        return self.create_service(CoreCSVFileReaderService, **kwargs)
 
     def create_core_router_service(self, **kwargs):
         return self.create_service(CoreRouterService, **kwargs)

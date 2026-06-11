@@ -11,6 +11,7 @@ Use `just` from the repo root; it wraps the backend and frontend workflows consi
 - `just init` installs dependencies and creates `.env.local`.
 - `just dev up` starts the local stack; `just dc-dev up -d` runs the Docker dev environment.
 - `just b test -n=auto` runs backend pytest suites in parallel.
+- `just b test tests/baserow/core/notifications/utils.py` to test a specific file.
 - `just f test` runs frontend Vitest suites.
 - `just lint` runs both backend and frontend linters; `just fix` applies auto-fixes.
 - `just b run pre-commit run --files $(git diff --name-only HEAD)` lints only the files you've touched on your branch (staged + unstaged); use `origin/develop...HEAD` instead of `HEAD` to scope to the whole branch. See `docs/development/code-quality.md` for details.
@@ -42,15 +43,21 @@ Recent history favors short, imperative subjects, often with Conventional Commit
 
 Reusable skills live in `.agents/skills/`. Each subdirectory is a self-contained skill with a `SKILL.md` that describes when and how to apply it. Use these instead of re-deriving the same workflow from scratch.
 
-| Skill directory | When to use |
-|---|---|
-| `add-django-config-env-var` | Adding a new Django setting backed by an env var and propagating it to `base.py`, docker-compose files, `env-remap.mjs`, and `docs/installation/configuration.md` |
-| `write-frontend-unit-test` | Writing or fixing frontend unit tests in `web-frontend`, `premium/web-frontend`, or `enterprise/web-frontend` |
-| `create-update-service` | Creating or updating an integration type or service type in `contrib/integrations` |
-| `create-in-app-notification` | Creating or updating a Baserow in-app notification for an event, including backend and frontend registration, target routing data, and duplicate-prevention behavior |
-| `add-update-builder-element-type` | Adding or updating an Application Builder element type across backend, frontend, migrations, registration, translations, icons, and targeted tests |
-| `manage-backend-layers` | Adding or changing backend model, handler, service, undoable action, and API view layers using the newer automation modules as the preferred pattern |
+| Skill directory                   | When to use                                                                                                                                                          |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `add-django-config-env-var`       | Adding a new Django setting backed by an env var and propagating it to `base.py`, docker-compose files, `env-remap.mjs`, and `docs/installation/configuration.md`    |
+| `write-frontend-unit-test`        | Writing or fixing frontend unit tests in `web-frontend`, `premium/web-frontend`, or `enterprise/web-frontend`                                                        |
+| `create-update-service`           | Creating or updating an integration type or service type in `contrib/integrations`                                                                                   |
+| `create-in-app-notification`      | Creating or updating a Baserow in-app notification for an event, including backend and frontend registration, target routing data, and duplicate-prevention behavior |
+| `add-update-builder-element-type` | Adding or updating an Application Builder element type across backend, frontend, migrations, registration, translations, icons, and targeted tests                   |
+| `manage-backend-layers`           | Adding or changing backend model, handler, service, undoable action, and API view layers using the newer automation modules as the preferred pattern                 |
 
 ## Security & Configuration Tips
 
 Do not commit secrets or local overrides. Use `.env.local` for development, keep production settings in the documented deploy configs, and report vulnerabilities privately via the contact path in `CONTRIBUTING.md` rather than opening a public issue.
+
+## Good practices
+
+- On a specific branch, always merge backend migrations file instead of creating new ones.
+- CSS classes respect BEM methodology.
+- When working on translations, only update english unless told otherwise. Other languages are handled with weblate.

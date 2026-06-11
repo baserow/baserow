@@ -1,3 +1,5 @@
+import csv
+import io
 import json
 import socket
 import uuid
@@ -27,6 +29,7 @@ from baserow.contrib.automation.nodes.exceptions import (
 from baserow.contrib.integrations.core.api.webhooks.views import CoreHTTPTriggerView
 from baserow.contrib.integrations.core.constants import (
     BODY_TYPE,
+    CSV_FILE_READER_INPUT_TYPE,
     HTTP_METHOD,
     PERIODIC_INTERVAL_CHOICES,
     PERIODIC_INTERVAL_MINUTE,
@@ -38,6 +41,7 @@ from baserow.contrib.integrations.core.exceptions import (
 )
 from baserow.contrib.integrations.core.integration_types import SMTPIntegrationType
 from baserow.contrib.integrations.core.models import (
+    CoreCSVFileReaderService,
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
     CoreIteratorService,
@@ -56,6 +60,7 @@ from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
     ensure_email,
+    ensure_file,
     ensure_string,
 )
 from baserow.core.registries import ImportExportConfig
@@ -282,16 +287,6 @@ class CoreHTTPRequestServiceType(CoreServiceType):
             if new_formula is not None:
                 query_param.value = new_formula
                 yield query_param
-
-    def extract_properties(
-        self, service: Service, path: List[str], **kwargs
-    ) -> List[str]:
-        """Returns the first path element if any"""
-
-        if path:
-            return [path[0]]
-
-        return []
 
     def serialize_property(
         self,
@@ -1858,3 +1853,223 @@ class CoreIteratorServiceType(ListServiceTypeMixin, ServiceType):
         data: Any,
     ) -> DispatchResult:
         return DispatchResult(data=data)
+
+
+class CoreCSVFileReaderServiceType(ListServiceTypeMixin, CoreServiceType):
+    type = "csv_file_reader"
+    model_class = CoreCSVFileReaderService
+    dispatch_types = [DispatchTypes.DATA, DispatchTypes.ACTION]
+
+    allowed_fields = [
+        "file",
+        "csv",
+        "input_type",
+        "separator",
+        "encoding",
+        "first_line_is_header",
+    ]
+
+    serializer_field_names = [
+        "file",
+        "csv",
+        "input_type",
+        "separator",
+        "encoding",
+        "first_line_is_header",
+    ]
+
+    class SerializedDict(ServiceDict):
+        file: str
+        csv: str
+        input_type: str
+        separator: str
+        encoding: str
+        first_line_is_header: bool
+
+    simple_formula_fields = [
+        "file",
+        "csv",
+    ]
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.core.formula.serializers import FormulaSerializerField
+
+        return {
+            "file": FormulaSerializerField(
+                help_text=CoreCSVFileReaderService._meta.get_field("file").help_text,
+                required=False,
+            ),
+            "csv": FormulaSerializerField(
+                help_text=CoreCSVFileReaderService._meta.get_field("csv").help_text,
+                required=False,
+            ),
+            "input_type": serializers.ChoiceField(
+                choices=CSV_FILE_READER_INPUT_TYPE.choices,
+                help_text=CoreCSVFileReaderService._meta.get_field(
+                    "input_type"
+                ).help_text,
+                required=False,
+            ),
+            "separator": serializers.ChoiceField(
+                choices=[
+                    (",", _("Comma")),
+                    (";", _("Semicolon")),
+                    ("\t", _("Tab")),
+                    ("|", _("Pipe")),
+                ],
+                help_text=CoreCSVFileReaderService._meta.get_field(
+                    "separator"
+                ).help_text,
+                required=False,
+            ),
+            "encoding": serializers.ChoiceField(
+                choices=[
+                    ("utf-8", "UTF-8"),
+                    ("utf-8-sig", "UTF-8 with BOM"),
+                    ("latin-1", "Latin-1"),
+                ],
+                help_text=CoreCSVFileReaderService._meta.get_field(
+                    "encoding"
+                ).help_text,
+                required=False,
+            ),
+            "first_line_is_header": serializers.BooleanField(
+                help_text=CoreCSVFileReaderService._meta.get_field(
+                    "first_line_is_header"
+                ).help_text,
+                required=False,
+            ),
+        }
+
+    def get_schema_name(self, service: CoreCSVFileReaderService) -> str:
+        return f"CSVFileReader{service.id}Schema"
+
+    def generate_schema(
+        self,
+        service: CoreCSVFileReaderService,
+        allowed_fields: Optional[List[str]] = None,
+    ) -> Optional[Dict[str, Any]]:
+        if (
+            service.sample_data
+            and "data" in service.sample_data
+            and "results" in service.sample_data["data"]
+            and (allowed_fields is None or "items" in allowed_fields)
+        ):
+            schema_builder = SchemaBuilder()
+            schema_builder.add_object(service.sample_data["data"]["results"])
+            schema = schema_builder.to_schema()
+
+            if "items" in schema:
+                return {
+                    **schema,
+                    "title": self.get_schema_name(service),
+                }
+
+        return None
+
+    def formulas_to_resolve(
+        self, service: CoreCSVFileReaderService
+    ) -> list[FormulaToResolve]:
+        if service.input_type == CSV_FILE_READER_INPUT_TYPE.CONTENT:
+            return [
+                FormulaToResolve(
+                    "csv",
+                    service.csv,
+                    lambda value: ensure_string(value, allow_empty=False),
+                    "'csv' property",
+                )
+            ]
+
+        return [
+            FormulaToResolve(
+                "file",
+                service.file,
+                ensure_file,
+                "'file' property",
+            )
+        ]
+
+    def dispatch_data(
+        self,
+        service: CoreCSVFileReaderService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Any:
+        if "csv" in resolved_values:
+            csv_data = resolved_values["csv"]
+        else:
+            csv_data = self._read_csv_file(
+                resolved_values["file"],
+                service.encoding,
+            )
+
+        return {
+            "results": self._read_csv(
+                csv_data,
+                service.separator,
+                service.first_line_is_header,
+            ),
+            "has_next_page": False,
+        }
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(data=data)
+
+    def _read_csv_file(
+        self,
+        input_file,
+        encoding: str,
+    ) -> str:
+        try:
+            return input_file.read_bytes().decode(encoding)
+        except UnicodeDecodeError as exc:
+            raise ServiceImproperlyConfiguredDispatchException(
+                f"The CSV file couldn't be decoded using {encoding}."
+            ) from exc
+
+    def _read_csv(
+        self,
+        csv_data: str,
+        separator: str,
+        first_line_is_header: bool,
+    ) -> list[dict[str, str]]:
+        try:
+            csv_rows = list(csv.reader(io.StringIO(csv_data), delimiter=separator))
+        except csv.Error as exc:
+            raise ServiceImproperlyConfiguredDispatchException(
+                f"The CSV file couldn't be read: {exc}."
+            ) from exc
+
+        if not csv_rows:
+            return []
+
+        if first_line_is_header:
+            headers = [header.strip() for header in csv_rows[0]]
+            return [
+                self._row_to_dict(headers, row)
+                for row in csv_rows[1:]
+                if self._row_has_values(row)
+            ]
+
+        headers = [f"column_{index + 1}" for index in range(self._widest_row(csv_rows))]
+        return [
+            self._row_to_dict(headers, row)
+            for row in csv_rows
+            if self._row_has_values(row)
+        ]
+
+    def _row_to_dict(self, headers: list[str], row: list[str]) -> dict[str, str]:
+        return {
+            header or f"column_{index + 1}": row[index] if index < len(row) else ""
+            for index, header in enumerate(headers)
+        }
+
+    def _row_has_values(self, row: list[str]) -> bool:
+        return any(value != "" for value in row)
+
+    def _widest_row(self, rows: list[list[str]]) -> int:
+        return max((len(row) for row in rows), default=0)

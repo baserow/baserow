@@ -1,5 +1,6 @@
 import CoreHTTPTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPTriggerServiceForm'
 import {
+  DataSourceServiceTypeMixin,
   ServiceType,
   TriggerServiceTypeMixin,
   WorkflowActionServiceTypeMixin,
@@ -8,6 +9,7 @@ import CoreHTTPRequestServiceForm from '@baserow/modules/integrations/core/compo
 import CoreSMTPEmailServiceForm from '@baserow/modules/integrations/core/components/services/CoreSMTPEmailServiceForm'
 import CoreRouterServiceForm from '@baserow/modules/integrations/core/components/services/CoreRouterServiceForm'
 import CoreIteratorServiceForm from '@baserow/modules/integrations/core/components/services/CoreIteratorServiceForm'
+import CoreCSVFileReaderServiceForm from '@baserow/modules/integrations/core/components/services/CoreCSVFileReaderServiceForm'
 import CorePeriodicServiceForm from '@baserow/modules/integrations/core/components/services/CorePeriodicServiceForm.vue'
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
@@ -251,6 +253,71 @@ export class CoreIteratorServiceType extends WorkflowActionServiceTypeMixin(
 
   getOrder() {
     return 5
+  }
+}
+
+export class CoreCSVFileReaderServiceType extends DataSourceServiceTypeMixin(
+  WorkflowActionServiceTypeMixin(ServiceType)
+) {
+  static getType() {
+    return 'csv_file_reader'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreCSVFileReader')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreCSVFileReaderDescription')
+  }
+
+  get icon() {
+    return 'iconoir-page'
+  }
+
+  get returnsList() {
+    return true
+  }
+
+  getRecordName(service, record) {
+    return record?.name || record?.id || ''
+  }
+
+  getIdProperty(service, record) {
+    return record?.id || record?._id
+  }
+
+  getResult(service, data) {
+    return data.results
+  }
+
+  getErrorMessage({ service }) {
+    if (service.input_type === undefined && service.file === undefined) {
+      // we are in preview or published mode
+      return super.getErrorMessage({ service })
+    }
+
+    if (service?.input_type === 'content') {
+      if (!service?.csv?.formula) {
+        return this.app.$i18n.t('serviceType.errorCSVContentMissing')
+      }
+    } else if (!service?.file?.formula) {
+      return this.app.$i18n.t('serviceType.errorCSVFileMissing')
+    }
+
+    return super.getErrorMessage({ service })
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  get formComponent() {
+    return CoreCSVFileReaderServiceForm
+  }
+
+  getOrder() {
+    return 6
   }
 }
 

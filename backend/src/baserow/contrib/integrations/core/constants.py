@@ -18,6 +18,11 @@ class BODY_TYPE(models.TextChoices):
     NONE = "none", "None"
 
 
+class CSV_FILE_READER_INPUT_TYPE(models.TextChoices):
+    FILE = "file", "File"
+    CONTENT = "content", "Content"
+
+
 PERIODIC_INTERVAL_MINUTE = "MINUTE"
 PERIODIC_INTERVAL_HOUR = "HOUR"
 PERIODIC_INTERVAL_DAY = "DAY"

@@ -110,9 +110,10 @@ export default {
       default: false,
     },
     allowNodeSelection: {
-      type: Boolean,
+      type: String,
       required: false,
-      default: false,
+      default: 'none',
+      validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
     },
     /**
      * An array of Baserow formula modes which the parent formula input

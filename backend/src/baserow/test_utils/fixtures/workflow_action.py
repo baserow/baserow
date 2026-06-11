@@ -1,4 +1,5 @@
 from baserow.contrib.builder.workflow_actions.models import (
+    CoreCSVFileReaderWorkflowAction,
     CoreHTTPRequestWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
@@ -29,6 +30,13 @@ class WorkflowActionFixture:
     def create_core_http_request_workflow_action(self, **kwargs):
         return self.create_builder_workflow_service_action(
             CoreHTTPRequestWorkflowAction, **kwargs
+        )
+
+    def create_core_csv_file_reader_workflow_action(self, **kwargs):
+        if "service" not in kwargs:
+            kwargs["service"] = self.create_core_csv_file_reader_service()
+        return self.create_builder_workflow_service_action(
+            CoreCSVFileReaderWorkflowAction, **kwargs
         )
 
     def create_local_baserow_create_row_workflow_action(self, **kwargs):

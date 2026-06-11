@@ -858,10 +858,24 @@ export class PreviousActionDataProviderType extends DataProviderType {
       return null
     }
 
-    return getValueAtPath(
-      content[workflowActionId],
-      actionType.prepareValuePath(workflowAction, rest)
-    )
+    let dispatchResult = content[workflowActionId]
+    let preparedPath
+    if (actionType.returnsList) {
+      dispatchResult = dispatchResult.results
+      if (rest.length >= 2) {
+        const [row, ...afterRow] = rest
+        preparedPath = [
+          row,
+          ...actionType.prepareValuePath(workflowAction, afterRow),
+        ]
+      } else {
+        preparedPath = rest
+      }
+    } else {
+      preparedPath = actionType.prepareValuePath(workflowAction, rest)
+    }
+
+    return getValueAtPath(dispatchResult, preparedPath)
   }
 
   getWorkflowActionSchema(workflowAction) {

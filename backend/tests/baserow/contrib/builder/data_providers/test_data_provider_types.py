@@ -946,6 +946,25 @@ def test_data_source_context_data_provider_get_data_chunk(data_fixture):
 
 
 @pytest.mark.django_db
+def test_data_source_data_provider_import_path_with_list_data_source(data_fixture):
+    data_source = data_fixture.create_builder_local_baserow_list_rows_data_source()
+    data_source_provider = DataSourceDataProviderType()
+
+    assert data_source_provider.import_path(["1", "0", "field_123"], {}) == [
+        "1",
+        "0",
+        "field_123",
+    ]
+    assert data_source_provider.import_path(
+        ["1", "0", "field_123"],
+        {
+            "builder_data_sources": {1: data_source.id},
+            "database_fields": {123: 456},
+        },
+    ) == [str(data_source.id), "0", "field_456"]
+
+
+@pytest.mark.django_db
 def test_data_source_data_context_data_provider_import_path(data_fixture):
     data_source = data_fixture.create_builder_local_baserow_get_row_data_source()
     data_source_context_provider = DataSourceContextDataProviderType()
@@ -1115,6 +1134,54 @@ def test_previous_action_data_provider_get_data_chunk_returns_cached_result(
     assert result == "mock-cached-data"
 
 
+@pytest.mark.django_db
+def test_previous_action_data_provider_get_data_chunk_returns_cached_list_result(
+    data_fixture,
+):
+    previous_action_data_provider = PreviousActionProviderType()
+
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    button_element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_core_csv_file_reader_workflow_action(
+        element=button_element, page=page
+    )
+
+    fake_request = MagicMock()
+    fake_request.data = {
+        "metadata": json.dumps(
+            {
+                "previous_action": {
+                    "current_dispatch_id": "abc123",
+                    str(workflow_action.id): {},
+                }
+            }
+        )
+    }
+    dispatch_context = BuilderDispatchContext(fake_request, None)
+
+    previous_action_data_provider.get_dispatch_action_cache_key = MagicMock(
+        return_value="bar"
+    )
+
+    with patch(
+        "baserow.contrib.builder.data_providers.data_provider_types.cache"
+    ) as mock_cache:
+        mock_cache.get.return_value = {
+            "results": [
+                {"Email": "a@example.com"},
+                {"Email": "b@example.com"},
+            ],
+            "has_next_page": False,
+        }
+        result = previous_action_data_provider.get_data_chunk(
+            dispatch_context, [str(workflow_action.id), "*", "Email"]
+        )
+
+    assert result == ["a@example.com", "b@example.com"]
+
+
 def test_previous_action_data_provider_post_dispatch_caches_result():
     """
     Ensure that when a current_dispatch_id is present in the request, the
@@ -1244,6 +1311,38 @@ def test_previous_action_data_provider_import_path():
         "2",
         "field",
     ]
+
+
+@patch(
+    "baserow.contrib.builder.data_providers.data_provider_types."
+    "BuilderWorkflowActionHandler.get_workflow_action"
+)
+@pytest.mark.django_db
+def test_previous_action_data_provider_import_path_with_list_service(
+    mock_get_workflow_action,
+):
+    service_type = MagicMock()
+    service_type.import_path.return_value = ["0", "field_456", "value"]
+    workflow_action = MagicMock()
+    workflow_action.service.specific.get_type.return_value = service_type
+    mock_get_workflow_action.return_value = workflow_action
+
+    result = PreviousActionProviderType().import_path(
+        ["1", "0", "field_123", "value"],
+        {
+            "builder_workflow_actions": {1: 2},
+            "database_fields": {123: 456},
+        },
+    )
+
+    assert result == ["2", "0", "field_456", "value"]
+    service_type.import_path.assert_called_once_with(
+        ["0", "field_123", "value"],
+        {
+            "builder_workflow_actions": {1: 2},
+            "database_fields": {123: 456},
+        },
+    )
 
 
 @pytest.mark.django_db
@@ -2099,3 +2198,22 @@ def test_previous_action_extract_properties_returns_service_id_and_field_id(
     properties = PreviousActionProviderType().extract_properties(path)
 
     assert properties == {workflow_action.service.id: [f"field_{fields[0].id}"]}
+
+
+@pytest.mark.django_db
+def test_previous_action_extract_properties_strips_row_path_for_list_service(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+    page = data_fixture.create_builder_page(user=user, builder=builder)
+    button_element = data_fixture.create_builder_button_element(page=page)
+    workflow_action = data_fixture.create_core_csv_file_reader_workflow_action(
+        element=button_element, page=page
+    )
+
+    properties = PreviousActionProviderType().extract_properties(
+        [f"{workflow_action.id}", "*", "Email"]
+    )
+
+    assert properties == {workflow_action.service.id: ["Email"]}

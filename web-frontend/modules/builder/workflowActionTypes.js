@@ -4,6 +4,7 @@ import OpenPageWorkflowActionForm from '@baserow/modules/builder/components/work
 import WorkflowActionWithService from '@baserow/modules/builder/components/workflowAction/WorkflowActionWithService.vue'
 import RefreshDataSourceWorkflowActionForm from '@baserow/modules/builder/components/workflowAction/RefreshDataSourceWorkflowActionForm.vue'
 import {
+  CoreCSVFileReaderServiceType,
   CoreHTTPRequestServiceType,
   CoreSMTPEmailServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
@@ -291,11 +292,10 @@ export class WorkflowActionServiceType extends WorkflowActionType {
 
     const serviceSchema = this.serviceType.getDataSchema(workflowAction.service)
 
-    if (serviceSchema?.properties) {
+    if (serviceSchema) {
       return {
+        ...serviceSchema,
         title: this.label,
-        type: 'object',
-        properties: serviceSchema.properties,
       }
     }
     return null
@@ -315,6 +315,10 @@ export class WorkflowActionServiceType extends WorkflowActionType {
 
   prepareValuePath(workflowAction, path) {
     return this.serviceType.prepareValuePath(workflowAction.service, path)
+  }
+
+  get returnsList() {
+    return Boolean(this.serviceType.returnsList)
   }
 
   get serviceType() {
@@ -350,6 +354,23 @@ export class CoreSMTPEmailWorkflowActionType extends WorkflowActionServiceType {
 
   getOrder() {
     return 11
+  }
+}
+
+export class CoreCSVFileReaderWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'csv_file_reader'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreCSVFileReaderServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 12
   }
 }
 

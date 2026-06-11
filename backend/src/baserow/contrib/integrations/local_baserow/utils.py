@@ -1,5 +1,4 @@
 from typing import Any, Callable, List, Optional, Union
-from urllib.parse import urlparse
 
 from django.contrib.auth.models import AbstractUser
 
@@ -11,6 +10,7 @@ from baserow.contrib.database.fields.utils import (
     guess_json_type_from_response_serializer_field,
 )
 from baserow.contrib.integrations.local_baserow.models import LocalBaserowUpsertRow
+from baserow.core.formula.service_file import ServiceFile
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
@@ -26,48 +26,12 @@ from baserow.core.user_files.exceptions import (
     FileSizeTooLargeError,
     FileURLCouldNotBeReached,
 )
-from baserow.core.user_files.handler import UserFileHandler
 
 
-def _handle_file(file_obj: dict, user: AbstractUser) -> dict:
-    """
-    Handles one file by:
-    - uploading it if it comes from the frontend (uploaded)
-    - uploading it from the url if it has one
-    - loading the existing user file if the url match the pattern
-    """
-
-    if "url" in file_obj:
-        # We have just the url of the file
-        url = file_obj["url"]
-        path = urlparse(url).path
-        segments = [segment for segment in path.split("/") if segment]
-        last_segment = segments[-1] if segments else None
-
-        if UserFileHandler().is_user_file_name(last_segment):
-            # it's a user file that was already uploaded, we can get it from the DB
-            user_file = UserFileHandler().get_user_file_by_name(last_segment)
-        else:
-            # It's a random URL let's try to upload it as new user file
-            user_file = UserFileHandler().upload_user_file_by_url(
-                user,
-                url,
-                file_name=file_obj.get("name"),
-            )
-        return user_file.serialize()
-    elif "file" in file_obj:
-        # it's a file sent with the request so we upload it first
-        user_file = UserFileHandler().upload_user_file(
-            user,
-            file_obj["name"],
-            file_obj["file"],
-        )
-        return user_file.serialize()
-    else:
-        return file_obj
-
-
-def prepare_files_for_db(value: Any, user: AbstractUser) -> List[dict]:
+def prepare_files_for_db(
+    value: Any,
+    user: AbstractUser,
+) -> List[dict]:
     """
     Transforms the generic files from the frontend into files that can be associated
     with rows.
@@ -81,10 +45,31 @@ def prepare_files_for_db(value: Any, user: AbstractUser) -> List[dict]:
     result = []
 
     for f in data:
-        if isinstance(f, dict) and f.get("__file__"):
+        if isinstance(f, ServiceFile):
+            try:
+                result.append(f.to_file_field_dict(user))
+            except FileURLCouldNotBeReached as exc:
+                file_name = f.visible_name or f.name or "unnamed"
+                raise ServiceImproperlyConfiguredDispatchException(
+                    f"The file {file_name} couldn't be reached."
+                ) from exc
+            except FileSizeTooLargeError as exc:
+                file_name = f.visible_name or f.name or "unnamed"
+                raise ServiceImproperlyConfiguredDispatchException(
+                    f"The file {file_name} is too large."
+                ) from exc
+            except Exception as exc:
+                file_name = f.visible_name or f.name or "unnamed"
+                logger.exception(f"Unprocessed file {file_name}")
+                raise ServiceImproperlyConfiguredDispatchException(
+                    f"The file {file_name} couldn't "
+                    f"be processed for unknown reason: {exc}"
+                ) from exc
+        elif isinstance(f, dict) and f.get("__file__"):
             file_name = f.get("name", "unnamed")
             try:
-                result.append(_handle_file(f, user))
+                service_file = ServiceFile.from_serialized(f)
+                result.append(service_file.to_file_field_dict(user))
             except FileURLCouldNotBeReached as exc:
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"The file {file_name} couldn't be reached."

@@ -21,7 +21,7 @@
         <i class="iconoir-check-circle" />
       </span>
       <span
-        v-else-if="allowArraySelection(node)"
+        v-else-if="showNodeSelector(node)"
         class="data-explorer-node__select-node"
         @click.stop="handleClick(node, true)"
       >
@@ -121,9 +121,10 @@ export default {
       default: 0,
     },
     allowNodeSelection: {
-      type: Boolean,
+      type: String,
       required: false,
-      default: false,
+      default: 'none',
+      validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
     },
   },
   emits: ['click', 'toggle'],
@@ -180,6 +181,7 @@ export default {
             nodes: this.node.nodes,
             identifier: `${index}`,
             name: `${index}`,
+            type: this.node.node_type,
           })),
         ]
       }
@@ -187,11 +189,22 @@ export default {
     },
   },
   methods: {
-    allowArraySelection(node) {
+    showNodeSelector(node) {
+      if (this.depth === 0) {
+        return false
+      }
+      if (node.type !== 'array' && node.type !== 'object') {
+        return false
+      }
+      if (this.getFormulaMode() === 'advanced') {
+        return true
+      }
+      if (this.allowNodeSelection === 'all') {
+        return true
+      }
       return (
-        this.depth > 0 &&
-        ['object', 'array'].includes(node.type) &&
-        (this.allowNodeSelection || this.getFormulaMode() === 'advanced')
+        (node.type === 'array' && this.allowNodeSelection === 'array') ||
+        (node.type === 'object' && this.allowNodeSelection === 'object')
       )
     },
     handleClick(node, isNode) {

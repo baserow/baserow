@@ -8,7 +8,7 @@
     >
       <InjectedFormulaInput
         v-model="values.source"
-        allow-node-selection
+        allow-node-selection="array"
         :placeholder="$t('coreIterationServiceForm.sourcePlaceholder')"
       />
     </FormGroup>

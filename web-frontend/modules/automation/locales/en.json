@@ -133,6 +133,7 @@
     "localBaserowListRowsLabel": "List rows in {tableName}",
     "localBaserowAggregateRowsLabel": "Summarize rows in {tableName}",
     "httpRequestLabel": "Send an HTTP request",
+    "csvFileReaderLabel": "Read a CSV file",
     "smtpEmailLabel": "Send an email",
     "routerLabel": "Follow 1 of {edgeCount} branches",
     "iterationLabel": "Iterate on items",

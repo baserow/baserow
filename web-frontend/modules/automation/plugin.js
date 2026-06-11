@@ -20,6 +20,7 @@ import {
   LocalBaserowRowsDeletedTriggerNodeType,
   CoreHTTPTriggerNodeType,
   LocalBaserowAggregateRowsActionNodeType,
+  CoreCSVFileReaderNodeType,
   CoreHttpRequestNodeType,
   CoreIteratorNodeType,
   CoreSMTPEmailNodeType,
@@ -104,6 +105,7 @@ export default defineNuxtPlugin({
     $registry.register('node', new CoreSMTPEmailNodeType(context))
     $registry.register('node', new CoreRouterNodeType(context))
     $registry.register('node', new CoreIteratorNodeType(context))
+    $registry.register('node', new CoreCSVFileReaderNodeType(context))
     $registry.register('node', new SlackWriteMessageNodeType(context))
     $registry.register('node', new LocalBaserowDeleteRowActionNodeType(context))
     $registry.register('node', new LocalBaserowGetRowActionNodeType(context))

@@ -38,6 +38,10 @@ export class WorkflowActionType extends Registerable {
     return path
   }
 
+  get returnsList() {
+    return false
+  }
+
   /**
    * Returns a message if the workflow action configuration is invalid.
    * @param {object} workflowAction - The workflow action to validate.

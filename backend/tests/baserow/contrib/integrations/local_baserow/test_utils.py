@@ -29,6 +29,7 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_json_type_from_response_serializer_field,
     prepare_files_for_db,
 )
+from baserow.core.formula.service_file import ServiceFile
 from baserow.core.formula.validator import (
     ensure_array,
     ensure_boolean,
@@ -167,6 +168,7 @@ def test_guess_cast_function_for_filefieldserializer(data_fixture, fake):
             "name": AnyStr(),
             "size": AnyInt(),
             "uploaded_at": AnyStr(),
+            "visible_name": "superfile",
         },
     ]
 
@@ -212,6 +214,7 @@ def test_prepare_file_for_db_with_file(data_fixture, fake):
             "name": AnyStr(),
             "size": AnyInt(),
             "uploaded_at": AnyStr(),
+            "visible_name": "superfile",
         },
     ]
 
@@ -241,6 +244,7 @@ def test_prepare_file_for_db_with_file(data_fixture, fake):
             "name": AnyStr(),
             "size": AnyInt(),
             "uploaded_at": AnyStr(),
+            "visible_name": "superfile1",
         },
         {
             "image_height": 256,
@@ -250,65 +254,104 @@ def test_prepare_file_for_db_with_file(data_fixture, fake):
             "name": AnyStr(),
             "size": AnyInt(),
             "uploaded_at": AnyStr(),
+            "visible_name": "superfile2",
         },
     ]
 
 
 @pytest.mark.django_db
-@responses.activate
-def test_prepare_file_for_db_with_url(data_fixture, fake):
+def test_prepare_file_for_db_with_service_file(data_fixture):
     user = data_fixture.create_user()
+    uploaded_file = SimpleUploadedFile(
+        name="people.csv",
+        content=b"Name\nAda\n",
+        content_type="text/csv",
+    )
+    service_file = ServiceFile(name="people.csv", file=uploaded_file)
 
-    url = "https://picsum.photos/200/300"
+    assert prepare_files_for_db(service_file, user) == [
+        {
+            "image_height": None,
+            "image_width": None,
+            "is_image": False,
+            "mime_type": "text/csv",
+            "name": AnyStr(),
+            "size": 9,
+            "uploaded_at": AnyStr(),
+            "visible_name": "people.csv",
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_prepare_file_for_db_with_uploaded_file_named_like_user_file(data_fixture):
+    user = data_fixture.create_user()
+    uploaded_file = SimpleUploadedFile(
+        name="avatar.png",
+        content=b"content",
+        content_type="image/png",
+    )
+    service_file = ServiceFile(name="image_1.png", file=uploaded_file)
+
+    assert prepare_files_for_db(service_file, user) == [
+        {
+            "image_height": None,
+            "image_width": None,
+            "is_image": False,
+            "mime_type": "image/png",
+            "name": AnyStr(),
+            "size": 7,
+            "uploaded_at": AnyStr(),
+            "visible_name": "image_1.png",
+        }
+    ]
+
+
+@pytest.mark.django_db
+def test_prepare_file_for_db_with_stored_user_file_url(data_fixture):
+    user = data_fixture.create_user()
+    user_file = data_fixture.create_user_file(original_name="stored.csv")
+
     value = {
         "__file__": True,
-        "name": "filename",
-        "url": url,
+        "name": user_file.name,
+        "url": UserFileHandler().get_user_file_url(user_file),
     }
 
+    assert prepare_files_for_db(value, user)[0]["name"] == user_file.name
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_prepare_file_for_db_with_remote_url(data_fixture):
+    user = data_fixture.create_user()
+    url = "https://example.com/a.csv"
     responses.add(
         responses.GET,
         url,
+        body=b"Name\nAda\n",
+        headers={"Content-Type": "text/csv"},
         status=200,
-        body=fake.image((200, 300)),
     )
 
-    assert prepare_files_for_db(value, user) == [
+    assert prepare_files_for_db(
+        {"__file__": True, "name": "filename", "url": url},
+        user,
+    ) == [
         {
-            "image_height": 300,
-            "image_width": 200,
-            "is_image": True,
-            "mime_type": "image/png",
+            "image_height": None,
+            "image_width": None,
+            "is_image": False,
+            "mime_type": "text/csv",
             "name": AnyStr(),
-            "size": AnyInt(),
+            "size": 9,
             "uploaded_at": AnyStr(),
-        },
-    ]
-
-    assert prepare_files_for_db([value, value], user) == [
-        {
-            "image_height": 300,
-            "image_width": 200,
-            "is_image": True,
-            "mime_type": "image/png",
-            "name": AnyStr(),
-            "size": AnyInt(),
-            "uploaded_at": AnyStr(),
-        },
-        {
-            "image_height": 300,
-            "image_width": 200,
-            "is_image": True,
-            "mime_type": "image/png",
-            "name": AnyStr(),
-            "size": AnyInt(),
-            "uploaded_at": AnyStr(),
+            "visible_name": "filename",
         },
     ]
 
 
 @pytest.mark.django_db
-@responses.activate
 def test_prepare_file_for_db_with_unreachable_url(data_fixture):
     user = data_fixture.create_user()
 
@@ -318,8 +361,6 @@ def test_prepare_file_for_db_with_unreachable_url(data_fixture):
         "name": "filename",
         "url": url,
     }
-
-    responses.add(responses.GET, url, status=404)
 
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         prepare_files_for_db(value, user)
@@ -362,9 +403,10 @@ def test_prepare_file_for_db_with_existing_file(data_fixture):
             "image_width": None,
             "is_image": False,
             "mime_type": "text/plain",
-            "name": AnyStr(),
+            "name": user_file.name,
             "size": AnyInt(),
             "uploaded_at": AnyStr(),
+            "visible_name": "filename",
         },
     ]
 
@@ -374,33 +416,26 @@ def test_prepare_file_for_db_with_existing_file(data_fixture):
             "image_width": None,
             "is_image": False,
             "mime_type": "text/plain",
-            "name": AnyStr(),
+            "name": user_file.name,
             "size": AnyInt(),
             "uploaded_at": AnyStr(),
+            "visible_name": "filename",
         },
         {
             "image_height": None,
             "image_width": None,
             "is_image": False,
             "mime_type": "text/plain",
-            "name": AnyStr(),
+            "name": user_file.name,
             "size": AnyInt(),
             "uploaded_at": AnyStr(),
+            "visible_name": "filename",
         },
     ]
 
 
 @pytest.mark.django_db
-@responses.activate
 def test_prepare_file_for_db_with_mix(data_fixture, fake):
-    picsum_url = "https://picsum.photos/300/200"
-    responses.add(
-        responses.GET,
-        picsum_url,
-        status=200,
-        body=fake.image((300, 200)),
-    )
-
     user = data_fixture.create_user()
     user_file = data_fixture.create_user_file(
         original_name=f"a.txt",
@@ -416,11 +451,6 @@ def test_prepare_file_for_db_with_mix(data_fixture, fake):
         {
             "__file__": True,
             "name": "filename",
-            "url": picsum_url,
-        },
-        {
-            "__file__": True,
-            "name": "superfile",
             "file": SimpleUploadedFile(
                 name="avatar.png", content=image, content_type="image/png"
             ),
@@ -433,18 +463,10 @@ def test_prepare_file_for_db_with_mix(data_fixture, fake):
             "image_width": None,
             "is_image": False,
             "mime_type": "text/plain",
-            "name": AnyStr(),
+            "name": user_file.name,
             "size": AnyInt(),
             "uploaded_at": AnyStr(),
-        },
-        {
-            "image_height": 200,
-            "image_width": 300,
-            "is_image": True,
-            "mime_type": "image/png",
-            "name": AnyStr(),
-            "size": AnyInt(),
-            "uploaded_at": AnyStr(),
+            "visible_name": "filename",
         },
         {
             "image_height": 256,
@@ -454,5 +476,6 @@ def test_prepare_file_for_db_with_mix(data_fixture, fake):
             "name": AnyStr(),
             "size": AnyInt(),
             "uploaded_at": AnyStr(),
+            "visible_name": "filename",
         },
     ]

@@ -50,6 +50,7 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(SlackWriteMessageServiceType())
 
         from baserow.contrib.integrations.core.service_types import (
+            CoreCSVFileReaderServiceType,
             CoreHTTPRequestServiceType,
             CoreHTTPTriggerServiceType,
             CoreIteratorServiceType,
@@ -64,6 +65,7 @@ class IntegrationsConfig(AppConfig):
         service_type_registry.register(CoreHTTPTriggerServiceType())
         service_type_registry.register(CoreIteratorServiceType())
         service_type_registry.register(CorePeriodicServiceType())
+        service_type_registry.register(CoreCSVFileReaderServiceType())
 
         from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
 

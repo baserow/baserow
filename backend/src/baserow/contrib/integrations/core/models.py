@@ -6,6 +6,7 @@ from django.db import models
 
 from baserow.contrib.integrations.core.constants import (
     BODY_TYPE,
+    CSV_FILE_READER_INPUT_TYPE,
     HTTP_METHOD,
     PERIODIC_INTERVAL_CHOICES,
 )
@@ -54,6 +55,41 @@ class CoreIteratorService(Service):
 
     source = FormulaField(
         help_text="The path of the array.",
+    )
+
+
+class CoreCSVFileReaderService(Service):
+    """
+    A service to read rows from a CSV file.
+    """
+
+    file = FormulaField(
+        blank=True,
+        help_text="The CSV file to read.",
+    )
+    csv = FormulaField(
+        blank=True,
+        help_text="The raw CSV data to read.",
+    )
+    input_type = models.CharField(
+        max_length=32,
+        choices=CSV_FILE_READER_INPUT_TYPE.choices,
+        default=CSV_FILE_READER_INPUT_TYPE.FILE,
+        help_text="Whether the CSV should be read from a file or raw content.",
+    )
+    separator = models.CharField(
+        max_length=1,
+        default=",",
+        help_text="The character used to separate columns in the CSV file.",
+    )
+    encoding = models.CharField(
+        max_length=32,
+        default="utf-8",
+        help_text="The character encoding used to decode the CSV file.",
+    )
+    first_line_is_header = models.BooleanField(
+        default=True,
+        help_text="Whether the first line of the CSV file contains column names.",
     )
 
 

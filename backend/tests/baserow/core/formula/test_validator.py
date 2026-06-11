@@ -1,17 +1,22 @@
 from datetime import date, datetime, timedelta
 
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
+from django.core.files.storage import FileSystemStorage
 
 import pytest
 
+from baserow.core.formula.service_file import ServiceFile, _user_file_name_from_url
 from baserow.core.formula.validator import (
     ensure_date,
     ensure_datetime,
     ensure_duration,
+    ensure_file,
     ensure_integer,
     ensure_json,
     ensure_string,
 )
+from baserow.core.user_files.handler import UserFileHandler
 
 
 def test_ensure_date():
@@ -47,6 +52,107 @@ def test_ensure_datetime_with_date_format_iso_takes_priority():
 def test_ensure_datetime_strict_rejects_iso_when_format_differs():
     with pytest.raises(ValidationError):
         ensure_datetime("2026-05-06", date_format="%d/%m/%Y", strict=True)
+
+
+@pytest.mark.django_db
+def test_ensure_file_accepts_serialized_user_file_url(
+    data_fixture, monkeypatch, tmpdir
+):
+    storage = FileSystemStorage(location=str(tmpdir), base_url="/media/")
+    monkeypatch.setattr(
+        "baserow.core.formula.service_file.get_default_storage", lambda: storage
+    )
+    user_file = data_fixture.create_user_file(original_name="data.csv")
+    path = UserFileHandler().user_file_path(user_file.name)
+    storage.save(path, ContentFile("Name\nAda\n"))
+
+    service_file = ensure_file(
+        {
+            "__file__": True,
+            "name": user_file.name,
+            "visible_name": "people.csv",
+            "url": UserFileHandler().get_user_file_url(user_file),
+        }
+    )
+
+    assert isinstance(service_file, ServiceFile)
+    assert service_file.read_bytes() == b"Name\nAda\n"
+    assert service_file.to_file_field_dict()["visible_name"] == "people.csv"
+
+
+@pytest.mark.django_db
+def test_user_file_name_from_url_accepts_media_user_file_url(data_fixture):
+    user_file = data_fixture.create_user_file(original_name="data.csv")
+
+    assert (
+        _user_file_name_from_url(UserFileHandler().get_user_file_url(user_file))
+        == user_file.name
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "url_template",
+    [
+        "https://example.com/{name}",
+        "http://localhost:8000/media/files/{name}",
+        "http://localhost:8000/media/user_files/nested/{name}",
+    ],
+)
+def test_user_file_name_from_url_rejects_lookalike_urls(data_fixture, url_template):
+    user_file = data_fixture.create_user_file(original_name="data.csv")
+
+    assert _user_file_name_from_url(url_template.format(name=user_file.name)) is None
+
+
+@pytest.mark.django_db
+def test_ensure_file_accepts_user_file(data_fixture):
+    user_file = data_fixture.create_user_file(
+        original_name="data.csv", mime_type="text/csv", size=42
+    )
+
+    service_file = ensure_file(user_file)
+
+    assert service_file.name == user_file.name
+    assert service_file.visible_name == "data.csv"
+    assert service_file.url == UserFileHandler().get_user_file_url(user_file)
+    assert service_file.user_file == user_file
+    assert service_file.mime_type == "text/csv"
+    assert service_file.size == 42
+
+
+def test_service_file_from_serialized():
+    service_file = ServiceFile.from_serialized(
+        {
+            "__file__": True,
+            "name": "data.csv",
+            "original_name": "Data Export",
+            "url": "https://example.com/files/data.csv",
+            "mime_type": "text/csv",
+            "size": 42,
+        }
+    )
+
+    assert service_file.name == "data.csv"
+    assert service_file.visible_name == "Data Export"
+    assert service_file.url == "https://example.com/files/data.csv"
+    assert service_file.mime_type == "text/csv"
+    assert service_file.size == 42
+
+
+@pytest.mark.parametrize("value", ["raw csv", 1, None, {"foo": "bar"}])
+def test_ensure_file_rejects_non_file_values(value):
+    with pytest.raises(ValidationError) as exc_info:
+        ensure_file(value)
+    assert exc_info.value.messages == ["A valid file or url is required."]
+
+
+def test_ensure_file_accepts_remote_url_string():
+    service_file = ensure_file("https://example.com/files/data.csv")
+
+    assert service_file.name == "data.csv"
+    assert service_file.visible_name == "data.csv"
+    assert service_file.url == "https://example.com/files/data.csv"
 
 
 def test_ensure_datetime_strict_accepts_matching_format():

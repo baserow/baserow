@@ -15,6 +15,7 @@ import {
   LocalBaserowRowsDeletedTriggerServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import {
+  CoreCSVFileReaderServiceType,
   CoreHTTPRequestServiceType,
   PeriodicTriggerServiceType,
   CoreRouterServiceType,
@@ -61,6 +62,7 @@ export default defineNuxtPlugin({
     $registry.register('service', new CoreRouterServiceType(context))
     $registry.register('service', new CoreHTTPTriggerServiceType(context))
     $registry.register('service', new CoreIteratorServiceType(context))
+    $registry.register('service', new CoreCSVFileReaderServiceType(context))
     $registry.register('service', new AIAgentServiceType(context))
     $registry.register('service', new PeriodicTriggerServiceType(context))
     $registry.register('service', new SlackWriteMessageServiceType(context))
