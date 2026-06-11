@@ -403,12 +403,14 @@ def test_graph_handler_get_siblings(mock_get_points, node_id, expected_result):
                 "0": 1,
                 "1": {"next": {"": [2]}},
                 "2": {"next": {"": [3]}},
-                "3": {"children": [7], "next": {"": [4]}},
+                # The new child is prepended as the head of the slot; the previous
+                # head (7) becomes its next.
+                "3": {"children": {"": [11]}, "next": {"": [4]}},
+                "11": {"next": {"": [7]}},
                 "4": {"next": {"": [5], "randomUid": [9]}},
                 "7": {"next": {"": [8]}},
-                "8": {"children": [], "next": {"": [11]}},
+                "8": {"children": []},
                 "9": {},
-                "11": {},
             },
         ),
         (
@@ -823,11 +825,13 @@ def test_graph_handler_replace(
             {
                 "0": 1,
                 "1": {"next": {"": [3]}},
-                "2": {},
-                "3": {"children": [7], "next": {"": [4]}},
+                # Moved in as the head of node 3's child slot; the previous head (7)
+                # becomes the moved node's next.
+                "3": {"children": {"": [2]}, "next": {"": [4]}},
+                "2": {"next": {"": [7]}},
                 "4": {"next": {"": [5], "randomUid": [9]}},
                 "7": {"next": {"": [8]}},
-                "8": {"children": [], "next": {"": [2]}},
+                "8": {"children": []},
                 "9": {},
             },
         ),
