@@ -15,6 +15,7 @@ BUILDER_NO_BRANDING = "application_no_branding"
 BUILDER_FILE_INPUT = "builder_file_input"
 BUILDER_CUSTOM_CODE = "builder_custom_code"
 CODE_RUNNER = "code_runner"
+XLS_FILE_READER = "xls_file_reader"
 
 DATE_DEPENDENCY = "date_dependency"
 DATA_SCANNER = "data_scanner"

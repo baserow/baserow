@@ -298,6 +298,7 @@ dependencies = [
     { name = "uvicorn", extra = ["standard"], marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "validators", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "websockets", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
+    { name = "xlrd", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "zipp", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
     { name = "zipstream-ng", marker = "sys_platform == 'darwin' or sys_platform == 'linux'" },
 ]
@@ -434,6 +435,7 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], specifier = "==0.40.0" },
     { name = "validators", specifier = "==0.35.0" },
     { name = "websockets", specifier = "==15.0.1" },
+    { name = "xlrd", specifier = "==2.0.2" },
     { name = "zipp", specifier = "==3.23.0" },
     { name = "zipstream-ng", specifier = "==1.9.0" },
 ]
@@ -4136,6 +4138,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/25/02/78926c1efddcc7b3aa0bc3d6b33a822f7d898059f7cd9ace8c8318e559ef/wrapt-1.17.3-cp314-cp314t-musllinux_1_2_aarch64.whl", hash = "sha256:e405adefb53a435f01efa7ccdec012c016b5a1d3f35459990afc39b6be4d5056", size = 110659, upload-time = "2025-08-12T05:52:24.057Z" },
     { url = "https://files.pythonhosted.org/packages/dc/ee/c414501ad518ac3e6fe184753632fe5e5ecacdcf0effc23f31c1e4f7bfcf/wrapt-1.17.3-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:88547535b787a6c9ce4086917b6e1d291aa8ed914fdd3a838b3539dc95c12804", size = 106946, upload-time = "2025-08-12T05:52:45.976Z" },
     { url = "https://files.pythonhosted.org/packages/1f/f6/a933bd70f98e9cf3e08167fc5cd7aaaca49147e48411c0bd5ae701bb2194/wrapt-1.17.3-py3-none-any.whl", hash = "sha256:7171ae35d2c33d326ac19dd8facb1e82e5fd04ef8c6c0e394d7af55a55051c22", size = 23591, upload-time = "2025-08-12T05:53:20.674Z" },
+]
+
+[[package]]
+name = "xlrd"
+version = "2.0.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/07/5a/377161c2d3538d1990d7af382c79f3b2372e880b65de21b01b1a2b78691e/xlrd-2.0.2.tar.gz", hash = "sha256:08b5e25de58f21ce71dc7db3b3b8106c1fa776f3024c54e45b45b374e89234c9", size = 100167, upload-time = "2025-06-14T08:46:39.039Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1a/62/c8d562e7766786ba6587d09c5a8ba9f718ed3fa8af7f4553e8f91c36f302/xlrd-2.0.2-py2.py3-none-any.whl", hash = "sha256:ea762c3d29f4cca48d82df517b6d89fbce4db3107f9d78713e48cd321d5c9aa9", size = 96555, upload-time = "2025-06-14T08:46:37.766Z" },
 ]
 
 [[package]]

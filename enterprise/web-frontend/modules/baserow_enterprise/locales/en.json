@@ -14,7 +14,8 @@
     "sso": "SSO",
     "licenseDescription": "Viewers and commenters free in this plan. If a user has any other role, in any workspace then they will use a paid seat automatically.",
     "overflowWarning": "You have too many non-viewer/commenter users and have used up all of your paid seats. Change users to become viewers on each workspaces members page.",
-    "deactivated": "Available in the advanced/enterprise version"
+    "deactivated": "Available in the advanced/enterprise version",
+    "enterpriseOnlyDeactivated": "Available in the enterprise version"
   },
   "trashType": {
     "team": "team"
@@ -22,7 +23,10 @@
   "serviceType": {
     "coreCode": "Execute code",
     "coreCodeDescription": "Runs arbitrary JavaScript code.",
-    "errorCodeMissing": "Missing code property"
+    "coreXLSFileReader": "Read an XLS file",
+    "coreXLSFileReaderDescription": "Reads rows from an XLS or XLSX file.",
+    "errorCodeMissing": "Missing code property",
+    "errorXLSFileMissing": "Missing XLS file property"
   },
   "coreCodeServiceForm": {
     "codeLabel": "Code",
@@ -39,8 +43,16 @@
     "nameFieldRequired": "The name field is required.",
     "nameFieldInvalid": "The name must be a valid variable name."
   },
+  "coreXLSFileReaderServiceForm": {
+    "file": "XLS file",
+    "filePlaceholder": "Choose an XLS or XLSX file...",
+    "sheetName": "Sheet name",
+    "sheetNamePlaceholder": "First sheet",
+    "firstLineIsHeader": "First line is header"
+  },
   "nodeType": {
-    "codeLabel": "Execute code"
+    "codeLabel": "Execute code",
+    "xlsFileReaderLabel": "Read an XLS file"
   },
   "createTeamModal": {
     "title": "Create team",

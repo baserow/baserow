@@ -19,6 +19,7 @@ from baserow_enterprise.features import (
     SSO,
     SUPPORT,
     TEAMS,
+    XLS_FILE_READER,
 )
 from baserow_enterprise.role.seat_usage_calculator import (
     RoleBasedSeatUsageSummaryCalculator,
@@ -106,6 +107,7 @@ class EnterpriseWithoutSupportLicenseType(AdvancedLicenseType):
         SECURE_FILE_SERVE,
         DATA_SCANNER,
         CODE_RUNNER,
+        XLS_FILE_READER,
     ]
 
     def handle_seat_overflow(self, seats_taken: int, license_object: License):

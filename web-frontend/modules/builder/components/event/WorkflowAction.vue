@@ -104,11 +104,17 @@ export default {
     serviceSampleData() {
       return this.workflowAction.service?.sample_data || null
     },
+
     sampleData() {
-      if (this.serviceSampleData?._error) {
-        return this.serviceSampleData._error
+      const sample = this.serviceSampleData
+
+      if (sample?._error) {
+        return sample._error
       }
-      return this.serviceSampleData?.data || null
+      if (this.workflowActionType.returnsList && sample?.data) {
+        return sample.data.results
+      }
+      return sample?.data || null
     },
     isErrorSample() {
       return Boolean(this.serviceSampleData?._error)

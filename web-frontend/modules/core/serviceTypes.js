@@ -87,6 +87,13 @@ export class ServiceType extends Registerable {
     return path
   }
 
+  /**
+   * Whether the service returns a collection of records.
+   */
+  get returnsList() {
+    return false
+  }
+
   getOrder() {
     return 0
   }
@@ -95,13 +102,6 @@ export class ServiceType extends Registerable {
 export const DataSourceServiceTypeMixin = (Base) =>
   class extends Base {
     isDataSource = true
-
-    /**
-     * Whether the service returns a collection of records.
-     */
-    get returnsList() {
-      return false
-    }
 
     /**
      * In a service which returns a list, this method is used to

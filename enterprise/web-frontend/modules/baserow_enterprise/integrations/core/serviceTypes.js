@@ -1,8 +1,11 @@
 import {
+  DataSourceServiceTypeMixin,
   ServiceType,
   WorkflowActionServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
+import EnterpriseFeaturesObject from '@baserow_enterprise/features'
 import CoreCodeServiceForm from '@baserow_enterprise/integrations/core/components/services/CoreCodeServiceForm.vue'
+import CoreXLSFileReaderServiceForm from '@baserow_enterprise/integrations/core/components/services/CoreXLSFileReaderServiceForm.vue'
 
 export const CORE_CODE_SERVICE_DEFAULT_CODE = `function main(context) {
   return {
@@ -59,5 +62,73 @@ export class CoreCodeServiceType extends WorkflowActionServiceTypeMixin(
 
   getOrder() {
     return 4
+  }
+}
+
+export class CoreXLSFileReaderServiceType extends DataSourceServiceTypeMixin(
+  WorkflowActionServiceTypeMixin(ServiceType)
+) {
+  static getType() {
+    return 'xls_file_reader'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreXLSFileReader')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreXLSFileReaderDescription')
+  }
+
+  get icon() {
+    return 'iconoir-page'
+  }
+
+  get returnsList() {
+    return true
+  }
+
+  getRecordName(service, record) {
+    return record?.name || record?.id || ''
+  }
+
+  getIdProperty(service, record) {
+    return record?.id || record?._id
+  }
+
+  getResult(service, data) {
+    return data.results
+  }
+
+  getErrorMessage({ service }) {
+    if (service?.file !== undefined && !service?.file?.formula) {
+      return this.app.$i18n.t('serviceType.errorXLSFileMissing')
+    }
+
+    return super.getErrorMessage({ service })
+  }
+
+  isDeactivatedReason({ workspace }) {
+    if (
+      !this.app.$hasFeature(
+        EnterpriseFeaturesObject.XLS_FILE_READER,
+        workspace.id
+      )
+    ) {
+      return this.app.$i18n.t('enterprise.enterpriseOnlyDeactivated')
+    }
+    return null
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  get formComponent() {
+    return CoreXLSFileReaderServiceForm
+  }
+
+  getOrder() {
+    return 7
   }
 }

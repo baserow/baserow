@@ -93,7 +93,7 @@ const sampleData = computed(() => {
   if (sample?._error) {
     return sample._error
   }
-  if (nodeType.value.serviceType.returnsList && sample?.data) {
+  if (nodeType.value.returnsList && sample?.data) {
     return sample.data.results
   }
   return sample?.data

@@ -235,6 +235,10 @@ export class CoreIteratorServiceType extends WorkflowActionServiceTypeMixin(
     return 'iconoir-repeat'
   }
 
+  get returnsList() {
+    return true
+  }
+
   getErrorMessage({ service }) {
     if (!service?.source?.formula) {
       return this.app.$i18n.t('serviceType.errorIterationSourceMissing')

@@ -36,3 +36,22 @@ class CoreCodeServiceInjection(models.Model):
         blank=True,
         help_text="The formula used to extract the variable value from the context.",
     )
+
+
+class CoreXLSFileReaderService(Service):
+    """
+    A service to read rows from an XLS or XLSX file.
+    """
+
+    file = FormulaField(
+        blank=True,
+        help_text="The XLS or XLSX file to read.",
+    )
+    sheet_name = FormulaField(
+        blank=True,
+        help_text="The sheet to read. The first sheet is used when empty.",
+    )
+    first_line_is_header = models.BooleanField(
+        default=True,
+        help_text="Whether the first line of the spreadsheet contains column names.",
+    )

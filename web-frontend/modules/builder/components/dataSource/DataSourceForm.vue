@@ -23,6 +23,10 @@
                 :name="serviceTypeForDrop.name"
                 :value="serviceTypeForDrop.getType()"
                 :image="serviceTypeForDrop.integrationType.image"
+                :disabled="isServiceTypeDeactivated(serviceTypeForDrop)"
+                :description="
+                  getServiceTypeDeactivatedReason(serviceTypeForDrop)
+                "
               >
               </DropdownItem>
             </template>
@@ -209,6 +213,16 @@ export default {
         ? this.$refs.subForm.isFormValid(deep)
         : true
       return !thisFormInvalid && this.areChildFormsValid(deep) && subFormValid
+    },
+    getServiceTypeDeactivatedReason(serviceType) {
+      return (
+        serviceType.isDeactivatedReason?.({
+          workspace: this.builder.workspace,
+        }) || null
+      )
+    },
+    isServiceTypeDeactivated(serviceType) {
+      return this.getServiceTypeDeactivatedReason(serviceType) !== null
     },
   },
   validations() {

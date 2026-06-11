@@ -32,6 +32,27 @@ def register_code_runner_features():
     automation_node_type_registry.register(CoreCodeNodeType())
 
 
+def register_xls_file_reader_features():
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
+    from baserow.contrib.builder.workflow_actions.registries import (
+        builder_workflow_action_type_registry,
+    )
+    from baserow.core.services.registries import service_type_registry
+    from baserow_enterprise.automation.nodes.node_types import CoreXLSFileReaderNodeType
+    from baserow_enterprise.builder.workflow_actions.workflow_action_types import (
+        CoreXLSFileReaderActionType,
+    )
+    from baserow_enterprise.integrations.core.service_types import (
+        CoreXLSFileReaderServiceType,
+    )
+
+    service_type_registry.register(CoreXLSFileReaderServiceType())
+    builder_workflow_action_type_registry.register(CoreXLSFileReaderActionType())
+    automation_node_type_registry.register(CoreXLSFileReaderNodeType())
+
+
 class BaserowEnterpriseConfig(AppConfig):
     name = "baserow_enterprise"
 
@@ -254,6 +275,7 @@ class BaserowEnterpriseConfig(AppConfig):
         app_auth_provider_type_registry.register(OpenIdConnectAppAuthProviderType())
 
         register_code_runner_features()
+        register_xls_file_reader_features()
 
         from baserow.contrib.builder.elements.registries import element_type_registry
         from baserow_enterprise.builder.elements.element_types import (

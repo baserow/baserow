@@ -344,7 +344,7 @@ const showNodeResultModal = async () => {
     let result = store.getters['automationHistory/getNodeResult'](nodeHistoryId)
     if (result?._error) {
       result = result._error
-    } else if (nodeType.value.serviceType.returnsList && result?.results) {
+    } else if (nodeType.value.returnsList && result?.results) {
       result = result.results
     }
     resolvedSampleData.value = result

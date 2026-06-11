@@ -120,6 +120,10 @@ export class NodeType extends Registerable {
     return this.serviceType.formComponent
   }
 
+  get returnsList() {
+    return Boolean(this.serviceType.returnsList)
+  }
+
   /**
    * Whether this node type can be moved around the workflow. By default,
    * all nodes can be moved. This can be overridden by the node type

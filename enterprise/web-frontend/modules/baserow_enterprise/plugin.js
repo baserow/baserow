@@ -93,9 +93,18 @@ import { CustomCodeBuilderSettingType } from '@baserow_enterprise/builderSetting
 import { RealtimePushTwoWaySyncStrategyType } from '@baserow_enterprise/twoWaySyncStrategyTypes'
 import { RestrictedViewOwnershipType } from '@baserow_enterprise/viewOwnershipTypes'
 import { AIDatabaseOnboardingStepType } from '@baserow_enterprise/databaseOnboardingStepTypes'
-import { CoreCodeServiceType } from '@baserow_enterprise/integrations/core/serviceTypes'
-import { CoreCodeWorkflowActionType } from '@baserow_enterprise/builder/workflowActionTypes'
-import { CoreCodeNodeType } from '@baserow_enterprise/automation/nodeTypes'
+import {
+  CoreCodeServiceType,
+  CoreXLSFileReaderServiceType,
+} from '@baserow_enterprise/integrations/core/serviceTypes'
+import {
+  CoreCodeWorkflowActionType,
+  CoreXLSFileReaderWorkflowActionType,
+} from '@baserow_enterprise/builder/workflowActionTypes'
+import {
+  CoreCodeNodeType,
+  CoreXLSFileReaderNodeType,
+} from '@baserow_enterprise/automation/nodeTypes'
 
 export default defineNuxtPlugin({
   name: 'enterprise',
@@ -168,6 +177,12 @@ export default defineNuxtPlugin({
       )
       $registry.register('node', new CoreCodeNodeType(context))
     }
+    $registry.register('service', new CoreXLSFileReaderServiceType(context))
+    $registry.register(
+      'workflowAction',
+      new CoreXLSFileReaderWorkflowActionType(context)
+    )
+    $registry.register('node', new CoreXLSFileReaderNodeType(context))
 
     $registry.register(
       'appAuthProvider',
