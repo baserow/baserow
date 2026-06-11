@@ -194,6 +194,20 @@ def test_remove_permutations():
     assert model.graph == {}
 
 
+def test_insert_child_with_none_output_uses_default_edge():
+    # Regression: a child insert with output=None (e.g. a move carrying a null
+    # place_in_container) must land in the default "" slot — never a bogus "None"
+    # slot key, since str(None) == "None".
+    model = make_graph_model({"0": 1, "1": {}})
+    graph = model.get_graph()
+
+    child = make_point(2, model)
+    graph.insert(child, model.points[1], "child", output=None)
+
+    assert model.graph["1"]["children"] == {"": [2]}
+    assert "None" not in model.graph["1"]["children"]
+
+
 def test_insert_permutations():
     model = make_graph_model({})
     graph = model.get_graph()

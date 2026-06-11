@@ -243,7 +243,7 @@ class BaseGraphHandler(ABC):
         :param output: The output of the reference point to use.
         """
 
-        output = str(output)
+        output = "" if output is None else str(output)
 
         if position == "south":
             # First point
@@ -668,7 +668,11 @@ class BaseGraphHandler(ABC):
         will insert the point as child of the reference point.
         """
 
-        output = str(output)  # When it's a UUID
+        # Coerce to a string (the output may be a UUID), treating None as the
+        # default "" edge. Without the None guard, str(None) would persist a bogus
+        # "None" slot key into the graph (e.g. from a move with a null
+        # place_in_container).
+        output = "" if output is None else str(output)
 
         graph = self.graph
         point_info = graph.setdefault(str(point.id), {})
@@ -884,7 +888,11 @@ class BaseGraphHandler(ABC):
             self. Defaults to None (same-graph move).
         """
 
-        output = str(output)  # When it's a UUID
+        # Coerce to a string (the output may be a UUID), treating None as the
+        # default "" edge. Without the None guard, str(None) would persist a bogus
+        # "None" slot key into the graph (e.g. from a move with a null
+        # place_in_container).
+        output = "" if output is None else str(output)
         target = target_graph or self
         is_cross_graph = target is not self
 

@@ -714,6 +714,32 @@ def test_move_element_end_of_page(data_fixture):
 
 
 @pytest.mark.django_db
+def test_move_element_into_container_with_null_place_in_container(data_fixture):
+    # Regression: moving an element into a container with a null place_in_container
+    # (which the move endpoint accepts) must land it in the default "" slot, never a
+    # bogus "None" slot key.
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    container = ElementService().create_element(
+        user, element_type_registry.get("simple_container"), page=page
+    )
+    heading = data_fixture.create_builder_heading_element(page=page)
+
+    ElementService().move_element(
+        user,
+        page,
+        ElementHandler().get_element_for_update(heading.id),
+        None,  # place_in_container
+        container.id,
+        GraphPointPosition.CHILD,
+    )
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph[str(container.id)]["children"] == {"": [heading.id]}
+    assert "None" not in page.graph[str(container.id)]["children"]
+
+
+@pytest.mark.django_db
 def test_move_element_before(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)

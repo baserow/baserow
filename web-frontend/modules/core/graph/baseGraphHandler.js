@@ -217,6 +217,10 @@ export default class BaseGraphHandler {
   }
 
   _insertAt(point, referencePoint, position, output) {
+    // A null/undefined output means the default '' edge — never a literal
+    // 'null'/'undefined' slot key (mirrors the backend's None guard).
+    output = output == null ? '' : String(output)
+
     if (!referencePoint) {
       let next = null
       if (this.graph['0']) {
