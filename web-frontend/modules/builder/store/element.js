@@ -439,7 +439,13 @@ const actions = {
     if (patchHeader) {
       dispatch(
         'page/forceUpdate',
-        { builder, page, values: { graph: { ...(page.graph || {}), ...JSON.parse(patchHeader) } } },
+        {
+          builder,
+          page,
+          values: {
+            graph: { ...(page.graph || {}), ...JSON.parse(patchHeader) },
+          },
+        },
         { root: true }
       )
     }
