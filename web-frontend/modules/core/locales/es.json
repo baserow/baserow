@@ -590,14 +590,14 @@
     "failedConnectingToast": {
         "title": "Fallido",
         "content": "No se pudieron restablecer las actualizaciones en tiempo real. Por favor, actualiza para continuar.",
-        "action": "Refrescar página"
+        "action": "Recargar página"
     },
     "userSessionExpiredToast": {
         "title": "Sesión expirada",
         "content": "Se ha cerrado la sesión porque tu token de autenticación ha expirado. Vuelva a iniciar sesión."
     },
     "authorizationErrorToast": {
-        "action": "Refrescar página",
+        "action": "Recargar página",
         "title": "Error de autorización",
         "content": "Parece que no tienes permiso de ver este recurso."
     },
