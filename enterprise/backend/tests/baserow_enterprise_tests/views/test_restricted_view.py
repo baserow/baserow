@@ -13,8 +13,17 @@ from starlette.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.database.action.scopes import TableActionScopeType
 from baserow.contrib.database.api.constants import PUBLIC_PLACEHOLDER_ENTITY_ID
 from baserow.contrib.database.fields.models import DateField
+from baserow.contrib.database.rows.actions import (
+    CreateRowActionType,
+    CreateRowsActionType,
+    DeleteRowActionType,
+    DeleteRowsActionType,
+    UpdateRowActionType,
+    UpdateRowsActionType,
+)
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import (
@@ -32,6 +41,8 @@ from baserow.contrib.database.views.view_ownership_types import (
 )
 from baserow.contrib.database.views.view_types import GalleryViewType, GridViewType
 from baserow.contrib.database.ws.views.rows.handler import ViewRealtimeRowsHandler
+from baserow.core.action.handler import ActionHandler
+from baserow.core.action.registries import action_type_registry
 from baserow.core.exceptions import PermissionDenied as BaserowPermissionDenied
 from baserow.core.utils import get_value_at_path
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -2980,3 +2991,672 @@ def test_cannot_create_form_view_with_restricted_ownership_type(
         response.json()["error"]
         == "ERROR_VIEW_OWNERSHIP_TYPE_INCOMPATIBLE_WITH_VIEW_TYPE"
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@override_settings(DEBUG=True)
+def test_editor_on_restricted_view_can_undo_update_row(enterprise_data_fixture):
+    """
+    When a user has NO_ACCESS at workspace level but EDITOR on a restricted view,
+    they can update rows through the view. Undo must also work by passing the view
+    to the permission check.
+    """
+
+    enterprise_data_fixture.enable_enterprise()
+
+    admin = enterprise_data_fixture.create_user()
+    session_id = "editor-session"
+    editor = enterprise_data_fixture.create_user(session_id=session_id)
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    row = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "original"}
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        editor,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    action_type_registry.get_by_type(UpdateRowActionType).do(
+        editor,
+        table,
+        row_id=row.id,
+        values={f"field_{name_field.id}": "updated"},
+        view=view,
+    )
+
+    row.refresh_from_db()
+    assert getattr(row, f"field_{name_field.id}") == "updated"
+
+    actions_undone = ActionHandler.undo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+
+    assert len(actions_undone) == 1
+    assert actions_undone[0].error is None
+
+    row.refresh_from_db()
+    assert getattr(row, f"field_{name_field.id}") == "original"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@override_settings(DEBUG=True)
+def test_editor_on_restricted_view_can_redo_update_row(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    admin = enterprise_data_fixture.create_user()
+    session_id = "editor-session"
+    editor = enterprise_data_fixture.create_user(session_id=session_id)
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    row = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "original"}
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        editor,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    action_type_registry.get_by_type(UpdateRowActionType).do(
+        editor,
+        table,
+        row_id=row.id,
+        values={f"field_{name_field.id}": "updated"},
+        view=view,
+    )
+
+    ActionHandler.undo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+
+    actions_redone = ActionHandler.redo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+
+    assert len(actions_redone) == 1
+    assert actions_redone[0].error is None
+
+    row.refresh_from_db()
+    assert getattr(row, f"field_{name_field.id}") == "updated"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@override_settings(DEBUG=True)
+def test_editor_on_restricted_view_can_undo_update_rows(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    admin = enterprise_data_fixture.create_user()
+    session_id = "editor-session"
+    editor = enterprise_data_fixture.create_user(session_id=session_id)
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    row_one = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "original1"}
+    )
+    row_two = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "original2"}
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        editor,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    action_type_registry.get_by_type(UpdateRowsActionType).do(
+        editor,
+        table,
+        [
+            {"id": row_one.id, f"field_{name_field.id}": "updated1"},
+            {"id": row_two.id, f"field_{name_field.id}": "updated2"},
+        ],
+        view=view,
+    )
+
+    row_one.refresh_from_db()
+    row_two.refresh_from_db()
+    assert getattr(row_one, f"field_{name_field.id}") == "updated1"
+    assert getattr(row_two, f"field_{name_field.id}") == "updated2"
+
+    actions_undone = ActionHandler.undo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+
+    assert len(actions_undone) == 1
+    assert actions_undone[0].error is None
+
+    row_one.refresh_from_db()
+    row_two.refresh_from_db()
+    assert getattr(row_one, f"field_{name_field.id}") == "original1"
+    assert getattr(row_two, f"field_{name_field.id}") == "original2"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@override_settings(DEBUG=True)
+def test_editor_on_restricted_view_can_redo_update_rows(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    admin = enterprise_data_fixture.create_user()
+    session_id = "editor-session"
+    editor = enterprise_data_fixture.create_user(session_id=session_id)
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    row_one = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "original1"}
+    )
+    row_two = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "original2"}
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        editor,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    action_type_registry.get_by_type(UpdateRowsActionType).do(
+        editor,
+        table,
+        [
+            {"id": row_one.id, f"field_{name_field.id}": "updated1"},
+            {"id": row_two.id, f"field_{name_field.id}": "updated2"},
+        ],
+        view=view,
+    )
+
+    ActionHandler.undo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+
+    actions_redone = ActionHandler.redo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+
+    assert len(actions_redone) == 1
+    assert actions_redone[0].error is None
+
+    row_one.refresh_from_db()
+    row_two.refresh_from_db()
+    assert getattr(row_one, f"field_{name_field.id}") == "updated1"
+    assert getattr(row_two, f"field_{name_field.id}") == "updated2"
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@override_settings(DEBUG=True)
+def test_editor_on_restricted_view_can_undo_create_row(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    admin = enterprise_data_fixture.create_user()
+    session_id = "editor-session"
+    editor = enterprise_data_fixture.create_user(session_id=session_id)
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        editor,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    model = table.get_model()
+    row = action_type_registry.get_by_type(CreateRowActionType).do(
+        editor,
+        table,
+        values={f"field_{name_field.id}": "new"},
+        view=view,
+    )
+
+    assert model.objects.filter(id=row.id).exists()
+
+    actions_undone = ActionHandler.undo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+
+    assert len(actions_undone) == 1
+    assert actions_undone[0].error is None
+    assert not model.objects.filter(id=row.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@override_settings(DEBUG=True)
+def test_editor_on_restricted_view_can_undo_create_rows(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    admin = enterprise_data_fixture.create_user()
+    session_id = "editor-session"
+    editor = enterprise_data_fixture.create_user(session_id=session_id)
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        editor,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    model = table.get_model()
+    result = action_type_registry.get_by_type(CreateRowsActionType).do(
+        editor,
+        table,
+        rows_values=[
+            {f"field_{name_field.id}": "row1"},
+            {f"field_{name_field.id}": "row2"},
+        ],
+        view=view,
+    )
+
+    row_ids = [r.id for r in result]
+    assert model.objects.filter(id__in=row_ids).count() == 2
+
+    actions_undone = ActionHandler.undo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+
+    assert len(actions_undone) == 1
+    assert actions_undone[0].error is None
+    assert model.objects.filter(id__in=row_ids).count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@override_settings(DEBUG=True)
+def test_editor_on_restricted_view_can_redo_create_row(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    admin = enterprise_data_fixture.create_user()
+    session_id = "editor-session"
+    editor = enterprise_data_fixture.create_user(session_id=session_id)
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        editor,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    model = table.get_model()
+    row = action_type_registry.get_by_type(CreateRowActionType).do(
+        editor,
+        table,
+        values={f"field_{name_field.id}": "new"},
+        view=view,
+    )
+
+    ActionHandler.undo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+    assert not model.objects.filter(id=row.id).exists()
+
+    actions_redone = ActionHandler.redo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+
+    assert len(actions_redone) == 1
+    assert actions_redone[0].error is None
+    assert model.objects.filter(id=row.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@override_settings(DEBUG=True)
+def test_editor_on_restricted_view_can_redo_create_rows(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    admin = enterprise_data_fixture.create_user()
+    session_id = "editor-session"
+    editor = enterprise_data_fixture.create_user(session_id=session_id)
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        editor,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    model = table.get_model()
+    result = action_type_registry.get_by_type(CreateRowsActionType).do(
+        editor,
+        table,
+        rows_values=[
+            {f"field_{name_field.id}": "row1"},
+            {f"field_{name_field.id}": "row2"},
+        ],
+        view=view,
+    )
+
+    row_ids = [r.id for r in result]
+
+    ActionHandler.undo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+    assert model.objects.filter(id__in=row_ids).count() == 0
+
+    actions_redone = ActionHandler.redo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+
+    assert len(actions_redone) == 1
+    assert actions_redone[0].error is None
+    assert model.objects.filter(id__in=row_ids).count() == 2
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@override_settings(DEBUG=True)
+def test_editor_on_restricted_view_can_undo_delete_row(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    admin = enterprise_data_fixture.create_user()
+    session_id = "editor-session"
+    editor = enterprise_data_fixture.create_user(session_id=session_id)
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    row = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "to-delete"}
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        editor,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    model = table.get_model()
+    action_type_registry.get_by_type(DeleteRowActionType).do(
+        editor,
+        table,
+        row.id,
+        view=view,
+    )
+    assert not model.objects.filter(id=row.id).exists()
+
+    actions_undone = ActionHandler.undo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+
+    assert len(actions_undone) == 1
+    assert actions_undone[0].error is None
+    assert model.objects.filter(id=row.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@override_settings(DEBUG=True)
+def test_editor_on_restricted_view_can_redo_delete_row(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    admin = enterprise_data_fixture.create_user()
+    session_id = "editor-session"
+    editor = enterprise_data_fixture.create_user(session_id=session_id)
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    row = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "to-delete"}
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        editor,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    model = table.get_model()
+    action_type_registry.get_by_type(DeleteRowActionType).do(
+        editor,
+        table,
+        row.id,
+        view=view,
+    )
+
+    ActionHandler.undo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+    assert model.objects.filter(id=row.id).exists()
+
+    actions_redone = ActionHandler.redo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+
+    assert len(actions_redone) == 1
+    assert actions_redone[0].error is None
+    assert not model.objects.filter(id=row.id).exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@override_settings(DEBUG=True)
+def test_editor_on_restricted_view_can_undo_delete_rows(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    admin = enterprise_data_fixture.create_user()
+    session_id = "editor-session"
+    editor = enterprise_data_fixture.create_user(session_id=session_id)
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    row_one = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "del1"}
+    )
+    row_two = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "del2"}
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        editor,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    model = table.get_model()
+    action_type_registry.get_by_type(DeleteRowsActionType).do(
+        editor,
+        table,
+        [row_one.id, row_two.id],
+        view=view,
+    )
+    assert model.objects.filter(id__in=[row_one.id, row_two.id]).count() == 0
+
+    actions_undone = ActionHandler.undo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+
+    assert len(actions_undone) == 1
+    assert actions_undone[0].error is None
+    assert model.objects.filter(id__in=[row_one.id, row_two.id]).count() == 2
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@override_settings(DEBUG=True)
+def test_editor_on_restricted_view_can_redo_delete_rows(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    admin = enterprise_data_fixture.create_user()
+    session_id = "editor-session"
+    editor = enterprise_data_fixture.create_user(session_id=session_id)
+    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    row_one = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "del1"}
+    )
+    row_two = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "del2"}
+    )
+
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    editor_role = Role.objects.get(uid="EDITOR")
+    RoleAssignmentHandler().assign_role(
+        editor, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        editor,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    model = table.get_model()
+    action_type_registry.get_by_type(DeleteRowsActionType).do(
+        editor,
+        table,
+        [row_one.id, row_two.id],
+        view=view,
+    )
+
+    ActionHandler.undo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+    assert model.objects.filter(id__in=[row_one.id, row_two.id]).count() == 2
+
+    actions_redone = ActionHandler.redo(
+        editor, [TableActionScopeType.value(table_id=table.id)], session_id
+    )
+
+    assert len(actions_redone) == 1
+    assert actions_redone[0].error is None
+    assert model.objects.filter(id__in=[row_one.id, row_two.id]).count() == 0

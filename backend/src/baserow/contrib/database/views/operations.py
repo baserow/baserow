@@ -80,6 +80,10 @@ class RestoreViewRowCommentOperationType(ViewRowOperationType):
     type = "database.table.view.restore_comment"
 
 
+class RestoreViewRowOperationType(ViewRowOperationType):
+    type = "database.table.view.restore_row"
+
+
 class CreateViewSortOperationType(ViewOperationType):
     type = "database.table.view.create_sort"
 

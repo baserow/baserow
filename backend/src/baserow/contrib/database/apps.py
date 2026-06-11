@@ -881,6 +881,7 @@ class DatabaseConfig(AppConfig):
             ReadViewSortOperationType,
             RestoreViewOperationType,
             RestoreViewRowCommentOperationType,
+            RestoreViewRowOperationType,
             UpdateViewDecorationOperationType,
             UpdateViewFilterGroupOperationType,
             UpdateViewFilterOperationType,
@@ -913,6 +914,7 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(UpdateViewRowCommentOperationType())
         operation_type_registry.register(DeleteViewRowCommentOperationType())
         operation_type_registry.register(RestoreViewRowCommentOperationType())
+        operation_type_registry.register(RestoreViewRowOperationType())
         operation_type_registry.register(CreateTableDatabaseTableOperationType())
         operation_type_registry.register(ListTablesDatabaseTableOperationType())
         operation_type_registry.register(OrderTablesDatabaseTableOperationType())

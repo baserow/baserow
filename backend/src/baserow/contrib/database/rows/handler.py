@@ -66,6 +66,7 @@ from baserow.contrib.database.views.operations import (
     CreateViewRowOperationType,
     DeleteViewRowOperationType,
     ReadViewRowOperationType,
+    RestoreViewRowOperationType,
     UpdateViewRowOperationType,
 )
 from baserow.contrib.database.views.registries import view_ownership_type_registry
@@ -94,6 +95,7 @@ from .operations import (
     DeleteDatabaseRowOperationType,
     MoveRowDatabaseRowOperationType,
     ReadDatabaseRowOperationType,
+    RestoreDatabaseRowOperationType,
     UpdateDatabaseRowOperationType,
 )
 from .signals import (
@@ -624,6 +626,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         row_id: int,
         enhance_by_fields: bool = False,
         model: Optional[Type[GeneratedTableModel]] = None,
+        view: Optional["View"] = None,
     ) -> GeneratedTableModelForUpdate:
         """
         Fetches a single row from the provided table and lock it for update.
@@ -635,6 +638,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             `enhance_queryset` for each field in the table.
         :param model: If the correct model has already been generated it can be
             provided so that it does not have to be generated for a second time.
+        :param view: Optionally provide view, if the row is fetched in the view.
+            This can result in different permissions checks.
         :raises RowDoesNotExist: When the row with the provided id does not exist.
         :return: The requested row instance.
         """
@@ -652,6 +657,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             row_id,
             model=model,
             base_queryset=base_queryset,
+            view=view,
         )
 
         return cast(GeneratedTableModelForUpdate, row)
@@ -1074,7 +1080,12 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
 
         with transaction.atomic():
             row = self.get_row_for_update(
-                user, table, row_id, enhance_by_fields=True, model=model
+                user,
+                table,
+                row_id,
+                enhance_by_fields=True,
+                model=model,
+                view=view,
             )
             return self.update_row(
                 user,
@@ -3206,6 +3217,65 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         )
 
         return trashed_rows
+
+    def restore_row(
+        self,
+        user: AbstractUser,
+        table: Table,
+        row_id: int,
+        view: Optional["View"] = None,
+    ) -> Any:
+        """
+        Restores a single trashed row with optional view-level permission
+        fallback. When a view is provided and the user lacks table-level
+        restore permission, the view-level permission is checked as fallback.
+
+        :param user: The user performing the restore.
+        :param table: The table the row belongs to.
+        :param row_id: The id of the trashed row to restore.
+        :param view: Optionally provide view for permission fallback.
+        :return: The restored row.
+        """
+
+        self._check_permissions_with_view_fallback(
+            RestoreDatabaseRowOperationType.type,
+            RestoreViewRowOperationType.type,
+            user,
+            table,
+            view,
+            [row_id],
+        )
+        return TrashHandler.force_restore_item(
+            user, "row", row_id, parent_trash_item_id=table.id
+        )
+
+    def restore_rows(
+        self,
+        user: AbstractUser,
+        table: Table,
+        trashed_rows_entry_id: int,
+        view: Optional["View"] = None,
+    ) -> Any:
+        """
+        Restores trashed rows with optional view-level permission fallback.
+
+        :param user: The user performing the restore.
+        :param table: The table the rows belong to.
+        :param trashed_rows_entry_id: The id of the TrashedRows entry.
+        :param view: Optionally provide view for permission fallback.
+        :return: The restored trashed rows object.
+        """
+
+        self._check_permissions_with_view_fallback(
+            RestoreDatabaseRowOperationType.type,
+            RestoreViewRowOperationType.type,
+            user,
+            table,
+            view,
+        )
+        return TrashHandler.force_restore_item(
+            user, "rows", trashed_rows_entry_id, parent_trash_item_id=table.id
+        )
 
     def recalculate_row_orders(self, table: Table, model: GeneratedTableModel = None):
         """

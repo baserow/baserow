@@ -899,6 +899,22 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         return view
 
+    def get_view_or_none(self, view_id: Optional[int]) -> Optional[View]:
+        """
+        Returns the view if it exists, or None if the view_id is None or the
+        view has been deleted.
+
+        :param view_id: The id of the view to return.
+        :return: The view instance or None.
+        """
+
+        if view_id is None:
+            return None
+        try:
+            return self.get_view(view_id)
+        except ViewDoesNotExist:
+            return None
+
     def get_view_for_update(
         self,
         user: AbstractUser,

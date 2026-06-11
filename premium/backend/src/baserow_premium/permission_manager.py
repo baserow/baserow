@@ -48,6 +48,7 @@ from baserow.contrib.database.views.operations import (
     ReadViewSortOperationType,
     RestoreViewOperationType,
     RestoreViewRowCommentOperationType,
+    RestoreViewRowOperationType,
     UpdateViewDecorationOperationType,
     UpdateViewDefaultValuesOperationType,
     UpdateViewFieldOptionsOperationType,
@@ -149,6 +150,7 @@ class ViewOwnershipPermissionManagerType(PermissionManagerType):
             CreateViewRowOperationType.type,
             UpdateViewRowOperationType.type,
             DeleteViewRowOperationType.type,
+            RestoreViewRowOperationType.type,
             ListViewFieldsOperationType.type,
         ]
         # This list controls operations that for personal views, should only be allowed

@@ -177,21 +177,71 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
                 ),
             )
 
-            if TrashHandler.item_has_a_trashed_parent(
-                trash_item,
-            ):
-                raise CannotRestoreChildBeforeParent()
+            cls._restore_trash_entry(user, trash_entry, trash_item)
 
-            if (
-                trash_entry.trash_item_owner is not None
-                and trash_entry.trash_item_owner != user
-            ):
-                raise CannotRestoreItemNotOwnedByUser()
+        return trash_item
 
-            trash_entry.delete()
+    @classmethod
+    def _restore_trash_entry(cls, user, trash_entry, trash_item) -> None:
+        """
+        Performs the actual restore of a trash entry after permission checks have
+        already been done. Validates parent and ownership constraints, then
+        delegates to the trashable item type's restore method.
 
-            restore_type = trash_item_type_registry.get_by_model(trash_item)
-            restore_type.restore(trash_item, trash_entry)
+        :param user: The user performing the restore.
+        :param trash_entry: The trash entry to restore.
+        :param trash_item: The looked-up trashed item.
+        :raises CannotRestoreChildBeforeParent: If the item has a trashed parent.
+        :raises CannotRestoreItemNotOwnedByUser: If the item is owned by
+            another user.
+        """
+
+        if TrashHandler.item_has_a_trashed_parent(trash_item):
+            raise CannotRestoreChildBeforeParent()
+
+        if (
+            trash_entry.trash_item_owner is not None
+            and trash_entry.trash_item_owner != user
+        ):
+            raise CannotRestoreItemNotOwnedByUser()
+
+        trash_entry.delete()
+
+        restore_type = trash_item_type_registry.get_by_model(trash_item)
+        restore_type.restore(trash_item, trash_entry)
+
+    @classmethod
+    def force_restore_item(
+        cls,
+        user,
+        trash_item_type,
+        trash_item_id,
+        parent_trash_item_id=None,
+    ) -> Any:
+        """
+        Restores an item from the trash without performing the default permission
+        check. The caller is responsible for checking permissions before calling
+        this method. Used when the caller needs a different permission check
+        strategy (e.g., view-level permission fallback for row operations).
+
+        :param user: The user performing the restore.
+        :param trash_item_type: The trashable item type of the item to restore.
+        :param trash_item_id: The trash item id of the item to restore.
+        :param parent_trash_item_id: The parent id of the item to restore.
+        :raises CannotRestoreChildBeforeParent: If the item has a trashed parent.
+        :raises CannotRestoreItemNotOwnedByUser: If the item is owned by
+            another user.
+        :return: The restored item.
+        """
+
+        with transaction.atomic():
+            trash_entry = cls.get_trash_entry(
+                trash_item_type, trash_item_id, parent_trash_item_id
+            )
+            trashable_item_type = trash_item_type_registry.get(trash_item_type)
+            trash_item = trashable_item_type.lookup_trashed_item(trash_entry, {})
+
+            cls._restore_trash_entry(user, trash_entry, trash_item)
 
         return trash_item
 
