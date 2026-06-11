@@ -55,7 +55,9 @@ def test_no_tsv_columns(data_fixture, capsys):
     assert "Nothing to do" in captured.out
 
 
-@pytest.mark.django_db
+# The command drops columns in worker threads that use their own database
+# connections, so the test data must be committed for them to see it.
+@pytest.mark.django_db(transaction=True)
 def test_drops_columns_and_indexes(data_fixture, capsys):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -122,7 +124,7 @@ def test_dry_run_does_not_drop(data_fixture, capsys):
 
     captured = capsys.readouterr()
     assert "DRY RUN" in captured.out
-    assert "Would drop" in captured.out
+    assert "would drop" in captured.out
 
 
 @pytest.mark.django_db
@@ -142,7 +144,7 @@ def test_abort_does_not_drop(data_fixture, capsys):
     assert "Aborted" in captured.out
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_batch_size_one(data_fixture, capsys):
     user = data_fixture.create_user()
     tables = [data_fixture.create_database_table(user=user) for _ in range(3)]
@@ -160,12 +162,13 @@ def test_batch_size_one(data_fixture, capsys):
 
     captured = capsys.readouterr()
     # With batch_size=1 and 3 tables there should be 3 batch headers.
-    assert "Batch 1/3" in captured.out
-    assert "Batch 2/3" in captured.out
-    assert "Batch 3/3" in captured.out
+    assert "Fetched batch 1" in captured.out
+    assert "Fetched batch 2" in captured.out
+    assert "Fetched batch 3" in captured.out
+    assert "3 batch(es)" in captured.out
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_output_reports_progress(data_fixture, capsys):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -179,8 +182,8 @@ def test_output_reports_progress(data_fixture, capsys):
 
     captured = capsys.readouterr()
     assert "Scanning" in captured.out
-    assert "Found 2 TSV column(s)" in captured.out
+    assert "Found at least 2 TSV column(s)" in captured.out
     assert table_db_name in captured.out
     assert "tsv_field_401" in captured.out
     assert "tsv_field_402" in captured.out
-    assert "Batch 1/1" in captured.out
+    assert "Fetched batch 1" in captured.out
