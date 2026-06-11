@@ -126,6 +126,12 @@ export default {
       )
       // Cache original rows so updateValue can store the real value
       // (not the display label) to preserve conditional visibility checks.
+      // A first-page fetch means a new search or a reopened dropdown, so the
+      // previous result set can no longer be picked; reset the cache to
+      // prevent it from growing unboundedly.
+      if (page === 1) {
+        this.rowLookup = {}
+      }
       response.data.results.forEach((row) => {
         this.rowLookup[row.id] = row
       })

@@ -18,6 +18,17 @@ const mockLinkRowFieldLookup = (rows) => {
   return linkRowFieldLookup
 }
 
+const mockLinkRowFieldLookupSequence = (pages) => {
+  const linkRowFieldLookup = vi.fn()
+  pages.forEach((rows) => {
+    linkRowFieldLookup.mockResolvedValueOnce({
+      data: { results: rows, count: rows.length },
+    })
+  })
+  ViewService.mockReturnValue({ linkRowFieldLookup })
+  return linkRowFieldLookup
+}
+
 const linkRowField = {
   id: 1,
   table_id: 196,
@@ -89,6 +100,30 @@ describe('FormViewFieldLinkRow', () => {
     expect(data.results[1].value).toBe('Real name')
     expect(wrapper.vm.rowLookup[42]).toEqual({ id: 42, value: '' })
     expect(wrapper.vm.rowLookup[43]).toEqual({ id: 43, value: 'Real name' })
+  })
+
+  test('fetchPage keeps later pages but resets the cache on a new search', async () => {
+    mockLinkRowFieldLookupSequence([
+      [{ id: 1, value: 'First' }],
+      [{ id: 2, value: 'Second' }],
+      [{ id: 3, value: 'Third' }],
+    ])
+    const wrapper = await mountComponent({ value: [] })
+
+    await wrapper.vm.fetchPage(1, null)
+    await wrapper.vm.fetchPage(2, null)
+    // Scrolling to page 2 of the same search accumulates rows.
+    expect(wrapper.vm.rowLookup).toEqual({
+      1: { id: 1, value: 'First' },
+      2: { id: 2, value: 'Second' },
+    })
+
+    await wrapper.vm.fetchPage(1, 'new search')
+    // A new first-page fetch (new search or reopen) resets the cache so it
+    // doesn't grow unboundedly.
+    expect(wrapper.vm.rowLookup).toEqual({
+      3: { id: 3, value: 'Third' },
+    })
   })
 
   test('updateValue stores the original empty value, not the fallback label', async () => {
@@ -230,6 +265,30 @@ describe('FormViewFieldMultipleLinkRow', () => {
     expect(data.results[0].value).toBe('')
     expect(data.results[1].label).toBe('Real name')
     expect(wrapper.vm.rowLookup[42]).toEqual({ id: 42, value: '' })
+  })
+
+  test('fetchPage keeps later pages but resets the cache on a new search', async () => {
+    mockLinkRowFieldLookupSequence([
+      [{ id: 1, value: 'First' }],
+      [{ id: 2, value: 'Second' }],
+      [{ id: 3, value: 'Third' }],
+    ])
+    const wrapper = await mountComponent({ value: [{ id: false, value: '' }] })
+
+    await wrapper.vm.fetchPage(1, null)
+    await wrapper.vm.fetchPage(2, null)
+    // Scrolling to page 2 of the same search accumulates rows.
+    expect(wrapper.vm.rowLookup).toEqual({
+      1: { id: 1, value: 'First' },
+      2: { id: 2, value: 'Second' },
+    })
+
+    await wrapper.vm.fetchPage(1, 'new search')
+    // A new first-page fetch (new search or reopen) resets the cache so it
+    // doesn't grow unboundedly.
+    expect(wrapper.vm.rowLookup).toEqual({
+      3: { id: 3, value: 'Third' },
+    })
   })
 
   test('updateValue stores the original empty value, not the fallback label', async () => {
