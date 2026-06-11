@@ -17,6 +17,7 @@ from baserow.core.datetime import FormattedDate, FormattedDateTime
 from baserow.core.duration import parse_duration_string
 from baserow.core.formula.service_file import ServiceFile
 from baserow.core.models import UserFile
+from baserow.core.utils import split_comma_separated_string
 
 
 def ensure_file(value: Any) -> ServiceFile:
@@ -201,7 +202,7 @@ def ensure_array(value: Any, allow_empty: bool = True) -> List[Any]:
         return value
 
     if isinstance(value, str):
-        return [item.strip() for item in value.split(",")]
+        return [item.strip() for item in split_comma_separated_string(value)]
 
     return [value]
 
@@ -324,6 +325,24 @@ class BaserowFormulaJSONEncoder(DjangoJSONEncoder):
 
 
 def ensure_json(value: Any) -> Any:
+    """
+    Decode a JSON string if possible, otherwise return the value unchanged.
+
+    :param value: The value to decode if it is a valid JSON string.
+    :return: The decoded JSON value if `value` is a valid JSON string, otherwise
+        `value`.
+    """
+
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except (TypeError, JSONDecodeError):
+            pass
+
+    return value
+
+
+def ensure_json_compatible(value: Any) -> Any:
     """
     Ensures that the value can be converted to a JSON value.
     Python types supported by Django's JSON encoder, like dates and datetimes, are

@@ -7,7 +7,9 @@ import {
 } from '@baserow/modules/automation/nodeTypeMixins'
 import {
   LocalBaserowCreateRowWorkflowServiceType,
+  LocalBaserowCreateRowsWorkflowServiceType,
   LocalBaserowUpdateRowWorkflowServiceType,
+  LocalBaserowUpdateRowsWorkflowServiceType,
   LocalBaserowDeleteRowWorkflowServiceType,
   LocalBaserowRowsCreatedTriggerServiceType,
   LocalBaserowRowsDeletedTriggerServiceType,
@@ -462,7 +464,7 @@ export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin
   }
 
   getOrder() {
-    return 4
+    return 3.5
   }
 
   get labelTemplateName() {
@@ -567,6 +569,29 @@ export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
   }
 }
 
+export class LocalBaserowCreateRowsActionNodeType extends ActionNodeTypeMixin(
+  LocalBaserowNodeType
+) {
+  static getType() {
+    return 'local_baserow_create_rows'
+  }
+
+  getOrder() {
+    return 2
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowCreateRowsLabel'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowCreateRowsWorkflowServiceType.getType()
+    )
+  }
+}
+
 export class LocalBaserowUpdateRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
@@ -575,7 +600,7 @@ export class LocalBaserowUpdateRowActionNodeType extends ActionNodeTypeMixin(
   }
 
   getOrder() {
-    return 2
+    return 3
   }
 
   get labelTemplateName() {
@@ -590,6 +615,29 @@ export class LocalBaserowUpdateRowActionNodeType extends ActionNodeTypeMixin(
   }
 }
 
+export class LocalBaserowUpdateRowsActionNodeType extends ActionNodeTypeMixin(
+  LocalBaserowNodeType
+) {
+  static getType() {
+    return 'local_baserow_update_rows'
+  }
+
+  getOrder() {
+    return 4
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowUpdateRowsLabel'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowUpdateRowsWorkflowServiceType.getType()
+    )
+  }
+}
+
 export class LocalBaserowDeleteRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
@@ -598,7 +646,7 @@ export class LocalBaserowDeleteRowActionNodeType extends ActionNodeTypeMixin(
   }
 
   getOrder() {
-    return 3
+    return 4
   }
 
   get labelTemplateName() {

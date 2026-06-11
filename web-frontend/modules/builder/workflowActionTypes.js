@@ -10,7 +10,9 @@ import {
 } from '@baserow/modules/integrations/core/serviceTypes'
 import {
   LocalBaserowCreateRowWorkflowServiceType,
+  LocalBaserowCreateRowsWorkflowServiceType,
   LocalBaserowUpdateRowWorkflowServiceType,
+  LocalBaserowUpdateRowsWorkflowServiceType,
   LocalBaserowDeleteRowWorkflowServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
@@ -419,6 +421,27 @@ export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
   }
 }
 
+export class CreateRowsWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'create_rows'
+  }
+
+  getOrder() {
+    return 35
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowCreateRowsWorkflowServiceType.getType()
+    )
+  }
+
+  get returnsList() {
+    return true
+  }
+}
+
 export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'update_row'
@@ -433,6 +456,27 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
       'service',
       LocalBaserowUpdateRowWorkflowServiceType.getType()
     )
+  }
+}
+
+export class UpdateRowsWorkflowActionType extends WorkflowActionServiceType {
+  static getType() {
+    return 'update_rows'
+  }
+
+  getOrder() {
+    return 42
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowUpdateRowsWorkflowServiceType.getType()
+    )
+  }
+
+  get returnsList() {
+    return true
   }
 }
 

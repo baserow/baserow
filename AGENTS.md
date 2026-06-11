@@ -64,4 +64,4 @@ Do not commit secrets or local overrides. Use `.env.local` for development, keep
 
 - On a specific branch, always merge backend migrations file instead of creating new ones.
 - CSS classes respect BEM methodology.
-- When working on translations, only update english unless told otherwise. Other languages are handled with weblate.
+- When working on translations, only update english unless told otherwise. Other languages are handled with weblate. Don't nest keys too much, just keep one level of nesting.

@@ -5,6 +5,7 @@ import {
   TriggerServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
 import { LocalBaserowIntegrationType } from '@baserow/modules/integrations/localBaserow/integrationTypes'
+import LocalBaserowCreateRowsServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowCreateRowsServiceForm'
 import LocalBaserowUpsertRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpsertRowServiceForm'
 import LocalBaserowUpdateRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowUpdateRowServiceForm'
 import LocalBaserowDeleteRowServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowDeleteRowServiceForm'
@@ -455,6 +456,51 @@ export class LocalBaserowCreateRowWorkflowServiceType extends WorkflowActionServ
   }
 }
 
+export class LocalBaserowCreateRowsWorkflowServiceType extends WorkflowActionServiceTypeMixin(
+  LocalBaserowTableServiceType
+) {
+  static getType() {
+    return 'local_baserow_create_rows'
+  }
+
+  supportedTables(tables) {
+    return tables.filter(
+      (table) => !table.is_data_sync || table.is_two_way_data_sync
+    )
+  }
+
+  get icon() {
+    return 'iconoir-plus'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.localBaserowCreateRows')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.localBaserowCreateRowsDescription', {
+      limit:
+        this.app.$config.public.integrationLocalBaserowBatchOperationSizeLimit,
+    })
+  }
+
+  get returnsList() {
+    return true
+  }
+
+  getErrorMessage({ service }) {
+    if (service !== undefined && !service.rows?.formula) {
+      return this.app.$i18n.t('serviceType.errorNoRowsSelected')
+    }
+
+    return super.getErrorMessage({ service })
+  }
+
+  get formComponent() {
+    return LocalBaserowCreateRowsServiceForm
+  }
+}
+
 export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
@@ -479,6 +525,27 @@ export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServ
   }
 }
 
+export class LocalBaserowUpdateRowsWorkflowServiceType extends LocalBaserowCreateRowsWorkflowServiceType {
+  static getType() {
+    return 'local_baserow_update_rows'
+  }
+
+  get icon() {
+    return 'iconoir-edit-pencil'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.localBaserowUpdateRows')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.localBaserowUpdateRowsDescription', {
+      limit:
+        this.app.$config.public.integrationLocalBaserowBatchOperationSizeLimit,
+    })
+  }
+}
+
 export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
@@ -495,7 +562,10 @@ export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServ
   }
 
   get description() {
-    return this.app.$i18n.t('serviceType.localBaserowDeleteRowDescription')
+    return this.app.$i18n.t('serviceType.localBaserowDeleteRowDescription', {
+      limit:
+        this.app.$config.public.integrationLocalBaserowBatchOperationSizeLimit,
+    })
   }
 
   get formComponent() {

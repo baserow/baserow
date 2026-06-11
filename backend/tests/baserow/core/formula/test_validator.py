@@ -14,6 +14,7 @@ from baserow.core.formula.validator import (
     ensure_file,
     ensure_integer,
     ensure_json,
+    ensure_json_compatible,
     ensure_string,
 )
 from baserow.core.user_files.handler import UserFileHandler
@@ -182,8 +183,8 @@ def test_ensure_datetime_throws_exception_for_invalid_value(value):
     assert exc.value.args[0] == "Value cannot be converted to a datetime."
 
 
-def test_ensure_json_returns_json_compatible_values():
-    assert ensure_json(
+def test_ensure_json_compatible_returns_json_compatible_values():
+    assert ensure_json_compatible(
         {
             "datetime": datetime(2024, 12, 17, 12, 0, 0),
             "date": date(2024, 12, 17),
@@ -199,10 +200,29 @@ def test_ensure_json_returns_json_compatible_values():
 
 
 @pytest.mark.parametrize("value", [float("nan"), object()])
-def test_ensure_json_throws_exception_for_invalid_value(value):
+def test_ensure_json_compatible_throws_exception_for_invalid_value(value):
     with pytest.raises(ValidationError) as exc:
-        ensure_json(value)
+        ensure_json_compatible(value)
     assert exc.value.args[0] == "Value cannot be converted to a JSON value."
+
+
+def test_ensure_json_compatible_keeps_strings_unchanged():
+    assert ensure_json_compatible('[{"name": "Ada"}]') == '[{"name": "Ada"}]'
+
+
+def test_ensure_json_decodes_valid_json_strings():
+    assert ensure_json('[{"name": "Ada"}, {"name": "Grace"}]') == [
+        {"name": "Ada"},
+        {"name": "Grace"},
+    ]
+    assert ensure_json('{"name": "Ada"}') == {"name": "Ada"}
+    assert ensure_json('"Ada"') == "Ada"
+
+
+def test_ensure_json_returns_value_unchanged_when_json_is_invalid():
+    assert ensure_json("not json") == "not json"
+    assert ensure_json("") == ""
+    assert ensure_json({"name": "Ada"}) == {"name": "Ada"}
 
 
 @pytest.mark.parametrize(

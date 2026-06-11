@@ -115,6 +115,7 @@ import {
   NotificationWorkflowActionType,
   OpenPageWorkflowActionType,
   UpdateRowWorkflowActionType,
+  UpdateRowsWorkflowActionType,
   LogoutWorkflowActionType,
   RefreshDataSourceWorkflowActionType,
   DeleteRowWorkflowActionType,
@@ -122,6 +123,7 @@ import {
   CoreHTTPRequestWorkflowActionType,
   CoreSMTPEmailWorkflowActionType,
   AIAgentWorkflowActionType,
+  CreateRowsWorkflowActionType,
   SlackWriteMessageWorkflowActionType,
 } from '@baserow/modules/builder/workflowActionTypes'
 
@@ -367,7 +369,15 @@ export default defineNuxtPlugin({
     )
     $registry.register(
       'workflowAction',
+      new CreateRowsWorkflowActionType(context)
+    )
+    $registry.register(
+      'workflowAction',
       new UpdateRowWorkflowActionType(context)
+    )
+    $registry.register(
+      'workflowAction',
+      new UpdateRowsWorkflowActionType(context)
     )
     $registry.register(
       'workflowAction',

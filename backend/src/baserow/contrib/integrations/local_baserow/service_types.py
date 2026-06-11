@@ -56,6 +56,7 @@ from baserow.contrib.database.rows.exceptions import (
     CannotCreateRowsInTable,
     CannotDeleteRowsInTable,
     RowDoesNotExist,
+    RowIdsNotUnique,
 )
 from baserow.contrib.database.rows.signals import (
     rows_created,
@@ -89,6 +90,7 @@ from baserow.contrib.integrations.local_baserow.mixins import (
 )
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowAggregateRows,
+    LocalBaserowCreateRows,
     LocalBaserowDeleteRow,
     LocalBaserowFieldsUpdated,
     LocalBaserowGetRow,
@@ -98,6 +100,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowRowsUpdated,
     LocalBaserowTableService,
     LocalBaserowTableServiceFieldMapping,
+    LocalBaserowUpdateRows,
     LocalBaserowUpsertRow,
     Service,
 )
@@ -106,7 +109,13 @@ from baserow.contrib.integrations.local_baserow.utils import (
     guess_json_type_from_response_serializer_field,
 )
 from baserow.core.cache import global_cache
+from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.formula.validator import (
+    ensure_array,
+    ensure_json,
+    ensure_object,
+)
 from baserow.core.handler import CoreHandler
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
@@ -2235,6 +2244,257 @@ class LocalBaserowUpsertRowServiceType(
         return self.import_path(path, id_mapping)
 
 
+class LocalBaserowCreateRowsServiceType(LocalBaserowTableServiceType):
+    """
+    A `LocalBaserow` service type which creates multiple rows in the service's
+    target table when it is used in conjunction with workflow actions.
+    """
+
+    type = "local_baserow_create_rows"
+    model_class = LocalBaserowCreateRows
+    dispatch_types = [DispatchTypes.ACTION]
+    returns_list = True
+
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + ["rows"]
+
+    @property
+    def simple_formula_fields(self):
+        return super().simple_formula_fields + ["rows"]
+
+    @property
+    def serializer_field_names(self):
+        return super().serializer_field_names + ["rows"]
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            **super().serializer_field_overrides,
+            "rows": FormulaSerializerField(
+                required=False,
+                help_text="The rows to create.",
+            ),
+        }
+
+    class SerializedDict(LocalBaserowTableServiceType.SerializedDict):
+        rows: BaserowFormulaObject
+
+    def _raise_if_batch_input_exceeds_limit(self, count: int, operation: str):
+        limit = settings.INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT
+        if count > limit:
+            raise InvalidContextContentDispatchException(
+                _(
+                    "The %(operation)s action can process at most %(limit)s "
+                    "rows at once."
+                )
+                % {"operation": operation, "limit": limit}
+            )
+
+    def _normalize_input_rows(self, value: Any) -> List[Dict]:
+        return [ensure_object(i) for i in ensure_array(ensure_json(value))]
+
+    def formulas_to_resolve(
+        self, service: LocalBaserowCreateRows
+    ) -> list[FormulaToResolve]:
+        return [
+            FormulaToResolve(
+                "rows",
+                service.rows,
+                self._normalize_input_rows,
+                'property "Rows"',
+            )
+        ]
+
+    def _normalize_rows_values(
+        self,
+        model: Type["GeneratedTableModel"],
+        rows: List[Any],
+        include_id: bool = False,
+    ) -> List[Dict[str, Any]]:
+        key_to_field_name = {}
+        for field_obj in model._field_objects.values():
+            field = field_obj["field"]
+            field_name = field_obj["name"]
+            key_to_field_name[field_name] = field_name
+            key_to_field_name[field.name] = field_name
+            key_to_field_name[field.id] = field_name
+            key_to_field_name[str(field.id)] = field_name
+            key_to_field_name[f"field_{field.id}"] = field_name
+
+        normalized_rows = []
+        for index, row in enumerate(rows):
+            if not isinstance(row, dict):
+                raise InvalidContextContentDispatchException(
+                    f"Row {index + 1} must be an object."
+                )
+
+            normalized_row = {}
+            for key, value in row.items():
+                if key == "id" and include_id:
+                    normalized_row["id"] = value
+                    continue
+
+                if key in ["id", "order"]:
+                    continue
+
+                field_name = key_to_field_name.get(key) or key_to_field_name.get(
+                    str(key)
+                )
+                if field_name is None:
+                    raise InvalidContextContentDispatchException(
+                        f'Unknown field "{key}" on row {index + 1}.'
+                    )
+                normalized_row[field_name] = value
+
+            if include_id and "id" not in normalized_row:
+                raise InvalidContextContentDispatchException(
+                    f'Row {index + 1} must contain an "id" property.'
+                )
+
+            normalized_rows.append(normalized_row)
+
+        return normalized_rows
+
+    def dispatch_data(
+        self,
+        service: LocalBaserowCreateRows,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Any]:
+        table = service.table
+        used_field_names = self.get_used_field_names(service, dispatch_context)
+        service.integration = service.integration.specific
+
+        rows = resolved_values.get("rows", [])
+        if not rows:
+            return {
+                "data": [],
+                "baserow_table_model": table.get_model(),
+                "public_formula_fields": used_field_names,
+            }
+
+        self._raise_if_batch_input_exceeds_limit(len(rows), "batch create rows")
+
+        model = table.get_model()
+        rows_values = self._normalize_rows_values(model, rows)
+
+        try:
+            rows = CreateRowsActionType.do(
+                user=service.integration.authorized_user,
+                table=table,
+                rows_values=rows_values,
+                model=model,
+            )
+        except CannotCreateRowsInTable as exc:
+            raise ServiceImproperlyConfiguredDispatchException(
+                f"Cannot create rows in table {table.id} because it has a data sync."
+            ) from exc
+        except FieldDataConstraintException as exc:
+            raise InvalidContextContentDispatchException(
+                f"Cannot create rows in table {table.id} because "
+                "it violates a field constraint."
+            ) from exc
+
+        return {
+            "data": rows,
+            "baserow_table_model": model,
+            "public_formula_fields": used_field_names,
+        }
+
+    def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
+        field_ids = (
+            extract_field_ids_from_list(dispatch_data["public_formula_fields"])
+            if isinstance(dispatch_data["public_formula_fields"], list)
+            else None
+        )
+
+        serializer = get_row_serializer_class(
+            dispatch_data["baserow_table_model"],
+            RowSerializer,
+            is_response=True,
+            field_ids=field_ids,
+            user_field_names=True,
+        )
+
+        serialized_rows = self._prepare_result(
+            dispatch_data["baserow_table_model"],
+            {"results": serializer(dispatch_data["data"], many=True).data},
+        )
+
+        return DispatchResult(data=serialized_rows)
+
+
+class LocalBaserowUpdateRowsServiceType(LocalBaserowCreateRowsServiceType):
+    """
+    A `LocalBaserow` service type which updates multiple rows in the service's
+    target table when it is used in conjunction with workflow actions.
+    """
+
+    type = "local_baserow_update_rows"
+    model_class = LocalBaserowUpdateRows
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            **super().serializer_field_overrides,
+            "rows": FormulaSerializerField(
+                required=False,
+                help_text="The rows to update. Each row must contain an `id` property.",
+            ),
+        }
+
+    def dispatch_data(
+        self,
+        service: LocalBaserowUpdateRows,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Dict[str, Any]:
+        table = service.table
+        used_field_names = self.get_used_field_names(service, dispatch_context)
+        service.integration = service.integration.specific
+
+        rows = resolved_values.get("rows", [])
+        model = table.get_model()
+        if not rows:
+            return {
+                "data": [],
+                "baserow_table_model": model,
+                "public_formula_fields": used_field_names,
+            }
+
+        self._raise_if_batch_input_exceeds_limit(len(rows), "batch update rows")
+
+        rows_values = self._normalize_rows_values(model, rows, include_id=True)
+
+        try:
+            rows = UpdateRowsActionType.do(
+                user=service.integration.authorized_user,
+                table=table,
+                rows_values=rows_values,
+                model=model,
+            ).updated_rows
+        except RowDoesNotExist as exc:
+            raise ServiceImproperlyConfiguredDispatchException(
+                f"Rows with ids {exc.ids} do not exist."
+            ) from exc
+        except RowIdsNotUnique as exc:
+            raise InvalidContextContentDispatchException(
+                f"Rows with ids {exc.ids} are duplicated."
+            ) from exc
+        except FieldDataConstraintException as exc:
+            raise InvalidContextContentDispatchException(
+                f"Cannot update rows in table {table.id} because "
+                "it violates a field constraint."
+            ) from exc
+
+        return {
+            "data": rows,
+            "baserow_table_model": model,
+            "public_formula_fields": used_field_names,
+        }
+
+
 class LocalBaserowDeleteRowServiceType(
     LocalBaserowTableServiceSpecificRowMixin, LocalBaserowTableServiceType
 ):
@@ -2276,6 +2536,41 @@ class LocalBaserowDeleteRowServiceType(
     ):
         pass
 
+    def formulas_to_resolve(
+        self, service: LocalBaserowDeleteRow
+    ) -> list[FormulaToResolve]:
+        return [
+            FormulaToResolve(
+                "row_id",
+                service.row_id,
+                lambda x: self._normalize_row_ids(x),
+                'property "Row ID"',
+            )
+        ]
+
+    def _normalize_row_ids(self, value: Any) -> List[int]:
+        if value in [None, ""]:
+            return []
+
+        parsed_value = ensure_json(value)
+        values = parsed_value if isinstance(parsed_value, list) else [parsed_value]
+
+        row_ids = []
+        for index, row_id in enumerate(values):
+            if isinstance(row_id, bool):
+                raise InvalidContextContentDispatchException(
+                    f"Row ID {index + 1} must be a number."
+                )
+
+            try:
+                row_ids.append(int(row_id))
+            except (TypeError, ValueError) as exc:
+                raise InvalidContextContentDispatchException(
+                    f"Row ID {index + 1} must be a number."
+                ) from exc
+
+        return row_ids
+
     def dispatch_data(
         self,
         service: LocalBaserowDeleteRow,
@@ -2295,16 +2590,26 @@ class LocalBaserowDeleteRowServiceType(
 
         table = service.table
         integration = service.integration.specific
-        row_id: Optional[int] = resolved_values.get("row_id", None)
+        row_ids: List[int] = resolved_values.get("row_id", [])
         model = table.get_model()
 
-        if row_id:
+        if row_ids:
+            limit = settings.INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT
+            if len(row_ids) > limit:
+                raise InvalidContextContentDispatchException(
+                    _(
+                        "The batch delete rows action can process at most %(limit)s "
+                        "rows at once."
+                    )
+                    % {"limit": limit}
+                )
+
             try:
                 DeleteRowsActionType.do(
-                    integration.authorized_user, table, [row_id], model=model
+                    integration.authorized_user, table, row_ids, model=model
                 )
             except RowDoesNotExist as exc:
-                raise DoesNotExist(f"The row with id {row_id} does not exist.") from exc
+                raise DoesNotExist(f"Rows with ids {exc.ids} do not exist.") from exc
             except CannotDeleteRowsInTable as exc:
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"Cannot delete rows in table {table.id} because "

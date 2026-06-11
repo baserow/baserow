@@ -397,6 +397,10 @@ class LinkRowRequestSerializer(serializers.ListField):
             return []
 
         if isinstance(data, list):
+            data = [
+                item.get("id", item) if isinstance(item, dict) else item
+                for item in data
+            ]
             if any([not isinstance(i, type(data[0])) for i in data]):
                 raise serializers.ValidationError(
                     "All list values must be same type.", code="not_same_type"

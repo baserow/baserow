@@ -28,6 +28,7 @@ from baserow.contrib.automation.nodes.models import (
     CoreSMTPEmailActionNode,
     LocalBaserowAggregateRowsActionNode,
     LocalBaserowCreateRowActionNode,
+    LocalBaserowCreateRowsActionNode,
     LocalBaserowDeleteRowActionNode,
     LocalBaserowFieldsUpdatedTriggerNode,
     LocalBaserowGetRowActionNode,
@@ -36,6 +37,7 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowRowsDeletedTriggerNode,
     LocalBaserowRowsUpdatedTriggerNode,
     LocalBaserowUpdateRowActionNode,
+    LocalBaserowUpdateRowsActionNode,
     SlackWriteMessageActionNode,
 )
 from baserow.contrib.automation.nodes.registries import AutomationNodeType
@@ -53,6 +55,7 @@ from baserow.contrib.integrations.core.service_types import (
 )
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowAggregateRowsUserServiceType,
+    LocalBaserowCreateRowsServiceType,
     LocalBaserowDeleteRowServiceType,
     LocalBaserowFieldsUpdatedServiceType,
     LocalBaserowGetRowUserServiceType,
@@ -60,6 +63,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsCreatedServiceType,
     LocalBaserowRowsDeletedServiceType,
     LocalBaserowRowsUpdatedServiceType,
+    LocalBaserowUpdateRowsServiceType,
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.contrib.integrations.slack.service_types import (
@@ -138,11 +142,33 @@ class LocalBaserowCreateRowNodeType(LocalBaserowUpsertRowNodeType):
     model_class = LocalBaserowCreateRowActionNode
 
 
+class LocalBaserowCreateRowsNodeType(AutomationNodeActionNodeType):
+    type = "local_baserow_create_rows"
+    compat_type = "create_rows"
+    model_class = LocalBaserowCreateRowsActionNode
+    service_type = LocalBaserowCreateRowsServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_local_baserow_create_rows_service()
+        return {"service": service}
+
+
 class LocalBaserowUpdateRowNodeType(LocalBaserowUpsertRowNodeType):
     display_name = _("Local Baserow update row")
     type = "local_baserow_update_row"
     compat_type = "update_row"
     model_class = LocalBaserowUpdateRowActionNode
+
+
+class LocalBaserowUpdateRowsNodeType(AutomationNodeActionNodeType):
+    type = "local_baserow_update_rows"
+    compat_type = "update_rows"
+    model_class = LocalBaserowUpdateRowsActionNode
+    service_type = LocalBaserowUpdateRowsServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_local_baserow_update_rows_service()
+        return {"service": service}
 
 
 class LocalBaserowDeleteRowNodeType(AutomationNodeActionNodeType):

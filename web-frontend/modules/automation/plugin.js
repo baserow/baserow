@@ -11,7 +11,9 @@ import automationWorkflowNodeStore from '@baserow/modules/automation/store/autom
 import automationHistoryStore from '@baserow/modules/automation/store/automationHistory'
 import {
   LocalBaserowCreateRowActionNodeType,
+  LocalBaserowCreateRowsActionNodeType,
   LocalBaserowUpdateRowActionNodeType,
+  LocalBaserowUpdateRowsActionNodeType,
   LocalBaserowDeleteRowActionNodeType,
   LocalBaserowGetRowActionNodeType,
   LocalBaserowListRowsActionNodeType,
@@ -105,7 +107,15 @@ export default defineNuxtPlugin({
     )
     $registry.register('node', new CoreHTTPTriggerNodeType(context))
     $registry.register('node', new LocalBaserowCreateRowActionNodeType(context))
+    $registry.register(
+      'node',
+      new LocalBaserowCreateRowsActionNodeType(context)
+    )
     $registry.register('node', new LocalBaserowUpdateRowActionNodeType(context))
+    $registry.register(
+      'node',
+      new LocalBaserowUpdateRowsActionNodeType(context)
+    )
     $registry.register('node', new CoreHttpRequestNodeType(context))
     $registry.register('node', new CoreSMTPEmailNodeType(context))
     $registry.register('node', new CoreRouterNodeType(context))

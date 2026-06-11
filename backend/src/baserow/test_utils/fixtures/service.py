@@ -12,6 +12,7 @@ from baserow.contrib.integrations.core.models import (
 )
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowAggregateRows,
+    LocalBaserowCreateRows,
     LocalBaserowDeleteRow,
     LocalBaserowFieldsUpdated,
     LocalBaserowGetRow,
@@ -21,6 +22,7 @@ from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowRowsUpdated,
     LocalBaserowTableServiceFilter,
     LocalBaserowTableServiceSort,
+    LocalBaserowUpdateRows,
     LocalBaserowUpsertRow,
 )
 from baserow.contrib.integrations.slack.models import SlackWriteMessageService
@@ -40,6 +42,18 @@ class ServiceFixtures:
         self, **kwargs
     ) -> LocalBaserowUpsertRow:
         service = self.create_service(LocalBaserowUpsertRow, **kwargs)
+        return service
+
+    def create_local_baserow_create_rows_service(
+        self, **kwargs
+    ) -> LocalBaserowCreateRows:
+        service = self.create_service(LocalBaserowCreateRows, **kwargs)
+        return service
+
+    def create_local_baserow_update_rows_service(
+        self, **kwargs
+    ) -> LocalBaserowUpdateRows:
+        service = self.create_service(LocalBaserowUpdateRows, **kwargs)
         return service
 
     def create_local_baserow_delete_row_service(

@@ -20,8 +20,10 @@ from baserow.contrib.builder.workflow_actions.models import (
     CoreCSVFileReaderWorkflowAction,
     CoreHTTPRequestWorkflowAction,
     CoreSMTPEmailWorkflowAction,
+    LocalBaserowCreateRowsWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
+    LocalBaserowUpdateRowsWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
     LogoutWorkflowAction,
     NotificationWorkflowAction,
@@ -40,7 +42,9 @@ from baserow.contrib.integrations.core.service_types import (
     CoreSMTPEmailServiceType,
 )
 from baserow.contrib.integrations.local_baserow.service_types import (
+    LocalBaserowCreateRowsServiceType,
     LocalBaserowDeleteRowServiceType,
+    LocalBaserowUpdateRowsServiceType,
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.contrib.integrations.slack.service_types import (
@@ -453,9 +457,29 @@ class CreateRowWorkflowActionType(UpsertRowWorkflowActionType):
     model_class = LocalBaserowCreateRowWorkflowAction
 
 
+class CreateRowsWorkflowActionType(LocalBaserowWorkflowActionType):
+    type = "create_rows"
+    model_class = LocalBaserowCreateRowsWorkflowAction
+    service_type = LocalBaserowCreateRowsServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_local_baserow_create_rows_service()
+        return {"service": service}
+
+
 class UpdateRowWorkflowActionType(UpsertRowWorkflowActionType):
     type = "update_row"
     model_class = LocalBaserowUpdateRowWorkflowAction
+
+
+class UpdateRowsWorkflowActionType(LocalBaserowWorkflowActionType):
+    type = "update_rows"
+    model_class = LocalBaserowUpdateRowsWorkflowAction
+    service_type = LocalBaserowUpdateRowsServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_local_baserow_update_rows_service()
+        return {"service": service}
 
 
 class DeleteRowWorkflowActionType(LocalBaserowWorkflowActionType):

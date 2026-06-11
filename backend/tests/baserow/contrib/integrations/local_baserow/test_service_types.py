@@ -12,6 +12,7 @@ from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowAggregateRowsUserServiceType,
+    LocalBaserowCreateRowsServiceType,
     LocalBaserowDeleteRowServiceType,
     LocalBaserowFieldsUpdatedServiceType,
     LocalBaserowGetRowUserServiceType,
@@ -21,6 +22,7 @@ from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowRowsUpdatedServiceType,
     LocalBaserowServiceType,
     LocalBaserowTableServiceType,
+    LocalBaserowUpdateRowsServiceType,
     LocalBaserowUpsertRowServiceType,
     LocalBaserowViewServiceType,
 )
@@ -52,6 +54,12 @@ def test_local_baserow_service_type_dispatch_types():
             DispatchTypes.ACTION,
         ],
         LocalBaserowUpsertRowServiceType.type: [
+            DispatchTypes.ACTION,
+        ],
+        LocalBaserowCreateRowsServiceType.type: [
+            DispatchTypes.ACTION,
+        ],
+        LocalBaserowUpdateRowsServiceType.type: [
             DispatchTypes.ACTION,
         ],
         LocalBaserowDeleteRowServiceType.type: [

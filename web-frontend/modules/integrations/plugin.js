@@ -7,9 +7,11 @@ import {
   LocalBaserowGetRowServiceType,
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
+  LocalBaserowCreateRowsWorkflowServiceType,
   LocalBaserowCreateRowWorkflowServiceType,
   LocalBaserowDeleteRowWorkflowServiceType,
   LocalBaserowUpdateRowWorkflowServiceType,
+  LocalBaserowUpdateRowsWorkflowServiceType,
   LocalBaserowRowsCreatedTriggerServiceType,
   LocalBaserowRowsUpdatedTriggerServiceType,
   LocalBaserowRowsDeletedTriggerServiceType,
@@ -52,7 +54,15 @@ export default defineNuxtPlugin({
     )
     $registry.register(
       'service',
+      new LocalBaserowCreateRowsWorkflowServiceType(context)
+    )
+    $registry.register(
+      'service',
       new LocalBaserowUpdateRowWorkflowServiceType(context)
+    )
+    $registry.register(
+      'service',
+      new LocalBaserowUpdateRowsWorkflowServiceType(context)
     )
     $registry.register(
       'service',

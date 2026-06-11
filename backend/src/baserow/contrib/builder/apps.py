@@ -312,6 +312,7 @@ class BuilderConfig(AppConfig):
             CoreCSVFileReaderActionType,
             CoreHttpRequestActionType,
             CoreSMTPEmailActionType,
+            CreateRowsWorkflowActionType,
             CreateRowWorkflowActionType,
             DeleteRowWorkflowActionType,
             LogoutWorkflowActionType,
@@ -319,13 +320,16 @@ class BuilderConfig(AppConfig):
             OpenPageWorkflowActionType,
             RefreshDataSourceWorkflowActionType,
             SlackWriteMessageWorkflowActionType,
+            UpdateRowsWorkflowActionType,
             UpdateRowWorkflowActionType,
         )
 
         builder_workflow_action_type_registry.register(NotificationWorkflowActionType())
         builder_workflow_action_type_registry.register(OpenPageWorkflowActionType())
         builder_workflow_action_type_registry.register(CreateRowWorkflowActionType())
+        builder_workflow_action_type_registry.register(CreateRowsWorkflowActionType())
         builder_workflow_action_type_registry.register(UpdateRowWorkflowActionType())
+        builder_workflow_action_type_registry.register(UpdateRowsWorkflowActionType())
         builder_workflow_action_type_registry.register(DeleteRowWorkflowActionType())
         builder_workflow_action_type_registry.register(LogoutWorkflowActionType())
         builder_workflow_action_type_registry.register(

@@ -31,10 +31,14 @@
     "localBaserowAggregateRowsDescription": "Summarizes a field in a Baserow table.",
     "localBaserowCreateRow": "Create a row",
     "localBaserowCreateRowDescription": "Creates a new row in a Baserow table.",
+    "localBaserowCreateRows": "Batch create rows",
+    "localBaserowCreateRowsDescription": "Creates multiple new rows in a Baserow table. Up to {limit} rows can be created at once.",
     "localBaserowUpdateRow": "Update a row",
     "localBaserowUpdateRowDescription": "Updates an existing row in a Baserow table.",
-    "localBaserowDeleteRow": "Delete a row",
-    "localBaserowDeleteRowDescription": "Deletes a row in a Baserow table.",
+    "localBaserowUpdateRows": "Batch update rows",
+    "localBaserowUpdateRowsDescription": "Updates multiple existing rows in a Baserow table. Up to {limit} rows can be updated at once.",
+    "localBaserowDeleteRow": "Delete rows",
+    "localBaserowDeleteRowDescription": "Deletes one or more rows in a Baserow table. Up to {limit} rows can be deleted at once.",
     "localBaserowRowsCreated": "Rows are created",
     "localBaserowRowsCreatedDescription": "Triggered when rows are created in a Baserow table.",
     "localBaserowRowsUpdated": "Rows are updated",
@@ -66,7 +70,8 @@
     "errorNoTableSelected": "No table selected",
     "errorFilterInError": "At least one filter is misconfigured",
     "errorSortingInError": "At least one sort is misconfigured",
-    "errorNoFieldsSelected": "No fields selected",
+    "errorNoFieldSelected": "No fields selected",
+    "errorNoRowsSelected": "No rows selected",
     "errorNoAggregationTypeSelected": "No aggregation type selected",
     "corePeriodic": "Periodic trigger",
     "corePeriodicDescription": "Triggers the workflow on a periodic basis at specified intervals",
@@ -358,5 +363,20 @@
     "fieldMappingPlaceholderDuration": "Choose a duration value, e.g. 1:23:40",
     "noTableSelectedMessage": "Choose a table to begin configuring your fields.",
     "noWritableFields": "This table does not contain any writable fields."
+  },
+  "localBaserowDeleteRowServiceForm": {
+    "rowIdLabel": "Row ID(s)",
+    "rowIdPlaceholder": "Choose a row ID or an array of row IDs",
+    "rowIdHelper": "Choose one row ID or an array of row IDs. Up to {limit} rows can be deleted at once."
+  },
+  "localBaserowCreateRowsServiceForm": {
+    "rowsLabel": "Rows",
+    "rowsPlaceholder": "Choose a list of row objects",
+    "rowsHelper": "The formula must return an array of row objects, or a JSON string that parses to one. Use field names or field IDs as object keys. Up to {limit} rows can be created at once."
+  },
+  "localBaserowUpdateRowsServiceForm": {
+    "rowsLabel": "Rows",
+    "rowsPlaceholder": "Choose a list of row objects with IDs",
+    "rowsHelper": "The formula must return an array of row objects, or a JSON string that parses to one. Each object must include an id property. Use field names or field IDs as object keys. Up to {limit} rows can be updated at once."
   }
 }

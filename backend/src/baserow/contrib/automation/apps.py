@@ -28,6 +28,7 @@ class AutomationConfig(AppConfig):
             CoreSMTPEmailNodeType,
             LocalBaserowAggregateRowsNodeType,
             LocalBaserowCreateRowNodeType,
+            LocalBaserowCreateRowsNodeType,
             LocalBaserowDeleteRowNodeType,
             LocalBaserowFieldsUpdatedNodeTriggerType,
             LocalBaserowGetRowNodeType,
@@ -36,6 +37,7 @@ class AutomationConfig(AppConfig):
             LocalBaserowRowsDeletedNodeTriggerType,
             LocalBaserowRowsUpdatedNodeTriggerType,
             LocalBaserowUpdateRowNodeType,
+            LocalBaserowUpdateRowsNodeType,
             SlackWriteMessageActionNodeType,
         )
         from baserow.contrib.automation.nodes.object_scopes import (
@@ -169,7 +171,9 @@ class AutomationConfig(AppConfig):
         )
 
         automation_node_type_registry.register(LocalBaserowCreateRowNodeType())
+        automation_node_type_registry.register(LocalBaserowCreateRowsNodeType())
         automation_node_type_registry.register(LocalBaserowUpdateRowNodeType())
+        automation_node_type_registry.register(LocalBaserowUpdateRowsNodeType())
         automation_node_type_registry.register(LocalBaserowDeleteRowNodeType())
         automation_node_type_registry.register(LocalBaserowGetRowNodeType())
         automation_node_type_registry.register(LocalBaserowListRowsNodeType())

@@ -34,6 +34,8 @@ def local_baserow_service_backed_workflow_actions():
         workflow_action_type
         for workflow_action_type in builder_workflow_action_type_registry.get_all()
         if issubclass(workflow_action_type.__class__, LocalBaserowWorkflowActionType)
+        and workflow_action_type.service_type
+        not in {"local_baserow_create_rows", "local_baserow_update_rows"}
     ]
 
 

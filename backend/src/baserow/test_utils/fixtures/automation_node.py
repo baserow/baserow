@@ -7,6 +7,8 @@ from baserow.contrib.automation.nodes.models import (
     CoreIteratorActionNode,
     CoreRouterActionNode,
     LocalBaserowCreateRowActionNode,
+    LocalBaserowCreateRowsActionNode,
+    LocalBaserowUpdateRowsActionNode,
 )
 from baserow.contrib.automation.nodes.node_types import (
     CoreHTTPTriggerNodeType,
@@ -14,10 +16,12 @@ from baserow.contrib.automation.nodes.node_types import (
     CorePeriodicTriggerNodeType,
     CoreRouterActionNodeType,
     LocalBaserowCreateRowNodeType,
+    LocalBaserowCreateRowsNodeType,
     LocalBaserowDeleteRowNodeType,
     LocalBaserowGetRowNodeType,
     LocalBaserowRowsCreatedNodeTriggerType,
     LocalBaserowUpdateRowNodeType,
+    LocalBaserowUpdateRowsNodeType,
 )
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
 from baserow.contrib.automation.workflows.constants import WorkflowState
@@ -98,10 +102,28 @@ class AutomationNodeFixtures:
             **kwargs,
         )
 
+    def create_local_baserow_create_rows_action_node(
+        self, user=None, **kwargs
+    ) -> LocalBaserowCreateRowsActionNode:
+        return self.create_automation_node(
+            user=user,
+            type=LocalBaserowCreateRowsNodeType.type,
+            **kwargs,
+        )
+
     def create_local_baserow_update_row_action_node(self, user=None, **kwargs):
         return self.create_automation_node(
             user=user,
             type=LocalBaserowUpdateRowNodeType.type,
+            **kwargs,
+        )
+
+    def create_local_baserow_update_rows_action_node(
+        self, user=None, **kwargs
+    ) -> LocalBaserowUpdateRowsActionNode:
+        return self.create_automation_node(
+            user=user,
+            type=LocalBaserowUpdateRowsNodeType.type,
             **kwargs,
         )
 

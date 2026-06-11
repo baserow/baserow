@@ -2,6 +2,7 @@ from io import BytesIO
 from unittest.mock import MagicMock, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import override_settings
 
 import pytest
 from rest_framework.exceptions import ValidationError
@@ -30,6 +31,520 @@ from baserow.core.services.exceptions import (
 )
 from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
+
+
+@pytest.mark.django_db
+def test_local_baserow_create_rows_service_dispatch_data(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[
+            ("Ingredient", "text", {}),
+        ],
+    )
+    ingredient = table.field_set.get(name="Ingredient")
+
+    service = data_fixture.create_local_baserow_create_rows_service(
+        integration=integration,
+        table=table,
+        rows='get("page_parameter.rows")',
+    )
+    service_type = service.get_type()
+
+    formula_context = {
+        "page_parameter": {"rows": [{"Ingredient": "Bread"}, {"Ingredient": "Butter"}]}
+    }
+    dispatch_context = FakeDispatchContext(context=formula_context)
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    dispatch_data = service_type.dispatch_data(
+        service, dispatch_values, dispatch_context
+    )
+
+    assert [getattr(row, ingredient.db_column) for row in dispatch_data["data"]] == [
+        "Bread",
+        "Butter",
+    ]
+
+    dispatch_result = service_type.dispatch_transform(dispatch_data)
+
+    assert dispatch_result.data["results"][0]["Ingredient"] == "Bread"
+    assert dispatch_result.data["results"][1]["Ingredient"] == "Butter"
+
+
+@pytest.mark.django_db
+@override_settings(INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT=1)
+def test_local_baserow_create_rows_service_rejects_too_many_rows(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Ingredient")
+    service = data_fixture.create_local_baserow_create_rows_service(
+        integration=integration,
+        table=table,
+        rows='get("page_parameter.rows")',
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={
+            "page_parameter": {
+                "rows": [{"Ingredient": "Bread"}, {"Ingredient": "Butter"}]
+            }
+        }
+    )
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    with pytest.raises(
+        InvalidContextContentDispatchException,
+        match="The batch create rows action can process at most 1 rows at once.",
+    ):
+        service_type.dispatch_data(service, dispatch_values, dispatch_context)
+
+
+@pytest.mark.django_db
+def test_local_baserow_create_rows_service_dispatch_data_with_json_text_rows(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[
+            ("Ingredient", "text", {}),
+        ],
+    )
+    ingredient = table.field_set.get(name="Ingredient")
+
+    service = data_fixture.create_local_baserow_create_rows_service(
+        integration=integration,
+        table=table,
+        rows='get("page_parameter.rows")',
+    )
+    service_type = service.get_type()
+
+    dispatch_context = FakeDispatchContext(
+        context={
+            "page_parameter": {
+                "rows": '[{"Ingredient": "Bread"}, {"Ingredient": "Butter"}]'
+            }
+        }
+    )
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    dispatch_data = service_type.dispatch_data(
+        service, dispatch_values, dispatch_context
+    )
+
+    assert [getattr(row, ingredient.db_column) for row in dispatch_data["data"]] == [
+        "Bread",
+        "Butter",
+    ]
+
+
+@pytest.mark.django_db
+def test_local_baserow_create_rows_service_dispatch_data_with_serialized_select_options(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = data_fixture.create_database_table(user=user, database=database)
+    single_select_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        name="Single select",
+        type_name="single_select",
+        select_options=[
+            {"value": "Bakery", "color": "dark-gray"},
+        ],
+    )
+    multiple_select_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        name="Multiple select",
+        type_name="multiple_select",
+        select_options=[
+            {"value": "Bread", "color": "yellow"},
+            {"value": "Butter", "color": "light-yellow"},
+        ],
+    )
+    single_select_option = single_select_field.select_options.get(value="Bakery")
+    bread_option = multiple_select_field.select_options.get(value="Bread")
+    butter_option = multiple_select_field.select_options.get(value="Butter")
+
+    service = data_fixture.create_local_baserow_create_rows_service(
+        integration=integration,
+        table=table,
+        rows='get("page_parameter.rows")',
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={
+            "page_parameter": {
+                "rows": [
+                    {
+                        "Single select": {
+                            "id": single_select_option.id,
+                            "color": single_select_option.color,
+                            "value": single_select_option.value,
+                        },
+                        "Multiple select": [
+                            {
+                                "id": bread_option.id,
+                                "color": bread_option.color,
+                                "value": bread_option.value,
+                            },
+                            {
+                                "id": butter_option.id,
+                                "color": butter_option.color,
+                                "value": butter_option.value,
+                            },
+                        ],
+                    }
+                ]
+            }
+        }
+    )
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    dispatch_data = service_type.dispatch_data(
+        service, dispatch_values, dispatch_context
+    )
+
+    row = dispatch_data["data"][0]
+    assert getattr(row, single_select_field.db_column).id == single_select_option.id
+    assert [
+        option.id for option in getattr(row, multiple_select_field.db_column).all()
+    ] == [bread_option.id, butter_option.id]
+
+
+@pytest.mark.django_db
+def test_local_baserow_create_rows_service_dispatch_data_with_serialized_relations(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    related_table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name="Related table",
+        fields=[
+            ("Name", "text", {}),
+        ],
+    )
+    related_primary_field = related_table.field_set.get(primary=True)
+    related_row = related_table.get_model().objects.create(
+        **{related_primary_field.db_column: "Bakery"}
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[
+            ("Link", "link_row", {"link_row_table": related_table}),
+            ("Collaborators", "multiple_collaborators", {}),
+        ],
+    )
+    link_row_field = table.field_set.get(name="Link")
+    collaborator_field = table.field_set.get(name="Collaborators")
+
+    service = data_fixture.create_local_baserow_create_rows_service(
+        integration=integration,
+        table=table,
+        rows='get("page_parameter.rows")',
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={
+            "page_parameter": {
+                "rows": [
+                    {
+                        "Link": [
+                            {
+                                "id": related_row.id,
+                                "value": "Bakery",
+                                "order": str(related_row.order),
+                            }
+                        ],
+                        "Collaborators": [{"id": user.id, "name": user.first_name}],
+                    }
+                ]
+            }
+        }
+    )
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    dispatch_data = service_type.dispatch_data(
+        service, dispatch_values, dispatch_context
+    )
+
+    row = dispatch_data["data"][0]
+    assert [
+        linked_row.id for linked_row in getattr(row, link_row_field.db_column).all()
+    ] == [related_row.id]
+    assert [
+        collaborator.id
+        for collaborator in getattr(row, collaborator_field.db_column).all()
+    ] == [user.id]
+
+
+@pytest.mark.django_db
+def test_local_baserow_update_rows_service_dispatch_data(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[
+            ("Ingredient", "text", {}),
+        ],
+    )
+    ingredient = table.field_set.get(name="Ingredient")
+    model = table.get_model()
+    row_1 = model.objects.create(**{ingredient.db_column: "Flour"})
+    row_2 = model.objects.create(**{ingredient.db_column: "Milk"})
+
+    service = data_fixture.create_local_baserow_update_rows_service(
+        integration=integration,
+        table=table,
+        rows='get("page_parameter.rows")',
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={
+            "page_parameter": {
+                "rows": [
+                    {"id": row_1.id, "Ingredient": "Bread"},
+                    {"id": row_2.id, str(ingredient.id): "Butter"},
+                ]
+            }
+        }
+    )
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    dispatch_data = service_type.dispatch_data(
+        service, dispatch_values, dispatch_context
+    )
+
+    assert [getattr(row, ingredient.db_column) for row in dispatch_data["data"]] == [
+        "Bread",
+        "Butter",
+    ]
+
+    row_1.refresh_from_db()
+    row_2.refresh_from_db()
+    assert getattr(row_1, ingredient.db_column) == "Bread"
+    assert getattr(row_2, ingredient.db_column) == "Butter"
+
+    dispatch_result = service_type.dispatch_transform(dispatch_data)
+
+    assert dispatch_result.data["results"][0]["Ingredient"] == "Bread"
+    assert dispatch_result.data["results"][1]["Ingredient"] == "Butter"
+
+
+@pytest.mark.django_db
+@override_settings(INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT=1)
+def test_local_baserow_update_rows_service_rejects_too_many_rows(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table, name="Ingredient")
+    model = table.get_model()
+    row_1 = model.objects.create(**{field.db_column: "Flour"})
+    row_2 = model.objects.create(**{field.db_column: "Milk"})
+    service = data_fixture.create_local_baserow_update_rows_service(
+        integration=integration,
+        table=table,
+        rows='get("page_parameter.rows")',
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={
+            "page_parameter": {
+                "rows": [
+                    {"id": row_1.id, "Ingredient": "Bread"},
+                    {"id": row_2.id, "Ingredient": "Butter"},
+                ]
+            }
+        }
+    )
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    with pytest.raises(
+        InvalidContextContentDispatchException,
+        match="The batch update rows action can process at most 1 rows at once.",
+    ):
+        service_type.dispatch_data(service, dispatch_values, dispatch_context)
+
+
+@pytest.mark.django_db
+def test_local_baserow_update_rows_service_dispatch_data_with_json_text_rows(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[
+            ("Ingredient", "text", {}),
+        ],
+    )
+    ingredient = table.field_set.get(name="Ingredient")
+    model = table.get_model()
+    row = model.objects.create(**{ingredient.db_column: "Flour"})
+
+    service = data_fixture.create_local_baserow_update_rows_service(
+        integration=integration,
+        table=table,
+        rows='get("page_parameter.rows")',
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={
+            "page_parameter": {"rows": f'[{{"id": {row.id}, "Ingredient": "Bread"}}]'}
+        }
+    )
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    dispatch_data = service_type.dispatch_data(
+        service, dispatch_values, dispatch_context
+    )
+
+    assert getattr(dispatch_data["data"][0], ingredient.db_column) == "Bread"
+
+
+@pytest.mark.django_db
+def test_local_baserow_update_rows_service_dispatch_data_requires_id(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[
+            ("Ingredient", "text", {}),
+        ],
+    )
+
+    service = data_fixture.create_local_baserow_update_rows_service(
+        integration=integration,
+        table=table,
+        rows='get("page_parameter.rows")',
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={"page_parameter": {"rows": [{"Ingredient": "Bread"}]}}
+    )
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    with pytest.raises(
+        InvalidContextContentDispatchException,
+        match='Row 1 must contain an "id" property.',
+    ):
+        service_type.dispatch_data(service, dispatch_values, dispatch_context)
+
+
+@pytest.mark.django_db
+def test_local_baserow_update_rows_service_dispatch_data_rejects_duplicate_ids(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[
+            ("Ingredient", "text", {}),
+        ],
+    )
+    ingredient = table.field_set.get(name="Ingredient")
+    row = table.get_model().objects.create(**{ingredient.db_column: "Flour"})
+
+    service = data_fixture.create_local_baserow_update_rows_service(
+        integration=integration,
+        table=table,
+        rows='get("page_parameter.rows")',
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={
+            "page_parameter": {
+                "rows": [
+                    {"id": row.id, "Ingredient": "Bread"},
+                    {"id": row.id, "Ingredient": "Butter"},
+                ]
+            }
+        }
+    )
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    with pytest.raises(
+        InvalidContextContentDispatchException,
+        match=f"Rows with ids \\[{row.id}\\] are duplicated.",
+    ):
+        service_type.dispatch_data(service, dispatch_values, dispatch_context)
 
 
 @pytest.mark.django_db
@@ -560,6 +1075,158 @@ def test_local_baserow_upsert_row_service_dispatch_data_convert_value(data_fixtu
             {"id": 1, "value": "unnamed row 1", "order": AnyStr()}
         ],
     }
+
+
+@pytest.mark.django_db
+def test_local_baserow_upsert_row_service_dispatch_data_with_serialized_select_options(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    table = data_fixture.create_database_table(user=user, database=database)
+    single_select_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        name="Single select",
+        type_name="single_select",
+        select_options=[
+            {"value": "Bakery", "color": "dark-gray"},
+        ],
+    )
+    multiple_select_field = FieldHandler().create_field(
+        user=user,
+        table=table,
+        name="Multiple select",
+        type_name="multiple_select",
+        select_options=[
+            {"value": "Bread", "color": "yellow"},
+            {"value": "Butter", "color": "light-yellow"},
+        ],
+    )
+    single_select_option = single_select_field.select_options.get(value="Bakery")
+    bread_option = multiple_select_field.select_options.get(value="Bread")
+    butter_option = multiple_select_field.select_options.get(value="Butter")
+
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration,
+        table=table,
+    )
+    service_type = service.get_type()
+    single_select_mapping = service.field_mappings.create(
+        field=single_select_field, value='get("page_parameter.single")'
+    )
+    multiple_select_mapping = service.field_mappings.create(
+        field=multiple_select_field, value='get("page_parameter.multiple")'
+    )
+
+    dispatch_data = service_type.dispatch_data(
+        service,
+        {
+            single_select_mapping.id: {
+                "id": single_select_option.id,
+                "color": single_select_option.color,
+                "value": single_select_option.value,
+            },
+            multiple_select_mapping.id: [
+                {
+                    "id": bread_option.id,
+                    "color": bread_option.color,
+                    "value": bread_option.value,
+                },
+                {
+                    "id": butter_option.id,
+                    "color": butter_option.color,
+                    "value": butter_option.value,
+                },
+            ],
+        },
+        FakeDispatchContext(),
+    )
+
+    row = dispatch_data["data"]
+    assert getattr(row, single_select_field.db_column).id == single_select_option.id
+    assert [
+        option.id for option in getattr(row, multiple_select_field.db_column).all()
+    ] == [bread_option.id, butter_option.id]
+
+
+@pytest.mark.django_db
+def test_local_baserow_upsert_row_service_dispatch_data_with_serialized_relations(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    database = data_fixture.create_database_application(
+        workspace=page.builder.workspace
+    )
+    related_table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name="Related table",
+        fields=[
+            ("Name", "text", {}),
+        ],
+    )
+    related_primary_field = related_table.field_set.get(primary=True)
+    related_row = related_table.get_model().objects.create(
+        **{related_primary_field.db_column: "Bakery"}
+    )
+    table = TableHandler().create_table_and_fields(
+        user=user,
+        database=database,
+        name=data_fixture.fake.name(),
+        fields=[
+            ("Link", "link_row", {"link_row_table": related_table}),
+            ("Collaborators", "multiple_collaborators", {}),
+        ],
+    )
+    link_row_field = table.field_set.get(name="Link")
+    collaborator_field = table.field_set.get(name="Collaborators")
+
+    service = data_fixture.create_local_baserow_upsert_row_service(
+        integration=integration,
+        table=table,
+    )
+    service_type = service.get_type()
+    link_row_mapping = service.field_mappings.create(
+        field=link_row_field, value='get("page_parameter.link")'
+    )
+    collaborator_mapping = service.field_mappings.create(
+        field=collaborator_field, value='get("page_parameter.collaborators")'
+    )
+
+    dispatch_data = service_type.dispatch_data(
+        service,
+        {
+            link_row_mapping.id: [
+                {
+                    "id": related_row.id,
+                    "value": "Bakery",
+                    "order": str(related_row.order),
+                }
+            ],
+            collaborator_mapping.id: [{"id": user.id, "name": user.first_name}],
+        },
+        FakeDispatchContext(),
+    )
+
+    row = dispatch_data["data"]
+    assert [
+        linked_row.id for linked_row in getattr(row, link_row_field.db_column).all()
+    ] == [related_row.id]
+    assert [
+        collaborator.id
+        for collaborator in getattr(row, collaborator_field.db_column).all()
+    ] == [user.id]
 
 
 @pytest.mark.django_db

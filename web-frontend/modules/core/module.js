@@ -74,6 +74,7 @@ export default defineNuxtModule({
         baserowUsePgFulltextSearch: 'true',
         integrationLocalBaserowPageSizeLimit: 200,
         formulaRangeMaxItems: 10000,
+        integrationLocalBaserowBatchOperationSizeLimit: 1000,
         extraPublicWebFrontendHostnames: [],
         baserowBuilderDomains: [],
         baserowRowPageSizeLimit: 200,

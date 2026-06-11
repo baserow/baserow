@@ -144,6 +144,22 @@ class LocalBaserowUpsertRow(LocalBaserowTableService):
     row_id = FormulaField()
 
 
+class LocalBaserowCreateRows(LocalBaserowTableService):
+    """
+    A model for the local baserow create rows service configuration data.
+    """
+
+    rows = FormulaField()
+
+
+class LocalBaserowUpdateRows(LocalBaserowTableService):
+    """
+    A model for the local baserow update rows service configuration data.
+    """
+
+    rows = FormulaField()
+
+
 class LocalBaserowDeleteRow(LocalBaserowTableService):
     """
     A model for the local baserow delete row service configuration data.
