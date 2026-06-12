@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-18 18:56+0000\n"
+"POT-Creation-Date: 2026-06-12 08:35+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -229,46 +229,46 @@ msgstr ""
 msgid "Listing views in %(table_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:384
+#: src/baserow_enterprise/assistant/tools/database/tools.py:385
 #, python-format
 msgid "Creating table %(table_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:640
+#: src/baserow_enterprise/assistant/tools/database/tools.py:641
 #, python-format
 msgid "Updating field %(field_id)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:696
+#: src/baserow_enterprise/assistant/tools/database/tools.py:697
 #, python-format
 msgid "Deleting field %(field_id)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:754
+#: src/baserow_enterprise/assistant/tools/database/tools.py:755
 #, python-format
 msgid "Creating %(view_type)s view %(view_name)s"
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:833
+#: src/baserow_enterprise/assistant/tools/database/tools.py:834
 #, python-format
 msgid "Creating filters in %(view_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:909
+#: src/baserow_enterprise/assistant/tools/database/tools.py:910
 msgid "Generating formula..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1037
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1038
 #, python-format
 msgid "Creating rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1074
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1075
 #, python-format
 msgid "Updating rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:1110
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1111
 #, python-format
 msgid "Deleting rows in %(table_name)s "
 msgstr ""

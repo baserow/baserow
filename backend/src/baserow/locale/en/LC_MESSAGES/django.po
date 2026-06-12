@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-18 18:56+0000\n"
+"POT-Creation-Date: 2026-06-12 08:35+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -210,23 +210,23 @@ msgstr ""
 msgid "Widget \"%(widget_title)s\" (%(widget_id)s) deleted"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1135
+#: src/baserow/contrib/integrations/core/service_types.py:1142
 msgid "Branch taken"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1140
+#: src/baserow/contrib/integrations/core/service_types.py:1147
 msgid "Label"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1142
+#: src/baserow/contrib/integrations/core/service_types.py:1149
 msgid "The label of the branch that matched the condition."
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1553
+#: src/baserow/contrib/integrations/core/service_types.py:1560
 msgid "Previous scheduled run"
 msgstr ""
 
-#: src/baserow/contrib/integrations/core/service_types.py:1557
+#: src/baserow/contrib/integrations/core/service_types.py:1564
 msgid "Next scheduled run"
 msgstr ""
 

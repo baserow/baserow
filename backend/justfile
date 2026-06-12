@@ -442,11 +442,19 @@ make-translations: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
+    # premium/enterprise ship partial .venvs without Django installed. If
+    # UV_PROJECT_ENVIRONMENT is a relative path (local dev sets `.venv` via
+    # .env.local), cd-ing into those package dirs makes uv resolve THEIR venv
+    # and `django-admin` can't be spawned. Anchor a relative path to an absolute
+    # one (cwd is backend/ here) so every package uses the backend env. Docker
+    # already sets an absolute UV_PROJECT_ENVIRONMENT, so this leaves it untouched.
+    case "${UV_PROJECT_ENVIRONMENT:-}" in
+        ""|/*) ;;
+        *) export UV_PROJECT_ENVIRONMENT="$(pwd)/$UV_PROJECT_ENVIRONMENT" ;;
+    esac
     for pkg_dir in ./ ../premium/backend/ ../enterprise/backend/; do
         echo "Processing $pkg_dir"
-        cd "$pkg_dir"
-        {{ uv_run }} django-admin makemessages -l en --ignore 'tests/*' || true
-        cd -
+        ( cd "$pkg_dir" && {{ uv_run }} django-admin makemessages -l en --ignore 'tests/*' ) || true
     done
 
 # =============================================================================
