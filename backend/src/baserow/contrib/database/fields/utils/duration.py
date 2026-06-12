@@ -25,6 +25,7 @@ from baserow.core.duration import (
     H_M_S_S,
     H_M_S_SS,
     H_M_S_SSS,
+    format_value_with_duration_format,
     parse_duration_value,
     postgres_interval_to_seconds,  # noqa: F401
 )
@@ -189,6 +190,25 @@ DURATION_FORMATS = {
             r"(\d+\.?\d*)s",
         ),
     },
+}
+
+
+# Maps each field `DURATION_FORMATS` key to the equivalent token-engine format
+# consumed by `format_value_with_duration_format`. The `s`-fraction forms become
+# `f` runs, and the `d`-prefixed display formats use backslash-escaped literal
+# unit letters (e.g. `d\d h\h` -> "1d 2h"), which the token engine cannot emit
+# otherwise. Keep in sync with duration.js::DURATION_TOKEN_FORMATS.
+DURATION_TOKEN_FORMATS = {
+    H_M: "h:mm",
+    H_M_S: "h:mm:ss",
+    H_M_S_S: "h:mm:ss.f",
+    H_M_S_SS: "h:mm:ss.ff",
+    H_M_S_SSS: "h:mm:ss.fff",
+    D_H: r"d\d h\h",
+    D_H_M: r"d\d h:mm",
+    D_H_M_S: r"d\d h:mm:ss",
+    D_H_M_NO_COLONS: r"d\d h\h mm\m",
+    D_H_M_S_NO_COLONS: r"d\d h\h mm\m ss\s",
 }
 
 
@@ -392,24 +412,20 @@ def format_duration_value(
     """
     Format a duration value according to the provided format.
 
+    Thin adapter over the token formatter
+    (`baserow.core.duration.format_value_with_duration_format`), which is the
+    single source of truth for duration display. The field's `DURATION_FORMATS`
+    key is translated to the equivalent token format first; both take a
+    `timedelta`, so no value conversion is needed.
+
     :param duration: The duration to format.
     :param duration_format: The format to use.
     :return: The formatted duration.
     """
 
-    if duration is None:
-        return None
-    sign = ""
-    if duration < timedelta(0):
-        duration = -1 * duration
-        sign = "-"
-    days = duration.days
-    hours = duration.seconds // 3600
-    mins = duration.seconds % 3600 // 60
-    secs = duration.seconds % 60 + duration.microseconds / 10**6
-
-    format_func = DURATION_FORMATS[duration_format]["format_func"]
-    return f"{sign}{format_func(days, hours, mins, secs)}"
+    return format_value_with_duration_format(
+        duration, DURATION_TOKEN_FORMATS[duration_format]
+    )
 
 
 def tokenize_formatted_duration(duration_format: str) -> List[str]:

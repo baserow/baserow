@@ -519,6 +519,24 @@ export const DURATION_FORMATS = new Map([
   ],
 ])
 
+// Maps each field DURATION_FORMATS key to the equivalent token-engine format
+// consumed by formatValueWithDurationFormat. The `s`-fraction forms become `f`
+// runs, and the `d`-prefixed display formats use backslash-escaped literal unit
+// letters (e.g. `d\d h\h` -> "1d 2h"), which the token engine cannot emit
+// otherwise. Keep in sync with duration.py::DURATION_TOKEN_FORMATS.
+const DURATION_TOKEN_FORMATS = {
+  [H_M]: 'h:mm',
+  [H_M_S]: 'h:mm:ss',
+  [H_M_S_S]: 'h:mm:ss.f',
+  [H_M_S_SS]: 'h:mm:ss.ff',
+  [H_M_S_SSS]: 'h:mm:ss.fff',
+  [D_H]: 'd\\d h\\h',
+  [D_H_M]: 'd\\d h:mm',
+  [D_H_M_S]: 'd\\d h:mm:ss',
+  [D_H_M_NO_COLONS]: 'd\\d h\\h mm\\m',
+  [D_H_M_S_NO_COLONS]: 'd\\d h\\h mm\\m ss\\s',
+}
+
 export const roundDurationValueToFormat = (value, format) => {
   if (value === null) {
     return null
@@ -605,22 +623,20 @@ export const parseDurationString = (value) => {
 }
 
 /**
- * It formats the given duration value using the given format.
+ * It formats the given duration value (a number of seconds) using the given
+ * format.
+ *
+ * Thin adapter over the token formatter (`formatValueWithDurationFormat`), which
+ * is the single source of truth for duration display. It converts the seconds
+ * value to a `Timedelta` (ms) and translates the field's DURATION_FORMATS key to
+ * the equivalent token format first.
  */
 export const formatDurationValue = (value, format) => {
   if (value === null || value === undefined || value === '') {
     return ''
   }
-  let sign = ''
-  if (value < 0) {
-    sign = '-'
-    value = -1 * value
-  }
-  const days = Math.floor(value / 86400)
-  const hours = Math.floor((value % 86400) / 3600)
-  const mins = Math.floor((value % 3600) / 60)
-  const secs = value % 60
-
-  const formatFunc = DURATION_FORMATS.get(format).toString
-  return `${sign}${formatFunc(days, hours, mins, secs)}`
+  return formatValueWithDurationFormat(
+    new Timedelta(value * 1000),
+    DURATION_TOKEN_FORMATS[format]
+  )
 }
