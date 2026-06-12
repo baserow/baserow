@@ -35,6 +35,23 @@ describe('tokenizeDurationFormat', () => {
       ['d|h.', '2|5.', ['days', 'hours'], ['2', '5']],
       // leading minus is optional
       ['h:mm', '-1:30', ['hours', 'minutes'], ['1', '30']],
+      // fractional-seconds run with a dot separator
+      [
+        'h:mm:ss.fff',
+        '1:23:45.678',
+        ['hours', 'minutes', 'seconds', 'fraction'],
+        ['1', '23', '45', '678'],
+      ],
+      // single `f` accepts a single fractional digit
+      ['ss.f', '45.6', ['seconds', 'fraction'], ['45', '6']],
+      // the separator before `f` is a literal, so non-dot delimiters work
+      ['s fff', '1 234', ['seconds', 'fraction'], ['1', '234']],
+      [
+        'mm:ss,ff',
+        '01:02,34',
+        ['minutes', 'seconds', 'fraction'],
+        ['01', '02', '34'],
+      ],
     ]
     test.each(cases)(
       'format %s matches %s into fields %j with groups %j',
@@ -74,6 +91,8 @@ describe('tokenizeDurationFormat', () => {
       'mm mm', // mm repeated
       'h hh', // h then hh — both map to "hours"
       'ss s', // ss then s — both map to "seconds"
+      'ss.f.f', // fraction run appears twice
+      'f.fff', // fraction run appears twice
     ]
     test.each(repeatedTokens)('repeated token in %s', (formatStr) => {
       expect(tokenizeDurationFormat(formatStr)).toBeNull()
@@ -96,7 +115,18 @@ describe('tokenizeDurationFormat', () => {
 })
 
 describe('isValidDurationFormat', () => {
-  const valid = ['h:mm', 'h:mm:ss', 'd h:mm:ss', 'd h mm ss', 'd', 'hh:mm:ss']
+  const valid = [
+    'h:mm',
+    'h:mm:ss',
+    'd h:mm:ss',
+    'd h mm ss',
+    'd',
+    'hh:mm:ss',
+    'h:mm:ss.f',
+    'h:mm:ss.ff',
+    'h:mm:ss.fff',
+    's fff',
+  ]
   test.each(valid)('returns true for %s', (formatStr) => {
     expect(isValidDurationFormat(formatStr)).toBe(true)
   })
@@ -129,6 +159,20 @@ describe('parseValueWithDurationFormat', () => {
       ['12:34', 'hh:mm', 12 * MS_IN_HOUR + 34 * MS_IN_MIN],
       // 25 hours fits into the resulting Timedelta as 1 day + 1 hour worth of ms
       ['25:00', 'h:mm', 25 * MS_IN_HOUR],
+      // fractional seconds: digits are a positional decimal
+      [
+        '1:23:45.678',
+        'h:mm:ss.fff',
+        1 * MS_IN_HOUR + 23 * MS_IN_MIN + 45 * MS_IN_SEC + 678,
+      ],
+      // "5" at precision 1 is 0.5s, not 0.05s
+      ['0:00:00.5', 'h:mm:ss.f', 500],
+      // "05" is 0.05s
+      ['0:00:00.05', 'h:mm:ss.ff', 50],
+      // non-dot separator before the fraction
+      ['1 234', 's fff', MS_IN_SEC + 234],
+      // negative carries the sub-second component
+      ['-0:00:01.250', 'h:mm:ss.fff', -(MS_IN_SEC + 250)],
     ]
     test.each(cases)(
       'parses %s with format %s',
@@ -208,8 +252,33 @@ describe('formatValueWithDurationFormat', () => {
       [new Timedelta(MS_IN_HOUR + 5 * MS_IN_MIN), 'hh:mm', '01:05'],
       // arbitrary literal chars are preserved
       [new Timedelta(2 * MS_IN_DAY + 5 * MS_IN_HOUR), 'd|h.', '2|5.'],
-      // sub-second precision is truncated
+      // sub-second precision is truncated when there's no fraction token
       [new Timedelta(1500), 's', '1'],
+      // fractional seconds rendered zero-padded to the format precision
+      [
+        new Timedelta(MS_IN_HOUR + 23 * MS_IN_MIN + 45 * MS_IN_SEC + 678),
+        'h:mm:ss.fff',
+        '1:23:45.678',
+      ],
+      // 0.5s at precision 1 → "5"; at precision 3 → "500"
+      [new Timedelta(500), 'ss.f', '00.5'],
+      [new Timedelta(500), 'ss.fff', '00.500'],
+      // 0.05s → "05" at precision 2
+      [new Timedelta(50), 'ss.ff', '00.05'],
+      // non-dot separator preserved on output
+      [new Timedelta(MS_IN_SEC + 234), 's fff', '1 234'],
+      // rounding up carries across fields: 59.9996 → 1:00.000
+      [new Timedelta(59999.6), 'mm:ss.fff', '01:00.000'],
+      // carry that rolls all the way over: 59:59.9996 → 1:00:00.000
+      [
+        new Timedelta(59 * MS_IN_MIN + 59 * MS_IN_SEC + 999.6),
+        'h:mm:ss.fff',
+        '1:00:00.000',
+      ],
+      // values beyond the precision are rounded, not truncated
+      [new Timedelta(MS_IN_SEC + 236), 'ss.ff', '01.24'],
+      // negative fractional value keeps the sign
+      [new Timedelta(-(MS_IN_SEC + 250)), 'ss.fff', '-01.250'],
     ]
     test.each(cases)(
       'formats %p with format %s as %s',
@@ -255,6 +324,14 @@ describe('formatValueWithDurationFormat', () => {
       [new Timedelta(-(MS_IN_HOUR + 30 * MS_IN_MIN)), 'h:mm'],
       [new Timedelta(25 * MS_IN_HOUR + 30 * MS_IN_MIN), 'h:mm'],
       [new Timedelta(MS_IN_HOUR + 30 * MS_IN_MIN), 'mm:ss'],
+      // fractional formats round-trip when the value fits the precision
+      [
+        new Timedelta(MS_IN_HOUR + 23 * MS_IN_MIN + 45 * MS_IN_SEC + 678),
+        'h:mm:ss.fff',
+      ],
+      [new Timedelta(MS_IN_SEC + 500), 'ss.f'],
+      [new Timedelta(MS_IN_SEC + 234), 's fff'],
+      [new Timedelta(-(MS_IN_SEC + 250)), 'ss.fff'],
     ]
     test.each(cases)('%p with %s', (duration, formatStr) => {
       const formatted = formatValueWithDurationFormat(duration, formatStr)

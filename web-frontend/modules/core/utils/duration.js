@@ -49,6 +49,24 @@ export const tokenizeDurationFormat = (formatStr) => {
   const seen = new Set()
   let i = 0
   while (i < formatStr.length) {
+    // The fractional-seconds token "f" is consumed as a run ("f", "ff", "fff",
+    // …) whose length is the precision (mirrors the hh/mm/ss width semantics).
+    // It is a distinct field that may appear at most once, and the separator
+    // before it stays a literal so arbitrary delimiters work ("ss.fff",
+    // "s fff", "mm:ss,ff").
+    if (formatStr[i] === 'f') {
+      if (seen.has('fraction')) return null
+      seen.add('fraction')
+      let precision = 0
+      while (i < formatStr.length && formatStr[i] === 'f') {
+        precision += 1
+        i += 1
+      }
+      fields.push('fraction')
+      // capture up to `precision` digits; extra digits won't match
+      pattern.push(`(\\d{1,${precision}})`)
+      continue
+    }
     let matched = false
     for (const [token, field] of DURATION_FORMAT_TOKENS) {
       if (formatStr.startsWith(token, i)) {
@@ -87,15 +105,24 @@ export const parseValueWithDurationFormat = (value, formatStr) => {
   if (match === null) return null
 
   const parts = { days: 0, hours: 0, minutes: 0, seconds: 0 }
+  let fractionMs = 0
   tokenized.fields.forEach((field, idx) => {
-    parts[field] = parseInt(match[idx + 1], 10)
+    const group = match[idx + 1]
+    if (field === 'fraction') {
+      // The captured digits are a positional decimal: "5" -> 0.5,
+      // "05" -> 0.05, "234" -> 0.234.
+      fractionMs = (parseInt(group, 10) / 10 ** group.length) * 1000
+    } else {
+      parts[field] = parseInt(group, 10)
+    }
   })
 
   let ms =
     parts.days * SECS_IN_DAY * 1000 +
     parts.hours * SECS_IN_HOUR * 1000 +
     parts.minutes * SECS_IN_MIN * 1000 +
-    parts.seconds * 1000
+    parts.seconds * 1000 +
+    fractionMs
   if (negative) ms = -ms
   return new Timedelta(ms)
 }
@@ -108,7 +135,24 @@ export const formatValueWithDurationFormat = (value, formatStr) => {
 
   const fieldSet = new Set(tokenized.fields)
   const negative = value.ms < 0
-  const totalSeconds = Math.trunc(Math.abs(value.ms) / 1000)
+  const absMs = Math.abs(value.ms)
+
+  let precision = 0
+  let fractionValue = 0
+  let totalSeconds
+  if (fieldSet.has('fraction')) {
+    // Render fractional seconds at the format's precision (the number of
+    // `f`s). Round the total to that precision *before* decomposing so a
+    // rounded-up value carries across fields (e.g. 59.9996 at precision 3
+    // -> 60.000 rolls seconds into minutes).
+    precision = formatStr.match(/f+/)[0].length
+    const factor = 10 ** precision
+    const total = Math.round((absMs / 1000) * factor) / factor
+    totalSeconds = Math.trunc(total)
+    fractionValue = total - totalSeconds
+  } else {
+    totalSeconds = Math.trunc(absMs / 1000)
+  }
 
   let days = 0
   let hours = 0
@@ -139,6 +183,14 @@ export const formatValueWithDurationFormat = (value, formatStr) => {
   const out = []
   let i = 0
   while (i < formatStr.length) {
+    if (formatStr[i] === 'f') {
+      // Render the fractional component as `precision` zero-padded digits
+      // (mirrors printf's %0width.Nf).
+      const digits = Math.round(fractionValue * 10 ** precision)
+      out.push(String(digits).padStart(precision, '0'))
+      i += precision
+      continue
+    }
     let matched = false
     for (const [token, field] of DURATION_FORMAT_TOKENS) {
       if (formatStr.startsWith(token, i)) {

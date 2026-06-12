@@ -3001,12 +3001,12 @@ export class RuntimeToDuration extends RuntimeFormulaFunction {
   getExamples() {
     return [
       {
-        formula: "to_duration('1 day')",
-        result: '86400 seconds',
+        formula: "to_duration('1:30:15.234', 'h:mm:ss.fff')",
+        result: '5400 seconds',
       },
       {
-        formula: "to_duration('1:30', 'h:mm')",
-        result: '5400 seconds',
+        formula: "to_duration('1 day')",
+        result: '86400 seconds',
       },
       {
         formula: "now() + to_duration('1 day')",
@@ -3052,8 +3052,9 @@ export class RuntimeDurationFormat extends RuntimeFormulaFunction {
   getExamples() {
     return [
       {
-        formula: "duration_format(to_duration('1:30', 'h:mm'), 'h:mm')",
-        result: "'1:30'",
+        formula:
+          "duration_format(to_duration('1:30:25.234', 'h:mm:ss.fff'), 'h:mm:ss.f')",
+        result: "'1:30:25.2'",
       },
       {
         formula: "duration_format(get('Duration'), 'd h:mm')",

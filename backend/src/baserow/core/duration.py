@@ -54,6 +54,25 @@ def tokenize_duration_format(
     seen = set()
     i = 0
     while i < len(format_str):
+        # The fractional-seconds token "f" is consumed as a run ("f", "ff",
+        # "fff", …) whose length is the precision (mirrors the hh/mm/ss width
+        # semantics). It is a distinct field that may appear at most once, and
+        # the separator before it stays a literal so arbitrary delimiters work
+        # ("ss.fff", "s fff", "mm:ss,ff"). Keep in sync with
+        # duration.js::tokenizeDurationFormat.
+        if format_str[i] == "f":
+            if "fraction" in seen:
+                return None
+            seen.add("fraction")
+            precision = 0
+            while i < len(format_str) and format_str[i] == "f":
+                precision += 1
+                i += 1
+            fields.append("fraction")
+            # capture up to `precision` digits; extra digits won't match
+            pattern.append(rf"(\d{{1,{precision}}})")
+            continue
+
         matched = False
         for token, field in DURATION_FORMAT_TOKENS:
             if format_str.startswith(token, i):
@@ -117,14 +136,20 @@ def parse_value_with_duration_format(
         return None
 
     parts = {"days": 0, "hours": 0, "minutes": 0, "seconds": 0}
+    fraction_seconds = 0.0
     for field, group in zip(fields, match.groups()):
-        parts[field] = int(group)
+        if field == "fraction":
+            # The captured digits are a positional decimal: "5" -> 0.5,
+            # "05" -> 0.05, "234" -> 0.234.
+            fraction_seconds = int(group) / 10 ** len(group)
+        else:
+            parts[field] = int(group)
 
     delta = timedelta(
         days=parts["days"],
         hours=parts["hours"],
         minutes=parts["minutes"],
-        seconds=parts["seconds"],
+        seconds=parts["seconds"] + fraction_seconds,
     )
     return -delta if negative else delta
 
@@ -152,7 +177,20 @@ def format_value_with_duration_format(
 
     negative = duration < timedelta(0)
     abs_duration = -duration if negative else duration
-    total_seconds = int(abs_duration.total_seconds())
+
+    if "fraction" in field_set:
+        # Render fractional seconds at the format's precision (the number of
+        # `f`s). Round the total to that precision *before* decomposing so a
+        # rounded-up value carries across fields (e.g. 59.9996 at precision 3
+        # -> 60.000 rolls seconds into minutes).
+        precision = len(re.search(r"f+", format_str).group())
+        total = round(abs_duration.total_seconds(), precision)
+        total_seconds = int(total)
+        fraction_value = total - total_seconds
+    else:
+        total_seconds = int(abs_duration.total_seconds())
+        fraction_value = 0.0
+        precision = 0
 
     if "days" in field_set:
         days = total_seconds // 86400
@@ -193,6 +231,14 @@ def format_value_with_duration_format(
     out = []
     i = 0
     while i < len(format_str):
+        if format_str[i] == "f":
+            # Render the fractional component as `precision` zero-padded digits
+            # (mirrors printf's %0width.Nf).
+            digits = round(fraction_value * (10**precision))
+            out.append(f"{digits:0{precision}d}")
+            i += precision
+            continue
+
         matched = False
         for token, field in DURATION_FORMAT_TOKENS:
             if format_str.startswith(token, i):

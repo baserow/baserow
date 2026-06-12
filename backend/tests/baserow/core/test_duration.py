@@ -36,6 +36,33 @@ class TestTokenizeDurationFormat:
             ("d|h.", "2|5.", ["days", "hours"], ("2", "5")),
             # leading minus is optional
             ("h:mm", "-1:30", ["hours", "minutes"], ("1", "30")),
+            # fractional-seconds run with a dot separator
+            (
+                "h:mm:ss.fff",
+                "1:23:45.678",
+                ["hours", "minutes", "seconds", "fraction"],
+                ("1", "23", "45", "678"),
+            ),
+            # single `f` accepts a single fractional digit
+            (
+                "ss.f",
+                "45.6",
+                ["seconds", "fraction"],
+                ("45", "6"),
+            ),
+            # the separator before `f` is a literal, so non-dot delimiters work
+            (
+                "s fff",
+                "1 234",
+                ["seconds", "fraction"],
+                ("1", "234"),
+            ),
+            (
+                "mm:ss,ff",
+                "01:02,34",
+                ["minutes", "seconds", "fraction"],
+                ("01", "02", "34"),
+            ),
         ],
     )
     def test_tokenizes_valid_format(
@@ -74,6 +101,8 @@ class TestTokenizeDurationFormat:
             "mm mm",  # mm repeated
             "h hh",  # h then hh — both map to "hours"
             "ss s",  # ss then s — both map to "seconds"
+            "ss.f.f",  # fraction run appears twice
+            "f.fff",  # fraction run appears twice
         ],
     )
     def test_repeated_tokens_are_invalid(self, format_str):
@@ -105,6 +134,10 @@ class TestIsValidDurationFormat:
             "d h mm ss",
             "d",
             "hh:mm:ss",
+            "h:mm:ss.f",
+            "h:mm:ss.ff",
+            "h:mm:ss.fff",
+            "s fff",
         ],
     )
     def test_returns_true_for_valid_formats(self, format_str):
@@ -151,6 +184,24 @@ class TestParseValueWithDurationFormat:
             ("12:34", "hh:mm", timedelta(hours=12, minutes=34)),
             # 25 hours rolls over into 1d 1h in the resulting timedelta
             ("25:00", "h:mm", timedelta(days=1, hours=1)),
+            # fractional seconds: digits are a positional decimal
+            (
+                "1:23:45.678",
+                "h:mm:ss.fff",
+                timedelta(hours=1, minutes=23, seconds=45, milliseconds=678),
+            ),
+            # "5" at precision 1 is 0.5s, not 0.05s
+            ("0:00:00.5", "h:mm:ss.f", timedelta(milliseconds=500)),
+            # "05" is 0.05s
+            ("0:00:00.05", "h:mm:ss.ff", timedelta(milliseconds=50)),
+            # non-dot separator before the fraction
+            ("1 234", "s fff", timedelta(seconds=1, milliseconds=234)),
+            # negative carries the sub-second component
+            (
+                "-0:00:01.250",
+                "h:mm:ss.fff",
+                -timedelta(seconds=1, milliseconds=250),
+            ),
         ],
     )
     def test_parses_valid_values(self, value, format_str, expected):
@@ -220,8 +271,45 @@ class TestFormatValueWithDurationFormat:
             (timedelta(hours=1, minutes=5), "hh:mm", "01:05"),
             # arbitrary literal chars are preserved
             (timedelta(days=2, hours=5), "d|h.", "2|5."),
-            # sub-second precision is truncated
+            # sub-second precision is truncated when there's no fraction token
             (timedelta(seconds=1, milliseconds=500), "s", "1"),
+            # fractional seconds rendered zero-padded to the format precision
+            (
+                timedelta(hours=1, minutes=23, seconds=45, milliseconds=678),
+                "h:mm:ss.fff",
+                "1:23:45.678",
+            ),
+            # 0.5s at precision 1 -> "5"; at precision 3 -> "500"
+            (timedelta(milliseconds=500), "ss.f", "00.5"),
+            (timedelta(milliseconds=500), "ss.fff", "00.500"),
+            # 0.05s -> "05" at precision 2
+            (timedelta(milliseconds=50), "ss.ff", "00.05"),
+            # non-dot separator preserved on output
+            (timedelta(seconds=1, milliseconds=234), "s fff", "1 234"),
+            # rounding up carries across fields: 59.9996 -> 1:00.000
+            (
+                timedelta(seconds=59, microseconds=999600),
+                "mm:ss.fff",
+                "01:00.000",
+            ),
+            # carry that rolls all the way over: 59:59.9996 -> 1:00:00.000
+            (
+                timedelta(minutes=59, seconds=59, microseconds=999600),
+                "h:mm:ss.fff",
+                "1:00:00.000",
+            ),
+            # values beyond the precision are rounded, not truncated
+            (
+                timedelta(seconds=1, microseconds=236000),
+                "ss.ff",
+                "01.24",
+            ),
+            # negative fractional value keeps the sign
+            (
+                -timedelta(seconds=1, milliseconds=250),
+                "ss.fff",
+                "-01.250",
+            ),
         ],
     )
     def test_formats_valid_durations(self, duration, format_str, expected):
@@ -260,6 +348,14 @@ class TestFormatValueWithDurationFormat:
             (-timedelta(hours=1, minutes=30), "h:mm"),
             (timedelta(hours=25, minutes=30), "h:mm"),
             (timedelta(hours=1, minutes=30), "mm:ss"),
+            # fractional formats round-trip when the value fits the precision
+            (
+                timedelta(hours=1, minutes=23, seconds=45, milliseconds=678),
+                "h:mm:ss.fff",
+            ),
+            (timedelta(seconds=1, milliseconds=500), "ss.f"),
+            (timedelta(seconds=1, milliseconds=234), "s fff"),
+            (-timedelta(seconds=1, milliseconds=250), "ss.fff"),
         ],
     )
     def test_parsed_format_returns_correct_duration(self, duration, format_str):
