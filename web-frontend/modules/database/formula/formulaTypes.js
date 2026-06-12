@@ -1177,10 +1177,13 @@ export class BaserowFormulaLinkType extends BaserowFormulaTypeDefinition {
   }
 
   toHumanReadableString(field, value) {
-    if (value?.label) {
+    if (value == null) {
+      return ''
+    }
+    if (value.label) {
       return `${value.label} (${value.url})`
     } else {
-      return value?.url ?? ''
+      return value.url
     }
   }
 
@@ -1242,13 +1245,16 @@ export class BaserowFormulaURLType extends mix(
   }
 
   toHumanReadableString(field, value) {
+    if (value == null) {
+      return ''
+    }
     if (_.isString(value)) {
       return value
     }
-    if (value?.label) {
+    if (value.label) {
       return `${value.label} (${value.url})`
     } else {
-      return value?.url ?? ''
+      return value.url
     }
   }
 
