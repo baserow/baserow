@@ -52,6 +52,20 @@ describe('tokenizeDurationFormat', () => {
         ['minutes', 'seconds', 'fraction'],
         ['01', '02', '34'],
       ],
+      // backslash escapes a token letter so it becomes a literal suffix:
+      // `d\d h\h` matches "1d 2h" (the d/h after the backslash are literal)
+      ['d\\d h\\h', '1d 2h', ['days', 'hours'], ['1', '2']],
+      [
+        'd\\d h\\h mm\\m ss\\s',
+        '1d 2h 03m 04s',
+        ['days', 'hours', 'minutes', 'seconds'],
+        ['1', '2', '03', '04'],
+      ],
+      // an escaped backslash is a literal backslash
+      ['h\\\\mm', '1\\23', ['hours', 'minutes'], ['1', '23']],
+      // an escaped `f` is a literal `f`, not the fraction token, so a real
+      // fraction can still follow — and its precision is read correctly
+      ['\\f ss.ff', 'f 01.50', ['seconds', 'fraction'], ['01', '50']],
     ]
     test.each(cases)(
       'format %s matches %s into fields %j with groups %j',
@@ -104,6 +118,14 @@ describe('tokenizeDurationFormat', () => {
       '   ', // only whitespace
     ]
     test.each(noTokens)('no duration token in %j', (formatStr) => {
+      expect(tokenizeDurationFormat(formatStr)).toBeNull()
+    })
+
+    const trailingBackslash = [
+      'h:mm\\', // trailing backslash has nothing to escape
+      '\\', // lone backslash
+    ]
+    test.each(trailingBackslash)('trailing backslash in %j', (formatStr) => {
       expect(tokenizeDurationFormat(formatStr)).toBeNull()
     })
 
@@ -292,6 +314,24 @@ describe('formatValueWithDurationFormat', () => {
       [new Timedelta(MS_IN_SEC + 236), 'ss.ff', '01.24'],
       // negative fractional value keeps the sign
       [new Timedelta(-(MS_IN_SEC + 250)), 'ss.fff', '-01.250'],
+      // escaped token letters are emitted as literal unit suffixes
+      [new Timedelta(MS_IN_DAY + 2 * MS_IN_HOUR), 'd\\d h\\h', '1d 2h'],
+      [
+        new Timedelta(
+          MS_IN_DAY + 2 * MS_IN_HOUR + 3 * MS_IN_MIN + 4 * MS_IN_SEC
+        ),
+        'd\\d h\\h mm\\m ss\\s',
+        '1d 2h 03m 04s',
+      ],
+      [
+        new Timedelta(MS_IN_DAY + 2 * MS_IN_HOUR + 34 * MS_IN_MIN),
+        'd\\d h:mm',
+        '1d 2:34',
+      ],
+      // escaped backslash renders as a literal backslash
+      [new Timedelta(MS_IN_HOUR + 5 * MS_IN_MIN), 'h\\\\mm', '1\\05'],
+      // escaped `f` literal alongside a real fraction (precision read as 2)
+      [new Timedelta(MS_IN_SEC + 500), '\\f ss.ff', 'f 01.50'],
     ]
     test.each(cases)(
       'formats %p with format %s as %s',
@@ -345,6 +385,14 @@ describe('formatValueWithDurationFormat', () => {
       [new Timedelta(MS_IN_SEC + 500), 'ss.f'],
       [new Timedelta(MS_IN_SEC + 234), 's fff'],
       [new Timedelta(-(MS_IN_SEC + 250)), 'ss.fff'],
+      // escaped literal unit suffixes round-trip
+      [new Timedelta(MS_IN_DAY + 2 * MS_IN_HOUR), 'd\\d h\\h'],
+      [
+        new Timedelta(
+          MS_IN_DAY + 2 * MS_IN_HOUR + 3 * MS_IN_MIN + 4 * MS_IN_SEC
+        ),
+        'd\\d h\\h mm\\m ss\\s',
+      ],
     ]
     test.each(cases)('%p with %s', (duration, formatStr) => {
       const formatted = formatValueWithDurationFormat(duration, formatStr)

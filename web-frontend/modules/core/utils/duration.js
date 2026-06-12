@@ -49,6 +49,16 @@ export const tokenizeDurationFormat = (formatStr) => {
   const seen = new Set()
   let i = 0
   while (i < formatStr.length) {
+    // A backslash escapes the next character so it is matched/emitted as a
+    // literal, even token letters (d/h/m/s/f) or the backslash itself. This
+    // lets formats carry literal unit suffixes, e.g. `d\d h\h` -> "1d 2h". A
+    // trailing backslash has nothing to escape and is invalid.
+    if (formatStr[i] === '\\') {
+      if (i + 1 >= formatStr.length) return null
+      pattern.push(escapeRegExp(formatStr[i + 1]))
+      i += 2
+      continue
+    }
     // The fractional-seconds token "f" is consumed as a run ("f", "ff", "fff",
     // …) whose length is the precision (mirrors the hh/mm/ss width semantics).
     // It is a distinct field that may appear at most once, and the separator
@@ -93,6 +103,30 @@ export const tokenizeDurationFormat = (formatStr) => {
 
 export const isValidDurationFormat = (value) =>
   tokenizeDurationFormat(value) !== null
+
+// Return the precision (length of the `f` run) of a validated token format, or
+// 0 if it has no fractional token. Walks the format honoring backslash escapes
+// so an escaped `\f` literal is not mistaken for the fraction token. Keep in
+// sync with duration.py::_fraction_precision.
+const fractionPrecision = (formatStr) => {
+  let i = 0
+  while (i < formatStr.length) {
+    if (formatStr[i] === '\\') {
+      i += 2
+      continue
+    }
+    if (formatStr[i] === 'f') {
+      let precision = 0
+      while (i < formatStr.length && formatStr[i] === 'f') {
+        precision += 1
+        i += 1
+      }
+      return precision
+    }
+    i += 1
+  }
+  return 0
+}
 
 export const parseValueWithDurationFormat = (value, formatStr) => {
   if (typeof value !== 'string') return null
@@ -139,9 +173,7 @@ export const formatValueWithDurationFormat = (value, formatStr) => {
 
   // Precision is the number of `f`s in the format, or 0 for integer-second
   // formats (no fraction token).
-  const precision = fieldSet.has('fraction')
-    ? formatStr.match(/f+/)[0].length
-    : 0
+  const precision = fieldSet.has('fraction') ? fractionPrecision(formatStr) : 0
 
   // Round the total to the target precision *before* decomposing, so a
   // rounded-up value carries across fields: 59.9996 at precision 3 -> 60.000
@@ -182,6 +214,13 @@ export const formatValueWithDurationFormat = (value, formatStr) => {
   const out = []
   let i = 0
   while (i < formatStr.length) {
+    if (formatStr[i] === '\\') {
+      // Escaped literal, emit the next character verbatim. The format is
+      // already validated (tokenize succeeded), so a following char exists.
+      out.push(formatStr[i + 1])
+      i += 2
+      continue
+    }
     if (formatStr[i] === 'f') {
       // Render the fractional component as `precision` zero-padded digits
       // (mirrors printf's %0width.Nf).

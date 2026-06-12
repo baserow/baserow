@@ -54,12 +54,23 @@ def tokenize_duration_format(
     seen = set()
     i = 0
     while i < len(format_str):
+        # A backslash escapes the next character so it is matched/emitted as a
+        # literal, even token letters (d/h/m/s/f) or the backslash itself. This
+        # lets formats carry literal unit suffixes, e.g. `d\d h\h` -> "1d 2h".
+        # A trailing backslash has nothing to escape and is invalid. Keep in
+        # sync with duration.js::tokenizeDurationFormat.
+        if format_str[i] == "\\":
+            if i + 1 >= len(format_str):
+                return None
+            pattern.append(re.escape(format_str[i + 1]))
+            i += 2
+            continue
+
         # The fractional-seconds token "f" is consumed as a run ("f", "ff",
         # "fff", …) whose length is the precision (mirrors the hh/mm/ss width
         # semantics). It is a distinct field that may appear at most once, and
         # the separator before it stays a literal so arbitrary delimiters work
-        # ("ss.fff", "s fff", "mm:ss,ff"). Keep in sync with
-        # duration.js::tokenizeDurationFormat.
+        # ("ss.fff", "s fff", "mm:ss,ff").
         if format_str[i] == "f":
             if "fraction" in seen:
                 return None
@@ -154,6 +165,29 @@ def parse_value_with_duration_format(
     return -delta if negative else delta
 
 
+def _fraction_precision(format_str: str) -> int:
+    """
+    Return the precision (length of the `f` run) of a validated token format,
+    or 0 if it has no fractional token. Walks the format honoring backslash
+    escapes so an escaped `\\f` literal is not mistaken for the fraction token.
+    Keep in sync with duration.js::fractionPrecision.
+    """
+
+    i = 0
+    while i < len(format_str):
+        if format_str[i] == "\\":
+            i += 2
+            continue
+        if format_str[i] == "f":
+            precision = 0
+            while i < len(format_str) and format_str[i] == "f":
+                precision += 1
+                i += 1
+            return precision
+        i += 1
+    return 0
+
+
 # Keep in sync with duration.js::formatValueWithDurationFormat
 def format_value_with_duration_format(
     duration: timedelta, format_str: object
@@ -180,10 +214,7 @@ def format_value_with_duration_format(
 
     # Precision is the number of `f`s in the format, or 0 for integer-second
     # formats (no fraction token).
-    if "fraction" in field_set:
-        precision = len(re.search(r"f+", format_str).group())
-    else:
-        precision = 0
+    precision = _fraction_precision(format_str) if "fraction" in field_set else 0
 
     # Round the total to the target precision *before* decomposing, so a
     # rounded-up value carries across fields: 59.9996 at precision 3 -> 60.000
@@ -235,6 +266,13 @@ def format_value_with_duration_format(
     out = []
     i = 0
     while i < len(format_str):
+        if format_str[i] == "\\":
+            # Escaped literal — emit the next character verbatim. The format is
+            # already validated (tokenize succeeded), so a following char exists.
+            out.append(format_str[i + 1])
+            i += 2
+            continue
+
         if format_str[i] == "f":
             # Render the fractional component as `precision` zero-padded digits
             # (mirrors printf's %0width.Nf).

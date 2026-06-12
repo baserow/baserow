@@ -63,6 +63,35 @@ class TestTokenizeDurationFormat:
                 ["minutes", "seconds", "fraction"],
                 ("01", "02", "34"),
             ),
+            # backslash escapes a token letter so it becomes a literal suffix:
+            # `d\d h\h` matches "1d 2h" (the d/h after the backslash are literal)
+            (
+                r"d\d h\h",
+                "1d 2h",
+                ["days", "hours"],
+                ("1", "2"),
+            ),
+            (
+                r"d\d h\h mm\m ss\s",
+                "1d 2h 03m 04s",
+                ["days", "hours", "minutes", "seconds"],
+                ("1", "2", "03", "04"),
+            ),
+            # an escaped backslash is a literal backslash
+            (
+                r"h\\mm",
+                "1\\23",
+                ["hours", "minutes"],
+                ("1", "23"),
+            ),
+            # an escaped `f` is a literal `f`, not the fraction token, so a real
+            # fraction can still follow and its precision is read correctly
+            (
+                r"\f ss.ff",
+                "f 01.50",
+                ["seconds", "fraction"],
+                ("01", "50"),
+            ),
         ],
     )
     def test_tokenizes_valid_format(
@@ -117,6 +146,16 @@ class TestTokenizeDurationFormat:
         ],
     )
     def test_format_with_no_tokens_is_invalid(self, format_str):
+        assert tokenize_duration_format(format_str) is None
+
+    @pytest.mark.parametrize(
+        "format_str",
+        [
+            "h:mm\\",  # trailing backslash has nothing to escape
+            "\\",  # lone backslash
+        ],
+    )
+    def test_trailing_backslash_is_invalid(self, format_str):
         assert tokenize_duration_format(format_str) is None
 
     @pytest.mark.parametrize("value", [None, 1, 1.5, [], {}, object()])
@@ -323,6 +362,18 @@ class TestFormatValueWithDurationFormat:
                 "ss.fff",
                 "-01.250",
             ),
+            # escaped token letters are emitted as literal unit suffixes
+            (timedelta(days=1, hours=2), r"d\d h\h", "1d 2h"),
+            (
+                timedelta(days=1, hours=2, minutes=3, seconds=4),
+                r"d\d h\h mm\m ss\s",
+                "1d 2h 03m 04s",
+            ),
+            (timedelta(days=1, hours=2, minutes=34), r"d\d h:mm", "1d 2:34"),
+            # escaped backslash renders as a literal backslash
+            (timedelta(hours=1, minutes=5), r"h\\mm", "1\\05"),
+            # escaped `f` literal alongside a real fraction (precision read as 2)
+            (timedelta(seconds=1, milliseconds=500), r"\f ss.ff", "f 01.50"),
         ],
     )
     def test_formats_valid_durations(self, duration, format_str, expected):
@@ -369,6 +420,9 @@ class TestFormatValueWithDurationFormat:
             (timedelta(seconds=1, milliseconds=500), "ss.f"),
             (timedelta(seconds=1, milliseconds=234), "s fff"),
             (-timedelta(seconds=1, milliseconds=250), "ss.fff"),
+            # escaped literal unit suffixes round-trip
+            (timedelta(days=1, hours=2), r"d\d h\h"),
+            (timedelta(days=1, hours=2, minutes=3, seconds=4), r"d\d h\h mm\m ss\s"),
         ],
     )
     def test_parsed_format_returns_correct_duration(self, duration, format_str):
