@@ -271,8 +271,21 @@ class TestFormatValueWithDurationFormat:
             (timedelta(hours=1, minutes=5), "hh:mm", "01:05"),
             # arbitrary literal chars are preserved
             (timedelta(days=2, hours=5), "d|h.", "2|5."),
-            # sub-second precision is truncated when there's no fraction token
-            (timedelta(seconds=1, milliseconds=500), "s", "1"),
+            # integer-second formats (no fraction token) round to whole seconds
+            # rather than truncating: 1.5s -> "2", 1.4s -> "1"
+            (timedelta(seconds=1, milliseconds=500), "s", "2"),
+            (timedelta(seconds=1, milliseconds=400), "s", "1"),
+            # rounding is half away from zero, so 0.5s -> "1" (not "0")
+            (timedelta(milliseconds=500), "s", "1"),
+            (-timedelta(milliseconds=500), "s", "-1"),
+            # integer rounding carries across fields: 59.6s -> 1:00
+            (timedelta(seconds=59, milliseconds=600), "mm:ss", "01:00"),
+            # 59m 59.6s -> 1:00:00
+            (
+                timedelta(minutes=59, seconds=59, milliseconds=600),
+                "h:mm:ss",
+                "1:00:00",
+            ),
             # fractional seconds rendered zero-padded to the format precision
             (
                 timedelta(hours=1, minutes=23, seconds=45, milliseconds=678),

@@ -137,22 +137,21 @@ export const formatValueWithDurationFormat = (value, formatStr) => {
   const negative = value.ms < 0
   const absMs = Math.abs(value.ms)
 
-  let precision = 0
-  let fractionValue = 0
-  let totalSeconds
-  if (fieldSet.has('fraction')) {
-    // Render fractional seconds at the format's precision (the number of
-    // `f`s). Round the total to that precision *before* decomposing so a
-    // rounded-up value carries across fields (e.g. 59.9996 at precision 3
-    // -> 60.000 rolls seconds into minutes).
-    precision = formatStr.match(/f+/)[0].length
-    const factor = 10 ** precision
-    const total = Math.round((absMs / 1000) * factor) / factor
-    totalSeconds = Math.trunc(total)
-    fractionValue = total - totalSeconds
-  } else {
-    totalSeconds = Math.trunc(absMs / 1000)
-  }
+  // Precision is the number of `f`s in the format, or 0 for integer-second
+  // formats (no fraction token).
+  const precision = fieldSet.has('fraction')
+    ? formatStr.match(/f+/)[0].length
+    : 0
+
+  // Round the total to the target precision *before* decomposing, so a
+  // rounded-up value carries across fields: 59.9996 at precision 3 -> 60.000
+  // rolls seconds into minutes, and 59.6 at precision 0 -> 60 rolls into a
+  // minute. `Math.round` rounds half up, matching the backend's half-away-from-
+  // zero on the absolute value. Keep in sync with duration.py.
+  const factor = 10 ** precision
+  const total = Math.round((absMs / 1000) * factor) / factor
+  const totalSeconds = Math.trunc(total)
+  const fractionValue = total - totalSeconds
 
   let days = 0
   let hours = 0

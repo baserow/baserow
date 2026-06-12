@@ -178,19 +178,23 @@ def format_value_with_duration_format(
     negative = duration < timedelta(0)
     abs_duration = -duration if negative else duration
 
+    # Precision is the number of `f`s in the format, or 0 for integer-second
+    # formats (no fraction token).
     if "fraction" in field_set:
-        # Render fractional seconds at the format's precision (the number of
-        # `f`s). Round the total to that precision *before* decomposing so a
-        # rounded-up value carries across fields (e.g. 59.9996 at precision 3
-        # -> 60.000 rolls seconds into minutes).
         precision = len(re.search(r"f+", format_str).group())
-        total = round(abs_duration.total_seconds(), precision)
-        total_seconds = int(total)
-        fraction_value = total - total_seconds
     else:
-        total_seconds = int(abs_duration.total_seconds())
-        fraction_value = 0.0
         precision = 0
+
+    # Round the total to the target precision *before* decomposing, so a
+    # rounded-up value carries across fields: 59.9996 at precision 3 -> 60.000
+    # rolls seconds into minutes, and 59.6 at precision 0 -> 60 rolls into a
+    # minute. We round half away from zero on the absolute value (matching the
+    # database field's `rround` and JS `Math.round` on positives, keeping the
+    # backend and frontend formatters byte-identical). Keep in sync with duration.js.
+    factor = 10**precision
+    total = int(abs_duration.total_seconds() * factor + 0.5) / factor
+    total_seconds = int(total)
+    fraction_value = total - total_seconds
 
     if "days" in field_set:
         days = total_seconds // 86400

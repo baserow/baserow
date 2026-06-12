@@ -252,8 +252,21 @@ describe('formatValueWithDurationFormat', () => {
       [new Timedelta(MS_IN_HOUR + 5 * MS_IN_MIN), 'hh:mm', '01:05'],
       // arbitrary literal chars are preserved
       [new Timedelta(2 * MS_IN_DAY + 5 * MS_IN_HOUR), 'd|h.', '2|5.'],
-      // sub-second precision is truncated when there's no fraction token
-      [new Timedelta(1500), 's', '1'],
+      // integer-second formats (no fraction token) round to whole seconds
+      // rather than truncating: 1.5s → "2", 1.4s → "1"
+      [new Timedelta(1500), 's', '2'],
+      [new Timedelta(1400), 's', '1'],
+      // rounding is half up, so 0.5s → "1"
+      [new Timedelta(500), 's', '1'],
+      [new Timedelta(-500), 's', '-1'],
+      // integer rounding carries across fields: 59.6s → 1:00
+      [new Timedelta(59600), 'mm:ss', '01:00'],
+      // 59m 59.6s → 1:00:00
+      [
+        new Timedelta(59 * MS_IN_MIN + 59 * MS_IN_SEC + 600),
+        'h:mm:ss',
+        '1:00:00',
+      ],
       // fractional seconds rendered zero-padded to the format precision
       [
         new Timedelta(MS_IN_HOUR + 23 * MS_IN_MIN + 45 * MS_IN_SEC + 678),
