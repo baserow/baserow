@@ -155,3 +155,23 @@ def test_verify(data_fixture):
         assert (
             TwoFactorAuthHandler().verify("totp", email=user.email, code=code) is True
         )
+
+
+@pytest.mark.django_db
+def test_disable_for_user_disables_without_password(data_fixture):
+    user = data_fixture.create_user()
+    data_fixture.configure_totp(user)
+    handler = TwoFactorAuthHandler()
+    assert handler.get_provider(user) is not None
+
+    handler.disable_for_user(user)
+
+    assert handler.get_provider(user) is None
+
+
+@pytest.mark.django_db
+def test_disable_for_user_raises_when_not_configured(data_fixture):
+    user = data_fixture.create_user()
+
+    with pytest.raises(TwoFactorAuthNotConfigured):
+        TwoFactorAuthHandler().disable_for_user(user)
