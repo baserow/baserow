@@ -10,6 +10,8 @@ from baserow.core.admin.users.exceptions import (
 )
 from baserow.core.admin.users.handler import UserAdminHandler
 from baserow.core.exceptions import IsNotAdminError
+from baserow.core.two_factor_auth.exceptions import TwoFactorAuthNotConfigured
+from baserow.core.two_factor_auth.handler import TwoFactorAuthHandler
 from baserow.core.user.exceptions import (
     PasswordDoesNotMatchValidation,
     UserAlreadyExist,
@@ -442,3 +444,47 @@ def test_does_not_raise_exception_when_changing_to_same_username(data_fixture):
         handler.update_user(admin_user, admin_user.id, username="test@test.nl").email
         == "test@test.nl"
     )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_admin_can_disable_user_two_factor_auth(data_fixture):
+    staff_user = data_fixture.create_user(is_staff=True)
+    user = data_fixture.create_user()
+    data_fixture.configure_totp(user)
+
+    UserAdminHandler().disable_user_two_factor_auth(staff_user, user.id)
+
+    assert TwoFactorAuthHandler().get_provider(user) is None
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_non_admin_cant_disable_user_two_factor_auth(data_fixture):
+    non_staff_user = data_fixture.create_user(is_staff=False)
+    user = data_fixture.create_user()
+    data_fixture.configure_totp(user)
+
+    with pytest.raises(IsNotAdminError):
+        UserAdminHandler().disable_user_two_factor_auth(non_staff_user, user.id)
+
+    assert TwoFactorAuthHandler().get_provider(user) is not None
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_disable_user_two_factor_auth_unknown_user(data_fixture):
+    staff_user = data_fixture.create_user(is_staff=True)
+
+    with pytest.raises(UserDoesNotExistException):
+        UserAdminHandler().disable_user_two_factor_auth(staff_user, 99999)
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_disable_user_two_factor_auth_not_configured(data_fixture):
+    staff_user = data_fixture.create_user(is_staff=True)
+    user = data_fixture.create_user()
+
+    with pytest.raises(TwoFactorAuthNotConfigured):
+        UserAdminHandler().disable_user_two_factor_auth(staff_user, user.id)
