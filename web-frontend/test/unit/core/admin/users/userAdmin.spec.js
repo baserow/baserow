@@ -1,6 +1,7 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import UsersAdminTable from '@baserow/modules/core/components/admin/users/UsersAdminTable'
 import UserForm from '@baserow/modules/core/components/admin/users/forms/UserForm'
+import DisableTwoFactorAuthModal from '@baserow/modules/core/components/admin/users/modals/DisableTwoFactorAuthModal'
 import moment from '@baserow/modules/core/moment'
 import flushPromises from 'flush-promises'
 import UserAdminUserHelpers from '@baserow/test/helpers/userAdminHelpers'
@@ -107,6 +108,53 @@ describe('User Admin Component Tests', () => {
     const cells = ui.findCells()
     const { twoFactorAuthCell } = ui.getRow(cells, 0)
     expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.enabled')
+  })
+
+  test('edit user modal shows 2FA provider and remove option when enabled', async () => {
+    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({
+      twoFactorAuth: { type: 'totp', is_enabled: true },
+    })
+
+    const editUserContext = await ui.openFirstUserActionsMenu()
+    await ui.clickEditUser(editUserContext)
+
+    const userForm = ui.c.findComponent(UserForm)
+    expect(userForm.find('.user-admin-edit__remove-2fa').exists()).toBe(true)
+  })
+
+  test('edit user modal hides remove 2FA option when disabled', async () => {
+    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({})
+
+    const editUserContext = await ui.openFirstUserActionsMenu()
+    await ui.clickEditUser(editUserContext)
+
+    const userForm = ui.c.findComponent(UserForm)
+    expect(userForm.find('.user-admin-edit__remove-2fa').exists()).toBe(false)
+  })
+
+  test('admin can remove a users 2FA', async () => {
+    // whenThereIsAUserAndYouOpenUserAdmin creates the user with id 1 by
+    // default — register the delete mock for that id before opening the UI.
+    testApp.mock.onDelete(`/admin/users/1/two-factor-auth/`).reply(204)
+
+    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({
+      twoFactorAuth: { type: 'totp', is_enabled: true },
+    })
+    const editUserContext = await ui.openFirstUserActionsMenu()
+    await ui.clickEditUser(editUserContext)
+
+    const userForm = ui.c.findComponent(UserForm)
+    await userForm.find('.user-admin-edit__remove-2fa').trigger('click')
+    await flushPromises()
+
+    const disableModal = ui.c.findComponent(DisableTwoFactorAuthModal)
+    // the danger button is the confirm action
+    await disableModal.find('button.button--danger').trigger('click')
+    await flushPromises()
+
+    const cells = ui.findCells()
+    const { twoFactorAuthCell } = ui.getRow(cells, 0)
+    expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.disabled')
   })
 
   test('A user with no workspaces is displayed without any', async () => {
