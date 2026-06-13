@@ -13,7 +13,7 @@ export default class UserAdminUserHelpers {
     this.c = userAdminComponent
   }
 
-  findCells(numCellsExpected = 7) {
+  findCells(numCellsExpected = 8) {
     const cells = this.c.findAll('tbody .data-table__table-cell-content')
     expect(cells.length).toBe(numCellsExpected)
     return cells
@@ -22,11 +22,11 @@ export default class UserAdminUserHelpers {
   findUsernameColumnCellsText() {
     const cells = this.c.findAll('tbody .data-table__table-cell-content')
     const usernameCells = []
-    const numRows = cells.length / 7
+    const numRows = cells.length / 8
     for (let i = 0; i < numRows; i++) {
       usernameCells.push(
         cells
-          .at(i * 7 + 0)
+          .at(i * 8 + 0)
           .find('.user-admin-username__name')
           .text()
       )
@@ -35,7 +35,7 @@ export default class UserAdminUserHelpers {
   }
 
   getRow(cells, rowNumber) {
-    const offset = rowNumber * 7
+    const offset = rowNumber * 8
     return {
       usernameCell: cells.at(offset),
       nameCell: cells.at(offset + 1),
@@ -43,7 +43,8 @@ export default class UserAdminUserHelpers {
       lastLoginCell: cells.at(offset + 3),
       signedUpCell: cells.at(offset + 4),
       isActiveCell: cells.at(offset + 5),
-      moreCell: cells.at(offset + 6),
+      twoFactorAuthCell: cells.at(offset + 6),
+      moreCell: cells.at(offset + 7),
     }
   }
 

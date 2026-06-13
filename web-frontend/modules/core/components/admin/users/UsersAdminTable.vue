@@ -28,6 +28,7 @@ import CrudTable from '@baserow/modules/core/components/crudTable/CrudTable'
 import SimpleField from '@baserow/modules/core/components/crudTable/fields/SimpleField'
 import LocalDateField from '@baserow/modules/core/components/crudTable/fields/LocalDateField'
 import ActiveField from '@baserow/modules/core/components/admin/users/fields/ActiveField'
+import TwoFactorAuthField from '@baserow/modules/core/components/crudTable/fields/TwoFactorAuthField'
 import MoreField from '@baserow/modules/core/components/crudTable/fields/MoreField'
 import EditUserContext from '@baserow/modules/core/components/admin/users/contexts/EditUserContext'
 import CrudTableColumn from '@baserow/modules/core/crudTable/crudTableColumn'
@@ -85,6 +86,11 @@ export default {
           () => this.$t('user.active'),
           ActiveField,
           true
+        ),
+        new CrudTableColumn(
+          'two_factor_auth',
+          () => this.$t('usersAdminTable.twoFactorAuth'),
+          TwoFactorAuthField
         ),
         new CrudTableColumn('more', '', MoreField, false, false, true),
       ]

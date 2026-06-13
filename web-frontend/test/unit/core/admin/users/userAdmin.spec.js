@@ -48,7 +48,7 @@ describe('User Admin Component Tests', () => {
     expect(userAdmin.html()).toMatchSnapshot()
 
     const cells = ui.findCells()
-    expect(cells.length).toBe(7)
+    expect(cells.length).toBe(8)
     const {
       usernameCell,
       nameCell,
@@ -56,6 +56,7 @@ describe('User Admin Component Tests', () => {
       lastLoginCell,
       signedUpCell,
       isActiveCell,
+      twoFactorAuthCell,
     } = ui.getRow(cells, 0)
 
     // Username matches with correct initials and has an admin icon
@@ -93,6 +94,19 @@ describe('User Admin Component Tests', () => {
 
     // Shown as active
     expect(isActiveCell.text()).toBe('user.active')
+
+    // 2FA is shown as disabled when not configured
+    expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.disabled')
+  })
+
+  test('A users 2FA enabled status is displayed', async () => {
+    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({
+      twoFactorAuth: { type: 'totp', is_enabled: true },
+    })
+
+    const cells = ui.findCells()
+    const { twoFactorAuthCell } = ui.getRow(cells, 0)
+    expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.enabled')
   })
 
   test('A user with no workspaces is displayed without any', async () => {
@@ -103,7 +117,7 @@ describe('User Admin Component Tests', () => {
     await flushPromises()
 
     const cells = ui.findCells()
-    expect(cells.length).toBe(7)
+    expect(cells.length).toBe(8)
     const { usernameCell, workspacesCell } = ui.getRow(cells, 0)
 
     expect(usernameCell.text()).toContain(user.username)
@@ -467,7 +481,7 @@ describe('User Admin Component Tests', () => {
     const userAdmin = await testApp.mount(UsersAdminTable, {})
     const ui = new UserAdminUserHelpers(userAdmin)
 
-    const cells = ui.findCells(14)
+    const cells = ui.findCells(16)
     const { usernameCell: firstUsernameCell } = ui.getRow(cells, 0)
     expect(firstUsernameCell.text()).toContain('firstUser@example.com')
     const { usernameCell: secondUsernameCell } = ui.getRow(cells, 1)
@@ -498,7 +512,7 @@ describe('User Admin Component Tests', () => {
     const userAdmin = await testApp.mount(UsersAdminTable, {})
     const ui = new UserAdminUserHelpers(userAdmin)
 
-    const cells = ui.findCells(14)
+    const cells = ui.findCells(16)
     const { usernameCell: firstUsernameCell } = ui.getRow(cells, 0)
     expect(firstUsernameCell.text()).toContain('firstUser@example.com')
     const { usernameCell: secondUsernameCell } = ui.getRow(cells, 1)

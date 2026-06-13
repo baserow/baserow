@@ -1006,7 +1006,8 @@
     "workspaces": "Workspaces",
     "lastLogin": "Last login",
     "dateJoined": "Signed up",
-    "active": "Active"
+    "active": "Active",
+    "twoFactorAuth": "2FA"
   },
   "editUserContext": {
     "changePassword": "Change password",
