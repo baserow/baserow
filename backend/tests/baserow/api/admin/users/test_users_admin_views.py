@@ -2,8 +2,9 @@ import json
 from datetime import datetime, timezone
 
 from django.contrib.auth import get_user_model
+from django.db import connection
 from django.shortcuts import reverse
-from django.test.utils import override_settings
+from django.test.utils import CaptureQueriesContext, override_settings
 
 import pytest
 from freezegun import freeze_time
@@ -105,6 +106,7 @@ def test_admin_can_see_admin_users_endpoint(api_client, data_fixture):
                 "is_staff": True,
                 "is_active": True,
                 "last_login": None,
+                "two_factor_auth": {},
             }
         ],
     }
@@ -207,6 +209,7 @@ def test_admin_can_search_users(api_client, data_fixture):
                 "is_staff": False,
                 "is_active": True,
                 "last_login": None,
+                "two_factor_auth": {},
             }
         ],
     }
@@ -248,6 +251,7 @@ def test_admin_can_sort_users(api_client, data_fixture):
                 "is_staff": False,
                 "is_active": True,
                 "last_login": None,
+                "two_factor_auth": {},
             }
         ],
     }
@@ -538,6 +542,7 @@ def test_admin_can_create_user(api_client, data_fixture):
             "is_staff": True,
             "is_active": True,
             "last_login": None,
+            "two_factor_auth": {},
         }
 
     response = api_client.post(
@@ -579,6 +584,7 @@ def test_admin_can_patch_user(api_client, data_fixture):
         "is_staff": True,
         "is_active": True,
         "last_login": None,
+        "two_factor_auth": {},
     }
 
 
@@ -612,6 +618,7 @@ def test_admin_can_patch_user_without_providing_password(api_client, data_fixtur
         "is_staff": True,
         "is_active": True,
         "last_login": None,
+        "two_factor_auth": {},
     }
 
 
@@ -771,7 +778,7 @@ def test_admin_getting_view_users_only_runs_two_queries_instead_of_n(
         first_name="Test1",
         is_staff=True,
     )
-    fixed_num_of_queries_unrelated_to_number_of_rows = 7
+    fixed_num_of_queries_unrelated_to_number_of_rows = 8
 
     for i in range(10):
         data_fixture.create_user_workspace()
@@ -927,3 +934,64 @@ def test_admin_impersonate_staff_or_superuser(api_client, data_fixture):
     assert response.status_code == HTTP_400_BAD_REQUEST
     response_json = response.json()
     assert response_json["user"][0].startswith("Invalid pk")
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_admin_users_endpoint_includes_two_factor_auth(api_client, data_fixture):
+    staff_user, token = data_fixture.create_user_and_token(
+        email="staff@test.nl",
+        password="password",
+        is_staff=True,
+    )
+    user_with_enabled_2fa = data_fixture.create_user(email="enabled@test.nl")
+    data_fixture.configure_totp(user_with_enabled_2fa)
+    user_with_pending_2fa = data_fixture.create_user(email="pending@test.nl")
+    data_fixture.configure_base_totp(user_with_pending_2fa)
+
+    response = api_client.get(
+        reverse("api:admin:users:list"),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    results = {r["username"]: r for r in response.json()["results"]}
+    assert results["staff@test.nl"]["two_factor_auth"] == {}
+    assert results["enabled@test.nl"]["two_factor_auth"] == {
+        "type": "totp",
+        "is_enabled": True,
+    }
+    assert results["pending@test.nl"]["two_factor_auth"] == {
+        "type": "totp",
+        "is_enabled": False,
+    }
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_admin_users_two_factor_auth_does_not_add_n_plus_one_queries(
+    api_client, data_fixture
+):
+    _, token = data_fixture.create_user_and_token(
+        email="staff@test.nl",
+        password="password",
+        is_staff=True,
+    )
+    first_user = data_fixture.create_user()
+    data_fixture.configure_totp(first_user)
+    url = reverse("api:admin:users:list")
+
+    with CaptureQueriesContext(connection) as queries_for_few:
+        api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+
+    for i in range(3):
+        extra_user = data_fixture.create_user()
+        data_fixture.configure_totp(extra_user)
+
+    with CaptureQueriesContext(connection) as queries_for_many:
+        api_client.get(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert len(queries_for_few.captured_queries) == len(
+        queries_for_many.captured_queries
+    )

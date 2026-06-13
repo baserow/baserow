@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.db import transaction
+from django.db.models import Prefetch
 
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -34,6 +35,8 @@ from baserow.core.admin.users.exceptions import (
     UserDoesNotExistException,
 )
 from baserow.core.admin.users.handler import UserAdminHandler
+from baserow.core.db import specific_queryset
+from baserow.core.two_factor_auth.models import TwoFactorAuthProviderModel
 from baserow.core.user.exceptions import DeactivatedUserException, UserAlreadyExist
 from baserow.core.user.utils import generate_session_tokens_for_user
 
@@ -57,7 +60,12 @@ class UsersAdminView(AdminListingView):
 
     def get_queryset(self, request):
         return User.objects.prefetch_related(
-            "workspaceuser_set", "workspaceuser_set__workspace"
+            "workspaceuser_set",
+            "workspaceuser_set__workspace",
+            Prefetch(
+                "two_factor_auth_provider",
+                queryset=specific_queryset(TwoFactorAuthProviderModel.objects.all()),
+            ),
         ).all()
 
     @extend_schema(

@@ -5,6 +5,7 @@ from rest_framework.fields import CharField, EmailField
 from rest_framework.serializers import ModelSerializer
 
 from baserow.api.mixins import UnknownFieldRaisesExceptionSerializerMixin
+from baserow.api.two_factor_auth.serializers import TwoFactorAuthSerializer
 from baserow.api.user.validators import password_validation
 from baserow.core.models import WorkspaceUser
 
@@ -46,6 +47,7 @@ class UserAdminResponseSerializer(ModelSerializer):
     name = CharField(source="first_name", max_length=150)
     username = EmailField()
     workspaces = UserAdminWorkspacesSerializer(source="workspaceuser_set", many=True)
+    two_factor_auth = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -58,8 +60,17 @@ class UserAdminResponseSerializer(ModelSerializer):
             "date_joined",
             "is_active",
             "is_staff",
+            "two_factor_auth",
         )
         extra_kwargs = _USER_ADMIN_SERIALIZER_API_DOC_KWARGS
+
+    def get_two_factor_auth(self, object):
+        try:
+            provider = object.two_factor_auth_provider
+        except User.two_factor_auth_provider.RelatedObjectDoesNotExist:
+            provider = None
+
+        return TwoFactorAuthSerializer(provider).data
 
 
 class UserAdminCreateSerializer(
