@@ -21,6 +21,8 @@ from baserow.core.models import (
     WORKSPACE_USER_PERMISSION_ADMIN,
     WORKSPACE_USER_PERMISSION_MEMBER,
 )
+from baserow.core.two_factor_auth.handler import TwoFactorAuthHandler
+from baserow.core.two_factor_auth.models import TOTPUsedCode, TwoFactorAuthRecoveryCode
 
 User = get_user_model()
 invalid_passwords = [
@@ -995,3 +997,93 @@ def test_admin_users_two_factor_auth_does_not_add_n_plus_one_queries(
     assert len(queries_for_few.captured_queries) == len(
         queries_for_many.captured_queries
     )
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_admin_can_disable_two_factor_auth_of_user(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token(
+        email="staff@test.nl",
+        password="password",
+        is_staff=True,
+    )
+    user = data_fixture.create_user(email="user@test.nl")
+    data_fixture.configure_totp(user)
+    TOTPUsedCode.objects.create(
+        user=user,
+        used_at=datetime(2021, 4, 1, 1, 0, 0, 0, tzinfo=timezone.utc),
+        code="hashed-code",
+    )
+    assert TwoFactorAuthRecoveryCode.objects.filter(user=user).count() > 0
+    assert TOTPUsedCode.objects.filter(user=user).count() > 0
+
+    response = api_client.delete(
+        reverse("api:admin:users:two_factor_auth", kwargs={"user_id": user.id}),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_204_NO_CONTENT
+    assert TwoFactorAuthHandler().get_provider(user) is None
+    assert TwoFactorAuthRecoveryCode.objects.filter(user=user).count() == 0
+    assert TOTPUsedCode.objects.filter(user=user).count() == 0
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_non_admin_cannot_disable_two_factor_auth_of_user(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token(
+        email="nonstaff@test.nl",
+        password="password",
+        is_staff=False,
+    )
+    user = data_fixture.create_user(email="user@test.nl")
+    data_fixture.configure_totp(user)
+
+    response = api_client.delete(
+        reverse("api:admin:users:two_factor_auth", kwargs={"user_id": user.id}),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_403_FORBIDDEN
+    assert TwoFactorAuthHandler().get_provider(user) is not None
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_admin_disable_two_factor_auth_unknown_user(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token(
+        email="staff@test.nl",
+        password="password",
+        is_staff=True,
+    )
+
+    response = api_client.delete(
+        reverse("api:admin:users:two_factor_auth", kwargs={"user_id": 99999}),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "USER_ADMIN_UNKNOWN_USER"
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_admin_disable_two_factor_auth_not_configured(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token(
+        email="staff@test.nl",
+        password="password",
+        is_staff=True,
+    )
+    user = data_fixture.create_user(email="user@test.nl")
+
+    response = api_client.delete(
+        reverse("api:admin:users:two_factor_auth", kwargs={"user_id": user.id}),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_TWO_FACTOR_AUTH_NOT_CONFIGURED"
