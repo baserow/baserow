@@ -102,23 +102,25 @@
       required
       class="margin-top-2"
     >
-      <Badge
-        :color="twoFactorAuthEnabled ? 'green' : 'neutral'"
-        :rounded="true"
-      >
-        {{
-          twoFactorAuthEnabled
-            ? twoFactorAuthProviderName
-            : $t('twoFactorAuthField.disabled')
-        }}
-      </Badge>
-      <a
-        v-if="twoFactorAuthEnabled"
-        class="user-admin-edit__remove-2fa"
-        @click.prevent="$emit('remove-two-factor-auth')"
-      >
-        {{ $t('userForm.removeTwoFactorAuth') }}
-      </a>
+      <div class="user-admin-edit__two-factor">
+        <Badge
+          :color="twoFactorAuthEnabled ? 'green' : 'neutral'"
+          :rounded="true"
+        >
+          {{
+            twoFactorAuthEnabled
+              ? twoFactorAuthProviderName
+              : $t('twoFactorAuthField.disabled')
+          }}
+        </Badge>
+        <a
+          v-if="twoFactorAuthEnabled"
+          class="user-admin-edit__remove-2fa"
+          @click.prevent="$emit('remove-two-factor-auth')"
+        >
+          {{ $t('userForm.removeTwoFactorAuth') }}
+        </a>
+      </div>
     </FormGroup>
 
     <div class="actions">

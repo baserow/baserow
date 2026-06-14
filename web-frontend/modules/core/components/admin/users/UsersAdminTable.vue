@@ -90,7 +90,12 @@ export default {
         new CrudTableColumn(
           'two_factor_auth',
           () => this.$t('usersAdminTable.twoFactorAuth'),
-          TwoFactorAuthField
+          TwoFactorAuthField,
+          false,
+          false,
+          false,
+          {},
+          8
         ),
         new CrudTableColumn('more', '', MoreField, false, false, true),
       ]
