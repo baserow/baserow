@@ -34,7 +34,7 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
               
               <label
                 class="control__label control__label--small"
-                for="v-0-0-6"
+                for="v-0-0-10"
               >
                 <span>
                   exportTableForm.viewLabel
@@ -55,7 +55,7 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                     
                     <div
                       class="dropdown"
-                      id="v-0-0-6"
+                      id="v-0-0-10"
                       role="list"
                       tabindex="0"
                     >
@@ -182,7 +182,7 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
               
               <label
                 class="control__label control__label--small"
-                for="v-0-0-7"
+                for="v-0-0-11"
               >
                 <span>
                   exporterTypeChoices.formatLabel
@@ -351,7 +351,7 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                 
                 <label
                   class="control__label control__label--small"
-                  for="v-0-0-8"
+                  for="v-0-0-12"
                 >
                   <span>
                     tableCSVExporter.columnSeparatorLabel
@@ -372,7 +372,7 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                       
                       <div
                         class="dropdown"
-                        id="v-0-0-8"
+                        id="v-0-0-12"
                         role="list"
                         tabindex="0"
                       >
@@ -611,7 +611,7 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                 
                 <label
                   class="control__label control__label--small"
-                  for="v-0-0-9"
+                  for="v-0-0-13"
                 >
                   <span>
                     tableCSVExporter.encodingLabel
@@ -632,7 +632,7 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                       
                       <div
                         class="dropdown"
-                        id="v-0-0-9"
+                        id="v-0-0-13"
                         role="list"
                         tabindex="0"
                       >
@@ -1625,13 +1625,13 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
               class="col col-6"
             >
               <div
-                class="control"
+                class="control margin-bottom-2"
                 data-form-error="false"
               >
                 
                 <label
                   class="control__label control__label--small"
-                  for="v-0-0-10"
+                  for="v-0-0-14"
                 >
                   <span>
                     tableCSVExporter.includeHeader
@@ -1656,7 +1656,7 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                         <input
                           checked=""
                           class="checkbox__native"
-                          id="checkboxv-0-0-11"
+                          id="checkboxv-0-0-15"
                           type="checkbox"
                         />
                         <div
@@ -1671,7 +1671,7 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                             xmlns="http://www.w3.org/2000/svg"
                           >
                             <g
-                              clip-path="url(#clipv-0-0-11)"
+                              clip-path="url(#clipv-0-0-15)"
                             >
                               <path
                                 d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
@@ -1683,7 +1683,231 @@ exports[`Preview exportTableModal > Modal with no view 1`] = `
                             </g>
                             <defs>
                               <clippath
-                                id="clipv-0-0-11"
+                                id="clipv-0-0-15"
+                              >
+                                <rect
+                                  fill="white"
+                                  height="8"
+                                  transform="translate(0.5)"
+                                  width="8"
+                                />
+                              </clippath>
+                            </defs>
+                          </svg>
+                          <svg
+                            class="checkbox__tick-indeterminate"
+                            fill="none"
+                            height="8"
+                            style="display: none;"
+                            viewBox="0 0 8 8"
+                            width="8"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M1.5 4L6.5 4"
+                              stroke="white"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                            />
+                          </svg>
+                        </div>
+                        <span
+                          class="checkbox__label"
+                        >
+                          
+                          common.yes
+                          
+                        </span>
+                      </label>
+                      
+                    </div>
+                    <!--v-if-->
+                    
+                    
+                  </div>
+                  <!--v-if-->
+                </div>
+                
+              </div>
+            </div>
+          </div>
+          <div
+            class="row"
+          >
+            <div
+              class="col col-6"
+            >
+              <div
+                class="control"
+                data-form-error="false"
+              >
+                
+                <label
+                  class="control__label control__label--small"
+                  for="v-0-0-16"
+                >
+                  <span>
+                    exportTableForm.includeRowId
+                  </span>
+                  <!--v-if-->
+                  <!--v-if-->
+                  <!--v-if-->
+                </label>
+                <div
+                  class="control__wrapper"
+                >
+                  <div
+                    class="control__elements"
+                  >
+                    <div
+                      class="control__elements-wrapper"
+                    >
+                      
+                      <label
+                        class="checkbox checkbox--checked"
+                      >
+                        <input
+                          checked=""
+                          class="checkbox__native"
+                          id="checkboxv-0-0-17"
+                          type="checkbox"
+                        />
+                        <div
+                          class="checkbox__button"
+                        >
+                          <svg
+                            class="checkbox__tick"
+                            fill="none"
+                            height="8"
+                            viewBox="0 0 9 8"
+                            width="9"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <g
+                              clip-path="url(#clipv-0-0-17)"
+                            >
+                              <path
+                                d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
+                                stroke="white"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                              />
+                            </g>
+                            <defs>
+                              <clippath
+                                id="clipv-0-0-17"
+                              >
+                                <rect
+                                  fill="white"
+                                  height="8"
+                                  transform="translate(0.5)"
+                                  width="8"
+                                />
+                              </clippath>
+                            </defs>
+                          </svg>
+                          <svg
+                            class="checkbox__tick-indeterminate"
+                            fill="none"
+                            height="8"
+                            style="display: none;"
+                            viewBox="0 0 8 8"
+                            width="8"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M1.5 4L6.5 4"
+                              stroke="white"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                            />
+                          </svg>
+                        </div>
+                        <span
+                          class="checkbox__label"
+                        >
+                          
+                          common.yes
+                          
+                        </span>
+                      </label>
+                      
+                    </div>
+                    <!--v-if-->
+                    
+                    
+                  </div>
+                  <!--v-if-->
+                </div>
+                
+              </div>
+            </div>
+            <div
+              class="col col-6"
+            >
+              <div
+                class="control"
+                data-form-error="false"
+              >
+                
+                <label
+                  class="control__label control__label--small"
+                  for="v-0-0-18"
+                >
+                  <span>
+                    exportTableForm.includePrimaryField
+                  </span>
+                  <!--v-if-->
+                  <!--v-if-->
+                  <!--v-if-->
+                </label>
+                <div
+                  class="control__wrapper"
+                >
+                  <div
+                    class="control__elements"
+                  >
+                    <div
+                      class="control__elements-wrapper"
+                    >
+                      
+                      <label
+                        class="checkbox checkbox--checked"
+                      >
+                        <input
+                          checked=""
+                          class="checkbox__native"
+                          id="checkboxv-0-0-19"
+                          type="checkbox"
+                        />
+                        <div
+                          class="checkbox__button"
+                        >
+                          <svg
+                            class="checkbox__tick"
+                            fill="none"
+                            height="8"
+                            viewBox="0 0 9 8"
+                            width="9"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <g
+                              clip-path="url(#clipv-0-0-19)"
+                            >
+                              <path
+                                d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
+                                stroke="white"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                              />
+                            </g>
+                            <defs>
+                              <clippath
+                                id="clipv-0-0-19"
                               >
                                 <rect
                                   fill="white"
@@ -1811,7 +2035,7 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
               
               <label
                 class="control__label control__label--small"
-                for="v-0-0-6"
+                for="v-0-0-10"
               >
                 <span>
                   exportTableForm.viewLabel
@@ -1832,7 +2056,7 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                     
                     <div
                       class="dropdown"
-                      id="v-0-0-6"
+                      id="v-0-0-10"
                       role="list"
                       tabindex="0"
                     >
@@ -1961,7 +2185,7 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
               
               <label
                 class="control__label control__label--small"
-                for="v-0-0-7"
+                for="v-0-0-11"
               >
                 <span>
                   exporterTypeChoices.formatLabel
@@ -2130,7 +2354,7 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                 
                 <label
                   class="control__label control__label--small"
-                  for="v-0-0-8"
+                  for="v-0-0-12"
                 >
                   <span>
                     tableCSVExporter.columnSeparatorLabel
@@ -2151,7 +2375,7 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                       
                       <div
                         class="dropdown"
-                        id="v-0-0-8"
+                        id="v-0-0-12"
                         role="list"
                         tabindex="0"
                       >
@@ -2390,7 +2614,7 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                 
                 <label
                   class="control__label control__label--small"
-                  for="v-0-0-9"
+                  for="v-0-0-13"
                 >
                   <span>
                     tableCSVExporter.encodingLabel
@@ -2411,7 +2635,7 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                       
                       <div
                         class="dropdown"
-                        id="v-0-0-9"
+                        id="v-0-0-13"
                         role="list"
                         tabindex="0"
                       >
@@ -3404,13 +3628,13 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
               class="col col-6"
             >
               <div
-                class="control"
+                class="control margin-bottom-2"
                 data-form-error="false"
               >
                 
                 <label
                   class="control__label control__label--small"
-                  for="v-0-0-10"
+                  for="v-0-0-14"
                 >
                   <span>
                     tableCSVExporter.includeHeader
@@ -3435,7 +3659,7 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                         <input
                           checked=""
                           class="checkbox__native"
-                          id="checkboxv-0-0-11"
+                          id="checkboxv-0-0-15"
                           type="checkbox"
                         />
                         <div
@@ -3450,7 +3674,7 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                             xmlns="http://www.w3.org/2000/svg"
                           >
                             <g
-                              clip-path="url(#clipv-0-0-11)"
+                              clip-path="url(#clipv-0-0-15)"
                             >
                               <path
                                 d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
@@ -3462,7 +3686,231 @@ exports[`Preview exportTableModal > Modal with view 1`] = `
                             </g>
                             <defs>
                               <clippath
-                                id="clipv-0-0-11"
+                                id="clipv-0-0-15"
+                              >
+                                <rect
+                                  fill="white"
+                                  height="8"
+                                  transform="translate(0.5)"
+                                  width="8"
+                                />
+                              </clippath>
+                            </defs>
+                          </svg>
+                          <svg
+                            class="checkbox__tick-indeterminate"
+                            fill="none"
+                            height="8"
+                            style="display: none;"
+                            viewBox="0 0 8 8"
+                            width="8"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M1.5 4L6.5 4"
+                              stroke="white"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                            />
+                          </svg>
+                        </div>
+                        <span
+                          class="checkbox__label"
+                        >
+                          
+                          common.yes
+                          
+                        </span>
+                      </label>
+                      
+                    </div>
+                    <!--v-if-->
+                    
+                    
+                  </div>
+                  <!--v-if-->
+                </div>
+                
+              </div>
+            </div>
+          </div>
+          <div
+            class="row"
+          >
+            <div
+              class="col col-6"
+            >
+              <div
+                class="control"
+                data-form-error="false"
+              >
+                
+                <label
+                  class="control__label control__label--small"
+                  for="v-0-0-16"
+                >
+                  <span>
+                    exportTableForm.includeRowId
+                  </span>
+                  <!--v-if-->
+                  <!--v-if-->
+                  <!--v-if-->
+                </label>
+                <div
+                  class="control__wrapper"
+                >
+                  <div
+                    class="control__elements"
+                  >
+                    <div
+                      class="control__elements-wrapper"
+                    >
+                      
+                      <label
+                        class="checkbox checkbox--checked"
+                      >
+                        <input
+                          checked=""
+                          class="checkbox__native"
+                          id="checkboxv-0-0-17"
+                          type="checkbox"
+                        />
+                        <div
+                          class="checkbox__button"
+                        >
+                          <svg
+                            class="checkbox__tick"
+                            fill="none"
+                            height="8"
+                            viewBox="0 0 9 8"
+                            width="9"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <g
+                              clip-path="url(#clipv-0-0-17)"
+                            >
+                              <path
+                                d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
+                                stroke="white"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                              />
+                            </g>
+                            <defs>
+                              <clippath
+                                id="clipv-0-0-17"
+                              >
+                                <rect
+                                  fill="white"
+                                  height="8"
+                                  transform="translate(0.5)"
+                                  width="8"
+                                />
+                              </clippath>
+                            </defs>
+                          </svg>
+                          <svg
+                            class="checkbox__tick-indeterminate"
+                            fill="none"
+                            height="8"
+                            style="display: none;"
+                            viewBox="0 0 8 8"
+                            width="8"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <path
+                              d="M1.5 4L6.5 4"
+                              stroke="white"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              stroke-width="2"
+                            />
+                          </svg>
+                        </div>
+                        <span
+                          class="checkbox__label"
+                        >
+                          
+                          common.yes
+                          
+                        </span>
+                      </label>
+                      
+                    </div>
+                    <!--v-if-->
+                    
+                    
+                  </div>
+                  <!--v-if-->
+                </div>
+                
+              </div>
+            </div>
+            <div
+              class="col col-6"
+            >
+              <div
+                class="control"
+                data-form-error="false"
+              >
+                
+                <label
+                  class="control__label control__label--small"
+                  for="v-0-0-18"
+                >
+                  <span>
+                    exportTableForm.includePrimaryField
+                  </span>
+                  <!--v-if-->
+                  <!--v-if-->
+                  <!--v-if-->
+                </label>
+                <div
+                  class="control__wrapper"
+                >
+                  <div
+                    class="control__elements"
+                  >
+                    <div
+                      class="control__elements-wrapper"
+                    >
+                      
+                      <label
+                        class="checkbox checkbox--checked"
+                      >
+                        <input
+                          checked=""
+                          class="checkbox__native"
+                          id="checkboxv-0-0-19"
+                          type="checkbox"
+                        />
+                        <div
+                          class="checkbox__button"
+                        >
+                          <svg
+                            class="checkbox__tick"
+                            fill="none"
+                            height="8"
+                            viewBox="0 0 9 8"
+                            width="9"
+                            xmlns="http://www.w3.org/2000/svg"
+                          >
+                            <g
+                              clip-path="url(#clipv-0-0-19)"
+                            >
+                              <path
+                                d="M1.5179 4.4821L3.18211 6.18211L7.42475 2.15368"
+                                stroke="white"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                stroke-width="2"
+                              />
+                            </g>
+                            <defs>
+                              <clippath
+                                id="clipv-0-0-19"
                               >
                                 <rect
                                   fill="white"
