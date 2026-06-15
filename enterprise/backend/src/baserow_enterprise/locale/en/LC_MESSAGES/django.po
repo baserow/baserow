@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-15 14:36+0000\n"
+"POT-Creation-Date: 2026-06-15 14:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -348,6 +348,18 @@ msgstr ""
 
 #: src/baserow_enterprise/audit_log/models.py:32
 msgid "REDONE"
+msgstr ""
+
+#: src/baserow_enterprise/automation/nodes/node_types.py:20
+msgid "Code"
+msgstr ""
+
+#: src/baserow_enterprise/builder/elements/element_types.py:31
+msgid "Auth form"
+msgstr ""
+
+#: src/baserow_enterprise/builder/elements/element_types.py:139
+msgid "File input"
 msgstr ""
 
 #: src/baserow_enterprise/data_scanner/actions.py:18
