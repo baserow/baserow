@@ -206,6 +206,14 @@
   }
 }
 
+// The checkbox shown for multi-select items is purely presentational; selection
+// is handled by clicking the item link. Without this, clicking the checkbox's
+// `<label>` would dispatch a second (forwarded) click on its `<input>`, both
+// bubbling to the link and toggling the selection twice.
+.select__item-checkbox {
+  pointer-events: none;
+}
+
 .select__item-name-text {
   @extend %ellipsis;
 

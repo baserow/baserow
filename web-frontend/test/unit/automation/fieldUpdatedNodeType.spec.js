@@ -1,8 +1,8 @@
-import { LocalBaserowFieldUpdatedTriggerNodeType } from '@baserow/modules/automation/nodeTypes'
+import { LocalBaserowFieldsUpdatedTriggerNodeType } from '@baserow/modules/automation/nodeTypes'
 
-describe('LocalBaserowFieldUpdatedTriggerNodeType label', () => {
+describe('LocalBaserowFieldsUpdatedTriggerNodeType label', () => {
   const makeNodeType = () =>
-    new LocalBaserowFieldUpdatedTriggerNodeType({
+    new LocalBaserowFieldsUpdatedTriggerNodeType({
       app: {
         $i18n: {
           t: (key, data) => (data ? `${key} ${JSON.stringify(data)}` : key),
@@ -19,49 +19,59 @@ describe('LocalBaserowFieldUpdatedTriggerNodeType label', () => {
       },
     })
 
-  const serviceWithField = {
-    integration_id: 1,
-    table_id: 5,
-    field_id: 868,
-    schema: {
-      items: {
-        properties: {
-          field_866: { metadata: { id: 866, name: 'Name' } },
-          field_868: { metadata: { id: 868, name: 'Notes' } },
-        },
+  const schema = {
+    items: {
+      properties: {
+        field_866: { metadata: { id: 866, name: 'Name' } },
+        field_868: { metadata: { id: 868, name: 'Notes' } },
       },
     },
   }
 
-  test('getFieldName resolves the watched field name from the schema', () => {
-    expect(makeNodeType().getFieldName({ service: serviceWithField })).toBe(
-      'Notes'
-    )
+  const serviceWith = (fieldIds) => ({
+    integration_id: 1,
+    table_id: 5,
+    field_ids: fieldIds,
+    schema,
   })
 
-  test('getFieldName is null when no field is selected', () => {
+  test('getFieldNames resolves all watched field names from the schema', () => {
     expect(
-      makeNodeType().getFieldName({ service: { field_id: null, schema: {} } })
-    ).toBe(null)
+      makeNodeType().getFieldNames({ service: serviceWith([866, 868]) })
+    ).toEqual(['Name', 'Notes'])
   })
 
-  test('label uses the field + table template when a field is selected', () => {
+  test('getFieldNames is empty when no field is selected', () => {
+    expect(
+      makeNodeType().getFieldNames({ service: { field_ids: [], schema: {} } })
+    ).toEqual([])
+  })
+
+  test('label names the single selected field', () => {
     const label = makeNodeType().getDefaultLabel({
       automation: {},
-      node: { service: serviceWithField },
+      node: { service: serviceWith([866]) },
     })
-    expect(label).toContain('nodeType.localBaserowFieldUpdatedLabel')
-    expect(label).toContain('Notes')
+    expect(label).toContain('nodeType.localBaserowFieldsUpdatedLabel')
+    expect(label).toContain('Name')
+    expect(label).toContain('Customers')
+  })
+
+  test('label uses a count when multiple fields are selected', () => {
+    const label = makeNodeType().getDefaultLabel({
+      automation: {},
+      node: { service: serviceWith([866, 868]) },
+    })
+    expect(label).toContain('nodeType.localBaserowFieldsUpdatedMultipleLabel')
+    expect(label).toContain('"count":2')
     expect(label).toContain('Customers')
   })
 
   test('label uses the no-field template when no field is selected', () => {
     const label = makeNodeType().getDefaultLabel({
       automation: {},
-      node: {
-        service: { integration_id: 1, table_id: 5, field_id: null, schema: {} },
-      },
+      node: { service: serviceWith([]) },
     })
-    expect(label).toBe('nodeType.localBaserowFieldUpdatedNoFieldLabel')
+    expect(label).toBe('nodeType.localBaserowFieldsUpdatedNoFieldLabel')
   })
 })

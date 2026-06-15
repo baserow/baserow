@@ -1,9 +1,9 @@
 import flushPromises from 'flush-promises'
 
-import LocalBaserowFieldUpdatedTriggerServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowFieldUpdatedTriggerServiceForm'
+import LocalBaserowFieldsUpdatedTriggerServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowFieldsUpdatedTriggerServiceForm'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
-describe('LocalBaserowFieldUpdatedTriggerServiceForm', () => {
+describe('LocalBaserowFieldsUpdatedTriggerServiceForm', () => {
   let testApp = null
 
   beforeEach(() => {
@@ -15,7 +15,7 @@ describe('LocalBaserowFieldUpdatedTriggerServiceForm', () => {
   })
 
   async function mountComponent(props = {}) {
-    return await testApp.mount(LocalBaserowFieldUpdatedTriggerServiceForm, {
+    return await testApp.mount(LocalBaserowFieldsUpdatedTriggerServiceForm, {
       props: {
         application: { id: 1 },
         serviceType: {},
@@ -43,25 +43,31 @@ describe('LocalBaserowFieldUpdatedTriggerServiceForm', () => {
     expect(optionNames).not.toContain('Computed total')
   })
 
-  test('a saved field_id is preserved while the table fields load', async () => {
+  test('saved field_ids are preserved while the table fields load', async () => {
     // The tableFields mixin transiently empties `tableFields` while fetching, so
-    // the form must not wipe a persisted field during that window.
+    // the form must not wipe persisted fields during that window.
     const fields = testApp.mockServer.createFields({ id: 1 }, { id: 1 }, [
       { name: 'Editable name', type: 'text' },
     ])
 
     const wrapper = await mountComponent({
-      defaultValues: { table_id: 1, integration_id: 1, field_id: fields[0].id },
+      defaultValues: {
+        table_id: 1,
+        integration_id: 1,
+        field_ids: [fields[0].id],
+      },
     })
     await flushPromises()
 
-    // No emission should have cleared the field back to null.
+    // No emission should have cleared the fields.
     const emissions = wrapper.emitted('values-changed') || []
-    const clearedToNull = emissions.some((e) => e[0].field_id === null)
-    expect(clearedToNull).toBe(false)
+    const cleared = emissions.some(
+      (e) => Array.isArray(e[0].field_ids) && e[0].field_ids.length === 0
+    )
+    expect(cleared).toBe(false)
   })
 
-  test('changing the table clears the selected field', async () => {
+  test('changing the table clears the selected fields', async () => {
     testApp.mockServer.createFields({ id: 1 }, { id: 1 }, [
       { name: 'Editable name', type: 'text' },
     ])
@@ -70,7 +76,7 @@ describe('LocalBaserowFieldUpdatedTriggerServiceForm', () => {
     ])
 
     const wrapper = await mountComponent({
-      defaultValues: { table_id: 1, integration_id: 1, field_id: 999 },
+      defaultValues: { table_id: 1, integration_id: 1, field_ids: [999] },
     })
     await flushPromises()
 
@@ -82,6 +88,24 @@ describe('LocalBaserowFieldUpdatedTriggerServiceForm', () => {
     const emissions = wrapper.emitted('values-changed') || []
     const last = emissions.at(-1)?.[0]
     expect(last.table_id).toBe(2)
-    expect(last.field_id).toBe(null)
+    expect(last.field_ids).toEqual([])
+  })
+
+  test('selecting fields emits field_ids as an array', async () => {
+    const fields = testApp.mockServer.createFields({ id: 1 }, { id: 1 }, [
+      { name: 'First', type: 'text' },
+      { name: 'Second', type: 'text' },
+    ])
+
+    const wrapper = await mountComponent()
+    await flushPromises()
+
+    const dropdown = wrapper.findComponent({ name: 'Dropdown' })
+    dropdown.vm.$emit('update:modelValue', [fields[0].id, fields[1].id])
+    await flushPromises()
+
+    const emissions = wrapper.emitted('values-changed') || []
+    const last = emissions.at(-1)?.[0]
+    expect(last.field_ids).toEqual([fields[0].id, fields[1].id])
   })
 })

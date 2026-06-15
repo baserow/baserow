@@ -13,7 +13,7 @@ from baserow.contrib.database.table.handler import TableHandler
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowAggregateRowsUserServiceType,
     LocalBaserowDeleteRowServiceType,
-    LocalBaserowFieldUpdatedServiceType,
+    LocalBaserowFieldsUpdatedServiceType,
     LocalBaserowGetRowUserServiceType,
     LocalBaserowListRowsUserServiceType,
     LocalBaserowRowsCreatedServiceType,
@@ -60,7 +60,7 @@ def test_local_baserow_service_type_dispatch_types():
         LocalBaserowRowsCreatedServiceType.type: [DispatchTypes.EVENT],
         LocalBaserowRowsUpdatedServiceType.type: [DispatchTypes.EVENT],
         LocalBaserowRowsDeletedServiceType.type: [DispatchTypes.EVENT],
-        LocalBaserowFieldUpdatedServiceType.type: [DispatchTypes.EVENT],
+        LocalBaserowFieldsUpdatedServiceType.type: [DispatchTypes.EVENT],
         "local_baserow_grouped_aggregate_rows": [DispatchTypes.DATA],
     }
 
@@ -2138,20 +2138,20 @@ def test_local_baserow_rows_deleted_trigger_service_type_handler(data_fixture):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_local_baserow_field_updated_trigger_fires_when_watched_field_changes(
+def test_local_baserow_fields_updated_trigger_fires_when_watched_field_changes(
     data_fixture,
 ):
     mocked_on_event = Mock()
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldUpdatedServiceType.type)
+    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
     service_type.on_event = mocked_on_event
     table = data_fixture.create_database_table(user=user)
     watched_field = data_fixture.create_text_field(user, table=table)
     model = table.get_model()
     row = model.objects.create()
-    data_fixture.create_local_baserow_field_updated_service(
+    data_fixture.create_local_baserow_fields_updated_service(
         table=table,
-        field=watched_field,
+        fields=[watched_field],
     )
     with transaction.atomic():
         RowHandler().update_rows(
@@ -2167,21 +2167,21 @@ def test_local_baserow_field_updated_trigger_fires_when_watched_field_changes(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_local_baserow_field_updated_trigger_ignores_other_field_changes(
+def test_local_baserow_fields_updated_trigger_ignores_other_field_changes(
     data_fixture,
 ):
     mocked_on_event = Mock()
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldUpdatedServiceType.type)
+    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
     service_type.on_event = mocked_on_event
     table = data_fixture.create_database_table(user=user)
     watched_field = data_fixture.create_text_field(user, table=table)
     other_field = data_fixture.create_text_field(user, table=table)
     model = table.get_model()
     row = model.objects.create()
-    data_fixture.create_local_baserow_field_updated_service(
+    data_fixture.create_local_baserow_fields_updated_service(
         table=table,
-        field=watched_field,
+        fields=[watched_field],
     )
     with transaction.atomic():
         RowHandler().update_rows(
@@ -2197,19 +2197,19 @@ def test_local_baserow_field_updated_trigger_ignores_other_field_changes(
 
 
 @pytest.mark.django_db(transaction=True)
-def test_local_baserow_field_updated_trigger_ignores_when_no_field_configured(
+def test_local_baserow_fields_updated_trigger_ignores_when_no_field_configured(
     data_fixture,
 ):
     mocked_on_event = Mock()
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldUpdatedServiceType.type)
+    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
     service_type.on_event = mocked_on_event
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(user, table=table)
     model = table.get_model()
     row = model.objects.create()
     # No `field` configured on the service.
-    data_fixture.create_local_baserow_field_updated_service(table=table)
+    data_fixture.create_local_baserow_fields_updated_service(table=table)
     with transaction.atomic():
         RowHandler().update_rows(
             user=user,
@@ -2223,50 +2223,90 @@ def test_local_baserow_field_updated_trigger_ignores_when_no_field_configured(
     mocked_on_event.assert_not_called()
 
 
-@pytest.mark.django_db
-def test_local_baserow_field_updated_prepare_values_validates_field_table(
+@pytest.mark.django_db(transaction=True)
+def test_local_baserow_fields_updated_trigger_fires_when_any_watched_field_changes(
     data_fixture,
 ):
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldUpdatedServiceType.type)
+    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
+    table = data_fixture.create_database_table(user=user)
+    watched_a = data_fixture.create_text_field(user, table=table)
+    watched_b = data_fixture.create_text_field(user, table=table)
+    other_field = data_fixture.create_text_field(user, table=table)
+    model = table.get_model()
+    row = model.objects.create()
+    data_fixture.create_local_baserow_fields_updated_service(
+        table=table, fields=[watched_a, watched_b]
+    )
+
+    def update(field):
+        with transaction.atomic():
+            RowHandler().update_rows(
+                user=user,
+                table=table,
+                model=model,
+                rows_values=[{"id": row.id, f"field_{field.id}": "updated"}],
+                skip_search_update=True,
+            )
+
+    # Changing either watched field fires the trigger.
+    for watched_field in (watched_a, watched_b):
+        mocked_on_event = Mock()
+        service_type.on_event = mocked_on_event
+        update(watched_field)
+        mocked_on_event.assert_called_once()
+
+    # Changing a non-watched field does not.
+    mocked_on_event = Mock()
+    service_type.on_event = mocked_on_event
+    update(other_field)
+    mocked_on_event.assert_not_called()
+
+
+@pytest.mark.django_db
+def test_local_baserow_fields_updated_prepare_values_validates_field_table(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
     table = data_fixture.create_database_table(user=user)
     field_in_table = data_fixture.create_text_field(user, table=table)
     other_table = data_fixture.create_database_table(user=user)
     field_in_other_table = data_fixture.create_text_field(user, table=other_table)
 
-    # A field belonging to the chosen table is accepted.
+    # Fields belonging to the chosen table are accepted.
     values = service_type.prepare_values(
-        {"table": table, "field_id": field_in_table.id}, user
+        {"table": table, "field_ids": [field_in_table.id]}, user
     )
-    assert values["field"].id == field_in_table.id
+    assert values["field_ids"] == [field_in_table.id]
 
     # A field belonging to a different table is rejected.
     with pytest.raises(DRFValidationError):
         service_type.prepare_values(
-            {"table": table, "field_id": field_in_other_table.id}, user
+            {"table": table, "field_ids": [field_in_other_table.id]}, user
         )
 
 
 @pytest.mark.django_db
-def test_local_baserow_field_updated_prepare_values_resets_field_on_table_change(
+def test_local_baserow_fields_updated_prepare_values_resets_field_on_table_change(
     data_fixture,
 ):
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldUpdatedServiceType.type)
+    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(user, table=table)
     new_table = data_fixture.create_database_table(user=user)
-    service = data_fixture.create_local_baserow_field_updated_service(
-        table=table, field=field
+    service = data_fixture.create_local_baserow_fields_updated_service(
+        table=table, fields=[field]
     )
 
-    # Changing the table (without providing a new field) resets the field.
+    # Changing the table (without providing new fields) resets the fields.
     values = service_type.prepare_values({"table": new_table}, user, instance=service)
-    assert values["field"] is None
+    assert values["field_ids"] == []
 
 
 @pytest.mark.django_db
-def test_local_baserow_field_updated_export_prepared_values_is_json_serializable(
+def test_local_baserow_fields_updated_export_prepared_values_is_json_serializable(
     data_fixture,
 ):
     import json
@@ -2274,55 +2314,63 @@ def test_local_baserow_field_updated_export_prepared_values_is_json_serializable
     from baserow.core.encoders import JSONEncoderSupportingDataClasses
 
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldUpdatedServiceType.type)
+    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
     table = data_fixture.create_database_table(user=user)
     field = data_fixture.create_text_field(user, table=table)
-    service = data_fixture.create_local_baserow_field_updated_service(
-        table=table, field=field
+    field_2 = data_fixture.create_text_field(user, table=table)
+    service = data_fixture.create_local_baserow_fields_updated_service(
+        table=table, fields=[field, field_2]
     )
 
     values = service_type.export_prepared_values(service)
 
-    # The watched field must be exported as a plain id, never a model instance,
+    # The watched fields must be exported as plain ids, never model instances,
     # so undo/redo action params can be JSON serialized.
-    assert values["field_id"] == field.id
-    assert "field" not in values
+    assert values["field_ids"] == sorted([field.id, field_2.id])
+    assert "fields" not in values
     json.dumps(values, cls=JSONEncoderSupportingDataClasses)
 
 
 @pytest.mark.django_db
-def test_local_baserow_field_updated_generate_schema(data_fixture):
+def test_local_baserow_fields_updated_generate_schema(data_fixture):
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldUpdatedServiceType.type)
+    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
     table = data_fixture.create_database_table(user=user)
-    watched_field = data_fixture.create_text_field(user, table=table, name="Watched")
+    watched_a = data_fixture.create_text_field(user, table=table, name="Watched A")
+    watched_b = data_fixture.create_text_field(user, table=table, name="Watched B")
     # Another field on the same table that must NOT appear in the schema.
     data_fixture.create_text_field(user, table=table, name="Ignored")
 
-    service = data_fixture.create_local_baserow_field_updated_service(
-        table=table, field=watched_field
+    service = data_fixture.create_local_baserow_fields_updated_service(
+        table=table, fields=[watched_a, watched_b]
     )
 
     schema = service_type.generate_schema(service)
 
-    # The schema is a list (array), exposing only the row id and the watched field.
+    # The schema is a list (array), exposing only the row id and the watched fields.
     assert schema["type"] == "array"
     properties = schema["items"]["properties"]
-    assert set(properties.keys()) == {"id", f"field_{watched_field.id}"}
-    assert properties[f"field_{watched_field.id}"]["title"] == "Watched"
+    assert set(properties.keys()) == {
+        "id",
+        f"field_{watched_a.id}",
+        f"field_{watched_b.id}",
+    }
+    assert properties[f"field_{watched_a.id}"]["title"] == "Watched A"
+    assert properties[f"field_{watched_b.id}"]["title"] == "Watched B"
 
 
 @pytest.mark.django_db
-def test_local_baserow_field_updated_serialized_rows_only_include_watched_field(
+def test_local_baserow_fields_updated_serialized_rows_only_include_watched_field(
     data_fixture,
 ):
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldUpdatedServiceType.type)
+    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
     table = data_fixture.create_database_table(user=user)
-    watched_field = data_fixture.create_text_field(user, table=table, name="Watched")
+    watched_a = data_fixture.create_text_field(user, table=table, name="Watched A")
+    watched_b = data_fixture.create_text_field(user, table=table, name="Watched B")
     other_field = data_fixture.create_text_field(user, table=table, name="Other")
-    service = data_fixture.create_local_baserow_field_updated_service(
-        table=table, field=watched_field
+    service = data_fixture.create_local_baserow_fields_updated_service(
+        table=table, fields=[watched_a, watched_b]
     )
 
     model = table.get_model()
@@ -2330,7 +2378,8 @@ def test_local_baserow_field_updated_serialized_rows_only_include_watched_field(
     rows = [
         model.objects.create(
             **{
-                f"field_{watched_field.id}": f"watched-{i}",
+                f"field_{watched_a.id}": f"a-{i}",
+                f"field_{watched_b.id}": f"b-{i}",
                 f"field_{other_field.id}": f"other-{i}",
             }
         )
@@ -2341,29 +2390,29 @@ def test_local_baserow_field_updated_serialized_rows_only_include_watched_field(
         service, model, model.objects.order_by("id")
     )
 
-    # Every row is included, and only the row id and the watched field are
+    # Every row is included, and only the row id and the watched fields are
     # present (no `order`, no other fields), matching `generate_schema`.
     assert results == [
-        {"id": rows[0].id, "Watched": "watched-0"},
-        {"id": rows[1].id, "Watched": "watched-1"},
-        {"id": rows[2].id, "Watched": "watched-2"},
+        {"id": rows[0].id, "Watched A": "a-0", "Watched B": "b-0"},
+        {"id": rows[1].id, "Watched A": "a-1", "Watched B": "b-1"},
+        {"id": rows[2].id, "Watched A": "a-2", "Watched B": "b-2"},
     ]
 
 
 @pytest.mark.django_db
-def test_local_baserow_field_updated_generate_schema_without_field_or_table(
+def test_local_baserow_fields_updated_generate_schema_without_field_or_table(
     data_fixture,
 ):
     user = data_fixture.create_user()
-    service_type = service_type_registry.get(LocalBaserowFieldUpdatedServiceType.type)
+    service_type = service_type_registry.get(LocalBaserowFieldsUpdatedServiceType.type)
     table = data_fixture.create_database_table(user=user)
 
     # No table configured at all.
-    no_table_service = data_fixture.create_local_baserow_field_updated_service()
+    no_table_service = data_fixture.create_local_baserow_fields_updated_service()
     assert service_type.generate_schema(no_table_service) is None
 
     # Table configured, but no field selected yet.
-    no_field_service = data_fixture.create_local_baserow_field_updated_service(
+    no_field_service = data_fixture.create_local_baserow_fields_updated_service(
         table=table
     )
     assert service_type.generate_schema(no_field_service) is None

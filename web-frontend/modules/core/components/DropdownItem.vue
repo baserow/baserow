@@ -19,7 +19,7 @@
       @mousemove="hover(value, disabled)"
     >
       <div class="select__item-name">
-        <div v-if="multiple.value">
+        <div v-if="multiple.value" class="select__item-checkbox">
           <Checkbox :disabled="disabled" :checked="isActive(value)"></Checkbox>
         </div>
         <slot>

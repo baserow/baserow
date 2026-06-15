@@ -41,8 +41,8 @@
     "localBaserowRowsUpdatedDescription": "Triggered when rows are updated in a Baserow table.",
     "localBaserowRowsDeleted": "Rows are deleted",
     "localBaserowRowsDeletedDescription": "Triggered when rows are deleted in a Baserow table.",
-    "localBaserowFieldUpdated": "A field is updated",
-    "localBaserowFieldUpdatedDescription": "Triggered only when a specific field's value changes in a Baserow table.",
+    "localBaserowFieldsUpdated": "Fields are updated",
+    "localBaserowFieldsUpdatedDescription": "Triggered when one of the fields' values change in a Baserow table.",
     "coreHTTPTrigger": "Receive an HTTP Request",
     "coreHTTPTriggerDescription": "Triggered when an HTTP request is received.",
     "coreHTTPRequest": "Send an HTTP request",
@@ -66,7 +66,7 @@
     "errorNoTableSelected": "No table selected",
     "errorFilterInError": "At least one filter is misconfigured",
     "errorSortingInError": "At least one sort is misconfigured",
-    "errorNoFieldSelected": "No field selected",
+    "errorNoFieldsSelected": "No fields selected",
     "errorNoAggregationTypeSelected": "No aggregation type selected",
     "corePeriodic": "Periodic trigger",
     "corePeriodicDescription": "Triggers the workflow on a periodic basis at specified intervals",
@@ -155,9 +155,9 @@
     "searchFieldPlaceHolder": "Enter a search term...",
     "noTableChosenForFiltering": "Choose a table to begin using data source filters."
   },
-  "localBaserowFieldUpdatedForm": {
-    "fieldLabel": "Field",
-    "fieldHelper": "The workflow only triggers when this field's value changes."
+  "localBaserowFieldsUpdatedForm": {
+    "fieldLabel": "Fields",
+    "fieldHelper": "The workflow only triggers when one of these fields' values changes."
   },
   "localBaserowTableServiceConditionalForm": {
     "addFilter": "Add additional filter",

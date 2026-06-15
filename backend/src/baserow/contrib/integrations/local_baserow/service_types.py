@@ -90,7 +90,7 @@ from baserow.contrib.integrations.local_baserow.mixins import (
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowAggregateRows,
     LocalBaserowDeleteRow,
-    LocalBaserowFieldUpdated,
+    LocalBaserowFieldsUpdated,
     LocalBaserowGetRow,
     LocalBaserowListRows,
     LocalBaserowRowsCreated,
@@ -2463,61 +2463,65 @@ class LocalBaserowRowsDeletedServiceType(LocalBaserowRowsSignalServiceType):
     model_class = LocalBaserowRowsDeleted
 
 
-class LocalBaserowFieldUpdatedServiceType(LocalBaserowRowsSignalServiceType):
+class LocalBaserowFieldsUpdatedServiceType(LocalBaserowRowsSignalServiceType):
     """
     Like `LocalBaserowRowsUpdatedServiceType`, this service listens to the
-    `rows_updated` signal, but it only dispatches when the configured `field`
-    is among the fields that actually changed (`updated_field_ids`). This lets
-    users avoid recursive trigger loops by watching a single specific field.
+    `rows_updated` signal, but it only dispatches when one of the watched
+    `fields` is among the fields that actually changed (`updated_field_ids`).
+    This lets users avoid recursive trigger loops by watching specific fields.
     """
 
     signal = rows_updated
-    type = "local_baserow_field_updated"
-    model_class = LocalBaserowFieldUpdated
+    type = "local_baserow_fields_updated"
+    model_class = LocalBaserowFieldsUpdated
 
-    @property
-    def allowed_fields(self):
-        return super().allowed_fields + ["field"]
+    # `fields` is a many-to-many relation, so it cannot be set through
+    # `allowed_fields` (Django forbids direct assignment of m2m). Instead it is
+    # set from the `field_ids` value in `after_create` / `after_update`.
 
     @property
     def serializer_field_names(self):
-        return super().serializer_field_names + ["field_id"]
+        return super().serializer_field_names + ["field_ids"]
 
     @property
     def serializer_field_overrides(self):
         return {
             **super().serializer_field_overrides,
-            "field_id": serializers.IntegerField(
+            "field_ids": serializers.ListField(
+                child=serializers.IntegerField(),
                 required=False,
-                allow_null=True,
-                help_text="The id of the field whose change triggers the workflow.",
+                help_text="The ids of the fields whose change triggers the workflow.",
             ),
         }
 
     class SerializedDict(LocalBaserowRowsSignalServiceType.SerializedDict):
-        field_id: int
+        field_ids: List[int]
+
+    def enhance_queryset(self, queryset):
+        return super().enhance_queryset(queryset).prefetch_related("fields")
 
     def generate_schema(
         self,
-        service: LocalBaserowFieldUpdated,
+        service: LocalBaserowFieldsUpdated,
         allowed_fields: Optional[List[str]] = None,
     ) -> Optional[Dict[str, Any]]:
         """
         Like `LocalBaserowTableServiceType.generate_schema`, this returns a list
-        (array) schema, but it only exposes the single `field` the service is
-        watching (alongside the row `id`) instead of every field in the table.
+        (array) schema, but it only exposes the watched `fields` (alongside the
+        row `id`) instead of every field in the table.
 
-        :param service: A `LocalBaserowFieldUpdated` instance.
+        :param service: A `LocalBaserowFieldsUpdated` instance.
         :param allowed_fields: The properties which are allowed to be included in
             the generated schema.
-        :return: A schema dictionary, or None if no `table` or `field` is set.
+        :return: A schema dictionary, or None if no `table` or `fields` are set.
         """
 
-        if service.table_id is None or service.field_id is None:
+        field_ids = service.field_ids
+        if service.table_id is None or not field_ids:
             return None
 
         # Reuse the cached, fully-built table properties and then narrow them down
-        # to just the row `id` and the watched field.
+        # to just the row `id` and the watched fields.
         properties = global_cache.get(
             f"table_{service.table_id}__service_schema",
             default=lambda: self._get_table_properties(service),
@@ -2525,7 +2529,7 @@ class LocalBaserowFieldUpdatedServiceType(LocalBaserowRowsSignalServiceType):
             timeout=SCHEMA_CACHE_TTL,
         )
 
-        watched_field_keys = {"id", f"field_{service.field_id}"}
+        watched_field_keys = {"id", *(f"field_{field_id}" for field_id in field_ids)}
         properties = {
             field: value
             for field, value in properties.items()
@@ -2545,12 +2549,13 @@ class LocalBaserowFieldUpdatedServiceType(LocalBaserowRowsSignalServiceType):
     def _get_services_to_dispatch(
         self, table: "Table", updated_field_ids=None, **signal_kwargs
     ):
-        # Only dispatch services whose watched field actually changed. When no
-        # field is configured (`field_id` is null) the service never matches.
+        # Dispatch services where *any* watched field actually changed. When no
+        # field is configured, the service never matches.
         return (
             super()
             ._get_services_to_dispatch(table, **signal_kwargs)
-            .filter(field_id__in=updated_field_ids or [])
+            .filter(fields__in=updated_field_ids or [])
+            .distinct()
         )
 
     def _process_event(self, services, *args, **kwargs):
@@ -2561,18 +2566,19 @@ class LocalBaserowFieldUpdatedServiceType(LocalBaserowRowsSignalServiceType):
         return super()._process_event(services, *args, **kwargs)
 
     def _serialize_signal_rows(self, service, local_model, rows) -> List[Dict]:
-        # Only expose the watched field (and the row id), so the dispatched data
+        # Only expose the watched fields (and the row id), so the dispatched data
         # matches the schema generated by `generate_schema`.
+        watched_fields = list(service.fields.all())
         serializer = get_row_serializer_class(
             local_model,
             RowSerializer,
             is_response=True,
             user_field_names=True,
-            field_ids=[service.field_id],
+            field_ids=[field.id for field in watched_fields],
         )
-        field_name = service.field.name
+        field_names = [field.name for field in watched_fields]
         return [
-            {"id": row["id"], field_name: row.get(field_name)}
+            {"id": row["id"], **{name: row.get(name) for name in field_names}}
             for row in serializer(rows, many=True).data
         ]
 
@@ -2583,50 +2589,66 @@ class LocalBaserowFieldUpdatedServiceType(LocalBaserowRowsSignalServiceType):
         instance: Optional[ServiceSubClass] = None,
     ) -> Dict[str, Any]:
         """
-        Validate that the watched `field` belongs to the service's table, and
-        reset the field if the table changed. Mirrors the field/table validation
-        in `LocalBaserowAggregateRowsServiceType.prepare_values`.
+        Validate that the watched `fields` belong to the service's table, and
+        reset them if the table changed.
         """
 
         values = super().prepare_values(values, user, instance)
 
-        if "table" in values:
-            # Reset the field if the table has changed.
-            if (
-                "field_id" not in values
-                and instance
-                and instance.field_id
-                and instance.table != values["table"]
-            ):
-                values["field"] = None
+        if "table" in values and "field_ids" not in values:
+            # Reset the watched fields if the table has changed.
+            if instance and instance.table_id and instance.table != values["table"]:
+                values["field_ids"] = []
 
-        if "field_id" in values:
-            field_id = values.pop("field_id")
-            if field_id is not None:
+        if "field_ids" in values:
+            # Validate against the `table` in the user-provided `values`,
+            # otherwise validate against the persisted `instance.table`.
+            table_to_validate = values.get("table", getattr(instance, "table", None))
+            validated_field_ids = []
+            for field_id in values["field_ids"] or []:
                 field = FieldHandler().get_field(field_id)
-                # Validate against the `table` in the user-provided `values`,
-                # otherwise validate against the persisted `instance.table`.
-                table_to_validate = values.get(
-                    "table", getattr(instance, "table", None)
-                )
                 if table_to_validate is None or field.table_id != table_to_validate.id:
                     raise DRFValidationError(
                         detail=f"The field with ID {field_id} is not "
                         "related to the given table.",
                         code="invalid_field",
                     )
-                values["field"] = field
-            else:
-                values["field"] = None
+                validated_field_ids.append(field.id)
+            values["field_ids"] = validated_field_ids
 
         return values
+
+    def after_create(self, instance: LocalBaserowFieldsUpdated, values: Dict):
+        super().after_create(instance, values)
+        if "field_ids" in values:
+            instance.fields.set(values["field_ids"])
+
+    def after_update(
+        self, instance: LocalBaserowFieldsUpdated, values: Dict, changes: Dict
+    ):
+        super().after_update(instance, values, changes)
+        if "field_ids" in values:
+            instance.fields.set(values["field_ids"])
 
     def export_prepared_values(self, instance: Service) -> dict[str, any]:
         values = super().export_prepared_values(instance)
-        if values.get("field"):
-            del values["field"]
-            values["field_id"] = instance.field_id
+        values["field_ids"] = instance.field_ids
         return values
+
+    def serialize_property(
+        self,
+        service: LocalBaserowFieldsUpdated,
+        prop_name: str,
+        files_zip=None,
+        storage=None,
+        cache=None,
+    ):
+        if prop_name == "field_ids":
+            return service.field_ids
+
+        return super().serialize_property(
+            service, prop_name, files_zip=files_zip, storage=storage, cache=cache
+        )
 
     def deserialize_property(
         self,
@@ -2638,8 +2660,14 @@ class LocalBaserowFieldUpdatedServiceType(LocalBaserowRowsSignalServiceType):
         cache=None,
         **kwargs,
     ):
-        if prop_name == "field_id":
-            return id_mapping.get("database_fields", {}).get(value, value)
+        if prop_name == "field_ids":
+            database_fields = id_mapping.get("database_fields", {})
+            # Remap each field id; skip fields that were trashed during export.
+            return [
+                database_fields.get(field_id, field_id)
+                for field_id in value
+                if not database_fields or database_fields.get(field_id) is not None
+            ]
 
         return super().deserialize_property(
             prop_name,
@@ -2650,3 +2678,30 @@ class LocalBaserowFieldUpdatedServiceType(LocalBaserowRowsSignalServiceType):
             cache=cache,
             **kwargs,
         )
+
+    def create_instance_from_serialized(
+        self,
+        serialized_values,
+        id_mapping,
+        files_zip=None,
+        storage=None,
+        cache=None,
+        **kwargs,
+    ):
+        # `field_ids` is a m2m relation which can only be set after the service
+        # exists, so we pop it before creating the instance and set it after.
+        field_ids = serialized_values.pop("field_ids", [])
+
+        service = super().create_instance_from_serialized(
+            serialized_values,
+            id_mapping,
+            files_zip=files_zip,
+            storage=storage,
+            cache=cache,
+            **kwargs,
+        )
+
+        if field_ids:
+            service.fields.set(field_ids)
+
+        return service

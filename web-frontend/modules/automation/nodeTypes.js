@@ -12,7 +12,7 @@ import {
   LocalBaserowRowsCreatedTriggerServiceType,
   LocalBaserowRowsDeletedTriggerServiceType,
   LocalBaserowRowsUpdatedTriggerServiceType,
-  LocalBaserowFieldUpdatedTriggerServiceType,
+  LocalBaserowFieldsUpdatedTriggerServiceType,
   LocalBaserowGetRowServiceType,
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
@@ -405,11 +405,11 @@ export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin
   }
 }
 
-export class LocalBaserowFieldUpdatedTriggerNodeType extends TriggerNodeTypeMixin(
+export class LocalBaserowFieldsUpdatedTriggerNodeType extends TriggerNodeTypeMixin(
   LocalBaserowSignalTriggerType
 ) {
   static getType() {
-    return 'local_baserow_field_updated'
+    return 'local_baserow_fields_updated'
   }
 
   getOrder() {
@@ -417,43 +417,55 @@ export class LocalBaserowFieldUpdatedTriggerNodeType extends TriggerNodeTypeMixi
   }
 
   get labelTemplateName() {
-    return 'nodeType.localBaserowFieldUpdatedLabel'
+    return 'nodeType.localBaserowFieldsUpdatedLabel'
   }
 
   get serviceType() {
     return this.app.$registry.get(
       'service',
-      LocalBaserowFieldUpdatedTriggerServiceType.getType()
+      LocalBaserowFieldsUpdatedTriggerServiceType.getType()
     )
   }
 
   /**
-   * Resolves the name of the watched field from the service schema, which
-   * carries each field's metadata (including its name). Returns null when no
-   * field is selected, or its metadata isn't available yet.
+   * Resolves the names of the watched fields from the service schema, which
+   * carries each field's metadata (including its name). Returns an empty array
+   * when no field is selected, or their metadata isn't available yet.
    */
-  getFieldName(node) {
-    const fieldId = node.service?.field_id
-    if (!fieldId) {
-      return null
+  getFieldNames(node) {
+    const fieldIds = node.service?.field_ids || []
+    if (fieldIds.length === 0) {
+      return []
     }
     const properties = node.service?.schema?.items?.properties || {}
-    const field = Object.values(properties).find(
-      (property) => property?.metadata?.id === fieldId
-    )
-    return field?.metadata?.name || null
+    const nameById = {}
+    for (const property of Object.values(properties)) {
+      if (property?.metadata?.id) {
+        nameById[property.metadata.id] = property.metadata.name
+      }
+    }
+    return fieldIds.map((id) => nameById[id]).filter(Boolean)
   }
 
   getDefaultLabel({ automation, node }) {
     const { tableName } = this.getLabelContext({ automation, node })
-    const fieldName = this.getFieldName(node)
-    if (fieldName && tableName) {
-      return this.app.$i18n.t('nodeType.localBaserowFieldUpdatedLabel', {
-        fieldName,
+    const fieldIds = node.service?.field_ids || []
+
+    if (fieldIds.length === 0 || !tableName) {
+      return this.app.$i18n.t('nodeType.localBaserowFieldsUpdatedNoFieldLabel')
+    }
+
+    if (fieldIds.length === 1) {
+      return this.app.$i18n.t('nodeType.localBaserowFieldsUpdatedLabel', {
+        fieldName: this.getFieldNames(node)[0],
         tableName,
       })
     }
-    return this.app.$i18n.t('nodeType.localBaserowFieldUpdatedNoFieldLabel')
+
+    return this.app.$i18n.t('nodeType.localBaserowFieldsUpdatedMultipleLabel', {
+      count: fieldIds.length,
+      tableName,
+    })
   }
 }
 

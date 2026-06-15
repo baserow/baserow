@@ -50,26 +50,26 @@ def test_automation_node_type_is_replaceable_with():
     assert not action_node_type.is_replaceable_with(update_trigger_node_type)
 
 
-def test_local_baserow_field_updated_node_trigger_type_is_registered():
-    node_type = automation_node_type_registry.get("local_baserow_field_updated")
+def test_local_baserow_fields_updated_node_trigger_type_is_registered():
+    node_type = automation_node_type_registry.get("local_baserow_fields_updated")
 
     assert node_type.is_workflow_trigger is True
-    assert node_type.service_type == "local_baserow_field_updated"
+    assert node_type.service_type == "local_baserow_fields_updated"
 
 
 @pytest.mark.django_db
-def test_local_baserow_field_updated_node_creates_field_updated_service(data_fixture):
+def test_local_baserow_fields_updated_node_creates_field_updated_service(data_fixture):
     from baserow.contrib.integrations.local_baserow.models import (
-        LocalBaserowFieldUpdated,
+        LocalBaserowFieldsUpdated,
     )
 
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
     node = data_fixture.create_automation_node(
-        workflow=workflow, type="local_baserow_field_updated"
+        workflow=workflow, type="local_baserow_fields_updated"
     )
 
-    assert isinstance(node.service.specific, LocalBaserowFieldUpdated)
+    assert isinstance(node.service.specific, LocalBaserowFieldsUpdated)
 
 
 @pytest.mark.django_db

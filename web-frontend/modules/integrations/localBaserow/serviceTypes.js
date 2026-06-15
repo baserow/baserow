@@ -12,7 +12,7 @@ import { uuid } from '@baserow/modules/core/utils/string'
 import LocalBaserowAdhocHeader from '@baserow/modules/integrations/localBaserow/components/integrations/LocalBaserowAdhocHeader'
 import { DistributionViewAggregationType } from '@baserow/modules/database/viewAggregationTypes'
 import LocalBaserowSignalTriggerServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowSignalTriggerServiceForm'
-import LocalBaserowFieldUpdatedTriggerServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowFieldUpdatedTriggerServiceForm'
+import LocalBaserowFieldsUpdatedTriggerServiceForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowFieldsUpdatedTriggerServiceForm'
 import LocalBaserowGetRowForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowGetRowForm'
 import LocalBaserowListRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowListRowsForm'
 import LocalBaserowAggregateRowsForm from '@baserow/modules/integrations/localBaserow/components/services/LocalBaserowAggregateRowsForm'
@@ -598,17 +598,17 @@ export class LocalBaserowRowsDeletedTriggerServiceType extends LocalBaserowTrigg
   }
 }
 
-export class LocalBaserowFieldUpdatedTriggerServiceType extends LocalBaserowTriggerServiceType {
+export class LocalBaserowFieldsUpdatedTriggerServiceType extends LocalBaserowTriggerServiceType {
   static getType() {
-    return 'field_updated'
+    return 'fields_updated'
   }
 
   get name() {
-    return this.app.$i18n.t('serviceType.localBaserowFieldUpdated')
+    return this.app.$i18n.t('serviceType.localBaserowFieldsUpdated')
   }
 
   get description() {
-    return this.app.$i18n.t('serviceType.localBaserowFieldUpdatedDescription')
+    return this.app.$i18n.t('serviceType.localBaserowFieldsUpdatedDescription')
   }
 
   get icon() {
@@ -616,7 +616,7 @@ export class LocalBaserowFieldUpdatedTriggerServiceType extends LocalBaserowTrig
   }
 
   get formComponent() {
-    return LocalBaserowFieldUpdatedTriggerServiceForm
+    return LocalBaserowFieldsUpdatedTriggerServiceForm
   }
 
   getErrorMessage({ service }) {
@@ -624,8 +624,8 @@ export class LocalBaserowFieldUpdatedTriggerServiceType extends LocalBaserowTrig
       if (!service.table_id) {
         return this.app.$i18n.t('serviceType.errorNoTableSelected')
       }
-      if (!service.field_id) {
-        return this.app.$i18n.t('serviceType.errorNoFieldSelected')
+      if (!service.field_ids || service.field_ids.length === 0) {
+        return this.app.$i18n.t('serviceType.errorNoFieldsSelected')
       }
     }
     return super.getErrorMessage({ service })

@@ -29,7 +29,7 @@ class AutomationConfig(AppConfig):
             LocalBaserowAggregateRowsNodeType,
             LocalBaserowCreateRowNodeType,
             LocalBaserowDeleteRowNodeType,
-            LocalBaserowFieldUpdatedNodeTriggerType,
+            LocalBaserowFieldsUpdatedNodeTriggerType,
             LocalBaserowGetRowNodeType,
             LocalBaserowListRowsNodeType,
             LocalBaserowRowsCreatedNodeTriggerType,
@@ -183,7 +183,7 @@ class AutomationConfig(AppConfig):
         automation_node_type_registry.register(LocalBaserowRowsUpdatedNodeTriggerType())
         automation_node_type_registry.register(LocalBaserowRowsDeletedNodeTriggerType())
         automation_node_type_registry.register(
-            LocalBaserowFieldUpdatedNodeTriggerType()
+            LocalBaserowFieldsUpdatedNodeTriggerType()
         )
         automation_node_type_registry.register(CorePeriodicTriggerNodeType())
         automation_node_type_registry.register(CoreHTTPTriggerNodeType())

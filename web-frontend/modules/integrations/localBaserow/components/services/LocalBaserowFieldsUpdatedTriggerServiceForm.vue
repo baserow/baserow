@@ -10,12 +10,13 @@
     ></LocalBaserowServiceForm>
     <FormGroup
       small-label
-      :label="$t('localBaserowFieldUpdatedForm.fieldLabel')"
-      :helper-text="$t('localBaserowFieldUpdatedForm.fieldHelper')"
+      :label="$t('localBaserowFieldsUpdatedForm.fieldLabel')"
+      :helper-text="$t('localBaserowFieldsUpdatedForm.fieldHelper')"
       required
     >
       <Dropdown
-        v-model="values.field_id"
+        v-model="values.field_ids"
+        multiple
         :disabled="selectableFields.length === 0 || fieldsLoading"
       >
         <DropdownItem
@@ -37,16 +38,16 @@ import LocalBaserowServiceForm from '@baserow/modules/integrations/localBaserow/
 import localBaserowService from '@baserow/modules/integrations/localBaserow/mixins/localBaserowService'
 
 export default {
-  name: 'LocalBaserowFieldUpdatedTriggerServiceForm',
+  name: 'LocalBaserowFieldsUpdatedTriggerServiceForm',
   components: { LocalBaserowServiceForm },
   mixins: [form, localBaserowService],
   data() {
     return {
-      allowedValues: ['table_id', 'integration_id', 'field_id'],
+      allowedValues: ['table_id', 'integration_id', 'field_ids'],
       values: {
         table_id: null,
         integration_id: null,
-        field_id: null,
+        field_ids: [],
       },
     }
   },
@@ -65,16 +66,16 @@ export default {
   },
   watch: {
     'values.table_id'(newTableId, oldTableId) {
-      // Clear the selected field when the user switches to a different table, since
-      // the field belongs to the previous table. We guard on `oldTableId` so this
-      // does not fire on initial load (null -> persisted table), which would wipe a
-      // saved field before its table's fields have loaded.
+      // Clear the selected fields when the user switches to a different table,
+      // since they belong to the previous table. We guard on `oldTableId` so
+      // this does not fire on initial load (null -> persisted table), which
+      // would wipe saved fields before its table's fields have loaded.
       if (
         oldTableId !== null &&
         oldTableId !== undefined &&
         newTableId !== oldTableId
       ) {
-        this.values.field_id = null
+        this.values.field_ids = []
       }
     },
   },

@@ -29,7 +29,7 @@ from baserow.contrib.automation.nodes.models import (
     LocalBaserowAggregateRowsActionNode,
     LocalBaserowCreateRowActionNode,
     LocalBaserowDeleteRowActionNode,
-    LocalBaserowFieldUpdatedTriggerNode,
+    LocalBaserowFieldsUpdatedTriggerNode,
     LocalBaserowGetRowActionNode,
     LocalBaserowListRowsActionNode,
     LocalBaserowRowsCreatedTriggerNode,
@@ -55,7 +55,7 @@ from baserow.contrib.integrations.core.service_types import (
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowAggregateRowsUserServiceType,
     LocalBaserowDeleteRowServiceType,
-    LocalBaserowFieldUpdatedServiceType,
+    LocalBaserowFieldsUpdatedServiceType,
     LocalBaserowGetRowUserServiceType,
     LocalBaserowListRowsUserServiceType,
     LocalBaserowRowsCreatedServiceType,
@@ -416,10 +416,10 @@ class LocalBaserowRowsDeletedNodeTriggerType(AutomationNodeTriggerType):
     service_type = LocalBaserowRowsDeletedServiceType.type
 
 
-class LocalBaserowFieldUpdatedNodeTriggerType(AutomationNodeTriggerType):
-    type = "local_baserow_field_updated"
-    model_class = LocalBaserowFieldUpdatedTriggerNode
-    service_type = LocalBaserowFieldUpdatedServiceType.type
+class LocalBaserowFieldsUpdatedNodeTriggerType(AutomationNodeTriggerType):
+    type = "local_baserow_fields_updated"
+    model_class = LocalBaserowFieldsUpdatedTriggerNode
+    service_type = LocalBaserowFieldsUpdatedServiceType.type
 
 
 class CorePeriodicTriggerNodeType(

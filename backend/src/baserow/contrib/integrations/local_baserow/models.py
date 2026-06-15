@@ -170,19 +170,24 @@ class LocalBaserowRowsDeleted(LocalBaserowTableService):
     """
 
 
-class LocalBaserowFieldUpdated(LocalBaserowTableService):
+class LocalBaserowFieldsUpdated(LocalBaserowTableService):
     """
     A model for the local baserow field updated trigger service. Unlike
     `LocalBaserowRowsUpdated`, which triggers when any field of a row changes,
-    this service only triggers when the value of `field` changes.
+    this service only triggers when one of the watched `fields` changes.
     """
 
-    field = models.ForeignKey(
+    fields = models.ManyToManyField(
         "database.Field",
-        help_text="Only trigger when this field's value changes.",
-        null=True,
-        on_delete=models.SET_NULL,
+        help_text="Only trigger when one of these fields' values changes.",
+        related_name="+",
     )
+
+    @property
+    def field_ids(self) -> list[int]:
+        """The ids of the watched fields, sorted for a stable representation."""
+
+        return sorted(field.id for field in self.fields.all())
 
 
 class LocalBaserowTableServiceRefinementManager(models.Manager):
