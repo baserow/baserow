@@ -42,6 +42,16 @@ export default {
       })
     },
     /**
+     * The value to store for a picked row. Prefer the original row value (e.g.
+     * '' for empty primary fields) so conditional visibility checks keep
+     * working, and fall back to the dropdown's display name only when the row
+     * couldn't be resolved (e.g. a pre-existing selection that isn't in the
+     * current results).
+     */
+    resolveRowValue(item, displayName) {
+      return item ? item.value : displayName
+    },
+    /**
      * Fetches a page of related rows for the dropdown. This is a pure
      * pass-through: the dropdown derives the display label through `valueName`
      * and hands the original row back on selection, so no copy of the data has

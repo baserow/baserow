@@ -42,11 +42,9 @@ export default {
         this.$emit('update', [], this.value)
         return
       }
-      // Store the original row value (e.g. '' for empty primary fields) so
-      // conditional visibility checks keep working. Fall back to displayName if
-      // the dropdown couldn't resolve the row (e.g. a pre-existing selection
-      // that isn't in the current results).
-      const selection = [{ id: value, value: item ? item.value : displayName }]
+      const selection = [
+        { id: value, value: this.resolveRowValue(item, displayName) },
+      ]
       this.$emit('update', selection, this.value)
     },
   },

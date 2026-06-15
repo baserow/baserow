@@ -65,12 +65,13 @@ export default {
       // the field is optional.
       const valueArr = Array.isArray(value) ? value : []
       const hasInvalidSlot = valueArr.some((v) => this.isInvalidValue(v))
-      if (this.required && (valueArr.length === 0 || hasInvalidSlot)) {
+      // A placeholder slot is always invalid, and a required field also needs at
+      // least one slot.
+      if (hasInvalidSlot || (this.required && valueArr.length === 0)) {
         return this.$t('error.requiredField')
       }
-      if (!this.required && hasInvalidSlot) {
-        return this.$t('error.requiredField')
-      }
+      // Delegate to baseField, not rowEditField (the other mixin): rowEditField
+      // would re-run its own required check, which we've already handled above.
       return baseField.methods.getValidationError.call(this, value)
     },
     isInvalidValue(value) {
@@ -91,14 +92,13 @@ export default {
     },
     updateValue({ value, displayName, item }, index) {
       const newValue = clone(this.value)
-      // Store the original row value (e.g. '' for empty primary fields) so
-      // conditional visibility checks keep working. Fall back to displayName if
-      // the dropdown couldn't resolve the row (e.g. a pre-existing selection
-      // that isn't in the current results).
       if (value === null || value === '') {
         newValue[index] = { id: value, value: '' }
       } else {
-        newValue[index] = { id: value, value: item ? item.value : displayName }
+        newValue[index] = {
+          id: value,
+          value: this.resolveRowValue(item, displayName),
+        }
       }
       this.$emit('update', newValue, this.value)
     },
