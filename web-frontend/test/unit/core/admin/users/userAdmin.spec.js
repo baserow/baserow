@@ -93,8 +93,8 @@ describe('User Admin Component Tests', () => {
     expect(lastLoginCell.text()).toMatch(/^04\/26\/2021 \d+:50 (AM|PM)$/)
     expect(signedUpCell.text()).toMatch(/^04\/21\/2021 \d+:04 (AM|PM)$/)
 
-    // Shown as active
-    expect(isActiveCell.text()).toBe('user.active')
+    // Shown as active via the icon only (no text label)
+    expect(isActiveCell.find('.iconoir-check').exists()).toBe(true)
 
     // 2FA is shown as disabled when not configured
     expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.disabled')
@@ -207,7 +207,7 @@ describe('User Admin Component Tests', () => {
 
     const cells = ui.findCells()
     const { isActiveCell } = ui.getRow(cells, 0)
-    expect(isActiveCell.text()).toContain('user.deactivated')
+    expect(isActiveCell.find('.iconoir-cancel').exists()).toBe(true)
   })
 
   test('A deactivated user can be activated', async () => {
@@ -227,7 +227,7 @@ describe('User Admin Component Tests', () => {
 
     const cells = ui.findCells()
     const { isActiveCell } = ui.getRow(cells, 0)
-    expect(isActiveCell.text()).toContain('user.active')
+    expect(isActiveCell.find('.iconoir-check').exists()).toBe(true)
   })
 
   // eslint-disable-next-line vitest/expect-expect
@@ -674,9 +674,11 @@ describe('User Admin Component Tests', () => {
 
     let cells = ui.findCells()
     const { isActiveCell } = ui.getRow(cells, 0)
-    expect(isActiveCell.text()).toBe(
-      startingIsActive ? 'user.active' : 'user.deactivated'
-    )
+    expect(
+      isActiveCell
+        .find(startingIsActive ? '.iconoir-check' : '.iconoir-cancel')
+        .exists()
+    ).toBe(true)
 
     mockServer.expectUserUpdated(user, {
       is_active: !startingIsActive,
@@ -692,9 +694,11 @@ describe('User Admin Component Tests', () => {
 
     cells = ui.findCells()
     const { isActiveCell: updatedIsActiveCell } = ui.getRow(cells, 0)
-    expect(updatedIsActiveCell.text()).toBe(
-      startingIsActive ? 'user.deactivated' : 'user.active'
-    )
+    expect(
+      updatedIsActiveCell
+        .find(startingIsActive ? '.iconoir-cancel' : '.iconoir-check')
+        .exists()
+    ).toBe(true)
   }
 
   async function whenThereIsAUserAndYouOpenUserAdmin(userSetup = {}) {
