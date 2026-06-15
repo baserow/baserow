@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('core', '0114_alter_workspaceinvitation_message'),
         ('database', '0211_viewsort_viewgroupby_priority'),
-        ('integrations', '0027_coresmtpemailservice_use_instance_smtp_settings'),
+        ('integrations', '0028_corecsvfilereaderservice'),
     ]
 
     operations = [
