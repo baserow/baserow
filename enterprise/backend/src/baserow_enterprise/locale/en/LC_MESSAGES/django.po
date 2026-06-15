@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-06-12 08:35+0000\n"
+"POT-Creation-Date: 2026-06-15 14:36+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -25,17 +25,17 @@ msgstr ""
 msgid "Generating formulas for node '%(label)s'..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/automation/helpers.py:180
+#: src/baserow_enterprise/assistant/tools/automation/helpers.py:187
 #, python-format
 msgid "Creating workflow '%(name)s'..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/automation/helpers.py:221
+#: src/baserow_enterprise/assistant/tools/automation/helpers.py:228
 #, python-format
 msgid "Creating node '%(label)s'..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/automation/helpers.py:265
+#: src/baserow_enterprise/assistant/tools/automation/helpers.py:272
 #, python-format
 msgid "Updating node '%(label)s'..."
 msgstr ""
