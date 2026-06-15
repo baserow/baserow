@@ -131,7 +131,7 @@ describe('FormViewFieldLinkRow', () => {
     expect(emitted[emitted.length - 1][0]).toEqual([])
   })
 
-  test('emitted value of an unnamed row is treated as empty by LinkRowFieldType', async () => {
+  test('emitted value of an unnamed row is not empty by LinkRowFieldType', async () => {
     const wrapper = await mountComponent({ value: [] })
 
     wrapper.vm.updateValue({
@@ -143,10 +143,10 @@ describe('FormViewFieldLinkRow', () => {
     const emitted = wrapper.emitted('update')
     const newValue = emitted[emitted.length - 1][0]
 
-    // The fix is correct iff isEmpty returns true for an unnamed row, so the
-    // "show when not empty" form-condition correctly hides the dependent field.
+    // A picked row is a real selection, so isEmpty is false even with an empty
+    // primary, keeping a "show when not empty" condition's field visible.
     const fieldType = new LinkRowFieldType({ app: testApp.store.$app })
-    expect(fieldType.isEmpty(linkRowField, newValue)).toBe(true)
+    expect(fieldType.isEmpty(linkRowField, newValue)).toBe(false)
   })
 
   test('required + picked unnamed row passes validation (no false require error)', async () => {
@@ -278,7 +278,7 @@ describe('FormViewFieldMultipleLinkRow', () => {
     expect(emitted[emitted.length - 1][0]).toEqual([{ id: null, value: '' }])
   })
 
-  test('emitted value of an unnamed row is treated as empty by LinkRowFieldType', async () => {
+  test('emitted value of an unnamed row is not empty by LinkRowFieldType', async () => {
     const wrapper = await mountComponent({ value: [{ id: false, value: '' }] })
 
     wrapper.vm.updateValue(
@@ -293,8 +293,10 @@ describe('FormViewFieldMultipleLinkRow', () => {
     const emitted = wrapper.emitted('update')
     const newValue = emitted[emitted.length - 1][0]
 
+    // A picked row is a real selection, so isEmpty is false even with an empty
+    // primary, matching the backend's many-to-many empty semantics.
     const fieldType = new LinkRowFieldType({ app: testApp.store.$app })
-    expect(fieldType.isEmpty(linkRowField, newValue)).toBe(true)
+    expect(fieldType.isEmpty(linkRowField, newValue)).toBe(false)
   })
 
   test('required + every slot has a real id passes validation (no false require error)', async () => {

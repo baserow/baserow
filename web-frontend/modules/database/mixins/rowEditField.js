@@ -49,7 +49,7 @@ export default {
 
       if (this.required && error === null) {
         const fieldType = this.$registry.get('field', this.field.type)
-        const empty = fieldType.isEmptyForRequiredValidation(this.field, value)
+        const empty = fieldType.isEmpty(this.field, value)
         if (empty) {
           return this.$t('error.requiredField')
         }

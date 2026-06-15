@@ -411,7 +411,8 @@ export class FieldType extends Registerable {
   }
 
   /**
-   * Should return true if the provided value is empty.
+   * Returns true if the value is empty. Shared by the conditional-visibility
+   * filters and required form validation so the two stay in sync.
    */
   isEmpty(field, value) {
     const isEmptyValue = (v) => {
@@ -436,17 +437,6 @@ export class FieldType extends Registerable {
       return true
     }
     return value === false || isEmptyValue(value)
-  }
-
-  /**
-   * Should return true if a required field would be considered unfilled for the
-   * given value. This defaults to `isEmpty`, but field types whose `isEmpty`
-   * answers a different question (for example `link_row`, where `isEmpty` is
-   * value/primary based for filters) can override this to express "is a value
-   * actually selected?" for required validation independently.
-   */
-  isEmptyForRequiredValidation(field, value) {
-    return this.isEmpty(field, value)
   }
 
   /**
@@ -1730,25 +1720,12 @@ export class LinkRowFieldType extends FieldType {
     return true
   }
 
-  isEmpty(field, value) {
-    if (super.isEmpty(field, value)) {
-      return true
-    }
-
-    if (value.some((v) => !Number.isInteger(v.id))) {
-      return true
-    }
-
-    return false
-  }
-
   /**
-   * For required validation a link_row is only unfilled when no actual row is
-   * selected. A picked row whose primary is empty (stored as `value: ''`) still
-   * satisfies the requirement, even though `isEmpty` reports it as empty so that
-   * the conditional-visibility filters keep treating it as empty.
+   * A link_row is empty only when no row is selected. A picked row counts as
+   * filled even when its primary is empty, which matches the backend, where the
+   * field is a many-to-many relation. Slots without a real id stay empty.
    */
-  isEmptyForRequiredValidation(field, value) {
+  isEmpty(field, value) {
     return (
       !Array.isArray(value) ||
       value.length === 0 ||

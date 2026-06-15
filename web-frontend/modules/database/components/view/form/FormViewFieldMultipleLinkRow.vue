@@ -60,11 +60,9 @@ export default {
   },
   methods: {
     getValidationError(value) {
-      // A picked row with an empty primary stores value:'' so that conditional
-      // visibility ("is not empty") correctly treats it as empty. That makes
-      // fieldType.isEmpty return true even when the user *did* select rows,
-      // which would falsely fail required validation. Treat "filled in" as
-      // "every slot contains a row with a real id", regardless of primary.
+      // A slot counts as filled only if it holds a row with a real id. This also
+      // flags a placeholder slot (added but never picked) as invalid, even when
+      // the field is optional.
       const valueArr = Array.isArray(value) ? value : []
       const hasInvalidSlot = valueArr.some((v) => this.isInvalidValue(v))
       if (this.required && (valueArr.length === 0 || hasInvalidSlot)) {

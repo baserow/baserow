@@ -345,15 +345,11 @@ async function submit() {
     const value = valuesCopy[valueName]
     const ref = form.value?.$refs?.['field-' + field.field.id]?.[0]
 
-    // The required check is enforced here at the field-type level so it does
-    // not depend on each component's isValid() implementation (some, like the
-    // duration field, override isValid() with a touched-based check that
-    // doesn't catch an untouched empty required value). isEmptyForRequiredValidation
-    // defaults to isEmpty but lets link_row use presence semantics, so a picked
-    // row with an empty primary still satisfies a required field.
+    // Check required at the field-type level, not via the component's
+    // isValid(): some components (e.g. duration) only flag an error once the
+    // user types, so an untouched empty value would otherwise submit.
     if (
-      (field.required &&
-        fieldType.isEmptyForRequiredValidation(field.field, value)) ||
+      (field.required && fieldType.isEmpty(field.field, value)) ||
       fieldType.getValidationError(field.field, value) !== null ||
       !ref.isValid()
     ) {
