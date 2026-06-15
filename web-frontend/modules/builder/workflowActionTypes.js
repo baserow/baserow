@@ -27,6 +27,10 @@ export class NotificationWorkflowActionType extends WorkflowActionType {
     return 'notification'
   }
 
+  getOrder() {
+    return 10
+  }
+
   get icon() {
     return 'iconoir-chat-bubble-empty'
   }
@@ -54,6 +58,10 @@ export class NotificationWorkflowActionType extends WorkflowActionType {
 export class OpenPageWorkflowActionType extends WorkflowActionType {
   static getType() {
     return 'open_page'
+  }
+
+  getOrder() {
+    return 15
   }
 
   get icon() {
@@ -148,6 +156,10 @@ export class LogoutWorkflowActionType extends WorkflowActionType {
     return 'logout'
   }
 
+  getOrder() {
+    return 20
+  }
+
   get icon() {
     return 'iconoir-log-out'
   }
@@ -174,6 +186,10 @@ export class LogoutWorkflowActionType extends WorkflowActionType {
 export class RefreshDataSourceWorkflowActionType extends WorkflowActionType {
   static getType() {
     return 'refresh_data_source'
+  }
+
+  getOrder() {
+    return 25
   }
 
   get icon() {
@@ -339,7 +355,7 @@ export class CoreHTTPRequestWorkflowActionType extends WorkflowActionServiceType
   }
 
   getOrder() {
-    return 10
+    return 60
   }
 }
 
@@ -353,7 +369,7 @@ export class CoreSMTPEmailWorkflowActionType extends WorkflowActionServiceType {
   }
 
   getOrder() {
-    return 11
+    return 50
   }
 }
 
@@ -370,13 +386,17 @@ export class CoreCSVFileReaderWorkflowActionType extends WorkflowActionServiceTy
   }
 
   getOrder() {
-    return 12
+    return 75
   }
 }
 
 export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'create_row'
+  }
+
+  getOrder() {
+    return 30
   }
 
   get serviceType() {
@@ -392,6 +412,10 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
     return 'update_row'
   }
 
+  getOrder() {
+    return 40
+  }
+
   get serviceType() {
     return this.app.$registry.get(
       'service',
@@ -403,6 +427,10 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
 export class DeleteRowWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'delete_row'
+  }
+
+  getOrder() {
+    return 45
   }
 
   get serviceType() {
@@ -418,6 +446,10 @@ export class AIAgentWorkflowActionType extends WorkflowActionServiceType {
     return 'ai_agent'
   }
 
+  getOrder() {
+    return 70
+  }
+
   get serviceType() {
     return this.app.$registry.get('service', AIAgentServiceType.getType())
   }
@@ -426,6 +458,10 @@ export class AIAgentWorkflowActionType extends WorkflowActionServiceType {
 export class SlackWriteMessageWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
     return 'slack_write_message'
+  }
+
+  getOrder() {
+    return 55
   }
 
   get serviceType() {

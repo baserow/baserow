@@ -1913,10 +1913,10 @@ class CoreCSVFileReaderServiceType(ListServiceTypeMixin, CoreServiceType):
             ),
             "separator": serializers.ChoiceField(
                 choices=[
-                    (",", _("Comma")),
-                    (";", _("Semicolon")),
-                    ("\t", _("Tab")),
-                    ("|", _("Pipe")),
+                    (",", "Comma"),
+                    (";", "Semicolon"),
+                    ("\t", "Tab"),
+                    ("|", "Pipe"),
                 ],
                 help_text=CoreCSVFileReaderService._meta.get_field(
                     "separator"

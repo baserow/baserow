@@ -15,7 +15,7 @@ export class CoreCodeWorkflowActionType extends WorkflowActionServiceType {
   }
 
   getOrder() {
-    return 9
+    return 65
   }
 
   isDeactivatedReason({ workspace }) {
@@ -41,7 +41,7 @@ export class CoreXLSFileReaderWorkflowActionType extends WorkflowActionServiceTy
   }
 
   getOrder() {
-    return 13
+    return 80
   }
 
   isDeactivatedReason({ workspace }) {
