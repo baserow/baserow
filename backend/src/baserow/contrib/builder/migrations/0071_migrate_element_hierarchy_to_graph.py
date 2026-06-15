@@ -69,7 +69,7 @@ class Migration(migrations.Migration):
     atomic = False
 
     dependencies = [
-        ("builder", "0069_menuelement_variant"),
+        ("builder", "0070_corecsvfilereaderworkflowaction"),
     ]
 
     operations = [

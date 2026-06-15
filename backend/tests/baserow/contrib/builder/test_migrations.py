@@ -537,7 +537,7 @@ def test_0026_element_styles(migrator, teardown_table_metadata):
 
 @pytest.mark.once_per_day_in_ci
 # You must add --run-once-per-day-in-ci to execute this test
-def test_0070_migrate_element_hierarchy_to_graph(migrator, teardown_table_metadata):
+def test_0071_migrate_element_hierarchy_to_graph(migrator, teardown_table_metadata):
     migrate_from = [("builder", "0069_menuelement_variant")]
     migrate_to = [("builder", "0070_migrate_element_hierarchy_to_graph")]
 
@@ -668,7 +668,7 @@ def test_0070_migrate_element_hierarchy_to_graph(migrator, teardown_table_metada
 
 
 @pytest.mark.once_per_day_in_ci
-def test_0070_migrate_element_hierarchy_to_graph_performance(
+def test_0071_migrate_element_hierarchy_to_graph_performance(
     migrator, teardown_table_metadata
 ):
     migrate_from = [("builder", "0069_menuelement_variant")]

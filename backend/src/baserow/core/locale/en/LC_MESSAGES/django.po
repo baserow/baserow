@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-05-22 08:33+0000\n"
+"POT-Creation-Date: 2026-06-15 14:36+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -242,7 +242,7 @@ msgstr ""
 msgid "Decimal number"
 msgstr ""
 
-#: src/baserow/core/graph/models.py:177
+#: src/baserow/core/graph/models.py:157
 msgid "Unlabeled"
 msgstr ""
 

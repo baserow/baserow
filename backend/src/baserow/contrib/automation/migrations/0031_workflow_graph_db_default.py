@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('automation', '0029_alter_automationworkflowhistory_original_workflow'),
+        ('automation', '0030_corecsvfilereaderactionnode'),
     ]
 
     operations = [
