@@ -24,7 +24,7 @@ dependencies = [
     "Twisted==25.5.0",
     "gunicorn==23.0.0",
     "uvicorn[standard]==0.40.0",
-    "websockets==15.0.1",
+    "websockets==16.0",
     "requests==2.33.0",
     "itsdangerous==2.2.0",
     "Pillow==12.2.0",
