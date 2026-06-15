@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Fix for MCP create_rows fails when table has rich text fields with @mentions",
+    "message": "Fix MCP create_rows failing when table has rich text fields with @mentions",
     "issue_origin": "github",
     "issue_number": 5493,
     "domain": "database",
