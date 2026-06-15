@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Added a new workflow trigger which only executes when specific fields' values change in a table.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-06-15"
+}
