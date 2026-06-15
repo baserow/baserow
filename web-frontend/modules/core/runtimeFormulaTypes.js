@@ -3002,7 +3002,7 @@ export class RuntimeToDuration extends RuntimeFormulaFunction {
     return [
       {
         formula: "to_duration('1:30:15.234', 'h:mm:ss.fff')",
-        result: '5400 seconds',
+        result: '5415 seconds',
       },
       {
         formula: "to_duration('1 day')",
