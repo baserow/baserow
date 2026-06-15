@@ -105,9 +105,9 @@ export default class BaserowFormulaValidationVisitor extends BaserowFormulaVisit
     const literalWithoutOuterQuotes = ctx.getText().slice(1, -1)
     let literal
     if (ctx.SINGLEQ_STRING_LITERAL() !== null) {
-      literal = literalWithoutOuterQuotes.replace(/\\'/g, "'")
+      literal = literalWithoutOuterQuotes.replace(/\\(['\\])/g, '$1')
     } else {
-      literal = literalWithoutOuterQuotes.replace(/\\"/g, '"')
+      literal = literalWithoutOuterQuotes.replace(/\\(["\\])/g, '$1')
     }
     return literal
   }

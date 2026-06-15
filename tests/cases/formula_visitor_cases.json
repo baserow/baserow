@@ -41,6 +41,30 @@
             "formula": "get('a') + get('b')",
             "result": 4,
             "context": {"a":  1, "b":  3}
+        },
+        {
+            "formula": "'\\\\'",
+            "result": "\\",
+            "context": {},
+            "description": "An escaped backslash unescapes to a single backslash"
+        },
+        {
+            "formula": "'a\\\\b'",
+            "result": "a\\b",
+            "context": {},
+            "description": "An escaped backslash between text unescapes correctly"
+        },
+        {
+            "formula": "'\\\\\\''",
+            "result": "\\'",
+            "context": {},
+            "description": "An escaped backslash followed by an escaped quote unescapes correctly"
+        },
+        {
+            "formula": "\"a\\\\b\"",
+            "result": "a\\b",
+            "context": {},
+            "description": "An escaped backslash unescapes inside a double-quoted string"
         }
     ],
     "INVALID_FORMULA_EXECUTION_TESTS": [
@@ -61,6 +85,11 @@
         {
             "formula": "'test'",
             "context": {}
+        },
+        {
+            "formula": "'\\\\'",
+            "context": {},
+            "description": "A string containing an escaped backslash validates correctly"
         },
         {
             "formula": "get('test_data_provider.1')",

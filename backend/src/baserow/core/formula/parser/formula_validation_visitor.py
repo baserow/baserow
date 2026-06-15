@@ -1,3 +1,4 @@
+import re
 from typing import TYPE_CHECKING, List, Optional
 
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
@@ -84,9 +85,9 @@ class BaserowFormulaValidationVisitor(BaserowFormulaVisitor):
     def process_string(self, ctx):
         literal_without_outer_quotes = ctx.getText()[1:-1]
         if ctx.SINGLEQ_STRING_LITERAL() is not None:
-            literal = literal_without_outer_quotes.replace("\\'", "'")
+            literal = re.sub(r"\\(['\\])", r"\1", literal_without_outer_quotes)
         else:
-            literal = literal_without_outer_quotes.replace('\\"', '"')
+            literal = re.sub(r'\\(["\\])', r"\1", literal_without_outer_quotes)
         return literal
 
     def visitDecimalLiteral(self, ctx: BaserowFormula.DecimalLiteralContext):
