@@ -439,6 +439,17 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Should return true if a required field would be considered unfilled for the
+   * given value. This defaults to `isEmpty`, but field types whose `isEmpty`
+   * answers a different question (for example `link_row`, where `isEmpty` is
+   * value/primary based for filters) can override this to express "is a value
+   * actually selected?" for required validation independently.
+   */
+  isEmptyForRequiredValidation(field, value) {
+    return this.isEmpty(field, value)
+  }
+
+  /**
    * Should return true if both provided row values are equal. This is used to determine
    * whether they both belong in the same group for example. It's not possible to
    * compare a group value and row value, in that case the
@@ -1729,6 +1740,20 @@ export class LinkRowFieldType extends FieldType {
     }
 
     return false
+  }
+
+  /**
+   * For required validation a link_row is only unfilled when no actual row is
+   * selected. A picked row whose primary is empty (stored as `value: ''`) still
+   * satisfies the requirement, even though `isEmpty` reports it as empty so that
+   * the conditional-visibility filters keep treating it as empty.
+   */
+  isEmptyForRequiredValidation(field, value) {
+    return (
+      !Array.isArray(value) ||
+      value.length === 0 ||
+      value.some((v) => !Number.isInteger(v.id))
+    )
   }
 
   shouldRefetchFieldData(field, rows) {

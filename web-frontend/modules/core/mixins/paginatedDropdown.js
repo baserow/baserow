@@ -14,9 +14,11 @@ export default {
       required: false,
       default: 'id',
     },
-    // The attribute name that contains the display value in the fetched results.
+    // The display value for a fetched result. Either the attribute name that
+    // contains the display value, or a function that receives the result and
+    // returns the display value (useful when the label has to be derived).
     valueName: {
-      type: String,
+      type: [String, Function],
       required: false,
       default: 'value',
     },
@@ -98,7 +100,12 @@ export default {
     select(value) {
       const displayName = this.getSelectedProperty(value, 'name')
       if (this.includeDisplayNameInSelectedEvent) {
-        dropdown.methods.select.call(this, { value, displayName })
+        // Expose the full fetched result so the consumer can use properties
+        // other than the display name (e.g. the original stored value).
+        const item = this.results.find(
+          (result) => result[this.idName] === value
+        )
+        dropdown.methods.select.call(this, { value, displayName, item })
       } else {
         dropdown.methods.select.call(this, value)
       }

@@ -56,7 +56,11 @@
         <DropdownItem
           v-for="result in results"
           :key="result[idName]"
-          :name="result[valueName]"
+          :name="
+            typeof valueName === 'function'
+              ? valueName(result)
+              : result[valueName]
+          "
           :value="result[idName]"
         ></DropdownItem>
         <div v-if="loading" class="select__items-loading"></div>

@@ -14,7 +14,7 @@
           :fetch-on-open="lazyLoad"
           :disabled="readOnly"
           :include-display-name-in-selected-event="true"
-          :value-name="'label'"
+          :value-name="rowDisplayName"
           @input="updateValue($event, index)"
         ></PaginatedDropdown>
       </div>
@@ -45,38 +45,14 @@
 import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import baseField from '@baserow/modules/database/mixins/baseField'
 import rowEditField from '@baserow/modules/database/mixins/rowEditField'
-import ViewService from '@baserow/modules/database/services/view'
+import formViewLinkRowField from '@baserow/modules/database/mixins/formViewLinkRowField'
 import { clone } from '@baserow/modules/core/utils/object'
 
 export default {
   name: 'FormViewFieldMultipleLinkRow',
   components: { PaginatedDropdown },
-  mixins: [rowEditField],
-  props: {
-    slug: {
-      type: String,
-      required: true,
-    },
-    /**
-     * In some cases, for example in the form view preview, we only want to fetch the
-     * first related rows after the user has opened the dropdown. This will prevent a
-     * race condition where the enabled state of the field might not yet been updated
-     * before we fetch the related rows. If the state has not yet been changed in the
-     * backend, it will result in an error.
-     */
-    lazyLoad: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-  },
+  mixins: [rowEditField, formViewLinkRowField],
   emits: ['update'],
-  data() {
-    return {
-      /** Map of row id → original row object, populated by fetchPage. */
-      rowLookup: {},
-    }
-  },
   created() {
     if (this.value.length === 0 && this.required) {
       this.add()
@@ -102,45 +78,6 @@ export default {
     isInvalidValue(value) {
       return !Number.isInteger(value.id)
     },
-    rowDisplayName(row) {
-      if (row.value) {
-        return row.value
-      }
-      if (!Number.isInteger(row.id)) {
-        return row.value
-      }
-      return this.$t('functionnalGridViewFieldLinkRow.unnamed', {
-        value: row.id,
-      })
-    },
-    async fetchPage(page, search) {
-      const publicAuthToken =
-        this.$store.getters['page/view/public/getAuthToken']
-      const response = await ViewService(this.$client).linkRowFieldLookup(
-        this.slug,
-        this.field.id,
-        page,
-        search,
-        100,
-        publicAuthToken
-      )
-      // Cache original rows so updateValue can store the real value
-      // (not the display label) to preserve conditional visibility checks.
-      // A first-page fetch means a new search or a reopened dropdown, so the
-      // previous result set can no longer be picked; reset the cache to
-      // prevent it from growing unboundedly.
-      if (page === 1) {
-        this.rowLookup = {}
-      }
-      response.data.results.forEach((row) => {
-        this.rowLookup[row.id] = row
-      })
-      response.data.results = response.data.results.map((row) => ({
-        ...row,
-        label: this.rowDisplayName(row),
-      }))
-      return response
-    },
     add() {
       const newValue = clone(this.value)
       newValue.push({
@@ -154,19 +91,16 @@ export default {
       newValue.splice(index, 1)
       this.$emit('update', newValue, this.value)
     },
-    updateValue({ value, displayName }, index) {
+    updateValue({ value, displayName, item }, index) {
       const newValue = clone(this.value)
       // Store the original row value (e.g. '' for empty primary fields) so
-      // conditional visibility checks work correctly. Fall back to displayName
-      // if the row isn't in the cache (e.g. pre-existing selection).
+      // conditional visibility checks keep working. Fall back to displayName if
+      // the dropdown couldn't resolve the row (e.g. a pre-existing selection
+      // that isn't in the current results).
       if (value === null || value === '') {
         newValue[index] = { id: value, value: '' }
       } else {
-        const originalRow = this.rowLookup[value]
-        newValue[index] = {
-          id: value,
-          value: originalRow ? originalRow.value : displayName,
-        }
+        newValue[index] = { id: value, value: item ? item.value : displayName }
       }
       this.$emit('update', newValue, this.value)
     },

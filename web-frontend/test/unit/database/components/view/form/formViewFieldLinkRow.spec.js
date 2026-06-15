@@ -18,17 +18,6 @@ const mockLinkRowFieldLookup = (rows) => {
   return linkRowFieldLookup
 }
 
-const mockLinkRowFieldLookupSequence = (pages) => {
-  const linkRowFieldLookup = vi.fn()
-  pages.forEach((rows) => {
-    linkRowFieldLookup.mockResolvedValueOnce({
-      data: { results: rows, count: rows.length },
-    })
-  })
-  ViewService.mockReturnValue({ linkRowFieldLookup })
-  return linkRowFieldLookup
-}
-
 const linkRowField = {
   id: 1,
   table_id: 196,
@@ -84,56 +73,38 @@ describe('FormViewFieldLinkRow', () => {
     expect(wrapper.text()).toContain('Hello world')
   })
 
-  test('fetchPage caches original rows and exposes display under label', async () => {
-    mockLinkRowFieldLookup([
+  test('fetchPage returns the fetched results unchanged (pure pass-through)', async () => {
+    const rows = [
       { id: 42, value: '' },
       { id: 43, value: 'Real name' },
-    ])
+    ]
+    mockLinkRowFieldLookup(rows)
     const wrapper = await mountComponent({ value: [] })
     const { data } = await wrapper.vm.fetchPage(1, null)
 
-    expect(data.results[0].label).toBe(
-      'functionnalGridViewFieldLinkRow.unnamed'
-    )
-    expect(data.results[0].value).toBe('')
-    expect(data.results[1].label).toBe('Real name')
-    expect(data.results[1].value).toBe('Real name')
-    expect(wrapper.vm.rowLookup[42]).toEqual({ id: 42, value: '' })
-    expect(wrapper.vm.rowLookup[43]).toEqual({ id: 43, value: 'Real name' })
+    // The dropdown derives the label through valueName and hands the row back
+    // on selection, so fetchPage must not mutate the results or keep a copy.
+    expect(data.results).toEqual(rows)
+    expect(wrapper.vm.rowLookup).toBeUndefined()
   })
 
-  test('fetchPage keeps later pages but resets the cache on a new search', async () => {
-    mockLinkRowFieldLookupSequence([
-      [{ id: 1, value: 'First' }],
-      [{ id: 2, value: 'Second' }],
-      [{ id: 3, value: 'Third' }],
-    ])
+  test('rowDisplayName falls back to the unnamed label for empty primaries', async () => {
     const wrapper = await mountComponent({ value: [] })
-
-    await wrapper.vm.fetchPage(1, null)
-    await wrapper.vm.fetchPage(2, null)
-    // Scrolling to page 2 of the same search accumulates rows.
-    expect(wrapper.vm.rowLookup).toEqual({
-      1: { id: 1, value: 'First' },
-      2: { id: 2, value: 'Second' },
-    })
-
-    await wrapper.vm.fetchPage(1, 'new search')
-    // A new first-page fetch (new search or reopen) resets the cache so it
-    // doesn't grow unboundedly.
-    expect(wrapper.vm.rowLookup).toEqual({
-      3: { id: 3, value: 'Third' },
-    })
+    expect(wrapper.vm.rowDisplayName({ id: 42, value: '' })).toBe(
+      'functionnalGridViewFieldLinkRow.unnamed'
+    )
+    expect(wrapper.vm.rowDisplayName({ id: 42, value: 'Name' })).toBe('Name')
+    // Placeholder slots (no real id) keep their empty value.
+    expect(wrapper.vm.rowDisplayName({ id: false, value: '' })).toBe('')
   })
 
   test('updateValue stores the original empty value, not the fallback label', async () => {
-    mockLinkRowFieldLookup([{ id: 42, value: '' }])
     const wrapper = await mountComponent({ value: [] })
-    await wrapper.vm.fetchPage(1, null)
 
     wrapper.vm.updateValue({
       value: 42,
       displayName: 'functionnalGridViewFieldLinkRow.unnamed',
+      item: { id: 42, value: '' },
     })
 
     const emitted = wrapper.emitted('update')
@@ -141,9 +112,9 @@ describe('FormViewFieldLinkRow', () => {
     expect(emitted[emitted.length - 1][0]).toEqual([{ id: 42, value: '' }])
   })
 
-  test('updateValue falls back to displayName when row not in cache', async () => {
+  test('updateValue falls back to displayName when the item is not resolved', async () => {
     const wrapper = await mountComponent({ value: [] })
-    // No fetchPage call; rowLookup is empty.
+    // No item (e.g. a pre-existing selection not in the current results).
     wrapper.vm.updateValue({ value: 99, displayName: 'pre-existing' })
 
     const emitted = wrapper.emitted('update')
@@ -161,13 +132,12 @@ describe('FormViewFieldLinkRow', () => {
   })
 
   test('emitted value of an unnamed row is treated as empty by LinkRowFieldType', async () => {
-    mockLinkRowFieldLookup([{ id: 42, value: '' }])
     const wrapper = await mountComponent({ value: [] })
-    await wrapper.vm.fetchPage(1, null)
 
     wrapper.vm.updateValue({
       value: 42,
       displayName: 'functionnalGridViewFieldLinkRow.unnamed',
+      item: { id: 42, value: '' },
     })
 
     const emitted = wrapper.emitted('update')
@@ -251,55 +221,36 @@ describe('FormViewFieldMultipleLinkRow', () => {
     )
   })
 
-  test('fetchPage caches original rows and exposes display under label', async () => {
-    mockLinkRowFieldLookup([
+  test('fetchPage returns the fetched results unchanged (pure pass-through)', async () => {
+    const rows = [
       { id: 42, value: '' },
       { id: 43, value: 'Real name' },
-    ])
+    ]
+    mockLinkRowFieldLookup(rows)
     const wrapper = await mountComponent({ value: [{ id: false, value: '' }] })
     const { data } = await wrapper.vm.fetchPage(1, null)
 
-    expect(data.results[0].label).toBe(
-      'functionnalGridViewFieldLinkRow.unnamed'
-    )
-    expect(data.results[0].value).toBe('')
-    expect(data.results[1].label).toBe('Real name')
-    expect(wrapper.vm.rowLookup[42]).toEqual({ id: 42, value: '' })
+    expect(data.results).toEqual(rows)
+    expect(wrapper.vm.rowLookup).toBeUndefined()
   })
 
-  test('fetchPage keeps later pages but resets the cache on a new search', async () => {
-    mockLinkRowFieldLookupSequence([
-      [{ id: 1, value: 'First' }],
-      [{ id: 2, value: 'Second' }],
-      [{ id: 3, value: 'Third' }],
-    ])
+  test('rowDisplayName falls back to the unnamed label for empty primaries', async () => {
     const wrapper = await mountComponent({ value: [{ id: false, value: '' }] })
-
-    await wrapper.vm.fetchPage(1, null)
-    await wrapper.vm.fetchPage(2, null)
-    // Scrolling to page 2 of the same search accumulates rows.
-    expect(wrapper.vm.rowLookup).toEqual({
-      1: { id: 1, value: 'First' },
-      2: { id: 2, value: 'Second' },
-    })
-
-    await wrapper.vm.fetchPage(1, 'new search')
-    // A new first-page fetch (new search or reopen) resets the cache so it
-    // doesn't grow unboundedly.
-    expect(wrapper.vm.rowLookup).toEqual({
-      3: { id: 3, value: 'Third' },
-    })
+    expect(wrapper.vm.rowDisplayName({ id: 42, value: '' })).toBe(
+      'functionnalGridViewFieldLinkRow.unnamed'
+    )
+    expect(wrapper.vm.rowDisplayName({ id: 42, value: 'Name' })).toBe('Name')
+    expect(wrapper.vm.rowDisplayName({ id: false, value: '' })).toBe('')
   })
 
   test('updateValue stores the original empty value, not the fallback label', async () => {
-    mockLinkRowFieldLookup([{ id: 42, value: '' }])
     const wrapper = await mountComponent({ value: [{ id: false, value: '' }] })
-    await wrapper.vm.fetchPage(1, null)
 
     wrapper.vm.updateValue(
       {
         value: 42,
         displayName: 'functionnalGridViewFieldLinkRow.unnamed',
+        item: { id: 42, value: '' },
       },
       0
     )
@@ -309,7 +260,7 @@ describe('FormViewFieldMultipleLinkRow', () => {
     expect(emitted[emitted.length - 1][0]).toEqual([{ id: 42, value: '' }])
   })
 
-  test('updateValue falls back to displayName when row not in cache', async () => {
+  test('updateValue falls back to displayName when the item is not resolved', async () => {
     const wrapper = await mountComponent({ value: [{ id: false, value: '' }] })
     wrapper.vm.updateValue({ value: 99, displayName: 'pre-existing' }, 0)
 
@@ -328,14 +279,13 @@ describe('FormViewFieldMultipleLinkRow', () => {
   })
 
   test('emitted value of an unnamed row is treated as empty by LinkRowFieldType', async () => {
-    mockLinkRowFieldLookup([{ id: 42, value: '' }])
     const wrapper = await mountComponent({ value: [{ id: false, value: '' }] })
-    await wrapper.vm.fetchPage(1, null)
 
     wrapper.vm.updateValue(
       {
         value: 42,
         displayName: 'functionnalGridViewFieldLinkRow.unnamed',
+        item: { id: 42, value: '' },
       },
       0
     )
