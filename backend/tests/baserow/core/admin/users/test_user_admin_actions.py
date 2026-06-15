@@ -1,9 +1,20 @@
 import pytest
 
+from baserow.core.action.registries import action_type_registry
 from baserow.core.action.signals import action_done
 from baserow.core.admin.users.actions import AdminDisableTwoFactorAuthActionType
 from baserow.core.two_factor_auth.exceptions import TwoFactorAuthNotConfigured
 from baserow.core.two_factor_auth.handler import TwoFactorAuthHandler
+
+
+def test_admin_disable_two_factor_auth_action_type_is_registered():
+    # The action type must be registered in apps.py so that it is exposed as a
+    # filterable choice in the enterprise audit log export and resolvable via the
+    # action type registry, like every other action type.
+    assert (
+        action_type_registry.get(AdminDisableTwoFactorAuthActionType.type).type
+        == AdminDisableTwoFactorAuthActionType.type
+    )
 
 
 @pytest.mark.django_db
