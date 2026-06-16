@@ -13,6 +13,7 @@ from baserow.ws.presence import (
     NullPresenceHandler,
     PresenceHandler,
     PresenceHandlerProtocol,
+    make_page_key,
 )
 from baserow.ws.realtime_events import (
     FIRST_CONNECT_CURSOR,
@@ -20,7 +21,13 @@ from baserow.ws.realtime_events import (
     RealtimeEventHandler,
     ReplayEventsResult,
 )
-from baserow.ws.registries import PageType, page_registry
+from baserow.ws.registries import (
+    PageType,
+    page_registry,
+)
+
+MSG_TYPE_REPLAY_EVENTS = "replay_events"
+MSG_TYPE_PRESENCE_FOCUS = "presence.focus"
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
@@ -227,8 +234,12 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         """
         msg_type = content.get("type", "")
 
-        if msg_type == "replay_events":
+        if msg_type == MSG_TYPE_REPLAY_EVENTS:
             await self._handle_replay_events(content)
+            return
+
+        if msg_type == MSG_TYPE_PRESENCE_FOCUS:
+            await self._handle_presence_focus(content)
             return
 
         if "page" in content:
@@ -660,7 +671,42 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         if not ignore_web_socket_id or ignore_web_socket_id != web_socket_id:
             await self.send_json(payload)
 
-    async def users_removed_from_permission_group(self, event):
+    async def _handle_presence_focus(self, content):
+        """
+        Handle an incoming ``presence.focus`` message from the client.
+        Resolves the page type and parameters, builds the page key, and
+        delegates to the presence handler for validation + broadcast.
+        """
+
+        page_type_name = content.get("page")
+        if not page_type_name:
+            return
+
+        try:
+            page_type = page_registry.get(page_type_name)
+        except page_registry.does_not_exist_exception_class:
+            return
+
+        parameters = {param: content.get(param) for param in page_type.parameters}
+        page_key = make_page_key(page_type_name, parameters)
+        await self.presence.handle_focus(page_key, page_type_name, content.get("focus"))
+
+    async def broadcast_presence_focus(self, event):
+        """
+        Channel-layer handler for focus broadcasts. Focus events are
+        ephemeral — not persisted by RealtimeEventHandler and not replayed
+        on reconnect. Uses a dedicated message type (not ``broadcast_to_group``)
+        so that recipient-side filtering can be applied per page type.
+        """
+
+        web_socket_id = self.scope.get("web_socket_id")
+        ignore_web_socket_id = event.get("ignore_web_socket_id")
+        if ignore_web_socket_id and ignore_web_socket_id == web_socket_id:
+            return
+
+        await self.presence.receive_focus_broadcast(event)
+
+    async def users_removed_from_permission_group(self, event: dict) -> None:
         """
         Event handler that reacts to a situation when one or many users were
         revoked access to resources associated with a permission channel group.

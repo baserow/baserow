@@ -50,11 +50,8 @@ export default {
     }
   },
   watch: {
-    editing: {
-      handler(newValue) {
-        this.$emit('editing-changed', newValue)
-      },
-      immediate: true,
+    editing(newValue) {
+      this.$emit('editing-changed', newValue)
     },
   },
 }

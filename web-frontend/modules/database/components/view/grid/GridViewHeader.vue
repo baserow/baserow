@@ -54,6 +54,7 @@ import GridViewHide from '@baserow/modules/database/components/view/grid/GridVie
 import PresenceBar from '@baserow/modules/core/components/presence/PresenceBar'
 import { FF_USER_PRESENCE } from '@baserow/modules/core/plugins/featureFlags'
 import ViewSearch from '@baserow/modules/database/components/view/ViewSearch'
+import { tablePresenceSpaceName } from '@baserow/modules/database/utils/presence'
 
 export default {
   name: 'GridViewHeader',
@@ -99,7 +100,7 @@ export default {
     activePresenceSpace() {
       const table = this.$store.state.table.selected
       if (!table || !table.id) return ''
-      return `table-${table.id}`
+      return tablePresenceSpaceName(table.id)
     },
     hasPresenceUsers() {
       if (!this.activePresenceSpace) return false

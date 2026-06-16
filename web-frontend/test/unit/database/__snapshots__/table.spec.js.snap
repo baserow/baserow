@@ -125,12 +125,6 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             </teleport-stub>
           </div>
         </li>
-        <li class="header__filter-item">
-          <div class="presence-bar">
-            <div class="avatar avatar--large avatar--rounded presence-bar__avatar" style="background-color: #4C6EF5;" title="Unknown">?</div>
-            <!--v-if-->
-          </div>
-        </li>
       </ul>
     </header>
     <div class="layout__col-2-2 content">
@@ -170,6 +164,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                         <div class="grid-view__row-drag"></div><a class="grid-view__row-more" row="[object Object]"><i class="baserow-icon-enlarge-row"></i></a>
                       </div>
                     </div>
+                    <!--v-if-->
                   </div>
                 </div>
                 <div class="grid-view__row" style="width: 72px; height: 33px;">
@@ -258,15 +253,18 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                   <div class="grid-view__row">
                     <!--v-if-->
                     <div class="grid-view__column" style="width: 200px;">
+                      <!--v-if-->
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">name</div>
                       </div>
                     </div>
                     <div class="grid-view__column" style="width: 200px;">
+                      <!--v-if-->
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">last_name</div>
                       </div>
                     </div>
+                    <!--v-if-->
                   </div>
                 </div>
                 <div class="grid-view__row" style="width: 600px; height: 33px;">
@@ -460,12 +458,6 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             </teleport-stub>
           </div>
         </li>
-        <li class="header__filter-item">
-          <div class="presence-bar">
-            <div class="avatar avatar--large avatar--rounded presence-bar__avatar" style="background-color: #4C6EF5;" title="Unknown">?</div>
-            <!--v-if-->
-          </div>
-        </li>
       </ul>
     </header>
     <div class="layout__col-2-2 content">
@@ -505,6 +497,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                         <div class="grid-view__row-drag"></div><a class="grid-view__row-more" row="[object Object]"><i class="baserow-icon-enlarge-row"></i></a>
                       </div>
                     </div>
+                    <!--v-if-->
                   </div>
                 </div>
                 <div class="grid-view__row" style="width: 72px; height: 33px;">
@@ -593,15 +586,18 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                   <div class="grid-view__row">
                     <!--v-if-->
                     <div class="grid-view__column" style="width: 200px;">
+                      <!--v-if-->
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">name</div>
                       </div>
                     </div>
                     <div class="grid-view__column" style="width: 200px;">
+                      <!--v-if-->
                       <div class="grid-view__cell" workspace-id="1" row="[object Object]" field="[object Object]" state="[object Object]" read-only="false" store-prefix="page/">
                         <div class="grid-field-text">last_name</div>
                       </div>
                     </div>
+                    <!--v-if-->
                   </div>
                 </div>
                 <div class="grid-view__row" style="width: 600px; height: 33px;">

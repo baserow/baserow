@@ -449,6 +449,24 @@ export class RealTimeHandler {
     }
   }
 
+  sendFocus(page, parameters, focus) {
+    if (
+      !this.connected ||
+      !this.socket ||
+      this.socket.readyState !== WebSocket.OPEN
+    ) {
+      return
+    }
+    this.socket.send(
+      JSON.stringify({
+        type: 'presence.focus',
+        page,
+        ...parameters,
+        focus,
+      })
+    )
+  }
+
   /**
    * Registers a new event with the event registry.
    */
@@ -690,6 +708,14 @@ export class RealTimeHandler {
       store.dispatch('presence/handleLeave', {
         space: data.space,
         presence_id: data.presence_id,
+      })
+    })
+
+    this.registerEvent('presence.focus', ({ store }, data) => {
+      store.dispatch('presence/handleFocus', {
+        space: data.space,
+        presence_id: data.presence_id,
+        focus: data.focus,
       })
     })
 

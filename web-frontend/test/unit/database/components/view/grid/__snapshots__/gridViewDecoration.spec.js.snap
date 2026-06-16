@@ -122,6 +122,7 @@ exports[`GridView component with decoration > Default component with first_cell 
               
               
               
+              <!--v-if-->
             </div>
             
             
@@ -360,6 +361,7 @@ exports[`GridView component with decoration > Default component with first_cell 
                 class="grid-view__column"
                 style="width: 200px;"
               >
+                <!--v-if-->
                 <div
                   class="grid-view__cell"
                   field="[object Object]"
@@ -380,6 +382,7 @@ exports[`GridView component with decoration > Default component with first_cell 
                 class="grid-view__column"
                 style="width: 200px;"
               >
+                <!--v-if-->
                 <div
                   class="grid-view__cell"
                   field="[object Object]"
@@ -397,6 +400,7 @@ exports[`GridView component with decoration > Default component with first_cell 
                 </div>
               </div>
               
+              <!--v-if-->
             </div>
             
             
@@ -643,6 +647,7 @@ exports[`GridView component with decoration > Default component with row wrapper
                   
                   
                   
+                  <!--v-if-->
                 </div>
               </div>
             </div>
@@ -889,6 +894,7 @@ exports[`GridView component with decoration > Default component with row wrapper
                     class="grid-view__column"
                     style="width: 200px;"
                   >
+                    <!--v-if-->
                     <div
                       class="grid-view__cell"
                       field="[object Object]"
@@ -909,6 +915,7 @@ exports[`GridView component with decoration > Default component with row wrapper
                     class="grid-view__column"
                     style="width: 200px;"
                   >
+                    <!--v-if-->
                     <div
                       class="grid-view__cell"
                       field="[object Object]"
@@ -926,6 +933,7 @@ exports[`GridView component with decoration > Default component with row wrapper
                     </div>
                   </div>
                   
+                  <!--v-if-->
                 </div>
               </div>
             </div>
@@ -1166,6 +1174,7 @@ exports[`GridView component with decoration > Default component with unavailable
               
               
               
+              <!--v-if-->
             </div>
             
             
@@ -1404,6 +1413,7 @@ exports[`GridView component with decoration > Default component with unavailable
                 class="grid-view__column"
                 style="width: 200px;"
               >
+                <!--v-if-->
                 <div
                   class="grid-view__cell"
                   field="[object Object]"
@@ -1424,6 +1434,7 @@ exports[`GridView component with decoration > Default component with unavailable
                 class="grid-view__column"
                 style="width: 200px;"
               >
+                <!--v-if-->
                 <div
                   class="grid-view__cell"
                   field="[object Object]"
@@ -1441,6 +1452,7 @@ exports[`GridView component with decoration > Default component with unavailable
                 </div>
               </div>
               
+              <!--v-if-->
             </div>
             
             

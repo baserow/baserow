@@ -45,6 +45,8 @@
             database.workspace.id
           ))
       "
+      :focus-entries-by-cell="focusEntriesByCell"
+      :focus-entries-by-row="focusEntriesByRow"
       :store-prefix="storePrefix"
       :style="{ width: leftWidth + 'px' }"
       @refresh="$emit('refresh', $event)"
@@ -67,6 +69,7 @@
       @selected="selectedCell"
       @unselected="unselectedCell"
       @select-next="selectNextCell"
+      @editing-changed="cellEditingChanged"
       @edit-modal="openRowEditModal($event)"
       @refresh-row="refreshRow"
       @scroll="scroll($event.pixelY, 0)"
@@ -124,6 +127,8 @@
             database.workspace.id
           ))
       "
+      :focus-entries-by-cell="focusEntriesByCell"
+      :focus-entries-by-row="focusEntriesByRow"
       :store-prefix="storePrefix"
       :style="{ left: leftWidth + 'px' }"
       @refresh="$emit('refresh', $event)"
@@ -145,6 +150,7 @@
       @selected="selectedCell"
       @unselected="unselectedCell"
       @select-next="selectNextCell"
+      @editing-changed="cellEditingChanged"
       @edit-modal="openRowEditModal($event)"
       @refresh-row="refreshRow"
       @scroll="scroll($event.pixelY, $event.pixelX)"
@@ -329,6 +335,11 @@ import viewDecoration from '@baserow/modules/database/mixins/viewDecoration'
 import { populateRow } from '@baserow/modules/database/store/view/grid'
 import { clone } from '@baserow/modules/core/utils/object'
 import copyPasteHelper from '@baserow/modules/database/mixins/copyPasteHelper'
+import {
+  createPresenceFocusSender,
+  resolvePresencePageParams,
+} from '@baserow/modules/database/utils/presence'
+import { FF_USER_PRESENCE } from '@baserow/modules/core/plugins/featureFlags'
 import GridViewRowsAddContext from '@baserow/modules/database/components/view/grid/fields/GridViewRowsAddContext'
 import GridRowContextItems from '@baserow/modules/database/components/view/grid/GridRowContextItems'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
@@ -396,12 +407,23 @@ export default {
       // submitting multiple refresh requests at the same time.
       refreshingRow: false,
       resizeObserver: null,
+      presenceSpaceName: null,
     }
   },
   computed: {
     ...mapGetters({
       row: 'rowModalNavigation/getRow',
     }),
+    focusEntriesByCell() {
+      return this.$store.getters['presence/getFocusEntriesByCell'](
+        this.presenceSpaceName
+      )
+    },
+    focusEntriesByRow() {
+      return this.$store.getters['presence/getFocusEntriesByRow'](
+        this.presenceSpaceName
+      )
+    },
     /**
      * Returns all visible fields no matter in what section they
      * belong.
@@ -655,8 +677,30 @@ export default {
     if (this.row !== null) {
       this.populateAndEditRow(this.row)
     }
+
+    if (
+      typeof this.$featureFlagIsEnabled === 'function' &&
+      this.$featureFlagIsEnabled(FF_USER_PRESENCE)
+    ) {
+      const { page, params, spaceName } = resolvePresencePageParams(
+        this.$registry,
+        this.database,
+        this.table,
+        this.view
+      )
+      this.presenceSpaceName = spaceName
+      this.presenceFocus = createPresenceFocusSender(
+        this.$nuxt.$realtime,
+        page,
+        params
+      )
+    }
   },
   beforeUnmount() {
+    if (this.presenceFocus) {
+      this.presenceFocus.clearFocus()
+      this.presenceFocus = null
+    }
     if (this.resizeObserver !== null) {
       this.resizeObserver.disconnect()
       this.resizeObserver = null
@@ -1284,6 +1328,7 @@ export default {
         row,
         field,
       })
+      this._emitPresenceCellFocus(row.id, field.id)
     },
     /**
      * This function helps the store determine whether it is safe to hide a row. Since
@@ -1334,6 +1379,13 @@ export default {
             isRowOpenedInModal: this.isRowOpenedInModal,
           }
         )
+
+        if (
+          this.selectedCellComponents.length === 0 &&
+          !this.$store.getters['rowModalNavigation/getRow']
+        ) {
+          this._clearPresenceFocus()
+        }
       })
     },
     /**
@@ -1395,6 +1447,7 @@ export default {
       })
 
       this.scrollToGroupByRowIfNeeded(nextRowId, field)
+      this._emitPresenceCellFocus(nextRowId, nextFieldId)
     },
     /**
      * The group-by canvas only renders rows inside the viewport, so a cell selected
@@ -1894,6 +1947,19 @@ export default {
         { fields: this.fields }
       )
       return fieldsAndRows[1]
+    },
+    _emitPresenceCellFocus(rowId, fieldId, editing = false) {
+      if (this.presenceFocus) {
+        this.presenceFocus.emitCellFocus(rowId, fieldId, editing)
+      }
+    },
+    _clearPresenceFocus() {
+      if (this.presenceFocus) {
+        this.presenceFocus.clearFocus()
+      }
+    },
+    cellEditingChanged({ row, field, editing }) {
+      this._emitPresenceCellFocus(row.id, field.id, editing)
     },
   },
 }

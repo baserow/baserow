@@ -141,6 +141,11 @@
 <script>
 import { mapGetters } from 'vuex'
 import modal from '@baserow/modules/core/mixins/modal'
+import {
+  createPresenceFocusSender,
+  resolvePresencePageParams,
+} from '@baserow/modules/database/utils/presence'
+import { FF_USER_PRESENCE } from '@baserow/modules/core/plugins/featureFlags'
 import CreateFieldContext from '@baserow/modules/database/components/field/CreateFieldContext'
 import RowEditModalFieldsList from './RowEditModalFieldsList.vue'
 import RowEditModalHiddenFieldsSection from './RowEditModalHiddenFieldsSection.vue'
@@ -353,6 +358,9 @@ export default {
           })
         }
       }
+      if (this.presenceFocus && newValue > 0) {
+        this.presenceFocus.emitRowFocus(newValue)
+      }
     },
   },
   methods: {
@@ -371,9 +379,14 @@ export default {
           row_id: rowId,
         })
       }
+      this._initPresenceFocus()
       this.getRootModal().show(...args)
     },
     hidden(...args) {
+      if (this.presenceFocus) {
+        this.presenceFocus.clearFocus()
+        this.presenceFocus = null
+      }
       if (this.canSubscribeToRowUpdates) {
         this.$realtime.unsubscribe('row', {
           table_id: this.table.id,
@@ -386,6 +399,25 @@ export default {
       const row = this.row
       this.$store.dispatch('rowModal/clear', { componentId: this.$.uid })
       this.$emit('hidden', { row })
+    },
+    _initPresenceFocus() {
+      if (
+        typeof this.$featureFlagIsEnabled !== 'function' ||
+        !this.$featureFlagIsEnabled(FF_USER_PRESENCE)
+      ) {
+        return
+      }
+      const { page, params } = resolvePresencePageParams(
+        this.$registry,
+        this.database,
+        this.table,
+        this.view
+      )
+      this.presenceFocus = createPresenceFocusSender(
+        this.$nuxt.$realtime,
+        page,
+        params
+      )
     },
     /**
      * Because the modal can't update values by himself, an event will be called to

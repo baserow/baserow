@@ -129,6 +129,8 @@
                 database.workspace.id
               )
             "
+            :focus-entries-by-cell="focusEntriesByCell"
+            :focus-entries-by-row="focusEntriesByRow"
             :store-prefix="storePrefix"
             @update="$emit('update', $event)"
             @paste="$emit('paste', $event)"
@@ -144,6 +146,7 @@
             @unselect="$emit('unselect', $event)"
             @select-next="$emit('select-next', $event)"
             @add-row-after="$emit('add-row-after', $event)"
+            @editing-changed="$emit('editing-changed', $event)"
             @edit-modal="$emit('edit-modal', $event)"
             @refresh-row="$emit('refresh-row', $event)"
             @row-dragging="$emit('row-dragging', $event)"
@@ -267,6 +270,16 @@ export default {
       required: false,
       default: () => false,
     },
+    focusEntriesByCell: {
+      type: Map,
+      required: false,
+      default: () => new Map(),
+    },
+    focusEntriesByRow: {
+      type: Map,
+      required: false,
+      default: () => new Map(),
+    },
     readOnly: {
       type: Boolean,
       required: true,
@@ -290,6 +303,7 @@ export default {
     'add-rows',
     'add-row-after',
     'edit-modal',
+    'editing-changed',
     'refresh-row',
     'row-dragging',
     'row-hover',

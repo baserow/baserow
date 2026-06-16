@@ -16,7 +16,9 @@
         'grid-view__row--hover': row._.hover,
         'grid-view__row--warning':
           !row._.matchFilters || !row._.matchSortings || !row._.matchSearch,
+        'grid-view__row--focus-highlight': rowFocusEntries.length > 0,
       }"
+      :style="rowFocusStyle"
       @mouseover="$emit('row-hover', { row, value: true })"
       @mouseleave="$emit('row-hover', { row, value: false })"
       @contextmenu.prevent="$emit('row-context', { row, event: $event })"
@@ -118,6 +120,7 @@
         }"
         :is-selected="isCellSelected(field.id)"
         :is-alive="isAlive(field.id)"
+        :focus-entries="getCellFocusEntries(field)"
         :add-keep-alive="addKeepAlive"
         :remove-keep-alive="removeKeepAlive"
         @update="$emit('update', $event)"
@@ -134,27 +137,36 @@
         @cell-mouseup-left="$emit('cell-mouseup-left', { row, field })"
         @cell-shift-click="$emit('cell-shift-click', { row, field })"
         @add-row-after="$emit('add-row-after', $event)"
+        @editing-changed="$emit('editing-changed', $event)"
         @edit-modal="$emit('edit-modal', row)"
         @select-cell="selectCell"
         @set-state="setState"
       ></GridViewCell>
+      <GridViewFocusBadge
+        v-if="rowFocusEntries.length > 0"
+        :entries="rowFocusEntries"
+        class="grid-view__row-focus-badge"
+      />
     </div>
   </RecursiveWrapper>
 </template>
 
 <script>
 import GridViewCell from '@baserow/modules/database/components/view/grid/GridViewCell'
+import GridViewFocusBadge from '@baserow/modules/database/components/view/grid/GridViewFocusBadge'
 import { computeMultiSelectPosition } from '@baserow/modules/database/utils/row'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewRowExpandButton from '@baserow/modules/database/components/view/grid/GridViewRowExpandButton'
 import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
 import { GRID_VIEW_MULTI_SELECT_AREA } from '@baserow/modules/database/constants'
+import { getPresenceUserColorRgb } from '@baserow/modules/core/utils/presenceColors'
 
 export default {
   name: 'GridViewRow',
   components: {
     GridViewRowExpandButton,
     GridViewCell,
+    GridViewFocusBadge,
     RecursiveWrapper,
   },
   mixins: [gridViewHelpers],
@@ -223,6 +235,16 @@ export default {
       required: false,
       default: 'count',
     },
+    focusEntriesByCell: {
+      type: Map,
+      required: false,
+      default: () => new Map(),
+    },
+    focusEntriesByRow: {
+      type: Map,
+      required: false,
+      default: () => new Map(),
+    },
     count: {
       type: Number,
       required: true,
@@ -244,6 +266,7 @@ export default {
     'select-next',
     'add-row-after',
     'edit-modal',
+    'editing-changed',
     'refresh-row',
     'row-dragging',
     'row-hover',
@@ -313,6 +336,18 @@ export default {
     },
     wrapperDecorations() {
       return this.decorationsByPlace?.wrapper || []
+    },
+    currentUserId() {
+      return this.$store.getters['auth/getUserId']
+    },
+    rowFocusEntries() {
+      const entries = this.focusEntriesByRow.get(this.row.id) || []
+      return entries.filter((e) => e.user_id !== this.currentUserId)
+    },
+    rowFocusStyle() {
+      if (this.rowFocusEntries.length === 0) return {}
+      const rgb = getPresenceUserColorRgb(this.rowFocusEntries[0].user_id)
+      return { '--focus-color-rgb': rgb }
     },
     rowIdentifier() {
       switch (this.rowIdentifierType) {
@@ -472,6 +507,11 @@ export default {
     },
     canWriteFieldValues(field) {
       return this.$registry.get('field', field.type).canWriteFieldValues(field)
+    },
+    getCellFocusEntries(field) {
+      const key = `${this.row.id}:${field.id}`
+      const entries = this.focusEntriesByCell.get(key) || []
+      return entries.filter((e) => e.user_id !== this.currentUserId)
     },
     toggleRowCheckbox() {
       this.$store.dispatch(

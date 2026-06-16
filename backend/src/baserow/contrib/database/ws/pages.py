@@ -52,7 +52,13 @@ class TablePageType(PageType):
         return f"permissions-table-{table_id}"
 
     def get_presence_space_name(self, table_id: int | None, **kwargs) -> str | None:
+        """All table subscribers share one presence space per table."""
+
         return table_presence_space_name(table_id)
+
+    def filter_focus_for_recipient(self, page_parameters, focus, focus_type) -> bool:
+        # Table subscribers already have full row/field visibility; no filtering needed.
+        return True
 
 
 def table_presence_space_name(table_id: int) -> str | None:

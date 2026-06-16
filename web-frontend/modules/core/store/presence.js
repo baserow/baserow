@@ -1,3 +1,5 @@
+import { getPresenceUserColor } from '@baserow/modules/core/utils/presenceColors'
+
 export const state = () => ({
   spaces: {},
 })
@@ -5,9 +7,12 @@ export const state = () => ({
 export const mutations = {
   SET_MEMBERS(state, { space, entries }) {
     const members = {}
-    for (const entry of entries) {
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i]
       members[entry.presence_id] = {
         user_id: entry.user_id,
+        focus: entry.focus || null,
+        order: i,
       }
     }
     state.spaces = { ...state.spaces, [space]: { members } }
@@ -15,12 +20,12 @@ export const mutations = {
   ADD_MEMBER(state, { space, presence_id, user_id }) {
     const spaceData = state.spaces[space]
     if (!spaceData) return
-    state.spaces = {
-      ...state.spaces,
-      [space]: {
-        members: { ...spaceData.members, [presence_id]: { user_id } },
-      },
+    const order = Object.keys(spaceData.members).length
+    spaceData.members = {
+      ...spaceData.members,
+      [presence_id]: { user_id, focus: null, order },
     }
+    state.spaces = { ...state.spaces }
   },
   REMOVE_MEMBER(state, { space, presence_id }) {
     const spaceData = state.spaces[space]
@@ -30,6 +35,17 @@ export const mutations = {
       ...state.spaces,
       [space]: { members: rest },
     }
+  },
+  SET_FOCUS(state, { space, presence_id, focus }) {
+    const spaceData = state.spaces[space]
+    if (!spaceData) return
+    const member = spaceData.members[presence_id]
+    if (!member) return
+    spaceData.members = {
+      ...spaceData.members,
+      [presence_id]: { ...member, focus },
+    }
+    state.spaces = { ...state.spaces }
   },
   CLEAR_SPACE(state, { space }) {
     const { [space]: _, ...rest } = state.spaces
@@ -50,12 +66,41 @@ export const actions = {
   handleLeave({ commit }, { space, presence_id }) {
     commit('REMOVE_MEMBER', { space, presence_id })
   },
+  handleFocus({ commit }, { space, presence_id, focus }) {
+    commit('SET_FOCUS', { space, presence_id, focus })
+  },
   clearSpace({ commit }, { space }) {
     commit('CLEAR_SPACE', { space })
   },
   clearAllSpaces({ commit }) {
     commit('CLEAR_ALL_SPACES')
   },
+}
+
+const _cellFocusCache = new WeakMap()
+const _rowFocusCache = new WeakMap()
+
+function _buildFocusMap(members, focusType, keyFn, cache) {
+  const cached = cache.get(members)
+  if (cached) return cached
+  const map = new Map()
+  for (const [presence_id, data] of Object.entries(members)) {
+    if (!data.focus || data.focus.type !== focusType) continue
+    const key = keyFn(data.focus)
+    if (!map.has(key)) map.set(key, [])
+    map.get(key).push({
+      presence_id,
+      user_id: data.user_id,
+      editing: data.focus.editing || false,
+      color: getPresenceUserColor(data.user_id),
+      order: data.order,
+    })
+  }
+  for (const entries of map.values()) {
+    entries.sort((a, b) => a.order - b.order)
+  }
+  cache.set(members, map)
+  return map
 }
 
 export const getters = {
@@ -71,6 +116,26 @@ export const getters = {
       }
     }
     return users.sort((a, b) => a.user_id - b.user_id)
+  },
+  getFocusEntriesByCell: (state) => (spaceName) => {
+    const spaceData = state.spaces[spaceName]
+    if (!spaceData) return new Map()
+    return _buildFocusMap(
+      spaceData.members,
+      'cell',
+      (f) => `${f.row_id}:${f.field_id}`,
+      _cellFocusCache
+    )
+  },
+  getFocusEntriesByRow: (state) => (spaceName) => {
+    const spaceData = state.spaces[spaceName]
+    if (!spaceData) return new Map()
+    return _buildFocusMap(
+      spaceData.members,
+      'row',
+      (f) => f.row_id,
+      _rowFocusCache
+    )
   },
 }
 

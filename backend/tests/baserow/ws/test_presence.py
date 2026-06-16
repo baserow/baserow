@@ -13,7 +13,6 @@ from baserow.ws.presence import (
     PresenceHandler,
     PresenceSpace,
 )
-from baserow.ws.registries import PageType, page_registry
 
 VALID_ONE_SEAT_ENTERPRISE_LICENSE = (
     # id: "1", instance_id: "1"
@@ -34,62 +33,8 @@ def _enable_enterprise():
     local_cache.clear()
 
 
-GROUP = "test-presence-page-1"
 SPACE_NAME = "test-space-1"
 PRESENCE_KEY = f"presence:{SPACE_NAME}"
-
-
-class PresenceTestPageType(PageType):
-    type = "test_presence_page"
-    parameters = ["test_param"]
-
-    def can_add(self, user, web_socket_id, test_param, **kwargs):
-        return True
-
-    def get_group_name(self, test_param, **kwargs):
-        return f"test-presence-page-{test_param}"
-
-    def get_presence_space_name(self, test_param, **kwargs):
-        return f"test-space-{test_param}"
-
-
-class NonPresencePageType(PageType):
-    type = "test_non_presence_page"
-    parameters = ["test_param"]
-
-    def can_add(self, user, web_socket_id, test_param, **kwargs):
-        return True
-
-    def get_group_name(self, test_param, **kwargs):
-        return f"test-non-presence-page-{test_param}"
-
-
-class PresenceWithPermGroupPageType(PageType):
-    type = "test_presence_perm_page"
-    parameters = ["test_param"]
-
-    def can_add(self, user, web_socket_id, test_param, **kwargs):
-        return True
-
-    def get_group_name(self, test_param, **kwargs):
-        return f"test-presence-perm-page-{test_param}"
-
-    def get_permission_channel_group_name(self, test_param, **kwargs):
-        return f"test-perm-group-{test_param}"
-
-    def get_presence_space_name(self, test_param, **kwargs):
-        return f"test-perm-space-{test_param}"
-
-
-@pytest.fixture
-def presence_types():
-    page_registry.register(PresenceTestPageType())
-    page_registry.register(NonPresencePageType())
-    page_registry.register(PresenceWithPermGroupPageType())
-    yield
-    page_registry.unregister(PresenceTestPageType.type)
-    page_registry.unregister(NonPresencePageType.type)
-    page_registry.unregister(PresenceWithPermGroupPageType.type)
 
 
 async def _connect(token):
@@ -131,6 +76,27 @@ async def _presence_ids_in_redis(redis_key):
     """Return set of presence_id keys stored in a Redis presence hash."""
     redis = await get_async_redis()
     return set(await redis.hkeys(redis_key))
+
+
+async def _create_enterprise_table_with_restricted_view(data_fixture):
+    setup = await database_sync_to_async(
+        lambda: (
+            _enable_enterprise(),
+            data_fixture.create_user_and_token(),
+            data_fixture.create_user_and_token(),
+        )
+    )()
+    _, (user_a, token_a), (user_b, token_b) = setup
+
+    _, _, table, restricted_view = await database_sync_to_async(
+        lambda: (
+            (w := data_fixture.create_workspace(user=user_a, members=[user_b])),
+            (db := data_fixture.create_database_application(workspace=w)),
+            (t := data_fixture.create_database_table(database=db)),
+            data_fixture.create_grid_view(table=t, ownership_type="restricted"),
+        )
+    )()
+    return user_a, token_a, user_b, token_b, table, restricted_view
 
 
 @pytest.mark.asyncio
@@ -502,32 +468,6 @@ async def test_permission_revocation_removes_presence_and_broadcasts_leave(
     await comm_b.disconnect()
 
 
-async def _create_enterprise_table_with_restricted_view(data_fixture):
-    setup = await database_sync_to_async(
-        lambda: (
-            _enable_enterprise(),
-            data_fixture.create_user_and_token(),
-            data_fixture.create_user_and_token(),
-        )
-    )()
-    _, (user_a, token_a), (user_b, token_b) = setup
-
-    _, _, table, restricted_view = await database_sync_to_async(
-        lambda: (
-            (w := data_fixture.create_workspace(user=user_a, members=[user_b])),
-            (db := data_fixture.create_database_application(workspace=w)),
-            (t := data_fixture.create_database_table(database=db)),
-            data_fixture.create_grid_view(table=t, ownership_type="restricted"),
-        )
-    )()
-    return user_a, token_a, user_b, token_b, table, restricted_view
-
-
-# ---------------------------------------------------------------------------
-# Integration tests with real page types
-# ---------------------------------------------------------------------------
-
-
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
@@ -660,7 +600,6 @@ async def test_restricted_view_no_presence_entries_in_redis(data_fixture):
 async def test_independent_space_isolation_on_partial_unsubscribe(
     data_fixture, presence_types
 ):
-    """Removing one page leaves its space; other spaces remain unaffected."""
     user_a, token_a = data_fixture.create_user_and_token()
     user_b, token_b = data_fixture.create_user_and_token()
 
