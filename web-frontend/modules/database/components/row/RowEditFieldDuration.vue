@@ -16,7 +16,9 @@
     ></FormInput>
 
     <template #error>
-      {{ error }}
+      <span v-show="touched && !valid">
+        {{ error }}
+      </span>
     </template>
   </FormGroup>
 </template>
