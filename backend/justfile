@@ -523,7 +523,12 @@ run-dev-server *ARGS: _check-dev
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    {{ uv_run }} baserow runserver {{ ARGS }} 2>&1 | tee {{ log_file }}
+    ARGS=({{ ARGS }})
+    if [ ${#ARGS[@]} -eq 0 ]; then
+        ARGS=("${RUNSERVER_BIND:-0.0.0.0:8000}")
+    fi
+    LOG_FILE="${BASEROW_BACKEND_LOG_FILE:-${BASEROW_LOCAL_DEV_PREFIX:-/tmp/baserow}-backend.log}"
+    {{ uv_run }} baserow runserver "${ARGS[@]}" 2>&1 | tee "$LOG_FILE"
 
 # Run production ASGI server (gunicorn + uvicorn)
 [group('5 - production')]
@@ -578,7 +583,7 @@ run-dev-celery: _check-dev
     set -euo pipefail
     {{ _load_env }}
 
-    LOG_FILE="{{ celery_log_file }}"
+    LOG_FILE="${BASEROW_CELERY_LOG_FILE:-${BASEROW_LOCAL_DEV_PREFIX:-/tmp/baserow}-celery.log}"
 
     # ANSI color codes
     COLOR_WORKER=$'\033[38;5;39m'   # Blue for worker

@@ -39,7 +39,7 @@ services:
         UID: $UID
         GID: $GID
     ports:
-      - "${HOST_PUBLISH_IP:-127.0.0.1}:8000:8000"
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:${BACKEND_PORT:-8000}:8000"
       - "${HOST_PUBLISH_IP:-127.0.0.1}:${BASEROW_BACKEND_DEBUGGER_PORT:-5678}:${BASEROW_BACKEND_DEBUGGER_PORT:-5678}"
     volumes:
       - ./docs:/baserow/docs
@@ -67,7 +67,7 @@ services:
         GID: $GID
     command: "nuxt-dev"
     ports:
-      - "${HOST_PUBLISH_IP:-127.0.0.1}:3000:3000"
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:${WEB_FRONTEND_DEV_PORT:-3000}:3000"
     volumes:
       - ./web-frontend:/baserow/web-frontend
       - ./premium/web-frontend/:/baserow/premium/web-frontend
@@ -97,7 +97,7 @@ services:
         GID: $GID
     command: "storybook-dev"
     ports:
-      - "${HOST_PUBLISH_IP:-127.0.0.1}:6006:6006"
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:${STORYBOOK_PORT:-6006}:6006"
     volumes:
       - ./web-frontend:/baserow/web-frontend
       - ./premium/web-frontend/:/baserow/premium/web-frontend
@@ -198,7 +198,7 @@ services:
       - ./deploy/plugins:/baserow/plugins
       - media:/baserow/media
     ports:
-      - "5555:5555" # web ui
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:${CELERY_FLOWER_PORT:-5555}:5555" # web ui
     networks:
       local:
     # Open stdin and tty so when attaching key input works as expected.
@@ -226,8 +226,8 @@ services:
     logging:
       driver: "none" # disable saving logs
     ports:
-      - "${HOST_PUBLISH_IP:-127.0.0.1}:1025:1025" # smtp
-      - "8025:8025" # web ui
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:${MAILHOG_SMTP_PORT:-1025}:1025" # smtp
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:${MAILHOG_WEB_PORT:-8025}:8025" # web ui
     networks:
       local:
 
@@ -255,7 +255,7 @@ services:
     networks:
       local:
     ports:
-      - "4318:4318"
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:${OTEL_COLLECTOR_PORT:-4318}:4318"
 
   embeddings:
     profiles: ["ai"]
@@ -263,7 +263,7 @@ services:
       context: ./embeddings
       dockerfile: Dockerfile
     ports:
-      - "${HOST_PUBLISH_IP:-127.0.0.1}:7999:80"
+      - "${HOST_PUBLISH_IP:-127.0.0.1}:${EMBEDDINGS_PORT:-7999}:80"
     networks:
       local:
     restart: unless-stopped
