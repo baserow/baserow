@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Updated Local Baserow Get Row service type to conditionally return None if a row is not found.",
+    "issue_origin": "github",
+    "issue_number": 4512,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-06-16"
+}

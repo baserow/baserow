@@ -1698,7 +1698,15 @@ class LocalBaserowGetRowUserServiceType(
         # row by setting the right condition
         if "row_id" not in resolved_values:
             if not queryset.exists():
-                raise ServiceImproperlyConfiguredDispatchException(_("No rows found"))
+                if dispatch_context.raise_when_no_row_found:
+                    raise ServiceImproperlyConfiguredDispatchException(
+                        _("No rows found")
+                    )
+                return {
+                    "data": None,
+                    "baserow_table_model": table_model,
+                    "public_allowed_properties": only_field_names,
+                }
             return {
                 "data": queryset.first(),
                 "baserow_table_model": table_model,
@@ -1713,9 +1721,15 @@ class LocalBaserowGetRowUserServiceType(
                 "public_allowed_properties": only_field_names,
             }
         except table_model.DoesNotExist:
-            raise ServiceImproperlyConfiguredDispatchException(
-                _(f"Row {resolved_values['row_id']} does not exist.")
-            )
+            if dispatch_context.raise_when_no_row_found:
+                raise ServiceImproperlyConfiguredDispatchException(
+                    _(f"Row {resolved_values['row_id']} does not exist.")
+                )
+            return {
+                "data": None,
+                "baserow_table_model": table_model,
+                "public_allowed_properties": only_field_names,
+            }
 
     def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
         """
@@ -1724,6 +1738,9 @@ class LocalBaserowGetRowUserServiceType(
         :param dispatch_data: The `dispatch_data` result.
         :return:
         """
+
+        if dispatch_data["data"] is None:
+            return DispatchResult(data=None)
 
         field_ids = (
             extract_field_ids_from_list(dispatch_data["public_allowed_properties"])

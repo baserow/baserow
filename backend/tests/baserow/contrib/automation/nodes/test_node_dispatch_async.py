@@ -284,6 +284,70 @@ def test_dispatch_node_expected_error(mock_logger, mock_dispatch, data_fixture):
 
 
 @pytest.mark.django_db
+def test_dispatch_node_get_row_not_found_returns_none(data_fixture):
+    """
+    When a "Read a row" node doesn't find a row, it should return an empty
+    result instead of raising an error.
+    """
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    integration = data_fixture.create_local_baserow_integration(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+    trigger_table = data_fixture.create_database_table(database=database)
+    trigger_table_field_a = data_fixture.create_text_field(table=trigger_table)
+    trigger_table_field_b = data_fixture.create_text_field(table=trigger_table)
+    # The action table is left empty so no row can ever match.
+    action_table = data_fixture.create_database_table(database=database)
+
+    workflow = data_fixture.create_automation_workflow(
+        user, trigger_type="local_baserow_rows_created"
+    )
+    trigger = workflow.get_trigger()
+    trigger_service = trigger.service.specific
+    trigger_service.table = trigger_table
+    trigger_service.integration = integration
+    trigger_service.save()
+
+    get_row_node = data_fixture.create_local_baserow_get_row_action_node(
+        workflow=workflow,
+        previous_node=trigger,
+        service=data_fixture.create_local_baserow_get_row_service(
+            table=action_table,
+            integration=integration,
+            row_id="'999'",
+        ),
+    )
+
+    workflow_history = create_workflow_history(
+        data_fixture, workflow, [trigger_table_field_a, trigger_table_field_b]
+    )
+
+    # Dispatch the trigger, then the Read a row node.
+    AutomationNodeHandler().dispatch_node(trigger.id, history_id=workflow_history.id)
+    result = AutomationNodeHandler().dispatch_node(
+        get_row_node.id, history_id=workflow_history.id
+    )
+    assert result is None
+
+    handle_workflow_dispatch_done(history_id=workflow_history.id)
+    workflow_history.refresh_from_db()
+    assert workflow_history.message == ""
+    assert workflow_history.status == HistoryStatusChoices.SUCCESS
+
+    node_history = AutomationNodeHistory.objects.get(
+        workflow_history=workflow_history, node=get_row_node
+    )
+    assert node_history.message == ""
+    assert node_history.status == HistoryStatusChoices.SUCCESS
+
+    # The dispatch returns `None` and the history layer normalizes to an
+    # empty dict.
+    node_result = AutomationNodeResult.objects.get(node_history=node_history)
+    assert node_result.result == {}
+
+
+@pytest.mark.django_db
 def test_dispatch_node_dispatches_trigger(data_fixture):
     data = create_workflow(data_fixture)
     trigger_node = data["trigger_node"]

@@ -3,6 +3,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from baserow.contrib.automation.automation_dispatch_context import (
+    AutomationDispatchContext,
+)
 from baserow.contrib.builder.data_sources.service import DataSourceService
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
@@ -423,6 +426,78 @@ def test_local_baserow_get_row_service_dispatch_data_row_not_exist(data_fixture)
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     with pytest.raises(ServiceImproperlyConfiguredDispatchException):
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
+
+
+@pytest.mark.django_db
+def test_local_baserow_get_row_service_dispatch_data_row_does_not_exist(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_database_table(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+
+    service = data_fixture.create_local_baserow_get_row_service(
+        integration=integration, table=table, row_id="'999'"
+    )
+    service_type = service.get_type()
+
+    # In an automation context, a missing row returns `None` instead of raising.
+    workflow = data_fixture.create_automation_workflow(user=user)
+    dispatch_context = AutomationDispatchContext(workflow, None)
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+
+    dispatch_data = service_type.dispatch_data(
+        service, dispatch_values, dispatch_context
+    )
+    assert dispatch_data["data"] is None
+
+    assert service_type.dispatch_transform(dispatch_data).data is None
+
+
+@pytest.mark.django_db
+def test_local_baserow_get_row_service_dispatch_data_filter_matches_no_rows(
+    data_fixture,
+):
+    # In an automation context, when the filters match no row, `None` is
+    # returned instead of raising.
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table, fields, _ = data_fixture.build_table(
+        user=user,
+        columns=[
+            ("Name", "text"),
+        ],
+        rows=[
+            ["BMW"],
+            ["Audi"],
+        ],
+    )
+    view = data_fixture.create_grid_view(user, table=table)
+    data_fixture.create_view_filter(
+        view=view, field=fields[0], type="contains", value="foo"
+    )
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+
+    service = data_fixture.create_local_baserow_get_row_service(
+        integration=integration, view=view, table=table, row_id=""
+    )
+    service_type = service.get_type()
+
+    workflow = data_fixture.create_automation_workflow(user=user)
+    dispatch_context = AutomationDispatchContext(workflow, None)
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+
+    dispatch_data = service_type.dispatch_data(
+        service, dispatch_values, dispatch_context
+    )
+    assert dispatch_data["data"] is None
+
+    assert service_type.dispatch_transform(dispatch_data).data is None
 
 
 @pytest.mark.django_db

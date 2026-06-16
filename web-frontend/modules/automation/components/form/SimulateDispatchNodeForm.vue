@@ -87,26 +87,25 @@ const isLoading = computed(() => {
 
 const nodeType = computed(() => $registry.get('node', props.node.type))
 
+const sample = computed(() => nodeType.value.getSampleData(props.node))
+
 const sampleData = computed(() => {
-  const sample = nodeType.value.getSampleData(props.node)
-
-  if (sample?._error) {
-    return sample._error
+  if (sample.value?._error) {
+    return sample.value._error
   }
-  if (nodeType.value.returnsList && sample?.data) {
-    return sample.data.results
+  if (nodeType.value.returnsList && sample.value?.data) {
+    return sample.value.data.results
   }
-  return sample?.data
+  return sample.value?.data
 })
 
-const hasSampleData = computed(() => {
-  return Boolean(sampleData.value)
-})
+// A node counts as tested once its service has a sample data envelope, even
+// when the dispatch returned no data (e.g. a Read-a-row that matched no row,
+// whose `data` is `null`). We therefore key this off the envelope's presence
+// rather than the truthiness of its `data`.
+const hasSampleData = computed(() => sample.value !== null)
 
-const isErrorSample = computed(() => {
-  const sample = nodeType.value.getSampleData(props.node)
-  return Boolean(sample?._error)
-})
+const isErrorSample = computed(() => Boolean(sample.value?._error))
 
 /**
  * All previous nodes must have been tested, i.e. they must have sample
@@ -143,7 +142,10 @@ const cantBeTestedReason = computed(() => {
       })
     }
 
-    if (!previousNodeType.getSampleData(previousNode)?.data) {
+    // The node is considered tested once it has a sample data envelope and
+    // didn't error, regardless of whether the dispatch returned any data.
+    const previousSample = previousNodeType.getSampleData(previousNode)
+    if (!previousSample || previousSample._error) {
       return $i18n.t('simulateDispatch.errorPreviousNodesNotTested', {
         node: nodeLabel,
       })

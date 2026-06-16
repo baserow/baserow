@@ -1,5 +1,5 @@
 <template>
-  <div v-if="sampleData" class="sample-data-viewer">
+  <div class="sample-data-viewer">
     <div
       :class="{
         'sample-data-viewer__sample--error': isError,

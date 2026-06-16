@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Read a Row node now returns None when a row is not found.",
+    "issue_origin": "github",
+    "issue_number": 4512,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-06-16"
+}

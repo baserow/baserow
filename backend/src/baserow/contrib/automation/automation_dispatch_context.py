@@ -118,6 +118,15 @@ class AutomationDispatchContext(DispatchContext):
         return None
 
     @property
+    def raise_when_no_row_found(self) -> bool:
+        """
+        When no matching row is found, the dispatch should not raise. The
+        user should use a subsequent node (i.e. Router) to decide the next step.
+        """
+
+        return False
+
+    @property
     def is_publicly_sortable(self) -> bool:
         return False
 
