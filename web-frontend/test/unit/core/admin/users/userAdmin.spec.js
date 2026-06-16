@@ -244,49 +244,43 @@ describe('User Admin Component Tests', () => {
     await flushPromises()
   })
 
-  test('users password cant be changed if not entered the same twice', async () => {
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin()
+  test.each([
+    {
+      description: 'cant be changed if not entered the same twice',
+      password: '1'.repeat(8),
+      passwordConfirm: '1'.repeat(8) + 'DifferentFromFirst',
+      property: 'passwordConfirm',
+      validator: 'sameAsPassword',
+    },
+    {
+      description: 'cant be changed to less than 8 characters',
+      password: '1'.repeat(7),
+      passwordConfirm: '1'.repeat(7),
+      property: 'password',
+      validator: 'minLength',
+    },
+    {
+      description: 'cant be changed to more than 256 characters',
+      password: '1'.repeat(257),
+      passwordConfirm: '1'.repeat(257),
+      property: 'password',
+      validator: 'maxLength',
+    },
+  ])(
+    'a users password $description',
+    async ({ password, passwordConfirm, property, validator }) => {
+      const { ui } = await whenThereIsAUserAndYouOpenUserAdmin()
 
-    const validPassword = '1'.repeat(8)
+      const errors = await ui.attemptToChangePasswordReturningModalError(
+        password,
+        passwordConfirm
+      )
 
-    const errors = await ui.attemptToChangePasswordReturningModalError(
-      validPassword,
-      validPassword + 'DifferentFromFirst'
-    )
-    expect(errors.length).toBeGreaterThan(0)
-    const error = errors.find((obj) => obj.$property === 'passwordConfirm')
-    expect(error.$validator).toMatch('sameAsPassword')
-  })
-
-  test('users password cant be changed less than 8 characters', async () => {
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin()
-
-    const tooShortPassword = '1'.repeat(7)
-
-    const errors = await ui.attemptToChangePasswordReturningModalError(
-      tooShortPassword,
-      tooShortPassword
-    )
-
-    expect(errors.length).toBeGreaterThan(0)
-    const error = errors.find((obj) => obj.$property === 'password')
-    expect(error.$validator).toMatch('minLength')
-  })
-
-  test('users password cant be changed to more than 256 characters', async () => {
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin()
-
-    const tooLongPassword = '1'.repeat(257)
-
-    const errors = await ui.attemptToChangePasswordReturningModalError(
-      tooLongPassword,
-      tooLongPassword
-    )
-
-    expect(errors.length).toBeGreaterThan(0)
-    const error = errors.find((obj) => obj.$property === 'password')
-    expect(error.$validator).toMatch('maxLength')
-  })
+      expect(errors.length).toBeGreaterThan(0)
+      const error = errors.find((obj) => obj.$property === property)
+      expect(error.$validator).toMatch(validator)
+    }
+  )
 
   // eslint-disable-next-line vitest/expect-expect
   test('users password can be changed to 256 characters', async () => {
@@ -361,24 +355,23 @@ describe('User Admin Component Tests', () => {
     expect(ui.getErrorText(modal)).toBe('clientHandler.notCompletedDescription')
   })
 
-  test('a users full name cant be changed to less than 2 characters', async () => {
+  test.each([
+    {
+      description: 'cant be changed to less than 2 characters',
+      name: '1',
+      rule: 'minLength',
+    },
+    {
+      description: 'cant be changed to more than 150 characters',
+      name: '1'.repeat(151),
+      rule: 'maxLength',
+    },
+  ])('a users full name $description', async ({ name, rule }) => {
     const { ui } = await whenThereIsAUserAndYouOpenUserAdmin()
 
-    const tooShortFullName = '1'
-
-    const editUserModal = await ui.changeFullName(tooShortFullName)
+    const editUserModal = await ui.changeFullName(name)
     const userFormComponent = editUserModal.findComponent(UserForm)
-    expect(userFormComponent.vm.v$.values.name.minLength.$invalid).toBe(true)
-  })
-
-  test('a users full name cant be changed to more than 150 characters', async () => {
-    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin()
-
-    const tooLongFullName = '1'.repeat(151)
-
-    const editUserModal = await ui.changeFullName(tooLongFullName)
-    const userFormComponent = editUserModal.findComponent(UserForm)
-    expect(userFormComponent.vm.v$.values.name.maxLength.$invalid).toBe(true)
+    expect(userFormComponent.vm.v$.values.name[rule].$invalid).toBe(true)
   })
 
   test('a users username be changed', async () => {
