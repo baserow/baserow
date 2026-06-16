@@ -382,29 +382,6 @@ export class LocalBaserowRowsUpdatedTriggerNodeType extends TriggerNodeTypeMixin
   }
 }
 
-export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin(
-  LocalBaserowSignalTriggerType
-) {
-  static getType() {
-    return 'local_baserow_rows_deleted'
-  }
-
-  getOrder() {
-    return 3
-  }
-
-  get labelTemplateName() {
-    return 'nodeType.localBaserowRowsDeletedLabel'
-  }
-
-  get serviceType() {
-    return this.app.$registry.get(
-      'service',
-      LocalBaserowRowsDeletedTriggerServiceType.getType()
-    )
-  }
-}
-
 export class LocalBaserowFieldsUpdatedTriggerNodeType extends TriggerNodeTypeMixin(
   LocalBaserowSignalTriggerType
 ) {
@@ -413,7 +390,7 @@ export class LocalBaserowFieldsUpdatedTriggerNodeType extends TriggerNodeTypeMix
   }
 
   getOrder() {
-    return 4
+    return 3
   }
 
   get labelTemplateName() {
@@ -466,6 +443,29 @@ export class LocalBaserowFieldsUpdatedTriggerNodeType extends TriggerNodeTypeMix
       count: fieldIds.length,
       tableName,
     })
+  }
+}
+
+export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin(
+  LocalBaserowSignalTriggerType
+) {
+  static getType() {
+    return 'local_baserow_rows_deleted'
+  }
+
+  getOrder() {
+    return 4
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowRowsDeletedLabel'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowRowsDeletedTriggerServiceType.getType()
+    )
   }
 }
 
