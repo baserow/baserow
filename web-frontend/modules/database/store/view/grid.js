@@ -2364,6 +2364,10 @@ export const actions = {
     { commit, getters, dispatch },
     { view, fields, values, metadata, populate = true }
   ) {
+    if (getters.getRowIndexById(values.id) !== -1) {
+      return
+    }
+
     const { $registry, $client, $i18n, $config } = this
     const row = clone(values)
 

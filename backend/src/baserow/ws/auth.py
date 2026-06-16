@@ -43,8 +43,9 @@ def get_user(token):
 
 class JWTTokenAuthMiddleware(BaseMiddleware):
     """
-    The auth middleware adds a user object and a unique web_socket_id to the scope if a
-    valid JWT token is provided via the GET parameters when requesting the web socket.
+    The auth middleware adds a user object to the scope if a valid JWT token is
+    provided via the GET parameters when requesting the web socket. It also adds a
+    web_socket_id taken from the query parameter or generated as a random UUID.
     """
 
     def __init__(self, inner):
@@ -53,14 +54,16 @@ class JWTTokenAuthMiddleware(BaseMiddleware):
     async def __call__(self, scope, receive, send):
         query_params = parse_qs(scope["query_string"].decode("utf8"))
         scope["user"] = None
+        scope["web_socket_id"] = None
 
         jwt_token = query_params.get("jwt_token")
         if jwt_token:
             scope["user"] = await get_user(jwt_token[0])
 
-        web_socket_id = query_params.get("web_socket_id")
-        scope["web_socket_id"] = (
-            web_socket_id[0] if web_socket_id else str(uuid.uuid4())
-        )
+        if scope["user"] is not None:
+            web_socket_id = query_params.get("web_socket_id")
+            scope["web_socket_id"] = (
+                web_socket_id[0] if web_socket_id else str(uuid.uuid4())
+            )
 
         return await self.inner(scope, receive, send)

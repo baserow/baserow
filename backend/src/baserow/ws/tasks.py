@@ -395,7 +395,6 @@ def broadcast_application_created(
         payload_map[str(user_id)] = {
             "type": "application_created",
             "application": application_serialized,
-            "workspace_id": workspace.id,
         }
 
     broadcast_to_users_individual_payloads(payload_map, ignore_web_socket_id)

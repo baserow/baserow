@@ -114,18 +114,17 @@ describe('RealTimeHandler replay_events flow', () => {
     })
   })
 
-  test('client stores NO_REPLAY_AVAILABLE from server and sends it back on reconnect', () => {
-    // Server can return NO_REPLAY_AVAILABLE as latest_event_id when replay is
-    // enabled but no events have been recorded yet.
+  test('client stores zero latest_event_id from empty table and sends it back on reconnect', () => {
+    // Server returns 0 as latest_event_id when replay is enabled but no
+    // events have been recorded yet (Coalesce(Max("id"), 0)).
     env.handler.replayEnabled = true
     fire(env.handler, 'replay_events_result', {
       force_refresh: false,
-      latest_event_id: NO_REPLAY_AVAILABLE,
+      latest_event_id: 0,
     })
-    expect(env.handler.lastSeenEventId).toBe(NO_REPLAY_AVAILABLE)
+    expect(env.handler.lastSeenEventId).toBe(0)
 
-    // Reconnect: client must send NO_REPLAY_AVAILABLE so the server keeps
-    // treating it as "can't replay" instead of as a first connection.
+    // Reconnect: client sends 0 which is a valid cursor (not a sentinel).
     env.sentMessages.length = 0
     env.handler._sendReplayEventsRequest()
     const replayRequest = env.sentMessages.find(
@@ -133,7 +132,7 @@ describe('RealTimeHandler replay_events flow', () => {
     )
     expect(replayRequest).toEqual({
       type: 'replay_events',
-      last_seen_id: NO_REPLAY_AVAILABLE,
+      last_seen_id: 0,
     })
   })
 
@@ -401,13 +400,18 @@ describe('RealTimeHandler replay request params', () => {
     })
   })
 
-  test('_sendReplayEventsRequest is a no-op when replay is disabled', () => {
-    const { handler, sentMessages } = makeHandler()
+  test('_canReplayEvents returns false when replay is disabled', () => {
+    const { handler } = makeHandler()
     handler.replayEnabled = false
 
-    handler._sendReplayEventsRequest()
+    expect(handler._canReplayEvents()).toBe(false)
+  })
 
-    expect(sentMessages.find((m) => m.type === 'replay_events')).toBeUndefined()
+  test('_canReplayEvents returns true when replay is enabled and socket is open', () => {
+    const { handler } = makeHandler()
+    handler.replayEnabled = true
+
+    expect(handler._canReplayEvents()).toBe(true)
   })
 })
 
@@ -457,12 +461,182 @@ describe('RealTimeHandler disconnect', () => {
   })
 })
 
+describe('RealTimeHandler onclose toast suppression', () => {
+  let env
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    env = makeHandler()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'visible',
+      writable: true,
+      configurable: true,
+    })
+    Object.defineProperty(navigator, 'onLine', {
+      value: true,
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  test('delayedReconnect while hidden does not show reconnecting toast', () => {
+    const { handler, store } = env
+    handler.reconnect = true
+    handler.connected = false
+
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'hidden',
+      writable: true,
+      configurable: true,
+    })
+
+    handler.delayedReconnect()
+
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setReconnecting' && v === true
+      )
+    ).toBe(false)
+  })
+
+  test('delayedReconnect while offline shows reconnecting toast but does not schedule retry', () => {
+    const { handler, store } = env
+    handler.reconnect = true
+    handler.connected = false
+
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'visible',
+      writable: true,
+      configurable: true,
+    })
+    Object.defineProperty(navigator, 'onLine', {
+      value: false,
+      writable: true,
+      configurable: true,
+    })
+
+    handler.delayedReconnect()
+
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setReconnecting' && v === true
+      )
+    ).toBe(true)
+    expect(handler.attempts).toBe(0)
+
+    Object.defineProperty(navigator, 'onLine', {
+      value: true,
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  test('delayedReconnect while unloading does not show reconnecting toast', () => {
+    const { handler, store } = env
+    handler.reconnect = true
+    handler.connected = false
+    handler.unloading = true
+
+    handler.delayedReconnect()
+
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setReconnecting' && v === true
+      )
+    ).toBe(false)
+  })
+})
+
+describe('RealTimeHandler max attempts', () => {
+  let env
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+    env = makeHandler()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  test('delayedReconnect stops and shows failed toast after exceeding max attempts', () => {
+    const { handler, store } = env
+    handler.reconnect = true
+    // After 10 successful calls, attempts will be 10.
+    // The 11th call increments to 11 which exceeds RECONNECT_MAX_ATTEMPTS (10).
+    handler.attempts = 10
+
+    handler.delayedReconnect()
+
+    expect(handler.attempts).toBe(11)
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === true
+      )
+    ).toBe(true)
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setReconnecting' && v === false
+      )
+    ).toBe(true)
+  })
+
+  test('delayedReconnect still schedules retry at exactly max attempts', () => {
+    const { handler, store } = env
+    handler.reconnect = true
+    handler.attempts = 9
+
+    handler.delayedReconnect()
+
+    expect(handler.attempts).toBe(10)
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setReconnecting' && v === true
+      )
+    ).toBe(true)
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === true
+      )
+    ).toBe(false)
+  })
+})
+
+describe('RealTimeHandler replay_enabled=false cursor reset', () => {
+  test('auth with replay_enabled=false sets lastSeenEventId to NO_REPLAY_AVAILABLE', () => {
+    const { handler } = makeHandler()
+    handler.lastSeenEventId = 42
+
+    fire(handler, 'authentication', {
+      success: true,
+      replay_enabled: false,
+    })
+
+    expect(handler.lastSeenEventId).toBe(NO_REPLAY_AVAILABLE)
+  })
+
+  test('auth with replay_enabled=true does not reset lastSeenEventId', () => {
+    const { handler } = makeHandler()
+    handler.lastSeenEventId = 42
+
+    fire(handler, 'authentication', {
+      success: true,
+      replay_enabled: true,
+    })
+
+    expect(handler.lastSeenEventId).toBe(42)
+  })
+})
+
 describe('RealTimeHandler connect early-exit', () => {
-  test('connect keeps retrying past max attempts without firing the Failed toast', () => {
-    // Transient network failures should not surface the hard "Failed —
-    // refresh to continue" toast: we keep reconnecting forever with capped
-    // backoff so users coming back to a long-disconnected tab recover
-    // without a refresh.
+  test('connect() itself does not gate on attempt count', () => {
+    // The max-attempts guard lives in delayedReconnect(), not connect().
+    // connect() only checks token validity, so a high attempt count alone
+    // does not prevent a connection attempt.
     const { handler, store } = makeHandler()
     handler.attempts = 99
     handler.reconnect = true

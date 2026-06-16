@@ -2260,11 +2260,11 @@ def test_can_export_import_database_with_broken_via_dependency(data_fixture):
     user = data_fixture.create_user()
     workspace = data_fixture.create_workspace(user=user)
     database = data_fixture.create_database_application(workspace=workspace)
-    table_1 = data_fixture.create_database_table(database=database)
+    table_1 = data_fixture.create_database_table(database=database, order=1)
     table_1_field_1 = data_fixture.create_text_field(
         table=table_1, name="Name", primary=True
     )
-    table_2 = data_fixture.create_database_table(database=database)
+    table_2 = data_fixture.create_database_table(database=database, order=2)
     table_2_field_1 = data_fixture.create_text_field(
         table=table_2, name="Name", primary=True
     )

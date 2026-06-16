@@ -154,7 +154,11 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
             {
                 "type": "authentication",
                 "success": user is not None,
-                "replay_enabled": RealtimeEventHandler.is_recording_enabled(),
+                # Kept for backwards compatibility.
+                "web_socket_id": self.scope["web_socket_id"],
+                "replay_enabled": user is not None
+                and getattr(user, "is_authenticated", False)
+                and RealtimeEventHandler.is_recording_enabled(),
             }
         )
 
@@ -399,16 +403,19 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
     @staticmethod
     def _parse_last_seen_id(content: dict) -> int:
         """
-        Extract the ``last_seen_id`` cursor from a replay request.
+        Extract and validate the ``last_seen_id`` cursor from a
+        ``replay_events`` message. Values below ``NO_REPLAY_AVAILABLE``
+        are normalised to ``FIRST_CONNECT_CURSOR`` (safe default).
 
         :param content: The JSON payload sent by the websocket client.
-        :return: ``FIRST_CONNECT_CURSOR`` for missing/invalid values (treated as
-            a first connection), ``NO_REPLAY_AVAILABLE`` for a reconnect with no
-            high-water mark, or the positive event id the client last saw.
+        :return: ``FIRST_CONNECT_CURSOR`` for a fresh session or
+            missing/invalid input, ``NO_REPLAY_AVAILABLE`` when the client
+            has no usable high-water mark, or the positive event id the
+            client last processed.
         """
 
         last_seen_id = try_int(content.get("last_seen_id"))
-        if last_seen_id is None or last_seen_id < FIRST_CONNECT_CURSOR:
+        if last_seen_id is None or last_seen_id < NO_REPLAY_AVAILABLE:
             return FIRST_CONNECT_CURSOR
         return last_seen_id
 
@@ -433,10 +440,9 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
 
         Visible outcomes: baseline (``FIRST_CONNECT_CURSOR``), replay since
         ``last_seen_id``, or ``force_refresh=true`` when the gap is too
-        large, the cursor expired, the client has no high-water mark, or
-        replay failed mid-flight. Silent drops: unauthenticated requests
-        and any request that arrives while recording is disabled
-        (well-behaved clients gate on ``replay_enabled`` from auth).
+        large, the cursor expired, the client has no high-water mark,
+        replay failed mid-flight, or recording is disabled.
+        Silent drops: unauthenticated requests only.
         """
 
         user = self.scope.get("user")
@@ -444,6 +450,13 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
             return
 
         if not RealtimeEventHandler.is_recording_enabled():
+            await self._send_replay_events_result(
+                ReplayEventsResult(
+                    force_refresh=True,
+                    latest_event_id=NO_REPLAY_AVAILABLE,
+                    replay_events=[],
+                )
+            )
             return
 
         last_seen_id = self._parse_last_seen_id(content)

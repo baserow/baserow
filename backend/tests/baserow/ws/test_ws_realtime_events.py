@@ -208,7 +208,7 @@ def test_check_no_events_returns_zero_latest():
         web_socket_id=None,
     )
     assert result.force_refresh is False
-    assert result.latest_event_id == NO_REPLAY_AVAILABLE
+    assert result.latest_event_id == 0
     assert result.replay_events == []
 
 
@@ -1064,9 +1064,10 @@ async def test_connect_advertises_replay_enabled(data_fixture):
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
 @override_settings(BASEROW_REALTIME_REPLAY_MAX_EVENTS=0)
-async def test_replay_events_ignored_when_recording_disabled(data_fixture):
+async def test_replay_events_force_refresh_when_recording_disabled(data_fixture):
     # Well-behaved clients respect ``replay_enabled`` and don't send the
-    # message. If a stale client does anyway, the server drops it silently.
+    # message. If a stale client does anyway, the server responds with
+    # force_refresh so the client recovers instead of hanging.
     user, token = await sync_to_async(data_fixture.create_user_and_token)()
     communicator = WebsocketCommunicator(
         application,
@@ -1080,7 +1081,10 @@ async def test_replay_events_ignored_when_recording_disabled(data_fixture):
     await communicator.send_json_to(
         {"type": "replay_events", "last_seen_id": FIRST_CONNECT_CURSOR}
     )
-    assert await communicator.receive_nothing(timeout=0.5) is True
+    response = await communicator.receive_json_from(timeout=1)
+    assert response["type"] == "replay_events_result"
+    assert response["force_refresh"] is True
+    assert response["latest_event_id"] == NO_REPLAY_AVAILABLE
 
     await communicator.disconnect()
 
@@ -1139,7 +1143,7 @@ def test_replay_events_result_future_last_seen_uses_one_query(
         )
 
     assert result.force_refresh is True
-    assert result.latest_event_id == 0
+    assert result.latest_event_id == NO_REPLAY_AVAILABLE
     assert result.replay_events == []
 
 
@@ -1161,7 +1165,7 @@ def test_replay_events_result_missing_last_seen_uses_one_query(
         )
 
     assert result.force_refresh is True
-    assert result.latest_event_id == 0
+    assert result.latest_event_id == NO_REPLAY_AVAILABLE
     assert result.replay_events == []
 
 
@@ -1524,7 +1528,7 @@ async def test_replay_events_forces_refresh_when_replay_event_type_is_unsupporte
     result = await communicator.receive_json_from(timeout=1)
     assert result["type"] == "replay_events_result"
     assert result["force_refresh"] is True
-    assert result["latest_event_id"] == 0
+    assert result["latest_event_id"] == NO_REPLAY_AVAILABLE
     assert "unsupported payload type" in caplog.text
 
     await communicator.disconnect()

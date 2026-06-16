@@ -44,16 +44,3 @@ export async function getRows(
   );
   return response.data.results;
 }
-
-/**
- * Fetches a table's rows keyed by field name, used to read back row ids.
- */
-export async function getRows(
-  user: User,
-  table: { id: number },
-): Promise<any[]> {
-  const response: any = await getClient(user).get(
-    `database/rows/table/${table.id}/?user_field_names=true`,
-  );
-  return response.data.results;
-}

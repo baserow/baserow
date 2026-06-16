@@ -1,6 +1,9 @@
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { logoutAndRedirectToLogin } from '@baserow/modules/core/utils/auth'
-import { FIRST_CONNECT_CURSOR } from '@baserow/modules/core/plugins/realtimeProtocol'
+import {
+  FIRST_CONNECT_CURSOR,
+  NO_REPLAY_AVAILABLE,
+} from '@baserow/modules/core/plugins/realtimeProtocol'
 import { useRuntimeConfig } from '#imports'
 
 const RECONNECT_BASE_DELAY = 1000
@@ -153,11 +156,6 @@ export class RealTimeHandler {
 
     this.socket.onclose = () => {
       this.connected = false
-      // Surface the disconnect immediately — the toast persists through the
-      // hidden/offline wait and through retry attempts until ``onopen`` runs.
-      if (this.reconnect) {
-        this.context.store.dispatch('toast/setReconnecting', true)
-      }
       this.subscribedToPages = this.pages.length === 0
       this.delayedReconnect()
     }
@@ -170,21 +168,35 @@ export class RealTimeHandler {
    * ``_retryReconnectNow`` the moment either clears.
    */
   delayedReconnect() {
-    if (
-      !this.reconnect ||
-      this.unloading ||
-      this._isDocumentHidden() ||
-      !this._isNavigatorOnline()
-    ) {
+    if (!this.reconnect || this.unloading) {
+      return
+    }
+
+    if (this._isDocumentHidden()) {
+      // Tab hidden — no point showing toast or retrying. The
+      // visibilitychange handler will call _retryReconnectNow() on refocus.
+      return
+    }
+
+    if (!this._isNavigatorOnline()) {
+      // Offline but user is looking at the tab — show toast so they know
+      // the connection is down. Don't schedule retries; the online event
+      // handler will call _retryReconnectNow() when network returns.
+      this.context.store.dispatch('toast/setReconnecting', true)
       return
     }
 
     clearTimeout(this.reconnectTimeout)
     this.attempts++
+
+    if (this.attempts > RECONNECT_MAX_ATTEMPTS) {
+      this.context.store.dispatch('toast/setReconnecting', false)
+      this.context.store.dispatch('toast/setFailedConnecting', true)
+      return
+    }
+
     this.context.store.dispatch('toast/setReconnecting', true)
 
-    // Cap the exponent so retries past the threshold stay at
-    // ``RECONNECT_MAX_DELAY`` instead of computing huge values.
     const exponent = Math.min(this.attempts, RECONNECT_MAX_ATTEMPTS) - 1
     const delay = Math.min(
       RECONNECT_BASE_DELAY * Math.pow(2, exponent) +
@@ -322,18 +334,15 @@ export class RealTimeHandler {
     this.replayEnabled = false
   }
 
-  /**
-   * Sends ``replay_events`` when replay is enabled. The cursor is
-   * FIRST_CONNECT_CURSOR (fresh session), NO_REPLAY_AVAILABLE (reconnect
-   * without a high-water mark), or the highest ``_event_id`` seen so far.
-   */
+  _canReplayEvents() {
+    return (
+      this.replayEnabled &&
+      this.socket &&
+      this.socket.readyState === WebSocket.OPEN
+    )
+  }
+
   _sendReplayEventsRequest() {
-    if (!this.replayEnabled) {
-      return
-    }
-    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
-      return
-    }
     this.socket.send(
       JSON.stringify({
         type: 'replay_events',
@@ -372,7 +381,11 @@ export class RealTimeHandler {
       this.authResponseReceived = true
       this.replayEnabled = data.replay_enabled === true
 
-      if (data.success) {
+      if (!this.replayEnabled) {
+        this.lastSeenEventId = NO_REPLAY_AVAILABLE
+      }
+
+      if (data.success && this._canReplayEvents()) {
         this._sendReplayEventsRequest()
       }
     })
@@ -380,8 +393,8 @@ export class RealTimeHandler {
     this.registerEvent('replay_events_result', ({ store }, data) => {
       const latestEventId = data.latest_event_id
       if (!data.force_refresh && typeof latestEventId === 'number') {
-        // ``latest_event_id`` can be NO_REPLAY_AVAILABLE (0) when the
-        // server has no events recorded yet; store it verbatim.
+        // ``latest_event_id`` can be 0 when the server has no events
+        // recorded yet; store it verbatim.
         this.lastSeenEventId = Math.max(latestEventId, this.lastSeenEventId)
       }
       store.dispatch('toast/setWorkspaceOutdated', data.force_refresh === true)

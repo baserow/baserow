@@ -24,7 +24,7 @@ REALTIME_EVENTS_CLEANUP_INTERVAL_MINUTES = 60
 # FIRST_CONNECT_CURSOR: first connect of a session, ask for a baseline only.
 # NO_REPLAY_AVAILABLE:  reconnect with no usable high-water mark, force refresh.
 FIRST_CONNECT_CURSOR = -1
-NO_REPLAY_AVAILABLE = 0
+NO_REPLAY_AVAILABLE = -2
 
 
 @dataclass(frozen=True)
