@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Close Redis connection when MCP connection is closed.",
+  "issue_origin": "github",
+  "issue_number": null,
+  "domain": "database",
+  "bullet_points": [],
+  "created_at": "2026-06-16"
+}
