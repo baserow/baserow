@@ -25,9 +25,6 @@ export default {
     getField() {
       return this.field
     },
-    isValid() {
-      return this.getError() === null
-    },
     getError() {
       // `errorMsg` holds the parse error captured while the user types, because
       // partially-typed text may not round-trip to `value`. When there is no
