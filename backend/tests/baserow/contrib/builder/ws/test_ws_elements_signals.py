@@ -161,6 +161,34 @@ def test_element_moved_cross_page(mock_broadcast_to_permitted_users, data_fixtur
 
 @pytest.mark.django_db(transaction=True)
 @patch("baserow.contrib.builder.ws.element.signals.broadcast_to_permitted_users")
+def test_element_moved_cross_page_includes_workflow_actions(
+    mock_broadcast_to_permitted_users, data_fixture
+):
+    # A workflow action's page follows its element, so the cross-page move payload
+    # must carry the moved subtree's actions for clients to relocate them.
+    user = data_fixture.create_user()
+    page1 = data_fixture.create_builder_page(user=user)
+    page2 = data_fixture.create_builder_page(builder=page1.builder)
+    button = ElementService().create_element(
+        user=user,
+        element_type=element_type_registry.get("button"),
+        page=page1,
+    )
+    workflow_action = data_fixture.create_notification_workflow_action(element=button)
+
+    ElementService().move_element(
+        user, page2, button, "", None, GraphPointPosition.SOUTH
+    )
+
+    payload = mock_broadcast_to_permitted_users.delay.call_args[0][4]
+    assert [wa["id"] for wa in payload["workflow_actions"]] == [workflow_action.id]
+    # The action stays associated with its element; the target page is conveyed by
+    # which page the client relocates it onto (the serializer omits page_id).
+    assert payload["workflow_actions"][0]["element_id"] == button.id
+
+
+@pytest.mark.django_db(transaction=True)
+@patch("baserow.contrib.builder.ws.element.signals.broadcast_to_permitted_users")
 def test_elements_created_includes_workflow_actions(
     mock_broadcast_to_permitted_users, data_fixture
 ):

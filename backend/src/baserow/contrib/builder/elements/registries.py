@@ -289,7 +289,24 @@ class ElementType(
         :param target_page: The page the element is being moved to.
         :param place_in_container: The target place in container.
         """
+        # Captured before the move, while element.page still points at the source.
+        moved_to_new_page = element.page_id != target_page.id
+
         yield
+
+        if moved_to_new_page:
+            # A workflow action associated with this element has its own page foreign
+            # key. When the element changes page (e.g. moving to/from the shared page)
+            # the action would otherwise be left behind on the source page, so move it
+            # along with the element. This runs for every element in a moved subtree
+            # because each one passes through its type's wrap_move (which chains here).
+            from baserow.contrib.builder.workflow_actions.models import (
+                BuilderWorkflowAction,
+            )
+
+            BuilderWorkflowAction.objects.filter(element=element).update(
+                page_id=target_page.id
+            )
 
     def import_context_addition(self, instance: ElementSubClass) -> Dict[str, Any]:
         """

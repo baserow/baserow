@@ -945,6 +945,88 @@ def test_move_element_cross_page_migrates_container_subtree(data_fixture):
 
 
 @pytest.mark.django_db
+def test_move_element_cross_page_moves_its_workflow_action(data_fixture):
+    # A workflow action has its own page foreign key. When its element moves to
+    # another page (e.g. to/from the shared page) the action must follow, not be
+    # left behind on the source page.
+    user = data_fixture.create_user()
+    page1 = data_fixture.create_builder_page(user=user)
+    page2 = data_fixture.create_builder_page(builder=page1.builder)
+
+    button = ElementService().create_element(
+        user=user,
+        element_type=element_type_registry.get("button"),
+        page=page1,
+    )
+    workflow_action = data_fixture.create_notification_workflow_action(element=button)
+    assert workflow_action.page_id == page1.id
+
+    ElementService().move_element(
+        user, page2, button, "", None, GraphPointPosition.SOUTH
+    )
+
+    workflow_action.refresh_from_db(fields=["page"])
+    assert workflow_action.page_id == page2.id
+
+
+@pytest.mark.django_db
+def test_move_element_cross_page_moves_descendant_workflow_actions(data_fixture):
+    # Moving a container cross-page must move the workflow actions of its
+    # descendants too, since each element in the subtree changes page.
+    user = data_fixture.create_user()
+    page1 = data_fixture.create_builder_page(user=user)
+    page2 = data_fixture.create_builder_page(builder=page1.builder)
+
+    container = ElementService().create_element(
+        user=user,
+        element_type=element_type_registry.get("column"),
+        page=page1,
+    )
+    child_button = ElementService().create_element(
+        user=user,
+        element_type=element_type_registry.get("button"),
+        page=page1,
+        reference_element_id=container.id,
+        position=GraphPointPosition.CHILD,
+        place_in_container="0",
+    )
+    workflow_action = data_fixture.create_notification_workflow_action(
+        element=child_button
+    )
+    assert workflow_action.page_id == page1.id
+
+    ElementService().move_element(
+        user, page2, container, "", None, GraphPointPosition.SOUTH
+    )
+
+    child_button.refresh_from_db(fields=["page"])
+    workflow_action.refresh_from_db(fields=["page"])
+    assert child_button.page_id == page2.id
+    assert workflow_action.page_id == page2.id
+
+
+@pytest.mark.django_db
+def test_move_element_same_page_keeps_workflow_action(data_fixture):
+    # A same-page reorder must not touch the workflow action's page.
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    first = data_fixture.create_builder_heading_element(page=page)
+    button = ElementService().create_element(
+        user=user,
+        element_type=element_type_registry.get("button"),
+        page=page,
+    )
+    workflow_action = data_fixture.create_notification_workflow_action(element=button)
+
+    ElementService().move_element(
+        user, page, button, "", first.id, GraphPointPosition.NORTH
+    )
+
+    workflow_action.refresh_from_db(fields=["page"])
+    assert workflow_action.page_id == page.id
+
+
+@pytest.mark.django_db
 def test_move_element_cross_page_removes_entry_from_source_graph(data_fixture):
     """
     Moving an element from one page to another must remove the element's graph

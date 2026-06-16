@@ -18,9 +18,11 @@ from baserow.contrib.builder.elements.operations import (
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.object_scopes import BuilderPageObjectScopeType
+from baserow.contrib.builder.workflow_actions.models import BuilderWorkflowAction
 from baserow.contrib.builder.workflow_actions.registries import (
     builder_workflow_action_type_registry,
 )
+from baserow.core.db import specific_iterator
 from baserow.ws.tasks import broadcast_to_permitted_users
 
 
@@ -136,11 +138,26 @@ def element_moved(
             element,
             *(d.specific for d in target_graph.get_descendants(element)),
         ]
+        # A workflow action's page follows its element (see ElementType.wrap_move),
+        # so they travel with the moved subtree. Send them too, so clients relocate
+        # the action records from the source page to the target page rather than
+        # leaving them stranded (which makes them appear disassociated).
+        moved_workflow_actions = specific_iterator(
+            BuilderWorkflowAction.objects.filter(
+                element_id__in=[e.id for e in moved_elements]
+            )
+        )
         payload["source_page_id"] = source_page.id
         payload["source_graph"] = source_page.get_graph().graph
         payload["elements"] = [
             element_type_registry.get_serializer(e, ElementSerializer).data
             for e in moved_elements
+        ]
+        payload["workflow_actions"] = [
+            builder_workflow_action_type_registry.get_serializer(
+                wa, BuilderWorkflowActionSerializer
+            ).data
+            for wa in moved_workflow_actions
         ]
 
     transaction.on_commit(

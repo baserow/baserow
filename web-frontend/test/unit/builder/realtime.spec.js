@@ -84,6 +84,34 @@ describe('builder realtime element_moved', () => {
     ])
   })
 
+  test('cross-page move relocates the workflow actions too', () => {
+    const handlers = getHandlers()
+    const store = buildStore({ selectedPage: regularPage, sharedPage })
+
+    const element = { id: 5, page_id: sharedPage.id, type: 'button' }
+    const workflowAction = { id: 9, element_id: 5 }
+    handlers.element_moved(
+      { store },
+      {
+        source_page_id: regularPage.id,
+        source_graph: { source: true },
+        page_id: sharedPage.id,
+        graph: { target: true },
+        elements: [element],
+        workflow_actions: [workflowAction],
+      }
+    )
+
+    // Removed from the source page's workflow action store...
+    expect(dispatchedWith(store, 'builderWorkflowAction/forceDelete')).toEqual([
+      { page: regularPage, workflowActionId: 9 },
+    ])
+    // ...and re-created on the target page.
+    expect(dispatchedWith(store, 'builderWorkflowAction/forceCreate')).toEqual([
+      { page: sharedPage, workflowAction },
+    ])
+  })
+
   test('delete removes the records and applies the relinked graph', () => {
     const handlers = getHandlers()
     const store = buildStore({ selectedPage: regularPage, sharedPage })

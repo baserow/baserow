@@ -168,6 +168,14 @@ export const registerRealtimeEvents = (realtime) => {
             elementId: element.id,
           })
         }
+        // The moved elements' workflow actions travel with them, so remove them
+        // from the source page too (their page foreign key now points elsewhere).
+        for (const workflowAction of data.workflow_actions || []) {
+          store.dispatch('builderWorkflowAction/forceDelete', {
+            page: sourceCtx.page,
+            workflowActionId: workflowAction.id,
+          })
+        }
         store.dispatch('page/forceUpdate', {
           page: sourceCtx.page,
           values: { graph: data.source_graph },
@@ -185,6 +193,14 @@ export const registerRealtimeEvents = (realtime) => {
           store.dispatch('element/forceCreate', {
             page: targetCtx.page,
             element,
+          })
+        }
+        // Re-add the workflow actions on the target page so they stay associated
+        // with their (now relocated) elements.
+        for (const workflowAction of data.workflow_actions || []) {
+          store.dispatch('builderWorkflowAction/forceCreate', {
+            page: targetCtx.page,
+            workflowAction,
           })
         }
       }

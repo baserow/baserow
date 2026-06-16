@@ -300,6 +300,108 @@ describe('element store', () => {
     })
   })
 
+  describe('move', () => {
+    test('cross-page move relocates the element workflow actions', async () => {
+      // Regression: moving an element to another page (e.g. to the shared page)
+      // must move its workflow actions along too, otherwise they are stranded on
+      // the source page and appear disassociated from the element.
+      const button = { id: 5, type: 'button', place_in_container: '' }
+      const sourcePage = { ...makePage({ 0: 5, 5: {} }, [button]), id: 1 }
+      const targetPage = { ...makePage({}, []), id: 2 }
+
+      const workflowAction = { id: 9, element_id: 5, page_id: sourcePage.id }
+
+      const dispatched = []
+      const dispatch = vi.fn((action, payload, opts) => {
+        dispatched.push({ action, payload })
+      })
+
+      const context = {
+        commit: vi.fn(),
+        dispatch,
+        getters: {
+          getElementById: () => button,
+          getParent: () => null,
+        },
+        rootGetters: {
+          'builderWorkflowAction/getElementWorkflowActions': (page, id) =>
+            id === button.id ? [workflowAction] : [],
+        },
+      }
+
+      // wrapMove just runs its callback; the backend call is debounced and never
+      // fires within this synchronous assertion window.
+      const thisCtx = {
+        $client: {},
+        $registry: { get: () => ({ wrapMove: (ctxArg, cb) => cb() }) },
+      }
+
+      await elementStore.actions.move.call(thisCtx, context, {
+        builder: {},
+        page: sourcePage,
+        elementId: button.id,
+        referenceElementId: null,
+        position: 'south',
+        placeInContainer: '',
+        targetPage,
+      })
+
+      const wa = (action) =>
+        dispatched.filter((d) => d.action === action).map((d) => d.payload)
+
+      expect(wa('builderWorkflowAction/forceDelete')).toEqual([
+        { page: sourcePage, workflowActionId: 9 },
+      ])
+      expect(wa('builderWorkflowAction/forceCreate')).toEqual([
+        {
+          page: targetPage,
+          workflowAction: { id: 9, element_id: 5, page_id: targetPage.id },
+        },
+      ])
+    })
+
+    test('same-page move does not touch workflow actions', async () => {
+      const button = { id: 5, type: 'button', place_in_container: '' }
+      const first = el(1)
+      const page = makePage({ 0: 1, 1: { next: { '': [5] } }, 5: {} }, [
+        first,
+        button,
+      ])
+
+      const dispatched = []
+      const dispatch = vi.fn((action, payload) => {
+        dispatched.push({ action, payload })
+      })
+
+      const context = {
+        commit: vi.fn(),
+        dispatch,
+        getters: { getElementById: () => button, getParent: () => null },
+        rootGetters: {
+          'builderWorkflowAction/getElementWorkflowActions': () => [],
+        },
+      }
+      const thisCtx = {
+        $client: {},
+        $registry: { get: () => ({ wrapMove: (ctxArg, cb) => cb() }) },
+      }
+
+      await elementStore.actions.move.call(thisCtx, context, {
+        builder: {},
+        page,
+        elementId: button.id,
+        referenceElementId: first.id,
+        position: 'north',
+        placeInContainer: '',
+        targetPage: null,
+      })
+
+      expect(
+        dispatched.some((d) => d.action.startsWith('builderWorkflowAction/'))
+      ).toBe(false)
+    })
+  })
+
   describe('getRootElements', () => {
     test('appends elements absent from the graph as bottom root elements', () => {
       // Regression: an Element that exists on the page but is missing from the

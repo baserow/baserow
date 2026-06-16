@@ -485,7 +485,7 @@ const actions = {
     return elements
   },
   async move(
-    { commit, dispatch, getters },
+    { commit, dispatch, getters, rootGetters },
     {
       builder,
       page,
@@ -534,6 +534,20 @@ const actions = {
       finalSourceGraph = sourceHandler.graph
       finalTargetGraph = targetHandler.graph
     }
+
+    // A workflow action's page follows its element across pages, so capture the
+    // moved subtree's actions (from the source page) up front and relocate them to
+    // the target page's store below — otherwise they'd be stranded on the source
+    // page and appear disassociated from their element. Captured before any store
+    // mutation so the lookup still sees them on the source page.
+    const subtreeWorkflowActions = isCrossPage
+      ? subtreeElements.flatMap((subtreeElement) =>
+          rootGetters['builderWorkflowAction/getElementWorkflowActions'](
+            page,
+            subtreeElement.id
+          )
+        )
+      : []
 
     const elementType = $registry.get('element', element.type)
 
@@ -586,6 +600,26 @@ const actions = {
       )
       updateCachedValues(page)
       updateCachedValues(resolvedTargetPage)
+
+      // Relocate the subtree's workflow actions to the target page's store.
+      for (const workflowAction of subtreeWorkflowActions) {
+        dispatch(
+          'builderWorkflowAction/forceDelete',
+          { page, workflowActionId: workflowAction.id },
+          { root: true }
+        )
+        dispatch(
+          'builderWorkflowAction/forceCreate',
+          {
+            page: resolvedTargetPage,
+            workflowAction: {
+              ...workflowAction,
+              page_id: resolvedTargetPage.id,
+            },
+          },
+          { root: true }
+        )
+      }
     }
 
     const fire = async () => {
@@ -646,6 +680,22 @@ const actions = {
               page,
               element: getters.getElementById(page, subtreeElement.id),
             })
+          }
+          // Move the workflow actions back to the source page too.
+          for (const workflowAction of subtreeWorkflowActions) {
+            dispatch(
+              'builderWorkflowAction/forceDelete',
+              { page: resolvedTargetPage, workflowActionId: workflowAction.id },
+              { root: true }
+            )
+            dispatch(
+              'builderWorkflowAction/forceCreate',
+              {
+                page,
+                workflowAction: { ...workflowAction, page_id: page.id },
+              },
+              { root: true }
+            )
           }
           updateCachedValues(resolvedTargetPage)
         }
