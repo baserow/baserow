@@ -26,10 +26,14 @@ export default {
       return this.field
     },
     isValid() {
-      return this.errorMsg === null
+      return this.getError() === null
     },
     getError() {
-      return this.errorMsg
+      // `errorMsg` holds the parse error captured while the user types, because
+      // partially-typed text may not round-trip to `value`. When there is no
+      // such error, fall back to the field-type validation so a required,
+      // untouched, empty field still reports its error (e.g. on form submit).
+      return this.errorMsg ?? this.getValidationError(this.value)
     },
     formatValue(field, value) {
       // This function is used also in functional components,

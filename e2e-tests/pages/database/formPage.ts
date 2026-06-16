@@ -88,6 +88,6 @@ export class FormPage extends BaserowPage {
   }
 
   requiredError(fieldName: string): Locator {
-    return this.fieldWrapper(fieldName).locator(".error");
+    return this.fieldWrapper(fieldName).locator(".control__messages--error");
   }
 }

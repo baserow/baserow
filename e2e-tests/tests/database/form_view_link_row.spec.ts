@@ -167,6 +167,10 @@ test.describe("Form view link-row field", () => {
     await page.waitForTimeout(1000);
     expect(submitCount()).toBe(0);
     await formPage.expectNotSubmitted();
+
+    // Blocking silently is not enough: the respondent needs to see why the
+    // form did not submit, so the required error must be visible.
+    await expect(formPage.requiredError("Duration")).toBeVisible();
   });
 
   test("a required link field is satisfied by an empty-primary row", async ({
