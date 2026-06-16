@@ -1729,7 +1729,7 @@ export class LinkRowFieldType extends FieldType {
     return (
       !Array.isArray(value) ||
       value.length === 0 ||
-      value.some((v) => !Number.isInteger(v.id))
+      value.every((v) => !Number.isInteger(v.id))
     )
   }
 

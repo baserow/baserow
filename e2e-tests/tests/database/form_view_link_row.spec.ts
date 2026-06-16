@@ -1,6 +1,6 @@
 import { expect, test } from "../baserowTest";
 import { createDatabase } from "../../fixtures/database/database";
-import { createTableWithData, Table } from "../../fixtures/database/table";
+import { createTable, Table } from "../../fixtures/database/table";
 import { createField, Field } from "../../fixtures/database/field";
 import { getRows } from "../../fixtures/database/rows";
 import {
@@ -33,7 +33,7 @@ async function buildScenario(
 
   // Linked table with one named row and one empty-primary row.
   const namedRowName = "Visible Link";
-  const linkedTable = await createTableWithData(user, "Places", database, [
+  const linkedTable = await createTable(user, "Places", database, [
     ["Name"],
     [namedRowName],
     [""],
@@ -46,9 +46,7 @@ async function buildScenario(
 
   // Target table that holds the form. Only a primary field for now; each test
   // adds the fields it needs.
-  const targetTable = await createTableWithData(user, "Entries", database, [
-    ["Title"],
-  ]);
+  const targetTable = await createTable(user, "Entries", database, [["Title"]]);
   const linkField = await createField(
     user,
     "Place",
