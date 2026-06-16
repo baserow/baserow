@@ -19,6 +19,8 @@ import {
   CHOICE_OPTION_TYPES,
   IFRAME_SOURCE_TYPES,
   IMAGE_SOURCE_TYPES,
+  PAGE_ELEMENT_ALIGNMENTS,
+  PAGE_ELEMENT_BEHAVIOURS,
 } from '@baserow/modules/builder/enums'
 
 describe('elementTypes tests', () => {
@@ -1432,6 +1434,17 @@ describe('elementTypes tests', () => {
           style_padding_top: 20,
         }
       )
+    })
+  })
+
+  describe('SimpleContainerElementType tests', () => {
+    test('getDefaultValues returns page positioning defaults', () => {
+      const elementType = testApp.$registry.get('element', 'simple_container')
+
+      expect(elementType.getDefaultValues({}, {})).toMatchObject({
+        behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+        alignment: PAGE_ELEMENT_ALIGNMENTS.TOP,
+      })
     })
   })
 

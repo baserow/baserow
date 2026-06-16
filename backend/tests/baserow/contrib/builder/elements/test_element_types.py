@@ -30,6 +30,7 @@ from baserow.contrib.builder.elements.element_types import (
     InputTextElementType,
     LinkElementType,
     RecordSelectorElementType,
+    SimpleContainerElementType,
     TextElementType,
     collection_element_types,
 )
@@ -46,6 +47,9 @@ from baserow.contrib.builder.elements.models import (
     LinkElement,
     RatingInputElement,
     RecordSelectorElement,
+    SimpleContainerElement,
+    TableElement,
+    TextElement,
 )
 from baserow.contrib.builder.elements.registries import (
     ElementType,
@@ -109,6 +113,25 @@ def test_import_element(data_fixture, element_type: ElementType):
 
     for key, value in pytest_params.items():
         assert getattr(element, key) == value
+
+
+@pytest.mark.django_db
+def test_simple_container_element_type_positioning_fields(data_fixture):
+    element_type = SimpleContainerElementType()
+    page = data_fixture.create_builder_page()
+    element = data_fixture.create_builder_element(
+        SimpleContainerElement,
+        page=page,
+        behaviour=SimpleContainerElement.PAGE_BEHAVIOURS.FIXED,
+        alignment=SimpleContainerElement.PAGE_ALIGNMENTS.BOTTOM,
+    )
+
+    serialized = element_type.export_serialized(element)
+
+    assert "behaviour" in element_type.allowed_fields
+    assert "alignment" in element_type.allowed_fields
+    assert serialized["behaviour"] == SimpleContainerElement.PAGE_BEHAVIOURS.FIXED
+    assert serialized["alignment"] == SimpleContainerElement.PAGE_ALIGNMENTS.BOTTOM
 
 
 @pytest.mark.django_db

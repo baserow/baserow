@@ -112,6 +112,17 @@ export const PAGE_PLACES = {
   FOOTER: 'footer',
 }
 
+export const PAGE_ELEMENT_BEHAVIOURS = {
+  NORMAL: 'normal',
+  STICKY: 'sticky',
+  FIXED: 'fixed',
+}
+
+export const PAGE_ELEMENT_ALIGNMENTS = {
+  TOP: 'top',
+  BOTTOM: 'bottom',
+}
+
 export const WIDTH_TYPES = {
   SMALL: { value: 'small', name: 'widthTypes.small' },
   MEDIUM: { value: 'medium', name: 'widthTypes.medium' },

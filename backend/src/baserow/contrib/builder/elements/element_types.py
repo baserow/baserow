@@ -408,10 +408,28 @@ class SimpleContainerElementType(ContainerElementTypeMixin, ElementType):
     model_class = SimpleContainerElement
 
     class SerializedDict(ContainerElementTypeMixin.SerializedDict):
-        pass
+        behaviour: str
+        alignment: str
+
+    @property
+    def allowed_fields(self):
+        return super().allowed_fields + [
+            "behaviour",
+            "alignment",
+        ]
+
+    @property
+    def serializer_field_names(self):
+        return super().serializer_field_names + [
+            "behaviour",
+            "alignment",
+        ]
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
-        return {}
+        return {
+            "behaviour": SimpleContainerElement.PAGE_BEHAVIOURS.STICKY,
+            "alignment": SimpleContainerElement.PAGE_ALIGNMENTS.BOTTOM,
+        }
 
 
 class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):

@@ -6,6 +6,27 @@
   >
     <PreviewNavigationBar :page="currentPage" :style="{ maxWidth }" />
     <div ref="preview" class="page-preview" :style="{ 'max-width': maxWidth }">
+      <!-- Fixed root containers are rendered outside the scrollable preview so they stay aligned with the viewport. -->
+      <ThemeProvider
+        ref="fixedElements"
+        class="page-preview__fixed-elements"
+        :class="{
+          'page-preview__fixed-elements--preview-locked': isPreviewLocked,
+        }"
+      >
+        <ElementPreview
+          v-for="element in fixedContentElements"
+          :key="element.id"
+          :element="element"
+          :is-first-element="element.id === firstPreviewElementId"
+          :application-context-additions="{
+            recordIndexPath: [],
+            page: currentPage,
+          }"
+          :show-element-id="showElementId"
+          @move="moveElement($event)"
+        />
+      </ThemeProvider>
       <div
         ref="previewScaled"
         class="page-preview__scaled"
@@ -26,11 +47,10 @@
               }"
             >
               <ElementPreview
-                v-for="(element, index) in headerElements"
+                v-for="element in headerElements"
                 :key="element.id"
                 :element="element"
-                :is-first-element="index === 0"
-                :is-copying="copyingElementIndex === index"
+                :is-first-element="element.id === firstPreviewElementId"
                 :application-context-additions="{
                   recordIndexPath: [],
                   page: currentPage,
@@ -54,7 +74,7 @@
               @add-element="$refs.addElementModal.show()"
             />
           </template>
-          <template v-else>
+          <template v-else-if="scrollableContentElements.length !== 0">
             <div
               class="page__content"
               :class="{
@@ -63,11 +83,10 @@
               }"
             >
               <ElementPreview
-                v-for="(element, index) in elements"
+                v-for="element in scrollableContentElements"
                 :key="element.id"
                 :element="element"
-                :is-first-element="index === 0 && headerElements.length === 0"
-                :is-copying="copyingElementIndex === index"
+                :is-first-element="element.id === firstPreviewElementId"
                 :application-context-additions="{
                   recordIndexPath: [],
                   page: currentPage,
@@ -91,15 +110,10 @@
               }"
             >
               <ElementPreview
-                v-for="(element, index) in footerElements"
+                v-for="element in footerElements"
                 :key="element.id"
                 :element="element"
-                :is-first-element="
-                  index === 0 &&
-                  headerElements.length === 0 &&
-                  elements.length === 0
-                "
-                :is-copying="copyingElementIndex === index"
+                :is-first-element="element.id === firstPreviewElementId"
                 :application-context-additions="{
                   recordIndexPath: [],
                   page: currentPage,
@@ -137,6 +151,7 @@ import AddElementModal from '@baserow/modules/builder/components/elements/AddEle
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider.vue'
 import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
+import { isFixedRootContainer } from '@baserow/modules/builder/utils/rootContainerPositioning'
 
 export default {
   name: 'PagePreview',
@@ -158,9 +173,6 @@ export default {
   },
   data() {
     return {
-      // The element that is currently being copied
-      copyingElementIndex: null,
-
       // The resize observer to resize the preview when the wrapper size change
       resizeObserver: null,
 
@@ -204,6 +216,12 @@ export default {
     elements() {
       return this.$store.getters['element/getRootElements'](this.currentPage)
     },
+    fixedContentElements() {
+      return this.elements.filter(isFixedRootContainer)
+    },
+    scrollableContentElements() {
+      return this.elements.filter((element) => !isFixedRootContainer(element))
+    },
     sharedPage() {
       return this.$store.getters['page/getSharedPage'](this.builder)
     },
@@ -222,6 +240,14 @@ export default {
         (element) =>
           this.$registry.get('element', element.type).getPagePlace() ===
           PAGE_PLACES.FOOTER
+      )
+    },
+    firstPreviewElementId() {
+      return (
+        this.headerElements[0]?.id ||
+        this.elements[0]?.id ||
+        this.footerElements[0]?.id ||
+        null
       )
     },
     elementSelectedId() {
@@ -344,7 +370,7 @@ export default {
     this.onWindowResized()
   },
   beforeUnmount() {
-    this.resizeObserver.disconnect()
+    this.resizeObserver?.disconnect()
     document.removeEventListener('keydown', this.preventScrollIfFocused)
   },
   methods: {
@@ -395,10 +421,26 @@ export default {
       previewScaled.style.transformOrigin = `0 0`
       previewScaled.style.width = `${currentWidth / scale}px`
       previewScaled.style.height = `${currentHeight / scale}px`
+      this.updateFixedElementsScale({
+        scale,
+        width: currentWidth / scale,
+        height: currentHeight / scale,
+      })
 
       // Also update page top
       this.pageTop.value =
         this.$refs.preview.getBoundingClientRect().top + 30 * scale
+    },
+    updateFixedElementsScale({ scale, width, height }) {
+      const fixedElements =
+        this.$refs.fixedElements?.$el || this.$refs.fixedElements
+      if (!fixedElements) {
+        return
+      }
+      fixedElements.style.transform = `scale(${scale})`
+      fixedElements.style.transformOrigin = `0 0`
+      fixedElements.style.width = `${width}px`
+      fixedElements.style.height = `${height}px`
     },
     async moveElement({ element, direction }) {
       if (

@@ -50,6 +50,18 @@
 .element-preview {
   position: relative;
 
+  &.element--position-sticky {
+    position: sticky;
+  }
+
+  &.element--position-fixed {
+    position: fixed;
+  }
+
+  .page-preview__fixed-elements & {
+    pointer-events: auto;
+  }
+
   &:hover {
     & > .element-preview__insert,
     & > .element-preview__menu {
@@ -60,6 +72,15 @@
   }
 
   .page-preview__scaled--preview-locked &:hover {
+    & > .element-preview__insert,
+    & > .element-preview__menu {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+  }
+
+  .page-preview__fixed-elements--preview-locked &:hover {
     & > .element-preview__insert,
     & > .element-preview__menu {
       opacity: 0;
@@ -94,6 +115,7 @@
       content: '';
       border: solid 1px $color-primary-500;
       pointer-events: none;
+      z-index: 1;
 
       .page__header &,
       .page__footer & {
@@ -111,6 +133,7 @@
       content: '';
       border: solid 1px $palette-neutral-300;
       pointer-events: none;
+      z-index: 1;
     }
   }
 

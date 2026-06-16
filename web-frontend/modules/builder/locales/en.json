@@ -283,7 +283,8 @@
     "noMenuItemsMessage": "Click 'Add' to add your first menu item."
   },
   "simpleContainerElementForm": {
-    "noConfigurationOptions": "The container element does not have any configuration options."
+    "behaviourLabel": "Page behaviour",
+    "alignmentLabel": "Page alignment"
   },
   "imageElement": {
     "missingValue": "Missing alt text...",
@@ -1090,5 +1091,14 @@
   "previewPublishGuidedTourStep": {
     "title": "Preview & Publish Your App",
     "content": "Click **Preview** to test your app privately. When ready, click **Publish** to share it with the public via a domain."
+  },
+  "pageElementBehaviour": {
+    "normal": "Normal",
+    "sticky": "Sticky",
+    "fixed": "Fixed"
+  },
+  "pageElementAlignment": {
+    "top": "Top",
+    "bottom": "Bottom"
   }
 }

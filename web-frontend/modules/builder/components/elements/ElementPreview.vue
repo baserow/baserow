@@ -3,17 +3,7 @@
     ref="elementPreviewRef"
     :key="element.id"
     class="element-preview"
-    :class="{
-      'element-preview--active': isSelected,
-      'element-preview--parent-of-selected': isParentOfSelectedElement,
-      'element-preview--in-error': !!errorMessage,
-      'element-preview--on-top': isSelected && isAboveThreshold,
-      'element-preview--not-visible':
-        !isVisible && !isSelected && !isParentOfSelectedElement,
-      'element-preview--dragged': isDragged,
-      'element-preview--drop-before': isDropTarget && dropPosition === 'before',
-      'element-preview--drop-after': isDropTarget && dropPosition === 'after',
-    }"
+    :class="elementPreviewClasses"
     :draggable="isDraggable"
     @click="onSelect"
     @mousedown="canUpdate && isSelected && onDragHandleMouseDown($event)"
@@ -58,6 +48,7 @@
       :mode="mode"
       class="element--read-only"
       :show-element-id="showElementId"
+      :disable-root-container-positioning="hasRootContainerPositioning"
       @move="$emit('move', $event)"
     />
 
@@ -88,6 +79,7 @@ import { checkIntermediateElements } from '@baserow/modules/core/utils/dom'
 import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
 import { useElementDraggable } from '@baserow/modules/builder/composables/useElementDraggable'
 import { useDropElementTarget } from '@baserow/modules/builder/composables/useDropElementTarget'
+import { getRootContainerPositioningClasses } from '@baserow/modules/builder/utils/rootContainerPositioning'
 
 export default {
   name: 'ElementPreview',
@@ -301,6 +293,30 @@ export default {
         this.element,
         this.applicationContext
       )
+    },
+    rootContainerPositioningClasses() {
+      return getRootContainerPositioningClasses(this.element)
+    },
+    hasRootContainerPositioning() {
+      return Object.keys(this.rootContainerPositioningClasses).length > 0
+    },
+    elementPreviewClasses() {
+      return {
+        ...this.rootContainerPositioningClasses,
+        'element-preview--active': this.isSelected,
+        'element-preview--parent-of-selected': this.isParentOfSelectedElement,
+        'element-preview--in-error': !!this.errorMessage,
+        'element-preview--on-top': this.isSelected && this.isAboveThreshold,
+        'element-preview--not-visible':
+          !this.isVisible &&
+          !this.isSelected &&
+          !this.isParentOfSelectedElement,
+        'element-preview--dragged': this.isDragged,
+        'element-preview--drop-before':
+          this.isDropTarget && this.dropPosition === 'before',
+        'element-preview--drop-after':
+          this.isDropTarget && this.dropPosition === 'after',
+      }
     },
   },
   watch: {

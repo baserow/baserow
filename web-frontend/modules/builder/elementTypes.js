@@ -28,6 +28,8 @@ import {
   IFRAME_SOURCE_TYPES,
   DIRECTIONS,
   PAGE_PLACES,
+  PAGE_ELEMENT_ALIGNMENTS,
+  PAGE_ELEMENT_BEHAVIOURS,
 } from '@baserow/modules/builder/enums'
 import ColumnElement from '@baserow/modules/builder/components/elements/components/ColumnElement'
 import ColumnElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ColumnElementForm'
@@ -1195,6 +1197,8 @@ export class SimpleContainerElementType extends ContainerElementTypeMixin(
     const superValues = super.getDefaultValues(page, values, parentElement)
     return {
       ...superValues,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+      alignment: PAGE_ELEMENT_ALIGNMENTS.TOP,
       style_padding_left: 0,
       style_padding_right: 0,
       style_padding_top: 0,
