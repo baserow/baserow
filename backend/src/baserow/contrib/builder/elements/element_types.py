@@ -19,6 +19,7 @@ from typing import (
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db.models import Q, QuerySet
+from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -133,6 +134,7 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
     in a column.
     """
 
+    display_name = _("Column")
     type = "column"
     model_class = ColumnElement
 
@@ -215,6 +217,7 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
 
 
 class FormContainerElementType(ContainerElementTypeMixin, ElementType):
+    display_name = _("Form")
     type = "form_container"
     model_class = FormContainerElement
     allowed_fields = [
@@ -286,6 +289,7 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
 
 
 class SimpleContainerElementType(ContainerElementTypeMixin, ElementType):
+    display_name = _("Container")
     type = "simple_container"
     model_class = SimpleContainerElement
 
@@ -297,6 +301,7 @@ class SimpleContainerElementType(ContainerElementTypeMixin, ElementType):
 
 
 class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
+    display_name = _("Table")
     type = "table"
     model_class = TableElement
 
@@ -361,6 +366,7 @@ class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
 class RepeatElementType(
     CollectionElementTypeMixin, ContainerElementTypeMixin, ElementType
 ):
+    display_name = _("Repeat")
     type = "repeat"
     model_class = RepeatElement
 
@@ -428,6 +434,7 @@ class RepeatElementType(
 class RecordSelectorElementType(
     FormElementTypeMixin, CollectionElementTypeMixin, ElementType
 ):
+    display_name = _("Record selector")
     type = "record_selector"
     model_class = RecordSelectorElement
     simple_formula_fields = CollectionElementTypeMixin.simple_formula_fields + [
@@ -676,6 +683,7 @@ class HeadingElementType(ElementType):
     A simple heading element that can be used to display a title.
     """
 
+    display_name = _("Heading")
     type = "heading"
     model_class = HeadingElement
     serializer_field_names = ["value", "level"]
@@ -742,6 +750,7 @@ class TextElementType(ElementType):
     A text element that allows plain or markdown content.
     """
 
+    display_name = _("Text")
     type = "text"
     model_class = TextElement
     serializer_field_names = ["value", "format"]
@@ -963,6 +972,7 @@ class LinkElementType(ElementType):
     A link element that can be used to navigate to a page or a URL.
     """
 
+    display_name = _("Link")
     type = "link"
     model_class = LinkElement
     simple_formula_fields = NavigationElementManager.simple_formula_fields + ["value"]
@@ -1100,6 +1110,7 @@ class ImageElementType(ElementType):
     or via an uploaded file
     """
 
+    display_name = _("Image")
     type = "image"
     model_class = ImageElement
     serializer_field_names = [
@@ -1263,6 +1274,7 @@ class InputElementType(FormElementTypeMixin, ElementType, abc.ABC):
 
 
 class RatingElementType(ElementType):
+    display_name = _("Rating")
     type = "rating"
     model_class = RatingElement
     allowed_fields = [
@@ -1309,6 +1321,7 @@ class RatingElementType(ElementType):
 
 
 class RatingInputElementType(InputElementType):
+    display_name = _("Rating input")
     type = "rating_input"
     model_class = RatingInputElement
     allowed_fields = [
@@ -1394,6 +1407,7 @@ class RatingInputElementType(InputElementType):
 
 
 class InputTextElementType(InputElementType):
+    display_name = _("Input text")
     type = "input_text"
     model_class = InputTextElement
     allowed_fields = [
@@ -1533,6 +1547,7 @@ class InputTextElementType(InputElementType):
 
 
 class ButtonElementType(ElementType):
+    display_name = _("Button")
     type = "button"
     model_class = ButtonElement
     allowed_fields = ["value"]
@@ -1577,6 +1592,7 @@ class ButtonElementType(ElementType):
 
 
 class CheckboxElementType(InputElementType):
+    display_name = _("Checkbox")
     type = "checkbox"
     model_class = CheckboxElement
     allowed_fields = ["label", "default_value", "required"]
@@ -1650,6 +1666,7 @@ class CheckboxElementType(InputElementType):
 
 
 class ChoiceElementType(FormElementTypeMixin, ElementType):
+    display_name = _("Choice")
     type = "choice"
     model_class = ChoiceElement
     allowed_fields = [
@@ -1962,6 +1979,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
 
 
 class IFrameElementType(ElementType):
+    display_name = _("Iframe")
     type = "iframe"
     model_class = IFrameElement
     allowed_fields = ["source_type", "url", "embed", "height"]
@@ -2020,6 +2038,7 @@ class IFrameElementType(ElementType):
 
 
 class DateTimePickerElementType(FormElementTypeMixin, ElementType):
+    display_name = _("Date time picker")
     type = "datetime_picker"
     model_class = DateTimePickerElement
     allowed_fields = [
@@ -2163,6 +2182,7 @@ class HeaderElementType(MultiPageContainerElementType):
     A container element that can be displayed on multiple pages.
     """
 
+    display_name = _("Shared header")
     type = "header"
     model_class = HeaderElement
 
@@ -2172,6 +2192,7 @@ class FooterElementType(MultiPageContainerElementType):
     A container element that can be displayed on multiple pages.
     """
 
+    display_name = _("Shared footer")
     type = "footer"
     model_class = FooterElement
 
@@ -2181,6 +2202,7 @@ class MenuElementType(ElementType):
     A Menu element that provides navigation capabilities to the application.
     """
 
+    display_name = _("Menu")
     type = "menu"
     model_class = MenuElement
     serializer_field_names = ["orientation", "alignment", "menu_items", "variant"]

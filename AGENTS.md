@@ -33,7 +33,7 @@ Frontend code uses Vue 3, Nuxt 3, Vuex, Vite, Vitest, Storybook, SCSS, ESLint, S
 
 Backend tests use `pytest` with `pytest-django`; frontend tests use `vitest`; browser flows live in `e2e-tests/`. Add unit tests for backend changes and targeted frontend tests for component or store behavior. 
 
-Examples: `just b test backend/tests/path/`, `just b test-coverage`, `just f test -- --coverage`, `just f yarn test:core path/to/test`.
+Examples: `just b test tests/path/`, `just b test-coverage`, `just f test -- --coverage`, `just f yarn test:core path/to/test`.
 
 ## Commit & Pull Request Guidelines
 

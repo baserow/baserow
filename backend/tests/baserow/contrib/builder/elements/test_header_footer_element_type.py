@@ -56,10 +56,14 @@ def test_header_footer_prepare_value_for_db(data_fixture, element_type):
         [page1.id, page2.id]
     )
 
-    updated_element = ElementService().update_element(
-        user,
-        created_element,
-        pages=[page1, page4, shared_page],
+    updated_element = (
+        ElementService()
+        .update_element(
+            user,
+            created_element,
+            pages=[page1, page4, shared_page],
+        )
+        .element
     )
 
     assert sorted([p.id for p in updated_element.pages.all()]) == sorted([page1.id])

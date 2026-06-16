@@ -47,6 +47,7 @@ from baserow.contrib.builder.elements.operations import (
     ListElementsPageOperationType,
     OrderElementsPageOperationType,
     ReadElementOperationType,
+    RestoreElementOperationType,
     UpdateElementOperationType,
 )
 from baserow.contrib.builder.operations import (
@@ -60,6 +61,7 @@ from baserow.contrib.builder.pages.operations import (
     DeletePageOperationType,
     DuplicatePageOperationType,
     ReadPageOperationType,
+    RestorePageOperationType,
     UpdatePageOperationType,
 )
 from baserow.contrib.builder.theme.operations import UpdateThemeOperationType
@@ -456,6 +458,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         CreatePageOperationType,
         DeletePageOperationType,
         UpdatePageOperationType,
+        RestorePageOperationType,
         UpdateThemeOperationType,
         DuplicatePageOperationType,
         CreateTableDatabaseTableOperationType,
@@ -522,6 +525,7 @@ default_roles[BUILDER_ROLE_UID].extend(
         CreateElementOperationType,
         UpdateElementOperationType,
         DeleteElementOperationType,
+        RestoreElementOperationType,
         ReadElementOperationType,
         ListElementsPageOperationType,
         OrderElementsPageOperationType,

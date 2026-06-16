@@ -280,7 +280,13 @@ const actions = {
         updatedValues
       )
 
-      commit('ADD_ITEM', { page, element })
+      // Add the element to the store exactly once. When forceCreate is set we
+      // add it via the forceCreate action below; adding it here as well would
+      // push a duplicate into page.elements, and DELETE_ITEM (which removes a
+      // single occurrence) would then leave a "phantom" copy behind on delete.
+      if (!forceCreate) {
+        commit('ADD_ITEM', { page, element })
+      }
 
       dispatch('graphReplace', {
         page,

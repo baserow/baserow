@@ -478,8 +478,8 @@ def _header_footer_post_create(
     # If menu_items were provided on the header/footer itself, create a child
     # menu element — headers are containers, not menus.
     if el.menu_items:
+        from baserow.contrib.builder.elements.actions import CreateElementActionType
         from baserow.contrib.builder.elements.registries import element_type_registry
-        from baserow.contrib.builder.elements.service import ElementService
 
         menu_items_orm = [
             {
@@ -494,13 +494,15 @@ def _header_footer_post_create(
             for item in el.menu_items
         ]
         menu_type = element_type_registry.get("menu")
-        ElementService().create_element(
+        CreateElementActionType.do(
             user,
             menu_type,
             page,
-            reference_element_id=orm_element.id,
-            position=GraphPointPosition.CHILD,
-            menu_items=menu_items_orm,
+            {
+                "reference_element_id": orm_element.id,
+                "position": GraphPointPosition.CHILD,
+                "menu_items": menu_items_orm,
+            },
         )
 
 
@@ -659,7 +661,7 @@ def _update_simple_formulas(
     formulas: dict[str, str],
 ) -> None:
     """Default formula updater — sets fields directly on the element."""
-    from baserow.contrib.builder.elements.service import ElementService
+    from baserow.contrib.builder.elements.actions import UpdateElementActionType
 
     kwargs = {}
     for field_name, formula in formulas.items():
@@ -671,7 +673,7 @@ def _update_simple_formulas(
             )
 
     if kwargs:
-        ElementService().update_element(user, orm_element, **kwargs)
+        UpdateElementActionType.do(user, orm_element, kwargs)
 
 
 def _update_table_formulas(

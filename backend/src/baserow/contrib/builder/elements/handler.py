@@ -521,26 +521,6 @@ class ElementHandler:
 
         return element
 
-    def delete_element(self, element: Element):
-        """
-        Deletes an element and all of its graph-reachable descendants.
-
-        :param element: The to-be-deleted element.
-        """
-
-        page = element.page
-        element.get_type().before_delete(element)
-
-        result = page.get_graph().remove(element)
-        element.delete()
-
-        for dep in result.dependencies_removed:
-            specific = dep.specific
-            specific.get_type().before_delete(specific)
-            specific.delete()
-
-        self.invalidate_element_cache(page)
-
     def update_element(self, element: ElementForUpdate, **kwargs) -> Element:
         """
         Updates and element with values. Will also check if the values are allowed
@@ -676,10 +656,25 @@ class ElementHandler:
             workflow_actions=workflow_actions_duplicated,
         )
 
+        # The first child duplicated into a given place becomes the head of that
+        # slot (inserted as a CHILD of the duplicated parent); every subsequent
+        # child in the same place chains SOUTH of the previously duplicated
+        # sibling. This reproduces the original slot order faithfully and is
+        # independent of how insert(..., CHILD, ...) orders multiple children
+        # (which prepends, to stay the inverse of get_position).
+        last_duplicated_in_place: Dict[str, Element] = {}
         for child in element.get_child_points():
+            place = child.place_in_container
+            if place in last_duplicated_in_place:
+                child_reference = last_duplicated_in_place[place]
+                child_position = GraphPointPosition.SOUTH
+            else:
+                child_reference = element_duplicated
+                child_position = GraphPointPosition.CHILD
             children_duplicated = self._duplicate_element_recursive(
-                child.specific, id_mapping, element_duplicated, GraphPointPosition.CHILD
+                child.specific, id_mapping, child_reference, child_position
             )
+            last_duplicated_in_place[place] = children_duplicated["elements"][0]
             elements_and_workflow_actions_duplicated["elements"] += children_duplicated[
                 "elements"
             ]

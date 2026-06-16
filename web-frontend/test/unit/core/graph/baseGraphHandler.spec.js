@@ -472,6 +472,15 @@ describe('BaseGraphHandler', () => {
       expect(source.graph['0']).toBe(3)
     })
 
+    test('moving a point relative to itself is a no-op', () => {
+      // Mirrors the reported crash: a table is the sole child of a container and
+      // is dropped onto itself, so it becomes its own move reference. move() must
+      // not throw, and the graph must be left unchanged.
+      const h = make({ 0: 1, 1: { children: { '': [2] } }, 2: {} }, pm(1, 2))
+      expect(() => h.move(pt(2), pt(2), 'south', '')).not.toThrow()
+      expect(h.graph).toEqual({ 0: 1, 1: { children: { '': [2] } }, 2: {} })
+    })
+
     test('null reference + south appends to end of chain', () => {
       // pt(1) -> pt(2) -> pt(3); move pt(1) to last position
       const h = make(

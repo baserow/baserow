@@ -17,6 +17,7 @@ from baserow.contrib.builder.workflow_actions.models import NotificationWorkflow
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict
 
 
@@ -167,8 +168,13 @@ def test_delete_table_element_remove_fields(data_fixture):
 
     assert CollectionField.objects.count() == 3
 
+    # Deleting only soft-trashes the element; its fields must survive so a restore
+    # can bring them back.
     ElementService().delete_element(user, table_element)
+    assert CollectionField.objects.count() == 3
 
+    # Permanently deleting the element removes the fields for good.
+    TrashHandler.permanently_delete(table_element)
     assert CollectionField.objects.count() == 0
 
 
@@ -385,7 +391,13 @@ def test_delete_table_element_removes_associated_workflow_actions(data_fixture):
     )
 
     assert NotificationWorkflowAction.objects.count() == 1
+
+    # Deleting only soft-trashes the element; its fields' workflow actions survive.
     ElementService().delete_element(user, table_element)
+    assert NotificationWorkflowAction.objects.count() == 1
+
+    # Permanently deleting the element removes the associated workflow actions.
+    TrashHandler.permanently_delete(table_element)
     assert NotificationWorkflowAction.objects.count() == 0
 
 

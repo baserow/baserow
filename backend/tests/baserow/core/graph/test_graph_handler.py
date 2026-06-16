@@ -233,11 +233,14 @@ def test_insert_permutations():
     graph.insert(p4, p2, "child", output="0")
     assert model.graph["2"]["children"]["0"] == [4]
 
-    # Insert another child of p2 in same place "0" — chains after p4
+    # Insert another child of p2 in same place "0" — the new child becomes the
+    # head of the slot and the previous head (p4) becomes its next. This mirrors
+    # get_position (which reports "child" only for the head child) and the
+    # frontend's _insertAt, so move undo/redo round-trips for a head child.
     p5 = make_point(5, model)
     graph.insert(p5, p2, "child", output="0")
-    assert model.graph["2"]["children"]["0"] == [4]
-    assert model.graph["4"]["next"][""] == [5]
+    assert model.graph["2"]["children"]["0"] == [5]
+    assert model.graph["5"]["next"][""] == [4]
 
     # Insert into graph with existing root (None ref) — new point becomes
     # root, old root (p1) becomes its next.
@@ -262,12 +265,12 @@ def test_insert_permutations():
     assert model.graph["3"]["next"][""] == [8]
     assert model.graph["8"]["next"][""] == [2]
 
-    # Insert north of p4 which is a child head — new point replaces p4 in
-    # children dict, p4 becomes new point's next.
+    # Insert north of p5 which is now the child head — new point replaces p5 in
+    # children dict, p5 becomes new point's next.
     p9 = make_point(9, model)
-    graph.insert(p9, p4, "north", output="")
+    graph.insert(p9, p5, "north", output="")
     assert model.graph["2"]["children"]["0"] == [9]
-    assert model.graph["9"]["next"][""] == [4]
+    assert model.graph["9"]["next"][""] == [5]
 
 
 def test_append_permutations():
@@ -335,22 +338,23 @@ def test_get_children_permutations():
     assert graph.get_children(p1, output="0") == [p4]
     assert graph.get_children(p1, output="1") == []  # wrong slot
 
-    # Chain p5 south of p4 (same slot "0") — first_only=False follows the chain
+    # Insert p5 as a child of p1 in slot "0" — it prepends as the new head, so
+    # the slot chain becomes p5 -> p4. first_only=False follows the chain.
     p5 = make_point(5, model)
     graph.insert(p5, p1, "child", output="0")
-    assert graph.get_children(p1, first_only=False) == [p4, p5]
-    assert graph.get_children(p1, first_only=True) == [p4]  # only entry-point
-    assert graph.get_children(p1, output="0", first_only=False) == [p4, p5]
-    assert graph.get_children(p1, output="0", first_only=True) == [p4]
+    assert graph.get_children(p1, first_only=False) == [p5, p4]
+    assert graph.get_children(p1, first_only=True) == [p5]  # only entry-point
+    assert graph.get_children(p1, output="0", first_only=False) == [p5, p4]
+    assert graph.get_children(p1, output="0", first_only=True) == [p5]
 
     # Second slot "1" with its own child p6
     p6 = make_point(6, model)
     graph.insert(p6, p1, "child", output="1")
     # No output filter — both slots included
-    assert graph.get_children(p1, first_only=False) == [p4, p5, p6]
-    assert graph.get_children(p1, first_only=True) == [p4, p6]
+    assert graph.get_children(p1, first_only=False) == [p5, p4, p6]
+    assert graph.get_children(p1, first_only=True) == [p5, p6]
     # Per-slot filtering still works
-    assert graph.get_children(p1, output="0", first_only=False) == [p4, p5]
+    assert graph.get_children(p1, output="0", first_only=False) == [p5, p4]
     assert graph.get_children(p1, output="1") == [p6]
 
     # Nested container: p4 has its own child p7 — get_children(p1) does NOT descend

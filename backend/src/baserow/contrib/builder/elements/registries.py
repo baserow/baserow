@@ -18,6 +18,7 @@ from zipfile import ZipFile
 
 from django.core.files.storage import Storage
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -64,6 +65,8 @@ class ElementType(
     parent_property_name = "page"
     id_mapping_name = BUILDER_PAGE_ELEMENTS
 
+    display_name = _("Unnamed element")
+
     # Is this element type a container-type element?
     is_container = False
 
@@ -74,7 +77,7 @@ class ElementType(
         """
         Returns the places available from this element in the graph.
 
-        The default builder element place is the unnamed ``next`` edge.
+        The default builder element place is the unnamed `next` edge.
         Container elements override this to expose their child slots.
         """
 
@@ -98,6 +101,43 @@ class ElementType(
         :param instance: The existing instance that is being updated
         :return: Values that should be used for the update or creation of the element.
         """
+
+        return values
+
+    def export_prepared_values(self, instance: Element) -> Dict[str, Any]:
+        """
+        Returns a JSON-serializable dict of the element's `allowed_fields`, used by
+        the undo/redo `ActionHandler` to snapshot values so they can be restored
+        later. Relation fields are exported as their id so the result stays
+        JSON-serializable.
+
+        Note: re-applying a stored relation id through `update_element` only
+        round-trips for element types whose update path accepts that id (e.g. those
+        exposing an `<field>_id` allowed field). Update undo/redo therefore only
+        snapshots the fields actually changed by an update (see the update action),
+        keeping scalar/JSON field changes fully reversible.
+
+        :param instance: The element instance to export values for.
+        :return: A dict of prepared values keyed by field name.
+        """
+
+        from django.core.exceptions import FieldDoesNotExist
+
+        values: Dict[str, Any] = {}
+        for field_name in self.allowed_fields:
+            try:
+                model_field = instance._meta.get_field(field_name)
+            except FieldDoesNotExist:
+                values[field_name] = getattr(instance, field_name)
+                continue
+
+            if model_field.is_relation:
+                # Use the relation's attname (e.g. "data_source_id") to read the id,
+                # which keeps the value JSON-serializable. allowed_fields may already
+                # use the attname form, so we never construct "<name>_id" ourselves.
+                values[field_name] = getattr(instance, model_field.attname)
+            else:
+                values[field_name] = getattr(instance, field_name)
 
         return values
 

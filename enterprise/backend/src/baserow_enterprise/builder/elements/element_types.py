@@ -1,6 +1,8 @@
 import mimetypes
 from typing import Any, Dict, Optional
 
+from django.utils.translation import gettext_lazy as _
+
 from rest_framework import serializers
 
 from baserow.api.exceptions import RequestBodyValidationException
@@ -26,6 +28,7 @@ class AuthFormElementType(ElementType):
     Element that use the selected user source to generate the login form/buttons.
     """
 
+    display_name = _("Auth form")
     type = "auth_form"
     model_class = AuthFormElement
     allowed_fields = ["user_source", "user_source_id", "login_button_label"]
@@ -133,6 +136,7 @@ class AuthFormElementType(ElementType):
 
 
 class FileInputElementType(InputElementType):
+    display_name = _("File input")
     type = "input_file"
     model_class = FileInputElement
     allowed_fields = [

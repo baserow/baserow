@@ -540,9 +540,9 @@ class BaseGraphHandler(ABC):
         :return: The list of descendant points.
         """
 
-        return self._collect_all_descendants(point)
+        return self.collect_all_descendants(point)
 
-    def _collect_all_descendants(self, point: GraphPoint) -> List[GraphPoint]:
+    def collect_all_descendants(self, point: GraphPoint) -> List[GraphPoint]:
         """
         Returns all descendants (direct and transitive children) of a point in
         depth-first order, by recursing into each child returned by get_children.
@@ -551,7 +551,7 @@ class BaseGraphHandler(ABC):
         result = []
         for child in self.get_children(point):
             result.append(child)
-            result.extend(self._collect_all_descendants(child))
+            result.extend(self.collect_all_descendants(child))
         return result
 
     def merge_children_into_place(
@@ -736,19 +736,17 @@ class BaseGraphHandler(ABC):
             ref_info = self.get_info(reference_point)
             children_dict = self._get_children_dict(ref_info)
 
+            # The new point always becomes the *head* of the slot's children
+            # chain; the previous head (if any) becomes the new point's next on
+            # the default edge. This mirrors `get_position`, which only ever
+            # reports `(ref, "child", output)` for the head child (subsequent
+            # children are `(prev_sibling, "south", "")`), so prepending keeps
+            # insert the faithful inverse of get_position — required for move
+            # undo/redo to round-trip. It also matches the frontend's
+            # `_insertAt('child')`, keeping the optimistic graph consistent.
             if output in children_dict:
-                # Follow the next[""] chain from the first child to find the
-                # last element in the chain, then append the new point there.
-                current_id = children_dict[output][0]
-                while True:
-                    next_ids = self.get_info(current_id).get("next", {}).get("", [])
-                    if not next_ids:
-                        break
-                    current_id = next_ids[0]
-                self.get_info(current_id).setdefault("next", {})[""] = [point.id]
-            else:
-                # No children yet in this slot — set as the first child.
-                self._set_children(ref_info, output, [point.id])
+                new_next = children_dict[output]
+            self._set_children(ref_info, output, [point.id])
 
         if new_next:
             point_info["next"] = {"": new_next}
@@ -786,7 +784,7 @@ class BaseGraphHandler(ABC):
         if not keep_info:
             # Collect all descendants before touching the graph so that the traversal
             # still has access to the full graph structure.
-            dependencies = self._collect_all_descendants(point_to_delete)
+            dependencies = self.collect_all_descendants(point_to_delete)
             for dep in dependencies:
                 graph.pop(str(dep.id), None)
 
@@ -913,7 +911,7 @@ class BaseGraphHandler(ABC):
             # insert() sets the correct `next` for the new position.
             descendant_entries = {
                 str(d.id): deepcopy(self.get_info(d))
-                for d in self._collect_all_descendants(point_to_move)
+                for d in self.collect_all_descendants(point_to_move)
             }
             root_children = deepcopy(self.get_info(point_to_move).get("children"))
 
@@ -948,7 +946,7 @@ class BaseGraphHandler(ABC):
             removed.
         """
 
-        for dep in self._collect_all_descendants(point):
+        for dep in self.collect_all_descendants(point):
             self.graph.pop(str(dep.id), None)
         self.graph.pop(str(point.id), None)
         self._update_graph()

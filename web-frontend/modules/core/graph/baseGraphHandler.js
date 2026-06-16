@@ -247,17 +247,14 @@ export default class BaseGraphHandler {
       }
 
       case 'child': {
-        // Normalise legacy bare-array children to dict format before mutating, so
-        // moves/inserts into a container whose children haven't been rewritten yet
-        // don't bolt a string key onto an array (which getChildren would discard).
-        const refInfo = this.graph[referencePoint.id]
-        const childrenDict = this._getChildrenAsDict(refInfo.children)
-        if (!childrenDict[output]) {
-          childrenDict[output] = []
+        if (!this.graph[referencePoint.id].children) {
+          this.graph[referencePoint.id].children = {}
         }
-        newPointNext = childrenDict[output]
-        childrenDict[output] = [point.id]
-        refInfo.children = childrenDict
+        if (!this.graph[referencePoint.id].children[output]) {
+          this.graph[referencePoint.id].children[output] = []
+        }
+        newPointNext = this.graph[referencePoint.id].children[output]
+        this.graph[referencePoint.id].children[output] = [point.id]
         break
       }
 
@@ -422,6 +419,13 @@ export default class BaseGraphHandler {
   // into the target graph and removed from this (source) one. Its `next` (old
   // siblings) is NOT carried — insert() sets the new one.
   move(pointToMove, referencePoint, position, output, targetHandler = null) {
+    // Moving a point relative to itself is a no-op. Without this guard remove()
+    // would delete the point's graph entry before insert() tries to reference it,
+    // throwing "Cannot read properties of undefined".
+    if (referencePoint && referencePoint.id === pointToMove.id) {
+      return
+    }
+
     const target = targetHandler || this
     const isCrossGraph = target !== this
 

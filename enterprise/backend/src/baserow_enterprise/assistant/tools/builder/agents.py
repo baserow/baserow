@@ -541,7 +541,7 @@ def update_single_element_formulas(
 ) -> None:
     """Generate and apply formulas for a single updated element."""
 
-    from baserow.contrib.builder.elements.service import ElementService
+    from baserow.contrib.builder.elements.actions import UpdateElementActionType
 
     context = BuilderFormulaContext(page)
     context.load_page_context()
@@ -590,7 +590,7 @@ def update_single_element_formulas(
                                     mode=BASEROW_FORMULA_MODE_ADVANCED,
                                 )
                         if kwargs:
-                            ElementService().update_element(user, orm_element, **kwargs)
+                            UpdateElementActionType.do(user, orm_element, kwargs)
                 except Exception as exc:
                     logger.exception(
                         "Failed to generate formulas for element {}: {}",

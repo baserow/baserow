@@ -21,14 +21,24 @@ if typing.TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
 
 
-class PageWithoutSharedManager(models.Manager):
+class PageNoTrashManager(models.Manager):
     """
-    Manager for the Page model.
-    Excludes by default the shared page.
+    Default manager for Page: excludes trashed pages.
+    Uses models.Manager (not CTEManager) as the base so that Django can safely
+    use it as the _base_manager for reverse FK relations (e.g. builder.page_set).
     """
 
     def get_queryset(self):
-        return super().get_queryset().filter(shared=False)
+        return super().get_queryset().filter(trashed=False)
+
+
+class PageWithoutSharedManager(models.Manager):
+    """
+    Excludes both the shared page and trashed pages.
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().filter(shared=False, trashed=False)
 
 
 class Page(
@@ -48,7 +58,7 @@ class Page(
         ALLOW_ALL_EXCEPT = "allow_all_except"
         DISALLOW_ALL_EXCEPT = "disallow_all_except"
 
-    objects = models.Manager()
+    objects = PageNoTrashManager()
     objects_without_shared = PageWithoutSharedManager()
 
     builder = models.ForeignKey("builder.Builder", on_delete=models.CASCADE)

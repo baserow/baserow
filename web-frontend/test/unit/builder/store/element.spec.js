@@ -188,6 +188,73 @@ describe('element store', () => {
     })
   })
 
+  describe('create', () => {
+    // Element type stub with the methods create() touches.
+    const makeRegistry = () => ({
+      get: () => ({
+        getDefaultValues: () => ({}),
+        getPopulateStoreProperties: () => ({}),
+      }),
+    })
+
+    const makeContext = (commit) => ({
+      commit,
+      dispatch: vi.fn(() => Promise.resolve()),
+      getters: {
+        getElementById: () => null,
+        getParent: () => null,
+      },
+    })
+
+    const makeThis = (element) => ({
+      $registry: makeRegistry(),
+      $client: { post: vi.fn(() => Promise.resolve({ data: element })) },
+    })
+
+    test('does not add the element directly when forceCreate is true', async () => {
+      // Regression: with forceCreate the element is added via the forceCreate
+      // action; adding it here too pushes a duplicate into page.elements that
+      // DELETE_ITEM (single occurrence) leaves behind as a "phantom".
+      const element = { id: 5, type: 'heading' }
+      const page = makePage({ 0: 1, 1: {} }, [])
+      const commit = vi.fn()
+
+      await elementStore.actions.create.call(
+        makeThis(element),
+        makeContext(commit),
+        {
+          builder: {},
+          page,
+          elementType: 'heading',
+          forceCreate: true,
+        }
+      )
+
+      expect(commit).not.toHaveBeenCalledWith('ADD_ITEM', expect.anything())
+    })
+
+    test('adds the element directly when forceCreate is false', async () => {
+      const element = { id: 5, type: 'heading' }
+      const page = makePage({ 0: 1, 1: {} }, [])
+      const commit = vi.fn()
+      const context = makeContext(commit)
+
+      await elementStore.actions.create.call(makeThis(element), context, {
+        builder: {},
+        page,
+        elementType: 'heading',
+        forceCreate: false,
+      })
+
+      expect(commit).toHaveBeenCalledWith('ADD_ITEM', { page, element })
+      // forceCreate (which would also add it) must not run in this path.
+      const dispatchedActions = context.dispatch.mock.calls.map(
+        ([name]) => name
+      )
+      expect(dispatchedActions).not.toContain('forceCreate')
+    })
+  })
+
   describe('forceCreate', () => {
     const makeRegistry = () => ({
       get: () => ({

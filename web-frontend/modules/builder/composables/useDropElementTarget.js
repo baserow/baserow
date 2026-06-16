@@ -276,11 +276,14 @@ export function useDropElementTarget({
       referenceElementId = resolvedBefore.id
       position = 'north'
     } else if (resolvedParent) {
+      // Exclude the dragged element itself: when it's the only (or last) element
+      // in the target place, it must not become its own move reference — move()
+      // removes it from the graph first, so referencing it would then fail.
       const elementsInPlace = store.getters['element/getElementsInPlace'](
         targetPage.value,
         resolvedParent.id,
         resolvedPlace
-      )
+      ).filter((element) => element.id !== dragged.id)
       if (elementsInPlace.length > 0) {
         referenceElementId = elementsInPlace.at(-1).id
         position = 'south'
@@ -289,6 +292,13 @@ export function useDropElementTarget({
         position = 'child'
         resolvedPlaceInContainer = resolvedPlace
       }
+    }
+
+    // Dropping an element relative to itself is a no-op; bail out before move()
+    // (which would otherwise reference an element it has just removed).
+    if (referenceElementId === dragged.id) {
+      clearState()
+      return
     }
 
     try {

@@ -2,7 +2,10 @@ from unittest.mock import patch
 
 import pytest
 
-from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
+from baserow.contrib.builder.pages.exceptions import (
+    PageNotInBuilder,
+    SharedPageIsReadOnly,
+)
 from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.builder.pages.service import PageService
 from baserow.core.exceptions import UserNotInWorkspace
@@ -29,20 +32,16 @@ def test_create_page_user_not_in_workspace(data_fixture):
         PageService().create_page(user, builder, "test", "/test")
 
 
-@patch("baserow.contrib.builder.pages.service.page_deleted")
 @pytest.mark.django_db
-def test_page_deleted_signal_sent(page_deleted_mock, data_fixture):
+def test_delete_page_moves_to_trash(data_fixture):
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(builder=builder)
-    page_id = page.id
 
-    page_service = PageService()
-    page_service.delete_page(user, page)
+    PageService().delete_page(user, page)
 
-    page_deleted_mock.send.assert_called_once_with(
-        page_service, builder=builder, page_id=page_id, user=user
-    )
+    page.refresh_from_db()
+    assert page.trashed is True
 
 
 @pytest.mark.django_db(transaction=True)
@@ -163,3 +162,23 @@ def test_duplicate_page_user_not_in_workspace(data_fixture):
 
     with pytest.raises(UserNotInWorkspace):
         PageService().duplicate_page(user, page)
+
+
+@pytest.mark.django_db
+def test_delete_shared_page_raises_error(data_fixture):
+    user = data_fixture.create_user()
+    builder = data_fixture.create_builder_application(user=user)
+
+    with pytest.raises(SharedPageIsReadOnly):
+        PageService().delete_page(user, builder.shared_page)
+
+
+@pytest.mark.django_db
+def test_trashed_page_excluded_from_objects_manager(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    PageService().delete_page(user, page)
+
+    assert not Page.objects.filter(id=page.id).exists()
+    assert Page.objects_and_trash.filter(id=page.id).exists()

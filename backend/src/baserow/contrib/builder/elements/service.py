@@ -19,7 +19,6 @@ from baserow.contrib.builder.elements.operations import (
 from baserow.contrib.builder.elements.registries import ElementType
 from baserow.contrib.builder.elements.signals import (
     element_created,
-    element_deleted,
     element_moved,
     element_updated,
     elements_created,
@@ -28,6 +27,7 @@ from baserow.contrib.builder.elements.types import (
     ElementForUpdate,
     ElementMove,
     ElementsAndWorkflowActions,
+    UpdatedElement,
 )
 from baserow.contrib.builder.pages.exceptions import PageNotInBuilder
 from baserow.contrib.builder.pages.models import Page
@@ -37,6 +37,7 @@ from baserow.core.graph.exceptions import (
 )
 from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.handler import CoreHandler
+from baserow.core.trash.handler import TrashHandler
 
 if TYPE_CHECKING:
     from baserow.contrib.builder.models import Builder
@@ -213,7 +214,7 @@ class ElementService:
 
     def update_element(
         self, user: AbstractUser, element: ElementForUpdate, **kwargs
-    ) -> Element:
+    ) -> UpdatedElement:
         """
         Updates and element with values. Will also check if the values are allowed
         to be set on the element first.
@@ -222,7 +223,8 @@ class ElementService:
         :param element: The element that should be updated.
         :param values: The values that should be set on the element.
         :param kwargs: Additional attributes of the element.
-        :return: The updated element.
+        :return: An `UpdatedElement` holding the updated element and the original and
+            new values of the changed fields (used by undo/redo).
         """
 
         CoreHandler().check_permissions(
@@ -232,11 +234,31 @@ class ElementService:
             context=element,
         )
 
+        element_type = element.get_type()
+
+        # Snapshot only the fields actually being changed so undo/redo never tries to
+        # re-apply unrelated relation fields (which don't round-trip from an id).
+        original_values = {
+            key: value
+            for key, value in element_type.export_prepared_values(element).items()
+            if key in kwargs
+        }
+
         element = self.handler.update_element(element, **kwargs)
+
+        new_values = {
+            key: value
+            for key, value in element_type.export_prepared_values(element).items()
+            if key in kwargs
+        }
 
         element_updated.send(self, element=element, user=user)
 
-        return element
+        return UpdatedElement(
+            element=element,
+            original_values=original_values,
+            new_values=new_values,
+        )
 
     def delete_element(self, user: AbstractUser, element: ElementForUpdate):
         """
@@ -246,8 +268,6 @@ class ElementService:
         :param element: The to-be-deleted element.
         """
 
-        page = element.page
-
         CoreHandler().check_permissions(
             user,
             DeleteElementOperationType.type,
@@ -255,20 +275,13 @@ class ElementService:
             context=element,
         )
 
-        # Collect the descendants before deletion so realtime receivers can tell
-        # other clients which records to remove — deleting a container removes its
-        # whole subtree.
-        descendant_ids = [d.id for d in page.get_graph().get_descendants(element)]
-
-        self.handler.delete_element(element)
-
-        element_deleted.send(
-            self,
-            element_id=element.id,
-            descendant_ids=descendant_ids,
-            page=page,
-            user=user,
-        )
+        # NB: we deliberately do not call `before_delete` here. Deletion is a soft
+        # trash, and `before_delete` permanently removes owned related data (e.g. a
+        # collection element's fields) that a restore needs to bring back. That
+        # cleanup is deferred to permanent deletion via `before_permanent_delete`
+        # on the trashable item type.
+        builder = element.page.builder
+        TrashHandler.trash(user, builder.workspace, builder, element)
 
     def move_element(
         self,
@@ -315,6 +328,14 @@ class ElementService:
             raise GraphPointReferencePointInvalid(
                 f"The reference element {reference_element_id} doesn't exist"
             ) from e
+
+        # An element can't be moved relative to itself: the graph removes it before
+        # re-inserting, so referencing itself would leave it dangling. Guard it as a
+        # handled error rather than letting the graph raise an unhandled exception.
+        if reference_element is not None and reference_element.id == element.id:
+            raise GraphPointReferencePointInvalid(
+                "An element cannot be moved relative to itself."
+            )
 
         # Check we are on the same builder.
         if target_page.builder != element.page.builder:
