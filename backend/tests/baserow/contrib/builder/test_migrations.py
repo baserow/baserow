@@ -5,8 +5,6 @@ from django.db import connection
 
 import pytest
 
-from baserow.test_utils.helpers import is_dict_subset
-
 
 @pytest.mark.once_per_day_in_ci
 def test_0010_remove_orphan_collection_fields_forwards(
@@ -538,8 +536,8 @@ def test_0026_element_styles(migrator, teardown_table_metadata):
 @pytest.mark.once_per_day_in_ci
 # You must add --run-once-per-day-in-ci to execute this test
 def test_0071_migrate_element_hierarchy_to_graph(migrator, teardown_table_metadata):
-    migrate_from = [("builder", "0069_menuelement_variant")]
-    migrate_to = [("builder", "0070_migrate_element_hierarchy_to_graph")]
+    migrate_from = [("builder", "0070_corecsvfilereaderworkflowaction")]
+    migrate_to = [("builder", "0071_migrate_element_hierarchy_to_graph")]
 
     old_state = migrator.migrate(migrate_from)
 
@@ -620,28 +618,27 @@ def test_0071_migrate_element_hierarchy_to_graph(migrator, teardown_table_metada
     Page = new_state.apps.get_model("builder", "Page")
 
     migrated_page = Page.objects.get(pk=page.id)
-    assert is_dict_subset(
-        migrated_page.graph,
-        {
-            "0": shared_header.id,
-            str(shared_header.id): {
-                "next": {"": [column.id]},
-                "children": {"": [heading.id]},
-            },
-            str(heading.id): {},
-            str(column.id): {
-                "children": {
-                    "0": [text_1_column_1.id],
-                    "1": [text_column_2.id],
-                    "2": [text_column_3.id],
-                }
-            },
-            str(text_1_column_1.id): {"next": {"": [text_2_column_1.id]}},
-            str(text_2_column_1.id): {},
-            str(text_column_2.id): {},
-            str(text_column_3.id): {},
+    # Exact equality (not subset): a dropped/orphaned element would leave a key
+    # missing from the real graph, which a subset assertion could not catch.
+    assert migrated_page.graph == {
+        "0": shared_header.id,
+        str(shared_header.id): {
+            "next": {"": [column.id]},
+            "children": {"": [heading.id]},
         },
-    )
+        str(heading.id): {},
+        str(column.id): {
+            "children": {
+                "0": [text_1_column_1.id],
+                "1": [text_column_2.id],
+                "2": [text_column_3.id],
+            }
+        },
+        str(text_1_column_1.id): {"next": {"": [text_2_column_1.id]}},
+        str(text_2_column_1.id): {},
+        str(text_column_2.id): {},
+        str(text_column_3.id): {},
+    }
 
     rollback_old_state = migrator.migrate(migrate_from)
 
@@ -671,8 +668,8 @@ def test_0071_migrate_element_hierarchy_to_graph(migrator, teardown_table_metada
 def test_0071_migrate_element_hierarchy_to_graph_performance(
     migrator, teardown_table_metadata
 ):
-    migrate_from = [("builder", "0069_menuelement_variant")]
-    migrate_to = [("builder", "0070_migrate_element_hierarchy_to_graph")]
+    migrate_from = [("builder", "0070_corecsvfilereaderworkflowaction")]
+    migrate_to = [("builder", "0071_migrate_element_hierarchy_to_graph")]
 
     old_state = migrator.migrate(migrate_from)
 
@@ -803,7 +800,7 @@ def test_0071_migrate_element_hierarchy_to_graph_performance(
     new_state = migrator.migrate(migrate_to)
     elapsed = time.perf_counter() - start
 
-    print(f"\n[PERF] 0068_migrate_element_hierarchy_to_graph:")
+    print(f"\n[PERF] 0071_migrate_element_hierarchy_to_graph:")
     print(
         f"  {num_workspaces} workspaces · {total_pages} pages · {total_elements} elements"
     )

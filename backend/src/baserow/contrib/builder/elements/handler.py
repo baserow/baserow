@@ -307,47 +307,65 @@ class ElementHandler:
 
     def heal_orphan_elements(self, page: Page) -> Dict[str, Any]:
         """
-        Insert any elements that exist in the database for ``page`` but are absent
-        from ``page.graph`` ("orphans"). These can appear during a non-zero-downtime
-        deploy when older code creates an element row without updating the graph,
-        which would otherwise leave the element invisible and unusable. Healing them
-        keeps the graph the single source of truth, so downstream operations (move,
-        delete, …) never have to special-case a missing graph entry.
+        Reconcile `page.graph` with the elements that actually exist in the
+        database, repairing drift that can appear during a non-zero-downtime deploy
+        when older code mutates element rows without touching the graph. Keeping the
+        graph the single source of truth means downstream operations (move, delete,
+        …) never have to special-case a missing or dangling graph entry.
 
-        Placement mirrors where a newly added element would land:
+        Two kinds of drift are reconciled:
 
-        - Unshared page: append the orphan to the end of the page's root chain.
-        - Shared page: append the orphan to the end of the first shared element
-          (the Header/Footer container at the root of the shared page).
+        - "orphans": rows present in the DB but absent from the graph (e.g. created
+          by old code). They are inserted where a newly added element would land:
 
-        :param page: The page whose graph should be healed.
+          - Unshared page: appended to the end of the page's root chain.
+          - Shared page: appended to the end of the first shared element (the
+            Header/Footer container at the root of the shared page).
+
+        - "stale points": ids still referenced by the graph whose row no longer
+          exists (e.g. hard-deleted by old code). They are spliced out via
+          `prune_points` so a traversal can never resolve a missing point (which
+          would otherwise raise and 500 the editor's element list).
+
+        :param page: The page whose graph should be reconciled.
         :return: A graph "patch" — the top-level graph entries that changed, keyed by
-            point id, each holding its full new value. Empty when nothing was healed.
+            point id, each holding its full new value. Empty when nothing changed.
             Because the graph is a flat dict, a client can apply it with a shallow
-            merge (``{...graph, ...patch}``).
+            merge (`{...graph, ...patch}`). Note a pruned stale key is not in the
+            patch (a shallow merge can't express a deletion), but its now-relinked
+            predecessor is, so the stale key is left unreferenced — harmless, and the
+            client drops it on the next full graph sync.
         """
 
         root_key = page.get_graph().GRAPH_ROOT_KEY
 
-        def orphan_ids(graph) -> set:
+        def compute_drift(graph) -> tuple[set, set]:
             graph_ids = {int(k) for k in graph if k != root_key}
             db_ids = set(Element.objects.filter(page=page).values_list("id", flat=True))
-            return db_ids - graph_ids
+            # (orphans missing from the graph, stale points missing from the DB).
+            return db_ids - graph_ids, graph_ids - db_ids
 
-        # Fast path: nothing to heal (the steady state). Avoid any locking or writes.
-        if not orphan_ids(page.get_graph().graph):
+        # Fast path: nothing to reconcile (the steady state). Avoid locking/writes.
+        orphan_ids, stale_ids = compute_drift(page.get_graph().graph)
+        if not orphan_ids and not stale_ids:
             return {}
 
         # Re-check under a row lock so concurrent reads can't race on the same graph.
         with transaction.atomic():
             locked_page = Page.objects.select_for_update().get(id=page.id)
             graph_handler = locked_page.get_graph()
-            missing = orphan_ids(graph_handler.graph)
-            if not missing:
+            orphan_ids, stale_ids = compute_drift(graph_handler.graph)
+            if not orphan_ids and not stale_ids:
                 return {}
 
             # Snapshot before mutating so we can return only what changed.
             before = deepcopy(graph_handler.graph)
+
+            # Prune stale points first so orphan placement (which traverses the
+            # graph, e.g. append → get_last_position) can't walk into a missing
+            # point part-way through.
+            if stale_ids:
+                graph_handler.prune_points(stale_ids)
 
             # On a shared page, append orphans to the first shared element (the root
             # Header/Footer container); otherwise append to the end of the page.
@@ -358,7 +376,7 @@ class ElementHandler:
                     graph_handler.get_point(root_id) if root_id is not None else None
                 )
 
-            for orphan in Element.objects.filter(id__in=missing).order_by("id"):
+            for orphan in Element.objects.filter(id__in=orphan_ids).order_by("id"):
                 if container is not None:
                     graph_handler.insert(
                         orphan, container, GraphPointPosition.CHILD, ""
@@ -373,38 +391,46 @@ class ElementHandler:
         page.graph = locked_page.graph
         self.invalidate_element_cache(page)
 
-        self._report_orphan_heal(page, missing, patch)
+        self._report_graph_heal(page, orphan_ids, stale_ids, patch)
 
         return patch
 
-    def _report_orphan_heal(
-        self, page: Page, healed_ids: set, graph_patch: Dict[str, Any]
+    def _report_graph_heal(
+        self,
+        page: Page,
+        healed_ids: set,
+        pruned_ids: set,
+        graph_patch: Dict[str, Any],
     ) -> None:
         """
-        Surface an orphan heal in Sentry so we know it happened. A heal means the
-        page graph had drifted from the DB — typically an element row written by
-        older code during a non-zero-downtime deploy — and has now been repaired.
-        Reported at "warning" level (it signals an upstream inconsistency, even
-        though it's self-corrected), with the count, ids and the applied patch.
+        Surface a graph reconciliation in Sentry so we know it happened. Drift means
+        the page graph diverged from the DB — typically element rows written or
+        hard-deleted by older code during a non-zero-downtime deploy — and has now
+        been repaired. Reported at "warning" level (it signals an upstream
+        inconsistency, even though it's self-corrected), with the counts, ids and
+        the applied patch.
         """
 
         import sentry_sdk
 
         with sentry_sdk.new_scope() as scope:
             scope.set_context(
-                "orphan_heal",
+                "graph_heal",
                 {
                     "page_id": page.id,
                     "builder_id": page.builder_id,
                     "shared": page.shared,
                     "healed_element_count": len(healed_ids),
                     "healed_element_ids": sorted(healed_ids),
+                    "pruned_stale_count": len(pruned_ids),
+                    "pruned_stale_ids": sorted(pruned_ids),
                     "graph_patch": graph_patch,
                 },
             )
             sentry_sdk.capture_message(
-                f"Healed {len(healed_ids)} orphan element(s) missing from the graph "
-                f"of builder page {page.id}.",
+                f"Healed {len(healed_ids)} orphan element(s) and pruned "
+                f"{len(pruned_ids)} stale point(s) from the graph of builder "
+                f"page {page.id}.",
                 level="warning",
             )
 

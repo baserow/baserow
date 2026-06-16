@@ -515,3 +515,158 @@ def test_cross_graph_move_migrates_subtree_not_siblings():
 
     # The sibling was relinked as the new source root.
     assert source_model.graph["0"] == 3
+
+
+# ---------------------------------------------------------------------------
+# prune_points: removing "stale" points (referenced in the graph but whose DB
+# row is gone, e.g. hard-deleted by old code during a non-zero-downtime deploy).
+# ---------------------------------------------------------------------------
+
+
+def test_prune_points_splices_out_a_middle_point():
+    # 1 → 2 → 3, point 2 is stale.
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [3]}},
+            "3": {},
+        }
+    )
+    graph = model.get_graph()
+
+    assert graph.prune_points([2]) == [2]
+
+    # 2 is gone and 1 now links straight to 3.
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"": [3]}},
+        "3": {},
+    }
+
+
+def test_prune_points_removes_a_tail_point():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {},
+        }
+    )
+    graph = model.get_graph()
+
+    assert graph.prune_points([2]) == [2]
+
+    # 1 keeps no dangling empty next dict.
+    assert model.graph == {"0": 1, "1": {}}
+
+
+def test_prune_points_promotes_successor_when_root_is_stale():
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [3]}},
+            "3": {},
+        }
+    )
+    graph = model.get_graph()
+
+    assert graph.prune_points([1]) == [1]
+
+    # The old root (1) is gone; its successor (2) becomes the new root.
+    assert model.graph == {
+        "0": 2,
+        "2": {"next": {"": [3]}},
+        "3": {},
+    }
+
+
+def test_prune_points_empties_graph_when_only_point_is_stale():
+    model = make_graph_model({"0": 1, "1": {}})
+    graph = model.get_graph()
+
+    assert graph.prune_points([1]) == [1]
+
+    assert model.graph == {}
+
+
+def test_prune_points_removes_stale_child_head_keeping_siblings():
+    # Container 1 holds, in place "0": 2 → 3. The head child 2 is stale.
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"children": {"0": [2]}},
+            "2": {"next": {"": [3]}},
+            "3": {},
+        }
+    )
+    graph = model.get_graph()
+
+    assert graph.prune_points([2]) == [2]
+
+    # 3 becomes the head of place "0".
+    assert model.graph == {
+        "0": 1,
+        "1": {"children": {"0": [3]}},
+        "3": {},
+    }
+
+
+def test_prune_points_drops_cascaded_stale_subtree():
+    # Container 2 (a child of root 1) is stale along with its whole subtree
+    # (children 4, 5) — mimicking an old-code cascade delete that left the
+    # subtree dangling in the graph. 2's sibling-successor 3 must survive.
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [3]}, "children": {"0": [4]}},
+            "3": {},
+            "4": {"next": {"": [5]}},
+            "5": {},
+        }
+    )
+    graph = model.get_graph()
+
+    pruned = graph.prune_points([2, 4, 5])
+
+    assert set(pruned) == {2, 4, 5}
+    # 1 links straight to 3; the whole stale subtree is gone.
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"": [3]}},
+        "3": {},
+    }
+
+
+def test_prune_points_is_order_independent():
+    # Same cascade as above but the ids are given children-first.
+    model = make_graph_model(
+        {
+            "0": 1,
+            "1": {"next": {"": [2]}},
+            "2": {"next": {"": [3]}, "children": {"0": [4]}},
+            "3": {},
+            "4": {"next": {"": [5]}},
+            "5": {},
+        }
+    )
+    graph = model.get_graph()
+
+    pruned = graph.prune_points([5, 4, 2])
+
+    assert set(pruned) == {2, 4, 5}
+    assert model.graph == {
+        "0": 1,
+        "1": {"next": {"": [3]}},
+        "3": {},
+    }
+
+
+def test_prune_points_ignores_unknown_ids():
+    model = make_graph_model({"0": 1, "1": {"next": {"": [2]}}, "2": {}})
+    graph = model.get_graph()
+
+    assert graph.prune_points([999]) == []
+    assert model.graph == {"0": 1, "1": {"next": {"": [2]}}, "2": {}}

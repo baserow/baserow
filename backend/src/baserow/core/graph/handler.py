@@ -951,6 +951,112 @@ class BaseGraphHandler(ABC):
         self.graph.pop(str(point.id), None)
         self._update_graph()
 
+    def _incoming_position(self, point_id: int) -> Optional[GraphPointPositionTriplet]:
+        """
+        Find where `point_id` is referenced in the live graph, as a
+        `(reference_point_id, position, output)` triplet. Unlike
+        :meth:`get_position`, this works purely from the serialized graph and an
+        integer id — it never resolves the point (or any reference) to a model
+        instance — so it is safe to call for a *stale* point whose DB row no longer
+        exists.
+
+        :param point_id: The id of the point to locate.
+        :return: The incoming position triplet, `(None, "south", "")` if the
+            point is the root, or `None` if it isn't referenced anywhere.
+        """
+
+        if point_id == self.graph.get(self.GRAPH_ROOT_KEY):
+            return None, GraphPointPosition.SOUTH, ""
+
+        for key, info in self.graph.items():
+            if key == self.GRAPH_ROOT_KEY or not isinstance(info, dict):
+                continue
+            for output, next_ids in info.get("next", {}).items():
+                if point_id in next_ids:
+                    return int(key), GraphPointPosition.SOUTH, output
+            for edge, child_ids in self._get_children_dict(info).items():
+                if point_id in child_ids:
+                    return int(key), GraphPointPosition.CHILD, edge
+
+        return None
+
+    def prune_points(self, ids_to_remove: set[int] | List[int]) -> List[int]:
+        """
+        Remove "stale" points from the graph: ids still referenced by the
+        serialized graph whose underlying model instance no longer exists (e.g. an
+        element hard-deleted by older code during a non-zero-downtime deploy). Each
+        pruned point is spliced out of its parent's `next` / `children` chain
+        and replaced in place by its own default-edge (`next[""]`) successors, so
+        surviving siblings stay connected and traversals never reach the missing
+        point.
+
+        This operates purely on the serialized graph dict and never resolves a
+        point to a model instance — which is exactly why it can run on points whose
+        DB row is gone (`remove` cannot, as it traverses real descendants).
+
+        :param ids_to_remove: The point ids to prune.
+        :return: The ids that were actually pruned (those present in the graph).
+        """
+
+        removed: List[int] = []
+
+        for point_id in ids_to_remove:
+            point_id = int(point_id)
+            point_key = str(point_id)
+            if point_key not in self.graph:
+                continue
+
+            # The point's default-edge successors take its place in the chain. Its
+            # children are intentionally not promoted: a parent is only ever deleted
+            # by a cascade that also deletes its children, so those child ids are
+            # themselves stale and get pruned (and dropped as detached) in this same
+            # pass.
+            successors = self.graph[point_key].get("next", {}).get("", [])
+
+            incoming = self._incoming_position(point_id)
+            if incoming is None:
+                # Already detached (e.g. its parent was pruned earlier in this
+                # loop); just drop the leftover entry.
+                self.graph.pop(point_key, None)
+                removed.append(point_id)
+                continue
+
+            reference_id, position, output = incoming
+            if reference_id is None:
+                # The point is the root: promote its first successor, or empty the
+                # graph entirely if it has none.
+                if successors:
+                    self.graph[self.GRAPH_ROOT_KEY] = successors[0]
+                else:
+                    self.graph.pop(self.GRAPH_ROOT_KEY, None)
+            elif position == GraphPointPosition.SOUTH:
+                reference_key = str(reference_id)
+                self.graph[reference_key]["next"][output] = _replace(
+                    self.graph[reference_key]["next"][output], point_id, successors
+                )
+                if not self.graph[reference_key]["next"][output]:
+                    del self.graph[reference_key]["next"][output]
+                if not self.graph[reference_key].get("next"):
+                    self.graph[reference_key].pop("next", None)
+            else:  # GraphPointPosition.CHILD
+                reference_info = self.graph[str(reference_id)]
+                children_on_edge = self._get_children_dict(reference_info).get(
+                    output, []
+                )
+                self._set_children(
+                    reference_info,
+                    output,
+                    _replace(children_on_edge, point_id, successors),
+                )
+
+            self.graph.pop(point_key, None)
+            removed.append(point_id)
+
+        if removed:
+            self._update_graph()
+
+        return removed
+
     def migrate_graph(self, id_mapping: Dict[str, Any]):
         """
         Updates the point IDs and edge UIDs in the graph from the id_mapping.

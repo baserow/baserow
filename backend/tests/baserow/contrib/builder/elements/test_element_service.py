@@ -650,6 +650,107 @@ def test_heal_orphan_elements_does_not_report_when_consistent(
 
 
 @pytest.mark.django_db
+def test_heal_prunes_stale_point_for_hard_deleted_element(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    # A 3-element root chain through the graph: e1 → e2 → e3.
+    heading = element_type_registry.get("heading")
+    e1 = ElementService().create_element(user, heading, page=page)
+    e2 = ElementService().create_element(user, heading, page=page)
+    e3 = ElementService().create_element(user, heading, page=page)
+
+    page.refresh_from_db(fields=["graph"])
+    assert str(e2.id) in page.graph
+
+    # Simulate old code hard-deleting the middle element's row without touching
+    # the graph: the graph now references a point with no DB row ("stale point").
+    Element.objects.filter(id=e2.id).delete()
+
+    patch = ElementHandler().heal_orphan_elements(page)
+
+    page.refresh_from_db(fields=["graph"])
+    # The stale point is spliced out and the chain re-stitched: e1 → e3.
+    assert str(e2.id) not in page.graph
+    assert page.graph == {
+        "0": e1.id,
+        str(e1.id): {"next": {"": [e3.id]}},
+        str(e3.id): {},
+    }
+    # The relinked predecessor is carried in the patch.
+    assert patch == {str(e1.id): {"next": {"": [e3.id]}}}
+
+
+@pytest.mark.django_db
+def test_heal_prunes_stale_point_and_does_not_raise_on_traversal(data_fixture):
+    """A stale point would make graph traversal resolve a missing element and
+    raise; after healing, the ordered traversal succeeds."""
+
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    heading = element_type_registry.get("heading")
+    e1 = ElementService().create_element(user, heading, page=page)
+    e2 = ElementService().create_element(user, heading, page=page)
+
+    Element.objects.filter(id=e1.id).delete()  # the root point is now stale
+
+    ElementHandler().heal_orphan_elements(page)
+
+    page.refresh_from_db(fields=["graph"])
+    # The surviving element is promoted to root; traversal resolves cleanly.
+    assert page.graph == {"0": e2.id, str(e2.id): {}}
+    graph = page.get_graph()
+    assert graph.get_point(e2.id).id == e2.id
+
+
+@pytest.mark.django_db
+def test_heal_reconciles_orphan_and_stale_point_together(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    heading = element_type_registry.get("heading")
+    e1 = ElementService().create_element(user, heading, page=page)
+    e2 = ElementService().create_element(user, heading, page=page)
+
+    # e2 was hard-deleted (stale), and a fresh row was written without a graph
+    # insert (orphan) — both at once, as can happen mid-deploy.
+    Element.objects.filter(id=e2.id).delete()
+    orphan = ElementHandler().create_element(heading, page=page)
+
+    page.refresh_from_db(fields=["graph"])
+    assert str(orphan.id) not in page.graph
+
+    ElementHandler().heal_orphan_elements(page)
+
+    page.refresh_from_db(fields=["graph"])
+    # Stale e2 pruned, orphan appended to the end of the (now single-element) chain.
+    assert page.graph == {
+        "0": e1.id,
+        str(e1.id): {"next": {"": [orphan.id]}},
+        str(orphan.id): {},
+    }
+
+
+@pytest.mark.django_db
+@patch("sentry_sdk.capture_message")
+def test_heal_reports_pruned_stale_points_to_sentry(capture_message_mock, data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+
+    heading = element_type_registry.get("heading")
+    e1 = ElementService().create_element(user, heading, page=page)
+    ElementService().create_element(user, heading, page=page)
+    Element.objects.filter(id=e1.id).delete()
+
+    ElementHandler().heal_orphan_elements(page)
+
+    capture_message_mock.assert_called_once()
+    assert "1 stale" in capture_message_mock.call_args[0][0]
+    assert capture_message_mock.call_args.kwargs["level"] == "warning"
+
+
+@pytest.mark.django_db
 def test_move_element_not_same_builder(data_fixture, stub_check_permissions):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
