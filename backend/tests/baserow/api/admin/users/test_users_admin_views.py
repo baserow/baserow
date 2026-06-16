@@ -1031,6 +1031,29 @@ def test_admin_can_disable_two_factor_auth_of_user(api_client, data_fixture):
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_admin_can_disable_their_own_two_factor_auth(api_client, data_fixture):
+    # Removing your own two-factor authentication can't lock you out, so unlike
+    # self-deactivate/self-delete it is intentionally allowed.
+    staff_user, token = data_fixture.create_user_and_token(
+        email="staff@test.nl",
+        password="password",
+        is_staff=True,
+    )
+    data_fixture.configure_totp(staff_user)
+    assert TwoFactorAuthHandler().get_provider(staff_user) is not None
+
+    response = api_client.delete(
+        reverse("api:admin:users:two_factor_auth", kwargs={"user_id": staff_user.id}),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_204_NO_CONTENT
+    assert TwoFactorAuthHandler().get_provider(staff_user) is None
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_non_admin_cannot_disable_two_factor_auth_of_user(api_client, data_fixture):
     _, token = data_fixture.create_user_and_token(
         email="nonstaff@test.nl",

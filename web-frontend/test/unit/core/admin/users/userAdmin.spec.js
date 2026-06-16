@@ -157,6 +157,37 @@ describe('User Admin Component Tests', () => {
     expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.disabled')
   })
 
+  test('a failed 2FA removal shows an error and leaves the row unchanged', async () => {
+    testApp.mock.onDelete(`/admin/users/1/two-factor-auth/`).reply(400, {
+      error: 'ERROR_TWO_FACTOR_AUTH_NOT_CONFIGURED',
+      detail: 'Two-factor authentication is not configured.',
+    })
+
+    const { ui } = await whenThereIsAUserAndYouOpenUserAdmin({
+      twoFactorAuth: { type: 'totp', is_enabled: true },
+    })
+    testApp.dontFailOnErrorResponses()
+
+    const editUserContext = await ui.openFirstUserActionsMenu()
+    await ui.clickEditUser(editUserContext)
+
+    const userForm = ui.c.findComponent(UserForm)
+    await userForm.find('.user-admin-edit__remove-2fa').trigger('click')
+    await flushPromises()
+
+    const disableModal = ui.c.findComponent(DisableTwoFactorAuthModal)
+    await disableModal.find('button.button--danger').trigger('click')
+    await flushPromises()
+
+    // The error is surfaced inside the modal instead of silently swallowed.
+    expect(ui.getErrorText(disableModal).length).toBeGreaterThan(0)
+
+    // The optimistic clear must NOT be applied: the row still shows 2FA enabled.
+    const cells = ui.findCells()
+    const { twoFactorAuthCell } = ui.getRow(cells, 0)
+    expect(twoFactorAuthCell.text()).toBe('twoFactorAuthField.enabled')
+  })
+
   test('A user with no workspaces is displayed without any', async () => {
     const { user, ui } = await whenThereIsAUserAndYouOpenUserAdmin({
       workspaces: [],
