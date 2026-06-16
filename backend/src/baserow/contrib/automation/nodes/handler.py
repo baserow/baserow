@@ -545,13 +545,23 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
         if self._handle_simulation_notify(simulate_until_node, node):
             return None
 
-        self._after_node_dispatch(node, node_history)
+        # Mark the node history as completed, so that post-dispatch hooks
+        # can accurately rely on the completed_on field.
+        now = timezone.now()
+        node_history.completed_on = now
+        node_history.status = HistoryStatusChoices.SUCCESS
+        node_history.save()
 
+        # The post-dispatch hook should also be able to safely access the
+        # node result, since the dispatch is considered completed, so this
+        # should also come before the post-dispatch hook.
         history_handler.create_node_result(
             node_history=node_history,
             result=dispatch_result.data,
             iteration_path=iteration_path,
         )
+
+        self._after_node_dispatch(node, node_history)
 
         to_chain = []
         if children := node.get_children():
@@ -583,11 +593,6 @@ class AutomationNodeHandler(metaclass=baserow_trace_methods(tracer)):
             if groups_to_chain:
                 canvas = chain(*groups_to_chain)
                 to_chain.append(canvas)
-
-        now = timezone.now()
-        node_history.completed_on = now
-        node_history.status = HistoryStatusChoices.SUCCESS
-        node_history.save()
 
         # Handle non-iterator nodes, including iterator children.
         next_nodes = node.get_next_nodes(dispatch_result.output_uid)
