@@ -1,6 +1,6 @@
 {
   "type": "bug",
-  "message": "Close Redis connection when MCP connection is closed.",
+  "message": "Close the BZPOPMIN client when an MCP server connection is closed.",
   "issue_origin": "github",
   "issue_number": null,
   "domain": "database",

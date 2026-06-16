@@ -1,12 +1,15 @@
 from django.db import transaction
 
+import anyio
 import pytest
 from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from mcp.shared.memory import (
     create_connected_server_and_client_session as client_session,
 )
 
 from baserow.core.mcp import BaserowMCPServer, current_key
+from baserow.core.mcp.sse import DjangoChannelsSseServerTransport
 
 
 @pytest.mark.django_db
@@ -123,6 +126,61 @@ def test_list_tools_with_valid_endpoint_key(data_fixture):
             async_to_sync(inner)()
     finally:
         current_key.reset(key_token)
+
+
+def test_sse_listener_is_closed_when_connection_is_closed():
+    async def inner():
+        sse = DjangoChannelsSseServerTransport("/mcp/messages/")
+        channel_layer = get_channel_layer()
+
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": "/mcp/key/sse",
+            "headers": [],
+            "query_string": b"",
+        }
+
+        client_disconnected = anyio.Event()
+
+        async def receive():
+            # Block until the test simulates the client closing the connection.
+            await client_disconnected.wait()
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            # We don't care about what is sent back to the client.
+            pass
+
+        def listener_group():
+            return next(
+                (g for g in channel_layer.groups if g.startswith("mcp_sse_")), None
+            )
+
+        # If the listener is never cancelled, the context manager below hangs
+        # forever waiting for it, so guard the whole scenario with a timeout.
+        with anyio.fail_after(10):
+            async with sse.connect_sse(scope, receive, send) as (
+                read_stream,
+                _write_stream,
+            ):
+                # Wait until the listener has joined the group, meaning it now holds
+                # an open client that waits for incoming messages.
+                while listener_group() is None:
+                    await anyio.sleep(0.01)
+
+                # Simulate the client closing the connection. Draining the read
+                # stream lets the SSE response finish and the transport tear down.
+                client_disconnected.set()
+                async for _ in read_stream:
+                    pass
+
+        # Once the connection is closed the listener must have been cancelled and
+        # discarded itself from the group. If it were still running, it would keep
+        # its blocking client open.
+        assert listener_group() is None
+
+    async_to_sync(inner)()
 
 
 @pytest.mark.django_db
