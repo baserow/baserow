@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.fields import CharField, EmailField
 from rest_framework.serializers import ModelSerializer
@@ -64,11 +65,15 @@ class UserAdminResponseSerializer(ModelSerializer):
         )
         extra_kwargs = _USER_ADMIN_SERIALIZER_API_DOC_KWARGS
 
+    @extend_schema_field(TwoFactorAuthSerializer)
     def get_two_factor_auth(self, object):
         try:
             provider = object.two_factor_auth_provider
         except User.two_factor_auth_provider.RelatedObjectDoesNotExist:
             provider = None
+
+        if provider is None:
+            return {}
 
         return TwoFactorAuthSerializer(provider).data
 

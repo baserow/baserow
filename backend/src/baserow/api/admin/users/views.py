@@ -259,6 +259,7 @@ class UserAdminTwoFactorAuthView(APIView):
                 ]
             ),
             401: None,
+            403: None,
         },
     )
     @map_exceptions(
