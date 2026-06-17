@@ -276,6 +276,10 @@ export class NodeType extends Registerable {
   }
 
   isDeactivatedReason({ workspace }) {
+    const serviceReason = this.serviceType.isDeactivatedReason({ workspace })
+    if (serviceReason) {
+      return serviceReason
+    }
     return null
   }
 

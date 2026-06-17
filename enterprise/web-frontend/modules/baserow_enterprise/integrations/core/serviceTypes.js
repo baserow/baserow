@@ -52,6 +52,15 @@ export class CoreCodeServiceType extends WorkflowActionServiceTypeMixin(
     return super.getErrorMessage({ service })
   }
 
+  isDeactivatedReason({ workspace }) {
+    if (
+      !this.app.$hasFeature(EnterpriseFeaturesObject.CODE_RUNNER, workspace.id)
+    ) {
+      return this.app.$i18n.t('enterprise.deactivated')
+    }
+    return null
+  }
+
   getDataSchema(service) {
     return service.schema
   }
@@ -115,7 +124,7 @@ export class CoreXLSFileReaderServiceType extends DataSourceServiceTypeMixin(
         workspace.id
       )
     ) {
-      return this.app.$i18n.t('enterprise.enterpriseOnlyDeactivated')
+      return this.app.$i18n.t('enterprise.deactivated')
     }
     return null
   }
