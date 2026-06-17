@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('automation', '0030_corecsvfilereaderactionnode'),
+        ('automation', '0031_localbaserowfieldsupdatedtriggernode'),
     ]
 
     operations = [
