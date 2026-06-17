@@ -6,7 +6,7 @@ describe('ColumnElement', () => {
   let testApp = null
   let store = null
 
-  beforeEach(() => {
+  beforeEach(async () => {
     testApp = useNuxtApp()
     store = testApp.$store
     if (!store.hasModule('element')) {
@@ -20,6 +20,7 @@ describe('ColumnElement', () => {
       // Override or spy if needed, but since it's a test environment,
       // we can stub it if it is already there.
     }
+    await store.dispatch('page/setDeviceTypeSelected', 'desktop')
   })
 
   const mountComponent = ({ props = {}, slots = {}, provide = {} }) => {
@@ -102,13 +103,13 @@ describe('ColumnElement', () => {
       },
     })
 
-    wrapper.vm.dimensions.width = 1920
+    await store.dispatch('page/setDeviceTypeSelected', 'desktop')
     expect(wrapper.vm.gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))')
 
-    wrapper.vm.dimensions.width = 800
+    await store.dispatch('page/setDeviceTypeSelected', 'tablet')
     expect(wrapper.vm.gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))')
 
-    wrapper.vm.dimensions.width = 320
+    await store.dispatch('page/setDeviceTypeSelected', 'smartphone')
     expect(wrapper.vm.gridTemplateColumns).toBe('1fr')
   })
 
@@ -140,7 +141,7 @@ describe('ColumnElement', () => {
       },
     })
 
-    wrapper.vm.dimensions.width = 320
+    await store.dispatch('page/setDeviceTypeSelected', 'smartphone')
     expect(wrapper.vm.gridTemplateColumns).toBe('repeat(3, minmax(0, 1fr))')
   })
 })
