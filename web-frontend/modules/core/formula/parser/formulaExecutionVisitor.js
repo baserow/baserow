@@ -56,7 +56,7 @@ export default class BaserowFormulaExecutionVisitor extends BaserowFormulaVisito
 
   doFunc(ctx, functionName) {
     const functionArgumentExpressions = ctx.expr()
-    let formulaFunctionType = null
+    let formulaFunctionType
     try {
       formulaFunctionType = this.functions.get(functionName)
     } catch (e) {

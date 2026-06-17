@@ -526,7 +526,6 @@ export class ElementType extends Registerable {
    * that can be used to move the element.
    */
   getNextPlaces({ builder, page, element }) {
-    let placeInContainer = element.place_in_container
     const parentElementId = element.parent_element_id
       ? element.parent_element_id
       : null
@@ -614,7 +613,7 @@ export class ElementType extends Registerable {
         (place) => place === element.place_in_container
       )
       if (placeIndex < places.length - 1) {
-        placeInContainer = places[placeIndex + 1]
+        const placeInContainer = places[placeIndex + 1]
         const elementsInNextPlace = this.app.$store.getters[
           'element/getElementsInPlace'
         ](elementPage, element.parent_element_id, placeInContainer)

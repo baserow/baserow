@@ -2959,7 +2959,6 @@ export const actions = {
         selectPrimaryCell: false,
         undoRedoActionGroupId,
       })
-      rowTailIndex = rowTailIndex + newRowsCount
     }
     // Loop over the old rows, find the matching updated row and update them in the
     // buffer accordingly.

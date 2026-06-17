@@ -80,7 +80,7 @@ export class RealTimeHandler {
      * type and call the correct event.
      */
     this.socket.onmessage = (message) => {
-      let data = {}
+      let data
 
       try {
         data = JSON.parse(message.data)

@@ -142,7 +142,7 @@ export default class BaserowFormulaValidationVisitor extends BaserowFormulaVisit
   visitFunctionCall(ctx, operatorFn = null) {
     const functionName = operatorFn || ctx.func_name().getText().toLowerCase()
     const functionArgumentExpressions = ctx.expr()
-    let formulaFunctionType = null
+    let formulaFunctionType
     try {
       formulaFunctionType = this.functions.get(functionName)
     } catch (e) {
