@@ -348,6 +348,10 @@ export class WorkflowActionServiceType extends WorkflowActionType {
     }
     return null
   }
+
+  getDeactivatedClickModal({ workspace }) {
+    return this.serviceType.getDeactivatedClickModal({ workspace })
+  }
 }
 
 export class CoreHTTPRequestWorkflowActionType extends WorkflowActionServiceType {

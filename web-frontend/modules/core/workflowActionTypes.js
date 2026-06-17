@@ -76,4 +76,8 @@ export class WorkflowActionType extends Registerable {
   isDeactivated({ workspace }) {
     return !!this.isDeactivatedReason({ workspace })
   }
+
+  getDeactivatedClickModal({ workspace }) {
+    return null
+  }
 }

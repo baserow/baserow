@@ -4,7 +4,6 @@ import {
   CoreCodeServiceType,
   CoreXLSFileReaderServiceType,
 } from '@baserow_enterprise/integrations/core/serviceTypes'
-import EnterpriseFeaturesObject from '@baserow_enterprise/features'
 
 export class CoreCodeNodeType extends ActionNodeTypeMixin(NodeType) {
   static getType() {

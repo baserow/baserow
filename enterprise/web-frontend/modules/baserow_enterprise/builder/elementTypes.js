@@ -225,6 +225,9 @@ export class FileInputElementType extends FormElementType {
   }
 
   isDeactivatedReason({ workspace }) {
+    if (!workspace) {
+      return null
+    }
     if (
       !this.app.$hasFeature(
         EnterpriseFeaturesObject.BUILDER_FILE_INPUT,
@@ -238,6 +241,7 @@ export class FileInputElementType extends FormElementType {
 
   getDeactivatedClickModal({ workspace }) {
     if (
+      workspace &&
       !this.app.$hasFeature(
         EnterpriseFeaturesObject.BUILDER_FILE_INPUT,
         workspace.id

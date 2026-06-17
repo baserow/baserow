@@ -286,6 +286,10 @@ export class NodeType extends Registerable {
   isDeactivated({ workspace }) {
     return !!this.isDeactivatedReason({ workspace })
   }
+
+  getDeactivatedClickModal({ workspace }) {
+    return this.serviceType.getDeactivatedClickModal({ workspace })
+  }
 }
 
 export class LocalBaserowNodeType extends NodeType {

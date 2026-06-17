@@ -4,6 +4,11 @@ import {
   WorkflowActionServiceTypeMixin,
 } from '@baserow/modules/core/serviceTypes'
 import EnterpriseFeaturesObject from '@baserow_enterprise/features'
+import PaidFeaturesModal from '@baserow_premium/components/PaidFeaturesModal'
+import {
+  CodeRunnerPaidFeature,
+  XLSFileReaderPaidFeature,
+} from '@baserow_enterprise/paidFeatures'
 import CoreCodeServiceForm from '@baserow_enterprise/integrations/core/components/services/CoreCodeServiceForm.vue'
 import CoreXLSFileReaderServiceForm from '@baserow_enterprise/integrations/core/components/services/CoreXLSFileReaderServiceForm.vue'
 
@@ -53,10 +58,26 @@ export class CoreCodeServiceType extends WorkflowActionServiceTypeMixin(
   }
 
   isDeactivatedReason({ workspace }) {
+    if (!workspace) {
+      return null
+    }
     if (
       !this.app.$hasFeature(EnterpriseFeaturesObject.CODE_RUNNER, workspace.id)
     ) {
       return this.app.$i18n.t('enterprise.deactivated')
+    }
+    return null
+  }
+
+  getDeactivatedClickModal({ workspace }) {
+    if (
+      workspace &&
+      !this.app.$hasFeature(EnterpriseFeaturesObject.CODE_RUNNER, workspace.id)
+    ) {
+      return [
+        PaidFeaturesModal,
+        { 'initial-selected-type': CodeRunnerPaidFeature.getType() },
+      ]
     }
     return null
   }
@@ -118,6 +139,9 @@ export class CoreXLSFileReaderServiceType extends DataSourceServiceTypeMixin(
   }
 
   isDeactivatedReason({ workspace }) {
+    if (!workspace) {
+      return null
+    }
     if (
       !this.app.$hasFeature(
         EnterpriseFeaturesObject.XLS_FILE_READER,
@@ -125,6 +149,22 @@ export class CoreXLSFileReaderServiceType extends DataSourceServiceTypeMixin(
       )
     ) {
       return this.app.$i18n.t('enterprise.deactivated')
+    }
+    return null
+  }
+
+  getDeactivatedClickModal({ workspace }) {
+    if (
+      workspace &&
+      !this.app.$hasFeature(
+        EnterpriseFeaturesObject.XLS_FILE_READER,
+        workspace.id
+      )
+    ) {
+      return [
+        PaidFeaturesModal,
+        { 'initial-selected-type': XLSFileReaderPaidFeature.getType() },
+      ]
     }
     return null
   }

@@ -75,6 +75,7 @@ import {
   BuilderBrandingPaidFeature,
   BuilderCustomCodePaidFeature,
   BuilderFileInputElementPaidFeature,
+  CodeRunnerPaidFeature,
   CoBrandingPaidFeature,
   DataScannerPaidFeature,
   DataSyncPaidFeature,
@@ -83,6 +84,7 @@ import {
   RBACPaidFeature,
   SSOPaidFeature,
   SupportPaidFeature,
+  XLSFileReaderPaidFeature,
 } from '@baserow_enterprise/paidFeatures'
 import { FieldPermissionsContextItemType } from '@baserow_enterprise/fieldContextItemTypes'
 import {
@@ -259,6 +261,8 @@ export default defineNuxtPlugin({
       'paidFeature',
       new BuilderFileInputElementPaidFeature(context)
     )
+    $registry.register('paidFeature', new CodeRunnerPaidFeature(context))
+    $registry.register('paidFeature', new XLSFileReaderPaidFeature(context))
 
     $registry.register('paidFeature', new DataScannerPaidFeature(context))
     $registry.register('paidFeature', new DateDependencyPaidFeature(context))

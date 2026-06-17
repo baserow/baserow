@@ -28,6 +28,14 @@
         <div class="context__menu-item-description">
           {{ nodeType.description }}
         </div>
+        <component
+          :is="getDeactivatedClickModal(nodeType)[0]"
+          v-if="getDeactivatedClickModal(nodeType) !== null"
+          :ref="`deactivatedClickModal_${nodeType.getType()}`"
+          v-bind="getDeactivatedClickModal(nodeType)[1]"
+          :name="nodeType.name"
+          :workspace="workspace"
+        ></component>
       </a>
     </li>
   </ul>
@@ -80,9 +88,18 @@ export default {
   methods: {
     onChange(nodeType) {
       if (nodeType.isDeactivated({ workspace: this.workspace })) {
+        const deactivatedClickModal = this.getDeactivatedClickModal(nodeType)
+        if (deactivatedClickModal !== null) {
+          this.$refs[`deactivatedClickModal_${nodeType.getType()}`][0].show()
+        }
         return
       }
       this.$emit('change', nodeType.getType())
+    },
+    getDeactivatedClickModal(nodeType) {
+      return nodeType.getDeactivatedClickModal({
+        workspace: this.workspace,
+      })
     },
   },
 }
