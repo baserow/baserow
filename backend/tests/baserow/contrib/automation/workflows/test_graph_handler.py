@@ -124,7 +124,7 @@ def test_graph_handler_get_last_position(mock_get_points):
 @pytest.mark.parametrize(
     "node_id,  expected_result",
     [
-        (1, (None, "south", "")),
+        (1, (None, "north", "")),
         (2, ("1", "south", "")),
         (3, ("2", "south", "")),
         (4, ("3", "south", "")),

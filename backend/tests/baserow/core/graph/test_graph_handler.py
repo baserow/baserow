@@ -670,3 +670,70 @@ def test_prune_points_ignores_unknown_ids():
 
     assert graph.prune_points([999]) == []
     assert model.graph == {"0": 1, "1": {"next": {"": [2]}}, "2": {}}
+
+
+def test_get_position_of_root_is_north():
+    # The root must report `(None, "north", "")` so the triplet round-trips back
+    # through move()/insert() (which restore the root) rather than colliding with
+    # `(None, "south")`, which move() treats as "append to the end".
+    model = make_graph_model({})
+    graph = model.get_graph()
+    p1 = make_point(1, model)
+    graph.insert(p1, None, "south")
+
+    assert graph.get_position(p1) == (None, GraphPointPosition.NORTH, "")
+
+
+def test_move_root_point_then_restore_via_captured_position():
+    # Reproduces the undo bug: moving the first (root) point away and then
+    # restoring it to its captured position must put it back at the root, not at
+    # the end of the chain.
+    model = make_graph_model({})
+    graph = model.get_graph()
+    p1 = make_point(1, model)
+    p2 = make_point(2, model)
+    p3 = make_point(3, model)
+    graph.insert(p1, None, "south")
+    graph.insert(p2, p1, "south")
+    graph.insert(p3, p2, "south")
+    # 0 -> 1 -> 2 -> 3, with p1 at the root.
+
+    # Capture the root's position (as an undo would).
+    previous_position = graph.get_position(p1)
+    assert previous_position == (None, GraphPointPosition.NORTH, "")
+
+    # Move p1 to just before the last point: 0 -> 2 -> 1 -> 3.
+    graph.move(p1, p3, "north")
+    assert model.graph["0"] == 2
+    assert model.graph["2"]["next"][""] == [1]
+    assert model.graph["1"]["next"][""] == [3]
+
+    # Undo: move p1 back to its captured (root) position.
+    ref_id, position, output = previous_position
+    reference = graph.get_point(ref_id) if ref_id is not None else None
+    graph.move(p1, reference, position, output)
+
+    # p1 is the root again and the original chain is fully restored.
+    assert model.graph["0"] == 1
+    assert model.graph["1"]["next"][""] == [2]
+    assert model.graph["2"]["next"][""] == [3]
+    assert "next" not in model.graph["3"]
+
+
+def test_replace_root_point():
+    # `replace` must update the root key when the replaced point is the root,
+    # regardless of the position reported by get_position.
+    model = make_graph_model({})
+    graph = model.get_graph()
+    p1 = make_point(1, model)
+    p2 = make_point(2, model)
+    graph.insert(p1, None, "south")
+    graph.insert(p2, p1, "south")
+    # 0 -> 1 -> 2.
+
+    p3 = make_point(3, model)
+    graph.replace(p1, p3)
+
+    assert model.graph["0"] == 3
+    assert "1" not in model.graph
+    assert model.graph["3"]["next"][""] == [2]

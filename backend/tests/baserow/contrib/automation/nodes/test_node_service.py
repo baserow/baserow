@@ -392,6 +392,36 @@ def test_replace_simple_node(data_fixture: Fixtures):
 
 
 @pytest.mark.django_db
+def test_replace_trigger_node_updates_root(data_fixture: Fixtures):
+    # Replacing the trigger replaces the workflow's root node. This exercises the
+    # graph handler's `replace()` on the root, which keys off `reference is None`
+    # (the root is reported by get_position as `(None, "north", "")`).
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user)
+    trigger = workflow.get_trigger()
+    action = data_fixture.create_automation_node(workflow=workflow)
+
+    new_type = automation_node_type_registry.get("local_baserow_rows_updated")
+    replace_result = AutomationNodeService().replace_node(
+        user, trigger.id, new_type.type
+    )
+
+    trigger.refresh_from_db()
+    assert trigger.trashed
+
+    # The new trigger is the workflow's root and still chains to the action.
+    workflow.assert_reference(
+        {
+            "0": "local_baserow_rows_updated",
+            "local_baserow_rows_updated": {"next": {"": ["local_baserow_create_row"]}},
+            "local_baserow_create_row": {},
+        }
+    )
+    assert workflow.get_graph().graph["0"] == replace_result.node.id
+    assert workflow.get_trigger().id == replace_result.node.id
+
+
+@pytest.mark.django_db
 def test_replace_node_in_first(data_fixture: Fixtures):
     user = data_fixture.create_user()
     workflow = data_fixture.create_automation_workflow(user)

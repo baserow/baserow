@@ -299,13 +299,21 @@ class BaseGraphHandler(ABC):
         :param point: The point to get the position from.
         :return: A triplet of `[reference_point, position, output]` describing the
             position of the given point in the graph. If the point is the root point,
-            it will return `(None, "south", "")`.
+            it will return `(None, "north", "")`.
+
+            The root is reported as `"north"` (not `"south"`) deliberately: this
+            triplet has to round-trip back through `move`/`insert` (e.g. to undo a
+            move of the first element). `insert(reference=None, ...)` always places
+            the point at the root, but `move` treats the specific `(None, "south")`
+            pair as "append to the end of the chain" (used by the orphan-undo path).
+            Returning `(None, "north", "")` therefore restores the root via insert,
+            while leaving `(None, "south", "")` free to mean "append".
         :raises GraphPointNotFoundInGraph: If the point is not found in the graph.
         """
 
         # Is it the root point?
         if point.id == self.graph.get(self.GRAPH_ROOT_KEY, None):
-            return None, "south", ""
+            return None, GraphPointPosition.NORTH, ""
 
         for point_id, point_info in self.graph.items():
             if point_id == self.GRAPH_ROOT_KEY or point_id == str(point.id):
@@ -842,15 +850,17 @@ class BaseGraphHandler(ABC):
 
         self.graph[new_point_id] = self.graph[point_to_replace_id]
 
-        if position == "south":
-            if reference_point_id is None:
-                self.graph[self.GRAPH_ROOT_KEY] = new_point.id
-            else:
-                self.graph[reference_point_id]["next"][output] = _replace(
-                    self.graph[reference_point_id]["next"][output],
-                    point_to_replace.id,
-                    new_point.id,
-                )
+        if reference_point_id is None:
+            # The replaced point is the root, so the new point becomes the root.
+            # (Checked independently of `position` because `get_position` reports the
+            # root as `(None, "north", "")`.)
+            self.graph[self.GRAPH_ROOT_KEY] = new_point.id
+        elif position == "south":
+            self.graph[reference_point_id]["next"][output] = _replace(
+                self.graph[reference_point_id]["next"][output],
+                point_to_replace.id,
+                new_point.id,
+            )
         elif position == "child":
             parent_info = self.graph[reference_point_id]
             children_dict = self._get_children_dict(parent_info)

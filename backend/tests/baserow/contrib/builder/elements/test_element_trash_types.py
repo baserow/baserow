@@ -28,7 +28,7 @@ def test_trashing_and_restoring_element_updates_graph(data_fixture):
     trash_entry = TrashHandler.trash(user, builder.workspace, builder, first)
 
     assert trash_entry.additional_restoration_data == {
-        "position": [None, "south", ""],
+        "position": [None, "north", ""],
         "hierarchical_parent_id": None,
         "children": [],
     }
@@ -128,7 +128,7 @@ def test_trashing_container_soft_deletes_children_and_restore_brings_them_back(
 
     # Restoration data records both the container's own position and its children.
     data = trash_entry.additional_restoration_data
-    assert data["position"] == [None, "south", ""]
+    assert data["position"] == [None, "north", ""]
     assert len(data["children"]) == 2
     child_ids = [row[0] for row in data["children"]]
     assert child1.id in child_ids

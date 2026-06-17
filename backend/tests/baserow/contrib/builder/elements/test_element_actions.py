@@ -169,6 +169,42 @@ def test_move_element_action(data_fixture):
 
 @pytest.mark.django_db
 @pytest.mark.undo_redo
+def test_move_head_element_undo_restores_it_as_head(data_fixture):
+    # Moving the first (head/root) element away and then undoing must put it back
+    # at the head — not append it to the bottom of the page. The head's captured
+    # position is `(None, "north", "")`, whose move-inverse re-roots it.
+    session_id = str(uuid.uuid4())
+    user = data_fixture.create_user(session_id=session_id)
+    page = data_fixture.create_builder_page(user=user)
+    first = data_fixture.create_builder_heading_element(page=page)
+    second = data_fixture.create_builder_heading_element(page=page)
+    third = data_fixture.create_builder_heading_element(page=page)
+
+    # Initial chain: first (head) -> second -> third.
+    assert page.get_graph().graph["0"] == first.id
+
+    # Move the head element to just before the last one: second -> first -> third.
+    MoveElementActionType.do(user, first, page, "", third.id, "north")
+
+    assert page.get_graph().graph["0"] == second.id
+    assert _next_id(page, second.id) == first.id
+    assert _next_id(page, first.id) == third.id
+
+    # Undo restores `first` as the head and the original chain.
+    ActionHandler.undo(user, [PageActionScopeType.value(page.id)], session_id)
+
+    assert page.get_graph().graph["0"] == first.id
+    assert _next_id(page, first.id) == second.id
+    assert _next_id(page, second.id) == third.id
+
+    # Redo re-applies the move.
+    ActionHandler.redo(user, [PageActionScopeType.value(page.id)], session_id)
+
+    assert page.get_graph().graph["0"] == second.id
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
 def test_move_element_out_of_container_undo_restores_head_child_position(
     data_fixture,
 ):
