@@ -34,31 +34,6 @@
     </FormGroup>
 
     <FormGroup
-      :label="$t('columnElementForm.columnStackingTitle')"
-      small-label
-      required
-      class="margin-bottom-2"
-    >
-      <DeviceSelector
-        :device-type-selected="deviceTypeSelected"
-        direction="row"
-        @selected="actionSetDeviceTypeSelected"
-      >
-        <template #deviceTypeControl="{ deviceType }">
-          <RadioButton
-            v-for="stackingOption in columnStackingOptions"
-            :key="stackingOption.value"
-            v-model="values.column_stacking[deviceType.getType()]"
-            :icon="stackingOption.icon"
-            :value="stackingOption.value"
-          >
-            {{ stackingOption.label }}
-          </RadioButton>
-        </template>
-      </DeviceSelector>
-    </FormGroup>
-
-    <FormGroup
       v-if="usesCustomWeights"
       class="margin-bottom-2"
       small-label
@@ -81,6 +56,31 @@
           @update:model-value="onCustomWeightChange(index, $event)"
         />
       </div>
+    </FormGroup>
+
+    <FormGroup
+      :label="$t('columnElementForm.columnStackingTitle')"
+      small-label
+      required
+      class="margin-bottom-2"
+    >
+      <DeviceSelector
+        :device-type-selected="deviceTypeSelected"
+        direction="row"
+        @selected="actionSetDeviceTypeSelected"
+      >
+        <template #deviceTypeControl="{ deviceType }">
+          <RadioButton
+            v-for="stackingOption in columnStackingOptions"
+            :key="stackingOption.value"
+            v-model="values.column_stacking[deviceType.getType()]"
+            :icon="stackingOption.icon"
+            :value="stackingOption.value"
+          >
+            {{ stackingOption.label }}
+          </RadioButton>
+        </template>
+      </DeviceSelector>
     </FormGroup>
 
     <FormGroup
