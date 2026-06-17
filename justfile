@@ -297,12 +297,12 @@ _dev-start:
 
     echo ""
     echo "==> Starting backend dev server..."
-    (cd backend && just run-dev-server) > "$BACKEND_LOG" 2>&1 &
+    (cd backend && BASEROW_BACKEND_LOG_FILE="$BACKEND_LOG" just run-dev-server) >/dev/null 2>&1 &
     BACKEND_PID=$!
     echo "    PID: $BACKEND_PID (log: $BACKEND_LOG)"
 
     echo "==> Starting Celery workers..."
-    (cd backend && just run-dev-celery) > "$CELERY_LOG" 2>&1 &
+    (cd backend && BASEROW_CELERY_LOG_FILE="$CELERY_LOG" just run-dev-celery) >/dev/null 2>&1 &
     CELERY_PID=$!
     echo "    PID: $CELERY_PID (log: $CELERY_LOG)"
 
@@ -322,6 +322,23 @@ _dev-start:
     echo "$FRONTEND_PID" > "${LOCAL_DEV_PREFIX}-frontend.pid"
     echo "$STORYBOOK_PID" > "${LOCAL_DEV_PREFIX}-storybook.pid"
 
+    MAILHOG_STATUS_PORT="${MAILHOG_WEB_PORT:-}"
+    if [ -z "$MAILHOG_STATUS_PORT" ] && [ -f .env.docker-dev ]; then
+        while IFS='=' read -r key value; do
+            if [ "$key" = "MAILHOG_WEB_PORT" ]; then
+                MAILHOG_STATUS_PORT="${value%%#*}"
+                MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT%$'\r'}"
+                MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT%"${MAILHOG_STATUS_PORT##*[![:space:]]}"}"
+                MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT#\"}"
+                MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT%\"}"
+                MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT#\'}"
+                MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT%\'}"
+                break
+            fi
+        done < .env.docker-dev
+    fi
+    MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT:-8025}"
+
     echo ""
     echo "=============================================="
     echo "Baserow local development environment started!"
@@ -331,7 +348,7 @@ _dev-start:
     echo "  Backend:   ${PUBLIC_BACKEND_URL:-http://localhost:8000}"
     echo "  Frontend:  ${PUBLIC_WEB_FRONTEND_URL:-http://localhost:3000}"
     echo "  Storybook: http://localhost:${STORYBOOK_PORT:-6006}"
-    echo "  Mailhog:   http://localhost:${MAILHOG_WEB_PORT:-8025}"
+    echo "  Mailhog:   http://localhost:${MAILHOG_STATUS_PORT}"
     echo ""
     echo "Commands:"
     echo "  just dev logs              # View logs"
