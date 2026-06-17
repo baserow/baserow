@@ -213,8 +213,11 @@ const { data, error } = await useAsyncData(
       editToken,
     }
   },
-  // Ensure re-fetch if the URL (incl. query) changes while reusing the page instance
-  { watch: [() => route.fullPath] }
+  {
+    deep: true,
+    // Ensure re-fetch if the URL (incl. query) changes while reusing the page instance
+    watch: [() => route.fullPath],
+  }
 )
 
 if (error.value) {
