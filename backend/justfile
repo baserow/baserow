@@ -175,13 +175,6 @@ code-runtime:
 
     chmod +x "$RUNTIME_DIR/bin/wasmtime"
 
-    upsert_env \
-        "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE" \
-        "$RUNTIME_DIR/bin/wasmtime"
-    upsert_env \
-        "BASEROW_ENTERPRISE_CODE_RUNNER_QUICKJS_WASM_PATH" \
-        "$RUNTIME_DIR/lib/baserow/qjs.wasm"
-
     echo "Code runner runtime installed in $RUNTIME_DIR"
     echo "Add these vars to your env file to enable the code runner:"
     echo "BASEROW_ENTERPRISE_CODE_RUNNER_WASMTIME_EXECUTABLE=$RUNTIME_DIR/bin/wasmtime"
