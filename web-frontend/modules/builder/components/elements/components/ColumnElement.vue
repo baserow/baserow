@@ -104,30 +104,11 @@ export default {
       return alignmentMapping[this.element.alignment]
     },
 
-    currentDeviceType() {
-      const width = this.dimensions.width
-      if (width !== null) {
-        const smartphoneMaxWidth = this.$registry.get(
-          'device',
-          'smartphone'
-        ).maxWidth
-        const tabletMaxWidth = this.$registry.get('device', 'tablet').maxWidth
-
-        if (width <= smartphoneMaxWidth) {
-          return 'smartphone'
-        }
-
-        if (width <= tabletMaxWidth) {
-          return 'tablet'
-        }
-      }
-
-      return this.$store.getters['page/getDeviceTypeSelected'] || 'desktop'
-    },
-
     shouldStackColumns() {
+      const currentDeviceType =
+        this.$store.getters['page/getDeviceTypeSelected']
       return (
-        this.element.column_stacking?.[this.currentDeviceType] ===
+        this.element.column_stacking?.[currentDeviceType] ===
         COLUMN_STACKING.STACKED
       )
     },
