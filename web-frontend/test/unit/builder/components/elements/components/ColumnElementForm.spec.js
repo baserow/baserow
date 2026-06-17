@@ -1,7 +1,7 @@
 import { VERTICAL_ALIGNMENTS } from '@baserow/modules/builder/enums'
 import ColumnElementForm from '@baserow/modules/builder/components/elements/components/forms/general/ColumnElementForm'
 import { mountSuspended } from '@nuxt/test-utils/runtime'
-import { expect, test, describe, beforeEach, afterEach } from 'vitest'
+import { expect, test, describe, beforeEach, afterEach, vi } from 'vitest'
 
 describe('ColumnElementForm', () => {
   let wrapper
@@ -147,6 +147,38 @@ describe('ColumnElementForm', () => {
     expect(wrapper.vm.values.column_weights).toEqual([1, 0, 1])
 
     expect(wrapper.vm.v$.custom_weights.$invalid).toBe(false)
+  })
+
+  test('custom weight inputs prevent text characters', () => {
+    const preventTextInput = vi.fn()
+    wrapper.vm.onCustomWeightKeydown({
+      key: 'e',
+      preventDefault: preventTextInput,
+    })
+    expect(preventTextInput).toHaveBeenCalledOnce()
+
+    const preventDigitInput = vi.fn()
+    wrapper.vm.onCustomWeightKeydown({
+      key: '2',
+      preventDefault: preventDigitInput,
+    })
+    expect(preventDigitInput).not.toHaveBeenCalled()
+
+    const preventShortcut = vi.fn()
+    wrapper.vm.onCustomWeightKeydown({
+      key: 'a',
+      metaKey: true,
+      preventDefault: preventShortcut,
+    })
+    expect(preventShortcut).not.toHaveBeenCalled()
+
+    const preventSecondDecimalSeparator = vi.fn()
+    wrapper.vm.onCustomWeightKeydown({
+      key: '.',
+      currentTarget: { value: '1.5' },
+      preventDefault: preventSecondDecimalSeparator,
+    })
+    expect(preventSecondDecimalSeparator).toHaveBeenCalledOnce()
   })
 
   test('layouts with more than 3 columns use custom weights directly', async () => {

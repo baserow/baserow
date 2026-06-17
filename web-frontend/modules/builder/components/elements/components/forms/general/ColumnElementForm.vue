@@ -77,6 +77,7 @@
           type="number"
           :min="0"
           class="column-element-form__custom-weight-input"
+          @keydown="onCustomWeightKeydown"
           @update:model-value="onCustomWeightChange(index, $event)"
         />
       </div>
@@ -258,6 +259,38 @@ export default {
 
       this.values.column_weights = [...this.custom_weights]
       this.v$.$touch()
+    },
+    onCustomWeightKeydown(event) {
+      if (
+        event.ctrlKey ||
+        event.metaKey ||
+        [
+          'Backspace',
+          'Delete',
+          'Tab',
+          'Escape',
+          'Enter',
+          'ArrowLeft',
+          'ArrowRight',
+          'ArrowUp',
+          'ArrowDown',
+          'Home',
+          'End',
+        ].includes(event.key)
+      ) {
+        return
+      }
+
+      if (/^\d$/.test(event.key)) {
+        return
+      }
+
+      const currentValue = event.currentTarget?.value || ''
+      if (event.key === '.' && !currentValue.includes('.')) {
+        return
+      }
+
+      event.preventDefault()
     },
     updateColumnAmount(amount) {
       this.values.column_amount = amount
