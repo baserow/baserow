@@ -1144,6 +1144,11 @@ def test_collection_element_type_publicly_searchable_sortable_filterable(
             "is_publicly_searchable": True,
             "is_publicly_filterable": True,
         },
+        "graph": {
+            "is_publicly_sortable": False,
+            "is_publicly_searchable": False,
+            "is_publicly_filterable": False,
+        },
         "table": {
             "is_publicly_sortable": True,
             "is_publicly_searchable": True,

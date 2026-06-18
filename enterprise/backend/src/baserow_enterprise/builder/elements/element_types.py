@@ -1,18 +1,21 @@
 import mimetypes
 from typing import Any, Dict, List, Optional
 
+from django.db.models import QuerySet
 from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
 
 from baserow.api.exceptions import RequestBodyValidationException
-from baserow.contrib.builder.constants import TextFormats
+from baserow.contrib.builder.constants import COLOR_FIELD_MAX_LENGTH, TextFormats
 from baserow.contrib.builder.elements.element_types import InputElementType
+from baserow.contrib.builder.elements.models import Element
 from baserow.contrib.builder.elements.registries import ElementType
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.types import ElementDict
 from baserow.contrib.builder.workflow_actions.models import EventTypes
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
+from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import (
     BASEROW_FORMULA_MODE_SIMPLE,
     BaserowFormula,
@@ -20,9 +23,27 @@ from baserow.core.formula.types import (
 )
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.user_sources.handler import UserSourceHandler
-from baserow_enterprise.builder.elements.models import AuthFormElement, FileInputElement
-from baserow_enterprise.features import BUILDER_FILE_INPUT
+from baserow_enterprise.builder.elements.models import (
+    AuthFormElement,
+    FileInputElement,
+    GraphElement,
+)
+from baserow_enterprise.features import BUILDER_FILE_INPUT, BUILDER_GRAPH_ELEMENT
+from baserow_premium.dashboard.widgets.models import ChartSeriesChartType
 from baserow_premium.license.handler import LicenseHandler
+
+
+class GraphElementSeriesSerializer(serializers.Serializer):
+    label = FormulaSerializerField(required=False)
+    values = FormulaSerializerField(required=False)
+    color = serializers.CharField(
+        required=False, allow_blank=True, default="", max_length=COLOR_FIELD_MAX_LENGTH
+    )
+    chart_type = serializers.ChoiceField(
+        choices=ChartSeriesChartType.choices,
+        required=False,
+        default=ChartSeriesChartType.BAR,
+    )
 
 
 class AuthFormElementType(ElementType):
@@ -360,3 +381,89 @@ class FileInputElementType(InputElementType):
                 return self._handle_file(element, value, dispatch_context)
 
         return value
+
+
+class GraphElementType(ElementType):
+    type = "graph"
+    model_class = GraphElement
+    allowed_fields = ["labels", "series"]
+    serializer_field_names = ["labels", "series"]
+    simple_formula_fields = ["labels"]
+
+    class SerializedDict(ElementDict):
+        labels: BaserowFormula
+        series: list[dict[str, BaserowFormula | str]]
+
+    @property
+    def serializer_field_overrides(self):
+        from baserow.contrib.builder.api.theme.serializers import (
+            DynamicConfigBlockSerializer,
+        )
+        from baserow.contrib.builder.theme.theme_config_block_types import (
+            TypographyThemeConfigBlockType,
+        )
+
+        return {
+            "labels": FormulaSerializerField(
+                help_text=GraphElement._meta.get_field("labels").help_text,
+                required=False,
+            ),
+            "series": serializers.ListSerializer(
+                child=GraphElementSeriesSerializer(),
+                required=False,
+                help_text=GraphElement._meta.get_field("series").help_text,
+            ),
+            "styles": DynamicConfigBlockSerializer(
+                required=False,
+                property_names=["graph"],
+                theme_config_block_type_names=[
+                    [TypographyThemeConfigBlockType.type],
+                ],
+                serializer_kwargs={"required": False},
+            ),
+        }
+
+    def enhance_queryset(self, queryset: QuerySet[Element]) -> QuerySet[Element]:
+        return super().enhance_queryset(queryset)
+
+    def is_deactivated(self, workspace) -> bool:
+        return not LicenseHandler.workspace_has_feature(
+            BUILDER_GRAPH_ELEMENT, workspace
+        )
+
+    def formula_generator(self, element: Element):
+        yield from super().formula_generator(element)
+
+        for series in element.series:
+            for formula_field in ["label", "values"]:
+                new_formula = yield BaserowFormulaObject.to_formula(
+                    series.get(formula_field, "")
+                )
+                if new_formula is not None:
+                    series[formula_field] = new_formula
+                    yield element
+
+    def get_pytest_params(self, pytest_data_fixture):
+        return {
+            "labels": BaserowFormulaObject(
+                formula="to_array('A,B')",
+                mode=BASEROW_FORMULA_MODE_SIMPLE,
+                version=BASEROW_FORMULA_VERSION_INITIAL,
+            ),
+            "series": [
+                {
+                    "label": BaserowFormulaObject(
+                        formula="'Count'",
+                        mode=BASEROW_FORMULA_MODE_SIMPLE,
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                    ),
+                    "values": BaserowFormulaObject(
+                        formula="to_array('1,2')",
+                        mode=BASEROW_FORMULA_MODE_SIMPLE,
+                        version=BASEROW_FORMULA_VERSION_INITIAL,
+                    ),
+                    "color": "#2e90fa",
+                    "chart_type": ChartSeriesChartType.BAR,
+                }
+            ],
+        }
