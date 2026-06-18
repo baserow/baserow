@@ -544,7 +544,13 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         if service.body_type == BODY_TYPE.JSON:  # JSON payload
             try:
-                body_dict["json"] = json.loads(body_content) if body_content else None
+                # `strict=False` allows raw control characters (e.g. newlines,
+                # tabs, etc) inside JSON string values. This is necessary because
+                # the body can be the resolved output of a formula which contains
+                # control chars.
+                body_dict["json"] = (
+                    json.loads(body_content, strict=False) if body_content else None
+                )
             except json.JSONDecodeError as e:
                 raise ServiceImproperlyConfiguredDispatchException(
                     "The body is not a valid JSON"
