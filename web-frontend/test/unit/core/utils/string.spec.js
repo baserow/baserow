@@ -9,6 +9,7 @@ import {
   isNumeric,
   isInteger,
   isSubstringOfStrings,
+  collatedStringCompare,
 } from '@baserow/modules/core/utils/string'
 
 describe('test string utils', () => {
@@ -222,5 +223,42 @@ describe('test string utils', () => {
     expect(isSubstringOfStrings(['hello', 'test'], 'hell')).toBe(true)
     expect(isSubstringOfStrings([], 'hell')).toBe(false)
     expect(isSubstringOfStrings(['hello'], '')).toBe(true)
+  })
+
+  test('collatedStringCompare does locale-aware sorting', () => {
+    const roles = [
+      'Editor',
+      'Admin',
+      'Viewer',
+      'Manager',
+      'Éditeur',
+      'Über-admin',
+      'Évaluateur',
+    ]
+
+    expect(
+      [...roles].sort((a, b) => collatedStringCompare(a, b, 'ASC'))
+    ).toStrictEqual([
+      'Admin',
+      'Éditeur',
+      'Editor',
+      'Évaluateur',
+      'Manager',
+      'Über-admin',
+      'Viewer',
+    ])
+
+    // DESC reverses the same locale-aware ordering.
+    expect(
+      [...roles].sort((a, b) => collatedStringCompare(a, b, 'DESC'))
+    ).toStrictEqual([
+      'Viewer',
+      'Über-admin',
+      'Manager',
+      'Évaluateur',
+      'Editor',
+      'Éditeur',
+      'Admin',
+    ])
   })
 })

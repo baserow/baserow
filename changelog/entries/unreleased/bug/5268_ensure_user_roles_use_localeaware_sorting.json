@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Ensure user roles use locale-aware sorting.",
+    "issue_origin": "github",
+    "issue_number": 5268,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-06-18"
+}
