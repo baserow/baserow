@@ -88,7 +88,7 @@ def test_local_baserow_delete_row_service_dispatch_data_with_no_row_id(data_fixt
     dispatch_context = FakeDispatchContext()
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
-    assert result["data"] == {}
+    assert result["data"] is None
 
 
 @pytest.mark.django_db
@@ -147,7 +147,7 @@ def test_local_baserow_delete_row_service_dispatch_data(data_fixture):
     dispatch_context = FakeDispatchContext()
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
-    assert result["data"] == {}
+    assert result["data"] is None
     assert model.objects.count() == 2
     assert model.objects.filter(id=1).exists() is False
 
@@ -155,6 +155,8 @@ def test_local_baserow_delete_row_service_dispatch_data(data_fixture):
 @pytest.mark.django_db
 def test_local_baserow_delete_row_service_dispatch_transform(data_fixture):
     service_type = LocalBaserowDeleteRowServiceType()
-    dispatch_data = {"data": {}, "baserow_table_model": Mock()}
+    dispatch_data = {"data": None, "baserow_table_model": Mock()}
     result = service_type.dispatch_transform(dispatch_data)
     assert result.status == 204
+    # A 204 response must not carry a body, so `data` is `None` rather than {}.
+    assert result.data is None

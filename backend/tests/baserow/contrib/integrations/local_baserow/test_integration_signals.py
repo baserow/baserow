@@ -149,7 +149,8 @@ def test_local_baserow_upsert_row_send_action_done_signal_when_deleting_row(
         )
         assert send_mock.call_count == 1
 
-    assert dispatch_data["data"] is not None
+    # A deletion has no body, so the dispatch data is `None`.
+    assert dispatch_data["data"] is None
     args = send_mock.call_args[1]
     assert args["action_type"].type == DeleteRowsActionType.type
     assert args["action_params"]["row_ids"] == [row.id]

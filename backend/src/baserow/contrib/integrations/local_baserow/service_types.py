@@ -2290,7 +2290,7 @@ class LocalBaserowDeleteRowServiceType(
         :param resolved_values: If the service has any formulas, this dictionary will
             contain their resolved values.
         :param dispatch_context: the context used for formula resolution.
-        :return: A dictionary with empty `data`.
+        :return: A dictionary with `None` `data`, as a deletion has no body.
         """
 
         table = service.table
@@ -2311,19 +2311,19 @@ class LocalBaserowDeleteRowServiceType(
                     "it has a data sync."
                 ) from exc
 
-        return {"data": {}, "baserow_table_model": model}
+        return {"data": None, "baserow_table_model": model}
 
     def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
         """
-        The delete row action's `dispatch_data` will contain an empty
-        `data` dictionary. When we get to this method and wish to transform
-        the data, we can simply return a 204 response.
+        The delete row action's `dispatch_data` will contain a `None` `data`
+        value. A 204 response is not supposed to return any data, so we pass
+        that `None` through to the dispatch result instead of an empty dict.
 
         :param dispatch_data: The `dispatch_data` result.
         :return: A dispatch result with no data, and a 204 status code.
         """
 
-        return DispatchResult(status=204)
+        return DispatchResult(data=dispatch_data["data"], status=204)
 
 
 class LocalBaserowRowsSignalServiceType(

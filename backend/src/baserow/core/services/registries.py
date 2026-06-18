@@ -418,6 +418,10 @@ class ServiceType(
         Remove the non public fields from the result.
         """
 
+        # A no-body result (e.g. a 204 from a deletion) has nothing to sanitize.
+        if result is None:
+            return None
+
         if self.returns_list:
             return {
                 **result,
