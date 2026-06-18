@@ -13,11 +13,13 @@ from baserow.contrib.builder.data_sources.builder_dispatch_context import (
 )
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
+from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.workflow_actions.models import EventTypes
 from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow_enterprise.builder.elements.element_types import (
     AuthFormElementType,
     FileInputElementType,
+    GraphElementType,
 )
 
 
@@ -75,6 +77,52 @@ def test_builder_application_import_with_auth_form_referencing_trashed_user_sour
     imported_page = imported.visible_pages.get(name=page.name)
     imported_element = imported_page.element_set.get().specific
     assert imported_element.user_source_id is None
+
+
+@pytest.mark.django_db
+def test_graph_element_import_export_formula_data_sources(
+    data_fixture, enable_enterprise
+):
+    page = data_fixture.create_builder_page()
+    data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source()
+    data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
+    element_type = GraphElementType()
+
+    exported_element = data_fixture.create_builder_element(
+        GraphElementType,
+        page=page,
+        labels=f"get('data_source.{data_source_1.id}.field_1')",
+        series=[
+            {
+                "label": f"get('data_source.{data_source_1.id}.field_2')",
+                "values": f"get('data_source.{data_source_1.id}.field_3')",
+                "color": "#2e90fa",
+                "chart_type": "BAR",
+            }
+        ],
+    )
+
+    id_mapping = {"builder_data_sources": {data_source_1.id: data_source_2.id}}
+    updated_models = element_type.import_formulas(
+        exported_element, id_mapping, import_formula
+    )
+
+    assert updated_models == {exported_element}
+
+    assert (
+        exported_element.labels["formula"]
+        == f"get('data_source.{data_source_2.id}.field_1')"
+    )
+    assert (
+        exported_element.series[0]["label"]["formula"]
+        == f"get('data_source.{data_source_2.id}.field_2')"
+    )
+    assert (
+        exported_element.series[0]["values"]["formula"]
+        == f"get('data_source.{data_source_2.id}.field_3')"
+    )
+    assert exported_element.series[0]["color"] == "#2e90fa"
+    assert exported_element.series[0]["chart_type"] == "BAR"
 
 
 @pytest.mark.django_db
