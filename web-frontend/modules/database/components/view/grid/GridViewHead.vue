@@ -147,7 +147,7 @@ export default {
     showGroupByFieldBackground: {
       type: Boolean,
       required: false,
-      default: () => true,
+      default: true,
     },
   },
   emits: ['dragging', 'field-created', 'refresh'],

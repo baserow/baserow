@@ -25,8 +25,6 @@ export default (client) => {
       excludeCount = false,
       limitLinkedItems = null,
       rowIds = [],
-      groupVisibilityPaths = null,
-      groupVisibilityMode = null,
     }) {
       const include = []
       const params = new URLSearchParams()
@@ -86,17 +84,6 @@ export default (client) => {
         params.append('filter__field_id__in', rowIds.join(','))
       }
 
-      if (groupVisibilityPaths !== null) {
-        params.append(
-          'group_visibility_paths',
-          JSON.stringify(groupVisibilityPaths)
-        )
-      }
-
-      if (groupVisibilityMode !== null) {
-        params.append('group_visibility_mode', groupVisibilityMode)
-      }
-
       Object.keys(filters).forEach((key) => {
         filters[key].forEach((value) => {
           params.append(key, value)
@@ -124,8 +111,6 @@ export default (client) => {
       publicUrl = false,
       publicAuthToken = null,
       filters = {},
-      groupVisibilityPaths = null,
-      groupVisibilityMode = null,
     }) {
       const params = new URLSearchParams()
       params.append('count', true)
@@ -143,17 +128,6 @@ export default (client) => {
         })
       })
 
-      if (groupVisibilityPaths !== null) {
-        params.append(
-          'group_visibility_paths',
-          JSON.stringify(groupVisibilityPaths)
-        )
-      }
-
-      if (groupVisibilityMode !== null) {
-        params.append('group_visibility_mode', groupVisibilityMode)
-      }
-
       const config = { params }
 
       if (signal !== null) {
@@ -167,7 +141,7 @@ export default (client) => {
       const url = publicUrl ? 'public/rows/' : ''
       return client.get(`/database/views/grid/${gridId}/${url}`, config)
     },
-    fetchGroupTree({
+    fetchGroupByData({
       gridId,
       search = '',
       searchMode = '',
@@ -175,10 +149,26 @@ export default (client) => {
       publicUrl = false,
       publicAuthToken = null,
       filters = {},
-      maxDepth = null,
-      expanded = null,
+      parent = null,
+      parents = null,
+      depth = null,
+      offset = 0,
+      limit = 40,
+      includeDescendants = false,
+      descendantLimit = null,
     }) {
       const params = new URLSearchParams()
+      params.append('offset', offset)
+      params.append('limit', limit)
+      if (includeDescendants) {
+        params.append('include_descendants', 'true')
+      }
+      if (descendantLimit !== null) {
+        params.append('descendant_limit', descendantLimit)
+      }
+      if (depth !== null) {
+        params.append('depth', depth)
+      }
 
       if (search) {
         params.append('search', search)
@@ -187,12 +177,10 @@ export default (client) => {
         }
       }
 
-      if (maxDepth !== null) {
-        params.append('max_depth', maxDepth)
-      }
-
-      if (expanded !== null) {
-        params.append('expanded', JSON.stringify(expanded))
+      if (parents !== null) {
+        params.append('parents', JSON.stringify(parents))
+      } else if (parent !== null) {
+        params.append('parent', JSON.stringify(parent))
       }
 
       Object.keys(filters).forEach((key) => {
@@ -211,7 +199,7 @@ export default (client) => {
         addPublicAuthTokenHeader(config, publicAuthToken)
       }
 
-      const url = publicUrl ? 'public/group-tree/' : 'group-tree/'
+      const url = publicUrl ? 'public/group-by-data/' : 'group-by-data/'
       return client.get(`/database/views/grid/${gridId}/${url}`, config)
     },
     filterRows({ gridId, rowIds, fieldIds = null }) {

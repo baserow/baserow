@@ -114,6 +114,7 @@ import RowCardFieldEmail from '@baserow/modules/database/components/card/RowCard
 import RowCardFieldFile from '@baserow/modules/database/components/card/RowCardFieldFile'
 import RowCardFieldFormula from '@baserow/modules/database/components/card/RowCardFieldFormula'
 import RowCardFieldLinkRow from '@baserow/modules/database/components/card/RowCardFieldLinkRow'
+import GridViewGroupValueBoolean from '@baserow/modules/database/components/view/grid/GridViewGroupValueBoolean'
 import GridViewGroupValueLinkRow from '@baserow/modules/database/components/view/grid/GridViewGroupValueLinkRow'
 import RowCardFieldMultipleSelect from '@baserow/modules/database/components/card/RowCardFieldMultipleSelect'
 import RowCardFieldNumber from '@baserow/modules/database/components/card/RowCardFieldNumber'
@@ -2207,6 +2208,10 @@ export class BooleanFieldType extends FieldType {
 
   getCardComponent() {
     return RowCardFieldBoolean
+  }
+
+  getGroupByComponent() {
+    return GridViewGroupValueBoolean
   }
 
   getRowHistoryEntryComponent() {

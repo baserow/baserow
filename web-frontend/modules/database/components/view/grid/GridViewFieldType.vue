@@ -509,7 +509,7 @@ export default {
           })
         }
 
-        this.$emit('refresh')
+        this.$emit('refresh', { sourceEvent: 'sort' })
       } catch (error) {
         notifyIf(error, 'view')
       }

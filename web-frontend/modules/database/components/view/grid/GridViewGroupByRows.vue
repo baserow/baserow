@@ -14,10 +14,10 @@
       />
       <div
         v-else-if="item.type === 'row' && shouldRenderRows"
-        class="grid-view__group-by-rows__row"
+        class="grid-view__group-by-rows-row"
         :class="{
-          'grid-view__group-by-rows__row--warning': isWarningRow(item.row),
-          'grid-view__group-by-rows__row--selected': item.row._.selected,
+          'grid-view__group-by-rows-row--warning': isWarningRow(item.row),
+          'grid-view__group-by-rows-row--selected': item.row._.selected,
         }"
         :style="{
           top: item.y + 'px',
@@ -64,15 +64,21 @@
       </div>
       <div
         v-else-if="item.type === 'placeholder' && shouldRenderRows"
-        class="grid-view__group-by-rows__placeholder"
+        class="grid-view__group-by-rows-placeholder"
         :style="{ top: item.y + 'px', height: item.height + 'px' }"
-      ></div>
+      >
+        <div
+          v-for="(value, index) in placeholderPositions"
+          :key="'placeholder-column-' + index"
+          class="grid-view__placeholder-column"
+          :style="{ left: value - 1 + 'px' }"
+        ></div>
+      </div>
       <button
         v-else-if="item.type === 'addRow' && shouldRenderAddRows"
         type="button"
-        class="grid-view__row grid-view__group-by-rows__add"
+        class="grid-view__row grid-view__group-by-rows-add"
         :style="{ top: item.y + 'px', height: item.height + 'px' }"
-        :data-path="JSON.stringify(item.path)"
         @click="addRow($event, item.path)"
       >
         <span class="grid-view__add-row">
@@ -146,7 +152,7 @@ export default {
     totalHeight() {
       return this.$store.getters[
         this.storePrefix + 'view/grid/getGroupByLayout'
-      ](this.groupByFields).totalHeight
+      ].totalHeight
     },
     fieldWidths() {
       const fieldWidths = {}
@@ -164,6 +170,15 @@ export default {
         width += this.gridViewRowDetailsWidth
       }
       return width
+    },
+    placeholderPositions() {
+      let last = this.includeRowDetails ? this.gridViewRowDetailsWidth : 0
+      const positions = {}
+      this.visibleFields.forEach((field) => {
+        last += this.getFieldWidth(field)
+        positions[field.id] = last
+      })
+      return positions
     },
     primaryFieldWidth() {
       const primaryField = this.visibleFields[0]
@@ -204,10 +219,6 @@ export default {
             path,
             view: this.view,
             fields: this.allFieldsInTable,
-            adhocFiltering:
-              this.$store.getters[
-                this.storePrefix + 'view/grid/getAdhocFiltering'
-              ],
           }
         )
       } catch (error) {
@@ -217,44 +228,3 @@ export default {
   },
 }
 </script>
-
-<style lang="scss">
-.grid-view__group-by-rows {
-  position: relative;
-}
-
-.grid-view__group-by-rows__row,
-.grid-view__group-by-rows__placeholder,
-.grid-view__group-by-rows__add {
-  position: absolute;
-  left: 0;
-  right: 0;
-}
-
-.grid-view__group-by-rows__row,
-.grid-view__group-by-rows__row .grid-view__row,
-.grid-view__group-by-rows__row .grid-view__column {
-  background: #fff;
-}
-
-.grid-view__group-by-rows__placeholder {
-  background: #fff;
-}
-
-.grid-view__group-by-rows__row--warning {
-  z-index: 1;
-}
-
-.grid-view__group-by-rows__row--selected {
-  z-index: 2;
-}
-
-.grid-view__group-by-rows__add {
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  background: #fff;
-  cursor: pointer;
-}
-</style>

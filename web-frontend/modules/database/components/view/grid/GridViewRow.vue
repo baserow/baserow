@@ -40,7 +40,6 @@
         </div>
         <div
           class="grid-view__column grid-view__column--no-border-right"
-          :class="{ 'grid-view__column--group-end': groupEnd }"
           :style="{ width: gridViewRowDetailsWidth + 'px' }"
         >
           <div
@@ -113,7 +112,6 @@
         :multi-select-position="getMultiSelectPosition(row.id, field)"
         :read-only="readOnly || !canWriteFieldValues(field)"
         :store-prefix="storePrefix"
-        :group-end="groupEnd"
         :style="{
           width: fieldWidths[field.id] + 'px',
           ...getSelectedCellStyle(field),
@@ -177,11 +175,6 @@ export default {
     row: {
       type: Object,
       required: true,
-    },
-    groupEnd: {
-      type: Boolean,
-      required: false,
-      default: () => false,
     },
     renderedFields: {
       type: Array,

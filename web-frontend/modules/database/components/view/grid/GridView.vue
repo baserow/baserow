@@ -560,6 +560,23 @@ export default {
       // When a field is added or removed, we want to update the scrollbars.
       this.fieldsUpdated()
     },
+    activeGroupBys(newVal, oldVal) {
+      // Changing the group-by fields rebuilds the whole grouped layout and the store
+      // restarts the scroll offset at the top. The scroll containers keep their old
+      // offset though, which would point at an unloaded region and leave the viewport
+      // blank, so mirror the reset on the DOM once the new layout has rendered.
+      const fieldKey = (groupBys) =>
+        (groupBys || []).map((g) => g.field).join(',')
+      if (fieldKey(newVal) === fieldKey(oldVal)) {
+        return
+      }
+      this.$nextTick(() => {
+        const left = this.$refs.left?.$refs?.body
+        const right = this.$refs.right?.$refs?.body
+        if (left) left.scrollTop = 0
+        if (right) right.scrollTop = 0
+      })
+    },
     'view.frozen_column_count'() {
       // When the frozen column count changes (e.g. real-time sync from another
       // user), recalculate the viewport fit and update scrollbars. Use $nextTick
@@ -610,16 +627,6 @@ export default {
       this.$emit('refresh')
     },
   },
-  /*beforeCreate() {
-    this.$options.computed = {
-      ...(this.$options.computed || {}),
-      ...mapGetters({
-        allRows: this.$options.propsData.storePrefix + 'view/grid/getAllRows',
-        isMultiSelectActive:
-          this.$options.propsData.storePrefix + 'view/grid/isMultiSelectActive',
-      }),
-    }
-  },*/
   created() {
     // When the grid view is created we want to update the scrollbars.
     this.fieldsUpdated()
@@ -1356,14 +1363,25 @@ export default {
      * or wants to sort on a field.
      */
     async refresh() {
-      await this.$store.dispatch(
-        this.storePrefix + 'view/grid/updateActiveGroupBys',
-        clone(this.view.group_bys || [])
+      const scrollTop = this.$refs.right.$refs.body.scrollTop
+      const handledGroupByRefresh = await this.$store.dispatch(
+        this.storePrefix + 'view/grid/refreshActiveGroupBys',
+        {
+          view: this.view,
+          fields: this.fields,
+          scrollTop,
+        }
       )
-      await this.$store.dispatch(
-        this.storePrefix + 'view/grid/visibleByScrollTop',
-        this.$refs.right.$refs.body.scrollTop
-      )
+      if (!handledGroupByRefresh) {
+        await this.$store.dispatch(
+          this.storePrefix + 'view/grid/updateActiveGroupBys',
+          clone(this.view.group_bys || [])
+        )
+        await this.$store.dispatch(
+          this.storePrefix + 'view/grid/visibleByScrollTop',
+          scrollTop
+        )
+      }
       this.$nextTick(() => {
         this.fieldsUpdated()
       })

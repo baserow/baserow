@@ -305,10 +305,6 @@ export default {
             view: this.view,
             fields: this.fields,
             collapse,
-            adhocFiltering:
-              this.$store.getters[
-                this.storePrefix + 'view/grid/getAdhocFiltering'
-              ],
           }
         )
         this.$refs.context.hide()

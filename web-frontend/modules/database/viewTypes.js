@@ -646,6 +646,7 @@ export class GridViewType extends ViewType {
       includeFieldOptions,
       adhocFiltering,
       adhocSorting,
+      sourceEvent,
     })
   }
 

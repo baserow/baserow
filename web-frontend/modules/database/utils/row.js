@@ -1,4 +1,3 @@
-//import Vue from 'vue'
 import { clone } from '@baserow/modules/core/utils/object'
 import {
   getRowSortFunction,
@@ -86,51 +85,6 @@ export function prepareNewOldAndUpdateRequestValues(
   const fieldType = registry.get('field', field.type)
   const updateValue = fieldType.prepareValueForUpdate(field, value)
   updateRequestValues[`field_${field.id}`] = updateValue
-
-  return { newRowValues, oldRowValues, updateRequestValues }
-}
-
-export function prepareRowMultiFieldUpdate(
-  row,
-  allFields,
-  fieldValuePairs,
-  registry
-) {
-  const newRowValues = { id: row.id }
-  const oldRowValues = { id: row.id }
-  const updateRequestValues = { id: row.id }
-  const editedFieldIds = new Set(fieldValuePairs.map((pair) => pair.field.id))
-
-  for (const { field, value, oldValue } of fieldValuePairs) {
-    const fieldKey = `field_${field.id}`
-    const fieldType = registry.get('field', field.type)
-    newRowValues[fieldKey] = value
-    oldRowValues[fieldKey] = oldValue
-    updateRequestValues[fieldKey] = fieldType.prepareValueForUpdate(
-      field,
-      value
-    )
-  }
-
-  const virtualRow = { ...row, ...newRowValues }
-  for (const field of allFields) {
-    if (editedFieldIds.has(field.id)) {
-      continue
-    }
-
-    const fieldKey = `field_${field.id}`
-    const fieldType = registry.get('field', field.type)
-    const currentFieldValue = row[fieldKey]
-    const optimisticFieldValue = fieldType.onRowChange(
-      virtualRow,
-      field,
-      currentFieldValue
-    )
-    if (currentFieldValue !== optimisticFieldValue) {
-      newRowValues[fieldKey] = optimisticFieldValue
-      oldRowValues[fieldKey] = currentFieldValue
-    }
-  }
 
   return { newRowValues, oldRowValues, updateRequestValues }
 }
@@ -371,7 +325,7 @@ export function getRowMetadata(row, metadata = {}) {
  * - `sortedIndex` is the 0-based position of `row` in the merged, sorted result.
  *
  * Expressing the insert position by row identity rather than numeric index lets
- * both flat-array stores and group-tree stores consume the result without
+ * both flat-array stores and grouped stores consume the result without
  * needing to agree on a shared index space.
  */
 export function computeRowInsertPosition(

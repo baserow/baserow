@@ -10,7 +10,7 @@
  *
  */
 
-import type { Locator, Page } from "@playwright/test";
+import type { Locator, Page, Request } from "@playwright/test";
 import { test, expect } from "../../baserowTest";
 import { GridPage } from "../../../pages/database/gridPage";
 import type {
@@ -64,8 +64,8 @@ const SAVED_VIEW_MODES: SavedViewMode[] = [
     groupBys: [{ fieldName: "Team", order: "ASC" }],
     rows: (rows) => rows.map((row) => ({ Team: "A", ...row })),
     waitForRows: async (grid, count) => {
-      await grid.expectGroupByBanner("A", count, true);
-      await grid.expandAllGroupsFromContext();
+      // Grouped views load expanded, so the banner is already expanded and the
+      // rows are present without an explicit expand-all.
       await grid.expectGroupByBanner("A", count);
       await grid.expectRowCount(count);
     },
@@ -169,6 +169,90 @@ async function turnOffHideNotMatchingRows(page: Page): Promise<void> {
   });
   await waitForSearchContextIdle(page);
 }
+
+// -----------------------------------------------------------------------------
+// section 7  Group-by
+// -----------------------------------------------------------------------------
+
+test.describe("7.2 Group-by refresh", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "GroupByRefreshDb",
+      fields: [
+        { name: "Team", type: "text" },
+        { name: "Role", type: "text" },
+      ],
+      rows: [
+        { Name: "Alice", Team: "A", Role: "Developer" },
+        { Name: "Ada", Team: "A", Role: "Designer" },
+        { Name: "Bob", Team: "B", Role: "QA" },
+        { Name: "Bea", Team: "B", Role: "Support" },
+      ],
+      groupBys: [{ fieldName: "Team", order: "ASC" }],
+    });
+  });
+
+  test("7.2.1 adding a second group-by performs one metadata request and one row request", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.expandAllGroupsFromContext();
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 2);
+    await grid.expectRowCount(4);
+
+    const groupByDataRequests: Request[] = [];
+    const rowRequests: Request[] = [];
+    page.on("request", (request) => {
+      if (request.method() !== "GET") {
+        return;
+      }
+
+      const url = new URL(request.url());
+      if (
+        url.pathname.endsWith(
+          `/api/database/views/grid/${g.view.id}/group-by-data/`,
+        )
+      ) {
+        groupByDataRequests.push(request);
+      } else if (
+        url.pathname.endsWith(`/api/database/views/grid/${g.view.id}/`) &&
+        url.searchParams.has("limit")
+      ) {
+        rowRequests.push(request);
+      }
+    });
+
+    const groupByCreated = page.waitForResponse((response) => {
+      const url = new URL(response.url());
+      return (
+        url.pathname.endsWith(`/api/database/views/${g.view.id}/group_bys/`) &&
+        response.request().method() === "POST" &&
+        response.ok()
+      );
+    });
+
+    await grid.addGroupBy("Role");
+    await groupByCreated;
+
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 2);
+    await grid.expectGroupByBanner("Developer", 1);
+    await grid.expectGroupByBanner("Designer", 1);
+    await grid.expectGroupByBanner("QA", 1);
+    await grid.expectGroupByBanner("Support", 1);
+    await grid.expectRowCount(4);
+
+    expect(groupByDataRequests).toHaveLength(1);
+    expect(rowRequests).toHaveLength(1);
+    const groupByDataUrl = new URL(groupByDataRequests[0].url());
+    expect(groupByDataUrl.searchParams.get("include_descendants")).toBe("true");
+  });
+});
 
 // -----------------------------------------------------------------------------
 // section 5  Filters
@@ -408,10 +492,10 @@ for (const viewMode of SAVED_VIEW_MODES) {
 }
 
 // -----------------------------------------------------------------------------
-// section 7  Search
+// section 8  Search
 // -----------------------------------------------------------------------------
 
-test.describe("7.1 Search highlight mode", () => {
+test.describe("8.1 Search highlight mode", () => {
   test.describe.configure({ mode: "serial" });
   let g: Setup;
 
@@ -436,7 +520,7 @@ test.describe("7.1 Search highlight mode", () => {
     // Leave the search panel open - typeInSearch will use it.
   });
 
-  test("7.1.1 highlight-mode search highlights matching cell while all rows remain visible", async ({
+  test("8.1.1 highlight-mode search highlights matching cell while all rows remain visible", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -452,7 +536,7 @@ test.describe("7.1 Search highlight mode", () => {
     await grid.expectPrimaryNotHighlighted(1);
   });
 
-  test("7.1.2 highlight-mode search with no matches shows no highlights and keeps all rows visible", async ({
+  test("8.1.2 highlight-mode search with no matches shows no highlights and keeps all rows visible", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -465,7 +549,7 @@ test.describe("7.1 Search highlight mode", () => {
     ).toHaveCount(0);
   });
 
-  test("7.1.3 clearing search removes existing highlights and keeps all rows visible", async ({
+  test("8.1.3 clearing search removes existing highlights and keeps all rows visible", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -478,7 +562,7 @@ test.describe("7.1 Search highlight mode", () => {
     await grid.expectRowCount(3);
   });
 
-  test("7.1.4 highlight-mode search marks the matching non-primary cell", async ({
+  test("8.1.4 highlight-mode search marks the matching non-primary cell", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -490,7 +574,7 @@ test.describe("7.1 Search highlight mode", () => {
   });
 });
 
-test.describe("7.2 Search hide-not-matching mode", () => {
+test.describe("8.2 Search hide-not-matching mode", () => {
   test.describe.configure({ mode: "serial" });
   let g: Setup;
 
@@ -514,7 +598,7 @@ test.describe("7.2 Search hide-not-matching mode", () => {
     await openGridSearch(page);
   });
 
-  test("7.2.1 hide-mode search hides non-matching rows and keeps matching rows visible", async ({
+  test("8.2.1 hide-mode search hides non-matching rows and keeps matching rows visible", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -529,7 +613,7 @@ test.describe("7.2 Search hide-not-matching mode", () => {
     await grid.expectRowCount(2);
   });
 
-  test("7.2.2 turning hide mode off restores hidden rows while keeping matching cells highlighted", async ({
+  test("8.2.2 turning hide mode off restores hidden rows while keeping matching cells highlighted", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -548,10 +632,10 @@ test.describe("7.2 Search hide-not-matching mode", () => {
 });
 
 // -----------------------------------------------------------------------------
-// section 8  Presentation options
+// section 9  Presentation options
 // -----------------------------------------------------------------------------
 
-test.describe("8.1 Row coloring", () => {
+test.describe("9.1 Row coloring", () => {
   test.describe.configure({ mode: "serial" });
   let g: Setup;
   let license: License;
@@ -594,7 +678,7 @@ test.describe("8.1 Row coloring", () => {
     await grid.goTo(g.database, g.table);
   });
 
-  test("8.1.1 background row coloring uses the selected single-select option color on both grid sections", async ({
+  test("9.1.1 background row coloring uses the selected single-select option color on both grid sections", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -611,7 +695,7 @@ test.describe("8.1 Row coloring", () => {
   });
 });
 
-test.describe("8.2 Field visibility", () => {
+test.describe("9.2 Field visibility", () => {
   test.describe.configure({ mode: "serial" });
   let g: Setup;
 
@@ -634,7 +718,7 @@ test.describe("8.2 Field visibility", () => {
     await grid.goTo(g.database, g.table);
   });
 
-  test("8.2.1 fields panel hides and shows a non-primary field and persists both states", async ({
+  test("9.2.1 fields panel hides and shows a non-primary field and persists both states", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -679,7 +763,7 @@ test.describe("8.2 Field visibility", () => {
   });
 });
 
-test.describe("8.3 Row height", () => {
+test.describe("9.3 Row height", () => {
   test.describe.configure({ mode: "serial" });
   let g: Setup;
 
@@ -699,7 +783,7 @@ test.describe("8.3 Row height", () => {
     await grid.goTo(g.database, g.table);
   });
 
-  test("8.3.1 height menu switches visible rows from small to medium and large", async ({
+  test("9.3.1 height menu switches visible rows from small to medium and large", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -731,7 +815,7 @@ test.describe("8.3 Row height", () => {
   });
 });
 
-test.describe("8.4 Frozen columns", () => {
+test.describe("9.4 Frozen columns", () => {
   let g: Setup;
 
   test.beforeAll(async () => {
@@ -754,7 +838,7 @@ test.describe("8.4 Frozen columns", () => {
     await grid.goTo(g.database, g.table);
   });
 
-  test("8.4.1 loading a view with two frozen columns keeps the first non-primary field frozen after reload", async ({
+  test("9.4.1 loading a view with two frozen columns keeps the first non-primary field frozen after reload", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -770,7 +854,7 @@ test.describe("8.4 Frozen columns", () => {
   });
 });
 
-test.describe("8.5 Row identifier type", () => {
+test.describe("9.5 Row identifier type", () => {
   let g: Setup;
 
   test.beforeAll(async () => {
@@ -791,7 +875,7 @@ test.describe("8.5 Row identifier type", () => {
     await grid.goTo(g.database, g.table);
   });
 
-  test("8.5.1 count mode shows sequential row position starting from 1", async ({
+  test("9.5.1 count mode shows sequential row position starting from 1", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -801,7 +885,7 @@ test.describe("8.5 Row identifier type", () => {
     await grid.expectRowIdentifierText(2, "3");
   });
 
-  test("8.5.2 row identifier menu switches to backend row IDs and back to count", async ({
+  test("9.5.2 row identifier menu switches to backend row IDs and back to count", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -840,10 +924,10 @@ test.describe("8.5 Row identifier type", () => {
 });
 
 // -----------------------------------------------------------------------------
-// section 14  Public shared grid view
+// section 15  Public shared grid view
 // -----------------------------------------------------------------------------
 
-test.describe("14.1 Public shared grid", () => {
+test.describe("15.1 Public shared grid", () => {
   let g: Setup;
 
   test.beforeAll(async () => {
@@ -858,7 +942,7 @@ test.describe("14.1 Public shared grid", () => {
     await patchView(g.user, g.view, { public: true });
   });
 
-  test("14.1.1 public shared grid renders rows without edit controls", async ({
+  test("15.1.1 public shared grid renders rows without edit controls", async ({
     page,
   }) => {
     const slug = g.view.slug;

@@ -37,13 +37,37 @@ import {
   computeRowInsertPosition,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
-import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
 import {
   buildLayout,
   pathKey,
   renderViewport,
+  visibleGroupDepthPageInViewport,
+  visibleGroupPagesInViewport,
   visibleSectionsInViewport,
 } from '@baserow/modules/database/utils/gridGroupByRender'
+import {
+  getGroupByCollapseAllState,
+  getGroupByFieldsFromActiveGroupBys,
+  projectGroupByCollapseState,
+  makeSectionRowsMap,
+  getDefinedRowsFromSectionRows,
+  forEachGroupByRow,
+  getGroupByPathDepth,
+  preserveGroupByRowUiState,
+  findGroupByRowSection,
+  getGroupByAbsoluteRangesForVisibleRange,
+  getGroupByParentRowOffset,
+  getGroupByRowInsertLocation,
+  getMissingGroupBySectionRanges,
+  collectMissingSectionRanges,
+  groupPathDefaults,
+  groupPathFromRow,
+  isGroupByDataPageLoaded,
+  placeAbsoluteRowsIntoSections,
+  shouldUseGroupByDepthPages,
+  updateGroupByDataPagesForPath,
+  updateGroupByTreeNodesForPath,
+} from '@baserow/modules/database/utils/gridGroupBy'
 import {
   GRID_VIEW_MULTI_SELECT_AREA,
   GRID_VIEW_MULTI_SELECT_CHECKBOX,
@@ -53,7 +77,12 @@ import {
 const ORDER_STEP = '1'
 const ORDER_STEP_BEFORE = '0.00000000000000000001'
 const REFRESH_ROW_DELAY_MS = 1000
-const ROOT_SECTION_KEY = '__root__'
+// Maximum number of group-by row sections whose loaded rows are kept in memory.
+// Sections are evicted least-recently-used (loaded or visible) on scroll so a long
+// session stays bounded; the group tree itself is always kept so scroll geometry is
+// unaffected. Generous enough that a normal viewport's working set is never evicted,
+// so collapsing then re-expanding a group never refetches its rows.
+const GROUP_BY_MAX_RETAINED_SECTIONS = 200
 const DEFAULT_FLAT_VIEW = {
   group_bys: [],
   sortings: [],
@@ -67,108 +96,52 @@ function getViewOrFlatDefault(rootGetters, gridId) {
   return rootGetters['view/get'](gridId) || DEFAULT_FLAT_VIEW
 }
 
-function getGroupByCollapseAllState(collapse) {
-  return collapse
-    ? { mode: 'collapse', paths: [] }
-    : { mode: 'expand', paths: [] }
+function getNextGroupByGeneration(state) {
+  return (state.groupBy?.generation || 0) + 1
 }
 
-function getGroupByVisibilityParams(collapse) {
-  const paths = collapse?.paths || []
-  if (!collapse || (collapse.mode === 'expand' && paths.length === 0)) {
-    return {
-      groupVisibilityPaths: null,
-      groupVisibilityMode: null,
-    }
-  }
+// A group-by fetch is stale once its request was aborted, the view left group-by
+// mode, or the collapse generation it was started under has been superseded. Every
+// async group-by fetch re-checks this after each await before committing results.
+function isGroupByRequestStale(getters, state, generation, signal = null) {
+  return (
+    signal?.aborted ||
+    !getters.isGroupByMode ||
+    (state.groupBy.generation || 0) !== generation
+  )
+}
 
+function getEmptyGroupByState() {
   return {
-    groupVisibilityPaths: paths,
-    groupVisibilityMode: collapse.mode,
+    treeNodes: [],
+    pages: {},
+    absoluteRows: {},
+    revision: 0,
+    generation: 0,
+    collapse: { mode: 'expand', paths: [] },
+    collapseInitialized: false,
+    sectionRows: {},
+    rowLocations: {},
+    sectionAccessOrder: [],
+    // True while every loaded group node's row_offset is server-authoritative (no
+    // optimistic mutation has shifted offsets since the last server load). Only then
+    // is it safe to thread a parent's row_offset back to the server as a shortcut;
+    // an optimistically-recomputed offset must never be sent.
+    offsetsServerConfirmed: true,
   }
 }
 
-function getGroupByFieldsFromActiveGroupBys(activeGroupBys, fields) {
-  return activeGroupBys
-    .map((groupBy) => fields.find((field) => field.id === groupBy.field))
-    .filter(Boolean)
-}
-
-function projectGroupByCollapseState(collapse, groupByFields) {
-  if (!collapse) {
-    return getGroupByCollapseAllState(true)
+// Moves the given section keys to the most-recently-used end of the LRU order on a
+// group-by store shape (`target` is the live `state.groupBy` or a refresh snapshot).
+function touchGroupBySectionAccess(target, sectionKeys) {
+  if (sectionKeys.length === 0) {
+    return
   }
-
-  const paths = []
-  const seen = new Set()
-
-  for (const path of collapse.paths || []) {
-    const projectedPath = {}
-
-    for (const field of groupByFields) {
-      const key = `field_${field.id}`
-      if (!(key in path)) {
-        break
-      }
-      projectedPath[key] = path[key]
-    }
-
-    if (Object.keys(projectedPath).length === 0) {
-      continue
-    }
-
-    const projectedKey = pathKey(projectedPath, groupByFields)
-    if (seen.has(projectedKey)) {
-      continue
-    }
-
-    seen.add(projectedKey)
-    paths.push(projectedPath)
-  }
-
-  return {
-    mode: collapse.mode,
-    paths,
-  }
-}
-
-function makeSectionRowsMap(sectionRows) {
-  const sections = new Map()
-  for (const [sectionKey, rows] of Object.entries(sectionRows)) {
-    const rowMap = new Map()
-    Object.keys(rows).forEach((position) => {
-      const row = rows[position]
-      if (row !== undefined) {
-        rowMap.set(Number(position), row)
-      }
-    })
-    sections.set(sectionKey, rowMap)
-  }
-  return sections
-}
-
-function getDefinedRowsFromSectionRows(
-  sectionRows,
-  sectionKey,
-  excludeRowId = null
-) {
-  const rows = sectionRows[sectionKey] || []
-  return Object.keys(rows)
-    .map((position) => Number(position))
-    .sort((a, b) => a - b)
-    .map((position) => rows[position])
-    .filter((row) => row && row.id !== excludeRowId)
-}
-
-function forEachGroupByRow(sectionRows, callback) {
-  for (const rows of Object.values(sectionRows)) {
-    for (const position of Object.keys(rows)) {
-      const row = rows[position]
-      if (row !== undefined) {
-        callback(row)
-      }
-    }
-  }
+  const touched = new Set(sectionKeys)
+  target.sectionAccessOrder = [
+    ...(target.sectionAccessOrder || []).filter((key) => !touched.has(key)),
+    ...sectionKeys,
+  ]
 }
 
 function rowHasViewWarning(row) {
@@ -181,13 +154,92 @@ function getGroupByFieldRefsFromState(state) {
   return state.activeGroupBys.map((groupBy) => ({ id: groupBy.field }))
 }
 
+let groupByLayoutCacheKey = null
+let groupByLayoutCacheValue = null
+
+// Builds the group-by layout, memoized against the identity of every input
+// buildLayout reads. The mutations replace `treeNodes`, `pages` and `collapse` by
+// reference whenever they change, so the cache stays correct while letting the many
+// hot-path callers (cell navigation, multi-select range walks, getAllRows,
+// getRowsLength) share a single O(loaded nodes) build per state change instead of
+// each rebuilding it. `sectionRows` is intentionally not a key: it does not affect
+// layout geometry.
 function getGroupByLayoutFromState(state) {
-  return buildLayout({
-    nodes: state.groupBy.treeNodes,
-    collapse: state.groupBy.collapse,
+  const groupBy = state.groupBy
+  const cacheKey = [
+    groupBy.treeNodes,
+    groupBy.pages,
+    groupBy.collapse,
+    state.rowHeight,
+    state.bufferRequestSize,
+    state.activeGroupBys,
+  ]
+  if (
+    groupByLayoutCacheKey !== null &&
+    cacheKey.every((part, index) => part === groupByLayoutCacheKey[index])
+  ) {
+    return groupByLayoutCacheValue
+  }
+
+  const pages =
+    Object.keys(groupBy.pages || {}).length > 0 ? groupBy.pages : null
+  const layout = buildLayout({
+    nodes: groupBy.treeNodes,
+    pages,
+    collapse: groupBy.collapse,
     fields: getGroupByFieldRefsFromState(state),
     rowHeight: state.rowHeight,
+    pageSize: state.bufferRequestSize,
   })
+
+  groupByLayoutCacheKey = cacheKey
+  groupByLayoutCacheValue = layout
+  return layout
+}
+
+let groupBySectionIndexCache = null
+
+// Derives O(1)/O(log) section lookups from the layout once per layout build, so the
+// per-row navigation and multi-select getters no longer scan every layout item on
+// each call. `sections` is in ascending firstGlobalRowOffset order (layout order).
+function getGroupBySectionIndexFromState(state) {
+  const layout = getGroupByLayoutFromState(state)
+  if (groupBySectionIndexCache?.layout === layout) {
+    return groupBySectionIndexCache
+  }
+
+  const fields = getGroupByFieldRefsFromState(state)
+  const byKey = new Map()
+  const sections = []
+  for (const item of layout.items) {
+    if (item.type !== 'rowSection') {
+      continue
+    }
+    byKey.set(pathKey(item.path, fields), item)
+    sections.push(item)
+  }
+
+  groupBySectionIndexCache = { layout, byKey, sections }
+  return groupBySectionIndexCache
+}
+
+// Binary-searches the y-sorted, non-overlapping row sections for the one whose
+// visible row range contains `rowIndex`.
+function findGroupBySectionForVisibleIndex(sections, rowIndex) {
+  let low = 0
+  let high = sections.length - 1
+  while (low <= high) {
+    const mid = (low + high) >> 1
+    const section = sections[mid]
+    if (rowIndex < section.firstGlobalRowOffset) {
+      high = mid - 1
+    } else if (rowIndex >= section.firstGlobalRowOffset + section.rowCount) {
+      low = mid + 1
+    } else {
+      return section
+    }
+  }
+  return null
 }
 
 function getGroupByRowsInLayoutOrder(state) {
@@ -210,10 +262,423 @@ function getGroupByRowsInLayoutOrder(state) {
   return rows
 }
 
-function getGroupByTotalRowCountFromNodes(nodes) {
-  return (nodes || [])
-    .filter((node) => node.depth === 0)
-    .reduce((total, node) => total + (node.row_count ?? node.rowCount ?? 0), 0)
+function getGroupByViewport(getters, scrollTop = getters.getScrollTop) {
+  const padding = getters.getRowPadding * getters.getRowHeight
+  return {
+    scrollTop: Math.max(0, scrollTop - padding),
+    clientHeight:
+      (getters.getWindowHeight ||
+        getters.getBufferRequestSize * getters.getRowHeight) +
+      padding * 2,
+  }
+}
+
+function getClampedGroupByScrollTop(getters, scrollTop = getters.getScrollTop) {
+  const windowHeight =
+    getters.getWindowHeight ||
+    getters.getBufferRequestSize * getters.getRowHeight
+  const maxScrollTop = Math.max(
+    0,
+    getters.getGroupByLayout.totalHeight - windowHeight
+  )
+
+  return Math.min(Math.max(0, scrollTop), maxScrollTop)
+}
+
+function getVisibleGroupPagesToFetch({
+  state,
+  getters,
+  layout,
+  groupByFields,
+  viewport,
+  seenRequests = null,
+  maxGroups = null,
+}) {
+  const pages = []
+  let remainingGroups = maxGroups
+
+  for (const { parentPath, offset, limit } of visibleGroupPagesInViewport(
+    layout,
+    viewport,
+    getters.getBufferRequestSize
+  )) {
+    if (remainingGroups !== null && remainingGroups <= 0) {
+      break
+    }
+
+    const requestLimit =
+      remainingGroups === null ? limit : Math.min(limit, remainingGroups)
+    if (requestLimit <= 0) {
+      continue
+    }
+
+    const requestKey = `${pathKey(
+      parentPath,
+      groupByFields
+    )}:${offset}:${requestLimit}`
+    if (seenRequests?.has(requestKey)) {
+      continue
+    }
+    if (
+      isGroupByDataPageLoaded(
+        state.groupBy.pages,
+        parentPath,
+        offset,
+        requestLimit,
+        groupByFields
+      )
+    ) {
+      continue
+    }
+    seenRequests?.add(requestKey)
+    const pageRequest = { parentPath, offset, limit: requestLimit }
+    // Thread the parent's known absolute row_offset so the server can skip the
+    // recursive offset lookup — but only while offsets are server-authoritative, so
+    // an optimistically-recomputed offset is never sent.
+    if (state.groupBy.offsetsServerConfirmed) {
+      const parentRowOffset = getGroupByParentRowOffset(
+        state.groupBy.pages,
+        parentPath,
+        groupByFields
+      )
+      if (parentRowOffset !== undefined) {
+        pageRequest.parentRowOffset = parentRowOffset
+      }
+    }
+    pages.push(pageRequest)
+
+    if (remainingGroups !== null) {
+      remainingGroups -= requestLimit
+    }
+  }
+
+  return pages
+}
+
+function getVisibleGroupDepthPageToFetch({
+  layout,
+  viewport,
+  pageSize,
+  seenRequests = null,
+}) {
+  const page = visibleGroupDepthPageInViewport(layout, viewport, pageSize)
+  if (page === null) {
+    return null
+  }
+
+  const requestKey = `${page.depth}:${page.offset}:${page.limit}`
+  if (seenRequests?.has(requestKey)) {
+    return null
+  }
+
+  seenRequests?.add(requestKey)
+  return page
+}
+
+function findGroupByPageNodeForPath(state, path, fields) {
+  const parentPath = {}
+  const nodeFields = []
+
+  for (const field of fields) {
+    const key = `field_${field.id}`
+    if (!(key in path)) {
+      break
+    }
+    nodeFields.push(field)
+  }
+
+  if (nodeFields.length === 0) {
+    return null
+  }
+
+  for (const field of nodeFields.slice(0, -1)) {
+    parentPath[`field_${field.id}`] = path[`field_${field.id}`]
+  }
+
+  const page = state.groupBy.pages?.[pathKey(parentPath, fields)]
+  const nodeKey = pathKey(path, fields)
+  return Object.values(page?.nodes || {}).find(
+    (node) => pathKey(node.path, fields) === nodeKey
+  )
+}
+
+function getMissingAbsoluteRowRanges(absoluteRows, sections) {
+  return collectMissingSectionRanges(
+    sections,
+    (section, position) =>
+      absoluteRows?.[section.absoluteRowOffset + position] === undefined
+  )
+}
+
+// Scatters a window of just-fetched rows (`rowsByOffset`, keyed by absolute offset) into
+// the leaf sections it overlaps. Each section is clamped to its intersection with
+// [requestOffset, requestOffset + fetchedRowCount) so placement scans only the fetched
+// window, never every row of every loaded section (which would be O(total rows)).
+function buildGroupBySectionPlacements({
+  layout,
+  rowsByOffset,
+  requestOffset,
+  fetchedRowCount,
+  groupByFields,
+  registry,
+}) {
+  const fetchedEnd = requestOffset + fetchedRowCount
+  const sections = []
+  for (const item of layout.items) {
+    if (item.type !== 'rowSection') {
+      continue
+    }
+    const sectionStart = item.absoluteRowOffset
+    const sectionEnd = sectionStart + item.rowCount
+    const overlapStart = Math.max(sectionStart, requestOffset)
+    const overlapEnd = Math.min(sectionEnd, fetchedEnd)
+    if (overlapStart >= overlapEnd) {
+      continue
+    }
+    sections.push({
+      ...item,
+      sectionKey: pathKey(item.path, groupByFields),
+      startPosition: overlapStart - sectionStart,
+      endPosition: overlapEnd - sectionStart,
+    })
+  }
+  return placeAbsoluteRowsIntoSections({
+    absoluteRows: rowsByOffset,
+    fields: groupByFields,
+    registry,
+    sections,
+  })
+}
+
+function getGroupByRowPrefetchSections({
+  state,
+  pageRequests,
+  groupByFields,
+  maxRows,
+}) {
+  const sections = []
+  const seen = new Set()
+  let remainingRows = maxRows
+  let startOffset = null
+  let endOffset = null
+
+  for (const pageRequest of pageRequests) {
+    if (remainingRows <= 0) {
+      break
+    }
+
+    const parentPath = pageRequest.parentPath || {}
+    if (
+      getGroupByPathDepth(parentPath, groupByFields) !==
+      groupByFields.length - 1
+    ) {
+      continue
+    }
+
+    const sectionKey = pathKey(parentPath, groupByFields)
+    if (sectionKey === '' || seen.has(sectionKey)) {
+      continue
+    }
+
+    const node = findGroupByPageNodeForPath(state, parentPath, groupByFields)
+    const rowCount = node?.row_count ?? node?.rowCount ?? 0
+    const absoluteRowOffset = node?.row_offset ?? node?.rowOffset
+    if (!node || rowCount <= 0 || absoluteRowOffset === undefined) {
+      continue
+    }
+
+    const endPosition = Math.min(rowCount, remainingRows)
+    sections.push({
+      sectionKey,
+      sectionPath: parentPath,
+      absoluteRowOffset,
+      rowCount,
+      startPosition: 0,
+      endPosition,
+    })
+    seen.add(sectionKey)
+    remainingRows -= endPosition
+    startOffset =
+      startOffset === null
+        ? absoluteRowOffset
+        : Math.min(startOffset, absoluteRowOffset)
+    endOffset =
+      endOffset === null
+        ? absoluteRowOffset + endPosition
+        : Math.max(endOffset, absoluteRowOffset + endPosition)
+  }
+
+  if (startOffset === null || endOffset - startOffset > maxRows) {
+    return []
+  }
+
+  return getMissingAbsoluteRowRanges(state.groupBy.absoluteRows, sections)
+}
+
+function getGroupByRowsRequestKey({
+  gridId,
+  offset,
+  limit,
+  includeFieldOptions,
+  search,
+  searchMode,
+  publicUrl,
+  publicAuthToken,
+  groupBy,
+  orderBy,
+  filters,
+}) {
+  return JSON.stringify({
+    gridId,
+    offset,
+    limit,
+    includeFieldOptions,
+    search,
+    searchMode,
+    publicUrl,
+    publicAuthToken,
+    groupBy,
+    orderBy,
+    filters,
+  })
+}
+
+// Merges a fetched group-by page into a group-by store shape (`target` is either
+// `state.groupBy` for the live path or an off-store snapshot for refreshActiveGroupBys).
+// Keeping a single implementation prevents the live and snapshot paths from drifting.
+function mergeGroupByDataPageInto(target, { data, parentPath, fields }) {
+  const pageKey = pathKey(parentPath || {}, fields)
+  const pages = target.pages || {}
+  const existing = pages[pageKey] || {
+    parentPath: parentPath || {},
+    nodes: {},
+    totalSiblingCount: 0,
+  }
+  const nodes = { ...existing.nodes }
+  const groups = data.groups || []
+  for (const [index, group] of groups.entries()) {
+    const siblingIndex = group.sibling_index ?? data.offset + index
+    nodes[siblingIndex] = group
+  }
+  target.pages = {
+    ...pages,
+    [pageKey]: {
+      parentPath: parentPath || {},
+      nodes,
+      totalSiblingCount: data.group_count ?? 0,
+    },
+  }
+  target.treeNodes = Object.values(
+    target.pages[pathKey({}, fields)]?.nodes || {}
+  ).sort((a, b) => (a.sibling_index ?? 0) - (b.sibling_index ?? 0))
+}
+
+function getGroupBySnapshotLayout(snapshot, activeGroupBys, fields, state) {
+  const groupByFields = getGroupByFieldsFromActiveGroupBys(
+    activeGroupBys,
+    fields
+  )
+  const pages =
+    Object.keys(snapshot.pages || {}).length > 0 ? snapshot.pages : null
+  return buildLayout({
+    nodes: snapshot.treeNodes,
+    pages,
+    collapse: snapshot.collapse,
+    fields: groupByFields,
+    rowHeight: state.rowHeight,
+    pageSize: state.bufferRequestSize,
+  })
+}
+
+// Reindexes section row positions on a group-by store shape (`target` is the live
+// `state.groupBy` or an off-store snapshot). Shared so the snapshot path keeps the
+// same authoritative-rowLocations invariant guard as the live path.
+function reindexGroupBySectionPositionsInto(target, sectionKey) {
+  const rows = target.sectionRows[sectionKey] || []
+  rows.forEach((row, position) => {
+    if (!row) {
+      return
+    }
+    const location = target.rowLocations[row.id]
+    if (location) {
+      location.position = position
+    } else if (import.meta.env.MODE !== 'production') {
+      // Invariant: every row materialized in sectionRows must have a rowLocations
+      // entry (rowLocations is authoritative). Drift would silently break getRow, so
+      // surface it loudly in non-production builds instead of skipping the row.
+      console.error(
+        `Grid group-by invariant violated: row ${row.id} in section ` +
+          `"${sectionKey}" has no rowLocations entry.`
+      )
+    }
+  })
+}
+
+function setGroupBySectionRowsInto(
+  target,
+  state,
+  { sectionKey, rows, startPosition = 0 }
+) {
+  const current = target.sectionRows[sectionKey]
+    ? [...target.sectionRows[sectionKey]]
+    : []
+
+  rows.forEach((row, index) => {
+    const position = startPosition + index
+    current[position] = preserveGroupByRowUiState(
+      row,
+      getGroupByRowStateById(state, row.id)
+    )
+    target.rowLocations[row.id] = {
+      sectionKey,
+      position,
+    }
+  })
+
+  target.sectionRows = {
+    ...target.sectionRows,
+    [sectionKey]: current,
+  }
+  touchGroupBySectionAccess(target, [sectionKey])
+  reindexGroupBySectionPositionsInto(target, sectionKey)
+}
+
+function placeLoadedGroupByRowsInViewport({
+  commit,
+  getters,
+  state,
+  registry,
+  fields,
+  layout = null,
+  scrollTop = getters.getScrollTop,
+}) {
+  if (Object.keys(state.groupBy.absoluteRows || {}).length === 0) {
+    return
+  }
+
+  const groupByFields = getGroupByFieldsFromActiveGroupBys(
+    getters.getActiveGroupBys,
+    fields
+  )
+  const sections = visibleSectionsInViewport(
+    layout || getters.getGroupByLayout,
+    getGroupByViewport(getters, scrollTop),
+    groupByFields,
+    getters.getRowHeight
+  )
+
+  placeAbsoluteRowsIntoSections({
+    absoluteRows: state.groupBy.absoluteRows,
+    fields: groupByFields,
+    registry,
+    sections,
+    // Only restore rows into positions that aren't already materialized. Overwriting a
+    // loaded position would clobber an optimistic move with stale cached data.
+    isPositionLoaded: (sectionKey, position) =>
+      state.groupBy.sectionRows[sectionKey]?.[position] !== undefined,
+  }).forEach((placement) => {
+    commit('SET_GROUP_BY_SECTION_ROWS', placement)
+  })
 }
 
 function getGroupByVisibleIndexForLocation(state, location) {
@@ -221,14 +686,9 @@ function getGroupByVisibleIndexForLocation(state, location) {
     return -1
   }
 
-  const fields = getGroupByFieldRefsFromState(state)
-  const layout = getGroupByLayoutFromState(state)
-  const section = layout.items.find(
-    (item) =>
-      item.type === 'rowSection' &&
-      pathKey(item.path, fields) === location.sectionKey
+  const section = getGroupBySectionIndexFromState(state).byKey.get(
+    location.sectionKey
   )
-
   if (!section) {
     return -1
   }
@@ -237,19 +697,13 @@ function getGroupByVisibleIndexForLocation(state, location) {
 }
 
 function getGroupByRowIdByVisibleIndex(state, rowIndex) {
-  const fields = getGroupByFieldRefsFromState(state)
-  const layout = getGroupByLayoutFromState(state)
-  const section = layout.items.find(
-    (item) =>
-      item.type === 'rowSection' &&
-      rowIndex >= item.firstGlobalRowOffset &&
-      rowIndex < item.firstGlobalRowOffset + item.rowCount
-  )
-
+  const { sections } = getGroupBySectionIndexFromState(state)
+  const section = findGroupBySectionForVisibleIndex(sections, rowIndex)
   if (!section) {
     return -1
   }
 
+  const fields = getGroupByFieldRefsFromState(state)
   const row =
     state.groupBy.sectionRows[pathKey(section.path, fields)]?.[
       rowIndex - section.firstGlobalRowOffset
@@ -258,16 +712,18 @@ function getGroupByRowIdByVisibleIndex(state, rowIndex) {
 }
 
 function reindexGroupBySectionPositions(state, sectionKey) {
-  const rows = state.groupBy.sectionRows[sectionKey] || []
-  rows.forEach((row, position) => {
-    if (!row) {
-      return
-    }
-    const location = state.groupBy.rowLocations[row.id]
-    if (location) {
-      location.position = position
-    }
-  })
+  reindexGroupBySectionPositionsInto(state.groupBy, sectionKey)
+}
+
+/**
+ * Drops the absolute-offset row cache after an optimistic reposition. A move shifts the
+ * absolute offsets of the moved row (and the rows it passed) but doesn't re-key
+ * `absoluteRows`, so it would otherwise restore an evicted section at stale offsets.
+ * Count-changing ops already clear it via `UPDATE_GROUP_BY_TREE_PATH_COUNT`; this also
+ * covers same-section moves, which don't change any group's count.
+ */
+function invalidateGroupByAbsoluteRows(state) {
+  state.groupBy.absoluteRows = {}
 }
 
 function getGroupByRowStateById(state, rowId) {
@@ -278,126 +734,29 @@ function getGroupByRowStateById(state, rowId) {
   return state.groupBy.sectionRows[location.sectionKey]?.[location.position]
 }
 
-function preserveGroupByRowUiState(row, existingRow) {
-  if (!existingRow?._ || !row?._) {
-    return row
-  }
-
-  return {
-    ...row,
-    _: {
-      ...row._,
-      selected: existingRow._.selected,
-      selectedFieldId: existingRow._.selectedFieldId,
-      selectedBy: [...(existingRow._.selectedBy || [])],
-    },
-  }
-}
-
-function groupPathDefaults(path, fields, registry) {
-  const values = {}
-  for (const field of fields) {
-    const fieldKey = `field_${field.id}`
-    if (!(fieldKey in path)) {
-      continue
-    }
-    const fieldType = registry.get('field', field.type)
-    if (!fieldType.canWriteFieldValues(field)) {
-      continue
-    }
-    values[fieldKey] = fieldType.getRowValueFromGroupValue(
-      field,
-      path[fieldKey]
-    )
-  }
-  return values
-}
-
-function groupPathFromRow(row, fields, registry) {
-  const path = {}
-  for (const field of fields) {
-    const fieldKey = `field_${field.id}`
-    const fieldType = registry.get('field', field.type)
-    path[fieldKey] = fieldType.getGroupValueFromRowValue(field, row[fieldKey])
-  }
-  return path
-}
-
-function findGroupByRowSection(layout, sectionKey, fields) {
-  return layout.items.find(
-    (item) =>
-      item.type === 'rowSection' && pathKey(item.path, fields) === sectionKey
+/**
+ * Resolves the group-by fields and the section/path where `row` should be inserted,
+ * bundling the boilerplate shared by every grouped insert site: map the active
+ * group-bys to fields, then compute the insert location from the current layout and
+ * the materialized section rows.
+ */
+function resolveGroupByInsertLocation(
+  { getters, state, registry },
+  { row, view, fields }
+) {
+  const groupByFields = getGroupByFieldsFromActiveGroupBys(
+    getters.getActiveGroupBys,
+    fields
   )
-}
-
-function getGroupByRowInsertLocation({
-  row,
-  view,
-  fields,
-  registry,
-  groupByFields,
-  layout,
-  sectionRows,
-}) {
-  const path = groupPathFromRow(row, groupByFields, registry)
-  const sectionKey = pathKey(path, groupByFields)
-  const section = findGroupByRowSection(layout, sectionKey, groupByFields)
-  const rowsInSection = getDefinedRowsFromSectionRows(
-    sectionRows,
-    sectionKey,
-    row.id
-  )
-  const { sortedIndex } = computeRowInsertPosition(
+  const location = getGroupByRowInsertLocation({
     row,
-    rowsInSection,
-    view.sortings ?? [],
+    view,
     fields,
     registry,
-    []
-  )
-
-  return {
-    path,
-    sectionKey,
-    position: sortedIndex,
-  }
-}
-
-function getMissingGroupBySectionRanges(sectionRows, sections) {
-  const missing = []
-
-  for (const section of sections) {
-    const rows = sectionRows[section.sectionKey] || []
-    let rangeStart = null
-
-    const pushRange = (endPosition) => {
-      if (rangeStart === null) {
-        return
-      }
-      missing.push({
-        ...section,
-        startPosition: rangeStart,
-        endPosition,
-      })
-      rangeStart = null
-    }
-
-    for (
-      let position = section.startPosition;
-      position < section.endPosition;
-      position += 1
-    ) {
-      if (rows[position] === undefined) {
-        rangeStart = rangeStart ?? position
-      } else {
-        pushRange(position)
-      }
-    }
-
-    pushRange(section.endPosition)
-  }
-
-  return missing
+    groupByFields,
+    sectionRows: state.groupBy.sectionRows,
+  })
+  return { groupByFields, location }
 }
 
 /**
@@ -575,15 +934,7 @@ export const state = () => ({
   hideRowsNotMatchingSearch: true,
   fieldAggregationData: {},
   activeGroupBys: [],
-  groupByMetadata: {},
-  groupBy: {
-    treeNodes: [],
-    truncated: false,
-    collapse: { mode: 'expand', paths: [] },
-    collapseInitialized: false,
-    sectionRows: {},
-    rowLocations: {},
-  },
+  groupBy: getEmptyGroupByState(),
   // Contains a fieldId and rowId string pair that looks like `{fieldId}-{rowId}`. If
   // in the array, then that cell is a loading state. This is for example used for
   // fields that use a background worker to compute the value like the AI field.
@@ -609,24 +960,41 @@ export const mutations = {
     state.checkboxSelectedRows = []
     state.selectionType = null
     state.groupBy = {
-      treeNodes: [],
-      truncated: false,
-      collapse: { mode: 'expand', paths: [] },
-      collapseInitialized: false,
-      sectionRows: {},
-      rowLocations: {},
+      ...getEmptyGroupByState(),
+      generation: getNextGroupByGeneration(state),
     }
   },
   SET_ACTIVE_GROUP_BYS(state, groupBys) {
     state.activeGroupBys = groupBys
   },
-  SET_GROUP_BY_TREE(state, { nodes, truncated = false }) {
-    state.groupBy.treeNodes = nodes
-    state.groupBy.truncated = truncated
+  INVALIDATE_GROUP_BY_REQUESTS(state) {
+    state.groupBy.generation = getNextGroupByGeneration(state)
+  },
+  APPLY_GROUP_BY_STATE(state, { activeGroupBys, groupBy, count = null }) {
+    state.activeGroupBys = activeGroupBys
+    state.groupBy = groupBy
+    if (typeof count === 'number') {
+      state.count = count
+    }
+  },
+  RESET_GROUP_BY_DATA(state) {
+    const generation = getNextGroupByGeneration(state)
+    const collapse = state.groupBy.collapse
+    const collapseInitialized = state.groupBy.collapseInitialized
+    state.groupBy = {
+      ...getEmptyGroupByState(),
+      generation,
+      collapse,
+      collapseInitialized,
+    }
+  },
+  SET_GROUP_BY_DATA_PAGE(state, payload) {
+    mergeGroupByDataPageInto(state.groupBy, payload)
   },
   SET_GROUP_BY_COLLAPSE(state, collapse) {
     state.groupBy.collapse = collapse
     state.groupBy.collapseInitialized = true
+    state.groupBy.generation = getNextGroupByGeneration(state)
   },
   TOGGLE_GROUP_BY_COLLAPSE_PATH(state, { path, fields }) {
     const key = pathKey(path, fields)
@@ -641,36 +1009,12 @@ export const mutations = {
     }
     state.groupBy.collapse = { ...state.groupBy.collapse, paths }
     state.groupBy.collapseInitialized = true
+    state.groupBy.generation = getNextGroupByGeneration(state)
   },
-  SET_GROUP_BY_SECTION_ROWS(state, { sectionKey, rows, startPosition = 0 }) {
-    const current = state.groupBy.sectionRows[sectionKey]
-      ? [...state.groupBy.sectionRows[sectionKey]]
-      : []
-
-    rows.forEach((row, index) => {
-      const position = startPosition + index
-      current[position] = preserveGroupByRowUiState(
-        row,
-        getGroupByRowStateById(state, row.id)
-      )
-      state.groupBy.rowLocations[row.id] = {
-        sectionKey,
-        position,
-      }
-    })
-
-    state.groupBy.sectionRows = {
-      ...state.groupBy.sectionRows,
-      [sectionKey]: current,
-    }
-    reindexGroupBySectionPositions(state, sectionKey)
+  SET_GROUP_BY_SECTION_ROWS(state, payload) {
+    setGroupBySectionRowsInto(state.groupBy, state, payload)
   },
   INSERT_ROW_AT_LOCATION(state, { sectionKey, position, row }) {
-    if (sectionKey === ROOT_SECTION_KEY) {
-      state.rows.splice(position, 0, row)
-      return
-    }
-
     const current = state.groupBy.sectionRows[sectionKey]
       ? [...state.groupBy.sectionRows[sectionKey]]
       : []
@@ -681,13 +1025,9 @@ export const mutations = {
     }
     state.groupBy.rowLocations[row.id] = { sectionKey, position }
     reindexGroupBySectionPositions(state, sectionKey)
+    invalidateGroupByAbsoluteRows(state)
   },
   REMOVE_ROW_AT_LOCATION(state, { sectionKey, position, rowId }) {
-    if (sectionKey === ROOT_SECTION_KEY) {
-      state.rows.splice(position, 1)
-      return
-    }
-
     const current = state.groupBy.sectionRows[sectionKey]
       ? [...state.groupBy.sectionRows[sectionKey]]
       : []
@@ -700,24 +1040,77 @@ export const mutations = {
       delete state.groupBy.rowLocations[rowId]
     }
     reindexGroupBySectionPositions(state, sectionKey)
+    invalidateGroupByAbsoluteRows(state)
   },
   CLEAR_GROUP_BY_SECTION_ROWS(state) {
     state.groupBy.sectionRows = {}
     state.groupBy.rowLocations = {}
+    state.groupBy.absoluteRows = {}
+    state.groupBy.sectionAccessOrder = []
   },
-  UPDATE_GROUP_BY_TREE_PATH_COUNT(state, { path, fields, delta }) {
-    state.groupBy.treeNodes = state.groupBy.treeNodes.map((node) => {
-      const nodeFields = fields.slice(0, node.depth + 1)
-      const nodeKey = pathKey(node.path, nodeFields)
-      const pathKeyForDepth = pathKey(path, nodeFields)
-      if (nodeKey !== pathKeyForDepth) {
-        return node
+  TOUCH_GROUP_BY_SECTIONS(state, { sectionKeys }) {
+    touchGroupBySectionAccess(state.groupBy, sectionKeys)
+  },
+  EVICT_LRU_GROUP_BY_SECTIONS(state, { cap }) {
+    const order = state.groupBy.sectionAccessOrder || []
+    if (order.length <= cap) {
+      return
+    }
+    const evicted = new Set(order.slice(0, order.length - cap))
+    // Drop the evicted sections' rows and their location entries (rowLocations is
+    // authoritative); the group tree is kept so scroll geometry is unaffected and the
+    // rows are re-fetched if their section scrolls back into view.
+    for (const sectionKey of evicted) {
+      const rows = state.groupBy.sectionRows[sectionKey]
+      if (!rows) {
+        continue
       }
-      return {
-        ...node,
-        row_count: Math.max(0, (node.row_count ?? node.rowCount ?? 0) + delta),
+      for (const row of rows) {
+        if (row) {
+          delete state.groupBy.rowLocations[row.id]
+        }
       }
-    })
+    }
+    state.groupBy.sectionRows = Object.fromEntries(
+      Object.entries(state.groupBy.sectionRows).filter(
+        ([key]) => !evicted.has(key)
+      )
+    )
+    state.groupBy.sectionAccessOrder = order.filter((key) => !evicted.has(key))
+  },
+  SET_GROUP_BY_ABSOLUTE_ROWS(state, rowsByOffset) {
+    state.groupBy.absoluteRows = {
+      ...state.groupBy.absoluteRows,
+      ...rowsByOffset,
+    }
+  },
+  UPDATE_GROUP_BY_TREE_PATH_COUNT(state, { path, fields, delta, registry }) {
+    state.groupBy.revision = (state.groupBy.revision || 0) + 1
+    state.groupBy.absoluteRows = {}
+    // Offsets are now locally recomputed and may diverge from the server until the
+    // next full refresh, so stop threading parent_row_offset back to the server.
+    state.groupBy.offsetsServerConfirmed = false
+    const hasSparsePages = Object.keys(state.groupBy.pages || {}).length > 0
+    const groupBys = state.activeGroupBys || []
+    state.groupBy.treeNodes = updateGroupByTreeNodesForPath(
+      state.groupBy.treeNodes,
+      path,
+      fields,
+      delta,
+      groupBys,
+      registry,
+      hasSparsePages
+    )
+    if (hasSparsePages) {
+      state.groupBy.pages = updateGroupByDataPagesForPath(
+        state.groupBy.pages,
+        path,
+        fields,
+        delta,
+        groupBys,
+        registry
+      )
+    }
   },
   SET_SEARCH(state, { activeSearchTerm, hideRowsNotMatchingSearch }) {
     state.activeSearchTerm = activeSearchTerm.trim()
@@ -1182,103 +1575,6 @@ export const mutations = {
       [fieldId]: { ...current, loading: newLoadingValue },
     }
   },
-  /**
-   * Overwrites the group by metadata. This should be done when all the rows in the
-   * buffer are refreshed.
-   */
-  SET_GROUP_BY_METADATA(state, metadata) {
-    state.groupByMetadata = metadata
-  },
-  /**
-   * Merges the existing group by metadata and the newly provided metadata. If a
-   * count for the value combination already exists, it will be updated, otherwise
-   * it will be created.
-   */
-  UPDATE_GROUP_BY_METADATA(state, newMetadata) {
-    const existingMetadata = state.groupByMetadata
-
-    const getFields = (object) => {
-      const newObject = {}
-      Object.keys(object)
-        .filter((key) => key.startsWith('field_'))
-        .forEach((key) => {
-          newObject[key] = object[key]
-        })
-      return newObject
-    }
-
-    Object.keys(newMetadata).forEach((newGroupField) => {
-      newMetadata[newGroupField].forEach((newGroupEntry) => {
-        const newGroupEntryValues = getFields(newGroupEntry)
-        const existingIndex = existingMetadata[newGroupField].findIndex(
-          (existingGroupEntry) => {
-            const existingGroupEntryValues = getFields(existingGroupEntry)
-            return _.isEqual(newGroupEntryValues, existingGroupEntryValues)
-          }
-        )
-
-        if (existingIndex !== -1) {
-          existingMetadata[newGroupField][existingIndex] = newGroupEntry
-        } else {
-          existingMetadata[newGroupField].push(newGroupEntry)
-        }
-      })
-    })
-  },
-  /**
-   * Increases or decreases the count of all group entries that match the row values.
-   */
-  UPDATE_GROUP_BY_METADATA_COUNT(
-    state,
-    { fields, registry, row, increase, decrease }
-  ) {
-    const groupBys = state.activeGroupBys
-    const existingMetadata = state.groupByMetadata
-
-    groupBys.forEach((groupBy, groupByIndex) => {
-      let updated = false
-      const groupByFields = groupBys
-        .slice(0, groupByIndex + 1)
-        .map((groupBy) => fields.find((f) => f.id === groupBy.field))
-        .filter(Boolean)
-      const fieldName = `field_${groupBy.field}`
-      if (!Object.prototype.hasOwnProperty.call(existingMetadata, fieldName)) {
-        existingMetadata[`field_${groupBy.field}`] = []
-      }
-      const entries = existingMetadata[`field_${groupBy.field}`]
-      entries.forEach((entry, index) => {
-        const equal = fieldValuesAreEqualInObjects(
-          groupByFields,
-          registry,
-          entry,
-          row,
-          true
-        )
-        if (equal) {
-          let count = entry.count
-          if (increase) {
-            count += 1
-          }
-          if (decrease) {
-            count -= 1
-          }
-
-          entry.count = count
-          updated = true
-        }
-      })
-
-      if (!updated && increase) {
-        const newEntry = { count: 1 }
-        groupByFields.forEach((field) => {
-          const key = `field_${field.id}`
-          const fieldType = registry.get('field', field.type)
-          newEntry[key] = fieldType.getGroupValueFromRowValue(field, row[key])
-        })
-        existingMetadata[`field_${groupBy.field}`].push(newEntry)
-      }
-    })
-  },
   SET_PENDING_FIELD_OPERATIONS(state, { fieldId, rowIds, value }) {
     const addKey = (fieldId, rowId) => {
       const key = getPendingOperationKey(fieldId, rowId)
@@ -1357,76 +1653,205 @@ let lastRequestLimit = null
 let lastRefreshRequest = null
 let lastRefreshRequestController = null
 let lastQueryController = null
+let lastGroupByScrollRequest = null
+let lastGroupByScrollRequestKey = null
+let lastGroupByScrollQueryController = null
+const activeGroupByRowsRequests = new Map()
 
 // We want to cancel previous aggregation request before creating a new one.
 const lastAggregationRequest = { request: null, controller: null }
 
 export const actions = {
-  async fetchGroupByTree(
-    { commit, getters, rootGetters },
-    { gridId, view, fields, adhocFiltering, maxDepth = null, expanded = null }
+  async fetchGroupByData(
+    { commit, getters, rootGetters, state },
+    {
+      gridId,
+      view,
+      fields,
+      adhocFiltering,
+      parentPath = {},
+      parentRequests = null,
+      depth = null,
+      offset = 0,
+      limit = null,
+      includeDescendants = false,
+      descendantLimit = null,
+      signal = null,
+    }
   ) {
-    const { $client, $config } = this
-    const { data } = await GridService($client).fetchGroupTree({
+    const { $client, $config, $registry } = this
+    const groupByGeneration = state.groupBy.generation || 0
+    const groupByFields = getGroupByFieldsFromActiveGroupBys(
+      getters.getActiveGroupBys,
+      fields
+    )
+    const requestLimit = limit ?? getters.getBufferRequestSize
+    const parents = parentRequests?.map((parentRequest) => {
+      const mappedParent = {
+        parent: parentRequest.parentPath ?? parentRequest.parent ?? {},
+        offset: parentRequest.offset ?? 0,
+        limit: parentRequest.limit ?? requestLimit,
+      }
+      const parentRowOffset =
+        parentRequest.parentRowOffset ?? parentRequest.parent_row_offset
+      if (parentRowOffset !== undefined && parentRowOffset !== null) {
+        mappedParent.parent_row_offset = parentRowOffset
+      }
+      return mappedParent
+    })
+    const { data } = await GridService($client).fetchGroupByData({
       gridId,
       search: getters.getServerSearchTerm,
       searchMode: getDefaultSearchModeFromEnv($config),
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       filters: getFilters(view, adhocFiltering),
-      maxDepth,
-      expanded,
+      parent:
+        parents === undefined && Object.keys(parentPath || {}).length > 0
+          ? parentPath
+          : null,
+      parents,
+      depth,
+      offset,
+      limit: requestLimit,
+      includeDescendants,
+      descendantLimit,
+      signal,
     })
-    commit('SET_GROUP_BY_TREE', {
-      nodes: data.nodes || [],
-      truncated: data.truncated || false,
+    if (isGroupByRequestStale(getters, state, groupByGeneration, signal)) {
+      return data
+    }
+    for (const page of data.pages || []) {
+      commit('SET_GROUP_BY_DATA_PAGE', {
+        data: page,
+        parentPath: page.parent || {},
+        fields: groupByFields,
+      })
+    }
+    placeLoadedGroupByRowsInViewport({
+      commit,
+      getters,
+      state,
+      registry: $registry,
+      fields,
     })
-    commit('SET_COUNT', getGroupByTotalRowCountFromNodes(data.nodes))
     return data
   },
   async fetchGroupByRowsForSections(
-    { commit, getters, rootGetters },
-    { gridId, view, sections, includeFieldOptions = false }
+    { commit, getters, rootGetters, state },
+    {
+      gridId,
+      view,
+      fields,
+      sections,
+      layout,
+      includeFieldOptions = false,
+      signal = null,
+    }
   ) {
-    const { $client, $config } = this
+    const { $client, $config, $registry } = this
+    const groupByGeneration = state.groupBy.generation || 0
+    const groupByFields = getGroupByFieldsFromActiveGroupBys(
+      getters.getActiveGroupBys,
+      fields
+    )
     if (sections.length === 0) {
       return { results: [], count: getters.getCount }
     }
 
     const startOffset = Math.min(
       ...sections.map(
-        (section) => section.firstGlobalRowOffset + section.startPosition
+        (section) => section.absoluteRowOffset + section.startPosition
       )
     )
     const endOffset = Math.max(
       ...sections.map(
-        (section) => section.firstGlobalRowOffset + section.endPosition
+        (section) => section.absoluteRowOffset + section.endPosition
       )
     )
-    const limit = endOffset - startOffset
+    const bufferRequestSize = getters.getBufferRequestSize
+    const requestOffset = Math.max(
+      Math.floor((startOffset - bufferRequestSize) / bufferRequestSize) *
+        bufferRequestSize,
+      0
+    )
+    const countLimit = getters.getCount > 0 ? getters.getCount : endOffset
+    const requestEndOffset = Math.min(
+      Math.ceil((endOffset + bufferRequestSize) / bufferRequestSize) *
+        bufferRequestSize,
+      countLimit
+    )
+    const limit = requestEndOffset - requestOffset
     if (limit <= 0) {
       return { results: [], count: getters.getCount }
     }
 
-    // The backend must apply group visibility before offset/limit pagination so
-    // this flattened row slice matches the visible sections computed above.
-    const groupVisibilityParams = getGroupByVisibilityParams(
-      getters.getGroupByCollapse
-    )
-    const { data } = await GridService($client).fetchRows({
+    const search = getters.getServerSearchTerm
+    const searchMode = getDefaultSearchModeFromEnv($config)
+    const publicUrl = rootGetters['page/view/public/getIsPublic']
+    const publicAuthToken = rootGetters['page/view/public/getAuthToken']
+    const groupBy = getGroupBy(rootGetters, gridId)
+    const orderBy = getOrderBy(view, getters.getAdhocSorting)
+    const filters = getFilters(view, getters.getAdhocFiltering)
+    const requestParams = {
       gridId,
-      offset: startOffset,
+      offset: requestOffset,
       limit,
       includeFieldOptions,
-      search: getters.getServerSearchTerm,
-      searchMode: getDefaultSearchModeFromEnv($config),
-      publicUrl: rootGetters['page/view/public/getIsPublic'],
-      publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-      groupBy: getGroupBy(rootGetters, gridId),
-      orderBy: getOrderBy(view, getters.getAdhocSorting),
-      filters: getFilters(view, getters.getAdhocFiltering),
-      ...groupVisibilityParams,
+      search,
+      searchMode,
+      publicUrl,
+      publicAuthToken,
+      groupBy,
+      orderBy,
+      filters,
+    }
+    const requestKey = getGroupByRowsRequestKey(requestParams)
+    const fetchRows = () =>
+      GridService($client).fetchRows({
+        ...requestParams,
+        signal,
+      })
+
+    let rowRequest = activeGroupByRowsRequests.get(requestKey)
+    if (!rowRequest) {
+      rowRequest = fetchRows().finally(() => {
+        if (activeGroupByRowsRequests.get(requestKey) === rowRequest) {
+          activeGroupByRowsRequests.delete(requestKey)
+        }
+      })
+      activeGroupByRowsRequests.set(requestKey, rowRequest)
+    }
+
+    const groupByRevision = state.groupBy.revision || 0
+    let response
+    try {
+      response = await rowRequest
+    } catch (error) {
+      const currentRequestWasCancelled = axios.isCancel(error)
+      if (currentRequestWasCancelled && !signal?.aborted) {
+        response = await fetchRows()
+      } else {
+        throw error
+      }
+    }
+    const { data } = response
+    if (isGroupByRequestStale(getters, state, groupByGeneration, signal)) {
+      return data
+    }
+
+    data.results.forEach((row) => {
+      const metadata = extractRowMetadata(data, row.id)
+      populateRow(row, metadata, false)
     })
+
+    // An optimistic row mutation that landed while this fetch was in flight bumps the
+    // revision. Bail before committing the server's now-stale count and field options so
+    // they don't clobber the optimistic state. (`generation` guards collapse/group-by
+    // changes above; `revision` guards optimistic count drift here.)
+    if ((state.groupBy.revision || 0) !== groupByRevision) {
+      return data
+    }
 
     if (includeFieldOptions) {
       if (rootGetters['page/view/public/getIsPublic']) {
@@ -1435,38 +1860,41 @@ export const actions = {
         commit('REPLACE_ALL_FIELD_OPTIONS', data.field_options || {})
       }
     }
+    if (typeof data.count === 'number') {
+      commit('SET_COUNT', data.count)
+    }
 
-    data.results.forEach((row) => {
-      const metadata = extractRowMetadata(data, row.id)
-      populateRow(row, metadata, false)
+    const rowsByOffset = {}
+    data.results.forEach((row, index) => {
+      rowsByOffset[requestOffset + index] = row
     })
+    commit('SET_GROUP_BY_ABSOLUTE_ROWS', rowsByOffset)
 
-    sections.forEach((section) => {
-      const sectionStart = section.firstGlobalRowOffset + section.startPosition
-      const sectionEnd = section.firstGlobalRowOffset + section.endPosition
-      const rows = data.results.slice(
-        sectionStart - startOffset,
-        sectionEnd - startOffset
-      )
-      commit('SET_GROUP_BY_SECTION_ROWS', {
-        sectionKey: section.sectionKey,
-        rows,
-        startPosition: section.startPosition,
-      })
+    const placements = buildGroupBySectionPlacements({
+      layout,
+      rowsByOffset,
+      requestOffset,
+      fetchedRowCount: data.results.length,
+      groupByFields,
+      registry: $registry,
+    })
+    placements.forEach((placement) => {
+      commit('SET_GROUP_BY_SECTION_ROWS', placement)
     })
 
     return data
   },
-  async fetchGroupByFieldOptions(
-    { commit, getters, rootGetters },
-    { gridId, view }
+  async fetchGroupByCount(
+    { commit, getters, rootGetters, state },
+    { gridId, view, includeFieldOptions = false }
   ) {
     const { $client, $config } = this
+    const groupByGeneration = state.groupBy.generation || 0
     const { data } = await GridService($client).fetchRows({
       gridId,
       offset: 0,
       limit: 0,
-      includeFieldOptions: true,
+      includeFieldOptions,
       includeRowMetadata: false,
       search: getters.getServerSearchTerm,
       searchMode: getDefaultSearchModeFromEnv($config),
@@ -1477,38 +1905,180 @@ export const actions = {
       filters: getFilters(view, getters.getAdhocFiltering),
     })
 
-    if (rootGetters['page/view/public/getIsPublic']) {
-      commit('REPLACE_PUBLIC_FIELD_OPTIONS', data.field_options || {})
-    } else {
-      commit('REPLACE_ALL_FIELD_OPTIONS', data.field_options || {})
+    if (isGroupByRequestStale(getters, state, groupByGeneration)) {
+      return data
+    }
+
+    commit('SET_COUNT', data.count || 0)
+
+    if (includeFieldOptions) {
+      if (rootGetters['page/view/public/getIsPublic']) {
+        commit('REPLACE_PUBLIC_FIELD_OPTIONS', data.field_options || {})
+      } else {
+        commit('REPLACE_ALL_FIELD_OPTIONS', data.field_options || {})
+      }
     }
 
     return data
   },
+  async fetchGroupByFieldOptions({ dispatch }, { gridId, view }) {
+    return await dispatch('fetchGroupByCount', {
+      gridId,
+      view,
+      includeFieldOptions: true,
+    })
+  },
   async fetchGroupByRowsByScrollTop(
-    { dispatch, getters, state },
-    { gridId, view, fields, scrollTop, includeFieldOptions = false }
+    { dispatch, commit, getters, state },
+    {
+      gridId,
+      view,
+      fields,
+      scrollTop,
+      includeFieldOptions = false,
+      signal = null,
+    }
   ) {
+    const { $registry } = this
+    const groupByGeneration = state.groupBy.generation || 0
     const groupByFields = getGroupByFieldsFromActiveGroupBys(
       getters.getActiveGroupBys,
       fields
     )
-    const layout = getters.getGroupByLayout(groupByFields)
-    const padding = getters.getRowPadding * getters.getRowHeight
-    const viewportTop = Math.max(0, scrollTop - padding)
-    const viewportHeight =
-      (getters.getWindowHeight ||
-        getters.getBufferRequestSize * getters.getRowHeight) +
-      padding * 2
+    const viewport = getGroupByViewport(getters, scrollTop)
+    const useDepthPages = shouldUseGroupByDepthPages(state.groupBy)
+
+    let layout = getters.getGroupByLayout
+    if (
+      Object.keys(state.groupBy.pages || {}).length === 0 &&
+      (state.groupBy.treeNodes || []).length === 0
+    ) {
+      await dispatch('fetchGroupByData', {
+        gridId,
+        view,
+        fields,
+        adhocFiltering: getters.getAdhocFiltering,
+        includeDescendants: state.groupBy.collapse?.mode === 'expand',
+        descendantLimit: getters.getBufferRequestSize,
+        signal,
+      })
+      if (isGroupByRequestStale(getters, state, groupByGeneration, signal)) {
+        return []
+      }
+      layout = getters.getGroupByLayout
+    }
+
+    const seenPageRequests = new Set()
+    const seenDepthRequests = new Set()
+    for (let depth = 0; depth < groupByFields.length; depth += 1) {
+      if (useDepthPages) {
+        const pageToFetch = getVisibleGroupDepthPageToFetch({
+          layout,
+          viewport,
+          pageSize: getters.getBufferRequestSize,
+          seenRequests: seenDepthRequests,
+        })
+        if (pageToFetch === null) {
+          break
+        }
+
+        await dispatch('fetchGroupByData', {
+          gridId,
+          view,
+          fields,
+          depth: pageToFetch.depth,
+          offset: pageToFetch.offset,
+          limit: pageToFetch.limit,
+          adhocFiltering: getters.getAdhocFiltering,
+          signal,
+        })
+        layout = getters.getGroupByLayout
+        continue
+      }
+
+      const pagesToFetch = getVisibleGroupPagesToFetch({
+        state,
+        getters,
+        layout,
+        groupByFields,
+        viewport,
+        seenRequests: seenPageRequests,
+        maxGroups: getters.getBufferRequestSize,
+      })
+      if (pagesToFetch.length === 0) {
+        break
+      }
+
+      const rowPrefetchSections = getGroupByRowPrefetchSections({
+        state,
+        pageRequests: pagesToFetch,
+        groupByFields,
+        maxRows: getters.getBufferRequestSize * 3,
+      })
+      const rowPrefetch =
+        rowPrefetchSections.length > 0
+          ? dispatch('fetchGroupByRowsForSections', {
+              gridId,
+              view,
+              fields,
+              sections: rowPrefetchSections,
+              layout,
+              includeFieldOptions: false,
+              signal,
+            })
+          : Promise.resolve()
+
+      await Promise.all([
+        rowPrefetch,
+        dispatch('fetchGroupByData', {
+          gridId,
+          view,
+          fields,
+          parentRequests: pagesToFetch.map((page) => ({
+            parentPath: page.parentPath,
+            offset: page.offset,
+            limit: page.limit,
+            parentRowOffset: page.parentRowOffset,
+          })),
+          adhocFiltering: getters.getAdhocFiltering,
+          signal,
+        }),
+      ])
+      if (isGroupByRequestStale(getters, state, groupByGeneration, signal)) {
+        return []
+      }
+      layout = getters.getGroupByLayout
+    }
+
+    if (isGroupByRequestStale(getters, state, groupByGeneration, signal)) {
+      return []
+    }
+
     const sections = visibleSectionsInViewport(
       layout,
-      {
-        scrollTop: viewportTop,
-        clientHeight: viewportHeight,
-      },
+      viewport,
       groupByFields,
       getters.getRowHeight
     )
+
+    placeLoadedGroupByRowsInViewport({
+      commit,
+      getters,
+      state,
+      registry: $registry,
+      fields,
+      layout,
+      scrollTop,
+    })
+
+    // Protect the currently-visible sections, then evict the least-recently-used
+    // sections beyond the cap so memory stays bounded over a long scroll session.
+    commit('TOUCH_GROUP_BY_SECTIONS', {
+      sectionKeys: sections.map((section) => section.sectionKey),
+    })
+    commit('EVICT_LRU_GROUP_BY_SECTIONS', {
+      cap: GROUP_BY_MAX_RETAINED_SECTIONS,
+    })
 
     if (includeFieldOptions && sections.length === 0) {
       await dispatch('fetchGroupByFieldOptions', { gridId, view })
@@ -1517,7 +2087,10 @@ export const actions = {
 
     const sectionsToFetch = getMissingGroupBySectionRanges(
       state.groupBy.sectionRows,
-      sections
+      sections,
+      state.groupBy.absoluteRows,
+      groupByFields,
+      $registry
     )
 
     if (sectionsToFetch.length === 0) {
@@ -1533,13 +2106,15 @@ export const actions = {
         view,
         fields,
         sections: sectionsToFetch,
+        layout,
         includeFieldOptions,
+        signal,
       }),
     ]
   },
   async toggleGroupCollapse(
     { commit, dispatch, getters },
-    { path, view, fields, adhocFiltering }
+    { path, view, fields }
   ) {
     const groupByFields = getGroupByFieldsFromActiveGroupBys(
       getters.getActiveGroupBys,
@@ -1547,29 +2122,32 @@ export const actions = {
     )
     commit('TOGGLE_GROUP_BY_COLLAPSE_PATH', { path, fields: groupByFields })
     commit('CLEAR_AREA_SELECTION')
+    const scrollTop = getClampedGroupByScrollTop(getters)
+    commit('SET_SCROLL_TOP', scrollTop)
 
     await dispatch('fetchGroupByRowsByScrollTop', {
       gridId: getters.getLastGridId,
       view,
       fields,
-      scrollTop: getters.getScrollTop,
+      scrollTop,
       includeFieldOptions: false,
-      adhocFiltering,
     })
   },
   async setGroupByCollapseAll(
     { commit, dispatch, getters },
-    { view, fields, collapse, adhocFiltering }
+    { view, fields, collapse }
   ) {
     commit('SET_GROUP_BY_COLLAPSE', getGroupByCollapseAllState(collapse))
     commit('CLEAR_AREA_SELECTION')
+    const scrollTop = getClampedGroupByScrollTop(getters)
+    commit('SET_SCROLL_TOP', scrollTop)
+
     await dispatch('fetchGroupByRowsByScrollTop', {
       gridId: getters.getLastGridId,
       view,
       fields,
-      scrollTop: getters.getScrollTop,
+      scrollTop,
       includeFieldOptions: false,
-      adhocFiltering,
     })
   },
   /**
@@ -1579,7 +2157,7 @@ export const actions = {
    * anything other then we already have or waiting for a new request will be made.
    */
   fetchByScrollTop(
-    { commit, getters, rootGetters, dispatch },
+    { commit, getters, rootGetters, dispatch, state },
     { scrollTop, fields }
   ) {
     const { $registry, $client, $i18n, $config } = this
@@ -1588,12 +2166,50 @@ export const actions = {
     const view = getViewOrFlatDefault(rootGetters, getters.getLastGridId)
 
     if (getters.isGroupByMode) {
-      return dispatch('fetchGroupByRowsByScrollTop', {
+      const requestKey = JSON.stringify({
+        gridId,
+        scrollTop,
+        generation: state.groupBy.generation || 0,
+      })
+      if (
+        lastGroupByScrollRequest !== null &&
+        lastGroupByScrollRequestKey === requestKey
+      ) {
+        return lastGroupByScrollRequest
+      }
+
+      if (lastGroupByScrollRequest !== null) {
+        lastGroupByScrollQueryController.abort()
+      }
+
+      const controller = new AbortController()
+      lastGroupByScrollQueryController = controller
+      lastGroupByScrollRequestKey = requestKey
+      fireScrollTop.processing = true
+
+      lastGroupByScrollRequest = dispatch('fetchGroupByRowsByScrollTop', {
         gridId,
         view,
         fields,
         scrollTop,
+        signal: controller.signal,
       })
+        .catch((error) => {
+          if (!axios.isCancel(error)) {
+            throw error
+          }
+        })
+        .finally(() => {
+          if (lastGroupByScrollQueryController !== controller) {
+            return
+          }
+          lastGroupByScrollRequest = null
+          lastGroupByScrollRequestKey = null
+          lastGroupByScrollQueryController = null
+          fireScrollTop.processing = false
+        })
+
+      return lastGroupByScrollRequest
     }
 
     // Calculate what the middle row index of the visible window based on the scroll
@@ -1725,7 +2341,6 @@ export const actions = {
             bufferStartIndex,
             bufferLimit,
           })
-          commit('UPDATE_GROUP_BY_METADATA', data.group_by_metadata || {})
           dispatch('visibleByScrollTop')
           dispatch('updateSearch', { fields })
           lastRequest = null
@@ -1880,12 +2495,14 @@ export const actions = {
       commit('SET_LAST_GRID_ID', gridId)
       commit('SET_ADHOC_FILTERING', adhocFiltering)
       commit('SET_ADHOC_SORTING', adhocSorting)
-      commit('SET_GROUP_BY_COLLAPSE', getGroupByCollapseAllState(true))
-      await dispatch('fetchGroupByTree', {
+      commit('SET_GROUP_BY_COLLAPSE', getGroupByCollapseAllState(false))
+      await dispatch('fetchGroupByData', {
         gridId,
         view,
         fields,
         adhocFiltering,
+        includeDescendants: true,
+        descendantLimit: getters.getBufferRequestSize,
       })
       await dispatch('fetchGroupByRowsByScrollTop', {
         gridId,
@@ -1932,13 +2549,12 @@ export const actions = {
     })
     commit('SET_ROWS_INDEX', {
       startIndex: 0,
-      // @TODO mut calculate how many rows would fit and based on that calculate
-      // what the end index should be.
+      // Initial row-index window sized to roughly one screen of rows; the scroll
+      // handler widens it once the real viewport height is known.
       endIndex: data.count > 31 ? 31 : data.count,
       top: 0,
     })
     commit('REPLACE_ALL_FIELD_OPTIONS', data.field_options)
-    commit('SET_GROUP_BY_METADATA', data.group_by_metadata || {})
 
     dispatch('updateSearch', { fields })
   },
@@ -1950,18 +2566,80 @@ export const actions = {
    */
   refresh(
     { dispatch, commit, getters, rootGetters, state },
-    { view, fields, adhocFiltering, adhocSorting, includeFieldOptions = false }
+    {
+      view,
+      fields,
+      adhocFiltering,
+      adhocSorting,
+      includeFieldOptions = false,
+      sourceEvent = null,
+    }
   ) {
     const { $client, $config } = this
     const previousGroupByMode = getters.isGroupByMode
     const previousGroupByCollapse = clone(getters.getGroupByCollapse)
     const previousGroupByCollapseInitialized =
       state.groupBy.collapseInitialized === true
+    const previousGroupByFields = getGroupByFieldsFromActiveGroupBys(
+      state.activeGroupBys,
+      fields
+    )
     const nextGroupBys = clone(view.group_bys || [])
+    const groupBysChanged = !_.isEqual(state.activeGroupBys || [], nextGroupBys)
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_ADHOC_SORTING', adhocSorting)
-    commit('SET_ACTIVE_GROUP_BYS', nextGroupBys)
+    const nextGroupByFields = getGroupByFieldsFromActiveGroupBys(
+      nextGroupBys,
+      fields
+    )
     const gridId = getters.getLastGridId
+
+    if (groupBysChanged && nextGroupByFields.length > 0) {
+      return Promise.resolve()
+        .then(async () => {
+          const handled = await dispatch('refreshActiveGroupBys', {
+            view,
+            fields,
+            scrollTop: getters.getScrollTop,
+            includeFieldOptions,
+          })
+          if (!handled) {
+            return
+          }
+          dispatch('correctMultiSelect')
+          dispatch('fetchAllFieldAggregationData', { view })
+        })
+        .catch((error) => {
+          if (axios.isCancel(error)) {
+            throw new RefreshCancelledError()
+          }
+          throw error
+        })
+    }
+
+    commit('SET_ACTIVE_GROUP_BYS', nextGroupBys)
+
+    if (getters.isGroupByMode && sourceEvent === 'sort') {
+      const refresh = Promise.resolve()
+        .then(async () => {
+          commit('CLEAR_GROUP_BY_SECTION_ROWS')
+          await dispatch('fetchGroupByRowsByScrollTop', {
+            gridId,
+            view,
+            fields,
+            scrollTop: getters.getScrollTop,
+            includeFieldOptions,
+          })
+          dispatch('correctMultiSelect')
+        })
+        .catch((error) => {
+          if (axios.isCancel(error)) {
+            throw new RefreshCancelledError()
+          }
+          throw error
+        })
+      return refresh
+    }
 
     if (getters.isGroupByMode) {
       const groupByFields = getGroupByFieldsFromActiveGroupBys(
@@ -1970,18 +2648,24 @@ export const actions = {
       )
       const groupByCollapse =
         previousGroupByMode || previousGroupByCollapseInitialized
-          ? projectGroupByCollapseState(previousGroupByCollapse, groupByFields)
-          : getGroupByCollapseAllState(true)
+          ? projectGroupByCollapseState(
+              previousGroupByCollapse,
+              previousGroupByFields,
+              groupByFields
+            )
+          : getGroupByCollapseAllState(false)
       const refresh = Promise.resolve()
         .then(async () => {
           commit('SET_GROUP_BY_COLLAPSE', groupByCollapse)
-          await dispatch('fetchGroupByTree', {
+          commit('RESET_GROUP_BY_DATA')
+          await dispatch('fetchGroupByData', {
             gridId,
             view,
             fields,
             adhocFiltering,
+            includeDescendants: groupByCollapse.mode === 'expand',
+            descendantLimit: getters.getBufferRequestSize,
           })
-          commit('CLEAR_GROUP_BY_SECTION_ROWS')
           await dispatch('fetchGroupByRowsByScrollTop', {
             gridId,
             view,
@@ -2069,7 +2753,6 @@ export const actions = {
           bufferStartIndex: offset,
           bufferLimit: data.results.length,
         })
-        commit('SET_GROUP_BY_METADATA', data.group_by_metadata || {})
 
         dispatch('updateSearch', { fields })
         if (includeFieldOptions) {
@@ -2095,8 +2778,194 @@ export const actions = {
       })
     return lastRefreshRequest
   },
-  updateActiveGroupBys({ commit }, groupBys) {
-    commit('SET_ACTIVE_GROUP_BYS', groupBys)
+  async refreshActiveGroupBys(
+    { commit, getters, rootGetters, state },
+    { view, fields, scrollTop, includeFieldOptions = false }
+  ) {
+    const { $client, $config, $registry } = this
+    const nextGroupBys = clone(view.group_bys || [])
+    const previousGroupBys = state.activeGroupBys || []
+    if (_.isEqual(previousGroupBys, nextGroupBys)) {
+      return false
+    }
+    if (nextGroupBys.length === 0) {
+      return false
+    }
+
+    const gridId = getters.getLastGridId
+    const groupByFields = getGroupByFieldsFromActiveGroupBys(
+      nextGroupBys,
+      fields
+    )
+    if (groupByFields.length === 0) {
+      return false
+    }
+
+    // Changing the group-by fields rebuilds the whole layout, so the previous scroll
+    // offset points at an unloaded region of the new tree and would leave the viewport
+    // blank. Restart at the top, where this refresh fetches the first page.
+    scrollTop = 0
+    commit('SET_SCROLL_TOP', 0)
+    fireScrollTop.distance = 0
+    fireScrollTop.last = Date.now()
+    fireScrollTop.processing = false
+
+    const previousGroupByFields = getGroupByFieldsFromActiveGroupBys(
+      previousGroupBys,
+      fields
+    )
+    const previousGroupByMode = previousGroupBys.length > 0
+    const previousGroupByCollapse = clone(getters.getGroupByCollapse)
+    const previousGroupByCollapseInitialized =
+      state.groupBy.collapseInitialized === true
+    let groupByCollapse =
+      previousGroupByMode || previousGroupByCollapseInitialized
+        ? projectGroupByCollapseState(
+            previousGroupByCollapse,
+            previousGroupByFields,
+            groupByFields
+          )
+        : getGroupByCollapseAllState(false)
+
+    // A per-group (mixed) collapse can't be expressed by the single `includeDescendants`
+    // flag of the fresh multi-level fetch below: the deeper group nodes of an expanded
+    // branch never get fetched, so the branch renders empty. Fall back to expand-all,
+    // which fetches the whole visible tree. Single-level views are unaffected because
+    // their rows are fetched separately regardless of the flag.
+    if (groupByFields.length > 1 && groupByCollapse.paths.length > 0) {
+      groupByCollapse = getGroupByCollapseAllState(false)
+    }
+
+    commit('INVALIDATE_GROUP_BY_REQUESTS')
+    const groupByGeneration = state.groupBy.generation || 0
+    const snapshot = {
+      ...getEmptyGroupByState(),
+      generation: groupByGeneration,
+      collapse: groupByCollapse,
+      collapseInitialized: true,
+    }
+
+    const { data: groupByData } = await GridService($client).fetchGroupByData({
+      gridId,
+      search: getters.getServerSearchTerm,
+      searchMode: getDefaultSearchModeFromEnv($config),
+      publicUrl: rootGetters['page/view/public/getIsPublic'],
+      publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+      filters: getFilters(view, getters.getAdhocFiltering),
+      offset: 0,
+      limit: getters.getBufferRequestSize,
+      includeDescendants: groupByCollapse.mode === 'expand',
+      descendantLimit: getters.getBufferRequestSize,
+    })
+    if ((state.groupBy.generation || 0) !== groupByGeneration) {
+      return true
+    }
+
+    for (const page of groupByData.pages || []) {
+      mergeGroupByDataPageInto(snapshot, {
+        data: page,
+        parentPath: page.parent || {},
+        fields: groupByFields,
+      })
+    }
+
+    const viewport = getGroupByViewport(getters, scrollTop)
+    const layout = getGroupBySnapshotLayout(
+      snapshot,
+      nextGroupBys,
+      fields,
+      state
+    )
+    const sections = visibleSectionsInViewport(
+      layout,
+      viewport,
+      groupByFields,
+      getters.getRowHeight
+    )
+
+    let rowData = null
+    if (sections.length > 0) {
+      const startOffset = Math.min(
+        ...sections.map(
+          (section) => section.absoluteRowOffset + section.startPosition
+        )
+      )
+      const endOffset = Math.max(
+        ...sections.map(
+          (section) => section.absoluteRowOffset + section.endPosition
+        )
+      )
+      const requestOffset = startOffset
+      const limit = Math.max(0, endOffset - startOffset)
+
+      if (limit > 0) {
+        const { data } = await GridService($client).fetchRows({
+          gridId,
+          offset: requestOffset,
+          limit,
+          includeFieldOptions,
+          search: getters.getServerSearchTerm,
+          searchMode: getDefaultSearchModeFromEnv($config),
+          publicUrl: rootGetters['page/view/public/getIsPublic'],
+          publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+          groupBy: getGroupBy(rootGetters, gridId),
+          orderBy: getOrderBy(view, getters.getAdhocSorting),
+          filters: getFilters(view, getters.getAdhocFiltering),
+          excludeCount: getters.canExcludeCount,
+        })
+        if ((state.groupBy.generation || 0) !== groupByGeneration) {
+          return true
+        }
+        rowData = data
+        rowData.results.forEach((row) => {
+          const metadata = extractRowMetadata(rowData, row.id)
+          populateRow(row, metadata, false)
+        })
+
+        const rowsByOffset = {}
+        rowData.results.forEach((row, index) => {
+          rowsByOffset[requestOffset + index] = row
+        })
+        snapshot.absoluteRows = {
+          ...snapshot.absoluteRows,
+          ...rowsByOffset,
+        }
+
+        const placements = buildGroupBySectionPlacements({
+          layout,
+          rowsByOffset,
+          requestOffset,
+          fetchedRowCount: rowData.results.length,
+          groupByFields,
+          registry: $registry,
+        })
+        placements.forEach((placement) => {
+          setGroupBySectionRowsInto(snapshot, state, placement)
+        })
+      }
+    }
+
+    commit('APPLY_GROUP_BY_STATE', {
+      activeGroupBys: nextGroupBys,
+      groupBy: snapshot,
+      count: rowData?.count,
+    })
+    if (includeFieldOptions && rowData?.field_options) {
+      if (rootGetters['page/view/public/getIsPublic']) {
+        commit('REPLACE_PUBLIC_FIELD_OPTIONS', rowData.field_options)
+      } else {
+        commit('REPLACE_ALL_FIELD_OPTIONS', rowData.field_options)
+      }
+    }
+    return true
+  },
+  updateActiveGroupBys({ commit, state }, groupBys) {
+    const nextGroupBys = groupBys || []
+    const changed = !_.isEqual(state.activeGroupBys || [], nextGroupBys)
+    commit('SET_ACTIVE_GROUP_BYS', nextGroupBys)
+    if (changed) {
+      commit('RESET_GROUP_BY_DATA')
+    }
   },
   /**
    * Updates the field options of a given field and also makes an API request to the
@@ -2477,9 +3346,15 @@ export const actions = {
       fieldIndex
     )
 
-    const rows = getters.getAllRows
+    // In group-by mode the visible row index maps through the layout (collapsed and
+    // unloaded ranges create gaps), so resolve it via getRowIdByIndex rather than
+    // indexing the compacted loaded-rows buffer directly.
+    const resolveRowByIndex = (visibleIndex) =>
+      getters.isGroupByMode
+        ? getters.getRow(getters.getRowIdByIndex(visibleIndex))
+        : getters.getAllRows[visibleIndex - getters.getBufferStartIndex]
     const visibleFieldEntries = getters.getOrderedVisibleFieldOptions(fields)
-    const row = rows[newRowIndex - getters.getBufferStartIndex]
+    const row = resolveRowByIndex(newRowIndex)
     const field = visibleFieldEntries[newFieldIndex]
 
     if (row && field) {
@@ -2496,7 +3371,7 @@ export const actions = {
         fields,
       })
     } else {
-      const oldRow = rows[rowIndex - getters.getBufferStartIndex]
+      const oldRow = resolveRowByIndex(rowIndex)
       const oldField = visibleFieldEntries[fieldIndex]
 
       if (oldRow && oldField) {
@@ -2788,7 +3663,7 @@ export const actions = {
    * will be returned.
    */
   async fetchRowsByIndex(
-    { getters, rootGetters },
+    { getters, rootGetters, state },
     { startIndex, limit, fields, excludeFields, rowIds, limitLinkedItems }
   ) {
     const { $registry, $client, $i18n, $config } = this
@@ -2801,28 +3676,37 @@ export const actions = {
 
     const gridId = getters.getLastGridId
     const view = getViewOrFlatDefault(rootGetters, getters.getLastGridId)
-    const groupVisibilityParams = getters.isGroupByMode
-      ? getGroupByVisibilityParams(getters.getGroupByCollapse)
-      : {}
-    const { data } = await GridService($client).fetchRows({
-      gridId,
-      offset: startIndex,
-      limit,
-      search: getters.getServerSearchTerm,
-      searchMode: getDefaultSearchModeFromEnv($config),
-      publicUrl: rootGetters['page/view/public/getIsPublic'],
-      publicAuthToken: rootGetters['page/view/public/getAuthToken'],
-      groupBy: getGroupBy(rootGetters, getters.getLastGridId),
-      orderBy: getOrderBy(view, getters.getAdhocSorting),
-      filters: getFilters(view, getters.getAdhocFiltering),
-      includeFields: fields,
-      excludeFields,
-      excludeCount: getters.canExcludeCount,
-      limitLinkedItems,
-      rowIds,
-      ...groupVisibilityParams,
-    })
-    return data.results
+
+    const ranges = getters.isGroupByMode
+      ? getGroupByAbsoluteRangesForVisibleRange(
+          getGroupByLayoutFromState(state),
+          startIndex,
+          limit
+        )
+      : [{ offset: startIndex, limit }]
+
+    const results = []
+    for (const range of ranges) {
+      const { data } = await GridService($client).fetchRows({
+        gridId,
+        offset: range.offset,
+        limit: range.limit,
+        search: getters.getServerSearchTerm,
+        searchMode: getDefaultSearchModeFromEnv($config),
+        publicUrl: rootGetters['page/view/public/getIsPublic'],
+        publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+        groupBy: getGroupBy(rootGetters, getters.getLastGridId),
+        orderBy: getOrderBy(view, getters.getAdhocSorting),
+        filters: getFilters(view, getters.getAdhocFiltering),
+        includeFields: fields,
+        excludeFields,
+        excludeCount: getters.canExcludeCount,
+        limitLinkedItems,
+        rowIds,
+      })
+      results.push(...data.results)
+    }
+    return results
   },
   setRowHover({ commit }, { row, value }) {
     commit('SET_ROW_HOVER', { row, value })
@@ -3017,26 +3901,16 @@ export const actions = {
       const oldCount = getters.getCount
       const isGroupByInsertion =
         getters.isGroupByMode && groupPath !== null && isSingleRowInsertion
-      let optimisticGroupByMetadataCountIncremented = false
       const optimisticGroupByTreePaths = []
       const insertRowIntoGroupBySection = ({
         row,
         path = null,
         appendToPath = false,
       }) => {
-        const groupByFields = getGroupByFieldsFromActiveGroupBys(
-          getters.getActiveGroupBys,
-          fields
+        const { groupByFields, location } = resolveGroupByInsertLocation(
+          { getters, state, registry: $registry },
+          { row, view, fields }
         )
-        const location = getGroupByRowInsertLocation({
-          row,
-          view,
-          fields,
-          registry: $registry,
-          groupByFields,
-          layout: getters.getGroupByLayout(groupByFields),
-          sectionRows: state.groupBy.sectionRows,
-        })
         const rowPath = path ?? location.path
         const sectionKey =
           path === null ? location.sectionKey : pathKey(path, groupByFields)
@@ -3044,7 +3918,7 @@ export const actions = {
 
         if (appendToPath) {
           const section = findGroupByRowSection(
-            getters.getGroupByLayout(groupByFields),
+            getters.getGroupByLayout,
             sectionKey,
             groupByFields
           )
@@ -3058,6 +3932,7 @@ export const actions = {
           path: rowPath,
           fields: groupByFields,
           delta: 1,
+          registry: $registry,
         })
         optimisticGroupByTreePaths.push({
           path: rowPath,
@@ -3086,14 +3961,6 @@ export const actions = {
         // When a single row is inserted we don't want to deal with filters, sorts and
         // search just yet. Therefore it is okay to just insert the row into the buffer.
         if (isSingleRowInsertion) {
-          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-            fields,
-            registry: $registry,
-            row: rowsPopulated[0],
-            increase: true,
-            decrease: false,
-          })
-          optimisticGroupByMetadataCountIncremented = true
           if (getters.isGroupByMode) {
             insertRowIntoGroupBySection({ row: rowsPopulated[0] })
           } else {
@@ -3215,15 +4082,6 @@ export const actions = {
           // Use the updated row in the buffer if it exists, otherwise use the populated
           // row object to update inner state.
           const row = getters.getRow(item.id) || rowsPopulated[i]
-          if (!canUpdateOptimistically) {
-            commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-              fields,
-              registry: $registry,
-              row,
-              increase: true,
-              decrease: false,
-            })
-          }
           dispatch('onRowChange', { view, row, fields })
           const rowId = row.id
           // Get the latest row so that any changes that might have been made in the
@@ -3256,18 +4114,10 @@ export const actions = {
                   path,
                   fields: groupByFields,
                   delta: -1,
+                  registry: $registry,
                 })
               }
             )
-          }
-          if (optimisticGroupByMetadataCountIncremented) {
-            commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-              fields,
-              registry: $registry,
-              row: rowsPopulated[0],
-              increase: false,
-              decrease: true,
-            })
           }
           if (rowStillInBuffer) {
             commit('DELETE_ROW_IN_BUFFER', rowsPopulated[0])
@@ -3340,32 +4190,16 @@ export const actions = {
       }),
       mutations: {
         insertAtPosition: (insertedRow, { sortedIndex, isFirst, isLast }) => {
-          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-            fields,
-            registry: $registry,
-            row: insertedRow,
-            increase: true,
-            decrease: false,
-          })
-
           if (getters.isGroupByMode) {
-            const groupByFields = getGroupByFieldsFromActiveGroupBys(
-              getters.getActiveGroupBys,
-              fields
+            const { groupByFields, location } = resolveGroupByInsertLocation(
+              { getters, state, registry: $registry },
+              { row: insertedRow, view, fields }
             )
-            const location = getGroupByRowInsertLocation({
-              row: insertedRow,
-              view,
-              fields,
-              registry: $registry,
-              groupByFields,
-              layout: getters.getGroupByLayout(groupByFields),
-              sectionRows: state.groupBy.sectionRows,
-            })
             commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
               path: location.path,
               fields: groupByFields,
               delta: 1,
+              registry: $registry,
             })
             commit('INSERT_ROW_AT_LOCATION', {
               sectionKey: location.sectionKey,
@@ -3512,6 +4346,15 @@ export const actions = {
     const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
       `table_${table.id}`
     )
+    const { newRowValues, oldRowValues, updateRequestValues } =
+      prepareNewOldAndUpdateRequestValues(
+        row,
+        fields,
+        field,
+        value,
+        oldValue,
+        $registry
+      )
     const canUpdateOptimistically = canRowsBeOptimisticallyUpdatedInView(
       $registry,
       view,
@@ -3523,8 +4366,9 @@ export const actions = {
       getters.getActiveSearchTerm
     )
 
-    // Apply the changed field value immediately so the UI reflects the user's
-    // input even when a pending create is holding the persistentId lock.
+    // Apply the changed field value immediately only when it cannot affect row
+    // visibility or position. Grouped/sorted/filtered views need the queued
+    // lifecycle path below, while the old row values are still intact.
     // The PATCH and all other side-effects still run inside the task queue.
     if (canUpdateOptimistically && !hasViewRulesThatCanMoveOrHideRows) {
       const storeRow = getters.getRow(row.id)
@@ -3534,6 +4378,17 @@ export const actions = {
     }
 
     const taskId = taskQueue.add(async () => {
+      // This task may have been queued behind a still-pending create for the same
+      // row (the queue is keyed by persistentId). By the time it runs, that create
+      // has finalized the row's temporary id into its persisted id, mutating the
+      // buffer row in place. The value objects were prepared with the id captured
+      // at call time, so re-stamp them with the row's current id; otherwise the
+      // PATCH would target the now-stale temporary id (404 + rollback) and the
+      // optimistic commits would reset the row's id back to the temporary one.
+      newRowValues.id = row.id
+      oldRowValues.id = row.id
+      updateRequestValues.id = row.id
+
       /**
        * This helper function will make sure that the values of the related row are
        * updated the right way.
@@ -3542,15 +4397,33 @@ export const actions = {
         const rowExistsInBuffer = getters.getRow(row.id) !== undefined
 
         if (rowExistsInBuffer) {
-          // If the row exists in the buffer, we can visually show to the user that
-          // the values have changed, without immediately reflecting the change in
-          // the buffer.
-          commit('UPDATE_ROW_VALUES', {
-            row,
-            values: { ...values },
-          })
-          if (optimisticUpdate) {
-            await dispatch('onRowChange', { view, row, fields })
+          const isSelected =
+            (getters.getRow(row.id)?._?.selectedBy?.length ?? 0) > 0
+          if (
+            optimisticUpdate &&
+            hasViewRulesThatCanMoveOrHideRows &&
+            !isSelected
+          ) {
+            await dispatch('updatedExistingRow', {
+              view,
+              fields,
+              row,
+              values,
+            })
+          } else {
+            // Show the typed value immediately. While the edited row is still selected
+            // (the user is editing it) we keep it visible with a match warning instead
+            // of moving/removing it; the actual move/remove/regroup is deferred to
+            // deselect (refreshRow, which is selected-aware) or backend confirmation,
+            // per the grid-view-test-plan contract (2.2.1a / 2.2.7a / 2.3.1a).
+            // Unselected optimistic edits still reconcile immediately above.
+            commit('UPDATE_ROW_VALUES', {
+              row,
+              values: { ...values },
+            })
+            if (optimisticUpdate) {
+              await dispatch('onRowChange', { view, row, fields })
+            }
           }
         } else {
           // If the row doesn't exist in the buffer, it could be that the new values
@@ -3571,16 +4444,6 @@ export const actions = {
           })
         }
       }
-
-      const { newRowValues, oldRowValues, updateRequestValues } =
-        prepareNewOldAndUpdateRequestValues(
-          row,
-          fields,
-          field,
-          value,
-          oldValue,
-          $registry
-        )
 
       if (!canUpdateOptimistically) {
         commit('SET_ROW_LOADING', { row, value: true })
@@ -4019,6 +4882,22 @@ export const actions = {
     })
     const oldRowExists = oldMatchesSearch && oldFlags.matchFilters
     const newRowExists = newMatchesSearch && newFlags.matchFilters
+    const getFieldId = (key) => parseInt(key.split('_')[1])
+    const clearPendingFieldOperations = () => {
+      const fieldIdsToClearPendingOperationsFor = Object.entries(values)
+        .filter(
+          ([key, value]) =>
+            key.startsWith('field_') &&
+            (_.isEqual(value, oldRow[key]) ||
+              updatedFieldIds.includes(getFieldId(key)))
+        )
+        .map(([key]) => getFieldId(key))
+
+      commit('CLEAR_PENDING_FIELD_OPERATIONS', {
+        fieldIds: fieldIdsToClearPendingOperationsFor,
+        rowId: row.id,
+      })
+    }
 
     if (!oldRowExists && !newRowExists) {
       return
@@ -4031,6 +4910,17 @@ export const actions = {
       return
     }
     if (!oldRowExists && newRowExists) {
+      const materializedRow = getters.getRow(newRow.id)
+      if (materializedRow) {
+        commit('UPDATE_ROW_IN_BUFFER', {
+          row: materializedRow,
+          values,
+          metadata,
+        })
+        await dispatch('onRowChange', { view, row: materializedRow, fields })
+        clearPendingFieldOperations()
+        return
+      }
       await dispatch('createdNewRow', {
         view,
         fields,
@@ -4039,21 +4929,6 @@ export const actions = {
       })
       return
     }
-
-    commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-      fields,
-      registry: $registry,
-      row: oldRow,
-      increase: false,
-      decrease: true,
-    })
-    commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-      fields,
-      registry: $registry,
-      row: newRow,
-      increase: true,
-      decrease: false,
-    })
 
     if (getters.isGroupByMode) {
       const groupByFields = getGroupByFieldsFromActiveGroupBys(
@@ -4067,11 +4942,13 @@ export const actions = {
           path: oldPath,
           fields: groupByFields,
           delta: -1,
+          registry: $registry,
         })
         commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
           path: newPath,
           fields: groupByFields,
           delta: 1,
+          registry: $registry,
         })
       }
     }
@@ -4089,19 +4966,10 @@ export const actions = {
       { sortedIndex, isFirst, isLast }
     ) => {
       if (getters.isGroupByMode) {
-        const groupByFields = getGroupByFieldsFromActiveGroupBys(
-          getters.getActiveGroupBys,
-          fields
+        const { location } = resolveGroupByInsertLocation(
+          { getters, state, registry: $registry },
+          { row: insertedRow, view, fields }
         )
-        const location = getGroupByRowInsertLocation({
-          row: insertedRow,
-          view,
-          fields,
-          registry: $registry,
-          groupByFields,
-          layout: getters.getGroupByLayout(groupByFields),
-          sectionRows: state.groupBy.sectionRows,
-        })
         commit('INSERT_ROW_AT_LOCATION', {
           sectionKey: location.sectionKey,
           position: location.position,
@@ -4156,20 +5024,7 @@ export const actions = {
       { sortedIndex, isFirst, isLast }
     ) => {
       if (getters.isGroupByMode) {
-        const groupByFields = getGroupByFieldsFromActiveGroupBys(
-          getters.getActiveGroupBys,
-          fields
-        )
         const oldLocation = state.groupBy.rowLocations[rowId]
-        const newLocation = getGroupByRowInsertLocation({
-          row: newRowValues,
-          view,
-          fields,
-          registry: $registry,
-          groupByFields,
-          layout: getters.getGroupByLayout(groupByFields),
-          sectionRows: state.groupBy.sectionRows,
-        })
 
         if (oldLocation) {
           commit('REMOVE_ROW_AT_LOCATION', {
@@ -4178,6 +5033,12 @@ export const actions = {
             rowId,
           })
         }
+        // Resolve the insert location after removing the row so the section's positions
+        // are already reindexed and the returned absolute position is correct.
+        const { location: newLocation } = resolveGroupByInsertLocation(
+          { getters, state, registry: $registry },
+          { row: newRowValues, view, fields }
+        )
         commit('INSERT_ROW_AT_LOCATION', {
           sectionKey: newLocation.sectionKey,
           position: newLocation.position,
@@ -4281,20 +5142,7 @@ export const actions = {
       newRow,
     })
 
-    const getFieldId = (key) => parseInt(key.split('_')[1])
-    const fieldIdsToClearPendingOperationsFor = Object.entries(values)
-      .filter(
-        ([key, value]) =>
-          key.startsWith('field_') &&
-          (_.isEqual(value, oldRow[key]) ||
-            updatedFieldIds.includes(getFieldId(key)))
-      )
-      .map(([key, value]) => getFieldId(key))
-
-    commit('CLEAR_PENDING_FIELD_OPERATIONS', {
-      fieldIds: fieldIdsToClearPendingOperationsFor,
-      rowId: row.id,
-    })
+    clearPendingFieldOperations()
   },
   /**
    * Called when the user wants to delete an existing row in the table.
@@ -4405,14 +5253,6 @@ export const actions = {
       }),
       mutations: {
         remove: (rowId) => {
-          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-            fields,
-            registry: $registry,
-            row,
-            increase: false,
-            decrease: true,
-          })
-
           if (getters.isGroupByMode) {
             const groupByFields = getGroupByFieldsFromActiveGroupBys(
               getters.getActiveGroupBys,
@@ -4422,6 +5262,7 @@ export const actions = {
               path: groupPathFromRow(row, groupByFields, $registry),
               fields: groupByFields,
               delta: -1,
+              registry: $registry,
             })
           }
 
@@ -4482,16 +5323,17 @@ export const actions = {
       }),
       mutations: {
         applyMatchFlags: (rowId, { matchFilters, matchSortings }) => {
+          // A row sitting outside its expected section no longer matches the sort.
           const location = state.groupBy.rowLocations[rowId]
-          if (
+          const rowOutsideExpectedSection =
             expectedSectionKey !== null &&
             location &&
             location.sectionKey !== expectedSectionKey
-          ) {
-            matchSortings = false
-          }
           commit('SET_ROW_MATCH_FILTERS', { row, value: matchFilters })
-          commit('SET_ROW_MATCH_SORTINGS', { row, value: matchSortings })
+          commit('SET_ROW_MATCH_SORTINGS', {
+            row,
+            value: rowOutsideExpectedSection ? false : matchSortings,
+          })
         },
         rowsForMatchCheck: () => getters.getAllRows,
       },
@@ -4613,6 +5455,7 @@ export const actions = {
           path: groupPathFromRow(row, groupByFields, $registry),
           fields: groupByFields,
           delta: -1,
+          registry: $registry,
         })
       }
       commit('DELETE_ROW_IN_BUFFER', row)
@@ -4623,20 +5466,11 @@ export const actions = {
           fields
         )
         const oldLocation = state.groupBy.rowLocations[row.id]
-        const layout = getters.getGroupByLayout(groupByFields)
+        const layout = getters.getGroupByLayout
         const oldSection = oldLocation
           ? findGroupByRowSection(layout, oldLocation.sectionKey, groupByFields)
           : null
         const newPath = groupPathFromRow(row, groupByFields, $registry)
-        const newLocation = getGroupByRowInsertLocation({
-          row,
-          view: grid,
-          fields,
-          registry: $registry,
-          groupByFields,
-          layout,
-          sectionRows: state.groupBy.sectionRows,
-        })
 
         if (oldLocation) {
           commit('REMOVE_ROW_AT_LOCATION', {
@@ -4645,6 +5479,16 @@ export const actions = {
             rowId: row.id,
           })
         }
+        // Resolve the insert location after removing the row so the section's positions
+        // are already reindexed and the returned absolute position is correct.
+        const newLocation = getGroupByRowInsertLocation({
+          row,
+          view: grid,
+          fields,
+          registry: $registry,
+          groupByFields,
+          sectionRows: state.groupBy.sectionRows,
+        })
         commit('INSERT_ROW_AT_LOCATION', {
           sectionKey: newLocation.sectionKey,
           position: newLocation.position,
@@ -4660,11 +5504,13 @@ export const actions = {
             path: oldSection.path,
             fields: groupByFields,
             delta: -1,
+            registry: $registry,
           })
           commit('UPDATE_GROUP_BY_TREE_PATH_COUNT', {
             path: newPath,
             fields: groupByFields,
             delta: 1,
+            registry: $registry,
           })
         }
         commit('SET_ROW_MATCH_SORTINGS', { row, value: true })
@@ -4861,19 +5707,13 @@ export const getters = {
   },
   getRow: (state) => (id) => {
     if (state.activeGroupBys.length > 0) {
+      // rowLocations is the authoritative index: a loaded grouped row always has
+      // an entry, so a miss means the row simply isn't in the buffer.
       const location = state.groupBy.rowLocations[id]
-      if (location) {
-        return state.groupBy.sectionRows[location.sectionKey]?.[
-          location.position
-        ]
+      if (!location) {
+        return undefined
       }
-      for (const rows of Object.values(state.groupBy.sectionRows)) {
-        const row = rows.find((candidate) => candidate?.id === id)
-        if (row) {
-          return row
-        }
-      }
-      return undefined
+      return state.groupBy.sectionRows[location.sectionKey]?.[location.position]
     }
     return state.rows.find((row) => row.id === id)
   },
@@ -5133,25 +5973,19 @@ export const getters = {
   getGroupByCollapse(state) {
     return state.groupBy.collapse
   },
-  getGroupByTreeNodes(state) {
-    return state.groupBy.treeNodes
-  },
-  getGroupByLayout: (state) => (groupByFields) => {
-    return buildLayout({
-      nodes: state.groupBy.treeNodes,
-      collapse: state.groupBy.collapse,
-      fields: groupByFields,
-      rowHeight: state.rowHeight,
-    })
+  // No-arg cached getter: derives the group-by fields from state so the (expensive)
+  // layout build runs once per relevant state change instead of on every call with a
+  // freshly-mapped fields array. Shared by getAllRows, the actions, and the component.
+  getGroupByLayout(state) {
+    return getGroupByLayoutFromState(state)
   },
   getGroupBySectionRowsMap: (state) => {
     return makeSectionRowsMap(state.groupBy.sectionRows)
   },
   getGroupByVisibleItems: (state, getters) => (groupByFields) => {
     return renderViewport({
-      layout: getters.getGroupByLayout(groupByFields),
+      layout: getters.getGroupByLayout,
       sectionRows: getters.getGroupBySectionRowsMap,
-      pending: new Map(),
       viewport: {
         scrollTop: state.scrollTop,
         clientHeight: state.windowHeight || 1000,
@@ -5159,20 +5993,6 @@ export const getters = {
       fields: groupByFields,
       rowHeight: state.rowHeight,
     })
-  },
-  getGroupByVisibleSections: (state, getters) => (groupByFields) => {
-    return visibleSectionsInViewport(
-      getters.getGroupByLayout(groupByFields),
-      {
-        scrollTop: state.scrollTop,
-        clientHeight: state.windowHeight || 1000,
-      },
-      groupByFields,
-      state.rowHeight
-    )
-  },
-  getGroupByMetadata(state) {
-    return state.groupByMetadata
   },
   hasSelectedCell(state, getters) {
     return getters.getAllRows.some((row) => {

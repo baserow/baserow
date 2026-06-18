@@ -9,11 +9,10 @@
     }"
     :data-depth="item.depth"
     :data-collapsed="item.collapsed ? 'true' : 'false'"
-    :data-path="pathSerialized"
   >
     <template v-if="includeRowDetails">
       <div
-        class="grid-view__group-by-banner__chevron-lane"
+        class="grid-view__group-by-banner-chevron-lane"
         :style="{
           width: rowDetailsWidth + 'px',
           paddingLeft: indentPx + 'px',
@@ -21,7 +20,7 @@
       >
         <button
           type="button"
-          class="grid-view__group-by-banner__toggle"
+          class="grid-view__group-by-banner-toggle"
           :aria-expanded="!item.collapsed"
           :aria-label="
             item.collapsed
@@ -41,17 +40,17 @@
       </div>
       <div
         v-if="primaryFieldWidth > 0"
-        class="grid-view__group-by-banner__primary"
+        class="grid-view__group-by-banner-primary"
         :style="{ width: primaryFieldWidth + 'px' }"
       >
-        <div class="grid-view__group-by-banner__stack">
-          <div class="grid-view__group-by-banner__label">
+        <div class="grid-view__group-by-banner-stack">
+          <div class="grid-view__group-by-banner-label">
             {{ fieldNameLabel }}
           </div>
-          <div class="grid-view__group-by-banner__value">
+          <div class="grid-view__group-by-banner-value">
             <span
               v-if="isEmptyValue"
-              class="grid-view__group-by-banner__value-empty"
+              class="grid-view__group-by-banner-value-empty"
             >
               {{ emptyValueLabel }}
             </span>
@@ -62,12 +61,12 @@
               :value="rowValueForGroup"
               :workspace-id="workspaceId"
             />
-            <span v-else class="grid-view__group-by-banner__value-text">
+            <span v-else class="grid-view__group-by-banner-value-text">
               {{ fallbackValueText }}
             </span>
           </div>
         </div>
-        <div class="grid-view__group-by-banner__count">
+        <div class="grid-view__group-by-banner-count">
           {{ item.rowCount }}
         </div>
       </div>
@@ -181,16 +180,6 @@ export default {
       }
       return this.fieldType.getGroupByComponent(this.groupByField)
     },
-    pathSerialized() {
-      const path = {}
-      for (const field of this.groupByFields) {
-        const key = `field_${field.id}`
-        if (key in this.item.path) {
-          path[key] = this.item.path[key]
-        }
-      }
-      return JSON.stringify(path)
-    },
     indentPx() {
       return BASE_CHEVRON_GUTTER + this.item.depth * DEPTH_INDENT_PX
     },
@@ -226,107 +215,3 @@ export default {
   },
 }
 </script>
-
-<style lang="scss" scoped>
-.grid-view__group-by-banner {
-  position: absolute;
-  left: 0;
-  display: flex;
-  align-items: stretch;
-  box-sizing: border-box;
-  background: #f8f8f8;
-  border-bottom: 1px solid #e5e7eb;
-  font-size: 13px;
-}
-
-.grid-view__group-by-banner--collapsed {
-  background: #f3f3f3;
-}
-
-.grid-view__group-by-banner__chevron-lane {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  box-sizing: border-box;
-}
-
-.grid-view__group-by-banner__toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  height: 24px;
-  padding: 0;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: #6b7280;
-  cursor: pointer;
-  font-size: 14px;
-
-  &:hover {
-    background: #e5e7eb;
-    color: #111827;
-  }
-}
-
-.grid-view__group-by-banner__primary {
-  flex: 0 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  box-sizing: border-box;
-  padding: 0 12px;
-}
-
-.grid-view__group-by-banner__stack {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-}
-
-.grid-view__group-by-banner__label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: #6b7280;
-  line-height: 1.2;
-  text-transform: uppercase;
-}
-
-.grid-view__group-by-banner__value {
-  overflow: hidden;
-  color: #111827;
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.2;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.grid-view__group-by-banner__value-empty {
-  color: #9ca3af;
-  font-style: italic;
-}
-
-.grid-view__group-by-banner__count {
-  flex: 0 0 auto;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-  min-width: 24px;
-  height: 20px;
-  padding: 0 8px;
-  border-radius: 999px;
-  background: #e5e7eb;
-  color: #374151;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1;
-}
-</style>

@@ -15,10 +15,7 @@ import type {
   GroupBySpec,
 } from "../../../fixtures/database/gridSetup";
 import { resetRows, setupGrid } from "../../../fixtures/database/gridSetup";
-import {
-  failNextRequest,
-  pauseNextRequestWithSignal,
-} from "../../../fixtures/network";
+import { failRows, pauseRows } from "../../../fixtures/network";
 
 type Setup = GridSetupResult;
 
@@ -112,8 +109,8 @@ const REGULAR_FIELD_VIEW_MODES: RegularFieldViewMode[] = [
     groupBys: [{ fieldName: "Team", order: "ASC" }],
     rows: (rows) => rows.map((row) => ({ Team: "A", ...row })),
     waitForRows: async (grid, count) => {
-      await grid.expectGroupByBanner("A", count, true);
-      await grid.expandAllGroupsFromContext();
+      // Grouped views load expanded, so the banner is already expanded and the
+      // rows are present without an explicit expand-all.
       await grid.expectGroupByBanner("A", count);
       await waitForInitialRows(grid, count);
     },
@@ -146,11 +143,7 @@ test.describe("1.1 Basic add row", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
     await grid.addRow();
     await pausedCreate.intercepted;
     await grid.expectRowCount(2);
@@ -169,11 +162,7 @@ test.describe("1.1 Basic add row", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
     await grid.addRow();
     await pausedCreate.intercepted;
     // Optimistic row is visible with loading spinner while the POST is in-flight.
@@ -192,6 +181,82 @@ test.describe("1.1 Basic add row", () => {
     const grid = new GridPage(page, g.user);
     await addRowAndWaitForCreatedRow(grid, 2);
     await grid.expectPrimarySelected(1);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// section 7  Group-by
+// -----------------------------------------------------------------------------
+
+test.describe("7 Group-by", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "GroupByFeatureDb",
+      fields: [
+        { name: "Team", type: "text" },
+        { name: "Score", type: "number" },
+      ],
+      groupBys: [{ fieldName: "Team", order: "ASC" }],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await resetRows(g, [
+      { Name: "Alice", Team: "A", Score: 10 },
+      { Name: "Bob", Team: "A", Score: 20 },
+      { Name: "Carol", Team: "B", Score: 30 },
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+    await grid.expectRowCount(3);
+  });
+
+  test("7.1.1 grouped views load expanded and the context menu can collapse/expand all groups", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+
+    // Grouped views load expanded with all rows present.
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+    await grid.expectRowCount(3);
+
+    // Collapse all hides every group's rows.
+    await grid.collapseAllGroupsFromContext();
+    await grid.expectGroupByBanner("A", 2, true);
+    await grid.expectGroupByBanner("B", 1, true);
+    await grid.expectRowCount(0);
+
+    // Expand all restores the rows. They were fetched on the initial expanded
+    // load and kept in the store while collapsed, so no refetch is needed.
+    await grid.expandAllGroupsFromContext();
+    await waitForInitialRows(grid, 3);
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+    await grid.expectRowCount(3);
+  });
+
+  test("7.1.2 collapsing and expanding a group hides and restores its rows", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+
+    await grid.toggleGroupBy("A");
+    await grid.expectGroupByBanner("A", 2, true);
+    await grid.expectRowCount(1);
+    await grid.expectPrimaryText(0, "Carol");
+
+    await grid.toggleGroupBy("A");
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectRowCount(3);
+    await grid.expectPrimaryText(0, "Alice");
+    await grid.expectPrimaryText(1, "Bob");
+    await grid.expectPrimaryText(2, "Carol");
   });
 });
 
@@ -222,52 +287,16 @@ test.describe("1.5 Create with active group-by", () => {
     ]);
     const grid = new GridPage(page, g.user);
     await grid.goTo(g.database, g.table);
-    await grid.expectGroupByBanner("A", 2, true);
-    await grid.expectGroupByBanner("B", 1, true);
-    await grid.expectRowCount(0);
-  });
-
-  test("1.5.0 grouped views load collapsed and the context menu can expand/collapse all groups", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-
-    await grid.expectGroupByBanner("A", 2, true);
-    await grid.expectGroupByBanner("B", 1, true);
-    await grid.expectRowCount(0);
-
-    const expandRequests = await collectGridViewGetRequests(
-      page,
-      g.view.id,
-      async () => {
-        await grid.expandAllGroupsFromContext();
-        await waitForInitialRows(grid, 3);
-      },
-    );
-    expect(expandRequests).toHaveLength(1);
-    expect(new URL(expandRequests[0]).pathname).toBe(
-      `/api/database/views/grid/${g.view.id}/`,
-    );
     await grid.expectGroupByBanner("A", 2);
     await grid.expectGroupByBanner("B", 1);
-
-    await grid.collapseAllGroupsFromContext();
-    await grid.expectGroupByBanner("A", 2, true);
-    await grid.expectGroupByBanner("B", 1, true);
-    await grid.expectRowCount(0);
+    await grid.expectRowCount(3);
   });
 
   test("1.5.1 adding a row from a group add-row line appends it at the bottom of that group", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    await grid.expandAllGroupsFromContext();
-    await waitForInitialRows(grid, 3);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
     await grid.addRow();
     await pausedCreate.intercepted;
@@ -290,24 +319,183 @@ test.describe("1.5 Create with active group-by", () => {
     await grid.expectPrimarySelected(2);
   });
 
-  test("1.5.2 collapsing and expanding a group hides and restores its rows", async ({
+  test("1.5.1b add-in-group deselected after confirmation keeps the row in its group", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    await grid.expandAllGroupsFromContext();
-    await waitForInitialRows(grid, 3);
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
-    await grid.toggleGroupBy("A");
-    await grid.expectGroupByBanner("A", 2, true);
-    await grid.expectRowCount(1);
-    await grid.expectPrimaryText(0, "Carol");
+    await grid.addRow();
+    await pausedCreate.intercepted;
+    await grid.expectRowCount(4);
+    await grid.expectFieldText(2, 0, "A");
+    await grid.expectGroupByBanner("A", 3);
+    await grid.expectRowLoading(2);
 
-    await grid.toggleGroupBy("A");
-    await grid.expectGroupByBanner("A", 2);
+    pausedCreate.release();
+    await grid.expectRowNotLoading(2);
+
+    await grid.clickAway();
+    await grid.expectRowCount(4);
+    await grid.expectGroupByBanner("A", 3);
+    await grid.expectGroupByBanner("B", 1);
+    await grid.expectFieldText(2, 0, "A");
+    await grid.expectRowNoWarning(2);
+  });
+
+  test("1.5.1c add-in-group deselected before confirmation keeps the row in its group", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
+
+    await grid.addRow();
+    await pausedCreate.intercepted;
+    await grid.expectRowCount(4);
+    await grid.expectFieldText(2, 0, "A");
+    await grid.expectGroupByBanner("A", 3);
+    await grid.expectRowLoading(2);
+
+    await grid.clickAway();
+    // The created row already sits in its own group, so deselecting before the
+    // backend confirms leaves it in place with no "Row has moved" warning.
+    await grid.expectRowCount(4);
+    await grid.expectGroupByBanner("A", 3);
+    await grid.expectRowLoading(2);
+    await grid.expectRowNoWarning(2);
+
+    pausedCreate.release();
+    await grid.expectNoRowsLoading();
+    await grid.expectRowCount(4);
+    await grid.expectGroupByBanner("A", 3);
+    await grid.expectFieldText(2, 0, "A");
+    await grid.expectRowNoWarning(2);
+  });
+
+  test("1.5.1d failed add-in-group rolls back the optimistic row and restores group counts", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
+
+    await grid.addRow();
+    await pausedCreate.intercepted;
+    await grid.expectRowCount(4);
+    await grid.expectGroupByBanner("A", 3);
+    await grid.expectRowLoading(2);
+
+    pausedCreate.fail();
+    await grid.expectErrorToast();
     await grid.expectRowCount(3);
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
     await grid.expectPrimaryText(0, "Alice");
     await grid.expectPrimaryText(1, "Bob");
     await grid.expectPrimaryText(2, "Carol");
+  });
+});
+
+test.describe("1.5.3 Create with formula-field group-by (deferred)", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "CrudFormulaCreateGroupByDb",
+      fields: [
+        {
+          name: "NameSize",
+          type: "formula",
+          settings: {
+            formula: "if(length(field('Name')) > 3, 'Long', 'Short')",
+          },
+        },
+      ],
+      groupBys: [{ fieldName: "NameSize", order: "ASC" }],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await resetRows(g, [
+      { Name: "Alice" }, // length 5 -> "Long"
+      { Name: "Al" }, // length 2 -> "Short"
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.expectRowCount(2);
+    // Groups sort ASC: "Long" (Alice, index 0), "Short" (Al, index 1).
+    await grid.expectGroupByBanner("Long", 1);
+    await grid.expectGroupByBanner("Short", 1);
+  });
+
+  test("1.5.3a paused formula-grouped create shows no move warning while pending then moves to its group after backend responds", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
+
+    await grid.addRow();
+    await pausedCreate.intercepted;
+    await grid.expectRowCount(3);
+    await grid.expectPrimaryEmpty(1);
+    await grid.expectRowLoading(1);
+    // No move warning while pending — the empty row's formula group cannot be
+    // evaluated locally.
+    await grid.expectRowNoWarning(1);
+
+    pausedCreate.release();
+    await grid.expectRowNotLoading(1);
+    await grid.expectRowHasWarning(1);
+    await grid.expectRowWarningText(1, "Row has moved");
+
+    await grid.clickAway();
+    // The empty row (length 0 -> "Short") joins the Short group after the backend
+    // computes the formula.
+    await grid.expectGroupByBanner("Long", 1);
+    await grid.expectGroupByBanner("Short", 2);
+    await grid.expectRowCount(3);
+  });
+
+  test("1.5.3b deselecting before the create request completes keeps the row in place then moves it after the backend responds", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
+
+    await grid.addRow();
+    await pausedCreate.intercepted;
+    await grid.expectRowCount(3);
+    await grid.expectRowNoWarning(1);
+
+    await grid.clickAway();
+    // Row stays in place because the frontend has not received the formula group.
+    await grid.expectRowLoading(1);
+    await grid.expectRowCount(3);
+
+    pausedCreate.release();
+    await grid.expectNoRowsLoading();
+    await grid.expectGroupByBanner("Long", 1);
+    await grid.expectGroupByBanner("Short", 2);
+    await grid.expectRowCount(3);
+  });
+
+  test("1.5.3c failed formula-grouped create rolls back the optimistic row and restores group counts", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
+
+    await grid.addRow();
+    await pausedCreate.intercepted;
+    await grid.expectRowCount(3);
+    await grid.expectRowLoading(1);
+    await grid.expectRowNoWarning(1);
+
+    pausedCreate.fail();
+    await grid.expectErrorToast();
+    await grid.expectRowCount(2);
+    await grid.expectGroupByBanner("Long", 1);
+    await grid.expectGroupByBanner("Short", 1);
   });
 });
 
@@ -332,10 +520,6 @@ test.describe("2.2.6 Edit with active filter and group-by", () => {
     ]);
     const grid = new GridPage(page, g.user);
     await grid.goTo(g.database, g.table);
-    await grid.expectGroupByBanner("A", 2, true);
-    await grid.expectGroupByBanner("B", 1, true);
-    await grid.expectRowCount(0);
-    await grid.expandAllGroupsFromContext();
     await grid.expectRowCount(3);
     await grid.expectGroupByBanner("A", 2);
     await grid.expectGroupByBanner("B", 1);
@@ -345,11 +529,7 @@ test.describe("2.2.6 Edit with active filter and group-by", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
 
     await startEditingPrimary(grid, 1);
     await grid.type("Hidden");
@@ -399,24 +579,16 @@ test.describe("2.2.7 Edit single-select group-by", () => {
     ]);
     const grid = new GridPage(page, g.user);
     await grid.goTo(g.database, g.table);
-    await grid.expectGroupByBanner("Design", 1, true);
-    await grid.expectGroupByBanner("Development", 1, true);
-    await grid.expectRowCount(0);
-    await grid.expandAllGroupsFromContext();
+    await grid.expectRowCount(2);
     await grid.expectGroupByBanner("Design", 1);
     await grid.expectGroupByBanner("Development", 1);
-    await grid.expectRowCount(2);
   });
 
   test("2.2.7a changing a selected row category warns, then moves it locally on deselect", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
 
     const gridViewGets = await collectGridViewGetRequests(
       page,
@@ -449,6 +621,273 @@ test.describe("2.2.7 Edit single-select group-by", () => {
     );
 
     expect(gridViewGets).toEqual([]);
+  });
+
+  test("2.2.7b changing a grouped value deselected before confirmation moves the row immediately", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
+
+    await grid.selectSingleSelectOption(0, 0, "Development");
+    await pausedUpdate.intercepted;
+    await grid.expectSingleSelectFieldText(0, 0, "Development");
+    await grid.expectRowHasWarning(0);
+    await grid.expectRowWarningText(0, "Row has moved");
+    await grid.expectGroupByBanner("Design", 1);
+    await grid.expectGroupByBanner("Development", 1);
+
+    await grid.clickAway();
+    // The "Row has moved" warning was visible, so deselecting before the backend
+    // confirms moves the row into its new group immediately.
+    await grid.expectGroupByBanner("Design", 0);
+    await grid.expectGroupByBanner("Development", 2);
+    await grid.expectRowCount(2);
+    await grid.expectPrimaryText(0, "Rebranding website");
+    await grid.expectSingleSelectFieldText(0, 0, "Development");
+    await grid.expectRowNoWarning(0);
+
+    pausedUpdate.release();
+    await grid.expectNoRowsLoading();
+    await grid.expectGroupByBanner("Design", 0);
+    await grid.expectGroupByBanner("Development", 2);
+  });
+
+  test("2.2.7c failed grouped-value PATCH rolls back to the original group", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
+
+    await grid.selectSingleSelectOption(0, 0, "Development");
+    await pausedUpdate.intercepted;
+    await grid.expectSingleSelectFieldText(0, 0, "Development");
+    await grid.expectRowHasWarning(0);
+    await grid.expectRowWarningText(0, "Row has moved");
+
+    pausedUpdate.fail();
+    await grid.expectErrorToast();
+    // The optimistic group-by value is rolled back, the warning clears, and the
+    // row stays in its original group.
+    await grid.expectSingleSelectFieldText(0, 0, "Design");
+    await grid.expectGroupByBanner("Design", 1);
+    await grid.expectGroupByBanner("Development", 1);
+    await grid.expectRowCount(2);
+    await grid.expectRowNoWarning(0);
+  });
+});
+
+test.describe("2.4 Edit a text group-by value", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "EditTextGroupByDb",
+      // A trailing "Notes" column gives Tab a target after the group-by field so
+      // the row stays selected (and its "Row has moved" warning visible) after the
+      // edit commits, mirroring the keep-selected pattern in 2.2.6a.
+      fields: [
+        { name: "Team", type: "text" },
+        { name: "Notes", type: "text" },
+      ],
+      groupBys: [{ fieldName: "Team", order: "ASC" }],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await resetRows(g, [
+      { Name: "Alice", Team: "A" },
+      { Name: "Bob", Team: "A" },
+      { Name: "Carol", Team: "B" },
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.expectRowCount(3);
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+  });
+
+  test("2.4.1 changing a text group-by value deselected before confirmation moves the row immediately", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
+
+    await grid.startEditingField(0, 0);
+    await grid.type("B");
+    await grid.confirmWithTab();
+    await pausedUpdate.intercepted;
+    await grid.expectFieldText(0, 0, "B");
+    await grid.expectRowHasWarning(0);
+    await grid.expectRowWarningText(0, "Row has moved");
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+
+    await grid.clickAway();
+    await grid.expectGroupByBanner("A", 1);
+    await grid.expectGroupByBanner("B", 2);
+    await grid.expectRowCount(3);
+    await grid.expectRowNoWarning(0);
+
+    pausedUpdate.release();
+    await grid.expectNoRowsLoading();
+    await grid.expectGroupByBanner("A", 1);
+    await grid.expectGroupByBanner("B", 2);
+  });
+
+  test("2.4.2 failed text group-by-value PATCH rolls back to the original group", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
+
+    await grid.startEditingField(0, 0);
+    await grid.type("B");
+    await grid.confirmWithTab();
+    await pausedUpdate.intercepted;
+    await grid.expectFieldText(0, 0, "B");
+    await grid.expectRowHasWarning(0);
+    await grid.expectRowWarningText(0, "Row has moved");
+
+    pausedUpdate.fail();
+    await grid.expectErrorToast();
+    await grid.expectFieldText(0, 0, "A");
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+    await grid.expectRowCount(3);
+    await grid.expectRowNoWarning(0);
+  });
+
+  test("2.4.3 Escape during a text group-by-value edit restores it and leaves the row in its group", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+
+    await grid.startEditingField(0, 0);
+    await grid.type("B");
+    await grid.cancelEdit();
+    await grid.expectFieldText(0, 0, "A");
+    await grid.expectRowNoWarning(0);
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+    await grid.expectRowCount(3);
+  });
+});
+
+test.describe("2.4.4 Edit with formula-field group-by (deferred)", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "CrudFormulaGroupByDb",
+      fields: [
+        {
+          name: "NameSize",
+          type: "formula",
+          settings: {
+            formula: "if(length(field('Name')) > 3, 'Long', 'Short')",
+          },
+        },
+      ],
+      groupBys: [{ fieldName: "NameSize", order: "ASC" }],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await resetRows(g, [
+      { Name: "Al" }, // length 2 -> "Short"
+      { Name: "Alice" }, // length 5 -> "Long"
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.expectRowCount(2);
+    // Groups sort ASC: "Long" (Alice, index 0), "Short" (Al, index 1).
+    await grid.expectGroupByBanner("Long", 1);
+    await grid.expectGroupByBanner("Short", 1);
+  });
+
+  test("2.4.4a paused formula-grouped edit shows typed value immediately but no move warning until backend responds", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
+
+    await startEditingPrimary(grid, 1); // edit "Al" (Short group)
+    await grid.type("Alexander"); // length 9 -> "Long"
+    await grid.confirmWithTab();
+    await pausedUpdate.intercepted;
+
+    // Typed value is visible immediately, but the formula-derived group needs the
+    // backend response, so the row remains loading in its original group.
+    await grid.expectPrimaryText(1, "Alexander");
+    await grid.expectRowLoading(1);
+    await grid.expectRowNoWarning(1);
+    await grid.expectGroupByBanner("Long", 1);
+    await grid.expectGroupByBanner("Short", 1);
+
+    pausedUpdate.release();
+    // The "Row has moved" warning appears only after the backend computes the
+    // formula group.
+    await grid.expectRowHasWarning(1);
+    await grid.expectRowWarningText(1, "Row has moved");
+    await grid.expectRowNotLoading(1);
+
+    await grid.clickAway();
+    await grid.expectGroupByBanner("Long", 2);
+    await grid.expectGroupByBanner("Short", 0);
+    await grid.expectRowCount(2);
+  });
+
+  test("2.4.4b deselecting before backend confirmation keeps the row in its group then moves it after the backend responds", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
+
+    await startEditingPrimary(grid, 1);
+    await grid.type("Alexander");
+    await grid.confirmWithTab();
+    await pausedUpdate.intercepted;
+    await grid.expectRowNoWarning(1);
+
+    await grid.clickAway();
+    // Row stays in "Short" because the frontend has not received the formula result.
+    await grid.expectGroupByBanner("Long", 1);
+    await grid.expectGroupByBanner("Short", 1);
+    await grid.expectPrimaryText(1, "Alexander");
+
+    pausedUpdate.release();
+    await grid.expectNoRowsLoading();
+    // Row moves to "Long" after the backend responds.
+    await grid.expectGroupByBanner("Long", 2);
+    await grid.expectGroupByBanner("Short", 0);
+  });
+
+  test("2.4.4c failed formula-group-affecting PATCH rolls back to the original group", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
+
+    await startEditingPrimary(grid, 1);
+    await grid.type("Alexander");
+    // Enter commits and clears the selection so the rollback can revert the
+    // displayed value (a still-selected cell keeps showing the user's draft).
+    await grid.confirmWithEnter();
+    await pausedUpdate.intercepted;
+    await grid.expectPrimaryText(1, "Alexander");
+    await grid.expectRowLoading(1);
+    await grid.expectRowNoWarning(1);
+
+    pausedUpdate.fail();
+    await grid.expectErrorToast();
+    await grid.expectRowCount(2);
+    await grid.expectPrimaryText(1, "Al");
+    await grid.expectGroupByBanner("Long", 1);
+    await grid.expectGroupByBanner("Short", 1);
+    await grid.expectRowNoWarning(1);
   });
 });
 
@@ -487,11 +926,7 @@ for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
       page,
     }) => {
       const grid = new GridPage(page, g.user);
-      const pausedCreate = await pauseNextRequestWithSignal(
-        page,
-        `**/api/database/rows/table/${g.table.id}/**`,
-        { method: "POST" },
-      );
+      const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
       await grid.addRow();
       await pausedCreate.intercepted;
@@ -520,11 +955,7 @@ for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
       page,
     }) => {
       const grid = new GridPage(page, g.user);
-      const pausedCreate = await pauseNextRequestWithSignal(
-        page,
-        `**/api/database/rows/table/${g.table.id}/**`,
-        { method: "POST" },
-      );
+      const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
       await grid.addRow();
       await pausedCreate.intercepted;
@@ -556,11 +987,7 @@ for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
       page,
     }) => {
       const grid = new GridPage(page, g.user);
-      const pausedCreate = await pauseNextRequestWithSignal(
-        page,
-        `**/api/database/rows/table/${g.table.id}/**`,
-        { method: "POST" },
-      );
+      const pausedCreate = await pauseRows(page, g.table.id, "POST");
       await grid.addRow();
       await pausedCreate.intercepted;
       // Optimistic row is appended at the bottom with loading spinner and immediate warning.
@@ -612,11 +1039,7 @@ test.describe("1.3.2 Create with active formula-field sort (deferred)", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
     await grid.addRow();
     await pausedCreate.intercepted;
@@ -646,11 +1069,7 @@ test.describe("1.3.2 Create with active formula-field sort (deferred)", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
     await grid.addRow();
     await pausedCreate.intercepted;
@@ -677,11 +1096,7 @@ test.describe("1.3.2 Create with active formula-field sort (deferred)", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
     await grid.addRow();
     await pausedCreate.intercepted;
     // Optimistic row visible with spinner; no move warning because the frontend
@@ -714,7 +1129,11 @@ test.describe("1.3.3 Create with active sort outside the current buffer", () => 
   });
 
   test.beforeEach(async ({ page }) => {
-    await resetRows(g, numberedRows(50));
+    // Use a dataset large enough that the buffer can never hold the whole table
+    // (bufferRequestSize * 3 = 120 rows max). Scrolling to the bottom then leaves
+    // the top of the table genuinely unloaded, so a row that sorts to the top has
+    // its destination outside the loaded window — the real virtualization case.
+    await resetRows(g, numberedRows(200));
     const grid = new GridPage(page, g.user);
     await grid.goTo(g.database, g.table);
     await grid.expectPrimaryText(0, "Row 001");
@@ -726,31 +1145,34 @@ test.describe("1.3.3 Create with active sort outside the current buffer", () => 
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    await grid.reduceCurrentBufferToSlice(20, 30, "end");
+    await grid.scrollPrimaryIntoView("Row 200");
     let lastRowIndex = (await grid.renderedRowCount()) - 1;
-    await grid.expectPrimaryText(lastRowIndex, "Row 050");
+    await grid.expectPrimaryText(lastRowIndex, "Row 200");
 
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
     await grid.addRow();
     await pausedCreate.intercepted;
-    const newRowIndex = (await grid.renderedRowCount()) - 1;
+    let newRowIndex = (await grid.renderedRowCount()) - 1;
     await grid.expectPrimaryEmpty(newRowIndex);
     await grid.expectRowLoading(newRowIndex);
-    await grid.expectRowNoWarning(newRowIndex);
+    // The row sorts above the loaded window (an empty Name sorts first), so it is
+    // immediately flagged as moved while it stays selected — even before the create
+    // request resolves, mirroring the in-buffer case (1.3.1a).
+    await grid.expectRowHasWarning(newRowIndex);
+    await grid.expectRowWarningText(newRowIndex, "Row has moved");
 
     pausedCreate.release();
-    await grid.expectRowNotLoading(newRowIndex);
+    await grid.expectNoRowsLoading();
+    // The kept-in-place new row stays the last rendered row; recompute its index in
+    // case confirming the create re-rendered the window.
+    newRowIndex = (await grid.renderedRowCount()) - 1;
     await grid.expectRowHasWarning(newRowIndex);
     await grid.expectRowWarningText(newRowIndex, "Row has moved");
 
     await grid.clickAway();
     lastRowIndex = (await grid.renderedRowCount()) - 1;
-    await grid.expectPrimaryText(lastRowIndex, "Row 050");
+    await grid.expectPrimaryText(lastRowIndex, "Row 200");
     await grid.expectRowNoWarning(lastRowIndex);
 
     await grid.goTo(g.database, g.table);
@@ -790,11 +1212,7 @@ for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
       page,
     }) => {
       const grid = new GridPage(page, g.user);
-      const pausedCreate = await pauseNextRequestWithSignal(
-        page,
-        `**/api/database/rows/table/${g.table.id}/**`,
-        { method: "POST" },
-      );
+      const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
       await grid.addRow();
       await pausedCreate.intercepted;
@@ -822,11 +1240,7 @@ for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
       page,
     }) => {
       const grid = new GridPage(page, g.user);
-      const pausedCreate = await pauseNextRequestWithSignal(
-        page,
-        `**/api/database/rows/table/${g.table.id}/**`,
-        { method: "POST" },
-      );
+      const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
       await grid.addRow();
       await pausedCreate.intercepted;
@@ -853,11 +1267,7 @@ for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
       page,
     }) => {
       const grid = new GridPage(page, g.user);
-      const pausedCreate = await pauseNextRequestWithSignal(
-        page,
-        `**/api/database/rows/table/${g.table.id}/**`,
-        { method: "POST" },
-      );
+      const pausedCreate = await pauseRows(page, g.table.id, "POST");
       await grid.addRow();
       await pausedCreate.intercepted;
       // Optimistic row visible with loading spinner and immediate filter warning.
@@ -954,11 +1364,7 @@ test.describe("1.2.2 Create with active formula-field filter (deferred)", () => 
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
     await grid.addRow();
     await pausedCreate.intercepted;
@@ -984,11 +1390,7 @@ test.describe("1.2.2 Create with active formula-field filter (deferred)", () => 
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
     await grid.addRow();
     await pausedCreate.intercepted;
@@ -1012,11 +1414,7 @@ test.describe("1.2.2 Create with active formula-field filter (deferred)", () => 
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
     await grid.addRow();
     await pausedCreate.intercepted;
     // Optimistic row visible with loading spinner; no warning because the
@@ -1058,11 +1456,7 @@ test.describe("1.4 Task queue — update during pending create", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
     await grid.addRow();
     await pausedCreate.intercepted;
@@ -1082,11 +1476,7 @@ test.describe("1.4 Task queue — update during pending create", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
+    const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
     await grid.addRow();
     await pausedCreate.intercepted;
@@ -1098,11 +1488,7 @@ test.describe("1.4 Task queue — update during pending create", () => {
     // Register the PATCH interceptor now, after the POST is already held.
     // If the queue did not exist the PATCH would have fired before this point
     // and the intercepted promise below would never resolve.
-    const pausedPatch = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
+    const pausedPatch = await pauseRows(page, g.table.id, "PATCH");
 
     pausedCreate.release();
     await pausedPatch.intercepted;
@@ -1180,15 +1566,11 @@ test.describe("2.1 Simple field edit", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const { done } = await failNextRequest(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
+    const { failed } = await failRows(page, g.table.id, "PATCH");
     await startEditingPrimary(grid, 0);
     await grid.type("WillFail");
     await grid.confirmWithEnter();
-    await done;
+    await failed;
     await grid.expectErrorToast();
     await grid.expectRowCount(2);
     await grid.expectPrimaryText(0, "Alice");
@@ -1238,11 +1620,7 @@ for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
       page,
     }) => {
       const grid = new GridPage(page, g.user);
-      const pausedUpdate = await pauseNextRequestWithSignal(
-        page,
-        `**/api/database/rows/table/${g.table.id}/**`,
-        { method: "PATCH" },
-      );
+      const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
 
       await startEditingPrimary(grid, 0);
       await grid.type("Charlie");
@@ -1263,11 +1641,7 @@ for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
       page,
     }) => {
       const grid = new GridPage(page, g.user);
-      const pausedUpdate = await pauseNextRequestWithSignal(
-        page,
-        `**/api/database/rows/table/${g.table.id}/**`,
-        { method: "PATCH" },
-      );
+      const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
 
       await startEditingPrimary(grid, 0);
       await grid.type("Charlie");
@@ -1315,15 +1689,11 @@ for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
       page,
     }) => {
       const grid = new GridPage(page, g.user);
-      const { done } = await failNextRequest(
-        page,
-        `**/api/database/rows/table/${g.table.id}/**`,
-        { method: "PATCH" },
-      );
+      const { failed } = await failRows(page, g.table.id, "PATCH");
       await startEditingPrimary(grid, 0);
       await grid.type("Charlie");
       await grid.confirmWithEnter();
-      await done;
+      await failed;
       await grid.expectErrorToast();
       await grid.expectRowCount(1);
       await grid.expectPrimaryText(0, "Alice");
@@ -1366,11 +1736,7 @@ test.describe("2.2.5 Edit with formula-field filter (deferred)", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
 
     await startEditingPrimary(grid, 0);
     await grid.type("Al"); // length 2, does not match > 3
@@ -1397,11 +1763,7 @@ test.describe("2.2.5 Edit with formula-field filter (deferred)", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
 
     await startEditingPrimary(grid, 0);
     await grid.type("Al");
@@ -1421,11 +1783,7 @@ test.describe("2.2.5 Edit with formula-field filter (deferred)", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
 
     await startEditingPrimary(grid, 0);
     await grid.type("Al");
@@ -1449,11 +1807,7 @@ test.describe("2.2.5 Edit with formula-field filter (deferred)", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
     await startEditingPrimary(grid, 0);
     await grid.type("Al");
     await grid.confirmWithEnter();
@@ -1505,11 +1859,7 @@ for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
       page,
     }) => {
       const grid = new GridPage(page, g.user);
-      const pausedUpdate = await pauseNextRequestWithSignal(
-        page,
-        `**/api/database/rows/table/${g.table.id}/**`,
-        { method: "PATCH" },
-      );
+      const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
 
       await startEditingPrimary(grid, 0);
       await grid.type("Zara");
@@ -1529,11 +1879,7 @@ for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
       page,
     }) => {
       const grid = new GridPage(page, g.user);
-      const pausedUpdate = await pauseNextRequestWithSignal(
-        page,
-        `**/api/database/rows/table/${g.table.id}/**`,
-        { method: "PATCH" },
-      );
+      const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
 
       await startEditingPrimary(grid, 0);
       await grid.type("Zara");
@@ -1560,11 +1906,7 @@ for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
       page,
     }) => {
       const grid = new GridPage(page, g.user);
-      const pausedUpdate = await pauseNextRequestWithSignal(
-        page,
-        `**/api/database/rows/table/${g.table.id}/**`,
-        { method: "PATCH" },
-      );
+      const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
       await startEditingPrimary(grid, 0);
       await grid.type("Zara");
       await grid.confirmWithEnter();
@@ -1633,11 +1975,7 @@ test.describe("2.3.4 Edit with formula-field sort (deferred)", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
 
     await startEditingPrimary(grid, 0); // edit "Al"
     await grid.type("Alexander"); // length 9, should sort after "Alice" (5)
@@ -1671,11 +2009,7 @@ test.describe("2.3.4 Edit with formula-field sort (deferred)", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
 
     await startEditingPrimary(grid, 0);
     await grid.type("Alexander");
@@ -1703,11 +2037,7 @@ test.describe("2.3.4 Edit with formula-field sort (deferred)", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
     await startEditingPrimary(grid, 0);
     await grid.type("Alexander");
     await grid.confirmWithEnter();
@@ -1757,11 +2087,7 @@ test.describe("2.3.5 Edit with active sort outside the current buffer", () => {
     await grid.reduceCurrentBufferToSlice(20, 30, "end");
     await grid.expectPrimaryVisible("Row 050");
 
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
+    const pausedUpdate = await pauseRows(page, g.table.id, "PATCH");
 
     await startEditingPrimary(grid, 0);
     await grid.type("Row 000");
@@ -1825,13 +2151,9 @@ test.describe("3.1 Row deletion", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const { done } = await failNextRequest(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "DELETE" },
-    );
+    const { failed } = await failRows(page, g.table.id, "DELETE");
     await deleteRowThroughContextMenu(grid, 1);
-    await done;
+    await failed;
     await grid.expectErrorToast();
     await grid.expectRowCount(2);
     await grid.expectPrimaryVisible("Alice");

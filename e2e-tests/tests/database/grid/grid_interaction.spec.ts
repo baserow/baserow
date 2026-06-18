@@ -19,9 +19,15 @@ import {
   resetRows,
   setupGrid,
 } from "../../../fixtures/database/gridSetup";
-import { pauseNextRequestWithSignal } from "../../../fixtures/network";
+import { pauseRows } from "../../../fixtures/network";
 
 type Setup = GridSetupResult;
+
+// Keep docs/testing/grid-view-test-plan.md in sync with these cases.
+//
+// Serial mode is scoped per-describe (below), not file-wide, so a failure in one
+// section doesn't skip the unrelated sections after it (and retries only rerun
+// the affected describe).
 
 async function pasteText(page: Page, text: string) {
   await page.evaluate((clipboardText) => {
@@ -36,16 +42,37 @@ async function pasteText(page: Page, text: string) {
   }, text);
 }
 
+/**
+ * Playwright can only grant and deliver clipboard data in Chromium, so the
+ * clipboard cases run there only.
+ */
+function skipIfNoClipboard(browserName: string) {
+  test.skip(
+    browserName !== "chromium",
+    "Playwright cannot deliver clipboard data to Firefox.",
+  );
+}
+
+async function grantClipboard(page: Page, browserName: string) {
+  if (browserName !== "chromium") {
+    return;
+  }
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"], {
+    origin: process.env.PUBLIC_WEB_FRONTEND_URL ?? "http://localhost:3000",
+  });
+}
+
 function multiSelectedFieldCells(page: Page) {
   return page.locator(".grid-view__right .grid-view__column--multi-select");
 }
 
 // -----------------------------------------------------------------------------
-// section 9.1  Selection mechanics
+// section 10.1  Selection mechanics
 // -----------------------------------------------------------------------------
 
-test.describe("9.1 Selection mechanics", () => {
+test.describe("10.1 Selection mechanics", () => {
   test.describe.configure({ mode: "serial" });
+
   let g: Setup;
   let groupBy: Setup;
 
@@ -82,7 +109,7 @@ test.describe("9.1 Selection mechanics", () => {
     await grid.goTo(g.database, g.table);
   });
 
-  test("9.1.1 clicking one field cell selects it and leaves no multi-select range visible", async ({
+  test("10.1.1 clicking one field cell selects it and leaves no multi-select range visible", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -94,7 +121,7 @@ test.describe("9.1 Selection mechanics", () => {
     );
   });
 
-  test("9.1.2 shift-clicking another cell keeps the anchor selected and shows the rectangular range", async ({
+  test("10.1.2 shift-clicking another cell keeps the anchor selected and shows the rectangular range", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -109,7 +136,7 @@ test.describe("9.1 Selection mechanics", () => {
     }); // 2 rows x 2 cols
   });
 
-  test("9.1.3 dragging across cells shows a rectangular range that remains visible after mouseup", async ({
+  test("10.1.3 dragging across cells shows a rectangular range that remains visible after mouseup", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -142,7 +169,7 @@ test.describe("9.1 Selection mechanics", () => {
     }); // 2 rows x 2 cols
   });
 
-  test("9.1.4 Escape removes the visible multi-select range", async ({
+  test("10.1.4 Escape removes the visible multi-select range", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -162,7 +189,7 @@ test.describe("9.1 Selection mechanics", () => {
     );
   });
 
-  test("9.1.5 clicking outside the grid removes the visible multi-select range", async ({
+  test("10.1.5 clicking outside the grid removes the visible multi-select range", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -179,14 +206,11 @@ test.describe("9.1 Selection mechanics", () => {
     );
   });
 
-  test("9.1.6 group-by cell selection and shift range use visible row indexes", async ({
+  test("10.1.6 group-by cell selection and shift range use visible row indexes", async ({
     page,
   }) => {
     const grid = new GridPage(page, groupBy.user);
     await grid.goTo(groupBy.database, groupBy.table);
-    await grid.expectGroupByBanner("Alice", 1, true);
-    await grid.expectGroupByBanner("Bob", 1, true);
-    await grid.expandAllGroupsFromContext();
     await grid.expectGroupByBanner("Alice", 1);
     await grid.expectGroupByBanner("Bob", 1);
 
@@ -201,11 +225,12 @@ test.describe("9.1 Selection mechanics", () => {
 });
 
 // -----------------------------------------------------------------------------
-// section 9.2  Keyboard multi-cell selection
+// section 10.2  Keyboard multi-cell selection
 // -----------------------------------------------------------------------------
 
-test.describe("9.2 Keyboard multi-cell selection", () => {
+test.describe("10.2 Keyboard multi-cell selection", () => {
   test.describe.configure({ mode: "serial" });
+
   let g: Setup;
 
   test.beforeAll(async () => {
@@ -227,7 +252,7 @@ test.describe("9.2 Keyboard multi-cell selection", () => {
     await grid.goTo(g.database, g.table);
   });
 
-  test("9.2.1 Shift+Arrow expands the selected range from one cell to a 2x2 area", async ({
+  test("10.2.1 Shift+Arrow expands the selected range from one cell to a 2x2 area", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -246,9 +271,11 @@ test.describe("9.2 Keyboard multi-cell selection", () => {
 
 test.describe("4 Clipboard operations", () => {
   test.describe.configure({ mode: "serial" });
+
   let g: Setup;
   let pasteFilter: Setup;
   let pasteSort: Setup;
+  let pasteGroupBy: Setup;
 
   test.beforeAll(async () => {
     g = await setupGrid({
@@ -277,6 +304,11 @@ test.describe("4 Clipboard operations", () => {
       fields: [{ name: "Score", type: "number" }],
       sorts: [{ fieldName: "Name", order: "ASC" }],
     });
+    pasteGroupBy = await setupGrid({
+      dbName: "PasteGroupByDb",
+      fields: [{ name: "Team", type: "text" }],
+      groupBys: [{ fieldName: "Team", order: "ASC" }],
+    });
   });
 
   test.beforeEach(async ({ page, browserName }) => {
@@ -287,24 +319,14 @@ test.describe("4 Clipboard operations", () => {
     ]);
     const grid = new GridPage(page, g.user);
     await grid.goTo(g.database, g.table);
-    if (browserName === "chromium") {
-      await page
-        .context()
-        .grantPermissions(["clipboard-read", "clipboard-write"], {
-          origin:
-            process.env.PUBLIC_WEB_FRONTEND_URL ?? "http://localhost:3000",
-        });
-    }
+    await grantClipboard(page, browserName);
   });
 
   test("4.1.1 copy stores selected value in clipboard and paste immediately shows it in target cell", async ({
     browserName,
     page,
   }) => {
-    test.skip(
-      browserName !== "chromium",
-      "Playwright cannot grant clipboard-read permission in Firefox.",
-    );
+    skipIfNoClipboard(browserName);
 
     const grid = new GridPage(page, g.user);
 
@@ -332,8 +354,16 @@ test.describe("4 Clipboard operations", () => {
   });
 
   test("4.1.2 pasting two lines on last row updates last row and immediately creates visible overflow row", async ({
+    browserName,
     page,
   }) => {
+    // Multi-line paste relies on the synthetic ClipboardEvent carrying its
+    // `clipboardData`. Firefox ignores `clipboardData` set via the constructor
+    // (getData returns ""), so the paste delivers nothing there — the same
+    // Playwright/Firefox clipboard limitation that skips 4.1.1. The behavior is
+    // covered in Chromium.
+    skipIfNoClipboard(browserName);
+
     const grid = new GridPage(page, g.user);
 
     // Select the last row's primary field (Row3 / Name) and paste two rows
@@ -350,8 +380,10 @@ test.describe("4 Clipboard operations", () => {
   });
 
   test("4.2.1a filter-breaking paste shows warning, keeps selection, then removes row on deselect", async ({
+    browserName,
     page,
   }) => {
+    skipIfNoClipboard(browserName);
     await resetRows(pasteFilter, [{ Name: "Keep", Score: 10 }]);
     const grid = new GridPage(page, pasteFilter.user);
     await grid.goTo(pasteFilter.database, pasteFilter.table);
@@ -374,18 +406,16 @@ test.describe("4 Clipboard operations", () => {
   });
 
   test("4.2.1b filter-breaking paste deselected before backend confirmation removes the row immediately", async ({
+    browserName,
     page,
   }) => {
+    skipIfNoClipboard(browserName);
     await resetRows(pasteFilter, [{ Name: "Keep", Score: 10 }]);
     const grid = new GridPage(page, pasteFilter.user);
     await grid.goTo(pasteFilter.database, pasteFilter.table);
     await grid.expectRowCount(1);
 
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${pasteFilter.table.id}/**`,
-      { method: "PATCH" },
-    );
+    const pausedUpdate = await pauseRows(page, pasteFilter.table.id, "PATCH");
 
     await grid.selectPrimaryCell(0);
     await pasteText(page, "Gone");
@@ -403,8 +433,10 @@ test.describe("4 Clipboard operations", () => {
   });
 
   test("4.3.1a sort-affecting paste shows Row has moved warning while selected then moves row on deselect", async ({
+    browserName,
     page,
   }) => {
+    skipIfNoClipboard(browserName);
     await resetRows(pasteSort, [
       { Name: "Alice", Score: 10 },
       { Name: "Bob", Score: 20 },
@@ -429,8 +461,10 @@ test.describe("4 Clipboard operations", () => {
   });
 
   test("4.3.1b sort-affecting paste deselected before backend confirmation moves row immediately on deselect", async ({
+    browserName,
     page,
   }) => {
+    skipIfNoClipboard(browserName);
     await resetRows(pasteSort, [
       { Name: "Alice", Score: 10 },
       { Name: "Bob", Score: 20 },
@@ -439,11 +473,7 @@ test.describe("4 Clipboard operations", () => {
     await grid.goTo(pasteSort.database, pasteSort.table);
     await grid.expectRowCount(2);
 
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${pasteSort.table.id}/**`,
-      { method: "PATCH" },
-    );
+    const pausedUpdate = await pauseRows(page, pasteSort.table.id, "PATCH");
 
     await grid.selectPrimaryCell(0); // Alice
     await pasteText(page, "Zara");
@@ -464,6 +494,75 @@ test.describe("4 Clipboard operations", () => {
     await grid.expectPrimaryText(1, "Zara");
     await grid.expectRowNoWarning(0);
     await grid.expectRowNoWarning(1);
+  });
+
+  test("4.7.1a group-by-affecting paste shows Row has moved warning while selected then moves row on deselect", async ({
+    browserName,
+    page,
+  }) => {
+    skipIfNoClipboard(browserName);
+    await resetRows(pasteGroupBy, [
+      { Name: "Alice", Team: "A" },
+      { Name: "Bob", Team: "A" },
+      { Name: "Carol", Team: "B" },
+    ]);
+    const grid = new GridPage(page, pasteGroupBy.user);
+    await grid.goTo(pasteGroupBy.database, pasteGroupBy.table);
+    await grid.expectRowCount(3);
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+
+    await grid.selectFieldCell(0, 0); // Alice's Team
+    await pasteText(page, "B"); // moves Alice from group A to group B
+
+    await grid.expectFieldText(0, 0, "B");
+    await grid.expectRowHasWarning(0);
+    await grid.expectRowWarningText(0, "Row has moved");
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+
+    await grid.clickAway();
+    await grid.expectGroupByBanner("A", 1);
+    await grid.expectGroupByBanner("B", 2);
+    await grid.expectRowCount(3);
+    await grid.expectRowNoWarning(0);
+  });
+
+  test("4.7.1b group-by-affecting paste deselected before backend confirmation moves the row immediately", async ({
+    browserName,
+    page,
+  }) => {
+    skipIfNoClipboard(browserName);
+    await resetRows(pasteGroupBy, [
+      { Name: "Alice", Team: "A" },
+      { Name: "Bob", Team: "A" },
+      { Name: "Carol", Team: "B" },
+    ]);
+    const grid = new GridPage(page, pasteGroupBy.user);
+    await grid.goTo(pasteGroupBy.database, pasteGroupBy.table);
+    await grid.expectRowCount(3);
+    await grid.expectGroupByBanner("A", 2);
+    await grid.expectGroupByBanner("B", 1);
+
+    const pausedUpdate = await pauseRows(page, pasteGroupBy.table.id, "PATCH");
+
+    await grid.selectFieldCell(0, 0);
+    await pasteText(page, "B");
+    await pausedUpdate.intercepted;
+    await grid.expectFieldText(0, 0, "B");
+    await grid.expectRowHasWarning(0);
+    await grid.expectRowWarningText(0, "Row has moved");
+
+    await grid.clickAway();
+    // Warning was visible so the row moves to its new group immediately.
+    await grid.expectGroupByBanner("A", 1);
+    await grid.expectGroupByBanner("B", 2);
+    await grid.expectRowNoWarning(0);
+
+    pausedUpdate.release();
+    await grid.expectNoRowsLoading();
+    await grid.expectGroupByBanner("A", 1);
+    await grid.expectGroupByBanner("B", 2);
   });
 
   test("4.4.1 Delete clears every value in the selected cell range", async ({
@@ -487,11 +586,12 @@ test.describe("4 Clipboard operations", () => {
 });
 
 // -----------------------------------------------------------------------------
-// section 10.1  Keyboard navigation
+// section 11.1  Keyboard navigation
 // -----------------------------------------------------------------------------
 
-test.describe("10.1 Keyboard navigation", () => {
+test.describe("11.1 Keyboard navigation", () => {
   test.describe.configure({ mode: "serial" });
+
   let g: Setup;
 
   test.beforeAll(async () => {
@@ -517,7 +617,7 @@ test.describe("10.1 Keyboard navigation", () => {
     await grid.goTo(g.database, g.table);
   });
 
-  test("10.1.1 Tab moves selection to next cell, typing opens editor there, and Enter saves visible value", async ({
+  test("11.1.1 Tab moves selection to next cell, typing opens editor there, and Enter saves visible value", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -533,7 +633,7 @@ test.describe("10.1 Keyboard navigation", () => {
     await grid.expectFieldText(0, 1, "tabbed");
   });
 
-  test("10.1.2 pressing Enter on a selected cell shows the editor in that cell", async ({
+  test("11.1.2 pressing Enter on a selected cell shows the editor in that cell", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -541,7 +641,7 @@ test.describe("10.1 Keyboard navigation", () => {
     await grid.startEditingField(0, 0); // Row1 / Score
   });
 
-  test("10.1.3 Enter while editing saves visible value, moves focus down, and allows editing next row", async ({
+  test("11.1.3 Enter while editing saves visible value, moves focus down, and allows editing next row", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -560,7 +660,7 @@ test.describe("10.1 Keyboard navigation", () => {
     await grid.expectFieldText(1, 1, "Row2Updated");
   });
 
-  test("10.1.4 Escape while editing discards typed draft and keeps original row visible", async ({
+  test("11.1.4 Escape while editing discards typed draft and keeps original row visible", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -573,7 +673,7 @@ test.describe("10.1 Keyboard navigation", () => {
     await grid.expectFieldText(0, 1, "n1");
   });
 
-  test("10.1.5 arrow key moves selection to adjacent row without showing an editor", async ({
+  test("11.1.5 arrow key moves selection to adjacent row without showing an editor", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -588,7 +688,7 @@ test.describe("10.1 Keyboard navigation", () => {
     await grid.expectFieldSelected(1, 0);
   });
 
-  test("10.1.6 typing while a cell is selected shows editor containing the typed characters", async ({
+  test("11.1.6 typing while a cell is selected shows editor containing the typed characters", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -604,11 +704,12 @@ test.describe("10.1 Keyboard navigation", () => {
 });
 
 // -----------------------------------------------------------------------------
-// section 11.1  Row hover actions
+// section 12.1  Row hover actions
 // -----------------------------------------------------------------------------
 
-test.describe("11.1 Row hover actions", () => {
+test.describe("12.1 Row hover actions", () => {
   test.describe.configure({ mode: "serial" });
+
   let gUnsorted: Setup;
   let gSorted: Setup;
 
@@ -631,7 +732,7 @@ test.describe("11.1 Row hover actions", () => {
     ]);
   });
 
-  test("11.1.1 hovering and unhovering a row toggles the checkbox and row count", async ({
+  test("12.1.1 hovering and unhovering a row toggles the checkbox and row count", async ({
     page,
   }) => {
     const grid = new GridPage(page, gUnsorted.user);
@@ -651,7 +752,7 @@ test.describe("11.1 Row hover actions", () => {
     await grid.expectRowCheckboxHidden(0);
   });
 
-  test("11.1.2 drag handle is present in an unsorted view and absent when a sort is active", async ({
+  test("12.1.2 drag handle is present in an unsorted view and absent when a sort is active", async ({
     page,
   }) => {
     const grid = new GridPage(page, gUnsorted.user);
@@ -665,10 +766,10 @@ test.describe("11.1 Row hover actions", () => {
 });
 
 // -----------------------------------------------------------------------------
-// section 11.2 / 13.1  Row context menu and row modal
+// section 12.2 / 14.1  Row context menu and row modal
 // -----------------------------------------------------------------------------
 
-test.describe("11.2 Row context menu actions", () => {
+test.describe("12.2 Row context menu actions", () => {
   test.describe.configure({ mode: "serial" });
   let g: Setup;
 
@@ -692,7 +793,7 @@ test.describe("11.2 Row context menu actions", () => {
     await grid.goTo(g.database, g.table);
   });
 
-  test("11.2.1 context-menu insert below creates an empty row below the selected row", async ({
+  test("12.2.1 context-menu insert below creates an empty row below the selected row", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -706,7 +807,7 @@ test.describe("11.2 Row context menu actions", () => {
     await grid.expectPrimaryText(2, "Bob");
   });
 
-  test("11.2.2 context-menu duplicate creates a copied row directly below the selected row", async ({
+  test("12.2.2 context-menu duplicate creates a copied row directly below the selected row", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -721,7 +822,7 @@ test.describe("11.2 Row context menu actions", () => {
     await grid.expectPrimaryText(2, "Bob");
   });
 
-  test("13.1.1 context-menu enlarge opens and closes the row edit modal", async ({
+  test("14.1.1 context-menu enlarge opens and closes the row edit modal", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -733,11 +834,12 @@ test.describe("11.2 Row context menu actions", () => {
 });
 
 // -----------------------------------------------------------------------------
-// section 12.1  Checkbox row selection
+// section 13.1  Checkbox row selection
 // -----------------------------------------------------------------------------
 
-test.describe("12.1 Checkbox row selection", () => {
+test.describe("13.1 Checkbox row selection", () => {
   test.describe.configure({ mode: "serial" });
+
   let g: Setup;
   let groupBy: Setup;
 
@@ -772,7 +874,7 @@ test.describe("12.1 Checkbox row selection", () => {
     await grid.goTo(g.database, g.table);
   });
 
-  test("12.1.1 selecting a row checkbox clears an active multi-cell selection", async ({
+  test("13.1.1 selecting a row checkbox clears an active multi-cell selection", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -788,13 +890,11 @@ test.describe("12.1 Checkbox row selection", () => {
     await grid.expectMultiSelectedCellCount(0);
   });
 
-  test("12.1.2 grouped row checkbox selection clears an active multi-cell selection", async ({
+  test("13.1.2 grouped row checkbox selection clears an active multi-cell selection", async ({
     page,
   }) => {
     const grid = new GridPage(page, groupBy.user);
     await grid.goTo(groupBy.database, groupBy.table);
-    await grid.expectGroupByBanner("Alice", 1, true);
-    await grid.expandAllGroupsFromContext();
     await grid.expectGroupByBanner("Alice", 1);
 
     await grid.selectFieldCell(0, 0);

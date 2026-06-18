@@ -109,8 +109,8 @@ export class GridPage {
       [
         ".grid-view__left .grid-view__rows > .grid-view__row",
         ".grid-view__left .grid-view__rows > .grid-view__row-background-wrapper > .grid-view__row",
-        ".grid-view__left .grid-view__group-by-rows__row > .grid-view__row",
-        ".grid-view__left .grid-view__group-by-rows__row > .grid-view__row-background-wrapper > .grid-view__row",
+        ".grid-view__left .grid-view__group-by-rows-row > .grid-view__row",
+        ".grid-view__left .grid-view__group-by-rows-row > .grid-view__row-background-wrapper > .grid-view__row",
       ].join(", "),
     );
   }
@@ -121,8 +121,8 @@ export class GridPage {
       [
         ".grid-view__right .grid-view__rows > .grid-view__row",
         ".grid-view__right .grid-view__rows > .grid-view__row-background-wrapper > .grid-view__row",
-        ".grid-view__right .grid-view__group-by-rows__row > .grid-view__row",
-        ".grid-view__right .grid-view__group-by-rows__row > .grid-view__row-background-wrapper > .grid-view__row",
+        ".grid-view__right .grid-view__group-by-rows-row > .grid-view__row",
+        ".grid-view__right .grid-view__group-by-rows-row > .grid-view__row-background-wrapper > .grid-view__row",
       ].join(", "),
     );
   }
@@ -240,7 +240,7 @@ export class GridPage {
   groupByBannerByValue(value: string): Locator {
     return this.page
       .locator(".grid-view__left .grid-view__group-by-banner", {
-        has: this.page.locator(".grid-view__group-by-banner__value", {
+        has: this.page.locator(".grid-view__group-by-banner-value", {
           hasText: value,
         }),
       })
@@ -274,7 +274,7 @@ export class GridPage {
     await this.closeOpenContexts();
     const banner = this.groupByBannerByValue(value);
     await expect(banner).toBeVisible({ timeout: 10_000 });
-    await banner.locator(".grid-view__group-by-banner__toggle").click();
+    await banner.locator(".grid-view__group-by-banner-toggle").click();
   }
 
   async openGroupByContext(): Promise<void> {
@@ -297,6 +297,22 @@ export class GridPage {
     await this.groupByContext()
       .getByText("Expand all", { exact: true })
       .click();
+    await this.closeGroupByContext();
+  }
+
+  async addGroupBy(fieldName: string): Promise<void> {
+    await this.openGroupByContext();
+    await this.groupByContext()
+      .getByText("choose a field to group by", { exact: true })
+      .click();
+
+    const item = this.page
+      .locator(".select__items:visible .select__item", {
+        hasText: this.exactTextRegex(fieldName),
+      })
+      .first();
+    await expect(item).toBeVisible({ timeout: 10_000 });
+    await item.locator(".select__item-link").click();
     await this.closeGroupByContext();
   }
 
@@ -518,6 +534,25 @@ export class GridPage {
       },
       { start: startIndex, rowLimit: limit, align: viewportAlign },
     );
+  }
+
+  /**
+   * Scroll the grid (via real wheel events) until the row whose primary cell
+   * contains `text` is rendered and visible. Used to reach a deep row in a large
+   * table so the loaded buffer is a genuine window (the top of the table stays
+   * unloaded), matching real virtualization.
+   */
+  async scrollPrimaryIntoView(text: string): Promise<void> {
+    const target = this.leftRows().filter({ hasText: text }).first();
+    await this.rightRows().first().hover();
+    for (let i = 0; i < 100; i += 1) {
+      if ((await target.count()) > 0 && (await target.isVisible())) {
+        return;
+      }
+      await this.page.mouse.wheel(0, 1500);
+      await this.page.waitForTimeout(80);
+    }
+    await expect(target).toBeVisible({ timeout: 5_000 });
   }
 
   /**
@@ -880,12 +915,12 @@ export class GridPage {
     const banner = this.groupByBannerByValue(value);
     await expect(banner).toBeVisible({ timeout: 10_000 });
     await expect(
-      banner.locator(".grid-view__group-by-banner__value"),
+      banner.locator(".grid-view__group-by-banner-value"),
     ).toHaveText(new RegExp(`^\\s*${this.escapeRegex(value)}\\s*$`), {
       timeout: 10_000,
     });
     await expect(
-      banner.locator(".grid-view__group-by-banner__count"),
+      banner.locator(".grid-view__group-by-banner-count"),
     ).toHaveText(new RegExp(`^\\s*${count}\\s*$`), { timeout: 10_000 });
     await expect(banner).toHaveAttribute(
       "data-collapsed",

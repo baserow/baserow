@@ -345,10 +345,25 @@ def serialize_group_by_fields_metadata(
     return serialized_group_by_metadata
 
 
-def serialize_group_by_tree(
-    tree: Dict[str, Any],
+def serialize_group_by_data(
+    page: Dict[str, Any],
     group_by_fields: List[Field],
 ) -> Dict[str, Any]:
+    """
+    Serializes one group-by data page into its API representation.
+
+    The inverse of the parent-path deserialization done when reading the request:
+    each value in a group's ``path`` (and in the page's ``parent`` path) is
+    converted to its API representation via the field's group-by serializer, while
+    the pagination metadata is passed through. ``children_count`` is only included
+    when the handler provided it.
+
+    :param page: The group-by data page, with ``parent``, ``groups``, ``offset``,
+        ``limit`` and ``group_count`` keys.
+    :param group_by_fields: The ordered group-by fields configured on the view.
+    :return: The serialized page in the API response shape.
+    """
+
     serializer_by_db_column = {
         field.db_column: field_type_registry.get_by_model(
             field.specific_class
@@ -356,27 +371,58 @@ def serialize_group_by_tree(
         for field in group_by_fields
     }
 
-    nodes = []
-    for node in tree.get("nodes", []):
+    def serialize_path(path: Dict[str, Any]) -> Dict[str, Any]:
         serialized_path = {}
-        for db_column, value in node["path"].items():
+        for db_column, value in path.items():
             serializer_field = serializer_by_db_column.get(db_column)
             if value is None or serializer_field is None:
-                serialized_path[db_column] = None if value is None else value
+                serialized_path[db_column] = value
             else:
                 serialized_path[db_column] = serializer_field.to_representation(value)
+        return serialized_path
 
-        out_node = {
-            "path": serialized_path,
-            "depth": node["depth"],
-            "row_count": node["row_count"],
+    groups = []
+    for group in page.get("groups", []):
+        out_group = {
+            "path": serialize_path(group["path"]),
+            "depth": group["depth"],
+            "row_count": group["row_count"],
+            "sibling_index": group["sibling_index"],
+            "row_offset": group["row_offset"],
         }
-        if "children_count" in node:
-            out_node["children_count"] = node["children_count"]
-        nodes.append(out_node)
+        if "children_count" in group:
+            out_group["children_count"] = group["children_count"]
+        groups.append(out_group)
 
     return {
-        "nodes": nodes,
-        "truncated": tree.get("truncated", False),
-        "total_nodes": tree.get("total_nodes", 0),
+        "parent": serialize_path(page.get("parent", {})),
+        "groups": groups,
+        "offset": page.get("offset", 0),
+        "limit": page.get("limit", 0),
+        "group_count": page.get("group_count", 0),
     }
+
+
+def serialize_group_by_data_pages(
+    pages: List[Dict[str, Any]],
+    group_by_fields: List[Field],
+    truncated: bool = False,
+) -> Dict[str, Any]:
+    """
+    Serializes the group-by data pages into the final response body.
+
+    :param pages: The group-by data pages to serialize.
+    :param group_by_fields: The ordered group-by fields configured on the view.
+    :param truncated: Whether the pages were capped by a safety limit. When
+        ``True`` a ``truncated`` flag is added to the response so the client knows
+        more data was available.
+    :return: The response body with a ``pages`` list and an optional ``truncated``
+        flag.
+    """
+
+    response = {
+        "pages": [serialize_group_by_data(page, group_by_fields) for page in pages]
+    }
+    if truncated:
+        response["truncated"] = True
+    return response
