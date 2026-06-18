@@ -739,7 +739,7 @@
         "apiDocumentation": "Documentación del API"
     },
     "formViewField": {
-        "required": "requerido",
+        "required": "obligatorio",
         "showWhenMatchingConditions": "mostrar cuando se cumplen las condiciones",
         "addCondition": "Añadir condición",
         "descriptionPlaceholder": "Descripción",
