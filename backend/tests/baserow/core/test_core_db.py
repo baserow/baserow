@@ -623,6 +623,54 @@ def test_combined_prefetch_query_count_is_constant_with_many_fields(
 
 
 @pytest.mark.django_db
+def test_combined_prefetch_many_to_many_lazy_result(
+    data_fixture, django_assert_num_queries
+):
+    """
+    A prefetched many-to-many relation must iterate without hitting the database,
+    but re-querying it (order_by/filter) must lazily build a queryset scoped to
+    that row's relation rather than the whole target table.
+    """
+
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_multiple_select_field(table=table)
+    a = data_fixture.create_select_option(field=field, value="A", order=0)
+    b = data_fixture.create_select_option(field=field, value="B", order=1)
+    c = data_fixture.create_select_option(field=field, value="C", order=2)
+
+    RowHandler().create_rows(
+        user=user,
+        table=table,
+        rows_values=[{f"field_{field.id}": [a.id, b.id]}, {f"field_{field.id}": []}],
+    )
+
+    model = table.get_model()
+    rows = list(
+        model.objects.all()
+        .order_by("id")
+        .multi_field_prefetch(
+            CombinedForeignKeyAndManyToManyMultipleFieldPrefetch(
+                SelectOption, [f"field_{field.id}"], skip_target_check=True
+            )
+        )
+    )
+    rel = getattr(rows[0], f"field_{field.id}")
+    empty = getattr(rows[1], f"field_{field.id}")
+
+    with django_assert_num_queries(0):
+        assert [o.id for o in rel.all()] == [a.id, b.id]
+        assert len(rel.all()) == 2
+        assert bool(rel.all()) is True
+        assert bool(empty.all()) is False
+
+    # Re-querying scopes to this row's relation (c is not selected on this row).
+    assert [o.id for o in rel.order_by("-order")] == [b.id, a.id]
+    assert list(rel.filter(value="A")) == [a]
+    assert c.id not in [o.id for o in rel.all()]
+
+
+@pytest.mark.django_db
 def test_combined_multiple_field_prefetch_different_foreign_key_target(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(name="Car", user=user)

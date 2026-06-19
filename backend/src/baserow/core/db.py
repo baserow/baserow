@@ -554,6 +554,51 @@ class MultiFieldPrefetchQuerysetMixin(Generic[ModelInstance]):
         return self._multi_field_prefetch_related_funcs
 
 
+class _PrefetchedManyToManyResult:
+    """
+    Stand-in stored in a row's prefetch cache for a many-to-many relation.
+
+    Iterating it returns the already resolved instances without touching the
+    database. Any queryset operation (`filter`, `order_by`, `values_list`, ...)
+    lazily builds the real `pk__in` scoped queryset, so a consumer that re-queries
+    the relation still gets the correct rows. This avoids building a queryset per
+    row and field up front, which dominates the request time for tables with many
+    many-to-many fields.
+    """
+
+    __slots__ = ("_target_model", "_target_ids", "_result_cache", "_prefetch_done")
+
+    def __init__(self, target_model, target_ids, result_cache):
+        self._target_model = target_model
+        self._target_ids = target_ids
+        self._result_cache = result_cache
+        self._prefetch_done = True
+
+    def _build_queryset(self):
+        qs = self._target_model._base_manager.filter(pk__in=self._target_ids or [])
+        qs._result_cache = self._result_cache
+        qs._prefetch_done = True
+        return qs
+
+    def all(self):
+        return self
+
+    def __iter__(self):
+        return iter(self._result_cache)
+
+    def __len__(self):
+        return len(self._result_cache)
+
+    def __bool__(self):
+        return bool(self._result_cache)
+
+    def __getitem__(self, item):
+        return self._result_cache[item]
+
+    def __getattr__(self, name):
+        return getattr(self._build_queryset(), name)
+
+
 class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
     """
     This prefetch class can be used as argument of the `multi_field_prefetch` method.
@@ -682,33 +727,28 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
 
                 if isinstance(model_field, ManyToManyField):
                     # The related instances are already fully resolved in
-                    # `target_instances`, so the prefetch cache can be populated
-                    # directly. We deliberately avoid building the queryset via
-                    # `getattr(result, field_name).get_queryset()`: constructing the
-                    # relation-scoped queryset (through-table joins, filter setup) per
-                    # row and field is expensive and dominates the request time for
-                    # tables with many many-to-many fields. Scoping to the target ids
-                    # with `pk__in` on the base manager is cheap (no relation joins)
-                    # and keeps the queryset correct if a consumer re-filters or
-                    # re-orders the prefetched relation. Empty relations skip the
-                    # filter entirely with `none()`.
-                    if target_ids:
-                        qs = self.target_model._base_manager.filter(pk__in=target_ids)
-                        qs._result_cache = [
+                    # `target_instances`, so store a lazy stand-in that iterates them
+                    # directly and only builds a real queryset if a consumer re-filters
+                    # or re-orders the relation. See `_PrefetchedManyToManyResult`.
+                    result_cache = (
+                        [
                             target_instances.get(target_id)
                             for target_id in target_ids
                             # The target may have been deleted while the relationship
                             # still exists; don't put `None` in the result set.
                             if target_id in target_instances
                         ]
-                    else:
-                        qs = self.target_model._base_manager.none()
-                        qs._result_cache = []
-                    qs._prefetch_done = True
+                        if target_ids
+                        else []
+                    )
                     result._prefetched_objects_cache = getattr(
                         result, "_prefetched_objects_cache", {}
                     )
-                    result._prefetched_objects_cache[field_name] = qs
+                    result._prefetched_objects_cache[field_name] = (
+                        _PrefetchedManyToManyResult(
+                            self.target_model, target_ids, result_cache
+                        )
+                    )
 
         return result_set
 
