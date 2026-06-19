@@ -16,6 +16,7 @@ from baserow.api.pagination import (
     PageNumberPaginationWithoutCount,
 )
 from baserow.contrib.database.api.constants import (
+    COMPACT_NOTATION_API_PARAM,
     EXCLUDE_COUNT_API_PARAM,
     LIMIT_LINKED_ITEMS_API_PARAM,
 )
@@ -229,6 +230,17 @@ def parse_limit_linked_items_params(request) -> Optional[int]:
     return value if value > 0 else None
 
 
+def parse_compact_notation_param(request) -> bool:
+    """
+    Parses the compact notation boolean parameter from the request.
+
+    :param request: The request containing the query parameters.
+    :return: Whether compact notation was requested.
+    """
+
+    return request.GET.get(COMPACT_NOTATION_API_PARAM.name, "false").lower() == "true"
+
+
 def paginate_and_serialize_queryset(
     queryset: QuerySet[GeneratedTableModel],
     request: Request,
@@ -251,7 +263,11 @@ def paginate_and_serialize_queryset(
     page = paginator.paginate_queryset(queryset, request)
 
     limit_linked_items = parse_limit_linked_items_params(request)
-    extra_kwargs = {"limit_linked_items": limit_linked_items}
+    compact_notation = parse_compact_notation_param(request)
+    extra_kwargs = {
+        "limit_linked_items": limit_linked_items,
+        "compact_notation": compact_notation,
+    }
 
     serializer_class = get_row_serializer_class(
         queryset.model,

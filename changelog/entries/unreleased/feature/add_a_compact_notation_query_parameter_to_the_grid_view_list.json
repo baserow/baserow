@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Add a 'compact_notation' query parameter to the grid view list rows endpoint that returns single and multiple select cells as option ids instead of full {id, value, color} objects, reducing the response payload",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-06-19"
+}

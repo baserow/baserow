@@ -5421,3 +5421,40 @@ def test_list_rows_with_page_and_invalid_numbers(api_client, data_fixture):
         assert response_json["results"][0][f"field_{text_field.id}"] == "0"
         assert response_json["results"][99][f"field_{text_field.id}"] == "99"
         assert count_calls == 0  # count is not called again
+
+
+@pytest.mark.django_db
+def test_list_rows_compact_notation_select_fields(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    single = data_fixture.create_single_select_field(table=table, name="single")
+    s_a = data_fixture.create_select_option(field=single, value="A", color="red")
+    multi = data_fixture.create_multiple_select_field(table=table, name="multi")
+    m_a = data_fixture.create_select_option(field=multi, value="X", color="blue")
+    m_b = data_fixture.create_select_option(field=multi, value="Y", color="green")
+    grid = data_fixture.create_grid_view(table=table)
+
+    model = table.get_model()
+    row = model.objects.create(**{f"field_{single.id}": s_a})
+    getattr(row, f"field_{multi.id}").set([m_a.id, m_b.id])
+    empty = model.objects.create()
+
+    url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
+
+    # default (full) notation returns the option objects
+    full = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}").json()["results"]
+    assert full[0][f"field_{single.id}"] == {"id": s_a.id, "value": "A", "color": "red"}
+    assert full[0][f"field_{multi.id}"] == [
+        {"id": m_a.id, "value": "X", "color": "blue"},
+        {"id": m_b.id, "value": "Y", "color": "green"},
+    ]
+
+    # compact notation returns only ids
+    compact = api_client.get(
+        f"{url}?compact_notation=true", HTTP_AUTHORIZATION=f"JWT {token}"
+    ).json()["results"]
+    assert compact[0][f"field_{single.id}"] == s_a.id
+    assert compact[0][f"field_{multi.id}"] == [m_a.id, m_b.id]
+    # empty cells stay empty/null
+    assert compact[1][f"field_{single.id}"] is None
+    assert compact[1][f"field_{multi.id}"] == []

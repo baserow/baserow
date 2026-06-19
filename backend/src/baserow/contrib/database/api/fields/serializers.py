@@ -153,6 +153,44 @@ class SelectOptionSerializer(serializers.Serializer):
         list_serializer_class = PrefetchedManyToManyListSerializer
 
 
+def _source_attr(field):
+    return field.source_attrs[0] if field.source_attrs else field.field_name
+
+
+class CompactSingleSelectSerializer(serializers.IntegerField):
+    """
+    Compact response for a single select cell: just the option id (or null),
+    read straight from the foreign key column so the related option doesn't need
+    to be loaded.
+    """
+
+    def get_attribute(self, instance):
+        return getattr(instance, f"{_source_attr(self)}_id")
+
+
+class CompactMultipleSelectSerializer(serializers.Field):
+    """
+    Compact response for a multiple select cell: an array of option ids, read
+    from the prefetch cache's resolved ids without materializing the options.
+    """
+
+    def get_attribute(self, instance):
+        source = _source_attr(self)
+        prefetched = getattr(instance, "_prefetched_objects_cache", {}).get(source)
+        if prefetched is not None:
+            ids = getattr(prefetched, "_target_ids", _MISSING)
+            if ids is not _MISSING:
+                return list(ids or [])
+            return [option.id for option in prefetched]
+        return [option.id for option in getattr(instance, source).all()]
+
+    def to_representation(self, value):
+        return value
+
+
+_MISSING = object()
+
+
 class CreateFieldSerializer(serializers.ModelSerializer):
     type = serializers.ChoiceField(
         choices=lazy(field_type_registry.get_types, list)(), required=True

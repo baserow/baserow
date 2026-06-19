@@ -76,6 +76,8 @@ from baserow.contrib.database.api.fields.serializers import (
     AvailableCollaboratorsSerializer,
     BaserowBooleanField,
     CollaboratorSerializer,
+    CompactMultipleSelectSerializer,
+    CompactSingleSelectSerializer,
     DurationFieldSerializer,
     FileFieldRequestSerializer,
     FileFieldResponseSerializer,
@@ -4053,6 +4055,7 @@ class SelectOptionBaseFieldType(FieldType):
     serializer_field_overrides = {
         "select_options": SelectOptionSerializer(many=True, required=False),
     }
+    serializer_extra_args = ["compact_notation"]
     _can_group_by = True
     _db_column_fields = []
 
@@ -4378,6 +4381,10 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
 
     def get_response_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
+        if kwargs.pop("compact_notation", False):
+            return CompactSingleSelectSerializer(
+                **{"required": required, "allow_null": not required, **kwargs}
+            )
         return SelectOptionSerializer(
             **{
                 "required": required,
@@ -4921,6 +4928,10 @@ class MultipleSelectFieldType(
 
     def get_response_serializer_field(self, instance, **kwargs):
         required = kwargs.get("required", False)
+        if kwargs.pop("compact_notation", False):
+            return CompactMultipleSelectSerializer(
+                **{"required": required, "allow_null": not required, **kwargs}
+            )
         return SelectOptionSerializer(
             **{
                 "required": required,
