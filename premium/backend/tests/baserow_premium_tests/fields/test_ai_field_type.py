@@ -1733,3 +1733,43 @@ def test_import_ai_field_disables_auto_update(premium_data_fixture):
     imported_field = AIField.objects.get(id=imported_field.id)
     assert imported_field.ai_auto_update is False
     assert imported_field.ai_auto_update_user_id is None
+
+
+@pytest.mark.django_db
+@pytest.mark.field_ai
+def test_compact_notation_with_ai_field_output_types(premium_data_fixture, api_client):
+    premium_data_fixture.register_fake_generate_ai_type()
+    user, token = premium_data_fixture.create_user_and_token()
+    database = premium_data_fixture.create_database_application(user=user)
+    table = premium_data_fixture.create_database_table(database=database)
+    text_field = premium_data_fixture.create_ai_field(
+        table=table, order=0, name="ai_text", ai_output_type="text"
+    )
+    choice_field = premium_data_fixture.create_ai_field(
+        table=table, order=1, name="ai_choice", ai_output_type="choice"
+    )
+    option = premium_data_fixture.create_select_option(
+        field=choice_field, value="Option 1", color="blue", order=0
+    )
+    grid = premium_data_fixture.create_grid_view(user=user, table=table)
+
+    model = table.get_model()
+    model.objects.create(
+        **{
+            f"field_{text_field.id}": "hello",
+            f"field_{choice_field.id}_id": option.id,
+        }
+    )
+
+    url = reverse("api:database:views:grid:list", kwargs={"view_id": grid.id})
+    response = api_client.get(
+        f"{url}?compact_notation=true", HTTP_AUTHORIZATION=f"JWT {token}"
+    )
+    assert response.status_code == HTTP_200_OK
+    body = response.json()
+    rows = [dict(zip(body["fields"], values)) for values in body["results"]]
+    # The text output type does not support compaction, so it is returned as-is
+    # instead of raising because of the unsupported `compact_notation` kwarg.
+    assert rows[0][f"field_{text_field.id}"] == "hello"
+    # The choice (single select) output type is compacted to the option id.
+    assert rows[0][f"field_{choice_field.id}"] == option.id

@@ -141,12 +141,30 @@ class AIFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         )
         return baserow_field_type
 
+    def _filter_serializer_field_kwargs(self, baserow_field_type, **kwargs):
+        """
+        Drops the extra serializer kwargs that the resolved AI output field type
+        does not support, so delegating to it does not raise. The AI field type
+        inherits `serializer_extra_args` from the select base type (e.g.
+        `compact_notation`) but delegates serialization to arbitrary output types
+        (text, number, ...) that do not all accept those kwargs.
+        """
+
+        kwargs_to_remove = set(self.serializer_extra_args) - set(
+            getattr(baserow_field_type, "serializer_extra_args", [])
+        )
+        return {
+            key: value for key, value in kwargs.items() if key not in kwargs_to_remove
+        }
+
     def get_serializer_field(self, instance, **kwargs):
         baserow_field_type = self.get_baserow_field_type(instance)
+        kwargs = self._filter_serializer_field_kwargs(baserow_field_type, **kwargs)
         return baserow_field_type.get_serializer_field(instance, **kwargs)
 
     def get_response_serializer_field(self, instance, **kwargs):
         baserow_field_type = self.get_baserow_field_type(instance)
+        kwargs = self._filter_serializer_field_kwargs(baserow_field_type, **kwargs)
         return baserow_field_type.get_response_serializer_field(instance, **kwargs)
 
     def get_model_field(self, instance, **kwargs):
