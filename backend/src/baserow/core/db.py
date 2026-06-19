@@ -564,6 +564,10 @@ class _PrefetchedManyToManyResult:
     the relation still gets the correct rows. This avoids building a queryset per
     row and field up front, which dominates the request time for tables with many
     many-to-many fields.
+
+    The lazy queryset uses the default manager so re-querying applies the same
+    filters (e.g. trash filtering) as the resolved instances, which come from the
+    default manager too.
     """
 
     __slots__ = ("_target_model", "_target_ids", "_result_cache", "_prefetch_done")
@@ -575,7 +579,7 @@ class _PrefetchedManyToManyResult:
         self._prefetch_done = True
 
     def _build_queryset(self):
-        qs = self._target_model._base_manager.filter(pk__in=self._target_ids or [])
+        qs = self._target_model._default_manager.filter(pk__in=self._target_ids or [])
         qs._result_cache = self._result_cache
         qs._prefetch_done = True
         return qs
