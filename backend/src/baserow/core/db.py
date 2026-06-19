@@ -660,12 +660,20 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
         :return: The updated `result_set` containing all the prefetched instances.
         """
 
+        # Resolve the model field for each prefetched field name once instead of
+        # for every row. With many fields this is called row_count * field_count
+        # times otherwise.
+        model_meta = queryset.model._meta
+        model_fields = {
+            field_name: model_meta.get_field(field_name)
+            for field_name in self.field_names
+        }
+
         for result in result_set:
+            field_name_to_target_ids = row_id_to_field_name_to_target_ids[result.id]
             for field_name in self.field_names:
-                model_field = queryset.model._meta.get_field(field_name)
-                target_ids = row_id_to_field_name_to_target_ids[result.id].get(
-                    field_name
-                )
+                model_field = model_fields[field_name]
+                target_ids = field_name_to_target_ids.get(field_name)
 
                 if isinstance(model_field, ForeignKey) and target_ids is not None:
                     target_id = target_ids[0]
@@ -673,20 +681,29 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
                     setattr(result, field_name, target_instance)
 
                 if isinstance(model_field, ManyToManyField):
-                    attr = getattr(result, field_name)
-                    qs = attr.get_queryset()
-                    qs._result_cache = (
-                        [
+                    # The related instances are already fully resolved in
+                    # `target_instances`, so the prefetch cache can be populated
+                    # directly. We deliberately avoid building the queryset via
+                    # `getattr(result, field_name).get_queryset()`: constructing the
+                    # relation-scoped queryset (through-table joins, filter setup) per
+                    # row and field is expensive and dominates the request time for
+                    # tables with many many-to-many fields. Scoping to the target ids
+                    # with `pk__in` on the base manager is cheap (no relation joins)
+                    # and keeps the queryset correct if a consumer re-filters or
+                    # re-orders the prefetched relation. Empty relations skip the
+                    # filter entirely with `none()`.
+                    if target_ids:
+                        qs = self.target_model._base_manager.filter(pk__in=target_ids)
+                        qs._result_cache = [
                             target_instances.get(target_id)
                             for target_id in target_ids
-                            # It could be that the target doesn't exist, but the
-                            # relationship does. In that case, we don't want the
-                            # result set contain `None` values.
+                            # The target may have been deleted while the relationship
+                            # still exists; don't put `None` in the result set.
                             if target_id in target_instances
                         ]
-                        if target_ids
-                        else []
-                    )
+                    else:
+                        qs = self.target_model._base_manager.none()
+                        qs._result_cache = []
                     qs._prefetch_done = True
                     result._prefetched_objects_cache = getattr(
                         result, "_prefetched_objects_cache", {}
