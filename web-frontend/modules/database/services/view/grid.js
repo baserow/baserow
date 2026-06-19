@@ -4,6 +4,29 @@ import {
   LINKED_ITEMS_LOAD_ALL,
 } from '@baserow/modules/database/constants'
 
+/**
+ * Normalizes a grid rows response requested with `compact_notation`. Such a
+ * response is positional: `data.fields` holds the ordered column names once and
+ * `data.results` is an array of value arrays. This reconstructs the row objects
+ * so the rest of the app sees the regular shape. The compact select cell values
+ * (option ids) are resolved separately by the store. No-op for a regular
+ * response.
+ */
+export function reconstructCompactGridRows(data) {
+  if (data && Array.isArray(data.fields)) {
+    const header = data.fields
+    data.results = data.results.map((values) => {
+      const row = {}
+      for (let index = 0; index < header.length; index++) {
+        row[header[index]] = values[index]
+      }
+      return row
+    })
+    delete data.fields
+  }
+  return data
+}
+
 export default (client) => {
   return {
     fetchRows({
@@ -106,7 +129,12 @@ export default (client) => {
       }
 
       const url = publicUrl ? 'public/rows/' : ''
-      return client.get(`/database/views/grid/${gridId}/${url}`, config)
+      return client
+        .get(`/database/views/grid/${gridId}/${url}`, config)
+        .then((response) => {
+          reconstructCompactGridRows(response.data)
+          return response
+        })
     },
     fetchCount({
       gridId,

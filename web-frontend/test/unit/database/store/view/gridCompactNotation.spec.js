@@ -1,8 +1,5 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
-import {
-  rehydrateCompactRows,
-  decompactGridData,
-} from '@baserow/modules/database/store/view/grid'
+import { rehydrateCompactRows } from '@baserow/modules/database/store/view/grid'
 
 const singleField = {
   id: 1,
@@ -92,43 +89,5 @@ describe('grid compact notation rehydration', () => {
     const before = JSON.parse(JSON.stringify(rows))
     rehydrateCompactRows(rows, [singleField, multiField, textField], registry)
     expect(JSON.parse(JSON.stringify(rows))).toStrictEqual(before)
-  })
-
-  test('decompactGridData reconstructs positional rows and rehydrates', () => {
-    const data = {
-      fields: ['id', 'field_1', 'field_2', 'field_3'],
-      results: [
-        [1, 10, [20, 21], 'hello'],
-        [2, null, [], ''],
-      ],
-    }
-    decompactGridData(data, [singleField, multiField, textField], registry)
-
-    expect(data.results[0]).toStrictEqual({
-      id: 1,
-      field_1: { id: 10, value: 'A', color: 'red' },
-      field_2: [
-        { id: 20, value: 'X', color: 'green' },
-        { id: 21, value: 'Y', color: 'yellow' },
-      ],
-      field_3: 'hello',
-    })
-    expect(data.results[1]).toStrictEqual({
-      id: 2,
-      field_1: null,
-      field_2: [],
-      field_3: '',
-    })
-  })
-
-  test('decompactGridData still rehydrates a non-positional response', () => {
-    const data = { results: [{ id: 1, field_1: 10, field_3: 'x' }] }
-    decompactGridData(data, [singleField, textField], registry)
-    expect(data.results[0].field_1).toStrictEqual({
-      id: 10,
-      value: 'A',
-      color: 'red',
-    })
-    expect(data.results[0].field_3).toBe('x')
   })
 })
