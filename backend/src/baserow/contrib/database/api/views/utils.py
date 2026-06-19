@@ -278,8 +278,22 @@ def paginate_and_serialize_queryset(
         extra_kwargs=extra_kwargs,
     )
     serializer = serializer_class(page, many=True)
+    data = serializer.data
 
-    response = paginator.get_paginated_response(serializer.data)
+    if compact_notation:
+        # Drop the repeated per-row field keys: return each row as an array of
+        # values and send the ordered field names once in a top-level `fields`
+        # header. The frontend reconstructs the row objects from it.
+        if data:
+            field_names = list(data[0].keys())
+        else:
+            field_names = list(serializer.child.fields.keys())
+        rows = [list(row.values()) for row in data]
+        response = paginator.get_paginated_response(rows)
+        response.data["fields"] = field_names
+    else:
+        response = paginator.get_paginated_response(data)
+
     return PaginatedData(response, page, paginator)
 
 

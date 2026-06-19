@@ -154,6 +154,28 @@ export function rehydrateCompactRows(rows, fields, registry) {
   return rows
 }
 
+/**
+ * Normalizes a grid rows response that was fetched with `compact_notation`. When
+ * the response is positional (`data.fields` holds the ordered column names and
+ * `data.results` is an array of value arrays), the row objects are reconstructed
+ * from the header. The compact select values are then rehydrated in place. Safe
+ * to call on a regular (non-compact) response, in which case it is a no-op.
+ */
+export function decompactGridData(data, fields, registry) {
+  if (Array.isArray(data.fields)) {
+    const header = data.fields
+    data.results = data.results.map((values) => {
+      const row = {}
+      for (let index = 0; index < header.length; index++) {
+        row[header[index]] = values[index]
+      }
+      return row
+    })
+  }
+  rehydrateCompactRows(data.results, fields, registry)
+  return data.results
+}
+
 const updatePositionFn = {
   previous: (rowIndex, fieldIndex) => {
     return [rowIndex, fieldIndex - 1]
@@ -958,7 +980,7 @@ export const actions = {
             return
           }
 
-          rehydrateCompactRows(data.results, fields, $registry)
+          decompactGridData(data, fields, $registry)
           data.results.forEach((row) => {
             const metadata = extractRowMetadata(data, row.id)
             populateRow(row, metadata, false)
@@ -1135,7 +1157,7 @@ export const actions = {
     if (gridId !== getters.getLastGridId) {
       return
     }
-    rehydrateCompactRows(data.results, fields, $registry)
+    decompactGridData(data, fields, $registry)
     data.results.forEach((row) => {
       const metadata = extractRowMetadata(data, row.id)
       populateRow(row, metadata, false)
@@ -1232,7 +1254,7 @@ export const actions = {
         }
         // If there are results we can replace the existing rows so that the user stays
         // at the same scroll offset.
-        rehydrateCompactRows(data.results, fields, $registry)
+        decompactGridData(data, fields, $registry)
         data.results.forEach((row) => {
           const metadata = extractRowMetadata(data, row.id)
           populateRow(row, metadata, false)

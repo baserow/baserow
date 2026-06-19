@@ -53,11 +53,15 @@ COMPACT_NOTATION_API_PARAM = OpenApiParameter(
     location=OpenApiParameter.QUERY,
     type=OpenApiTypes.BOOL,
     description=(
-        "If provided, fields that support it are serialized in a more compact form "
-        "to reduce the response size. Currently single select fields return only the "
-        "option id (or `null`) and multiple select fields return an array of option "
-        "ids, instead of the full `{id, value, color}` objects. Consumers are expected "
-        "to resolve the option metadata from the field definition."
+        "If provided, the rows are returned in a more compact form to reduce the "
+        "response size. Each row becomes an array of values and the ordered field "
+        "names are returned once in a top-level `fields` header, instead of "
+        "repeating the keys on every row. In addition, fields that support it are "
+        "serialized compactly: single select fields return only the option id (or "
+        "`null`) and multiple select fields return an array of option ids, instead "
+        "of the full `{id, value, color}` objects. Consumers reconstruct each row "
+        "from the `fields` header and resolve option metadata from the field "
+        "definition."
     ),
 )
 INCLUDE_OPERATION_METADATA = OpenApiParameter(

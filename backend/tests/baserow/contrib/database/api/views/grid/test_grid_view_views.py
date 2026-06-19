@@ -5449,12 +5449,18 @@ def test_list_rows_compact_notation_select_fields(api_client, data_fixture):
         {"id": m_b.id, "value": "Y", "color": "green"},
     ]
 
-    # compact notation returns only ids
-    compact = api_client.get(
+    # compact notation returns positional rows (a `fields` header + value arrays)
+    # with select cells as ids only.
+    response = api_client.get(
         f"{url}?compact_notation=true", HTTP_AUTHORIZATION=f"JWT {token}"
-    ).json()["results"]
-    assert compact[0][f"field_{single.id}"] == s_a.id
-    assert compact[0][f"field_{multi.id}"] == [m_a.id, m_b.id]
+    ).json()
+    header = response["fields"]
+    assert isinstance(header, list)
+    assert all(isinstance(values, list) for values in response["results"])
+    rows = [dict(zip(header, values)) for values in response["results"]]
+    assert rows[0]["id"] == row.id  # non-select cells are unchanged
+    assert rows[0][f"field_{single.id}"] == s_a.id
+    assert rows[0][f"field_{multi.id}"] == [m_a.id, m_b.id]
     # empty cells stay empty/null
-    assert compact[1][f"field_{single.id}"] is None
-    assert compact[1][f"field_{multi.id}"] == []
+    assert rows[1][f"field_{single.id}"] is None
+    assert rows[1][f"field_{multi.id}"] == []
