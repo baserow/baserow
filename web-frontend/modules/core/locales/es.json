@@ -68,7 +68,7 @@
         "invalidEmail": "Por favor, introduce un correo electrónico válido.",
         "disabledAccountTitle": "Cuenta deshabilitada",
         "disabledAccountMessage": "Esta cuenta de usuario ha sido deshabilitada.",
-        "incorrectCredentialTitle": "credenciales incorrectas",
+        "incorrectCredentialTitle": "Credenciales incorrectas",
         "incorrectCredentialMessage": "La dirección de correo electrónico o la contraseña proporcionadas son incorrectas.",
         "inputRequired": "Se requiere entrada.",
         "disabledPasswordProviderTitle": "La autentificación por contraseña está deshabilitada.",
@@ -197,8 +197,8 @@
         "retry": "Volver a intentar"
     },
     "createApplicationContext": {
-        "fromTemplate": "De la plantilla",
-        "fromTemplateDesc": "Empieza rápidamente con una de nuestras plantillas recomendadas",
+        "fromTemplate": "Desde una plantilla",
+        "fromTemplateDesc": "Empezar rápidamente con una de nuestras plantillas recomendadas",
         "table": "Tabla",
         "tableDesc": "Crea un nuevo espacio para gestionar los datos en tu base de datos.",
         "importWorkspace": "Importar datos",
@@ -257,7 +257,7 @@
         "emptyWorkspaceMessage": "Empieza por crear una nueva base de datos o aplicación.",
         "addNew": "Añadir nuevo...",
         "noWorkspace": "Sin espacio de trabajo",
-        "starOnGitHub": "Apóyanos con una estrella en GitHub"
+        "starOnGitHub": "Apóyanos en GitHub"
     },
     "login": {
         "title": "Bienvenido de nuevo",
