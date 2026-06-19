@@ -450,6 +450,25 @@ export class FieldType extends Registerable {
   }
 
   /**
+   * Indicates whether this field type can be returned in a compact form when the
+   * `compact_notation` API parameter is used. When true,
+   * `getRowValueFromCompactValue` must convert that compact value back to the
+   * regular row value.
+   */
+  isCompactNotationSupported() {
+    return false
+  }
+
+  /**
+   * Converts a compact row value (as returned when `compact_notation` is used)
+   * back to the regular row value. Defaults to a no-op for field types that
+   * don't support compact notation.
+   */
+  getRowValueFromCompactValue(field, value) {
+    return value
+  }
+
+  /**
    * Should return a string containing the error if the value is invalid. If the
    * value is valid, then null must be returned.
    */
@@ -1087,6 +1106,17 @@ export class FieldType extends Registerable {
 }
 
 class SelectOptionBaseFieldType extends FieldType {
+  isCompactNotationSupported() {
+    return true
+  }
+
+  getRowValueFromCompactValue(field, value) {
+    // Compact notation returns option id(s); resolve them back to the full
+    // option objects the rest of the frontend expects. `parseDefaultRowValue` is
+    // idempotent, so already-resolved values pass through unchanged.
+    return this.parseDefaultRowValue(field, value)
+  }
+
   prepareFormViewFieldForFormEditInput(field, fieldOptions) {
     const updatedField = _.clone(field)
     updatedField.select_options = updatedField.select_options.filter(

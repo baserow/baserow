@@ -25,10 +25,15 @@ export default (client) => {
       excludeCount = false,
       limitLinkedItems = null,
       rowIds = [],
+      compactNotation = false,
     }) {
       const include = []
       const params = new URLSearchParams()
       params.append('limit', limit)
+
+      if (compactNotation) {
+        params.append('compact_notation', true)
+      }
 
       if (offset !== null) {
         params.append('offset', offset)

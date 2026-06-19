@@ -129,6 +129,31 @@ export function populateRow(row, metadata = {}, fullyLoaded = true) {
   return row
 }
 
+/**
+ * When rows are fetched with `compact_notation`, the field types that support it
+ * (currently single and multiple select) return a compact value (option id(s)).
+ * This resolves those back to the full row value using the field metadata, so the
+ * rest of the store and the components are unaffected. It is idempotent, so rows
+ * that already contain the full value (e.g. coming from a realtime update) are
+ * left untouched.
+ */
+export function rehydrateCompactRows(rows, fields, registry) {
+  const compactFields = fields.filter((field) =>
+    registry.get('field', field.type).isCompactNotationSupported()
+  )
+  if (compactFields.length === 0) {
+    return rows
+  }
+  for (const row of rows) {
+    for (const field of compactFields) {
+      const fieldType = registry.get('field', field.type)
+      const name = `field_${field.id}`
+      row[name] = fieldType.getRowValueFromCompactValue(field, row[name])
+    }
+  }
+  return rows
+}
+
 const updatePositionFn = {
   previous: (rowIndex, fieldIndex) => {
     return [rowIndex, fieldIndex - 1]
@@ -923,6 +948,7 @@ export const actions = {
           orderBy: getOrderBy(view, getters.getAdhocSorting),
           filters: getFilters(view, getters.getAdhocFiltering),
           excludeCount: getters.canExcludeCount,
+          compactNotation: true,
         })
         .then(({ data }) => {
           // Don't do anything if the gridId does not match the current view gridId
@@ -932,6 +958,7 @@ export const actions = {
             return
           }
 
+          rehydrateCompactRows(data.results, fields, $registry)
           data.results.forEach((row) => {
             const metadata = extractRowMetadata(data, row.id)
             populateRow(row, metadata, false)
@@ -1100,6 +1127,7 @@ export const actions = {
       groupBy: getGroupBy(rootGetters, getters.getLastGridId),
       orderBy: getOrderBy(view, adhocSorting),
       filters: getFilters(view, adhocFiltering),
+      compactNotation: true,
     })
     // Don't do anything if the gridId does not match the current view gridId
     // because that probably means the user switched to another view or table, and
@@ -1107,6 +1135,7 @@ export const actions = {
     if (gridId !== getters.getLastGridId) {
       return
     }
+    rehydrateCompactRows(data.results, fields, $registry)
     data.results.forEach((row) => {
       const metadata = extractRowMetadata(data, row.id)
       populateRow(row, metadata, false)
@@ -1141,7 +1170,7 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { view, fields, adhocFiltering, adhocSorting, includeFieldOptions = false }
   ) {
-    const { $client, $config } = this
+    const { $client, $config, $registry } = this
     commit('SET_ADHOC_FILTERING', adhocFiltering)
     commit('SET_ADHOC_SORTING', adhocSorting)
     const gridId = getters.getLastGridId
@@ -1187,6 +1216,7 @@ export const actions = {
             orderBy: getOrderBy(view, adhocSorting),
             filters: getFilters(view, adhocFiltering),
             excludeCount: true, // We already have it from the previous request.
+            compactNotation: true,
           })
           .then(({ data }) => ({
             data: { ...data, count },
@@ -1202,6 +1232,7 @@ export const actions = {
         }
         // If there are results we can replace the existing rows so that the user stays
         // at the same scroll offset.
+        rehydrateCompactRows(data.results, fields, $registry)
         data.results.forEach((row) => {
           const metadata = extractRowMetadata(data, row.id)
           populateRow(row, metadata, false)
