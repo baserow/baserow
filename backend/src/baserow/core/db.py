@@ -804,7 +804,6 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
         """
 
         sub_queries = []
-        row_ids_as_literal = [sql.Literal(str(result.id)) for result in result_set]
 
         for field_name in self.field_names:
             model_field = queryset.model._meta.get_field(field_name)
@@ -827,6 +826,9 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
                     f"model {self.target_model}."
                 )
 
+            # The row ids are filtered through the `wanted_rows` CTE below instead of
+            # being repeated in every subquery, which keeps the query small even with
+            # hundreds of many-to-many fields.
             subquery = sql.SQL(
                 """
                 (
@@ -836,7 +838,7 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
                         {row_id_column} as row_id,
                         {target_id_column} as target_id_column
                     FROM {m2m_table}
-                    WHERE {row_id_column} IN ({row_ids})
+                    WHERE {row_id_column} IN (SELECT row_id FROM wanted_rows)
                 )
                 """
             ).format(
@@ -844,14 +846,17 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
                 m2m_table=sql.Identifier(through_table_name),
                 row_id_column=sql.Identifier(row_column_name),
                 target_id_column=sql.Identifier(target_column_name),
-                row_ids=sql.SQL(",").join(row_ids_as_literal),
             )
             sub_queries.append(subquery)
 
         if len(sub_queries) > 0 and len(result_set) > 0:
+            wanted_rows = sql.SQL(", ").join(
+                sql.SQL("({})").format(sql.Literal(result.id)) for result in result_set
+            )
             union_query = sql.SQL(" UNION ").join(sub_queries)
             union_sql = sql.SQL(
                 """
+                WITH wanted_rows (row_id) AS (VALUES {wanted_rows})
                 SELECT
                     row_id,
                     field_name,
@@ -859,7 +864,7 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
                 FROM ({union_query}) sub
                 GROUP BY row_id, field_name
                 """
-            ).format(union_query=union_query)
+            ).format(wanted_rows=wanted_rows, union_query=union_query)
 
             with connection.cursor() as cursor:
                 cursor.execute(union_sql)
