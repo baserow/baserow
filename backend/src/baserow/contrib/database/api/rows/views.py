@@ -1177,6 +1177,13 @@ class RowMoveView(APIView):
                 "then the row will be moved to the end.",
             ),
             OpenApiParameter(
+                name="view",
+                location=OpenApiParameter.QUERY,
+                type=OpenApiTypes.INT,
+                description="Provide if the row is moved in a view. This can "
+                "result in different permission checking.",
+            ),
+            OpenApiParameter(
                 name="user_field_names",
                 location=OpenApiParameter.QUERY,
                 type=OpenApiTypes.BOOL,
@@ -1242,13 +1249,16 @@ class RowMoveView(APIView):
         user_field_names = extract_user_field_names_from_params(request.GET)
         send_webhook_events = extract_send_webhook_events_from_params(request.GET)
 
+        view_id = query_params.get("view")
+        view = ViewHandler().get_view(view_id) if view_id else None
+
         model = table.get_model()
 
         row_handler = RowHandler()
 
         before_id = query_params.get("before_id")
         before_row = (
-            row_handler.get_row(request.user, table, before_id, model=model)
+            row_handler.get_row(request.user, table, before_id, model=model, view=view)
             if before_id
             else None
         )
@@ -1260,6 +1270,7 @@ class RowMoveView(APIView):
             before_row=before_row,
             model=model,
             send_webhook_events=send_webhook_events,
+            view=view,
         )
 
         serializer_class = get_row_serializer_class(

@@ -754,6 +754,109 @@ def test_editor_cannot_update_row_with_hidden_field_values(
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
+def test_editor_can_move_row_in_restricted_view(enterprise_data_fixture):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    user2 = enterprise_data_fixture.create_user()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    enterprise_data_fixture.create_text_field(table=table, primary=True)
+
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    row_1 = RowHandler().create_row(user, table)
+    row_2 = RowHandler().create_row(user, table)
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    # Without the view the editor only has the role on the view scope, so the
+    # table-level move permission is denied.
+    with pytest.raises(BaserowPermissionDenied):
+        RowHandler().move_row_by_id(user2, table, row_2.id, before_row=row_1)
+
+    # With the view the editor is allowed to move the row, just like updating it.
+    moved_row = RowHandler().move_row_by_id(
+        user2, table, row_2.id, before_row=row_1, view=view
+    )
+    assert moved_row.order < row_1.order
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+def test_editor_can_move_row_in_restricted_view_via_api(
+    enterprise_data_fixture, api_client
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+    user2, token2 = enterprise_data_fixture.create_user_and_token()
+    workspace = enterprise_data_fixture.create_workspace(user=user, members=[user2])
+    database = enterprise_data_fixture.create_database_application(workspace=workspace)
+    table = enterprise_data_fixture.create_database_table(database=database)
+    enterprise_data_fixture.create_text_field(table=table, primary=True)
+
+    view = enterprise_data_fixture.create_grid_view(
+        table=table, ownership_type=RestrictedViewOwnershipType.type
+    )
+
+    row_1 = RowHandler().create_row(user, table)
+    row_2 = RowHandler().create_row(user, table)
+
+    editor_role = Role.objects.get(uid="EDITOR")
+    no_access_role = Role.objects.get(uid="NO_ACCESS")
+    RoleAssignmentHandler().assign_role(
+        user2, workspace, role=no_access_role, scope=workspace
+    )
+    RoleAssignmentHandler().assign_role(
+        user2,
+        workspace,
+        role=editor_role,
+        scope=View.objects.get(id=view.id),
+    )
+
+    move_url = reverse(
+        "api:database:rows:move",
+        kwargs={"table_id": table.id, "row_id": row_2.id},
+    )
+
+    # Without the view query param the editor only has the role on the view scope,
+    # so the table-level move permission is denied.
+    response = api_client.patch(
+        f"{move_url}?before_id={row_1.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+
+    # Providing the view allows the editor to move the row.
+    response = api_client.patch(
+        f"{move_url}?before_id={row_1.id}&view={view.id}",
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token2}",
+    )
+    assert response.status_code == HTTP_200_OK
+
+    row_2.refresh_from_db()
+    row_1.refresh_from_db()
+    assert row_2.order < row_1.order
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
 def test_editor_cannot_create_row_with_hidden_field_values_user_field_names(
     enterprise_data_fixture,
 ):

@@ -821,7 +821,8 @@ export const actions = {
         const { data } = await RowService($client).move(
           table.id,
           row.id,
-          before !== null ? before.id : null
+          before !== null ? before.id : null,
+          getters.getLastKanbanId
         )
         commit('UPDATE_ROW', { row, values: data })
       } catch (error) {

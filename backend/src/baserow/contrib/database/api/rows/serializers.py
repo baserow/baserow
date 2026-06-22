@@ -511,6 +511,7 @@ class UserFieldNamesSerializer(serializers.Serializer):
 
 class MoveRowQueryParamsSerializer(serializers.Serializer):
     before_id = serializers.IntegerField(required=False)
+    view = serializers.IntegerField(required=False)
 
 
 class CreateRowQueryParamsSerializer(serializers.Serializer):

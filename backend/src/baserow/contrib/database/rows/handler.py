@@ -65,6 +65,7 @@ from baserow.contrib.database.trash.models import TrashedRows
 from baserow.contrib.database.views.operations import (
     CreateViewRowOperationType,
     DeleteViewRowOperationType,
+    MoveViewRowOperationType,
     ReadViewRowOperationType,
     RestoreViewRowOperationType,
     UpdateViewRowOperationType,
@@ -2776,6 +2777,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         row_id: int,
         before_row: Optional[GeneratedTableModel] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
+        view: Optional["View"] = None,
     ) -> GeneratedTableModelForUpdate:
         """
         Updates the row order value.
@@ -2787,14 +2789,18 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             instance. Otherwise the row will be moved to the end.
         :param model: If the correct model has already been generated, it can be
             provided so that it does not have to be generated for a second time.
+        :param view: Optionally provide view, if the row is moved in the view.
+            This can result in different permissions checks.
         """
 
         if model is None:
             model = table.get_model()
 
         with transaction.atomic():
-            row = self.get_row_for_update(user, table, row_id, model=model)
-            return self.move_row(user, table, row, before_row=before_row, model=model)
+            row = self.get_row_for_update(user, table, row_id, model=model, view=view)
+            return self.move_row(
+                user, table, row, before_row=before_row, model=model, view=view
+            )
 
     def move_row(
         self,
@@ -2804,6 +2810,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         before_row: Optional[GeneratedTableModel] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
         send_webhook_events: bool = True,
+        view: Optional["View"] = None,
     ) -> GeneratedTableModelForUpdate:
         """
         Updates the row order value.
@@ -2817,14 +2824,17 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             provided so that it does not have to be generated for a second time.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
+        :param view: Optionally provide view, if the row is moved in the view.
+            This can result in different permissions checks.
         """
 
-        workspace = table.database.workspace
-        CoreHandler().check_permissions(
-            user,
+        self._check_permissions_with_view_fallback(
             MoveRowDatabaseRowOperationType.type,
-            workspace=workspace,
-            context=table,
+            MoveViewRowOperationType.type,
+            user,
+            table,
+            view,
+            [row.id],
         )
 
         if model is None:

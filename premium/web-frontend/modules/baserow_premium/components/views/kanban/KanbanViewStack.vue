@@ -379,11 +379,16 @@ export default {
 
       if (
         !this.readOnly &&
-        this.$hasPermission(
+        (this.$hasPermission(
           'database.table.move_row',
           this.table,
           this.database.workspace.id
-        )
+        ) ||
+          this.$hasPermission(
+            'database.table.view.move_row',
+            this.view,
+            this.database.workspace.id
+          ))
       ) {
         const rect = event.target.getBoundingClientRect()
         this.downCardClientX = event.clientX

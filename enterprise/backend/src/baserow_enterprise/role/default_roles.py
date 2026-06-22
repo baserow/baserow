@@ -173,6 +173,7 @@ from baserow.contrib.database.views.operations import (
     ListViewRowsOperationType,
     ListViewsOperationType,
     ListViewSortOperationType,
+    MoveViewRowOperationType,
     OrderViewsOperationType,
     PrioritizeViewGroupByOperationType,
     PrioritizeViewSortOperationType,
@@ -446,6 +447,7 @@ default_roles[EDITOR_ROLE_UID].extend(
         CanReceiveNotificationOnSubmitFormViewOperationType,
         CreateViewRowOperationType,
         UpdateViewRowOperationType,
+        MoveViewRowOperationType,
         DeleteViewRowOperationType,
         ReadViewDefaultValuesOperationType,
     ]

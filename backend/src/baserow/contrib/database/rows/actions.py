@@ -750,6 +750,7 @@ class MoveRowActionType(UndoableActionType):
         before_row: Optional[GeneratedTableModel] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
         send_webhook_events: bool = True,
+        view: Optional[View] = None,
     ) -> GeneratedTableModelForUpdate:
         """
         Moves the row before another row or to the end if no before row is provided.
@@ -770,13 +771,17 @@ class MoveRowActionType(UndoableActionType):
             provided so that it does not have to be generated for a second time.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
+        :param view: Optionally provide view, if the row is moved in the view.
+            This can result in different permissions checks.
         """
 
         if model is None:
             model = table.get_model()
 
         row_handler = RowHandler()
-        row = row_handler.get_row_for_update(user, table, row_id, model=model)
+        row = row_handler.get_row_for_update(
+            user, table, row_id, model=model, view=view
+        )
 
         original_row_order = row.order
 
@@ -787,6 +792,7 @@ class MoveRowActionType(UndoableActionType):
             before_row=before_row,
             model=model,
             send_webhook_events=send_webhook_events,
+            view=view,
         )
 
         rows_displacement = get_rows_displacement(

@@ -56,6 +56,10 @@ class UpdateViewRowOperationType(ViewRowOperationType):
     type = "database.table.view.update_row"
 
 
+class MoveViewRowOperationType(ViewRowOperationType):
+    type = "database.table.view.move_row"
+
+
 class DeleteViewRowOperationType(ViewRowOperationType):
     type = "database.table.view.delete_row"
 

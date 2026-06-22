@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Lets invited editors drag and drop cards in a restricted Kanban view",
+    "issue_origin": "github",
+    "issue_number": 5568,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-06-22"
+}

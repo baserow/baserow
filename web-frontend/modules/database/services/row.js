@@ -144,11 +144,15 @@ export default (client) => {
      * parameters. If the before id is not provided then the row will be moved
      * to the end.
      */
-    move(tableId, rowId, beforeRowId = null) {
+    move(tableId, rowId, beforeRowId = null, viewId = null) {
       const config = { params: {} }
 
       if (beforeRowId !== null) {
         config.params.before_id = beforeRowId
+      }
+
+      if (viewId !== null) {
+        config.params.view = viewId
       }
 
       return client.patch(

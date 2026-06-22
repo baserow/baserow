@@ -864,6 +864,7 @@ class DatabaseConfig(AppConfig):
             ListViewRowsOperationType,
             ListViewsOperationType,
             ListViewSortOperationType,
+            MoveViewRowOperationType,
             OrderViewsOperationType,
             PrioritizeViewGroupByOperationType,
             PrioritizeViewSortOperationType,
@@ -908,6 +909,7 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(ListViewRowsOperationType())
         operation_type_registry.register(CreateViewRowOperationType())
         operation_type_registry.register(UpdateViewRowOperationType())
+        operation_type_registry.register(MoveViewRowOperationType())
         operation_type_registry.register(DeleteViewRowOperationType())
         operation_type_registry.register(ReadViewRowCommentsOperationType())
         operation_type_registry.register(CreateViewRowCommentOperationType())
