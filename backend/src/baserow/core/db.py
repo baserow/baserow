@@ -570,13 +570,12 @@ class _PrefetchedManyToManyResult:
     default manager too.
     """
 
-    __slots__ = ("_target_model", "_target_ids", "_result_cache", "_prefetch_done")
+    __slots__ = ("_target_model", "_target_ids", "_result_cache")
 
     def __init__(self, target_model, target_ids, result_cache):
         self._target_model = target_model
         self._target_ids = target_ids
         self._result_cache = result_cache
-        self._prefetch_done = True
 
     def _build_queryset(self):
         qs = self._target_model._default_manager.filter(pk__in=self._target_ids or [])

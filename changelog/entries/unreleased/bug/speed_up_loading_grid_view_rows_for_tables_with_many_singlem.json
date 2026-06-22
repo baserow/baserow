@@ -1,6 +1,6 @@
 {
-    "type": "bug",
-    "message": "Speed up loading grid view rows for tables with many single or multiple select fields by populating the prefetch cache without an expensive per-cell queryset and by serializing the prefetched options directly",
+    "type": "refactor",
+    "message": "Speed up loading rows for tables with many single or multiple select fields.",
     "issue_origin": "github",
     "issue_number": null,
     "domain": "database",
