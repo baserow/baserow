@@ -99,7 +99,6 @@
     <FormGroup
       small-label
       :label="$t('userForm.twoFactorAuth')"
-      required
       class="margin-top-2"
     >
       <div class="user-admin-edit__two-factor">
