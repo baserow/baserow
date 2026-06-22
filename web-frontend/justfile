@@ -200,8 +200,8 @@ run-dev-server:
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    NUXT_HOST="${NUXT_HOST:-0.0.0.0}"
-    NUXT_PORT="${NUXT_PORT:-3000}"
+    NUXT_HOST="${BASEROW_NUXT_HOST:-0.0.0.0}"
+    NUXT_PORT="${BASEROW_NUXT_PORT:-3000}"
     yarn run dev --host "$NUXT_HOST" --port "$NUXT_PORT"
 
 # Run Storybook
@@ -210,8 +210,8 @@ storybook:
     #!/usr/bin/env bash
     set -euo pipefail
     {{ _load_env }}
-    STORYBOOK_HOST="${STORYBOOK_HOST:-0.0.0.0}"
-    STORYBOOK_PORT="${STORYBOOK_PORT:-6006}"
+    STORYBOOK_HOST="${BASEROW_STORYBOOK_HOST:-0.0.0.0}"
+    STORYBOOK_PORT="${BASEROW_STORYBOOK_PORT:-6006}"
     yarn run storybook --host "$STORYBOOK_HOST" -p "$STORYBOOK_PORT"
 
 # Build Nuxt for production

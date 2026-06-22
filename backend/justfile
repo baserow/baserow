@@ -95,7 +95,7 @@ backend_tests_dirs_from_root := "backend/tests/ premium/backend/tests/ enterpris
 # Django settings
 django_settings := env("DJANGO_SETTINGS_MODULE", "baserow.config.settings.dev")
 export DJANGO_SETTINGS_MODULE := django_settings
-runserver_bind := env("RUNSERVER_BIND", "0.0.0.0:8000")
+runserver_bind := env("BASEROW_RUNSERVER_BIND", "0.0.0.0:8000")
 
 # Log files for dev servers (used by logs command)
 log_file := "/tmp/baserow-backend.log"
@@ -525,7 +525,7 @@ run-dev-server *ARGS: _check-dev
     {{ _load_env }}
     ARGS=({{ ARGS }})
     if [ ${#ARGS[@]} -eq 0 ]; then
-        ARGS=("${RUNSERVER_BIND:-0.0.0.0:8000}")
+        ARGS=("${BASEROW_RUNSERVER_BIND:-0.0.0.0:8000}")
     fi
     LOG_FILE="${BASEROW_BACKEND_LOG_FILE:-${BASEROW_LOCAL_DEV_PREFIX:-/tmp/baserow}-backend.log}"
     {{ uv_run }} baserow runserver "${ARGS[@]}" 2>&1 | tee "$LOG_FILE"

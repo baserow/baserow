@@ -322,10 +322,10 @@ _dev-start:
     echo "$FRONTEND_PID" > "${LOCAL_DEV_PREFIX}-frontend.pid"
     echo "$STORYBOOK_PID" > "${LOCAL_DEV_PREFIX}-storybook.pid"
 
-    MAILHOG_STATUS_PORT="${MAILHOG_WEB_PORT:-}"
+    MAILHOG_STATUS_PORT="${BASEROW_MAILHOG_WEB_PORT:-}"
     if [ -z "$MAILHOG_STATUS_PORT" ] && [ -f .env.docker-dev ]; then
         while IFS='=' read -r key value; do
-            if [ "$key" = "MAILHOG_WEB_PORT" ]; then
+            if [ "$key" = "BASEROW_MAILHOG_WEB_PORT" ]; then
                 MAILHOG_STATUS_PORT="${value%%#*}"
                 MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT%$'\r'}"
                 MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT%"${MAILHOG_STATUS_PORT##*[![:space:]]}"}"
@@ -347,7 +347,7 @@ _dev-start:
     echo "Services:"
     echo "  Backend:   ${PUBLIC_BACKEND_URL:-http://localhost:8000}"
     echo "  Frontend:  ${PUBLIC_WEB_FRONTEND_URL:-http://localhost:3000}"
-    echo "  Storybook: http://localhost:${STORYBOOK_PORT:-6006}"
+    echo "  Storybook: http://localhost:${BASEROW_STORYBOOK_PORT:-6006}"
     echo "  Mailhog:   http://localhost:${MAILHOG_STATUS_PORT}"
     echo ""
     echo "Commands:"
