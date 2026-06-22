@@ -111,7 +111,6 @@ from baserow.core.handler import CoreHandler
 from baserow.core.registry import Instance
 from baserow.core.services.dispatch_context import DispatchContext
 from baserow.core.services.exceptions import (
-    DoesNotExist,
     InvalidContextContentDispatchException,
     ServiceImproperlyConfiguredDispatchException,
 )
@@ -2303,8 +2302,11 @@ class LocalBaserowDeleteRowServiceType(
                 DeleteRowsActionType.do(
                     integration.authorized_user, table, [row_id], model=model
                 )
-            except RowDoesNotExist as exc:
-                raise DoesNotExist(f"The row with id {row_id} does not exist.") from exc
+            except RowDoesNotExist:
+                if dispatch_context.raise_when_no_row_found:
+                    raise ServiceImproperlyConfiguredDispatchException(
+                        _(f"Row {row_id} does not exist.")
+                    )
             except CannotDeleteRowsInTable as exc:
                 raise ServiceImproperlyConfiguredDispatchException(
                     f"Cannot delete rows in table {table.id} because "

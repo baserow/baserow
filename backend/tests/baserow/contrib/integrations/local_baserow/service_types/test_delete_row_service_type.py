@@ -7,7 +7,9 @@ from baserow.contrib.integrations.local_baserow.models import LocalBaserowDelete
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
 )
-from baserow.core.services.exceptions import DoesNotExist
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
@@ -110,9 +112,42 @@ def test_local_baserow_delete_row_service_dispatch_data_row_not_exist(data_fixtu
 
     dispatch_context = FakeDispatchContext()
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
-    with pytest.raises(DoesNotExist) as exc:
+    with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
-    assert exc.value.args[0] == "The row with id 1 does not exist."
+    assert exc.value.args[0] == "Row 1 does not exist."
+
+
+@pytest.mark.django_db
+def test_local_baserow_delete_row_service_dispatch_data_row_does_not_exist(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_database_table(user=user)
+    model = table.get_model()
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+
+    assert model.objects.count() == 0
+
+    service = data_fixture.create_local_baserow_delete_row_service(
+        integration=integration, table=table, row_id="1"
+    )
+    service_type = service.get_type()
+
+    # When the context opts out of raising (e.g. an automation context), a
+    # missing row no longer raises. The user is expected to use a subsequent
+    # node (e.g. Router) to decide the next step.
+    dispatch_context = FakeDispatchContext(raise_when_no_row_found=False)
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+
+    dispatch_data = service_type.dispatch_data(
+        service, dispatch_values, dispatch_context
+    )
+    assert dispatch_data["data"] is None
+
+    assert service_type.dispatch_transform(dispatch_data).data is None
 
 
 @pytest.mark.django_db
