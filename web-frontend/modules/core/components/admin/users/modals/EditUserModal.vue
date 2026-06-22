@@ -77,7 +77,7 @@ export default {
       }
     },
     onTwoFactorAuthDisabled() {
-      this.$emit('update', { ...this.user, two_factor_auth: {} })
+      this.$emit('update', { ...this.user, two_factor_auth: null })
     },
   },
 }

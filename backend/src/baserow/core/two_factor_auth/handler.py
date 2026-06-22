@@ -104,7 +104,6 @@ class TwoFactorAuthHandler:
         :param user: The user for whom to disable the authentication.
         :param password: Password for confirmation.
         :raises WrongPassword: If the provided password doesn't match.
-        :raises TwoFactorAuthNotConfigured: If the user has no provider.
         """
 
         if not user.check_password(password):

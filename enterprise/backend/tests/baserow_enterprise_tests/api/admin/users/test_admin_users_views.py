@@ -73,7 +73,7 @@ def test_admin_users_endpoint_contains_highest_role(
                 "is_staff": True,
                 "is_active": True,
                 "last_login": None,
-                "two_factor_auth": {},
+                "two_factor_auth": None,
             }
         ],
     }

@@ -13,7 +13,7 @@ export function aUser({
   dateJoined = '2021-04-21T12:04:27.379781Z',
   isActive = true,
   isStaff = true,
-  twoFactorAuth = {},
+  twoFactorAuth = null,
 }) {
   return {
     id,

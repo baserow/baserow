@@ -25,17 +25,19 @@ _USER_ADMIN_SERIALIZER_API_DOC_KWARGS = {
 }
 
 
-# Raw OpenAPI schema for the ``two_factor_auth`` admin response field. A typed
-# serializer can't be used here because drf-spectacular marks its read-only
-# fields as always required, whereas this field is an empty object (``{}``) when
-# the user has no two factor auth provider configured. Omitting ``required``
-# documents the ``{type, is_enabled}`` shape while still allowing ``{}``.
+# Raw OpenAPI schema for the ``two_factor_auth`` admin response field. It is
+# ``null`` when the user has no provider configured, otherwise the provider
+# ``{type, is_enabled}``. A raw dict (instead of ``TwoFactorAuthSerializer``)
+# is used so the field can be marked nullable, which drf-spectacular does not
+# infer for a serializer-typed SerializerMethodField.
 _USER_ADMIN_TWO_FACTOR_AUTH_FIELD_SCHEMA = {
     "type": "object",
+    "nullable": True,
     "description": (
-        "The user's two factor auth state. An empty object when no provider is "
-        "configured, otherwise the provider type and whether it is enabled."
+        "The user's two factor auth provider state, or null when no provider "
+        "is configured."
     ),
+    "required": ["type", "is_enabled"],
     "properties": {
         "type": {"type": "string", "readOnly": True},
         "is_enabled": {"type": "boolean", "readOnly": True},
@@ -91,7 +93,7 @@ class UserAdminResponseSerializer(ModelSerializer):
             provider = None
 
         if provider is None:
-            return {}
+            return None
 
         return TwoFactorAuthSerializer(provider).data
 

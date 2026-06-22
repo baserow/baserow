@@ -108,7 +108,7 @@ def test_admin_can_see_admin_users_endpoint(api_client, data_fixture):
                 "is_staff": True,
                 "is_active": True,
                 "last_login": None,
-                "two_factor_auth": {},
+                "two_factor_auth": None,
             }
         ],
     }
@@ -211,7 +211,7 @@ def test_admin_can_search_users(api_client, data_fixture):
                 "is_staff": False,
                 "is_active": True,
                 "last_login": None,
-                "two_factor_auth": {},
+                "two_factor_auth": None,
             }
         ],
     }
@@ -253,7 +253,7 @@ def test_admin_can_sort_users(api_client, data_fixture):
                 "is_staff": False,
                 "is_active": True,
                 "last_login": None,
-                "two_factor_auth": {},
+                "two_factor_auth": None,
             }
         ],
     }
@@ -544,7 +544,7 @@ def test_admin_can_create_user(api_client, data_fixture):
             "is_staff": True,
             "is_active": True,
             "last_login": None,
-            "two_factor_auth": {},
+            "two_factor_auth": None,
         }
 
     response = api_client.post(
@@ -586,7 +586,7 @@ def test_admin_can_patch_user(api_client, data_fixture):
         "is_staff": True,
         "is_active": True,
         "last_login": None,
-        "two_factor_auth": {},
+        "two_factor_auth": None,
     }
 
 
@@ -620,7 +620,7 @@ def test_admin_can_patch_user_without_providing_password(api_client, data_fixtur
         "is_staff": True,
         "is_active": True,
         "last_login": None,
-        "two_factor_auth": {},
+        "two_factor_auth": None,
     }
 
 
@@ -959,7 +959,7 @@ def test_admin_users_endpoint_includes_two_factor_auth(api_client, data_fixture)
 
     assert response.status_code == HTTP_200_OK
     results = {r["username"]: r for r in response.json()["results"]}
-    assert results["staff@test.nl"]["two_factor_auth"] == {}
+    assert results["staff@test.nl"]["two_factor_auth"] is None
     assert results["enabled@test.nl"]["two_factor_auth"] == {
         "type": "totp",
         "is_enabled": True,
