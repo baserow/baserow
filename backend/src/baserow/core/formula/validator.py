@@ -324,7 +324,7 @@ class BaserowFormulaJSONEncoder(DjangoJSONEncoder):
         return super().default(obj)
 
 
-def ensure_json(value: Any) -> Any:
+def ensure_deserialized_json(value: Any) -> Any:
     """
     Decode a JSON string if possible, otherwise return the value unchanged.
 
@@ -342,7 +342,7 @@ def ensure_json(value: Any) -> Any:
     return value
 
 
-def ensure_json_compatible(value: Any) -> Any:
+def ensure_json_serializable(value: Any) -> Any:
     """
     Ensures that the value can be converted to a JSON value.
     Python types supported by Django's JSON encoder, like dates and datetimes, are

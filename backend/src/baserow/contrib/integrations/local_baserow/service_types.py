@@ -113,7 +113,7 @@ from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import (
     ensure_array,
-    ensure_json,
+    ensure_deserialized_json,
     ensure_object,
 )
 from baserow.core.handler import CoreHandler
@@ -2293,7 +2293,9 @@ class LocalBaserowUpsertRowsServiceType(LocalBaserowTableServiceType):
             )
 
     def _normalize_input_rows(self, value: Any) -> List[Dict]:
-        return [ensure_object(i) for i in ensure_array(ensure_json(value))]
+        return [
+            ensure_object(i) for i in ensure_array(ensure_deserialized_json(value))
+        ]
 
     def formulas_to_resolve(
         self, service: Union[LocalBaserowCreateRows, LocalBaserowUpdateRows]
@@ -2554,7 +2556,7 @@ class LocalBaserowDeleteRowServiceType(
         if value in [None, ""]:
             return []
 
-        parsed_value = ensure_json(value)
+        parsed_value = ensure_deserialized_json(value)
         values = parsed_value if isinstance(parsed_value, list) else [parsed_value]
 
         row_ids = []

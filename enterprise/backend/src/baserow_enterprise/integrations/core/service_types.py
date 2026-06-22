@@ -18,7 +18,7 @@ from baserow.core.code_runner.registries import (
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import (
     ensure_file,
-    ensure_json_compatible,
+    ensure_json_serializable,
     ensure_string,
 )
 from baserow.core.registry import Instance
@@ -126,7 +126,7 @@ class CoreCodeServiceType(CoreServiceType):
             FormulaToResolve(
                 injection.name,
                 injection.formula,
-                ensure_json_compatible,
+                ensure_json_serializable,
                 f'injection "{injection.name}"',
             )
             for injection in service.injections.all()
