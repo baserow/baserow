@@ -986,7 +986,6 @@ class FakeDispatchContext(DispatchContext):
         "_searchable_fields",
         "_search_query",
         "_count",
-        "_raise_when_no_row_found",
     ]
 
     def __init__(self, **kwargs):
@@ -996,14 +995,9 @@ class FakeDispatchContext(DispatchContext):
         self._searchable_fields = kwargs.pop("searchable_fields", [])
         self._search_query = kwargs.pop("search_query", None)
         self._count = kwargs.pop("count", 100)
-        self._raise_when_no_row_found = kwargs.pop("raise_when_no_row_found", True)
 
         for key, value in kwargs.items():
             setattr(self, key, value)
-
-    @property
-    def raise_when_no_row_found(self) -> bool:
-        return self._raise_when_no_row_found
 
     @property
     def is_publicly_searchable(self):

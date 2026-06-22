@@ -81,15 +81,6 @@ class DispatchContext(RuntimeFormulaContext, ABC):
         return new_context
 
     @property
-    def raise_when_no_row_found(self) -> bool:
-        """
-        Default behavior is to raise during dispatch when a single-row
-        service finds no matching row.
-        """
-
-        return True
-
-    @property
     @abstractmethod
     def is_publicly_searchable(self) -> bool:
         """
