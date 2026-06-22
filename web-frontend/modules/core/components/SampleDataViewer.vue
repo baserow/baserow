@@ -9,7 +9,7 @@
         {{ viewerLabel }}
       </div>
       <div class="sample-data-viewer__code">
-        <pre><code>{{ formattedSampleData }}</code></pre>
+        <pre><code>{{ displayedFormattedSampleData }}</code></pre>
       </div>
     </div>
 
@@ -33,6 +33,8 @@
 
 <script>
 import SampleDataModal from '@baserow/modules/core/components/SampleDataModal'
+
+const MAX_FORMATTED_SAMPLE_DATA_LENGTH = 10000
 
 export default {
   name: 'SampleDataViewer',
@@ -72,6 +74,16 @@ export default {
       return typeof this.sampleData === 'string'
         ? this.sampleData
         : JSON.stringify(this.sampleData, null, 2)
+    },
+    displayedFormattedSampleData() {
+      if (this.formattedSampleData.length <= MAX_FORMATTED_SAMPLE_DATA_LENGTH) {
+        return this.formattedSampleData
+      }
+
+      return `${this.formattedSampleData.slice(
+        0,
+        MAX_FORMATTED_SAMPLE_DATA_LENGTH
+      )}\n${this.$t('sampleDataViewer.truncatedLabel')}`
     },
   },
   methods: {

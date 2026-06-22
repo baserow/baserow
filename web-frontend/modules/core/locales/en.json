@@ -29,7 +29,10 @@
     "payloadLabel": "Output",
     "errorLabel": "An error occurred...",
     "showPayloadLabel": "Show payload",
-    "showErrorLabel": "Show error"
+    "showErrorLabel": "Show error",
+    "downloadFullPayload": "Download full payload",
+    "truncatedLabel": "[Output truncated]",
+    "truncatedPayloadWarning": "Only the first {size} characters are shown. Download the full payload to inspect it on your computer."
   },
   "action": {
     "cancel": "Cancel",
