@@ -49,6 +49,7 @@ class CoreConfig(AppConfig):
             RuntimeDivide,
             RuntimeDurationFormat,
             RuntimeEqual,
+            RuntimeFromJson,
             RuntimeGenerateUUID,
             RuntimeGet,
             RuntimeGetProperty,
@@ -88,6 +89,7 @@ class CoreConfig(AppConfig):
             RuntimeToDatetime,
             RuntimeToday,
             RuntimeToDuration,
+            RuntimeToJson,
             RuntimeUpper,
             RuntimeYear,
         )
@@ -141,6 +143,8 @@ class CoreConfig(AppConfig):
         formula_runtime_function_registry.register(RuntimeAt())
         formula_runtime_function_registry.register(RuntimeToArray())
         formula_runtime_function_registry.register(RuntimeRange())
+        formula_runtime_function_registry.register(RuntimeToJson())
+        formula_runtime_function_registry.register(RuntimeFromJson())
         formula_runtime_function_registry.register(RuntimeNull())
         formula_runtime_function_registry.register(RuntimeNumberFormat())
         formula_runtime_function_registry.register(RuntimeToDuration())

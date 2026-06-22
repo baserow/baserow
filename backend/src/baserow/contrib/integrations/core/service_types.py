@@ -1,6 +1,7 @@
 import csv
 import io
 import json
+import re
 import socket
 import uuid
 from datetime import datetime
@@ -82,6 +83,9 @@ from baserow.core.services.registries import (
 )
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
+
+# Matches any runtime formula function calls, e.g. `get(`, `concat(`, etc.
+RE_DYNAMIC_FORMULA = re.compile(r"\b[a-z_]+\s*\(")
 
 
 class CoreServiceType(ServiceType):
@@ -531,6 +535,24 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         return formulas
 
+    def _body_has_formula(self, service: CoreHTTPRequestService) -> bool:
+        """
+        Returns True if the JSON body is built from a formula that interpolates a
+        runtime value, e.g. a data source via `get(...)` or a function like `now()`.
+
+        This is used to customize the JSON validation error with a more specific
+        error message.
+        """
+
+        body_content = service.body_content
+
+        if isinstance(body_content, dict):
+            formula = body_content.get("formula") or ""
+        else:
+            formula = body_content or ""
+
+        return bool(RE_DYNAMIC_FORMULA.search(formula))
+
     def dispatch_data(
         self,
         service: CoreHTTPRequestService,
@@ -554,9 +576,14 @@ class CoreHTTPRequestServiceType(CoreServiceType):
                     json.loads(body_content, strict=False) if body_content else None
                 )
             except json.JSONDecodeError as e:
-                raise ServiceImproperlyConfiguredDispatchException(
-                    "The body is not a valid JSON"
-                ) from e
+                message = "The body is not a valid JSON"
+                if self._body_has_formula(service):
+                    message += (
+                        ". If the body includes a value from a formula, wrap "
+                        "it with to_json() so it is correctly quoted and "
+                        "escaped, e.g. concat('{\"value\": ', to_json(get('...')), '}')."
+                    )
+                raise ServiceImproperlyConfiguredDispatchException(message) from e
         elif service.body_type == BODY_TYPE.FORM:  # Form multipart payload
             body_dict["data"] = {
                 f.key: resolved_values[f"form_data_{f.id}"]

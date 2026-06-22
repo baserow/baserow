@@ -50,6 +50,8 @@ import {
   RuntimeAt,
   RuntimeToArray,
   RuntimeRange,
+  RuntimeToJson,
+  RuntimeFromJson,
   RuntimeNull,
   RuntimeNumberFormat,
   RuntimeToDatetime,
@@ -2228,6 +2230,63 @@ describe('RuntimeRange', () => {
       0, 1, 2, 3, 4,
     ])
     expect(formulaType.execute({}, formulaType.parseArgs([0, 6]))).toBeNull()
+  })
+})
+
+describe('RuntimeToJson', () => {
+  test.each([
+    { args: ['foo'], expected: '"foo"' },
+    { args: [123], expected: '123' },
+    { args: [true], expected: 'true' },
+    { args: [null], expected: 'null' },
+    { args: [{ a: 1 }], expected: '{"a":1}' },
+    { args: [[1, 2]], expected: '[1,2]' },
+    // Quotes and control characters are escaped so the result is safe to embed
+    // inside a larger JSON document.
+    { args: ['foo "bar"'], expected: '"foo \\"bar\\""' },
+    { args: ['a\nb'], expected: '"a\\nb"' },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeToJson()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: true },
+    { args: ['foo', 'bar'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeToJson()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+})
+
+describe('RuntimeFromJson', () => {
+  test.each([
+    { args: ['[1, 2, 3]'], expected: [1, 2, 3] },
+    { args: ['{"a": 1}'], expected: { a: 1 } },
+    { args: ['"foo"'], expected: 'foo' },
+    { args: ['123'], expected: 123 },
+    // Invalid JSON degrades gracefully to null instead of throwing.
+    { args: ['not json'], expected: null },
+    { args: [''], expected: null },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeFromJson()
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['foo'], expected: true },
+    { args: ['foo', 'bar'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeFromJson()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toStrictEqual(expected)
   })
 })
 
