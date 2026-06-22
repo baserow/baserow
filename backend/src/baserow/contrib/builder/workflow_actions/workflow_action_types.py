@@ -457,8 +457,8 @@ class CreateRowWorkflowActionType(UpsertRowWorkflowActionType):
     model_class = LocalBaserowCreateRowWorkflowAction
 
 
-class CreateRowsWorkflowActionType(LocalBaserowWorkflowActionType):
-    type = "create_rows"
+class LocalBaserowCreateRowsWorkflowActionType(LocalBaserowWorkflowActionType):
+    type = "local_baserow_create_rows"
     model_class = LocalBaserowCreateRowsWorkflowAction
     service_type = LocalBaserowCreateRowsServiceType.type
 
@@ -472,8 +472,8 @@ class UpdateRowWorkflowActionType(UpsertRowWorkflowActionType):
     model_class = LocalBaserowUpdateRowWorkflowAction
 
 
-class UpdateRowsWorkflowActionType(LocalBaserowWorkflowActionType):
-    type = "update_rows"
+class LocalBaserowUpdateRowsWorkflowActionType(LocalBaserowWorkflowActionType):
+    type = "local_baserow_update_rows"
     model_class = LocalBaserowUpdateRowsWorkflowAction
     service_type = LocalBaserowUpdateRowsServiceType.type
 

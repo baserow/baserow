@@ -421,9 +421,9 @@ export class CreateRowWorkflowActionType extends WorkflowActionServiceType {
   }
 }
 
-export class CreateRowsWorkflowActionType extends WorkflowActionServiceType {
+export class LocalBaserowCreateRowsWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
-    return 'create_rows'
+    return 'local_baserow_create_rows'
   }
 
   getOrder() {
@@ -459,9 +459,9 @@ export class UpdateRowWorkflowActionType extends WorkflowActionServiceType {
   }
 }
 
-export class UpdateRowsWorkflowActionType extends WorkflowActionServiceType {
+export class LocalBaserowUpdateRowsWorkflowActionType extends WorkflowActionServiceType {
   static getType() {
-    return 'update_rows'
+    return 'local_baserow_update_rows'
   }
 
   getOrder() {

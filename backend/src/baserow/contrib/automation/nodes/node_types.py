@@ -144,7 +144,6 @@ class LocalBaserowCreateRowNodeType(LocalBaserowUpsertRowNodeType):
 
 class LocalBaserowCreateRowsNodeType(AutomationNodeActionNodeType):
     type = "local_baserow_create_rows"
-    compat_type = "create_rows"
     model_class = LocalBaserowCreateRowsActionNode
     service_type = LocalBaserowCreateRowsServiceType.type
 
@@ -162,7 +161,6 @@ class LocalBaserowUpdateRowNodeType(LocalBaserowUpsertRowNodeType):
 
 class LocalBaserowUpdateRowsNodeType(AutomationNodeActionNodeType):
     type = "local_baserow_update_rows"
-    compat_type = "update_rows"
     model_class = LocalBaserowUpdateRowsActionNode
     service_type = LocalBaserowUpdateRowsServiceType.type
 
