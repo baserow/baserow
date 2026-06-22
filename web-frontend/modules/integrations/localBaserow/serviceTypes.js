@@ -496,10 +496,7 @@ export class LocalBaserowCreateRowsWorkflowServiceType extends LocalBaserowUpser
   }
 
   get description() {
-    return this.app.$i18n.t('serviceType.localBaserowCreateRowsDescription', {
-      limit:
-        this.app.$config.public.integrationLocalBaserowBatchOperationSizeLimit,
-    })
+    return this.app.$i18n.t('serviceType.localBaserowCreateRowsDescription')
   }
 }
 
@@ -541,10 +538,7 @@ export class LocalBaserowUpdateRowsWorkflowServiceType extends LocalBaserowUpser
   }
 
   get description() {
-    return this.app.$i18n.t('serviceType.localBaserowUpdateRowsDescription', {
-      limit:
-        this.app.$config.public.integrationLocalBaserowBatchOperationSizeLimit,
-    })
+    return this.app.$i18n.t('serviceType.localBaserowUpdateRowsDescription')
   }
 }
 
@@ -564,10 +558,7 @@ export class LocalBaserowDeleteRowWorkflowServiceType extends WorkflowActionServ
   }
 
   get description() {
-    return this.app.$i18n.t('serviceType.localBaserowDeleteRowDescription', {
-      limit:
-        this.app.$config.public.integrationLocalBaserowBatchOperationSizeLimit,
-    })
+    return this.app.$i18n.t('serviceType.localBaserowDeleteRowDescription')
   }
 
   get formComponent() {
