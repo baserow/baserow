@@ -456,32 +456,13 @@ export class LocalBaserowCreateRowWorkflowServiceType extends WorkflowActionServ
   }
 }
 
-export class LocalBaserowCreateRowsWorkflowServiceType extends WorkflowActionServiceTypeMixin(
+export class LocalBaserowUpsertRowsWorkflowServiceType extends WorkflowActionServiceTypeMixin(
   LocalBaserowTableServiceType
 ) {
-  static getType() {
-    return 'local_baserow_create_rows'
-  }
-
   supportedTables(tables) {
     return tables.filter(
       (table) => !table.is_data_sync || table.is_two_way_data_sync
     )
-  }
-
-  get icon() {
-    return 'iconoir-plus'
-  }
-
-  get name() {
-    return this.app.$i18n.t('serviceType.localBaserowCreateRows')
-  }
-
-  get description() {
-    return this.app.$i18n.t('serviceType.localBaserowCreateRowsDescription', {
-      limit:
-        this.app.$config.public.integrationLocalBaserowBatchOperationSizeLimit,
-    })
   }
 
   get returnsList() {
@@ -498,6 +479,27 @@ export class LocalBaserowCreateRowsWorkflowServiceType extends WorkflowActionSer
 
   get formComponent() {
     return LocalBaserowCreateRowsServiceForm
+  }
+}
+
+export class LocalBaserowCreateRowsWorkflowServiceType extends LocalBaserowUpsertRowsWorkflowServiceType {
+  static getType() {
+    return 'local_baserow_create_rows'
+  }
+
+  get icon() {
+    return 'iconoir-plus'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.localBaserowCreateRows')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.localBaserowCreateRowsDescription', {
+      limit:
+        this.app.$config.public.integrationLocalBaserowBatchOperationSizeLimit,
+    })
   }
 }
 
@@ -525,7 +527,7 @@ export class LocalBaserowUpdateRowWorkflowServiceType extends WorkflowActionServ
   }
 }
 
-export class LocalBaserowUpdateRowsWorkflowServiceType extends LocalBaserowCreateRowsWorkflowServiceType {
+export class LocalBaserowUpdateRowsWorkflowServiceType extends LocalBaserowUpsertRowsWorkflowServiceType {
   static getType() {
     return 'local_baserow_update_rows'
   }

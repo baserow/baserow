@@ -2244,16 +2244,17 @@ class LocalBaserowUpsertRowServiceType(
         return self.import_path(path, id_mapping)
 
 
-class LocalBaserowCreateRowsServiceType(LocalBaserowTableServiceType):
+class LocalBaserowUpsertRowsServiceType(LocalBaserowTableServiceType):
     """
-    A `LocalBaserow` service type which creates multiple rows in the service's
+    A `LocalBaserow` service type which mutates multiple rows in the service's
     target table when it is used in conjunction with workflow actions.
     """
 
-    type = "local_baserow_create_rows"
-    model_class = LocalBaserowCreateRows
     dispatch_types = [DispatchTypes.ACTION]
     returns_list = True
+    rows_help_text = ""
+    batch_operation_name = ""
+    include_id = False
 
     @property
     def allowed_fields(self):
@@ -2273,7 +2274,7 @@ class LocalBaserowCreateRowsServiceType(LocalBaserowTableServiceType):
             **super().serializer_field_overrides,
             "rows": FormulaSerializerField(
                 required=False,
-                help_text="The rows to create.",
+                help_text=self.rows_help_text,
             ),
         }
 
@@ -2295,7 +2296,7 @@ class LocalBaserowCreateRowsServiceType(LocalBaserowTableServiceType):
         return [ensure_object(i) for i in ensure_array(ensure_json(value))]
 
     def formulas_to_resolve(
-        self, service: LocalBaserowCreateRows
+        self, service: Union[LocalBaserowCreateRows, LocalBaserowUpdateRows]
     ) -> list[FormulaToResolve]:
         return [
             FormulaToResolve(
@@ -2358,7 +2359,7 @@ class LocalBaserowCreateRowsServiceType(LocalBaserowTableServiceType):
 
     def dispatch_data(
         self,
-        service: LocalBaserowCreateRows,
+        service: Union[LocalBaserowCreateRows, LocalBaserowUpdateRows],
         resolved_values: Dict[str, Any],
         dispatch_context: DispatchContext,
     ) -> Dict[str, Any]:
@@ -2374,33 +2375,27 @@ class LocalBaserowCreateRowsServiceType(LocalBaserowTableServiceType):
                 "public_formula_fields": used_field_names,
             }
 
-        self._raise_if_batch_input_exceeds_limit(len(rows), "batch create rows")
+        self._raise_if_batch_input_exceeds_limit(len(rows), self.batch_operation_name)
 
         model = table.get_model()
-        rows_values = self._normalize_rows_values(model, rows)
-
-        try:
-            rows = CreateRowsActionType.do(
-                user=service.integration.authorized_user,
-                table=table,
-                rows_values=rows_values,
-                model=model,
-            )
-        except CannotCreateRowsInTable as exc:
-            raise ServiceImproperlyConfiguredDispatchException(
-                f"Cannot create rows in table {table.id} because it has a data sync."
-            ) from exc
-        except FieldDataConstraintException as exc:
-            raise InvalidContextContentDispatchException(
-                f"Cannot create rows in table {table.id} because "
-                "it violates a field constraint."
-            ) from exc
+        rows_values = self._normalize_rows_values(
+            model, rows, include_id=self.include_id
+        )
+        rows = self.dispatch_rows(service, rows_values, model)
 
         return {
             "data": rows,
             "baserow_table_model": model,
             "public_formula_fields": used_field_names,
         }
+
+    def dispatch_rows(
+        self,
+        service: Union[LocalBaserowCreateRows, LocalBaserowUpdateRows],
+        rows_values: List[Dict[str, Any]],
+        model: Type["GeneratedTableModel"],
+    ) -> List[Any]:
+        raise NotImplementedError("Subclasses must implement dispatch_rows.")
 
     def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
         field_ids = (
@@ -2425,7 +2420,43 @@ class LocalBaserowCreateRowsServiceType(LocalBaserowTableServiceType):
         return DispatchResult(data=serialized_rows)
 
 
-class LocalBaserowUpdateRowsServiceType(LocalBaserowCreateRowsServiceType):
+class LocalBaserowCreateRowsServiceType(LocalBaserowUpsertRowsServiceType):
+    """
+    A `LocalBaserow` service type which creates multiple rows in the service's
+    target table when it is used in conjunction with workflow actions.
+    """
+
+    type = "local_baserow_create_rows"
+    model_class = LocalBaserowCreateRows
+    rows_help_text = "The rows to create."
+    batch_operation_name = "batch create rows"
+
+    def dispatch_rows(
+        self,
+        service: LocalBaserowCreateRows,
+        rows_values: List[Dict[str, Any]],
+        model: Type["GeneratedTableModel"],
+    ) -> List[Any]:
+        table = service.table
+        try:
+            return CreateRowsActionType.do(
+                user=service.integration.authorized_user,
+                table=table,
+                rows_values=rows_values,
+                model=model,
+            )
+        except CannotCreateRowsInTable as exc:
+            raise ServiceImproperlyConfiguredDispatchException(
+                f"Cannot create rows in table {table.id} because it has a data sync."
+            ) from exc
+        except FieldDataConstraintException as exc:
+            raise InvalidContextContentDispatchException(
+                f"Cannot create rows in table {table.id} because "
+                "it violates a field constraint."
+            ) from exc
+
+
+class LocalBaserowUpdateRowsServiceType(LocalBaserowUpsertRowsServiceType):
     """
     A `LocalBaserow` service type which updates multiple rows in the service's
     target table when it is used in conjunction with workflow actions.
@@ -2433,42 +2464,19 @@ class LocalBaserowUpdateRowsServiceType(LocalBaserowCreateRowsServiceType):
 
     type = "local_baserow_update_rows"
     model_class = LocalBaserowUpdateRows
+    rows_help_text = "The rows to update. Each row must contain an `id` property."
+    batch_operation_name = "batch update rows"
+    include_id = True
 
-    @property
-    def serializer_field_overrides(self):
-        return {
-            **super().serializer_field_overrides,
-            "rows": FormulaSerializerField(
-                required=False,
-                help_text="The rows to update. Each row must contain an `id` property.",
-            ),
-        }
-
-    def dispatch_data(
+    def dispatch_rows(
         self,
         service: LocalBaserowUpdateRows,
-        resolved_values: Dict[str, Any],
-        dispatch_context: DispatchContext,
-    ) -> Dict[str, Any]:
+        rows_values: List[Dict[str, Any]],
+        model: Type["GeneratedTableModel"],
+    ) -> List[Any]:
         table = service.table
-        used_field_names = self.get_used_field_names(service, dispatch_context)
-        service.integration = service.integration.specific
-
-        rows = resolved_values.get("rows", [])
-        model = table.get_model()
-        if not rows:
-            return {
-                "data": [],
-                "baserow_table_model": model,
-                "public_formula_fields": used_field_names,
-            }
-
-        self._raise_if_batch_input_exceeds_limit(len(rows), "batch update rows")
-
-        rows_values = self._normalize_rows_values(model, rows, include_id=True)
-
         try:
-            rows = UpdateRowsActionType.do(
+            return UpdateRowsActionType.do(
                 user=service.integration.authorized_user,
                 table=table,
                 rows_values=rows_values,
@@ -2487,12 +2495,6 @@ class LocalBaserowUpdateRowsServiceType(LocalBaserowCreateRowsServiceType):
                 f"Cannot update rows in table {table.id} because "
                 "it violates a field constraint."
             ) from exc
-
-        return {
-            "data": rows,
-            "baserow_table_model": model,
-            "public_formula_fields": used_field_names,
-        }
 
 
 class LocalBaserowDeleteRowServiceType(
