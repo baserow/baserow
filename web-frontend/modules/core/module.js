@@ -66,6 +66,7 @@ export default defineNuxtModule({
         baserowDisableGoogleDocsFilePreview: '',
         baserowMaxSnapshotsPerGroup: -1,
         baserowFrontendSameSiteCookie: 'lax',
+        baserowFrontendCookiePrefix: '',
         baserowFrontendJobsPollingTimeoutMs: 2000,
         posthogProjectApiKey: '',
         posthogHost: '',

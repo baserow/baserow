@@ -78,11 +78,14 @@
 </template>
 
 <script setup>
+import { getCookieName } from '@baserow/modules/core/utils/cookie'
+
 const helpDisplayCookieName = 'baserow_dashboard_alert_closed_v2'
+const config = useRuntimeConfig()
 
 const showAlert = ref(true)
 
-const closedCookie = useCookie(helpDisplayCookieName, {
+const closedCookie = useCookie(getCookieName(config, helpDisplayCookieName), {
   maxAge: 60 * 60 * 24 * 182, // 6 months
   path: '/',
 })

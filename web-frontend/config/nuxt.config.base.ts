@@ -49,6 +49,10 @@ function baserowModuleConfig(
 }
 
 const baserow = baserowModuleConfig()
+const frontendCookiePrefix =
+  process.env.BASEROW_FRONTEND_COOKIE_PREFIX ||
+  process.env.NUXT_PUBLIC_BASEROW_FRONTEND_COOKIE_PREFIX ||
+  ''
 
 export default defineNuxtConfig({
   compatibilityDate: '2025-11-15',
@@ -72,7 +76,7 @@ export default defineNuxtConfig({
     trailingSlash: true,
     detectBrowserLanguage: {
       useCookie: true,
-      cookieKey: 'i18n-language',
+      cookieKey: `${frontendCookiePrefix}i18n-language`,
       redirectOn: 'root',
     },
     vueI18n: './i18n.config.ts',

@@ -1,5 +1,6 @@
 import thenBy from 'thenby'
 import BigNumber from 'bignumber.js'
+import { getCookieName } from '@baserow/modules/core/utils/cookie'
 import { escapeRegExp, isSecureURL } from '@baserow/modules/core/utils/string'
 import { SearchMode } from '@baserow/modules/database/utils/search'
 import { convertStringToMatchBackendTsvectorData } from '@baserow/modules/database/search/regexes'
@@ -710,7 +711,8 @@ export function readDefaultViewIdFromCookie(
   cookieName = DEFAULT_VIEW_ID_COOKIE_NAME
 ) {
   try {
-    const cookie = useCookie(cookieName)
+    const config = useRuntimeConfig()
+    const cookie = useCookie(getCookieName(config, cookieName))
     const cookieValue = cookie.value || ''
     const defaultViews = decodeDefaultViewIdPerTable(cookieValue)
     const defaultView = defaultViews.find((view) => view.tableId === tableId)
@@ -737,7 +739,7 @@ export function saveDefaultViewIdInCookie(
   cookieName = DEFAULT_VIEW_ID_COOKIE_NAME
 ) {
   const secure = isSecureURL(config.public.publicWebFrontendUrl)
-  const cookieValue = useCookie(cookieName, {
+  const cookieValue = useCookie(getCookieName(config, cookieName), {
     path: '/',
     maxAge: 60 * 60 * 24 * 365, // 1 year
     sameSite: config.public.baserowFrontendSameSiteCookie,
