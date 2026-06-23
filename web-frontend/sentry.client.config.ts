@@ -25,8 +25,9 @@ if (dsn && dsn !== '') {
         blockAllMedia: true,
       }),
     ],
-    // Reduce the trace sample rate since we don't use tracing much at the moment.
-    tracesSampleRate: 0.1,
+    // Sample rate for performance tracing, configurable via the
+    // SENTRY_TRACES_SAMPLE_RATE env var (shared with the backend).
+    tracesSampleRate: parseFloat(config.public.sentryTracesSampleRate) || 0,
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 1.0,
     ...(isDev ? { transport: makeFakeTransport } : {}),

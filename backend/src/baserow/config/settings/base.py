@@ -1469,10 +1469,11 @@ if SENTRY_DSN:
         SENTRY_DSN = "https://public@example.invalid/1"
         sentry_transport = ConsoleSentryTransport()
 
-    # Enable tracing for the backend, sampling 30% of transactions. Disable it
-    # when the console transport is used (fake DSN in dev) to avoid spamming
-    # transaction envelopes to the console.
-    sentry_traces_sample_rate = 0 if sentry_transport else 0.3
+    # Sample rate for performance tracing (transactions), disabled when the console transport is used
+    # (fake DSN in dev) to avoid spamming transaction envelopes to the console.
+    sentry_traces_sample_rate = (
+        0 if sentry_transport else float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", 0.1))
+    )
 
     sentry_sdk.init(
         dsn=SENTRY_DSN,

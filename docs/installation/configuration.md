@@ -260,6 +260,7 @@ Baserow can throttle the number of concurrent requests a single user (or, option
 |----------------------|--------------------------------------------------------------------------------------------------------|------------------------|
 | SENTRY\_DSN          | If provided, will instantiate Sentry SDK for error monitoring for both Frontend and Backend.           | "" (empty string)      |
 | SENTRY\_BACKEND\_DSN | If provided, will instantiate Sentry SDK for the backend with this DSN. It will override SENTRY\_DSN   | "" (empty string)      |
+| SENTRY\_TRACES\_SAMPLE\_RATE | The sample rate for Sentry performance tracing (transactions), shared by the backend and frontend. A float between 0 and 1, where 0 disables tracing and 1 traces every transaction. | 0.1 |
 | BASEROW\_OSS\_ONLY   | If not empty, it will only start the MIT licensed open source version, without premium and enterprise. | "" (empty string)      |
 
 ### User file upload Configuration

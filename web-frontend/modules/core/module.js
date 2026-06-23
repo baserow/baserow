@@ -82,6 +82,7 @@ export default defineNuxtModule({
         mediaUrl: 'http://localhost:4000/media/',
         sentryDsn: '',
         sentryEnvironment: '',
+        sentryTracesSampleRate: '0.1',
       }
     )
 
