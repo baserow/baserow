@@ -15,7 +15,8 @@ if (dsn && dsn !== '') {
     dsn,
     release: `baserow-web-frontend@${config.public.version}`,
     environment: config.public.sentryEnvironment || 'production',
-    tracesSampleRate: 1.0,
+    // Reduce the trace sample rate since we don't use tracing much at the moment.
+    tracesSampleRate: 0.1,
     ...(isDev ? { transport: makeFakeTransport } : {}),
     beforeSend(event, hint) {
       const err = hint?.originalException

@@ -1469,9 +1469,15 @@ if SENTRY_DSN:
         SENTRY_DSN = "https://public@example.invalid/1"
         sentry_transport = ConsoleSentryTransport()
 
+    # Enable tracing for the backend, sampling 30% of transactions. Disable it
+    # when the console transport is used (fake DSN in dev) to avoid spamming
+    # transaction envelopes to the console.
+    sentry_traces_sample_rate = 0 if sentry_transport else 0.3
+
     sentry_sdk.init(
         dsn=SENTRY_DSN,
         integrations=[DjangoIntegration(signals_spans=False, middleware_spans=False)],
+        traces_sample_rate=sentry_traces_sample_rate,
         send_default_pii=False,
         before_send=drop_expected_asyncio_websocket_ping_timeout_events,
         event_scrubber=EventScrubber(recursive=True, denylist=SENTRY_DENYLIST),

@@ -25,7 +25,8 @@ if (dsn && dsn !== '') {
         blockAllMedia: true,
       }),
     ],
-    tracesSampleRate: 1.0,
+    // Reduce the trace sample rate since we don't use tracing much at the moment.
+    tracesSampleRate: 0.1,
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 1.0,
     ...(isDev ? { transport: makeFakeTransport } : {}),
