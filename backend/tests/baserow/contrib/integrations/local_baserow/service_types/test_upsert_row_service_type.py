@@ -82,6 +82,49 @@ def test_local_baserow_create_rows_service_dispatch_data(data_fixture):
 
 
 @pytest.mark.django_db
+def test_local_baserow_create_rows_service_dispatch_data_reports_invalid_row(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name")
+    data_fixture.create_email_field(table=table, name="Email")
+
+    service = data_fixture.create_local_baserow_create_rows_service(
+        integration=integration,
+        table=table,
+        rows='get("page_parameter.rows")',
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={
+            "page_parameter": {
+                "rows": [
+                    {"Name": "Bread", "Email": "test@test.fr"},
+                    {"Name": "Croissant", "Email": "failing"},
+                ]
+            }
+        }
+    )
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    with pytest.raises(
+        InvalidContextContentDispatchException,
+        match=(
+            "Invalid row values:\n- row 2 "
+            r"\(Email='failing': Enter a valid value\.\)"
+        ),
+    ):
+        service_type.dispatch_data(service, dispatch_values, dispatch_context)
+
+    assert table.get_model().objects.count() == 0
+
+
+@pytest.mark.django_db
 @override_settings(INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT=1)
 def test_local_baserow_create_rows_service_rejects_too_many_rows(data_fixture):
     user = data_fixture.create_user()
@@ -378,6 +421,59 @@ def test_local_baserow_update_rows_service_dispatch_data(data_fixture):
 
     assert dispatch_result.data["results"][0]["Ingredient"] == "Bread"
     assert dispatch_result.data["results"][1]["Ingredient"] == "Butter"
+
+
+@pytest.mark.django_db
+def test_local_baserow_update_rows_service_dispatch_data_reports_invalid_row(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(table=table, name="Name")
+    email_field = data_fixture.create_email_field(table=table, name="Email")
+    model = table.get_model()
+    row_1 = model.objects.create(
+        **{name_field.db_column: "Bread", email_field.db_column: "test@test.fr"}
+    )
+    row_2 = model.objects.create(
+        **{name_field.db_column: "Croissant", email_field.db_column: "old@test.fr"}
+    )
+
+    service = data_fixture.create_local_baserow_update_rows_service(
+        integration=integration,
+        table=table,
+        rows='get("page_parameter.rows")',
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={
+            "page_parameter": {
+                "rows": [
+                    {"id": row_1.id, "Email": "new@test.fr"},
+                    {"id": row_2.id, "Email": "failing"},
+                ]
+            }
+        }
+    )
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    with pytest.raises(
+        InvalidContextContentDispatchException,
+        match=(
+            "Invalid row values:\n- row 2 "
+            r"\(Email='failing': Enter a valid value\.\)"
+        ),
+    ):
+        service_type.dispatch_data(service, dispatch_values, dispatch_context)
+
+    row_1.refresh_from_db()
+    row_2.refresh_from_db()
+    assert getattr(row_1, email_field.db_column) == "test@test.fr"
+    assert getattr(row_2, email_field.db_column) == "old@test.fr"
 
 
 @pytest.mark.django_db

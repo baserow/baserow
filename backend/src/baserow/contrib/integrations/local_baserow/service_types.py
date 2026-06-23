@@ -58,6 +58,7 @@ from baserow.contrib.database.rows.exceptions import (
     RowDoesNotExist,
     RowIdsNotUnique,
 )
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.rows.signals import (
     rows_created,
     rows_deleted,
@@ -2293,9 +2294,7 @@ class LocalBaserowUpsertRowsServiceType(LocalBaserowTableServiceType):
             )
 
     def _normalize_input_rows(self, value: Any) -> List[Dict]:
-        return [
-            ensure_object(i) for i in ensure_array(ensure_deserialized_json(value))
-        ]
+        return [ensure_object(i) for i in ensure_array(ensure_deserialized_json(value))]
 
     def formulas_to_resolve(
         self, service: Union[LocalBaserowCreateRows, LocalBaserowUpdateRows]
@@ -2383,6 +2382,7 @@ class LocalBaserowUpsertRowsServiceType(LocalBaserowTableServiceType):
         rows_values = self._normalize_rows_values(
             model, rows, include_id=self.include_id
         )
+        self._raise_if_rows_values_are_invalid(model, rows_values)
         rows = self.dispatch_rows(service, rows_values, model)
 
         return {
@@ -2398,6 +2398,54 @@ class LocalBaserowUpsertRowsServiceType(LocalBaserowTableServiceType):
         model: Type["GeneratedTableModel"],
     ) -> List[Any]:
         raise NotImplementedError("Subclasses must implement dispatch_rows.")
+
+    def _raise_if_rows_values_are_invalid(
+        self,
+        model: Type["GeneratedTableModel"],
+        rows_values: List[Dict[str, Any]],
+    ) -> None:
+        _, errors = RowHandler().prepare_rows_in_bulk(
+            model._field_objects,
+            rows_values,
+            generate_error_report=True,
+        )
+        if errors:
+            raise InvalidContextContentDispatchException(
+                self._format_rows_values_errors(model, rows_values, errors)
+            )
+
+    def _format_rows_values_errors(
+        self,
+        model: Type["GeneratedTableModel"],
+        rows_values: List[Dict[str, Any]],
+        errors: Dict[int, Dict[str, Any]],
+    ) -> str:
+        field_name_to_display_name = {
+            field_obj["name"]: field_obj["field"].name
+            for field_obj in model._field_objects.values()
+        }
+        row_error_messages = []
+        for row_index, row_errors in errors.items():
+            field_error_messages = []
+            for field_name, field_errors in row_errors.items():
+                display_name = field_name_to_display_name.get(field_name, field_name)
+                value = rows_values[row_index].get(field_name)
+                errors_as_text = ", ".join(
+                    self._format_validation_error(error) for error in field_errors
+                )
+                field_error_messages.append(
+                    f"{display_name}={value!r}: {errors_as_text}"
+                )
+            row_error_messages.append(
+                f"- row {row_index + 1} ({'; '.join(field_error_messages)})"
+            )
+
+        return "Invalid row values:\n" + "\n".join(row_error_messages)
+
+    def _format_validation_error(self, error: Any) -> str:
+        if isinstance(error, ValidationError):
+            return ", ".join(error.messages)
+        return str(error)
 
     def dispatch_transform(self, dispatch_data: Dict[str, Any]) -> DispatchResult:
         field_ids = (

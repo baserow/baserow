@@ -184,7 +184,7 @@ def test_local_baserow_delete_row_service_dispatch_data_with_multiple_ids(data_f
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
 
-    assert result["data"] == {}
+    assert result["data"] is None
     assert model.objects.count() == 1
     assert model.objects.filter(id=row_2.id).exists() is True
     assert model.objects.filter(id__in=[row_1.id, row_3.id]).exists() is False
@@ -244,7 +244,7 @@ def test_local_baserow_delete_row_service_dispatch_data_with_json_text_ids(
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
 
-    assert result["data"] == {}
+    assert result["data"] is None
     assert model.objects.count() == 0
 
 
