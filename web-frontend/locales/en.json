@@ -698,6 +698,7 @@
     "avgDescription": "Averages the numbers inside the argument.",
     "atDescription": "Returns the item in the first argument at the index specified by the second argument.",
     "toArrayDescription": "Converts a comma-delimited string into an array.",
+    "rangeDescription": "Returns an array of numbers. Provide range(stop), range(start, stop), or range(start, stop, step).",
     "nullDescription": "Returns null, which can be used as a value or for comparison",
     "numberFormatDescription": "Formats a number as a string with configurable decimal places, thousand separator, and decimal separator.",
     "toDatetimeDescription": "Parses a string into a datetime object. An optional second argument specifies the format (e.g. 'DD/MM/YYYY'). If omitted, ISO 8601 format is assumed.",

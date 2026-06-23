@@ -49,6 +49,7 @@ import {
   RuntimeAvg,
   RuntimeAt,
   RuntimeToArray,
+  RuntimeRange,
   RuntimeNull,
   RuntimeNumberFormat,
   RuntimeToDatetime,
@@ -2151,6 +2152,82 @@ describe('RuntimeToArray', () => {
     const formulaType = new RuntimeToArray()
     const result = formulaType.validateNumberOfArgs(args)
     expect(result).toStrictEqual(expected)
+  })
+})
+
+describe('RuntimeRange', () => {
+  const app = { $config: { public: { formulaRangeMaxItems: 10000 } } }
+
+  test.each([
+    // range(stop)
+    { args: [4], expected: [0, 1, 2, 3] },
+    { args: [0], expected: [] },
+    // range(start, stop)
+    { args: [1, 5], expected: [1, 2, 3, 4] },
+    { args: [5, 5], expected: [] },
+    { args: [5, 1], expected: [] },
+    // range(start, stop, step)
+    { args: [0, 10, 2], expected: [0, 2, 4, 6, 8] },
+    { args: [10, 0, -1], expected: [10, 9, 8, 7, 6, 5, 4, 3, 2, 1] },
+    { args: [0, 10, -1], expected: [] },
+    // a zero step returns null
+    { args: [0, 5, 0], expected: null },
+    // arguments are coerced to integers
+    { args: ['1', '5'], expected: [1, 2, 3, 4] },
+    { args: [1.9, 4.9], expected: [1, 2, 3] },
+  ])('execute returns expected value', ({ args, expected }) => {
+    const formulaType = new RuntimeRange({ app })
+    const parsedArgs = formulaType.parseArgs(args)
+    const result = formulaType.execute({}, parsedArgs)
+    expect(result).toEqual(expected)
+  })
+
+  test.each([
+    // numeric types are allowed
+    { args: [4], expected: [] },
+    { args: [1, 5], expected: [] },
+    { args: [0, 10, 2], expected: [] },
+    { args: ['1', '5', '2'], expected: [] },
+    // Invalid types
+    { args: [{}], expected: [[0, {}]] },
+    { args: [5, 'foo'], expected: [[1, 'foo']] },
+    { args: [0, 10, {}], expected: [[2, {}]] },
+  ])('validates type of args', ({ args, expected }) => {
+    const formulaType = new RuntimeRange()
+    const result = formulaType.validateTypeOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test.each([
+    { args: [], expected: false },
+    { args: ['a'], expected: true },
+    { args: ['a', 'b'], expected: true },
+    { args: ['a', 'b', 'c'], expected: true },
+    { args: ['a', 'b', 'c', 'd'], expected: false },
+  ])('validates number of args', ({ args, expected }) => {
+    const formulaType = new RuntimeRange()
+    const result = formulaType.validateNumberOfArgs(args)
+    expect(result).toStrictEqual(expected)
+  })
+
+  test('caps the number of generated items', () => {
+    const formulaType = new RuntimeRange({ app })
+    const atLimit = formulaType.execute({}, formulaType.parseArgs([0, 10000]))
+    expect(atLimit).toHaveLength(10000)
+
+    const overLimit = formulaType.execute({}, formulaType.parseArgs([0, 10001]))
+    expect(overLimit).toBeNull()
+  })
+
+  test('uses the configured max items from runtime config', () => {
+    const formulaType = new RuntimeRange({
+      app: { $config: { public: { formulaRangeMaxItems: 5 } } },
+    })
+
+    expect(formulaType.execute({}, formulaType.parseArgs([0, 5]))).toEqual([
+      0, 1, 2, 3, 4,
+    ])
+    expect(formulaType.execute({}, formulaType.parseArgs([0, 6]))).toBeNull()
   })
 })
 

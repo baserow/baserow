@@ -120,6 +120,7 @@ import {
   RuntimeAvg,
   RuntimeAt,
   RuntimeToArray,
+  RuntimeRange,
   RuntimeToDatetime,
 } from '@baserow/modules/core/runtimeFormulaTypes'
 
@@ -301,6 +302,7 @@ export default defineNuxtPlugin({
     registry.register('runtimeFormulaFunction', new RuntimeAvg(context))
     registry.register('runtimeFormulaFunction', new RuntimeAt(context))
     registry.register('runtimeFormulaFunction', new RuntimeToArray(context))
+    registry.register('runtimeFormulaFunction', new RuntimeRange(context))
     registry.register('runtimeFormulaFunction', new RuntimeNull(context))
     registry.register(
       'runtimeFormulaFunction',

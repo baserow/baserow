@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 
@@ -748,6 +749,39 @@ class RuntimeToArray(RuntimeFormulaFunction):
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
         return ensure_array(args[0])
+
+
+class RuntimeRange(RuntimeFormulaFunction):
+    type = "range"
+
+    args = [
+        NumberBaserowRuntimeFormulaArgumentType(cast_to_int=True),
+        NumberBaserowRuntimeFormulaArgumentType(optional=True, cast_to_int=True),
+        NumberBaserowRuntimeFormulaArgumentType(optional=True, cast_to_int=True),
+    ]
+
+    def execute(self, context: FormulaContext, args: FormulaArgs):
+        if len(args) == 1:
+            start, stop, step = 0, args[0], 1
+        elif len(args) == 2:
+            start, stop, step = args[0], args[1], 1
+        else:
+            start, stop, step = args[0], args[1], args[2]
+
+        if step == 0:
+            raise BaserowFormulaSyntaxError(
+                "The 'range' function step argument must not be zero."
+            )
+
+        # range() computes its length lazily, so this is cheap
+        result = range(start, stop, step)
+        max_items = settings.FORMULA_RANGE_MAX_ITEMS
+        if len(result) > max_items:
+            raise BaserowFormulaSyntaxError(
+                f"The 'range' function cannot generate more than {max_items} items."
+            )
+
+        return list(result)
 
 
 class RuntimeNull(RuntimeFormulaFunction):

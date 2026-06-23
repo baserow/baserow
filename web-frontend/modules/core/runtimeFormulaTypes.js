@@ -2697,6 +2697,89 @@ export class RuntimeToArray extends RuntimeFormulaFunction {
   }
 }
 
+export class RuntimeRange extends RuntimeFormulaFunction {
+  static getType() {
+    return 'range'
+  }
+
+  static getFormulaType() {
+    return FORMULA_TYPE.FUNCTION
+  }
+
+  static getCategoryType() {
+    return FORMULA_CATEGORY.UTILITY
+  }
+
+  get args() {
+    return [
+      new NumberBaserowRuntimeFormulaArgumentType({ castToInt: true }),
+      new NumberBaserowRuntimeFormulaArgumentType({
+        optional: true,
+        castToInt: true,
+      }),
+      new NumberBaserowRuntimeFormulaArgumentType({
+        optional: true,
+        castToInt: true,
+      }),
+    ]
+  }
+
+  execute(context, args) {
+    const [start, stop, step] =
+      args.length === 1
+        ? [0, args[0], 1]
+        : args.length === 2
+          ? [args[0], args[1], 1]
+          : [args[0], args[1], args[2]]
+
+    if (step === 0) {
+      return null
+    }
+
+    // range() length is computed up front so an oversized range is rejected
+    // before building the array.
+    const count = Math.max(0, Math.ceil((stop - start) / step))
+    const maxItems = Number(this.app.$config.public.formulaRangeMaxItems)
+    if (count > maxItems) {
+      return null
+    }
+
+    const result = []
+    if (step > 0) {
+      for (let i = start; i < stop; i += step) {
+        result.push(i)
+      }
+    } else {
+      for (let i = start; i > stop; i += step) {
+        result.push(i)
+      }
+    }
+    return result
+  }
+
+  getDescription() {
+    const { $i18n: i18n } = this.app
+    return i18n.t('runtimeFormulaTypes.rangeDescription')
+  }
+
+  getExamples() {
+    return [
+      {
+        formula: 'range(4)',
+        result: '[0, 1, 2, 3]',
+      },
+      {
+        formula: 'range(1, 5)',
+        result: '[1, 2, 3, 4]',
+      },
+      {
+        formula: 'range(0, 10, 2)',
+        result: '[0, 2, 4, 6, 8]',
+      },
+    ]
+  }
+}
+
 export class RuntimeNull extends RuntimeFormulaFunction {
   static getType() {
     return 'null'

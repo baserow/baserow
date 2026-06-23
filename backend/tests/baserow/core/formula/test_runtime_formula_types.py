@@ -47,6 +47,7 @@ from baserow.core.formula.runtime_formula_types import (
     RuntimeRandomBool,
     RuntimeRandomFloat,
     RuntimeRandomInt,
+    RuntimeRange,
     RuntimeReplace,
     RuntimeReverse,
     RuntimeRound,
@@ -2428,6 +2429,84 @@ def test_runtime_to_array_validate_type_of_args(args, expected):
 )
 def test_runtime_to_array_validate_number_of_args(args, expected):
     result = RuntimeToArray().validate_number_of_args(args)
+    assert result is expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # range(stop)
+        ([4], [0, 1, 2, 3]),
+        ([0], []),
+        # range(start, stop)
+        ([1, 5], [1, 2, 3, 4]),
+        ([5, 5], []),
+        ([5, 1], []),
+        # range(start, stop, step)
+        ([0, 10, 2], [0, 2, 4, 6, 8]),
+        ([10, 0, -1], [10, 9, 8, 7, 6, 5, 4, 3, 2, 1]),
+        ([0, 10, -1], []),
+        # arguments are coerced to integers
+        (["1", "5"], [1, 2, 3, 4]),
+        ([1.9, 4.9], [1, 2, 3]),
+    ],
+)
+def test_runtime_range_execute(args, expected):
+    parsed_args = RuntimeRange().parse_args(args)
+    result = RuntimeRange().execute({}, parsed_args)
+    assert result == expected
+
+
+def test_runtime_range_execute_with_zero_step_raises():
+    parsed_args = RuntimeRange().parse_args([0, 5, 0])
+    with pytest.raises(BaserowFormulaSyntaxError):
+        RuntimeRange().execute({}, parsed_args)
+
+
+def test_runtime_range_execute_respects_max_items(settings):
+    settings.FORMULA_RANGE_MAX_ITEMS = 5
+
+    # At the limit it still works.
+    parsed_args = RuntimeRange().parse_args([0, 5])
+    assert RuntimeRange().execute({}, parsed_args) == [0, 1, 2, 3, 4]
+
+    # Beyond the limit it raises.
+    parsed_args = RuntimeRange().parse_args([0, 6])
+    with pytest.raises(BaserowFormulaSyntaxError):
+        RuntimeRange().execute({}, parsed_args)
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        # numeric types are allowed
+        ([4], []),
+        ([1, 5], []),
+        ([0, 10, 2], []),
+        (["1", "5", "2"], []),
+        # Invalid types
+        ([{}], [(0, {})]),
+        ([5, "foo"], [(1, "foo")]),
+        ([0, 10, {}], [(2, {})]),
+    ],
+)
+def test_runtime_range_validate_type_of_args(args, expected):
+    result = RuntimeRange().validate_type_of_args(args)
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "args,expected",
+    [
+        ([], False),
+        (["a"], True),
+        (["a", "b"], True),
+        (["a", "b", "c"], True),
+        (["a", "b", "c", "d"], False),
+    ],
+)
+def test_runtime_range_validate_number_of_args(args, expected):
+    result = RuntimeRange().validate_number_of_args(args)
     assert result is expected
 
 

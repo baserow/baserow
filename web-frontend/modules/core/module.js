@@ -73,6 +73,7 @@ export default defineNuxtModule({
         baserowEmbeddedShareUrl: 'http://localhost:3000',
         baserowUsePgFulltextSearch: 'true',
         integrationLocalBaserowPageSizeLimit: 200,
+        formulaRangeMaxItems: 10000,
         extraPublicWebFrontendHostnames: [],
         baserowBuilderDomains: [],
         baserowRowPageSizeLimit: 200,
