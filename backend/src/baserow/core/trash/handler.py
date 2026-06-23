@@ -141,10 +141,10 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
     @classmethod
     def restore_item(
         cls,
-        user,
-        trash_item_type,
-        trash_item_id,
-        parent_trash_item_id=None,
+        user: AbstractUser,
+        trash_item_type: str,
+        trash_item_id: int,
+        parent_trash_item_id: Optional[int] = None,
     ) -> Any:
         """
         Restores an item from the trash re-instating it back in Baserow exactly how it
@@ -182,7 +182,9 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
         return trash_item
 
     @classmethod
-    def _restore_trash_entry(cls, user, trash_entry, trash_item) -> None:
+    def _restore_trash_entry(
+        cls, user: AbstractUser, trash_entry: TrashEntry, trash_item: Any
+    ) -> None:
         """
         Performs the actual restore of a trash entry after permission checks have
         already been done. Validates parent and ownership constraints, then
@@ -213,10 +215,10 @@ class TrashHandler(metaclass=baserow_trace_methods(tracer)):
     @classmethod
     def force_restore_item(
         cls,
-        user,
-        trash_item_type,
-        trash_item_id,
-        parent_trash_item_id=None,
+        user: AbstractUser,
+        trash_item_type: str,
+        trash_item_id: int,
+        parent_trash_item_id: Optional[int] = None,
     ) -> Any:
         """
         Restores an item from the trash without performing the default permission

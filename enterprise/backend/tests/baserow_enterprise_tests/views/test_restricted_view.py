@@ -2993,14 +2993,12 @@ def test_cannot_create_form_view_with_restricted_ownership_type(
     )
 
 
-@pytest.mark.django_db
-@pytest.mark.undo_redo
-@override_settings(DEBUG=True)
-def test_editor_on_restricted_view_can_undo_update_row(enterprise_data_fixture):
+@pytest.fixture
+def restricted_view_editor_setup(enterprise_data_fixture):
     """
-    When a user has NO_ACCESS at workspace level but EDITOR on a restricted view,
-    they can update rows through the view. Undo must also work by passing the view
-    to the permission check.
+    Sets up a restricted view where editor has NO_ACCESS at workspace level
+    but EDITOR role on the view. Returns (admin, editor, session_id, table,
+    name_field, view).
     """
 
     enterprise_data_fixture.enable_enterprise()
@@ -3016,10 +3014,6 @@ def test_editor_on_restricted_view_can_undo_update_row(enterprise_data_fixture):
         table=table, ownership_type=RestrictedViewOwnershipType.type
     )
 
-    row = RowHandler().create_row(
-        admin, table, values={f"field_{name_field.id}": "original"}
-    )
-
     no_access_role = Role.objects.get(uid="NO_ACCESS")
     editor_role = Role.objects.get(uid="EDITOR")
     RoleAssignmentHandler().assign_role(
@@ -3030,6 +3024,19 @@ def test_editor_on_restricted_view_can_undo_update_row(enterprise_data_fixture):
         workspace,
         role=editor_role,
         scope=View.objects.get(id=view.id),
+    )
+
+    return admin, editor, session_id, table, name_field, view
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+@override_settings(DEBUG=True)
+def test_editor_on_restricted_view_can_undo_update_row(restricted_view_editor_setup):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
+
+    row = RowHandler().create_row(
+        admin, table, values={f"field_{name_field.id}": "original"}
     )
 
     action_type_registry.get_by_type(UpdateRowActionType).do(
@@ -3057,34 +3064,11 @@ def test_editor_on_restricted_view_can_undo_update_row(enterprise_data_fixture):
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @override_settings(DEBUG=True)
-def test_editor_on_restricted_view_can_redo_update_row(enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-
-    admin = enterprise_data_fixture.create_user()
-    session_id = "editor-session"
-    editor = enterprise_data_fixture.create_user(session_id=session_id)
-    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
-    database = enterprise_data_fixture.create_database_application(workspace=workspace)
-    table = enterprise_data_fixture.create_database_table(database=database)
-    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
-    view = enterprise_data_fixture.create_grid_view(
-        table=table, ownership_type=RestrictedViewOwnershipType.type
-    )
+def test_editor_on_restricted_view_can_redo_update_row(restricted_view_editor_setup):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
 
     row = RowHandler().create_row(
         admin, table, values={f"field_{name_field.id}": "original"}
-    )
-
-    no_access_role = Role.objects.get(uid="NO_ACCESS")
-    editor_role = Role.objects.get(uid="EDITOR")
-    RoleAssignmentHandler().assign_role(
-        editor, workspace, role=no_access_role, scope=workspace
-    )
-    RoleAssignmentHandler().assign_role(
-        editor,
-        workspace,
-        role=editor_role,
-        scope=View.objects.get(id=view.id),
     )
 
     action_type_registry.get_by_type(UpdateRowActionType).do(
@@ -3113,37 +3097,14 @@ def test_editor_on_restricted_view_can_redo_update_row(enterprise_data_fixture):
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @override_settings(DEBUG=True)
-def test_editor_on_restricted_view_can_undo_update_rows(enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-
-    admin = enterprise_data_fixture.create_user()
-    session_id = "editor-session"
-    editor = enterprise_data_fixture.create_user(session_id=session_id)
-    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
-    database = enterprise_data_fixture.create_database_application(workspace=workspace)
-    table = enterprise_data_fixture.create_database_table(database=database)
-    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
-    view = enterprise_data_fixture.create_grid_view(
-        table=table, ownership_type=RestrictedViewOwnershipType.type
-    )
+def test_editor_on_restricted_view_can_undo_update_rows(restricted_view_editor_setup):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
 
     row_one = RowHandler().create_row(
         admin, table, values={f"field_{name_field.id}": "original1"}
     )
     row_two = RowHandler().create_row(
         admin, table, values={f"field_{name_field.id}": "original2"}
-    )
-
-    no_access_role = Role.objects.get(uid="NO_ACCESS")
-    editor_role = Role.objects.get(uid="EDITOR")
-    RoleAssignmentHandler().assign_role(
-        editor, workspace, role=no_access_role, scope=workspace
-    )
-    RoleAssignmentHandler().assign_role(
-        editor,
-        workspace,
-        role=editor_role,
-        scope=View.objects.get(id=view.id),
     )
 
     action_type_registry.get_by_type(UpdateRowsActionType).do(
@@ -3177,37 +3138,14 @@ def test_editor_on_restricted_view_can_undo_update_rows(enterprise_data_fixture)
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @override_settings(DEBUG=True)
-def test_editor_on_restricted_view_can_redo_update_rows(enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-
-    admin = enterprise_data_fixture.create_user()
-    session_id = "editor-session"
-    editor = enterprise_data_fixture.create_user(session_id=session_id)
-    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
-    database = enterprise_data_fixture.create_database_application(workspace=workspace)
-    table = enterprise_data_fixture.create_database_table(database=database)
-    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
-    view = enterprise_data_fixture.create_grid_view(
-        table=table, ownership_type=RestrictedViewOwnershipType.type
-    )
+def test_editor_on_restricted_view_can_redo_update_rows(restricted_view_editor_setup):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
 
     row_one = RowHandler().create_row(
         admin, table, values={f"field_{name_field.id}": "original1"}
     )
     row_two = RowHandler().create_row(
         admin, table, values={f"field_{name_field.id}": "original2"}
-    )
-
-    no_access_role = Role.objects.get(uid="NO_ACCESS")
-    editor_role = Role.objects.get(uid="EDITOR")
-    RoleAssignmentHandler().assign_role(
-        editor, workspace, role=no_access_role, scope=workspace
-    )
-    RoleAssignmentHandler().assign_role(
-        editor,
-        workspace,
-        role=editor_role,
-        scope=View.objects.get(id=view.id),
     )
 
     action_type_registry.get_by_type(UpdateRowsActionType).do(
@@ -3240,31 +3178,8 @@ def test_editor_on_restricted_view_can_redo_update_rows(enterprise_data_fixture)
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @override_settings(DEBUG=True)
-def test_editor_on_restricted_view_can_undo_create_row(enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-
-    admin = enterprise_data_fixture.create_user()
-    session_id = "editor-session"
-    editor = enterprise_data_fixture.create_user(session_id=session_id)
-    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
-    database = enterprise_data_fixture.create_database_application(workspace=workspace)
-    table = enterprise_data_fixture.create_database_table(database=database)
-    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
-    view = enterprise_data_fixture.create_grid_view(
-        table=table, ownership_type=RestrictedViewOwnershipType.type
-    )
-
-    no_access_role = Role.objects.get(uid="NO_ACCESS")
-    editor_role = Role.objects.get(uid="EDITOR")
-    RoleAssignmentHandler().assign_role(
-        editor, workspace, role=no_access_role, scope=workspace
-    )
-    RoleAssignmentHandler().assign_role(
-        editor,
-        workspace,
-        role=editor_role,
-        scope=View.objects.get(id=view.id),
-    )
+def test_editor_on_restricted_view_can_undo_create_row(restricted_view_editor_setup):
+    _, editor, session_id, table, name_field, view = restricted_view_editor_setup
 
     model = table.get_model()
     row = action_type_registry.get_by_type(CreateRowActionType).do(
@@ -3288,31 +3203,8 @@ def test_editor_on_restricted_view_can_undo_create_row(enterprise_data_fixture):
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @override_settings(DEBUG=True)
-def test_editor_on_restricted_view_can_undo_create_rows(enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-
-    admin = enterprise_data_fixture.create_user()
-    session_id = "editor-session"
-    editor = enterprise_data_fixture.create_user(session_id=session_id)
-    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
-    database = enterprise_data_fixture.create_database_application(workspace=workspace)
-    table = enterprise_data_fixture.create_database_table(database=database)
-    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
-    view = enterprise_data_fixture.create_grid_view(
-        table=table, ownership_type=RestrictedViewOwnershipType.type
-    )
-
-    no_access_role = Role.objects.get(uid="NO_ACCESS")
-    editor_role = Role.objects.get(uid="EDITOR")
-    RoleAssignmentHandler().assign_role(
-        editor, workspace, role=no_access_role, scope=workspace
-    )
-    RoleAssignmentHandler().assign_role(
-        editor,
-        workspace,
-        role=editor_role,
-        scope=View.objects.get(id=view.id),
-    )
+def test_editor_on_restricted_view_can_undo_create_rows(restricted_view_editor_setup):
+    _, editor, session_id, table, name_field, view = restricted_view_editor_setup
 
     model = table.get_model()
     result = action_type_registry.get_by_type(CreateRowsActionType).do(
@@ -3340,31 +3232,8 @@ def test_editor_on_restricted_view_can_undo_create_rows(enterprise_data_fixture)
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @override_settings(DEBUG=True)
-def test_editor_on_restricted_view_can_redo_create_row(enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-
-    admin = enterprise_data_fixture.create_user()
-    session_id = "editor-session"
-    editor = enterprise_data_fixture.create_user(session_id=session_id)
-    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
-    database = enterprise_data_fixture.create_database_application(workspace=workspace)
-    table = enterprise_data_fixture.create_database_table(database=database)
-    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
-    view = enterprise_data_fixture.create_grid_view(
-        table=table, ownership_type=RestrictedViewOwnershipType.type
-    )
-
-    no_access_role = Role.objects.get(uid="NO_ACCESS")
-    editor_role = Role.objects.get(uid="EDITOR")
-    RoleAssignmentHandler().assign_role(
-        editor, workspace, role=no_access_role, scope=workspace
-    )
-    RoleAssignmentHandler().assign_role(
-        editor,
-        workspace,
-        role=editor_role,
-        scope=View.objects.get(id=view.id),
-    )
+def test_editor_on_restricted_view_can_redo_create_row(restricted_view_editor_setup):
+    _, editor, session_id, table, name_field, view = restricted_view_editor_setup
 
     model = table.get_model()
     row = action_type_registry.get_by_type(CreateRowActionType).do(
@@ -3391,31 +3260,8 @@ def test_editor_on_restricted_view_can_redo_create_row(enterprise_data_fixture):
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @override_settings(DEBUG=True)
-def test_editor_on_restricted_view_can_redo_create_rows(enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-
-    admin = enterprise_data_fixture.create_user()
-    session_id = "editor-session"
-    editor = enterprise_data_fixture.create_user(session_id=session_id)
-    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
-    database = enterprise_data_fixture.create_database_application(workspace=workspace)
-    table = enterprise_data_fixture.create_database_table(database=database)
-    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
-    view = enterprise_data_fixture.create_grid_view(
-        table=table, ownership_type=RestrictedViewOwnershipType.type
-    )
-
-    no_access_role = Role.objects.get(uid="NO_ACCESS")
-    editor_role = Role.objects.get(uid="EDITOR")
-    RoleAssignmentHandler().assign_role(
-        editor, workspace, role=no_access_role, scope=workspace
-    )
-    RoleAssignmentHandler().assign_role(
-        editor,
-        workspace,
-        role=editor_role,
-        scope=View.objects.get(id=view.id),
-    )
+def test_editor_on_restricted_view_can_redo_create_rows(restricted_view_editor_setup):
+    _, editor, session_id, table, name_field, view = restricted_view_editor_setup
 
     model = table.get_model()
     result = action_type_registry.get_by_type(CreateRowsActionType).do(
@@ -3447,34 +3293,11 @@ def test_editor_on_restricted_view_can_redo_create_rows(enterprise_data_fixture)
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @override_settings(DEBUG=True)
-def test_editor_on_restricted_view_can_undo_delete_row(enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-
-    admin = enterprise_data_fixture.create_user()
-    session_id = "editor-session"
-    editor = enterprise_data_fixture.create_user(session_id=session_id)
-    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
-    database = enterprise_data_fixture.create_database_application(workspace=workspace)
-    table = enterprise_data_fixture.create_database_table(database=database)
-    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
-    view = enterprise_data_fixture.create_grid_view(
-        table=table, ownership_type=RestrictedViewOwnershipType.type
-    )
+def test_editor_on_restricted_view_can_undo_delete_row(restricted_view_editor_setup):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
 
     row = RowHandler().create_row(
         admin, table, values={f"field_{name_field.id}": "to-delete"}
-    )
-
-    no_access_role = Role.objects.get(uid="NO_ACCESS")
-    editor_role = Role.objects.get(uid="EDITOR")
-    RoleAssignmentHandler().assign_role(
-        editor, workspace, role=no_access_role, scope=workspace
-    )
-    RoleAssignmentHandler().assign_role(
-        editor,
-        workspace,
-        role=editor_role,
-        scope=View.objects.get(id=view.id),
     )
 
     model = table.get_model()
@@ -3498,34 +3321,11 @@ def test_editor_on_restricted_view_can_undo_delete_row(enterprise_data_fixture):
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @override_settings(DEBUG=True)
-def test_editor_on_restricted_view_can_redo_delete_row(enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-
-    admin = enterprise_data_fixture.create_user()
-    session_id = "editor-session"
-    editor = enterprise_data_fixture.create_user(session_id=session_id)
-    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
-    database = enterprise_data_fixture.create_database_application(workspace=workspace)
-    table = enterprise_data_fixture.create_database_table(database=database)
-    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
-    view = enterprise_data_fixture.create_grid_view(
-        table=table, ownership_type=RestrictedViewOwnershipType.type
-    )
+def test_editor_on_restricted_view_can_redo_delete_row(restricted_view_editor_setup):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
 
     row = RowHandler().create_row(
         admin, table, values={f"field_{name_field.id}": "to-delete"}
-    )
-
-    no_access_role = Role.objects.get(uid="NO_ACCESS")
-    editor_role = Role.objects.get(uid="EDITOR")
-    RoleAssignmentHandler().assign_role(
-        editor, workspace, role=no_access_role, scope=workspace
-    )
-    RoleAssignmentHandler().assign_role(
-        editor,
-        workspace,
-        role=editor_role,
-        scope=View.objects.get(id=view.id),
     )
 
     model = table.get_model()
@@ -3553,37 +3353,14 @@ def test_editor_on_restricted_view_can_redo_delete_row(enterprise_data_fixture):
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @override_settings(DEBUG=True)
-def test_editor_on_restricted_view_can_undo_delete_rows(enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-
-    admin = enterprise_data_fixture.create_user()
-    session_id = "editor-session"
-    editor = enterprise_data_fixture.create_user(session_id=session_id)
-    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
-    database = enterprise_data_fixture.create_database_application(workspace=workspace)
-    table = enterprise_data_fixture.create_database_table(database=database)
-    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
-    view = enterprise_data_fixture.create_grid_view(
-        table=table, ownership_type=RestrictedViewOwnershipType.type
-    )
+def test_editor_on_restricted_view_can_undo_delete_rows(restricted_view_editor_setup):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
 
     row_one = RowHandler().create_row(
         admin, table, values={f"field_{name_field.id}": "del1"}
     )
     row_two = RowHandler().create_row(
         admin, table, values={f"field_{name_field.id}": "del2"}
-    )
-
-    no_access_role = Role.objects.get(uid="NO_ACCESS")
-    editor_role = Role.objects.get(uid="EDITOR")
-    RoleAssignmentHandler().assign_role(
-        editor, workspace, role=no_access_role, scope=workspace
-    )
-    RoleAssignmentHandler().assign_role(
-        editor,
-        workspace,
-        role=editor_role,
-        scope=View.objects.get(id=view.id),
     )
 
     model = table.get_model()
@@ -3607,37 +3384,14 @@ def test_editor_on_restricted_view_can_undo_delete_rows(enterprise_data_fixture)
 @pytest.mark.django_db
 @pytest.mark.undo_redo
 @override_settings(DEBUG=True)
-def test_editor_on_restricted_view_can_redo_delete_rows(enterprise_data_fixture):
-    enterprise_data_fixture.enable_enterprise()
-
-    admin = enterprise_data_fixture.create_user()
-    session_id = "editor-session"
-    editor = enterprise_data_fixture.create_user(session_id=session_id)
-    workspace = enterprise_data_fixture.create_workspace(user=admin, members=[editor])
-    database = enterprise_data_fixture.create_database_application(workspace=workspace)
-    table = enterprise_data_fixture.create_database_table(database=database)
-    name_field = enterprise_data_fixture.create_text_field(table=table, primary=True)
-    view = enterprise_data_fixture.create_grid_view(
-        table=table, ownership_type=RestrictedViewOwnershipType.type
-    )
+def test_editor_on_restricted_view_can_redo_delete_rows(restricted_view_editor_setup):
+    admin, editor, session_id, table, name_field, view = restricted_view_editor_setup
 
     row_one = RowHandler().create_row(
         admin, table, values={f"field_{name_field.id}": "del1"}
     )
     row_two = RowHandler().create_row(
         admin, table, values={f"field_{name_field.id}": "del2"}
-    )
-
-    no_access_role = Role.objects.get(uid="NO_ACCESS")
-    editor_role = Role.objects.get(uid="EDITOR")
-    RoleAssignmentHandler().assign_role(
-        editor, workspace, role=no_access_role, scope=workspace
-    )
-    RoleAssignmentHandler().assign_role(
-        editor,
-        workspace,
-        role=editor_role,
-        scope=View.objects.get(id=view.id),
     )
 
     model = table.get_model()

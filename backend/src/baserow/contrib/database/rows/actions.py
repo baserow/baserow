@@ -326,7 +326,13 @@ class CreateRowsActionType(UndoableActionType):
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
         table = TableHandler().get_table(params.table_id)
         view = ViewHandler().get_view_or_none(params.view_id)
-        RowHandler().restore_rows(user, table, params.trashed_rows_entry_id, view=view)
+        RowHandler().restore_rows(
+            user,
+            table,
+            params.trashed_rows_entry_id,
+            view=view,
+            row_ids=params.row_ids,
+        )
 
 
 class ImportRowsActionType(UndoableActionType):
@@ -630,7 +636,13 @@ class DeleteRowsActionType(UndoableActionType):
     def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
         table = TableHandler().get_table(params.table_id)
         view = ViewHandler().get_view_or_none(params.view_id)
-        RowHandler().restore_rows(user, table, params.trashed_rows_entry_id, view=view)
+        RowHandler().restore_rows(
+            user,
+            table,
+            params.trashed_rows_entry_id,
+            view=view,
+            row_ids=params.row_ids,
+        )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):

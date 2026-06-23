@@ -3255,6 +3255,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         table: Table,
         trashed_rows_entry_id: int,
         view: Optional["View"] = None,
+        row_ids: Optional[List[int]] = None,
     ) -> Any:
         """
         Restores trashed rows with optional view-level permission fallback.
@@ -3263,6 +3264,8 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
         :param table: The table the rows belong to.
         :param trashed_rows_entry_id: The id of the TrashedRows entry.
         :param view: Optionally provide view for permission fallback.
+        :param row_ids: Optionally the row ids being restored, used for
+            row-level permission enforcement on restricted views.
         :return: The restored trashed rows object.
         """
 
@@ -3272,6 +3275,7 @@ class RowHandler(metaclass=baserow_trace_methods(tracer)):
             user,
             table,
             view,
+            row_ids,
         )
         return TrashHandler.force_restore_item(
             user, "rows", trashed_rows_entry_id, parent_trash_item_id=table.id
