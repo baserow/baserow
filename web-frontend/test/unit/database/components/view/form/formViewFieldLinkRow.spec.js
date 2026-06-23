@@ -3,6 +3,7 @@ import flushPromises from 'flush-promises'
 
 import FormViewFieldLinkRow from '@baserow/modules/database/components/view/form/FormViewFieldLinkRow'
 import FormViewFieldMultipleLinkRow from '@baserow/modules/database/components/view/form/FormViewFieldMultipleLinkRow'
+import PaginatedDropdown from '@baserow/modules/core/components/PaginatedDropdown'
 import ViewService from '@baserow/modules/database/services/view'
 import { LinkRowFieldType } from '@baserow/modules/database/fieldTypes'
 
@@ -176,6 +177,15 @@ describe('FormViewFieldLinkRow', () => {
     const wrapper = await mountComponent({ value: [], required: false })
     expect(wrapper.vm.getValidationError(wrapper.vm.value)).toBeNull()
   })
+
+  test('does not render the empty option at the top of the dropdown', async () => {
+    const wrapper = await mountComponent({ value: [] })
+    // The blank entry that PaginatedDropdown adds by default must be suppressed,
+    // otherwise an empty option shows up at the top of the link-row dropdown.
+    expect(wrapper.findComponent(PaginatedDropdown).props('addEmptyItem')).toBe(
+      false
+    )
+  })
 })
 
 describe('FormViewFieldMultipleLinkRow', () => {
@@ -340,5 +350,14 @@ describe('FormViewFieldMultipleLinkRow', () => {
   test('non-required + empty array passes validation', async () => {
     const wrapper = await mountComponent({ value: [], required: false })
     expect(wrapper.vm.getValidationError(wrapper.vm.value)).toBeNull()
+  })
+
+  test('does not render the empty option in any slot dropdown', async () => {
+    const wrapper = await mountComponent({ value: [{ id: 42, value: '' }] })
+    // Each slot's PaginatedDropdown must suppress the default blank entry; slots
+    // are cleared with the bin button, not an empty option in the list.
+    expect(wrapper.findComponent(PaginatedDropdown).props('addEmptyItem')).toBe(
+      false
+    )
   })
 })

@@ -9,6 +9,7 @@
         <PaginatedDropdown
           :fetch-page="fetchPage"
           :value="value[index].id"
+          :add-empty-item="false"
           :initial-display-name="rowDisplayName(value[index])"
           :error="touched && !valid && isInvalidValue(value[index])"
           :fetch-on-open="lazyLoad"
