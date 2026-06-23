@@ -8,7 +8,7 @@ from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
 
 from baserow.config.celery import app
-from baserow.ws.types import PayloadMap
+from baserow.ws.types import ChannelGroupMessage, PayloadMap
 
 
 @app.task(bind=True)
@@ -25,53 +25,63 @@ def force_disconnect_users(
     """
 
     channel_layer = get_channel_layer()
-    async_to_sync(send_message_to_channel_group)(
+    async_to_sync(send_messages_to_channel_group)(
         channel_layer,
-        "users",
-        {
-            "type": "force_disconnect_users",
-            "user_ids": user_ids,
-            "ignore_web_socket_ids": ignore_web_socket_ids,
-        },
+        ChannelGroupMessage(
+            "users",
+            {
+                "type": "force_disconnect_users",
+                "user_ids": user_ids,
+                "ignore_web_socket_ids": ignore_web_socket_ids,
+            },
+        ),
     )
 
 
-async def send_message_to_channel_group(
-    channel_layer, channel_group_name: str, message: dict
-) -> Optional[int]:
+async def send_messages_to_channel_group(
+    channel_layer,
+    messages: ChannelGroupMessage | list[ChannelGroupMessage],
+) -> None:
     """
-    Sends a message to a channel group.  When event recording is enabled
-    and the message contains a ``payload`` or ``payload_map`` key, a
-    ``RealtimeEvent`` row is created and its id is injected into the
-    inner payload(s) **before** the message is sent.
+    Sends one or more messages to their channel groups. A single
+    ``ChannelGroupMessage`` is accepted as well as a list, so callers that
+    only have one message don't have to wrap it themselves. When event
+    recording is enabled, all recordable messages (those carrying a
+    ``payload`` or ``payload_map``) are persisted in a single batch (one
+    ``bulk_create`` instead of one insert per message) and their ids are
+    injected into the inner payload(s) **before** the messages are sent.
 
     :param channel_layer: The channel layer instance to use.
-    :param channel_group_name: The channel group name identifying the
-        channel group that should receive the message.
-    :param message: JSON to send.
-    :returns: The recorded event id, or ``None`` when recording is
-        disabled or the message is not recordable.
+    :param messages: A single ``ChannelGroupMessage`` or a list of them.
     """
 
     from baserow.ws.realtime_events import RealtimeEventHandler
 
-    event_id = None
-    if RealtimeEventHandler.is_recording_enabled():
-        inner = message.get("payload")
-        payload_map = message.get("payload_map")
-        if inner is not None or payload_map is not None:
-            event_id = (
-                await database_sync_to_async(RealtimeEventHandler.record_events)(
-                    [(channel_group_name, message)]
-                )
-            )[0]
-            RealtimeEventHandler.add_event_id_to_payload(event_id, message)
+    if isinstance(messages, ChannelGroupMessage):
+        messages = [messages]
 
-    await channel_layer.group_send(channel_group_name, message)
+    if RealtimeEventHandler.is_recording_enabled():
+        recordable = [
+            channel_group_message
+            for channel_group_message in messages
+            if channel_group_message.message.get("payload") is not None
+            or channel_group_message.message.get("payload_map") is not None
+        ]
+        if recordable:
+            event_ids = await database_sync_to_async(
+                RealtimeEventHandler.record_events
+            )(recordable)
+            for channel_group_message, event_id in zip(recordable, event_ids):
+                RealtimeEventHandler.add_event_id_to_payload(
+                    event_id, channel_group_message.message
+                )
+
+    for channel_group_message in messages:
+        await channel_layer.group_send(
+            channel_group_message.channel_group_name, channel_group_message.message
+        )
     if hasattr(channel_layer, "close_pools"):
         await channel_layer.close_pools()
-
-    return event_id
 
 
 @app.task(bind=True)
@@ -97,16 +107,18 @@ def broadcast_to_users(
     """
 
     channel_layer = get_channel_layer()
-    async_to_sync(send_message_to_channel_group)(
+    async_to_sync(send_messages_to_channel_group)(
         channel_layer,
-        "users",
-        {
-            "type": "broadcast_to_users",
-            "user_ids": user_ids,
-            "payload": payload,
-            "ignore_web_socket_id": ignore_web_socket_id,
-            "send_to_all_users": send_to_all_users,
-        },
+        ChannelGroupMessage(
+            "users",
+            {
+                "type": "broadcast_to_users",
+                "user_ids": user_ids,
+                "payload": payload,
+                "ignore_web_socket_id": ignore_web_socket_id,
+                "send_to_all_users": send_to_all_users,
+            },
+        ),
     )
 
 
@@ -196,14 +208,16 @@ def broadcast_to_users_individual_payloads(
     """
 
     channel_layer = get_channel_layer()
-    async_to_sync(send_message_to_channel_group)(
+    async_to_sync(send_messages_to_channel_group)(
         channel_layer,
-        "users",
-        {
-            "type": "broadcast_to_users_individual_payloads",
-            "payload_map": payload_map,
-            "ignore_web_socket_id": ignore_web_socket_id,
-        },
+        ChannelGroupMessage(
+            "users",
+            {
+                "type": "broadcast_to_users_individual_payloads",
+                "payload_map": payload_map,
+                "ignore_web_socket_id": ignore_web_socket_id,
+            },
+        ),
     )
 
 
@@ -227,9 +241,8 @@ def broadcast_many_to_channel_group(
     """
 
     channel_layer = get_channel_layer()
-    for channel_group_name, payload in payloads:
-        async_to_sync(send_message_to_channel_group)(
-            channel_layer,
+    messages = [
+        ChannelGroupMessage(
             channel_group_name,
             {
                 "type": "broadcast_to_group",
@@ -238,6 +251,9 @@ def broadcast_many_to_channel_group(
                 "exclude_user_ids": exclude_user_ids,
             },
         )
+        for channel_group_name, payload in payloads
+    ]
+    async_to_sync(send_messages_to_channel_group)(channel_layer, messages)
 
 
 @app.task(bind=True)
@@ -263,15 +279,17 @@ def broadcast_to_channel_group(
     """
 
     channel_layer = get_channel_layer()
-    async_to_sync(send_message_to_channel_group)(
+    async_to_sync(send_messages_to_channel_group)(
         channel_layer,
-        channel_group_name,
-        {
-            "type": "broadcast_to_group",
-            "payload": payload,
-            "ignore_web_socket_id": ignore_web_socket_id,
-            "exclude_user_ids": exclude_user_ids,
-        },
+        ChannelGroupMessage(
+            channel_group_name,
+            {
+                "type": "broadcast_to_group",
+                "payload": payload,
+                "ignore_web_socket_id": ignore_web_socket_id,
+                "exclude_user_ids": exclude_user_ids,
+            },
+        ),
     )
 
 
@@ -403,10 +421,15 @@ def broadcast_application_created(
 @app.task(bind=True)
 def cleanup_old_realtime_events(self):
     """
-    Periodic task that trims ``ws_realtime_events`` by retention age.
+    Periodic task that trims ``ws_realtime_events`` by retention age. When
+    recording is disabled there is nothing to trim, so the query is skipped
+    entirely to keep the feature zero-impact by default.
     """
 
     from baserow.ws.realtime_events import RealtimeEventHandler
+
+    if not RealtimeEventHandler.is_recording_enabled():
+        return
 
     RealtimeEventHandler.cleanup_old_realtime_events(
         settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"]

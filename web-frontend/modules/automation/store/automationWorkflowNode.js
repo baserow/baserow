@@ -79,6 +79,11 @@ const actions = {
   forceCreate({ commit, getters, dispatch }, { workflow, node }) {
     if (!workflow) return
 
+    const nodeIdStr = node.id?.toString()
+    if (workflow.nodes?.some((item) => item.id.toString() === nodeIdStr)) {
+      return
+    }
+
     // Add the new node into the workflow
     commit('ADD_ITEM', { workflow, node })
   },

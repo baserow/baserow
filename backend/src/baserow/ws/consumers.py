@@ -1,10 +1,10 @@
-import logging
 from dataclasses import dataclass
 from operator import attrgetter
 from typing import TYPE_CHECKING, Any, Optional
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
+from loguru import logger
 
 from baserow.config.settings.utils import try_int
 from baserow.ws.realtime_events import (
@@ -14,8 +14,6 @@ from baserow.ws.realtime_events import (
     ReplayEventsResult,
 )
 from baserow.ws.registries import PageType, page_registry
-
-logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from django.contrib.auth.models import AbstractUser
@@ -370,26 +368,20 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
             if not isinstance(event_type, str) or not event_type.startswith(
                 "broadcast_to_"
             ):
-                logger.error(
-                    "Cannot replay realtime event with unsupported payload type.",
-                    extra={
-                        "realtime_event_id": event.id,
-                        "channel_group": event.channel_group,
-                        "event_type": event_type,
-                    },
-                )
+                logger.bind(
+                    realtime_event_id=event.id,
+                    channel_group=event.channel_group,
+                    event_type=event_type,
+                ).error("Cannot replay realtime event with unsupported payload type.")
                 return False
 
             handler = getattr(self, event_type, None)
             if handler is None:
-                logger.error(
-                    "Cannot replay realtime event because its handler is missing.",
-                    extra={
-                        "realtime_event_id": event.id,
-                        "channel_group": event.channel_group,
-                        "event_type": event_type,
-                    },
-                )
+                logger.bind(
+                    realtime_event_id=event.id,
+                    channel_group=event.channel_group,
+                    event_type=event_type,
+                ).error("Cannot replay realtime event because its handler is missing.")
                 return False
 
             replay_plan.append((event, handler))

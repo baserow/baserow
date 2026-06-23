@@ -19,7 +19,8 @@ from baserow.core.registries import (
     subject_type_registry,
 )
 from baserow.core.subjects import UserSubjectType
-from baserow.ws.tasks import send_message_to_channel_group
+from baserow.ws.tasks import send_messages_to_channel_group
+from baserow.ws.types import ChannelGroupMessage
 
 
 def unsubscribe_subject_from_tables_currently_subscribed_to(
@@ -83,9 +84,8 @@ def unsubscribe_subject_from_tables_currently_subscribed_to(
 
     channel_layer = get_channel_layer()
 
-    for channel_group_name, user_ids in channel_group_names_users_dict.items():
-        async_to_sync(send_message_to_channel_group)(
-            channel_layer,
+    messages = [
+        ChannelGroupMessage(
             channel_group_name,
             {
                 "type": "users_removed_from_permission_group",
@@ -93,6 +93,9 @@ def unsubscribe_subject_from_tables_currently_subscribed_to(
                 "permission_group_name": channel_group_name,
             },
         )
+        for channel_group_name, user_ids in channel_group_names_users_dict.items()
+    ]
+    async_to_sync(send_messages_to_channel_group)(channel_layer, messages)
 
 
 @app.task(bind=True)

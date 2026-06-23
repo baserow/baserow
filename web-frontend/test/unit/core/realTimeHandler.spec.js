@@ -281,6 +281,24 @@ describe('RealTimeHandler reconnect logic', () => {
     ).toBe(false)
   })
 
+  test('retry signal clears the unloading latch and reconnects', () => {
+    const { handler } = env
+    // ``pagehide``/``beforeunload`` set the latch; a later ``pageshow`` or
+    // ``online`` event (both wired to _onShouldRetryNow) must clear it so
+    // reconnects are not suppressed forever after a bfcache restore.
+    handler.unloading = true
+    handler.connected = false
+    handler.reconnect = true
+    handler.anonymous = false
+
+    const connectSpy = vi.spyOn(handler, 'connect')
+    handler._onShouldRetryNow()
+
+    expect(handler.unloading).toBe(false)
+    expect(connectSpy).toHaveBeenCalledWith(true, false)
+    connectSpy.mockRestore()
+  })
+
   test('delayedReconnect skipped when reconnect is false', () => {
     const { handler } = env
     handler.reconnect = false

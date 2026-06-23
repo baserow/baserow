@@ -1,4 +1,5 @@
 from datetime import timedelta
+from unittest.mock import patch
 
 from django.conf import settings
 from django.test import override_settings
@@ -6,6 +7,7 @@ from django.test import override_settings
 import pytest
 from asgiref.sync import sync_to_async
 from channels.testing import WebsocketCommunicator
+from loguru import logger
 
 from baserow.config.asgi import application
 from baserow.ws.models import RealtimeEvent
@@ -15,6 +17,7 @@ from baserow.ws.realtime_events import (
     RealtimeEventHandler,
 )
 from baserow.ws.tasks import (
+    broadcast_many_to_channel_group,
     broadcast_to_channel_group,
     broadcast_to_users,
     broadcast_to_users_individual_payloads,
@@ -1011,6 +1014,71 @@ def test_broadcast_to_users_without_workspace_id_still_records():
     assert RealtimeEvent.objects.filter(channel_group="users").exists()
 
 
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+def test_broadcast_many_records_events_in_single_batch():
+    payloads = [
+        ("table-1", {"type": "rows_created", "table_id": 1}),
+        ("table-2", {"type": "rows_created", "table_id": 2}),
+        ("table-3", {"type": "rows_created", "table_id": 3}),
+    ]
+
+    # All events are persisted in a single batched call rather than one call
+    # per payload.
+    with patch.object(
+        RealtimeEventHandler,
+        "record_events",
+        side_effect=RealtimeEventHandler.record_events,
+    ) as mock_record:
+        broadcast_many_to_channel_group(payloads)
+
+    assert mock_record.call_count == 1
+    assert len(mock_record.call_args.args[0]) == 3
+
+    event_ids = [payload["_event_id"] for _, payload in payloads]
+    assert len(set(event_ids)) == 3
+
+    stored = RealtimeEvent.objects.filter(id__in=event_ids).order_by("id")
+    assert [e.channel_group for e in stored] == ["table-1", "table-2", "table-3"]
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+@override_settings(BASEROW_REALTIME_REPLAY_MAX_EVENTS=0)
+def test_broadcast_many_skips_recording_when_disabled():
+    RealtimeEvent.objects.all().delete()
+    payloads = [
+        ("table-1", {"type": "rows_created", "table_id": 1}),
+        ("table-2", {"type": "rows_created", "table_id": 2}),
+    ]
+
+    with patch.object(RealtimeEventHandler, "record_events") as mock_record:
+        broadcast_many_to_channel_group(payloads)
+
+    mock_record.assert_not_called()
+    for _, payload in payloads:
+        assert "_event_id" not in payload
+    assert not RealtimeEvent.objects.exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.websockets
+def test_add_event_id_to_payload_raises_without_payload():
+    with pytest.raises(ValueError):
+        RealtimeEventHandler.add_event_id_to_payload(1, {"type": "no_payload"})
+
+
+@pytest.mark.django_db
+@pytest.mark.websockets
+def test_should_deliver_users_channel_event_unknown_type_returns_false():
+    assert (
+        RealtimeEventHandler.should_deliver_users_channel_event(
+            1, {"type": "broadcast_to_group"}
+        )
+        is False
+    )
+
+
 @pytest.mark.django_db
 @pytest.mark.websockets
 @override_settings(BASEROW_REALTIME_REPLAY_MAX_EVENTS=0)
@@ -1482,7 +1550,7 @@ async def test_replay_events_replays_page_group_event(data_fixture):
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
 async def test_replay_events_forces_refresh_when_replay_event_type_is_unsupported(
-    caplog, data_fixture
+    data_fixture,
 ):
     user, token = await sync_to_async(data_fixture.create_user_and_token)()
     workspace = await sync_to_async(data_fixture.create_workspace)(user=user)
@@ -1517,19 +1585,26 @@ async def test_replay_events_forces_refresh_when_replay_event_type_is_unsupporte
     page_response = await communicator.receive_json_from(timeout=1)
     assert page_response["type"] == "page_add"
 
-    caplog.set_level("ERROR", logger="baserow.ws.consumers")
-    await communicator.send_json_to(
-        {
-            "type": "replay_events",
-            "last_seen_id": base_id,
-        }
+    log_messages: list[str] = []
+    sink_id = logger.add(
+        lambda message: log_messages.append(str(message)), level="ERROR"
     )
+    try:
+        await communicator.send_json_to(
+            {
+                "type": "replay_events",
+                "last_seen_id": base_id,
+            }
+        )
 
-    result = await communicator.receive_json_from(timeout=1)
+        result = await communicator.receive_json_from(timeout=1)
+    finally:
+        logger.remove(sink_id)
+
     assert result["type"] == "replay_events_result"
     assert result["force_refresh"] is True
     assert result["latest_event_id"] == NO_REPLAY_AVAILABLE
-    assert "unsupported payload type" in caplog.text
+    assert any("unsupported payload type" in message for message in log_messages)
 
     await communicator.disconnect()
 

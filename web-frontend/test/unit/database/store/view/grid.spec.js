@@ -220,6 +220,35 @@ describe('Grid view store', () => {
     expect(store.getters['grid/getCount']).toBe(104)
   })
 
+  test('createdNewRow is idempotent for an already-present row', async () => {
+    // On reconnect a live ``rows_created`` can be both delivered live and
+    // replayed, so ``createdNewRow`` must be a no-op for a row already in the
+    // store rather than inserting a duplicate and inflating the count.
+    const state = Object.assign(gridStore.state(), {
+      bufferStartIndex: 0,
+      bufferLimit: 3,
+      rows: [
+        { id: 1, order: '1.00000000000000000000' },
+        { id: 2, order: '2.00000000000000000000' },
+        { id: 3, order: '3.00000000000000000000' },
+      ],
+      count: 3,
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    const view = { filters: [], sortings: [], ownership_type: 'collaborative' }
+
+    await store.dispatch('grid/createdNewRow', {
+      view,
+      fields: [],
+      values: { id: 2, order: '2.00000000000000000000' },
+      getScrollTop: () => 0,
+    })
+
+    expect(store.getters['grid/getAllRows'].length).toBe(3)
+    expect(store.getters['grid/getCount']).toBe(3)
+  })
+
   test('updatedExistingRow', async () => {
     const state = Object.assign(gridStore.state(), {
       bufferStartIndex: 0,

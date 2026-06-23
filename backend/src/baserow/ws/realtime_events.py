@@ -14,6 +14,7 @@ from django.utils import timezone
 # before ``get_asgi_application()`` runs and triggers AppRegistryNotReady
 # under gunicorn/uvicorn workers.
 if TYPE_CHECKING:
+    from baserow.ws.consumers import SubscribedPages
     from baserow.ws.models import RealtimeEvent
 
 REALTIME_EVENTS_CLEANUP_INTERVAL_MINUTES = 60
@@ -166,7 +167,7 @@ class RealtimeEventHandler:
         return deleted
 
     @staticmethod
-    def get_page_group_names(pages) -> list[str]:
+    def get_page_group_names(pages: "SubscribedPages") -> list[str]:
         """
         Collect page channel group names from a ``SubscribedPages`` instance.
         Never returns ``"users"`` — that channel is handled separately by

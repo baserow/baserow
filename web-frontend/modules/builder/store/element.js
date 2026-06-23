@@ -145,6 +145,9 @@ const actions = {
     commit('CLEAR_ITEMS', { page })
   },
   forceCreate({ dispatch, commit }, { page, element }) {
+    if (page.elements.some((existing) => existing.id === element.id)) {
+      return
+    }
     const { $registry } = this
     commit('ADD_ITEM', { page, element })
     dispatch('_setElementNamespacePath', { page, element })

@@ -37,6 +37,36 @@ describe('View Tests', () => {
     })
   }
 
+  test('forceCreate view metadata mutations are idempotent', async () => {
+    // On reconnect a metadata event can be both delivered live and replayed,
+    // so the ADD_* mutations must skip items whose id is already present
+    // instead of pushing a duplicate.
+    const store = testApp.store
+    const view = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      sortings: [],
+      group_bys: [],
+      decorations: [],
+    }
+
+    const cases = [
+      ['view/forceCreateFilter', { id: 10, field: 1 }, 'filters'],
+      ['view/forceCreateFilterGroup', { id: 20 }, 'filter_groups'],
+      ['view/forceCreateSort', { id: 30, field: 1 }, 'sortings'],
+      ['view/forceCreateGroupBy', { id: 40, field: 1 }, 'group_bys'],
+      ['view/forceCreateDecoration', { id: 50 }, 'decorations'],
+    ]
+
+    for (const [action, values, key] of cases) {
+      await store.dispatch(action, { view, values })
+      await store.dispatch(action, { view, values })
+      expect(view[key].length).toBe(1)
+      expect(view[key][0].id).toBe(values.id)
+    }
+  })
+
   test('Default view is being set correctly initially', async () => {
     const { application, table, views } =
       await givenATableInTheServerWithMultipleViews()

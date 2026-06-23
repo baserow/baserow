@@ -1,4 +1,15 @@
-from typing import Any, TypedDict, Union
+from typing import Any, NamedTuple, TypedDict
+
+
+class ChannelGroupMessage(NamedTuple):
+    """
+    A single channel-layer ``message`` paired with the ``channel_group_name``
+    it should be broadcast to. Being a ``NamedTuple`` it unpacks as a
+    ``(channel_group_name, message)`` tuple wherever that is expected.
+    """
+
+    channel_group_name: str
+    message: dict
 
 
 class ForceDisconnectMessage(TypedDict, total=False):
@@ -29,10 +40,3 @@ class BroadcastToUsersIndividualPayloadsMessage(TypedDict, total=False):
     type: str
     payload_map: PayloadMap
     ignore_web_socket_id: str | None
-
-
-RealtimeEventPayload = Union[
-    BroadcastToUsersMessage,
-    BroadcastToChannelGroupMessage,
-    BroadcastToUsersIndividualPayloadsMessage,
-]

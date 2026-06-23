@@ -1,3 +1,6 @@
+from django.db import connection
+from django.test import override_settings
+
 import pytest
 from asgiref.sync import sync_to_async
 from channels.db import database_sync_to_async
@@ -563,3 +566,33 @@ def test_broadcast_to_permitted_users_does_not_fail_for_trashed_objects(data_fix
         )
     except Exception as e:
         pytest.fail(f"broadcast_to_permitted_users raised an exception: {e}")
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_REALTIME_REPLAY_MAX_EVENTS=0)
+def test_cleanup_task_skips_query_when_recording_disabled(django_assert_num_queries):
+    from baserow.ws.tasks import cleanup_old_realtime_events
+
+    # With recording disabled the periodic task must not touch the database.
+    with django_assert_num_queries(0):
+        cleanup_old_realtime_events()
+
+
+@pytest.mark.django_db
+@override_settings(BASEROW_REALTIME_REPLAY_MAX_EVENTS=5)
+def test_cleanup_task_runs_when_recording_enabled():
+    from baserow.ws.models import RealtimeEvent
+    from baserow.ws.tasks import cleanup_old_realtime_events
+
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO ws_realtime_events "
+            "(channel_group, payload, created_at) "
+            "VALUES (%s, %s, now() - interval '60 days') RETURNING id",
+            ["table-1", '{"type": "x"}'],
+        )
+        old_id = cursor.fetchone()[0]
+
+    cleanup_old_realtime_events()
+
+    assert not RealtimeEvent.objects.filter(id=old_id).exists()

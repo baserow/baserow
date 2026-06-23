@@ -72,6 +72,30 @@ def test_router_switches_to_default_inside_transaction():
 @pytest.mark.replica
 @pytest.mark.django_db
 @override_settings(DATABASE_READ_REPLICAS=["replica1", "replica2"])
+def test_router_reads_unlogged_models_from_default():
+    router = ReadReplicaRouter()
+    clear_db_state()
+
+    mock_conn = MagicMock()
+    mock_conn.get_autocommit.return_value = True
+    mock_conn.in_atomic_block = False
+
+    unlogged_model = MagicMock()
+    unlogged_model.UNLOGGED = True
+
+    with patch("django.db.transaction.get_connection", return_value=mock_conn):
+        # Unlogged tables are not replicated, so reads must hit the primary and
+        # must not pin the connection to a replica for subsequent queries.
+        assert router.db_for_read(model=unlogged_model) == DEFAULT_DB_ALIAS
+        assert get_db_alias() is None
+
+        # A regular model still uses a replica.
+        assert router.db_for_read(model=None) in ["replica1", "replica2"]
+
+
+@pytest.mark.replica
+@pytest.mark.django_db
+@override_settings(DATABASE_READ_REPLICAS=["replica1", "replica2"])
 def test_write_switches_to_default_and_sticks():
     router = ReadReplicaRouter()
     clear_db_state()

@@ -36,8 +36,13 @@ export class RealTimeHandler {
     this._onPageHide = () => {
       this.unloading = true
     }
-    // Immediate retry on tab refocus or network restoration.
+    // Immediate retry on tab refocus or network restoration. Any of these
+    // signals means the page is alive again, so the unload latch set by
+    // ``_onPageHide`` must be cleared here. A ``pagehide`` followed by a
+    // ``pageshow`` (bfcache restore) would otherwise leave it stuck and
+    // permanently suppress reconnects.
     this._onShouldRetryNow = () => {
+      this.unloading = false
       if (!this.connected && this.reconnect) {
         this._retryReconnectNow()
       }
@@ -46,13 +51,13 @@ export class RealTimeHandler {
       if (!this._isDocumentVisible()) {
         return
       }
-      this.unloading = false
       this._onShouldRetryNow()
     }
 
     if (import.meta.client) {
       window.addEventListener('beforeunload', this._onPageHide)
       window.addEventListener('pagehide', this._onPageHide)
+      window.addEventListener('pageshow', this._onShouldRetryNow)
       document.addEventListener('visibilitychange', this._onVisibilityChange)
       window.addEventListener('online', this._onShouldRetryNow)
     }

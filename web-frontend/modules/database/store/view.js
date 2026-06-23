@@ -216,6 +216,9 @@ export const mutations = {
     state.selected = {}
   },
   ADD_FILTER(state, { view, filter }) {
+    if (view.filters.some((existing) => existing.id === filter.id)) {
+      return
+    }
     filter.view = view.id
     view.filters.push(filter)
   },
@@ -236,6 +239,9 @@ export const mutations = {
     }
   },
   ADD_FILTER_GROUP(state, { view, filterGroup }) {
+    if (view.filter_groups.some((existing) => existing.id === filterGroup.id)) {
+      return
+    }
     filterGroup.view = view.id
     view.filter_groups.push(filterGroup)
   },
@@ -269,6 +275,9 @@ export const mutations = {
     filter._.loading = value
   },
   ADD_DECORATION(state, { view, decoration }) {
+    if (view.decorations.some((existing) => existing.id === decoration.id)) {
+      return
+    }
     view.decorations.push({
       type: null,
       value_provider_type: null,
@@ -296,6 +305,9 @@ export const mutations = {
     decoration._.loading = value
   },
   ADD_SORT(state, { view, sort }) {
+    if (view.sortings.some((existing) => existing.id === sort.id)) {
+      return
+    }
     sort.view = view.id
     view.sortings.push(sort)
     sortByPriority(view.sortings)
@@ -331,6 +343,9 @@ export const mutations = {
     sort._.loading = value
   },
   ADD_GROUP_BY(state, { view, groupBy }) {
+    if (view.group_bys.some((existing) => existing.id === groupBy.id)) {
+      return
+    }
     groupBy.view = view.id
     view.group_bys.push(groupBy)
     sortByPriority(view.group_bys)

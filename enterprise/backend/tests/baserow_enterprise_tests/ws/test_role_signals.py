@@ -9,7 +9,8 @@ from channels.testing import WebsocketCommunicator
 from baserow.config.asgi import application
 from baserow.core.apps import sync_operations_after_migrate
 from baserow.test_utils.helpers import AnyInt
-from baserow.ws.tasks import send_message_to_channel_group
+from baserow.ws.tasks import send_messages_to_channel_group
+from baserow.ws.types import ChannelGroupMessage
 from baserow_enterprise.apps import sync_default_roles_after_migrate
 from baserow_enterprise.role.constants import NO_ROLE_LOW_PRIORITY_ROLE_UID
 from baserow_enterprise.role.handler import RoleAssignmentHandler
@@ -522,14 +523,16 @@ async def test_unsubscribe_user_from_tables_and_rows_when_role_updated(data_fixt
     }
 
     # User should not receive any messages to a table in workspace 1
-    await send_message_to_channel_group(
-        channel_layer, f"table-{table_1.id}", {"test": "message"}
+    await send_messages_to_channel_group(
+        channel_layer,
+        ChannelGroupMessage(f"table-{table_1.id}", {"test": "message"}),
     )
     await communicator.receive_nothing(timeout=0.1)
 
     # User should not receive any messages to a row in workspace 1
-    await send_message_to_channel_group(
-        channel_layer, f"table-{table_1.id}-row-{row_1.id}", {"test": "message"}
+    await send_messages_to_channel_group(
+        channel_layer,
+        ChannelGroupMessage(f"table-{table_1.id}-row-{row_1.id}", {"test": "message"}),
     )
     await communicator.receive_nothing(timeout=0.1)
 
@@ -615,14 +618,16 @@ async def test_unsubscribe_user_from_tables_and_rows_when_team_trashed(
     }
 
     # User should not receive any messages to a table in workspace 1
-    await send_message_to_channel_group(
-        channel_layer, f"table-{table_1.id}", {"test": "message"}
+    await send_messages_to_channel_group(
+        channel_layer,
+        ChannelGroupMessage(f"table-{table_1.id}", {"test": "message"}),
     )
     await communicator.receive_nothing(timeout=0.1)
 
     # User should not receive any messages to a row in workspace 1
-    await send_message_to_channel_group(
-        channel_layer, f"table-{table_1.id}-row-{row_1.id}", {"test": "message"}
+    await send_messages_to_channel_group(
+        channel_layer,
+        ChannelGroupMessage(f"table-{table_1.id}-row-{row_1.id}", {"test": "message"}),
     )
     await communicator.receive_nothing(timeout=0.1)
 
