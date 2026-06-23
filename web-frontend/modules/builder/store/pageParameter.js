@@ -1,4 +1,4 @@
-const state = {}
+const state = () => ({})
 
 const mutations = {
   SET_PARAMETER(state, { page, name, value }) {

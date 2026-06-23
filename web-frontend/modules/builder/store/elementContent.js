@@ -3,7 +3,7 @@ import PublishedBuilderService from '@baserow/modules/builder/services/published
 import { rangeDiff } from '@baserow/modules/core/utils/range'
 import axios from 'axios'
 
-const state = {}
+const state = () => ({})
 
 const queriesInProgress = {}
 

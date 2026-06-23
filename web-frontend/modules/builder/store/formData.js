@@ -4,7 +4,7 @@ import {
   setValueAtPath,
 } from '@baserow/modules/core/utils/object'
 
-const state = {}
+const state = () => ({})
 
 /**
  * Responsible for setting a form entry at a given path in the form data of a page in

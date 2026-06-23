@@ -1,7 +1,7 @@
 import UserSourceService from '@baserow/modules/core/services/userSource'
 import _ from 'lodash'
 
-const state = {}
+const state = () => ({})
 
 const updateContext = {
   updateTimeout: null,

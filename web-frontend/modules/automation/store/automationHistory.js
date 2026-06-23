@@ -1,12 +1,12 @@
 import { useNuxtApp } from '#app'
 import AutomationHistoryService from '@baserow/modules/automation/services/history'
 
-const state = {
+const state = () => ({
   // Holds the value of which workflow history is currently selected
   workflowHistory: {},
   nodeHistoriesByWorkflowHistory: {},
   nodeResults: {},
-}
+})
 
 const mutations = {
   SET_WORKFLOW_HISTORY(state, { data }) {

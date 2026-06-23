@@ -6,10 +6,10 @@ import { clone } from '@baserow/modules/core/utils/object'
 
 import NodeGraphHandler from '@baserow/modules/automation/utils/nodeGraphHandler'
 
-const state = {
+const state = () => ({
   selectedNodeId: null,
   draggingNodeId: null,
-}
+})
 
 const updateContext = {
   updateTimeout: null,

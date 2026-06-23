@@ -25,7 +25,7 @@ const populateElement = (element, registry) => {
   return element
 }
 
-const state = {}
+const state = () => ({})
 
 const updateContext = {
   updateTimeout: null,

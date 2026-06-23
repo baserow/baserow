@@ -25,7 +25,7 @@ export function populatePage(page) {
   }
 }
 
-const state = {
+const state = () => ({
   // Holds the value of which page is currently selected
   selected: {},
   // By default, the device type will be desktop. This will be overridden
@@ -35,7 +35,7 @@ const state = {
   deviceTypeSelected: 'desktop',
   // A job object that tracks the progress of a page duplication currently running
   duplicateJob: null,
-}
+})
 
 const mutations = {
   ADD_ITEM(state, { builder, page }) {

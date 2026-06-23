@@ -20,7 +20,7 @@ export function populateAutomationWorkflow(workflow) {
   }
 }
 
-const state = {
+const state = () => ({
   // Holds the value of which workflow is currently selected
   selected: {},
   // A job object that tracks the progress of a workflow duplication currently running
@@ -29,7 +29,7 @@ const state = {
   // `null` (side panel is closed), `history` (view workflow run history) and
   // `node` (trigger and action node edit forms).
   activeSidePanel: null,
-}
+})
 
 const mutations = {
   ADD_ITEM(state, { automation, workflow }) {

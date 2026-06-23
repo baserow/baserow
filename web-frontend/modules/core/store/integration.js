@@ -1,6 +1,6 @@
 import IntegrationService from '@baserow/modules/core/services/integration'
 
-const state = {}
+const state = () => ({})
 
 const updateContext = {
   updateTimeout: null,

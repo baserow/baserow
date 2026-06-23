@@ -20,7 +20,7 @@ export function populateWorkflowAction(workflowAction) {
   }
 }
 
-const state = {}
+const state = () => ({})
 
 const mutations = {
   ADD_ITEM(state, { page, workflowAction }) {
