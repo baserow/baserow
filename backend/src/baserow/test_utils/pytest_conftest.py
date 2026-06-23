@@ -986,6 +986,11 @@ class FakeDispatchContext(DispatchContext):
         "_searchable_fields",
         "_search_query",
         "_count",
+        "_is_publicly_searchable",
+        "_is_publicly_filterable",
+        "_is_publicly_sortable",
+        "_filters",
+        "_sortings",
     ]
 
     def __init__(self, **kwargs):
@@ -995,13 +1000,18 @@ class FakeDispatchContext(DispatchContext):
         self._searchable_fields = kwargs.pop("searchable_fields", [])
         self._search_query = kwargs.pop("search_query", None)
         self._count = kwargs.pop("count", 100)
+        self._is_publicly_searchable = kwargs.pop("is_publicly_searchable", True)
+        self._is_publicly_filterable = kwargs.pop("is_publicly_filterable", True)
+        self._is_publicly_sortable = kwargs.pop("is_publicly_sortable", True)
+        self._filters = kwargs.pop("filters", None)
+        self._sortings = kwargs.pop("sortings", None)
 
         for key, value in kwargs.items():
             setattr(self, key, value)
 
     @property
     def is_publicly_searchable(self):
-        return True
+        return self._is_publicly_searchable
 
     def search_query(self):
         return self._search_query
@@ -1011,17 +1021,17 @@ class FakeDispatchContext(DispatchContext):
 
     @property
     def is_publicly_filterable(self):
-        return True
+        return self._is_publicly_filterable
 
     def filters(self):
-        return None
+        return self._filters
 
     @property
     def is_publicly_sortable(self):
-        return True
+        return self._is_publicly_sortable
 
     def sortings(self):
-        return None
+        return self._sortings
 
     def range(self, service):
         return [0, self._count]

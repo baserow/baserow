@@ -20,6 +20,7 @@ from baserow.contrib.automation.api.workflows.serializers import (
 )
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+from baserow.contrib.automation.nodes.node_types import CorePeriodicTriggerNodeType
 from baserow.contrib.automation.workflows.constants import ALLOW_TEST_RUN_MINUTES
 from baserow.contrib.database.rows.handler import RowHandler
 from baserow.core.cache import local_cache
@@ -64,6 +65,7 @@ def test_create_workflow(api_client, data_fixture):
         "published_on": None,
         "simulate_until_node_id": None,
         "graph": {},
+        "immediate_dispatch": False,
     }
 
     workflow = automation.workflows.get(id=response_json["id"])
@@ -152,7 +154,27 @@ def test_read_workflow(api_client, data_fixture):
         "published_on": None,
         "graph": {"0": trigger.id, str(trigger.id): {}},
         "notification_recipient_ids": [],
+        "immediate_dispatch": False,
     }
+
+
+@pytest.mark.django_db
+def test_read_workflow_with_immediate_dispatch_trigger(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    automation = data_fixture.create_automation_application(user=user)
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation, trigger_type=CorePeriodicTriggerNodeType.type
+    )
+
+    url = reverse(API_URL_WORKFLOW_ITEM, kwargs={"workflow_id": workflow.id})
+    response = api_client.get(
+        url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["immediate_dispatch"] is True
 
 
 @pytest.mark.django_db
@@ -421,6 +443,7 @@ def test_duplicate_workflow(api_client, data_fixture):
             "published_on": None,
             "simulate_until_node_id": None,
             "graph": {"0": trigger.id, str(trigger.id): {}},
+            "immediate_dispatch": False,
         },
         "progress_percentage": 0,
         "state": "pending",

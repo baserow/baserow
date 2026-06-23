@@ -482,6 +482,20 @@ def test_trigger_node_dispatch_returns_event_payload_if_not_simulated(data_fixtu
 
 
 @pytest.mark.django_db
+def test_trigger_node_dispatch_returns_null_without_event_payload(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE, trigger_type="manual"
+    )
+    trigger = workflow.get_trigger().specific
+    dispatch_context = AutomationDispatchContext(workflow, None)
+
+    result = trigger.get_type().dispatch(trigger, dispatch_context)
+
+    assert result == DispatchResult(data=None, status=200, output_uid="")
+
+
+@pytest.mark.django_db
 def test_trigger_node_dispatch_returns_sample_data_if_simulated(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)

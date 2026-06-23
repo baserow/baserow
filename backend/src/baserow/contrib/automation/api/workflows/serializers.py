@@ -19,6 +19,7 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
     published_on = serializers.SerializerMethodField()
     state = serializers.SerializerMethodField()
     notification_recipient_ids = serializers.SerializerMethodField()
+    immediate_dispatch = serializers.SerializerMethodField()
 
     class Meta:
         model = AutomationWorkflow
@@ -33,6 +34,7 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
             "state",
             "graph",
             "notification_recipient_ids",
+            "immediate_dispatch",
         )
         extra_kwargs = {
             "id": {"read_only": True},
@@ -49,7 +51,8 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
     @extend_schema_field(OpenApiTypes.STR)
     def get_state(self, obj):
         published_workflow = AutomationWorkflowHandler().get_published_workflow(obj)
-        return published_workflow.state if published_workflow else WorkflowState.DRAFT
+        state = published_workflow.state if published_workflow else WorkflowState.DRAFT
+        return WorkflowState(state).value
 
     @extend_schema_field(serializers.ListField(child=serializers.IntegerField()))
     def get_notification_recipient_ids(self, obj):
@@ -58,6 +61,10 @@ class AutomationWorkflowSerializer(serializers.ModelSerializer):
         """
 
         return sorted((recipient.id for recipient in obj.notification_recipients.all()))
+
+    @extend_schema_field(OpenApiTypes.BOOL)
+    def get_immediate_dispatch(self, obj):
+        return obj.can_be_immediately_dispatched()
 
 
 class CreateAutomationWorkflowSerializer(serializers.ModelSerializer):

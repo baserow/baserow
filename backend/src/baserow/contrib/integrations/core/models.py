@@ -93,6 +93,25 @@ class CoreCSVFileReaderService(Service):
     )
 
 
+class CoreManualTriggerService(Service):
+    """
+    A trigger service for workflows that can only be started manually.
+    """
+
+
+class CoreStartWorkflowService(Service):
+    """
+    A service for starting an automation workflow.
+    """
+
+    workflow = models.ForeignKey(
+        "automation.AutomationWorkflow",
+        null=True,
+        on_delete=models.SET_NULL,
+        help_text="The automation workflow to start.",
+    )
+
+
 class CoreHTTPRequestService(Service):
     """
     A service for handling HTTP requests.

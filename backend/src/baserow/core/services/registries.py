@@ -583,10 +583,10 @@ class TriggerServiceTypeMixin(ABC):
     # The service is always dispatched by an event.
     dispatch_types = [DispatchTypes.EVENT]
 
-    def can_immediately_be_tested(self, service: Service):
+    def can_be_immediately_dispatched(self, service: Service):
         """
-        Does this trigger can be dispatched immediately. It's possible only if the
-        trigger data can be generated
+        Whether this trigger can be dispatched immediately without waiting for an
+        external event.
         """
 
         return False

@@ -49,6 +49,8 @@
     "localBaserowFieldsUpdatedDescription": "Triggered when rows are updated in specific fields of a Baserow table.",
     "coreHTTPTrigger": "Receive an HTTP Request",
     "coreHTTPTriggerDescription": "Triggered when an HTTP request is received.",
+    "coreManualTrigger": "Manual trigger",
+    "coreManualTriggerDescription": "Starts only when another workflow action starts this workflow.",
     "coreHTTPRequest": "Send an HTTP request",
     "coreHTTPRequestDescription": "Sends an HTTP request to a specified endpoint.",
     "coreSMTPEmail": "Send Email",
@@ -62,6 +64,8 @@
     "coreIterationDescription": "Iterate on items.",
     "coreCSVFileReader": "Read a CSV file",
     "coreCSVFileReaderDescription": "Reads rows from a CSV file.",
+    "coreStartWorkflow": "Start workflow",
+    "coreStartWorkflowDescription": "Starts an automation workflow.",
     "errorFromEmailMissing": "Missing From Email property",
     "errorToEmailsMissing": "Missing To Emails property",
     "misconfigured": "Misconfigured",
@@ -79,6 +83,7 @@
     "errorIterationSourceMissing": "Missing source property",
     "errorCSVFileMissing": "Missing CSV file property",
     "errorCSVContentMissing": "Missing CSV data property",
+    "errorNoWorkflowSelected": "No workflow selected",
     "aiAgent": "AI prompt",
     "aiAgentDescription": "Execute AI prompts using configured generative AI models.",
     "errorNoIntegrationSelected": "No integration selected",
@@ -231,6 +236,11 @@
     "utf8": "UTF-8",
     "utf8Bom": "UTF-8 with BOM",
     "latin1": "Latin-1"
+  },
+  "coreStartWorkflowServiceForm": {
+    "automation": "Automation",
+    "workflow": "Workflow",
+    "workflowHelperText": "Only published workflows with a manual trigger can be started. If this workflow has unpublished changes, the latest published version will run."
   },
   "slackBotForm": {
     "tokenLabel": "Bot User Token",

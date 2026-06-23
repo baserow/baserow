@@ -45,10 +45,12 @@ from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
     CoreIteratorService,
+    CoreManualTriggerService,
     CorePeriodicService,
     CoreRouterService,
     CoreRouterServiceEdge,
     CoreSMTPEmailService,
+    CoreStartWorkflowService,
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
@@ -1367,7 +1369,7 @@ class CorePeriodicServiceType(TriggerServiceTypeMixin, CoreServiceType):
             **kwargs,
         )
 
-    def can_immediately_be_tested(self, service):
+    def can_be_immediately_dispatched(self, service):
         return True
 
     def _setup_periodic_task(self, sender, **kwargs):
@@ -1775,6 +1777,25 @@ class CoreHTTPTriggerServiceType(TriggerServiceTypeMixin, ServiceType):
         return values
 
 
+class CoreManualTriggerServiceType(TriggerServiceTypeMixin, CoreServiceType):
+    type = "manual"
+    model_class = CoreManualTriggerService
+
+    class SerializedDict(ServiceDict):
+        pass
+
+    def can_be_immediately_dispatched(self, service: CoreManualTriggerService):
+        return True
+
+    def dispatch_data(
+        self,
+        service: CoreManualTriggerService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ):
+        return None
+
+
 class CoreIteratorServiceType(ListServiceTypeMixin, ServiceType):
     type = "iterator"
     model_class = CoreIteratorService
@@ -2079,3 +2100,121 @@ class CoreCSVFileReaderServiceType(ListServiceTypeMixin, CoreServiceType):
 
     def _widest_row(self, rows: list[list[str]]) -> int:
         return max((len(row) for row in rows), default=0)
+
+
+class CoreStartWorkflowServiceType(CoreServiceType):
+    type = "start_workflow"
+    model_class = CoreStartWorkflowService
+    dispatch_types = [DispatchTypes.ACTION]
+
+    allowed_fields = ["workflow"]
+    serializer_field_names = ["workflow_id"]
+    serializer_field_overrides = {
+        "workflow_id": serializers.IntegerField(
+            required=False,
+            allow_null=True,
+            help_text=CoreStartWorkflowService._meta.get_field("workflow").help_text,
+        )
+    }
+
+    class SerializedDict(ServiceDict):
+        workflow_id: int
+
+    def deserialize_property(
+        self,
+        prop_name: str,
+        value: Any,
+        id_mapping: Dict[str, Dict[int, int]],
+        **kwargs,
+    ) -> Any:
+        if prop_name == "workflow_id" and value is not None:
+            return id_mapping.get("automation_workflows", {}).get(value, value)
+
+        return super().deserialize_property(prop_name, value, id_mapping, **kwargs)
+
+    def prepare_values(
+        self,
+        values: Dict[str, Any],
+        user: AbstractUser,
+        instance: Optional[CoreStartWorkflowService] = None,
+    ) -> Dict[str, Any]:
+        values = super().prepare_values(values, user, instance)
+        if "workflow_id" not in values:
+            return values
+
+        workflow_id = values.pop("workflow_id")
+        if workflow_id is None:
+            values["workflow"] = None
+            return values
+
+        from baserow.contrib.automation.workflows.exceptions import (
+            AutomationWorkflowDoesNotExist,
+        )
+        from baserow.contrib.automation.workflows.service import (
+            AutomationWorkflowService,
+        )
+
+        try:
+            workflow = AutomationWorkflowService().get_workflow(user, workflow_id)
+        except AutomationWorkflowDoesNotExist as exc:
+            raise serializers.ValidationError(
+                f"The workflow with ID {workflow_id} does not exist."
+            ) from exc
+
+        if not workflow.can_be_immediately_dispatched():
+            raise serializers.ValidationError(
+                "Only workflows with an immediate dispatch trigger can be started."
+            )
+
+        values["workflow"] = workflow
+        return values
+
+    def export_prepared_values(self, instance: CoreStartWorkflowService):
+        values = super().export_prepared_values(instance)
+        values["workflow_id"] = (
+            values.pop("workflow").id if values["workflow"] else None
+        )
+        return values
+
+    def dispatch_data(
+        self,
+        service: CoreStartWorkflowService,
+        resolved_values: Dict[str, Any],
+        dispatch_context: DispatchContext,
+    ) -> Any:
+        if service.workflow_id is None:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The workflow to start is not configured."
+            )
+
+        from baserow.contrib.automation.workflows.constants import WorkflowState
+        from baserow.contrib.automation.workflows.handler import (
+            AutomationWorkflowHandler,
+        )
+
+        published_workflow = AutomationWorkflowHandler().get_published_workflow(
+            service.workflow
+        )
+        if published_workflow is None:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected workflow must be published before it can be started."
+            )
+
+        if published_workflow.state != WorkflowState.LIVE:
+            raise ServiceImproperlyConfiguredDispatchException(
+                "The selected workflow must be live before it can be started."
+            )
+
+        if not published_workflow.can_be_immediately_dispatched():
+            raise ServiceImproperlyConfiguredDispatchException(
+                "Only workflows with an immediate dispatch trigger can be started."
+            )
+
+        AutomationWorkflowHandler().async_start_workflow(published_workflow)
+        return None
+
+    def dispatch_transform(
+        self,
+        data: Any,
+    ) -> DispatchResult:
+        return DispatchResult(data=data)

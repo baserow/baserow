@@ -67,8 +67,9 @@ For a new or updated service type, check these areas:
 2. The `ServiceType` subclass exposes the right `type`, `model_class`, `dispatch_types`, `allowed_fields`, and serializer configuration.
 3. Related nested objects are handled in `after_create`, update helpers, or custom methods when needed.
 4. Context/schema methods are implemented if the service emits data for downstream nodes.
-5. The service is registered in `backend/src/baserow/contrib/integrations/apps.py`.
-6. A migration is added if models changed.
+5. Serialized foreign keys or IDs are migrated during import/export.
+6. The service is registered in `backend/src/baserow/contrib/integrations/apps.py`.
+7. A migration is added if models changed.
 
 For a new or updated integration type, check these areas:
 
@@ -89,6 +90,29 @@ Common backend files to inspect:
 - `backend/src/baserow/contrib/builder/workflow_actions/**`
 - `backend/src/baserow/contrib/automation/nodes/**`
 - `backend/src/baserow/contrib/dashboard/**`
+
+### Import/Export ID Migration
+
+When a service serializes a foreign key or path containing IDs, migrate it through
+`id_mapping` during import.
+
+- Use `deserialize_property()` for simple fields like `workflow_id`, `table_id`,
+  or `field_id`.
+- Use `create_instance_from_serialized()` for nested rows or lists that must be
+  recreated after the service exists.
+- Use `import_serialized()` when IDs or UUIDs must be reserved before normal
+  deserialization.
+- For data-provider paths, also check `import_path()` and
+  `import_context_path()`. Formula fields are normally migrated separately via
+  the `import_formula` callback.
+- Common keys include `automation_workflows`, `automation_workflow_nodes`,
+  `builder_*`, `database_tables`, `database_fields`, `integrations`, and
+  `services`.
+
+Examples: `CoreStartWorkflowServiceType.deserialize_property()` for workflow IDs,
+`CoreRouterServiceType` for edge UIDs, local Baserow service types for table/field
+IDs, and premium grouped aggregate services for nested field references. Add a
+regression test that imports with an old-to-new `id_mapping`.
 
 ## Product Surface Checklist
 

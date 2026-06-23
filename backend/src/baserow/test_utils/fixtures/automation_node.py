@@ -13,6 +13,7 @@ from baserow.contrib.automation.nodes.models import (
 from baserow.contrib.automation.nodes.node_types import (
     CoreHTTPTriggerNodeType,
     CoreIteratorNodeType,
+    CoreManualTriggerNodeType,
     CorePeriodicTriggerNodeType,
     CoreRouterActionNodeType,
     LocalBaserowCreateRowNodeType,
@@ -210,6 +211,13 @@ class AutomationNodeFixtures:
         return self.create_automation_node(
             user=user,
             type=CoreHTTPTriggerNodeType.type,
+            **kwargs,
+        )
+
+    def create_manual_trigger_node(self, user=None, **kwargs):
+        return self.create_automation_node(
+            user=user,
+            type=CoreManualTriggerNodeType.type,
             **kwargs,
         )
 

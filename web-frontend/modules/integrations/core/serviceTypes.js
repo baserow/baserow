@@ -11,6 +11,7 @@ import CoreRouterServiceForm from '@baserow/modules/integrations/core/components
 import CoreIteratorServiceForm from '@baserow/modules/integrations/core/components/services/CoreIteratorServiceForm'
 import CoreCSVFileReaderServiceForm from '@baserow/modules/integrations/core/components/services/CoreCSVFileReaderServiceForm'
 import CorePeriodicServiceForm from '@baserow/modules/integrations/core/components/services/CorePeriodicServiceForm.vue'
+import CoreStartWorkflowServiceForm from '@baserow/modules/integrations/core/components/services/CoreStartWorkflowServiceForm.vue'
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
@@ -216,6 +217,34 @@ export class CoreHTTPTriggerServiceType extends TriggerServiceTypeMixin(
   }
 }
 
+export class CoreManualTriggerServiceType extends TriggerServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'manual'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreManualTrigger')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreManualTriggerDescription')
+  }
+
+  get icon() {
+    return 'iconoir-play'
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  getOrder() {
+    return 9
+  }
+}
+
 export class CoreIteratorServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
 ) {
@@ -322,6 +351,46 @@ export class CoreCSVFileReaderServiceType extends DataSourceServiceTypeMixin(
 
   getOrder() {
     return 6
+  }
+}
+
+export class CoreStartWorkflowServiceType extends WorkflowActionServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'start_workflow'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreStartWorkflow')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreStartWorkflowDescription')
+  }
+
+  get icon() {
+    return 'iconoir-play'
+  }
+
+  getErrorMessage({ service }) {
+    if (service !== undefined && service.workflow_id === null) {
+      return this.app.$i18n.t('serviceType.errorNoWorkflowSelected')
+    }
+
+    return super.getErrorMessage({ service })
+  }
+
+  get formComponent() {
+    return CoreStartWorkflowServiceForm
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  getOrder() {
+    return 8
   }
 }
 

@@ -23,9 +23,11 @@ class AutomationConfig(AppConfig):
             CoreHttpRequestNodeType,
             CoreHTTPTriggerNodeType,
             CoreIteratorNodeType,
+            CoreManualTriggerNodeType,
             CorePeriodicTriggerNodeType,
             CoreRouterActionNodeType,
             CoreSMTPEmailNodeType,
+            CoreStartWorkflowNodeType,
             LocalBaserowAggregateRowsNodeType,
             LocalBaserowCreateRowNodeType,
             LocalBaserowCreateRowsNodeType,
@@ -183,6 +185,7 @@ class AutomationConfig(AppConfig):
         automation_node_type_registry.register(CoreCSVFileReaderNodeType())
         automation_node_type_registry.register(CoreSMTPEmailNodeType())
         automation_node_type_registry.register(CoreRouterActionNodeType())
+        automation_node_type_registry.register(CoreStartWorkflowNodeType())
         automation_node_type_registry.register(LocalBaserowRowsCreatedNodeTriggerType())
         automation_node_type_registry.register(LocalBaserowRowsUpdatedNodeTriggerType())
         automation_node_type_registry.register(LocalBaserowRowsDeletedNodeTriggerType())
@@ -191,6 +194,7 @@ class AutomationConfig(AppConfig):
         )
         automation_node_type_registry.register(CorePeriodicTriggerNodeType())
         automation_node_type_registry.register(CoreHTTPTriggerNodeType())
+        automation_node_type_registry.register(CoreManualTriggerNodeType())
         automation_node_type_registry.register(AIAgentActionNodeType())
         automation_node_type_registry.register(SlackWriteMessageActionNodeType())
 

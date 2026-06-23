@@ -29,6 +29,8 @@ import {
   CoreSMTPEmailNodeType,
   CoreRouterNodeType,
   CorePeriodicTriggerNodeType,
+  CoreStartWorkflowNodeType,
+  CoreManualTriggerNodeType,
   AIAgentActionNodeType,
   SlackWriteMessageNodeType,
 } from '@baserow/modules/automation/nodeTypes'
@@ -121,6 +123,7 @@ export default defineNuxtPlugin({
     $registry.register('node', new CoreRouterNodeType(context))
     $registry.register('node', new CoreIteratorNodeType(context))
     $registry.register('node', new CoreCSVFileReaderNodeType(context))
+    $registry.register('node', new CoreStartWorkflowNodeType(context))
     $registry.register('node', new SlackWriteMessageNodeType(context))
     $registry.register('node', new LocalBaserowDeleteRowActionNodeType(context))
     $registry.register('node', new LocalBaserowGetRowActionNodeType(context))
@@ -130,6 +133,7 @@ export default defineNuxtPlugin({
       new LocalBaserowAggregateRowsActionNodeType(context)
     )
     $registry.register('node', new CorePeriodicTriggerNodeType(context))
+    $registry.register('node', new CoreManualTriggerNodeType(context))
     $registry.register('node', new AIAgentActionNodeType(context))
 
     // Automation job types

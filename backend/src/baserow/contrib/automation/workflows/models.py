@@ -143,13 +143,17 @@ class AutomationWorkflow(
 
         return self.get_graph().get_point_at_position(None, "south", "")
 
-    def can_immediately_be_tested(self):
+    def can_be_immediately_dispatched(self):
         """
-        True of the workflow trigger can immediately be dispatched in test mode.
+        True if the workflow trigger can dispatch without waiting for an event.
         """
 
-        service = self.get_trigger().service.specific
-        return service.get_type().can_immediately_be_tested(service)
+        trigger = self.get_trigger()
+        if trigger is None:
+            return False
+
+        service = trigger.service.specific
+        return service.get_type().can_be_immediately_dispatched(service)
 
     @property
     def is_published(self) -> bool:

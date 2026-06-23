@@ -20,6 +20,7 @@ from baserow.contrib.builder.workflow_actions.models import (
     CoreCSVFileReaderWorkflowAction,
     CoreHTTPRequestWorkflowAction,
     CoreSMTPEmailWorkflowAction,
+    CoreStartWorkflowWorkflowAction,
     LocalBaserowCreateRowsWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
@@ -40,6 +41,7 @@ from baserow.contrib.integrations.core.service_types import (
     CoreCSVFileReaderServiceType,
     CoreHTTPRequestServiceType,
     CoreSMTPEmailServiceType,
+    CoreStartWorkflowServiceType,
 )
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowCreateRowsServiceType,
@@ -519,6 +521,16 @@ class CoreCSVFileReaderActionType(BuilderWorkflowServiceActionType):
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
         service = pytest_data_fixture.create_core_csv_file_reader_service()
+        return {"service": service}
+
+
+class CoreStartWorkflowActionType(BuilderWorkflowServiceActionType):
+    type = "start_workflow"
+    model_class = CoreStartWorkflowWorkflowAction
+    service_type = CoreStartWorkflowServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_core_start_workflow_service()
         return {"service": service}
 
 

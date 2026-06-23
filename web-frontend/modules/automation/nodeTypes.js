@@ -28,6 +28,8 @@ import {
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
+  CoreManualTriggerServiceType,
+  CoreStartWorkflowServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 import { uuid } from '@baserow/modules/core/utils/string'
@@ -546,6 +548,35 @@ export class CoreHTTPTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
   }
 }
 
+export class CoreManualTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'manual'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreManualTrigger')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreManualTriggerDescription')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreManualTriggerServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 5
+  }
+
+  getDefaultLabel({ automation, node }) {
+    return this.app.$i18n.t('serviceType.coreManualTrigger')
+  }
+}
+
 export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
@@ -852,6 +883,49 @@ export class CoreCSVFileReaderNodeType extends ActionNodeTypeMixin(NodeType) {
       'service',
       CoreCSVFileReaderServiceType.getType()
     )
+  }
+}
+
+export class CoreStartWorkflowNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'start_workflow'
+  }
+
+  getOrder() {
+    return 10
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreStartWorkflowServiceType.getType()
+    )
+  }
+
+  getDefaultLabel({ automation, node }) {
+    const workspace =
+      automation?.workspace || this.app.$store.getters['workspace/getSelected']
+    const workflowId = node.service?.workflow_id
+
+    if (!workspace?.id || !workflowId) {
+      return this.name
+    }
+
+    const automations = this.app.$store.getters[
+      'application/getAllOfWorkspace'
+    ](workspace).filter((application) => application.type === 'automation')
+
+    const workflow = automations
+      .flatMap((automation) =>
+        this.app.$store.getters['automationWorkflow/getWorkflows'](automation)
+      )
+      .find((workflow) => workflow.id === workflowId)
+
+    return workflow
+      ? this.app.$i18n.t('nodeType.startWorkflowLabel', {
+          workflowName: workflow.name,
+        })
+      : this.name
   }
 }
 

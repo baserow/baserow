@@ -23,9 +23,11 @@ from baserow.contrib.automation.nodes.models import (
     CoreHTTPRequestActionNode,
     CoreHTTPTriggerNode,
     CoreIteratorActionNode,
+    CoreManualTriggerNode,
     CorePeriodicTriggerNode,
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
+    CoreStartWorkflowActionNode,
     LocalBaserowAggregateRowsActionNode,
     LocalBaserowCreateRowActionNode,
     LocalBaserowCreateRowsActionNode,
@@ -49,9 +51,11 @@ from baserow.contrib.integrations.core.service_types import (
     CoreHTTPRequestServiceType,
     CoreHTTPTriggerServiceType,
     CoreIteratorServiceType,
+    CoreManualTriggerServiceType,
     CorePeriodicServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
+    CoreStartWorkflowServiceType,
 )
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowAggregateRowsUserServiceType,
@@ -226,6 +230,12 @@ class CoreSMTPEmailNodeType(AutomationNodeActionNodeType):
     type = "smtp_email"
     model_class = CoreSMTPEmailActionNode
     service_type = CoreSMTPEmailServiceType.type
+
+
+class CoreStartWorkflowNodeType(AutomationNodeActionNodeType):
+    type = "start_workflow"
+    model_class = CoreStartWorkflowActionNode
+    service_type = CoreStartWorkflowServiceType.type
 
 
 class AIAgentActionNodeType(AutomationNodeActionNodeType):
@@ -474,6 +484,12 @@ class CoreHTTPTriggerNodeType(AutomationNodeTriggerType):
     type = "http_trigger"
     model_class = CoreHTTPTriggerNode
     service_type = CoreHTTPTriggerServiceType.type
+
+
+class CoreManualTriggerNodeType(AutomationNodeTriggerType):
+    type = "manual"
+    model_class = CoreManualTriggerNode
+    service_type = CoreManualTriggerServiceType.type
 
 
 class SlackWriteMessageActionNodeType(AutomationNodeActionNodeType):

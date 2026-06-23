@@ -874,8 +874,8 @@ def test_simulate_dispatch_trigger_node_immediate_dispatch(
 
     assert trigger_node.workflow.simulate_until_node is None
 
-    old_imm = trigger_node.service.get_type().can_immediately_be_tested
-    trigger_node.service.get_type().can_immediately_be_tested = lambda s: True
+    old_imm = trigger_node.service.get_type().can_be_immediately_dispatched
+    trigger_node.service.get_type().can_be_immediately_dispatched = lambda s: True
 
     api_kwargs = get_api_kwargs(token)
     url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": trigger_node.id})
@@ -890,7 +890,7 @@ def test_simulate_dispatch_trigger_node_immediate_dispatch(
     # In case of an immediate dispatch we want to trigger immediately the workflow
     mock_async_start_workflow.assert_called_with(workflow)
 
-    trigger_node.service.get_type().can_immediately_be_tested = old_imm
+    trigger_node.service.get_type().can_be_immediately_dispatched = old_imm
 
 
 @pytest.mark.django_db()

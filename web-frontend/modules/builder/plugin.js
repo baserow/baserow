@@ -122,6 +122,7 @@ import {
   CoreCSVFileReaderWorkflowActionType,
   CoreHTTPRequestWorkflowActionType,
   CoreSMTPEmailWorkflowActionType,
+  CoreStartWorkflowWorkflowActionType,
   AIAgentWorkflowActionType,
   LocalBaserowCreateRowsWorkflowActionType,
   SlackWriteMessageWorkflowActionType,
@@ -361,6 +362,10 @@ export default defineNuxtPlugin({
     $registry.register(
       'workflowAction',
       new CoreCSVFileReaderWorkflowActionType(context)
+    )
+    $registry.register(
+      'workflowAction',
+      new CoreStartWorkflowWorkflowActionType(context)
     )
     $registry.register('workflowAction', new AIAgentWorkflowActionType(context))
     $registry.register(

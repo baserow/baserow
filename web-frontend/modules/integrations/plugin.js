@@ -25,6 +25,8 @@ import {
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
+  CoreStartWorkflowServiceType,
+  CoreManualTriggerServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
@@ -72,8 +74,10 @@ export default defineNuxtPlugin({
     $registry.register('service', new CoreSMTPEmailServiceType(context))
     $registry.register('service', new CoreRouterServiceType(context))
     $registry.register('service', new CoreHTTPTriggerServiceType(context))
+    $registry.register('service', new CoreManualTriggerServiceType(context))
     $registry.register('service', new CoreIteratorServiceType(context))
     $registry.register('service', new CoreCSVFileReaderServiceType(context))
+    $registry.register('service', new CoreStartWorkflowServiceType(context))
     $registry.register('service', new AIAgentServiceType(context))
     $registry.register('service', new PeriodicTriggerServiceType(context))
     $registry.register('service', new SlackWriteMessageServiceType(context))

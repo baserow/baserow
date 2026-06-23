@@ -60,18 +60,22 @@ class IntegrationsConfig(AppConfig):
             CoreHTTPRequestServiceType,
             CoreHTTPTriggerServiceType,
             CoreIteratorServiceType,
+            CoreManualTriggerServiceType,
             CorePeriodicServiceType,
             CoreRouterServiceType,
             CoreSMTPEmailServiceType,
+            CoreStartWorkflowServiceType,
         )
 
         service_type_registry.register(CoreHTTPRequestServiceType())
         service_type_registry.register(CoreSMTPEmailServiceType())
         service_type_registry.register(CoreRouterServiceType())
         service_type_registry.register(CoreHTTPTriggerServiceType())
+        service_type_registry.register(CoreManualTriggerServiceType())
         service_type_registry.register(CoreIteratorServiceType())
         service_type_registry.register(CorePeriodicServiceType())
         service_type_registry.register(CoreCSVFileReaderServiceType())
+        service_type_registry.register(CoreStartWorkflowServiceType())
 
         from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
 

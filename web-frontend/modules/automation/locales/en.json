@@ -139,6 +139,7 @@
     "localBaserowAggregateRowsLabel": "Summarize rows in {tableName}",
     "httpRequestLabel": "Send an HTTP request",
     "csvFileReaderLabel": "Read a CSV file",
+    "startWorkflowLabel": "Start {workflowName}",
     "smtpEmailLabel": "Send an email",
     "routerLabel": "Follow 1 of {edgeCount} branches",
     "iterationLabel": "Iterate on items",
@@ -182,7 +183,9 @@
     "periodicTriggerTriggeredAt": "Triggered at",
     "errorIntervalMissing": "An interval is required.",
     "coreHTTPTrigger": "HTTP trigger",
-    "coreHTTPTriggerDescription": "Receive HTTP requests to trigger workflows"
+    "coreHTTPTriggerDescription": "Receive HTTP requests to trigger workflows",
+    "coreManualTrigger": "Manual trigger",
+    "coreManualTriggerDescription": "Starts only when another workflow action starts this workflow"
   },
   "workflowEditor": {
     "chooseEvent": "Choose an event..."

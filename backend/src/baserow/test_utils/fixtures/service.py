@@ -6,9 +6,11 @@ from baserow.contrib.integrations.core.models import (
     CoreHTTPRequestService,
     CoreHTTPTriggerService,
     CoreIteratorService,
+    CoreManualTriggerService,
     CorePeriodicService,
     CoreRouterService,
     CoreSMTPEmailService,
+    CoreStartWorkflowService,
 )
 from baserow.contrib.integrations.local_baserow.models import (
     LocalBaserowAggregateRows,
@@ -139,6 +141,9 @@ class ServiceFixtures:
     def create_core_csv_file_reader_service(self, **kwargs):
         return self.create_service(CoreCSVFileReaderService, **kwargs)
 
+    def create_core_start_workflow_service(self, **kwargs):
+        return self.create_service(CoreStartWorkflowService, **kwargs)
+
     def create_core_router_service(self, **kwargs):
         return self.create_service(CoreRouterService, **kwargs)
 
@@ -167,6 +172,9 @@ class ServiceFixtures:
             kwargs["uid"] = uuid4()
 
         return self.create_service(CoreHTTPTriggerService, **kwargs)
+
+    def create_core_manual_trigger_service(self, **kwargs):
+        return self.create_service(CoreManualTriggerService, **kwargs)
 
     def create_core_periodic_service(self, **kwargs) -> CorePeriodicService:
         return self.create_service(CorePeriodicService, **kwargs)
