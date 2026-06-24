@@ -850,7 +850,7 @@ test.describe("2.1 Simple field edit", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const failed = failNextRequest(
+    const { done } = await failNextRequest(
       page,
       `**/api/database/rows/table/${g.table.id}/**`,
       { method: "PATCH" },
@@ -858,7 +858,7 @@ test.describe("2.1 Simple field edit", () => {
     await startEditingPrimary(grid, 0);
     await grid.type("WillFail");
     await grid.confirmWithEnter();
-    await failed;
+    await done;
     await grid.expectErrorToast();
     await grid.expectRowCount(2);
     await grid.expectPrimaryText(0, "Alice");
@@ -983,7 +983,7 @@ test.describe("2.2 Edit with active filter on the edited field", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const failed = failNextRequest(
+    const { done } = await failNextRequest(
       page,
       `**/api/database/rows/table/${g.table.id}/**`,
       { method: "PATCH" },
@@ -991,7 +991,7 @@ test.describe("2.2 Edit with active filter on the edited field", () => {
     await startEditingPrimary(grid, 0);
     await grid.type("Charlie");
     await grid.confirmWithEnter();
-    await failed;
+    await done;
     await grid.expectErrorToast();
     await grid.expectRowCount(1);
     await grid.expectPrimaryText(0, "Alice");
@@ -1486,13 +1486,13 @@ test.describe("3.1 Row deletion", () => {
     page,
   }) => {
     const grid = new GridPage(page, g.user);
-    const failed = failNextRequest(
+    const { done } = await failNextRequest(
       page,
       `**/api/database/rows/table/${g.table.id}/**`,
       { method: "DELETE" },
     );
     await deleteRowThroughContextMenu(grid, 1);
-    await failed;
+    await done;
     await grid.expectErrorToast();
     await grid.expectRowCount(2);
     await grid.expectPrimaryVisible("Alice");

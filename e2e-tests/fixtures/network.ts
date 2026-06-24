@@ -17,48 +17,59 @@ export interface PausedRequest {
   intercepted: Promise<void>;
 }
 
+export interface FailedRequest {
+  /** Resolves once the forced HTTP 500 has been delivered. */
+  done: Promise<void>;
+}
+
 /**
  * Arms a one-shot route intercept that fulfills the NEXT matching request
- * with HTTP 500. Returns a promise that resolves once the 500 has been
- * delivered, so callers can `await` it before asserting rollback state.
+ * with HTTP 500. Awaits route registration before returning, then exposes a
+ * `done` promise that resolves once the 500 has been delivered, so callers can
+ * `await` it before asserting rollback state.
  *
  * Pass `{ method: "POST" }` to only intercept POST requests and let GETs
  * through - important for the flat grid which fires background GETs.
  *
  * Usage:
- *   const failed = failNextRequest(page, `**\/rows\/table\/${id}\/`, { method: "POST" })
+ *   const { done } = await failNextRequest(page, `**\/rows\/table\/${id}\/`, { method: "POST" })
  *   await grid.addRow()
- *   await failed
+ *   await done                     // 500 delivered
  *   await grid.expectRowCount(1)   // optimistic row was rolled back
  */
-export function failNextRequest(
+export async function failNextRequest(
   page: Page,
   urlPattern: string,
   options: RouteOptions = {},
-): Promise<void> {
-  return new Promise((resolve) => {
-    const handler = async (route: Route) => {
-      if (options.method && route.request().method() !== options.method) {
-        // Wrong method - let it through and keep the handler registered
-        await route.continue();
-        return;
-      }
-      // Correct method (or no method filter) - fail it and unregister.
-      // Use a Baserow-structured body so hasBaserowAPIError() returns true and
-      // the standard error toast fires.
-      await route.fulfill({
-        status: 500,
-        contentType: "application/json",
-        body: JSON.stringify({
-          error: "ERROR_E2E_FORCED_FAILURE",
-          detail: "Forced e2e failure.",
-        }),
-      });
-      await page.unroute(urlPattern, handler);
-      resolve();
-    };
-    page.route(urlPattern, handler);
+): Promise<FailedRequest> {
+  let resolveDone!: () => void;
+  const done = new Promise<void>((resolve) => {
+    resolveDone = resolve;
   });
+  const handler = async (route: Route) => {
+    if (options.method && route.request().method() !== options.method) {
+      // Wrong method - let it through and keep the handler registered
+      await route.continue();
+      return;
+    }
+    // Correct method (or no method filter) - fail it and unregister.
+    // Use a Baserow-structured body so hasBaserowAPIError() returns true and
+    // the standard error toast fires.
+    await route.fulfill({
+      status: 500,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: "ERROR_E2E_FORCED_FAILURE",
+        detail: "Forced e2e failure.",
+      }),
+    });
+    await page.unroute(urlPattern, handler);
+    resolveDone();
+  };
+  // Await registration so the intercept is armed before the caller triggers
+  // the request (mirrors pauseNextRequestWithSignal).
+  await page.route(urlPattern, handler);
+  return { done };
 }
 
 export async function pauseNextRequestWithSignal(
