@@ -23,8 +23,6 @@ import { pauseNextRequestWithSignal } from "../../../fixtures/network";
 
 type Setup = GridSetupResult;
 
-test.describe.configure({ mode: "serial" });
-
 async function pasteText(page: Page, text: string) {
   await page.evaluate((clipboardText) => {
     const data = new DataTransfer();
@@ -47,6 +45,7 @@ function multiSelectedFieldCells(page: Page) {
 // -----------------------------------------------------------------------------
 
 test.describe("9.1 Selection mechanics", () => {
+  test.describe.configure({ mode: "serial" });
   let g: Setup;
 
   test.beforeAll(async () => {
@@ -172,6 +171,7 @@ test.describe("9.1 Selection mechanics", () => {
 // -----------------------------------------------------------------------------
 
 test.describe("9.2 Keyboard multi-cell selection", () => {
+  test.describe.configure({ mode: "serial" });
   let g: Setup;
 
   test.beforeAll(async () => {
@@ -211,6 +211,7 @@ test.describe("9.2 Keyboard multi-cell selection", () => {
 // -----------------------------------------------------------------------------
 
 test.describe("4 Clipboard operations", () => {
+  test.describe.configure({ mode: "serial" });
   let g: Setup;
   let pasteFilter: Setup;
   let pasteSort: Setup;
@@ -456,6 +457,7 @@ test.describe("4 Clipboard operations", () => {
 // -----------------------------------------------------------------------------
 
 test.describe("10.1 Keyboard navigation", () => {
+  test.describe.configure({ mode: "serial" });
   let g: Setup;
 
   test.beforeAll(async () => {
@@ -572,6 +574,7 @@ test.describe("10.1 Keyboard navigation", () => {
 // -----------------------------------------------------------------------------
 
 test.describe("11.1 Row hover actions", () => {
+  test.describe.configure({ mode: "serial" });
   let gUnsorted: Setup;
   let gSorted: Setup;
 
@@ -700,6 +703,7 @@ test.describe("11.2 Row context menu actions", () => {
 // -----------------------------------------------------------------------------
 
 test.describe("12.1 Checkbox row selection", () => {
+  test.describe.configure({ mode: "serial" });
   let g: Setup;
 
   test.beforeAll(async () => {
