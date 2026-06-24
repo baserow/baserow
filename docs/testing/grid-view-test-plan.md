@@ -57,8 +57,8 @@ without waiting for the backend.
 
 **Deferred (✗):** at least one active constraint involves a formula field the
 frontend cannot evaluate — warnings and row changes for that constraint are
-deferred until the backend responds. Escape before the backend responds is `—`
-because no warning has appeared yet for the deferred constraint.
+deferred until the backend responds. Pressing Escape key before the backend
+responds is `—` because no warning has appeared yet for the deferred constraint.
 
 **Backend error column:** the backend returns a 5xx error. The optimistic value
 (always applied immediately for field edits) must be rolled back. For optimistic

@@ -19,6 +19,11 @@ import {
 const noop = () => {}
 const emptyRows = () => []
 
+/**
+ * Build the shared context object the row-lifecycle handlers expect, bundling
+ * registry/view/fields/group-bys with a default empty `groupBys` so callers
+ * don't have to pass it.
+ */
 export function createRowLifecycleContext({
   registry,
   view,
