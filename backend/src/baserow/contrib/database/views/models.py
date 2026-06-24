@@ -43,6 +43,10 @@ SORT_ORDER_ASC = "ASC"
 SORT_ORDER_DESC = "DESC"
 SORT_ORDER_CHOICES = ((SORT_ORDER_ASC, "Ascending"), (SORT_ORDER_DESC, "Descending"))
 
+# Max value of a smallint, used as the default "place last" priority/order sentinel.
+# Must match `maxPossibleOrderValue` in `modules/database/utils/view.js`.
+MAX_ORDER_VALUE = 32767
+
 FORM_VIEW_SUBMIT_TEXT = "Submit"
 FORM_VIEW_SUBMIT_ACTION_MESSAGE = "MESSAGE"
 FORM_VIEW_SUBMIT_ACTION_REDIRECT = "REDIRECT"
@@ -516,8 +520,8 @@ class ViewSort(HierarchicalModelMixin, OrderableMixin, models.Model):
         f"{DEFAULT_SORT_TYPE_KEY}` if incompatible with field type.",
     )
     priority = models.PositiveSmallIntegerField(
-        default=32767,
-        db_default=32767,
+        default=MAX_ORDER_VALUE,
+        db_default=MAX_ORDER_VALUE,
         help_text="Position of this sorting in the ordering chain. The sorting with "
         "the lowest priority is applied first.",
     )
@@ -568,8 +572,8 @@ class ViewGroupBy(HierarchicalModelMixin, OrderableMixin, models.Model):
         help_text="The pixel width of the group by in the related view.",
     )
     priority = models.PositiveSmallIntegerField(
-        default=32767,
-        db_default=32767,
+        default=MAX_ORDER_VALUE,
+        db_default=MAX_ORDER_VALUE,
         help_text="Position of this group by in the ordering chain. The group by with "
         "the lowest priority is applied first.",
     )

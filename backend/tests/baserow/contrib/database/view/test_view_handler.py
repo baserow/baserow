@@ -56,6 +56,7 @@ from baserow.contrib.database.views.filters import AdHocFilters
 from baserow.contrib.database.views.handler import ViewHandler, ViewIndexingHandler
 from baserow.contrib.database.views.models import (
     DEFAULT_SORT_TYPE_KEY,
+    MAX_ORDER_VALUE,
     OWNERSHIP_TYPE_COLLABORATIVE,
     FormView,
     GridView,
@@ -1507,6 +1508,71 @@ def test_create_sort(send_mock, data_fixture):
     assert view_sort_2.field_id == text_field_2.id
     assert view_sort_2.order == "DESC"
     assert ViewSort.objects.all().count() == 2
+
+
+@pytest.mark.django_db
+def test_create_sort_when_existing_priority_is_at_smallint_ceiling(data_fixture):
+    # Regression for `smallint out of range`: adding a sort to a view whose existing
+    # sort sits at the ceiling used to overflow; it now renumbers the chain instead.
+    user = data_fixture.create_user()
+    grid_view = data_fixture.create_grid_view(user=user)
+    text_field = data_fixture.create_text_field(table=grid_view.table)
+    text_field_2 = data_fixture.create_text_field(table=grid_view.table)
+
+    existing_sort = data_fixture.create_view_sort(
+        view=grid_view, field=text_field, order="ASC", priority=MAX_ORDER_VALUE
+    )
+
+    new_sort = ViewHandler().create_sort(
+        user=user, view=grid_view, field=text_field_2, order="DESC"
+    )
+
+    existing_sort.refresh_from_db()
+    # Chain renumbered to a dense 1..N, order kept, new sort last.
+    assert existing_sort.priority == 1
+    assert new_sort.priority == 2
+    assert ViewSort.objects.filter(view=grid_view).count() == 2
+
+
+@pytest.mark.django_db
+def test_create_group_by_when_existing_priority_is_at_smallint_ceiling(data_fixture):
+    # Same regression as the sort case above, for the parallel group-by create path.
+    user = data_fixture.create_user()
+    grid_view = data_fixture.create_grid_view(user=user)
+    text_field = data_fixture.create_text_field(table=grid_view.table)
+    text_field_2 = data_fixture.create_text_field(table=grid_view.table)
+
+    existing_group_by = data_fixture.create_view_group_by(
+        view=grid_view, field=text_field, order="ASC", priority=MAX_ORDER_VALUE
+    )
+
+    new_group_by = ViewHandler().create_group_by(
+        user=user, view=grid_view, field=text_field_2, order="DESC", width=200
+    )
+
+    existing_group_by.refresh_from_db()
+    assert existing_group_by.priority == 1
+    assert new_group_by.priority == 2
+    assert ViewGroupBy.objects.filter(view=grid_view).count() == 2
+
+
+@pytest.mark.django_db
+def test_create_sort_keeps_priority_chain_dense(data_fixture):
+    # Priorities stay a dense 1..N sequence no matter how many sorts are added.
+    user = data_fixture.create_user()
+    grid_view = data_fixture.create_grid_view(user=user)
+    fields = [data_fixture.create_text_field(table=grid_view.table) for _ in range(4)]
+
+    handler = ViewHandler()
+    for field in fields:
+        handler.create_sort(user=user, view=grid_view, field=field, order="ASC")
+
+    priorities = list(
+        ViewSort.objects.filter(view=grid_view)
+        .order_by("priority")
+        .values_list("priority", flat=True)
+    )
+    assert priorities == [1, 2, 3, 4]
 
 
 @pytest.mark.django_db
