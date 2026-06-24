@@ -2539,6 +2539,33 @@ class LinkRowFieldType(
             order=[linked_value, linked_order, linked_id],
         )
 
+    def get_group_by_display_values(self, field, field_name, raw_values):
+        ids = {row_id for value in raw_values for row_id in (value or [])}
+        related_model = field.link_row_table.get_model()
+        primary_field_object = next(
+            (
+                obj
+                for obj in related_model._field_objects.values()
+                if obj["field"].primary
+            ),
+            None,
+        )
+        id_to_value = {}
+        if ids and primary_field_object is not None:
+            for row in related_model.objects.filter(id__in=ids):
+                id_to_value[row.id] = primary_field_object[
+                    "type"
+                ].get_human_readable_value(
+                    getattr(row, primary_field_object["name"]), primary_field_object
+                )
+        return [
+            [
+                {"id": row_id, "value": id_to_value.get(row_id)}
+                for row_id in (value or [])
+            ]
+            for value in raw_values
+        ]
+
     def get_search_expression(self, field: Field, queryset: QuerySet) -> Expression:
         remote_field = queryset.model._meta.get_field(field.db_column).remote_field
         remote_model = remote_field.model
@@ -4070,6 +4097,16 @@ class SelectOptionBaseFieldType(FieldType):
     _can_group_by = True
     _db_column_fields = []
 
+    def _get_select_option_display_map(self, field):
+        return {
+            option.id: {
+                "id": option.id,
+                "value": option.value,
+                "color": option.color,
+            }
+            for option in field.select_options.all()
+        }
+
     def get_default_value(self, field: Field) -> Any:
         return getattr(field, self.get_default_options_field_name(), None)
 
@@ -4556,6 +4593,10 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         if value is None:
             return None if rich_value else ""
         return value.value
+
+    def get_group_by_display_values(self, field, field_name, raw_values):
+        options = self._get_select_option_display_map(field)
+        return [options.get(value) for value in raw_values]
 
     def get_model_field(self, instance, **kwargs):
         default = self.get_instance_default_value(
@@ -5260,6 +5301,13 @@ class MultipleSelectFieldType(
             },
             q={f"select_option_value_{field_name}__iregex": rf"\m{value}\M"},
         )
+
+    def get_group_by_display_values(self, field, field_name, raw_values):
+        options = self._get_select_option_display_map(field)
+        return [
+            [options[option_id] for option_id in (value or []) if option_id in options]
+            for value in raw_values
+        ]
 
     def get_order(
         self, field, field_name, order_direction, sort_type, table_model=None
@@ -7218,6 +7266,18 @@ class MultipleCollaboratorsFieldType(
         sort_type: str,
     ) -> Expression | F:
         return F(f"{field_name}__first_name")
+
+    def get_group_by_display_values(self, field, field_name, raw_values):
+        ids = {uid for value in raw_values for uid in (value or [])}
+        names = (
+            dict(User.objects.filter(id__in=ids).values_list("id", "first_name"))
+            if ids
+            else {}
+        )
+        return [
+            [{"id": uid, "name": names.get(uid)} for uid in (value or [])]
+            for value in raw_values
+        ]
 
     def to_baserow_formula_type(self, field: Field):
         return BaserowFormulaMultipleCollaboratorsType(nullable=True)

@@ -4829,7 +4829,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             field = group_by_level.field
             view_group_by = group_by_level.view_group_by
             field_type = field_type_registry.get_by_model(field.specific_class)
-            annotated_order_by = field_type.get_order(
+            annotated_order_by = field_type.get_group_by_order(
                 field,
                 field.db_column,
                 view_group_by.order,

@@ -364,11 +364,16 @@ def serialize_group_by_data(
     :return: The serialized page in the API response shape.
     """
 
-    serializer_by_db_column = {
-        field.db_column: field_type_registry.get_by_model(
-            field.specific_class
-        ).get_group_by_serializer_field(field)
+    field_by_db_column = {field.db_column: field for field in group_by_fields}
+    type_by_db_column = {
+        field.db_column: field_type_registry.get_by_model(field.specific_class)
         for field in group_by_fields
+    }
+    serializer_by_db_column = {
+        db_column: field_type.get_group_by_serializer_field(
+            field_by_db_column[db_column]
+        )
+        for db_column, field_type in type_by_db_column.items()
     }
 
     def serialize_path(path: Dict[str, Any]) -> Dict[str, Any]:
@@ -381,8 +386,40 @@ def serialize_group_by_data(
                 serialized_path[db_column] = serializer_field.to_representation(value)
         return serialized_path
 
+    # Resolve display values for group-by headers, batched per page.
+    # `display_lists` holds display values per field, parallel to `containers`.
+    containers = [page.get("parent", {})] + [
+        group["path"] for group in page.get("groups", [])
+    ]
+    display_lists: Dict[str, List[Any]] = {}
+    for db_column, field_type in type_by_db_column.items():
+        present_indexes = [
+            index
+            for index, container in enumerate(containers)
+            if container.get(db_column) is not None
+        ]
+        if not present_indexes:
+            continue
+        present_values = [containers[index][db_column] for index in present_indexes]
+        displays = field_type.get_group_by_display_values(
+            field_by_db_column[db_column], db_column, present_values
+        )
+        if displays is None:
+            continue
+        full = [None] * len(containers)
+        for index, display in zip(present_indexes, displays):
+            full[index] = display
+        display_lists[db_column] = full
+
+    def serialize_display(container_index: int) -> Dict[str, Any]:
+        display = {}
+        for db_column, full in display_lists.items():
+            if full[container_index] is not None:
+                display[db_column] = full[container_index]
+        return display
+
     groups = []
-    for group in page.get("groups", []):
+    for group_index, group in enumerate(page.get("groups", [])):
         out_group = {
             "path": serialize_path(group["path"]),
             "depth": group["depth"],
@@ -390,6 +427,10 @@ def serialize_group_by_data(
             "sibling_index": group["sibling_index"],
             "row_offset": group["row_offset"],
         }
+        # `containers[0]` is the parent, so the groups start at index 1.
+        display = serialize_display(group_index + 1)
+        if display:
+            out_group["display"] = display
         if "children_count" in group:
             out_group["children_count"] = group["children_count"]
         groups.append(out_group)

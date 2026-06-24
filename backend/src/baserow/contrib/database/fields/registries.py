@@ -954,6 +954,35 @@ class FieldType(
 
         return OptionallyAnnotatedOrderBy(order=field_order_by, can_be_indexed=True)
 
+    def get_group_by_order(
+        self,
+        field: Type[Field],
+        field_name: str,
+        order_direction: str,
+        sort_type: str,
+        table_model: Optional["GeneratedTableModel"] = None,
+    ) -> OptionallyAnnotatedOrderBy:
+        """
+        Returns the ordering used to sort the groups of a group-by data query. By
+        default this is identical to `get_order`, so groups are sorted exactly like
+        the rows are. Field types whose group-by collapses the column into a different
+        shape (for example the many-to-many types that aggregate the relation into an
+        array of ids) override this to recompute the same ordering against the
+        aggregated queryset.
+
+        :param field: The related field object instance.
+        :param field_name: The name of the field.
+        :param order_direction: The sort order direction (either "ASC" or "DESC").
+        :param sort_type: The sort type that must be used.
+        :param table_model: The table model instance that the field is part of,
+            if available.
+        :return: The ordering applied to the group-by data groups.
+        """
+
+        return self.get_order(
+            field, field_name, order_direction, sort_type, table_model=table_model
+        )
+
     def force_same_type_alter_column(self, from_field, to_field):
         """
         Defines whether the sql provided by the get_alter_column_prepare_{old,new}_value
@@ -1872,6 +1901,36 @@ class FieldType(
 
         return self.get_response_serializer_field(instance, **kwargs)
 
+    def get_group_by_display_values(
+        self,
+        field: Field,
+        field_name: str,
+        raw_values: List[Any],
+    ) -> Optional[List[Any]]:
+        """
+        Given the raw group values for this field (one per group on a page, in the
+        same order), returns a parallel list of display representations that the
+        frontend renders in the group-by header, matching the row API value shape
+        (for example ``[{"id", "name"}]`` for collaborators or ``[{"id", "value"}]``
+        for link rows).
+
+        Returns ``None`` when the raw serialized value is already what the client
+        renders (scalars, dates, durations, ...), in which case no ``display`` entry
+        is added for this field and the client falls back to the ``path`` value.
+
+        Reference field types (whose group value is a bare id or list of ids) override
+        this to resolve those ids to their display objects, batching the lookups
+        across the whole page.
+
+        :param field: The group-by field.
+        :param field_name: The ``db_column`` of the field.
+        :param raw_values: The raw group values, one per group on the page.
+        :return: A parallel list of display values, or ``None`` if no display is
+            needed.
+        """
+
+        return None
+
     def before_field_options_update(
         self,
         field: Field,
@@ -2186,10 +2245,46 @@ class ManyToManyGroupByMixin:
     def get_group_by_field_unique_value(
         self, field: Field, field_name: str, value: Any
     ) -> Any:
-        return tuple([v.id for v in value.all()])
+        if value is None:
+            return tuple()
+        # When the unique value is derived from a row, `value` is the many-to-many
+        # manager and we read the related ids from it. When it comes from a
+        # deserialized group-by path (a parent path of a nested group request), it is
+        # already the list of related ids.
+        if hasattr(value, "all"):
+            return tuple(related.id for related in value.all())
+        return tuple(value)
 
     def get_group_by_aggregated_order(self, related_field):
         return (f"{related_field}_id",)
+
+    def get_group_by_order(
+        self, field, field_name, order_direction, sort_type, table_model=None
+    ):
+        order = self.get_order(
+            field, field_name, order_direction, sort_type, table_model=table_model
+        )
+        if order.annotation is None or table_model is None:
+            return order
+
+        # In a group-by data query the relation column is shadowed by an aggregated
+        # ArrayField annotation (see `get_group_by_field_filters_and_annotations`), so
+        # the relation joins that `get_order` depends on are no longer reachable on the
+        # grouped queryset. Recompute the exact same ordering expressions as per-row
+        # correlated subqueries against the table model, where the relation is still
+        # available, so the groups are ordered identically to the rows.
+        wrapped_annotation = {
+            alias: Subquery(
+                table_model.objects.filter(id=OuterRef("id"))
+                .values("id")
+                .annotate(_group_by_order_value=expression)
+                .values("_group_by_order_value")[:1]
+            )
+            for alias, expression in order.annotation.items()
+        }
+        return OptionallyAnnotatedOrderBy(
+            order=order.order, annotation=wrapped_annotation
+        )
 
     def get_group_by_field_filters_and_annotations(
         self, field, field_name, base_queryset, value, cte, rows

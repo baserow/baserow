@@ -376,4 +376,57 @@ describe('gridGroupByRender', () => {
       limit: 40,
     })
   })
+
+  test('display values propagate from tree nodes into header items', () => {
+    const fields = [textField(1)]
+    const display = { field_1: [{ id: 10, name: 'Davide' }] }
+    const layout = buildLayout({
+      nodes: [{ path: { field_1: 'A' }, depth: 0, row_count: 1, display }],
+      collapse: { mode: 'expand', paths: [] },
+      fields,
+    })
+
+    const header = layout.items.find((item) => item.type === 'header')
+    expect(header.display).toEqual(display)
+  })
+
+  test('display values survive the paged layout and the rendered viewport', () => {
+    const fields = [textField(1)]
+    const display = { field_1: [{ id: 10, name: 'Davide' }] }
+    const layout = buildLayout({
+      pages: {
+        '': {
+          totalSiblingCount: 1,
+          nodes: {
+            0: {
+              path: { field_1: 'A' },
+              depth: 0,
+              row_count: 1,
+              sibling_index: 0,
+              row_offset: 0,
+              display,
+            },
+          },
+        },
+      },
+      collapse: { mode: 'expand', paths: [] },
+      fields,
+      pageSize: 40,
+    })
+
+    const layoutHeader = layout.items.find((item) => item.type === 'header')
+    expect(layoutHeader.display).toEqual(display)
+
+    const items = renderViewport({
+      layout,
+      sectionRows: buildSectionRows(
+        [{ path: { field_1: 'A' }, rows: [] }],
+        fields
+      ),
+      viewport: { scrollTop: 0, clientHeight: 1000 },
+      fields,
+    })
+    const renderedHeader = items.find((item) => item.type === 'header')
+    expect(renderedHeader.display).toEqual(display)
+  })
 })

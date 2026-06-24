@@ -62,6 +62,15 @@ class GridViewGroupByDataGroupSerializer(serializers.Serializer):
             "value at every depth from 0 up to this group's depth."
         )
     )
+    display = serializers.DictField(
+        required=False,
+        help_text=(
+            "Mapping of group-by field db_column names to the renderable display "
+            "value for reference fields (for example collaborator names or the "
+            "linked row's primary value). Only present for fields whose group value "
+            "is an id or list of ids that the client cannot render on its own."
+        ),
+    )
     depth = serializers.IntegerField(
         help_text="Zero-based depth of this group in the group-by hierarchy."
     )

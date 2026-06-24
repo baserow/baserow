@@ -131,38 +131,27 @@ export default {
       }
       return this.item.path[`field_${field.id}`]
     },
+    displayValue() {
+      const field = this.groupByField
+      const display = this.item.display
+      if (!field || !display) {
+        return undefined
+      }
+      const key = `field_${field.id}`
+      return key in display ? display[key] : undefined
+    },
     rowValueForGroup() {
       const field = this.groupByField
       if (!field || !this.fieldType) {
         return null
       }
-      const baseValue = this.fieldType.getRowValueFromGroupValue(
-        field,
-        this.groupValue
-      )
-      const options = field.select_options
-      if (!Array.isArray(options)) {
-        return baseValue
+      // Reference fields (collaborators, link rows, selects) can't be rendered from
+      // their group id(s) alone, so the backend resolves them to a renderable value
+      // in `display`. Other field types group on a value that is already displayable.
+      if (this.displayValue !== undefined) {
+        return this.displayValue
       }
-
-      if (
-        baseValue &&
-        typeof baseValue === 'object' &&
-        !Array.isArray(baseValue) &&
-        'id' in baseValue
-      ) {
-        const full = options.find((option) => option.id === baseValue.id)
-        return full ? { ...full } : baseValue
-      }
-      if (Array.isArray(baseValue)) {
-        return baseValue.map((value) => {
-          const id =
-            typeof value === 'object' && value !== null ? value.id : value
-          const full = options.find((option) => option.id === id)
-          return full ? { ...full } : value
-        })
-      }
-      return baseValue
+      return this.fieldType.getRowValueFromGroupValue(field, this.groupValue)
     },
     isEmptyValue() {
       const value = this.rowValueForGroup

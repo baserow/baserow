@@ -1220,3 +1220,117 @@ def test_group_by_data_threaded_parent_row_offset_is_a_pure_speedup(
     # with it.
     assert len(recursive_lookups) >= 1
     assert threaded_lookups == []
+
+
+@pytest.mark.django_db
+def test_group_by_data_includes_multiple_collaborators_display_values(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    collaborator = data_fixture.create_user(
+        workspace=database.workspace, first_name="Davide"
+    )
+    field = data_fixture.create_multiple_collaborators_field(table=table, name="People")
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=field)
+
+    model = table.get_model()
+    getattr(model.objects.create(), field.db_column).set([collaborator.id])
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    group = _get_only_page(response)["groups"][0]
+    assert group["path"][f"field_{field.id}"] == [collaborator.id]
+    assert group["display"][f"field_{field.id}"] == [
+        {"id": collaborator.id, "name": "Davide"}
+    ]
+
+
+@pytest.mark.django_db
+def test_group_by_data_includes_link_row_display_values(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    linked_table = data_fixture.create_database_table(user=user, database=database)
+    linked_primary = data_fixture.create_text_field(
+        table=linked_table, name="Name", primary=True
+    )
+    field = data_fixture.create_link_row_field(
+        table=table, link_row_table=linked_table, name="Links"
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=field)
+
+    linked_model = linked_table.get_model()
+    linked = linked_model.objects.create(**{f"field_{linked_primary.id}": "Row A"})
+
+    model = table.get_model()
+    getattr(model.objects.create(), field.db_column).set([linked.id])
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    group = _get_only_page(response)["groups"][0]
+    assert group["path"][f"field_{field.id}"] == [linked.id]
+    assert group["display"][f"field_{field.id}"] == [
+        {"id": linked.id, "value": "Row A"}
+    ]
+
+
+@pytest.mark.django_db
+def test_group_by_data_includes_single_select_display_values(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_single_select_field(table=table, name="Status")
+    option = data_fixture.create_select_option(
+        field=field, value="Open", color="blue", order=0
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=field)
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{field.id}_id": option.id})
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    group = _get_only_page(response)["groups"][0]
+    assert group["path"][f"field_{field.id}"] == option.id
+    assert group["display"][f"field_{field.id}"] == {
+        "id": option.id,
+        "value": "Open",
+        "color": "blue",
+    }
+
+
+@pytest.mark.django_db
+def test_group_by_data_includes_multiple_select_display_values(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_multiple_select_field(table=table, name="Tags")
+    option = data_fixture.create_select_option(
+        field=field, value="Red", color="red", order=0
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=field)
+
+    model = table.get_model()
+    getattr(model.objects.create(), field.db_column).set([option.id])
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+
+    assert response.status_code == HTTP_200_OK
+    group = _get_only_page(response)["groups"][0]
+    assert group["path"][f"field_{field.id}"] == [option.id]
+    assert group["display"][f"field_{field.id}"] == [
+        {"id": option.id, "value": "Red", "color": "red"}
+    ]

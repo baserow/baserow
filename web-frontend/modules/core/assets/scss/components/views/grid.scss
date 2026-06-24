@@ -547,11 +547,13 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  gap: 4px;
 }
 
 .grid-view__group-by-banner-label {
-  font-size: 10px;
+  @extend %ellipsis;
+
+  font-size: 9px;
   font-weight: 600;
   letter-spacing: 0.06em;
   color: $palette-neutral-900;
@@ -566,6 +568,35 @@
   font-size: 13px;
   font-weight: 400;
   line-height: 1.2;
+}
+
+.grid-view__group-value-many-to-many {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+
+  > * {
+    flex: 0 0 auto;
+  }
+
+  .field-multiple-collaborators__item {
+    height: 20px;
+  }
+
+  .field-multiple-collaborators__name {
+    @include fixed-height(18px, 11px);
+
+    padding-left: 15px;
+  }
+
+  .field-multiple-collaborators__initials {
+    flex: 0 0 18px;
+    margin-right: -12px;
+
+    @include center-text(18px, 10px);
+  }
 }
 
 .grid-view__group-by-banner-value-text {
