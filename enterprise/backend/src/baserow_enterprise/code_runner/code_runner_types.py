@@ -239,15 +239,17 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         )
 
         try:
-            if process.stdin is None:
-                raise CodeRunnerExecutionError("The code stdin pipe was not created.")
-            process.stdin.write(payload.encode())
-            process.stdin.close()
+            deadline = time.monotonic() + self.timeout_seconds
 
-            stdout, stderr = self._read_bounded_process_output(process)
+            self._write_process_input(process, payload, deadline)
+            stdout, stderr = self._read_bounded_process_output(process, deadline)
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise subprocess.TimeoutExpired(process.args, self.timeout_seconds)
+
             return subprocess.CompletedProcess(
                 command,
-                process.wait(timeout=0),
+                process.wait(timeout=remaining),
                 stdout=stdout.decode(errors="replace"),
                 stderr=stderr.decode(errors="replace"),
             )
@@ -257,8 +259,46 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
                 process.wait()
             raise
 
+    def _write_process_input(
+        self, process: subprocess.Popen, payload: str, deadline: float
+    ) -> None:
+        """
+        Write stdin without allowing a full stdin pipe to bypass the timeout.
+        """
+
+        if process.stdin is None:
+            raise CodeRunnerExecutionError("The code stdin pipe was not created.")
+
+        selector = selectors.DefaultSelector()
+        stdin_fd = process.stdin.fileno()
+        os.set_blocking(stdin_fd, False)
+        selector.register(process.stdin, selectors.EVENT_WRITE)
+
+        data = payload.encode()
+        written = 0
+
+        try:
+            while written < len(data):
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    raise subprocess.TimeoutExpired(process.args, self.timeout_seconds)
+
+                for _, _ in selector.select(timeout=remaining):
+                    try:
+                        written += os.write(stdin_fd, data[written:])
+                    except BlockingIOError:
+                        continue
+                    except BrokenPipeError:
+                        return
+        finally:
+            selector.unregister(process.stdin)
+            try:
+                process.stdin.close()
+            except BrokenPipeError:
+                pass
+
     def _read_bounded_process_output(
-        self, process: subprocess.Popen
+        self, process: subprocess.Popen, deadline: float
     ) -> tuple[bytes, bytes]:
         """
         Read stdout and stderr from a running process without blocking indefinitely.
@@ -281,8 +321,6 @@ class WasmtimeQuickJSCodeRunnerType(CodeRunnerType):
         for stream in streams:
             os.set_blocking(stream.fileno(), False)
             selector.register(stream, selectors.EVENT_READ)
-
-        deadline = time.monotonic() + self.timeout_seconds
 
         while selector.get_map():
             remaining = deadline - time.monotonic()

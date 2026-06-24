@@ -1,3 +1,4 @@
+import io
 import os
 import subprocess
 import sys
@@ -145,6 +146,35 @@ def test_wasmtime_quickjs_code_runner_uses_explicit_fuel_limit(monkeypatch):
     runner.run({}, "function main() { return { newValue: 4 } }")
 
     assert "fuel=200000" in calls[0][0]
+
+
+def test_wasmtime_quickjs_code_runner_reaps_process_with_remaining_timeout(
+    monkeypatch,
+):
+    class RaceProcess:
+        args = ["wasmtime"]
+        stdin = io.BytesIO()
+
+        def wait(self, timeout=None):
+            assert timeout is not None
+            assert timeout > 0
+            return 0
+
+        def poll(self):
+            return 0
+
+    class RaceRunner(WasmtimeQuickJSCodeRunnerType):
+        def _write_process_input(self, process, payload, deadline):
+            pass
+
+        def _read_bounded_process_output(self, process, deadline):
+            return b'{"result": {}}', b""
+
+    monkeypatch.setattr(subprocess, "Popen", lambda *args, **kwargs: RaceProcess())
+
+    runner = RaceRunner(quickjs_wasm_path="/runtime/qjs.wasm")
+
+    assert runner.run({}, "function main() { return {} }") == {}
 
 
 def test_wasmtime_quickjs_code_runner_can_disable_fuel_limit(monkeypatch):
