@@ -2196,9 +2196,10 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         in `create_kwargs`.
         """
 
-        assert "priority" not in create_kwargs, (
-            "priority is managed internally by the chain; do not pass it in create_kwargs"
-        )
+        if "priority" in create_kwargs:
+            raise ValueError(
+                "priority is managed internally by the chain; do not pass it in create_kwargs"
+            )
 
         with transaction.atomic():
             existing = list(

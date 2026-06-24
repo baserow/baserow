@@ -9,6 +9,8 @@ def renumber_priorities(schema_editor, table_name):
     the smallint ceiling, preserving the current order (`priority, id`).
     """
 
+    table = schema_editor.connection.ops.quote_name(table_name)
+
     schema_editor.execute(
         f"""
         WITH ranked AS (
@@ -17,12 +19,12 @@ def renumber_priorities(schema_editor, table_name):
                 ROW_NUMBER() OVER (
                     PARTITION BY view_id ORDER BY priority, id
                 ) AS new_priority
-            FROM {table_name}
+            FROM {table}
             WHERE view_id IN (
-                SELECT view_id FROM {table_name} WHERE priority >= {MAX_ORDER_VALUE}
+                SELECT view_id FROM {table} WHERE priority >= {MAX_ORDER_VALUE}
             )
         )
-        UPDATE {table_name} AS t
+        UPDATE {table} AS t
         SET priority = ranked.new_priority
         FROM ranked
         WHERE t.id = ranked.id AND t.priority <> ranked.new_priority;
