@@ -373,8 +373,6 @@ export default {
       const isAreaSelectionActive =
         selectionType === GRID_VIEW_MULTI_SELECT_AREA &&
         this.$store.getters[this.storePrefix + 'view/grid/isMultiSelectActive']
-      // Row/field indices and ranges are only needed when an area selection is
-      // active; skip the getter calls (and the allVisibleFields scan) otherwise.
       if (!isAreaSelectionActive) {
         return computeMultiSelectPosition({
           isAreaSelectionActive: false,

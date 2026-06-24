@@ -61,30 +61,6 @@ export function failNextRequest(
   });
 }
 
-/**
- * Arms a route intercept that PAUSES the next matching request until the
- * returned `release` function is called. Later matching requests continue
- * normally.
- *
- * Pass `{ method: "POST" }` to only pause POST requests.
- *
- * Usage:
- *   const release = await pauseNextRequest(page, pattern, { method: "POST" })
- *   await grid.addRow()
- *   // Optimistic state visible - network paused
- *   await grid.expectRowCount(2)
- *   release()
- *   await grid.expectRowCount(2)   // BE confirmed
- */
-export async function pauseNextRequest(
-  page: Page,
-  urlPattern: string,
-  options: RouteOptions = {},
-): Promise<() => void> {
-  const paused = await pauseNextRequestWithSignal(page, urlPattern, options);
-  return paused.release;
-}
-
 export async function pauseNextRequestWithSignal(
   page: Page,
   urlPattern: string,

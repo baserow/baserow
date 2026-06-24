@@ -91,58 +91,6 @@ export function prepareNewOldAndUpdateRequestValues(
 }
 
 /**
- * Multi-field variant of `prepareNewOldAndUpdateRequestValues`. Given a single
- * row and multiple `(field, value, oldValue)` triples, return one combined
- * `{newRowValues, oldRowValues, updateRequestValues}` so the row can be patched
- * once with every field change at the same time. Side-effect optimistic values
- * (`onRowChange`) are still computed for unedited fields against a virtual row
- * that already reflects every new value.
- */
-export function prepareRowMultiFieldUpdate(
-  row,
-  allFields,
-  fieldValuePairs,
-  registry
-) {
-  const newRowValues = { id: row.id }
-  const oldRowValues = { id: row.id }
-  const updateRequestValues = { id: row.id }
-  const editedFieldIds = new Set(fieldValuePairs.map((p) => p.field.id))
-
-  for (const { field, value, oldValue } of fieldValuePairs) {
-    const fieldKey = `field_${field.id}`
-    newRowValues[fieldKey] = value
-    oldRowValues[fieldKey] = oldValue
-    const fieldType = registry.get('field', field.type)
-    updateRequestValues[fieldKey] = fieldType.prepareValueForUpdate(
-      field,
-      value
-    )
-  }
-
-  const virtualRow = { ...row, ...newRowValues }
-  for (const otherField of allFields) {
-    if (editedFieldIds.has(otherField.id)) {
-      continue
-    }
-    const fieldType = registry.get('field', otherField.type)
-    const fieldKey = `field_${otherField.id}`
-    const currentFieldValue = row[fieldKey]
-    const optimisticFieldValue = fieldType.onRowChange(
-      virtualRow,
-      otherField,
-      currentFieldValue
-    )
-    if (currentFieldValue !== optimisticFieldValue) {
-      newRowValues[fieldKey] = optimisticFieldValue
-      oldRowValues[fieldKey] = currentFieldValue
-    }
-  }
-
-  return { newRowValues, oldRowValues, updateRequestValues }
-}
-
-/**
  * Compute the row-form values a brand-new row should start with,
  * combining: explicit caller-supplied values (highest priority),
  * view-level default_row_values, and each field type's own default
@@ -151,9 +99,6 @@ export function prepareRowMultiFieldUpdate(
  * field type's `prepareValueForUpdate` separately to build the BE
  * payload.
  *
- * This is the same computation the flat-grid create flow previously did
- * inline; extracting it keeps row default handling reusable by other grid
- * code without duplicating the defaults logic.
  */
 export function buildNewRowDefaults({
   view,
@@ -208,8 +153,7 @@ export function buildNewRowDefaults({
 /**
  * Decide whether a row still belongs at its current position after a change:
  * whether it still matches the view's filters, and whether it lands at the same
- * sorted index amongst the comparison set. The grouped grid can pass only the
- * rows from the current group section; the flat grid can pass every loaded row.
+ * sorted index amongst the comparison set.
  */
 export function computeRowMatchFlags({
   row,
@@ -262,7 +206,7 @@ export function computeRowMatchFlags({
  * internal cell edges).
  *
  * Pure function. Grid row components can call it with their own coordinate
- * model as long as coordinates use the same model as the flat grid's
+ * model as long as coordinates use the same model as the grid's
  * multi-select state: integer row index in the visible row list and integer
  * field index in the visible fields list.
  */

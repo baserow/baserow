@@ -3,17 +3,7 @@
  *
  * Catalogue sections: section 1 Row creation, section 2 Row update, section 3 Row deletion.
  *
- * ## Data isolation
- * Each describe block creates an isolated database in `beforeAll` (fields,
- * view config) and resets rows in `beforeEach` (row content). Tests within
- * each describe run serially so `resetRows` always fires before each test.
  *
- * ## Anti-flakiness
- * - All assertions use Playwright polling — no arbitrary timeouts.
- * - Network failures delivered via `failNextRequest` resolve only after the
- *   request has been intercepted, removing all timing races.
- * - Warning tests use Tab (not Enter) so the row stays selected long enough
- *   to assert the warning before deselect triggers removal.
  */
 
 import { test } from "../../baserowTest";
@@ -59,6 +49,13 @@ async function deleteRowThroughContextMenu(
 ): Promise<void> {
   await grid.rightClickRow(rowIndex);
   await grid.clickContextItem("Delete row");
+}
+
+function numberedRows(count: number): Record<string, unknown>[] {
+  return Array.from({ length: count }, (_, index) => ({
+    Name: `Row ${String(index + 1).padStart(3, "0")}`,
+    Score: index + 1,
+  }));
 }
 
 // -----------------------------------------------------------------------------
@@ -372,6 +369,68 @@ test.describe("1.3.2 Create with active formula-field sort (deferred)", () => {
     await grid.expectRowCount(1);
     await grid.expectPrimaryText(0, "Alice");
     await grid.expectRowNoWarning(0);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// section 1.3.3  Create with active sort where destination is outside buffer
+// -----------------------------------------------------------------------------
+
+test.describe("1.3.3 Create with active sort outside the current buffer", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "CrudSortCreateOutsideBufferDb",
+      fields: [{ name: "Score", type: "number" }],
+      sorts: [{ fieldName: "Name", order: "ASC" }],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await resetRows(g, numberedRows(50));
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.expectPrimaryText(0, "Row 001");
+  });
+
+  test("1.3.3 sorted add at bottom moves to a destination above the current buffer after deselect", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.reduceCurrentBufferToSlice(20, 30, "end");
+    let lastRowIndex = (await grid.renderedRowCount()) - 1;
+    await grid.expectPrimaryText(lastRowIndex, "Row 050");
+
+    const pausedCreate = await pauseNextRequestWithSignal(
+      page,
+      `**/api/database/rows/table/${g.table.id}/**`,
+      { method: "POST" },
+    );
+
+    await grid.addRow();
+    await pausedCreate.intercepted;
+    const newRowIndex = (await grid.renderedRowCount()) - 1;
+    await grid.expectPrimaryEmpty(newRowIndex);
+    await grid.expectRowLoading(newRowIndex);
+    await grid.expectRowNoWarning(newRowIndex);
+
+    pausedCreate.release();
+    await grid.expectRowNotLoading(newRowIndex);
+    await grid.expectRowHasWarning(newRowIndex);
+    await grid.expectRowWarningText(newRowIndex, "Row has moved");
+
+    await grid.clickAway();
+    lastRowIndex = (await grid.renderedRowCount()) - 1;
+    await grid.expectPrimaryText(lastRowIndex, "Row 050");
+    await grid.expectRowNoWarning(lastRowIndex);
+
+    await grid.goTo(g.database, g.table);
+    await grid.expectPrimaryEmpty(0);
+    await grid.expectPrimaryText(1, "Row 001");
+    await grid.expectRowNoWarning(0);
+    await grid.expectRowNoWarning(1);
   });
 });
 
@@ -1326,6 +1385,65 @@ test.describe("2.3.4 Edit with formula-field sort (deferred)", () => {
     await grid.expectPrimaryText(1, "Alice");
     await grid.expectRowNoWarning(0);
     await grid.expectRowNoWarning(1);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// section 2.3.5  Edit with active sort where destination is outside buffer
+// -----------------------------------------------------------------------------
+
+test.describe("2.3.5 Edit with active sort outside the current buffer", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "CrudSortUpdateOutsideBufferDb",
+      fields: [{ name: "Score", type: "number" }],
+      sorts: [{ fieldName: "Name", order: "ASC" }],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await resetRows(g, numberedRows(50));
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+    await grid.expectPrimaryText(0, "Row 001");
+  });
+
+  test("2.3.5 sort-affecting edit moves the row outside the current buffer after deselect", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.reduceCurrentBufferToSlice(20, 30, "end");
+    await grid.expectPrimaryVisible("Row 050");
+
+    const pausedUpdate = await pauseNextRequestWithSignal(
+      page,
+      `**/api/database/rows/table/${g.table.id}/**`,
+      { method: "PATCH" },
+    );
+
+    await startEditingPrimary(grid, 0);
+    await grid.type("Row 000");
+    await grid.expectActiveEditorValue("Row 000");
+    await grid.confirmWithTab();
+    await pausedUpdate.intercepted;
+    await grid.expectPrimaryVisible("Row 000");
+    await grid.expectPrimaryRowHasWarning("Row 000", "Row has moved");
+
+    await grid.clickAway();
+    await grid.expectPrimaryNotVisible("Row 000");
+    await grid.expectRowNoWarning(0);
+
+    pausedUpdate.release();
+    await grid.expectNoRowsLoading();
+    await grid.expectPrimaryNotVisible("Row 000");
+
+    await grid.goTo(g.database, g.table);
+    await grid.expectPrimaryText(0, "Row 000");
+    await grid.expectPrimaryText(1, "Row 001");
+    await grid.expectRowNoWarning(0);
   });
 });
 

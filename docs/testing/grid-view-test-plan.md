@@ -103,9 +103,8 @@ written.
 All combinations of two or more active constraints (filter + sort, filter +
 group-by, sort + group-by, filter + sort + group-by) are uncovered for every
 operation and timing variant. Each combination should be tested in both the
-all-regular (fully optimistic) and any-formula (partially or fully deferred)
-configurations. When added, expand this section into a table following the same
-structure as the single-constraint table above.
+all-regular (fully optimistic) and any-formula (deferred)
+configurations.
 
 ## Row Creation
 
@@ -287,6 +286,20 @@ structure as the single-constraint table above.
 - Optimistic row is removed from the visible grid after the error.
 - Row count returns to its original value.
 - Error toast is visible.
+
+### 1.3.3 Add row with simple-field sort and destination outside current buffer
+
+- Grid is scrolled so the current buffer does not contain the row's correct
+  sorted destination.
+- Empty row is appended to the visible bottom buffer.
+- Row loading spinner is visible while the create request is pending.
+- "Row has moved" is hidden while the create request is pending.
+- Row loading spinner is hidden after backend confirmation.
+- "Row has moved" is visible after backend confirmation while the row is
+  selected.
+- After deselect, the row leaves the current rendered buffer.
+- After deselect, "Row has moved" is hidden.
+- After scrolling to the row's sorted destination, the row is visible there.
 
 ### 1.4.1 Edit a field while create is pending
 
@@ -483,6 +496,21 @@ structure as the single-constraint table above.
 - Typed value is rolled back to the original value.
 - Row stays in its current position.
 - Error toast is visible.
+
+### 2.3.5 Sort relocation outside the current buffer
+
+- Grid is scrolled so the current buffer does not contain the row's correct
+  sorted destination after edit.
+- Typed value is visible immediately.
+- "Row has moved" is visible immediately because the frontend can evaluate the
+  simple-field sort against the current buffer.
+- Row stays in its current visible position while selected.
+- After deselect while the update request is pending, the row leaves the current
+  rendered buffer.
+- After deselect, "Row has moved" is hidden.
+- Row stays outside the current rendered buffer after backend confirmation.
+- After scrolling to the row's sorted destination, the updated row is visible
+  there.
 
 ## Row Deletion
 
@@ -813,11 +841,12 @@ structure as the single-constraint table above.
 
 ## TODO Coverage
 
-- 1.3.x: Sorted add where the correct destination is outside the current buffer.
 - 1.5.x: Create rows with active group-by constraints.
-- 2.3.5: Sort relocation outside the current buffer.
 - 2.4.x: Update rows with active group-by constraints.
-- 2.5.x: Editing fields that participate in formulas.
+- 2.5.x: Editing source fields for visible formula fields that are not active
+  filter/sort/group-by constraints; verify formula-cell loading, refresh, and
+  rollback. Formula-backed filter/sort constraints are covered by 2.2.5 and
+  2.3.4.
 - 4.2.x: Filter-affecting paste with formula-field filter (deferred warning path).
 - 4.3.x: Sort-affecting paste with formula-field sort (deferred move path).
 - 4.4.x: Backspace clears all selected cell values while an area selection is active.

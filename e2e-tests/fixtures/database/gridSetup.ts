@@ -1,5 +1,5 @@
 import { User, createUser } from "../user";
-import { Workspace, createWorkspace } from "../workspace";
+import { createWorkspace } from "../workspace";
 import { Database, createDatabase } from "./database";
 import { Table, createTable } from "./table";
 import {

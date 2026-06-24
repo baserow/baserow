@@ -314,6 +314,81 @@ export class GridPage {
       .click({ position: { x: 5, y: 5 } });
   }
 
+  async renderedRowCount(): Promise<number> {
+    return await this.rightRows().count();
+  }
+
+  async reduceCurrentBufferToSlice(
+    startIndex: number,
+    limit: number,
+    viewportAlign: "start" | "end" = "start",
+  ): Promise<void> {
+    await this.page.evaluate(
+      async ({ start, rowLimit, align }) => {
+        const nuxtWindow = window as unknown as {
+          useNuxtApp?: () => { $store: any };
+        };
+        const store = nuxtWindow.useNuxtApp?.().$store;
+        if (!store) {
+          throw new Error("Expected Nuxt store to be available.");
+        }
+
+        const gridStore = ["page/view/grid", "view/grid"].find((namespace) =>
+          Object.prototype.hasOwnProperty.call(
+            store.getters,
+            `${namespace}/getAllRows`,
+          ),
+        );
+        if (!gridStore) {
+          throw new Error("Expected grid Vuex module to be registered.");
+        }
+
+        const rows = store.getters[`${gridStore}/getAllRows`];
+        if (rows.length < start + rowLimit) {
+          throw new Error(
+            `Expected at least ${start + rowLimit} buffered rows, got ${
+              rows.length
+            }.`,
+          );
+        }
+
+        const rowsInSlice = rows.slice(start, start + rowLimit);
+        const count = store.getters[`${gridStore}/getCount`];
+        const rowHeight = store.getters[`${gridStore}/getRowHeight`];
+        store.commit(`${gridStore}/ADD_ROWS`, {
+          rows: [],
+          prependToRows: -rows.length,
+          appendToRows: 0,
+          count,
+          bufferStartIndex: start,
+          bufferLimit: 0,
+        });
+        store.commit(`${gridStore}/ADD_ROWS`, {
+          rows: rowsInSlice,
+          prependToRows: 0,
+          appendToRows: rowsInSlice.length,
+          count,
+          bufferStartIndex: start,
+          bufferLimit: rowsInSlice.length,
+        });
+        if (align === "end") {
+          await store.dispatch(
+            `${gridStore}/visibleByScrollTop`,
+            count * rowHeight,
+          );
+        } else {
+          store.commit(`${gridStore}/SET_ROWS_INDEX`, {
+            startIndex: 0,
+            endIndex: rowsInSlice.length,
+            top: start * rowHeight,
+          });
+          store.commit(`${gridStore}/SET_SCROLL_TOP`, start * rowHeight);
+        }
+      },
+      { start: startIndex, rowLimit: limit, align: viewportAlign },
+    );
+  }
+
   /**
    * Right-click a row to open its context menu.
    * We right-click the RIGHT section row (field cell area) because the left
@@ -698,6 +773,20 @@ export class GridPage {
     await expect(this.rowWarningAt(rowIndex)).toContainText(text, {
       timeout: 10_000,
     });
+  }
+
+  async expectPrimaryRowHasWarning(
+    primaryText: string,
+    warningText: string,
+  ): Promise<void> {
+    const row = this.leftRows().filter({ hasText: primaryText });
+    await expect(row).toHaveClass(/grid-view__row--warning/, {
+      timeout: 10_000,
+    });
+    await expect(row.locator(".grid-view__row-warning")).toContainText(
+      warningText,
+      { timeout: 10_000 },
+    );
   }
 
   async expectRowNoWarning(rowIndex: number): Promise<void> {

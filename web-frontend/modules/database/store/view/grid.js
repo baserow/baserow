@@ -2355,7 +2355,7 @@ export const actions = {
       return
     }
 
-    const { $registry, $client } = this
+    const { $registry } = this
     const row = clone(values)
 
     if (populate) {
@@ -2371,9 +2371,7 @@ export const actions = {
 
     handleRowCreated({
       context: createRowLifecycleContext({
-        client: $client,
         registry: $registry,
-        table: { id: null },
         view,
         fields,
         groupBys: view.group_bys,
@@ -3000,7 +2998,7 @@ export const actions = {
     { commit, getters, dispatch },
     { view, fields, row, values, metadata, updatedFieldIds = [] }
   ) {
-    const { $registry, $client } = this
+    const { $registry } = this
     const oldRow = clone(row)
     const newRow = Object.assign(clone(row), values)
     populateRow(oldRow, metadata)
@@ -3206,9 +3204,7 @@ export const actions = {
 
     handleRowUpdated({
       context: createRowLifecycleContext({
-        client: $client,
         registry: $registry,
-        table: { id: null },
         view,
         fields,
         groupBys: view.group_bys,
@@ -3328,7 +3324,7 @@ export const actions = {
     { commit, getters, dispatch },
     { view, fields, row }
   ) {
-    const { $registry, $client } = this
+    const { $registry } = this
     row = clone(row)
     populateRow(row)
 
@@ -3341,9 +3337,7 @@ export const actions = {
 
     handleRowDeleted({
       context: createRowLifecycleContext({
-        client: $client,
         registry: $registry,
-        table: { id: null },
         view,
         fields,
         groupBys: view.group_bys,
@@ -3398,9 +3392,7 @@ export const actions = {
         : row
     reapplyMatchFlags({
       context: createRowLifecycleContext({
-        client: this.$client,
         registry: this.$registry,
-        table: { id: null },
         view,
         fields,
         groupBys: view.group_bys,

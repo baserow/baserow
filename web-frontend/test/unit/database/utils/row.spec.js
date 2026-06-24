@@ -5,7 +5,6 @@ import {
   computeMultiSelectPosition,
   computeRowMatchFlags,
   buildNewRowDefaults,
-  prepareRowMultiFieldUpdate,
   computeRowInsertPosition,
 } from '@baserow/modules/database/utils/row'
 import { TestApp } from '@baserow/test/helpers/testApp'
@@ -549,92 +548,6 @@ describe('Row utilities', () => {
           registry: makeRegistry(),
         })
       ).toEqual({ field_1: 'field_default' })
-    })
-  })
-
-  describe('prepareRowMultiFieldUpdate', () => {
-    const field = (id) => ({ id, name: `f${id}`, type: 'text' })
-    const registry = {
-      get() {
-        return {
-          prepareValueForUpdate: (_field, value) => `prepared:${value}`,
-          onRowChange: (row, f, value) =>
-            f.id === 3 && row.field_1 !== undefined
-              ? `reacted:${row.field_1}`
-              : value,
-        }
-      },
-    }
-
-    const row = { id: 5, field_1: 'old1', field_2: 'old2', field_3: 'old3' }
-    const allFields = [field(1), field(2), field(3)]
-
-    test('edited fields appear in all output objects with correct values', () => {
-      const { newRowValues, oldRowValues, updateRequestValues } =
-        prepareRowMultiFieldUpdate(
-          row,
-          allFields,
-          [
-            { field: field(1), value: 'new1', oldValue: 'old1' },
-            { field: field(2), value: 'new2', oldValue: 'old2' },
-          ],
-          registry
-        )
-
-      expect(newRowValues).toMatchObject({
-        id: 5,
-        field_1: 'new1',
-        field_2: 'new2',
-      })
-      expect(oldRowValues).toMatchObject({
-        id: 5,
-        field_1: 'old1',
-        field_2: 'old2',
-      })
-      expect(updateRequestValues).toMatchObject({
-        id: 5,
-        field_1: 'prepared:new1',
-        field_2: 'prepared:new2',
-      })
-    })
-
-    test('updateRequestValues uses prepared values instead of raw values', () => {
-      const { updateRequestValues } = prepareRowMultiFieldUpdate(
-        row,
-        allFields,
-        [{ field: field(1), value: 'rawValue', oldValue: 'old1' }],
-        registry
-      )
-      expect(updateRequestValues.field_1).toBe('prepared:rawValue')
-    })
-
-    test('unedited onRowChange side effects are captured outside request values', () => {
-      const { newRowValues, oldRowValues, updateRequestValues } =
-        prepareRowMultiFieldUpdate(
-          row,
-          allFields,
-          [{ field: field(1), value: 'trigger', oldValue: 'old1' }],
-          registry
-        )
-
-      expect(newRowValues.field_3).toBe('reacted:trigger')
-      expect(oldRowValues.field_3).toBe('old3')
-      expect(updateRequestValues.field_3).toBeUndefined()
-    })
-
-    test('edited fields are not reprocessed through onRowChange side effects', () => {
-      const { newRowValues } = prepareRowMultiFieldUpdate(
-        row,
-        allFields,
-        [
-          { field: field(1), value: 'A', oldValue: 'old1' },
-          { field: field(2), value: 'B', oldValue: 'old2' },
-        ],
-        registry
-      )
-
-      expect(newRowValues.field_1).toBe('A')
-      expect(newRowValues.field_2).toBe('B')
     })
   })
 
