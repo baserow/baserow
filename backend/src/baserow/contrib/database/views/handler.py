@@ -2196,6 +2196,10 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         in `create_kwargs`.
         """
 
+        assert "priority" not in create_kwargs, (
+            "priority is managed internally by the chain; do not pass it in create_kwargs"
+        )
+
         with transaction.atomic():
             existing = list(
                 model.objects.select_for_update(of=("self",))

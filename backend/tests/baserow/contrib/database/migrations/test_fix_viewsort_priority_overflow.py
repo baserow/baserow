@@ -2,7 +2,7 @@
 
 import pytest
 
-MAX_ORDER_VALUE = 32767
+from baserow.contrib.database.views.models import MAX_ORDER_VALUE
 
 
 # noinspection PyPep8Naming
