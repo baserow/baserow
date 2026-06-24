@@ -116,15 +116,19 @@ const actions = {
     commit('CLEAR_ITEMS', { page })
   },
   forceCreate({ dispatch, commit }, { page, element }) {
-    if (page.elements.some((existing) => existing.id === element.id)) {
-      return
-    }
-    const { $registry } = this
-    commit('ADD_ITEM', { page, element })
-    dispatch('_setElementNamespacePath', { page, element })
+    // Adding to the store and ensuring graph membership are independent
+    // concerns: an element can already be in page.elements yet still be missing
+    // from the graph (e.g. an orphan that needs healing). Guarding the whole
+    // action on store membership would skip the graph insert below, so only the
+    // store-mutating work is gated here.
+    if (!page.elements.some((existing) => existing.id === element.id)) {
+      const { $registry } = this
+      commit('ADD_ITEM', { page, element })
+      dispatch('_setElementNamespacePath', { page, element })
 
-    const elementType = $registry.get('element', element.type)
-    elementType.afterCreate(element, page)
+      const elementType = $registry.get('element', element.type)
+      elementType.afterCreate(element, page)
+    }
 
     // If the element is not yet in the graph, append it to the end of the root
     // chain. This handles test setup and compat-field-based callers that do not

@@ -247,14 +247,18 @@ export default class BaseGraphHandler {
       }
 
       case 'child': {
-        if (!this.graph[referencePoint.id].children) {
-          this.graph[referencePoint.id].children = {}
+        const refInfo = this.graph[referencePoint.id]
+        // Normalise legacy bare-array children to dict form *before* mutating.
+        // Otherwise we'd bolt an `output` string key onto the array while the
+        // existing children stay at numeric indices, losing them and leaving
+        // newPointNext empty (the reported "child vanishes" bug).
+        const childrenDict = this._getChildrenAsDict(refInfo.children)
+        refInfo.children = childrenDict
+        if (!childrenDict[output]) {
+          childrenDict[output] = []
         }
-        if (!this.graph[referencePoint.id].children[output]) {
-          this.graph[referencePoint.id].children[output] = []
-        }
-        newPointNext = this.graph[referencePoint.id].children[output]
-        this.graph[referencePoint.id].children[output] = [point.id]
+        newPointNext = childrenDict[output]
+        childrenDict[output] = [point.id]
         break
       }
 
