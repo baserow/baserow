@@ -758,7 +758,7 @@ configurations.
 
 ### 10.1.2 Press Enter on selected cell
 
-- Editor appears in the selected cell.
+- The selected cell enters edit mode.
 
 ### 10.1.3 Press Enter while editing
 
@@ -780,8 +780,8 @@ configurations.
 
 ### 10.1.6 Type while a cell is selected
 
-- Editor appears in the selected cell.
-- Editor contains the typed characters.
+- The selected cell enters edit mode.
+- The edit field contains the typed characters.
 
 ## Row Hover Actions
 
@@ -847,6 +847,20 @@ configurations.
   filter/sort/group-by constraints; verify formula-cell loading, refresh, and
   rollback. Formula-backed filter/sort constraints are covered by 2.2.5 and
   2.3.4.
+- 1.6.x: Create rows in a field with a unique / unique-with-empty constraint.
+    - Adding a row whose value duplicates an existing non-empty value in a field
+      with a unique constraint is rejected: the backend validation error is
+      surfaced (error toast) and the optimistic row is rolled back.
+    - With a unique-with-empty constraint, adding multiple rows that leave the
+      field empty is accepted, while duplicate non-empty values are still
+      rejected.
+- 2.6.x: Edit rows in a field with a unique / unique-with-empty constraint.
+    - Editing a cell to a value that duplicates another row's non-empty value in
+      a field with a unique constraint is rejected: the backend validation error
+      is surfaced and the typed value is rolled back to the previous value.
+    - With a unique-with-empty constraint, clearing a cell is accepted even when
+      other rows are already empty, while duplicate non-empty values are
+      rejected.
 - 4.2.x: Filter-affecting paste with formula-field filter (deferred warning path).
 - 4.3.x: Sort-affecting paste with formula-field sort (deferred move path).
 - 4.4.x: Backspace clears all selected cell values while an area selection is active.
