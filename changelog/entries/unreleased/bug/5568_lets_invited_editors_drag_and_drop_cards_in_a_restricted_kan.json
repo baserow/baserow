@@ -1,6 +1,6 @@
 {
     "type": "bug",
-    "message": "Lets invited editors drag and drop cards in a restricted Kanban view",
+    "message": "Allow invited editors to drag and drop cards in a restricted Kanban view",
     "issue_origin": "github",
     "issue_number": 5568,
     "domain": "database",

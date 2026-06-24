@@ -1223,7 +1223,11 @@ class RowMoveView(APIView):
             400: get_error_schema(["ERROR_USER_NOT_IN_GROUP"]),
             401: get_error_schema(["ERROR_NO_PERMISSION_TO_TABLE"]),
             404: get_error_schema(
-                ["ERROR_TABLE_DOES_NOT_EXIST", "ERROR_ROW_DOES_NOT_EXIST"]
+                [
+                    "ERROR_TABLE_DOES_NOT_EXIST",
+                    "ERROR_ROW_DOES_NOT_EXIST",
+                    "ERROR_VIEW_DOES_NOT_EXIST",
+                ]
             ),
         },
     )
@@ -1232,6 +1236,7 @@ class RowMoveView(APIView):
             UserNotInWorkspace: ERROR_USER_NOT_IN_GROUP,
             TableDoesNotExist: ERROR_TABLE_DOES_NOT_EXIST,
             RowDoesNotExist: ERROR_ROW_DOES_NOT_EXIST,
+            ViewDoesNotExist: ERROR_VIEW_DOES_NOT_EXIST,
             NoPermissionToTable: ERROR_NO_PERMISSION_TO_TABLE,
             DeadlockException: ERROR_DATABASE_DEADLOCK,
             FieldDataConstraintException: ERROR_FIELD_DATA_CONSTRAINT,
@@ -1250,7 +1255,7 @@ class RowMoveView(APIView):
         send_webhook_events = extract_send_webhook_events_from_params(request.GET)
 
         view_id = query_params.get("view")
-        view = ViewHandler().get_view(view_id) if view_id else None
+        view = ViewHandler().get_view(view_id, table_id=table.id) if view_id else None
 
         model = table.get_model()
 
