@@ -2,6 +2,10 @@ import {
   prepareRowForRequest,
   prepareNewOldAndUpdateRequestValues,
   extractRowReadOnlyValues,
+  computeMultiSelectPosition,
+  computeRowMatchFlags,
+  buildNewRowDefaults,
+  prepareRowMultiFieldUpdate,
 } from '@baserow/modules/database/utils/row'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
@@ -182,6 +186,454 @@ describe('Row utilities', () => {
     expect(updateRequestValues).toEqual({
       field_1: 1,
       id: row.id,
+    })
+  })
+
+  describe('computeMultiSelectPosition', () => {
+    const area = (extra) => ({
+      isAreaSelectionActive: true,
+      isCheckboxSelected: false,
+      rowIndexRange: [0, 2],
+      fieldIndexRange: [0, 2],
+      ...extra,
+    })
+
+    test('no area selection and no checkbox returns all false', () => {
+      expect(
+        computeMultiSelectPosition({
+          isAreaSelectionActive: false,
+          isCheckboxSelected: false,
+          rowIndex: 1,
+          fieldIndex: 1,
+        })
+      ).toEqual({
+        selected: false,
+        top: false,
+        right: false,
+        bottom: false,
+        left: false,
+      })
+    })
+
+    test('no area selection with selected checkbox returns selected only', () => {
+      const pos = computeMultiSelectPosition({
+        isAreaSelectionActive: false,
+        isCheckboxSelected: true,
+        rowIndex: 1,
+        fieldIndex: 1,
+      })
+      expect(pos.selected).toBe(true)
+      expect(pos.top).toBe(false)
+      expect(pos.left).toBe(false)
+    })
+
+    test('area selection with cell inside rectangle returns selected only', () => {
+      expect(
+        computeMultiSelectPosition(area({ rowIndex: 1, fieldIndex: 1 }))
+      ).toEqual({
+        selected: true,
+        top: false,
+        right: false,
+        bottom: false,
+        left: false,
+      })
+    })
+
+    test('area selection with top-left corner returns top and left borders', () => {
+      expect(
+        computeMultiSelectPosition(area({ rowIndex: 0, fieldIndex: 0 }))
+      ).toEqual({
+        selected: true,
+        top: true,
+        right: false,
+        bottom: false,
+        left: true,
+      })
+    })
+
+    test('area selection with bottom-right corner returns bottom and right borders', () => {
+      expect(
+        computeMultiSelectPosition(area({ rowIndex: 2, fieldIndex: 2 }))
+      ).toEqual({
+        selected: true,
+        top: false,
+        right: true,
+        bottom: true,
+        left: false,
+      })
+    })
+
+    test('area selection with one cell rectangle returns all four borders', () => {
+      expect(
+        computeMultiSelectPosition(
+          area({
+            rowIndex: 1,
+            fieldIndex: 1,
+            rowIndexRange: [1, 1],
+            fieldIndexRange: [1, 1],
+          })
+        )
+      ).toEqual({
+        selected: true,
+        top: true,
+        right: true,
+        bottom: true,
+        left: true,
+      })
+    })
+
+    test('area selection with row outside range returns not selected', () => {
+      expect(
+        computeMultiSelectPosition(area({ rowIndex: 5, fieldIndex: 1 }))
+          .selected
+      ).toBe(false)
+    })
+
+    test('area selection with field outside range returns not selected', () => {
+      expect(
+        computeMultiSelectPosition(area({ rowIndex: 1, fieldIndex: 5 }))
+          .selected
+      ).toBe(false)
+    })
+
+    test('area selection with negative row index returns not selected', () => {
+      expect(
+        computeMultiSelectPosition(area({ rowIndex: -1, fieldIndex: 1 }))
+          .selected
+      ).toBe(false)
+    })
+  })
+
+  describe('computeRowMatchFlags', () => {
+    const textField = { id: 1, name: 'Name', type: 'text', primary: true }
+    const baseView = (extra = {}) => ({
+      filters_disabled: true,
+      filter_type: 'AND',
+      filter_groups: [],
+      filters: [],
+      sortings: [],
+      ...extra,
+    })
+
+    test('filters disabled makes matchFilters true regardless of row values', () => {
+      const { matchFilters } = computeRowMatchFlags({
+        row: { id: 1, field_1: 'anything' },
+        view: baseView({ filters_disabled: true }),
+        fields: [textField],
+        registry: store.$registry,
+        rowsInSortingGroup: [{ id: 1, field_1: 'anything' }],
+      })
+      expect(matchFilters).toBe(true)
+    })
+
+    test('enabled equal filter returns matchFilters true for matching row', () => {
+      const { matchFilters } = computeRowMatchFlags({
+        row: { id: 1, field_1: 'Alice' },
+        view: baseView({
+          filters_disabled: false,
+          filters: [
+            { id: 1, view: 1, field: 1, type: 'equal', value: 'Alice' },
+          ],
+        }),
+        fields: [textField],
+        registry: store.$registry,
+        rowsInSortingGroup: [{ id: 1, field_1: 'Alice' }],
+      })
+      expect(matchFilters).toBe(true)
+    })
+
+    test('enabled equal filter returns matchFilters false for non-matching row', () => {
+      const { matchFilters } = computeRowMatchFlags({
+        row: { id: 1, field_1: 'Bob' },
+        view: baseView({
+          filters_disabled: false,
+          filters: [
+            { id: 1, view: 1, field: 1, type: 'equal', value: 'Alice' },
+          ],
+        }),
+        fields: [textField],
+        registry: store.$registry,
+        rowsInSortingGroup: [{ id: 1, field_1: 'Bob' }],
+      })
+      expect(matchFilters).toBe(false)
+    })
+
+    test('row that is the only member of its sort group matches sorting', () => {
+      const { matchSortings } = computeRowMatchFlags({
+        row: { id: 1, field_1: 'Z' },
+        view: baseView({
+          sortings: [{ field: 1, order: 'ASC', type: 'default' }],
+        }),
+        fields: [textField],
+        registry: store.$registry,
+        rowsInSortingGroup: [{ id: 1, field_1: 'Z' }],
+      })
+      expect(matchSortings).toBe(true)
+    })
+
+    test('row at its sorted position matches sorting', () => {
+      const { matchSortings } = computeRowMatchFlags({
+        row: { id: 1, field_1: 'A' },
+        view: baseView({
+          sortings: [{ field: 1, order: 'ASC', type: 'default' }],
+        }),
+        fields: [textField],
+        registry: store.$registry,
+        rowsInSortingGroup: [
+          { id: 1, field_1: 'A' },
+          { id: 2, field_1: 'B' },
+        ],
+      })
+      expect(matchSortings).toBe(true)
+    })
+
+    test('row out of sorted position does not match sorting', () => {
+      const { matchSortings } = computeRowMatchFlags({
+        row: { id: 99, field_1: 'A' },
+        view: baseView({
+          sortings: [{ field: 1, order: 'ASC', type: 'default' }],
+        }),
+        fields: [textField],
+        registry: store.$registry,
+        rowsInSortingGroup: [
+          { id: 2, field_1: 'Z' },
+          { id: 99, field_1: 'A' },
+        ],
+      })
+      expect(matchSortings).toBe(false)
+    })
+
+    test('sorting uses the updated row values even if the comparison set is stale', () => {
+      const { matchSortings } = computeRowMatchFlags({
+        row: { id: 99, field_1: 'A' },
+        view: baseView({
+          sortings: [{ field: 1, order: 'ASC', type: 'default' }],
+        }),
+        fields: [textField],
+        registry: store.$registry,
+        rowsInSortingGroup: [
+          { id: 1, field_1: 'B' },
+          { id: 99, field_1: 'Z' },
+        ],
+      })
+      expect(matchSortings).toBe(false)
+    })
+
+    test('row absent from rowsInSortingGroup matches sorting by default', () => {
+      const { matchSortings } = computeRowMatchFlags({
+        row: { id: 99, field_1: 'A' },
+        view: baseView({
+          sortings: [{ field: 1, order: 'ASC', type: 'default' }],
+        }),
+        fields: [textField],
+        registry: store.$registry,
+        rowsInSortingGroup: [{ id: 1, field_1: 'B' }],
+      })
+      expect(matchSortings).toBe(true)
+    })
+  })
+
+  describe('buildNewRowDefaults', () => {
+    const field = (id) => ({ id, name: `f${id}`, type: 'text' })
+    const makeRegistry = (overrides = {}) => ({
+      get() {
+        return {
+          getNewRowValue: () => 'field_default',
+          getSupportedDefaultValueFunctions: () => [],
+          parseDefaultRowValue: (_field, value) => `parsed:${value}`,
+          resolveDefaultValueFunction: (fn) => `resolved:${fn}`,
+          ...overrides,
+        }
+      },
+    })
+
+    test('no view defaults -> getNewRowValue for each field', () => {
+      expect(
+        buildNewRowDefaults({
+          view: { default_row_values: [] },
+          fields: [field(1), field(2)],
+          registry: makeRegistry(),
+        })
+      ).toEqual({ field_1: 'field_default', field_2: 'field_default' })
+    })
+
+    test('suppliedValues take priority over defaults', () => {
+      const result = buildNewRowDefaults({
+        view: { default_row_values: [] },
+        fields: [field(1), field(2)],
+        registry: makeRegistry(),
+        suppliedValues: { field_1: 'supplied' },
+      })
+      expect(result.field_1).toBe('supplied')
+      expect(result.field_2).toBe('field_default')
+    })
+
+    test('view default value with matching field_type -> parseDefaultRowValue result', () => {
+      expect(
+        buildNewRowDefaults({
+          view: {
+            default_row_values: [
+              {
+                field: 1,
+                enabled: true,
+                value: 'hello',
+                field_type: 'text',
+                function: null,
+              },
+            ],
+          },
+          fields: [field(1)],
+          registry: makeRegistry(),
+        })
+      ).toEqual({ field_1: 'parsed:hello' })
+    })
+
+    test('view default with supported function -> resolveDefaultValueFunction result', () => {
+      expect(
+        buildNewRowDefaults({
+          view: {
+            default_row_values: [
+              {
+                field: 1,
+                enabled: true,
+                value: null,
+                function: 'today',
+                field_type: null,
+              },
+            ],
+          },
+          fields: [field(1)],
+          registry: makeRegistry({
+            getSupportedDefaultValueFunctions: () => [{ name: 'today' }],
+          }),
+        })
+      ).toEqual({ field_1: 'resolved:today' })
+    })
+
+    test('disabled default -> ignored, falls back to getNewRowValue', () => {
+      expect(
+        buildNewRowDefaults({
+          view: {
+            default_row_values: [
+              {
+                field: 1,
+                enabled: false,
+                value: 'ignored',
+                field_type: 'text',
+                function: null,
+              },
+            ],
+          },
+          fields: [field(1)],
+          registry: makeRegistry(),
+        })
+      ).toEqual({ field_1: 'field_default' })
+    })
+
+    test('view default with mismatched field_type -> falls back to getNewRowValue', () => {
+      expect(
+        buildNewRowDefaults({
+          view: {
+            default_row_values: [
+              {
+                field: 1,
+                enabled: true,
+                value: 'x',
+                field_type: 'number',
+                function: null,
+              },
+            ],
+          },
+          fields: [field(1)], // type: 'text', not 'number'
+          registry: makeRegistry(),
+        })
+      ).toEqual({ field_1: 'field_default' })
+    })
+  })
+
+  describe('prepareRowMultiFieldUpdate', () => {
+    const field = (id) => ({ id, name: `f${id}`, type: 'text' })
+    const registry = {
+      get() {
+        return {
+          prepareValueForUpdate: (_field, value) => `prepared:${value}`,
+          onRowChange: (row, f, value) =>
+            f.id === 3 && row.field_1 !== undefined
+              ? `reacted:${row.field_1}`
+              : value,
+        }
+      },
+    }
+
+    const row = { id: 5, field_1: 'old1', field_2: 'old2', field_3: 'old3' }
+    const allFields = [field(1), field(2), field(3)]
+
+    test('edited fields appear in all output objects with correct values', () => {
+      const { newRowValues, oldRowValues, updateRequestValues } =
+        prepareRowMultiFieldUpdate(
+          row,
+          allFields,
+          [
+            { field: field(1), value: 'new1', oldValue: 'old1' },
+            { field: field(2), value: 'new2', oldValue: 'old2' },
+          ],
+          registry
+        )
+
+      expect(newRowValues).toMatchObject({
+        id: 5,
+        field_1: 'new1',
+        field_2: 'new2',
+      })
+      expect(oldRowValues).toMatchObject({
+        id: 5,
+        field_1: 'old1',
+        field_2: 'old2',
+      })
+      expect(updateRequestValues).toMatchObject({
+        id: 5,
+        field_1: 'prepared:new1',
+        field_2: 'prepared:new2',
+      })
+    })
+
+    test('updateRequestValues uses prepared values instead of raw values', () => {
+      const { updateRequestValues } = prepareRowMultiFieldUpdate(
+        row,
+        allFields,
+        [{ field: field(1), value: 'rawValue', oldValue: 'old1' }],
+        registry
+      )
+      expect(updateRequestValues.field_1).toBe('prepared:rawValue')
+    })
+
+    test('unedited onRowChange side effects are captured outside request values', () => {
+      const { newRowValues, oldRowValues, updateRequestValues } =
+        prepareRowMultiFieldUpdate(
+          row,
+          allFields,
+          [{ field: field(1), value: 'trigger', oldValue: 'old1' }],
+          registry
+        )
+
+      expect(newRowValues.field_3).toBe('reacted:trigger')
+      expect(oldRowValues.field_3).toBe('old3')
+      expect(updateRequestValues.field_3).toBeUndefined()
+    })
+
+    test('edited fields are not reprocessed through onRowChange side effects', () => {
+      const { newRowValues } = prepareRowMultiFieldUpdate(
+        row,
+        allFields,
+        [
+          { field: field(1), value: 'A', oldValue: 'old1' },
+          { field: field(2), value: 'B', oldValue: 'old2' },
+        ],
+        registry
+      )
+
+      expect(newRowValues.field_1).toBe('A')
+      expect(newRowValues.field_2).toBe('B')
     })
   })
 

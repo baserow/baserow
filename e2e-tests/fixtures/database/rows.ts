@@ -32,15 +32,22 @@ export async function createRows(
   );
 }
 
-/**
- * Fetches a table's rows keyed by field name, used to read back row ids.
- */
-export async function getRows(
+export async function deleteRows(
   user: User,
-  table: { id: number },
-): Promise<any[]> {
-  const response: any = await getClient(user).get(
-    `database/rows/table/${table.id}/?user_field_names=true`,
+  table: Table,
+  rowIds: number[],
+): Promise<void> {
+  await getClient(user).post(`database/rows/table/${table.id}/batch-delete/`, {
+    items: rowIds,
+  });
+}
+
+export async function listRows(
+  user: User,
+  table: Table,
+): Promise<{ id: number; [k: string]: any }[]> {
+  const response = await getClient(user).get(
+    `database/rows/table/${table.id}/?user_field_names=true&size=200`,
   );
   return response.data.results;
 }

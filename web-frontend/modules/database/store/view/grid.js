@@ -18,6 +18,7 @@ import {
   getGroupBy,
   getOrderBy,
   canRowsBeOptimisticallyUpdatedInView,
+  viewHasRulesThatCanMoveOrHideRows,
 } from '@baserow/modules/database/utils/view'
 import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import {
@@ -26,6 +27,7 @@ import {
   updateRowMetadataType,
   getRowMetadata,
   extractChangedFields,
+  buildNewRowDefaults,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
@@ -2074,47 +2076,11 @@ export const actions = {
       `table_${table.id}`
     )
     const taskId = taskQueue.add(async () => {
-      // Create an object of default field values that can be used to fill the row. If
-      // the view has default row values configured, those take precedence over the
-      // field type's default value.
-      const defaultItems = view.default_row_values
-      const defaultsByFieldId = {}
-      for (const item of defaultItems) {
-        if (item.enabled && (item.value != null || item.function)) {
-          defaultsByFieldId[item.field] = item
-        }
-      }
-      const fieldNewRowValueMap = fields.reduce((map, field) => {
-        const name = `field_${field.id}`
-        const fieldType = $registry.get('field', field._.type.type)
-        const defaultViewItem = defaultsByFieldId[field.id]
-        const supportedFunctions = fieldType
-          .getSupportedDefaultValueFunctions()
-          .map((f) => f.name)
-        if (
-          defaultViewItem &&
-          defaultViewItem.function &&
-          supportedFunctions.includes(defaultViewItem.function)
-        ) {
-          map[name] = fieldType.resolveDefaultValueFunction(
-            defaultViewItem.function,
-            field
-          )
-        } else if (
-          defaultViewItem &&
-          defaultViewItem.value != null &&
-          (!defaultViewItem.field_type ||
-            defaultViewItem.field_type === field._.type.type)
-        ) {
-          map[name] = fieldType.parseDefaultRowValue(
-            field,
-            defaultViewItem.value
-          )
-        } else {
-          map[name] = fieldType.getNewRowValue(field)
-        }
-        return map
-      }, {})
+      const fieldNewRowValueMap = buildNewRowDefaults({
+        view,
+        fields,
+        registry: $registry,
+      })
 
       const step = before ? ORDER_STEP_BEFORE : ORDER_STEP
 
@@ -2237,6 +2203,18 @@ export const actions = {
         })
       }
 
+      if (
+        canUpdateOptimistically &&
+        isSingleRowInsertion &&
+        viewHasRulesThatCanMoveOrHideRows(view, getters.getActiveSearchTerm)
+      ) {
+        await dispatch('onRowChange', {
+          view,
+          row: rowsPopulated[0],
+          fields,
+        })
+      }
+
       // The backend expects slightly different values than what we have in the row
       // buffer. Therefore, we need to prepare the rows before we can send them to the
       // backend.
@@ -2296,20 +2274,18 @@ export const actions = {
           }
           dispatch('onRowChange', { view, row, fields })
           const rowId = row.id
-          setTimeout(() => {
-            // Get the latest row so that any changes that might have been made in the
-            // meantime are included. This is needed to pass the correct row into the
-            // `refreshRow` that shows/hide the row.
-            const row = getters.getRow(rowId)
-            if (row && !row._.selected) {
-              dispatch('refreshRow', {
-                grid: view,
-                row,
-                fields,
-                isRowOpenedInModal,
-              })
-            }
-          }, REFRESH_ROW_DELAY)
+          // Get the latest row so that any changes that might have been made in the
+          // meantime are included. This is needed to pass the correct row into the
+          // `refreshRow` that shows/hide the row.
+          const latestRow = getters.getRow(rowId)
+          if (latestRow && !latestRow._.selected) {
+            dispatch('refreshRow', {
+              grid: view,
+              row: latestRow,
+              fields,
+              isRowOpenedInModal,
+            })
+          }
         }
 
         await dispatch('fetchAllFieldAggregationData', {
@@ -2616,6 +2592,8 @@ export const actions = {
         fields,
         getters.getActiveSearchTerm
       )
+      const hasViewRulesThatCanMoveOrHideRows =
+        viewHasRulesThatCanMoveOrHideRows(view, getters.getActiveSearchTerm)
       if (!canUpdateOptimistically) {
         commit('SET_ROW_LOADING', { row, value: true })
       }
@@ -2667,9 +2645,13 @@ export const actions = {
           // If we can't optimistically update the row, refresh it to stop the loading
           // state, show proper messages, and update its position and state. Also, if the
           // backend changed other fields, we should refresh sorting/search/filtering.
-          if (!canUpdateOptimistically || otherFieldsChangedInBackend) {
+          if (
+            !canUpdateOptimistically ||
+            otherFieldsChangedInBackend ||
+            hasViewRulesThatCanMoveOrHideRows
+          ) {
             commit('SET_ROW_LOADING', { row: existing, value: false })
-            setTimeout(() => {
+            const refreshUnselectedRow = () => {
               // Get the latest row so that updated `readOnlyData` values are included,
               // and any other changes that might have been made in the meantime. This is
               // needed to pass the correct row into the `refreshRow` that shows/hide the
@@ -2683,7 +2665,13 @@ export const actions = {
                   isRowOpenedInModal,
                 })
               }
-            }, REFRESH_ROW_DELAY)
+            }
+
+            if (hasViewRulesThatCanMoveOrHideRows) {
+              refreshUnselectedRow()
+            } else {
+              setTimeout(refreshUnselectedRow, REFRESH_ROW_DELAY)
+            }
           }
         }
         dispatch('fetchAllFieldAggregationData', {
@@ -3466,8 +3454,7 @@ export const actions = {
     }
   ) {
     const { $registry, $client, $i18n, $config } = this
-    const rowShouldBeHidden =
-      (!row._.matchFilters || !row._.matchSearch) && !row._.loading
+    const rowShouldBeHidden = !row._.matchFilters || !row._.matchSearch
     const openedInModal =
       isRowOpenedInModal !== undefined ? isRowOpenedInModal(row) : false
     if (row._.selectedBy.length === 0 && rowShouldBeHidden && !openedInModal) {

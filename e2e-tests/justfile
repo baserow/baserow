@@ -146,12 +146,31 @@ up: _ensure-images
 
     # Wait for PostgreSQL to be ready
     echo "Waiting for PostgreSQL..."
+    POSTGRES_READY=false
     for i in {1..30}; do
         if docker exec e2e-db pg_isready -U baserow > /dev/null 2>&1; then
+            POSTGRES_READY=true
             break
         fi
         sleep 1
     done
+    if [ "$POSTGRES_READY" != true ]; then
+        echo "Timed out waiting for PostgreSQL to accept connections."
+        exit 1
+    fi
+
+    BASEROW_DB_CREATED=false
+    for i in {1..30}; do
+        if docker exec e2e-db psql -U baserow -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='baserow'" | grep -q 1; then
+            BASEROW_DB_CREATED=true
+            break
+        fi
+        sleep 1
+    done
+    if [ "$BASEROW_DB_CREATED" != true ]; then
+        echo "Timed out waiting for PostgreSQL to create the baserow database."
+        exit 1
+    fi
 
     # Restore database from dump (fast - migrations pre-applied)
     echo "Restoring database from dump..."

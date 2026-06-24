@@ -258,135 +258,20 @@
           </a>
         </li>
       </ul>
-      <ul v-show="!isMultiSelectActive" class="context__menu">
-        <li class="context__menu-item">
-          <a
-            class="context__menu-item-link"
-            @click=";[selectRow($event, selectedRow), $refs.rowContext.hide()]"
-          >
-            <i class="context__menu-item-icon iconoir-check-circle"></i>
-            {{ $t('gridView.selectRow') }}
-          </a>
-        </li>
-        <li
-          v-if="
-            !readOnly &&
-            (!table.data_sync || table.data_sync.two_way_sync) &&
-            ($hasPermission(
-              'database.table.create_row',
-              table,
-              database.workspace.id
-            ) ||
-              $hasPermission(
-                'database.table.view.create_row',
-                view,
-                database.workspace.id
-              ))
-          "
-          class="context__menu-item"
-        >
-          <a
-            class="context__menu-item-link"
-            @click="addRowAboveSelectedRow($event, selectedRow)"
-          >
-            <i class="context__menu-item-icon iconoir-arrow-up"></i>
-            {{ $t('gridView.insertRowAbove') }}
-          </a>
-        </li>
-        <li
-          v-if="
-            !readOnly &&
-            (!table.data_sync || table.data_sync.two_way_sync) &&
-            ($hasPermission(
-              'database.table.create_row',
-              table,
-              database.workspace.id
-            ) ||
-              $hasPermission(
-                'database.table.view.create_row',
-                view,
-                database.workspace.id
-              ))
-          "
-          class="context__menu-item"
-        >
-          <a
-            class="context__menu-item-link"
-            @click="addRowBelowSelectedRow($event, selectedRow)"
-          >
-            <i class="context__menu-item-icon iconoir-arrow-down"></i>
-            {{ $t('gridView.insertRowBelow') }}
-          </a>
-        </li>
-        <li
-          v-if="
-            !readOnly &&
-            (!table.data_sync || table.data_sync.two_way_sync) &&
-            ($hasPermission(
-              'database.table.create_row',
-              table,
-              database.workspace.id
-            ) ||
-              $hasPermission(
-                'database.table.view.create_row',
-                view,
-                database.workspace.id
-              ))
-          "
-          class="context__menu-item"
-        >
-          <a
-            class="context__menu-item-link"
-            @click="duplicateSelectedRow($event, selectedRow)"
-          >
-            <i class="context__menu-item-icon iconoir-copy"></i>
-            {{ $t('gridView.duplicateRow') }}
-          </a>
-        </li>
-        <li v-if="!readOnly" class="context__menu-item">
-          <a
-            class="context__menu-item-link"
-            @click="copyLinkToSelectedRow($event, selectedRow)"
-          >
-            <i class="context__menu-item-icon iconoir-link"></i>
-            {{ $t('gridView.copyRowURL') }}
-          </a>
-        </li>
-        <li
-          v-if="selectedRow !== null && !selectedRow._.loading"
-          class="context__menu-item"
-        >
-          <a
-            class="context__menu-item-link"
-            @click=";[openRowEditModal(selectedRow), $refs.rowContext.hide()]"
-          >
-            <i class="context__menu-item-icon iconoir-expand"></i>
-            {{ $t('gridView.enlargeRow') }}
-          </a>
-        </li>
-        <li
-          v-if="
-            !readOnly &&
-            (!table.data_sync || table.data_sync.two_way_sync) &&
-            ($hasPermission(
-              'database.table.delete_row',
-              table,
-              database.workspace.id
-            ) ||
-              $hasPermission(
-                'database.table.view.delete_row',
-                view,
-                database.workspace.id
-              ))
-          "
-          class="context__menu-item context__menu-item--with-separator"
-        >
-          <a class="context__menu-item-link" @click="deleteRow(selectedRow)">
-            <i class="context__menu-item-icon iconoir-bin"></i>
-            {{ $t('gridView.deleteRow') }}
-          </a>
-        </li>
-      </ul>
+      <GridRowContextItems
+        v-show="!isMultiSelectActive"
+        :row="selectedRow"
+        :read-only="readOnly"
+        :can-create-row="canCreateRow"
+        :can-delete-row="canDeleteRow"
+        @select-row="onContextSelectRow"
+        @insert-above="onContextInsertAbove"
+        @insert-below="onContextInsertBelow"
+        @duplicate-row="onContextDuplicateRow"
+        @copy-row-url="copyLinkToSelectedRow({}, $event)"
+        @open-row-modal="onContextOpenRowModal"
+        @delete-row="deleteRow($event)"
+      />
     </Context>
     <RowEditModal
       ref="rowEditModal"
@@ -455,7 +340,10 @@ import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid
 import GridViewRowDragging from '@baserow/modules/database/components/view/grid/GridViewRowDragging'
 import RowEditModal from '@baserow/modules/database/components/row/RowEditModal'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
-import { sortFieldsByOrderAndIdFunction } from '@baserow/modules/database/utils/view'
+import {
+  canRowsBeOptimisticallyUpdatedInView,
+  sortFieldsByOrderAndIdFunction,
+} from '@baserow/modules/database/utils/view'
 import { filterGridViewVisibleFieldsFunction } from '@baserow/modules/database/components/view/grid/utils'
 import viewHelpers from '@baserow/modules/database/mixins/viewHelpers'
 import { isElement } from '@baserow/modules/core/utils/dom'
@@ -464,6 +352,7 @@ import { populateRow } from '@baserow/modules/database/store/view/grid'
 import { clone } from '@baserow/modules/core/utils/object'
 import copyPasteHelper from '@baserow/modules/database/mixins/copyPasteHelper'
 import GridViewRowsAddContext from '@baserow/modules/database/components/view/grid/fields/GridViewRowsAddContext'
+import GridRowContextItems from '@baserow/modules/database/components/view/grid/GridRowContextItems'
 import { copyToClipboard } from '@baserow/modules/database/utils/clipboard'
 import {
   GRID_VIEW_SIZE_TO_ROW_HEIGHT_MAPPING,
@@ -480,6 +369,7 @@ export default {
     GridViewRowsAddContext,
     GridViewSection,
     GridViewRowDragging,
+    GridRowContextItems,
     RowEditModal,
   },
   mixins: [viewHelpers, gridViewHelpers, viewDecoration, copyPasteHelper],
@@ -560,6 +450,46 @@ export default {
     },
     viewHasGroupBys() {
       return this.activeGroupBys.length > 0
+    },
+    canCreateRow() {
+      if (this.readOnly) {
+        return false
+      }
+      if (this.table?.data_sync && !this.table.data_sync.two_way_sync) {
+        return false
+      }
+      return (
+        this.$hasPermission(
+          'database.table.create_row',
+          this.table,
+          this.database.workspace.id
+        ) ||
+        this.$hasPermission(
+          'database.table.view.create_row',
+          this.view,
+          this.database.workspace.id
+        )
+      )
+    },
+    canDeleteRow() {
+      if (this.readOnly) {
+        return false
+      }
+      if (this.table?.data_sync && !this.table.data_sync.two_way_sync) {
+        return false
+      }
+      return (
+        this.$hasPermission(
+          'database.table.delete_row',
+          this.table,
+          this.database.workspace.id
+        ) ||
+        this.$hasPermission(
+          'database.table.view.delete_row',
+          this.view,
+          this.database.workspace.id
+        )
+      )
     },
     frozenColumnCount() {
       return this.view.frozen_column_count ?? 1
@@ -868,6 +798,26 @@ export default {
         }
       }
     },
+    onContextSelectRow(row) {
+      this.selectRow(this.stubMenuEvent(), row)
+      this.$refs.rowContext.hide()
+    },
+    onContextInsertAbove(row) {
+      this.addRowAboveSelectedRow(this.stubMenuEvent(), row)
+    },
+    onContextInsertBelow(row) {
+      this.addRowBelowSelectedRow(this.stubMenuEvent(), row)
+    },
+    onContextDuplicateRow(row) {
+      this.duplicateSelectedRow(this.stubMenuEvent(), row)
+    },
+    onContextOpenRowModal(row) {
+      this.openRowEditModal(row)
+      this.$refs.rowContext.hide()
+    },
+    stubMenuEvent() {
+      return { preventFieldCellUnselect: true, stopPropagation: () => {} }
+    },
     duplicateSelectedRow(event, selectedRow) {
       event.preventFieldCellUnselect = true
       const duplicatedRow = clone(selectedRow)
@@ -992,10 +942,21 @@ export default {
       }
     },
     /**
-     * Called when a value is edited, but not yet saved. Here we can do a preliminary
-     * check to see if the values matches the filters.
+     * Called when a value is edited, but not yet saved. Views that the frontend can
+     * safely evaluate show mismatch warnings immediately. Views that depend on
+     * backend-computed values wait for the confirmed update.
      */
     editValue({ field, row, value, oldValue }) {
+      if (
+        !canRowsBeOptimisticallyUpdatedInView(
+          this.$registry,
+          this.view,
+          this.fields,
+          this.activeSearchTerm
+        )
+      ) {
+        return
+      }
       const overrides = {}
       overrides[`field_${field.id}`] = value
       this.$store.dispatch(this.storePrefix + 'view/grid/onRowChange', {
@@ -1602,6 +1563,14 @@ export default {
       if (
         this.$store.getters[this.storePrefix + 'view/grid/isMultiSelectActive']
       ) {
+        if (key === 'Escape') {
+          event.preventDefault()
+          this.$store.dispatch(
+            this.storePrefix + 'view/grid/clearAndDisableMultiSelect'
+          )
+          return
+        }
+
         if (arrowKeys.includes(key) && !shiftKey) {
           this.$store.dispatch(
             this.storePrefix + 'view/grid/setSelectedCellCancelledMultiSelect',

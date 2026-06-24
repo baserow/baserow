@@ -540,6 +540,18 @@ export function canRowsBeOptimisticallyUpdatedInView(
   return !needsServerSideCalculation
 }
 
+/**
+ * Returns true when changing a row can affect its visible position, visibility,
+ * or mismatch warning in the current view.
+ */
+export function viewHasRulesThatCanMoveOrHideRows(view, activeSearchTerm) {
+  const hasSortings = (view.sortings?.length ?? 0) > 0
+  const hasGroupBys = (view.group_bys?.length ?? 0) > 0
+  const hasFilters = !view.filters_disabled && (view.filters?.length ?? 0) > 0
+
+  return hasSortings || hasGroupBys || hasFilters || Boolean(activeSearchTerm)
+}
+
 export function getOrderBy(view, adhocSorting) {
   if (adhocSorting) {
     const serializeSort = (sort) => {

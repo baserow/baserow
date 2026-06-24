@@ -678,7 +678,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     services:
       db:
         image: pgvector/pgvector:pg14
@@ -877,7 +877,7 @@ jobs:
           CI: 1
         run: |
           cd e2e-tests
-          npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/2 --project=firefox
+          npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/4 --project=firefox
 
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4

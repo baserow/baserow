@@ -2,7 +2,7 @@ import { expect, test } from "../baserowTest";
 import { createDatabase } from "../../fixtures/database/database";
 import { createTable, Table } from "../../fixtures/database/table";
 import { createField, Field } from "../../fixtures/database/field";
-import { getRows } from "../../fixtures/database/rows";
+import { listRows } from "../../fixtures/database/rows";
 import {
   createFormView,
   updateFormFieldOptions,
@@ -38,7 +38,7 @@ async function buildScenario(
     [namedRowName],
     [""],
   ]);
-  const linkedRows = await getRows(user, linkedTable);
+  const linkedRows = await listRows(user, linkedTable);
   const emptyRow = linkedRows.find((r) => !r.Name);
   if (!emptyRow) {
     throw new Error("Expected an empty-primary row in the linked table.");

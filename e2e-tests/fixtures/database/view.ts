@@ -1,6 +1,7 @@
 import { getClient } from "../../client";
 import { User } from "../user";
 import { Table } from "./table";
+import { Field } from "./field";
 
 export class View {
   constructor(
@@ -92,4 +93,70 @@ export async function updateFormFieldOptions(
   await getClient(user).patch(`database/views/${view.id}/field-options/`, {
     field_options: payload,
   });
+}
+
+export async function getDefaultGridView(
+  user: User,
+  table: Table,
+): Promise<View> {
+  const response: any = await getClient(user).get(
+    `database/views/table/${table.id}/`,
+  );
+  const gridView = response.data.find((view: any) => view.type === "grid");
+  return new View(
+    gridView.id,
+    gridView.name,
+    gridView.type,
+    gridView.slug,
+    table,
+  );
+}
+
+export async function createViewFilter(
+  user: User,
+  view: View,
+  field: Field,
+  type: string,
+  value: string,
+): Promise<void> {
+  await getClient(user).post(`database/views/${view.id}/filters/`, {
+    field: field.id,
+    type,
+    value,
+  });
+}
+
+export async function createViewSort(
+  user: User,
+  view: View,
+  field: Field,
+  order: "ASC" | "DESC" = "ASC",
+): Promise<void> {
+  await getClient(user).post(`database/views/${view.id}/sortings/`, {
+    field: field.id,
+    order,
+  });
+}
+
+export interface ViewDecorationPayload {
+  type: string;
+  value_provider_type?: string;
+  value_provider_conf?: Record<string, unknown>;
+  order?: number;
+}
+
+export async function patchView(
+  user: User,
+  view: View,
+  values: Record<string, unknown>,
+): Promise<void> {
+  await getClient(user).patch(`database/views/${view.id}/`, values);
+}
+
+export async function createViewDecoration(
+  user: User,
+  view: View,
+  values: ViewDecorationPayload,
+): Promise<void> {
+  await getClient(user).post(`database/views/${view.id}/decorations/`, values);
 }
