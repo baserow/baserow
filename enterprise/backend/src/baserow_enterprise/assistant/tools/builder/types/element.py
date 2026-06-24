@@ -33,6 +33,7 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
     formula_desc,
     literal_or_placeholder,
     needs_formula,
+    strip_formula_prefix,
     wrap_static_string,
 )
 from baserow_enterprise.assistant.types import BaseModel
@@ -200,7 +201,7 @@ def _link_orm(el: "ElementItemCreate", user, page) -> dict:
             {
                 "name": p.name,
                 "value": BaserowFormulaObject.create(
-                    p.value, mode=BASEROW_FORMULA_MODE_ADVANCED
+                    strip_formula_prefix(p.value), mode=BASEROW_FORMULA_MODE_ADVANCED
                 ),
             }
             for p in (el.link_page_parameters or [])

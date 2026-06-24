@@ -8,6 +8,7 @@ from .formula_utils import (
     literal_or_placeholder,
     minimize_json_schema,
     needs_formula,
+    strip_formula_prefix,
     wrap_static_string,
 )
 
@@ -16,6 +17,7 @@ __all__ = [
     "RAW_FORMULA_RE",
     "needs_formula",
     "formula_desc",
+    "strip_formula_prefix",
     "literal_or_placeholder",
     "wrap_static_string",
     "minimize_json_schema",

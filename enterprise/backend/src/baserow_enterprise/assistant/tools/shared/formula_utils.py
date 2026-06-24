@@ -62,6 +62,28 @@ def formula_desc(value: str) -> str:
     return stripped
 
 
+def strip_formula_prefix(value: str) -> str:
+    """
+    Strip the ``$formula:`` prefix if present, returning the inner formula.
+
+    Use this for values that are used *directly* as a formula and are not
+    routed through formula generation (e.g. a workflow action ``row_id``, a
+    field mapping value, or a link page parameter). The LLM is told that
+    ``$formula:`` is a supported prefix, so it sometimes adds it to values that
+    are already valid formulas (e.g. ``$formula: get('form_data.123')``). Left
+    in place, the prefix ends up in the stored formula and breaks parsing at
+    publish time. Stripping it leaves an already-bare formula or a static value
+    untouched.
+
+    :param value: A formula value that may or may not carry the prefix.
+    :return: The formula with any ``$formula:`` prefix removed.
+    """
+
+    if needs_formula(value):
+        return formula_desc(value)
+    return value
+
+
 def literal_or_placeholder(value: str | None) -> str:
     """
     Return a quoted literal formula, or empty placeholder for formula values.
