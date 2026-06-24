@@ -438,35 +438,6 @@ export class GridPage {
     await expect(this.rowEditModal()).toHaveCount(0, { timeout: 10_000 });
   }
 
-  // -- Search / toolbar --------------------------------------------------------
-
-  async openSearch(): Promise<void> {
-    await this.page.locator(".header__search .header__filter-link").click();
-    await this.page
-      .locator("[placeholder='Search in all rows']")
-      .waitFor({ state: "visible" });
-  }
-
-  async typeInSearch(term: string): Promise<void> {
-    const input = this.page.locator("[placeholder='Search in all rows']");
-    // Must use pressSequentially (not fill) because the search input listens to
-    // @keyup events to trigger `searchIfChanged`. fill() only fires `input` events,
-    // not keyboard events, so the search would never run.
-    await input.clear();
-    await input.pressSequentially(term);
-  }
-
-  async clearSearch(): Promise<void> {
-    // The FormInput clear button is .form-input__clear inside the search context
-    await this.page.locator(".form-input__clear").click();
-  }
-
-  async toggleHideNotMatchingRows(): Promise<void> {
-    await this.page
-      .getByText("hide not matching rows", { exact: false })
-      .click();
-  }
-
   private escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }

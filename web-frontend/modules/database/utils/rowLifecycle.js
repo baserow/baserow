@@ -32,19 +32,30 @@ function resolveContext(context) {
   return context.groupBys === undefined ? { ...context, groupBys: [] } : context
 }
 
+/**
+ * Fill in the optional `mutations` callbacks with no-op defaults so the
+ * lifecycle functions can call `applyMatchFlags`/`rowsForMatchCheck`
+ * unconditionally instead of guarding each call site.
+ */
+function normalizeMutations(mutations) {
+  return {
+    ...mutations,
+    applyMatchFlags: mutations.applyMatchFlags ?? noop,
+    rowsForMatchCheck: mutations.rowsForMatchCheck ?? emptyRows,
+  }
+}
+
 function applyCurrentMatchFlags(context, row, mutations) {
-  const rowsForMatchCheck = mutations.rowsForMatchCheck ?? emptyRows
   const flags = computeRowMatchFlags({
     row,
     view: context.view,
     fields: context.fields,
     registry: context.registry,
-    rowsInSortingGroup: rowsForMatchCheck(row),
+    rowsInSortingGroup: mutations.rowsForMatchCheck(row),
     groupBys: context.groupBys,
   })
 
-  const applyMatchFlags = mutations.applyMatchFlags ?? noop
-  applyMatchFlags(row.id, flags)
+  mutations.applyMatchFlags(row.id, flags)
   return flags
 }
 
@@ -56,7 +67,11 @@ export function reapplyMatchFlags({ context, mutations, row }) {
   if (!row) {
     return
   }
-  applyCurrentMatchFlags(resolveContext(context), row, mutations)
+  applyCurrentMatchFlags(
+    resolveContext(context),
+    row,
+    normalizeMutations(mutations)
+  )
 }
 
 /**
@@ -65,13 +80,14 @@ export function reapplyMatchFlags({ context, mutations, row }) {
  */
 export function handleRowDeleted({ context, mutations, row }) {
   const lifecycleContext = resolveContext(context)
+  const lifecycleMutations = normalizeMutations(mutations)
 
   const flags = computeRowMatchFlags({
     row,
     view: lifecycleContext.view,
     fields: lifecycleContext.fields,
     registry: lifecycleContext.registry,
-    rowsInSortingGroup: (mutations.rowsForMatchCheck ?? emptyRows)(row),
+    rowsInSortingGroup: lifecycleMutations.rowsForMatchCheck(row),
     groupBys: lifecycleContext.groupBys,
   })
 
@@ -79,7 +95,7 @@ export function handleRowDeleted({ context, mutations, row }) {
     return
   }
 
-  mutations.remove(row.id)
+  lifecycleMutations.remove(row.id)
 }
 
 /**
@@ -96,21 +112,22 @@ export function handleRowDeleted({ context, mutations, row }) {
  */
 export function handleRowUpdated({ context, mutations, oldRow, newRow }) {
   const lifecycleContext = resolveContext(context)
+  const lifecycleMutations = normalizeMutations(mutations)
 
   const oldFlags = computeRowMatchFlags({
     row: oldRow,
     view: lifecycleContext.view,
     fields: lifecycleContext.fields,
     registry: lifecycleContext.registry,
-    rowsInSortingGroup: (mutations.rowsForMatchCheck ?? emptyRows)(oldRow),
+    rowsInSortingGroup: lifecycleMutations.rowsForMatchCheck(oldRow),
     groupBys: lifecycleContext.groupBys,
   })
 
   // Compute newRow flags using rows that exclude newRow itself, so the row
   // is not compared against its own position when deciding where it belongs.
-  const rowsExcludingNew = (mutations.rowsForMatchCheck ?? emptyRows)(
-    newRow
-  ).filter((r) => r.id !== newRow.id)
+  const rowsExcludingNew = lifecycleMutations
+    .rowsForMatchCheck(newRow)
+    .filter((r) => r.id !== newRow.id)
   const newFlags = computeRowMatchFlags({
     row: newRow,
     view: lifecycleContext.view,
@@ -125,7 +142,7 @@ export function handleRowUpdated({ context, mutations, oldRow, newRow }) {
 
   if (wasInView && !isInView) {
     // Row moved out of the view — remove it.
-    mutations.remove(newRow.id)
+    lifecycleMutations.remove(newRow.id)
   } else if (!wasInView && isInView) {
     // Row moved into the view — insert at its new position.
     const position = computeRowInsertPosition(
@@ -136,9 +153,8 @@ export function handleRowUpdated({ context, mutations, oldRow, newRow }) {
       lifecycleContext.registry,
       lifecycleContext.groupBys
     )
-    mutations.insertAtPosition(newRow, position)
-    const applyMatchFlags = mutations.applyMatchFlags ?? noop
-    applyMatchFlags(newRow.id, newFlags)
+    lifecycleMutations.insertAtPosition(newRow, position)
+    lifecycleMutations.applyMatchFlags(newRow.id, newFlags)
   } else if (!wasInView && !isInView) {
     // Row was not and is still not visible — nothing to do.
   } else {
@@ -151,9 +167,8 @@ export function handleRowUpdated({ context, mutations, oldRow, newRow }) {
       lifecycleContext.registry,
       lifecycleContext.groupBys
     )
-    mutations.replaceAtPosition(newRow.id, newRow, position)
-    const applyMatchFlags = mutations.applyMatchFlags ?? noop
-    applyMatchFlags(newRow.id, newFlags)
+    lifecycleMutations.replaceAtPosition(newRow.id, newRow, position)
+    lifecycleMutations.applyMatchFlags(newRow.id, newFlags)
   }
 }
 
@@ -163,7 +178,8 @@ export function handleRowUpdated({ context, mutations, oldRow, newRow }) {
  */
 export function handleRowCreated({ context, mutations, row }) {
   const lifecycleContext = resolveContext(context)
-  const existingRows = (mutations.rowsForMatchCheck ?? emptyRows)(row)
+  const lifecycleMutations = normalizeMutations(mutations)
+  const existingRows = lifecycleMutations.rowsForMatchCheck(row)
 
   const flags = computeRowMatchFlags({
     row,
@@ -187,7 +203,6 @@ export function handleRowCreated({ context, mutations, row }) {
     lifecycleContext.groupBys
   )
 
-  mutations.insertAtPosition(row, position)
-  const applyMatchFlags = mutations.applyMatchFlags ?? noop
-  applyMatchFlags(row.id, flags)
+  lifecycleMutations.insertAtPosition(row, position)
+  lifecycleMutations.applyMatchFlags(row.id, flags)
 }
