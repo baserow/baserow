@@ -3,7 +3,7 @@
     <PaginatedDropdown
       :fetch-page="fetchPage"
       :value="dropdownValue"
-      :add-empty-item="false"
+      :add-empty-item="!required"
       :initial-display-name="initialDisplayName"
       :error="touched && !valid"
       :fetch-on-open="lazyLoad"
