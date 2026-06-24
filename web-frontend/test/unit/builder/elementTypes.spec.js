@@ -1448,6 +1448,19 @@ describe('elementTypes tests', () => {
     })
   })
 
+  describe('MultiPageElementType tests', () => {
+    test.each(['header', 'footer'])(
+      '%s getDefaultValues returns normal positioning defaults',
+      (elementTypeName) => {
+        const elementType = testApp.$registry.get('element', elementTypeName)
+
+        expect(elementType.getDefaultValues({}, {})).toMatchObject({
+          behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+        })
+      }
+    )
+  })
+
   describe('elementType elementAround tests', () => {
     let page, sharedPage, builder
     beforeEach(async () => {

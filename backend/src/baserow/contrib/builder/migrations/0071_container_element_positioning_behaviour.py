@@ -36,4 +36,30 @@ class Migration(migrations.Migration):
                 max_length=15,
             ),
         ),
+        migrations.AddField(
+            model_name="footerelement",
+            name="behaviour",
+            field=models.CharField(
+                choices=[
+                    ("normal", "Normal"),
+                    ("fixed", "Fixed"),
+                ],
+                db_default="normal",
+                default="normal",
+                max_length=15,
+            ),
+        ),
+        migrations.AddField(
+            model_name="headerelement",
+            name="behaviour",
+            field=models.CharField(
+                choices=[
+                    ("normal", "Normal"),
+                    ("fixed", "Fixed"),
+                ],
+                db_default="normal",
+                default="normal",
+                max_length=15,
+            ),
+        ),
     ]

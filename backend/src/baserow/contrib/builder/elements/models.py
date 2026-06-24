@@ -1004,10 +1004,21 @@ class MultiPageElement(Element):
     multiple pages.
     """
 
+    class PAGE_BEHAVIOURS(models.TextChoices):
+        NORMAL = "normal"
+        FIXED = "fixed"
+
     class SHARE_TYPE(models.TextChoices):
         ALL = "all"
         ONLY = "only"
         EXCEPT = "except"
+
+    behaviour = models.CharField(
+        choices=PAGE_BEHAVIOURS.choices,
+        max_length=15,
+        default=PAGE_BEHAVIOURS.NORMAL,
+        db_default=PAGE_BEHAVIOURS.NORMAL,
+    )
 
     share_type = models.CharField(
         choices=SHARE_TYPE.choices,

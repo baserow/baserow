@@ -2315,6 +2315,7 @@ export class HeaderElementType extends MultiPageElementTypeMixin(
     const superValues = super.getDefaultValues(page, values, parentElement)
     return {
       ...superValues,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
       style_padding_left: 0,
       style_padding_right: 0,
     }

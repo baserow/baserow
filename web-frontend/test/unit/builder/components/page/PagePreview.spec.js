@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 
 import PagePreview from '@baserow/modules/builder/components/page/PagePreview'
 import {
+  PAGE_PLACES,
   PAGE_ELEMENT_ALIGNMENTS,
   PAGE_ELEMENT_BEHAVIOURS,
 } from '@baserow/modules/builder/enums'
@@ -44,15 +45,23 @@ describe('PagePreview', () => {
   const createElement = (overrides = {}) => ({
     id: 42,
     type: 'simple_container',
+    page_id: 1,
     parent_element_id: null,
     behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
     alignment: PAGE_ELEMENT_ALIGNMENTS.TOP,
     ...overrides,
   })
 
-  const mountComponent = async ({ elements = [] } = {}) => {
+  const mountComponent = async ({
+    elements = [],
+    sharedElements = [],
+  } = {}) => {
     const currentPage = createPage({ elements })
-    const sharedPage = createPage({ id: 2, shared: true })
+    const sharedPage = createPage({
+      id: 2,
+      shared: true,
+      elements: sharedElements,
+    })
     const builder = {
       id: 1,
       pages: [currentPage, sharedPage],
@@ -83,9 +92,22 @@ describe('PagePreview', () => {
               }
               return []
             },
-            get: (registryName) => {
+            get: (registryName, type) => {
               if (registryName === 'device') {
                 return { type: 'desktop', maxWidth: null }
+              }
+              if (registryName === 'element') {
+                return {
+                  getPagePlace: () => {
+                    if (type === 'header') {
+                      return PAGE_PLACES.HEADER
+                    }
+                    if (type === 'footer') {
+                      return PAGE_PLACES.FOOTER
+                    }
+                    return PAGE_PLACES.CONTENT
+                  },
+                }
               }
               return null
             },
@@ -169,6 +191,44 @@ describe('PagePreview', () => {
     ).toBeFalsy()
     expect(
       scrollablePreview.find('[data-element-id="43"]').exists()
+    ).toBeTruthy()
+  })
+
+  test('renders fixed header and footer elements in the fixed overlay', async () => {
+    const fixedHeader = createElement({
+      id: 44,
+      type: 'header',
+      page_id: 2,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+    })
+    const scrollableHeader = createElement({
+      id: 45,
+      type: 'header',
+      page_id: 2,
+    })
+    const fixedFooter = createElement({
+      id: 46,
+      type: 'footer',
+      page_id: 2,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+    })
+    const { wrapper } = await mountComponent({
+      sharedElements: [fixedHeader, scrollableHeader, fixedFooter],
+    })
+    const fixedElements = wrapper.find('.page-preview__fixed-elements')
+    const scrollablePreview = wrapper.find('.page-preview__scaled')
+
+    expect(fixedElements.find('[data-element-id="44"]').exists()).toBeTruthy()
+    expect(fixedElements.find('[data-element-id="46"]').exists()).toBeTruthy()
+    expect(fixedElements.find('[data-element-id="45"]').exists()).toBeFalsy()
+    expect(
+      scrollablePreview.find('[data-element-id="44"]').exists()
+    ).toBeFalsy()
+    expect(
+      scrollablePreview.find('[data-element-id="46"]').exists()
+    ).toBeFalsy()
+    expect(
+      scrollablePreview.find('[data-element-id="45"]').exists()
     ).toBeTruthy()
   })
 

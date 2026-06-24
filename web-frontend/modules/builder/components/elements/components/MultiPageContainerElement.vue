@@ -58,7 +58,7 @@ export default {
      * @type {Object}
      * @property page_position - [header|footer|left|right]
      *   Position of this element on the page.
-     * @property behaviour - [scroll|fixed|sticky]
+     * @property behaviour - [normal|fixed]
      *   How this element follow the scroll of the page.
      * @property shared_type - [all_pages|only_pages|except_pages] Type of share
      * @property pages - List of pages the element is visible or excluded depending on

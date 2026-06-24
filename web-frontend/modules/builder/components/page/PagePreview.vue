@@ -15,7 +15,7 @@
         }"
       >
         <ElementPreview
-          v-for="element in fixedContentElements"
+          v-for="element in fixedPreviewElements"
           :key="element.id"
           :element="element"
           :is-first-element="element.id === firstPreviewElementId"
@@ -38,7 +38,7 @@
         @keydown="handleKeyDown"
       >
         <ThemeProvider class="page">
-          <template v-if="headerElements.length !== 0">
+          <template v-if="scrollableHeaderElements.length !== 0">
             <header
               class="page__header"
               :class="{
@@ -47,7 +47,7 @@
               }"
             >
               <ElementPreview
-                v-for="element in headerElements"
+                v-for="element in scrollableHeaderElements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="element.id === firstPreviewElementId"
@@ -96,7 +96,7 @@
               />
             </div>
           </template>
-          <template v-if="footerElements.length !== 0">
+          <template v-if="scrollableFooterElements.length !== 0">
             <div class="page-preview__separator">
               <span class="page-preview__separator-label">
                 {{ $t('pagePreview.footer') }}
@@ -110,7 +110,7 @@
               }"
             >
               <ElementPreview
-                v-for="element in footerElements"
+                v-for="element in scrollableFooterElements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="element.id === firstPreviewElementId"
@@ -219,6 +219,19 @@ export default {
     fixedContentElements() {
       return this.elements.filter(isFixedRootContainer)
     },
+    fixedHeaderElements() {
+      return this.headerElements.filter(isFixedRootContainer)
+    },
+    fixedFooterElements() {
+      return this.footerElements.filter(isFixedRootContainer)
+    },
+    fixedPreviewElements() {
+      return [
+        ...this.fixedHeaderElements,
+        ...this.fixedContentElements,
+        ...this.fixedFooterElements,
+      ]
+    },
     scrollableContentElements() {
       return this.elements.filter((element) => !isFixedRootContainer(element))
     },
@@ -242,11 +255,24 @@ export default {
           PAGE_PLACES.FOOTER
       )
     },
+    scrollableHeaderElements() {
+      return this.headerElements.filter(
+        (element) => !isFixedRootContainer(element)
+      )
+    },
+    scrollableFooterElements() {
+      return this.footerElements.filter(
+        (element) => !isFixedRootContainer(element)
+      )
+    },
     firstPreviewElementId() {
       return (
-        this.headerElements[0]?.id ||
-        this.elements[0]?.id ||
-        this.footerElements[0]?.id ||
+        this.fixedHeaderElements[0]?.id ||
+        this.scrollableHeaderElements[0]?.id ||
+        this.fixedContentElements[0]?.id ||
+        this.scrollableContentElements[0]?.id ||
+        this.scrollableFooterElements[0]?.id ||
+        this.fixedFooterElements[0]?.id ||
         null
       )
     },
