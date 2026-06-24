@@ -25,11 +25,12 @@ export async function createRows(
   user: User,
   table: Table,
   rowValues: any,
-): Promise<void> {
-  await getClient(user).post(
+): Promise<{ id: number; [k: string]: any }[]> {
+  const response = await getClient(user).post(
     `database/rows/table/${table.id}/batch/?user_field_names=true`,
     { items: rowValues },
   );
+  return response.data.items;
 }
 
 export async function deleteRows(
