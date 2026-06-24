@@ -10,7 +10,10 @@ export interface RouteOptions {
 }
 
 export interface PausedRequest {
+  /** Let the intercepted request proceed normally. */
   release: () => void;
+  /** Fulfill the intercepted request with HTTP 500 instead of continuing it. */
+  fail: () => void;
   intercepted: Promise<void>;
 }
 
@@ -41,11 +44,17 @@ export function failNextRequest(
         return;
       }
       // Correct method (or no method filter) - fail it and unregister.
-      // Use a Baserow-structured body so the client-side ErrorHandler fires the
-      // toast notification. An empty {} body is parsed as an object by axios,
-      // causing hasBaserowAPIError() to return false and the toast to be suppressed.
+      // Use a Baserow-structured body so hasBaserowAPIError() returns true and
+      // the standard error toast fires.
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "ERROR_E2E_FORCED_FAILURE",
+          detail: "Forced e2e failure.",
+        }),
+      });
       await page.unroute(urlPattern, handler);
-      await route.fulfill({ status: 500, body: "{}" });
       resolve();
     };
     page.route(urlPattern, handler);
@@ -53,8 +62,9 @@ export function failNextRequest(
 }
 
 /**
- * Arms a route intercept that PAUSES matching requests until the returned
- * `release` function is called.
+ * Arms a route intercept that PAUSES the next matching request until the
+ * returned `release` function is called. Later matching requests continue
+ * normally.
  *
  * Pass `{ method: "POST" }` to only pause POST requests.
  *
@@ -81,11 +91,14 @@ export async function pauseNextRequestWithSignal(
   options: RouteOptions = {},
 ): Promise<PausedRequest> {
   let release!: () => void;
+  let fail!: () => void;
   let releaseGate!: () => void;
   let markIntercepted!: () => void;
   let handler!: (route: Route) => Promise<void>;
   let interceptedResolved = false;
   let released = false;
+  let failMode = false;
+  let routed = true;
   const gate = new Promise<void>((r) => {
     releaseGate = r;
   });
@@ -93,13 +106,30 @@ export async function pauseNextRequestWithSignal(
     markIntercepted = r;
   });
 
+  const unrouteOnce = async () => {
+    if (!routed) {
+      return;
+    }
+    routed = false;
+    await page.unroute(urlPattern, handler);
+  };
+
   release = () => {
     if (released) {
       return;
     }
     released = true;
+    failMode = false;
     releaseGate();
-    void page.unroute(urlPattern, handler);
+  };
+
+  fail = () => {
+    if (released) {
+      return;
+    }
+    released = true;
+    failMode = true;
+    releaseGate();
   };
 
   handler = async (route: Route) => {
@@ -107,15 +137,29 @@ export async function pauseNextRequestWithSignal(
       await route.continue();
       return;
     }
-    if (!interceptedResolved) {
-      interceptedResolved = true;
-      markIntercepted();
+    if (interceptedResolved) {
+      await route.continue();
+      return;
     }
+    interceptedResolved = true;
+    markIntercepted();
     await gate;
-    await route.continue();
+    if (failMode) {
+      await route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "ERROR_E2E_FORCED_FAILURE",
+          detail: "Forced e2e failure.",
+        }),
+      });
+    } else {
+      await route.continue();
+    }
+    await unrouteOnce();
   };
 
   await page.route(urlPattern, handler);
 
-  return { release, intercepted };
+  return { release, fail, intercepted };
 }

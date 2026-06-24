@@ -547,7 +547,6 @@ export default {
       return (
         this.leftFieldsWidth +
         (this.viewHasGroupBys ? 0 : this.gridViewRowDetailsWidth) +
-        // 100 must be replaced with the dynamic width
         this.activeGroupByWidth
       )
     },
@@ -1338,6 +1337,17 @@ export default {
       }
 
       if (nextFieldId === -1 || nextRowId === -1) {
+        // For Tab navigation with no next cell (last field of last row), still
+        // unselect the current cell so the open editor saves its value.
+        // For Enter/arrow navigation with no target, just return — the editor
+        // was already closed by save() in the key handler.
+        if (direction === 'next' || direction === 'previous') {
+          this.$store.dispatch(this.storePrefix + 'view/grid/setSelectedCell', {
+            rowId: -1,
+            fieldId: -1,
+            fields: this.fields,
+          })
+        }
         return
       }
 

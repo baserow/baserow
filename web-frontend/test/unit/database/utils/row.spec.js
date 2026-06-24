@@ -6,6 +6,7 @@ import {
   computeRowMatchFlags,
   buildNewRowDefaults,
   prepareRowMultiFieldUpdate,
+  computeRowInsertPosition,
 } from '@baserow/modules/database/utils/row'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
@@ -634,6 +635,120 @@ describe('Row utilities', () => {
 
       expect(newRowValues.field_1).toBe('A')
       expect(newRowValues.field_2).toBe('B')
+    })
+  })
+
+  describe('computeRowInsertPosition', () => {
+    const makeSortRegistry = () => ({
+      get: (_, type) =>
+        type === 'text'
+          ? {
+              getSortTypes: () => ({
+                default: {
+                  function: (fieldName, order) => (a, b) => {
+                    const va = a[fieldName]
+                    const vb = b[fieldName]
+                    const cmp = va < vb ? -1 : va > vb ? 1 : 0
+                    return order === 'DESC' ? -cmp : cmp
+                  },
+                },
+              }),
+            }
+          : {},
+    })
+    const textField = { id: 1, type: 'text' }
+    const ascSort = [{ field: 1, order: 'ASC', type: 'default' }]
+
+    const row = (id, val) => ({ id, order: '0', field_1: val })
+
+    test('row sorts first returns anchorRowId null and isFirst true', () => {
+      const result = computeRowInsertPosition(
+        row(10, 'A'),
+        [row(1, 'B'), row(2, 'C')],
+        ascSort,
+        [textField],
+        makeSortRegistry()
+      )
+      expect(result).toEqual({
+        anchorRowId: null,
+        sortedIndex: 0,
+        isFirst: true,
+        isLast: false,
+      })
+    })
+
+    test('row sorts last returns correct anchorRowId and isLast true', () => {
+      const result = computeRowInsertPosition(
+        row(10, 'Z'),
+        [row(1, 'A'), row(2, 'M')],
+        ascSort,
+        [textField],
+        makeSortRegistry()
+      )
+      expect(result).toEqual({
+        anchorRowId: 2,
+        sortedIndex: 2,
+        isFirst: false,
+        isLast: true,
+      })
+    })
+
+    test('row sorts in the middle returns correct anchorRowId and index', () => {
+      const result = computeRowInsertPosition(
+        row(10, 'M'),
+        [row(1, 'A'), row(2, 'Z')],
+        ascSort,
+        [textField],
+        makeSortRegistry()
+      )
+      expect(result).toEqual({
+        anchorRowId: 1,
+        sortedIndex: 1,
+        isFirst: false,
+        isLast: false,
+      })
+    })
+
+    test('empty existing rows makes the new row both first and last', () => {
+      const result = computeRowInsertPosition(
+        row(10, 'X'),
+        [],
+        ascSort,
+        [textField],
+        makeSortRegistry()
+      )
+      expect(result).toEqual({
+        anchorRowId: null,
+        sortedIndex: 0,
+        isFirst: true,
+        isLast: true,
+      })
+    })
+
+    test('group bys are applied before sortings when computing row position', () => {
+      const groupField = { id: 2, type: 'text' }
+      const groupedRow = (id, name, group) => ({
+        id,
+        order: '0',
+        field_1: name,
+        field_2: group,
+      })
+
+      const result = computeRowInsertPosition(
+        groupedRow(10, 'M', 'A'),
+        [groupedRow(1, 'A', 'B'), groupedRow(2, 'Z', 'A')],
+        ascSort,
+        [textField, groupField],
+        makeSortRegistry(),
+        [{ field: 2, order: 'ASC', type: 'default' }]
+      )
+
+      expect(result).toEqual({
+        anchorRowId: null,
+        sortedIndex: 0,
+        isFirst: true,
+        isLast: false,
+      })
     })
   })
 

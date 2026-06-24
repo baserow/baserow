@@ -112,6 +112,13 @@ export async function getDefaultGridView(
   );
 }
 
+export async function ensureViewFieldOptions(
+  user: User,
+  view: View,
+): Promise<void> {
+  await getClient(user).get(`database/views/${view.id}/field-options/`);
+}
+
 export async function createViewFilter(
   user: User,
   view: View,

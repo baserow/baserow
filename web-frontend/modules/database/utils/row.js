@@ -372,3 +372,35 @@ export function updateRowMetadataType(row, rowMetadataType, updateFunction) {
 export function getRowMetadata(row, metadata = {}) {
   return { ...metadata, ...(row.metadata || {}) }
 }
+
+/**
+ * Compute where `row` belongs among `existingRows` according to the given sorts.
+ *
+ * Returns `{ anchorRowId, sortedIndex, isFirst, isLast }`:
+ * - `anchorRowId` is the id of the row immediately before `row` in sorted order,
+ *   or null when `row` sorts first.
+ * - `sortedIndex` is the 0-based position of `row` in the merged, sorted result.
+ *
+ * Expressing the insert position by row identity rather than numeric index lets
+ * both flat-array stores and group-tree stores consume the result without
+ * needing to agree on a shared index space.
+ */
+export function computeRowInsertPosition(
+  row,
+  existingRows,
+  sorts,
+  fields,
+  registry,
+  groupBys = []
+) {
+  const sortFn = getRowSortFunction(registry, sorts, fields, groupBys)
+  const sorted = [...existingRows, row].sort(sortFn)
+  const sortedIndex = sorted.findIndex((r) => r.id === row.id)
+  const anchorRowId = sortedIndex > 0 ? sorted[sortedIndex - 1].id : null
+  return {
+    anchorRowId,
+    sortedIndex,
+    isFirst: sortedIndex === 0,
+    isLast: sortedIndex === sorted.length - 1,
+  }
+}

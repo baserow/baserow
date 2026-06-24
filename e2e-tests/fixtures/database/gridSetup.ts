@@ -5,6 +5,7 @@ import { Table, createTable } from "./table";
 import {
   View,
   getDefaultGridView,
+  ensureViewFieldOptions,
   createViewFilter,
   createViewSort,
 } from "./view";
@@ -21,10 +22,12 @@ import { createRows, deleteRows, listRows } from "./rows";
 export type FieldType =
   | "text"
   | "number"
+  | "email"
   | "boolean"
   | "date"
   | "single_select"
-  | "long_text";
+  | "long_text"
+  | "formula";
 
 export type SelectOptionSpec =
   | string
@@ -245,6 +248,7 @@ export async function setupGrid(
 
   // 5. Get the default grid view
   const view = await getDefaultGridView(user, table);
+  await ensureViewFieldOptions(user, view);
 
   // 6. Apply view-level filters
   for (const f of options.filters ?? []) {
@@ -311,16 +315,8 @@ export async function resetRows(
   const resolved = newRows.map((row) => {
     const out: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(row)) {
-      if (
-        typeof value === "string" &&
-        key !== "Name" // Name is the primary text field, no resolution needed
-      ) {
-        // Try to resolve as a single_select option (silently keep string if not found)
-        try {
-          out[key] = g.getOptionId(key, value);
-        } catch {
-          out[key] = value;
-        }
+      if (g.fieldByName[key]?.type === "single_select" && typeof value === "string") {
+        out[key] = g.getOptionId(key, value);
       } else {
         out[key] = value;
       }

@@ -117,7 +117,7 @@ const { data, error } = await useAsyncData(
         )
       )
 
-      return { success: true, database, table }
+      return { success: true, database, table, fields, view }
     } catch (e) {
       const statusCode = e.response?.status
       // password protected view requires authentication
@@ -159,8 +159,8 @@ if (data.value?.redirect) {
 
 const database = computed(() => data.value?.database)
 const table = computed(() => data.value?.table)
-const fields = computed(() => $store.getters['field/getAll'])
-const view = computed(() => $store.getters['view/getSelected'])
+const fields = computed(() => data.value?.fields || [])
+const view = computed(() => data.value?.view)
 
 useHead(() => {
   const head = { title: view.value?.name || 'View' }

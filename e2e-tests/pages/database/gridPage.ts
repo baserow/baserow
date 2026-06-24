@@ -50,9 +50,19 @@ export class GridPage {
       `${this.baseUrl}/database/${database.id}/table/${table.id}`,
       { waitUntil: "domcontentloaded" },
     );
-    await this.page.waitForFunction(
-      "window.useNuxtApp?.().isHydrating === false",
-    );
+    // Wait until Nuxt finishes hydrating. Falls back gracefully if the dev
+    // server CSP blocks the function evaluation.
+    await this.page
+      .waitForFunction(
+        () =>
+          typeof (window as any).useNuxtApp === "function" &&
+          !(window as any).useNuxtApp().isHydrating,
+        { timeout: 15_000 },
+      )
+      .catch(() => {
+        // CSP may block the evaluation on the dev server; the grid visibility
+        // assertion below provides sufficient confirmation of hydration.
+      });
     const grid = this.page.locator(".grid-view__right");
     await expect(grid).toBeVisible({ timeout: 15_000 });
   }
@@ -114,6 +124,13 @@ export class GridPage {
     );
   }
 
+  frozenFieldHeadersByName(fieldName: string): Locator {
+    return this.page.locator(
+      ".grid-view__left .grid-view__head .grid-view__description-name",
+      { hasText: new RegExp(`^\\s*${this.escapeRegex(fieldName)}\\s*$`) },
+    );
+  }
+
   /** The active cell editor input/textarea (visible while a cell is in edit mode) */
   activeEditor(): Locator {
     return this.page
@@ -121,6 +138,10 @@ export class GridPage {
         ".grid-view__cell.active input, .grid-view__cell.active textarea",
       )
       .first();
+  }
+
+  activeCellError(): Locator {
+    return this.page.locator(".grid-view__cell.active .grid-view__cell-error");
   }
 
   /** The selected primary field cell content for the row at `rowIndex`. */
@@ -147,6 +168,27 @@ export class GridPage {
 
   checkboxAt(rowIndex: number): Locator {
     return this.leftRowAt(rowIndex).locator(".grid-view__row-checkbox");
+  }
+
+  checkboxNativeAt(rowIndex: number): Locator {
+    return this.checkboxAt(rowIndex).locator(".checkbox__native");
+  }
+
+  multiSelectedCells(): Locator {
+    return this.page.locator(
+      [
+        ".grid-view__column--multi-select-top",
+        ".grid-view__column--multi-select-right",
+        ".grid-view__column--multi-select-bottom",
+        ".grid-view__column--multi-select-left",
+      ].join(", "),
+    );
+  }
+
+  rowEditModal(): Locator {
+    return this.page.locator(".modal__box", {
+      has: this.page.locator(".row-modal__title"),
+    });
   }
 
   // -- Grid actions ------------------------------------------------------------
@@ -310,6 +352,17 @@ export class GridPage {
     await this.contextItem(label).click();
   }
 
+  async openRowModalFromContext(rowIndex: number): Promise<void> {
+    await this.rightClickRow(rowIndex);
+    await this.clickContextItem("Enlarge row");
+    await expect(this.rowEditModal()).toBeVisible({ timeout: 10_000 });
+  }
+
+  async closeRowModal(): Promise<void> {
+    await this.rowEditModal().locator(".modal__close").click();
+    await expect(this.rowEditModal()).toHaveCount(0, { timeout: 10_000 });
+  }
+
   // -- Search / toolbar --------------------------------------------------------
 
   async openSearch(): Promise<void> {
@@ -341,6 +394,10 @@ export class GridPage {
 
   private escapeRegex(value: string): string {
     return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  private exactTextRegex(value: string): RegExp {
+    return new RegExp(`^\\s*${this.escapeRegex(value)}\\s*$`);
   }
 
   private fieldVisibilityLink(): Locator {
@@ -406,7 +463,9 @@ export class GridPage {
     await this.rowIdentifierDropdownIcon().click();
     const label = type === "id" ? "Row identifier" : "Count";
     await this.page
-      .locator(".select__item-link", { hasText: new RegExp(`^\\s*${label}\\s*$`) })
+      .locator(".select__item-link", {
+        hasText: new RegExp(`^\\s*${label}\\s*$`),
+      })
       .first()
       .click();
   }
@@ -492,9 +551,25 @@ export class GridPage {
    * Searches the LEFT section.
    */
   async expectPrimaryText(rowIndex: number, text: string): Promise<void> {
-    await expect(this.primaryCellAt(rowIndex)).toContainText(text, {
-      timeout: 10_000,
-    });
+    await expect(this.primaryCellAt(rowIndex)).toHaveText(
+      this.exactTextRegex(text),
+      {
+        timeout: 10_000,
+      },
+    );
+  }
+
+  async expectFieldText(
+    rowIndex: number,
+    fieldIndex: number,
+    text: string,
+  ): Promise<void> {
+    await expect(this.fieldCellAt(rowIndex, fieldIndex)).toHaveText(
+      this.exactTextRegex(text),
+      {
+        timeout: 10_000,
+      },
+    );
   }
 
   async expectPrimaryEmpty(rowIndex: number): Promise<void> {
@@ -519,17 +594,6 @@ export class GridPage {
     });
   }
 
-  /** Assert the visible text of a non-primary field cell */
-  async expectFieldText(
-    rowIndex: number,
-    fieldIndex: number,
-    text: string,
-  ): Promise<void> {
-    await expect(this.fieldCellAt(rowIndex, fieldIndex)).toContainText(text, {
-      timeout: 10_000,
-    });
-  }
-
   async expectFieldEmpty(rowIndex: number, fieldIndex: number): Promise<void> {
     await expect(this.fieldCellAt(rowIndex, fieldIndex)).toBeEmpty({
       timeout: 5_000,
@@ -545,6 +609,18 @@ export class GridPage {
   }
 
   async expectNonPrimaryFieldHeaderHidden(fieldName: string): Promise<void> {
+    await expect(this.nonPrimaryFieldHeadersByName(fieldName)).toHaveCount(0, {
+      timeout: 10_000,
+    });
+  }
+
+  async expectFrozenFieldHeaderVisible(fieldName: string): Promise<void> {
+    await expect(this.frozenFieldHeadersByName(fieldName).first()).toBeVisible({
+      timeout: 10_000,
+    });
+  }
+
+  async expectScrollableFieldHeaderHidden(fieldName: string): Promise<void> {
     await expect(this.nonPrimaryFieldHeadersByName(fieldName)).toHaveCount(0, {
       timeout: 10_000,
     });
@@ -574,6 +650,35 @@ export class GridPage {
   ): Promise<void> {
     await expect(this.selectedFieldCellAt(rowIndex, fieldIndex)).toBeVisible({
       timeout: 5_000,
+    });
+  }
+
+  async expectActiveCellError(text: string): Promise<void> {
+    await expect(this.activeCellError()).toContainText(text, {
+      timeout: 10_000,
+    });
+  }
+
+  async expectActiveEditorValue(value: string): Promise<void> {
+    await expect(this.activeEditor()).toHaveValue(value, { timeout: 5_000 });
+  }
+
+  async expectMultiSelectedCellCount(count: number): Promise<void> {
+    await expect(this.multiSelectedCells()).toHaveCount(count, {
+      timeout: 5_000,
+    });
+  }
+
+  async expectRowCheckboxChecked(rowIndex: number): Promise<void> {
+    await expect(this.checkboxNativeAt(rowIndex)).toBeChecked({
+      timeout: 5_000,
+    });
+  }
+
+  async expectRowModalVisibleFor(primaryValue: string): Promise<void> {
+    await expect(this.rowEditModal()).toBeVisible({ timeout: 10_000 });
+    await expect(this.rowEditModal()).toContainText(primaryValue, {
+      timeout: 10_000,
     });
   }
 
@@ -660,6 +765,7 @@ export class GridPage {
   }
 
   async expectRowIdentifierText(rowIndex: number, text: string): Promise<void> {
+    await this.page.mouse.move(0, 0);
     await expect(this.rowIdentifierContentAt(rowIndex)).toHaveText(text, {
       timeout: 10_000,
     });

@@ -14,6 +14,7 @@
 import RowService from '@baserow/modules/database/services/row'
 import {
   buildNewRowDefaults,
+  computeRowInsertPosition,
   computeRowMatchFlags,
   prepareNewOldAndUpdateRequestValues,
 } from '@baserow/modules/database/utils/row'
@@ -38,31 +39,41 @@ function resolveContext(context) {
   return context.rowService ? context : createRowLifecycleContext(context)
 }
 
-function buildOptimisticRow(context, suppliedValues) {
+function buildInitialCreateValues(context, suppliedValues) {
+  return buildNewRowDefaults({
+    view: context.view,
+    fields: context.fields,
+    registry: context.registry,
+    suppliedValues,
+  })
+}
+
+function buildOptimisticRow(rowValues) {
   return {
     id: generateTempRowId(),
-    ...buildNewRowDefaults({
-      view: context.view,
-      fields: context.fields,
-      registry: context.registry,
-      suppliedValues,
-    }),
+    ...rowValues,
     _: { loading: true },
   }
 }
 
-function prepareCreateRequestValues(context, suppliedValues) {
+function prepareCreateRequestValues(context, rowValues) {
   const values = {}
   for (const field of context.fields ?? []) {
     const key = `field_${field.id}`
-    if (!(key in suppliedValues)) {
+    if (!(key in rowValues)) {
       continue
     }
 
     const fieldType = context.registry.get('field', field.type)
+    if (
+      fieldType.canWriteFieldValues &&
+      !fieldType.canWriteFieldValues(field)
+    ) {
+      continue
+    }
     values[key] = fieldType.prepareValueForUpdate
-      ? fieldType.prepareValueForUpdate(field, suppliedValues[key])
-      : suppliedValues[key]
+      ? fieldType.prepareValueForUpdate(field, rowValues[key])
+      : rowValues[key]
   }
   return values
 }
@@ -138,7 +149,11 @@ export async function createRowOptimistically({
   selection = {},
 }) {
   const lifecycleContext = resolveContext(context)
-  const optimisticRow = buildOptimisticRow(lifecycleContext, suppliedValues)
+  const initialValues = buildInitialCreateValues(
+    lifecycleContext,
+    suppliedValues
+  )
+  const optimisticRow = buildOptimisticRow(initialValues)
 
   mutations.insert(optimisticRow, optimisticRow.id)
 
@@ -146,7 +161,7 @@ export async function createRowOptimistically({
   try {
     const response = await lifecycleContext.rowService.create(
       lifecycleContext.table.id,
-      prepareCreateRequestValues(lifecycleContext, suppliedValues),
+      prepareCreateRequestValues(lifecycleContext, initialValues),
       beforeId,
       lifecycleContext.view.id
     )
@@ -244,4 +259,137 @@ export function reapplyMatchFlags({ context, mutations, row }) {
     return
   }
   applyCurrentMatchFlags(resolveContext(context), row, mutations)
+}
+
+/**
+ * Handle a row that was deleted externally (e.g. via a real-time event).
+ * Removes the row only if it was visible in the current view.
+ */
+export function handleRowDeleted({ context, mutations, row }) {
+  const lifecycleContext = resolveContext(context)
+
+  const flags = computeRowMatchFlags({
+    row,
+    view: lifecycleContext.view,
+    fields: lifecycleContext.fields,
+    registry: lifecycleContext.registry,
+    rowsInSortingGroup: (mutations.rowsForMatchCheck ?? emptyRows)(row),
+    groupBys: lifecycleContext.groupBys,
+  })
+
+  if (!flags.matchFilters) {
+    return
+  }
+
+  mutations.remove(row.id)
+}
+
+/**
+ * Handle a row that was updated externally (e.g. via a real-time event).
+ *
+ * Four cases based on whether the old and new row match the current view:
+ *
+ * | oldRow in view | newRow in view | Action                                |
+ * |----------------|----------------|---------------------------------------|
+ * | yes            | no             | remove                                |
+ * | no             | yes            | insertAtPosition + applyMatchFlags    |
+ * | no             | no             | noop                                  |
+ * | yes            | yes            | replaceAtPosition + applyMatchFlags   |
+ */
+export function handleRowUpdated({ context, mutations, oldRow, newRow }) {
+  const lifecycleContext = resolveContext(context)
+
+  const oldFlags = computeRowMatchFlags({
+    row: oldRow,
+    view: lifecycleContext.view,
+    fields: lifecycleContext.fields,
+    registry: lifecycleContext.registry,
+    rowsInSortingGroup: (mutations.rowsForMatchCheck ?? emptyRows)(oldRow),
+    groupBys: lifecycleContext.groupBys,
+  })
+
+  // Compute newRow flags using rows that exclude newRow itself, so the row
+  // is not compared against its own position when deciding where it belongs.
+  const rowsExcludingNew = (mutations.rowsForMatchCheck ?? emptyRows)(
+    newRow
+  ).filter((r) => r.id !== newRow.id)
+  const newFlags = computeRowMatchFlags({
+    row: newRow,
+    view: lifecycleContext.view,
+    fields: lifecycleContext.fields,
+    registry: lifecycleContext.registry,
+    rowsInSortingGroup: rowsExcludingNew,
+    groupBys: lifecycleContext.groupBys,
+  })
+
+  const wasInView = oldFlags.matchFilters
+  const isInView = newFlags.matchFilters
+
+  if (wasInView && !isInView) {
+    // Row moved out of the view — remove it.
+    mutations.remove(newRow.id)
+  } else if (!wasInView && isInView) {
+    // Row moved into the view — insert at its new position.
+    const position = computeRowInsertPosition(
+      newRow,
+      rowsExcludingNew,
+      lifecycleContext.view.sortings ?? [],
+      lifecycleContext.fields,
+      lifecycleContext.registry,
+      lifecycleContext.groupBys
+    )
+    mutations.insertAtPosition(newRow, position)
+    const applyMatchFlags = mutations.applyMatchFlags ?? noop
+    applyMatchFlags(newRow.id, newFlags)
+  } else if (!wasInView && !isInView) {
+    // Row was not and is still not visible — nothing to do.
+  } else {
+    // Row stays in the view — update its position and flags.
+    const position = computeRowInsertPosition(
+      newRow,
+      rowsExcludingNew,
+      lifecycleContext.view.sortings ?? [],
+      lifecycleContext.fields,
+      lifecycleContext.registry,
+      lifecycleContext.groupBys
+    )
+    mutations.replaceAtPosition(newRow.id, newRow, position)
+    const applyMatchFlags = mutations.applyMatchFlags ?? noop
+    applyMatchFlags(newRow.id, newFlags)
+  }
+}
+
+/**
+ * Handle a row that was created externally (e.g. via a real-time event).
+ * Inserts the row only if it matches the current view; skips silently otherwise.
+ */
+export function handleRowCreated({ context, mutations, row }) {
+  const lifecycleContext = resolveContext(context)
+  const existingRows = (mutations.rowsForMatchCheck ?? emptyRows)(row)
+
+  const flags = computeRowMatchFlags({
+    row,
+    view: lifecycleContext.view,
+    fields: lifecycleContext.fields,
+    registry: lifecycleContext.registry,
+    rowsInSortingGroup: existingRows,
+    groupBys: lifecycleContext.groupBys,
+  })
+
+  if (!flags.matchFilters) {
+    return
+  }
+
+  const position = computeRowInsertPosition(
+    row,
+    existingRows,
+    lifecycleContext.view.sortings ?? [],
+    lifecycleContext.fields,
+    lifecycleContext.registry,
+    lifecycleContext.groupBys
+  )
+
+  mutations.insertAtPosition(row, position)
+  const applyMatchFlags = mutations.applyMatchFlags ?? noop
+  applyMatchFlags(row.id, flags)
 }

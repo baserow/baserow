@@ -115,10 +115,8 @@ export default {
   ],
   methods: {
     onItemClick(event, name, row) {
-      // The flat grid's `gridField` mixin uses this flag to keep an
-      // open editor from closing when the user clicks a menu item.
-      // Keep this in the presentational component so every context-menu user
-      // sends the same upstream event shape.
+      // The `gridField` mixin uses this flag to keep an open editor from closing when
+      // the user clicks a menu item.
       event.preventFieldCellUnselect = true
       this.$emit(name, row)
     },

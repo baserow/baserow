@@ -299,6 +299,9 @@ export default {
       if (this.includeRowDetails) {
         width += this.gridViewRowDetailsWidth
       }
+      if (this.includeGroupBy) {
+        width += this.activeGroupByWidth
+      }
 
       // The add button has a width of 100 and we reserve 100 at the right side.
       if (this.includeAddField) {
@@ -496,8 +499,6 @@ export default {
           'view/grid/isMultiSelectHolding',
         count: this.$options.propsData.storePrefix + 'view/grid/getCount',
         allRows: this.$options.propsData.storePrefix + 'view/grid/getAllRows',
-        groupByMetadata:
-          this.$options.propsData.storePrefix + 'view/grid/getGroupByMetadata',
       }),
     }
   },*/

@@ -2,14 +2,13 @@
  * Grid view - multi-cell selection, keyboard navigation, copy/paste, row hover.
  *
  * Catalogue sections covered:
- *   section 8   Multi-cell selection (mechanics, copy/paste including overflow-create)
- *   section 9   Keyboard navigation
- *   section 10  Row hover actions
+ *   section 4   Clipboard operations
+ *   section 9   Multi-cell selection
+ *   section 10  Keyboard navigation
+ *   section 11  Row hover/context actions
+ *   section 12  Checkbox row selection
+ *   section 13  Row expand modal smoke coverage
  *
- * Anti-flakiness:
- *   - Keyboard navigation tests prove where selection moved by typing into
- *     the newly selected cell and asserting the saved value.
- *   - All count/visibility assertions use Playwright's built-in polling.
  */
 
 import type { Page } from "@playwright/test";
@@ -20,6 +19,7 @@ import {
   resetRows,
   setupGrid,
 } from "../../../fixtures/database/gridSetup";
+import { pauseNextRequestWithSignal } from "../../../fixtures/network";
 
 type Setup = GridSetupResult;
 
@@ -43,10 +43,10 @@ function multiSelectedFieldCells(page: Page) {
 }
 
 // -----------------------------------------------------------------------------
-// section 8.1  Selection mechanics
+// section 9.1  Selection mechanics
 // -----------------------------------------------------------------------------
 
-test.describe("8.1 Selection mechanics", () => {
+test.describe("9.1 Selection mechanics", () => {
   let g: Setup;
 
   test.beforeAll(async () => {
@@ -69,7 +69,7 @@ test.describe("8.1 Selection mechanics", () => {
     await grid.goTo(g.database, g.table);
   });
 
-  test("8.1.1 clicking one field cell selects it and leaves no multi-select range visible", async ({
+  test("9.1.1 clicking one field cell selects it and leaves no multi-select range visible", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -81,7 +81,7 @@ test.describe("8.1 Selection mechanics", () => {
     );
   });
 
-  test("8.1.2 shift-clicking another cell keeps the anchor selected and shows the rectangular range", async ({
+  test("9.1.2 shift-clicking another cell keeps the anchor selected and shows the rectangular range", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -96,7 +96,7 @@ test.describe("8.1 Selection mechanics", () => {
     }); // 2 rows x 2 cols
   });
 
-  test("8.1.3 dragging across cells shows a rectangular range that remains visible after mouseup", async ({
+  test("9.1.3 dragging across cells shows a rectangular range that remains visible after mouseup", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -129,7 +129,7 @@ test.describe("8.1 Selection mechanics", () => {
     }); // 2 rows x 2 cols
   });
 
-  test("8.1.4 Escape removes the visible multi-select range", async ({
+  test("9.1.4 Escape removes the visible multi-select range", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -149,7 +149,7 @@ test.describe("8.1 Selection mechanics", () => {
     );
   });
 
-  test("8.1.5 clicking outside the grid removes the visible multi-select range", async ({
+  test("9.1.5 clicking outside the grid removes the visible multi-select range", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -168,13 +168,52 @@ test.describe("8.1 Selection mechanics", () => {
 });
 
 // -----------------------------------------------------------------------------
-// section 8.3  Copy and paste
+// section 9.2  Keyboard multi-cell selection
 // -----------------------------------------------------------------------------
 
-test.describe("8.3 Copy and paste", () => {
+test.describe("9.2 Keyboard multi-cell selection", () => {
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "KeyboardSelectionDb",
+      fields: [
+        { name: "Score", type: "number" },
+        { name: "Notes", type: "text" },
+      ],
+      rows: [
+        { Name: "Alice", Score: 10, Notes: "note A" },
+        { Name: "Bob", Score: 20, Notes: "note B" },
+      ],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+  });
+
+  test("9.2.1 Shift+Arrow expands the selected range from one cell to a 2x2 area", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+
+    await grid.selectFieldCell(0, 0);
+    await page.keyboard.press("Shift+ArrowRight");
+    await grid.expectMultiSelectedCellCount(2);
+    await page.keyboard.press("Shift+ArrowDown");
+    await grid.expectMultiSelectedCellCount(4);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// section 4  Clipboard operations
+// -----------------------------------------------------------------------------
+
+test.describe("4 Clipboard operations", () => {
   let g: Setup;
   let pasteFilter: Setup;
-  let pasteFilterRemove: Setup;
+  let pasteSort: Setup;
 
   test.beforeAll(async () => {
     g = await setupGrid({
@@ -198,27 +237,40 @@ test.describe("8.3 Copy and paste", () => {
       ],
       filters: [{ fieldName: "Name", type: "equal", value: "Keep" }],
     });
-    pasteFilterRemove = await setupGrid({
-      dbName: "PasteFilterRemoveDb",
+    pasteSort = await setupGrid({
+      dbName: "PasteSortDb",
       fields: [{ name: "Score", type: "number" }],
-      rows: [{ Name: "Keep", Score: 10 }],
-      filters: [{ fieldName: "Name", type: "equal", value: "Keep" }],
+      sorts: [{ fieldName: "Name", order: "ASC" }],
     });
   });
 
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ page, browserName }) => {
+    await resetRows(g, [
+      { Name: "Row1", Score: 10, Notes: "note1" },
+      { Name: "Row2", Score: 20, Notes: "note2" },
+      { Name: "Row3", Score: 30, Notes: "note3" },
+    ]);
     const grid = new GridPage(page, g.user);
     await grid.goTo(g.database, g.table);
-    await page
-      .context()
-      .grantPermissions(["clipboard-read", "clipboard-write"], {
-        origin: process.env.PUBLIC_WEB_FRONTEND_URL ?? "http://localhost:3000",
-      });
+    if (browserName === "chromium") {
+      await page
+        .context()
+        .grantPermissions(["clipboard-read", "clipboard-write"], {
+          origin:
+            process.env.PUBLIC_WEB_FRONTEND_URL ?? "http://localhost:3000",
+        });
+    }
   });
 
-  test("8.3.1 copy stores selected value in clipboard and paste immediately shows it in target cell", async ({
+  test("4.1.1 copy stores selected value in clipboard and paste immediately shows it in target cell", async ({
+    browserName,
     page,
   }) => {
+    test.skip(
+      browserName !== "chromium",
+      "Playwright cannot grant clipboard-read permission in Firefox.",
+    );
+
     const grid = new GridPage(page, g.user);
 
     // Select Score cell of Row1 and copy
@@ -238,11 +290,13 @@ test.describe("8.3 Copy and paste", () => {
     await grid.selectFieldCell(2, 0); // Row3 / Score
     await pasteText(page, copiedText);
 
-    // Row3's Score should now be 10 (same as Row1)
+    // Row3's Score should now be 10 (same as Row1); no loading spinner since
+    // the cell update is optimistic.
     await grid.expectFieldText(2, 0, "10");
+    await grid.expectNoRowsLoading();
   });
 
-  test("8.3.4 pasting two lines on last row updates last row and immediately creates visible overflow row", async ({
+  test("4.1.2 pasting two lines on last row updates last row and immediately creates visible overflow row", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -254,47 +308,154 @@ test.describe("8.3 Copy and paste", () => {
 
     // New rows should have been created for the overflow lines
     await grid.expectRowCount(4); // 3 original + 1 new (Row3 updated + 1 new)
-    await grid.expectPrimaryVisible("OverflowA");
-    await grid.expectPrimaryVisible("OverflowB");
+    await grid.expectPrimaryText(2, "OverflowA");
+    await grid.expectFieldText(2, 0, "99");
+    await grid.expectPrimaryText(3, "OverflowB");
+    await grid.expectFieldText(3, 0, "88");
   });
 
-  test("8.3.6 filter-breaking paste immediately shows pasted value with warning while row remains selected", async ({
+  test("4.2.1a filter-breaking paste shows warning, keeps selection, then removes row on deselect", async ({
     page,
   }) => {
+    await resetRows(pasteFilter, [{ Name: "Keep", Score: 10 }]);
     const grid = new GridPage(page, pasteFilter.user);
     await grid.goTo(pasteFilter.database, pasteFilter.table);
-    await grid.expectRowCount(2);
+    await grid.expectRowCount(1);
 
     // Paste a value that breaks the filter - "Keep" -> "Gone"
     await grid.selectPrimaryCell(0); // first Keep row / Name
     await pasteText(page, "Gone");
 
     // The pasted row should show a filter-mismatch warning while still selected
+    await grid.expectPrimaryText(0, "Gone");
+    await grid.expectPrimarySelected(0);
     await grid.expectRowHasWarning(0);
-  });
-
-  test("8.3.7 deselecting after filter-breaking paste removes the pasted value from visible grid", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, pasteFilterRemove.user);
-    await grid.goTo(pasteFilterRemove.database, pasteFilterRemove.table);
-
-    await grid.selectPrimaryCell(0); // Keep / Name
-    await pasteText(page, "Gone");
-    await grid.expectRowHasWarning(0);
+    await grid.expectRowWarningText(0, "Row does not match filters");
 
     await grid.clickAway();
 
     await grid.expectPrimaryNotVisible("Gone");
     await grid.expectRowCount(0);
   });
+
+  test("4.2.1b filter-breaking paste deselected before backend confirmation removes the row immediately", async ({
+    page,
+  }) => {
+    await resetRows(pasteFilter, [{ Name: "Keep", Score: 10 }]);
+    const grid = new GridPage(page, pasteFilter.user);
+    await grid.goTo(pasteFilter.database, pasteFilter.table);
+    await grid.expectRowCount(1);
+
+    const pausedUpdate = await pauseNextRequestWithSignal(
+      page,
+      `**/api/database/rows/table/${pasteFilter.table.id}/**`,
+      { method: "PATCH" },
+    );
+
+    await grid.selectPrimaryCell(0);
+    await pasteText(page, "Gone");
+    await pausedUpdate.intercepted;
+    await grid.expectPrimaryText(0, "Gone");
+    await grid.expectRowHasWarning(0);
+    await grid.expectRowWarningText(0, "Row does not match filters");
+
+    await grid.clickAway();
+    await grid.expectRowCount(0);
+
+    pausedUpdate.release();
+    await grid.expectNoRowsLoading();
+    await grid.expectRowCount(0);
+  });
+
+  test("4.3.1a sort-affecting paste shows Row has moved warning while selected then moves row on deselect", async ({
+    page,
+  }) => {
+    await resetRows(pasteSort, [
+      { Name: "Alice", Score: 10 },
+      { Name: "Bob", Score: 20 },
+    ]);
+    const grid = new GridPage(page, pasteSort.user);
+    await grid.goTo(pasteSort.database, pasteSort.table);
+    await grid.expectRowCount(2);
+
+    await grid.selectPrimaryCell(0); // Alice, sorts to position 1 after "Zara" replaces it
+    await pasteText(page, "Zara"); // Zara > Bob alphabetically
+
+    await grid.expectPrimaryText(0, "Zara");
+    await grid.expectRowHasWarning(0);
+    await grid.expectRowWarningText(0, "Row has moved");
+    await grid.expectPrimaryText(1, "Bob");
+
+    await grid.clickAway();
+    await grid.expectPrimaryText(0, "Bob");
+    await grid.expectPrimaryText(1, "Zara");
+    await grid.expectRowNoWarning(0);
+    await grid.expectRowNoWarning(1);
+  });
+
+  test("4.3.1b sort-affecting paste deselected before backend confirmation moves row immediately on deselect", async ({
+    page,
+  }) => {
+    await resetRows(pasteSort, [
+      { Name: "Alice", Score: 10 },
+      { Name: "Bob", Score: 20 },
+    ]);
+    const grid = new GridPage(page, pasteSort.user);
+    await grid.goTo(pasteSort.database, pasteSort.table);
+    await grid.expectRowCount(2);
+
+    const pausedUpdate = await pauseNextRequestWithSignal(
+      page,
+      `**/api/database/rows/table/${pasteSort.table.id}/**`,
+      { method: "PATCH" },
+    );
+
+    await grid.selectPrimaryCell(0); // Alice
+    await pasteText(page, "Zara");
+    await pausedUpdate.intercepted;
+    await grid.expectPrimaryText(0, "Zara");
+    await grid.expectRowHasWarning(0);
+    await grid.expectRowWarningText(0, "Row has moved");
+
+    await grid.clickAway();
+    // Warning was visible so row moves to sorted position immediately
+    await grid.expectPrimaryText(0, "Bob");
+    await grid.expectPrimaryText(1, "Zara");
+    await grid.expectRowNoWarning(0);
+
+    pausedUpdate.release();
+    await grid.expectNoRowsLoading();
+    await grid.expectPrimaryText(0, "Bob");
+    await grid.expectPrimaryText(1, "Zara");
+    await grid.expectRowNoWarning(0);
+    await grid.expectRowNoWarning(1);
+  });
+
+  test("4.4.1 Delete clears every value in the selected cell range", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+
+    await grid.selectFieldCell(0, 0);
+    await grid.fieldCellAt(1, 1).click({ modifiers: ["Shift"] });
+    await grid.expectMultiSelectedCellCount(4);
+
+    await page.keyboard.press("Delete");
+
+    await grid.expectFieldEmpty(0, 0);
+    await grid.expectFieldEmpty(0, 1);
+    await grid.expectFieldEmpty(1, 0);
+    await grid.expectFieldEmpty(1, 1);
+    await grid.expectPrimaryText(0, "Row1");
+    await grid.expectFieldText(2, 0, "30");
+  });
 });
 
 // -----------------------------------------------------------------------------
-// section 9  Keyboard navigation
+// section 10.1  Keyboard navigation
 // -----------------------------------------------------------------------------
 
-test.describe("9. Keyboard navigation", () => {
+test.describe("10.1 Keyboard navigation", () => {
   let g: Setup;
 
   test.beforeAll(async () => {
@@ -320,7 +481,7 @@ test.describe("9. Keyboard navigation", () => {
     await grid.goTo(g.database, g.table);
   });
 
-  test("9.1 Tab moves selection to next cell, typing opens editor there, and Enter saves visible value", async ({
+  test("10.1.1 Tab moves selection to next cell, typing opens editor there, and Enter saves visible value", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -336,7 +497,7 @@ test.describe("9. Keyboard navigation", () => {
     await grid.expectFieldText(0, 1, "tabbed");
   });
 
-  test("9.3 pressing Enter on a selected cell shows the editor in that cell", async ({
+  test("10.1.2 pressing Enter on a selected cell shows the editor in that cell", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -344,7 +505,7 @@ test.describe("9. Keyboard navigation", () => {
     await grid.startEditingField(0, 0); // Row1 / Score
   });
 
-  test("9.4 Enter while editing saves visible value, moves focus down, and allows editing next row", async ({
+  test("10.1.3 Enter while editing saves visible value, moves focus down, and allows editing next row", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -363,20 +524,20 @@ test.describe("9. Keyboard navigation", () => {
     await grid.expectFieldText(1, 1, "Row2Updated");
   });
 
-  test("9.5 Escape while editing discards typed draft and keeps original row visible", async ({
+  test("10.1.4 Escape while editing discards typed draft and keeps original row visible", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
 
-    await grid.startEditingField(0, 0); // Row1 / Score
+    await grid.startEditingField(0, 1); // Row1 / Notes
     await grid.type("ShouldNotSave");
     await grid.cancelEdit();
 
-    await grid.expectPrimaryVisible("Row1");
-    await grid.expectPrimaryNotVisible("ShouldNotSave");
+    await expect(grid.activeEditor()).toHaveCount(0);
+    await grid.expectFieldText(0, 1, "n1");
   });
 
-  test("9.6 arrow key moves selection to adjacent row without showing an editor", async ({
+  test("10.1.5 arrow key moves selection to adjacent row without showing an editor", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -391,7 +552,7 @@ test.describe("9. Keyboard navigation", () => {
     await grid.expectFieldSelected(1, 0);
   });
 
-  test("9.7 typing while a cell is selected shows editor containing the typed characters", async ({
+  test("10.1.6 typing while a cell is selected shows editor containing the typed characters", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
@@ -407,10 +568,10 @@ test.describe("9. Keyboard navigation", () => {
 });
 
 // -----------------------------------------------------------------------------
-// section 10.1  Row hover actions
+// section 11.1  Row hover actions
 // -----------------------------------------------------------------------------
 
-test.describe("10.1 Row hover actions", () => {
+test.describe("11.1 Row hover actions", () => {
   let gUnsorted: Setup;
   let gSorted: Setup;
 
@@ -433,7 +594,7 @@ test.describe("10.1 Row hover actions", () => {
     ]);
   });
 
-  test("10.1.1 hovering a row shows the checkbox and hides the row count", async ({
+  test("11.1.1 hovering and unhovering a row toggles the checkbox and row count", async ({
     page,
   }) => {
     const grid = new GridPage(page, gUnsorted.user);
@@ -446,16 +607,6 @@ test.describe("10.1 Row hover actions", () => {
 
     await grid.expectRowCheckboxVisible(0);
     await grid.expectRowCountHidden(0);
-  });
-
-  test("10.1.2 moving the mouse away restores the row count and hides the checkbox", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, gUnsorted.user);
-    await grid.goTo(gUnsorted.database, gUnsorted.table);
-
-    await grid.hoverRow(0);
-    await grid.expectRowCheckboxVisible(0);
 
     await grid.unhoverRow();
 
@@ -463,7 +614,7 @@ test.describe("10.1 Row hover actions", () => {
     await grid.expectRowCheckboxHidden(0);
   });
 
-  test("10.1.3 drag handle is present in an unsorted view and absent when a sort is active", async ({
+  test("11.1.2 drag handle is present in an unsorted view and absent when a sort is active", async ({
     page,
   }) => {
     const grid = new GridPage(page, gUnsorted.user);
@@ -473,5 +624,116 @@ test.describe("10.1 Row hover actions", () => {
     const sortedGrid = new GridPage(page, gSorted.user);
     await sortedGrid.goTo(gSorted.database, gSorted.table);
     await sortedGrid.expectRowDragHandleAbsent(0);
+  });
+});
+
+// -----------------------------------------------------------------------------
+// section 11.2 / 13.1  Row context menu and row modal
+// -----------------------------------------------------------------------------
+
+test.describe("11.2 Row context menu actions", () => {
+  test.describe.configure({ mode: "serial" });
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "ContextMenuDb",
+      fields: [{ name: "Score", type: "number" }],
+      rows: [
+        { Name: "Alice", Score: 10 },
+        { Name: "Bob", Score: 20 },
+      ],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    await resetRows(g, [
+      { Name: "Alice", Score: 10 },
+      { Name: "Bob", Score: 20 },
+    ]);
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+  });
+
+  test("11.2.1 context-menu insert below creates an empty row below the selected row", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+
+    await grid.rightClickRow(0);
+    await grid.clickContextItem("Insert row below");
+
+    await grid.expectRowCount(3);
+    await grid.expectPrimaryText(0, "Alice");
+    await grid.expectPrimaryEmpty(1);
+    await grid.expectPrimaryText(2, "Bob");
+  });
+
+  test("11.2.2 context-menu duplicate creates a copied row directly below the selected row", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+
+    await grid.rightClickRow(0);
+    await grid.clickContextItem("Duplicate row");
+
+    await grid.expectRowCount(3);
+    await grid.expectPrimaryText(0, "Alice");
+    await grid.expectPrimaryText(1, "Alice");
+    await grid.expectFieldText(1, 0, "10");
+    await grid.expectPrimaryText(2, "Bob");
+  });
+
+  test("13.1.1 context-menu enlarge opens and closes the row edit modal", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+
+    await grid.openRowModalFromContext(0);
+    await grid.expectRowModalVisibleFor("Alice");
+    await grid.closeRowModal();
+  });
+});
+
+// -----------------------------------------------------------------------------
+// section 12.1  Checkbox row selection
+// -----------------------------------------------------------------------------
+
+test.describe("12.1 Checkbox row selection", () => {
+  let g: Setup;
+
+  test.beforeAll(async () => {
+    g = await setupGrid({
+      dbName: "CheckboxSelectionDb",
+      fields: [
+        { name: "Score", type: "number" },
+        { name: "Notes", type: "text" },
+      ],
+      rows: [
+        { Name: "Alice", Score: 10, Notes: "note A" },
+        { Name: "Bob", Score: 20, Notes: "note B" },
+      ],
+    });
+  });
+
+  test.beforeEach(async ({ page }) => {
+    const grid = new GridPage(page, g.user);
+    await grid.goTo(g.database, g.table);
+  });
+
+  test("12.1.1 selecting a row checkbox clears an active multi-cell selection", async ({
+    page,
+  }) => {
+    const grid = new GridPage(page, g.user);
+
+    await grid.selectFieldCell(0, 0);
+    await grid.fieldCellAt(1, 1).click({ modifiers: ["Shift"] });
+    await grid.expectMultiSelectedCellCount(4);
+
+    await grid.hoverRow(0);
+    await grid.checkboxAt(0).click();
+
+    await grid.expectRowCheckboxChecked(0);
+    await grid.expectMultiSelectedCellCount(0);
   });
 });
