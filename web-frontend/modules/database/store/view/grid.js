@@ -3409,25 +3409,6 @@ export const actions = {
     dispatch('updateSearchMatchesForRow', { row, fields, overrides })
   },
   /**
-   * Checks if the given row still matches the given view filters. The row's
-   * matchFilters value is updated accordingly. It is also possible to provide some
-   * override values that not actually belong to the row to do some preliminary checks.
-   */
-  updateMatchFilters({ commit }, { view, row, fields, overrides = {} }) {
-    const rowWithOverrides = Object.assign(
-      JSON.parse(JSON.stringify(row)),
-      overrides
-    )
-    const { matchFilters } = computeRowMatchFlags({
-      row: rowWithOverrides,
-      view,
-      fields,
-      registry: this.$registry,
-      rowsInSortingGroup: [],
-    })
-    commit('SET_ROW_MATCH_FILTERS', { row, value: matchFilters })
-  },
-  /**
    * Changes the current search parameters if provided and optionally refreshes which
    * cells match the new search parameters by updating every rows row._.matchSearch and
    * row._.fieldSearchMatches attributes.
@@ -3477,26 +3458,6 @@ export const actions = {
 
       commit('SET_ROW_SEARCH_MATCHES', rowSearchMatches)
     }
-  },
-  /**
-   * Checks if the given row index is still the same. The row's matchSortings value is
-   * updated accordingly. It is also possible to provide some override values that not
-   * actually belong to the row to do some preliminary checks.
-   */
-  updateMatchSortings(
-    { commit, getters },
-    { view, row, fields, overrides = {} }
-  ) {
-    const rowWithOverrides = Object.assign(clone(row), overrides)
-    const { matchSortings } = computeRowMatchFlags({
-      row: rowWithOverrides,
-      view,
-      fields,
-      registry: this.$registry,
-      rowsInSortingGroup: getters.getAllRows,
-      groupBys: view.group_bys,
-    })
-    commit('SET_ROW_MATCH_SORTINGS', { row, value: matchSortings })
   },
   /**
    * Refreshes the row in the store if the given rowId exists. If the row
