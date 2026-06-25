@@ -28,6 +28,7 @@ from baserow.contrib.automation.nodes.models import (
     CoreIteratorActionNode,
     CoreManualTriggerNode,
     CorePeriodicTriggerNode,
+    CoreResponseActionNode,
     CoreRouterActionNode,
     CoreSMTPEmailActionNode,
     CoreStartWorkflowActionNode,
@@ -59,6 +60,7 @@ from baserow.contrib.integrations.core.service_types import (
     CoreIteratorServiceType,
     CoreManualTriggerServiceType,
     CorePeriodicServiceType,
+    CoreResponseServiceType,
     CoreRouterServiceType,
     CoreSMTPEmailServiceType,
     CoreStartWorkflowServiceType,
@@ -246,6 +248,13 @@ class CoreStartWorkflowNodeType(AutomationNodeActionNodeType):
     type = "start_workflow"
     model_class = CoreStartWorkflowActionNode
     service_type = CoreStartWorkflowServiceType.type
+
+
+class CoreResponseNodeType(AutomationNodeActionNodeType):
+    display_name = _("Response")
+    type = "response"
+    model_class = CoreResponseActionNode
+    service_type = CoreResponseServiceType.type
 
 
 class AIAgentActionNodeType(AutomationNodeActionNodeType):
@@ -689,6 +698,7 @@ class AutomationNodeTriggerType(AutomationNodeType):
         # For perf reasons, store the trigger<->service relationship.
         service_map = {service.id: service for service in services}
 
+        histories = []
         for trigger in triggers:
             # If we've received a callable payload, call it with the specific service,
             # this can give us a payload that is specific to the trigger's service.
@@ -699,13 +709,17 @@ class AutomationNodeTriggerType(AutomationNodeType):
             )
 
             workflow = trigger.workflow
-            AutomationWorkflowHandler().async_start_workflow(
+            history = AutomationWorkflowHandler().async_start_workflow(
                 workflow,
                 service_payload,
             )
+            if history is not None:
+                histories.append(history)
 
             # We don't want subsequent events to trigger a new test run
             AutomationWorkflowHandler().reset_workflow_temporary_states(workflow)
+
+        return histories
 
 
 class LocalBaserowRowsCreatedNodeTriggerType(AutomationNodeTriggerType):

@@ -4,6 +4,7 @@ from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
 from baserow.contrib.integrations.core.models import (
+    CoreResponseHeader,
     HTTPFormData,
     HTTPHeader,
     HTTPQueryParam,
@@ -78,4 +79,19 @@ class HTTPQueryParamSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HTTPQueryParam
+        fields = ["id", "key", "value"]
+
+
+class CoreResponseHeaderSerializer(serializers.ModelSerializer):
+    """
+    Serializer for the CoreResponseHeader model.
+    """
+
+    key = serializers.CharField(
+        allow_blank=True, max_length=255, validators=[validate_param_or_header_name]
+    )
+    value = FormulaSerializerField()
+
+    class Meta:
+        model = CoreResponseHeader
         fields = ["id", "key", "value"]

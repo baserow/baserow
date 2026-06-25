@@ -9,6 +9,7 @@ from baserow.contrib.integrations.core.models import (
     CoreIteratorService,
     CoreManualTriggerService,
     CorePeriodicService,
+    CoreResponseService,
     CoreRouterService,
     CoreSMTPEmailService,
     CoreStartWorkflowService,
@@ -160,6 +161,9 @@ class ServiceFixtures:
 
     def create_core_start_workflow_service(self, **kwargs):
         return self.create_service(CoreStartWorkflowService, **kwargs)
+
+    def create_core_response_service(self, **kwargs):
+        return self.create_service(CoreResponseService, **kwargs)
 
     def create_core_router_service(self, **kwargs):
         return self.create_service(CoreRouterService, **kwargs)

@@ -28,6 +28,7 @@ import {
   CoreIteratorServiceType,
   CoreStartWorkflowServiceType,
   CoreManualTriggerServiceType,
+  CoreResponseServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 import { SlackWriteMessageServiceType } from '@baserow/modules/integrations/slack/serviceTypes'
@@ -80,6 +81,7 @@ export default defineNuxtPlugin({
     $registry.register('service', new CoreIteratorServiceType(context))
     $registry.register('service', new CoreCSVFileReaderServiceType(context))
     $registry.register('service', new CoreStartWorkflowServiceType(context))
+    $registry.register('service', new CoreResponseServiceType(context))
     $registry.register('service', new AIAgentServiceType(context))
     $registry.register('service', new PeriodicTriggerServiceType(context))
     $registry.register('service', new SlackWriteMessageServiceType(context))

@@ -9,6 +9,7 @@ from baserow.contrib.integrations.core.constants import (
     CSV_FILE_READER_INPUT_TYPE,
     HTTP_METHOD,
     PERIODIC_INTERVAL_CHOICES,
+    RESPONSE_BODY_TYPE,
 )
 from baserow.core.formula.field import FormulaField
 from baserow.core.integrations.models import Integration
@@ -110,6 +111,45 @@ class CoreStartWorkflowService(Service):
         on_delete=models.SET_NULL,
         help_text="The automation workflow to start.",
     )
+
+
+class CoreResponseService(Service):
+    """
+    A service for defining the response returned by an automation workflow.
+    """
+
+    status_code = models.PositiveSmallIntegerField(
+        default=204,
+        validators=[
+            MinValueValidator(100, message="Value cannot be less than 100."),
+            MaxValueValidator(599, message="Value cannot be greater than 599."),
+        ],
+        help_text="The HTTP status code to return.",
+    )
+    body_type = models.CharField(
+        max_length=10,
+        choices=RESPONSE_BODY_TYPE.choices,
+        default=RESPONSE_BODY_TYPE.EMPTY,
+        help_text="The type of response body to return.",
+    )
+    body = FormulaField(
+        blank=True,
+        help_text="The response body content.",
+    )
+
+
+class CoreResponseHeader(models.Model):
+    """
+    Model to store workflow response headers.
+    """
+
+    service = models.ForeignKey(
+        CoreResponseService,
+        on_delete=models.CASCADE,
+        related_name="headers",
+    )
+    key = models.CharField(max_length=255, help_text="The header key.")
+    value = FormulaField(blank=True, help_text="The header value.")
 
 
 class CoreHTTPRequestService(Service):
@@ -346,4 +386,19 @@ class CoreHTTPTriggerService(Service):
     is_public = models.BooleanField(
         default=False,
         help_text="Defines whether the service is published or not.",
+    )
+
+    wait_for_response = models.BooleanField(
+        default=False,
+        db_default=False,
+        help_text="Whether the HTTP caller should wait for the workflow response.",
+    )
+    response_timeout_seconds = models.PositiveSmallIntegerField(
+        default=30,
+        db_default=30,
+        validators=[
+            MinValueValidator(1, message="Value cannot be less than 1."),
+            MaxValueValidator(120, message="Value cannot be greater than 120."),
+        ],
+        help_text="The maximum time to wait for the workflow response in seconds.",
     )

@@ -415,6 +415,10 @@ class AutomationNodeHandler:
         node_history.workflow_history.message = error
         node_history.workflow_history.status = HistoryStatusChoices.ERROR
         node_history.workflow_history.save()
+        if node_history.workflow_history.simulate_until_node_id is None:
+            AutomationHistoryHandler().ensure_default_response(
+                node_history.workflow_history
+            )
 
         node_history.completed_on = now
         node_history.message = error
