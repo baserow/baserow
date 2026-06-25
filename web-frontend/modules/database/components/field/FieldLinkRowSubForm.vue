@@ -176,6 +176,10 @@ export default {
       this.initialLinkRowTable == null ||
       this.defaultValues.link_row_related_field != null
     this.limitToViewToggle = !!this.values.link_row_limit_selection_view_id
+    // For an existing field the table id is already set before mount, so the
+    // change-watcher that loads related views runs while limitToViewToggle is
+    // still false and bails. Load them here so the saved selection is shown.
+    this.loadViewsIfNeeded()
   },
 
   methods: {
