@@ -113,16 +113,10 @@
         <ButtonFloating
           v-if="
             !readOnly &&
-            ($hasPermission(
+            hasTableOrViewPermission(
               'database.table.create_row',
-              table,
-              database.workspace.id
-            ) ||
-              $hasPermission(
-                'database.table.view.create_row',
-                view,
-                database.workspace.id
-              ))
+              'database.table.view.create_row'
+            )
           "
           type="primary"
           icon="iconoir-plus"
@@ -224,16 +218,10 @@ export default {
     showStackContextMenu() {
       return (
         this.singleSelectField &&
-        (this.$hasPermission(
+        (this.hasTableOrViewPermission(
           'database.table.create_row',
-          this.table,
-          this.database.workspace.id
+          'database.table.view.create_row'
         ) ||
-          this.$hasPermission(
-            'database.table.view.create_row',
-            this.view,
-            this.database.workspace.id
-          ) ||
           this.$hasPermission(
             'database.table.field.update',
             this.singleSelectField,
@@ -360,6 +348,13 @@ export default {
     }
   },
   methods: {
+    hasTableOrViewPermission(tableOperation, viewOperation) {
+      const workspaceId = this.database.workspace.id
+      return (
+        this.$hasPermission(tableOperation, this.table, workspaceId) ||
+        this.$hasPermission(viewOperation, this.view, workspaceId)
+      )
+    },
     /**
      * Called when a user presses the left mouse on a card. This method will prepare
      * the dragging if the user moves the mouse a bit. Otherwise, if the mouse is
@@ -379,16 +374,10 @@ export default {
 
       if (
         !this.readOnly &&
-        (this.$hasPermission(
+        this.hasTableOrViewPermission(
           'database.table.move_row',
-          this.table,
-          this.database.workspace.id
-        ) ||
-          this.$hasPermission(
-            'database.table.view.move_row',
-            this.view,
-            this.database.workspace.id
-          ))
+          'database.table.view.move_row'
+        )
       ) {
         const rect = event.target.getBoundingClientRect()
         this.downCardClientX = event.clientX
