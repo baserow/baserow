@@ -1,0 +1,34 @@
+.graph-element {
+  height: 320px;
+}
+
+.ab-chart {
+  color: var(--body-text-color, $palette-neutral-900);
+  height: 100%;
+}
+
+.ab-chart__chart {
+  height: 100%;
+}
+
+.ab-chart__axis-color {
+  color: color-mix(
+    in srgb,
+    var(--body-text-color, $palette-neutral-900) 25%,
+    var(--element-background-color, transparent)
+  );
+  display: none;
+}
+
+.graph-element__empty {
+  align-items: center;
+  border: 1px dashed var(--body-text-color, $palette-neutral-400);
+  color: var(--body-text-color, $palette-neutral-900);
+  display: flex;
+  height: 100%;
+  justify-content: center;
+}
+
+.graph-element__chart {
+  height: 100%;
+}

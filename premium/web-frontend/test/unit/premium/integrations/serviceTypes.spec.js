@@ -14,6 +14,8 @@ describe('Premium integrations service types', () => {
     expect(serviceType.supportsPagination).toBe(false)
     expect(serviceType.getIdProperty()).toBe('id')
     expect(serviceType.parseRecordId('Selected')).toBe('Selected')
+    expect(serviceType.parseRecordId('')).toBeNull()
+    expect(serviceType.parseRecordId('0')).toBe('0')
     expect(serviceType.getRecordNameFromId({}, 'Selected')).toBe('Selected')
     expect(serviceType.formComponent).toBeDefined()
     expect(serviceType.integrationType.getType()).toBe('local_baserow')

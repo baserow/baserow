@@ -5,19 +5,22 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
 
 import pytest
-from rest_framework.status import HTTP_200_OK
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 
 from baserow.api.exceptions import RequestBodyValidationException
 from baserow.contrib.builder.data_sources.builder_dispatch_context import (
     BuilderDispatchContext,
 )
+from baserow.contrib.builder.elements.exceptions import ElementTypeDeactivated
 from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
+from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.workflow_actions.models import EventTypes
 from baserow.test_utils.helpers import AnyInt, AnyStr
 from baserow_enterprise.builder.elements.element_types import (
     AuthFormElementType,
     FileInputElementType,
+    GraphElementType,
 )
 
 
@@ -75,6 +78,128 @@ def test_builder_application_import_with_auth_form_referencing_trashed_user_sour
     imported_page = imported.visible_pages.get(name=page.name)
     imported_element = imported_page.element_set.get().specific
     assert imported_element.user_source_id is None
+
+
+@pytest.mark.django_db
+def test_graph_element_import_export_formula_data_sources(
+    data_fixture, enable_enterprise
+):
+    page = data_fixture.create_builder_page()
+    data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source()
+    data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
+    element_type = GraphElementType()
+
+    exported_element = data_fixture.create_builder_element(
+        GraphElementType,
+        page=page,
+        labels=f"get('data_source.{data_source_1.id}.field_1')",
+        series=[
+            {
+                "label": f"get('data_source.{data_source_1.id}.field_2')",
+                "values": f"get('data_source.{data_source_1.id}.field_3')",
+                "color": "#2e90fa",
+                "chart_type": "BAR",
+            }
+        ],
+    )
+
+    id_mapping = {"builder_data_sources": {data_source_1.id: data_source_2.id}}
+    updated_models = element_type.import_formulas(
+        exported_element, id_mapping, import_formula
+    )
+
+    assert updated_models == {exported_element}
+
+    assert (
+        exported_element.labels["formula"]
+        == f"get('data_source.{data_source_2.id}.field_1')"
+    )
+    assert (
+        exported_element.series[0]["label"]["formula"]
+        == f"get('data_source.{data_source_2.id}.field_2')"
+    )
+    assert (
+        exported_element.series[0]["values"]["formula"]
+        == f"get('data_source.{data_source_2.id}.field_3')"
+    )
+    assert exported_element.series[0]["color"] == "#2e90fa"
+    assert exported_element.series[0]["chart_type"] == "BAR"
+
+
+@pytest.mark.django_db
+def test_graph_element_create_requires_license(enterprise_data_fixture):
+    user = enterprise_data_fixture.create_user()
+    page = enterprise_data_fixture.create_builder_page(user=user)
+    element_type = element_type_registry.get("graph")
+
+    enterprise_data_fixture.delete_all_licenses()
+
+    assert element_type.is_deactivated(page.builder.workspace)
+    with pytest.raises(ElementTypeDeactivated):
+        ElementService().create_element(user, element_type, page)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "series",
+    [
+        [{}],
+        [{"label": "'Count'"}],
+        [{"values": "to_array('1,2')"}],
+    ],
+)
+def test_graph_element_update_rejects_incomplete_series(
+    api_client, enterprise_data_fixture, enable_enterprise, series
+):
+    """Ensure every graph series contains both required formula fields."""
+
+    user, token = enterprise_data_fixture.create_user_and_token()
+    page = enterprise_data_fixture.create_builder_page(user=user)
+    graph = enterprise_data_fixture.create_builder_element(
+        GraphElementType,
+        page=page,
+    )
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": graph.id})
+    response = api_client.patch(
+        url,
+        {"series": series},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_REQUEST_BODY_VALIDATION"
+
+
+@pytest.mark.django_db
+def test_public_elements_exclude_unlicensed_graph_element(
+    api_client, enterprise_data_fixture, enable_enterprise
+):
+    """Ensure a graph saved before a downgrade isn't exposed publicly afterward."""
+
+    user = enterprise_data_fixture.create_user()
+    source_builder = enterprise_data_fixture.create_builder_application(user=user)
+    published_builder = enterprise_data_fixture.create_builder_application(
+        user=user, workspace=None
+    )
+    page = enterprise_data_fixture.create_builder_page(builder=published_builder)
+    heading = enterprise_data_fixture.create_builder_heading_element(page=page)
+    graph = enterprise_data_fixture.create_builder_element(GraphElementType, page=page)
+    enterprise_data_fixture.create_builder_custom_domain(
+        domain_name="test.getbaserow.io",
+        builder=source_builder,
+        published_to=published_builder,
+    )
+
+    enterprise_data_fixture.delete_all_licenses()
+
+    url = reverse("api:builder:domains:list_elements", kwargs={"page_id": page.id})
+    response = api_client.get(url, format="json")
+
+    assert response.status_code == HTTP_200_OK
+    assert [element["id"] for element in response.json()] == [heading.id]
+    assert graph.id not in {element["id"] for element in response.json()}
 
 
 @pytest.mark.django_db
