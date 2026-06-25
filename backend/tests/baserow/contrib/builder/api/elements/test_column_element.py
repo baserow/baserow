@@ -364,9 +364,7 @@ def test_column_element_invalid_child_in_container_on_move(api_client, data_fixt
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == [
-        "place_in_container can at most be 1, (9999, was given)"
-    ]
+    assert response.json() == ["place_in_container can at most be 1, (9999, was given)"]
 
 
 @pytest.mark.django_db
@@ -392,9 +390,7 @@ def test_column_element_invalid_child_in_container_on_create(api_client, data_fi
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json() == [
-        "place_in_container can at most be 1, (9999, was given)"
-    ]
+    assert response.json() == ["place_in_container can at most be 1, (9999, was given)"]
 
 
 @pytest.mark.django_db
