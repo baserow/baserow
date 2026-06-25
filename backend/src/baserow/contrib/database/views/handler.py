@@ -2190,36 +2190,18 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
     def _append_to_priority_chain(self, model, view, **create_kwargs):
         """
         Creates a `ViewSort`/`ViewGroupBy` for the view, appended last, and renumbers
-        the `priority` chain to a dense `1..N` sequence. Keeping priorities dense and
-        bounded by the entry count prevents them from reaching the smallint ceiling
-        (the historical `smallint out of range` error). `priority` must not be passed
-        in `create_kwargs`.
+        the `priority` chain to a dense `1..N` sequence via `order_objects`. Keeping
+        priorities dense and bounded by the entry count prevents them from reaching the
+        smallint ceiling (the historical `smallint out of range` error). The new entry
+        defaults to the highest `priority`, so it sorts last before renumbering.
         """
 
-        if "priority" in create_kwargs:
-            raise ValueError(
-                "priority is managed internally by the chain; do not pass it in create_kwargs"
-            )
-
         with transaction.atomic():
-            existing = list(
-                model.objects.select_for_update(of=("self",))
-                .filter(view=view)
-                .order_by("priority", "id")
-            )
-            # Only rewrite rows whose priority drifted from its dense position, so
-            # already-dense views pay no extra write.
-            drifted = []
-            for position, entry in enumerate(existing, start=1):
-                if entry.priority != position:
-                    entry.priority = position
-                    drifted.append(entry)
-            if drifted:
-                model.objects.bulk_update(drifted, ["priority"])
-
-            return model.objects.create(
-                view=view, priority=len(existing) + 1, **create_kwargs
-            )
+            instance = model.objects.create(view=view, **create_kwargs)
+            queryset = model.objects.select_for_update(of=("self",)).filter(view=view)
+            model.order_objects(queryset, [instance.id], field="priority")
+            instance.refresh_from_db(fields=["priority"])
+            return instance
 
     def create_sort(
         self,
