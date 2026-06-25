@@ -41,6 +41,7 @@ describe('TextElementForm', () => {
           mode: 'edit',
           formulaComponent: () => h('div', `fake formula component`),
           dataProvidersAllowed: [],
+          openCustomStyleForm: vi.fn(),
         },
       },
       stubs: {

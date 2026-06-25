@@ -160,6 +160,7 @@ describe('GridView checkbox selection', () => {
       view,
       renderedFields: fields,
       visibleFields: fields,
+      allVisibleFields: fields,
       allFieldsInTable: fields,
       readOnly: false,
       includeRowDetails: true,

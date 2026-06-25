@@ -97,6 +97,8 @@ const view = {
   ownership_type: 'collaborative',
 }
 
+const database = { id: 1, workspace_id: 1 }
+
 describe('ViewFilterForm match snapshots', () => {
   let testApp = null
   let mockServer = null
@@ -116,6 +118,7 @@ describe('ViewFilterForm match snapshots', () => {
     props = {
       fields: [],
       view: { filters: [], _: {}, filter_type: 'AND' },
+      database,
       readOnly: false,
     },
     listeners = {}
@@ -137,6 +140,7 @@ describe('ViewFilterForm match snapshots', () => {
     const wrapper = await mountViewFilterForm({
       fields,
       view,
+      database,
       readOnly: false,
     })
     expect(wrapper.element).toMatchSnapshot()
@@ -174,6 +178,7 @@ describe('ViewFilterForm match snapshots', () => {
       {
         fields,
         view: viewClone,
+        database,
         readOnly: false,
       },
       { changed: onChange }
@@ -202,7 +207,6 @@ describe('ViewFilterForm can add/update/remove filters and filter groups', () =>
   let mockServer
 
   const workspace = { id: 1, users: [] }
-  const database = { id: 1, workspace_id: 1 }
   const table = { id: 2, database_id: 1 }
   const fields = [
     {

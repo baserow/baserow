@@ -42,7 +42,7 @@ describe('ButtonText.vue', () => {
   })
 
   it('renders the button with the correct size when size prop is provided', async () => {
-    const size = 'large'
+    const size = 'small'
     const wrapper = await mountSuspended(ButtonText, {
       props: { size },
     })

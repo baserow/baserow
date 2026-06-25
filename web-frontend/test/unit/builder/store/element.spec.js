@@ -301,6 +301,15 @@ describe('element store', () => {
   })
 
   describe('move', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      vi.clearAllTimers()
+      vi.useRealTimers()
+    })
+
     test('cross-page move relocates the element workflow actions', async () => {
       // Regression: moving an element to another page (e.g. to the shared page)
       // must move its workflow actions along too, otherwise they are stranded on
@@ -329,8 +338,8 @@ describe('element store', () => {
         },
       }
 
-      // wrapMove just runs its callback; the backend call is debounced and never
-      // fires within this synchronous assertion window.
+      // wrapMove just runs its callback; the backend call is debounced and kept
+      // pending by fake timers because this test only covers optimistic behavior.
       const thisCtx = {
         $client: {},
         $registry: { get: () => ({ wrapMove: (ctxArg, cb) => cb() }) },
