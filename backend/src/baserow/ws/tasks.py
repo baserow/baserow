@@ -69,7 +69,7 @@ async def send_messages_to_channel_group(
         ]
         if recordable:
             event_ids = await database_sync_to_async(
-                RealtimeEventHandler.record_events
+                RealtimeEventHandler.record_events, thread_sensitive=False
             )(recordable)
             for channel_group_message, event_id in zip(recordable, event_ids):
                 RealtimeEventHandler.add_event_id_to_payload(
