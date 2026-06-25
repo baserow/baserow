@@ -14,7 +14,14 @@
       data-sortable-handle
       @click.stop
     >
-      <i class="dashboard-widget__drag-handle-icon iconoir-drag"></i>
+      <span class="dashboard-widget__drag-handle-dots" aria-hidden="true">
+        <span class="dashboard-widget__drag-handle-dot"></span>
+        <span class="dashboard-widget__drag-handle-dot"></span>
+        <span class="dashboard-widget__drag-handle-dot"></span>
+        <span class="dashboard-widget__drag-handle-dot"></span>
+        <span class="dashboard-widget__drag-handle-dot"></span>
+        <span class="dashboard-widget__drag-handle-dot"></span>
+      </span>
     </div>
     <div v-if="isSelected && isEditMode" class="dashboard-widget__name">
       {{ widgetType.name }}
@@ -61,7 +68,7 @@ export default {
       return this.selectedWidgetId !== this.widget.id && this.isEditMode
     },
     canShowDragHandle() {
-      return this.isEditMode && this.canOrderWidgets
+      return this.isSelected && this.canOrderWidgets
     },
     widgetType() {
       return this.$registry.get('dashboardWidget', this.widget.type)

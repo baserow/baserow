@@ -45,6 +45,7 @@ const mountWidgetBoard = ({ editMode = true, hasPermission = true } = {}) => {
 const mountDashboardWidget = ({
   editMode = true,
   canOrderWidgets = true,
+  selectedWidgetId = widgets[0].id,
 } = {}) => {
   return mount(DashboardWidget, {
     props: {
@@ -63,7 +64,7 @@ const mountDashboardWidget = ({
         },
         $store: {
           getters: {
-            'dashboardApplication/getSelectedWidgetId': null,
+            'dashboardApplication/getSelectedWidgetId': selectedWidgetId,
             'dashboardApplication/isEditMode': editMode,
             'dashboardApplication/getData': {},
           },
@@ -78,7 +79,9 @@ const mountDashboardWidget = ({
 describe('WidgetBoard', () => {
   test('passes ordering permission to dashboard widgets in edit mode', () => {
     const wrapper = mountWidgetBoard()
-    const renderedWidgets = wrapper.findAllComponents({ name: 'DashboardWidget' })
+    const renderedWidgets = wrapper.findAllComponents({
+      name: 'DashboardWidget',
+    })
 
     expect(renderedWidgets).toHaveLength(2)
     expect(renderedWidgets[0].props('canOrderWidgets')).toBe(true)
@@ -86,17 +89,27 @@ describe('WidgetBoard', () => {
 
   test('does not enable widget ordering outside edit mode', () => {
     const wrapper = mountWidgetBoard({ editMode: false })
-    const renderedWidgets = wrapper.findAllComponents({ name: 'DashboardWidget' })
+    const renderedWidgets = wrapper.findAllComponents({
+      name: 'DashboardWidget',
+    })
 
     expect(renderedWidgets[0].props('canOrderWidgets')).toBe(false)
   })
 
-  test('renders a dashboard widget drag handle only when ordering is allowed', () => {
+  test('renders a dashboard widget drag handle only when selected and ordering is allowed', () => {
     const wrapper = mountDashboardWidget()
 
     expect(wrapper.find('[data-sortable-handle]').exists()).toBe(true)
+    expect(wrapper.findAll('.dashboard-widget__drag-handle-dot')).toHaveLength(
+      6
+    )
 
     const withoutPermission = mountDashboardWidget({ canOrderWidgets: false })
-    expect(withoutPermission.find('[data-sortable-handle]').exists()).toBe(false)
+    expect(withoutPermission.find('[data-sortable-handle]').exists()).toBe(
+      false
+    )
+
+    const unselected = mountDashboardWidget({ selectedWidgetId: widgets[1].id })
+    expect(unselected.find('[data-sortable-handle]').exists()).toBe(false)
   })
 })

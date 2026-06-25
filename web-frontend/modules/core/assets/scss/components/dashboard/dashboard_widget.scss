@@ -25,35 +25,50 @@
 
 .dashboard-widget--draggable {
   .widget__header {
-    padding-right: 96px;
+    padding-left: 44px;
+    padding-right: 55px;
   }
 }
 
 .dashboard-widget__drag-handle {
-  @include absolute(8px, 46px, auto, auto);
-  @include rounded($rounded-md);
+  @include absolute(18px, auto, auto, 16px);
+  @include rounded(4px);
 
   align-items: center;
   color: $palette-neutral-700;
   cursor: grab;
   display: flex;
-  height: 32px;
+  height: 24px;
   justify-content: center;
-  width: 32px;
+  width: 24px;
   z-index: 2;
-
-  &:hover {
-    background-color: $palette-neutral-100;
-    color: $palette-neutral-1200;
-  }
 
   &:active {
     cursor: grabbing;
   }
 }
 
-.dashboard-widget__drag-handle-icon {
-  font-size: 18px;
+.dashboard-widget__drag-handle-dots {
+  display: grid;
+  gap: 2px 3px;
+  grid-template-columns: repeat(2, 3px);
+  pointer-events: none;
+}
+
+.dashboard-widget__drag-handle-dot {
+  @include rounded(50%);
+
+  background-color: $palette-neutral-700;
+  height: 3px;
+  width: 3px;
+}
+
+.dashboard-widget__drag-handle:hover {
+  background-color: $palette-neutral-100;
+
+  .dashboard-widget__drag-handle-dot {
+    background-color: $palette-neutral-1200;
+  }
 }
 
 .dashboard-widget__loading {
