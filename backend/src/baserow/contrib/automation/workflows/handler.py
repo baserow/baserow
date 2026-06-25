@@ -1221,14 +1221,17 @@ class AutomationWorkflowHandler:
         workflow: AutomationWorkflow,
         event_payload: Optional[List[Dict]] = None,
         triggered_by: Optional[AbstractUser] = None,
-    ) -> None:
+        defer_scheduling: bool = False,
+    ) -> Optional[AutomationWorkflowHistory]:
         """
-        Runs the provided workflow in a celery task.
+        Starts the provided workflow.
 
         :param workflow: The AutomationWorkflow ID that should be executed.
         :param event_payload: The payload from the action.
         :param triggered_by: The person who started the run, recorded on the
             history entry.
+        :param defer_scheduling: Whether the caller will compose the workflow into
+            another Celery canvas.
         """
 
         error = None
@@ -1288,7 +1291,7 @@ class AutomationWorkflowHandler:
             if create_history_entry and simulate_until_node is None:
                 now = timezone.now()
 
-                AutomationHistoryHandler().create_workflow_history(
+                history = AutomationHistoryHandler().create_workflow_history(
                     original_workflow=original_workflow,
                     workflow=workflow,
                     is_test_run=is_test_run,
@@ -1298,6 +1301,8 @@ class AutomationWorkflowHandler:
                     status=history_status,
                     triggered_by=triggered_by,
                 )
+                AutomationHistoryHandler().ensure_default_response(history)
+                return history
             return
 
         history = AutomationHistoryHandler().create_workflow_history(
@@ -1315,9 +1320,11 @@ class AutomationWorkflowHandler:
             workflow_history=history,
         )
 
-        transaction.on_commit(
-            lambda: start_workflow_celery_task.delay(workflow.id, history.id)
-        )
+        if not defer_scheduling:
+            transaction.on_commit(
+                lambda: start_workflow_celery_task.delay(workflow.id, history.id)
+            )
+        return history
 
     @baserow_trace(tracer)
     def start_workflow(

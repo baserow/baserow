@@ -3,10 +3,18 @@ from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.urls import reverse
+from django.utils import timezone
 
 import pytest
-from rest_framework.status import HTTP_204_NO_CONTENT, HTTP_405_METHOD_NOT_ALLOWED
+from rest_framework.status import (
+    HTTP_200_OK,
+    HTTP_204_NO_CONTENT,
+    HTTP_405_METHOD_NOT_ALLOWED,
+)
 
+from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
+from baserow.contrib.integrations.core.models import CoreResponseHeader
 from baserow.core.services.registries import service_type_registry
 
 
@@ -56,8 +64,7 @@ def test_rejects_http_get_if_service_excludes_get(
 
     url = get_url(node.service.uid) + "?test=true"
 
-    # 1 model query, 3 transaction management queries
-    with django_assert_num_queries(4):
+    with django_assert_num_queries(1):
         resp = api_client.get(url)
 
     assert resp.status_code == HTTP_405_METHOD_NOT_ALLOWED
@@ -223,3 +230,55 @@ def test_multipart_body_keeps_only_serializable_form_fields(api_client, data_fix
     # The payload must survive the JSON serialization towards the
     # workflow's Celery task.
     json.dumps(request_data)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_http_trigger_with_response_node_returns_workflow_response(
+    api_client, data_fixture
+):
+    trigger = data_fixture.create_http_trigger_node(
+        service_kwargs={
+            "wait_for_response": True,
+            "response_timeout_seconds": 1,
+        },
+    )
+    workflow = trigger.workflow
+    workflow.state = WorkflowState.LIVE
+    workflow.allow_test_run_until = timezone.now()
+    workflow.save()
+    response_node = data_fixture.create_core_response_action_node(
+        workflow=workflow,
+        service_kwargs={
+            "status_code": HTTP_200_OK,
+            "body_type": RESPONSE_BODY_TYPE.TEXT,
+            "body": "'Hello'",
+        },
+    )
+    CoreResponseHeader.objects.create(
+        service=response_node.service.specific,
+        key="X-Workflow",
+        value="'done'",
+    )
+
+    url = get_url(trigger.service.uid) + "?test=true"
+    resp = api_client.post(url)
+
+    assert resp.status_code == HTTP_200_OK
+    assert resp.content == b"Hello"
+    assert resp["X-Workflow"] == "done"
+
+
+@pytest.mark.django_db(transaction=True)
+def test_http_trigger_does_not_wait_for_response_when_disabled(
+    api_client, data_fixture
+):
+    trigger = data_fixture.create_http_trigger_node()
+    workflow = trigger.workflow
+    workflow.state = WorkflowState.LIVE
+    workflow.allow_test_run_until = timezone.now()
+    workflow.save()
+    data_fixture.create_core_response_action_node(workflow=workflow)
+
+    resp = api_client.post(get_url(trigger.service.uid) + "?test=true")
+
+    assert resp.status_code == HTTP_204_NO_CONTENT

@@ -16,6 +16,7 @@ from baserow.contrib.automation.history.models import (
 )
 from baserow.contrib.automation.history.service import AutomationHistoryService
 from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.contrib.integrations.core.constants import RESPONSE_BODY_TYPE
 
 
 @pytest.mark.django_db
@@ -75,6 +76,23 @@ def test_create_workflow_history(data_fixture):
 
     assert isinstance(history, AutomationWorkflowHistory)
     assert history.workflow == original_workflow
+
+
+@pytest.mark.django_db
+def test_ensure_default_response_creates_empty_204_response(data_fixture):
+    workflow = data_fixture.create_automation_workflow()
+    history = data_fixture.create_automation_workflow_history(workflow=workflow)
+
+    response = AutomationHistoryHandler().ensure_default_response(history)
+    second_response = AutomationHistoryHandler().ensure_default_response(history)
+
+    assert response.id == second_response.id
+    assert response.status_code == 204
+    assert response.body is None
+    assert response.body_type == RESPONSE_BODY_TYPE.EMPTY
+    assert response.headers == {}
+    assert response.source_node is None
+    assert response.is_default is True
 
 
 @pytest.mark.django_db

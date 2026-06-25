@@ -2,7 +2,7 @@ import json
 import uuid
 from unittest.mock import patch
 
-from django.db import transaction
+from django.db import connection, transaction
 from django.urls import reverse
 
 import pytest
@@ -13,6 +13,9 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+from baserow.contrib.automation.history.models import AutomationWorkflowHistory
+from baserow.contrib.automation.workflows.handler import AutomationWorkflowHandler
 from baserow.contrib.builder.preview import (
     BuilderPreviewActor,
     BuilderPreviewGrantHandler,
@@ -23,6 +26,7 @@ from baserow.contrib.builder.workflow_actions.handler import (
 )
 from baserow.contrib.builder.workflow_actions.models import (
     BuilderWorkflowAction,
+    CoreStartWorkflowWorkflowAction,
     EventTypes,
 )
 from baserow.contrib.builder.workflow_actions.workflow_action_types import (
@@ -50,6 +54,99 @@ def authenticate_builder_preview(api_client, builder, user):
     token = BuilderPreviewGrantHandler().create_grant(builder, user)
     _, session_token = BuilderPreviewGrantHandler().exchange_token(token)
     api_client.cookies[get_builder_preview_cookie_name()] = session_token
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("preview", [False, True])
+@pytest.mark.parametrize("wait_for_response", [False, True])
+def test_start_workflow_commits_history_before_scheduling(
+    api_client, data_fixture, preview, wait_for_response
+):
+    """The worker must be able to read its history as soon as it is scheduled."""
+
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    automation = data_fixture.create_automation_application(
+        user=user, workspace=builder.workspace
+    )
+    workflow = data_fixture.create_automation_workflow(
+        automation=automation,
+        trigger_type="manual",
+        trigger_service_kwargs={"wait_for_response": wait_for_response},
+    )
+    with transaction.atomic():
+        published = AutomationWorkflowHandler().publish(workflow)
+    page = data_fixture.create_builder_page(builder=builder)
+    element = data_fixture.create_builder_button_element(page=page)
+    service = data_fixture.create_core_start_workflow_service(
+        workflow=workflow, integration=None
+    )
+    action = data_fixture.create_workflow_action(
+        CoreStartWorkflowWorkflowAction,
+        page=page,
+        element=element,
+        event=EventTypes.CLICK,
+        service=service,
+    )
+
+    def worker_starts(workflow_id, history_id):
+        """Read committed history as a worker would, then supply its response."""
+
+        assert workflow_id == published.id
+        # A separate connection models the worker's view of committed data.
+        worker_connection = connection.copy()
+        try:
+            with worker_connection.cursor() as cursor:
+                table = worker_connection.ops.quote_name(
+                    AutomationWorkflowHistory._meta.db_table
+                )
+                cursor.execute(f"SELECT id FROM {table} WHERE id = %s", [history_id])
+                assert cursor.fetchone() == (history_id,)
+        finally:
+            worker_connection.close()
+        history_handler = AutomationHistoryHandler()
+        history_handler.ensure_default_response(
+            history_handler.get_workflow_history(history_id)
+        )
+
+    if preview:
+        authenticate_builder_preview(api_client, builder, user)
+        url = reverse(
+            "api:builder:preview:dispatch_workflow_action",
+            kwargs={"builder_id": builder.id, "workflow_action_id": action.id},
+        )
+        auth = {}
+    else:
+        url = reverse(
+            "api:builder:workflow_action:dispatch",
+            kwargs={"workflow_action_id": action.id},
+        )
+        auth = {"HTTP_AUTHORIZATION": f"JWT {token}"}
+
+    properties = {service.id: ["status_code", "body", "headers", "body_type"]}
+    with (
+        patch(
+            "baserow.contrib.automation.workflows.tasks.start_workflow_celery_task.delay",
+            side_effect=worker_starts,
+        ) as start_task,
+        patch(
+            "baserow.contrib.builder.handler.get_builder_used_property_names",
+            return_value={"all": properties, "external": properties},
+        ),
+    ):
+        response = api_client.post(url, {}, format="json", **auth)
+
+    assert response.status_code == HTTP_200_OK
+    start_task.assert_called_once()
+    if wait_for_response:
+        assert response.json() == {
+            "status_code": 204,
+            "body": None,
+            "headers": {},
+            "body_type": "empty",
+        }
+    else:
+        assert response.data is None
 
 
 @pytest.mark.django_db
