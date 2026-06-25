@@ -199,12 +199,14 @@ export const actions = {
     const { $client } = this
     const { data: dataSourcesData } =
       await DataSourceService($client).getAllDataSources(dashboardId)
-    dataSourcesData.forEach(async (dataSource) => {
-      if (!getters.getDataSourceById(dataSource.id)) {
-        commit('ADD_DATA_SOURCE', dataSource)
-        await dispatch('dispatchDataSource', dataSource.id)
-      }
-    })
+    await Promise.all(
+      dataSourcesData.map(async (dataSource) => {
+        if (!getters.getDataSourceById(dataSource.id)) {
+          commit('ADD_DATA_SOURCE', dataSource)
+          await dispatch('dispatchDataSource', dataSource.id)
+        }
+      })
+    )
   },
   async createWidget({ commit, dispatch }, { dashboard, widget }) {
     const { $client } = this

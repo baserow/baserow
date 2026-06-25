@@ -85,4 +85,53 @@ describe('dashboardApplication store', () => {
 
     expect(orderedWidgetIds()).toEqual([2, 1])
   })
+
+  test('fetchInitial waits for data source dispatches before resolving', async () => {
+    mock.onGet('/dashboard/10/widgets/').replyOnce(200, [
+      {
+        id: 1,
+        order: 1,
+        type: 'summary',
+        data_source_id: 1,
+      },
+    ])
+    mock.onGet('/dashboard/10/data-sources/').replyOnce(200, [
+      {
+        id: 1,
+        type: 'local_baserow_aggregate_rows',
+      },
+    ])
+
+    let resolveDispatch = null
+    mock.onPost('/dashboard/data-sources/1/dispatch/').replyOnce(() => {
+      return new Promise((resolve) => {
+        resolveDispatch = () => resolve([200, { result: 42 }])
+      })
+    })
+
+    let resolved = false
+    const fetchInitial = store
+      .dispatch('dashboardApplication/fetchInitial', {
+        dashboardId: dashboard.id,
+        forEditing: false,
+      })
+      .then(() => {
+        resolved = true
+      })
+
+    await new Promise((resolve) => setTimeout(resolve))
+
+    expect(resolved).toBe(false)
+    expect(
+      store.getters['dashboardApplication/getDataForDataSource'](1)
+    ).toEqual({})
+
+    resolveDispatch()
+    await fetchInitial
+
+    expect(resolved).toBe(true)
+    expect(
+      store.getters['dashboardApplication/getDataForDataSource'](1)
+    ).toEqual({ result: 42 })
+  })
 })
