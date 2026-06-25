@@ -740,6 +740,7 @@ class MoveRowActionType(UndoableActionType):
         database_name: str
         row_id: int
         rows_displacement: int
+        view_id: int | None = None
 
     @classmethod
     def do(
@@ -811,6 +812,7 @@ class MoveRowActionType(UndoableActionType):
             table.database.name,
             row.id,
             rows_displacement,
+            view.id if view else None,
         )
         cls.register_action(user, params, cls.scope(table.id), workspace=workspace)
         return updated_row
@@ -823,29 +825,39 @@ class MoveRowActionType(UndoableActionType):
     def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
         table = TableHandler().get_table(params.table_id)
         model = table.get_model()
+        view = ViewHandler().get_view_or_none(params.view_id)
 
         row_handler = RowHandler()
-        row = row_handler.get_row_for_update(user, table, params.row_id, model=model)
+        row = row_handler.get_row_for_update(
+            user, table, params.row_id, model=model, view=view
+        )
 
         before_row = get_before_row_from_displacement(
             row, model, -params.rows_displacement
         )
 
-        row_handler.move_row(user, table, row, before_row=before_row, model=model)
+        row_handler.move_row(
+            user, table, row, before_row=before_row, model=model, view=view
+        )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
         table = TableHandler().get_table(params.table_id)
         model = table.get_model()
+        view = ViewHandler().get_view_or_none(params.view_id)
 
         row_handler = RowHandler()
-        row = row_handler.get_row_for_update(user, table, params.row_id, model=model)
+        row = row_handler.get_row_for_update(
+            user, table, params.row_id, model=model, view=view
+        )
 
         before_row = get_before_row_from_displacement(
             row, model, params.rows_displacement
         )
 
-        row_handler.move_row(user, table, row, before_row=before_row, model=model)
+        row_handler.move_row(
+            user, table, row, before_row=before_row, model=model, view=view
+        )
 
 
 # Deprecated in favor of UpdateRowsActionType
