@@ -419,7 +419,6 @@ class DispatchBuilderWorkflowActionView(APIView):
             UnexpectedDispatchException: ERROR_SERVICE_UNEXPECTED_DISPATCH_ERROR,
         }
     )
-    @atomic_with_retry_on_deadlock()
     def post(
         self,
         request,
@@ -440,10 +439,19 @@ class DispatchBuilderWorkflowActionView(APIView):
             workflow_action=workflow_action,
         )
 
-        response = BuilderWorkflowActionService().dispatch_action(
-            request.user,
-            workflow_action,
-            dispatch_context,  # type: ignore
-        )
+        def dispatch_action():
+            return BuilderWorkflowActionService().dispatch_action(
+                request.user,
+                workflow_action,
+                dispatch_context,  # type: ignore
+            )
+
+        service = workflow_action.service.specific
+        if service.get_type().requires_autocommit(service):
+            # Waiting dispatches must commit their history before starting Celery.
+            # An outer transaction would hide it from the worker until we time out.
+            response = dispatch_action()
+        else:
+            response = atomic_with_retry_on_deadlock()(dispatch_action)()
 
         return Response(response.data, status=response.status)

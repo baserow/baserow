@@ -147,6 +147,7 @@
     "gotoNodeLabel": "Go to node",
     "gotoNodeLabelWithDestination": "Go to node → {destination}",
     "gotoHistoryLabel": "{label} → {destination}",
+    "responseLabel": "Response",
     "iterationLabel": "Iterate on items",
     "defaultEdgeLabelFallback": "Default",
     "routerWithOutputNodesDeleteError": "Cannot be deleted until its {outputCount} output nodes are removed.",
@@ -192,7 +193,8 @@
     "coreHTTPTrigger": "HTTP trigger",
     "coreHTTPTriggerDescription": "Receive HTTP requests to trigger workflows",
     "coreManualTrigger": "Manual trigger",
-    "coreManualTriggerDescription": "Starts only when another workflow action starts this workflow"
+    "coreManualTriggerDescription": "Starts only when another workflow action starts this workflow",
+    "responseLabel": "Response"
   },
   "workflowEditor": {
     "chooseEvent": "Choose an event..."

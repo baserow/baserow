@@ -25,6 +25,7 @@ from baserow.contrib.integrations.core.constants import (
 )
 from baserow.contrib.integrations.core.models import CorePeriodicService
 from baserow.contrib.integrations.core.service_types import CorePeriodicServiceType
+from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW, BaserowFormulaObject
 from baserow.core.handler import CoreHandler
 from baserow.core.services.registries import service_type_registry
 from baserow.core.services.types import DispatchResult
@@ -70,6 +71,33 @@ def test_local_baserow_fields_updated_node_creates_field_updated_service(data_fi
     )
 
     assert isinstance(node.service.specific, LocalBaserowFieldsUpdated)
+
+
+@pytest.mark.django_db
+def test_core_response_node_defaults_status_code_to_raw_204(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node_type = automation_node_type_registry.get("response")
+
+    values = node_type.prepare_values({"workflow": workflow}, user)
+
+    assert values["service"].specific.status_code == BaserowFormulaObject.create(
+        "204", mode=BASEROW_FORMULA_MODE_RAW
+    )
+
+
+@pytest.mark.django_db
+def test_core_response_node_preserves_provided_status_code(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user)
+    node_type = automation_node_type_registry.get("response")
+    status_code = BaserowFormulaObject.create("201", mode=BASEROW_FORMULA_MODE_RAW)
+
+    values = node_type.prepare_values(
+        {"workflow": workflow, "service": {"status_code": status_code}}, user
+    )
+
+    assert values["service"].specific.status_code == status_code
 
 
 @pytest.mark.django_db
