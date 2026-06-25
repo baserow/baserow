@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("builder", "0071_migrate_element_hierarchy_to_graph"),
+        ("builder", "0072_columnelement_layout_options"),
         ("integrations", "0030_localbaserowcreaterows"),
     ]
 
