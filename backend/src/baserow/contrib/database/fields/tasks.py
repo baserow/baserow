@@ -49,8 +49,8 @@ def filter_distinct_workspace_ids_per_fields(
     bind=True,
     queue=settings.PERIODIC_FIELD_UPDATE_QUEUE_NAME,
     soft_time_limit=settings.PERIODIC_FIELD_UPDATE_TIMEOUT_MINUTES * 60,
-    # Keep the hard limit above the soft one, else the global CELERY_TASK_TIME_LIMIT
-    # (shorter) kills the task before the soft limit can fire.
+    # Keep the hard limit above this task's soft_time_limit, otherwise a shorter
+    # global/default CELERY_TASK_TIME_LIMIT could kill the task before the soft limit fires.
     time_limit=settings.PERIODIC_FIELD_UPDATE_TIMEOUT_MINUTES * 60 + 60,
 )
 def run_periodic_fields_updates(
