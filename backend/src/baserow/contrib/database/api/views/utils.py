@@ -422,6 +422,16 @@ def _resolve_group_by_display_lists(
     return display_lists_per_page
 
 
+def json_safe_aggregation_value(value: Any) -> Any:
+    # Decimal("NaN") isn't JSON-serializable (it renders as the invalid JSON `NaN`
+    # token), so it's substituted with its string form. Ideally each field type would
+    # own how its aggregated value is represented; this single helper keeps that
+    # concern in one place until that field-type-level refactor is worth doing.
+    if isinstance(value, Decimal) and value.is_nan():
+        return "NaN"
+    return value
+
+
 def serialize_group_by_data(
     page: Dict[str, Any],
     group_by_fields: List[Field],
@@ -508,12 +518,8 @@ def serialize_group_by_data(
         if display:
             out_group["display"] = display
         if "aggregations" in group:
-            # Mirror the grid footer: raw values, with Decimal("NaN") replaced by
-            # its literal string since it can't be JSON-serialized.
             out_group["aggregations"] = {
-                db_column: (
-                    "NaN" if isinstance(value, Decimal) and value.is_nan() else value
-                )
+                db_column: json_safe_aggregation_value(value)
                 for db_column, value in group["aggregations"].items()
             }
         groups.append(out_group)

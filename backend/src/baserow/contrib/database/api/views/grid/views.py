@@ -1,5 +1,3 @@
-from decimal import Decimal
-
 from drf_spectacular.openapi import OpenApiParameter, OpenApiTypes
 from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -63,6 +61,7 @@ from baserow.contrib.database.api.views.utils import (
     get_public_view_authorization_token,
     get_public_view_filtered_queryset,
     get_view_filtered_queryset,
+    json_safe_aggregation_value,
     paginate_and_serialize_queryset,
     serialize_group_by_data_pages,
     serialize_group_by_fields_metadata,
@@ -571,9 +570,7 @@ class GridViewGroupByDataView(APIView):
                 adhoc_filters=adhoc_filters,
             )
             totals = {
-                field: (
-                    "NaN" if isinstance(value, Decimal) and value.is_nan() else value
-                )
+                field: json_safe_aggregation_value(value)
                 for field, value in totals.items()
             }
 
@@ -691,12 +688,9 @@ class GridViewFieldAggregationsView(APIView):
             adhoc_filters=adhoc_filters,
         )
 
-        # Decimal("NaN") can't be serialized, therefore we have to replace it
-        # with its literal string representation
-        nan_replacement_value = "NaN"
-        for field in result:
-            if isinstance(result[field], Decimal) and result[field].is_nan():
-                result[field] = nan_replacement_value
+        result = {
+            field: json_safe_aggregation_value(value) for field, value in result.items()
+        }
 
         return Response(result)
 
@@ -800,12 +794,9 @@ class PublicGridViewFieldAggregationsView(APIView):
             skip_perm_check=True,
         )
 
-        # Decimal("NaN") can't be serialized, therefore we have to replace it
-        # with its literal string representation
-        nan_replacement_value = "NaN"
-        for field in result:
-            if isinstance(result[field], Decimal) and result[field].is_nan():
-                result[field] = nan_replacement_value
+        result = {
+            field: json_safe_aggregation_value(value) for field, value in result.items()
+        }
 
         return Response(result)
 
