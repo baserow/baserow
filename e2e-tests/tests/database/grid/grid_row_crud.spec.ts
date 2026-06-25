@@ -610,7 +610,7 @@ test.describe("2.2.7 Edit single-select group-by", () => {
         await grid.expectRowWarningText(0, "Row has moved");
 
         await grid.clickAway();
-        await grid.expectGroupByBanner("Design", 0);
+        await grid.expectNoGroupByBanner("Design");
         await grid.expectGroupByBanner("Development", 2);
         await grid.expectRowCount(2);
         await grid.expectPrimaryText(0, "Rebranding website");
@@ -640,7 +640,7 @@ test.describe("2.2.7 Edit single-select group-by", () => {
     await grid.clickAway();
     // The "Row has moved" warning was visible, so deselecting before the backend
     // confirms moves the row into its new group immediately.
-    await grid.expectGroupByBanner("Design", 0);
+    await grid.expectNoGroupByBanner("Design");
     await grid.expectGroupByBanner("Development", 2);
     await grid.expectRowCount(2);
     await grid.expectPrimaryText(0, "Rebranding website");
@@ -649,7 +649,7 @@ test.describe("2.2.7 Edit single-select group-by", () => {
 
     pausedUpdate.release();
     await grid.expectNoRowsLoading();
-    await grid.expectGroupByBanner("Design", 0);
+    await grid.expectNoGroupByBanner("Design");
     await grid.expectGroupByBanner("Development", 2);
   });
 
@@ -836,7 +836,7 @@ test.describe("2.4.4 Edit with formula-field group-by (deferred)", () => {
 
     await grid.clickAway();
     await grid.expectGroupByBanner("Long", 2);
-    await grid.expectGroupByBanner("Short", 0);
+    await grid.expectNoGroupByBanner("Short");
     await grid.expectRowCount(2);
   });
 
@@ -862,7 +862,7 @@ test.describe("2.4.4 Edit with formula-field group-by (deferred)", () => {
     await grid.expectNoRowsLoading();
     // Row moves to "Long" after the backend responds.
     await grid.expectGroupByBanner("Long", 2);
-    await grid.expectGroupByBanner("Short", 0);
+    await grid.expectNoGroupByBanner("Short");
   });
 
   test("2.4.4c failed formula-group-affecting PATCH rolls back to the original group", async ({

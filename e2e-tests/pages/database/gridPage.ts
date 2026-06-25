@@ -929,6 +929,12 @@ export class GridPage {
     );
   }
 
+  async expectNoGroupByBanner(value: string): Promise<void> {
+    await expect(this.groupByBannerByValue(value)).toHaveCount(0, {
+      timeout: 10_000,
+    });
+  }
+
   /**
    * Assert that the row at `rowIndex` has the warning class
    * (shown when matchFilters, matchSortings, or matchSearch is false

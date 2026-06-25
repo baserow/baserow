@@ -500,10 +500,9 @@ export function updateGroupByTreeNodesForPath(
 
     const current = updated[existingIndex]
     const rowCount = Math.max(0, getGroupByNodeRowCount(current) + delta)
-    // Keep an optimistically-emptied group visible with row_count 0 instead of pruning
-    // the node here. The source group's banner must persist until the next server data
-    // refresh reconciles the tree — per the grid-view-test-plan contract (2.2.7a).
-    // Pruning locally would make a group vanish the instant its last row moves/leaves.
+    // Keep the emptied node at row_count 0 (don't prune here) so the tree stays valid
+    // for the next server refresh. The layout hides empty leaf groups, so the banner
+    // disappears from view once its last row leaves.
     updated[existingIndex] = {
       ...current,
       row_count: rowCount,
@@ -654,9 +653,8 @@ export function updateGroupByDataPageForPath({
   } else {
     const current = nodes[existingIndex]
     const rowCount = Math.max(0, getGroupByNodeRowCount(current) + delta)
-    // Keep optimistically-emptied groups (row_count 0) in the page so their banner
-    // persists until the next server refresh — per contract 2.2.7a, matching the change
-    // in updateGroupByTreeNodesForPath.
+    // Keep emptied nodes (row_count 0) in the page for reconciliation; the layout hides
+    // their banner, matching updateGroupByTreeNodesForPath.
     nodes[existingIndex] = {
       ...current,
       row_count: rowCount,

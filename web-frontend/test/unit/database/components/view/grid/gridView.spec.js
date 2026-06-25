@@ -82,9 +82,12 @@ describe('GridView component', () => {
     'grid-view__row',
     'grid-view__group-by-rows',
     'grid-view__group-by-rows-row',
-  ])('cancelMultiSelectIfActive keeps the selection for a click on %s', (cls) => {
-    expect(runCancel(cls)).not.toHaveBeenCalled()
-  })
+  ])(
+    'cancelMultiSelectIfActive keeps the selection for a click on %s',
+    (cls) => {
+      expect(runCancel(cls)).not.toHaveBeenCalled()
+    }
+  )
 
   test('cancelMultiSelectIfActive cancels a click outside the rows', () => {
     expect(runCancel('some-toolbar-element')).toHaveBeenCalledWith(
