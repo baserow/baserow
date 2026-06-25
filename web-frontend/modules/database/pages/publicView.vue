@@ -159,8 +159,8 @@ if (data.value?.redirect) {
 
 const database = computed(() => data.value?.database)
 const table = computed(() => data.value?.table)
-const fields = computed(() => data.value?.fields || [])
-const view = computed(() => data.value?.view)
+const fields = computed(() => $store.getters['field/getAll'])
+const view = computed(() => $store.getters['view/getSelected'])
 
 useHead(() => {
   const head = { title: view.value?.name || 'View' }
