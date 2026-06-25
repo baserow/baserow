@@ -1460,9 +1460,15 @@ export default {
         ] &&
         !event.shiftKey &&
         (!isElement(this.$refs.gridView, event.target) ||
-          !['grid-view__row', 'grid-view__rows', 'grid-view'].includes(
-            event.target.classList[0]
-          ))
+          ![
+            'grid-view__row',
+            'grid-view__rows',
+            'grid-view',
+            // The group-by feature renders rows in its own containers; a drag's click
+            // lands on these, so they count as "inside the rows" too.
+            'grid-view__group-by-rows',
+            'grid-view__group-by-rows-row',
+          ].includes(event.target.classList[0]))
       ) {
         this.$store.dispatch(
           this.storePrefix + 'view/grid/clearAndDisableMultiSelect'

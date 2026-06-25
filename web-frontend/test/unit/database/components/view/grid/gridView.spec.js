@@ -1,5 +1,6 @@
 import GridView from '@baserow/modules/database/components/view/grid/GridView'
 import GridViewFreezeHandle from '@baserow/modules/database/components/view/grid/GridViewFreezeHandle'
+import { GRID_VIEW_MULTI_SELECT_AREA } from '@baserow/modules/database/constants'
 
 describe('GridView component', () => {
   const fields = [
@@ -49,5 +50,45 @@ describe('GridView component', () => {
     })
 
     expect(sortedFields.map((field) => field.id)).toEqual([1, 3])
+  })
+
+  // The post-drag click of a multi-select lands on the rows container; that must not
+  // cancel the selection. Regression for group-by, whose rows use their own containers.
+  const runCancel = (targetClass) => {
+    const dispatch = vi.fn()
+    const gridViewEl = document.createElement('div')
+    const target = document.createElement('div')
+    target.className = targetClass
+    gridViewEl.appendChild(target)
+    GridView.methods.cancelMultiSelectIfActive.call(
+      {
+        storePrefix: '',
+        $refs: { gridView: gridViewEl },
+        $store: {
+          getters: {
+            'view/grid/getSelectionType': GRID_VIEW_MULTI_SELECT_AREA,
+            'view/grid/isMultiSelectActive': true,
+          },
+          dispatch,
+        },
+      },
+      { shiftKey: false, target }
+    )
+    return dispatch
+  }
+
+  test.each([
+    'grid-view__rows',
+    'grid-view__row',
+    'grid-view__group-by-rows',
+    'grid-view__group-by-rows-row',
+  ])('cancelMultiSelectIfActive keeps the selection for a click on %s', (cls) => {
+    expect(runCancel(cls)).not.toHaveBeenCalled()
+  })
+
+  test('cancelMultiSelectIfActive cancels a click outside the rows', () => {
+    expect(runCancel('some-toolbar-element')).toHaveBeenCalledWith(
+      'view/grid/clearAndDisableMultiSelect'
+    )
   })
 })
