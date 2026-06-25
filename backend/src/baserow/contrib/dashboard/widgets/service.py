@@ -6,6 +6,7 @@ from baserow.contrib.dashboard.widgets.operations import (
     CreateWidgetOperationType,
     DeleteWidgetOperationType,
     ListWidgetsOperationType,
+    OrderWidgetsDashboardOperationType,
     ReadWidgetOperationType,
     UpdateWidgetOperationType,
 )
@@ -15,7 +16,7 @@ from baserow.core.trash.handler import TrashHandler
 
 from .handler import WidgetHandler
 from .models import Widget
-from .signals import widget_created, widget_deleted, widget_updated
+from .signals import widget_created, widget_deleted, widget_updated, widgets_reordered
 from .types import UpdatedWidget
 
 
@@ -189,3 +190,39 @@ class WidgetService:
         widget_deleted.send(self, user=user, widget=widget)
 
         return widget
+
+    def order_widgets(
+        self, user: AbstractUser, dashboard, order: list[int]
+    ) -> list[int]:
+        """
+        Assigns a new order to the widgets in a Dashboard application.
+
+        :param user: The user trying to order the widgets.
+        :param dashboard: The dashboard that the widgets belong to.
+        :param order: The new order of the widgets.
+        :return: The new full order of the widgets.
+        """
+
+        CoreHandler().check_permissions(
+            user,
+            OrderWidgetsDashboardOperationType.type,
+            workspace=dashboard.workspace,
+            context=dashboard,
+        )
+
+        all_widgets = self.handler.get_widgets(
+            dashboard, base_queryset=Widget.objects, specific=False
+        )
+
+        user_widgets = CoreHandler().filter_queryset(
+            user,
+            OrderWidgetsDashboardOperationType.type,
+            all_widgets,
+            workspace=dashboard.workspace,
+        )
+
+        full_order = self.handler.order_widgets(dashboard, order, user_widgets)
+
+        widgets_reordered.send(self, dashboard=dashboard, order=full_order, user=user)
+
+        return full_order

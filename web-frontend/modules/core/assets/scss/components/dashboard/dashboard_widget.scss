@@ -23,6 +23,39 @@
   }
 }
 
+.dashboard-widget--draggable {
+  .widget__header {
+    padding-right: 96px;
+  }
+}
+
+.dashboard-widget__drag-handle {
+  @include absolute(8px, 46px, auto, auto);
+  @include rounded($rounded-md);
+
+  align-items: center;
+  color: $palette-neutral-700;
+  cursor: grab;
+  display: flex;
+  height: 32px;
+  justify-content: center;
+  width: 32px;
+  z-index: 2;
+
+  &:hover {
+    background-color: $palette-neutral-100;
+    color: $palette-neutral-1200;
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.dashboard-widget__drag-handle-icon {
+  font-size: 18px;
+}
+
 .dashboard-widget__loading {
   min-height: 122.4px;
   position: relative;

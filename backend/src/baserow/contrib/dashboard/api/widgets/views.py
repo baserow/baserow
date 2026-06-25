@@ -8,7 +8,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from baserow.api.decorators import map_exceptions, validate_body_custom_fields
+from baserow.api.decorators import (
+    map_exceptions,
+    validate_body,
+    validate_body_custom_fields,
+)
 from baserow.api.schemas import (
     CLIENT_SESSION_ID_SCHEMA_PARAMETER,
     CLIENT_UNDO_REDO_ACTION_GROUP_ID_SCHEMA_PARAMETER,
@@ -24,11 +28,13 @@ from baserow.contrib.dashboard.exceptions import DashboardDoesNotExist
 from baserow.contrib.dashboard.widgets.actions import (
     CreateWidgetActionType,
     DeleteWidgetActionType,
+    OrderWidgetActionType,
     UpdateWidgetActionType,
 )
 from baserow.contrib.dashboard.widgets.exceptions import (
     WidgetDoesNotExist,
     WidgetImproperlyConfigured,
+    WidgetNotInDashboard,
     WidgetTypeDoesNotExist,
 )
 from baserow.contrib.dashboard.widgets.registries import widget_type_registry
@@ -37,10 +43,12 @@ from baserow.contrib.dashboard.widgets.service import WidgetService
 from .errors import (
     ERROR_WIDGET_DOES_NOT_EXIST,
     ERROR_WIDGET_IMPROPERLY_CONFIGURED,
+    ERROR_WIDGET_NOT_IN_DASHBOARD,
     ERROR_WIDGET_TYPE_DOES_NOT_EXIST,
 )
 from .serializers import (
     CreateWidgetSerializer,
+    OrderWidgetsSerializer,
     UpdateWidgetSerializer,
     WidgetSerializer,
 )
@@ -145,6 +153,46 @@ class WidgetsView(APIView):
         )
         serializer = widget_type_registry.get_serializer(widget, WidgetSerializer)
         return Response(serializer.data)
+
+
+class OrderWidgetsView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="dashboard_id",
+                location=OpenApiParameter.PATH,
+                type=OpenApiTypes.INT,
+                description="The dashboard the widgets belong to.",
+            ),
+            CLIENT_SESSION_ID_SCHEMA_PARAMETER,
+        ],
+        tags=["Dashboard widgets"],
+        operation_id="order_dashboard_widgets",
+        description="Apply a new order to the widgets of a dashboard.",
+        request=OrderWidgetsSerializer,
+        responses={
+            204: None,
+            400: get_error_schema(
+                ["ERROR_REQUEST_BODY_VALIDATION", "ERROR_WIDGET_NOT_IN_DASHBOARD"]
+            ),
+            401: get_error_schema(["ERROR_PERMISSION_DENIED"]),
+            404: get_error_schema(["ERROR_DASHBOARD_DOES_NOT_EXIST"]),
+        },
+    )
+    @transaction.atomic
+    @map_exceptions(
+        {
+            DashboardDoesNotExist: ERROR_DASHBOARD_DOES_NOT_EXIST,
+            WidgetNotInDashboard: ERROR_WIDGET_NOT_IN_DASHBOARD,
+        }
+    )
+    @validate_body(OrderWidgetsSerializer)
+    def post(self, request, data: Dict, dashboard_id: int):
+        OrderWidgetActionType.do(request.user, dashboard_id, data["widget_ids"])
+
+        return Response(status=204)
 
 
 class WidgetView(APIView):

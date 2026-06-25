@@ -30,3 +30,7 @@ class RestoreWidgetOperationType(WidgetOperationType):
 class ListWidgetsOperationType(DashboardOperationType):
     type = "dashboard.list_widgets"
     object_scope_name = "dashboard_widget"
+
+
+class OrderWidgetsDashboardOperationType(DashboardOperationType):
+    type = "dashboard.order_widgets"

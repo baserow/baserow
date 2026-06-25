@@ -1,4 +1,4 @@
-from typing import Iterable, cast
+from typing import Iterable, List, cast
 
 from django.core.files.storage import Storage
 from django.db.models import QuerySet
@@ -10,10 +10,11 @@ from baserow.contrib.dashboard.widgets.registries import (
     widget_type_registry,
 )
 from baserow.core.db import specific_iterator
+from baserow.core.exceptions import IdDoesNotExist
 from baserow.core.storage import ExportZipFile
 from baserow.core.utils import extract_allowed
 
-from .exceptions import WidgetDoesNotExist
+from .exceptions import WidgetDoesNotExist, WidgetNotInDashboard
 from .models import Widget
 from .types import UpdatedWidget, WidgetForUpdate
 
@@ -171,6 +172,39 @@ class WidgetHandler:
         widget_type = widget_type_registry.get_by_model(widget)
         widget.delete()
         widget_type.after_delete(widget)
+
+    def order_widgets(
+        self, dashboard: Dashboard, order: List[int], base_qs=None
+    ) -> List[int]:
+        """
+        Assigns a new order to the widgets in a Dashboard application.
+
+        A base_qs can be provided to pre-filter the widgets affected by this change.
+
+        :param dashboard: The dashboard that the widgets belong to.
+        :param order: The new order of the widgets.
+        :param base_qs: A QS that can have filters already applied.
+        :raises WidgetNotInDashboard: If the widget is not part of the dashboard.
+        :return: The new full order of the widgets.
+        """
+
+        if base_qs is None:
+            base_qs = Widget.objects.filter(dashboard=dashboard)
+
+        try:
+            return Widget.order_objects(base_qs, order)
+        except IdDoesNotExist as error:
+            raise WidgetNotInDashboard(error.not_existing_id)
+
+    def get_widgets_order(self, dashboard: Dashboard) -> List[int]:
+        """
+        Returns the widgets in the dashboard ordered by the order field.
+
+        :param dashboard: The dashboard that the widgets belong to.
+        :return: A list containing the order of the widgets in the dashboard.
+        """
+
+        return [widget.id for widget in dashboard.widget_set.order_by("order")]
 
     def export_widget(
         self,

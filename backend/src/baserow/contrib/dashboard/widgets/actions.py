@@ -1,14 +1,17 @@
 from dataclasses import dataclass
+from typing import List
 
 from django.contrib.auth.models import AbstractUser
 from django.utils.translation import gettext_lazy as _
 
 from baserow.contrib.dashboard.actions import DASHBOARD_ACTION_CONTEXT
+from baserow.contrib.dashboard.handler import DashboardHandler
 from baserow.core.action.models import Action
 from baserow.core.action.registries import ActionTypeDescription, UndoableActionType
 from baserow.core.action.scopes import ApplicationActionScopeType
 from baserow.core.trash.handler import TrashHandler
 
+from .handler import WidgetHandler
 from .models import Widget
 from .service import WidgetService
 from .trash_types import WidgetTrashableItemType
@@ -204,3 +207,64 @@ class DeleteWidgetActionType(UndoableActionType):
         action_to_redo: Action,
     ):
         WidgetService().delete_widget(user, params.widget_id)
+
+
+class OrderWidgetActionType(UndoableActionType):
+    type = "order_widgets"
+    description = ActionTypeDescription(
+        _("Order widgets"),
+        _("Widget order changed"),
+        DASHBOARD_ACTION_CONTEXT,
+    )
+    analytics_params = ["dashboard_id"]
+
+    @dataclass
+    class Params:
+        dashboard_id: int
+        dashboard_name: str
+        widgets_order: List[int]
+        original_widgets_order: List[int]
+
+    @classmethod
+    def do(cls, user: AbstractUser, dashboard_id: int, order: List[int]) -> None:
+        dashboard = DashboardHandler().get_dashboard(dashboard_id)
+
+        original_widgets_order = WidgetHandler().get_widgets_order(dashboard)
+        full_order = WidgetService().order_widgets(user, dashboard, order=order)
+        params = cls.Params(
+            dashboard_id,
+            dashboard.name,
+            full_order,
+            original_widgets_order,
+        )
+
+        cls.register_action(
+            user=user,
+            params=params,
+            scope=cls.scope(dashboard_id),
+            workspace=dashboard.workspace,
+        )
+
+    @classmethod
+    def scope(cls, dashboard_id):
+        return ApplicationActionScopeType.value(dashboard_id)
+
+    @classmethod
+    def undo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_undo: Action,
+    ):
+        dashboard = DashboardHandler().get_dashboard(params.dashboard_id)
+        WidgetService().order_widgets(user, dashboard, params.original_widgets_order)
+
+    @classmethod
+    def redo(
+        cls,
+        user: AbstractUser,
+        params: Params,
+        action_to_redo: Action,
+    ):
+        dashboard = DashboardHandler().get_dashboard(params.dashboard_id)
+        WidgetService().order_widgets(user, dashboard, params.widgets_order)

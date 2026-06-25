@@ -79,3 +79,10 @@ class UpdateWidgetSerializer(serializers.ModelSerializer):
             "title": {"required": False, "allow_blank": False},
             "description": {"required": False, "allow_blank": True},
         }
+
+
+class OrderWidgetsSerializer(serializers.Serializer):
+    widget_ids = serializers.ListField(
+        child=serializers.IntegerField(),
+        help_text="The ids of the widgets in the order they are supposed to be set in.",
+    )

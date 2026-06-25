@@ -71,6 +71,12 @@ export const mutations = {
     }
     Object.assign(widget, values)
   },
+  ORDER_WIDGETS(state, { order }) {
+    state.widgets.forEach((widget) => {
+      const index = order.findIndex((value) => value === widget.id)
+      widget.order = index === -1 ? 0 : index + 1
+    })
+  },
   DELETE_WIDGET(state, widgetId) {
     const index = state.widgets.findIndex((widget) => widget.id === widgetId)
     state.widgets.splice(index, 1)
@@ -125,6 +131,20 @@ export const actions = {
   },
   handleWidgetUpdated({ commit }, widget) {
     commit('UPDATE_WIDGET', { widgetId: widget.id, values: widget })
+  },
+  handleWidgetsReordered({ commit }, order) {
+    commit('ORDER_WIDGETS', { order })
+  },
+  async orderWidgets({ commit }, { dashboard, order, oldOrder }) {
+    const { $client } = this
+    commit('ORDER_WIDGETS', { order })
+
+    try {
+      await WidgetService($client).order(dashboard.id, order)
+    } catch (error) {
+      commit('ORDER_WIDGETS', { order: oldOrder })
+      throw error
+    }
   },
   async updateDataSource(
     { commit, dispatch },

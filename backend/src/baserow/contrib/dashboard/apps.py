@@ -38,6 +38,7 @@ class DashboardConfig(AppConfig):
             CreateWidgetOperationType,
             DeleteWidgetOperationType,
             ListWidgetsOperationType,
+            OrderWidgetsDashboardOperationType,
             ReadWidgetOperationType,
             RestoreWidgetOperationType,
             UpdateWidgetOperationType,
@@ -49,6 +50,7 @@ class DashboardConfig(AppConfig):
         operation_type_registry.register(UpdateWidgetOperationType())
         operation_type_registry.register(DeleteWidgetOperationType())
         operation_type_registry.register(RestoreWidgetOperationType())
+        operation_type_registry.register(OrderWidgetsDashboardOperationType())
 
         from baserow.contrib.dashboard.data_sources.operations import (
             CreateDashboardDataSourceOperationType,
@@ -101,6 +103,7 @@ class DashboardConfig(AppConfig):
         from baserow.contrib.dashboard.widgets.actions import (
             CreateWidgetActionType,
             DeleteWidgetActionType,
+            OrderWidgetActionType,
             UpdateWidgetActionType,
         )
 
@@ -109,11 +112,13 @@ class DashboardConfig(AppConfig):
             widget_created,
             widget_deleted,
             widget_updated,
+            widgets_reordered,
         )
 
         action_type_registry.register(CreateWidgetActionType())
         action_type_registry.register(UpdateWidgetActionType())
         action_type_registry.register(DeleteWidgetActionType())
+        action_type_registry.register(OrderWidgetActionType())
         action_type_registry.register(UpdateDashboardDataSourceActionType())
 
         from baserow.core.search.registries import workspace_search_registry

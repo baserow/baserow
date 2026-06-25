@@ -5,8 +5,10 @@ import pytest
 from baserow.contrib.dashboard.widgets.actions import (
     CreateWidgetActionType,
     DeleteWidgetActionType,
+    OrderWidgetActionType,
     UpdateWidgetActionType,
 )
+from baserow.contrib.dashboard.widgets.handler import WidgetHandler
 from baserow.contrib.dashboard.widgets.models import SummaryWidget
 from baserow.contrib.dashboard.widgets.service import WidgetService
 from baserow.core.action.handler import ActionHandler
@@ -167,3 +169,53 @@ def test_can_undo_redo_delete_widget(data_fixture):
 
     dashboard_widgets = WidgetService().get_widgets(user, dashboard.id)
     assert len(dashboard_widgets) == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.undo_redo
+def test_can_undo_redo_order_widgets(data_fixture):
+    session_id = "session-id"
+    user = data_fixture.create_user(session_id=session_id)
+    workspace = data_fixture.create_workspace(user=user)
+    dashboard = data_fixture.create_dashboard_application(
+        workspace=workspace, name="Dashboard 1", user=user
+    )
+    widget_1 = WidgetService().create_widget(
+        user,
+        "summary",
+        dashboard.id,
+        title="Widget 1",
+        description="Widget 1 description",
+    )
+    widget_2 = WidgetService().create_widget(
+        user,
+        "summary",
+        dashboard.id,
+        title="Widget 2",
+        description="Widget 2 description",
+    )
+
+    assert WidgetHandler().get_widgets_order(dashboard) == [widget_1.id, widget_2.id]
+
+    action_type_registry.get_by_type(OrderWidgetActionType).do(
+        user, dashboard.id, [widget_2.id, widget_1.id]
+    )
+
+    assert WidgetHandler().get_widgets_order(dashboard) == [widget_2.id, widget_1.id]
+
+    ActionHandler.undo(
+        user,
+        [ApplicationActionScopeType.value(application_id=dashboard.id)],
+        session_id,
+    )
+
+    assert WidgetHandler().get_widgets_order(dashboard) == [widget_1.id, widget_2.id]
+
+    actions_redone = ActionHandler.redo(
+        user,
+        [ApplicationActionScopeType.value(application_id=dashboard.id)],
+        session_id,
+    )
+    assert_undo_redo_actions_are_valid(actions_redone, [OrderWidgetActionType])
+
+    assert WidgetHandler().get_widgets_order(dashboard) == [widget_2.id, widget_1.id]

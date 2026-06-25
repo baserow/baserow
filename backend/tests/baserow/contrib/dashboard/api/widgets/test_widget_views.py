@@ -104,6 +104,90 @@ def test_get_widgets_permissions_denied(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_order_widgets(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    widget_1 = data_fixture.create_summary_widget(dashboard=dashboard, order=10)
+    widget_2 = data_fixture.create_summary_widget(dashboard=dashboard, order=20)
+
+    url = reverse("api:dashboard:widgets:order", kwargs={"dashboard_id": dashboard.id})
+    response = api_client.post(
+        url,
+        {"widget_ids": [widget_2.id, widget_1.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    list_url = reverse(
+        "api:dashboard:widgets:list", kwargs={"dashboard_id": dashboard.id}
+    )
+    response = api_client.get(
+        list_url,
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert [widget["id"] for widget in response.json()] == [widget_2.id, widget_1.id]
+
+
+@pytest.mark.django_db
+def test_order_widgets_permission_denied(api_client, data_fixture):
+    _, token = data_fixture.create_user_and_token()
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    widget_1 = data_fixture.create_summary_widget(dashboard=dashboard, order=10)
+    widget_2 = data_fixture.create_summary_widget(dashboard=dashboard, order=20)
+
+    url = reverse("api:dashboard:widgets:order", kwargs={"dashboard_id": dashboard.id})
+    response = api_client.post(
+        url,
+        {"widget_ids": [widget_2.id, widget_1.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_401_UNAUTHORIZED
+    assert response.json()["error"] == "PERMISSION_DENIED"
+
+
+@pytest.mark.django_db
+def test_order_widgets_widget_not_in_dashboard(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    widget_1 = data_fixture.create_summary_widget(dashboard=dashboard, order=10)
+    widget_2 = data_fixture.create_summary_widget(order=20)
+
+    url = reverse("api:dashboard:widgets:order", kwargs={"dashboard_id": dashboard.id})
+    response = api_client.post(
+        url,
+        {"widget_ids": [widget_2.id, widget_1.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_WIDGET_NOT_IN_DASHBOARD"
+
+
+@pytest.mark.django_db
+def test_order_widgets_dashboard_doesnt_exist(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+
+    url = reverse("api:dashboard:widgets:order", kwargs={"dashboard_id": 0})
+    response = api_client.post(
+        url,
+        {"widget_ids": []},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_DASHBOARD_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
 def test_create_widget(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     dashboard = data_fixture.create_dashboard_application(user=user)

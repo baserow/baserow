@@ -20,6 +20,13 @@ export const registerRealtimeEvents = (realtime) => {
       store.dispatch('dashboardApplication/handleWidgetDeleted', data.widget.id)
     }
   })
+  realtime.registerEvent('widgets_reordered', ({ store }, data) => {
+    if (
+      data.dashboard_id === store.getters['dashboardApplication/getDashboardId']
+    ) {
+      store.dispatch('dashboardApplication/handleWidgetsReordered', data.order)
+    }
+  })
   realtime.registerEvent('data_source_updated', ({ store }, data) => {
     if (
       data.dashboard_id === store.getters['dashboardApplication/getDashboardId']

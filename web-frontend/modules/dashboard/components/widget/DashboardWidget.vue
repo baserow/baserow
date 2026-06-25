@@ -4,9 +4,18 @@
     :class="{
       'dashboard-widget--selected': isSelected,
       'dashboard-widget--selectable': isSelectable,
+      'dashboard-widget--draggable': canShowDragHandle,
     }"
     @click="selectWidgetIfAllowed(widget.id)"
   >
+    <div
+      v-if="canShowDragHandle"
+      class="dashboard-widget__drag-handle"
+      data-sortable-handle
+      @click.stop
+    >
+      <i class="dashboard-widget__drag-handle-icon iconoir-drag"></i>
+    </div>
     <div v-if="isSelected && isEditMode" class="dashboard-widget__name">
       {{ widgetType.name }}
     </div>
@@ -38,6 +47,11 @@ export default {
       required: false,
       default: '',
     },
+    canOrderWidgets: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
   },
   computed: {
     isSelected() {
@@ -45,6 +59,9 @@ export default {
     },
     isSelectable() {
       return this.selectedWidgetId !== this.widget.id && this.isEditMode
+    },
+    canShowDragHandle() {
+      return this.isEditMode && this.canOrderWidgets
     },
     widgetType() {
       return this.$registry.get('dashboardWidget', this.widget.type)

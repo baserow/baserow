@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 
@@ -6,6 +8,7 @@ import pytest
 from baserow.contrib.dashboard.exceptions import DashboardDoesNotExist
 from baserow.contrib.dashboard.widgets.exceptions import (
     WidgetDoesNotExist,
+    WidgetNotInDashboard,
     WidgetTypeDoesNotExist,
 )
 from baserow.contrib.dashboard.widgets.models import SummaryWidget, Widget
@@ -302,3 +305,43 @@ def test_delete_widget_dashboard_trashed(data_fixture):
 
     with pytest.raises(WidgetDoesNotExist):
         WidgetService().delete_widget(user, widget.id)
+
+
+@patch("baserow.contrib.dashboard.widgets.service.widgets_reordered")
+@pytest.mark.django_db
+def test_widgets_reordered_signal_sent(widgets_reordered_mock, data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    widget_1 = data_fixture.create_summary_widget(dashboard=dashboard, order=10)
+    widget_2 = data_fixture.create_summary_widget(dashboard=dashboard, order=20)
+
+    service = WidgetService()
+    widget_order = service.order_widgets(user, dashboard, [widget_2.id, widget_1.id])
+
+    widgets_reordered_mock.send.assert_called_once_with(
+        service, dashboard=dashboard, order=widget_order, user=user
+    )
+
+
+@pytest.mark.django_db
+def test_order_widgets_permission_denied(data_fixture):
+    user_without_perms = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application()
+    widget_1 = data_fixture.create_summary_widget(dashboard=dashboard, order=10)
+    widget_2 = data_fixture.create_summary_widget(dashboard=dashboard, order=20)
+
+    with pytest.raises(PermissionException):
+        WidgetService().order_widgets(
+            user_without_perms, dashboard, [widget_2.id, widget_1.id]
+        )
+
+
+@pytest.mark.django_db
+def test_order_widgets_not_in_dashboard(data_fixture):
+    user = data_fixture.create_user()
+    dashboard = data_fixture.create_dashboard_application(user=user)
+    widget_1 = data_fixture.create_summary_widget(dashboard=dashboard, order=10)
+    widget_2 = data_fixture.create_summary_widget(order=20)
+
+    with pytest.raises(WidgetNotInDashboard):
+        WidgetService().order_widgets(user, dashboard, [widget_2.id, widget_1.id])

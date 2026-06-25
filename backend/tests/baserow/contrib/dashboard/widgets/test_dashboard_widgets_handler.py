@@ -5,7 +5,10 @@ from django.db.models import QuerySet
 import pytest
 
 from baserow.contrib.dashboard.data_sources.models import DashboardDataSource
-from baserow.contrib.dashboard.widgets.exceptions import WidgetDoesNotExist
+from baserow.contrib.dashboard.widgets.exceptions import (
+    WidgetDoesNotExist,
+    WidgetNotInDashboard,
+)
 from baserow.contrib.dashboard.widgets.handler import WidgetHandler
 from baserow.contrib.dashboard.widgets.models import SummaryWidget, Widget
 from baserow.contrib.dashboard.widgets.registries import widget_type_registry
@@ -226,3 +229,58 @@ def test_delete_widget(data_fixture):
     assert Widget.objects.count() == 0
 
     assert DashboardDataSource.objects.filter(id=data_source_id).count() == 0
+
+
+@pytest.mark.django_db
+def test_order_widgets(data_fixture):
+    dashboard = data_fixture.create_dashboard_application()
+    widget_1 = data_fixture.create_summary_widget(
+        dashboard=dashboard, title="Widget 1", order=10
+    )
+    widget_2 = data_fixture.create_summary_widget(
+        dashboard=dashboard, title="Widget 2", order=20
+    )
+
+    assert WidgetHandler().order_widgets(
+        dashboard, [widget_2.id, widget_1.id]
+    ) == [
+        widget_2.id,
+        widget_1.id,
+    ]
+
+    widget_1.refresh_from_db()
+    widget_2.refresh_from_db()
+
+    assert widget_1.order > widget_2.order
+    assert WidgetHandler().get_widgets_order(dashboard) == [widget_2.id, widget_1.id]
+
+
+@pytest.mark.django_db
+def test_order_widgets_excludes_trashed_widget(data_fixture):
+    dashboard = data_fixture.create_dashboard_application()
+    widget_1 = data_fixture.create_summary_widget(
+        dashboard=dashboard, title="Widget 1", order=10
+    )
+    widget_2 = data_fixture.create_summary_widget(
+        dashboard=dashboard, title="Widget 2", order=20, trashed=True
+    )
+
+    with pytest.raises(WidgetNotInDashboard):
+        WidgetHandler().order_widgets(dashboard, [widget_2.id, widget_1.id])
+
+
+@pytest.mark.django_db
+def test_order_widgets_not_in_dashboard(data_fixture):
+    dashboard = data_fixture.create_dashboard_application()
+    widget_1 = data_fixture.create_summary_widget(
+        dashboard=dashboard, title="Widget 1", order=10
+    )
+    widget_2 = data_fixture.create_summary_widget(
+        dashboard=dashboard, title="Widget 2", order=20
+    )
+    base_qs = Widget.objects.filter(id=widget_2.id)
+
+    with pytest.raises(WidgetNotInDashboard):
+        WidgetHandler().order_widgets(
+            dashboard, [widget_2.id, widget_1.id], base_qs=base_qs
+        )

@@ -92,6 +92,24 @@ def widget_deleted(
     transaction.on_commit(send_ws_message)
 
 
+@receiver(widget_signals.widgets_reordered)
+def widgets_reordered(sender, dashboard, order, user, **kwargs):
+    def send_ws_message():
+        page_type = page_registry.get("dashboard")
+        payload = {
+            "type": "widgets_reordered",
+            "dashboard_id": dashboard.id,
+            "order": order,
+        }
+        page_type.broadcast(
+            payload,
+            dashboard_id=dashboard.id,
+            ignore_web_socket_id=getattr(user, "web_socket_id", None),
+        )
+
+    transaction.on_commit(send_ws_message)
+
+
 @receiver(data_source_signals.dashboard_data_source_updated)
 def dashboard_data_source_updated(sender, user, data_source, **kwargs):
     def send_ws_message():

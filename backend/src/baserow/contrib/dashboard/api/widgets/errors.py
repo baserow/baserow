@@ -17,3 +17,9 @@ ERROR_WIDGET_IMPROPERLY_CONFIGURED = (
     HTTP_400_BAD_REQUEST,
     "The requested configuration is not allowed.",
 )
+
+ERROR_WIDGET_NOT_IN_DASHBOARD = (
+    "ERROR_WIDGET_NOT_IN_DASHBOARD",
+    HTTP_400_BAD_REQUEST,
+    "The widget does not belong to the dashboard.",
+)
