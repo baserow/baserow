@@ -13,6 +13,7 @@ import {
 import RowService from '@baserow/modules/database/services/row'
 import FieldService from '@baserow/modules/database/services/field'
 import { SingleSelectFieldType } from '@baserow/modules/database/fieldTypes'
+import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/action'
 import {
   extractChangedFields,
   getRowMetadata,
@@ -733,6 +734,8 @@ export const actions = {
       return
     }
     const { $client, $registry } = this
+    // Bundle the value update and the move into a single undo/redo step.
+    const undoRedoActionGroupId = createNewUndoRedoActionGroupId()
     // When the view has one or more sortings the vertical position of cards is
     // determined by the sort, so we must not push a manual position to the
     // backend; the row's `order` field is left untouched.
@@ -796,7 +799,8 @@ export const actions = {
           table.id,
           row.id,
           newValuesForUpdate,
-          getters.getLastKanbanId
+          getters.getLastKanbanId,
+          undoRedoActionGroupId
         )
         commit('UPDATE_ROW', { row, values: data })
       } catch (error) {
@@ -822,7 +826,8 @@ export const actions = {
           table.id,
           row.id,
           before !== null ? before.id : null,
-          getters.getLastKanbanId
+          getters.getLastKanbanId,
+          undoRedoActionGroupId
         )
         commit('UPDATE_ROW', { row, values: data })
       } catch (error) {

@@ -1,5 +1,13 @@
 import kanbanStore from '@baserow_premium/store/view/kanban'
 import { TestApp } from '@baserow/test/helpers/testApp'
+import { UNDO_REDO_ACTION_GROUP_HEADER } from '@baserow/modules/database/utils/action'
+
+const readActionGroupId = (config) => {
+  const headers = config.headers || {}
+  return typeof headers.get === 'function'
+    ? headers.get(UNDO_REDO_ACTION_GROUP_HEADER)
+    : headers[UNDO_REDO_ACTION_GROUP_HEADER]
+}
 
 describe('Kanban view store', () => {
   let testApp = null
@@ -394,5 +402,63 @@ describe('Kanban view store', () => {
     expect(store.state.kanban.stacks['1'].results.map((r) => r.id)).toEqual([
       10, 11,
     ])
+  })
+
+  test('stopRowDrag bundles the value update and the move in one action group', async () => {
+    // Dropping into another stack fires both the value update and the move.
+    const draggingRow = {
+      id: 5,
+      order: '5.00',
+      field_1: null,
+      _: { dragging: true },
+    }
+    const stacks = {
+      null: { count: 0, results: [] },
+      1: { count: 1, results: [draggingRow] },
+    }
+    const state = Object.assign(kanbanStore.state(), {
+      lastKanbanId: 1,
+      singleSelectFieldId: 1,
+      stacks,
+      draggingRow,
+      draggingOriginalStackId: 'null',
+      draggingOriginalBefore: null,
+    })
+    store.replaceState({ ...store.state, kanban: state })
+
+    const fields = [
+      {
+        id: 1,
+        type: 'single_select',
+        select_options: [{ id: 1, value: 'A', color: 'blue' }],
+      },
+    ]
+    const table = { id: 99 }
+    const noSortView = { sortings: [] }
+
+    let updateGroupId = null
+    let moveGroupId = null
+    testApp.mock
+      .onPatch(`/database/rows/table/${table.id}/${draggingRow.id}/`)
+      .reply((config) => {
+        updateGroupId = readActionGroupId(config)
+        return [200, { id: draggingRow.id, ...JSON.parse(config.data) }]
+      })
+    testApp.mock
+      .onPatch(`/database/rows/table/${table.id}/${draggingRow.id}/move/`)
+      .reply((config) => {
+        moveGroupId = readActionGroupId(config)
+        return [200, draggingRow]
+      })
+
+    await store.dispatch('kanban/stopRowDrag', {
+      table,
+      fields,
+      view: noSortView,
+    })
+
+    expect(updateGroupId).toBeTruthy()
+    expect(moveGroupId).toBeTruthy()
+    expect(updateGroupId).toBe(moveGroupId)
   })
 })
