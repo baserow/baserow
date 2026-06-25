@@ -8,6 +8,8 @@ from fakeredis import FakeConnection, FakeServer
 
 from baserow.config.settings.utils import str_to_bool
 
+_fake_redis_server = FakeServer()
+
 # Test environment configuration:
 # - TEST_ENV_FILE: Optional env file for test settings (default: none)
 # - DATABASE_*, REDIS_*, and MEDIA_ROOT vars can be passed via real env vars or TEST_ENV_FILE
@@ -94,7 +96,7 @@ CACHES = {
         "OPTIONS": {
             "CONNECTION_POOL_KWARGS": {
                 "connection_class": FakeConnection,
-                "server": FakeServer(),
+                "server": _fake_redis_server,
             }
         },
         "KEY_PREFIX": "baserow-default-cache",

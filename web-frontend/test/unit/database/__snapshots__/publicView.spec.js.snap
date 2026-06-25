@@ -336,8 +336,9 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
               </div>
             </div>
           </li>
+          <!--v-if-->
           <li
-            class="header__filter-item header__filter-item--full-width"
+            class="header__filter-item"
           >
             <div
               class="header__search"
@@ -369,11 +370,6 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
                 </div>
               </teleport-stub>
             </div>
-          </li>
-          <li
-            class="header__filter-item"
-          >
-            <!--v-if-->
           </li>
         </ul>
       </header>

@@ -2,10 +2,9 @@ import json
 import uuid
 from typing import TYPE_CHECKING, Optional, Protocol, runtime_checkable
 
-from channels.db import database_sync_to_async
-from django_redis import get_redis_connection
 from loguru import logger
 
+from baserow.core.async_redis import get_async_redis
 from baserow.ws.registries import page_registry
 from baserow.ws.types import (
     ActivePresenceEntry,
@@ -16,10 +15,11 @@ if TYPE_CHECKING:
     from baserow.ws.consumers import CoreConsumer
 
 PRESENCE_KEY_PREFIX = "presence:"
+PRESENCE_SPACE_TTL = 43200  # 12 hours
 
 
-def _get_redis():
-    return get_redis_connection("default")
+def _is_valid_entry(data) -> bool:
+    return isinstance(data, dict) and isinstance(data.get("user_id"), int)
 
 
 def make_page_key(page_type: str, parameters: dict) -> str:
@@ -86,38 +86,28 @@ class PresenceSpace:
     def channel_group(self) -> str:
         return f"presence.{self.name}"
 
-    def _sync_read_all_entries(self) -> tuple[dict[str, dict], list[str]]:
-        redis = _get_redis()
-        raw = redis.hgetall(self.redis_key)
-        entries: dict[str, dict] = {}
-        corrupt: list[str] = []
-        for raw_key, value in raw.items():
-            pid = raw_key.decode() if isinstance(raw_key, bytes) else raw_key
-            val = value.decode() if isinstance(value, bytes) else value
-            try:
-                entries[pid] = json.loads(val)
-            except (ValueError, TypeError):
-                corrupt.append(pid)
-        return entries, corrupt
-
     async def _fetch_and_clean_entries(self) -> dict[str, dict]:
         """
-        Read all entries from Redis, remove corrupt ones, return valid.
+        Read all entries from Redis, remove corrupt/invalid ones, return valid.
         """
 
-        entries, corrupt = await database_sync_to_async(self._sync_read_all_entries)()
+        redis = await get_async_redis()
+        raw = await redis.hgetall(self.redis_key)
+        entries: dict[str, dict] = {}
+        corrupt: list[str] = []
+        for pid, value in raw.items():
+            try:
+                data = json.loads(value)
+            except (ValueError, TypeError):
+                corrupt.append(pid)
+                continue
+            if _is_valid_entry(data):
+                entries[pid] = data
+            else:
+                corrupt.append(pid)
         if corrupt:
-            await database_sync_to_async(self._sync_hdel)(*corrupt)
+            await redis.hdel(self.redis_key, *corrupt)
         return entries
-
-    def _sync_hdel(self, *fields: str) -> None:
-        redis = _get_redis()
-        redis.hdel(self.redis_key, *fields)
-
-    def _sync_add_entry(self, presence_id: str, user_id: int) -> None:
-        redis = _get_redis()
-        entry = json.dumps({"user_id": user_id})
-        redis.hset(self.redis_key, presence_id, entry)
 
     async def join(self, presence_id: str, user_id: int) -> None:
         """
@@ -127,7 +117,10 @@ class PresenceSpace:
         :param user_id: The user who owns this connection.
         """
 
-        await database_sync_to_async(self._sync_add_entry)(presence_id, user_id)
+        redis = await get_async_redis()
+        entry = json.dumps({"user_id": user_id})
+        await redis.hset(self.redis_key, presence_id, entry)
+        await redis.expire(self.redis_key, PRESENCE_SPACE_TTL)
 
     async def remove_entry(self, presence_id: str) -> None:
         """
@@ -136,7 +129,8 @@ class PresenceSpace:
         :param presence_id: The presence entry to remove.
         """
 
-        await database_sync_to_async(self._sync_hdel)(presence_id)
+        redis = await get_async_redis()
+        await redis.hdel(self.redis_key, presence_id)
 
     async def get_members(
         self, exclude_presence_id: Optional[str] = None
@@ -152,7 +146,7 @@ class PresenceSpace:
         entries = await self._fetch_and_clean_entries()
         return [
             ActivePresenceEntry(
-                user_id=data.get("user_id"),
+                user_id=data["user_id"],
                 presence_id=pid,
             )
             for pid, data in entries.items()
@@ -190,13 +184,18 @@ class PresenceHandler:
         """
 
         try:
-            space_name = await self.resolve_space_name(page_type_name, parameters)
+            space_name = self.resolve_space_name(page_type_name, parameters)
             if space_name is None:
                 return
 
             page_key = make_page_key(page_type_name, parameters)
-            is_new_space = self._page_subscribed(page_key, space_name)
-            if not is_new_space:
+            if page_key in self._page_to_space:
+                return
+
+            already_in_space = space_name in self._space_pages
+            self._page_subscribed(page_key, space_name)
+
+            if already_in_space:
                 return
 
             space = PresenceSpace(name=space_name)
@@ -226,29 +225,30 @@ class PresenceHandler:
         """
 
         page_key = make_page_key(page_type_name, parameters)
-        left_space_name = self._page_unsubscribed(page_key)
-        if not left_space_name:
+        space_name = self._page_to_space.get(page_key)
+        if space_name is None:
+            return
+
+        self._page_unsubscribed(page_key)
+
+        if self._space_pages.get(space_name):
             return
 
         try:
-            space = PresenceSpace(name=left_space_name)
+            space = PresenceSpace(name=space_name)
             await self._leave(space)
             await self._broadcast_leave(space)
             await self._consumer.send_json(
                 {
                     "type": "presence.space_discard",
-                    "space": left_space_name,
+                    "space": space_name,
                 }
             )
             await self._consumer.channel_layer.group_discard(
                 space.channel_group, self._consumer.channel_name
             )
         except Exception:
-            self._page_to_space[page_key] = left_space_name
-            self._space_pages.setdefault(left_space_name, set()).add(page_key)
-            logger.exception(
-                "Presence unsubscribe failed for space {}", left_space_name
-            )
+            logger.exception("Presence unsubscribe failed for space {}", space_name)
 
     async def leave_all_spaces(self) -> None:
         """
@@ -271,41 +271,27 @@ class PresenceHandler:
 
     # -- Page-to-space tracking (internal) --
 
-    def _page_subscribed(self, page_key: str, space_name: str) -> bool:
+    def _page_subscribed(self, page_key: str, space_name: str) -> None:
         """
-        Track a page→space mapping.
-
-        :param page_key: Deterministic key for the page subscription.
-        :param space_name: The presence space this page maps to.
-        :return: True if this is the first page for this space (new join).
+        Record a page→space mapping. Called after external side effects succeed.
         """
 
         self._page_to_space[page_key] = space_name
-        if space_name not in self._space_pages:
-            self._space_pages[space_name] = {page_key}
-            return True
-        self._space_pages[space_name].add(page_key)
-        return False
+        self._space_pages.setdefault(space_name, set()).add(page_key)
 
-    def _page_unsubscribed(self, page_key: str) -> Optional[str]:
+    def _page_unsubscribed(self, page_key: str) -> None:
         """
-        Remove a page→space mapping.
-
-        :param page_key: Deterministic key for the page subscription.
-        :return: The space name if this was the last page referencing it,
-            otherwise None.
+        Remove a page→space mapping. Called after external side effects succeed.
         """
 
         space_name = self._page_to_space.pop(page_key, None)
         if space_name is None:
-            return None
+            return
         page_keys = self._space_pages.get(space_name)
         if page_keys is not None:
             page_keys.discard(page_key)
             if not page_keys:
                 del self._space_pages[space_name]
-                return space_name
-        return None
 
     # -- Space operations (Redis via PresenceSpace) --
 
@@ -349,9 +335,7 @@ class PresenceHandler:
     # -- Helpers --
 
     @staticmethod
-    async def resolve_space_name(
-        page_type_name: str, parameters: dict
-    ) -> Optional[str]:
+    def resolve_space_name(page_type_name: str, parameters: dict) -> Optional[str]:
         """
         Look up the presence space name for a page type via the registry.
 
@@ -365,6 +349,4 @@ class PresenceHandler:
             page_type = page_registry.get(page_type_name)
         except page_registry.does_not_exist_exception_class:
             return None
-        return await database_sync_to_async(page_type.get_presence_space_name)(
-            **parameters
-        )
+        return page_type.get_presence_space_name(**parameters)

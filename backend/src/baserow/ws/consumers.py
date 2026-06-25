@@ -8,6 +8,7 @@ from loguru import logger
 from opentelemetry import metrics
 
 from baserow.config.settings.utils import try_int
+from baserow.core.feature_flags import FF_USER_PRESENCE, feature_flag_is_enabled
 from baserow.ws.presence import (
     NullPresenceHandler,
     PresenceHandler,
@@ -196,11 +197,12 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
 
         self.scope["pages"] = SubscribedPages()
         web_socket_id = self.scope["web_socket_id"]
-        self.presence = PresenceHandler(
-            consumer=self,
-            web_socket_id=web_socket_id,
-            user_id=user.id,
-        )
+        if feature_flag_is_enabled(FF_USER_PRESENCE):
+            self.presence = PresenceHandler(
+                consumer=self,
+                web_socket_id=web_socket_id,
+                user_id=user.id,
+            )
         await self.channel_layer.group_add("users", self.channel_name)
 
     async def disconnect(self, code):

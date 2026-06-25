@@ -51,11 +51,8 @@ class TablePageType(PageType):
     def get_permission_channel_group_name(self, table_id, **kwargs):
         return f"permissions-table-{table_id}"
 
-    def get_presence_space_name(self, table_id, **kwargs) -> str | None:
+    def get_presence_space_name(self, table_id: int, **kwargs) -> str | None:
         return table_presence_space_name(table_id)
-
-    def filter_focus_for_recipient(self, page_parameters, focus, focus_type) -> bool:
-        return True
 
 
 def table_presence_space_name(table_id: int) -> str | None:
@@ -66,7 +63,7 @@ def table_presence_space_name(table_id: int) -> str | None:
     :return: The space name string, or None if table_id is falsy.
     """
 
-    if not table_id:
+    if table_id <= 0:
         return None
     return f"table-{table_id}"
 

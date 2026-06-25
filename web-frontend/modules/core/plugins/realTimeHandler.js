@@ -162,6 +162,7 @@ export class RealTimeHandler {
     this.socket.onclose = () => {
       this.connected = false
       this.subscribedToPages = this.pages.length === 0
+      this.context.store.dispatch('presence/clearAllSpaces')
       this.delayedReconnect()
     }
   }

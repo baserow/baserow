@@ -73,6 +73,21 @@ describe('presence store', () => {
     expect(Object.keys(s.spaces)).not.toContain('table-1')
   })
 
+  test('CLEAR_ALL_SPACES removes all spaces', () => {
+    const s = makeState()
+    mutations.SET_MEMBERS(s, {
+      space: 'table-1',
+      entries: [{ presence_id: 'pid-1', user_id: 10 }],
+    })
+    mutations.SET_MEMBERS(s, {
+      space: 'table-2',
+      entries: [{ presence_id: 'pid-2', user_id: 20 }],
+    })
+    mutations.CLEAR_ALL_SPACES(s)
+
+    expect(Object.keys(s.spaces)).toHaveLength(0)
+  })
+
   test('getUniqueUsersBySpace deduplicates by user_id', () => {
     const s = makeState()
     mutations.SET_MEMBERS(s, {

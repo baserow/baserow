@@ -6,9 +6,9 @@ import pytest
 from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
-from django_redis import get_redis_connection
 
 from baserow.config.asgi import application
+from baserow.core.async_redis import get_async_redis
 from baserow.ws.presence import (
     PresenceHandler,
     PresenceSpace,
@@ -52,9 +52,6 @@ class PresenceTestPageType(PageType):
     def get_presence_space_name(self, test_param, **kwargs):
         return f"test-space-{test_param}"
 
-    def filter_focus_for_recipient(self, page_parameters, focus, focus_type):
-        return True
-
 
 class NonPresencePageType(PageType):
     type = "test_non_presence_page"
@@ -82,9 +79,6 @@ class PresenceWithPermGroupPageType(PageType):
 
     def get_presence_space_name(self, test_param, **kwargs):
         return f"test-perm-space-{test_param}"
-
-    def filter_focus_for_recipient(self, page_parameters, focus, focus_type):
-        return True
 
 
 @pytest.fixture
@@ -133,10 +127,10 @@ async def _subscribe_and_get_members(
     return page_add, members_msg
 
 
-def _presence_ids_in_redis(redis_key):
+async def _presence_ids_in_redis(redis_key):
     """Return set of presence_id keys stored in a Redis presence hash."""
-    redis = get_redis_connection("default")
-    return {(k.decode() if isinstance(k, bytes) else k) for k in redis.hkeys(redis_key)}
+    redis = await get_async_redis()
+    return set(await redis.hkeys(redis_key))
 
 
 @pytest.mark.asyncio
@@ -210,7 +204,7 @@ async def test_unsubscribe_broadcasts_leave_not_to_self(data_fixture, presence_t
     assert "presence_id" in leave
     assert "web_socket_id" not in leave
 
-    pids = _presence_ids_in_redis(PRESENCE_KEY)
+    pids = await _presence_ids_in_redis(PRESENCE_KEY)
     assert pid_a in pids
     assert leave["presence_id"] not in pids
 
@@ -243,7 +237,7 @@ async def test_disconnect_broadcasts_leave(data_fixture, presence_types):
         for f in frames
     )
 
-    pids = _presence_ids_in_redis(PRESENCE_KEY)
+    pids = await _presence_ids_in_redis(PRESENCE_KEY)
     assert pid_a in pids
 
     await comm_a.disconnect()
@@ -287,8 +281,8 @@ async def test_channel_isolation_no_cross_delivery(data_fixture, presence_types)
 
     assert await comm_a.receive_nothing(timeout=0.3)
 
-    pids_1 = _presence_ids_in_redis("presence:test-space-1")
-    pids_2 = _presence_ids_in_redis("presence:test-space-2")
+    pids_1 = await _presence_ids_in_redis("presence:test-space-1")
+    pids_2 = await _presence_ids_in_redis("presence:test-space-2")
     assert len(pids_1) == 1
     assert len(pids_2) == 1
     assert pids_1.isdisjoint(pids_2)
@@ -321,8 +315,8 @@ async def test_disconnect_removes_from_all_subscribed_channels(
     assert leave["type"] == "presence.leave"
     assert leave["presence_id"] == pid_a
 
-    assert len(_presence_ids_in_redis("presence:test-space-1")) == 1  # only B
-    assert len(_presence_ids_in_redis("presence:test-space-2")) == 0
+    assert len(await _presence_ids_in_redis("presence:test-space-1")) == 1  # only B
+    assert len(await _presence_ids_in_redis("presence:test-space-2")) == 0
 
     await comm_b.disconnect()
 
@@ -348,7 +342,7 @@ async def test_multi_tab_same_user_separate_entries(data_fixture, presence_types
     assert join["user_id"] == user_a.id
     pid_2 = join["presence_id"]
 
-    pids = _presence_ids_in_redis(PRESENCE_KEY)
+    pids = await _presence_ids_in_redis(PRESENCE_KEY)
     assert pid_1 in pids
     assert pid_2 in pids
     assert pid_1 != pid_2
@@ -361,16 +355,16 @@ async def test_multi_tab_same_user_separate_entries(data_fixture, presence_types
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
 async def test_corrupt_entry_cleaned_on_new_subscribe(data_fixture, presence_types):
-    redis = get_redis_connection("default")
-    redis.hset(PRESENCE_KEY, "corrupt-pid", "not-json")
+    redis = await get_async_redis()
+    await redis.hset(PRESENCE_KEY, "corrupt-pid", "not-json")
 
     user_a, token_a = data_fixture.create_user_and_token()
     comm_a, ws_a = await _connect(token_a)
     _, members_resp = await _subscribe_and_get_members(comm_a)
 
     assert members_resp["entries"] == []
-    assert not redis.hexists(PRESENCE_KEY, "corrupt-pid")
-    assert len(_presence_ids_in_redis(PRESENCE_KEY)) == 1
+    assert not await redis.hexists(PRESENCE_KEY, "corrupt-pid")
+    assert len(await _presence_ids_in_redis(PRESENCE_KEY)) == 1
 
     await comm_a.disconnect()
 
@@ -405,14 +399,14 @@ async def test_double_subscribe_does_not_broadcast_duplicate_join(
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-async def test_redis_key_has_no_ttl(data_fixture, presence_types):
+async def test_redis_key_has_sliding_ttl(data_fixture, presence_types):
     user_a, token_a = data_fixture.create_user_and_token()
     comm_a, ws_a = await _connect(token_a)
     await _subscribe_and_get_members(comm_a)
 
-    redis = get_redis_connection("default")
-    ttl = redis.ttl(PRESENCE_KEY)
-    assert ttl == -1
+    redis = await get_async_redis()
+    ttl = await redis.ttl(PRESENCE_KEY)
+    assert 0 < ttl <= 43200
 
     await comm_a.disconnect()
 
@@ -444,21 +438,17 @@ async def test_presence_space_and_handler_members_self_exclusion():
 @pytest.mark.asyncio
 @pytest.mark.websockets
 async def test_presence_space_cleanup_removes_corrupt_entries():
-    redis = get_redis_connection("default")
+    redis = await get_async_redis()
     space = PresenceSpace("g2")
-    redis.hset(
-        space.redis_key,
-        "valid",
-        json.dumps({"user_id": 1}),
-    )
-    redis.hset(space.redis_key, "corrupt", "not-json")
+    await redis.hset(space.redis_key, "valid", json.dumps({"user_id": 1}))
+    await redis.hset(space.redis_key, "corrupt", "not-json")
 
     active = await space.get_members()
     assert len(active) == 1
     assert active[0]["user_id"] == 1
     assert active[0]["presence_id"] == "valid"
-    assert redis.hexists(space.redis_key, "valid") is True
-    assert redis.hexists(space.redis_key, "corrupt") is False
+    assert await redis.hexists(space.redis_key, "valid") is True
+    assert await redis.hexists(space.redis_key, "corrupt") is False
 
 
 @pytest.mark.asyncio
@@ -480,9 +470,8 @@ async def test_permission_revocation_removes_presence_and_broadcasts_leave(
     pid_a = active_b["entries"][0]["presence_id"]
     await _drain(comm_a)
 
-    redis = get_redis_connection("default")
     pres_key = "presence:test-perm-space-1"
-    pids_before = _presence_ids_in_redis(pres_key)
+    pids_before = await _presence_ids_in_redis(pres_key)
     assert pid_a in pids_before
     assert len(pids_before) == 2
 
@@ -505,7 +494,7 @@ async def test_permission_revocation_removes_presence_and_broadcasts_leave(
     assert leaves[0]["user_id"] == user_b.id
     pid_b = leaves[0]["presence_id"]
 
-    pids_after = _presence_ids_in_redis(pres_key)
+    pids_after = await _presence_ids_in_redis(pres_key)
     assert pid_b not in pids_after
     assert pid_a in pids_after
 
@@ -579,7 +568,9 @@ async def test_table_page_subscribe_returns_members(data_fixture):
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-async def test_restricted_view_joins_table_presence_space(data_fixture):
+async def test_restricted_view_excluded_from_presence(data_fixture):
+    """Restricted views return None for presence — no join/members events."""
+
     (
         user_a,
         token_a,
@@ -600,63 +591,17 @@ async def test_restricted_view_joins_table_presence_space(data_fixture):
         {
             "page": "restricted_view",
             "restricted_view_id": restricted_view.id,
-            "table_id": table.id,
         }
     )
     page_add_b = await comm_b.receive_json_from(timeout=1)
     assert page_add_b["type"] == "page_add"
-    active_b = await comm_b.receive_json_from(timeout=1)
-    assert active_b["type"] == "presence.members"
-    assert active_b["space"] == f"table-{table.id}"
-    assert len(active_b["entries"]) == 1
-    assert active_b["entries"][0]["user_id"] == user_a.id
-
-    join = await comm_a.receive_json_from(timeout=1)
-    assert join["type"] == "presence.join"
-    assert join["user_id"] == user_b.id
+    # No presence.members expected — restricted views opt out
+    assert await comm_b.receive_nothing(timeout=0.5)
+    # Table subscriber should NOT see a join from the restricted view user
+    assert await comm_a.receive_nothing(timeout=0.5)
 
     await comm_a.disconnect()
     await comm_b.disconnect()
-
-
-@pytest.mark.asyncio
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.websockets
-async def test_restricted_view_disconnect_broadcasts_leave_to_table_subscribers(
-    data_fixture,
-):
-    (
-        user_a,
-        token_a,
-        user_b,
-        token_b,
-        table,
-        restricted_view,
-    ) = await _create_enterprise_table_with_restricted_view(data_fixture)
-
-    comm_a, ws_a = await _connect(token_a)
-    await comm_a.send_json_to({"page": "table", "table_id": table.id})
-    await _drain(comm_a, timeout=0.5)
-
-    comm_b, ws_b = await _connect(token_b)
-    await comm_b.send_json_to(
-        {
-            "page": "restricted_view",
-            "restricted_view_id": restricted_view.id,
-            "table_id": table.id,
-        }
-    )
-    await _drain(comm_b, timeout=0.5)
-    await _drain(comm_a, timeout=0.5)  # consume B's join
-
-    await comm_b.disconnect()
-
-    frames = await _drain(comm_a, timeout=0.5)
-    leaves = [f for f in frames if f["type"] == "presence.leave"]
-    assert len(leaves) == 1
-    assert leaves[0]["user_id"] == user_b.id
-
-    await comm_a.disconnect()
 
 
 @pytest.mark.asyncio
@@ -681,7 +626,9 @@ async def test_public_view_has_no_presence(data_fixture):
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-async def test_restricted_view_rejects_spoofed_table_id(data_fixture):
+async def test_restricted_view_no_presence_entries_in_redis(data_fixture):
+    """Restricted view subscription creates no Redis presence entries."""
+
     (
         user_a,
         token_a,
@@ -691,25 +638,17 @@ async def test_restricted_view_rejects_spoofed_table_id(data_fixture):
         restricted_view,
     ) = await _create_enterprise_table_with_restricted_view(data_fixture)
 
-    other_table = await database_sync_to_async(
-        lambda: data_fixture.create_database_table(
-            database=table.database,
-        )
-    )()
-
     comm_a, ws_a = await _connect(token_a)
     await comm_a.send_json_to(
         {
             "page": "restricted_view",
             "restricted_view_id": restricted_view.id,
-            "table_id": other_table.id,
         }
     )
-    # Spoofed table_id — subscription should be silently rejected (no page_add)
+    await comm_a.receive_json_from(timeout=1)  # page_add
     assert await comm_a.receive_nothing(timeout=0.5)
 
-    # Verify no presence entry was created for the spoofed table
-    pids = _presence_ids_in_redis(f"presence:table-{other_table.id}")
+    pids = await _presence_ids_in_redis(f"presence:table-{table.id}")
     assert len(pids) == 0
 
     await comm_a.disconnect()
@@ -745,8 +684,8 @@ async def test_independent_space_isolation_on_partial_unsubscribe(
     assert len(leaves) == 1
 
     # But the perm page (different space) should still have B's presence
-    assert len(_presence_ids_in_redis("presence:test-perm-space-1")) == 1
-    assert len(_presence_ids_in_redis("presence:test-space-1")) == 1  # only A
+    assert len(await _presence_ids_in_redis("presence:test-perm-space-1")) == 1
+    assert len(await _presence_ids_in_redis("presence:test-space-1")) == 1  # only A
 
     await comm_a.disconnect()
     await comm_b.disconnect()
@@ -755,9 +694,12 @@ async def test_independent_space_isolation_on_partial_unsubscribe(
 @pytest.mark.asyncio
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.websockets
-async def test_permission_revocation_triggers_presence_leave_for_restricted_view(
+async def test_permission_revocation_no_presence_leave_for_restricted_view(
     data_fixture,
 ):
+    """Restricted view has no presence, so permission revocation produces
+    no presence.leave event on the table subscriber side."""
+
     (
         user_a,
         token_a,
@@ -776,11 +718,10 @@ async def test_permission_revocation_triggers_presence_leave_for_restricted_view
         {
             "page": "restricted_view",
             "restricted_view_id": restricted_view.id,
-            "table_id": table.id,
         }
     )
     await _drain(comm_b, timeout=0.5)
-    await _drain(comm_a, timeout=0.5)  # consume B's join
+    await _drain(comm_a, timeout=0.5)
 
     perm_group = f"permissions-restricted-view-{restricted_view.id}"
     channel_layer = get_channel_layer()
@@ -796,14 +737,33 @@ async def test_permission_revocation_triggers_presence_leave_for_restricted_view
     b_frames = await _drain(comm_b, timeout=0.5)
     assert any(f["type"] == "page_discard" for f in b_frames)
 
+    # No presence.leave on table side — restricted view had no presence
     a_frames = await _drain(comm_a, timeout=0.5)
     leaves = [f for f in a_frames if f["type"] == "presence.leave"]
-    assert len(leaves) == 1
-    assert leaves[0]["user_id"] == user_b.id
-
-    pres_key = f"presence:table-{table.id}"
-    pids = _presence_ids_in_redis(pres_key)
-    assert len(pids) == 1  # only A remains
+    assert len(leaves) == 0
 
     await comm_a.disconnect()
     await comm_b.disconnect()
+
+
+@pytest.mark.asyncio
+@pytest.mark.websockets
+async def test_invalid_shape_entries_cleaned_from_redis():
+    """Wrong-shape JSON entries are treated as corrupt and removed (R20)."""
+
+    redis = await get_async_redis()
+    space = PresenceSpace("g3")
+    await redis.hset(space.redis_key, "valid", json.dumps({"user_id": 42}))
+    await redis.hset(space.redis_key, "list", json.dumps([1, 2, 3]))
+    await redis.hset(space.redis_key, "empty", json.dumps({}))
+    await redis.hset(space.redis_key, "null-uid", json.dumps({"user_id": None}))
+    await redis.hset(space.redis_key, "str-uid", json.dumps({"user_id": "abc"}))
+
+    active = await space.get_members()
+    assert len(active) == 1
+    assert active[0]["user_id"] == 42
+    assert active[0]["presence_id"] == "valid"
+
+    assert await redis.hexists(space.redis_key, "valid") is True
+    for bad_key in ("list", "empty", "null-uid", "str-uid"):
+        assert await redis.hexists(space.redis_key, bad_key) is False

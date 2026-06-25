@@ -49,6 +49,10 @@ RealtimeEventPayload = Union[
 ]
 
 
+class RedisPresenceEntry(TypedDict):
+    user_id: int
+
+
 class ActivePresenceEntry(TypedDict):
     user_id: int
     presence_id: str

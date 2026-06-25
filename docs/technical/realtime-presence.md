@@ -18,7 +18,7 @@ Presence answers one question for people working in the same place: **who else i
 | **Connection** | One WebSocket connection, identified by a `web_socket_id` at the transport layer. A single user may have several (multiple tabs). |
 | **Member** | A connection's representation within a presence space, identified by a `presence_id` (an opaque UUID generated per connection, separate from `web_socket_id`). `presence_id` is the key in Redis, in WS payloads, and in the frontend store. `web_socket_id` is never exposed in presence payloads — it stays in the transport layer for routing and self-echo suppression. |
 | **User presence** | The user-visible roll-up: "User X is here," derived by collapsing a space's members by `user_id`. An avatar bar is one way to surface it. |
-| **Presence space** | The single logical location presence is tracked for — e.g. one table's grid, whose presence space is `presence-table-42`. Every connection viewing that location shares one space, **independent of how many channel groups back it** (here, the data groups `table-42` and `restricted-view-7`). One space per location; a presence concept, distinct from any single channel group. |
+| **Presence space** | The single logical location presence is tracked for — e.g. one table's grid, whose presence space is `table-42` (Redis key `presence:table-42`, channel group `presence.table-42`). Every connection viewing that location shares one space, **independent of how many data channel groups back it**. One space per location; a presence concept, distinct from any single channel group. |
 | **Presence visibility** | The per-recipient decision "should this recipient see that a connection is present *at all*?" Evaluated — depends on how both the observer and the observed entered the space, not a static flag on the connection. |
 | **Presence focus** | What one connection is doing within a space — a typed value (e.g. a selected cell) or nothing. Each connection has at most one current focus **per space**; only the latest matters (it is a current state, not a history). |
 | **Focus visibility** | The per-recipient decision "should this recipient see this focus?" Lets one space serve viewers with different permissions without leaking what a viewer may not see. |
@@ -41,7 +41,9 @@ Bram (full access) and Davide (a restricted view) both open table 42:
 - **Bram** subscribes via the `table` page; his connection belongs to the channel group `table-42`. He is looking at rows 1–100.
 - **Davide** cannot listen to the whole table, so he subscribes via the `restricted_view` page; his connection belongs to a *different* channel group, `restricted-view-7`. His view exposes only rows 50–75, and that is what he is looking at.
 
-They are on different channel groups but interact in the **same presence space**, `presence-table-42`. So, where visibility allows, they see each other:
+> **V1 note:** In the initial release, restricted views are **excluded** from presence entirely — `RestrictedViewPageType.get_presence_space_name` returns `None`. This avoids leaking full-access user IDs to restricted view users before a proper asymmetric visibility gate is in place. The example below describes the **target model** for a future version.
+
+Conceptually, they are on different channel groups but interact in the **same presence space**, `table-42`. So, where visibility allows, they see each other:
 
 - Whether Davide sees Bram's avatar at all depends on **presence visibility** — because Davide entered via a restricted view, the visibility rule might hide full-access users from him. Bram, with full access, always sees Davide.
 - They see each other's **focus** on rows they can both see (rows 50–75) — **focus visibility**.
@@ -101,7 +103,7 @@ Presence uses **one** space per place and enforces visibility *within* it, per r
 ## Presentation behavior
 
 - **Avatars show unique users**, not connections — multiple tabs of one person collapse to a single avatar, with a deterministic per-user colour. When more users are present than fit, the rest collapse into a counter.
-- **A user does not see their own focus** as a presence indicator — the native selection UI already shows it; their own avatar still appears.
+- **A user does not see their own focus** as a presence indicator — the native selection UI already shows it. Their own avatar is **not** shown in the presence bar — only other users appear.
 - **Focus highlights** show another user's selected cell or row (with their colour and initials), and an editing indicator when they are actively editing. Highlights render only for what is currently on screen.
 - **Focus emission is debounced per space.** Rapid navigation within a space emits only the final position (others see where you land, not each step), and activity in one space never interferes with another. Two purposes: a clean end-state for viewers, and protection against flooding.
 - **When several users focus the same target**, their labels collapse into a count.
@@ -113,7 +115,7 @@ Presence uses **one** space per place and enforces visibility *within* it, per r
 The model deliberately *reserves room for* these without building them now; each can be added without changing the concepts or the wire-level contract:
 
 - **Filtered focus on restricted views** — showing a viewer only the focus on rows/fields they may see. The focus-visibility rule is the reserved seam; today it passes everything through.
-- **Entry-point-aware presence visibility** — visibility rules that depend on how each party entered the space (e.g. restricted viewers not seeing full-access users, admins seeing anonymous public-view users). The evaluated presence-visibility model is the reserved seam; today everyone in a place is visible to everyone.
+- **Entry-point-aware presence visibility** — visibility rules that depend on how each party entered the space (e.g. restricted viewers not seeing full-access users, admins seeing anonymous public-view users). The evaluated presence-visibility model is the reserved seam. In V1, restricted views are excluded from presence entirely; in V2 they will join with asymmetric visibility (full-access sees restricted users, not vice versa).
 - **Stronger cleanup of abandoned entries** — a backstop for the rare case where a disconnect signal is lost. Disconnect remains the primary mechanism either way.
 
 

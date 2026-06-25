@@ -35,6 +35,9 @@ export const mutations = {
     const { [space]: _, ...rest } = state.spaces
     state.spaces = rest
   },
+  CLEAR_ALL_SPACES(state) {
+    state.spaces = {}
+  },
 }
 
 export const actions = {
@@ -50,6 +53,9 @@ export const actions = {
   clearSpace({ commit }, { space }) {
     commit('CLEAR_SPACE', { space })
   },
+  clearAllSpaces({ commit }) {
+    commit('CLEAR_ALL_SPACES')
+  },
 }
 
 export const getters = {
@@ -64,7 +70,7 @@ export const getters = {
         users.push({ user_id: data.user_id })
       }
     }
-    return users
+    return users.sort((a, b) => a.user_id - b.user_id)
   },
 }
 
