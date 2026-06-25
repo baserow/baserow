@@ -76,7 +76,7 @@ export class LocalBaserowGroupedAggregateRowsServiceType extends DataSourceLocal
   }
 
   parseRecordId(value) {
-    return value
+    return value === '' ? null : value
   }
 
   getRecordIdDataType(service) {
