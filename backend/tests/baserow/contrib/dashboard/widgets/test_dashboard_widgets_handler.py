@@ -241,9 +241,7 @@ def test_order_widgets(data_fixture):
         dashboard=dashboard, title="Widget 2", order=20
     )
 
-    assert WidgetHandler().order_widgets(
-        dashboard, [widget_2.id, widget_1.id]
-    ) == [
+    assert WidgetHandler().order_widgets(dashboard, [widget_2.id, widget_1.id]) == [
         widget_2.id,
         widget_1.id,
     ]
