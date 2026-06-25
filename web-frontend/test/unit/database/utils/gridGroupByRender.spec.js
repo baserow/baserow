@@ -37,6 +37,81 @@ describe('gridGroupByRender', () => {
     )
   })
 
+  test('pathKey treats m2m id arrays as a set (order-insensitive)', () => {
+    const fields = [{ id: 2, type: 'multiple_collaborators' }]
+    expect(pathKey({ field_2: [8, 6, 7] }, fields)).toBe(
+      pathKey({ field_2: [6, 7, 8] }, fields)
+    )
+    // Different sets still produce different keys.
+    expect(pathKey({ field_2: [6, 7] }, fields)).not.toBe(
+      pathKey({ field_2: [6, 8] }, fields)
+    )
+  })
+
+  // An optimistically-emptied group keeps its node (for reconciliation) at row_count 0,
+  // but its banner must not be rendered. Covers each group-value shape.
+  describe.each([
+    { name: 'collaborator', empty: [100], full: [200] },
+    { name: 'link row', empty: [100], full: [200] },
+    { name: 'multiple select', empty: [100], full: [200] },
+    { name: 'single select', empty: 100, full: 200 },
+  ])('hides emptied $name groups', ({ empty, full }) => {
+    const fields = [{ id: 2, type: 'group' }]
+    const visibleHeaderKeys = (layout) =>
+      layout.items
+        .filter((item) => item.type === 'header')
+        .map((item) => pathKey(item.path, fields))
+
+    test('tree layout', () => {
+      const layout = buildLayout({
+        nodes: [
+          { path: { field_2: empty }, depth: 0, row_count: 0 },
+          { path: { field_2: full }, depth: 0, row_count: 2 },
+        ],
+        collapse: { mode: 'expand', paths: [] },
+        fields,
+      })
+      expect(visibleHeaderKeys(layout)).toEqual([
+        pathKey({ field_2: full }, fields),
+      ])
+    })
+
+    test('paged layout', () => {
+      const layout = buildLayout({
+        pages: {
+          '': {
+            parentPath: {},
+            totalSiblingCount: 2,
+            nodes: {
+              0: {
+                path: { field_2: empty },
+                depth: 0,
+                row_count: 0,
+                sibling_index: 0,
+                row_offset: 0,
+              },
+              1: {
+                path: { field_2: full },
+                depth: 0,
+                row_count: 2,
+                sibling_index: 1,
+                row_offset: 0,
+              },
+            },
+          },
+        },
+        collapse: { mode: 'expand', paths: [] },
+        fields,
+      })
+      expect(visibleHeaderKeys(layout)).toEqual([
+        pathKey({ field_2: full }, fields),
+      ])
+      // The remaining group becomes the first visible one, so no leading gap.
+      const header = layout.items.find((item) => item.type === 'header')
+      expect(header.y).toBe(0)
+    })
+  })
+
   test('buildLayout emits headers, leaf row sections, and add-row trailers', () => {
     const fields = [textField(1), textField(2)]
     const layout = buildLayout({

@@ -173,6 +173,96 @@ def test_get_group_by_data_orders_link_row_groups_like_rows(data_fixture):
 
 
 @pytest.mark.django_db
+def test_get_group_by_data_groups_collaborator_set_regardless_of_order(data_fixture):
+    """
+    The same set of collaborators added in different orders must form a single group,
+    keyed by the sorted ids. Regression for optimistically-created groups whose key
+    (the cell's append order) otherwise diverged from the server's group key.
+    """
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    collaborator_a = data_fixture.create_user(
+        workspace=database.workspace, first_name="Aaa"
+    )
+    collaborator_b = data_fixture.create_user(
+        workspace=database.workspace, first_name="Bbb"
+    )
+    field = data_fixture.create_multiple_collaborators_field(table=table, name="People")
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=field)
+
+    model = table.get_model()
+    db_column = field.db_column
+    getattr(model.objects.create(), db_column).set(
+        [collaborator_a.id, collaborator_b.id]
+    )
+    getattr(model.objects.create(), db_column).set(
+        [collaborator_b.id, collaborator_a.id]
+    )
+
+    view_handler = ViewHandler()
+    base_queryset = view_handler.get_queryset(
+        user, grid, model=model, apply_sorts=False
+    )
+    data = view_handler.get_group_by_data(
+        base_queryset, list(grid.viewgroupby_set.all()), limit=50
+    )
+
+    sorted_ids = sorted([collaborator_a.id, collaborator_b.id])
+    assert [list(group["path"][db_column]) for group in data["groups"]] == [sorted_ids]
+    assert data["groups"][0]["row_count"] == 2
+
+
+@pytest.mark.django_db
+def test_get_group_by_data_resolves_collaborator_parent_path_regardless_of_order(
+    data_fixture,
+):
+    """
+    Fetching the children of a collaborator parent group must resolve the rows even when
+    the requested parent path lists the ids in a different order than the stored set.
+    """
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    collaborator_a = data_fixture.create_user(
+        workspace=database.workspace, first_name="Aaa"
+    )
+    collaborator_b = data_fixture.create_user(
+        workspace=database.workspace, first_name="Bbb"
+    )
+    people = data_fixture.create_multiple_collaborators_field(
+        table=table, name="People"
+    )
+    status = data_fixture.create_single_select_field(table=table, name="Status")
+    option = data_fixture.create_select_option(field=status, value="Open", order=0)
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=people)
+    data_fixture.create_view_group_by(view=grid, field=status)
+
+    model = table.get_model()
+    row = model.objects.create(**{f"field_{status.id}_id": option.id})
+    getattr(row, people.db_column).set([collaborator_a.id, collaborator_b.id])
+
+    view_handler = ViewHandler()
+    base_queryset = view_handler.get_queryset(
+        user, grid, model=model, apply_sorts=False
+    )
+    view_group_bys = list(grid.viewgroupby_set.all())
+
+    data = view_handler.get_group_by_data(
+        base_queryset,
+        view_group_bys,
+        # Reversed order on purpose; the path must still resolve the same group.
+        parent_path={people.db_column: [collaborator_b.id, collaborator_a.id]},
+    )
+
+    assert [group["path"][status.db_column] for group in data["groups"]] == [option.id]
+
+
+@pytest.mark.django_db
 def test_get_group_by_data_supports_many_to_many_parent_level(data_fixture):
     """
     Fetching the children of a many-to-many group (its value is a list of ids in the

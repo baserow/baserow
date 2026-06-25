@@ -1221,6 +1221,29 @@ describe('gridGroupBy row<->section mapping', () => {
     ).toBe(false)
   })
 
+  test('rowBelongsToGroupBySection matches an m2m row regardless of id order', () => {
+    // Root-cause regression: an optimistically-edited row whose m2m value lists the ids
+    // in a different order than the section's server path must still belong to it.
+    const section = { sectionPath: { field_1: [100, 200] } }
+    expect(
+      rowBelongsToGroupBySection(
+        { id: 1, field_1: [200, 100] },
+        section,
+        fields,
+        registry
+      )
+    ).toBe(true)
+    // A genuinely different set still does not belong.
+    expect(
+      rowBelongsToGroupBySection(
+        { id: 2, field_1: [100, 300] },
+        section,
+        fields,
+        registry
+      )
+    ).toBe(false)
+  })
+
   test('getGroupByRowInsertLocation derives path, section key, and sorted position', () => {
     const groupByFields = [textField(1)]
     // Group by field_1 but sort by a distinct field_2, so the new row has a single

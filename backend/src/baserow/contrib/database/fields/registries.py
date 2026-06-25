@@ -2252,10 +2252,15 @@ class ManyToManyGroupByMixin:
         # deserialized group-by path (a parent path of a nested group request), it is
         # already the list of related ids.
         if hasattr(value, "all"):
-            return tuple(related.id for related in value.all())
-        return tuple(value)
+            ids = [related.id for related in value.all()]
+        else:
+            ids = list(value)
+        # Sort so a group is identified by its set of ids, not their order.
+        return tuple(sorted(ids))
 
     def get_group_by_aggregated_order(self, related_field):
+        # Order by related id so the aggregated group value is set-based (stable
+        # regardless of insertion order), matching get_group_by_field_unique_value.
         return (f"{related_field}_id",)
 
     def get_group_by_order(

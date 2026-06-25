@@ -5,7 +5,9 @@
       :key="item.id"
       class="field-multiple-collaborators__item"
     >
-      <template v-if="item.id && item.name">
+      <!-- An optimistically-created group only knows the id; resolve the name from the
+           store so a new group shows its badge before the server display arrives. -->
+      <template v-if="item.id != null">
         <div
           class="field-multiple-collaborators__name background-color--light-gray"
         >

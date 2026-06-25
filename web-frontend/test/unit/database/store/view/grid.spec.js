@@ -6276,4 +6276,140 @@ describe('Grid view store', () => {
 
     expect(store.getters['grid/getFieldIdByIndex'](2, fields)).toBe(3)
   })
+
+  test('hides a collaborator group whose last row optimistically moves out', async () => {
+    const fields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'People', type: 'multiple_collaborators' },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const meta = (id) => ({
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: `r${id}`,
+    })
+    const aKey = groupPathKey(2, [100])
+    const bKey = groupPathKey(2, [200])
+    const cKey = groupPathKey(2, [300])
+    const r10 = {
+      id: 10,
+      order: '1.00',
+      field_1: 'A row',
+      field_2: [{ id: 100 }],
+      _: meta(10),
+    }
+    const r11 = {
+      id: 11,
+      order: '2.00',
+      field_1: 'B row',
+      field_2: [{ id: 200 }],
+      _: meta(11),
+    }
+
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: 2,
+      rowHeight: 33,
+      windowHeight: 2000,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        treeNodes: [
+          {
+            path: { field_2: [100] },
+            depth: 0,
+            row_count: 1,
+            sibling_index: 0,
+            row_offset: 0,
+          },
+          {
+            path: { field_2: [200] },
+            depth: 0,
+            row_count: 1,
+            sibling_index: 1,
+            row_offset: 1,
+          },
+        ],
+        pages: {
+          '': {
+            parentPath: {},
+            totalSiblingCount: 2,
+            nodes: {
+              0: {
+                path: { field_2: [100] },
+                depth: 0,
+                row_count: 1,
+                sibling_index: 0,
+                row_offset: 0,
+              },
+              1: {
+                path: { field_2: [200] },
+                depth: 0,
+                row_count: 1,
+                sibling_index: 1,
+                row_offset: 1,
+              },
+            },
+          },
+        },
+        absoluteRows: {},
+        truncated: false,
+        collapse: { mode: 'expand', paths: [] },
+        sectionRows: {},
+        rowLocations: {},
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: aKey,
+      rows: [r10],
+      startPosition: 0,
+    })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: bKey,
+      rows: [r11],
+      startPosition: 0,
+    })
+
+    const moved = store.getters['grid/getRow'](10)
+    moved.field_2 = [{ id: 300 }]
+    moved._.matchSortings = false
+    await store.dispatch('grid/refreshRow', {
+      grid: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      row: moved,
+      fields,
+    })
+
+    const items = store.getters['grid/getGroupByVisibleItems']([fields[1]])
+    const headerKeys = items
+      .filter((item) => item.type === 'header')
+      .map((item) => pathKey(item.path, [fields[1]]))
+
+    // The emptied group (100) is hidden; the new (300) and untouched (200) remain.
+    expect(headerKeys).not.toContain(aKey)
+    expect(headerKeys).toContain(bKey)
+    expect(headerKeys).toContain(cKey)
+
+    // The source node is kept at row_count 0 for reconciliation, just not rendered.
+    const sourceNode = store.state.grid.groupBy.treeNodes.find(
+      (node) => pathKey(node.path, [fields[1]]) === aKey
+    )
+    expect(sourceNode.row_count).toBe(0)
+  })
 })

@@ -1163,6 +1163,8 @@ def test_get_group_by_metadata_in_rows_with_multiple_collaborators_field(data_fi
     for c in counts.keys():
         counts[c] = list(counts[c])
 
+    # Groups are identified by their set of collaborator ids, so rows 7, 8 ([user,
+    # user_2]) and row 9 ([user_2, user]) form a single group with a sorted-id key.
     assert counts == {
         multiple_collaborators_field: unordered(
             [
@@ -1172,7 +1174,7 @@ def test_get_group_by_metadata_in_rows_with_multiple_collaborators_field(data_fi
                     f"field_{multiple_collaborators_field.id}": [user.id],
                 },
                 {
-                    "count": 2,
+                    "count": 3,
                     f"field_{multiple_collaborators_field.id}": [
                         user.id,
                         user_2.id,
@@ -1181,13 +1183,6 @@ def test_get_group_by_metadata_in_rows_with_multiple_collaborators_field(data_fi
                 {
                     "count": 2,
                     f"field_{multiple_collaborators_field.id}": [user_2.id],
-                },
-                {
-                    "count": 1,
-                    f"field_{multiple_collaborators_field.id}": [
-                        user_2.id,
-                        user.id,
-                    ],
                 },
             ]
         )

@@ -4415,11 +4415,14 @@ def test_get_group_by_on_all_fields_in_interesting_table(data_fixture):
         "multiple_select": [
             {"field_multiple_select": [], "count": 1},
             {
-                "field_multiple_select": [
-                    multiple_select_options[1].id,
-                    multiple_select_options[0].id,
-                    multiple_select_options[2].id,
-                ],
+                # The group value is set-based, so the option ids are sorted.
+                "field_multiple_select": sorted(
+                    [
+                        multiple_select_options[1].id,
+                        multiple_select_options[0].id,
+                        multiple_select_options[2].id,
+                    ]
+                ),
                 "count": 1,
             },
         ],

@@ -218,20 +218,25 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
             {"count": 1, "field_multiple_select": []},
             {
                 "count": 1,
-                "field_multiple_select": [
-                    multiple_select_options[1].id,
-                    multiple_select_options[0].id,
-                    multiple_select_options[2].id,
-                ],
+                # The group value is set-based, so the option ids are sorted.
+                "field_multiple_select": sorted(
+                    [
+                        multiple_select_options[1].id,
+                        multiple_select_options[0].id,
+                        multiple_select_options[2].id,
+                    ]
+                ),
             },
         ],
         "multiple_select_with_default": [
             {
                 "count": 2,
-                "field_multiple_select_with_default": [
-                    multiple_select_with_default_options[0].id,
-                    multiple_select_with_default_options[1].id,
-                ],
+                "field_multiple_select_with_default": sorted(
+                    [
+                        multiple_select_with_default_options[0].id,
+                        multiple_select_with_default_options[1].id,
+                    ]
+                ),
             },
         ],
         "phone_number": [
@@ -323,7 +328,10 @@ def test_serialize_group_by_metadata_on_all_fields_in_interesting_table(data_fix
         ],
         "multiple_collaborators": [
             {"field_multiple_collaborators": [], "count": 1},
-            {"field_multiple_collaborators": [user2.id, user3.id], "count": 1},
+            {
+                "field_multiple_collaborators": sorted([user2.id, user3.id]),
+                "count": 1,
+            },
         ],
     }
     for key, actual_value in actual_result_per_field_name.items():

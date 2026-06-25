@@ -16,7 +16,14 @@ export function pathKey(path, fields) {
     if (!(key in path)) {
       break
     }
-    parts.push(`${key}:${JSON.stringify(path[key])}`)
+    // Canonicalize m2m id arrays by numeric sort so a group is keyed by its set of ids,
+    // not their order. This is applied to every path (server- or row-derived), so the key
+    // never depends on how the source ordered the ids — only that the ids are integers.
+    const value = path[key]
+    const canonical = Array.isArray(value)
+      ? [...value].sort((a, b) => a - b)
+      : value
+    parts.push(`${key}:${JSON.stringify(canonical)}`)
   }
   return parts.join(PATH_KEY_SEP)
 }
@@ -89,6 +96,14 @@ export function buildLayout({
       continue
     }
     skipDescendantsAtDepth = -1
+
+    // Hide optimistically-emptied leaf groups (the node is kept for reconciliation).
+    if (
+      node.depth === maxDepth &&
+      (node.rowCount ?? node.row_count ?? 0) === 0
+    ) {
+      continue
+    }
 
     if (node.depth === 0 && seenFirstDepth0) {
       y += GROUP_GAP
@@ -255,6 +270,9 @@ function buildPagedLayout({
     const loadedIndexes = getSortedLoadedIndexes(page)
     let loadedPointer = 0
     let index = 0
+    // Whether a sibling was already placed at this depth. Drives the depth-0 gap, which a
+    // hidden (emptied) group must not trigger, so `index > 0` alone is not enough.
+    let placedSibling = false
 
     while (index < totalSiblingCount) {
       const loadedIndex = loadedIndexes[loadedPointer]
@@ -272,6 +290,7 @@ function buildPagedLayout({
           y,
         })
         index = unloadedEnd
+        placedSibling = true
         continue
       }
 
@@ -281,9 +300,19 @@ function buildPagedLayout({
       }
 
       const node = page.nodes[loadedIndex]
-      if (depth === 0 && index > 0) {
+      // Hide optimistically-emptied leaf groups (the node is kept for reconciliation).
+      if (
+        (node.depth ?? depth) === maxDepth &&
+        (node.rowCount ?? node.row_count ?? 0) === 0
+      ) {
+        index += 1
+        loadedPointer += 1
+        continue
+      }
+      if (depth === 0 && placedSibling) {
         y += GROUP_GAP
       }
+      placedSibling = true
 
       const collapsed = pathCollapsedAgainst(
         node.path,

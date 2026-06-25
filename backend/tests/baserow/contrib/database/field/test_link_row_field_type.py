@@ -2963,6 +2963,8 @@ def test_get_group_by_metadata_in_rows_link_row_field(data_fixture):
     for c in counts.keys():
         counts[c] = list(counts[c])
 
+    # Groups are identified by their set of option ids, so rows 7, 8 ([ms1, ms2]) and
+    # row 9 ([ms2, ms1]) form a single group with a sorted-id key, at both levels.
     assert counts == {
         multiple_select_field: unordered(
             [
@@ -2972,7 +2974,7 @@ def test_get_group_by_metadata_in_rows_link_row_field(data_fixture):
                     f"field_{multiple_select_field.id}": [ms_option_1.id],
                 },
                 {
-                    "count": 2,
+                    "count": 3,
                     f"field_{multiple_select_field.id}": [
                         ms_option_1.id,
                         ms_option_2.id,
@@ -2981,13 +2983,6 @@ def test_get_group_by_metadata_in_rows_link_row_field(data_fixture):
                 {
                     "count": 2,
                     f"field_{multiple_select_field.id}": [ms_option_2.id],
-                },
-                {
-                    "count": 1,
-                    f"field_{multiple_select_field.id}": [
-                        ms_option_2.id,
-                        ms_option_1.id,
-                    ],
                 },
             ]
         ),
@@ -3019,19 +3014,11 @@ def test_get_group_by_metadata_in_rows_link_row_field(data_fixture):
                         ms_option_1.id,
                         ms_option_2.id,
                     ],
-                    "count": 2,
+                    "count": 3,
                 },
                 {
                     f"field_{single_select_field.id}": None,
                     f"field_{multiple_select_field.id}": [ms_option_2.id],
-                    "count": 1,
-                },
-                {
-                    f"field_{single_select_field.id}": None,
-                    f"field_{multiple_select_field.id}": [
-                        ms_option_2.id,
-                        ms_option_1.id,
-                    ],
                     "count": 1,
                 },
                 {

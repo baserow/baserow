@@ -97,6 +97,7 @@ import GridViewRow from '@baserow/modules/database/components/view/grid/GridView
 import GridViewGroupByBanner from '@baserow/modules/database/components/view/grid/GridViewGroupByBanner'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import { notifyIf } from '@baserow/modules/core/utils/error'
+import { pathKey } from '@baserow/modules/database/utils/gridGroupByRender'
 
 export default {
   name: 'GridViewGroupByRows',
@@ -197,14 +198,16 @@ export default {
       this.$emit('add-row', { groupPath: path })
     },
     itemKey(item) {
+      // Use pathKey (set-based for m2m) so the same group keeps a stable Vue key
+      // regardless of the id order in its path.
       if (item.type === 'header') {
-        return `header-${JSON.stringify(item.path)}`
+        return `header-${pathKey(item.path, this.groupByFields)}`
       }
       if (item.type === 'row') {
         return `row-${item.row._.persistentId}`
       }
       if (item.type === 'addRow') {
-        return `add-${JSON.stringify(item.path)}`
+        return `add-${pathKey(item.path, this.groupByFields)}`
       }
       return `placeholder-${item.globalRowOffset}`
     },
