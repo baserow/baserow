@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("automation", "0031_localbaserowfieldsupdatedtriggernode"),
+        ("automation", "0032_workflow_graph_db_default"),
     ]
 
     operations = [
