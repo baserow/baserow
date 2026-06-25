@@ -1,3 +1,4 @@
+import time
 from typing import Dict, Optional
 
 from celery.canvas import Signature
@@ -38,4 +39,50 @@ def dispatch_node_celery_task(
     if isinstance(result, Signature):
         return self.replace(result)
 
+    return None
+
+
+@app.task(bind=True, queue="automation_workflow", max_retries=None)
+def resume_deferred_node_celery_task(
+    self,
+    node_history_id: int,
+    deferred_history_id: int,
+    iteration_path: str,
+    deadline: float,
+    current_iterations: Optional[Dict[int, int]] = None,
+) -> Signature | None:
+    """
+    Polls without blocking a worker until a child response, completion, or timeout.
+    """
+
+    from baserow.contrib.automation.history.constants import HistoryStatusChoices
+    from baserow.contrib.automation.history.handler import AutomationHistoryHandler
+    from baserow.contrib.automation.nodes.handler import AutomationNodeHandler
+
+    history_handler = AutomationHistoryHandler()
+    deferred_history = history_handler.get_workflow_history(deferred_history_id)
+    response = history_handler.get_workflow_history_response(deferred_history)
+    timed_out = time.time() >= deadline
+    if (
+        response is None
+        and deferred_history.status == HistoryStatusChoices.STARTED
+        and not timed_out
+    ):
+        raise self.retry(
+            countdown=history_handler.RESPONSE_POLL_INTERVAL_SECONDS,
+        )
+
+    @atomic_with_retry_on_deadlock()
+    def _resume():
+        return AutomationNodeHandler().complete_deferred_node(
+            node_history_id,
+            deferred_history_id,
+            iteration_path,
+            timed_out,
+            current_iterations,
+        )
+
+    result = _resume()
+    if isinstance(result, Signature):
+        return self.replace(result)
     return None
