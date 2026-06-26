@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Use this template for tasks that aren't bug fixes or new features.
-        Small tasks (typos, broken links) can go straight to a PR without an issue — see [CONTRIBUTING.md](../../CONTRIBUTING.md).
+        Small tasks (typos, broken links) can go straight to a PR without an issue.
 
   - type: textarea
     id: description
