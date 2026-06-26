@@ -14,7 +14,17 @@ from django.core.cache import cache
 from django.core.exceptions import FieldDoesNotExist, ValidationError
 from django.db import OperationalError, connection, transaction
 from django.db import models as django_models
-from django.db.models import Count, Q, prefetch_related_objects
+from django.db.models import (
+    Case,
+    Count,
+    ExpressionWrapper,
+    IntegerField,
+    Max,
+    Q,
+    Value,
+    When,
+    prefetch_related_objects,
+)
 from django.db.models.expressions import OrderBy
 from django.db.models.query import QuerySet
 
@@ -4075,8 +4085,19 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
             annotations = {"row_count": Count("id")}
             if child_field is not None:
-                annotations["children_count"] = Count(
-                    child_field.db_column, distinct=True
+                child_column = child_field.db_column
+                # Count(distinct) excludes NULLs, but a NULL child is a real group;
+                # add one when the parent has any NULL child.
+                annotations["children_count"] = ExpressionWrapper(
+                    Count(child_column, distinct=True)
+                    + Max(
+                        Case(
+                            When(**{f"{child_column}__isnull": True}, then=Value(1)),
+                            default=Value(0),
+                            output_field=IntegerField(),
+                        )
+                    ),
+                    output_field=IntegerField(),
                 )
 
             queryset = (

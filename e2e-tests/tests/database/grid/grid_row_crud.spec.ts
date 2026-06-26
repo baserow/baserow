@@ -9,17 +9,29 @@
 import type { Page, Request } from "@playwright/test";
 import { test, expect } from "../../baserowTest";
 import { GridPage } from "../../../pages/database/gridPage";
-import {
+import type {
   GridSetupResult,
-  resetRows,
-  setupGrid,
+  FieldSpec,
+  GroupBySpec,
 } from "../../../fixtures/database/gridSetup";
+import { resetRows, setupGrid } from "../../../fixtures/database/gridSetup";
 import {
   failNextRequest,
   pauseNextRequestWithSignal,
 } from "../../../fixtures/network";
 
 type Setup = GridSetupResult;
+
+// Keep docs/testing/grid-view-test-plan.md in sync with these cases.
+
+type RegularFieldViewMode = {
+  name: string;
+  dbSuffix: string;
+  extraFields: FieldSpec[];
+  groupBys?: GroupBySpec[];
+  rows: (rows: Record<string, unknown>[]) => Record<string, unknown>[];
+  waitForRows: (grid: GridPage, count: number) => Promise<void>;
+};
 
 async function waitForInitialRows(
   grid: GridPage,
@@ -84,6 +96,29 @@ async function collectGridViewGetRequests(
   }
   return urls;
 }
+
+const REGULAR_FIELD_VIEW_MODES: RegularFieldViewMode[] = [
+  {
+    name: "flat",
+    dbSuffix: "Flat",
+    extraFields: [],
+    rows: (rows) => rows,
+    waitForRows: waitForInitialRows,
+  },
+  {
+    name: "group-by",
+    dbSuffix: "GroupBy",
+    extraFields: [{ name: "Team", type: "text" }],
+    groupBys: [{ fieldName: "Team", order: "ASC" }],
+    rows: (rows) => rows.map((row) => ({ Team: "A", ...row })),
+    waitForRows: async (grid, count) => {
+      await grid.expectGroupByBanner("A", count, true);
+      await grid.expandAllGroupsFromContext();
+      await grid.expectGroupByBanner("A", count);
+      await waitForInitialRows(grid, count);
+    },
+  },
+];
 
 // -----------------------------------------------------------------------------
 // section 1.1  Basic add row
@@ -391,7 +426,7 @@ test.describe("2.2.7 Edit single-select group-by", () => {
         await pausedUpdate.intercepted;
 
         await grid.expectPrimaryText(0, "Rebranding website");
-        await grid.expectFieldText(0, 0, "Development");
+        await grid.expectSingleSelectFieldText(0, 0, "Development");
         await grid.expectRowHasWarning(0);
         await grid.expectRowWarningVisible(0);
         await grid.expectRowWarningText(0, "Row has moved");
@@ -407,7 +442,7 @@ test.describe("2.2.7 Edit single-select group-by", () => {
         await grid.expectGroupByBanner("Development", 2);
         await grid.expectRowCount(2);
         await grid.expectPrimaryText(0, "Rebranding website");
-        await grid.expectFieldText(0, 0, "Development");
+        await grid.expectSingleSelectFieldText(0, 0, "Development");
         await grid.expectPrimaryText(1, "User portal");
         await grid.expectRowNoWarning(0);
       },
@@ -421,122 +456,128 @@ test.describe("2.2.7 Edit single-select group-by", () => {
 // section 1.3  Create with active sort - mismatch warning + move
 // -----------------------------------------------------------------------------
 
-test.describe("1.3 Create with active sort", () => {
-  test.describe.configure({ mode: "serial" });
-  let g: Setup;
+for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
+  test.describe(`1.3 Create with active sort (${viewMode.name})`, () => {
+    test.describe.configure({ mode: "serial" });
+    let g: Setup;
 
-  test.beforeAll(async () => {
-    g = await setupGrid({
-      dbName: "CrudSortDb",
-      fields: [{ name: "Score", type: "number" }],
-      sorts: [{ fieldName: "Name", order: "ASC" }],
+    test.beforeAll(async () => {
+      g = await setupGrid({
+        dbName: `CrudSort${viewMode.dbSuffix}Db`,
+        fields: [{ name: "Score", type: "number" }, ...viewMode.extraFields],
+        sorts: [{ fieldName: "Name", order: "ASC" }],
+        groupBys: viewMode.groupBys,
+      });
+    });
+
+    test.beforeEach(async ({ page }) => {
+      await resetRows(
+        g,
+        viewMode.rows([
+          { Name: "Alice", Score: 10 },
+          { Name: "Bob", Score: 20 },
+        ]),
+      );
+      const grid = new GridPage(page, g.user);
+      await grid.goTo(g.database, g.table);
+      await viewMode.waitForRows(grid, 2);
+    });
+
+    test("1.3.1a paused simple-sorted add kept selected immediately shows Row has moved until deselect", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      const pausedCreate = await pauseNextRequestWithSignal(
+        page,
+        `**/api/database/rows/table/${g.table.id}/**`,
+        { method: "POST" },
+      );
+
+      await grid.addRow();
+      await pausedCreate.intercepted;
+      await grid.expectRowCount(3);
+      await grid.expectPrimaryText(0, "Alice");
+      await grid.expectPrimaryText(1, "Bob");
+      await grid.expectPrimaryEmpty(2);
+      await grid.expectRowLoading(2);
+      await grid.expectRowHasWarning(2);
+      await grid.expectRowWarningText(2, "Row has moved");
+
+      pausedCreate.release();
+      await grid.expectRowNotLoading(2);
+      await grid.expectRowHasWarning(2);
+      await grid.expectRowWarningText(2, "Row has moved");
+
+      await grid.clickAway();
+      await grid.expectRowCount(3);
+      await grid.expectPrimaryEmpty(0);
+      await grid.expectPrimaryText(1, "Alice");
+      await grid.expectPrimaryText(2, "Bob");
+      await grid.expectRowNoWarning(0);
+    });
+
+    test("1.3.1b paused simple-sorted add deselected before confirmation moves immediately and finalizes without warning", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      const pausedCreate = await pauseNextRequestWithSignal(
+        page,
+        `**/api/database/rows/table/${g.table.id}/**`,
+        { method: "POST" },
+      );
+
+      await grid.addRow();
+      await pausedCreate.intercepted;
+      await grid.expectRowCount(3);
+      await grid.expectPrimaryText(0, "Alice");
+      await grid.expectPrimaryText(1, "Bob");
+      await grid.expectPrimaryEmpty(2);
+      await grid.expectRowLoading(2);
+      await grid.expectRowHasWarning(2);
+      await grid.expectRowWarningText(2, "Row has moved");
+
+      await grid.clickAway();
+      await grid.expectPrimaryEmpty(0);
+      await grid.expectPrimaryText(1, "Alice");
+      await grid.expectPrimaryText(2, "Bob");
+      await grid.expectRowLoading(0);
+      await grid.expectRowNoWarning(0);
+
+      pausedCreate.release();
+      await grid.expectRowCount(3);
+      await grid.expectNoRowsLoading();
+      await grid.expectPrimaryEmpty(0);
+      await grid.expectPrimaryText(1, "Alice");
+      await grid.expectPrimaryText(2, "Bob");
+      await grid.expectRowNoWarning(0);
+    });
+
+    test("1.3.1c failed sort-affected create rolls back the optimistic row and restores row order", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      const pausedCreate = await pauseNextRequestWithSignal(
+        page,
+        `**/api/database/rows/table/${g.table.id}/**`,
+        { method: "POST" },
+      );
+      await grid.addRow();
+      await pausedCreate.intercepted;
+      // Optimistic row is appended at the bottom with loading spinner and immediate warning.
+      await grid.expectRowCount(3);
+      await grid.expectRowLoading(2);
+      await grid.expectRowHasWarning(2);
+      await grid.expectRowWarningText(2, "Row has moved");
+      pausedCreate.fail();
+      await grid.expectErrorToast();
+      await grid.expectRowCount(2);
+      await grid.expectPrimaryText(0, "Alice");
+      await grid.expectPrimaryText(1, "Bob");
+      await grid.expectRowNoWarning(0);
+      await grid.expectRowNoWarning(1);
     });
   });
-
-  test.beforeEach(async ({ page }) => {
-    await resetRows(g, [
-      { Name: "Alice", Score: 10 },
-      { Name: "Bob", Score: 20 },
-    ]);
-    const grid = new GridPage(page, g.user);
-    await grid.goTo(g.database, g.table);
-    await waitForInitialRows(grid, 2);
-  });
-
-  test("1.3.1a paused simple-sorted add kept selected immediately shows Row has moved until deselect", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
-
-    await grid.addRow();
-    await pausedCreate.intercepted;
-    await grid.expectRowCount(3);
-    await grid.expectPrimaryText(0, "Alice");
-    await grid.expectPrimaryText(1, "Bob");
-    await grid.expectPrimaryEmpty(2);
-    await grid.expectRowLoading(2);
-    await grid.expectRowHasWarning(2);
-    await grid.expectRowWarningText(2, "Row has moved");
-
-    pausedCreate.release();
-    await grid.expectRowNotLoading(2);
-    await grid.expectRowHasWarning(2);
-    await grid.expectRowWarningText(2, "Row has moved");
-
-    await grid.clickAway();
-    await grid.expectRowCount(3);
-    await grid.expectPrimaryEmpty(0);
-    await grid.expectPrimaryText(1, "Alice");
-    await grid.expectPrimaryText(2, "Bob");
-    await grid.expectRowNoWarning(0);
-  });
-
-  test("1.3.1b paused simple-sorted add deselected before confirmation moves immediately and finalizes without warning", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
-
-    await grid.addRow();
-    await pausedCreate.intercepted;
-    await grid.expectRowCount(3);
-    await grid.expectPrimaryText(0, "Alice");
-    await grid.expectPrimaryText(1, "Bob");
-    await grid.expectPrimaryEmpty(2);
-    await grid.expectRowLoading(2);
-    await grid.expectRowHasWarning(2);
-    await grid.expectRowWarningText(2, "Row has moved");
-
-    await grid.clickAway();
-    await grid.expectPrimaryEmpty(0);
-    await grid.expectPrimaryText(1, "Alice");
-    await grid.expectPrimaryText(2, "Bob");
-    await grid.expectRowLoading(0);
-    await grid.expectRowNoWarning(0);
-
-    pausedCreate.release();
-    await grid.expectRowCount(3);
-    await grid.expectNoRowsLoading();
-    await grid.expectPrimaryEmpty(0);
-    await grid.expectPrimaryText(1, "Alice");
-    await grid.expectPrimaryText(2, "Bob");
-    await grid.expectRowNoWarning(0);
-  });
-
-  test("1.3.1c failed sort-affected create rolls back the optimistic row and restores row order", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
-    await grid.addRow();
-    await pausedCreate.intercepted;
-    // Optimistic row is appended at the bottom with loading spinner and immediate warning.
-    await grid.expectRowCount(3);
-    await grid.expectRowLoading(2);
-    await grid.expectRowHasWarning(2);
-    await grid.expectRowWarningText(2, "Row has moved");
-    pausedCreate.fail();
-    await grid.expectErrorToast();
-    await grid.expectRowCount(2);
-    await grid.expectPrimaryText(0, "Alice");
-    await grid.expectPrimaryText(1, "Bob");
-    await grid.expectRowNoWarning(0);
-    await grid.expectRowNoWarning(1);
-  });
-});
+}
 
 // -----------------------------------------------------------------------------
 // section 1.3.2  Create with active formula-field sort — deferred move
@@ -724,111 +765,114 @@ test.describe("1.3.3 Create with active sort outside the current buffer", () => 
 // section 1.2  Create with active filter - mismatch warning + removal
 // -----------------------------------------------------------------------------
 
-test.describe("1.2 Create with active filter", () => {
-  test.describe.configure({ mode: "serial" });
-  let g: Setup;
+for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
+  test.describe(`1.2 Create with active filter (${viewMode.name})`, () => {
+    test.describe.configure({ mode: "serial" });
+    let g: Setup;
 
-  test.beforeAll(async () => {
-    g = await setupGrid({
-      dbName: "CrudFilterDb",
-      fields: [{ name: "Score", type: "number" }],
-      filters: [{ fieldName: "Name", type: "equal", value: "Alice" }],
+    test.beforeAll(async () => {
+      g = await setupGrid({
+        dbName: `CrudFilter${viewMode.dbSuffix}Db`,
+        fields: [{ name: "Score", type: "number" }, ...viewMode.extraFields],
+        filters: [{ fieldName: "Name", type: "equal", value: "Alice" }],
+        groupBys: viewMode.groupBys,
+      });
+    });
+
+    test.beforeEach(async ({ page }) => {
+      await resetRows(g, viewMode.rows([{ Name: "Alice", Score: 10 }]));
+      const grid = new GridPage(page, g.user);
+      await grid.goTo(g.database, g.table);
+      await viewMode.waitForRows(grid, 1);
+    });
+
+    test("1.2.1a paused simple-filtered add kept selected immediately shows filter warning until deselect", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      const pausedCreate = await pauseNextRequestWithSignal(
+        page,
+        `**/api/database/rows/table/${g.table.id}/**`,
+        { method: "POST" },
+      );
+
+      await grid.addRow();
+      await pausedCreate.intercepted;
+      await grid.expectRowCount(2);
+      await grid.expectPrimaryText(0, "Alice");
+      await grid.expectPrimaryEmpty(1);
+      await grid.expectRowLoading(1);
+      await grid.expectRowHasWarning(1);
+      await grid.expectRowWarningText(1, "Row does not match filters");
+
+      pausedCreate.release();
+      await grid.expectRowCount(2);
+      await grid.expectRowNotLoading(1);
+      await grid.expectPrimaryEmpty(1);
+      await grid.expectRowHasWarning(1);
+      await grid.expectRowWarningText(1, "Row does not match filters");
+
+      await grid.clickAway();
+      await grid.expectRowCount(1);
+      await grid.expectPrimaryText(0, "Alice");
+      await grid.expectRowNoWarning(0);
+    });
+
+    test("1.2.1b paused simple-filtered add deselected before confirmation is removed immediately", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      const pausedCreate = await pauseNextRequestWithSignal(
+        page,
+        `**/api/database/rows/table/${g.table.id}/**`,
+        { method: "POST" },
+      );
+
+      await grid.addRow();
+      await pausedCreate.intercepted;
+      await grid.expectRowCount(2);
+      await grid.expectPrimaryText(0, "Alice");
+      await grid.expectPrimaryEmpty(1);
+      await grid.expectRowLoading(1);
+      await grid.expectRowHasWarning(1);
+      await grid.expectRowWarningText(1, "Row does not match filters");
+
+      await grid.clickAway();
+      await grid.expectRowCount(1);
+      await grid.expectPrimaryText(0, "Alice");
+      await grid.expectRowNoWarning(0);
+
+      pausedCreate.release();
+      await grid.expectNoRowsLoading();
+      await grid.expectRowCount(1);
+      await grid.expectPrimaryText(0, "Alice");
+      await grid.expectRowNoWarning(0);
+    });
+
+    test("1.2.1d failed filter-affected create rolls back the optimistic row", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      const pausedCreate = await pauseNextRequestWithSignal(
+        page,
+        `**/api/database/rows/table/${g.table.id}/**`,
+        { method: "POST" },
+      );
+      await grid.addRow();
+      await pausedCreate.intercepted;
+      // Optimistic row visible with loading spinner and immediate filter warning.
+      await grid.expectRowCount(2);
+      await grid.expectRowLoading(1);
+      await grid.expectRowHasWarning(1);
+      await grid.expectRowWarningText(1, "Row does not match filters");
+      pausedCreate.fail();
+      await grid.expectErrorToast();
+      await grid.expectRowCount(1);
+      await grid.expectPrimaryText(0, "Alice");
+      await grid.expectRowNoWarning(0);
     });
   });
-
-  test.beforeEach(async ({ page }) => {
-    await resetRows(g, [{ Name: "Alice", Score: 10 }]);
-    const grid = new GridPage(page, g.user);
-    await grid.goTo(g.database, g.table);
-    await grid.expectRowCount(1);
-  });
-
-  test("1.2.1a paused simple-filtered add kept selected immediately shows filter warning until deselect", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
-
-    await grid.addRow();
-    await pausedCreate.intercepted;
-    await grid.expectRowCount(2);
-    await grid.expectPrimaryText(0, "Alice");
-    await grid.expectPrimaryEmpty(1);
-    await grid.expectRowLoading(1);
-    await grid.expectRowHasWarning(1);
-    await grid.expectRowWarningText(1, "Row does not match filters");
-
-    pausedCreate.release();
-    await grid.expectRowCount(2);
-    await grid.expectRowNotLoading(1);
-    await grid.expectPrimaryEmpty(1);
-    await grid.expectRowHasWarning(1);
-    await grid.expectRowWarningText(1, "Row does not match filters");
-
-    await grid.clickAway();
-    await grid.expectRowCount(1);
-    await grid.expectPrimaryText(0, "Alice");
-    await grid.expectRowNoWarning(0);
-  });
-
-  test("1.2.1b paused simple-filtered add deselected before confirmation is removed immediately", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
-
-    await grid.addRow();
-    await pausedCreate.intercepted;
-    await grid.expectRowCount(2);
-    await grid.expectPrimaryText(0, "Alice");
-    await grid.expectPrimaryEmpty(1);
-    await grid.expectRowLoading(1);
-    await grid.expectRowHasWarning(1);
-    await grid.expectRowWarningText(1, "Row does not match filters");
-
-    await grid.clickAway();
-    await grid.expectRowCount(1);
-    await grid.expectPrimaryText(0, "Alice");
-    await grid.expectRowNoWarning(0);
-
-    pausedCreate.release();
-    await grid.expectNoRowsLoading();
-    await grid.expectRowCount(1);
-    await grid.expectPrimaryText(0, "Alice");
-    await grid.expectRowNoWarning(0);
-  });
-
-  test("1.2.1d failed filter-affected create rolls back the optimistic row", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    const pausedCreate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "POST" },
-    );
-    await grid.addRow();
-    await pausedCreate.intercepted;
-    // Optimistic row visible with loading spinner and immediate filter warning.
-    await grid.expectRowCount(2);
-    await grid.expectRowLoading(1);
-    await grid.expectRowHasWarning(1);
-    await grid.expectRowWarningText(1, "Row does not match filters");
-    pausedCreate.fail();
-    await grid.expectErrorToast();
-    await grid.expectRowCount(1);
-    await grid.expectPrimaryText(0, "Alice");
-    await grid.expectRowNoWarning(0);
-  });
-});
+}
 
 // -----------------------------------------------------------------------------
 // section 1.2.1c  Newly created row corrected to match active filter
@@ -1169,122 +1213,125 @@ test.describe("2.1 Simple field edit", () => {
 // section 2.2  Edit with active filter - mismatch warning + removal
 // -----------------------------------------------------------------------------
 
-test.describe("2.2 Edit with active filter on the edited field", () => {
-  test.describe.configure({ mode: "serial" });
-  let g: Setup;
+for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
+  test.describe(`2.2 Edit with active filter on the edited field (${viewMode.name})`, () => {
+    test.describe.configure({ mode: "serial" });
+    let g: Setup;
 
-  test.beforeAll(async () => {
-    g = await setupGrid({
-      dbName: "EditFilterDb",
-      fields: [{ name: "Score", type: "number" }],
-      filters: [{ fieldName: "Name", type: "equal", value: "Alice" }],
+    test.beforeAll(async () => {
+      g = await setupGrid({
+        dbName: `EditFilter${viewMode.dbSuffix}Db`,
+        fields: [{ name: "Score", type: "number" }, ...viewMode.extraFields],
+        filters: [{ fieldName: "Name", type: "equal", value: "Alice" }],
+        groupBys: viewMode.groupBys,
+      });
+    });
+
+    test.beforeEach(async ({ page }) => {
+      await resetRows(g, viewMode.rows([{ Name: "Alice", Score: 10 }]));
+      const grid = new GridPage(page, g.user);
+      await grid.goTo(g.database, g.table);
+      await viewMode.waitForRows(grid, 1);
+    });
+
+    test("2.2.1a paused non-matching filtered edit shows warning while selected until confirmation", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      const pausedUpdate = await pauseNextRequestWithSignal(
+        page,
+        `**/api/database/rows/table/${g.table.id}/**`,
+        { method: "PATCH" },
+      );
+
+      await startEditingPrimary(grid, 0);
+      await grid.type("Charlie");
+      await grid.confirmWithTab();
+      await pausedUpdate.intercepted;
+      await grid.expectPrimaryText(0, "Charlie");
+      await grid.expectRowHasWarning(0);
+      await grid.expectRowWarningText(0, "Row does not match filters");
+      await grid.expectRowNotLoading(0);
+
+      pausedUpdate.release();
+      await grid.expectRowHasWarning(0);
+      await grid.expectRowWarningText(0, "Row does not match filters");
+      await grid.expectRowCount(1);
+    });
+
+    test("2.2.1b paused non-matching filtered edit deselected before confirmation is removed immediately", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      const pausedUpdate = await pauseNextRequestWithSignal(
+        page,
+        `**/api/database/rows/table/${g.table.id}/**`,
+        { method: "PATCH" },
+      );
+
+      await startEditingPrimary(grid, 0);
+      await grid.type("Charlie");
+      await grid.confirmWithTab();
+      await pausedUpdate.intercepted;
+      await grid.expectPrimaryText(0, "Charlie");
+      await grid.expectRowHasWarning(0);
+      await grid.expectRowWarningText(0, "Row does not match filters");
+
+      await grid.clickAway();
+      await grid.expectRowCount(0);
+      await grid.expectPrimaryNotVisible("Charlie");
+
+      pausedUpdate.release();
+      await grid.expectNoRowsLoading();
+      await grid.expectRowCount(0);
+      await grid.expectPrimaryNotVisible("Charlie");
+    });
+
+    test("2.2.4 Escape during filter-mismatched edit restores matching value, clears warning, and keeps row visible", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      await startEditingPrimary(grid, 0);
+      await grid.type("Charlie");
+      await grid.cancelEdit();
+      await grid.expectPrimaryVisible("Alice");
+      await grid.expectRowNoWarning(0);
+      await grid.expectRowCount(1);
+    });
+
+    test("2.2.3 saving the same matching value keeps row visible and produces no warning", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      await startEditingPrimary(grid, 0);
+      await grid.type("Alice");
+      await grid.confirmWithEnter();
+      await grid.expectRowNoWarning(0);
+      await grid.expectRowCount(1);
+      await grid.expectNoRowsLoading();
+    });
+
+    test("2.2.2 failed filter-affecting PATCH rolls back the typed value and shows an error toast", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      const { done } = await failNextRequest(
+        page,
+        `**/api/database/rows/table/${g.table.id}/**`,
+        { method: "PATCH" },
+      );
+      await startEditingPrimary(grid, 0);
+      await grid.type("Charlie");
+      await grid.confirmWithEnter();
+      await done;
+      await grid.expectErrorToast();
+      await grid.expectRowCount(1);
+      await grid.expectPrimaryText(0, "Alice");
+      await grid.expectPrimaryNotVisible("Charlie");
+      await grid.expectRowNoWarning(0);
     });
   });
-
-  test.beforeEach(async ({ page }) => {
-    await resetRows(g, [{ Name: "Alice", Score: 10 }]);
-    const grid = new GridPage(page, g.user);
-    await grid.goTo(g.database, g.table);
-    await grid.expectRowCount(1);
-  });
-
-  test("2.2.1a paused non-matching filtered edit shows warning while selected until confirmation", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
-
-    await startEditingPrimary(grid, 0);
-    await grid.type("Charlie");
-    await grid.confirmWithTab();
-    await pausedUpdate.intercepted;
-    await grid.expectPrimaryText(0, "Charlie");
-    await grid.expectRowHasWarning(0);
-    await grid.expectRowWarningText(0, "Row does not match filters");
-    await grid.expectRowNotLoading(0);
-
-    pausedUpdate.release();
-    await grid.expectRowHasWarning(0);
-    await grid.expectRowWarningText(0, "Row does not match filters");
-    await grid.expectRowCount(1);
-  });
-
-  test("2.2.1b paused non-matching filtered edit deselected before confirmation is removed immediately", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
-
-    await startEditingPrimary(grid, 0);
-    await grid.type("Charlie");
-    await grid.confirmWithTab();
-    await pausedUpdate.intercepted;
-    await grid.expectPrimaryText(0, "Charlie");
-    await grid.expectRowHasWarning(0);
-    await grid.expectRowWarningText(0, "Row does not match filters");
-
-    await grid.clickAway();
-    await grid.expectRowCount(0);
-    await grid.expectPrimaryNotVisible("Charlie");
-
-    pausedUpdate.release();
-    await grid.expectNoRowsLoading();
-    await grid.expectRowCount(0);
-    await grid.expectPrimaryNotVisible("Charlie");
-  });
-
-  test("2.2.4 Escape during filter-mismatched edit restores matching value, clears warning, and keeps row visible", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    await startEditingPrimary(grid, 0);
-    await grid.type("Charlie");
-    await grid.cancelEdit();
-    await grid.expectPrimaryVisible("Alice");
-    await grid.expectRowNoWarning(0);
-    await grid.expectRowCount(1);
-  });
-
-  test("2.2.3 saving the same matching value keeps row visible and produces no warning", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    await startEditingPrimary(grid, 0);
-    await grid.type("Alice");
-    await grid.confirmWithEnter();
-    await grid.expectRowNoWarning(0);
-    await grid.expectRowCount(1);
-    await grid.expectNoRowsLoading();
-  });
-
-  test("2.2.2 failed filter-affecting PATCH rolls back the typed value and shows an error toast", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    const { done } = await failNextRequest(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
-    await startEditingPrimary(grid, 0);
-    await grid.type("Charlie");
-    await grid.confirmWithEnter();
-    await done;
-    await grid.expectErrorToast();
-    await grid.expectRowCount(1);
-    await grid.expectPrimaryText(0, "Alice");
-    await grid.expectPrimaryNotVisible("Charlie");
-    await grid.expectRowNoWarning(0);
-  });
-});
+}
 
 // -----------------------------------------------------------------------------
 // section 2.2  Edit with formula-field filter (deferred) — deferred warning
@@ -1427,122 +1474,128 @@ test.describe("2.2.5 Edit with formula-field filter (deferred)", () => {
 // section 2.3  Edit with active sort - mismatch warning + move
 // -----------------------------------------------------------------------------
 
-test.describe("2.3 Edit with active sort on the edited field", () => {
-  test.describe.configure({ mode: "serial" });
-  let g: Setup;
+for (const viewMode of REGULAR_FIELD_VIEW_MODES) {
+  test.describe(`2.3 Edit with active sort on the edited field (${viewMode.name})`, () => {
+    test.describe.configure({ mode: "serial" });
+    let g: Setup;
 
-  test.beforeAll(async () => {
-    g = await setupGrid({
-      dbName: "EditSortDb",
-      fields: [{ name: "Score", type: "number" }],
-      sorts: [{ fieldName: "Name", order: "ASC" }],
+    test.beforeAll(async () => {
+      g = await setupGrid({
+        dbName: `EditSort${viewMode.dbSuffix}Db`,
+        fields: [{ name: "Score", type: "number" }, ...viewMode.extraFields],
+        sorts: [{ fieldName: "Name", order: "ASC" }],
+        groupBys: viewMode.groupBys,
+      });
+    });
+
+    test.beforeEach(async ({ page }) => {
+      await resetRows(
+        g,
+        viewMode.rows([
+          { Name: "Alice", Score: 10 },
+          { Name: "Bob", Score: 20 },
+        ]),
+      );
+      const grid = new GridPage(page, g.user);
+      await grid.goTo(g.database, g.table);
+      await viewMode.waitForRows(grid, 2);
+    });
+
+    test("2.3.1a paused sorted edit kept selected shows Row has moved until confirmation", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      const pausedUpdate = await pauseNextRequestWithSignal(
+        page,
+        `**/api/database/rows/table/${g.table.id}/**`,
+        { method: "PATCH" },
+      );
+
+      await startEditingPrimary(grid, 0);
+      await grid.type("Zara");
+      await grid.confirmWithTab();
+      await pausedUpdate.intercepted;
+      await grid.expectPrimaryText(0, "Zara");
+      await grid.expectRowHasWarning(0);
+      await grid.expectRowWarningText(0, "Row has moved");
+      await grid.expectRowNotLoading(0);
+
+      pausedUpdate.release();
+      await grid.expectRowHasWarning(0);
+      await grid.expectRowWarningText(0, "Row has moved");
+    });
+
+    test("2.3.1b paused sorted edit deselected before confirmation moves immediately", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      const pausedUpdate = await pauseNextRequestWithSignal(
+        page,
+        `**/api/database/rows/table/${g.table.id}/**`,
+        { method: "PATCH" },
+      );
+
+      await startEditingPrimary(grid, 0);
+      await grid.type("Zara");
+      await grid.confirmWithTab();
+      await pausedUpdate.intercepted;
+      await grid.expectPrimaryText(0, "Zara");
+      await grid.expectPrimaryText(1, "Bob");
+      await grid.expectRowHasWarning(0);
+      await grid.expectRowWarningText(0, "Row has moved");
+
+      await grid.clickAway();
+      await grid.expectPrimaryText(0, "Bob");
+      await grid.expectPrimaryText(1, "Zara");
+      await grid.expectRowNoWarning(1);
+
+      pausedUpdate.release();
+      await grid.expectNoRowsLoading();
+      await grid.expectPrimaryText(0, "Bob");
+      await grid.expectPrimaryText(1, "Zara");
+      await grid.expectRowNoWarning(1);
+    });
+
+    test("2.3.2 failed sort-affecting PATCH restores the original row order", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      const pausedUpdate = await pauseNextRequestWithSignal(
+        page,
+        `**/api/database/rows/table/${g.table.id}/**`,
+        { method: "PATCH" },
+      );
+      await startEditingPrimary(grid, 0);
+      await grid.type("Zara");
+      await grid.confirmWithEnter();
+      await pausedUpdate.intercepted;
+      // Enter commits and clears the selection, so the locally-sortable row moves
+      // immediately while the PATCH is still pending.
+      await grid.expectPrimaryText(0, "Bob");
+      await grid.expectPrimaryText(1, "Zara");
+      await grid.expectRowNoWarning(1);
+      pausedUpdate.fail();
+      await grid.expectErrorToast();
+      await grid.expectRowCount(2);
+      await grid.expectPrimaryText(0, "Alice");
+      await grid.expectPrimaryText(1, "Bob");
+      await grid.expectRowNoWarning(0);
+      await grid.expectRowNoWarning(1);
+    });
+
+    test("2.3.3 Escape during sort-mismatched edit restores original value, clears warning, and leaves row in place", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+      await startEditingPrimary(grid, 0);
+      await grid.type("Zara");
+      await grid.cancelEdit();
+      await grid.expectPrimaryText(0, "Alice");
+      await grid.expectRowNoWarning(0);
+      await grid.expectRowCount(2);
     });
   });
-
-  test.beforeEach(async ({ page }) => {
-    await resetRows(g, [
-      { Name: "Alice", Score: 10 },
-      { Name: "Bob", Score: 20 },
-    ]);
-    const grid = new GridPage(page, g.user);
-    await grid.goTo(g.database, g.table);
-    await waitForInitialRows(grid, 2);
-  });
-
-  test("2.3.1a paused sorted edit kept selected shows Row has moved until confirmation", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
-
-    await startEditingPrimary(grid, 0);
-    await grid.type("Zara");
-    await grid.confirmWithTab();
-    await pausedUpdate.intercepted;
-    await grid.expectPrimaryText(0, "Zara");
-    await grid.expectRowHasWarning(0);
-    await grid.expectRowWarningText(0, "Row has moved");
-    await grid.expectRowNotLoading(0);
-
-    pausedUpdate.release();
-    await grid.expectRowHasWarning(0);
-    await grid.expectRowWarningText(0, "Row has moved");
-  });
-
-  test("2.3.1b paused sorted edit deselected before confirmation moves immediately", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
-
-    await startEditingPrimary(grid, 0);
-    await grid.type("Zara");
-    await grid.confirmWithTab();
-    await pausedUpdate.intercepted;
-    await grid.expectPrimaryText(0, "Zara");
-    await grid.expectPrimaryText(1, "Bob");
-    await grid.expectRowHasWarning(0);
-    await grid.expectRowWarningText(0, "Row has moved");
-
-    await grid.clickAway();
-    await grid.expectPrimaryText(0, "Bob");
-    await grid.expectPrimaryText(1, "Zara");
-    await grid.expectRowNoWarning(1);
-
-    pausedUpdate.release();
-    await grid.expectNoRowsLoading();
-    await grid.expectPrimaryText(0, "Bob");
-    await grid.expectPrimaryText(1, "Zara");
-    await grid.expectRowNoWarning(1);
-  });
-
-  test("2.3.2 failed sort-affecting PATCH restores the original row order", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    const pausedUpdate = await pauseNextRequestWithSignal(
-      page,
-      `**/api/database/rows/table/${g.table.id}/**`,
-      { method: "PATCH" },
-    );
-    await startEditingPrimary(grid, 0);
-    await grid.type("Zara");
-    await grid.confirmWithEnter();
-    await pausedUpdate.intercepted;
-    // Enter commits and clears the selection, so the locally-sortable row moves
-    // immediately while the PATCH is still pending.
-    await grid.expectPrimaryText(0, "Bob");
-    await grid.expectPrimaryText(1, "Zara");
-    await grid.expectRowNoWarning(1);
-    pausedUpdate.fail();
-    await grid.expectErrorToast();
-    await grid.expectRowCount(2);
-    await grid.expectPrimaryText(0, "Alice");
-    await grid.expectPrimaryText(1, "Bob");
-    await grid.expectRowNoWarning(0);
-    await grid.expectRowNoWarning(1);
-  });
-
-  test("2.3.3 Escape during sort-mismatched edit restores original value, clears warning, and leaves row in place", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    await startEditingPrimary(grid, 0);
-    await grid.type("Zara");
-    await grid.cancelEdit();
-    await grid.expectPrimaryText(0, "Alice");
-    await grid.expectRowNoWarning(0);
-    await grid.expectRowCount(2);
-  });
-});
+}
 
 // -----------------------------------------------------------------------------
 // section 2.3  Edit with formula-field sort (deferred) — deferred move

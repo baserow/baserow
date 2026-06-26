@@ -90,6 +90,7 @@
 import GridViewRow from '@baserow/modules/database/components/view/grid/GridViewRow'
 import GridViewGroupByBanner from '@baserow/modules/database/components/view/grid/GridViewGroupByBanner'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
+import { notifyIf } from '@baserow/modules/core/utils/error'
 
 export default {
   name: 'GridViewGroupByRows',
@@ -195,14 +196,23 @@ export default {
     isWarningRow(row) {
       return !row._.matchFilters || !row._.matchSortings || !row._.matchSearch
     },
-    toggleGroup(path) {
-      this.$store.dispatch(this.storePrefix + 'view/grid/toggleGroupCollapse', {
-        path,
-        view: this.view,
-        fields: this.allFieldsInTable,
-        adhocFiltering:
-          this.$store.getters[this.storePrefix + 'view/grid/getAdhocFiltering'],
-      })
+    async toggleGroup(path) {
+      try {
+        await this.$store.dispatch(
+          this.storePrefix + 'view/grid/toggleGroupCollapse',
+          {
+            path,
+            view: this.view,
+            fields: this.allFieldsInTable,
+            adhocFiltering:
+              this.$store.getters[
+                this.storePrefix + 'view/grid/getAdhocFiltering'
+              ],
+          }
+        )
+      } catch (error) {
+        notifyIf(error, 'view')
+      }
     },
   },
 }

@@ -13,10 +13,12 @@
 import type { Locator, Page } from "@playwright/test";
 import { test, expect } from "../../baserowTest";
 import { GridPage } from "../../../pages/database/gridPage";
-import {
+import type {
   GridSetupResult,
-  setupGrid,
+  FieldSpec,
+  GroupBySpec,
 } from "../../../fixtures/database/gridSetup";
+import { setupGrid } from "../../../fixtures/database/gridSetup";
 import {
   createViewDecoration,
   patchView,
@@ -30,7 +32,45 @@ import {
 
 type Setup = GridSetupResult;
 
+// Keep docs/testing/grid-view-test-plan.md in sync with these cases.
+
+type SavedViewMode = {
+  name: string;
+  dbSuffix: string;
+  extraFields: FieldSpec[];
+  groupBys?: GroupBySpec[];
+  rows: (rows: Record<string, unknown>[]) => Record<string, unknown>[];
+  waitForRows: (grid: GridPage, count: number) => Promise<void>;
+};
+
 const searchInputSelector = 'input[placeholder*="Search in"]';
+
+async function waitForFlatRows(grid: GridPage, count: number): Promise<void> {
+  await grid.expectRowCount(count);
+}
+
+const SAVED_VIEW_MODES: SavedViewMode[] = [
+  {
+    name: "flat",
+    dbSuffix: "Flat",
+    extraFields: [],
+    rows: (rows) => rows,
+    waitForRows: waitForFlatRows,
+  },
+  {
+    name: "group-by",
+    dbSuffix: "GroupBy",
+    extraFields: [{ name: "Team", type: "text" }],
+    groupBys: [{ fieldName: "Team", order: "ASC" }],
+    rows: (rows) => rows.map((row) => ({ Team: "A", ...row })),
+    waitForRows: async (grid, count) => {
+      await grid.expectGroupByBanner("A", count, true);
+      await grid.expandAllGroupsFromContext();
+      await grid.expectGroupByBanner("A", count);
+      await grid.expectRowCount(count);
+    },
+  },
+];
 
 async function waitForApiPatch(
   page: Page,
@@ -134,218 +174,238 @@ async function turnOffHideNotMatchingRows(page: Page): Promise<void> {
 // section 5  Filters
 // -----------------------------------------------------------------------------
 
-test.describe("5.1 Filter applied via API - rows hidden on load", () => {
-  test.describe.configure({ mode: "serial" });
-  let g: Setup;
+for (const viewMode of SAVED_VIEW_MODES) {
+  test.describe(`5.1 Filter applied via API (${viewMode.name})`, () => {
+    test.describe.configure({ mode: "serial" });
+    let g: Setup;
 
-  test.beforeAll(async () => {
-    // Apply a Name = "Alice" filter before the tests start
-    g = await setupGrid({
-      dbName: "FilterApiDb",
-      fields: [{ name: "Score", type: "number" }],
-      rows: [
-        { Name: "Alice", Score: 10 },
-        { Name: "Bob", Score: 20 },
-        { Name: "Carol", Score: 30 },
-      ],
-      filters: [{ fieldName: "Name", type: "equal", value: "Alice" }],
+    test.beforeAll(async () => {
+      // Apply a Name = "Alice" filter before the tests start
+      g = await setupGrid({
+        dbName: `FilterApi${viewMode.dbSuffix}Db`,
+        fields: [{ name: "Score", type: "number" }, ...viewMode.extraFields],
+        rows: viewMode.rows([
+          { Name: "Alice", Score: 10 },
+          { Name: "Bob", Score: 20 },
+          { Name: "Carol", Score: 30 },
+        ]),
+        filters: [{ fieldName: "Name", type: "equal", value: "Alice" }],
+        groupBys: viewMode.groupBys,
+      });
+    });
+
+    test.beforeEach(async ({ page }) => {
+      const grid = new GridPage(page, g.user);
+      await grid.goTo(g.database, g.table);
+      await viewMode.waitForRows(grid, 1);
+    });
+
+    test("5.1.1 loading a filtered view shows only the matching row and hides non-matching rows", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+
+      await grid.expectRowCount(1);
+      await grid.expectPrimaryVisible("Alice");
+      await grid.expectPrimaryNotVisible("Bob");
+      await grid.expectPrimaryNotVisible("Carol");
     });
   });
+}
 
-  test.beforeEach(async ({ page }) => {
-    const grid = new GridPage(page, g.user);
-    await grid.goTo(g.database, g.table);
-  });
+for (const viewMode of SAVED_VIEW_MODES) {
+  test.describe(`5.2 Filter types - text contains (${viewMode.name})`, () => {
+    test.describe.configure({ mode: "serial" });
+    let g: Setup;
 
-  test("5.1.1 loading a filtered view shows only the matching row and hides non-matching rows", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
+    test.beforeAll(async () => {
+      g = await setupGrid({
+        dbName: `FilterContains${viewMode.dbSuffix}Db`,
+        fields: [{ name: "Score", type: "number" }, ...viewMode.extraFields],
+        rows: viewMode.rows([
+          { Name: "Alice Smith", Score: 10 },
+          { Name: "Alice Jones", Score: 20 },
+          { Name: "Bob Brown", Score: 30 },
+        ]),
+        filters: [{ fieldName: "Name", type: "contains", value: "Alice" }],
+        groupBys: viewMode.groupBys,
+      });
+    });
 
-    await grid.expectRowCount(1);
-    await grid.expectPrimaryVisible("Alice");
-    await grid.expectPrimaryNotVisible("Bob");
-    await grid.expectPrimaryNotVisible("Carol");
-  });
-});
+    test.beforeEach(async ({ page }) => {
+      const grid = new GridPage(page, g.user);
+      await grid.goTo(g.database, g.table);
+      await viewMode.waitForRows(grid, 2);
+    });
 
-test.describe("5.2 Filter types - text contains", () => {
-  test.describe.configure({ mode: "serial" });
-  let g: Setup;
+    test("5.2.1 loading a contains-filtered view shows all substring matches and hides non-matches", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
 
-  test.beforeAll(async () => {
-    g = await setupGrid({
-      dbName: "FilterContainsDb",
-      fields: [{ name: "Score", type: "number" }],
-      rows: [
-        { Name: "Alice Smith", Score: 10 },
-        { Name: "Alice Jones", Score: 20 },
-        { Name: "Bob Brown", Score: 30 },
-      ],
-      filters: [{ fieldName: "Name", type: "contains", value: "Alice" }],
+      await grid.expectRowCount(2);
+      await grid.expectPrimaryVisible("Alice Smith");
+      await grid.expectPrimaryVisible("Alice Jones");
+      await grid.expectPrimaryNotVisible("Bob Brown");
     });
   });
+}
 
-  test.beforeEach(async ({ page }) => {
-    const grid = new GridPage(page, g.user);
-    await grid.goTo(g.database, g.table);
-  });
+for (const viewMode of SAVED_VIEW_MODES) {
+  test.describe(`5.1.2 AND filter (${viewMode.name})`, () => {
+    test.describe.configure({ mode: "serial" });
+    let g: Setup;
 
-  test("5.2.1 loading a contains-filtered view shows all substring matches and hides non-matches", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
+    test.beforeAll(async () => {
+      g = await setupGrid({
+        dbName: `FilterAnd${viewMode.dbSuffix}Db`,
+        fields: [
+          { name: "Score", type: "number" },
+          {
+            name: "Status",
+            type: "single_select",
+            options: ["Done", "In Progress"],
+          },
+          ...viewMode.extraFields,
+        ],
+        rows: viewMode.rows([
+          { Name: "Alice", Score: 10, Status: "Done" },
+          { Name: "Bob", Score: 20, Status: "Done" },
+          { Name: "Carol", Score: 30, Status: "In Progress" },
+        ]),
+        filters: [
+          { fieldName: "Name", type: "equal", value: "Alice" },
+          { fieldName: "Status", type: "single_select_equal", value: "Done" },
+        ],
+        groupBys: viewMode.groupBys,
+      });
+    });
 
-    await grid.expectRowCount(2);
-    await grid.expectPrimaryVisible("Alice Smith");
-    await grid.expectPrimaryVisible("Alice Jones");
-    await grid.expectPrimaryNotVisible("Bob Brown");
-  });
-});
+    test.beforeEach(async ({ page }) => {
+      const grid = new GridPage(page, g.user);
+      await grid.goTo(g.database, g.table);
+      await viewMode.waitForRows(grid, 1);
+    });
 
-test.describe("5.1.2 AND filter - two conditions must both match", () => {
-  test.describe.configure({ mode: "serial" });
-  let g: Setup;
+    test("5.1.2 loading an AND-filtered view shows only rows matching both conditions", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
 
-  test.beforeAll(async () => {
-    g = await setupGrid({
-      dbName: "FilterAndDb",
-      fields: [
-        { name: "Score", type: "number" },
-        {
-          name: "Status",
-          type: "single_select",
-          options: ["Done", "In Progress"],
-        },
-      ],
-      rows: [
-        { Name: "Alice", Score: 10, Status: "Done" },
-        { Name: "Bob", Score: 20, Status: "Done" },
-        { Name: "Carol", Score: 30, Status: "In Progress" },
-      ],
-      filters: [
-        { fieldName: "Name", type: "equal", value: "Alice" },
-        { fieldName: "Status", type: "single_select_equal", value: "Done" },
-      ],
+      // Only "Alice" matches Name=Alice AND Status=Done
+      await grid.expectRowCount(1);
+      await grid.expectPrimaryVisible("Alice");
+      await grid.expectPrimaryNotVisible("Bob"); // Bob matches Status but not Name
+      await grid.expectPrimaryNotVisible("Carol"); // Carol matches neither
     });
   });
-
-  test.beforeEach(async ({ page }) => {
-    const grid = new GridPage(page, g.user);
-    await grid.goTo(g.database, g.table);
-  });
-
-  test("5.1.2 loading an AND-filtered view shows only rows matching both conditions", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-
-    // Only "Alice" matches Name=Alice AND Status=Done
-    await grid.expectRowCount(1);
-    await grid.expectPrimaryVisible("Alice");
-    await grid.expectPrimaryNotVisible("Bob"); // Bob matches Status but not Name
-    await grid.expectPrimaryNotVisible("Carol"); // Carol matches neither
-  });
-});
+}
 
 // -----------------------------------------------------------------------------
 // section 6  Sorts
 // -----------------------------------------------------------------------------
 
-test.describe("6.1 Sort ASC / DESC", () => {
-  test.describe.configure({ mode: "serial" });
-  let gAsc: Setup;
-  let gDesc: Setup;
+for (const viewMode of SAVED_VIEW_MODES) {
+  test.describe(`6.1 Sort ASC / DESC (${viewMode.name})`, () => {
+    test.describe.configure({ mode: "serial" });
+    let gAsc: Setup;
+    let gDesc: Setup;
 
-  test.beforeAll(async () => {
-    // Two setups: same data, one ASC one DESC
-    [gAsc, gDesc] = await Promise.all([
-      setupGrid({
-        dbName: "SortAscDb",
-        fields: [{ name: "Score", type: "number" }],
-        rows: [
-          { Name: "Carol", Score: 30 },
-          { Name: "Alice", Score: 10 },
-          { Name: "Bob", Score: 20 },
-        ],
-        sorts: [{ fieldName: "Name", order: "ASC" }],
-      }),
-      setupGrid({
-        dbName: "SortDescDb",
-        fields: [{ name: "Score", type: "number" }],
-        rows: [
-          { Name: "Carol", Score: 30 },
-          { Name: "Alice", Score: 10 },
-          { Name: "Bob", Score: 20 },
-        ],
-        sorts: [{ fieldName: "Name", order: "DESC" }],
-      }),
-    ]);
-  });
+    test.beforeAll(async () => {
+      // Two setups: same data, one ASC one DESC
+      [gAsc, gDesc] = await Promise.all([
+        setupGrid({
+          dbName: `SortAsc${viewMode.dbSuffix}Db`,
+          fields: [{ name: "Score", type: "number" }, ...viewMode.extraFields],
+          rows: viewMode.rows([
+            { Name: "Carol", Score: 30 },
+            { Name: "Alice", Score: 10 },
+            { Name: "Bob", Score: 20 },
+          ]),
+          sorts: [{ fieldName: "Name", order: "ASC" }],
+          groupBys: viewMode.groupBys,
+        }),
+        setupGrid({
+          dbName: `SortDesc${viewMode.dbSuffix}Db`,
+          fields: [{ name: "Score", type: "number" }, ...viewMode.extraFields],
+          rows: viewMode.rows([
+            { Name: "Carol", Score: 30 },
+            { Name: "Alice", Score: 10 },
+            { Name: "Bob", Score: 20 },
+          ]),
+          sorts: [{ fieldName: "Name", order: "DESC" }],
+          groupBys: viewMode.groupBys,
+        }),
+      ]);
+    });
 
-  test("6.1.1 loading an ASC-sorted view shows rows in alphabetical order", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, gAsc.user);
-    await grid.goTo(gAsc.database, gAsc.table);
+    test("6.1.1 loading an ASC-sorted view shows rows in alphabetical order", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, gAsc.user);
+      await grid.goTo(gAsc.database, gAsc.table);
+      await viewMode.waitForRows(grid, 3);
 
-    // Names are in the LEFT section (primary field). Extract from primary cells.
-    await grid.expectRowCount(3);
-    await grid.expectPrimaryText(0, "Alice");
-    await grid.expectPrimaryText(1, "Bob");
-    await grid.expectPrimaryText(2, "Carol");
-  });
+      // Names are in the LEFT section (primary field). Extract from primary cells.
+      await grid.expectPrimaryText(0, "Alice");
+      await grid.expectPrimaryText(1, "Bob");
+      await grid.expectPrimaryText(2, "Carol");
+    });
 
-  test("6.1.2 loading a DESC-sorted view shows rows in reverse alphabetical order", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, gDesc.user);
-    await grid.goTo(gDesc.database, gDesc.table);
+    test("6.1.2 loading a DESC-sorted view shows rows in reverse alphabetical order", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, gDesc.user);
+      await grid.goTo(gDesc.database, gDesc.table);
+      await viewMode.waitForRows(grid, 3);
 
-    await grid.expectRowCount(3);
-    await grid.expectPrimaryText(0, "Carol");
-    await grid.expectPrimaryText(1, "Bob");
-    await grid.expectPrimaryText(2, "Alice");
-  });
-});
-
-test.describe("6.1.3 Multiple sorts - primary ASC, secondary DESC", () => {
-  test.describe.configure({ mode: "serial" });
-  let g: Setup;
-
-  test.beforeAll(async () => {
-    g = await setupGrid({
-      dbName: "MultiSortDb",
-      fields: [{ name: "Score", type: "number" }],
-      rows: [
-        { Name: "Alice", Score: 50 },
-        { Name: "Alice", Score: 10 },
-        { Name: "Bob", Score: 30 },
-      ],
-      sorts: [
-        { fieldName: "Name", order: "ASC" },
-        { fieldName: "Score", order: "DESC" },
-      ],
+      await grid.expectPrimaryText(0, "Carol");
+      await grid.expectPrimaryText(1, "Bob");
+      await grid.expectPrimaryText(2, "Alice");
     });
   });
+}
 
-  test.beforeEach(async ({ page }) => {
-    const grid = new GridPage(page, g.user);
-    await grid.goTo(g.database, g.table);
+for (const viewMode of SAVED_VIEW_MODES) {
+  test.describe(`6.1.3 Multiple sorts (${viewMode.name})`, () => {
+    test.describe.configure({ mode: "serial" });
+    let g: Setup;
+
+    test.beforeAll(async () => {
+      g = await setupGrid({
+        dbName: `MultiSort${viewMode.dbSuffix}Db`,
+        fields: [{ name: "Score", type: "number" }, ...viewMode.extraFields],
+        rows: viewMode.rows([
+          { Name: "Alice", Score: 50 },
+          { Name: "Alice", Score: 10 },
+          { Name: "Bob", Score: 30 },
+        ]),
+        sorts: [
+          { fieldName: "Name", order: "ASC" },
+          { fieldName: "Score", order: "DESC" },
+        ],
+        groupBys: viewMode.groupBys,
+      });
+    });
+
+    test.beforeEach(async ({ page }) => {
+      const grid = new GridPage(page, g.user);
+      await grid.goTo(g.database, g.table);
+      await viewMode.waitForRows(grid, 3);
+    });
+
+    test("6.1.3 loading multi-sort view applies Name ASC first and Score DESC for tied names", async ({
+      page,
+    }) => {
+      const grid = new GridPage(page, g.user);
+
+      // First two rows are the two Alices; Alice with Score 50 should be first (DESC on Score)
+      const firstScore = await grid.fieldCellAt(0, 0).innerText();
+      const secondScore = await grid.fieldCellAt(1, 0).innerText();
+      expect(Number(firstScore)).toBeGreaterThan(Number(secondScore));
+    });
   });
-
-  test("6.1.3 loading multi-sort view applies Name ASC first and Score DESC for tied names", async ({
-    page,
-  }) => {
-    const grid = new GridPage(page, g.user);
-    await grid.expectRowCount(3);
-
-    // First two rows are the two Alices; Alice with Score 50 should be first (DESC on Score)
-    const firstScore = await grid.fieldCellAt(0, 0).innerText();
-    const secondScore = await grid.fieldCellAt(1, 0).innerText();
-    expect(Number(firstScore)).toBeGreaterThan(Number(secondScore));
-  });
-});
+}
 
 // -----------------------------------------------------------------------------
 // section 7  Search

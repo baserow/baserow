@@ -19,25 +19,25 @@ related variants, for example `1.2.1b`.
 
 The first number identifies the domain:
 
-| Bucket | Domain |
-|---|---|
-| 1 | Row creation |
-| 2 | Row updates |
-| 3 | Row deletion |
-| 4 | Clipboard and multi-cell edits |
-| 5 | Filters |
-| 6 | Sorts |
-| 7 | Search |
-| 8 | View display options |
-| 9 | Cell selection |
-| 10 | Keyboard navigation |
-| 11 | Row hover and context menus |
-| 12 | Checkbox selection and bulk actions |
-| 13 | Row expand modal |
-| 14 | Public shared grid |
-| 15 | Realtime row events |
-| 16 | Realtime metadata and presence |
-| 17 | Data-sync read-only mode |
+| Bucket | Domain                              |
+| ------ | ----------------------------------- |
+| 1      | Row creation                        |
+| 2      | Row updates                         |
+| 3      | Row deletion                        |
+| 4      | Clipboard and multi-cell edits      |
+| 5      | Filters                             |
+| 6      | Sorts                               |
+| 7      | Search                              |
+| 8      | View display options                |
+| 9      | Cell selection                      |
+| 10     | Keyboard navigation                 |
+| 11     | Row hover and context menus         |
+| 12     | Checkbox selection and bulk actions |
+| 13     | Row expand modal                    |
+| 14     | Public shared grid                  |
+| 15     | Realtime row events                 |
+| 16     | Realtime metadata and presence      |
+| 17     | Data-sync read-only mode            |
 
 Within each bucket, groups start at `.1` and increase by topic. In covered
 create, update, and clipboard sections, `.2` is filter-affecting behavior and
@@ -74,37 +74,43 @@ constraint fields are regular vs. formula; for combined rows "all regular" and
 field-type breakdown belongs in the scenario description when the test is
 written.
 
-| Operation | Constraint | Constraint field | Optimistic | Keep selected | Deselect after confirm | Deselect before confirm | Backend error | Escape |
-|---|---|---|:---:|---|---|---|---|---|
-| Create | — | — | ✓ | [1.1.1](#111-backend-confirmation-for-a-new-row) | — | — | [1.1.3](#113-failed-create-is-rolled-back-and-the-optimistic-row-disappears) | — |
-| Create | filter | regular | ✓ | [1.2.1a](#121a-add-row-that-does-not-match-an-active-simple-field-filter-and-keep-it-selected) | [1.2.1a](#121a-add-row-that-does-not-match-an-active-simple-field-filter-and-keep-it-selected) | [1.2.1b](#121b-deselect-newly-added-filter-mismatched-row-before-backend-confirmation) | [1.2.1d](#121d-backend-returns-500-on-filter-affected-create) | — |
-| Create | filter | formula | ✗ | [1.2.2a](#122a-create-row-with-formula-field-filter-active--no-warning-until-backend-responds) | [1.2.2a](#122a-create-row-with-formula-field-filter-active--no-warning-until-backend-responds) | [1.2.2b](#122b-deselect-newly-added-formula-filtered-row-before-backend-confirmation) | [1.2.2c](#122c-backend-returns-500-on-formula-filter-affected-create) | — |
-| Create | sort | regular | ✓ | [1.3.1a](#131a-add-row-with-simple-field-sort-asc-and-keep-it-selected) | [1.3.1a](#131a-add-row-with-simple-field-sort-asc-and-keep-it-selected) | [1.3.1b](#131b-add-row-with-simple-field-sort-asc-then-deselect-before-backend-confirmation) | [1.3.1c](#131c-backend-returns-500-on-sort-affected-create) | — |
-| Create | sort | formula | ✗ | [1.3.2a](#132a-add-row-with-formula-field-sort-active--no-move-warning-until-backend-responds) | [1.3.2a](#132a-add-row-with-formula-field-sort-active--no-move-warning-until-backend-responds) | [1.3.2b](#132b-add-row-with-formula-field-sort-active-then-deselect-before-backend-confirmation) | [1.3.2c](#132c-backend-returns-500-on-formula-sort-affected-create) | — |
-| Create | group-by | regular | ✓ | TODO | TODO | TODO | TODO | — |
-| Create | group-by | formula | ✗ | TODO | TODO | TODO | TODO | — |
-| Update | — | — | ✓ | [2.1.1](#211-edit-primary-field-and-press-enter) | — | — | [2.1.3](#213-backend-returns-500-on-update) | [2.1.4](#214-press-escape-while-editing) |
-| Update | filter | regular | ✓ | [2.2.1a](#221a-edit-filtered-row-to-non-matching-value-and-keep-it-selected) | [2.2.1a](#221a-edit-filtered-row-to-non-matching-value-and-keep-it-selected) | [2.2.1b](#221b-deselect-filter-mismatched-row-before-backend-confirmation) | [2.2.2](#222-backend-returns-500-on-filter-affecting-update) | [2.2.4](#224-press-escape-during-filter-mismatched-edit) |
-| Update | filter | formula | ✗ | [2.2.5a](#225a-edit-with-formula-field-filter-active--no-warning-until-backend-responds) | [2.2.5b](#225b-deselect-formula-filtered-row-after-backend-confirmation) | [2.2.5c](#225c-deselect-formula-filtered-row-before-backend-confirmation) | [2.2.5d](#225d-backend-returns-500-on-formula-filter-affecting-update) | — |
-| Update | sort | regular | ✓ | [2.3.1a](#231a-edit-sorted-row-so-it-should-move-and-keep-it-selected) | [2.3.1a](#231a-edit-sorted-row-so-it-should-move-and-keep-it-selected) | [2.3.1b](#231b-deselect-sort-mismatched-row-before-backend-confirmation) | [2.3.2](#232-backend-returns-500-on-sort-affecting-update) | [2.3.3](#233-press-escape-during-sort-mismatched-edit) |
-| Update | sort | formula | ✗ | [2.3.4a](#234a-edit-with-formula-field-sort-active--no-move-warning-until-backend-responds) | [2.3.4a](#234a-edit-with-formula-field-sort-active--no-move-warning-until-backend-responds) | [2.3.4b](#234b-deselect-formula-sorted-row-before-backend-confirmation) | [2.3.4c](#234c-backend-returns-500-on-formula-sort-affecting-update) | — |
-| Update | group-by | regular | ✓ | TODO | TODO | TODO | TODO | TODO |
-| Update | group-by | formula | ✗ | TODO | TODO | TODO | TODO | — |
-| Paste | — | — | ✓ | TODO | — | — | TODO | — |
-| Paste | filter | regular | ✓ | [4.2.1a](#421a-paste-value-that-breaks-active-filter-then-deselect) | [4.2.1a](#421a-paste-value-that-breaks-active-filter-then-deselect) | [4.2.1b](#421b-filter-breaking-paste-deselected-before-backend-confirmation) | TODO | — |
-| Paste | filter | formula | ✗ | TODO | TODO | TODO | TODO | — |
-| Paste | sort | regular | ✓ | [4.3.1a](#431a-sort-affecting-paste-shows-row-has-moved-warning-then-moves-row-on-deselect) | [4.3.1a](#431a-sort-affecting-paste-shows-row-has-moved-warning-then-moves-row-on-deselect) | [4.3.1b](#431b-sort-affecting-paste-deselected-before-backend-confirmation-moves-row-immediately) | TODO | — |
-| Paste | sort | formula | ✗ | TODO | TODO | TODO | TODO | — |
-| Paste | group-by | regular | ✓ | TODO | TODO | TODO | TODO | — |
-| Paste | group-by | formula | ✗ | TODO | TODO | TODO | TODO | — |
+| Operation | Constraint | Constraint field | Optimistic | Keep selected                                                                                  | Deselect after confirm                                                                         | Deselect before confirm                                                                           | Backend error                                                                | Escape                                                   |
+| --------- | ---------- | ---------------- | :--------: | ---------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Create    | —          | —                |     ✓      | [1.1.1](#111-backend-confirmation-for-a-new-row)                                               | —                                                                                              | —                                                                                                 | [1.1.3](#113-failed-create-is-rolled-back-and-the-optimistic-row-disappears) | —                                                        |
+| Create    | filter     | regular          |     ✓      | [1.2.1a](#121a-add-row-that-does-not-match-an-active-simple-field-filter-and-keep-it-selected) | [1.2.1a](#121a-add-row-that-does-not-match-an-active-simple-field-filter-and-keep-it-selected) | [1.2.1b](#121b-deselect-newly-added-filter-mismatched-row-before-backend-confirmation)            | [1.2.1d](#121d-backend-returns-500-on-filter-affected-create)                | —                                                        |
+| Create    | filter     | formula          |     ✗      | [1.2.2a](#122a-create-row-with-formula-field-filter-active--no-warning-until-backend-responds) | [1.2.2a](#122a-create-row-with-formula-field-filter-active--no-warning-until-backend-responds) | [1.2.2b](#122b-deselect-newly-added-formula-filtered-row-before-backend-confirmation)             | [1.2.2c](#122c-backend-returns-500-on-formula-filter-affected-create)        | —                                                        |
+| Create    | sort       | regular          |     ✓      | [1.3.1a](#131a-add-row-with-simple-field-sort-asc-and-keep-it-selected)                        | [1.3.1a](#131a-add-row-with-simple-field-sort-asc-and-keep-it-selected)                        | [1.3.1b](#131b-add-row-with-simple-field-sort-asc-then-deselect-before-backend-confirmation)      | [1.3.1c](#131c-backend-returns-500-on-sort-affected-create)                  | —                                                        |
+| Create    | sort       | formula          |     ✗      | [1.3.2a](#132a-add-row-with-formula-field-sort-active--no-move-warning-until-backend-responds) | [1.3.2a](#132a-add-row-with-formula-field-sort-active--no-move-warning-until-backend-responds) | [1.3.2b](#132b-add-row-with-formula-field-sort-active-then-deselect-before-backend-confirmation)  | [1.3.2c](#132c-backend-returns-500-on-formula-sort-affected-create)          | —                                                        |
+| Create    | group-by   | regular          |     ✓      | [1.5.1](#151-add-row-from-a-group-add-row-line)                                                | TODO                                                                                           | TODO                                                                                              | TODO                                                                         | —                                                        |
+| Create    | group-by   | formula          |     ✗      | TODO                                                                                           | TODO                                                                                           | TODO                                                                                              | TODO                                                                         | —                                                        |
+| Update    | —          | —                |     ✓      | [2.1.1](#211-edit-primary-field-and-press-enter)                                               | —                                                                                              | —                                                                                                 | [2.1.3](#213-backend-returns-500-on-update)                                  | [2.1.4](#214-press-escape-while-editing)                 |
+| Update    | filter     | regular          |     ✓      | [2.2.1a](#221a-edit-filtered-row-to-non-matching-value-and-keep-it-selected)                   | [2.2.1a](#221a-edit-filtered-row-to-non-matching-value-and-keep-it-selected)                   | [2.2.1b](#221b-deselect-filter-mismatched-row-before-backend-confirmation)                        | [2.2.2](#222-backend-returns-500-on-filter-affecting-update)                 | [2.2.4](#224-press-escape-during-filter-mismatched-edit) |
+| Update    | filter     | formula          |     ✗      | [2.2.5a](#225a-edit-with-formula-field-filter-active--no-warning-until-backend-responds)       | [2.2.5b](#225b-deselect-formula-filtered-row-after-backend-confirmation)                       | [2.2.5c](#225c-deselect-formula-filtered-row-before-backend-confirmation)                         | [2.2.5d](#225d-backend-returns-500-on-formula-filter-affecting-update)       | —                                                        |
+| Update    | sort       | regular          |     ✓      | [2.3.1a](#231a-edit-sorted-row-so-it-should-move-and-keep-it-selected)                         | [2.3.1a](#231a-edit-sorted-row-so-it-should-move-and-keep-it-selected)                         | [2.3.1b](#231b-deselect-sort-mismatched-row-before-backend-confirmation)                          | [2.3.2](#232-backend-returns-500-on-sort-affecting-update)                   | [2.3.3](#233-press-escape-during-sort-mismatched-edit)   |
+| Update    | sort       | formula          |     ✗      | [2.3.4a](#234a-edit-with-formula-field-sort-active--no-move-warning-until-backend-responds)    | [2.3.4a](#234a-edit-with-formula-field-sort-active--no-move-warning-until-backend-responds)    | [2.3.4b](#234b-deselect-formula-sorted-row-before-backend-confirmation)                           | [2.3.4c](#234c-backend-returns-500-on-formula-sort-affecting-update)         | —                                                        |
+| Update    | group-by   | regular          |     ✓      | [2.2.7a](#227a-change-single-select-group-by-value)                                            | [2.2.7a](#227a-change-single-select-group-by-value)                                            | TODO                                                                                              | TODO                                                                         | TODO                                                     |
+| Update    | group-by   | formula          |     ✗      | TODO                                                                                           | TODO                                                                                           | TODO                                                                                              | TODO                                                                         | —                                                        |
+| Paste     | —          | —                |     ✓      | TODO                                                                                           | —                                                                                              | —                                                                                                 | TODO                                                                         | —                                                        |
+| Paste     | filter     | regular          |     ✓      | [4.2.1a](#421a-paste-value-that-breaks-active-filter-then-deselect)                            | [4.2.1a](#421a-paste-value-that-breaks-active-filter-then-deselect)                            | [4.2.1b](#421b-filter-breaking-paste-deselected-before-backend-confirmation)                      | TODO                                                                         | —                                                        |
+| Paste     | filter     | formula          |     ✗      | TODO                                                                                           | TODO                                                                                           | TODO                                                                                              | TODO                                                                         | —                                                        |
+| Paste     | sort       | regular          |     ✓      | [4.3.1a](#431a-sort-affecting-paste-shows-row-has-moved-warning-then-moves-row-on-deselect)    | [4.3.1a](#431a-sort-affecting-paste-shows-row-has-moved-warning-then-moves-row-on-deselect)    | [4.3.1b](#431b-sort-affecting-paste-deselected-before-backend-confirmation-moves-row-immediately) | TODO                                                                         | —                                                        |
+| Paste     | sort       | formula          |     ✗      | TODO                                                                                           | TODO                                                                                           | TODO                                                                                              | TODO                                                                         | —                                                        |
+| Paste     | group-by   | regular          |     ✓      | TODO                                                                                           | TODO                                                                                           | TODO                                                                                              | TODO                                                                         | —                                                        |
+| Paste     | group-by   | formula          |     ✗      | TODO                                                                                           | TODO                                                                                           | TODO                                                                                              | TODO                                                                         | —                                                        |
+
+Regular-field filter/sort create/update cases and saved filter/sort load cases
+are parametrized to run in both flat and expanded group-by views. Dedicated
+group-by rows above cover creating inside a group and changing a grouped value.
 
 ### Combined constraints (TODO)
 
-All combinations of two or more active constraints (filter + sort, filter +
-group-by, sort + group-by, filter + sort + group-by) are uncovered for every
-operation and timing variant. Each combination should be tested in both the
-all-regular (fully optimistic) and any-formula (deferred)
-configurations.
+Most combinations of two or more active constraints (filter + sort, filter +
+group-by, sort + group-by, filter + sort + group-by) still need deeper coverage.
+Covered group-by combinations are regular-field filter/sort create/update and
+saved filter/sort load via parametrized flat/group-by runs, plus
+[2.2.6a](#226a-edit-filtered-grouped-row-to-non-matching-value).
+Remaining combinations should be tested in both the all-regular (fully
+optimistic) and any-formula (deferred) configurations.
 
 ## Row Creation
 
@@ -133,6 +139,8 @@ configurations.
 - Error toast is visible.
 
 ### 1.2.1a Add row that does not match an active simple-field filter and keep it selected
+
+These simple-field filter cases run in both flat and expanded group-by views.
 
 - Empty row is appended at the bottom.
 - Empty primary and field cells are visible immediately.
@@ -215,6 +223,8 @@ configurations.
 - Error toast is visible.
 
 ### 1.3.1a Add row with simple-field sort ASC and keep it selected
+
+These simple-field sort cases run in both flat and expanded group-by views.
 
 - Empty row is appended at the bottom.
 - Empty primary and field cells are visible immediately.
@@ -318,6 +328,27 @@ configurations.
 - After the POST completes, the queued PATCH fires with the real row ID.
 - Field value is saved correctly.
 
+### 1.5.0 Grouped views load collapsed and expand or collapse all groups
+
+- Grouped views initially render group banners collapsed.
+- Expanded groups fetch visible rows with a single grid rows request.
+- Expanding all groups shows rows in their groups and keeps group counters.
+- Collapsing all groups hides rows and leaves group banners visible.
+
+### 1.5.1 Add row from a group add-row line
+
+- New row is inserted at the bottom of the selected group.
+- The group-by field is set to that group's value.
+- Other groups keep their rows and order.
+- The group counter increments while the create request is pending.
+- The new row remains selected after backend confirmation.
+
+### 1.5.2 Collapse and expand a group
+
+- Collapsing one group hides only that group's rows.
+- Other expanded groups stay visible.
+- Expanding the group restores its rows in place.
+
 ## Row Updates
 
 ### 2.1.1 Edit primary field and press Enter
@@ -355,6 +386,8 @@ configurations.
 - Field validation error remains visible.
 
 ### 2.2.1a Edit filtered row to non-matching value and keep it selected
+
+These simple-field filter cases run in both flat and expanded group-by views.
 
 - Typed value is visible immediately.
 - No row loading spinner is shown for this optimistic text update.
@@ -431,7 +464,26 @@ configurations.
 - Row remains visible.
 - Error toast is visible.
 
+### 2.2.6a Edit filtered grouped row to non-matching value
+
+- Grouped filtered row shows "Row does not match filters" immediately.
+- The warning remains visible on the last row in a group.
+- Row remains visible while selected.
+- After deselect, the row is removed from the visible group.
+- Group counters update locally.
+
+### 2.2.7a Change single-select group-by value
+
+- New single-select value is visible immediately.
+- "Row has moved" is visible immediately.
+- Row remains in its original group while selected.
+- No grid rows GET request is made for the single row update.
+- After deselect, the row moves to the target group.
+- Source and target group counters update locally.
+
 ### 2.3.1a Edit sorted row so it should move and keep it selected
+
+These simple-field sort cases run in both flat and expanded group-by views.
 
 - Typed value is visible immediately.
 - No row loading spinner is shown for this optimistic text update.
@@ -590,6 +642,8 @@ configurations.
 
 ## Filters
 
+These saved filter cases run in both flat and expanded group-by views.
+
 ### 5.1.1 Load view with API-created filter
 
 - Grid opens with only matching rows visible.
@@ -606,6 +660,8 @@ configurations.
 - Non-matching rows are absent from the visible grid.
 
 ## Sorts
+
+These saved sort cases run in both flat and expanded group-by views.
 
 ### 6.1.1 Sort ASC
 
@@ -841,8 +897,11 @@ configurations.
 
 ## TODO Coverage
 
-- 1.5.x: Create rows with active group-by constraints.
-- 2.4.x: Update rows with active group-by constraints.
+- 1.5.x: Remaining create group-by variants: deselect after confirmation,
+  deselect before confirmation, backend errors, and formula group-by
+  constraints.
+- 2.4.x: Remaining update group-by variants: deselect before confirmation,
+  backend errors, escape, and formula group-by constraints.
 - 2.5.x: Editing source fields for visible formula fields that are not active
   filter/sort/group-by constraints; verify formula-cell loading, refresh, and
   rollback. Formula-backed filter/sort constraints are covered by 2.2.5 and

@@ -253,16 +253,19 @@ export function renderViewport({
       continue
     }
 
-    const bucket = sectionRows?.get?.(pathKey(item.path, fields))
-    for (let i = 0; i < item.rowCount; i++) {
+    const sectionKey = pathKey(item.path, fields)
+    const bucket = sectionRows?.get?.(sectionKey)
+    const visibleStart = Math.max(
+      0,
+      Math.floor((Math.max(top, item.y) - item.y) / rowHeight)
+    )
+    const visibleEnd = Math.min(
+      item.rowCount,
+      Math.ceil((Math.min(bottom, item.y + item.height) - item.y) / rowHeight)
+    )
+
+    for (let i = visibleStart; i < visibleEnd; i++) {
       const slotY = item.y + i * rowHeight
-      const slotBottom = slotY + rowHeight
-      if (slotBottom <= top) {
-        continue
-      }
-      if (slotY >= bottom) {
-        break
-      }
       const row = bucket?.get(i)
       if (row !== undefined) {
         items.push({
@@ -271,7 +274,7 @@ export function renderViewport({
           path: item.path,
           y: slotY,
           height: rowHeight,
-          sectionKey: pathKey(item.path, fields),
+          sectionKey,
           position: i,
           globalRowOffset: item.firstGlobalRowOffset + i,
         })
@@ -282,7 +285,7 @@ export function renderViewport({
           y: slotY,
           height: rowHeight,
           indexInSection: i,
-          sectionKey: pathKey(item.path, fields),
+          sectionKey,
           globalRowOffset: item.firstGlobalRowOffset + i,
         })
       }

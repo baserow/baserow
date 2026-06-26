@@ -78,7 +78,9 @@ export class GridPage {
     return this.page.locator(
       [
         ".grid-view__left .grid-view__rows > .grid-view__row",
+        ".grid-view__left .grid-view__rows > .grid-view__row-background-wrapper > .grid-view__row",
         ".grid-view__left .grid-view__group-by-rows__row > .grid-view__row",
+        ".grid-view__left .grid-view__group-by-rows__row > .grid-view__row-background-wrapper > .grid-view__row",
       ].join(", "),
     );
   }
@@ -88,7 +90,9 @@ export class GridPage {
     return this.page.locator(
       [
         ".grid-view__right .grid-view__rows > .grid-view__row",
+        ".grid-view__right .grid-view__rows > .grid-view__row-background-wrapper > .grid-view__row",
         ".grid-view__right .grid-view__group-by-rows__row > .grid-view__row",
+        ".grid-view__right .grid-view__group-by-rows__row > .grid-view__row-background-wrapper > .grid-view__row",
       ].join(", "),
     );
   }
@@ -121,6 +125,12 @@ export class GridPage {
     return this.rightRowAt(rowIndex)
       .locator(".grid-view__column")
       .nth(fieldIndex);
+  }
+
+  singleSelectOptionAt(rowIndex: number, fieldIndex: number): Locator {
+    return this.fieldCellAt(rowIndex, fieldIndex)
+      .locator(".grid-field-single-select__option")
+      .first();
   }
 
   nonPrimaryFieldHeadersByName(fieldName: string): Locator {
@@ -231,6 +241,7 @@ export class GridPage {
   }
 
   async toggleGroupBy(value: string): Promise<void> {
+    await this.closeOpenContexts();
     const banner = this.groupByBannerByValue(value);
     await expect(banner).toBeVisible({ timeout: 10_000 });
     await banner.locator(".grid-view__group-by-banner__toggle").click();
@@ -260,8 +271,17 @@ export class GridPage {
   }
 
   async closeGroupByContext(): Promise<void> {
-    await this.page.mouse.click(5, 5);
+    await this.closeOpenContexts();
     await expect(this.groupByContext()).toBeHidden({ timeout: 10_000 });
+  }
+
+  async closeOpenContexts(): Promise<void> {
+    await this.page.keyboard.press("Escape");
+    const viewport = this.page.viewportSize();
+    await this.page.mouse.click(
+      viewport ? viewport.width - 5 : 1000,
+      viewport ? viewport.height - 5 : 700,
+    );
   }
 
   /** Single-click a non-primary cell to select it without entering edit mode */
@@ -699,6 +719,19 @@ export class GridPage {
     );
   }
 
+  async expectSingleSelectFieldText(
+    rowIndex: number,
+    fieldIndex: number,
+    text: string,
+  ): Promise<void> {
+    await expect(this.singleSelectOptionAt(rowIndex, fieldIndex)).toHaveText(
+      this.exactTextRegex(text),
+      {
+        timeout: 10_000,
+      },
+    );
+  }
+
   async expectPrimaryEmpty(rowIndex: number): Promise<void> {
     await expect(this.primaryCellAt(rowIndex)).toBeEmpty({
       timeout: 10_000,
@@ -823,10 +856,7 @@ export class GridPage {
     });
     await expect(
       banner.locator(".grid-view__group-by-banner__count"),
-    ).toHaveText(
-      new RegExp(`^\\s*${count}\\s*$`),
-      { timeout: 10_000 },
-    );
+    ).toHaveText(new RegExp(`^\\s*${count}\\s*$`), { timeout: 10_000 });
     await expect(banner).toHaveAttribute(
       "data-collapsed",
       collapsed ? "true" : "false",

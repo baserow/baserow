@@ -22,7 +22,12 @@
         <button
           type="button"
           class="grid-view__group-by-banner__toggle"
-          :aria-label="item.collapsed ? 'Expand group' : 'Collapse group'"
+          :aria-expanded="!item.collapsed"
+          :aria-label="
+            item.collapsed
+              ? $t('gridViewGroupByBanner.expandGroup')
+              : $t('gridViewGroupByBanner.collapseGroup')
+          "
           @click="$emit('toggle', item.path)"
         >
           <i
@@ -165,7 +170,7 @@ export default {
       return value === null || value === undefined || value === ''
     },
     emptyValueLabel() {
-      return '(Empty)'
+      return this.$t('gridViewGroupByBanner.emptyValue')
     },
     groupByComponent() {
       if (this.isEmptyValue || !this.groupByField || !this.fieldType) {

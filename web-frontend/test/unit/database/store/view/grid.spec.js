@@ -156,6 +156,147 @@ describe('Grid view store', () => {
     expect(store.getters['grid/getRow'](12)._.selected).toBe(true)
   })
 
+  test('onRowChange marks an optimistic flat row as moved when it sorts elsewhere', async () => {
+    const rowMetadata = {
+      selected: true,
+      selectedFieldId: 1,
+      selectedBy: [1],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r',
+    }
+    const fields = [
+      {
+        id: 1,
+        name: 'Name',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+    ]
+    const row = {
+      id: 99,
+      order: '99.00',
+      field_1: '',
+      _: { ...rowMetadata },
+    }
+    const state = Object.assign(gridStore.state(), {
+      rows: [
+        {
+          id: 1,
+          order: '1.00',
+          field_1: 'Row 020',
+          _: { ...rowMetadata, selected: false, selectedBy: [] },
+        },
+        row,
+      ],
+      count: 2,
+    })
+    const view = {
+      id: 1,
+      filters: [],
+      filter_groups: [],
+      filter_type: 'AND',
+      filters_disabled: true,
+      sortings: [{ field: 1, order: 'ASC', type: 'default' }],
+      group_bys: [],
+    }
+
+    store.replaceState({ ...store.state, grid: state })
+
+    await store.dispatch('grid/onRowChange', { view, row, fields })
+
+    expect(row._.matchSortings).toBe(false)
+  })
+
+  test('createNewRows finalizes a selected sorted row with moved warning', async () => {
+    const fields = [
+      {
+        id: 1,
+        name: 'Name',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+    ]
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r',
+    }
+    const fetchByScrollTopDelayed = vi.fn()
+    const sortedStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            fetchByScrollTopDelayed,
+            fetchAllFieldAggregationData: vi.fn(),
+          },
+        },
+      },
+    })
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      count: 2,
+      bufferStartIndex: 0,
+      bufferLimit: 2,
+      rows: [
+        {
+          id: 1,
+          order: '1.00',
+          field_1: 'Row 001',
+          _: { ...rowMetadata, persistentId: 'r1' },
+        },
+        {
+          id: 2,
+          order: '2.00',
+          field_1: 'Row 002',
+          _: { ...rowMetadata, persistentId: 'r2' },
+        },
+      ],
+    })
+    sortedStore.replaceState({ ...sortedStore.state, grid: state })
+
+    mockServer.mock.onPost('/database/rows/table/1/batch/').reply(200, {
+      items: [{ id: 3, order: '3.00', field_1: '' }],
+      metadata: { updated_field_ids: [] },
+    })
+
+    await sortedStore.dispatch('grid/createNewRows', {
+      view: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        filters_disabled: true,
+        sortings: [{ field: 1, order: 'ASC', type: 'default' }],
+        group_bys: [],
+      },
+      table: { id: 1 },
+      fields,
+      rows: [{}],
+      selectPrimaryCell: true,
+    })
+
+    const finalizedRow = sortedStore.state.grid.rows.find((row) => row.id === 3)
+    expect(finalizedRow).toBeDefined()
+    expect(finalizedRow._.loading).toBe(false)
+    expect(finalizedRow._.selected).toBe(true)
+    expect(finalizedRow._.matchSortings).toBe(false)
+    expect(fetchByScrollTopDelayed).not.toHaveBeenCalled()
+  })
+
   test('group-by shift-click multi-select uses compact visible row indexes', async () => {
     const state = Object.assign(gridStore.state(), {
       activeGroupBys: [{ field: 1 }],
@@ -777,6 +918,139 @@ describe('Grid view store', () => {
     await createPromise
   })
 
+  test('failed createNewRowInGroup keeps group count after optimistic row was already removed', async () => {
+    const fields = [
+      {
+        id: 1,
+        name: 'Name',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+      {
+        id: 2,
+        name: 'Team',
+        type: 'text',
+        _: { type: { type: 'text' } },
+      },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r',
+    }
+    const groupByStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            fetchByScrollTopDelayed: vi.fn(),
+            fetchAllFieldAggregationData: vi.fn(),
+          },
+        },
+      },
+    })
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: 1,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        treeNodes: [{ path: { field_2: 'A' }, depth: 0, row_count: 1 }],
+        truncated: false,
+        collapse: { mode: 'expand', paths: [] },
+        sectionRows: {},
+        rowLocations: {},
+      },
+    })
+    groupByStore.replaceState({ ...groupByStore.state, grid: state })
+    groupByStore.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: '"A"',
+      rows: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'Alice',
+          field_2: 'A',
+          _: { ...rowMetadata, persistentId: 'r10' },
+        },
+      ],
+      startPosition: 0,
+    })
+
+    let failCreate
+    mockServer.mock.onPost('/database/rows/table/1/batch/').reply(
+      () =>
+        new Promise((resolve) => {
+          failCreate = () => resolve([500, { detail: 'Failed' }])
+        })
+    )
+
+    const view = {
+      id: 1,
+      filters: [
+        {
+          id: 1,
+          view: 1,
+          field: 1,
+          type: EqualViewFilterType.getType(),
+          value: 'Alice',
+        },
+      ],
+      filter_groups: [],
+      filter_type: 'AND',
+      sortings: [],
+      group_bys: groupBys,
+    }
+
+    const createPromise = groupByStore.dispatch('grid/createNewRowInGroup', {
+      view,
+      table: { id: 1 },
+      fields,
+      path: { field_2: 'A' },
+      selectPrimaryCell: true,
+    })
+    await new Promise((resolve) => setTimeout(resolve))
+
+    const optimisticRow = groupByStore.state.grid.groupBy.sectionRows['"A"'][1]
+    expect(optimisticRow).toBeDefined()
+    expect(optimisticRow._.matchFilters).toBe(false)
+    expect(groupByStore.state.grid.groupBy.treeNodes).toEqual([
+      { path: { field_2: 'A' }, depth: 0, row_count: 2 },
+    ])
+
+    await groupByStore.dispatch('grid/refreshRow', {
+      grid: view,
+      row: optimisticRow,
+      fields,
+    })
+    expect(groupByStore.state.grid.groupBy.treeNodes).toEqual([
+      { path: { field_2: 'A' }, depth: 0, row_count: 1 },
+    ])
+
+    failCreate()
+    await expect(createPromise).rejects.toThrow()
+
+    expect(
+      groupByStore.state.grid.groupBy.sectionRows['"A"'].map((row) => row.id)
+    ).toEqual([10])
+    expect(groupByStore.state.grid.groupBy.treeNodes).toEqual([
+      { path: { field_2: 'A' }, depth: 0, row_count: 1 },
+    ])
+    expect(groupByStore.getters['grid/getCount']).toBe(1)
+  })
+
   test('updateDataIntoCells keeps pasted overflow row order in group-by mode', async () => {
     const fields = [
       {
@@ -1034,6 +1308,79 @@ describe('Grid view store', () => {
     expect(store.getters['grid/getCount']).toBe(2)
   })
 
+  test('refreshRow ignores grouped rows that have already been removed', async () => {
+    const fields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'Team', type: 'text' },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r',
+    }
+    const state = Object.assign(gridStore.state(), {
+      activeGroupBys: groupBys,
+      count: 1,
+      groupBy: {
+        treeNodes: [{ path: { field_2: 'A' }, depth: 0, row_count: 1 }],
+        truncated: false,
+        collapse: { mode: 'expand', paths: [] },
+        sectionRows: {},
+        rowLocations: {},
+      },
+    })
+
+    store.replaceState({ ...store.state, grid: state })
+    store.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: '"A"',
+      rows: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'Alice',
+          field_2: 'A',
+          _: { ...rowMetadata, persistentId: 'r10' },
+        },
+      ],
+      startPosition: 0,
+    })
+
+    await store.dispatch('grid/refreshRow', {
+      grid: {
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      row: {
+        id: 'temporary-row',
+        order: '2.00',
+        field_1: '',
+        field_2: 'A',
+        _: {
+          ...rowMetadata,
+          persistentId: 'temporary-row',
+          matchFilters: false,
+        },
+      },
+      fields,
+    })
+
+    expect(store.getters['grid/getAllRows'].map((row) => row.id)).toEqual([10])
+    expect(store.state.grid.groupBy.treeNodes).toEqual([
+      { path: { field_2: 'A' }, depth: 0, row_count: 1 },
+    ])
+    expect(store.getters['grid/getCount']).toBe(1)
+  })
+
   test('refresh enables group-by mode before choosing the refresh path', async () => {
     const fetchGroupByTree = vi.fn()
     const fetchGroupByRowsByScrollTop = vi.fn()
@@ -1162,6 +1509,236 @@ describe('Grid view store', () => {
       adhocSorting: false,
     })
 
+    expect(groupByStore.state.grid.groupBy.collapse).toEqual(collapse)
+    expect(fetchGroupByTree).toHaveBeenCalledOnce()
+    expect(fetchGroupByRowsByScrollTop).toHaveBeenCalledOnce()
+  })
+
+  test('refresh preserves group-by collapse state when adding a group-by', async () => {
+    const fetchGroupByTree = vi.fn()
+    const fetchGroupByRowsByScrollTop = vi.fn()
+    const correctMultiSelect = vi.fn()
+    const fetchAllFieldAggregationData = vi.fn()
+    const groupByActions = {
+      ...gridStore.actions,
+      fetchGroupByTree,
+      fetchGroupByRowsByScrollTop,
+      correctMultiSelect,
+      fetchAllFieldAggregationData,
+    }
+    const groupByStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: groupByActions,
+        },
+      },
+    })
+    const initialGroupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const nextGroupBys = [
+      { field: 2, order: 'ASC', type: 'default' },
+      { field: 3, order: 'ASC', type: 'default' },
+    ]
+    const collapse = {
+      mode: 'collapse',
+      paths: [{ field_2: 'A' }],
+    }
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: initialGroupBys,
+      rowHeight: 33,
+      windowHeight: 330,
+      groupBy: {
+        treeNodes: [
+          { path: { field_2: 'A' }, depth: 0, row_count: 2 },
+          { path: { field_2: 'B' }, depth: 0, row_count: 1 },
+        ],
+        truncated: false,
+        collapse,
+        sectionRows: {},
+        rowLocations: {},
+      },
+    })
+
+    groupByStore.replaceState({ ...groupByStore.state, grid: state })
+
+    await groupByStore.dispatch('grid/refresh', {
+      view: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: nextGroupBys,
+      },
+      fields: [
+        { id: 1, name: 'Name', type: 'text', primary: true },
+        { id: 2, name: 'Team', type: 'text' },
+        { id: 3, name: 'Role', type: 'text' },
+      ],
+      adhocFiltering: false,
+      adhocSorting: false,
+    })
+
+    expect(groupByStore.state.grid.activeGroupBys).toEqual(nextGroupBys)
+    expect(groupByStore.state.grid.groupBy.collapse).toEqual(collapse)
+    expect(fetchGroupByTree).toHaveBeenCalledOnce()
+    expect(fetchGroupByRowsByScrollTop).toHaveBeenCalledOnce()
+  })
+
+  test('refresh preserves group-by collapse state when removing a group-by', async () => {
+    const fetchGroupByTree = vi.fn()
+    const fetchGroupByRowsByScrollTop = vi.fn()
+    const correctMultiSelect = vi.fn()
+    const fetchAllFieldAggregationData = vi.fn()
+    const groupByActions = {
+      ...gridStore.actions,
+      fetchGroupByTree,
+      fetchGroupByRowsByScrollTop,
+      correctMultiSelect,
+      fetchAllFieldAggregationData,
+    }
+    const groupByStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: groupByActions,
+        },
+      },
+    })
+    const initialGroupBys = [
+      { field: 2, order: 'ASC', type: 'default' },
+      { field: 3, order: 'ASC', type: 'default' },
+    ]
+    const nextGroupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: initialGroupBys,
+      rowHeight: 33,
+      windowHeight: 330,
+      groupBy: {
+        treeNodes: [
+          { path: { field_2: 'A' }, depth: 0, row_count: 2 },
+          {
+            path: { field_2: 'A', field_3: 'Developer' },
+            depth: 1,
+            row_count: 1,
+          },
+          {
+            path: { field_2: 'A', field_3: 'Designer' },
+            depth: 1,
+            row_count: 1,
+          },
+          { path: { field_2: 'B' }, depth: 0, row_count: 1 },
+          {
+            path: { field_2: 'B', field_3: 'Developer' },
+            depth: 1,
+            row_count: 1,
+          },
+        ],
+        truncated: false,
+        collapse: {
+          mode: 'expand',
+          paths: [
+            { field_2: 'A', field_3: 'Developer' },
+            { field_2: 'A', field_3: 'Designer' },
+            { field_2: 'B', field_3: 'Developer' },
+          ],
+        },
+        sectionRows: {},
+        rowLocations: {},
+      },
+    })
+
+    groupByStore.replaceState({ ...groupByStore.state, grid: state })
+
+    await groupByStore.dispatch('grid/refresh', {
+      view: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: nextGroupBys,
+      },
+      fields: [
+        { id: 1, name: 'Name', type: 'text', primary: true },
+        { id: 2, name: 'Team', type: 'text' },
+        { id: 3, name: 'Role', type: 'text' },
+      ],
+      adhocFiltering: false,
+      adhocSorting: false,
+    })
+
+    expect(groupByStore.state.grid.activeGroupBys).toEqual(nextGroupBys)
+    expect(groupByStore.state.grid.groupBy.collapse).toEqual({
+      mode: 'expand',
+      paths: [{ field_2: 'A' }, { field_2: 'B' }],
+    })
+    expect(fetchGroupByTree).toHaveBeenCalledOnce()
+    expect(fetchGroupByRowsByScrollTop).toHaveBeenCalledOnce()
+  })
+
+  test('refresh preserves initialized group-by collapse state when re-enabling group-by', async () => {
+    const fetchGroupByTree = vi.fn()
+    const fetchGroupByRowsByScrollTop = vi.fn()
+    const correctMultiSelect = vi.fn()
+    const fetchAllFieldAggregationData = vi.fn()
+    const groupByActions = {
+      ...gridStore.actions,
+      fetchGroupByTree,
+      fetchGroupByRowsByScrollTop,
+      correctMultiSelect,
+      fetchAllFieldAggregationData,
+    }
+    const groupByStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: groupByActions,
+        },
+      },
+    })
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const collapse = {
+      mode: 'collapse',
+      paths: [{ field_2: 'A' }],
+    }
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: [],
+      rowHeight: 33,
+      windowHeight: 330,
+      groupBy: {
+        treeNodes: [],
+        truncated: false,
+        collapse,
+        collapseInitialized: true,
+        sectionRows: {},
+        rowLocations: {},
+      },
+    })
+
+    groupByStore.replaceState({ ...groupByStore.state, grid: state })
+
+    await groupByStore.dispatch('grid/refresh', {
+      view: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      fields: [
+        { id: 1, name: 'Name', type: 'text', primary: true },
+        { id: 2, name: 'Team', type: 'text' },
+      ],
+      adhocFiltering: false,
+      adhocSorting: false,
+    })
+
+    expect(groupByStore.state.grid.activeGroupBys).toEqual(groupBys)
     expect(groupByStore.state.grid.groupBy.collapse).toEqual(collapse)
     expect(fetchGroupByTree).toHaveBeenCalledOnce()
     expect(fetchGroupByRowsByScrollTop).toHaveBeenCalledOnce()

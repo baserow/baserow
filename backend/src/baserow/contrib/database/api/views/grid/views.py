@@ -1201,7 +1201,11 @@ class PublicGridViewRowsView(APIView):
             )
             response.data.update(**public_view_field_options)
 
-        if group_by and not group_visibility_paths:
+        if (
+            group_by
+            and not group_visibility_paths
+            and group_visibility_mode != GROUP_VISIBILITY_MODE_COLLAPSE
+        ):
             group_by_fields = [
                 # We can safely do this without having to check whether the
                 # `group_by` input is valid because this has already been validated

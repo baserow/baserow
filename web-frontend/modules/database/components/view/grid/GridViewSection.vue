@@ -114,7 +114,7 @@
             @row-context="$emit('row-context', $event)"
           ></GridViewGroupByRows>
           <GridViewRows
-            v-if="
+            v-else-if="
               !useGroupByRows && (includeRowDetails || visibleFields.length > 0)
             "
             ref="rows"

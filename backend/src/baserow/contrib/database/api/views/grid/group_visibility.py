@@ -12,6 +12,9 @@ from baserow.contrib.database.fields.registries import field_type_registry
 GROUP_VISIBILITY_MODE_EXPAND = "expand"
 GROUP_VISIBILITY_MODE_COLLAPSE = "collapse"
 
+# Cap OR'd Q clauses; these endpoints are public and unauthenticated.
+MAX_GROUP_VISIBILITY_PATHS = 1000
+
 
 def parse_group_visibility_paths(raw: str | None) -> list[dict[str, Any]]:
     """
@@ -19,7 +22,8 @@ def parse_group_visibility_paths(raw: str | None) -> list[dict[str, Any]]:
 
     In expand mode, entries are collapsed groups to exclude. In collapse mode,
     entries are expanded groups to include. Invalid payloads are ignored so
-    optional client state never breaks row loading.
+    optional client state never breaks row loading. The number of paths is
+    capped by ``MAX_GROUP_VISIBILITY_PATHS``.
     """
 
     if not raw:
@@ -33,7 +37,8 @@ def parse_group_visibility_paths(raw: str | None) -> list[dict[str, Any]]:
     if not isinstance(parsed, list):
         return []
 
-    return [entry for entry in parsed if isinstance(entry, dict)]
+    valid = [entry for entry in parsed if isinstance(entry, dict)]
+    return valid[:MAX_GROUP_VISIBILITY_PATHS]
 
 
 def parse_group_visibility_mode(raw: str | None) -> str:
@@ -72,7 +77,8 @@ def build_group_path_filter_q(
             try:
                 value = serializer_field.to_internal_value(raw_value)
             except Exception:
-                value = raw_value
+                # Invalid segment: drop the path instead of risking a query-time 500.
+                return Q()
 
         unique_value = field_type.get_group_by_field_unique_value(
             field, field_name, value

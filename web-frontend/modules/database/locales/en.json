@@ -588,6 +588,11 @@
   "viewGroupBy": {
     "groupBy": "Group | Group by 1 fields | Group by {count} fields"
   },
+  "gridViewGroupByBanner": {
+    "emptyValue": "(Empty)",
+    "expandGroup": "Expand group",
+    "collapseGroup": "Collapse group"
+  },
   "viewSortContext": {
     "noSortTitle": "You have not yet created a sort",
     "noSortText": "Sorts allow you to sort rows by a field.",

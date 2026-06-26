@@ -311,6 +311,7 @@ export default {
               ],
           }
         )
+        this.$refs.context.hide()
       } catch (error) {
         notifyIf(error, 'view')
       }
