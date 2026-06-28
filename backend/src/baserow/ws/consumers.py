@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any, Optional
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from loguru import logger
+from opentelemetry import metrics
 
 from baserow.config.settings.utils import try_int
 from baserow.ws.realtime_events import (
@@ -25,6 +26,27 @@ if TYPE_CHECKING:
         BroadcastToUsersMessage,
         ForceDisconnectMessage,
     )
+
+
+meter = metrics.get_meter(__name__)
+websocket_connections_counter = meter.create_counter(
+    "baserow.websocket_connections",
+    unit="1",
+    description="Accepted realtime WebSocket connections.",
+)
+websocket_disconnects_counter = meter.create_counter(
+    "baserow.websocket_disconnects",
+    unit="1",
+    description="Closed realtime WebSocket connections, labelled by close code.",
+)
+
+# Known close codes pass through; anything else becomes "other" to keep the
+# metric's label cardinality bounded.
+_KNOWN_WEBSOCKET_CLOSE_CODES = frozenset(range(1000, 1016))
+
+
+def _bucket_close_code(code: Optional[int]) -> str:
+    return str(code) if code in _KNOWN_WEBSOCKET_CLOSE_CODES else "other"
 
 
 @dataclass
@@ -146,6 +168,7 @@ class SubscribedPages:
 class CoreConsumer(AsyncJsonWebsocketConsumer):
     async def connect(self):
         await self.accept()
+        websocket_connections_counter.add(1)
 
         user = self.scope["user"]
         await self.send_json(
@@ -167,9 +190,12 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         self.scope["pages"] = SubscribedPages()
         await self.channel_layer.group_add("users", self.channel_name)
 
-    async def disconnect(self, message):
+    async def disconnect(self, code):
         await self._remove_all_page_scopes(send_confirmation=False)
         await self.channel_layer.group_discard("users", self.channel_name)
+        websocket_disconnects_counter.add(
+            1, attributes={"code": _bucket_close_code(code)}
+        )
 
     async def receive_json(self, content, **parameters):
         """

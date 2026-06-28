@@ -1,4 +1,4 @@
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 from channels.testing import WebsocketCommunicator
@@ -476,3 +476,39 @@ async def test_core_consumer_broadcast_to_group(
         mock_send_json.assert_called_once_with(event["payload"])
     else:
         mock_send_json.assert_not_called()
+
+
+def test_bucket_close_code():
+    from baserow.ws.consumers import _bucket_close_code
+
+    assert _bucket_close_code(1011) == "1011"
+    assert _bucket_close_code(1001) == "1001"
+    # Application/unknown codes collapse to "other" to bound label cardinality.
+    assert _bucket_close_code(4999) == "other"
+    assert _bucket_close_code(None) == "other"
+
+
+@pytest.mark.asyncio
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.websockets
+async def test_core_consumer_records_connection_and_disconnect_metrics(data_fixture):
+    from baserow.ws import consumers as ws_consumers
+
+    user_1, token_1 = data_fixture.create_user_and_token()
+    communicator = WebsocketCommunicator(
+        application,
+        f"ws/core/?jwt_token={token_1}&web_socket_id=ws-1",
+        headers=[(b"origin", b"http://localhost")],
+    )
+
+    with (
+        patch.object(ws_consumers, "websocket_connections_counter") as connections,
+        patch.object(ws_consumers, "websocket_disconnects_counter") as disconnects,
+    ):
+        connected, _ = await communicator.connect()
+        assert connected is True
+        await communicator.receive_json_from()
+        connections.add.assert_called_once_with(1)
+
+        await communicator.disconnect(code=1011)
+        disconnects.add.assert_called_once_with(1, attributes={"code": "1011"})

@@ -63,16 +63,20 @@ class ConsoleSentryTransport(Transport):
             )
 
 
-def drop_expected_asyncio_websocket_ping_timeout_events(
+# asyncio logs a benign websocket close as "<ExceptionType> exception in shielded
+# future". A clean ConnectionClosedOK is always noise; a ConnectionClosedError is
+# only noise for a keepalive timeout. Their rate lives in the
+# baserow.websocket_disconnects metric. Anchoring on the exception type keeps real
+# errors reportable, including abnormal 1006 closes (which also flag mass
+# disconnects from worker restarts) and protocol errors.
+_OK_CLOSE_LOG = "ConnectionClosedOK exception in shielded future"
+_ERR_CLOSE_LOG = "ConnectionClosedError exception in shielded future"
+
+
+def drop_expected_asyncio_websocket_disconnect_events(
     event: dict[str, Any], hint: dict[str, Any]
 ) -> dict[str, Any] | None:
-    """
-    Ignore websocket keepalive timeouts logged by asyncio.
-
-    These are emitted by the websockets stack when a client disappears without a
-    clean close handshake. They are noisy, expected in production, and don't
-    point to an application error in Baserow itself.
-    """
+    """Sentry before_send hook that drops expected websocket-close noise."""
 
     log_record = hint.get("log_record")
     if not isinstance(log_record, logging.LogRecord):
@@ -82,10 +86,9 @@ def drop_expected_asyncio_websocket_ping_timeout_events(
         return event
 
     message = log_record.getMessage()
-    if (
-        "ConnectionClosedError exception in shielded future" in message
-        and "keepalive ping timeout" in message
-    ):
+    if _OK_CLOSE_LOG in message:
+        return None
+    if _ERR_CLOSE_LOG in message and "keepalive ping timeout" in message:
         return None
 
     return event

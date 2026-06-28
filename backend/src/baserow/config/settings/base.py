@@ -1449,7 +1449,7 @@ if SENTRY_DSN:
 
     from baserow.core.sentry import (
         ConsoleSentryTransport,
-        drop_expected_asyncio_websocket_ping_timeout_events,
+        drop_expected_asyncio_websocket_disconnect_events,
     )
 
     # Exclude integrations whose module-level imports are incompatible:
@@ -1484,7 +1484,7 @@ if SENTRY_DSN:
         integrations=[DjangoIntegration(signals_spans=False, middleware_spans=False)],
         traces_sample_rate=sentry_traces_sample_rate,
         send_default_pii=False,
-        before_send=drop_expected_asyncio_websocket_ping_timeout_events,
+        before_send=drop_expected_asyncio_websocket_disconnect_events,
         event_scrubber=EventScrubber(recursive=True, denylist=SENTRY_DENYLIST),
         environment=os.getenv("SENTRY_ENVIRONMENT", ""),
         transport=sentry_transport,
