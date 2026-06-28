@@ -494,7 +494,7 @@ def test_bucket_close_code():
 async def test_core_consumer_records_connection_and_disconnect_metrics(data_fixture):
     from baserow.ws import consumers as ws_consumers
 
-    user_1, token_1 = data_fixture.create_user_and_token()
+    _, token_1 = data_fixture.create_user_and_token()
     communicator = WebsocketCommunicator(
         application,
         f"ws/core/?jwt_token={token_1}&web_socket_id=ws-1",

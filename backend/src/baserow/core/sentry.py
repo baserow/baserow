@@ -86,9 +86,9 @@ def drop_expected_asyncio_websocket_disconnect_events(
         return event
 
     message = log_record.getMessage()
-    if _OK_CLOSE_LOG in message:
+    if message.startswith(_OK_CLOSE_LOG):
         return None
-    if _ERR_CLOSE_LOG in message and "keepalive ping timeout" in message:
+    if message.startswith(_ERR_CLOSE_LOG) and "keepalive ping timeout" in message:
         return None
 
     return event
