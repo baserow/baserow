@@ -8,8 +8,29 @@ from mcp.shared.memory import (
     create_connected_server_and_client_session as client_session,
 )
 
-from baserow.core.mcp import BaserowMCPServer, current_key
+from baserow.core.mcp import (
+    BaserowMCPServer,
+    _is_sse_disconnect_teardown_error,
+    current_key,
+)
 from baserow.core.mcp.sse import DjangoChannelsSseServerTransport
+
+
+def test_is_sse_disconnect_teardown_error():
+    benign = RuntimeError("Response already completed.")
+    real = ValueError("boom")
+
+    # Bare and ExceptionGroup-wrapped benign errors are recognised. anyio wraps
+    # the child-task error from EventSourceResponse in a group.
+    assert _is_sse_disconnect_teardown_error(benign) is True
+    assert _is_sse_disconnect_teardown_error(ExceptionGroup("tg", [benign])) is True
+
+    # Real errors are not, whether bare, wrapped, or mixed with a benign one.
+    assert _is_sse_disconnect_teardown_error(real) is False
+    assert _is_sse_disconnect_teardown_error(ExceptionGroup("tg", [real])) is False
+    assert (
+        _is_sse_disconnect_teardown_error(ExceptionGroup("tg", [benign, real])) is False
+    )
 
 
 @pytest.mark.django_db
@@ -181,6 +202,119 @@ def test_sse_listener_is_closed_when_connection_is_closed():
         assert listener_group() is None
 
     async_to_sync(inner)()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_handle_sse_sends_a_single_http_response_start(data_fixture):
+    """
+    Regression for BASEROW-SAAS-BACKEND-Z4: once the SSE transport has started
+    streaming, the route must not return a Response that Starlette sends on top,
+    because that emits a second http.response.start and raises a RuntimeError.
+    """
+
+    endpoint = data_fixture.create_mcp_endpoint()
+    app = BaserowMCPServer().sse_app()
+    key_token = current_key.set(endpoint.key)
+
+    response_starts = 0
+
+    async def inner():
+        nonlocal response_starts
+        client_disconnected = anyio.Event()
+
+        async def receive():
+            await client_disconnected.wait()
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            nonlocal response_starts
+            if message["type"] == "http.response.start":
+                response_starts += 1
+                # Streaming has begun; disconnect so the transport tears down and
+                # the route returns.
+                client_disconnected.set()
+
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": f"/mcp/{endpoint.key}/sse",
+            "headers": [],
+            "query_string": b"",
+        }
+
+        with anyio.fail_after(10):
+            await app(scope, receive, send)
+
+    try:
+        with transaction.atomic():
+            async_to_sync(inner)()
+    finally:
+        current_key.reset(key_token)
+
+    # Exactly one start: the SSE stream's. On the pre-fix code Starlette sends a
+    # second one for the returned Response().
+    assert response_starts == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_handle_sse_still_logs_errors_raised_after_the_response_started(data_fixture):
+    """
+    A real failure inside the MCP session after streaming has begun must stay
+    visible (logged at error level), not be swallowed as a benign disconnect,
+    while still never sending a second http.response.start.
+    """
+
+    from loguru import logger
+
+    endpoint = data_fixture.create_mcp_endpoint()
+    mcp = BaserowMCPServer()
+    app = mcp.sse_app()
+    key_token = current_key.set(endpoint.key)
+
+    errors = []
+    sink_id = logger.add(errors.append, level="ERROR")
+
+    response_starts = 0
+
+    async def failing_run(*args, **kwargs):
+        # Let the EventSourceResponse send http.response.start first, then fail.
+        await anyio.sleep(0.05)
+        raise ValueError("boom")
+
+    async def inner():
+        nonlocal response_starts
+
+        async def receive():
+            await anyio.sleep(10)
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            nonlocal response_starts
+            if message["type"] == "http.response.start":
+                response_starts += 1
+
+        scope = {
+            "type": "http",
+            "method": "GET",
+            "path": f"/mcp/{endpoint.key}/sse",
+            "headers": [],
+            "query_string": b"",
+        }
+
+        mcp._mcp_server.run = failing_run
+        with anyio.fail_after(10):
+            await app(scope, receive, send)
+
+    try:
+        with transaction.atomic():
+            async_to_sync(inner)()
+    finally:
+        logger.remove(sink_id)
+        current_key.reset(key_token)
+
+    # The failure was surfaced as an error, and the response was not double-sent.
+    assert response_starts == 1
+    assert any(record.record["level"].name == "ERROR" for record in errors)
 
 
 @pytest.mark.django_db

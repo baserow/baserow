@@ -13,6 +13,18 @@ if TYPE_CHECKING:
 current_key: contextvars.ContextVar[str] = contextvars.ContextVar("current_key")
 
 
+def _is_sse_disconnect_teardown_error(exc: BaseException) -> bool:
+    """
+    True if `exc` is only the benign "response already completed" RuntimeError
+    raised while the SSE stream tears down on client disconnect. anyio wraps
+    child-task errors in an ExceptionGroup, so unwrap before checking.
+    """
+
+    if isinstance(exc, BaseExceptionGroup):
+        return all(_is_sse_disconnect_teardown_error(e) for e in exc.exceptions)
+    return isinstance(exc, RuntimeError) and "already completed" in str(exc)
+
+
 class BaserowMCPServer:
     """
     This class is inspired by FastMCP
@@ -121,7 +133,18 @@ class BaserowMCPServer:
         messages_path = "/mcp/messages/"
         sse = DjangoChannelsSseServerTransport(messages_path)
 
-        async def handle_sse(request: Request) -> None:
+        class _AlreadyStreamedResponse(Response):
+            """
+            A response that sends nothing, because the SSE transport already sent one.
+
+            Returning a normal Response here makes Starlette send a second
+            http.response.start, which uvicorn rejects (Sentry BASEROW-SAAS-BACKEND-Z4).
+            """
+
+            async def __call__(self, scope, receive, send) -> None:
+                return
+
+        async def handle_sse(request: Request) -> Response:
             key = request.path_params["key"]
             key_ctx = current_key.set(key)
 
@@ -130,6 +153,19 @@ class BaserowMCPServer:
                 # If there is no endpoint, then there is no need to start a
                 # connection. It's valid to immediately respond with a 401 error.
                 return Response("Endpoint not found.", status_code=401)
+
+            # connect_sse sends the response itself via request._send. Track that so
+            # we can return a no-op instead of one Starlette would send on top.
+            response_started = False
+            send = request._send
+
+            async def tracking_send(message):
+                nonlocal response_started
+                if message["type"] == "http.response.start":
+                    response_started = True
+                await send(message)
+
+            request._send = tracking_send  # type: ignore[reportPrivateUsage]
 
             try:
                 async with sse.connect_sse(
@@ -142,18 +178,19 @@ class BaserowMCPServer:
                         streams[1],
                         self._mcp_server.create_initialization_options(),
                     )
-                return Response()
+                return _AlreadyStreamedResponse() if response_started else Response()
             except Exception as exc:
-                # This is a known issue in FastMCP
-                # (https://github.com/jlowin/fastmcp/issues/671) that is not causing any
-                # critical issues in practice, but it does cause some noise in the logs.
-                if isinstance(
-                    exc, RuntimeError
-                ) and "after response already completed" in str(exc):
-                    return Response(status_code=204)
-
-                logger.exception("Error while handling SSE connection")
-                return Response("MCP server error", status_code=500)
+                if not response_started:
+                    logger.exception("Error while handling SSE connection")
+                    return Response("MCP server error", status_code=500)
+                # Headers are already out, so we can never send an error status
+                # without re-triggering Z4. Still surface real failures: only the
+                # known teardown race after a client disconnect is benign noise.
+                if _is_sse_disconnect_teardown_error(exc):
+                    logger.debug("SSE connection closed after the response started.")
+                else:
+                    logger.exception("Error after the SSE response had started")
+                return _AlreadyStreamedResponse()
             finally:
                 # Reset the context variable when done
                 current_key.reset(key_ctx)
