@@ -1668,6 +1668,14 @@ const activeGroupByRowsRequests = new Map()
 // We want to cancel previous aggregation request before creating a new one.
 const lastAggregationRequest = { request: null, controller: null }
 
+const lastGroupByAggregationRequest = { controller: null }
+
+function supersedeRequest(pending) {
+  pending.controller?.abort()
+  pending.controller = new AbortController()
+  return pending.controller
+}
+
 export const actions = {
   // Toggles per-group aggregation loading. A `fieldId` spins one column; omitting it
   // spins all (a row edit can change any value).
@@ -1698,8 +1706,8 @@ export const actions = {
       return
     }
     const gridId = getters.getLastGridId
-    // Row edits refresh silently (values change in place); the picker passes a
-    // fieldId to show that column's spinner while its function changes.
+    const controller = supersedeRequest(lastGroupByAggregationRequest)
+    // Row edits refresh silently; the picker passes a fieldId to spin that column.
     if (!silent) {
       commit(
         'SET_GROUP_BY_AGGREGATIONS_LOADING',
@@ -1720,20 +1728,40 @@ export const actions = {
         descendantLimit: getters.getBufferRequestSize,
         aggregationsOnly: true,
         includeTotals: true,
+        signal: controller.signal,
       })
       commit('UPDATE_GROUP_BY_AGGREGATIONS_FROM_PAGES', {
         pages: data.pages || [],
         fields: groupByFields,
       })
       for (const [fieldKey, value] of Object.entries(data.aggregations || {})) {
-        const fieldId = parseInt(fieldKey.replace('field_', ''), 10)
-        if (!isNaN(fieldId)) {
-          commit('SET_FIELD_AGGREGATION_DATA', { fieldId, value })
+        const aggregationFieldId = parseInt(fieldKey.replace('field_', ''), 10)
+        if (!isNaN(aggregationFieldId)) {
+          commit('SET_FIELD_AGGREGATION_DATA', {
+            fieldId: aggregationFieldId,
+            value,
+          })
+          commit('SET_FIELD_AGGREGATION_DATA_LOADING', {
+            fieldId: aggregationFieldId,
+            value: false,
+          })
         }
       }
+    } catch (error) {
+      if (!axios.isCancel(error)) {
+        throw error
+      }
     } finally {
-      if (!silent) {
+      // Only the latest request clears the spinners, so a superseded one can't.
+      if (lastGroupByAggregationRequest.controller === controller) {
+        lastGroupByAggregationRequest.controller = null
         commit('SET_GROUP_BY_AGGREGATIONS_LOADING', false)
+        if (fieldId !== null) {
+          commit('SET_FIELD_AGGREGATION_DATA_LOADING', {
+            fieldId,
+            value: false,
+          })
+        }
       }
     }
   },
@@ -3127,7 +3155,14 @@ export const actions = {
    */
   async updateFieldOptionsOfField(
     { commit, getters, dispatch, rootGetters },
-    { field, values, oldValues, readOnly = false, undoRedoActionGroupId }
+    {
+      field,
+      values,
+      oldValues,
+      readOnly = false,
+      undoRedoActionGroupId,
+      skipAggregationRefresh = false,
+    }
   ) {
     const { $registry, $client, $i18n, $config } = this
     const previousOptions = getters.getAllFieldOptions[field.id]
@@ -3172,7 +3207,12 @@ export const actions = {
         })
         throw error
       } finally {
-        if (needAggregationValueUpdate && values.aggregation_type) {
+        // Grouped pickers refresh aggregations themselves; skip the duplicate fetch.
+        if (
+          !skipAggregationRefresh &&
+          needAggregationValueUpdate &&
+          values.aggregation_type
+        ) {
           dispatch('fetchAllFieldAggregationData', { view: { id: gridId } })
         }
       }

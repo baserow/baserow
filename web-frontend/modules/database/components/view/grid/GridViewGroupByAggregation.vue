@@ -155,8 +155,7 @@ export default {
     hasValue() {
       return this.viewAggregationType !== null && this.rawValue !== undefined
     },
-    // Full "Label value" tooltip so no information is lost when a narrow column
-    // hides the label (see the container query in grid.scss).
+    // Full label + value tooltip; the label is clipped when the column is narrow.
     titleText() {
       if (!this.hasValue) {
         return null
@@ -204,6 +203,7 @@ export default {
             field: this.field,
             values,
             readOnly: !this.editable,
+            skipAggregationRefresh: true,
           }
         )
       } catch (error) {

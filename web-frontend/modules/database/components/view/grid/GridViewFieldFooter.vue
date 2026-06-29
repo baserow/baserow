@@ -173,15 +173,25 @@ export default {
       if (!value) {
         return
       }
-      // If an update is already pending, we don't need this one.
-      if (!this.pendingValueUpdate) {
-        this.$store.dispatch(
-          this.storePrefix + 'view/grid/fetchAllFieldAggregationData',
-          {
-            view: this.view,
-          }
-        )
+      if (this.pendingValueUpdate) {
+        return
       }
+      // Skip while a picker already owns the grouped refresh (its spinner is on);
+      // remote changes leave it off and still refresh here.
+      if (
+        this.groupAggregationsEnabled &&
+        this.$store.getters[
+          this.storePrefix + 'view/grid/getGroupByAggregationsLoading'
+        ](this.field.id)
+      ) {
+        return
+      }
+      this.$store.dispatch(
+        this.storePrefix + 'view/grid/fetchAllFieldAggregationData',
+        {
+          view: this.view,
+        }
+      )
     },
   },
   /*beforeCreate() {
@@ -233,6 +243,7 @@ export default {
             field: this.field,
             values,
             readOnly: !this.userCanMakeAggregations,
+            skipAggregationRefresh: syncGroups,
           }
         )
       } catch (error) {

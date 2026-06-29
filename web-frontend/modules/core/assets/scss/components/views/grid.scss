@@ -553,7 +553,6 @@
   box-sizing: border-box;
   min-width: 0;
   overflow: hidden;
-  container-type: inline-size;
 }
 
 .grid-view__group-by-banner-field--primary {
@@ -567,13 +566,22 @@
   flex: 1 1 auto;
   min-width: 0;
   height: 100%;
+  font-size: 12px;
   color: $palette-neutral-900;
 }
 
-@container (max-width: 130px) {
-  .grid-view__group-by-banner-aggregation .grid-view-aggregation__generic-name {
-    display: none;
-  }
+.grid-view__group-by-banner-aggregation .grid-view-aggregation__generic {
+  justify-content: flex-end;
+}
+
+.grid-view__group-by-banner-aggregation .grid-view-aggregation__generic-name {
+  flex: 0 0 auto;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.grid-view__group-by-banner-aggregation .grid-view-aggregation__generic-value {
+  flex: 0 0 auto;
 }
 
 .grid-view__group-by-banner-aggregation
