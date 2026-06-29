@@ -43,7 +43,11 @@ describe('Test enterprise Baserow plugin', () => {
       const plugin = new EnterprisePlugin({ app })
       const builder = makeBuilder({
         scripts: [
-          { type: 'javascript', url: 'https://example.com/a.js', load_type: 'defer' },
+          {
+            type: 'javascript',
+            url: 'https://example.com/a.js',
+            load_type: 'defer',
+          },
           { type: 'stylesheet', url: 'https://example.com/a.css' },
         ],
       })
