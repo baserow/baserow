@@ -435,6 +435,33 @@ def test_prepare_file_for_db_with_existing_file(data_fixture):
 
 
 @pytest.mark.django_db
+def test_prepare_file_for_db_prefers_url_over_user_file_like_visible_name(data_fixture):
+    user = data_fixture.create_user()
+    user_file = data_fixture.create_user_file(
+        original_name="sample_budget.xls",
+    )
+
+    value = {
+        "__file__": True,
+        "name": "sample_budget.xls",
+        "url": UserFileHandler().get_user_file_url(user_file),
+    }
+
+    assert prepare_files_for_db(value, user) == [
+        {
+            "image_height": None,
+            "image_width": None,
+            "is_image": False,
+            "mime_type": "application/vnd.ms-excel",
+            "name": user_file.name,
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+            "visible_name": "sample_budget.xls",
+        },
+    ]
+
+
+@pytest.mark.django_db
 def test_prepare_file_for_db_with_existing_file_and_stale_file_placeholder(
     data_fixture,
 ):

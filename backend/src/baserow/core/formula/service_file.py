@@ -196,10 +196,6 @@ class ServiceFile:
             self.user_file = self._upload_user_file(user, file_name, self.file)
             return self.user_file
 
-        if self.name and handler.is_user_file_name(self.name):
-            self.user_file = handler.get_user_file_by_name(self.name)
-            return self.user_file
-
         if self.url:
             user_file_name = _user_file_name_from_url(self.url)
             if user_file_name:
@@ -234,6 +230,10 @@ class ServiceFile:
                 return self.user_file
 
             raise ValidationError("The file couldn't be read from storage.")
+
+        if self.name and handler.is_user_file_name(self.name):
+            self.user_file = handler.get_user_file_by_name(self.name)
+            return self.user_file
 
         raise ValidationError("A valid file or url is required.")
 
