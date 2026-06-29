@@ -2533,6 +2533,14 @@ def test_runtime_to_json_execute(args, expected):
     assert result == expected
 
 
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), object()])
+def test_runtime_to_json_raises_for_non_serializable_value(value):
+    parsed_args = RuntimeToJson().parse_args([value])
+    with pytest.raises(BaserowFormulaSyntaxError) as exc_info:
+        RuntimeToJson().execute({}, parsed_args)
+    assert "cannot be" in str(exc_info.value)
+
+
 @pytest.mark.parametrize(
     "args,expected",
     [

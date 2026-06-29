@@ -225,6 +225,21 @@ def test_ensure_deserialized_json_returns_value_unchanged_when_json_is_invalid()
     assert ensure_deserialized_json({"name": "Ada"}) == {"name": "Ada"}
 
 
+def test_ensure_deserialized_json_strict_raises_for_invalid_json_strings():
+    with pytest.raises(ValidationError) as exc:
+        ensure_deserialized_json("not json", strict=True)
+    assert exc.value.args[0] == "Value is not valid JSON."
+
+    with pytest.raises(ValidationError):
+        ensure_deserialized_json("", strict=True)
+
+
+def test_ensure_deserialized_json_strict_keeps_non_strings_unchanged():
+    assert ensure_deserialized_json({"name": "Ada"}, strict=True) == {"name": "Ada"}
+    assert ensure_deserialized_json(42, strict=True) == 42
+    assert ensure_deserialized_json(None, strict=True) is None
+
+
 @pytest.mark.parametrize(
     "value,expected",
     [

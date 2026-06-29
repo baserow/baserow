@@ -35,9 +35,10 @@ from baserow.core.formula.registries import RuntimeFormulaFunction
 from baserow.core.formula.types import FormulaArg, FormulaArgs, FormulaContext
 from baserow.core.formula.utils.date import convert_date_format_moment_to_python
 from baserow.core.formula.validator import (
-    BaserowFormulaJSONEncoder,
     ensure_array,
     ensure_datetime,
+    ensure_deserialized_json,
+    ensure_json_serializable,
     ensure_string,
 )
 from baserow.core.utils import to_path
@@ -796,13 +797,15 @@ class RuntimeToJson(RuntimeFormulaFunction):
     args = [AnyBaserowRuntimeFormulaArgumentType()]
 
     def execute(self, context: FormulaContext, args: FormulaArgs):
+        try:
+            serializable = ensure_json_serializable(args[0])
+        except ValidationError as exc:
+            raise BaserowFormulaSyntaxError(
+                "The 'to_json' function received a value that cannot be "
+                "converted to JSON."
+            ) from exc
         # Compact separators are used to match the frontend's `JSON.stringify` output.
-        return json.dumps(
-            args[0],
-            cls=BaserowFormulaJSONEncoder,
-            allow_nan=False,
-            separators=(",", ":"),
-        )
+        return json.dumps(serializable, separators=(",", ":"))
 
 
 class RuntimeFromJson(RuntimeFormulaFunction):
@@ -814,8 +817,8 @@ class RuntimeFromJson(RuntimeFormulaFunction):
         # Parse a JSON-encoded string back into a value. Returns `None` when the
         # input isn't valid JSON.
         try:
-            return json.loads(args[0])
-        except (TypeError, ValueError):
+            return ensure_deserialized_json(args[0], strict=True)
+        except ValidationError:
             return None
 
 
