@@ -29,6 +29,7 @@ class DataSyncSerializer(serializers.ModelSerializer):
             "last_sync",
             "last_error",
             "auto_add_new_properties",
+            "delete_unmatched_rows",
             "two_way_sync",
         )
 
@@ -57,6 +58,7 @@ class CreateDataSyncSerializer(serializers.ModelSerializer):
             "type",
             "table_name",
             "auto_add_new_properties",
+            "delete_unmatched_rows",
             "two_way_sync",
         )
 
@@ -71,6 +73,7 @@ class UpdateDataSyncSerializer(serializers.ModelSerializer):
         fields = (
             "synced_properties",
             "auto_add_new_properties",
+            "delete_unmatched_rows",
             "two_way_sync",
         )
 

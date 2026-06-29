@@ -77,6 +77,20 @@
       >
     </FormGroup>
     <FormGroup
+      small-label
+      class="margin-top-2"
+      :helper-text="$t('createDataSync.deleteUnmatchedRowsHelper')"
+    >
+      <SwitchInput
+        v-model="deleteUnmatchedRows"
+        class="margin-top-2"
+        small
+        :disabled="jobIsRunning || jobIsFinished"
+      >
+        {{ $t('createDataSync.deleteUnmatchedRowsLabel') }}</SwitchInput
+      >
+    </FormGroup>
+    <FormGroup
       v-if="twoWaySyncStrategy"
       small-label
       class="margin-top-2"
@@ -168,6 +182,7 @@ export default {
       creatingTable: false,
       createdTable: null,
       autoAddNewProperties: false,
+      deleteUnmatchedRows: true,
       twoWaySync: false,
     }
   },
@@ -274,6 +289,7 @@ export default {
       formValues.table_name = formValues.name
       formValues.synced_properties = this.syncedProperties
       formValues.auto_add_new_properties = this.autoAddNewProperties
+      formValues.delete_unmatched_rows = this.deleteUnmatchedRows
       formValues.two_way_sync = this.twoWaySync
 
       this.creatingTable = true

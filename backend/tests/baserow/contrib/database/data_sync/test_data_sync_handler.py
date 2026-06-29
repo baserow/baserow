@@ -675,6 +675,182 @@ def test_sync_data_sync_table_create_update_delete_row(data_fixture):
 
 @pytest.mark.django_db
 @responses.activate
+def test_sync_data_sync_table_keeps_unmatched_rows_when_disabled(data_fixture):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_TWO_ITEMS,
+    )
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart", "dtend", "summary"],
+        delete_unmatched_rows=False,
+        ical_url="https://baserow.io/ical.ics",
+    )
+    assert data_sync.delete_unmatched_rows is False
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = {
+        p.key: p.field
+        for p in DataSyncSyncedProperty.objects.filter(data_sync=data_sync)
+    }
+    uid_field = f"field_{fields['uid'].id}"
+    model = data_sync.table.get_model()
+
+    sync_1_rows = list(model.objects.all())
+    assert len(sync_1_rows) == 2
+    removed_uid = "1725220387555-95757@ical.marudot.com"
+    retained_row = next(r for r in sync_1_rows if getattr(r, uid_field) == removed_uid)
+
+    # The source now only contains one of the two items. Because
+    # `delete_unmatched_rows` is disabled, the row that's no longer in the source
+    # must be kept.
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS,
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    sync_2_rows = list(model.objects.all())
+    assert len(sync_2_rows) == 2
+    assert {r.id for r in sync_2_rows} == {r.id for r in sync_1_rows}
+    # The retained row still exists with its original unique primary value.
+    still_there = model.objects.get(id=retained_row.id)
+    assert getattr(still_there, uid_field) == removed_uid
+
+    # When the row reappears in the source, the kept row must be reused instead of
+    # creating a duplicate.
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_TWO_ITEMS,
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    sync_3_rows = list(model.objects.all())
+    assert len(sync_3_rows) == 2
+    assert {r.id for r in sync_3_rows} == {r.id for r in sync_1_rows}
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_sync_data_sync_table_deletes_unmatched_rows_after_enabling(data_fixture):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_TWO_ITEMS,
+    )
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart", "dtend", "summary"],
+        delete_unmatched_rows=False,
+        ical_url="https://baserow.io/ical.ics",
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    model = data_sync.table.get_model()
+
+    # The unmatched row is kept while the option is disabled.
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS,
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    assert model.objects.count() == 2
+
+    # After enabling the option, the next sync must delete the unmatched row.
+    handler.update_data_sync_table(
+        user=user,
+        data_sync=data_sync,
+        synced_properties=["uid", "dtstart", "dtend", "summary"],
+        delete_unmatched_rows=True,
+    )
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS,
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    assert model.objects.count() == 1
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_sync_data_sync_table_keeps_dangling_rows_when_disabled(data_fixture):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_TWO_ITEMS,
+    )
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid", "dtstart", "dtend", "summary"],
+        delete_unmatched_rows=False,
+        ical_url="https://baserow.io/ical.ics",
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = {
+        p.key: p.field
+        for p in DataSyncSyncedProperty.objects.filter(data_sync=data_sync)
+    }
+    uid_field = f"field_{fields['uid'].id}"
+    model = data_sync.table.get_model()
+
+    # Make one of the rows "dangling" by clearing its unique primary value. With
+    # `delete_unmatched_rows` disabled, sync must preserve it instead of deleting it.
+    dangling_row = model.objects.all()[0]
+    setattr(dangling_row, uid_field, "")
+    dangling_row.save()
+
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    assert model.objects.filter(id=dangling_row.id).exists()
+
+    # When the option is enabled again, dangling rows are cleaned up as before.
+    handler.update_data_sync_table(
+        user=user,
+        data_sync=data_sync,
+        synced_properties=["uid", "dtstart", "dtend", "summary"],
+        delete_unmatched_rows=True,
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    assert not model.objects.filter(id=dangling_row.id).exists()
+
+
+@pytest.mark.django_db
+@responses.activate
 @patch(
     "baserow.contrib.database.data_sync.handler.SearchHandler.schedule_update_search_data"
 )

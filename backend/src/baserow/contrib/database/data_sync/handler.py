@@ -170,6 +170,7 @@ class DataSyncHandler:
 
         allowed_fields = [
             "auto_add_new_properties",
+            "delete_unmatched_rows",
             "two_way_sync",
         ] + data_sync_type.allowed_fields
         values = extract_allowed(kwargs, allowed_fields)
@@ -295,6 +296,7 @@ class DataSyncHandler:
 
         allowed_fields = [
             "auto_add_new_properties",
+            "delete_unmatched_rows",
             "two_way_sync",
         ] + data_sync_type.allowed_fields
 
@@ -496,14 +498,15 @@ class DataSyncHandler:
         progress.increment(by=2)  # makes the total `69`
 
         row_ids_to_delete = []
-        for existing_id in existing_rows_in_table.keys():
-            if existing_id is None or existing_id not in rows_of_data_sync:
-                row_ids_to_delete.append(existing_rows_in_table[existing_id]["id"])
-        # Loop over the dangling rows and delete those because they can't be identified
-        # anymore.
-        for row in existing_rows_queryset:
-            if any(not row[key_to_field_id[key]] for key in unique_primary_keys):
-                row_ids_to_delete.append(row["id"])
+        if data_sync.delete_unmatched_rows:
+            for existing_id in existing_rows_in_table.keys():
+                if existing_id is None or existing_id not in rows_of_data_sync:
+                    row_ids_to_delete.append(existing_rows_in_table[existing_id]["id"])
+            # Loop over the dangling rows and delete those because they can't be
+            # identified anymore.
+            for row in existing_rows_queryset:
+                if any(not row[key_to_field_id[key]] for key in unique_primary_keys):
+                    row_ids_to_delete.append(row["id"])
         progress.increment(by=1)  # makes the total `70`
 
         created_rows = CreatedRowsData([], {}, [], None)

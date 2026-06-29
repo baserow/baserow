@@ -15,6 +15,7 @@ from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import NumberField
 from baserow.contrib.database.fields.registries import field_type_registry
+from baserow.contrib.database.rows.handler import RowHandler
 from baserow.contrib.database.table.handler import TableHandler
 from baserow.core.db import specific_iterator
 from baserow.core.registries import ImportExportConfig, application_type_registry
@@ -245,6 +246,62 @@ def test_sync_data_sync_table(enterprise_data_fixture):
     assert getattr(row, f"field_{field_2_field.id}") == getattr(
         source_row_1, f"field_{field_2.id}"
     )
+
+
+@pytest.mark.django_db
+@pytest.mark.data_sync
+@override_settings(DEBUG=True)
+def test_sync_data_sync_table_keeps_unmatched_rows_when_disabled(
+    enterprise_data_fixture,
+):
+    enterprise_data_fixture.enable_enterprise()
+
+    user = enterprise_data_fixture.create_user()
+
+    source_table = enterprise_data_fixture.create_database_table(
+        user=user, name="Source"
+    )
+    field_1 = enterprise_data_fixture.create_text_field(
+        table=source_table, name="Text", primary=True
+    )
+    source_model = source_table.get_model()
+    source_model.objects.create(**{f"field_{field_1.id}": "Row 1"})
+    source_row_2 = source_model.objects.create(**{f"field_{field_1.id}": "Row 2"})
+
+    database = enterprise_data_fixture.create_database_application(user=user)
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="local_baserow_table",
+        synced_properties=["id", f"field_{field_1.id}"],
+        source_table_id=source_table.id,
+        delete_unmatched_rows=False,
+    )
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+
+    fields = specific_iterator(data_sync.table.field_set.all().order_by("id"))
+    row_id_field = fields[0]
+    model = data_sync.table.get_model()
+    assert model.objects.all().count() == 2
+
+    kept_target_row = model.objects.get(**{f"field_{row_id_field.id}": source_row_2.id})
+
+    # Delete a row from the source. Because `delete_unmatched_rows` is disabled, the
+    # corresponding row in the synced table must be kept.
+    RowHandler().delete_row_by_id(user, source_table, source_row_2.id)
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    assert model.objects.all().count() == 2
+    assert model.objects.filter(id=kept_target_row.id).exists()
+
+    # When the source row reappears with the same identity (restored from trash), the
+    # kept row is reused instead of creating a duplicate.
+    RowHandler().restore_row(user, source_table, source_row_2.id)
+    handler.sync_data_sync_table(user=user, data_sync=data_sync)
+    assert model.objects.all().count() == 2
+    assert model.objects.filter(id=kept_target_row.id).exists()
 
 
 @pytest.mark.django_db
