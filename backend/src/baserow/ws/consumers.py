@@ -203,6 +203,8 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
                 web_socket_id=web_socket_id,
                 user_id=user.id,
             )
+        else:
+            self.presence = NullPresenceHandler()
         await self.channel_layer.group_add("users", self.channel_name)
 
     async def disconnect(self, code):

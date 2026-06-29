@@ -116,7 +116,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           </div>
         </li>
         <!--v-if-->
-        <li class="header__filter-item">
+        <li class="header__filter-item header__filter-item--right">
           <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> </a><a class="header__search-clear" aria-label="viewSearch.clearSearch" style="display: none;"><i class="iconoir-cancel"></i></a>
             <teleport-stub to="body">
               <div class="context visibility-hidden context--overflow-scroll">
@@ -447,7 +447,7 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           </div>
         </li>
         <!--v-if-->
-        <li class="header__filter-item">
+        <li class="header__filter-item header__filter-item--right">
           <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> </a><a class="header__search-clear" aria-label="viewSearch.clearSearch" style="display: none;"><i class="iconoir-cancel"></i></a>
             <teleport-stub to="body">
               <div class="context visibility-hidden context--overflow-scroll">

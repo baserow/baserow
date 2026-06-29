@@ -338,7 +338,7 @@ exports[`Public View Page Tests > Can see a publicly shared grid view 1`] = `
           </li>
           <!--v-if-->
           <li
-            class="header__filter-item"
+            class="header__filter-item header__filter-item--right"
           >
             <div
               class="header__search"

@@ -131,6 +131,7 @@ class PresenceSpace:
 
         redis = await get_async_redis()
         await redis.hdel(self.redis_key, presence_id)
+        await redis.expire(self.redis_key, PRESENCE_SPACE_TTL)
 
     async def get_members(
         self, exclude_presence_id: Optional[str] = None
@@ -193,9 +194,9 @@ class PresenceHandler:
                 return
 
             already_in_space = space_name in self._space_pages
-            self._page_subscribed(page_key, space_name)
 
             if already_in_space:
+                self._page_subscribed(page_key, space_name)
                 return
 
             space = PresenceSpace(name=space_name)
@@ -203,6 +204,7 @@ class PresenceHandler:
                 space.channel_group, self._consumer.channel_name
             )
             members = await self._join(space)
+            self._page_subscribed(page_key, space_name)
             await self._consumer.send_json(
                 {
                     "type": "presence.members",
@@ -229,9 +231,10 @@ class PresenceHandler:
         if space_name is None:
             return
 
-        self._page_unsubscribed(page_key)
+        remaining = self._space_pages.get(space_name, set()) - {page_key}
 
-        if self._space_pages.get(space_name):
+        if remaining:
+            self._page_unsubscribed(page_key)
             return
 
         try:
@@ -247,6 +250,7 @@ class PresenceHandler:
             await self._consumer.channel_layer.group_discard(
                 space.channel_group, self._consumer.channel_name
             )
+            self._page_unsubscribed(page_key)
         except Exception:
             logger.exception("Presence unsubscribe failed for space {}", space_name)
 

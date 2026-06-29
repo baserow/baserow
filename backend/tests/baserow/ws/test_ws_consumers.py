@@ -525,6 +525,7 @@ async def test_core_consumer_records_disconnect_metric_when_cleanup_fails():
     from baserow.ws import consumers as ws_consumers
 
     consumer = CoreConsumer()
+    consumer.scope = {}
     consumer.channel_name = "test_channel_name"
     consumer.channel_layer = AsyncMock()
     # A Redis hiccup during cleanup must not swallow the disconnect metric.

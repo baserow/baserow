@@ -30,7 +30,12 @@
         <div class="presence-bar__divider" />
       </li>
     </template>
-    <li class="header__filter-item">
+    <li
+      :class="[
+        'header__filter-item',
+        { 'header__filter-item--right': !presenceEnabled },
+      ]"
+    >
       <ViewSearch
         :view="view"
         :fields="fields"
