@@ -2245,6 +2245,16 @@ describe('RuntimeToJson', () => {
     // inside a larger JSON document.
     { args: ['foo "bar"'], expected: '"foo \\"bar\\""' },
     { args: ['a\nb'], expected: '"a\\nb"' },
+    // A Timedelta is normalized to its number of seconds, matching the
+    // backend's `to_json` output (e.g. `3600`, not `{"ms":3600000}`).
+    { args: [new Timedelta(3600 * 1000)], expected: '3600' },
+    { args: [new Timedelta(5400 * 1000)], expected: '5400' },
+    // Timedeltas nested inside arrays and objects are normalized recursively.
+    { args: [[new Timedelta(1800 * 1000)]], expected: '[1800]' },
+    {
+      args: [{ a: new Timedelta(3600 * 1000), b: [1, 2] }],
+      expected: '{"a":3600,"b":[1,2]}',
+    },
   ])('execute returns expected value', ({ args, expected }) => {
     const formulaType = new RuntimeToJson()
     const parsedArgs = formulaType.parseArgs(args)

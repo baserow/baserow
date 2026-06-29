@@ -28,6 +28,8 @@ import {
   ensureString,
   ensureArray,
   ensureDateTime,
+  ensureJsonSerializable,
+  ensureDeserializedJson,
 } from '@baserow/modules/core/utils/validator'
 import {
   formatValueWithDurationFormat,
@@ -2799,7 +2801,7 @@ export class RuntimeToJson extends RuntimeFormulaFunction {
 
   execute(context, [arg]) {
     try {
-      return JSON.stringify(arg)
+      return JSON.stringify(ensureJsonSerializable(arg))
     } catch {
       return null
     }
@@ -2839,7 +2841,7 @@ export class RuntimeFromJson extends RuntimeFormulaFunction {
 
   execute(context, [arg]) {
     try {
-      return JSON.parse(arg)
+      return ensureDeserializedJson(arg, { strict: true })
     } catch {
       return null
     }
