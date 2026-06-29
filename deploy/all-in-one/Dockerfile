@@ -13,7 +13,7 @@ FROM caddy:${CADDY_VERSION} AS caddy_image
 # =============================================================================
 # Base - system dependencies (cached independently of source images)
 # =============================================================================
-FROM python:3.14.3-slim-trixie AS base
+FROM python:3.14.6-slim-trixie AS base
 ARG UID
 ARG GID
 
