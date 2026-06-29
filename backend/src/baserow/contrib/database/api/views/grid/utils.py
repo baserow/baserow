@@ -7,7 +7,7 @@ response builder parses the request and serves it in one of two modes:
 
 - **Depth mode** (``depth`` param): the handler returns every group at a single
   depth as one global page, which is then regrouped into per-parent pages.
-- **Parent mode** (``parent``/``parents`` params): the explicitly requested
+- **Parent mode** (``parents`` param): the explicitly requested
   parent pages are fetched, optionally expanding each parent's descendants.
 
 Each function below notes which mode it serves; the rest are shared request,
@@ -15,6 +15,7 @@ response, and key-building helpers used by both.
 """
 
 import json
+from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
 from django.conf import settings
@@ -33,8 +34,12 @@ from baserow.contrib.database.views.constants import GROUP_BY_DATA_DEFAULT_LIMIT
 from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import ViewGroupBy
 
-GROUP_BY_DATA_DESCENDANT_MAX_PAGES = 50
 GROUP_BY_DATA_DESCENDANT_MAX_GROUPS = 2000
+# A deep tree legitimately produces many parent pages for a single viewport (one per
+# internal group node), so the page cap is only a coarse backstop: the per-level batched
+# descent issues one query per level regardless of page count, and the visible-row window
+# plus the group cap are what actually bound the work.
+GROUP_BY_DATA_DESCENDANT_MAX_PAGES = GROUP_BY_DATA_DESCENDANT_MAX_GROUPS
 
 
 def parse_non_negative_int(raw: Any, default: int) -> int:
@@ -107,34 +112,6 @@ def deserialize_group_by_path_object(
     return deserialized
 
 
-def deserialize_group_by_path(
-    raw_path: Optional[str], group_by_fields: List[Field]
-) -> Optional[Dict[str, Any]]:
-    """
-    **Parent mode.** Deserializes a JSON-encoded parent path from a single query
-    parameter.
-
-    Decodes the JSON string carried by the ``parent`` query parameter, then
-    deserializes it into internal field values like a parsed path object.
-
-    :param raw_path: The JSON-encoded path string, or ``None``/empty when no
-        parent is requested.
-    :param group_by_fields: The ordered group-by fields configured on the view.
-    :return: The deserialized path, an empty dict when ``raw_path`` is empty, or
-        ``None`` when the JSON is invalid or a value fails to deserialize.
-    """
-
-    if not raw_path:
-        return {}
-
-    try:
-        raw = json.loads(raw_path)
-    except (TypeError, json.JSONDecodeError):
-        return None
-
-    return deserialize_group_by_path_object(raw, group_by_fields)
-
-
 def deserialize_group_by_parent_requests(
     query_params: QueryDict,
     group_by_fields: List[Field],
@@ -158,12 +135,9 @@ def deserialize_group_by_parent_requests(
 
     raw_parents = query_params.get("parents")
     if not raw_parents:
-        parent = deserialize_group_by_path(query_params.get("parent"), group_by_fields)
-        if parent is None:
-            return None
         return [
             {
-                "parent": parent,
+                "parent": {},
                 "offset": default_offset,
                 "limit": default_limit,
             }
@@ -396,10 +370,18 @@ def get_group_by_data_pages(
     parent_requests: List[Dict[str, Any]],
     include_descendants: bool = False,
     descendant_limit: int = GROUP_BY_DATA_DEFAULT_LIMIT,
-    total_group_limit: int = GROUP_BY_DATA_DESCENDANT_MAX_GROUPS,
+    row_budget: int = GROUP_BY_DATA_DESCENDANT_MAX_GROUPS,
 ) -> Tuple[List[Dict[str, Any]], bool]:
     """
     **Parent mode.** Returns bounded group-by pages for the requested parents.
+
+    When ``include_descendants`` is set, each parent's subtree is walked
+    depth-first (pre-order) down to its leaves, so one request returns the whole
+    visible subtree. The walk stops once the accumulated leaf ``row_count``
+    reaches ``row_budget`` (the visible-viewport size); the leaf that crosses the
+    budget is included whole because its rows paginate separately. The page and
+    group caps remain as backstops for pathological wide/deep trees, after which
+    the rest lazy-loads on scroll.
 
     :param view_handler: The view handler used to fetch each group page.
     :param base_queryset: The filtered/searched rows queryset to group.
@@ -409,76 +391,160 @@ def get_group_by_data_pages(
     :param include_descendants: Whether to recursively enqueue first child pages.
     :param descendant_limit: The maximum number of groups to return per descendant
         page.
-    :param total_group_limit: The maximum number of groups to return across all
-        returned pages.
+    :param row_budget: The maximum accumulated leaf ``row_count`` to fetch across
+        the returned subtree when expanding descendants.
     :return: A tuple containing the collected pages and whether the response was
         truncated by a cap.
     """
 
-    total_group_limit = min(total_group_limit, GROUP_BY_DATA_DESCENDANT_MAX_GROUPS)
+    # Direct page requests (no descendants) keep the per-parent path, which fetches each
+    # requested page individually and so reports empty pages, their total sibling count,
+    # and arbitrary offsets exactly.
+    if not include_descendants:
+        pages = []
+        seen = set()
+        group_count = 0
+        truncated = False
+        for request in parent_requests:
+            if (
+                len(pages) >= GROUP_BY_DATA_DESCENDANT_MAX_PAGES
+                or group_count >= GROUP_BY_DATA_DESCENDANT_MAX_GROUPS
+            ):
+                truncated = True
+                break
+            parent = request["parent"]
+            request_key = group_by_data_page_request_key(
+                parent, group_by_fields, request["offset"], request["limit"]
+            )
+            if request_key in seen:
+                continue
+            seen.add(request_key)
+            page = view_handler.get_group_by_data(
+                base_queryset,
+                view_group_bys,
+                parent_path=parent,
+                offset=request["offset"],
+                limit=request["limit"],
+                parent_row_offset=request.get("parent_row_offset"),
+            )
+            page["parent"] = parent
+            group_count += len(page.get("groups", []))
+            pages.append(page)
+        return pages, truncated
+
     pages = []
-    pending = list(parent_requests)
-    pending_index = 0
     seen = set()
     group_count = 0
     truncated = False
 
-    while pending_index < len(pending):
-        if (
-            len(pages) >= GROUP_BY_DATA_DESCENDANT_MAX_PAGES
-            or group_count >= total_group_limit
-        ):
-            truncated = True
-            break
-
-        parent_request = pending[pending_index]
-        pending_index += 1
-        parent = parent_request["parent"]
-        offset = parent_request["offset"]
-        limit = parent_request["limit"]
-        parent_row_offset = parent_request.get("parent_row_offset")
-        request_key = group_by_data_page_request_key(
-            parent, group_by_fields, offset, limit
-        )
-        if request_key in seen:
-            continue
-        seen.add(request_key)
-
-        page = view_handler.get_group_by_data(
-            base_queryset,
-            view_group_bys,
-            parent_path=parent,
-            offset=offset,
-            limit=limit,
-            parent_row_offset=parent_row_offset,
-        )
-        remaining_group_count = total_group_limit - group_count
-        page_groups = page.get("groups", [])
-        if len(page_groups) > remaining_group_count:
-            page = {
-                **page,
-                "groups": page_groups[:remaining_group_count],
-            }
-            page_groups = page["groups"]
-            truncated = True
-        group_count += len(page_groups)
-        page["parent"] = parent
-        pages.append(page)
-
-        if truncated or not include_descendants:
-            continue
-
-        for group in page_groups:
-            if group.get("children_count", 0) <= 0:
-                continue
-            pending.append(
-                {
-                    "parent": group["path"],
-                    "offset": 0,
-                    "limit": descendant_limit,
-                    "parent_row_offset": group["row_offset"],
-                }
+    # Resolve each requested parent's absolute row offset (computing it when the client
+    # did not thread it in, so threading stays a pure speedup), and the visible row
+    # window the descent stays scoped to: it only expands groups whose rows start inside
+    # ``[start, start + row_budget)`` rather than fanning across the whole breadth of a
+    # wide tree.
+    initial_offset_by_key = {}
+    for request in parent_requests:
+        parent = request["parent"]
+        parent_row_offset = request.get("parent_row_offset")
+        if parent_row_offset is None:
+            parent_row_offset = view_handler.get_group_by_path_row_offset(
+                base_queryset, view_group_bys, parent
             )
+        initial_offset_by_key[group_by_data_page_key(parent, group_by_fields)] = (
+            parent_row_offset
+        )
+    window_end = min(initial_offset_by_key.values(), default=0) + row_budget
+
+    # Group the requested parents by depth (and page slice) so each level is fetched in
+    # one batched query covering all of its parents instead of one query per parent.
+    waves: Dict[int, Dict[Tuple[int, int], List[Dict[str, Any]]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
+    for request in parent_requests:
+        depth = sum(
+            1 for field in group_by_fields if field.db_column in request["parent"]
+        )
+        waves[depth][(request["offset"], request["limit"])].append(request)
+
+    stop = False
+    while waves and not stop:
+        depth = min(waves)
+        for (offset, limit), requests in waves.pop(depth).items():
+            parents = []
+            offset_by_key = {}
+            for request in requests:
+                request_key = group_by_data_page_request_key(
+                    request["parent"], group_by_fields, offset, limit
+                )
+                if request_key in seen:
+                    continue
+                seen.add(request_key)
+                parents.append(request["parent"])
+                parent_key = group_by_data_page_key(request["parent"], group_by_fields)
+                offset_by_key[parent_key] = initial_offset_by_key.get(
+                    parent_key, request.get("parent_row_offset") or 0
+                )
+            if not parents:
+                continue
+
+            groups = view_handler.get_group_by_data_for_parents(
+                base_queryset,
+                view_group_bys,
+                parents,
+                depth,
+                offset=offset,
+                per_parent_limit=limit,
+            )
+
+            # Split the batched groups back into one page per parent, making each group's
+            # parent-relative ``row_offset`` absolute with its parent's offset.
+            page_by_key: Dict[Any, Dict[str, Any]] = {}
+            page_order = []
+            for group in groups:
+                parent_key = group_by_data_page_key(
+                    group["_parent_path"], group_by_fields
+                )
+                page = page_by_key.get(parent_key)
+                if page is None:
+                    page = {
+                        "parent": group["_parent_path"],
+                        "groups": [],
+                        "offset": offset,
+                        "limit": limit,
+                        "group_count": group["_parent_group_count"],
+                    }
+                    page_by_key[parent_key] = page
+                    page_order.append(parent_key)
+                group["row_offset"] += offset_by_key.get(parent_key, 0)
+                page["groups"].append(group)
+
+            for parent_key in page_order:
+                if (
+                    len(pages) >= GROUP_BY_DATA_DESCENDANT_MAX_PAGES
+                    or group_count >= GROUP_BY_DATA_DESCENDANT_MAX_GROUPS
+                ):
+                    truncated = True
+                    stop = True
+                    break
+                page = page_by_key[parent_key]
+                group_count += len(page["groups"])
+                pages.append(page)
+                for group in page["groups"]:
+                    if group["row_offset"] >= window_end:
+                        # Starts past the visible window; render a placeholder and
+                        # lazy-load on scroll.
+                        truncated = True
+                        continue
+                    if group.get("children_count", 0) <= 0:
+                        continue
+                    waves[depth + 1][(0, descendant_limit)].append(
+                        {
+                            "parent": group["path"],
+                            "parent_row_offset": group["row_offset"],
+                        }
+                    )
+            if stop:
+                break
 
     return pages, truncated
 
@@ -540,6 +606,13 @@ def build_group_by_data_response(
             pages = [empty_group_by_data_page(offset=offset, limit=limit)]
             truncated = False
         else:
+            # The descent returns every group in the visible leaf-row window, so a deep
+            # group-by (where each leaf row stacks under all its ancestor banners) fills
+            # the viewport with far fewer leaf rows than a flat one. Scale the window down
+            # by the depth so the first call returns a viewport-sized slice instead of the
+            # whole expanded tree; the rest renders as placeholders and loads on scroll.
+            depth_count = max(len(group_by_fields), 1)
+            descendant_row_budget = max(1, -(-limit // depth_count))
             pages, truncated = get_group_by_data_pages(
                 view_handler,
                 queryset,
@@ -548,8 +621,8 @@ def build_group_by_data_response(
                 parent_requests,
                 include_descendants=include_descendants,
                 descendant_limit=descendant_limit,
-                total_group_limit=(
-                    limit
+                row_budget=(
+                    descendant_row_budget
                     if include_descendants
                     else GROUP_BY_DATA_DESCENDANT_MAX_GROUPS
                 ),

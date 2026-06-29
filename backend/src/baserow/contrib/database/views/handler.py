@@ -4244,6 +4244,27 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             depth += 1
         return depth
 
+    def get_group_by_path_row_offset(
+        self,
+        base_queryset: QuerySet,
+        view_group_bys: Iterable[ViewGroupBy],
+        path: Dict[str, Any],
+    ) -> int:
+        """
+        Public wrapper computing the absolute row offset of a group path.
+
+        Used by the per-level descent to resolve a requested parent's absolute offset
+        when the client did not thread it in.
+
+        :param base_queryset: The filtered/searched rows queryset to group.
+        :param view_group_bys: The view group-by configuration rows.
+        :param path: The group path mapping field db columns to values.
+        :return: The absolute row offset of the group.
+        """
+
+        group_by_levels = self._resolve_view_group_bys(base_queryset, view_group_bys)
+        return self._get_group_by_path_row_offset(group_by_levels, base_queryset, path)
+
     def _get_group_by_path_row_offset(
         self,
         group_by_levels: List[GroupByLevel],
@@ -4630,23 +4651,178 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         return self._fetch_group_by_data_rows(outer_sql, params)
 
+    def _execute_group_by_data_level_windowed_query(
+        self,
+        queryset: QuerySet,
+        fields: List[Field],
+        depth: int,
+        offset: int,
+        per_parent_limit: int,
+    ) -> List[Dict[str, Any]]:
+        """
+        Executes the grouped queryset wrapped with per-parent sibling metadata.
+
+        Like the depth windowed query but partitions every window by the parent path,
+        so ``sibling_index``, ``row_offset`` and ``total_sibling_count`` are computed
+        per parent, and keeps the ``[offset, offset + per_parent_limit)`` sibling slice
+        of each parent. ``row_offset`` is therefore relative to the parent; the caller
+        adds the parent's absolute offset.
+
+        :param queryset: The grouped queryset for one level under several parents.
+        :param fields: The ordered group-by fields.
+        :param depth: The zero-based group-by depth being grouped.
+        :param offset: The sibling offset within each parent.
+        :param per_parent_limit: The maximum number of children to return per parent.
+        :return: Grouped rows with per-parent sibling metadata.
+        """
+
+        (
+            query_sql,
+            query_params,
+            window_order_sql,
+            order_by_params,
+        ) = self._prepare_group_by_data_window_query(queryset)
+        parent_fields = fields[:depth]
+        if parent_fields:
+            parent_identifiers = [
+                sql.Identifier("grouped_data", field.db_column)
+                for field in parent_fields
+            ]
+            partition_sql = sql.SQL("PARTITION BY {}").format(
+                sql.SQL(", ").join(parent_identifiers)
+            )
+            partition_window_sql = sql.SQL("{} {}").format(
+                partition_sql, window_order_sql
+            )
+            sibling_count_sql = sql.SQL("COUNT(*) OVER ({})").format(partition_sql)
+        else:
+            partition_window_sql = window_order_sql
+            sibling_count_sql = sql.SQL("COUNT(*) OVER ()")
+
+        row_count_identifier = sql.Identifier("grouped_data", "row_count")
+        outer_sql = sql.SQL(
+            """
+            SELECT *
+            FROM (
+                SELECT
+                    grouped_data.*,
+                    ROW_NUMBER() OVER ({partition_window}) - 1 AS sibling_index,
+                    (
+                        COALESCE(
+                        SUM({row_count}) OVER (
+                            {partition_window}
+                            ROWS BETWEEN UNBOUNDED PRECEDING AND 1 PRECEDING
+                        ),
+                        0
+                        )
+                    )::bigint AS row_offset,
+                    {sibling_count} AS total_sibling_count
+                FROM ({query}) AS grouped_data
+            ) AS windowed_grouped_data
+            WHERE sibling_index >= %s AND sibling_index < %s
+            ORDER BY sibling_index
+            """
+        ).format(
+            query=sql.SQL(query_sql),
+            partition_window=partition_window_sql,
+            row_count=row_count_identifier,
+            sibling_count=sibling_count_sql,
+        )
+
+        params = (
+            *order_by_params,
+            *order_by_params,
+            *query_params,
+            offset,
+            offset + per_parent_limit,
+        )
+
+        return self._fetch_group_by_data_rows(outer_sql, params)
+
+    def get_group_by_data_for_parents(
+        self,
+        base_queryset: QuerySet,
+        view_group_bys: Iterable[ViewGroupBy],
+        parents: List[Dict[str, Any]],
+        depth: int,
+        offset: int = 0,
+        per_parent_limit: int = GROUP_BY_DATA_DEFAULT_LIMIT,
+    ) -> List[Dict[str, Any]]:
+        """
+        Returns the children of several parents at one depth in a single query.
+
+        This batches what would otherwise be one windowed ``GROUP BY`` per parent into
+        a single query covering every requested parent, returning the
+        ``[offset, offset + per_parent_limit)`` sibling slice of each. The returned
+        ``row_offset`` is relative to each group's parent; the caller adds the parent's
+        absolute row offset.
+
+        :param base_queryset: The filtered/searched rows queryset to group.
+        :param view_group_bys: The view group-by configuration rows.
+        :param parents: The parent paths whose children should be returned.
+        :param depth: The zero-based depth of the returned children.
+        :param offset: The sibling offset within each parent.
+        :param per_parent_limit: The maximum number of children per parent.
+        :return: The children groups with per-parent sibling metadata.
+        """
+
+        group_by_levels = self._resolve_view_group_bys(base_queryset, view_group_bys)
+        fields = self._get_fields_from_group_by_levels(group_by_levels)
+        if not fields or depth < 0 or depth >= len(fields) or not parents:
+            return []
+
+        grouped_queryset = self._get_group_by_data_level_queryset(
+            group_by_levels, base_queryset, depth, {}, parent_paths=parents
+        )
+        rows = self._execute_group_by_data_level_windowed_query(
+            grouped_queryset, fields, depth, offset, per_parent_limit
+        )
+
+        groups = []
+        for entry in rows:
+            path = {
+                field.db_column: entry[field.db_column] for field in fields[: depth + 1]
+            }
+            parent_path = {
+                field.db_column: entry[field.db_column] for field in fields[:depth]
+            }
+            group = {
+                "path": path,
+                "depth": depth,
+                "row_count": entry["row_count"],
+                "sibling_index": entry["sibling_index"],
+                "row_offset": entry["row_offset"],
+                "_parent_path": parent_path,
+                "_parent_group_count": entry["total_sibling_count"],
+            }
+            if "children_count" in entry:
+                group["children_count"] = entry["children_count"]
+            groups.append(group)
+
+        return groups
+
     def _get_group_by_data_level_queryset(
         self,
         group_by_levels: List[GroupByLevel],
         base_queryset: QuerySet,
         depth: int,
         parent_path: Dict[str, Any],
+        parent_paths: Optional[List[Dict[str, Any]]] = None,
     ) -> QuerySet:
         """
-        Builds the grouped queryset for a single group-by level under a parent.
+        Builds the grouped queryset for a single group-by level under one or more parents.
 
-        Groups the parent's rows by the fields up to ``depth``, annotating row and
+        Groups the parents' rows by the fields up to ``depth``, annotating row and
         child counts and applying the configured ordering for the level.
 
         :param group_by_levels: The group-by levels.
         :param base_queryset: The filtered/searched rows queryset to group.
         :param depth: The zero-based group-by depth to build the level for.
         :param parent_path: The parent group path whose children should be grouped.
+            Ignored when ``parent_paths`` is given.
+        :param parent_paths: Optional list of parent paths to group together (their
+            children are unioned). An empty list, or a list containing the empty root
+            path, groups the level globally (no parent filter).
         :return: The grouped queryset for the requested level.
         """
 
@@ -4674,11 +4850,20 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         if all_annotations:
             queryset = queryset.annotate(**all_annotations)
 
-        parent_q = self._build_group_by_data_path_filter_q(
-            fields, parent_path, base_queryset
-        )
-        if parent_q != Q():
-            queryset = queryset.filter(parent_q)
+        paths = parent_paths if parent_paths is not None else [parent_path]
+        combined_parent_q = Q()
+        narrows = bool(paths)
+        for path in paths:
+            path_q = self._build_group_by_data_path_filter_q(
+                fields, path, base_queryset
+            )
+            if path_q == Q():
+                # An empty (root) path matches every row, so the level stays global.
+                narrows = False
+                break
+            combined_parent_q |= path_q
+        if narrows:
+            queryset = queryset.filter(combined_parent_q)
 
         order_by_args, queryset = self._build_group_by_tree_order_by(
             group_by_levels[: depth + 1], queryset

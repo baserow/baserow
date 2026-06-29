@@ -151,7 +151,18 @@ function rowHasViewWarning(row) {
 }
 
 function getGroupByFieldRefsFromState(state) {
-  return state.activeGroupBys.map((groupBy) => ({ id: groupBy.field }))
+  // Mirror the filtering the fetch/keying path applies (getGroupByFieldsFromActiveGroupBys
+  // drops group-bys whose field no longer exists). A group-by whose field was deleted
+  // lingers in activeGroupBys until the next refresh; keeping it here would make pathKey
+  // truncate mid-path and the paged layout walk resolve a stale ancestor page. fieldOptions
+  // is keyed by existing field id and lives in state, so the valid set needs no threading.
+  const fieldOptions = state.fieldOptions || {}
+  const hasFieldOptions = Object.keys(fieldOptions).length > 0
+  return state.activeGroupBys
+    .filter(
+      (groupBy) => !hasFieldOptions || fieldOptions[groupBy.field] !== undefined
+    )
+    .map((groupBy) => ({ id: groupBy.field }))
 }
 
 let groupByLayoutCacheKey = null
@@ -283,6 +294,36 @@ function getClampedGroupByScrollTop(getters, scrollTop = getters.getScrollTop) {
   )
 
   return Math.min(Math.max(0, scrollTop), maxScrollTop)
+}
+
+// Places a fetched rows page (keyed from `requestOffset`) into the live group-by
+// store: records the absolute rows and commits the per-section placements derived
+// from the current layout. Shared by the section fetch and the parallel initial fetch.
+function commitLoadedGroupByRows({
+  commit,
+  layout,
+  data,
+  requestOffset,
+  groupByFields,
+  registry,
+}) {
+  const rowsByOffset = {}
+  data.results.forEach((row, index) => {
+    rowsByOffset[requestOffset + index] = row
+  })
+  commit('SET_GROUP_BY_ABSOLUTE_ROWS', rowsByOffset)
+
+  const placements = buildGroupBySectionPlacements({
+    layout,
+    rowsByOffset,
+    requestOffset,
+    fetchedRowCount: data.results.length,
+    groupByFields,
+    registry,
+  })
+  placements.forEach((placement) => {
+    commit('SET_GROUP_BY_SECTION_ROWS', placement)
+  })
 }
 
 function getVisibleGroupPagesToFetch({
@@ -1669,7 +1710,6 @@ export const actions = {
       view,
       fields,
       adhocFiltering,
-      parentPath = {},
       parentRequests = null,
       depth = null,
       offset = 0,
@@ -1706,10 +1746,6 @@ export const actions = {
       publicUrl: rootGetters['page/view/public/getIsPublic'],
       publicAuthToken: rootGetters['page/view/public/getAuthToken'],
       filters: getFilters(view, adhocFiltering),
-      parent:
-        parents === undefined && Object.keys(parentPath || {}).length > 0
-          ? parentPath
-          : null,
       parents,
       depth,
       offset,
@@ -1864,22 +1900,13 @@ export const actions = {
       commit('SET_COUNT', data.count)
     }
 
-    const rowsByOffset = {}
-    data.results.forEach((row, index) => {
-      rowsByOffset[requestOffset + index] = row
-    })
-    commit('SET_GROUP_BY_ABSOLUTE_ROWS', rowsByOffset)
-
-    const placements = buildGroupBySectionPlacements({
+    commitLoadedGroupByRows({
+      commit,
       layout,
-      rowsByOffset,
+      data,
       requestOffset,
-      fetchedRowCount: data.results.length,
       groupByFields,
       registry: $registry,
-    })
-    placements.forEach((placement) => {
-      commit('SET_GROUP_BY_SECTION_ROWS', placement)
     })
 
     return data
@@ -2040,6 +2067,10 @@ export const actions = {
             limit: page.limit,
             parentRowOffset: page.parentRowOffset,
           })),
+          // Descend each visible group to its leaves in this one request (bounded by the
+          // leaf-row budget), instead of drilling down one level per request on scroll.
+          includeDescendants: true,
+          descendantLimit: getters.getBufferRequestSize,
           adhocFiltering: getters.getAdhocFiltering,
           signal,
         }),
@@ -2496,6 +2527,8 @@ export const actions = {
       commit('SET_ADHOC_FILTERING', adhocFiltering)
       commit('SET_ADHOC_SORTING', adhocSorting)
       commit('SET_GROUP_BY_COLLAPSE', getGroupByCollapseAllState(false))
+      // One descendant request loads the whole visible subtree, then a single rows
+      // request fetches the first page for the now-known sections.
       await dispatch('fetchGroupByData', {
         gridId,
         view,
@@ -2845,6 +2878,30 @@ export const actions = {
       collapseInitialized: true,
     }
 
+    // Expand-all (no collapsed exceptions) renders rows in sorted order from offset 0,
+    // so the first rows page is independent of the new group tree: fetch it in parallel
+    // with the skeleton. Mixed/collapsed states keep their offsets tied to the tree.
+    const parallelExpandRows =
+      groupByCollapse.mode === 'expand' && groupByCollapse.paths.length === 0
+        ? GridService($client).fetchRows({
+            gridId,
+            offset: 0,
+            limit: getters.getBufferRequestSize,
+            includeFieldOptions,
+            search: getters.getServerSearchTerm,
+            searchMode: getDefaultSearchModeFromEnv($config),
+            publicUrl: rootGetters['page/view/public/getIsPublic'],
+            publicAuthToken: rootGetters['page/view/public/getAuthToken'],
+            groupBy: getGroupBy(rootGetters, gridId),
+            orderBy: getOrderBy(view, getters.getAdhocSorting),
+            filters: getFilters(view, getters.getAdhocFiltering),
+            excludeCount: getters.canExcludeCount,
+          })
+        : null
+    if (parallelExpandRows !== null) {
+      parallelExpandRows.catch(() => {})
+    }
+
     const { data: groupByData } = await GridService($client).fetchGroupByData({
       gridId,
       search: getters.getServerSearchTerm,
@@ -2883,8 +2940,51 @@ export const actions = {
       getters.getRowHeight
     )
 
+    const placeSnapshotRows = (data, requestOffset) => {
+      data.results.forEach((row) => {
+        const metadata = extractRowMetadata(data, row.id)
+        populateRow(row, metadata, false)
+      })
+      const rowsByOffset = {}
+      data.results.forEach((row, index) => {
+        rowsByOffset[requestOffset + index] = row
+      })
+      snapshot.absoluteRows = {
+        ...snapshot.absoluteRows,
+        ...rowsByOffset,
+      }
+      const placements = buildGroupBySectionPlacements({
+        layout,
+        rowsByOffset,
+        requestOffset,
+        fetchedRowCount: data.results.length,
+        groupByFields,
+        registry: $registry,
+      })
+      placements.forEach((placement) => {
+        setGroupBySectionRowsInto(snapshot, state, placement)
+      })
+    }
+
     let rowData = null
-    if (sections.length > 0) {
+    if (parallelExpandRows !== null) {
+      // Place the rows that were fetched in parallel with the skeleton at offset 0.
+      let response
+      try {
+        response = await parallelExpandRows
+      } catch (error) {
+        if (!axios.isCancel(error)) {
+          throw error
+        }
+      }
+      if ((state.groupBy.generation || 0) !== groupByGeneration) {
+        return true
+      }
+      if (response) {
+        rowData = response.data
+        placeSnapshotRows(rowData, 0)
+      }
+    } else if (sections.length > 0) {
       const startOffset = Math.min(
         ...sections.map(
           (section) => section.absoluteRowOffset + section.startPosition
@@ -2917,31 +3017,7 @@ export const actions = {
           return true
         }
         rowData = data
-        rowData.results.forEach((row) => {
-          const metadata = extractRowMetadata(rowData, row.id)
-          populateRow(row, metadata, false)
-        })
-
-        const rowsByOffset = {}
-        rowData.results.forEach((row, index) => {
-          rowsByOffset[requestOffset + index] = row
-        })
-        snapshot.absoluteRows = {
-          ...snapshot.absoluteRows,
-          ...rowsByOffset,
-        }
-
-        const placements = buildGroupBySectionPlacements({
-          layout,
-          rowsByOffset,
-          requestOffset,
-          fetchedRowCount: rowData.results.length,
-          groupByFields,
-          registry: $registry,
-        })
-        placements.forEach((placement) => {
-          setGroupBySectionRowsInto(snapshot, state, placement)
-        })
+        placeSnapshotRows(rowData, requestOffset)
       }
     }
 

@@ -505,3 +505,96 @@ describe('gridGroupByRender', () => {
     expect(renderedHeader.display).toEqual(display)
   })
 })
+
+describe('buildLayout cycle safety', () => {
+  test('does not overflow the stack when a stale page resolves to its own key', () => {
+    // Reproduces the "too much recursion" crash: a deleted mid group-by field leaves
+    // the layout fields ([2, 4]) out of step with the keys baked into the still-present
+    // pages, so pathKey truncates and the child page of {field_2: 'A'} resolves back to
+    // its own key with a depth that never reaches maxDepth. Without a guard walkPage
+    // recurses forever.
+    const fields = [textField(2), textField(4)]
+    const node = {
+      path: { field_2: 'A' },
+      depth: 0,
+      children_count: 1,
+      row_count: 2,
+    }
+    const pages = {
+      '': { parentPath: {}, totalSiblingCount: 1, nodes: { 0: node } },
+      [pathKey({ field_2: 'A' }, fields)]: {
+        totalSiblingCount: 1,
+        nodes: { 0: node },
+      },
+    }
+
+    expect(() =>
+      buildLayout({
+        nodes: null,
+        pages,
+        collapse: { mode: 'expand', paths: [] },
+        fields,
+      })
+    ).not.toThrow()
+  })
+})
+
+describe('renderViewport group skeletons', () => {
+  const placeholderLayout = (depth, count) => ({
+    items: [
+      {
+        type: 'groupPlaceholder',
+        parentPath: {},
+        depth,
+        siblingStartIndex: 0,
+        siblingEndIndex: count,
+        y: 0,
+        height: count * HEADER_HEIGHT,
+      },
+    ],
+    totalHeight: count * HEADER_HEIGHT,
+    totalRowCount: 0,
+  })
+
+  test('renders unloaded group placeholders as skeleton headers', () => {
+    const items = renderViewport({
+      layout: placeholderLayout(1, 3),
+      sectionRows: new Map(),
+      viewport: { scrollTop: 0, clientHeight: 1000 },
+      fields: [textField(1), textField(2)],
+    })
+    const skeletons = items.filter((item) => item.type === 'groupSkeleton')
+    expect(skeletons).toHaveLength(3)
+    expect(skeletons.every((s) => s.depth === 1)).toBe(true)
+    expect(skeletons.map((s) => s.y)).toEqual([
+      0,
+      HEADER_HEIGHT,
+      2 * HEADER_HEIGHT,
+    ])
+  })
+
+  test('walks the skeleton through every nested level the group still has', () => {
+    const items = renderViewport({
+      layout: placeholderLayout(1, 4),
+      sectionRows: new Map(),
+      viewport: { scrollTop: 0, clientHeight: 1000 },
+      fields: [textField(1), textField(2), textField(3)],
+    })
+    const skeletons = items.filter((item) => item.type === 'groupSkeleton')
+    // 3 levels (maxDepth 2) with the placeholder at depth 1, so the staircase cycles
+    // through the remaining levels 1 and 2.
+    expect(skeletons.map((s) => s.depth)).toEqual([1, 2, 1, 2])
+  })
+
+  test('clips skeletons to the viewport instead of rendering the whole range', () => {
+    const items = renderViewport({
+      layout: placeholderLayout(0, 500),
+      sectionRows: new Map(),
+      viewport: { scrollTop: 0, clientHeight: 2 * HEADER_HEIGHT },
+      fields: [textField(1)],
+    })
+    const skeletons = items.filter((item) => item.type === 'groupSkeleton')
+    expect(skeletons.length).toBeGreaterThan(0)
+    expect(skeletons.length).toBeLessThanOrEqual(3)
+  })
+})

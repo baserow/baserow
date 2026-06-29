@@ -88,6 +88,27 @@
           ></i>
         </span>
       </button>
+      <div
+        v-else-if="item.type === 'groupSkeleton'"
+        class="grid-view__group-by-banner grid-view__group-by-banner--skeleton"
+        :style="{
+          top: item.y + 'px',
+          height: item.height + 'px',
+          width: sectionWidth + 'px',
+        }"
+      >
+        <div
+          v-if="includeRowDetails"
+          class="grid-view__group-by-banner-chevron-lane"
+          :style="{
+            width: gridViewRowDetailsWidth + 'px',
+            paddingLeft: groupSkeletonIndent(item.depth) + 'px',
+          }"
+        >
+          <span class="grid-view__group-by-banner-skeleton-chevron"></span>
+        </div>
+        <div class="grid-view__group-by-banner-skeleton-line"></div>
+      </div>
     </template>
   </div>
 </template>
@@ -97,7 +118,10 @@ import GridViewRow from '@baserow/modules/database/components/view/grid/GridView
 import GridViewGroupByBanner from '@baserow/modules/database/components/view/grid/GridViewGroupByBanner'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import { pathKey } from '@baserow/modules/database/utils/gridGroupByRender'
+import {
+  pathKey,
+  groupBannerIndentPx,
+} from '@baserow/modules/database/utils/gridGroupByRender'
 
 export default {
   name: 'GridViewGroupByRows',
@@ -197,6 +221,13 @@ export default {
       event.preventFieldCellUnselect = true
       this.$emit('add-row', { groupPath: path })
     },
+    groupSkeletonIndent(depth) {
+      return groupBannerIndentPx(
+        depth,
+        this.groupByFields.length,
+        this.gridViewRowDetailsWidth
+      )
+    },
     itemKey(item) {
       // Use pathKey (set-based for m2m) so the same group keeps a stable Vue key
       // regardless of the id order in its path.
@@ -208,6 +239,9 @@ export default {
       }
       if (item.type === 'addRow') {
         return `add-${pathKey(item.path, this.groupByFields)}`
+      }
+      if (item.type === 'groupSkeleton') {
+        return `skeleton-${item.y}`
       }
       return `placeholder-${item.globalRowOffset}`
     },

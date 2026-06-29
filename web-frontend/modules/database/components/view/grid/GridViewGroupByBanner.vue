@@ -75,8 +75,7 @@
 </template>
 
 <script>
-const DEPTH_INDENT_PX = 24
-const BASE_CHEVRON_GUTTER = 12
+import { groupBannerIndentPx } from '@baserow/modules/database/utils/gridGroupByRender'
 
 export default {
   name: 'GridViewGroupByBanner',
@@ -170,7 +169,11 @@ export default {
       return this.fieldType.getGroupByComponent(this.groupByField)
     },
     indentPx() {
-      return BASE_CHEVRON_GUTTER + this.item.depth * DEPTH_INDENT_PX
+      return groupBannerIndentPx(
+        this.item.depth,
+        this.groupByFields.length,
+        this.rowDetailsWidth
+      )
     },
     fallbackValueText() {
       const value = this.rowValueForGroup

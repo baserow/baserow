@@ -1,6 +1,37 @@
 export const HEADER_HEIGHT = 48
 export const ROW_HEIGHT = 33
 export const GROUP_GAP = 8
+
+const GROUP_BANNER_DEPTH_INDENT_PX = 24
+const GROUP_BANNER_BASE_GUTTER = 12
+const GROUP_BANNER_CHEVRON_WIDTH = 24
+// The deepest group chevron never shifts further right than this budget, so adding more
+// group-by levels stops marching the chevron (and the field name + count after it) off
+// to the right. The per-level step shrinks to stay within the budget and the row-details
+// lane, keeping the field name + count column aligned at every depth.
+const GROUP_BANNER_MAX_INDENT_PX = 50
+
+/**
+ * The left indent (px) of a group banner's chevron at `depth`, shared by the rendered
+ * banner and its loading skeleton so they line up. The per-level step shrinks as the
+ * number of group-by levels grows and is capped so the chevron stays inside the
+ * `rowDetailsWidth` lane.
+ */
+export function groupBannerIndentPx(depth, levelCount, rowDetailsWidth) {
+  const maxDepth = Math.max(levelCount - 1, 0)
+  if (maxDepth <= 0) {
+    return GROUP_BANNER_BASE_GUTTER
+  }
+  const maxShift = Math.min(
+    GROUP_BANNER_MAX_INDENT_PX,
+    Math.max(
+      0,
+      rowDetailsWidth - GROUP_BANNER_BASE_GUTTER - GROUP_BANNER_CHEVRON_WIDTH
+    )
+  )
+  const step = Math.min(GROUP_BANNER_DEPTH_INDENT_PX, maxShift / maxDepth)
+  return GROUP_BANNER_BASE_GUTTER + depth * step
+}
 // Default sibling-group page size, matching the server's GROUP_BY_DATA_DEFAULT_LIMIT.
 // In production the store passes its row `bufferRequestSize` (also 40) as `pageSize` so
 // a viewport fetches a comparable number of groups and rows; this default is the
@@ -261,7 +292,18 @@ function buildPagedLayout({
   const maxDepth = fields.length - 1
   const exceptionKeys = collapseExceptionKeys(collapse, fields)
 
+  // Guards against a self-referential descent: if a stale page (e.g. built before a
+  // group-by field was removed) keys to an ancestor already on the stack, getPage
+  // would resolve it again and recurse forever. Each parent path is unique in a valid
+  // tree, so skipping an already-visited key only ever breaks such a cycle.
+  const visitedPageKeys = new Set()
+
   const walkPage = (parentPath, depth, fallbackSiblingCount = 0) => {
+    const pageCacheKey = pathKey(parentPath, fields)
+    if (visitedPageKeys.has(pageCacheKey)) {
+      return
+    }
+    visitedPageKeys.add(pageCacheKey)
     const page = getPage(pages, parentPath, fields)
     const totalSiblingCount =
       page?.totalSiblingCount ??
@@ -571,6 +613,30 @@ export function renderViewport({
     }
 
     if (item.type === 'groupPlaceholder') {
+      // Render the unloaded region as a staircase of skeleton headers spanning every
+      // level the group still nests through (we know the level count even before the
+      // data loads), clipped to the viewport, so the full structure shows while the
+      // descendant request resolves instead of leaving blank space below the parent.
+      const rangeBottom = item.y + item.height
+      const maxDepth = Math.max((fields?.length ?? 1) - 1, item.depth)
+      const levelsBelow = maxDepth - item.depth + 1
+      const firstSlotIndex = Math.max(
+        0,
+        Math.floor((top - item.y) / HEADER_HEIGHT)
+      )
+      let slotIndex = firstSlotIndex
+      for (
+        let slotY = item.y + firstSlotIndex * HEADER_HEIGHT;
+        slotY < rangeBottom && slotY < bottom;
+        slotY += HEADER_HEIGHT, slotIndex += 1
+      ) {
+        items.push({
+          type: 'groupSkeleton',
+          depth: item.depth + (slotIndex % levelsBelow),
+          y: slotY,
+          height: Math.min(HEADER_HEIGHT, rangeBottom - slotY),
+        })
+      }
       continue
     }
 

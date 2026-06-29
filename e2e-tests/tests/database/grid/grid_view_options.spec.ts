@@ -29,6 +29,7 @@ import {
   ENTERPRISE_LICENSE,
   License,
 } from "../../../fixtures/licence";
+import { baserowConfig } from "../../../playwright.config";
 
 type Setup = GridSetupResult;
 
@@ -950,11 +951,12 @@ test.describe("15.1 Public shared grid", () => {
       throw new Error("Expected setup grid view to include a public slug.");
     }
 
-    const baseUrl =
-      process.env.PUBLIC_WEB_FRONTEND_URL ?? "http://localhost:3000";
-    await page.goto(`${baseUrl}/public/grid/${slug}`, {
-      waitUntil: "domcontentloaded",
-    });
+    await page.goto(
+      `${baserowConfig.PUBLIC_WEB_FRONTEND_URL}/public/grid/${slug}`,
+      {
+        waitUntil: "domcontentloaded",
+      },
+    );
 
     await expect(page.locator(".grid-view__right")).toBeVisible({
       timeout: 15_000,

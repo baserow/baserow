@@ -1,5 +1,7 @@
 import json
 
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 
 import pytest
@@ -113,7 +115,11 @@ def test_returns_nested_child_group_by_data_with_absolute_offsets(
     url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
     response = api_client.get(
         url,
-        {"parent": json.dumps({f"field_{color.id}": "Green"})},
+        {
+            "parents": json.dumps(
+                [{"parent": {f"field_{color.id}": "Green"}, "offset": 0, "limit": 40}]
+            )
+        },
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
@@ -385,7 +391,7 @@ def test_group_by_data_can_include_bounded_descendant_pages(api_client, data_fix
 
 
 @pytest.mark.django_db
-def test_group_by_data_descendants_respect_total_group_limit(api_client, data_fixture):
+def test_group_by_data_descendants_respect_row_budget(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     table = data_fixture.create_database_table(user=user)
     color = data_fixture.create_text_field(table=table, name="Color")
@@ -405,9 +411,12 @@ def test_group_by_data_descendants_respect_total_group_limit(api_client, data_fi
         )
 
     url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    # `limit` is the leaf-row budget: the depth-first walk descends Blue to its
+    # leaves, and the 2 leaf rows reach the budget before the Green branch is
+    # fetched. `descendant_limit` defaults to `limit`, so Blue's page caps at 2.
     response = api_client.get(
         url,
-        {"include_descendants": "true", "limit": 4},
+        {"include_descendants": "true", "limit": 2},
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
@@ -817,7 +826,11 @@ def test_group_by_data_returns_children_for_empty_value_parent(
     url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
     response = api_client.get(
         url,
-        {"parent": json.dumps({f"field_{color.id}": None})},
+        {
+            "parents": json.dumps(
+                [{"parent": {f"field_{color.id}": None}, "offset": 0, "limit": 40}]
+            )
+        },
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
@@ -920,31 +933,6 @@ def test_group_by_data_clamps_descendant_limit_to_row_page_size_limit(
     # The over-large descendant_limit is clamped to ROW_PAGE_SIZE_LIMIT.
     assert blue_page["limit"] == 2
     assert blue_page["group_count"] == 3
-
-
-@pytest.mark.django_db
-def test_group_by_data_malformed_parent_degrades_to_empty_page(
-    api_client, data_fixture
-):
-    user, token = data_fixture.create_user_and_token()
-    table = data_fixture.create_database_table(user=user)
-    color = data_fixture.create_text_field(table=table, name="Color")
-    grid = data_fixture.create_grid_view(table=table)
-    data_fixture.create_view_group_by(view=grid, field=color)
-
-    model = table.get_model()
-    model.objects.create(**{f"field_{color.id}": "Blue"})
-    model.objects.create(**{f"field_{color.id}": "Green"})
-
-    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
-    response = api_client.get(
-        url, {"parent": "not-json"}, HTTP_AUTHORIZATION=f"JWT {token}"
-    )
-
-    assert response.status_code == HTTP_200_OK
-    page = _get_only_page(response)
-    assert page["groups"] == []
-    assert page["group_count"] == 0
 
 
 @pytest.mark.django_db
@@ -1160,9 +1148,7 @@ def test_group_by_data_threaded_parent_row_offset_is_a_pure_speedup(
     blue_parent = {f"field_{color.id}": "Blue"}
 
     # Discover Blue's true absolute row offset from the top-level request.
-    top = api_client.get(
-        url, {"parent": json.dumps({})}, HTTP_AUTHORIZATION=f"JWT {token}"
-    ).json()
+    top = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}").json()
     blue = next(
         group
         for group in top["pages"][0]["groups"]
@@ -1183,7 +1169,9 @@ def test_group_by_data_threaded_parent_row_offset_is_a_pure_speedup(
     # parent's absolute offset.
     looked_up_paths.clear()
     without_hint = api_client.get(
-        url, {"parent": json.dumps(blue_parent)}, HTTP_AUTHORIZATION=f"JWT {token}"
+        url,
+        {"parents": json.dumps([{"parent": blue_parent, "offset": 0, "limit": 40}])},
+        HTTP_AUTHORIZATION=f"JWT {token}",
     )
     recursive_lookups = [path for path in looked_up_paths if path]
 
@@ -1280,6 +1268,64 @@ def test_group_by_data_includes_link_row_display_values(api_client, data_fixture
     assert group["display"][f"field_{field.id}"] == [
         {"id": linked.id, "value": "Row A"}
     ]
+
+
+@pytest.mark.django_db
+def test_group_by_data_batches_link_row_display_across_pages(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    linked_table = data_fixture.create_database_table(user=user, database=database)
+    linked_primary = data_fixture.create_text_field(
+        table=linked_table, name="Name", primary=True
+    )
+    category = data_fixture.create_text_field(table=table, name="Category")
+    link = data_fixture.create_link_row_field(
+        table=table, link_row_table=linked_table, name="Links"
+    )
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=category)
+    data_fixture.create_view_group_by(view=grid, field=link)
+
+    linked_model = linked_table.get_model()
+    row_x = linked_model.objects.create(**{f"field_{linked_primary.id}": "X"})
+    row_y = linked_model.objects.create(**{f"field_{linked_primary.id}": "Y"})
+
+    model = table.get_model()
+    first = model.objects.create(**{f"field_{category.id}": "A"})
+    getattr(first, link.db_column).set([row_x.id])
+    second = model.objects.create(**{f"field_{category.id}": "B"})
+    getattr(second, link.db_column).set([row_y.id])
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+    with CaptureQueriesContext(connection) as captured:
+        response = api_client.get(
+            url, {"include_descendants": "true"}, HTTP_AUTHORIZATION=f"JWT {token}"
+        )
+
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+
+    # The link display values are resolved correctly on each descendant page (the two
+    # link groups live on separate pages, one per category).
+    a_page = _get_page_by_parent(response_json, {f"field_{category.id}": "A"})
+    assert a_page["groups"][0]["display"][f"field_{link.id}"] == [
+        {"id": row_x.id, "value": "X"}
+    ]
+    b_page = _get_page_by_parent(response_json, {f"field_{category.id}": "B"})
+    assert b_page["groups"][0]["display"][f"field_{link.id}"] == [
+        {"id": row_y.id, "value": "Y"}
+    ]
+
+    # The reference display values are resolved in a single id__in query across all
+    # pages, not once per page (the per-page N+1 the descent would otherwise cause).
+    linked_db_table = f"database_table_{linked_table.id}"
+    display_queries = [
+        q
+        for q in captured.captured_queries
+        if f'"{linked_db_table}"."id" IN' in q["sql"]
+    ]
+    assert len(display_queries) == 1
 
 
 @pytest.mark.django_db

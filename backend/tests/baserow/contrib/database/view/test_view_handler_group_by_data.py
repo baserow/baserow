@@ -302,3 +302,79 @@ def test_get_group_by_data_supports_many_to_many_parent_level(data_fixture):
     )
 
     assert [group["path"][status.db_column] for group in data["groups"]] == [option.id]
+
+
+@pytest.mark.django_db
+def test_get_group_by_data_for_parents_matches_per_parent_queries(data_fixture):
+    """
+    The batched per-level query must return, for each parent, exactly what the
+    per-parent windowed query returns (relative ``row_offset`` matches the per-parent
+    query called with ``parent_row_offset=0``).
+    """
+
+    user = data_fixture.create_user()
+    database = data_fixture.create_database_application(user=user)
+    table = data_fixture.create_database_table(user=user, database=database)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    size = data_fixture.create_text_field(table=table, name="Size")
+    status = data_fixture.create_text_field(table=table, name="Status")
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=color)
+    data_fixture.create_view_group_by(view=grid, field=size)
+    data_fixture.create_view_group_by(view=grid, field=status)
+
+    model = table.get_model()
+
+    def add(color_value, size_value, status_value):
+        model.objects.create(
+            **{
+                color.db_column: color_value,
+                size.db_column: size_value,
+                status.db_column: status_value,
+            }
+        )
+
+    add("Red", "Large", "Open")
+    add("Red", "Large", "Done")
+    add("Red", "Small", "Open")
+    add("Blue", "Medium", "Open")
+    add("Blue", "Medium", "Open")
+
+    view_handler = ViewHandler()
+    base_queryset = view_handler.get_queryset(
+        user, grid, model=model, apply_sorts=False
+    )
+    view_group_bys = list(grid.viewgroupby_set.all())
+
+    red = {color.db_column: "Red"}
+    blue = {color.db_column: "Blue"}
+
+    batched = view_handler.get_group_by_data_for_parents(
+        base_queryset, view_group_bys, [red, blue], depth=1, per_parent_limit=40
+    )
+
+    def comparable(group):
+        keys = ("path", "row_count", "sibling_index", "row_offset")
+        out = {key: group[key] for key in keys}
+        if "children_count" in group:
+            out["children_count"] = group["children_count"]
+        return out
+
+    for parent in (red, blue):
+        reference = view_handler.get_group_by_data(
+            base_queryset,
+            view_group_bys,
+            parent_path=parent,
+            parent_row_offset=0,
+            limit=40,
+        )
+        batched_for_parent = [
+            group for group in batched if group["_parent_path"] == parent
+        ]
+        assert [comparable(group) for group in batched_for_parent] == [
+            comparable(group) for group in reference["groups"]
+        ]
+        assert all(
+            group["_parent_group_count"] == reference["group_count"]
+            for group in batched_for_parent
+        )

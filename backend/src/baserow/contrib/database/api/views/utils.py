@@ -345,9 +345,86 @@ def serialize_group_by_fields_metadata(
     return serialized_group_by_metadata
 
 
+def _resolve_page_display_lists(
+    containers: List[Dict[str, Any]],
+    field_by_db_column: Dict[str, Field],
+    type_by_db_column: Dict[str, Any],
+) -> Dict[str, List[Any]]:
+    """
+    Resolves reference display values for one page's containers (``[parent]`` + group
+    paths), keyed by ``db_column`` and parallel to ``containers``.
+    """
+
+    display_lists: Dict[str, List[Any]] = {}
+    for db_column, field_type in type_by_db_column.items():
+        present_indexes = [
+            index
+            for index, container in enumerate(containers)
+            if container.get(db_column) is not None
+        ]
+        if not present_indexes:
+            continue
+        present_values = [containers[index][db_column] for index in present_indexes]
+        displays = field_type.get_group_by_display_values(
+            field_by_db_column[db_column], db_column, present_values
+        )
+        if displays is None:
+            continue
+        full: List[Any] = [None] * len(containers)
+        for index, display in zip(present_indexes, displays):
+            full[index] = display
+        display_lists[db_column] = full
+    return display_lists
+
+
+def _resolve_group_by_display_lists(
+    pages: List[Dict[str, Any]],
+    field_by_db_column: Dict[str, Field],
+    type_by_db_column: Dict[str, Any],
+) -> List[Dict[str, List[Any]]]:
+    """
+    Resolves reference display values for every page in one query per field.
+
+    ``get_group_by_display_values`` resolves a linked/reference field via its own
+    table model and a single ``id__in`` query, so calling it once with the values
+    from every page avoids the per-page N+1 the descended subtree would otherwise
+    trigger. Returns a list parallel to ``pages``; each entry maps ``db_column`` to a
+    list of displays parallel to that page's containers (``[parent]`` + group paths).
+    """
+
+    page_containers = [
+        [page.get("parent", {})] + [group["path"] for group in page.get("groups", [])]
+        for page in pages
+    ]
+    display_lists_per_page: List[Dict[str, List[Any]]] = [{} for _ in pages]
+    for db_column, field_type in type_by_db_column.items():
+        positions: List[tuple] = []
+        values: List[Any] = []
+        for page_index, containers in enumerate(page_containers):
+            for container_index, container in enumerate(containers):
+                if container.get(db_column) is not None:
+                    positions.append((page_index, container_index))
+                    values.append(container[db_column])
+        if not values:
+            continue
+        displays = field_type.get_group_by_display_values(
+            field_by_db_column[db_column], db_column, values
+        )
+        if displays is None:
+            continue
+        for (page_index, container_index), display in zip(positions, displays):
+            full = display_lists_per_page[page_index].get(db_column)
+            if full is None:
+                full = [None] * len(page_containers[page_index])
+                display_lists_per_page[page_index][db_column] = full
+            full[container_index] = display
+    return display_lists_per_page
+
+
 def serialize_group_by_data(
     page: Dict[str, Any],
     group_by_fields: List[Field],
+    display_lists: Optional[Dict[str, List[Any]]] = None,
 ) -> Dict[str, Any]:
     """
     Serializes one group-by data page into its API representation.
@@ -386,30 +463,16 @@ def serialize_group_by_data(
                 serialized_path[db_column] = serializer_field.to_representation(value)
         return serialized_path
 
-    # Resolve display values for group-by headers, batched per page.
-    # `display_lists` holds display values per field, parallel to `containers`.
+    # Reference display values for group-by headers, keyed by field and parallel to
+    # `containers`. The caller resolves these across all pages in one query per field;
+    # fall back to a per-page resolution for standalone use.
     containers = [page.get("parent", {})] + [
         group["path"] for group in page.get("groups", [])
     ]
-    display_lists: Dict[str, List[Any]] = {}
-    for db_column, field_type in type_by_db_column.items():
-        present_indexes = [
-            index
-            for index, container in enumerate(containers)
-            if container.get(db_column) is not None
-        ]
-        if not present_indexes:
-            continue
-        present_values = [containers[index][db_column] for index in present_indexes]
-        displays = field_type.get_group_by_display_values(
-            field_by_db_column[db_column], db_column, present_values
+    if display_lists is None:
+        display_lists = _resolve_page_display_lists(
+            containers, field_by_db_column, type_by_db_column
         )
-        if displays is None:
-            continue
-        full = [None] * len(containers)
-        for index, display in zip(present_indexes, displays):
-            full[index] = display
-        display_lists[db_column] = full
 
     def serialize_display(container_index: int) -> Dict[str, Any]:
         display = {}
@@ -461,8 +524,24 @@ def serialize_group_by_data_pages(
         flag.
     """
 
+    field_by_db_column = {field.db_column: field for field in group_by_fields}
+    type_by_db_column = {
+        field.db_column: field_type_registry.get_by_model(field.specific_class)
+        for field in group_by_fields
+    }
+    # Resolve reference display values for every page in one query per field instead of
+    # once per page, which would be an N+1 across the descended subtree's pages.
+    display_lists_per_page = _resolve_group_by_display_lists(
+        pages, field_by_db_column, type_by_db_column
+    )
+
     response = {
-        "pages": [serialize_group_by_data(page, group_by_fields) for page in pages]
+        "pages": [
+            serialize_group_by_data(
+                page, group_by_fields, display_lists=display_lists_per_page[index]
+            )
+            for index, page in enumerate(pages)
+        ]
     }
     if truncated:
         response["truncated"] = True

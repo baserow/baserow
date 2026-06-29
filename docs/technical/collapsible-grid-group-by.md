@@ -69,9 +69,11 @@ Collapse state is modeled as a mode plus exceptions:
 - exception paths invert the current mode for specific groups.
 
 This makes "expand all" and "collapse all" constant-size state changes,
-regardless of how many groups exist. When the state is uniform, the client can
-prefer depth-based group metadata loading instead of issuing one request per
-visible parent.
+regardless of how many groups exist. Collapse-all only ever shows the top-level
+headers, so it loads its single visible depth with depth-based group metadata.
+Expand-all and mixed states load per parent, descending each visible parent's
+subtree to its leaves so one request returns everything the viewport needs
+instead of one request per depth.
 
 ### Viewport-Driven Fetching
 
@@ -124,11 +126,10 @@ rows returned by the ordinary grid rows endpoint.
 | Param                 | Meaning                                                                        |
 | --------------------- | ------------------------------------------------------------------------------ |
 | `offset`              | Sibling offset within the parent. This is group-space, not row-space.          |
-| `limit`               | Maximum sibling groups to return, capped by the server.                        |
-| `parent`              | JSON path object `{db_column: group_value}`. Omitted means top-level groups.   |
-| `parents`             | JSON array of `{parent\|path, offset, limit}`. Takes precedence over `parent`. |
-| `depth`               | Zero-based depth. When present, switches to depth mode.                        |
-| `include_descendants` | Preload bounded first-child pages for returned groups that have children.      |
+| `limit`               | Maximum sibling groups per page, capped by the server. With `include_descendants` it also sets the leaf-row budget for the whole subtree walk. |
+| `parents`             | Optional JSON array of `{parent\|path, offset, limit}` requests. Omitted means top-level groups. |
+| `depth`               | Zero-based depth. When present, switches to depth mode (used for collapse-all). |
+| `include_descendants` | Walk the returned parents' subtrees depth-first down to the leaves (see Dispatch Modes). |
 | `descendant_limit`    | Per-descendant-page group limit, capped by the server.                         |
 | filters / search      | Same ad-hoc filter and search parameters accepted by the rows endpoint.        |
 
@@ -179,21 +180,23 @@ raw database values.
 
 ### Dispatch Modes
 
-The same endpoint supports three loading modes:
+The same endpoint supports two loading modes:
 
-- **Single-parent mode** - `parent` asks for one page of sibling groups under one
-  parent path.
-- **Multi-parent mode** - `parents` asks for many parent pages in one request.
-  This is useful when several visible parent groups at the same depth need their
-  child pages at the same time.
+- **Parent-pages mode** - `parents` asks for one or more parent pages in one
+  request. This is useful when several visible parent groups at the same depth
+  need their child pages at the same time.
 - **Depth mode** - `depth=N` asks for one global page across all parents at that
-  depth. This supports uniform expand/collapse states without one request per
-  visible parent.
+  depth. It is used for collapse-all, where only the single top-level depth is
+  visible.
 
-When `include_descendants` is used, the response may include bounded descendant
-pages starting at offset zero. The server should thread known parent offsets into
-descendant calculations so child `row_offset` values stay aligned without extra
-work.
+When `include_descendants` is used, the server walks each requested parent's
+subtree **depth-first** (pre-order) and returns the visited pages down to the
+leaves, so one request returns the whole visible subtree rather than a single
+level. The walk is budgeted by accumulated leaf `row_count` (the viewport size,
+taken from `limit`); the leaf that crosses the budget is returned whole, and the
+page and group caps still bound pathological trees (`truncated: true` when hit).
+The server threads known parent offsets into descendant calculations so child
+`row_offset` values stay aligned without extra work.
 
 ## Server-Side Responsibilities
 
@@ -219,7 +222,9 @@ The client realizes the feature by following the API contract above:
 - render unloaded group ranges as placeholders sized from `group_count` and
   known geometry;
 - map visible leaf row sections to absolute row ranges using `row_offset`;
-- fetch missing rows from the ordinary rows endpoint;
+- fetch missing rows from the ordinary rows endpoint; on the initial expand-all
+  load the first rows page (offset 0) is fetched in parallel with the group
+  skeleton, since expand-all renders rows in sorted order independent of the tree;
 - cache fetched rows by absolute offset and place them into the visible section
   that owns that offset;
 - batch visible group metadata requests where possible;
@@ -238,8 +243,10 @@ The row layer scales like the flat grid: rows are fetched by true row
 
 The group layer scales by loading group metadata windows, not the complete group
 tree. Query count per viewport should be proportional to visible groups and
-depths, not total rows or total groups. Uniform expand/collapse states can use
-depth loading to avoid request fan-out across many visible parents.
+depths, not total rows or total groups. Collapse-all uses depth loading for its
+single visible level. Expand-all loads each visible parent's subtree to the
+leaves in one request (budgeted by leaf rows), so the initial viewport is a
+single round-trip instead of one request per depth.
 
 Known costs to keep in mind:
 

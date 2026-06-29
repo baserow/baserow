@@ -1,4 +1,5 @@
 import { expect, Locator, Page } from "@playwright/test";
+import { baserowConfig } from "../../playwright.config";
 import { Database } from "../../fixtures/database/database";
 import { Table } from "../../fixtures/database/table";
 import { User } from "../../fixtures/user";
@@ -32,8 +33,7 @@ export class GridPage {
     readonly page: Page,
     private readonly user: User,
   ) {
-    this.baseUrl =
-      process.env.PUBLIC_WEB_FRONTEND_URL ?? "http://localhost:3000";
+    this.baseUrl = baserowConfig.PUBLIC_WEB_FRONTEND_URL;
   }
 
   // -- Navigation --------------------------------------------------------------
@@ -47,7 +47,7 @@ export class GridPage {
 
     await this.page.context().addCookies([
       {
-        name: "jwt_token",
+        name: `${baserowConfig.BASEROW_FRONTEND_COOKIE_PREFIX}jwt_token`,
         value: this.user.refreshToken,
         url: this.baseUrl,
       },

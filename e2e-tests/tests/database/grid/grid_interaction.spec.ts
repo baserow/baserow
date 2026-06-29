@@ -20,6 +20,7 @@ import {
   setupGrid,
 } from "../../../fixtures/database/gridSetup";
 import { pauseRows } from "../../../fixtures/network";
+import { baserowConfig } from "../../../playwright.config";
 
 type Setup = GridSetupResult;
 
@@ -58,7 +59,7 @@ async function grantClipboard(page: Page, browserName: string) {
     return;
   }
   await page.context().grantPermissions(["clipboard-read", "clipboard-write"], {
-    origin: process.env.PUBLIC_WEB_FRONTEND_URL ?? "http://localhost:3000",
+    origin: baserowConfig.PUBLIC_WEB_FRONTEND_URL,
   });
 }
 

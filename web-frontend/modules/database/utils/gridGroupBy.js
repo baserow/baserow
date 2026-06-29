@@ -20,13 +20,15 @@ export function getGroupByCollapseAllState(collapse) {
 }
 
 /**
- * True when the whole tree is uniformly collapsed or expanded (no per-group
- * exceptions), letting the store page by depth instead of per parent.
+ * True only when the whole tree is uniformly collapsed (no per-group exceptions),
+ * where every group renders just its top-level header, so the store can page by
+ * depth. Expanded and mixed states page per parent instead, so one request returns
+ * a parent's whole subtree down to its leaves.
  */
 export function shouldUseGroupByDepthPages(groupBy) {
   return (
     groupBy.collapseInitialized === true &&
-    ['collapse', 'expand'].includes(groupBy.collapse?.mode) &&
+    groupBy.collapse?.mode === 'collapse' &&
     (groupBy.collapse.paths || []).length === 0
   )
 }

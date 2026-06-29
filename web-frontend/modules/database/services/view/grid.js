@@ -149,7 +149,6 @@ export default (client) => {
       publicUrl = false,
       publicAuthToken = null,
       filters = {},
-      parent = null,
       parents = null,
       depth = null,
       offset = 0,
@@ -179,8 +178,6 @@ export default (client) => {
 
       if (parents !== null) {
         params.append('parents', JSON.stringify(parents))
-      } else if (parent !== null) {
-        params.append('parent', JSON.stringify(parent))
       }
 
       Object.keys(filters).forEach((key) => {

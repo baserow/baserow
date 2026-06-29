@@ -8,7 +8,6 @@ import pytest
 from baserow.contrib.database.api.views.grid.utils import (
     GROUP_BY_DATA_DEFAULT_LIMIT,
     deserialize_group_by_parent_requests,
-    deserialize_group_by_path,
     deserialize_group_by_path_object,
     empty_group_by_data_page,
     get_group_by_data_pages,
@@ -23,6 +22,15 @@ from baserow.contrib.database.api.views.grid.utils import (
 
 def _field(db_column):
     return SimpleNamespace(db_column=db_column)
+
+
+def _group(path, children_count, row_offset, row_count):
+    return {
+        "path": path,
+        "children_count": children_count,
+        "row_offset": row_offset,
+        "row_count": row_count,
+    }
 
 
 def _page_by_parent(pages, parent):
@@ -41,19 +49,17 @@ def test_parse_non_negative_int_helper():
 
 
 @pytest.mark.django_db
-def test_deserialize_group_by_path_and_single_parent_request(data_fixture):
+def test_deserialize_group_by_path_object_and_default_parent_request(data_fixture):
     table = data_fixture.create_database_table()
     color = data_fixture.create_text_field(table=table, name="Color")
     parent = {color.db_column: "Blue"}
 
     assert deserialize_group_by_path_object(parent, [color]) == parent
     assert deserialize_group_by_path_object(["not-a-path"], [color]) is None
-    assert deserialize_group_by_path(json.dumps(parent), [color]) == parent
-    assert deserialize_group_by_path(None, [color]) == {}
 
     assert deserialize_group_by_parent_requests(
-        {"parent": json.dumps(parent)}, [color], default_offset=3, default_limit=5
-    ) == [{"parent": parent, "offset": 3, "limit": 5}]
+        {}, [color], default_offset=3, default_limit=5
+    ) == [{"parent": {}, "offset": 3, "limit": 5}]
 
 
 @pytest.mark.django_db
@@ -95,7 +101,7 @@ def test_deserialize_group_by_parent_requests_rejects_invalid_input(data_fixture
 
     assert (
         deserialize_group_by_parent_requests(
-            {"parent": "not-json"}, [color], default_offset=0, default_limit=10
+            {"parents": "not-json"}, [color], default_offset=0, default_limit=10
         )
         is None
     )
@@ -226,132 +232,148 @@ def test_split_group_by_depth_page_by_parent_returns_empty_page_when_no_groups()
     ) == [empty_group_by_data_page(offset=6, limit=7)]
 
 
-def test_get_group_by_data_pages_deduplicates_and_loads_descendants():
-    fields = [_field("field_1"), _field("field_2")]
-    handler = _FakeGroupByDataHandler()
+def _three_level_tree():
+    return {
+        (): [
+            _group({"field_1": "A"}, children_count=1, row_offset=0, row_count=2),
+            _group({"field_1": "B"}, children_count=1, row_offset=2, row_count=2),
+        ],
+        (("field_1", "A"),): [
+            _group(
+                {"field_1": "A", "field_2": "A1"},
+                children_count=1,
+                row_offset=0,
+                row_count=2,
+            ),
+        ],
+        (("field_1", "B"),): [
+            _group(
+                {"field_1": "B", "field_2": "B1"},
+                children_count=1,
+                row_offset=0,
+                row_count=2,
+            ),
+        ],
+        (("field_1", "A"), ("field_2", "A1")): [
+            _group(
+                {"field_1": "A", "field_2": "A1", "field_3": "A1a"},
+                children_count=0,
+                row_offset=0,
+                row_count=2,
+            ),
+        ],
+        (("field_1", "B"), ("field_2", "B1")): [
+            _group(
+                {"field_1": "B", "field_2": "B1", "field_3": "B1a"},
+                children_count=0,
+                row_offset=0,
+                row_count=2,
+            ),
+        ],
+    }
+
+
+def test_get_group_by_data_pages_batches_each_level_in_one_query():
+    fields = [_field("field_1"), _field("field_2"), _field("field_3")]
+    handler = _LevelGroupByDataHandler(_three_level_tree())
 
     pages, truncated = get_group_by_data_pages(
         handler,
         "base_queryset",
         ["view_group_by"],
         fields,
+        # A duplicated root request must be de-duplicated into one query.
         [
             {"parent": {}, "offset": 0, "limit": 40},
             {"parent": {}, "offset": 0, "limit": 40},
         ],
         include_descendants=True,
-        descendant_limit=5,
-        total_group_limit=10,
+        descendant_limit=40,
+        row_budget=100,
     )
 
     assert truncated is False
-    assert [page["parent"] for page in pages] == [{}, {"field_1": "Blue"}]
-    assert handler.calls == [
-        {
-            "base_queryset": "base_queryset",
-            "view_group_bys": ["view_group_by"],
-            "parent_path": {},
-            "offset": 0,
-            "limit": 40,
-            "parent_row_offset": None,
-        },
-        {
-            "base_queryset": "base_queryset",
-            "view_group_bys": ["view_group_by"],
-            "parent_path": {"field_1": "Blue"},
-            "offset": 0,
-            "limit": 5,
-            "parent_row_offset": 10,
-        },
+    # One batched query per level, each covering every parent at that level.
+    assert [depth for depth, _ in handler.level_calls] == [0, 1, 2]
+    assert handler.level_calls[1][1] == [{"field_1": "A"}, {"field_1": "B"}]
+    # Breadth-first by level: every parent of a level before the next level.
+    assert [page["parent"] for page in pages] == [
+        {},
+        {"field_1": "A"},
+        {"field_1": "B"},
+        {"field_1": "A", "field_2": "A1"},
+        {"field_1": "B", "field_2": "B1"},
     ]
 
 
-def test_get_group_by_data_pages_truncates_total_group_count():
-    fields = [_field("field_1"), _field("field_2")]
-    handler = _FakeGroupByDataHandler()
+def test_get_group_by_data_pages_window_prunes_offscreen_branches():
+    fields = [_field("field_1"), _field("field_2"), _field("field_3")]
+    handler = _LevelGroupByDataHandler(_three_level_tree())
 
     pages, truncated = get_group_by_data_pages(
         handler,
-        None,
-        [],
+        "base_queryset",
+        ["view_group_by"],
         fields,
         [{"parent": {}, "offset": 0, "limit": 40}],
         include_descendants=True,
-        descendant_limit=5,
-        total_group_limit=1,
+        descendant_limit=40,
+        # Window [0, 2): A starts at row 0 and is descended; B starts at row 2 and is
+        # pruned (rendered as a placeholder, lazy-loaded on scroll).
+        row_budget=2,
     )
 
     assert truncated is True
-    assert pages == [
-        {
-            "parent": {},
-            "groups": [
-                {
-                    "path": {"field_1": "Blue"},
-                    "children_count": 1,
-                    "row_offset": 10,
-                }
-            ],
-            "offset": 0,
-            "limit": 40,
-            "group_count": 2,
-        }
+    assert [page["parent"] for page in pages] == [
+        {},
+        {"field_1": "A"},
+        {"field_1": "A", "field_2": "A1"},
     ]
-    assert len(handler.calls) == 1
+    # B is never expanded, so no level only fetches B's subtree.
+    assert all(parents != [{"field_1": "B"}] for _, parents in handler.level_calls)
 
 
-class _FakeGroupByDataHandler:
-    def __init__(self):
-        self.calls = []
+class _LevelGroupByDataHandler:
+    """
+    Drives the batched per-level descent from a nested tree keyed by sorted path items.
 
-    def get_group_by_data(
+    Each tree entry lists a parent's children with a parent-relative ``row_offset``; the
+    descent makes them absolute. ``level_calls`` records ``(depth, [parent paths])`` for
+    every batched query so tests can assert one query per level.
+    """
+
+    def __init__(self, tree, offsets=None):
+        self._tree = tree
+        self._offsets = offsets or {}
+        self.level_calls = []
+
+    def get_group_by_path_row_offset(self, base_queryset, view_group_bys, path):
+        return self._offsets.get(tuple(sorted(path.items())), 0)
+
+    def get_group_by_data_for_parents(
         self,
         base_queryset,
         view_group_bys,
-        parent_path,
-        offset,
-        limit,
-        parent_row_offset=None,
+        parents,
+        depth,
+        offset=0,
+        per_parent_limit=40,
     ):
-        self.calls.append(
-            {
-                "base_queryset": base_queryset,
-                "view_group_bys": view_group_bys,
-                "parent_path": parent_path,
-                "offset": offset,
-                "limit": limit,
-                "parent_row_offset": parent_row_offset,
-            }
-        )
-
-        if parent_path == {}:
-            return {
-                "groups": [
-                    {
-                        "path": {"field_1": "Blue"},
-                        "children_count": 1,
-                        "row_offset": 10,
-                    },
-                    {
-                        "path": {"field_1": "Green"},
-                        "children_count": 0,
-                        "row_offset": 20,
-                    },
-                ],
-                "offset": offset,
-                "limit": limit,
-                "group_count": 2,
-            }
-
-        return {
-            "groups": [
-                {
-                    "path": {**parent_path, "field_2": "Large"},
-                    "children_count": 0,
-                    "row_offset": 11,
+        self.level_calls.append((depth, [dict(parent) for parent in parents]))
+        groups = []
+        for parent in parents:
+            children = self._tree.get(tuple(sorted(parent.items())), [])
+            for index, child in enumerate(children[offset : offset + per_parent_limit]):
+                group = {
+                    "path": child["path"],
+                    "depth": depth,
+                    "row_count": child["row_count"],
+                    "sibling_index": offset + index,
+                    "row_offset": child["row_offset"],
+                    "_parent_path": dict(parent),
+                    "_parent_group_count": len(children),
                 }
-            ],
-            "offset": offset,
-            "limit": limit,
-            "group_count": 1,
-        }
+                if "children_count" in child:
+                    group["children_count"] = child["children_count"]
+                groups.append(group)
+        return groups

@@ -2596,8 +2596,10 @@ describe('Grid view store', () => {
     })
     expect(mockServer.mock.history.get).toHaveLength(2)
     expect(groupByRequestParams.get('include_descendants')).toBe('true')
+    // Expand-all fetches the first rows page in parallel with the skeleton, sized to
+    // the buffer (offset 0) rather than right-sized to the not-yet-known sections.
     expect(rowRequestParams.get('offset')).toBe('0')
-    expect(rowRequestParams.get('limit')).toBe('1')
+    expect(rowRequestParams.get('limit')).toBe('40')
     expect(correctMultiSelect).toHaveBeenCalledOnce()
     expect(fetchAllFieldAggregationData).toHaveBeenCalledOnce()
   })
@@ -3413,6 +3415,11 @@ describe('Grid view store', () => {
         },
       ],
     })
+    // Resetting to expand-all fetches the first rows page in parallel with the skeleton.
+    mockServer.mock.onGet('/database/views/grid/1/').reply(200, {
+      count: 0,
+      results: [],
+    })
 
     await groupByStore.dispatch('grid/refresh', {
       view,
@@ -3762,6 +3769,11 @@ describe('Grid view store', () => {
 
     groupByStore.replaceState({ ...groupByStore.state, grid: state })
 
+    mockServer.mock.onGet('/database/views/grid/1/').reply(200, {
+      count: 0,
+      results: [],
+    })
+
     await groupByStore.dispatch('grid/fetchInitial', {
       gridId: 1,
       fields: [
@@ -3783,6 +3795,8 @@ describe('Grid view store', () => {
     expect(fetchGroupByCount).not.toHaveBeenCalled()
     expect(fetchGroupByRowsByScrollTop).toHaveBeenCalledOnce()
     expect(updateSearch).toHaveBeenCalledOnce()
+    // The skeleton and the first rows page are both fetched through the mocked
+    // group-by actions, so fetchInitial itself issues no direct rows request.
     expect(mockServer.mock.history.get).toHaveLength(0)
   })
 
@@ -4026,7 +4040,6 @@ describe('Grid view store', () => {
     ])
     expect(requestParams.get('include_descendants')).toBe('true')
     expect(requestParams.get('descendant_limit')).toBe('7')
-    expect(requestParams.get('parent')).toBe(null)
     expect(
       store.state.grid.groupBy.pages[groupPathKey(2, 'A')].nodes[0].path
     ).toEqual({
@@ -4180,7 +4193,7 @@ describe('Grid view store', () => {
     expect(rowsRequestParams.get('limit')).toBe('2')
   })
 
-  test('group-by expand-all viewport fetch requests one visible depth page without descendant preload', async () => {
+  test('group-by expanded viewport fetch loads children per parent, never by depth', async () => {
     const fields = [
       { id: 1, name: 'Name', type: 'text', primary: true },
       { id: 2, name: 'Team', type: 'text' },
@@ -4341,12 +4354,11 @@ describe('Grid view store', () => {
       scrollTop: 0,
     })
 
-    expect(mockServer.mock.history.get).toHaveLength(2)
-    expect(groupByRequestParams.get('include_descendants')).toBe(null)
-    expect(groupByRequestParams.get('parents')).toBe(null)
-    expect(groupByRequestParams.get('depth')).toBe('1')
-    expect(groupByRequestParams.get('offset')).toBe('0')
-    expect(groupByRequestParams.get('limit')).toBe('2')
+    // Expanded groups load their children per parent (parents=...), descending to the
+    // leaves in one request (include_descendants), never by depth.
+    expect(groupByRequestParams.get('depth')).toBe(null)
+    expect(groupByRequestParams.get('include_descendants')).toBe('true')
+    expect(groupByRequestParams.get('parents')).not.toBe(null)
     expect(rowsRequestParams.get('offset')).toBe('0')
     expect(rowsRequestParams.get('limit')).toBe('4')
     expect(
@@ -4464,7 +4476,7 @@ describe('Grid view store', () => {
     ])
   })
 
-  test('group-by viewport fetch resolves newly visible group pages before fetching rows', async () => {
+  test('group-by viewport scroll descends visible groups to leaves in one request', async () => {
     const fields = [
       { id: 1, name: 'Name', type: 'text', primary: true },
       { id: 2, name: 'Team', type: 'text' },
@@ -4516,35 +4528,28 @@ describe('Grid view store', () => {
       .onGet('/database/views/grid/1/group-by-data/')
       .reply((config) => {
         groupByRequests.push(config.params)
-        if (groupByRequests.length === 1) {
-          return [
-            200,
-            {
-              pages: [
-                {
-                  parent: { field_2: 'A' },
-                  groups: [
-                    {
-                      path: { field_2: 'A', field_3: 'Todo' },
-                      depth: 1,
-                      row_count: 2,
-                      children_count: 1,
-                      sibling_index: 0,
-                      row_offset: 0,
-                    },
-                  ],
-                  offset: 0,
-                  limit: 40,
-                  group_count: 1,
-                },
-              ],
-            },
-          ]
-        }
+        // include_descendants returns the whole visible subtree (A -> Todo -> Acme)
+        // down to the leaves in this single response.
         return [
           200,
           {
             pages: [
+              {
+                parent: { field_2: 'A' },
+                groups: [
+                  {
+                    path: { field_2: 'A', field_3: 'Todo' },
+                    depth: 1,
+                    row_count: 2,
+                    children_count: 1,
+                    sibling_index: 0,
+                    row_offset: 0,
+                  },
+                ],
+                offset: 0,
+                limit: 40,
+                group_count: 1,
+              },
               {
                 parent: { field_2: 'A', field_3: 'Todo' },
                 groups: [
@@ -4612,17 +4617,12 @@ describe('Grid view store', () => {
       scrollTop: 0,
     })
 
-    expect(groupByRequests).toHaveLength(2)
-    expect(groupByRequests[0].get('include_descendants')).toBe(null)
-    expect(groupByRequests[0].get('parents')).toBe(null)
-    expect(groupByRequests[0].get('depth')).toBe('1')
-    expect(groupByRequests[0].get('offset')).toBe('0')
-    expect(groupByRequests[0].get('limit')).toBe('40')
-    expect(groupByRequests[1].get('include_descendants')).toBe(null)
-    expect(groupByRequests[1].get('parents')).toBe(null)
-    expect(groupByRequests[1].get('depth')).toBe('2')
-    expect(groupByRequests[1].get('offset')).toBe('0')
-    expect(groupByRequests[1].get('limit')).toBe('40')
+    // One request descends the visible groups to their leaves (include_descendants),
+    // instead of one request per level on scroll.
+    expect(groupByRequests).toHaveLength(1)
+    expect(groupByRequests[0].get('depth')).toBe(null)
+    expect(groupByRequests[0].get('parents')).not.toBe(null)
+    expect(groupByRequests[0].get('include_descendants')).toBe('true')
     expect(rowRequests).toHaveLength(1)
     const rowsRequestParams = rowRequests[0]
     expect(rowsRequestParams.get('offset')).toBe('0')

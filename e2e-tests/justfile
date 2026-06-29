@@ -13,9 +13,14 @@ frontend_image := "baserow/web-frontend:ci"
 db_image := "pgvector/pgvector:pg${POSTGRES_IMAGE_VERSION:-14}"
 redis_image := "redis:6"
 
-# Host ports (override with env vars to avoid collisions with a running dev stack)
-backend_port := env_var_or_default("E2E_BACKEND_PORT", "8010")
-frontend_port := env_var_or_default("E2E_FRONTEND_PORT", "3010")
+# Host ports (override with env vars to avoid collisions with a running dev stack).
+# Keep these outside the documented dev ranges:
+# - default dev: 8000/3000
+# - alternate dev A: 8010/3010
+# - alternate dev B: 8020/3020
+backend_port := env_var_or_default("E2E_BACKEND_PORT", "8030")
+frontend_port := env_var_or_default("E2E_FRONTEND_PORT", "3030")
+frontend_cookie_prefix := env_var_or_default("E2E_FRONTEND_COOKIE_PREFIX", "baserow_e2e_")
 
 # Database dump settings
 dump_file := "fixtures/e2e-db.dump"
@@ -223,6 +228,7 @@ up: _ensure-images
             -e PUBLIC_BACKEND_URL=http://localhost:{{ backend_port }} \
             -e PUBLIC_WEB_FRONTEND_URL=http://localhost:{{ frontend_port }} \
             -e PRIVATE_BACKEND_URL=http://e2e-backend:8000 \
+            -e BASEROW_FRONTEND_COOKIE_PREFIX={{ frontend_cookie_prefix }} \
             -e FEATURE_FLAGS="*" \
             -p {{ frontend_port }}:3000 \
             {{ frontend_image }} nuxt-prod
@@ -289,6 +295,7 @@ test *ARGS:
 
     export PUBLIC_BACKEND_URL=http://localhost:{{ backend_port }}
     export PUBLIC_WEB_FRONTEND_URL=http://localhost:{{ frontend_port }}
+    export BASEROW_FRONTEND_COOKIE_PREFIX={{ frontend_cookie_prefix }}
 
     # Install dependencies if needed
     echo "Installing dependencies..."

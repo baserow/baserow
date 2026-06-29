@@ -99,4 +99,52 @@ describe('GridViewGroupByBanner component', () => {
 
     expect(wrapper.text()).toContain('hello world')
   })
+
+  const mountAtDepth = (fieldCount, depth, rowDetailsWidth = 72) =>
+    testApp.mount(GridViewGroupByBanner, {
+      props: {
+        groupByFields: Array.from({ length: fieldCount }, (_, i) => ({
+          id: i + 1,
+          type: 'text',
+          name: `Field ${i + 1}`,
+        })),
+        item: {
+          depth,
+          path: { [`field_${depth + 1}`]: 'x' },
+          display: undefined,
+          rowCount: 1,
+          collapsed: false,
+          y: 0,
+          height: 48,
+        },
+        includeRowDetails: true,
+        primaryFieldWidth: 200,
+        rowDetailsWidth,
+        width: 300,
+        workspaceId: null,
+      },
+    })
+
+  const chevronPadding = (wrapper) =>
+    parseFloat(
+      wrapper.find('.grid-view__group-by-banner-chevron-lane').element.style
+        .paddingLeft
+    )
+
+  test('caps the chevron indent so deep nesting stops shifting right', async () => {
+    // 14 levels: the deepest chevron must still fit inside the 72px row-details lane
+    // (base 12 + at most 36 = 48, leaving room for the 24px chevron) so it never
+    // marches the field name + count off to the right.
+    const deepest = await mountAtDepth(14, 13)
+    const pad = chevronPadding(deepest)
+    expect(pad).toBeGreaterThan(12)
+    expect(pad).toBeLessThanOrEqual(48)
+  })
+
+  test('shrinks the per-level step as the number of group-bys grows', async () => {
+    const fewStep = chevronPadding(await mountAtDepth(3, 1)) - 12
+    const manyStep = chevronPadding(await mountAtDepth(13, 1)) - 12
+    expect(manyStep).toBeLessThan(fewStep)
+    expect(manyStep).toBeGreaterThan(0)
+  })
 })

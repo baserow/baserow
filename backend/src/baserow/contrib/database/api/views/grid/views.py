@@ -110,15 +110,6 @@ def get_available_aggregation_type():
     return [f.type for f in view_aggregation_type_registry.get_all()]
 
 
-GROUP_BY_DATA_PARENT_API_PARAM = OpenApiParameter(
-    name="parent",
-    location=OpenApiParameter.QUERY,
-    type=OpenApiTypes.STR,
-    required=False,
-    description=(
-        "Optional JSON group path object. When omitted, top-level groups are returned."
-    ),
-)
 GROUP_BY_DATA_PARENTS_API_PARAM = OpenApiParameter(
     name="parents",
     location=OpenApiParameter.QUERY,
@@ -126,7 +117,8 @@ GROUP_BY_DATA_PARENTS_API_PARAM = OpenApiParameter(
     required=False,
     description=(
         "Optional JSON array of parent page requests. Each item can be a group path "
-        "object, or an object with `parent`, `offset`, and `limit`."
+        "object, or an object with `parent`, `offset`, and `limit`. When omitted, "
+        "top-level groups are returned."
     ),
 )
 GROUP_BY_DATA_DEPTH_API_PARAM = OpenApiParameter(
@@ -265,9 +257,17 @@ class GridViewView(APIView):
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
         }
     )
-    @allowed_includes("field_options", "row_metadata")
+    @allowed_includes("field_options", "row_metadata", "group_by_metadata")
     @validate_query_parameters(SearchQueryParamSerializer, return_validated=True)
-    def get(self, request, view_id, field_options, row_metadata, query_params):
+    def get(
+        self,
+        request,
+        view_id,
+        field_options,
+        row_metadata,
+        group_by_metadata,
+        query_params,
+    ):
         """
         Lists all the rows of a grid view, paginated either by a page or offset/limit.
         If the limit get parameter is provided the limit/offset pagination will be used
@@ -323,7 +323,7 @@ class GridViewView(APIView):
             queryset, request, field_ids, exclude_field_ids=hidden_field_ids
         )
 
-        if view_type.can_group_by and view.viewgroupby_set.all():
+        if group_by_metadata and view_type.can_group_by and view.viewgroupby_set.all():
             group_by_fields = [
                 model._field_objects[group_by.field_id]["field"]
                 for group_by in view.viewgroupby_set.all()
@@ -443,7 +443,6 @@ class GridViewGroupByDataView(APIView):
                 type=OpenApiTypes.INT,
                 description="The id of the grid view to fetch group-by data for.",
             ),
-            GROUP_BY_DATA_PARENT_API_PARAM,
             GROUP_BY_DATA_PARENTS_API_PARAM,
             GROUP_BY_DATA_DEPTH_API_PARAM,
             GROUP_BY_DATA_INCLUDE_DESCENDANTS_API_PARAM,
@@ -864,7 +863,6 @@ class PublicGridViewGroupByDataView(APIView):
                 type=OpenApiTypes.STR,
                 description="The public grid view slug.",
             ),
-            GROUP_BY_DATA_PARENT_API_PARAM,
             GROUP_BY_DATA_PARENTS_API_PARAM,
             GROUP_BY_DATA_DEPTH_API_PARAM,
             GROUP_BY_DATA_INCLUDE_DESCENDANTS_API_PARAM,
@@ -1030,10 +1028,15 @@ class PublicGridViewRowsView(APIView):
             NoAuthorizationToPubliclySharedView: ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW,
         }
     )
-    @allowed_includes("field_options")
+    @allowed_includes("field_options", "group_by_metadata")
     @validate_query_parameters(SearchQueryParamSerializer, return_validated=True)
     def get(
-        self, request: Request, slug: str, field_options: bool, query_params
+        self,
+        request: Request,
+        slug: str,
+        field_options: bool,
+        group_by_metadata: bool,
+        query_params,
     ) -> Response:
         """
         Lists all the rows of a grid view, paginated either by a page or offset/limit.
@@ -1074,7 +1077,7 @@ class PublicGridViewRowsView(APIView):
             )
             response.data.update(**public_view_field_options)
 
-        if group_by:
+        if group_by_metadata and group_by:
             group_by_fields = [
                 # We can safely do this without having to check whether the
                 # `group_by` input is valid because this has already been validated

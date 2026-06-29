@@ -70,19 +70,20 @@ describe('gridGroupBy collapse state', () => {
     })
   })
 
-  test('shouldUseGroupByDepthPages requires initialized, mode-based, empty exceptions', () => {
+  test('shouldUseGroupByDepthPages requires initialized collapse-all with empty exceptions', () => {
     expect(
       shouldUseGroupByDepthPages({
         collapseInitialized: true,
         collapse: { mode: 'collapse', paths: [] },
       })
     ).toBe(true)
+    // Expanded pages per parent (descends to leaves), not by depth.
     expect(
       shouldUseGroupByDepthPages({
         collapseInitialized: true,
         collapse: { mode: 'expand', paths: [] },
       })
-    ).toBe(true)
+    ).toBe(false)
     // Not initialized.
     expect(
       shouldUseGroupByDepthPages({
