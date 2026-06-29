@@ -63,9 +63,13 @@ Do not commit secrets or local overrides. Use `.env.local` for development, keep
 ## Good practices
 
 - On a specific branch, always merge backend migrations file instead of creating new ones.
+- Django migrations must be executed with zero downtime. This means the new database schema must remain compatible with the previous application version during the deployment.
+  - Every new field must define a `db_default`.
+  - Do not remove fields unless you are certain they are no longer used by the previous application version. Instead, keep the field and add a `# TODO ZDM: remove this field in the next version` comment so it can be safely removed in a subsequent release.
 - CSS classes respect BEM methodology.
-- When working on translations, only update english unless told otherwise. Other languages are handled with weblate. Don't nest keys too much, just keep one level of nesting.
+- When working on translations, only update english unless told otherwise. Other languages are handled with Weblate. Don't nest keys too much, just keep one level of nesting.
 
 ## Memory
 
 Before starting work, read `MEMORY.md` file at same level of `AGENTS.md` file if it exists for historical context and design decisions.
+Update that memory file to keep track of the decisions.

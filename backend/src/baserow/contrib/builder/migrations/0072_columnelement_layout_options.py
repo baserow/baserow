@@ -26,6 +26,7 @@ class Migration(migrations.Migration):
                     ("1:2:1", "Ratio 1 2 1"),
                     ("custom", "Custom"),
                 ],
+                db_default="auto",
                 default="auto",
                 help_text="The layout type determining column weights.",
                 max_length=20,
@@ -35,6 +36,7 @@ class Migration(migrations.Migration):
             model_name="columnelement",
             name="column_weights",
             field=models.JSONField(
+                db_default=[],
                 default=list,
                 help_text=(
                     "Custom weight configuration for each column. Used when "

@@ -418,10 +418,12 @@ class ColumnElement(ContainerElement):
         choices=LAYOUT_TYPES.choices,
         max_length=20,
         default=LAYOUT_TYPES.AUTO,
+        db_default=LAYOUT_TYPES.AUTO,
         help_text="The layout type determining column weights.",
     )
     column_weights = models.JSONField(
         default=list,
+        db_default=[],
         help_text=(
             "Custom weight configuration for each column. Used when layout_type is "
             "'custom'."

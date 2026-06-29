@@ -170,3 +170,4 @@ web-frontend/.nuxt-storybook/
 web-frontend/storybook-static
 
 .agent
+MEMORY.md
