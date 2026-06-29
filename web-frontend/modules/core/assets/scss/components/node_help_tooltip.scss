@@ -43,3 +43,7 @@
     @extend %mb-16;
   }
 }
+
+.node-help-tooltip-context {
+  z-index: $z-index-tooltip;
+}

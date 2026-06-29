@@ -1,5 +1,5 @@
 <template>
-  <Context ref="context">
+  <Context ref="context" class="node-help-tooltip-context">
     <div v-if="node" class="node-help-tooltip">
       <div class="node-help-tooltip__header">
         <div class="node-help-tooltip__icon">

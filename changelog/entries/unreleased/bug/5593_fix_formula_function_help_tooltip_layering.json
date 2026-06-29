@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixed formula function help tooltips appearing below the data explorer.",
+    "issue_origin": "github",
+    "issue_number": 5593,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-06-29"
+}
