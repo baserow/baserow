@@ -154,8 +154,9 @@ class BaserowMCPServer:
                 # connection. It's valid to immediately respond with a 401 error.
                 return Response("Endpoint not found.", status_code=401)
 
-            # connect_sse sends the response itself via request._send. Track that so
-            # we can return a no-op instead of one Starlette would send on top.
+            # connect_sse sends the response itself via the send callable. Wrap it to
+            # track that, so we can return a no-op instead of one Starlette would send
+            # on top.
             response_started = False
             send = request._send
 
@@ -165,13 +166,11 @@ class BaserowMCPServer:
                     response_started = True
                 await send(message)
 
-            request._send = tracking_send  # type: ignore[reportPrivateUsage]
-
             try:
                 async with sse.connect_sse(
                     request.scope,
                     request.receive,
-                    request._send,  # type: ignore[reportPrivateUsage]
+                    tracking_send,
                 ) as streams:
                     await self._mcp_server.run(
                         streams[0],
