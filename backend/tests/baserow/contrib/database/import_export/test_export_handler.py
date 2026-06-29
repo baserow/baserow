@@ -509,6 +509,34 @@ def test_csv_export_escapes_formula_in_header_and_cell(get_storage_mock, data_fi
 
 
 @pytest.mark.django_db
+@patch("baserow.core.storage.get_default_storage")
+def test_csv_export_escapes_formula_after_leading_newline(
+    get_storage_mock, data_fixture
+):
+    # A value that starts with a newline followed by a formula can still be read
+    # as a formula by spreadsheet parsers that trim leading whitespace. The
+    # exported cell must be neutralized (CWE-1236).
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+    notes_field = data_fixture.create_long_text_field(
+        user=user, table=table, name="notes"
+    )
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{notes_field.id}": '\n=HYPERLINK("http://evil")'})
+
+    _, contents = run_export_job_with_mock_storage(table, grid_view, storage_mock, user)
+
+    # Parse the exported file back; the notes value must carry the "'" guard so
+    # the "=" is no longer the first meaningful character.
+    rows = list(csv.reader(StringIO(contents.lstrip("\ufeff"))))
+    assert rows[1][1] == '\'\n=HYPERLINK("http://evil")'
+
+
+@pytest.mark.django_db
 def test_creating_a_new_export_job_will_cancel_any_already_running_jobs_for_that_user(
     data_fixture,
 ):
