@@ -2704,6 +2704,167 @@ describe('Grid view store', () => {
     ])
   })
 
+  test('createNewRowInGroup spins the affected group aggregations until the backend confirms', async () => {
+    const fields = [
+      {
+        id: 1,
+        name: 'Name',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+      {
+        id: 2,
+        name: 'Team',
+        type: 'text',
+        _: { type: { type: 'text' } },
+      },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r',
+    }
+    const groupByStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            fetchByScrollTopDelayed: vi.fn(),
+          },
+        },
+        field: {
+          namespaced: true,
+          getters: { getAll: () => fields },
+        },
+      },
+    })
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: 2,
+      fieldOptions: {
+        1: {
+          hidden: false,
+          order: 0,
+          aggregation_type: 'empty_count',
+          aggregation_raw_type: 'empty_count',
+        },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: [
+          {
+            path: { field_2: 'A' },
+            depth: 0,
+            row_count: 1,
+            aggregations: { field_1: 0 },
+          },
+          {
+            path: { field_2: 'B' },
+            depth: 0,
+            row_count: 1,
+            aggregations: { field_1: 0 },
+          },
+        ],
+        collapse: { mode: 'expand', paths: [] },
+        sectionRows: {},
+        rowLocations: {},
+      },
+    })
+    groupByStore.replaceState({ ...groupByStore.state, grid: state })
+    groupByStore.app = { $featureFlagIsEnabled: () => true }
+    groupByStore.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey: groupPathKey(2, 'B'),
+      rows: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'Existing',
+          field_2: 'B',
+          _: { ...rowMetadata, persistentId: 'r10' },
+        },
+      ],
+      startPosition: 0,
+    })
+
+    let finishCreate
+    mockServer.mock.onPost('/database/rows/table/1/batch/').reply(
+      () =>
+        new Promise((resolve) => {
+          finishCreate = () =>
+            resolve([
+              200,
+              {
+                items: [{ id: 11, order: '2.00', field_1: '', field_2: 'B' }],
+                metadata: { updated_field_ids: [] },
+              },
+            ])
+        })
+    )
+    mockServer.mock.onGet('/database/views/grid/1/group-by-data/').reply(() => [
+      200,
+      {
+        pages: [
+          {
+            parent: {},
+            groups: [
+              {
+                path: { field_2: 'B' },
+                depth: 0,
+                aggregations: { field_1: 1 },
+              },
+            ],
+            offset: 0,
+            limit: 40,
+          },
+        ],
+        aggregations: { field_1: 1 },
+      },
+    ])
+
+    const createPromise = groupByStore.dispatch('grid/createNewRowInGroup', {
+      view: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      table: { id: 1 },
+      fields,
+      path: { field_2: 'B' },
+      selectPrimaryCell: true,
+    })
+    await new Promise((resolve) => setTimeout(resolve))
+
+    // While the create request is pending, the inserted group spins instead of
+    // recomputing its aggregations from the optimistically bumped row count.
+    expect(groupByStore.state.grid.groupBy.aggregationsLoadingPaths).toContain(
+      groupPathKey(2, 'B')
+    )
+    // Sibling groups are untouched, so they must not spin.
+    expect(
+      groupByStore.state.grid.groupBy.aggregationsLoadingPaths
+    ).not.toContain(groupPathKey(2, 'A'))
+
+    finishCreate()
+    await createPromise
+
+    // The backend refresh delivered fresh values and cleared the spinner.
+    expect(groupByStore.state.grid.groupBy.aggregationsLoadingPaths).toEqual([])
+  })
+
   test('createNewRowInGroup does not duplicate a queued edited row when adding another row', async () => {
     const fields = [
       {

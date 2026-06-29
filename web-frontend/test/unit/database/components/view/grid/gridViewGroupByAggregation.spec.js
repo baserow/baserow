@@ -1,5 +1,6 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import GridViewGroupByAggregation from '@baserow/modules/database/components/view/grid/GridViewGroupByAggregation'
+import DistributionAggregation from '@baserow/modules/database/components/aggregation/DistributionAggregation'
 import Context from '@baserow/modules/core/components/Context'
 import flushPromises from 'flush-promises'
 
@@ -35,6 +36,14 @@ describe('GridViewGroupByAggregation', () => {
   const configureSum = () =>
     store.dispatch('page/view/grid/forceUpdateAllFieldOptions', {
       2: { aggregation_type: 'sum', aggregation_raw_type: 'sum' },
+    })
+
+  const configureDistribution = () =>
+    store.dispatch('page/view/grid/forceUpdateAllFieldOptions', {
+      2: {
+        aggregation_type: 'distribution',
+        aggregation_raw_type: 'distribution',
+      },
     })
 
   test('renders the per-group aggregation value for a configured field', async () => {
@@ -141,5 +150,30 @@ describe('GridViewGroupByAggregation', () => {
       expect.objectContaining({ field })
     )
     expect(wrapper.emitted('change')).toBeTruthy()
+  })
+
+  test('renders nothing instead of crashing on a table-only aggregation', async () => {
+    // Distribution is footer-only; the field's stale scalar value must not be fed to
+    // its array-shaped getValue (which would throw and break the group render).
+    await configureDistribution()
+
+    const wrapper = await mountCell({ rawValue: 25 })
+
+    expect(wrapper.findComponent(DistributionAggregation).exists()).toBe(false)
+    expect(wrapper.find('.grid-view-aggregation__empty').exists()).toBe(true)
+  })
+
+  test('omits table-only aggregations from the group context menu', async () => {
+    await configureSum()
+    const wrapper = await mountCell()
+
+    await wrapper.find('.grid-view-aggregation').trigger('click')
+    const names = wrapper
+      .findComponent(Context)
+      .findAll('.select__item-name-text')
+      .map((node) => node.text())
+
+    expect(names).toContain('viewAggregationType.sum')
+    expect(names).not.toContain('viewAggregationType.distribution')
   })
 })

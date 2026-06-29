@@ -130,7 +130,14 @@ export default {
         return null
       }
       try {
-        return this.$registry.get('viewAggregation', this.aggregationType)
+        const aggregation = this.$registry.get(
+          'viewAggregation',
+          this.aggregationType
+        )
+        // A table-level-only aggregation (e.g. distribution) shares this field's
+        // footer config but has no per-group value, so resolve it to null here to
+        // keep the group cell empty instead of rendering against a stale value.
+        return aggregation.isAllowedInGroupBy() ? aggregation : null
       } catch (_) {
         return null
       }
@@ -139,7 +146,10 @@ export default {
       return this.$registry
         .getOrderedList('viewAggregation')
         .filter(
-          (agg) => agg.fieldIsCompatible(this.field) && agg.isAllowedInView()
+          (agg) =>
+            agg.fieldIsCompatible(this.field) &&
+            agg.isAllowedInView() &&
+            agg.isAllowedInGroupBy()
         )
     },
     fieldType() {

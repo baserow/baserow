@@ -96,6 +96,12 @@ export class ViewAggregationType extends Registerable {
     return true
   }
 
+  // Whether this aggregation produces a single scalar the backend can compute per
+  // group. Non-scalar types (e.g. distribution) are table-level footer only.
+  isAllowedInGroupBy() {
+    return true
+  }
+
   /**
    * @return object
    */
@@ -907,6 +913,10 @@ export class DistributionViewAggregationType extends ViewAggregationType {
     return DistributionAggregation
   }
 
+  isAllowedInGroupBy() {
+    return false
+  }
+
   getValue(value, { rowCount }) {
     // Value is returned from the server as an array of arrays,
     // each inner array representing one value of the distribution
@@ -926,7 +936,9 @@ export class DistributionViewAggregationType extends ViewAggregationType {
     //     ["Red", "(6)", "60%"],
     //     ["Others", "(1)", "10%"]
     //   ]
-    if (!value) {
+    // A type switch can briefly feed the previous aggregation's scalar value in
+    // before the refresh lands; only an array is a real distribution result.
+    if (!Array.isArray(value)) {
       return null
     }
 

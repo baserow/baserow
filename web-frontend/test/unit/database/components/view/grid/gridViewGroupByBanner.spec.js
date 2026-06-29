@@ -1,6 +1,7 @@
 import { TestApp } from '@baserow/test/helpers/testApp'
 import GridViewGroupByBanner from '@baserow/modules/database/components/view/grid/GridViewGroupByBanner'
 import GridViewGroupByAggregation from '@baserow/modules/database/components/view/grid/GridViewGroupByAggregation'
+import { pathKey } from '@baserow/modules/database/utils/gridGroupByRender'
 
 describe('GridViewGroupByBanner component', () => {
   let testApp = null
@@ -272,7 +273,7 @@ describe('GridViewGroupByBanner aggregations', () => {
     aggregations,
   })
 
-  const mountBanner = (item, featureEnabled = true) =>
+  const mountBanner = (item) =>
     testApp.mount(GridViewGroupByBanner, {
       propsData: {
         item,
@@ -286,12 +287,11 @@ describe('GridViewGroupByBanner aggregations', () => {
         storePrefix: 'page/',
       },
       global: {
-        mocks: { $featureFlagIsEnabled: () => featureEnabled },
         stubs: { GridViewGroupByAggregation: true },
       },
     })
 
-  test('renders an aggregation cell per visible field with the group value when enabled', async () => {
+  test('renders an aggregation cell per visible field with the group value', async () => {
     const wrapper = await mountBanner(header({ field_2: 30 }))
 
     const cell = wrapper.findComponent(GridViewGroupByAggregation)
@@ -299,14 +299,6 @@ describe('GridViewGroupByBanner aggregations', () => {
     expect(cell.props('rawValue')).toBe(30)
     expect(cell.props('rowCount')).toBe(2)
     expect(cell.props('field')).toEqual(amountField)
-  })
-
-  test('renders no aggregation cell when the feature flag is disabled', async () => {
-    const wrapper = await mountBanner(header({ field_2: 30 }), false)
-
-    expect(wrapper.findComponent(GridViewGroupByAggregation).exists()).toBe(
-      false
-    )
   })
 
   test('passes an undefined raw value when the group has no value for the field', async () => {
@@ -331,7 +323,6 @@ describe('GridViewGroupByBanner aggregations', () => {
         storePrefix: 'page/',
       },
       global: {
-        mocks: { $featureFlagIsEnabled: () => true },
         stubs: { GridViewGroupByAggregation: true },
       },
     })
@@ -359,6 +350,30 @@ describe('GridViewGroupByBanner aggregations', () => {
     const cells = wrapper.findAllComponents(GridViewGroupByAggregation)
     expect(cells[0].props('loading')).toBe(true)
     expect(cells[1].props('loading')).toBe(true)
+  })
+
+  test('spins a group while its post-insertion aggregation refresh is in flight', async () => {
+    testApp.store.commit(
+      'page/view/grid/SET_GROUP_BY_AGGREGATIONS_LOADING_PATHS',
+      [pathKey({ field_1: 'Green' }, [colorField])]
+    )
+    const wrapper = await mountBanner(header({ field_2: 30 }))
+
+    expect(
+      wrapper.findComponent(GridViewGroupByAggregation).props('loading')
+    ).toBe(true)
+  })
+
+  test('does not spin a group when only a sibling group is refreshing', async () => {
+    testApp.store.commit(
+      'page/view/grid/SET_GROUP_BY_AGGREGATIONS_LOADING_PATHS',
+      [pathKey({ field_1: 'Blue' }, [colorField])]
+    )
+    const wrapper = await mountBanner(header({ field_2: 30 }))
+
+    expect(
+      wrapper.findComponent(GridViewGroupByAggregation).props('loading')
+    ).toBe(false)
   })
 
   test('forwards the changed field id with the aggregation-changed event', async () => {

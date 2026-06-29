@@ -52,6 +52,7 @@ import {
   getDefinedRowsFromSectionRows,
   forEachGroupByRow,
   getGroupByPathDepth,
+  getGroupByPathPrefix,
   preserveGroupByRowUiState,
   findGroupByRowSection,
   getGroupByAbsoluteRangesForVisibleRange,
@@ -128,6 +129,9 @@ function getEmptyGroupByState() {
     // True while a lean values-only aggregation refresh is in flight, so the group
     // header cells show a loading spinner without rebuilding the layout.
     aggregationsLoading: false,
+    // pathKeys spinning after an optimistic insertion, so the banner shows a spinner
+    // instead of a wrong value recomputed from the bumped row count.
+    aggregationsLoadingPaths: [],
     collapse: { mode: 'expand', paths: [] },
     collapseInitialized: false,
     sectionRows: {},
@@ -1057,6 +1061,9 @@ export const mutations = {
   },
   SET_GROUP_BY_AGGREGATIONS_LOADING(state, value) {
     state.groupBy.aggregationsLoading = value
+  },
+  SET_GROUP_BY_AGGREGATIONS_LOADING_PATHS(state, pathKeys) {
+    state.groupBy.aggregationsLoadingPaths = pathKeys
   },
   // Updates only the loaded group nodes' `aggregations` from a lean response,
   // matched by path so it survives sibling-order changes. Layout untouched.
@@ -4233,6 +4240,32 @@ export const actions = {
         })
       }
 
+      // Spin the inserted group and its ancestors so their banners don't flash a
+      // value recomputed from the bumped count before the backend returns.
+      const hasGroupAggregation =
+        optimisticGroupByTreePaths.length > 0 &&
+        Object.values(getters.getAllFieldOptions).some(
+          (options) => options.aggregation_raw_type
+        )
+      if (hasGroupAggregation) {
+        const loadingPaths = new Set()
+        for (const {
+          path,
+          fields: groupByFields,
+        } of optimisticGroupByTreePaths) {
+          const depth = getGroupByPathDepth(path, groupByFields)
+          for (let pathDepth = 0; pathDepth < depth; pathDepth += 1) {
+            loadingPaths.add(
+              pathKey(
+                getGroupByPathPrefix(path, groupByFields, pathDepth),
+                groupByFields
+              )
+            )
+          }
+        }
+        commit('SET_GROUP_BY_AGGREGATIONS_LOADING_PATHS', [...loadingPaths])
+      }
+
       dispatch('visibleByScrollTop')
 
       // Check if not all rows are visible.
@@ -4385,6 +4418,12 @@ export const actions = {
         rowsPopulated.forEach((row) => {
           createAndUpdateRowQueue.release(row._.persistentId)
         })
+
+        // Refresh delivered fresh values, or the insertion was rolled back: either
+        // way stop spinning so the up-to-date value shows.
+        if (hasGroupAggregation) {
+          commit('SET_GROUP_BY_AGGREGATIONS_LOADING_PATHS', [])
+        }
       }
     })
     await taskQueue.waitFor(taskId)
@@ -6270,6 +6309,9 @@ export const getters = {
       }
       return false
     }
+  },
+  getGroupByAggregationsLoadingPaths(state) {
+    return state.groupBy.aggregationsLoadingPaths || []
   },
   getGroupBySectionRowsMap: (state) => {
     return makeSectionRowsMap(state.groupBy.sectionRows)

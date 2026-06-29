@@ -86,7 +86,7 @@
         :store-prefix="storePrefix"
         :raw-value="aggregationValueFor(field)"
         :row-count="item.rowCount"
-        :loading="aggregationLoadingFor(field.id)"
+        :loading="aggregationLoadingFor(field.id) || groupAggregationsLoading"
         @change="$emit('aggregation-changed', field.id)"
       />
     </div>
@@ -100,7 +100,10 @@
 </template>
 
 <script>
-import { groupBannerIndentPx } from '@baserow/modules/database/utils/gridGroupByRender'
+import {
+  groupBannerIndentPx,
+  pathKey,
+} from '@baserow/modules/database/utils/gridGroupByRender'
 import GridViewGroupByAggregation from '@baserow/modules/database/components/view/grid/GridViewGroupByAggregation'
 
 export default {
@@ -160,6 +163,18 @@ export default {
       return this.$store.getters[
         this.storePrefix + 'view/grid/getGroupByAggregationsLoading'
       ]
+    },
+    // Spin while this group's post-insertion aggregation refresh is in flight, to
+    // avoid showing a value derived from the already-bumped row count.
+    groupAggregationsLoading() {
+      if (this.storePrefix === '') {
+        return false
+      }
+      const loadingPaths =
+        this.$store.getters[
+          this.storePrefix + 'view/grid/getGroupByAggregationsLoadingPaths'
+        ]
+      return loadingPaths.includes(pathKey(this.item.path, this.groupByFields))
     },
     groupByField() {
       return this.groupByFields[this.item.depth]
