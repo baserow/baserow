@@ -438,10 +438,9 @@ def get_group_by_data_pages(
     truncated = False
 
     # Resolve each requested parent's absolute row offset (computing it when the client
-    # did not thread it in, so threading stays a pure speedup), and the visible row
-    # window the descent stays scoped to: it only expands groups whose rows start inside
-    # ``[start, start + row_budget)`` rather than fanning across the whole breadth of a
-    # wide tree.
+    # did not thread it in, so threading stays a pure speedup). The descent only expands
+    # groups whose rows start inside ``[start, start + row_budget)`` rather than fanning
+    # across the whole breadth of a wide tree.
     initial_offset_by_key = {}
     for request in parent_requests:
         parent = request["parent"]
@@ -453,7 +452,10 @@ def get_group_by_data_pages(
         initial_offset_by_key[group_by_data_page_key(parent, group_by_fields)] = (
             parent_row_offset
         )
-    window_end = min(initial_offset_by_key.values(), default=0) + row_budget
+    # Anchor the window where the fetched groups actually start, not at the parent's first
+    # row. A scrolled slice (offset > 0) begins deep into the parent, so anchoring on the
+    # parent offset would window the top of the tree and expand nothing the user can see.
+    window_end = None
 
     # Group the requested parents by depth (and page slice) so each level is fetched in
     # one batched query covering all of its parents instead of one query per parent.
@@ -517,6 +519,13 @@ def get_group_by_data_pages(
                     page_order.append(parent_key)
                 group["row_offset"] += offset_by_key.get(parent_key, 0)
                 page["groups"].append(group)
+
+            if window_end is None and page_by_key:
+                window_end = row_budget + min(
+                    group["row_offset"]
+                    for page in page_by_key.values()
+                    for group in page["groups"]
+                )
 
             for parent_key in page_order:
                 if (
@@ -606,13 +615,18 @@ def build_group_by_data_response(
             pages = [empty_group_by_data_page(offset=offset, limit=limit)]
             truncated = False
         else:
-            # The descent returns every group in the visible leaf-row window, so a deep
-            # group-by (where each leaf row stacks under all its ancestor banners) fills
-            # the viewport with far fewer leaf rows than a flat one. Scale the window down
-            # by the depth so the first call returns a viewport-sized slice instead of the
-            # whole expanded tree; the rest renders as placeholders and loads on scroll.
-            depth_count = max(len(group_by_fields), 1)
-            descendant_row_budget = max(1, -(-limit // depth_count))
+            # The client sends the row window that fills its screen in one descent,
+            # defaulting to the page limit when unset. Clamp to the group cap: a wider
+            # window can't surface more than the cap allows.
+            descendant_row_budget = max(
+                1,
+                min(
+                    parse_non_negative_int(
+                        request.GET.get("descendant_row_budget"), limit
+                    ),
+                    GROUP_BY_DATA_DESCENDANT_MAX_GROUPS,
+                ),
+            )
             pages, truncated = get_group_by_data_pages(
                 view_handler,
                 queryset,

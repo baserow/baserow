@@ -4401,6 +4401,14 @@ export class FormulaFieldType extends mix(
     return RowCardFieldFormula
   }
 
+  getGroupByComponent(field) {
+    const underlyingFieldType = this.app.$registry.get(
+      'field',
+      this._mapFormulaTypeToFieldType(field.formula_type)
+    )
+    return underlyingFieldType.getGroupByComponent(field)
+  }
+
   getFilterInputComponent(field, filterType) {
     return this.getFormulaType(field)?.getFilterInputComponent(
       field,

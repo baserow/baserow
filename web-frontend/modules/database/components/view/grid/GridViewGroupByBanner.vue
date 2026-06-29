@@ -154,6 +154,11 @@ export default {
     },
     isEmptyValue() {
       const value = this.rowValueForGroup
+      // Array-valued group keys (multiple select, link row, collaborators) come through
+      // as an empty array when the group has no values.
+      if (Array.isArray(value)) {
+        return value.length === 0
+      }
       return value === null || value === undefined || value === ''
     },
     emptyValueLabel() {

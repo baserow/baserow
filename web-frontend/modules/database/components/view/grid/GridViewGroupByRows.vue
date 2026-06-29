@@ -137,6 +137,7 @@ export default {
     view: { type: Object, required: true },
     includeRowDetails: { type: Boolean, default: false },
     readOnly: { type: Boolean, required: true },
+    canAddRow: { type: Boolean, default: false },
     workspaceId: { type: Number, required: true },
   },
   emits: [
@@ -213,7 +214,7 @@ export default {
       return this.includeRowDetails || this.visibleFields.length > 0
     },
     shouldRenderAddRows() {
-      return !this.readOnly && this.shouldRenderRows
+      return this.canAddRow && this.shouldRenderRows
     },
   },
   methods: {

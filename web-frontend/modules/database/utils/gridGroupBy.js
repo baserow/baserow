@@ -533,71 +533,6 @@ export function getOrderedGroupByDataPageNodes(nodes) {
 }
 
 /**
- * Inserts a node into a page in sort order and re-keys the nodes densely.
- */
-export function insertGroupByDataPageNode(
-  nodes,
-  node,
-  fields,
-  groupBys,
-  registry
-) {
-  const ordered = getOrderedGroupByDataPageNodes(nodes)
-  let insertionIndex = ordered.length
-  for (let index = 0; index < ordered.length; index += 1) {
-    if (
-      compareGroupByNodeSiblingOrder(
-        node,
-        ordered[index].node,
-        fields,
-        groupBys,
-        registry
-      ) < 0
-    ) {
-      insertionIndex = index
-      break
-    }
-  }
-  ordered.splice(insertionIndex, 0, { index: insertionIndex, node })
-  return Object.fromEntries(
-    ordered.map(({ node }, index) => [
-      index,
-      {
-        ...node,
-        sibling_index: index,
-      },
-    ])
-  )
-}
-
-/**
- * Re-numbers a page's nodes into dense, sequential sibling indexes and row offsets.
- */
-export function normalizeGroupByDataPageNodes(
-  page,
-  firstIndex,
-  firstRowOffset
-) {
-  const indexedNodes = getOrderedGroupByDataPageNodes(page.nodes)
-  if (indexedNodes.length === 0) {
-    return {}
-  }
-
-  let rowOffset = firstRowOffset
-  const normalized = {}
-  indexedNodes.forEach(({ node }, index) => {
-    const siblingIndex = firstIndex + index
-    normalized[siblingIndex] = {
-      ...node,
-      sibling_index: siblingIndex,
-      row_offset: rowOffset,
-    }
-    rowOffset += getGroupByNodeRowCount(node)
-  })
-  return normalized
-}
-
-/**
  * Applies a row-count change to a single group-by data page.
  */
 export function updateGroupByDataPageForPath({
@@ -615,12 +550,6 @@ export function updateGroupByDataPageForPath({
     index: Number(index),
     node,
   }))
-  const firstIndex =
-    indexedNodes.length > 0
-      ? Math.min(
-          ...indexedNodes.map(({ index, node }) => node.sibling_index ?? index)
-        )
-      : 0
   const rowOffsets = indexedNodes
     .map(({ node }) => node.row_offset)
     .filter((rowOffset) => rowOffset !== undefined)
@@ -633,44 +562,109 @@ export function updateGroupByDataPageForPath({
   )
   let totalSiblingCount = page.totalSiblingCount ?? indexedNodes.length
 
-  if (existingIndex === undefined) {
-    if (delta <= 0) {
-      return page
-    }
-    const node = {
-      path: targetPath,
-      depth,
-      row_count: delta,
-      sibling_index: 0,
-      row_offset: firstRowOffset,
-    }
-    if (depth < fields.length - 1) {
-      node.children_count = 1
-    }
-    // insertGroupByDataPageNode returns a fully re-keyed node map; replace rather than
-    // merge so a window that started at a non-zero sibling index doesn't keep its old
-    // keys alongside the new dense ones (which would duplicate nodes after normalize).
-    nodes = insertGroupByDataPageNode(nodes, node, fields, groupBys, registry)
-    totalSiblingCount += 1
-  } else {
+  if (existingIndex !== undefined) {
     const current = nodes[existingIndex]
+    const targetSiblingIndex = current.sibling_index ?? Number(existingIndex)
     const rowCount = Math.max(0, getGroupByNodeRowCount(current) + delta)
-    // Keep emptied nodes (row_count 0) in the page for reconciliation; the layout hides
-    // their banner, matching updateGroupByTreeNodesForPath.
-    nodes[existingIndex] = {
-      ...current,
-      row_count: rowCount,
+    nodes = Object.fromEntries(
+      indexedNodes.map(({ index, node }) => {
+        const siblingIndex = node.sibling_index ?? index
+        let updatedNode = node
+        if (Number(existingIndex) === index) {
+          updatedNode = {
+            ...updatedNode,
+            row_count: rowCount,
+          }
+        }
+        if (
+          siblingIndex > targetSiblingIndex &&
+          updatedNode.row_offset !== undefined
+        ) {
+          updatedNode = {
+            ...updatedNode,
+            row_offset: updatedNode.row_offset + delta,
+          }
+        }
+        return [
+          siblingIndex,
+          {
+            ...updatedNode,
+            sibling_index: siblingIndex,
+          },
+        ]
+      })
+    )
+
+    return {
+      ...page,
+      nodes,
+      totalSiblingCount,
+      rowOffset: firstRowOffset,
     }
   }
 
+  if (delta <= 0) {
+    return page
+  }
+
+  const newNode = {
+    path: targetPath,
+    depth,
+    row_count: delta,
+  }
+  if (depth < fields.length - 1) {
+    newNode.children_count = 1
+  }
+  // A page's nodes are all siblings under one parent. Slot the new node in at its true
+  // sibling index and keep every other node at its real key, so disjoint loaded windows
+  // are not compacted (which would make the mid-scroll window read as unloaded).
+  const ordered = getOrderedGroupByDataPageNodes(nodes)
+  const firstAfter = ordered.find(
+    ({ node }) =>
+      compareGroupByNodeSiblingOrder(
+        newNode,
+        node,
+        fields,
+        groupBys,
+        registry
+      ) < 0
+  )
+  const insertionSiblingIndex =
+    firstAfter !== undefined
+      ? (firstAfter.node.sibling_index ?? firstAfter.index)
+      : totalSiblingCount
+  const lastLoaded = ordered[ordered.length - 1]?.node
+  newNode.sibling_index = insertionSiblingIndex
+  newNode.row_offset =
+    firstAfter?.node.row_offset ??
+    (lastLoaded?.row_offset !== undefined
+      ? lastLoaded.row_offset + getGroupByNodeRowCount(lastLoaded)
+      : firstRowOffset)
+
+  nodes = Object.fromEntries([
+    ...indexedNodes.map(({ index, node }) => {
+      const siblingIndex = node.sibling_index ?? index
+      if (siblingIndex < insertionSiblingIndex) {
+        return [siblingIndex, { ...node, sibling_index: siblingIndex }]
+      }
+      return [
+        siblingIndex + 1,
+        {
+          ...node,
+          sibling_index: siblingIndex + 1,
+          ...(node.row_offset !== undefined
+            ? { row_offset: node.row_offset + delta }
+            : {}),
+        },
+      ]
+    }),
+    [insertionSiblingIndex, newNode],
+  ])
+
   return {
     ...page,
-    nodes: normalizeGroupByDataPageNodes(
-      { ...page, nodes },
-      firstIndex,
-      firstRowOffset
-    ),
-    totalSiblingCount,
+    nodes,
+    totalSiblingCount: totalSiblingCount + 1,
     rowOffset: firstRowOffset,
   }
 }

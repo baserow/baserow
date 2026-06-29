@@ -100,6 +100,25 @@ describe('GridViewGroupByBanner component', () => {
     expect(wrapper.text()).toContain('hello world')
   })
 
+  test('shows the empty label for an empty array-valued group', async () => {
+    const field = {
+      id: 6,
+      type: 'multiple_select',
+      name: 'Tags',
+      select_options: [],
+    }
+    const wrapper = await mountBanner(field, {
+      path: { field_6: [] },
+      display: { field_6: [] },
+    })
+
+    // An empty array (multiple select / link row / collaborators) must render the
+    // empty-value label, not a blank group-value component.
+    expect(
+      wrapper.find('.grid-view__group-by-banner-value-empty').exists()
+    ).toBe(true)
+  })
+
   const mountAtDepth = (fieldCount, depth, rowDetailsWidth = 72) =>
     testApp.mount(GridViewGroupByBanner, {
       props: {

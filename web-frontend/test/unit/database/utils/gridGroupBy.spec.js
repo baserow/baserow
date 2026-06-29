@@ -16,8 +16,6 @@ import {
   reindexGroupByTreeSiblingMetadata,
   updateGroupByTreeNodesForPath,
   getOrderedGroupByDataPageNodes,
-  insertGroupByDataPageNode,
-  normalizeGroupByDataPageNodes,
   updateGroupByDataPageForPath,
   updateGroupByDataPagesForPath,
   isGroupByDataPageLoaded,
@@ -675,57 +673,6 @@ describe('gridGroupBy paged tree maintenance', () => {
     expect(getOrderedGroupByDataPageNodes(undefined)).toEqual([])
   })
 
-  test('insertGroupByDataPageNode inserts in sorted order and renumbers sibling_index', () => {
-    const nodes = {
-      0: { path: { field_1: 'A' }, sibling_index: 0 },
-      1: { path: { field_1: 'C' }, sibling_index: 1 },
-    }
-    const result = insertGroupByDataPageNode(
-      nodes,
-      { path: { field_1: 'B' } },
-      fields,
-      groupBys,
-      registry
-    )
-    expect(Object.keys(result)).toEqual(['0', '1', '2'])
-    expect(result[0]).toMatchObject({
-      path: { field_1: 'A' },
-      sibling_index: 0,
-    })
-    expect(result[1]).toMatchObject({
-      path: { field_1: 'B' },
-      sibling_index: 1,
-    })
-    expect(result[2]).toMatchObject({
-      path: { field_1: 'C' },
-      sibling_index: 2,
-    })
-  })
-
-  test('normalizeGroupByDataPageNodes assigns contiguous indices and cumulative offsets', () => {
-    const page = {
-      nodes: {
-        0: { path: { field_1: 'A' }, sibling_index: 0, row_count: 2 },
-        1: { path: { field_1: 'B' }, sibling_index: 1, row_count: 3 },
-      },
-    }
-    const result = normalizeGroupByDataPageNodes(page, 10, 100)
-    expect(result[10]).toMatchObject({
-      path: { field_1: 'A' },
-      sibling_index: 10,
-      row_offset: 100,
-    })
-    expect(result[11]).toMatchObject({
-      path: { field_1: 'B' },
-      sibling_index: 11,
-      row_offset: 102,
-    })
-  })
-
-  test('normalizeGroupByDataPageNodes returns an empty object for an empty page', () => {
-    expect(normalizeGroupByDataPageNodes({ nodes: {} }, 0, 0)).toEqual({})
-  })
-
   describe('updateGroupByDataPageForPath', () => {
     test('increments the row_count of a matching node and keeps offsets normalized', () => {
       const page = {
@@ -761,6 +708,50 @@ describe('gridGroupBy paged tree maintenance', () => {
       // B's offset shifts because A now has one more row.
       expect(result.nodes[1].row_offset).toBe(3)
       expect(result.totalSiblingCount).toBe(2)
+    })
+
+    test('increments a matching node without densifying sparse loaded windows', () => {
+      const page = {
+        nodes: {
+          0: {
+            path: { field_1: 'A' },
+            depth: 0,
+            row_count: 2,
+            sibling_index: 0,
+            row_offset: 0,
+          },
+          40: {
+            path: { field_1: 'M' },
+            depth: 0,
+            row_count: 3,
+            sibling_index: 40,
+            row_offset: 200,
+          },
+          80: {
+            path: { field_1: 'Z' },
+            depth: 0,
+            row_count: 4,
+            sibling_index: 80,
+            row_offset: 400,
+          },
+        },
+        totalSiblingCount: 120,
+        rowOffset: 0,
+      }
+      const result = updateGroupByDataPageForPath({
+        page,
+        path: { field_1: 'M' },
+        fields,
+        depth: 0,
+        delta: 1,
+        groupBys,
+        registry,
+      })
+      expect(Object.keys(result.nodes).map(Number)).toEqual([0, 40, 80])
+      expect(result.nodes[40].row_count).toBe(4)
+      expect(result.nodes[40].row_offset).toBe(200)
+      expect(result.nodes[80].row_offset).toBe(401)
+      expect(result.totalSiblingCount).toBe(120)
     })
 
     test('keeps an optimistically-emptied node at row_count 0', () => {
@@ -816,6 +807,60 @@ describe('gridGroupBy paged tree maintenance', () => {
       expect(result.totalSiblingCount).toBe(2)
       const paths = Object.values(result.nodes).map((n) => n.path.field_1)
       expect(paths).toContain('B')
+    })
+
+    test('inserts a new node without densifying sparse loaded windows', () => {
+      const page = {
+        nodes: {
+          0: {
+            path: { field_1: 'A' },
+            depth: 0,
+            row_count: 2,
+            sibling_index: 0,
+            row_offset: 0,
+          },
+          40: {
+            path: { field_1: 'M' },
+            depth: 0,
+            row_count: 3,
+            sibling_index: 40,
+            row_offset: 200,
+          },
+          80: {
+            path: { field_1: 'Z' },
+            depth: 0,
+            row_count: 4,
+            sibling_index: 80,
+            row_offset: 400,
+          },
+        },
+        totalSiblingCount: 120,
+        rowOffset: 0,
+      }
+      const result = updateGroupByDataPageForPath({
+        page,
+        path: { field_1: 'F' },
+        fields,
+        depth: 0,
+        delta: 1,
+        groupBys,
+        registry,
+      })
+      // The new group slots in at M's sibling index; M and Z keep their real (sparse)
+      // keys shifted by one rather than being compacted to 0..2.
+      expect(
+        Object.keys(result.nodes)
+          .map(Number)
+          .sort((a, b) => a - b)
+      ).toEqual([0, 40, 41, 81])
+      expect(result.nodes[0].path.field_1).toBe('A')
+      expect(result.nodes[40].path.field_1).toBe('F')
+      expect(result.nodes[41].path.field_1).toBe('M')
+      expect(result.nodes[81].path.field_1).toBe('Z')
+      expect(result.nodes[40].row_offset).toBe(200)
+      expect(result.nodes[41].row_offset).toBe(201)
+      expect(result.nodes[81].row_offset).toBe(401)
+      expect(result.totalSiblingCount).toBe(121)
     })
 
     test('returns the page unchanged when inserting a missing node with non-positive delta', () => {

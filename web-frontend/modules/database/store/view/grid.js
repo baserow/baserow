@@ -284,6 +284,16 @@ function getGroupByViewport(getters, scrollTop = getters.getScrollTop) {
   }
 }
 
+function getGroupByDescendantRowBudget(
+  getters,
+  scrollTop = getters.getScrollTop
+) {
+  // Leaf rows never outnumber visible rows, so a budget of one viewport's rows fills the
+  // screen in a single descent instead of a per-depth waterfall.
+  const viewport = getGroupByViewport(getters, scrollTop)
+  return Math.max(1, Math.ceil(viewport.clientHeight / getters.getRowHeight))
+}
+
 function getClampedGroupByScrollTop(getters, scrollTop = getters.getScrollTop) {
   const windowHeight =
     getters.getWindowHeight ||
@@ -333,30 +343,15 @@ function getVisibleGroupPagesToFetch({
   groupByFields,
   viewport,
   seenRequests = null,
-  maxGroups = null,
 }) {
   const pages = []
-  let remainingGroups = maxGroups
 
   for (const { parentPath, offset, limit } of visibleGroupPagesInViewport(
     layout,
     viewport,
     getters.getBufferRequestSize
   )) {
-    if (remainingGroups !== null && remainingGroups <= 0) {
-      break
-    }
-
-    const requestLimit =
-      remainingGroups === null ? limit : Math.min(limit, remainingGroups)
-    if (requestLimit <= 0) {
-      continue
-    }
-
-    const requestKey = `${pathKey(
-      parentPath,
-      groupByFields
-    )}:${offset}:${requestLimit}`
+    const requestKey = `${pathKey(parentPath, groupByFields)}:${offset}:${limit}`
     if (seenRequests?.has(requestKey)) {
       continue
     }
@@ -365,14 +360,14 @@ function getVisibleGroupPagesToFetch({
         state.groupBy.pages,
         parentPath,
         offset,
-        requestLimit,
+        limit,
         groupByFields
       )
     ) {
       continue
     }
     seenRequests?.add(requestKey)
-    const pageRequest = { parentPath, offset, limit: requestLimit }
+    const pageRequest = { parentPath, offset, limit }
     // Thread the parent's known absolute row_offset so the server can skip the
     // recursive offset lookup — but only while offsets are server-authoritative, so
     // an optimistically-recomputed offset is never sent.
@@ -387,10 +382,6 @@ function getVisibleGroupPagesToFetch({
       }
     }
     pages.push(pageRequest)
-
-    if (remainingGroups !== null) {
-      remainingGroups -= requestLimit
-    }
   }
 
   return pages
@@ -1716,6 +1707,7 @@ export const actions = {
       limit = null,
       includeDescendants = false,
       descendantLimit = null,
+      descendantRowBudget = null,
       signal = null,
     }
   ) {
@@ -1752,6 +1744,7 @@ export const actions = {
       limit: requestLimit,
       includeDescendants,
       descendantLimit,
+      descendantRowBudget,
       signal,
     })
     if (isGroupByRequestStale(getters, state, groupByGeneration, signal)) {
@@ -1987,6 +1980,7 @@ export const actions = {
         adhocFiltering: getters.getAdhocFiltering,
         includeDescendants: state.groupBy.collapse?.mode === 'expand',
         descendantLimit: getters.getBufferRequestSize,
+        descendantRowBudget: getGroupByDescendantRowBudget(getters, scrollTop),
         signal,
       })
       if (isGroupByRequestStale(getters, state, groupByGeneration, signal)) {
@@ -2023,6 +2017,8 @@ export const actions = {
         continue
       }
 
+      // Fetch every parent whose groups are visible in one request; the descent's row
+      // budget (and the server-side group cap) bound the work.
       const pagesToFetch = getVisibleGroupPagesToFetch({
         state,
         getters,
@@ -2030,7 +2026,6 @@ export const actions = {
         groupByFields,
         viewport,
         seenRequests: seenPageRequests,
-        maxGroups: getters.getBufferRequestSize,
       })
       if (pagesToFetch.length === 0) {
         break
@@ -2067,10 +2062,14 @@ export const actions = {
             limit: page.limit,
             parentRowOffset: page.parentRowOffset,
           })),
-          // Descend each visible group to its leaves in this one request (bounded by the
-          // leaf-row budget), instead of drilling down one level per request on scroll.
+          // One descent fills the viewport, so a scroll loads its new groups in a single
+          // request instead of one per depth level.
           includeDescendants: true,
           descendantLimit: getters.getBufferRequestSize,
+          descendantRowBudget: getGroupByDescendantRowBudget(
+            getters,
+            scrollTop
+          ),
           adhocFiltering: getters.getAdhocFiltering,
           signal,
         }),
@@ -2536,6 +2535,7 @@ export const actions = {
         adhocFiltering,
         includeDescendants: true,
         descendantLimit: getters.getBufferRequestSize,
+        descendantRowBudget: getGroupByDescendantRowBudget(getters, 0),
       })
       await dispatch('fetchGroupByRowsByScrollTop', {
         gridId,
@@ -2698,6 +2698,7 @@ export const actions = {
             adhocFiltering,
             includeDescendants: groupByCollapse.mode === 'expand',
             descendantLimit: getters.getBufferRequestSize,
+            descendantRowBudget: getGroupByDescendantRowBudget(getters),
           })
           await dispatch('fetchGroupByRowsByScrollTop', {
             gridId,
@@ -2913,6 +2914,7 @@ export const actions = {
       limit: getters.getBufferRequestSize,
       includeDescendants: groupByCollapse.mode === 'expand',
       descendantLimit: getters.getBufferRequestSize,
+      descendantRowBudget: getGroupByDescendantRowBudget(getters),
     })
     if ((state.groupBy.generation || 0) !== groupByGeneration) {
       return true
@@ -3913,6 +3915,7 @@ export const actions = {
   ) {
     const { $registry, $client, $i18n, $config } = this
     let keepSelectedWarningRowsInPlace = false
+    let insertedSingleRowInGroup = false
     const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
       `table_${table.id}`
     )
@@ -4028,6 +4031,7 @@ export const actions = {
         getters.getActiveSearchTerm
       )
       if (isGroupByInsertion) {
+        insertedSingleRowInGroup = true
         insertRowIntoGroupBySection({
           row: rowsPopulated[0],
           path: groupPath,
@@ -4223,7 +4227,11 @@ export const actions = {
     })
     await taskQueue.waitFor(taskId)
 
-    if (!skipFetchByScrollTop && !keepSelectedWarningRowsInPlace) {
+    if (
+      !skipFetchByScrollTop &&
+      !keepSelectedWarningRowsInPlace &&
+      !insertedSingleRowInGroup
+    ) {
       dispatch('fetchByScrollTopDelayed', {
         scrollTop: getters.getScrollTop,
         fields,

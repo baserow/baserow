@@ -445,6 +445,63 @@ def test_group_by_data_descendants_respect_row_budget(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_group_by_data_descendant_row_budget_widens_window_to_one_request(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    color = data_fixture.create_text_field(table=table, name="Color")
+    size = data_fixture.create_text_field(table=table, name="Size")
+    grid = data_fixture.create_grid_view(table=table)
+    data_fixture.create_view_group_by(view=grid, field=color)
+    data_fixture.create_view_group_by(view=grid, field=size)
+
+    model = table.get_model()
+    for size_value in ["Large", "Medium", "Small"]:
+        model.objects.create(
+            **{f"field_{color.id}": "Blue", f"field_{size.id}": size_value}
+        )
+    for size_value in ["Large", "Small"]:
+        model.objects.create(
+            **{f"field_{color.id}": "Green", f"field_{size.id}": size_value}
+        )
+
+    url = reverse("api:database:views:grid:group-by-data", kwargs={"view_id": grid.id})
+
+    # Without a client budget the window defaults to limit=2, so the walk stops inside
+    # Blue (Green starts at row 3) and Green is left as a placeholder.
+    without_budget = api_client.get(
+        url,
+        {"include_descendants": "true", "limit": 2, "descendant_limit": 40},
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    ).json()
+    assert without_budget["truncated"] is True
+    assert not any(
+        page["parent"] == {f"field_{color.id}": "Green"}
+        for page in without_budget["pages"]
+    )
+
+    # A client budget spanning every leaf row pulls the whole visible tree, Green
+    # included, in this single request with nothing left truncated.
+    with_budget = api_client.get(
+        url,
+        {
+            "include_descendants": "true",
+            "limit": 2,
+            "descendant_limit": 40,
+            "descendant_row_budget": 10,
+        },
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    ).json()
+    assert with_budget.get("truncated", False) is False
+    green_page = _get_page_by_parent(with_budget, {f"field_{color.id}": "Green"})
+    assert [group["path"][f"field_{size.id}"] for group in green_page["groups"]] == [
+        "Large",
+        "Small",
+    ]
+
+
+@pytest.mark.django_db
 def test_group_by_data_reuses_parent_offsets_for_descendant_pages(
     api_client, data_fixture, monkeypatch
 ):

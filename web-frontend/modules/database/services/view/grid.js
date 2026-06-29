@@ -155,6 +155,7 @@ export default (client) => {
       limit = 40,
       includeDescendants = false,
       descendantLimit = null,
+      descendantRowBudget = null,
     }) {
       const params = new URLSearchParams()
       params.append('offset', offset)
@@ -164,6 +165,9 @@ export default (client) => {
       }
       if (descendantLimit !== null) {
         params.append('descendant_limit', descendantLimit)
+      }
+      if (descendantRowBudget !== null) {
+        params.append('descendant_row_budget', descendantRowBudget)
       }
       if (depth !== null) {
         params.append('depth', depth)

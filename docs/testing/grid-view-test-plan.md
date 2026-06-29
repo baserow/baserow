@@ -343,6 +343,7 @@ These simple-field sort cases run in both flat and expanded group-by views.
 - Other groups keep their rows and order.
 - The group counter increments while the create request is pending.
 - The new row remains selected after backend confirmation.
+- Backend confirmation does not issue a grid GET or reload grouped rows.
 
 ### 1.5.1b Add-in-group row deselected after confirmation
 

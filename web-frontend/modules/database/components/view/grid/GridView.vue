@@ -1326,17 +1326,7 @@ export default {
       }
 
       if (nextFieldId === -1 || nextRowId === -1) {
-        // For Tab navigation with no next cell (last field of last row), still
-        // unselect the current cell so the open editor saves its value.
-        // For Enter/arrow navigation with no target, just return — the editor
-        // was already closed by save() in the key handler.
-        if (direction === 'next' || direction === 'previous') {
-          this.$store.dispatch(this.storePrefix + 'view/grid/setSelectedCell', {
-            rowId: -1,
-            fieldId: -1,
-            fields: this.fields,
-          })
-        }
+        // At the edge: stop with the current cell still selected, don't unselect it.
         return
       }
 

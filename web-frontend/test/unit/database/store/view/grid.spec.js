@@ -1436,6 +1436,338 @@ describe('Grid view store', () => {
     ).toEqual(['Research', 'Research', 'Research'])
   })
 
+  test('first load fills the viewport in a single group-by data request', async () => {
+    const fields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'Team', type: 'text' },
+      { id: 3, name: 'Role', type: 'text' },
+    ]
+    const groupBys = [
+      { field: 2, order: 'ASC', type: 'default' },
+      { field: 3, order: 'ASC', type: 'default' },
+    ]
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: 1,
+      rowHeight: 33,
+      rowPadding: 0,
+      windowHeight: 330,
+      groupBy: {
+        ...gridStore.state().groupBy,
+        pages: {},
+        treeNodes: [],
+        collapse: { mode: 'expand', paths: [] },
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    const groupByDataRequests = []
+    mockServer.mock
+      .onGet('/database/views/grid/1/group-by-data/')
+      .reply((config) => {
+        groupByDataRequests.push(config.params)
+        return [
+          200,
+          {
+            pages: [
+              {
+                parent: {},
+                groups: [
+                  {
+                    path: { field_2: 'A' },
+                    depth: 0,
+                    row_count: 1,
+                    children_count: 1,
+                    sibling_index: 0,
+                    row_offset: 0,
+                  },
+                ],
+                offset: 0,
+                limit: 40,
+                group_count: 1,
+              },
+              {
+                parent: { field_2: 'A' },
+                groups: [
+                  {
+                    path: { field_2: 'A', field_3: 'Dev' },
+                    depth: 1,
+                    row_count: 1,
+                    sibling_index: 0,
+                    row_offset: 0,
+                  },
+                ],
+                offset: 0,
+                limit: 40,
+                group_count: 1,
+              },
+            ],
+          },
+        ]
+      })
+    mockServer.mock.onGet('/database/views/grid/1/').reply(() => [
+      200,
+      {
+        results: [
+          {
+            id: 10,
+            order: '1.00',
+            field_1: 'Alice',
+            field_2: 'A',
+            field_3: 'Dev',
+          },
+        ],
+      },
+    ])
+
+    await store.dispatch('grid/fetchGroupByRowsByScrollTop', {
+      gridId: 1,
+      view: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      fields,
+      scrollTop: 0,
+    })
+
+    // One request loads the whole visible tree; the per-depth loop finds nothing left
+    // to fetch and breaks instead of waterfalling.
+    expect(groupByDataRequests).toHaveLength(1)
+    // The budget is the padded viewport in rows: 330px / 33px = 10.
+    expect(groupByDataRequests[0].get('descendant_row_budget')).toBe('10')
+    expect(groupByDataRequests[0].get('include_descendants')).toBe('true')
+  })
+
+  test('a scroll batches every visible parent into one group-by data request', async () => {
+    const fields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'Team', type: 'text' },
+      { id: 3, name: 'Role', type: 'text' },
+    ]
+    const groupBys = [
+      { field: 2, order: 'ASC', type: 'default' },
+      { field: 3, order: 'ASC', type: 'default' },
+    ]
+    const topNode = (value, siblingIndex, rowOffset) => ({
+      path: { field_2: value },
+      depth: 0,
+      row_count: 2,
+      children_count: 1,
+      sibling_index: siblingIndex,
+      row_offset: rowOffset,
+    })
+    const nodes = [topNode('A', 0, 0), topNode('B', 1, 2), topNode('C', 2, 4)]
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: 6,
+      rowHeight: 33,
+      rowPadding: 0,
+      windowHeight: 990,
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: nodes,
+        pages: {
+          '': {
+            parentPath: {},
+            totalSiblingCount: 3,
+            nodes: { 0: nodes[0], 1: nodes[1], 2: nodes[2] },
+          },
+        },
+        collapse: { mode: 'expand', paths: [] },
+        offsetsServerConfirmed: true,
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    const groupByDataRequests = []
+    mockServer.mock
+      .onGet('/database/views/grid/1/group-by-data/')
+      .reply((config) => {
+        groupByDataRequests.push(config.params)
+        return [
+          200,
+          {
+            pages: ['A', 'B', 'C'].map((value) => ({
+              parent: { field_2: value },
+              groups: [
+                {
+                  path: { field_2: value, field_3: `${value}1` },
+                  depth: 1,
+                  row_count: 2,
+                  sibling_index: 0,
+                  row_offset: 0,
+                },
+              ],
+              offset: 0,
+              limit: 40,
+              group_count: 1,
+            })),
+          },
+        ]
+      })
+    mockServer.mock
+      .onGet('/database/views/grid/1/')
+      .reply(() => [200, { results: [] }])
+
+    await store.dispatch('grid/fetchGroupByRowsByScrollTop', {
+      gridId: 1,
+      view: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      fields,
+      scrollTop: 0,
+    })
+
+    // Every visible parent's children load in a single request rather than one
+    // request per parent (or per depth level).
+    expect(groupByDataRequests).toHaveLength(1)
+    const parents = JSON.parse(groupByDataRequests[0].get('parents'))
+    expect(parents.map((page) => page.parent.field_2)).toEqual(['A', 'B', 'C'])
+    expect(groupByDataRequests[0].get('descendant_row_budget')).toBe('30')
+  })
+
+  test('add-row in a mid-scroll group keeps a sparse page from skeletoning', () => {
+    const fields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'Team', type: 'text' },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const node = (value, siblingIndex, rowOffset) => ({
+      path: { field_2: value },
+      depth: 0,
+      row_count: 5,
+      sibling_index: siblingIndex,
+      row_offset: rowOffset,
+    })
+    // Two disjoint loaded windows (sibling 0..1 and 40..41), as left behind by scrolling
+    // around a large collapsed grouping.
+    const nodes = {
+      0: node('Aa', 0, 0),
+      1: node('Ab', 1, 5),
+      40: node('Ma', 40, 200),
+      41: node('Mc', 41, 205),
+    }
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: 400,
+      rowHeight: 33,
+      windowHeight: 330,
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: Object.values(nodes).map((n) => ({ ...n })),
+        pages: {
+          '': { parentPath: {}, totalSiblingCount: 80, nodes },
+        },
+        collapse: { mode: 'collapse', paths: [], initialized: true },
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    // Optimistically add a row to the later-window group (sibling 40).
+    store.commit('grid/UPDATE_GROUP_BY_TREE_PATH_COUNT', {
+      path: { field_2: 'Ma' },
+      fields: [fields[1]],
+      delta: 1,
+    })
+
+    // The later window keeps its real (sparse) keys instead of compacting to 0..3.
+    const pageNodes = store.state.grid.groupBy.pages[''].nodes
+    expect(
+      Object.keys(pageNodes)
+        .map(Number)
+        .sort((a, b) => a - b)
+    ).toEqual([0, 1, 40, 41])
+    expect(pageNodes[40].row_count).toBe(6)
+
+    // The mid-scroll window therefore renders as real headers, not a placeholder band.
+    const layout = store.getters['grid/getGroupByLayout']
+    const placeholderOverWindow = layout.items.filter(
+      (item) =>
+        item.type === 'groupPlaceholder' &&
+        item.siblingStartIndex <= 40 &&
+        item.siblingEndIndex > 40
+    )
+    expect(placeholderOverWindow).toHaveLength(0)
+    expect(
+      layout.items.some(
+        (item) => item.type === 'header' && item.path?.field_2 === 'Ma'
+      )
+    ).toBe(true)
+  })
+
+  test('add-row creating a new group in a sparse page keeps it from skeletoning', () => {
+    const fields = [
+      { id: 1, name: 'Name', type: 'text', primary: true },
+      { id: 2, name: 'Team', type: 'text' },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const node = (value, siblingIndex, rowOffset) => ({
+      path: { field_2: value },
+      depth: 0,
+      row_count: 5,
+      sibling_index: siblingIndex,
+      row_offset: rowOffset,
+    })
+    const nodes = {
+      0: node('Aa', 0, 0),
+      1: node('Ab', 1, 5),
+      40: node('Ma', 40, 200),
+      41: node('Mc', 41, 205),
+    }
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: 400,
+      rowHeight: 33,
+      windowHeight: 330,
+      groupBy: {
+        ...gridStore.state().groupBy,
+        treeNodes: Object.values(nodes).map((n) => ({ ...n })),
+        pages: {
+          '': { parentPath: {}, totalSiblingCount: 80, nodes },
+        },
+        collapse: { mode: 'collapse', paths: [], initialized: true },
+      },
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    // Add a row that creates a brand-new group ('Mb') inside the later loaded window.
+    store.commit('grid/UPDATE_GROUP_BY_TREE_PATH_COUNT', {
+      path: { field_2: 'Mb' },
+      fields: [fields[1]],
+      delta: 1,
+      registry: store.$registry,
+    })
+
+    // The existing windows keep their real keys (Ma stays at 40, not compacted), and the
+    // new group is slotted in beside them rather than densifying the page.
+    const pageNodes = store.state.grid.groupBy.pages[''].nodes
+    expect(pageNodes[40].path.field_2).toBe('Ma')
+    expect(Object.keys(pageNodes)).toHaveLength(5)
+    expect(store.state.grid.groupBy.pages[''].totalSiblingCount).toBe(81)
+
+    const layout = store.getters['grid/getGroupByLayout']
+    const placeholderOverWindow = layout.items.filter(
+      (item) =>
+        item.type === 'groupPlaceholder' &&
+        item.siblingStartIndex <= 40 &&
+        item.siblingEndIndex > 40
+    )
+    expect(placeholderOverWindow).toHaveLength(0)
+  })
+
   test('createNewRows appends pasted rows to the matching group-by section in order', async () => {
     const fields = [
       {
@@ -1600,13 +1932,14 @@ describe('Grid view store', () => {
       fieldSearchMatches: [],
       persistentId: 'r',
     }
+    const fetchByScrollTopDelayed = vi.fn()
     const groupByStore = testApp.createStore({
       modules: {
         grid: {
           ...gridStore,
           actions: {
             ...gridStore.actions,
-            fetchByScrollTopDelayed: vi.fn(),
+            fetchByScrollTopDelayed,
           },
         },
       },
@@ -1690,6 +2023,8 @@ describe('Grid view store', () => {
 
     finishCreate()
     await createPromise
+    expect(fetchByScrollTopDelayed).not.toHaveBeenCalled()
+    expect(mockServer.mock.history.get).toHaveLength(0)
   })
 
   test('createNewRowInGroup does not duplicate a queued edited row when adding another row', async () => {
@@ -3894,6 +4229,9 @@ describe('Grid view store', () => {
     })
 
     expect(groupByDataRequestParams.get('include_descendants')).toBe('true')
+    // The first load carries the viewport's row budget so the descent fills the screen
+    // in this single request: (windowHeight 330 + 2 * padding 16 * 33) / 33 = 42.
+    expect(groupByDataRequestParams.get('descendant_row_budget')).toBe('42')
     expect(countRequestParams).toBe(null)
     expect(rowRequestParams.get('include')).toBe('field_options,row_metadata')
     expect(rowRequestParams.get('limit')).toBe('3')

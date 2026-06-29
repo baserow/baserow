@@ -1,12 +1,14 @@
 import json
 from types import SimpleNamespace
 
-from django.test import override_settings
+from django.test import RequestFactory, override_settings
 
 import pytest
 
 from baserow.contrib.database.api.views.grid.utils import (
     GROUP_BY_DATA_DEFAULT_LIMIT,
+    GROUP_BY_DATA_DESCENDANT_MAX_GROUPS,
+    build_group_by_data_response,
     deserialize_group_by_parent_requests,
     deserialize_group_by_path_object,
     empty_group_by_data_page,
@@ -333,6 +335,32 @@ def test_get_group_by_data_pages_window_prunes_offscreen_branches():
     assert all(parents != [{"field_1": "B"}] for _, parents in handler.level_calls)
 
 
+def test_get_group_by_data_pages_window_anchors_on_scrolled_slice():
+    fields = [_field("field_1"), _field("field_2"), _field("field_3")]
+    handler = _LevelGroupByDataHandler(_three_level_tree())
+
+    pages, truncated = get_group_by_data_pages(
+        handler,
+        "base_queryset",
+        ["view_group_by"],
+        fields,
+        # A root slice scrolled to sibling 1 (B, at row 2). The window must anchor on the
+        # fetched slice, not the tree top, so B's subtree expands in this one descent
+        # instead of being pruned because its rows fall past a top-anchored window.
+        [{"parent": {}, "offset": 1, "limit": 40}],
+        include_descendants=True,
+        descendant_limit=40,
+        row_budget=2,
+    )
+
+    assert truncated is False
+    assert [page["parent"] for page in pages] == [
+        {},
+        {"field_1": "B"},
+        {"field_1": "B", "field_2": "B1"},
+    ]
+
+
 class _LevelGroupByDataHandler:
     """
     Drives the batched per-level descent from a nested tree keyed by sorted path items.
@@ -377,3 +405,63 @@ class _LevelGroupByDataHandler:
                     group["children_count"] = child["children_count"]
                 groups.append(group)
         return groups
+
+
+def _captured_descendant_row_budget(monkeypatch, query):
+    captured = {}
+
+    def fake_get_group_by_data_pages(*args, **kwargs):
+        captured["row_budget"] = kwargs["row_budget"]
+        return [], False
+
+    monkeypatch.setattr(
+        "baserow.contrib.database.api.views.grid.utils.get_group_by_data_pages",
+        fake_get_group_by_data_pages,
+    )
+    monkeypatch.setattr(
+        "baserow.contrib.database.api.views.grid.utils.serialize_group_by_data_pages",
+        lambda *args, **kwargs: {},
+    )
+    fields = [_field("field_1"), _field("field_2"), _field("field_3")]
+    request = RequestFactory().get("/", query)
+    build_group_by_data_response(
+        None, request, "base_queryset", ["view_group_by"], fields
+    )
+    return captured["row_budget"]
+
+
+def test_build_group_by_data_response_prefers_client_row_budget(monkeypatch):
+    # The client budget is used as sent and does not depend on descendant_limit.
+    row_budget = _captured_descendant_row_budget(
+        monkeypatch,
+        {
+            "include_descendants": "true",
+            "limit": "40",
+            "descendant_limit": "5",
+            "descendant_row_budget": "56",
+        },
+    )
+    assert row_budget == 56
+
+
+def test_build_group_by_data_response_defaults_to_limit_when_budget_absent(monkeypatch):
+    # Without a client budget the descent window defaults to the page limit.
+    row_budget = _captured_descendant_row_budget(
+        monkeypatch,
+        {"include_descendants": "true", "limit": "40"},
+    )
+    assert row_budget == 40
+
+
+def test_build_group_by_data_response_clamps_client_row_budget_to_group_cap(
+    monkeypatch,
+):
+    row_budget = _captured_descendant_row_budget(
+        monkeypatch,
+        {
+            "include_descendants": "true",
+            "limit": "40",
+            "descendant_row_budget": str(GROUP_BY_DATA_DESCENDANT_MAX_GROUPS + 1000),
+        },
+    )
+    assert row_budget == GROUP_BY_DATA_DESCENDANT_MAX_GROUPS

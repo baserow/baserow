@@ -959,6 +959,49 @@ export class GridPage {
     });
   }
 
+  /**
+   * The last row in the LEFT section. Unlike a snapshotted `renderedRowCount() - 1`
+   * index, this re-resolves on every poll, so assertions stay correct even if a
+   * re-render changes the row count mid-assertion.
+   */
+  lastLeftRow(): Locator {
+    return this.leftRows().last();
+  }
+
+  async expectLastRowPrimaryEmpty(): Promise<void> {
+    await expect(
+      this.lastLeftRow().locator(".grid-view__column").last(),
+    ).toBeEmpty({ timeout: 10_000 });
+  }
+
+  async expectLastRowLoading(): Promise<void> {
+    await expect(this.lastLeftRow()).toHaveClass(/grid-view__row--loading/, {
+      timeout: 10_000,
+    });
+  }
+
+  async expectLastRowWarning(text: string): Promise<void> {
+    await expect(this.lastLeftRow()).toHaveClass(/grid-view__row--warning/, {
+      timeout: 10_000,
+    });
+    await expect(
+      this.lastLeftRow().locator(".grid-view__row-warning"),
+    ).toContainText(text, { timeout: 10_000 });
+  }
+
+  async expectLastRowPrimaryText(text: string): Promise<void> {
+    await expect(
+      this.lastLeftRow().locator(".grid-view__column").last(),
+    ).toHaveText(this.exactTextRegex(text), { timeout: 10_000 });
+  }
+
+  async expectLastRowNoWarning(): Promise<void> {
+    await expect(this.lastLeftRow()).not.toHaveClass(
+      /grid-view__row--warning/,
+      { timeout: 10_000 },
+    );
+  }
+
   async expectPrimaryRowHasWarning(
     primaryText: string,
     warningText: string,

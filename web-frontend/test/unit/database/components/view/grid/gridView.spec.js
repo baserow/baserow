@@ -94,4 +94,40 @@ describe('GridView component', () => {
       'view/grid/clearAndDisableMultiSelect'
     )
   })
+
+  const navFields = [{ id: 1 }, { id: 2 }, { id: 3 }]
+  const runSelectNext = ({ field, direction }) => {
+    const dispatch = vi.fn()
+    GridView.methods.selectNextCell.call(
+      {
+        storePrefix: '',
+        allVisibleFields: navFields,
+        fields: navFields,
+        $store: { getters: {}, dispatch },
+      },
+      { row: { id: 10 }, field, direction }
+    )
+    return dispatch
+  }
+
+  test.each([
+    ['next', navFields[2]],
+    ['previous', navFields[0]],
+  ])(
+    'selectNextCell keeps the cell selected at the %s boundary',
+    (direction, field) => {
+      // Regression: arrow/Tab at the first/last field must not unselect the cell.
+      expect(runSelectNext({ field, direction })).not.toHaveBeenCalled()
+    }
+  )
+
+  test('selectNextCell moves to the next field within bounds', () => {
+    expect(
+      runSelectNext({ field: navFields[0], direction: 'next' })
+    ).toHaveBeenCalledWith('view/grid/setSelectedCell', {
+      rowId: 10,
+      fieldId: 2,
+      fields: navFields,
+    })
+  })
 })

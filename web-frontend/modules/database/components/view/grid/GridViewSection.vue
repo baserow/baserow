@@ -83,6 +83,7 @@
             :left-offset="fieldsLeftOffset"
             :include-row-details="includeRowDetails"
             :read-only="readOnly"
+            :can-add-row="canCreateRow"
             :store-prefix="storePrefix"
             @update="$emit('update', $event)"
             @paste="$emit('paste', $event)"
@@ -152,19 +153,8 @@
           <GridViewRowAdd
             v-if="
               !useGroupByRows &&
-              !readOnly &&
-              (!table.data_sync || table.data_sync.two_way_sync) &&
-              (includeRowDetails || visibleFields.length > 0) &&
-              ($hasPermission(
-                'database.table.create_row',
-                table,
-                database.workspace.id
-              ) ||
-                $hasPermission(
-                  'database.table.view.create_row',
-                  view,
-                  database.workspace.id
-                ))
+              canCreateRow &&
+              (includeRowDetails || visibleFields.length > 0)
             "
             :visible-fields="visibleFields"
             :include-row-details="includeRowDetails"
@@ -172,7 +162,10 @@
             @add-row="$emit('add-row', $event)"
             @add-rows="$emit('add-rows', $event)"
           ></GridViewRowAdd>
-          <div v-else class="grid-view__row-placeholder"></div>
+          <div
+            v-else-if="!useGroupByRows"
+            class="grid-view__row-placeholder"
+          ></div>
         </div>
       </div>
       <div class="grid-view__foot">
@@ -359,6 +352,22 @@ export default {
     },
     useGroupByRows() {
       return this.activeGroupBys.length > 0
+    },
+    canCreateRow() {
+      return (
+        !this.readOnly &&
+        (!this.table.data_sync || this.table.data_sync.two_way_sync) &&
+        (this.$hasPermission(
+          'database.table.create_row',
+          this.table,
+          this.database.workspace.id
+        ) ||
+          this.$hasPermission(
+            'database.table.view.create_row',
+            this.view,
+            this.database.workspace.id
+          ))
+      )
     },
     isMultiSelectHolding() {
       return this.$store.getters[

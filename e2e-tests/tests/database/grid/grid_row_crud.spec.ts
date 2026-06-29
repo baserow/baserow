@@ -298,25 +298,32 @@ test.describe("1.5 Create with active group-by", () => {
     const grid = new GridPage(page, g.user);
     const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
-    await grid.addRow();
-    await pausedCreate.intercepted;
+    const gridGetRequests = await collectGridViewGetRequests(
+      page,
+      g.view.id,
+      async () => {
+        await grid.addRow();
+        await pausedCreate.intercepted;
 
-    await grid.expectRowCount(4);
-    await grid.expectPrimaryText(0, "Alice");
-    await grid.expectPrimaryText(1, "Bob");
-    await grid.expectPrimaryEmpty(2);
-    await grid.expectFieldText(2, 0, "A");
-    await grid.expectPrimaryText(3, "Carol");
-    await grid.expectGroupByBanner("A", 3);
-    await grid.expectGroupByBanner("B", 1);
-    await grid.expectRowLoading(2);
+        await grid.expectRowCount(4);
+        await grid.expectPrimaryText(0, "Alice");
+        await grid.expectPrimaryText(1, "Bob");
+        await grid.expectPrimaryEmpty(2);
+        await grid.expectFieldText(2, 0, "A");
+        await grid.expectPrimaryText(3, "Carol");
+        await grid.expectGroupByBanner("A", 3);
+        await grid.expectGroupByBanner("B", 1);
+        await grid.expectRowLoading(2);
 
-    pausedCreate.release();
+        pausedCreate.release();
 
-    await grid.expectRowNotLoading(2);
-    await grid.expectPrimaryEmpty(2);
-    await grid.expectFieldText(2, 0, "A");
-    await grid.expectPrimarySelected(2);
+        await grid.expectRowNotLoading(2);
+        await grid.expectPrimaryEmpty(2);
+        await grid.expectFieldText(2, 0, "A");
+        await grid.expectPrimarySelected(2);
+      },
+    );
+    expect(gridGetRequests).toEqual([]);
   });
 
   test("1.5.1b add-in-group deselected after confirmation keeps the row in its group", async ({
@@ -1139,41 +1146,36 @@ test.describe("1.3.3 Create with active sort outside the current buffer", () => 
     await grid.expectPrimaryText(0, "Row 001");
   });
 
-  // TODO: flaky in CI — "Row has moved" warning intermittently not applied to the
-  // new row after the paused create is released. Skipped pending investigation.
-  test.skip("1.3.3 sorted add at bottom moves to a destination above the current buffer after deselect", async ({
+  test("1.3.3 sorted add at bottom moves to a destination above the current buffer after deselect", async ({
     page,
   }) => {
     const grid = new GridPage(page, g.user);
     await grid.scrollPrimaryIntoView("Row 200");
-    let lastRowIndex = (await grid.renderedRowCount()) - 1;
-    await grid.expectPrimaryText(lastRowIndex, "Row 200");
+    await grid.expectLastRowPrimaryText("Row 200");
 
     const pausedCreate = await pauseRows(page, g.table.id, "POST");
 
     await grid.addRow();
     await pausedCreate.intercepted;
-    let newRowIndex = (await grid.renderedRowCount()) - 1;
-    await grid.expectPrimaryEmpty(newRowIndex);
-    await grid.expectRowLoading(newRowIndex);
+    // The new row is appended at the bottom and kept in place, so it stays the last
+    // rendered row throughout. Assert on the last row (re-resolved each poll) rather
+    // than a snapshotted renderedRowCount() index, which races with the confirmation
+    // re-render — that stale index was the CI flake.
+    await grid.expectLastRowPrimaryEmpty();
+    await grid.expectLastRowLoading();
     // The row sorts above the loaded window (an empty Name sorts first), so it is
     // immediately flagged as moved while it stays selected — even before the create
     // request resolves, mirroring the in-buffer case (1.3.1a).
-    await grid.expectRowHasWarning(newRowIndex);
-    await grid.expectRowWarningText(newRowIndex, "Row has moved");
+    await grid.expectLastRowWarning("Row has moved");
 
     pausedCreate.release();
     await grid.expectNoRowsLoading();
-    // The kept-in-place new row stays the last rendered row; recompute its index in
-    // case confirming the create re-rendered the window.
-    newRowIndex = (await grid.renderedRowCount()) - 1;
-    await grid.expectRowHasWarning(newRowIndex);
-    await grid.expectRowWarningText(newRowIndex, "Row has moved");
+    // The kept-in-place new row stays the last rendered row after the create confirms.
+    await grid.expectLastRowWarning("Row has moved");
 
     await grid.clickAway();
-    lastRowIndex = (await grid.renderedRowCount()) - 1;
-    await grid.expectPrimaryText(lastRowIndex, "Row 200");
-    await grid.expectRowNoWarning(lastRowIndex);
+    await grid.expectLastRowPrimaryText("Row 200");
+    await grid.expectLastRowNoWarning();
 
     await grid.goTo(g.database, g.table);
     await grid.expectPrimaryEmpty(0);
