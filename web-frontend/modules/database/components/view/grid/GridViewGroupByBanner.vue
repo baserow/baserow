@@ -151,12 +151,7 @@ export default {
   emits: ['toggle', 'aggregation-changed'],
   computed: {
     aggregationsEnabled() {
-      return (
-        this.storePrefix !== '' &&
-        this.view !== null &&
-        typeof this.$featureFlagIsEnabled === 'function' &&
-        this.$featureFlagIsEnabled('group_by_aggregations')
-      )
+      return this.storePrefix !== '' && this.view !== null
     },
     aggregationLoadingFor() {
       if (this.storePrefix === '') {

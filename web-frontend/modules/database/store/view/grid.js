@@ -3289,13 +3289,9 @@ export const actions = {
     const hasAggregation = Object.values(fieldOptions).some(
       (options) => options.aggregation_raw_type
     )
-    // In grouped mode the per-group values and the footer totals come from one
-    // group-by-data request, so it replaces the standalone footer fetch entirely.
-    // Skip entirely when nothing is configured, matching the flat-mode early return.
-    const groupAggregations =
-      typeof this.app?.$featureFlagIsEnabled === 'function' &&
-      this.app.$featureFlagIsEnabled('group_by_aggregations')
-    if (groupAggregations && getters.isGroupByMode) {
+    // In grouped mode the per-group values and footer totals come from one
+    // group-by-data request, replacing the standalone footer fetch.
+    if (getters.isGroupByMode) {
       if (hasAggregation) {
         return dispatch('refreshGroupByAggregations', {
           view,

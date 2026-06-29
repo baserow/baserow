@@ -101,13 +101,9 @@ export default {
     return { pendingValueUpdate: false }
   },
   computed: {
-    // Group headers reuse this column's config, but only when the flag is on.
+    // Group headers reuse this column's aggregation config in grouped mode.
     groupAggregationsEnabled() {
-      return (
-        typeof this.$featureFlagIsEnabled === 'function' &&
-        this.$featureFlagIsEnabled('group_by_aggregations') &&
-        this.$store.getters[this.storePrefix + 'view/grid/isGroupByMode']
-      )
+      return this.$store.getters[this.storePrefix + 'view/grid/isGroupByMode']
     },
     userCanMakeAggregations() {
       return this.$hasPermission(

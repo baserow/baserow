@@ -818,8 +818,6 @@ flat/group-by runs, the same way filters and sorts do.
 
 ### 7.3.1 Group headers show per-column aggregation summaries
 
-Behind the `group_by_aggregations` feature flag.
-
 - When a column has a "Summarize" aggregation configured, each group header shows
   that column's aggregation computed over that group's rows, column-aligned under
   the field, at every group-by depth.
@@ -831,8 +829,6 @@ Behind the `group_by_aggregations` feature flag.
 
 ### 7.3.2 Hovering a group header to pick or change an aggregation
 
-Behind the `group_by_aggregations` feature flag.
-
 - Hovering a group-by header reveals, per column, the aggregation value or a
   `+ Summarize` affordance on the hovered column (only the hovered column).
 - Clicking it opens the aggregation menu; choosing a function sets it for the
@@ -843,8 +839,6 @@ Behind the `group_by_aggregations` feature flag.
   the aggregation values change.
 
 ### 7.3.3 Live group aggregation updates on row changes
-
-Behind the `group_by_aggregations` feature flag.
 
 - Editing a cell updates that row's group value (and its ancestor groups + the
   footer total) in place, with no spinner — like a spreadsheet SUM.
