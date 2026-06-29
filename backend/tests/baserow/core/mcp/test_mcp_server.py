@@ -289,7 +289,10 @@ def test_handle_sse_still_logs_errors_raised_after_the_response_started(data_fix
             raise ValueError("boom")
 
         async def receive():
-            await anyio.sleep(10)
+            # Block until the connect_sse teardown cancels this task. Waiting on a
+            # never-set event (rather than sleeping for the fail_after window) keeps
+            # the test from racing its own timeout boundary.
+            await anyio.Event().wait()
             return {"type": "http.disconnect"}
 
         async def send(message):
