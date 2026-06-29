@@ -173,7 +173,7 @@ export class EnterprisePlugin extends BaserowPlugin {
           crossorigin,
           defer: s.load_type === 'defer',
           async: s.load_type === 'async',
-          body: true,
+          tagPosition: 'bodyClose',
         })
       }
 
@@ -182,7 +182,7 @@ export class EnterprisePlugin extends BaserowPlugin {
           rel: 'stylesheet',
           href: s.url,
           crossorigin,
-          body: true,
+          tagPosition: 'bodyClose',
         })
       }
     })
@@ -191,14 +191,14 @@ export class EnterprisePlugin extends BaserowPlugin {
       link.push({
         rel: 'stylesheet',
         href: css,
-        body: true,
+        tagPosition: 'bodyClose',
       })
     }
     if (builder.custom_code.js) {
       script.push({
         src: js,
         defer: true,
-        body: true,
+        tagPosition: 'bodyClose',
       })
     }
 
