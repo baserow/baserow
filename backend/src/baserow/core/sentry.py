@@ -85,6 +85,13 @@ def drop_expected_asyncio_websocket_disconnect_events(
     if log_record.name != "asyncio":
         return event
 
+    # This relies on asyncio's exact log format: getMessage() does %-style arg
+    # interpolation on the raw record, and the prefixes above match what the
+    # current Python/websockets stack emits. The asyncio name guard bounds the
+    # blast radius, but if asyncio ever reuses this log path for a different
+    # exception sharing the prefix, the suppression would silently expand. The
+    # baserow.websocket_disconnects metric is the format-independent source of
+    # truth if that ever happens.
     message = log_record.getMessage()
     if message.startswith(_OK_CLOSE_LOG):
         return None

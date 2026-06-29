@@ -512,3 +512,21 @@ async def test_core_consumer_records_connection_and_disconnect_metrics(data_fixt
 
         await communicator.disconnect(code=1011)
         disconnects.add.assert_called_once_with(1, attributes={"code": "1011"})
+
+
+@pytest.mark.asyncio
+async def test_core_consumer_records_disconnect_metric_when_cleanup_fails():
+    from baserow.ws import consumers as ws_consumers
+
+    consumer = CoreConsumer()
+    consumer.channel_name = "test_channel_name"
+    consumer.channel_layer = AsyncMock()
+    # A Redis hiccup during cleanup must not swallow the disconnect metric.
+    consumer.channel_layer.group_discard.side_effect = RuntimeError("redis down")
+    consumer._remove_all_page_scopes = AsyncMock()
+
+    with patch.object(ws_consumers, "websocket_disconnects_counter") as disconnects:
+        with pytest.raises(RuntimeError):
+            await consumer.disconnect(code=1006)
+
+    disconnects.add.assert_called_once_with(1, attributes={"code": "1006"})

@@ -191,11 +191,17 @@ class CoreConsumer(AsyncJsonWebsocketConsumer):
         await self.channel_layer.group_add("users", self.channel_name)
 
     async def disconnect(self, code):
-        await self._remove_all_page_scopes(send_confirmation=False)
-        await self.channel_layer.group_discard("users", self.channel_name)
-        websocket_disconnects_counter.add(
-            1, attributes={"code": _bucket_close_code(code)}
-        )
+        # Record the disconnect in a finally block so the counter still fires if
+        # cleanup raises (e.g. a Redis hiccup in group_discard). Otherwise the
+        # eager connect counter would drift ahead during infrastructure failures,
+        # exactly when the metric matters most.
+        try:
+            await self._remove_all_page_scopes(send_confirmation=False)
+            await self.channel_layer.group_discard("users", self.channel_name)
+        finally:
+            websocket_disconnects_counter.add(
+                1, attributes={"code": _bucket_close_code(code)}
+            )
 
     async def receive_json(self, content, **parameters):
         """
