@@ -1436,3 +1436,44 @@ def test_can_export_excel_without_primary_field(get_storage_mock, premium_data_f
     worksheet = workbook.active
     header = [cell.value for cell in worksheet[1]]
     assert header == ["id", "Notes"]
+
+
+@pytest.mark.django_db
+@override_settings(DEBUG=True)
+@patch("baserow.core.storage.get_default_storage")
+def test_excel_export_does_not_write_formula_cells(
+    get_storage_mock, premium_data_fixture
+):
+    # A "="-leading field name or cell value must not become a live formula
+    # cell in the exported xlsx (CWE-1236). openpyxl types "f" for formula
+    # cells and "s" for plain string cells.
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    user = premium_data_fixture.create_user(has_active_premium_license=True)
+    table = premium_data_fixture.create_database_table(user=user)
+    field = premium_data_fixture.create_text_field(
+        table=table, name="=2+5+cmd", primary=True
+    )
+    grid_view = premium_data_fixture.create_grid_view(table=table)
+    RowHandler().create_row(user, table, {f"field_{field.id}": "=3+4+cmd"})
+
+    _, wb_bytes = run_export_job_with_mock_storage(
+        table,
+        grid_view,
+        storage_mock,
+        user,
+        {
+            "exporter_type": "excel",
+            "export_charset": None,
+            "excel_include_header": True,
+            "include_row_id": False,
+        },
+    )
+    worksheet = load_workbook(filename=BytesIO(wb_bytes)).active
+    header_cell = worksheet.cell(row=1, column=1)
+    value_cell = worksheet.cell(row=2, column=1)
+
+    assert header_cell.data_type == "s"
+    assert value_cell.data_type == "s"
+    assert header_cell.value == "=2+5+cmd"
+    assert value_cell.value == "=3+4+cmd"

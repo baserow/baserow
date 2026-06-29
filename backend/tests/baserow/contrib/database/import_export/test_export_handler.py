@@ -486,6 +486,29 @@ def test_can_export_special_characters_in_arabic_encoding_to_csv(
 
 
 @pytest.mark.django_db
+@patch("baserow.core.storage.get_default_storage")
+def test_csv_export_escapes_formula_in_header_and_cell(get_storage_mock, data_fixture):
+    # A collaborator can name a field or store a value that is a spreadsheet
+    # formula. Both the header row and the cell values must be neutralized
+    # against formula injection (CWE-1236).
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+    text_field = data_fixture.create_text_field(user=user, table=table, name="=2+5+cmd")
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{text_field.id}": "=3+4+cmd"})
+
+    _, contents = run_export_job_with_mock_storage(table, grid_view, storage_mock, user)
+
+    bom = "\ufeff"
+    # Both the "=2+5+cmd" header and the "=3+4+cmd" value are prefixed with "'".
+    assert contents == bom + "id,'=2+5+cmd\r\n1,'=3+4+cmd\r\n"
+
+
+@pytest.mark.django_db
 def test_creating_a_new_export_job_will_cancel_any_already_running_jobs_for_that_user(
     data_fixture,
 ):

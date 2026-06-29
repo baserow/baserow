@@ -192,18 +192,30 @@ class ExcelQuerysetSerializer(QuerysetSerializer):
         """
 
         from openpyxl import Workbook
+        from openpyxl.cell.cell import WriteOnlyCell
 
         workbook = Workbook(write_only=True)
         worksheet = workbook.create_sheet()
 
+        def text_cell(value):
+            # openpyxl types a string that starts with "=" as a live formula
+            # cell, so a user defined field name or cell value could carry a
+            # formula injection (CWE-1236). Force those to an explicit string
+            # cell; everything else takes openpyxl's fast path unchanged.
+            if value.startswith("="):
+                cell = WriteOnlyCell(worksheet, value=value)
+                cell.data_type = "s"
+                return cell
+            return value
+
         if excel_include_header:
-            worksheet.append(list(self.headers.values()))
+            worksheet.append([text_cell(value) for value in self.headers.values()])
 
         def write_row(row, _):
             data = []
             for field_serializer in self.field_serializers:
                 _, _, field_human_value = field_serializer(row)
-                data.append(str(field_human_value))
+                data.append(text_cell(str(field_human_value)))
             worksheet.append(data)
 
         file_writer.write_rows(self.queryset, write_row)

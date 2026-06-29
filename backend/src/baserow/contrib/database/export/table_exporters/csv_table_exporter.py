@@ -79,7 +79,11 @@ class CsvQuerysetSerializer(QuerysetSerializer):
         )
 
         if csv_include_header:
-            csv_dict_writer.writerow(self.headers)
+            # Escape the header row too, the field names are user defined and a
+            # "="-leading name would otherwise be a live formula (CWE-1236).
+            csv_dict_writer.writerow(
+                {key: escape_csv_cell(value) for key, value in self.headers.items()}
+            )
 
         def write_row(row, _):
             data = {}
