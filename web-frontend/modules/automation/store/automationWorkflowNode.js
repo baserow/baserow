@@ -30,6 +30,30 @@ export function populateNode(node) {
   return { ...node, _: { loading: false } }
 }
 
+export function getWorkflowImmediateDispatch($registry, workflow) {
+  const trigger = workflow.nodes?.find((node) => {
+    return $registry.get('node', node.type).isTrigger
+  })
+
+  if (!trigger) {
+    return false
+  }
+
+  return $registry
+    .get('node', trigger.type)
+    .serviceType.canBeImmediatelyDispatched(trigger.service)
+}
+
+export function getNodeTypeImmediateDispatch($registry, type, service = {}) {
+  const nodeType = $registry.get('node', type)
+
+  if (!nodeType.isTrigger) {
+    return false
+  }
+
+  return nodeType.serviceType.canBeImmediatelyDispatched(service)
+}
+
 const mutations = {
   SET_ITEMS(state, { workflow, nodes }) {
     workflow.nodes = nodes.map((node) => populateNode(node))
@@ -91,7 +115,7 @@ const actions = {
     if (!workflow) return []
 
     const { data: nodes } = await AutomationWorkflowNodeService(
-      useNuxtApp().$client
+      this.$client
     ).get(workflow.id)
 
     if (!workflow.nodes) {
@@ -171,6 +195,7 @@ const actions = {
     // creating a node after `previousNodeId`, and `previousNodeId` has
     // a node that follows it.
     const nodeType = this.$registry.get('node', type)
+    const oldImmediateDispatch = workflow.immediate_dispatch
 
     // Apply optimistic create
     const tempNode = nodeType.getDefaultValues({
@@ -180,6 +205,21 @@ const actions = {
     })
 
     commit('ADD_ITEM', { workflow, node: tempNode })
+    if (nodeType.isTrigger) {
+      await dispatch(
+        'automationWorkflow/forceUpdate',
+        {
+          workflow,
+          values: {
+            immediate_dispatch: getNodeTypeImmediateDispatch(
+              this.$registry,
+              type
+            ),
+          },
+        },
+        { root: true }
+      )
+    }
 
     const initialGraph = clone(workflow.graph)
 
@@ -193,7 +233,7 @@ const actions = {
 
     try {
       const { data: node } = await AutomationWorkflowNodeService(
-        useNuxtApp().$client
+        this.$client
       ).create(workflow.id, type, referenceNode, position, output)
 
       commit('ADD_ITEM', { workflow, node })
@@ -206,6 +246,21 @@ const actions = {
 
       // Remove temp node and add real one
       commit('DELETE_ITEM', { workflow, nodeId: tempNode.id })
+      if (nodeType.isTrigger) {
+        await dispatch(
+          'automationWorkflow/forceUpdate',
+          {
+            workflow,
+            values: {
+              immediate_dispatch: getWorkflowImmediateDispatch(
+                this.$registry,
+                workflow
+              ),
+            },
+          },
+          { root: true }
+        )
+      }
 
       await dispatch('application/refreshPermissions', workflow.automation_id, {
         root: true,
@@ -228,11 +283,21 @@ const actions = {
         { root: true }
       )
       commit('DELETE_ITEM', { workflow, nodeId: tempNode.id })
+      if (nodeType.isTrigger) {
+        await dispatch(
+          'automationWorkflow/forceUpdate',
+          {
+            workflow,
+            values: { immediate_dispatch: oldImmediateDispatch },
+          },
+          { root: true }
+        )
+      }
 
       throw error
     }
   },
-  forceUpdate({ commit, dispatch }, { workflow, node, values, override }) {
+  forceUpdate({ commit }, { workflow, node, values, override }) {
     commit('UPDATE_ITEM', {
       workflow,
       node,
@@ -273,7 +338,7 @@ const actions = {
         updateContext.valuesToUpdate = {}
         try {
           const { data } = await AutomationWorkflowNodeService(
-            useNuxtApp().$client
+            this.$client
           ).update(node.id, toUpdate)
           updateContext.lastUpdatedValues = null
 
@@ -344,7 +409,7 @@ const actions = {
 
     commit('DELETE_ITEM', { workflow, nodeId })
     try {
-      await AutomationWorkflowNodeService(useNuxtApp().$client).delete(nodeId)
+      await AutomationWorkflowNodeService(this.$client).delete(nodeId)
     } catch (error) {
       // We restore the removed node
       commit('ADD_ITEM', { workflow, node: originalNode })
@@ -364,12 +429,46 @@ const actions = {
     { workflow, nodeId, newType }
   ) {
     const nodeToReplace = getters.findById(workflow, nodeId)
+    const oldImmediateDispatch = workflow.immediate_dispatch
+    const nodeType = this.$registry.get('node', nodeToReplace.type)
 
-    const { data: newNode } = await AutomationWorkflowNodeService(
-      useNuxtApp().$client
-    ).replace(nodeId, {
-      new_type: newType,
-    })
+    if (nodeType.isTrigger) {
+      await dispatch(
+        'automationWorkflow/forceUpdate',
+        {
+          workflow,
+          values: {
+            immediate_dispatch: getNodeTypeImmediateDispatch(
+              this.$registry,
+              newType
+            ),
+          },
+        },
+        { root: true }
+      )
+    }
+
+    let newNode
+    try {
+      const { data } = await AutomationWorkflowNodeService(
+        this.$client
+      ).replace(nodeId, {
+        new_type: newType,
+      })
+      newNode = data
+    } catch (error) {
+      if (nodeType.isTrigger) {
+        await dispatch(
+          'automationWorkflow/forceUpdate',
+          {
+            workflow,
+            values: { immediate_dispatch: oldImmediateDispatch },
+          },
+          { root: true }
+        )
+      }
+      throw error
+    }
 
     commit('ADD_ITEM', { workflow, node: newNode })
 
@@ -386,6 +485,20 @@ const actions = {
       {
         workflow,
         values: { simulate_until_node_id: null },
+      },
+      { root: true }
+    )
+
+    await dispatch(
+      'automationWorkflow/forceUpdate',
+      {
+        workflow,
+        values: {
+          immediate_dispatch: getWorkflowImmediateDispatch(
+            this.$registry,
+            workflow
+          ),
+        },
       },
       { root: true }
     )
@@ -412,14 +525,11 @@ const actions = {
 
     try {
       // Perform the backend update.
-      await AutomationWorkflowNodeService(useNuxtApp().$client).move(
-        movedNodeId,
-        {
-          reference_node_id: referenceNodeId,
-          position,
-          output,
-        }
-      )
+      await AutomationWorkflowNodeService(this.$client).move(movedNodeId, {
+        reference_node_id: referenceNodeId,
+        position,
+        output,
+      })
     } catch (error) {
       // We revert the operation
       dispatch('graphMove', {
@@ -464,7 +574,7 @@ const actions = {
 
     try {
       const { data: node } = await AutomationWorkflowNodeService(
-        useNuxtApp().$client
+        this.$client
       ).duplicate(nodeId)
 
       commit('ADD_ITEM', { workflow, node })
@@ -513,9 +623,7 @@ const actions = {
     commit('SET_DRAGGING_NODE_ID', nodeId)
   },
   async simulateDispatch({ commit, dispatch }, { nodeId }) {
-    await AutomationWorkflowNodeService(useNuxtApp().$client).simulateDispatch(
-      nodeId
-    )
+    await AutomationWorkflowNodeService(this.$client).simulateDispatch(nodeId)
   },
   /**
    * Updates all the next nodes of a given node with the provided values.

@@ -156,4 +156,8 @@ export const WorkflowActionServiceTypeMixin = (Base) =>
 export const TriggerServiceTypeMixin = (Base) =>
   class extends Base {
     isTrigger = true
+
+    canBeImmediatelyDispatched(service) {
+      return false
+    }
   }

@@ -84,6 +84,7 @@
     "errorCSVFileMissing": "Missing CSV file property",
     "errorCSVContentMissing": "Missing CSV data property",
     "errorNoWorkflowSelected": "No workflow selected",
+    "errorWorkflowNotImmediateDispatch": "The selected workflow must use a trigger that can start immediately.",
     "aiAgent": "AI prompt",
     "aiAgentDescription": "Execute AI prompts using configured generative AI models.",
     "errorNoIntegrationSelected": "No integration selected",

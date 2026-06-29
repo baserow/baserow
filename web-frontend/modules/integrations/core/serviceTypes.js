@@ -236,6 +236,10 @@ export class CoreManualTriggerServiceType extends TriggerServiceTypeMixin(
     return 'iconoir-play'
   }
 
+  canBeImmediatelyDispatched(service) {
+    return true
+  }
+
   getDataSchema(service) {
     return service.schema
   }
@@ -373,9 +377,32 @@ export class CoreStartWorkflowServiceType extends WorkflowActionServiceTypeMixin
     return 'iconoir-play'
   }
 
+  getWorkflow(workflowId) {
+    const workspace = this.app.$store.getters['workspace/getSelected']
+
+    if (!workspace?.id || !workflowId) {
+      return null
+    }
+
+    const automations = this.app.$store.getters[
+      'application/getAllOfWorkspace'
+    ](workspace).filter((application) => application.type === 'automation')
+
+    return automations
+      .flatMap((automation) =>
+        this.app.$store.getters['automationWorkflow/getWorkflows'](automation)
+      )
+      .find((workflow) => workflow.id === workflowId)
+  }
+
   getErrorMessage({ service }) {
     if (service !== undefined && service.workflow_id === null) {
       return this.app.$i18n.t('serviceType.errorNoWorkflowSelected')
+    }
+
+    const workflow = this.getWorkflow(service?.workflow_id)
+    if (workflow && !workflow.immediate_dispatch) {
+      return this.app.$i18n.t('serviceType.errorWorkflowNotImmediateDispatch')
     }
 
     return super.getErrorMessage({ service })
@@ -415,6 +442,10 @@ export class PeriodicTriggerServiceType extends TriggerServiceTypeMixin(
 
   get icon() {
     return 'iconoir-timer'
+  }
+
+  canBeImmediatelyDispatched(service) {
+    return true
   }
 
   getDataSchema(service) {

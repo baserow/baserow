@@ -370,7 +370,7 @@ export class CoreHTTPRequestWorkflowActionType extends WorkflowActionServiceType
   }
 
   getOrder() {
-    return 60
+    return 47
   }
 }
 
@@ -384,7 +384,7 @@ export class CoreSMTPEmailWorkflowActionType extends WorkflowActionServiceType {
   }
 
   getOrder() {
-    return 50
+    return 48
   }
 }
 
@@ -418,7 +418,7 @@ export class CoreStartWorkflowWorkflowActionType extends WorkflowActionServiceTy
   }
 
   getOrder() {
-    return 80
+    return 46
   }
 }
 
@@ -535,7 +535,7 @@ export class SlackWriteMessageWorkflowActionType extends WorkflowActionServiceTy
   }
 
   getOrder() {
-    return 55
+    return 90
   }
 
   get serviceType() {

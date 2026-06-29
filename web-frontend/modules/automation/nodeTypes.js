@@ -771,7 +771,7 @@ export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   getOrder() {
-    return 7
+    return 6.2
   }
 
   get name() {
@@ -892,7 +892,7 @@ export class CoreStartWorkflowNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   getOrder() {
-    return 10
+    return 6.1
   }
 
   get serviceType() {
@@ -935,7 +935,7 @@ export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   getOrder() {
-    return 8
+    return 6.3
   }
 
   get name() {
@@ -1111,7 +1111,7 @@ export class SlackWriteMessageNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   getOrder() {
-    return 8
+    return 90
   }
 
   get iconClass() {

@@ -11,7 +11,7 @@ export class CoreCodeNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   getOrder() {
-    return 6
+    return 6.4
   }
 
   get name() {
