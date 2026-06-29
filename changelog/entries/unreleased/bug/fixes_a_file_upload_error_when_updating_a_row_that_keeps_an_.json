@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes a file upload error when updating a row that keeps an existing file",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-06-29"
+}

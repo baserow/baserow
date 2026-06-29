@@ -435,6 +435,48 @@ def test_prepare_file_for_db_with_existing_file(data_fixture):
 
 
 @pytest.mark.django_db
+def test_prepare_file_for_db_with_existing_file_and_stale_file_placeholder(
+    data_fixture,
+):
+    """
+    When updating a row through a form, an unchanged pre-existing file is sent as
+    a `url` reference, but the frontend may also include a `file` placeholder (a
+    uid string) that was never resolved into an upload stream. We must ignore the
+    non-readable placeholder and resolve the file via its URL instead of raising
+    "The provided stream is not readable.".
+    """
+
+    user = data_fixture.create_user()
+    user_file = data_fixture.create_user_file(original_name="imagen.png")
+
+    # Mirrors the exact payload the frontend sends for an unchanged file: the
+    # original `data` is `undefined`, so `file` holds a leftover uid placeholder
+    # (the multipart part for it is the literal string "undefined", never an
+    # uploaded stream) and the actual file is only addressable via `url`.
+    value = {
+        "__file__": True,
+        "name": "Screenshot 2026-06-29 at 10.34.28.png",
+        "url": UserFileHandler().get_user_file_url(user_file),
+        "content_type": "image/png",
+        "size": "17746",
+        "file": "46913887-0126-4d0f-80f0-d806ea93a360",
+    }
+
+    assert prepare_files_for_db(value, user) == [
+        {
+            "image_height": None,
+            "image_width": None,
+            "is_image": False,
+            "mime_type": "image/png",
+            "name": user_file.name,
+            "size": AnyInt(),
+            "uploaded_at": AnyStr(),
+            "visible_name": "Screenshot 2026-06-29 at 10.34.28.png",
+        },
+    ]
+
+
+@pytest.mark.django_db
 def test_prepare_file_for_db_with_mix(data_fixture, fake):
     user = data_fixture.create_user()
     user_file = data_fixture.create_user_file(

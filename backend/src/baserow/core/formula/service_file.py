@@ -89,6 +89,19 @@ class ServiceFile:
             size=value.get("size"),
         )
 
+    def _has_readable_file(self) -> bool:
+        """
+        Return whether `self.file` is an actual readable stream.
+
+        The `file` attribute can be populated from untrusted serialized payloads
+        where it may end up being a placeholder (e.g. a string uid that was never
+        resolved to an uploaded stream). In those cases we must ignore it and fall
+        back to the other representations (user file, URL, name) instead of trying
+        to read or upload a value that is not a stream.
+        """
+
+        return self.file is not None and hasattr(self.file, "read")
+
     def read_bytes(self) -> bytes:
         """
         Resolve this file value and return its content.
@@ -99,7 +112,7 @@ class ServiceFile:
         raised when none of these representations can be read.
         """
 
-        if self.file is not None and not getattr(self.file, "closed", False):
+        if self._has_readable_file() and not getattr(self.file, "closed", False):
             if hasattr(self.file, "seek"):
                 self.file.seek(0)
             return self.file.read()
@@ -176,7 +189,7 @@ class ServiceFile:
             return self.user_file
 
         handler = UserFileHandler()
-        if self.file is not None:
+        if self._has_readable_file():
             file_name = (
                 self.visible_name or self.name or getattr(self.file, "name", "file")
             )
