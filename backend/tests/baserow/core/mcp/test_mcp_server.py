@@ -276,13 +276,17 @@ def test_handle_sse_still_logs_errors_raised_after_the_response_started(data_fix
 
     response_starts = 0
 
-    async def failing_run(*args, **kwargs):
-        # Let the EventSourceResponse send http.response.start first, then fail.
-        await anyio.sleep(0.05)
-        raise ValueError("boom")
-
     async def inner():
         nonlocal response_starts
+        response_started = anyio.Event()
+
+        async def failing_run(*args, **kwargs):
+            # Wait until the EventSourceResponse has actually sent
+            # http.response.start, then fail. Synchronising on the event instead
+            # of a fixed sleep keeps the post-response-start branch deterministic
+            # on slow/loaded CI.
+            await response_started.wait()
+            raise ValueError("boom")
 
         async def receive():
             await anyio.sleep(10)
@@ -292,6 +296,7 @@ def test_handle_sse_still_logs_errors_raised_after_the_response_started(data_fix
             nonlocal response_starts
             if message["type"] == "http.response.start":
                 response_starts += 1
+                response_started.set()
 
         scope = {
             "type": "http",
