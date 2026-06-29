@@ -209,7 +209,7 @@ class ExcelQuerysetSerializer(QuerysetSerializer):
             return value
 
         if excel_include_header:
-            worksheet.append([text_cell(value) for value in self.headers.values()])
+            worksheet.append([text_cell(str(value)) for value in self.headers.values()])
 
         def write_row(row, _):
             data = []
