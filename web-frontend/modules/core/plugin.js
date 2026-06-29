@@ -119,6 +119,7 @@ import {
   RuntimeSum,
   RuntimeAvg,
   RuntimeAt,
+  RuntimeRange,
   RuntimeToArray,
   RuntimeToJson,
   RuntimeFromJson,
