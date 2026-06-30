@@ -120,7 +120,7 @@ def test_simple_container_element_type_positioning_fields(data_fixture):
     element_type = SimpleContainerElementType()
     page = data_fixture.create_builder_page()
     element = data_fixture.create_builder_element(
-        SimpleContainerElement,
+        SimpleContainerElementType,
         page=page,
         behaviour=SimpleContainerElement.PAGE_BEHAVIOURS.FIXED,
         alignment=SimpleContainerElement.PAGE_ALIGNMENTS.BOTTOM,
