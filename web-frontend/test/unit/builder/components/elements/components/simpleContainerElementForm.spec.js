@@ -10,8 +10,9 @@ import {
 describe('SimpleContainerElementForm', () => {
   const FormGroupStub = defineComponent({
     name: 'FormGroup',
-    props: ['label'],
-    template: '<div class="form-group-stub" :data-label="label"><slot /></div>',
+    props: ['helperText', 'label'],
+    template:
+      '<div class="form-group-stub" :data-helper-text="helperText" :data-label="label"><slot /></div>',
   })
 
   const RadioGroupStub = defineComponent({
@@ -73,12 +74,24 @@ describe('SimpleContainerElementForm', () => {
     ])
   })
 
-  test('hides positioning controls for nested containers', async () => {
+  test('disables positioning controls for nested containers', async () => {
     const wrapper = await mountComponent({
       parent_element_id: 1,
       behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
     })
 
-    expect(getFormGroupLabels(wrapper)).toEqual([])
+    expect(getFormGroupLabels(wrapper)).toEqual([
+      'simpleContainerElementForm.behaviourLabel',
+    ])
+    expect(
+      wrapper.find('.form-group-stub').attributes('data-helper-text')
+    ).toBe('simpleContainerElementForm.rootContainerOnlyHelper')
+    expect(
+      wrapper.findComponent(RadioGroupStub).props('options')
+    ).toMatchObject([
+      { value: PAGE_ELEMENT_BEHAVIOURS.NORMAL, disabled: true },
+      { value: PAGE_ELEMENT_BEHAVIOURS.STICKY, disabled: true },
+      { value: PAGE_ELEMENT_BEHAVIOURS.FIXED, disabled: true },
+    ])
   })
 })

@@ -284,7 +284,8 @@
   },
   "simpleContainerElementForm": {
     "behaviourLabel": "Page behaviour",
-    "alignmentLabel": "Page alignment"
+    "alignmentLabel": "Page alignment",
+    "rootContainerOnlyHelper": "Sticky and fixed positioning only apply to first-level simple containers."
   },
   "imageElement": {
     "missingValue": "Missing alt text...",

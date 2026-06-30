@@ -1,8 +1,8 @@
 <template>
   <form @submit.prevent @keydown.enter.prevent>
     <FormGroup
-      v-if="isRootContainer"
       :label="$t('simpleContainerElementForm.behaviourLabel')"
+      :helper-text="positioningHelperText"
       small-label
       required
       class="margin-bottom-2"
@@ -55,19 +55,30 @@ export default {
     isRootContainer() {
       return !this.defaultValues.parent_element_id
     },
+    disablePositioningControls() {
+      return !this.isRootContainer
+    },
+    positioningHelperText() {
+      return this.disablePositioningControls
+        ? this.$t('simpleContainerElementForm.rootContainerOnlyHelper')
+        : null
+    },
     behaviourOptions() {
       return [
         {
           label: this.$t('pageElementBehaviour.normal'),
           value: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+          disabled: this.disablePositioningControls,
         },
         {
           label: this.$t('pageElementBehaviour.sticky'),
           value: PAGE_ELEMENT_BEHAVIOURS.STICKY,
+          disabled: this.disablePositioningControls,
         },
         {
           label: this.$t('pageElementBehaviour.fixed'),
           value: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+          disabled: this.disablePositioningControls,
         },
       ]
     },
