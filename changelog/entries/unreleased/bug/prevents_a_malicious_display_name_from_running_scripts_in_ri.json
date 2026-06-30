@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Prevents a malicious display name from running scripts in rich text mentions",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-06-30"
+}

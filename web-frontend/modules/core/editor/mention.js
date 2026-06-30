@@ -3,6 +3,17 @@ import regexp from 'markdown-it-regexp'
 
 const USER_ID_REGEXP = /@(\d+)/
 
+// Escape user-controlled text before it's interpolated into the raw HTML
+// string below, which is rendered with v-html. Without this, a malicious
+// display name could inject markup and execute a stored XSS.
+const escapeHtml = (value) =>
+  String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+
 export const parseMention = (users, loggedUserId = null) =>
   regexp(USER_ID_REGEXP, (match, utils) => {
     const user = users.find((user) => user.user_id === parseInt(match[1]))
@@ -11,9 +22,10 @@ export const parseMention = (users, loggedUserId = null) =>
       if (user.user_id === loggedUserId) {
         className += ' rich-text-editor__mention--current-user'
       }
+      const name = escapeHtml(user.name)
       // NOTE: Keep this in sync with the @tiptap/extension-mention
       // https://github.com/ueberdosis/tiptap/blob/main/packages/extension-mention/src/mention.ts
-      return `<span class="${className}" data-id="${user.user_id}" data-label="${user.name}" data-type="mention">@${user.name}</span>`
+      return `<span class="${className}" data-id="${user.user_id}" data-label="${name}" data-type="mention">@${name}</span>`
     } else {
       return `@${match[1]}`
     }
