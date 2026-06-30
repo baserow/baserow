@@ -174,6 +174,7 @@ describe('PagePreview', () => {
       id: 42,
       behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
       alignment: PAGE_ELEMENT_ALIGNMENTS.BOTTOM,
+      parent_element_id: 7,
     })
     const normalElement = createElement({
       id: 43,

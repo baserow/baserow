@@ -149,4 +149,52 @@ describe('ElementPreview', () => {
       'element--position-alignment-bottom'
     )
   })
+
+  test('positions graph-root containers when the compat parent id is stale', async () => {
+    const page = createPage()
+    const sharedPage = createPage({ id: 2, shared: true })
+    const element = createSimpleContainerElement(page, {
+      parent_element_id: 7,
+    })
+
+    page.elements = [element]
+    page.orderedElements = [element]
+    page.elementMap = { [element.id]: element }
+
+    const wrapper = await mountComponent({ element, page, sharedPage })
+
+    expect(wrapper.find('.element-preview').classes()).toEqual(
+      expect.arrayContaining([
+        'element--positioned',
+        'element--position-fixed',
+        'element--position-alignment-bottom',
+      ])
+    )
+  })
+
+  test('does not position graph-nested containers when the compat parent id is stale', async () => {
+    const page = createPage()
+    const sharedPage = createPage({ id: 2, shared: true })
+    const parent = createSimpleContainerElement(page, {
+      id: 7,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
+    })
+    const element = createSimpleContainerElement(page)
+
+    page.elements = [parent, element]
+    page.orderedElements = [parent, element]
+    page.elementMap = {
+      [parent.id]: parent,
+      [element.id]: element,
+    }
+    page.parentMap = {
+      [element.id]: parent.id,
+    }
+
+    const wrapper = await mountComponent({ element, page, sharedPage })
+
+    expect(wrapper.find('.element-preview').classes()).not.toContain(
+      'element--positioned'
+    )
+  })
 })

@@ -226,14 +226,16 @@ export default {
       return this.$store.getters['element/getRootElements'](this.currentPage)
     },
     fixedContentElements() {
-      return this.elements.filter(isFixedRootSimpleContainer)
+      return this.elements.filter((element) =>
+        isFixedRootSimpleContainer(element, { isRoot: true })
+      )
     },
     fixedPreviewElements() {
       return this.fixedContentElements
     },
     scrollableContentElements() {
       return this.elements.filter(
-        (element) => !isFixedRootSimpleContainer(element)
+        (element) => !isFixedRootSimpleContainer(element, { isRoot: true })
       )
     },
     sharedPage() {

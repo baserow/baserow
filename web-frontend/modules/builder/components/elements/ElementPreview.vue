@@ -295,7 +295,9 @@ export default {
       )
     },
     rootContainerPositioningClasses() {
-      return getRootContainerPositioningClasses(this.element)
+      return getRootContainerPositioningClasses(this.element, {
+        isRoot: !this.parentElement,
+      })
     },
     hasRootContainerPositioning() {
       return Object.keys(this.rootContainerPositioningClasses).length > 0

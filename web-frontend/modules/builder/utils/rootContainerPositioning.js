@@ -5,15 +5,12 @@ import {
 
 const MULTI_PAGE_CONTAINER_TYPES = ['header', 'footer']
 
-export function isRootSimpleContainer(element) {
-  return element.type === 'simple_container' && !element.parent_element_id
+export function isRootSimpleContainer(element, { isRoot }) {
+  return element.type === 'simple_container' && isRoot
 }
 
-export function isRootMultiPageContainer(element) {
-  return (
-    MULTI_PAGE_CONTAINER_TYPES.includes(element.type) &&
-    !element.parent_element_id
-  )
+export function isRootMultiPageContainer(element, { isRoot }) {
+  return MULTI_PAGE_CONTAINER_TYPES.includes(element.type) && isRoot
 }
 
 function getPositioningAlignment(element) {
@@ -28,9 +25,9 @@ function getPositioningAlignment(element) {
   return element.alignment || PAGE_ELEMENT_ALIGNMENTS.TOP
 }
 
-function hasPositioningBehaviour(element) {
+function hasPositioningBehaviour(element, options) {
   return (
-    isRootSimpleContainer(element) &&
+    isRootSimpleContainer(element, options) &&
     [PAGE_ELEMENT_BEHAVIOURS.STICKY, PAGE_ELEMENT_BEHAVIOURS.FIXED].includes(
       element.behaviour
     )
@@ -38,9 +35,9 @@ function hasPositioningBehaviour(element) {
 }
 
 // Root-level simple containers can opt into page-level positioning.
-export function isPositionedRootContainer(element) {
+export function isPositionedRootContainer(element, options) {
   return (
-    hasPositioningBehaviour(element) &&
+    hasPositioningBehaviour(element, options) &&
     [PAGE_ELEMENT_ALIGNMENTS.TOP, PAGE_ELEMENT_ALIGNMENTS.BOTTOM].includes(
       getPositioningAlignment(element)
     )
@@ -48,23 +45,23 @@ export function isPositionedRootContainer(element) {
 }
 
 // Fixed root simple containers are rendered in a separate preview overlay to stay viewport-aligned.
-export function isFixedRootSimpleContainer(element) {
+export function isFixedRootSimpleContainer(element, options) {
   return (
-    isPositionedRootContainer(element) &&
+    isPositionedRootContainer(element, options) &&
     element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
   )
 }
 
-export function isFixedRootMultiPageContainer(element) {
+export function isFixedRootMultiPageContainer(element, options) {
   return (
-    isRootMultiPageContainer(element) &&
+    isRootMultiPageContainer(element, options) &&
     element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
   )
 }
 
 export function getMultiPageElementPositioningGroups(elements) {
   return elements.reduce((groups, element) => {
-    const isFixed = isFixedRootMultiPageContainer(element)
+    const isFixed = isFixedRootMultiPageContainer(element, { isRoot: true })
     const lastGroup = groups[groups.length - 1]
 
     if (!lastGroup || lastGroup.isFixed !== isFixed) {
@@ -82,8 +79,8 @@ export function getMultiPageElementPositioningGroups(elements) {
 }
 
 // Returns the CSS classes that apply the chosen behaviour and top/bottom alignment.
-export function getRootContainerPositioningClasses(element) {
-  if (!isPositionedRootContainer(element)) {
+export function getRootContainerPositioningClasses(element, options) {
+  if (!isPositionedRootContainer(element, options)) {
     return {}
   }
 

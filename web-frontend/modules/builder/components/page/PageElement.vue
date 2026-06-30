@@ -128,12 +128,10 @@ export default {
       })
     },
     wrapperClasses() {
-      const isChildElement = this.$store.getters['element/getParent'](
-        this.elementPage,
-        this.element
-      )
-      const positioningClasses = isChildElement ? {} : this.positioningClasses
-      if (isChildElement) {
+      const positioningClasses = this.isChildElement
+        ? {}
+        : this.positioningClasses
+      if (this.isChildElement) {
         return {
           ...positioningClasses,
           'element__wrapper--full-width':
@@ -157,12 +155,20 @@ export default {
         }
       }
     },
+    isChildElement() {
+      return !!this.$store.getters['element/getParent'](
+        this.elementPage,
+        this.element
+      )
+    },
     positioningClasses() {
       if (this.disableRootContainerPositioning) {
         return {}
       }
 
-      return getRootContainerPositioningClasses(this.element)
+      return getRootContainerPositioningClasses(this.element, {
+        isRoot: !this.isChildElement,
+      })
     },
     elementStyles() {
       const styles = {
