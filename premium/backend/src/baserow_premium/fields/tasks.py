@@ -103,8 +103,7 @@ def generate_scheduled_ai_field_generation(field_id: int):
 
 
 @app.task(
-    # No explicit hard limit means the global 360s default kills large bulk-creates.
-    soft_time_limit=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT - 30,
+    soft_time_limit=max(1, settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT - 30),
     time_limit=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,
 )
 def schedule_ai_field_generation(field_id: int, row_ids: list[int] | None = None):

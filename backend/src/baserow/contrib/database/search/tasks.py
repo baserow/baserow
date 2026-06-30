@@ -23,8 +23,7 @@ def _get_singleton_autoreschedule_flag(table_id: int) -> SingletonAutoReschedule
 
 @app.task(
     queue="export",
-    # No explicit hard limit means the global 360s default kills large bulk-creates.
-    soft_time_limit=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT - 30,
+    soft_time_limit=max(1, settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT - 30),
     time_limit=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,
 )
 def schedule_update_search_data(
