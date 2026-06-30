@@ -130,4 +130,67 @@ describe('GridView component', () => {
       fields: navFields,
     })
   })
+
+  const groupFields = [
+    { id: 1, name: 'Name', type: 'text', primary: true },
+    { id: 2, name: 'Team', type: 'text' },
+  ]
+  const createGroupedAddRowAfterContext = (rows) => {
+    const addRow = vi.fn()
+    return {
+      addRow,
+      context: {
+        storePrefix: '',
+        fields: groupFields,
+        activeGroupBys: [{ field: 2 }],
+        viewHasGroupBys: true,
+        $registry: {
+          get: () => ({
+            getGroupValueFromRowValue: (_field, value) => value,
+          }),
+        },
+        $store: {
+          getters: {
+            'view/grid/getAllRows': rows,
+          },
+        },
+        addRow,
+        getGroupByFields: GridView.methods.getGroupByFields,
+        getGroupPathForRow: GridView.methods.getGroupPathForRow,
+        rowsBelongToSameGroup: GridView.methods.rowsBelongToSameGroup,
+      },
+    }
+  }
+
+  test('addRowAfter inserts before the next row when it is in the same group', () => {
+    const selectedRow = { id: 1, field_2: 'A' }
+    const nextRow = { id: 2, field_2: 'A' }
+    const { addRow, context } = createGroupedAddRowAfterContext([
+      selectedRow,
+      nextRow,
+    ])
+
+    GridView.methods.addRowAfter.call(context, selectedRow)
+
+    expect(addRow).toHaveBeenCalledWith(
+      { groupPath: { field_2: 'A' }, before: nextRow },
+      {}
+    )
+  })
+
+  test('addRowAfter appends to the selected group before a different group', () => {
+    const selectedRow = { id: 1, field_2: 'A' }
+    const nextRow = { id: 2, field_2: 'B' }
+    const { addRow, context } = createGroupedAddRowAfterContext([
+      selectedRow,
+      nextRow,
+    ])
+
+    GridView.methods.addRowAfter.call(context, selectedRow)
+
+    expect(addRow).toHaveBeenCalledWith(
+      { groupPath: { field_2: 'A' }, before: null },
+      {}
+    )
+  })
 })

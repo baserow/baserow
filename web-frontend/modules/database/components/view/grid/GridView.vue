@@ -337,6 +337,11 @@ import {
   GRID_VIEW_MULTI_SELECT_CHECKBOX,
   GRID_VIEW_MULTI_SELECT_AREA,
 } from '@baserow/modules/database/constants'
+import {
+  getGroupByFieldsFromActiveGroupBys,
+  groupPathFromRow,
+} from '@baserow/modules/database/utils/gridGroupBy'
+import { pathKey } from '@baserow/modules/database/utils/gridGroupByRender'
 
 export default {
   name: 'GridView',
@@ -1016,17 +1021,53 @@ export default {
         }
       )
     },
+    getGroupByFields() {
+      return getGroupByFieldsFromActiveGroupBys(
+        this.activeGroupBys,
+        this.fields
+      )
+    },
+    getGroupPathForRow(row) {
+      return groupPathFromRow(row, this.getGroupByFields(), this.$registry)
+    },
+    rowsBelongToSameGroup(leftRow, rightRow) {
+      const groupByFields = this.getGroupByFields()
+      const leftPath = groupPathFromRow(leftRow, groupByFields, this.$registry)
+      const rightPath = groupPathFromRow(
+        rightRow,
+        groupByFields,
+        this.$registry
+      )
+      return (
+        pathKey(leftPath, groupByFields) === pathKey(rightPath, groupByFields)
+      )
+    },
+    getGroupInsertionForBefore(before) {
+      if (before?.groupPath) {
+        return { path: before.groupPath, before: before.before ?? null }
+      }
+
+      if (this.viewHasGroupBys && before !== null) {
+        return { path: this.getGroupPathForRow(before), before }
+      }
+
+      return null
+    },
     async addRow(before = null, values = {}) {
       try {
-        if (before?.groupPath) {
+        const groupInsertion = this.getGroupInsertionForBefore(before)
+        if (groupInsertion !== null) {
           await this.$store.dispatch(
             this.storePrefix + 'view/grid/createNewRowInGroup',
             {
               view: this.view,
               table: this.table,
               fields: this.fields,
-              path: before.groupPath,
+              path: groupInsertion.path,
+              before: groupInsertion.before,
+              values,
               selectPrimaryCell: true,
+              isRowOpenedInModal: this.isRowOpenedInModal,
             }
           )
           return
@@ -1081,6 +1122,20 @@ export default {
 
       if (index !== -1 && rows.length > index + 1) {
         nextRow = rows[index + 1]
+      }
+
+      if (this.viewHasGroupBys) {
+        this.addRow(
+          {
+            groupPath: this.getGroupPathForRow(row),
+            before:
+              nextRow !== null && this.rowsBelongToSameGroup(row, nextRow)
+                ? nextRow
+                : null,
+          },
+          values
+        )
+        return
       }
 
       this.addRow(nextRow, values)

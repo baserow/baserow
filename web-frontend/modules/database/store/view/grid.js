@@ -3882,20 +3882,31 @@ export const actions = {
   },
   async createNewRowInGroup(
     { dispatch, getters },
-    { view, table, fields, path, selectPrimaryCell = true }
+    {
+      view,
+      table,
+      fields,
+      path,
+      values = {},
+      before = null,
+      selectPrimaryCell = true,
+      isRowOpenedInModal = undefined,
+    }
   ) {
     const groupByFields = getGroupByFieldsFromActiveGroupBys(
       getters.getActiveGroupBys,
       fields
     )
-    const values = groupPathDefaults(path, groupByFields, this.$registry)
+    const groupValues = groupPathDefaults(path, groupByFields, this.$registry)
     await dispatch('createNewRow', {
       view,
       table,
       fields,
-      values,
+      values: { ...values, ...groupValues },
+      before,
       groupPath: path,
       selectPrimaryCell,
+      isRowOpenedInModal,
     })
   },
   async createNewRows(
@@ -3984,6 +3995,7 @@ export const actions = {
       const insertRowIntoGroupBySection = ({
         row,
         path = null,
+        before = null,
         appendToPath = false,
       }) => {
         const { groupByFields, location } = resolveGroupByInsertLocation(
@@ -3995,7 +4007,11 @@ export const actions = {
           path === null ? location.sectionKey : pathKey(path, groupByFields)
         let position = location.position
 
-        if (appendToPath) {
+        const beforeLocation =
+          before !== null ? state.groupBy.rowLocations[before.id] : null
+        if (beforeLocation?.sectionKey === sectionKey) {
+          position = beforeLocation.position
+        } else if (appendToPath) {
           const section = findGroupByRowSection(
             getters.getGroupByLayout,
             sectionKey,
@@ -4035,7 +4051,8 @@ export const actions = {
         insertRowIntoGroupBySection({
           row: rowsPopulated[0],
           path: groupPath,
-          appendToPath: true,
+          before,
+          appendToPath: before === null,
         })
       } else if (canUpdateOptimistically) {
         // When a single row is inserted we don't want to deal with filters, sorts and

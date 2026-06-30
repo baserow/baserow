@@ -2027,6 +2027,145 @@ describe('Grid view store', () => {
     expect(mockServer.mock.history.get).toHaveLength(0)
   })
 
+  test('createNewRowInGroup inserts before the supplied row', async () => {
+    const fields = [
+      {
+        id: 1,
+        name: 'Name',
+        type: 'text',
+        primary: true,
+        _: { type: { type: 'text' } },
+      },
+      {
+        id: 2,
+        name: 'Team',
+        type: 'text',
+        _: { type: { type: 'text' } },
+      },
+    ]
+    const groupBys = [{ field: 2, order: 'ASC', type: 'default' }]
+    const sectionKey = groupPathKey(2, 'B')
+    const rowMetadata = {
+      selected: false,
+      selectedFieldId: -1,
+      selectedBy: [],
+      loading: false,
+      matchFilters: true,
+      matchSortings: true,
+      matchSearch: true,
+      fieldSearchMatches: [],
+      persistentId: 'r',
+    }
+    const groupByStore = testApp.createStore({
+      modules: {
+        grid: {
+          ...gridStore,
+          actions: {
+            ...gridStore.actions,
+            fetchByScrollTopDelayed: vi.fn(),
+            fetchAllFieldAggregationData: vi.fn(),
+          },
+        },
+      },
+    })
+    const state = Object.assign(gridStore.state(), {
+      lastGridId: 1,
+      activeGroupBys: groupBys,
+      count: 2,
+      fieldOptions: {
+        1: { hidden: false, order: 0 },
+        2: { hidden: false, order: 1 },
+      },
+      groupBy: {
+        treeNodes: [{ path: { field_2: 'B' }, depth: 0, row_count: 2 }],
+        truncated: false,
+        collapse: { mode: 'expand', paths: [] },
+        sectionRows: {},
+        rowLocations: {},
+      },
+    })
+    groupByStore.replaceState({ ...groupByStore.state, grid: state })
+    const beforeRow = {
+      id: 12,
+      order: '2.00',
+      field_1: 'Second',
+      field_2: 'B',
+      _: { ...rowMetadata, persistentId: 'r12' },
+    }
+    groupByStore.commit('grid/SET_GROUP_BY_SECTION_ROWS', {
+      sectionKey,
+      rows: [
+        {
+          id: 10,
+          order: '1.00',
+          field_1: 'First',
+          field_2: 'B',
+          _: { ...rowMetadata, persistentId: 'r10' },
+        },
+        beforeRow,
+      ],
+      startPosition: 0,
+    })
+
+    let requestBefore = null
+    let requestBody = null
+    mockServer.mock.onPost('/database/rows/table/1/batch/').reply((config) => {
+      requestBefore = config.params.before
+      requestBody = JSON.parse(config.data)
+      return [
+        200,
+        {
+          items: [
+            {
+              id: 11,
+              order: '1.50',
+              field_1: '',
+              field_2: 'B',
+            },
+          ],
+          metadata: { updated_field_ids: [] },
+        },
+      ]
+    })
+
+    await groupByStore.dispatch('grid/createNewRowInGroup', {
+      view: {
+        id: 1,
+        filters: [],
+        filter_groups: [],
+        filter_type: 'AND',
+        sortings: [],
+        group_bys: groupBys,
+      },
+      table: { id: 1 },
+      fields,
+      path: { field_2: 'B' },
+      before: beforeRow,
+      selectPrimaryCell: true,
+    })
+
+    expect(requestBefore).toBe(12)
+    expect(requestBody.items[0].field_2).toBe('B')
+    expect(
+      groupByStore.state.grid.groupBy.sectionRows[sectionKey].map((row) => [
+        row.id,
+        row.field_1,
+      ])
+    ).toEqual([
+      [10, 'First'],
+      [11, ''],
+      [12, 'Second'],
+    ])
+    expect(groupByStore.state.grid.groupBy.rowLocations).toEqual({
+      10: { sectionKey, position: 0 },
+      11: { sectionKey, position: 1 },
+      12: { sectionKey, position: 2 },
+    })
+    expect(groupByStore.state.grid.groupBy.treeNodes).toEqual([
+      { path: { field_2: 'B' }, depth: 0, row_count: 3 },
+    ])
+  })
+
   test('createNewRowInGroup does not duplicate a queued edited row when adding another row', async () => {
     const fields = [
       {
