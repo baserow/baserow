@@ -96,14 +96,25 @@
         v-if="canAddGroupBy || view.group_bys.length > 0"
         class="context__footer group-bys__footer"
       >
-        <ButtonText
+        <span
           v-if="canAddGroupBy"
-          ref="addDropdownToggle"
-          icon="iconoir-plus"
-          @click="$refs.addDropdown.toggle($refs.addDropdownToggle.$el)"
+          v-tooltip="
+            atGroupByLimit
+              ? $t('viewGroupByContext.maxGroupBysReached', {
+                  count: maxGroupBys,
+                })
+              : null
+          "
         >
-          {{ $t('viewGroupByContext.addGroupBy') }}</ButtonText
-        >
+          <ButtonText
+            ref="addDropdownToggle"
+            icon="iconoir-plus"
+            :disabled="atGroupByLimit"
+            @click="$refs.addDropdown.toggle($refs.addDropdownToggle.$el)"
+          >
+            {{ $t('viewGroupByContext.addGroupBy') }}</ButtonText
+          >
+        </span>
         <div class="group-bys__add">
           <Dropdown
             ref="addDropdown"
@@ -136,7 +147,10 @@
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import context from '@baserow/modules/core/mixins/context'
-import { DEFAULT_SORT_TYPE_KEY } from '@baserow/modules/database/constants'
+import {
+  DEFAULT_SORT_TYPE_KEY,
+  MAX_GROUP_BYS,
+} from '@baserow/modules/database/constants'
 import ViewSortOrder from '@baserow/modules/database/components/view/ViewSortOrder.vue'
 
 export default {
@@ -171,7 +185,20 @@ export default {
     },
   },
   emits: ['changed'],
+  data() {
+    return {
+      maxGroupBys: MAX_GROUP_BYS,
+    }
+  },
   computed: {
+    /**
+     * Soft cap: once a view reaches the maximum number of group-bys, the add button
+     * is disabled (existing group-bys can still be removed). Views that already have
+     * more keep working.
+     */
+    atGroupByLimit() {
+      return this.view.group_bys.length >= this.maxGroupBys
+    },
     /**
      * Calculates the total amount of available fields.
      */

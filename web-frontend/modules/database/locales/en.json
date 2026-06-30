@@ -581,6 +581,7 @@
     "groupBy": "Group by",
     "thenBy": "Then by",
     "addGroupBy": "choose a field to group by",
+    "maxGroupBysReached": "You can group by up to {count} fields.",
     "collapseAllGroups": "Collapse all",
     "expandAllGroups": "Expand all",
     "hiddenFieldWarning": "One or more group bys reference hidden fields that won't be visible to editors and lower roles."
