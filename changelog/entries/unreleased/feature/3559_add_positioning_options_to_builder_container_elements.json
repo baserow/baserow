@@ -1,6 +1,6 @@
 {
     "type": "feature",
-    "message": "Added sticky and fixed top/bottom positioning options to Application Builder container elements.",
+    "message": "Added sticky and fixed top/bottom positioning options to root Application Builder Simple container elements and fixed header/footer containers.",
     "issue_origin": "github",
     "issue_number": 3559,
     "domain": "builder",
