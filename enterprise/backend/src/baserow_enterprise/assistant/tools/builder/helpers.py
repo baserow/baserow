@@ -767,9 +767,6 @@ def add_field_mapping_to_action(
         BASEROW_FORMULA_MODE_ADVANCED,
         BaserowFormulaObject,
     )
-    from baserow_enterprise.assistant.tools.shared.formula_utils import (
-        strip_formula_prefix,
-    )
 
     action = BuilderWorkflowActionService().get_workflow_action(user, action_id)
     action_type = action.get_type().type
@@ -779,10 +776,6 @@ def add_field_mapping_to_action(
             f"Cannot add field mappings to '{action_type}'. "
             "Only create_row and update_row support field mappings."
         )
-
-    # The value is used directly as a formula, so strip any ``$formula:`` prefix
-    # the LLM may have added — left in place it breaks formula parsing at publish.
-    value_formula = strip_formula_prefix(value_formula)
 
     service = action.service.specific
 

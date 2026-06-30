@@ -50,7 +50,6 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
     formula_desc,
     literal_or_placeholder,
     needs_formula,
-    strip_formula_prefix,
 )
 
 from .utils import create_fake_tool_helpers, make_test_ctx
@@ -124,28 +123,6 @@ class TestFormulaUtils:
     def test_literal_or_placeholder_literal(self):
         assert literal_or_placeholder("Submit") == "'Submit'"
         assert literal_or_placeholder(None) == "''"
-
-    def test_strip_formula_prefix_removes_prefix(self):
-        # The inner formula must survive verbatim so it stays parseable.
-        assert (
-            strip_formula_prefix("$formula: get('form_data.13172673')")
-            == "get('form_data.13172673')"
-        )
-        assert strip_formula_prefix("$formula: now()") == "now()"
-        assert (
-            strip_formula_prefix("$formula: get('form_data.12507856') == 'true'")
-            == "get('form_data.12507856') == 'true'"
-        )
-
-    def test_strip_formula_prefix_leaves_bare_formula(self):
-        assert (
-            strip_formula_prefix("get('page_parameter.id')")
-            == "get('page_parameter.id')"
-        )
-
-    def test_strip_formula_prefix_leaves_static_value(self):
-        assert strip_formula_prefix("42") == "42"
-        assert strip_formula_prefix("'Submit'") == "'Submit'"
 
 
 # ===========================================================================
@@ -843,74 +820,6 @@ def test_add_action_field_mapping_updates_existing(data_fixture):
     assert result["status"] == "updated"
     assert len(result["field_mappings"]) == 1
     assert result["field_mappings"][0]["field_id"] == name_field.id
-
-
-@pytest.mark.django_db(transaction=True)
-def test_add_action_field_mapping_strips_formula_prefix(data_fixture):
-    """A ``$formula:`` prefix on the value must not end up in the stored formula.
-
-    The LLM is told ``$formula:`` is a supported prefix, so it sometimes adds it
-    to values that are already valid formulas. Left in place, the stored formula
-    becomes ``$formula: get(...)`` and fails to parse when the application is
-    published. The prefix must be stripped before the value is stored.
-    """
-
-    from baserow_enterprise.assistant.tools.builder.tools import (
-        add_action_field_mapping,
-    )
-
-    user = data_fixture.create_user()
-    workspace = data_fixture.create_workspace(user=user)
-    builder = data_fixture.create_builder_application(user=user, workspace=workspace)
-    page = data_fixture.create_builder_page(builder=builder, name="Form", path="/form")
-    database = data_fixture.create_database_application(user=user, workspace=workspace)
-    table = data_fixture.create_database_table(user=user, database=database)
-    name_field = data_fixture.create_text_field(table=table, name="Name")
-    email_field = data_fixture.create_text_field(table=table, name="Email")
-
-    tool_helpers = create_fake_tool_helpers()
-    ctx = make_test_ctx(user, workspace, tool_helpers)
-
-    from baserow_enterprise.assistant.tools.builder.types import FieldValueMapping
-
-    create_form_elements(
-        ctx,
-        page_id=page.id,
-        elements=[FormElementCreate(ref="form", type="form_container")],
-        thought="test",
-    )
-    action_result = create_actions(
-        ctx,
-        page_id=page.id,
-        actions=[
-            ActionCreate(
-                type="create_row",
-                element="form",
-                event="submit",
-                table_id=table.id,
-                field_values=[
-                    FieldValueMapping(field_id=str(name_field.id), value="'Alice'"),
-                ],
-            ),
-        ],
-        thought="test",
-    )
-    action_id = action_result["created_actions"][0]["id"]
-
-    result = add_action_field_mapping(
-        ctx,
-        action_id=action_id,
-        field_id=email_field.id,
-        value_formula="$formula: get('form_data.123')",
-        thought="test",
-    )
-
-    stored = next(
-        m["value"] for m in result["field_mappings"] if m["field_id"] == email_field.id
-    )
-    # The stored value carries the bare formula, never the ``$formula:`` prefix.
-    assert "$formula" not in stored
-    assert "get('form_data.123')" in stored
 
 
 # ===========================================================================

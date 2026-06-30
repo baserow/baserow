@@ -17,7 +17,6 @@ from baserow_enterprise.assistant.tools.shared.formula_utils import (
     formula_desc,
     literal_or_placeholder,
     needs_formula,
-    strip_formula_prefix,
 )
 from baserow_enterprise.assistant.types import BaseModel
 
@@ -68,6 +67,21 @@ _REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
     "update_row": ("table_id", "row_id", "field_values"),
     "delete_row": ("table_id", "row_id"),
 }
+
+
+def _strip_formula_prefix(value: str) -> str:
+    """
+    Strip the ``$formula:`` prefix if present, returning the inner formula.
+
+    The LLM sometimes adds the prefix to values that are already valid formulas
+    (e.g. ``$formula: get('current_record.id')``). In contexts where the value
+    is used directly (not routed through formula generation), we strip the
+    prefix so the underlying formula is used as-is.
+    """
+
+    if needs_formula(value):
+        return formula_desc(value)
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -157,7 +171,7 @@ def _row_service_kwargs(action: "ActionCreate", user, workspace) -> dict:
 
     if action.type in ("update_row", "delete_row") and action.row_id:
         kwargs["row_id"] = BaserowFormulaObject.create(
-            strip_formula_prefix(action.row_id),
+            _strip_formula_prefix(action.row_id),
             mode=BASEROW_FORMULA_MODE_ADVANCED,
         )
 
