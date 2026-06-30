@@ -470,7 +470,7 @@ export class LocalBaserowUpsertRowsWorkflowServiceType extends WorkflowActionSer
   }
 
   getErrorMessage({ service }) {
-    if (service !== undefined && !service.rows?.formula) {
+    if (service?.rows !== undefined && !service.rows?.formula) {
       return this.app.$i18n.t('serviceType.errorNoRowsSelected')
     }
 

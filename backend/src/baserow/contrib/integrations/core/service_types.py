@@ -2075,7 +2075,7 @@ class CoreCSVFileReaderServiceType(ListServiceTypeMixin, CoreServiceType):
             return []
 
         if first_line_is_header:
-            headers = [header.strip() for header in csv_rows[0]]
+            headers = [self._normalize_csv_header(header) for header in csv_rows[0]]
             return [
                 self._row_to_dict(headers, row)
                 for row in csv_rows[1:]
@@ -2094,6 +2094,9 @@ class CoreCSVFileReaderServiceType(ListServiceTypeMixin, CoreServiceType):
             header or f"column_{index + 1}": row[index] if index < len(row) else ""
             for index, header in enumerate(headers)
         }
+
+    def _normalize_csv_header(self, header: str) -> str:
+        return header.removeprefix("\ufeff").strip()
 
     def _row_has_values(self, row: list[str]) -> bool:
         return any(value != "" for value in row)
