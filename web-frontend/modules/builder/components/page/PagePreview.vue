@@ -6,7 +6,7 @@
   >
     <PreviewNavigationBar :page="currentPage" :style="{ maxWidth }" />
     <div ref="preview" class="page-preview" :style="{ 'max-width': maxWidth }">
-      <!-- Fixed root containers are rendered outside the scrollable preview so they stay aligned with the viewport. -->
+      <!-- Fixed root simple containers are rendered outside the scrollable preview so they stay aligned with the viewport. -->
       <ThemeProvider
         ref="fixedElements"
         class="page-preview__fixed-elements"
@@ -38,16 +38,17 @@
         @keydown="handleKeyDown"
       >
         <ThemeProvider class="page">
-          <template v-if="scrollableHeaderElements.length !== 0">
+          <template v-if="headerElements.length !== 0">
             <header
               class="page__header"
               :class="{
                 'page__header--element-selected':
                   pageSectionWithSelectedElement === 'header',
+                'page__header--position-fixed': hasFixedHeaderElements,
               }"
             >
               <ElementPreview
-                v-for="element in scrollableHeaderElements"
+                v-for="element in headerElements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="element.id === firstPreviewElementId"
@@ -96,7 +97,7 @@
               />
             </div>
           </template>
-          <template v-if="scrollableFooterElements.length !== 0">
+          <template v-if="footerElements.length !== 0">
             <div class="page-preview__separator">
               <span class="page-preview__separator-label">
                 {{ $t('pagePreview.footer') }}
@@ -107,10 +108,11 @@
               :class="{
                 'page__footer--element-selected':
                   pageSectionWithSelectedElement === 'footer',
+                'page__footer--position-fixed': hasFixedFooterElements,
               }"
             >
               <ElementPreview
-                v-for="element in scrollableFooterElements"
+                v-for="element in footerElements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="element.id === firstPreviewElementId"
@@ -151,7 +153,10 @@ import AddElementModal from '@baserow/modules/builder/components/elements/AddEle
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider.vue'
 import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
-import { isFixedRootContainer } from '@baserow/modules/builder/utils/rootContainerPositioning'
+import {
+  isFixedRootMultiPageContainer,
+  isFixedRootSimpleContainer,
+} from '@baserow/modules/builder/utils/rootContainerPositioning'
 
 export default {
   name: 'PagePreview',
@@ -217,23 +222,15 @@ export default {
       return this.$store.getters['element/getRootElements'](this.currentPage)
     },
     fixedContentElements() {
-      return this.elements.filter(isFixedRootContainer)
-    },
-    fixedHeaderElements() {
-      return this.headerElements.filter(isFixedRootContainer)
-    },
-    fixedFooterElements() {
-      return this.footerElements.filter(isFixedRootContainer)
+      return this.elements.filter(isFixedRootSimpleContainer)
     },
     fixedPreviewElements() {
-      return [
-        ...this.fixedHeaderElements,
-        ...this.fixedContentElements,
-        ...this.fixedFooterElements,
-      ]
+      return this.fixedContentElements
     },
     scrollableContentElements() {
-      return this.elements.filter((element) => !isFixedRootContainer(element))
+      return this.elements.filter(
+        (element) => !isFixedRootSimpleContainer(element)
+      )
     },
     sharedPage() {
       return this.$store.getters['page/getSharedPage'](this.builder)
@@ -255,24 +252,18 @@ export default {
           PAGE_PLACES.FOOTER
       )
     },
-    scrollableHeaderElements() {
-      return this.headerElements.filter(
-        (element) => !isFixedRootContainer(element)
-      )
+    hasFixedHeaderElements() {
+      return this.headerElements.some(isFixedRootMultiPageContainer)
     },
-    scrollableFooterElements() {
-      return this.footerElements.filter(
-        (element) => !isFixedRootContainer(element)
-      )
+    hasFixedFooterElements() {
+      return this.footerElements.some(isFixedRootMultiPageContainer)
     },
     firstPreviewElementId() {
       return (
-        this.fixedHeaderElements[0]?.id ||
-        this.scrollableHeaderElements[0]?.id ||
+        this.headerElements[0]?.id ||
         this.fixedContentElements[0]?.id ||
         this.scrollableContentElements[0]?.id ||
-        this.scrollableFooterElements[0]?.id ||
-        this.fixedFooterElements[0]?.id ||
+        this.footerElements[0]?.id ||
         null
       )
     },

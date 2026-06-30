@@ -194,7 +194,7 @@ describe('PagePreview', () => {
     ).toBeTruthy()
   })
 
-  test('renders fixed header and footer elements in the fixed overlay', async () => {
+  test('renders fixed header and footer elements in their page sections', async () => {
     const fixedHeader = createElement({
       id: 44,
       type: 'header',
@@ -216,20 +216,16 @@ describe('PagePreview', () => {
       sharedElements: [fixedHeader, scrollableHeader, fixedFooter],
     })
     const fixedElements = wrapper.find('.page-preview__fixed-elements')
-    const scrollablePreview = wrapper.find('.page-preview__scaled')
+    const header = wrapper.find('.page__header')
+    const footer = wrapper.find('.page__footer')
 
-    expect(fixedElements.find('[data-element-id="44"]').exists()).toBeTruthy()
-    expect(fixedElements.find('[data-element-id="46"]').exists()).toBeTruthy()
-    expect(fixedElements.find('[data-element-id="45"]').exists()).toBeFalsy()
-    expect(
-      scrollablePreview.find('[data-element-id="44"]').exists()
-    ).toBeFalsy()
-    expect(
-      scrollablePreview.find('[data-element-id="46"]').exists()
-    ).toBeFalsy()
-    expect(
-      scrollablePreview.find('[data-element-id="45"]').exists()
-    ).toBeTruthy()
+    expect(fixedElements.find('[data-element-id="44"]').exists()).toBeFalsy()
+    expect(fixedElements.find('[data-element-id="46"]').exists()).toBeFalsy()
+    expect(header.classes()).toContain('page__header--position-fixed')
+    expect(footer.classes()).toContain('page__footer--position-fixed')
+    expect(header.find('[data-element-id="44"]').exists()).toBeTruthy()
+    expect(header.find('[data-element-id="45"]').exists()).toBeTruthy()
+    expect(footer.find('[data-element-id="46"]').exists()).toBeTruthy()
   })
 
   test('scales the fixed elements overlay with the page preview', () => {

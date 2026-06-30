@@ -1,15 +1,21 @@
 <template>
   <div class="page">
-    <PageElement
-      v-for="element in headerElements"
-      :key="element.id"
-      :element="element"
-      :mode="mode"
-      :application-context-additions="{
-        page: currentPage,
-        recordIndexPath: [],
-      }"
-    />
+    <header
+      v-if="headerElements.length !== 0"
+      class="page__header"
+      :class="{ 'page__header--position-fixed': hasFixedHeaderElements }"
+    >
+      <PageElement
+        v-for="element in headerElements"
+        :key="element.id"
+        :element="element"
+        :mode="mode"
+        :application-context-additions="{
+          page: currentPage,
+          recordIndexPath: [],
+        }"
+      />
+    </header>
     <PageElement
       v-for="element in elements"
       :key="element.id"
@@ -20,16 +26,22 @@
         recordIndexPath: [],
       }"
     />
-    <PageElement
-      v-for="element in footerElements"
-      :key="element.id"
-      :element="element"
-      :mode="mode"
-      :application-context-additions="{
-        page: currentPage,
-        recordIndexPath: [],
-      }"
-    />
+    <footer
+      v-if="footerElements.length !== 0"
+      class="page__footer"
+      :class="{ 'page__footer--position-fixed': hasFixedFooterElements }"
+    >
+      <PageElement
+        v-for="element in footerElements"
+        :key="element.id"
+        :element="element"
+        :mode="mode"
+        :application-context-additions="{
+          page: currentPage,
+          recordIndexPath: [],
+        }"
+      />
+    </footer>
   </div>
 </template>
 
@@ -38,6 +50,7 @@ import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import _ from 'lodash'
 import { PAGE_PLACES } from '@baserow/modules/builder/enums'
+import { isFixedRootMultiPageContainer } from '@baserow/modules/builder/utils/rootContainerPositioning'
 
 export default {
   components: { PageElement },
@@ -75,6 +88,12 @@ export default {
           this.$registry.get('element', element.type).getPagePlace() ===
           PAGE_PLACES.FOOTER
       )
+    },
+    hasFixedHeaderElements() {
+      return this.headerElements.some(isFixedRootMultiPageContainer)
+    },
+    hasFixedFooterElements() {
+      return this.footerElements.some(isFixedRootMultiPageContainer)
     },
   },
   watch: {

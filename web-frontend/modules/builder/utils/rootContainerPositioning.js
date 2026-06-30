@@ -5,11 +5,11 @@ import {
 
 const MULTI_PAGE_CONTAINER_TYPES = ['header', 'footer']
 
-function isRootSimpleContainer(element) {
+export function isRootSimpleContainer(element) {
   return element.type === 'simple_container' && !element.parent_element_id
 }
 
-function isRootMultiPageContainer(element) {
+export function isRootMultiPageContainer(element) {
   return (
     MULTI_PAGE_CONTAINER_TYPES.includes(element.type) &&
     !element.parent_element_id
@@ -29,20 +29,15 @@ function getPositioningAlignment(element) {
 }
 
 function hasPositioningBehaviour(element) {
-  if (isRootSimpleContainer(element)) {
-    return [
-      PAGE_ELEMENT_BEHAVIOURS.STICKY,
-      PAGE_ELEMENT_BEHAVIOURS.FIXED,
-    ].includes(element.behaviour)
-  }
-
   return (
-    isRootMultiPageContainer(element) &&
-    element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
+    isRootSimpleContainer(element) &&
+    [PAGE_ELEMENT_BEHAVIOURS.STICKY, PAGE_ELEMENT_BEHAVIOURS.FIXED].includes(
+      element.behaviour
+    )
   )
 }
 
-// Root-level simple and multi-page containers can opt into page-level positioning.
+// Root-level simple containers can opt into page-level positioning.
 export function isPositionedRootContainer(element) {
   return (
     hasPositioningBehaviour(element) &&
@@ -52,10 +47,17 @@ export function isPositionedRootContainer(element) {
   )
 }
 
-// Fixed root containers are rendered in a separate preview overlay to stay viewport-aligned.
-export function isFixedRootContainer(element) {
+// Fixed root simple containers are rendered in a separate preview overlay to stay viewport-aligned.
+export function isFixedRootSimpleContainer(element) {
   return (
     isPositionedRootContainer(element) &&
+    element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
+  )
+}
+
+export function isFixedRootMultiPageContainer(element) {
+  return (
+    isRootMultiPageContainer(element) &&
     element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
   )
 }
