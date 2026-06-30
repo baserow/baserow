@@ -5,6 +5,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar
 
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from loguru import logger
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -376,9 +377,18 @@ class ServiceType(
             return DispatchResult(**sample_data)
 
         try:
-            resolved_values = self.resolve_service_formulas(service, dispatch_context)
-            data = self.dispatch_data(service, resolved_values, dispatch_context)
-            serialized_data = self.dispatch_transform(data)
+            # Wrap the dispatch in a savepoint so that, if any of these
+            # operations raise a database error, only this savepoint is rolled
+            # back. This keeps the surrounding transaction usable, so the
+            # caller (and the sample data error save below) can still issue
+            # queries instead of crashing with a `TransactionManagementError`
+            # on a broken transaction.
+            with transaction.atomic():
+                resolved_values = self.resolve_service_formulas(
+                    service, dispatch_context
+                )
+                data = self.dispatch_data(service, resolved_values, dispatch_context)
+                serialized_data = self.dispatch_transform(data)
         except Exception as e:
             if dispatch_context.use_sample_data and (
                 dispatch_context.update_sample_data_for is None
