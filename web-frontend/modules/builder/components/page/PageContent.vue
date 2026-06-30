@@ -1,12 +1,13 @@
 <template>
   <div class="page">
     <header
-      v-if="headerElements.length !== 0"
+      v-for="group in headerElementGroups"
+      :key="group.key"
       class="page__header"
-      :class="{ 'page__header--position-fixed': hasFixedHeaderElements }"
+      :class="{ 'page__header--position-fixed': group.isFixed }"
     >
       <PageElement
-        v-for="element in headerElements"
+        v-for="element in group.elements"
         :key="element.id"
         :element="element"
         :mode="mode"
@@ -27,12 +28,13 @@
       }"
     />
     <footer
-      v-if="footerElements.length !== 0"
+      v-for="group in footerElementGroups"
+      :key="group.key"
       class="page__footer"
-      :class="{ 'page__footer--position-fixed': hasFixedFooterElements }"
+      :class="{ 'page__footer--position-fixed': group.isFixed }"
     >
       <PageElement
-        v-for="element in footerElements"
+        v-for="element in group.elements"
         :key="element.id"
         :element="element"
         :mode="mode"
@@ -50,7 +52,7 @@ import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import _ from 'lodash'
 import { PAGE_PLACES } from '@baserow/modules/builder/enums'
-import { isFixedRootMultiPageContainer } from '@baserow/modules/builder/utils/rootContainerPositioning'
+import { getMultiPageElementPositioningGroups } from '@baserow/modules/builder/utils/rootContainerPositioning'
 
 export default {
   components: { PageElement },
@@ -89,11 +91,11 @@ export default {
           PAGE_PLACES.FOOTER
       )
     },
-    hasFixedHeaderElements() {
-      return this.headerElements.some(isFixedRootMultiPageContainer)
+    headerElementGroups() {
+      return getMultiPageElementPositioningGroups(this.headerElements)
     },
-    hasFixedFooterElements() {
-      return this.footerElements.some(isFixedRootMultiPageContainer)
+    footerElementGroups() {
+      return getMultiPageElementPositioningGroups(this.footerElements)
     },
   },
   watch: {

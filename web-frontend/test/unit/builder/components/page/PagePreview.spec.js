@@ -216,15 +216,19 @@ describe('PagePreview', () => {
       sharedElements: [fixedHeader, scrollableHeader, fixedFooter],
     })
     const fixedElements = wrapper.find('.page-preview__fixed-elements')
-    const header = wrapper.find('.page__header')
+    const headers = wrapper.findAll('.page__header')
     const footer = wrapper.find('.page__footer')
 
     expect(fixedElements.find('[data-element-id="44"]').exists()).toBeFalsy()
     expect(fixedElements.find('[data-element-id="46"]').exists()).toBeFalsy()
-    expect(header.classes()).toContain('page__header--position-fixed')
+    expect(headers).toHaveLength(2)
+    expect(headers[0].classes()).toContain('page__header--position-fixed')
+    expect(headers[1].classes()).not.toContain('page__header--position-fixed')
     expect(footer.classes()).toContain('page__footer--position-fixed')
-    expect(header.find('[data-element-id="44"]').exists()).toBeTruthy()
-    expect(header.find('[data-element-id="45"]').exists()).toBeTruthy()
+    expect(headers[0].find('[data-element-id="44"]').exists()).toBeTruthy()
+    expect(headers[0].find('[data-element-id="45"]').exists()).toBeFalsy()
+    expect(headers[1].find('[data-element-id="44"]').exists()).toBeFalsy()
+    expect(headers[1].find('[data-element-id="45"]').exists()).toBeTruthy()
     expect(footer.find('[data-element-id="46"]').exists()).toBeTruthy()
   })
 

@@ -62,6 +62,25 @@ export function isFixedRootMultiPageContainer(element) {
   )
 }
 
+export function getMultiPageElementPositioningGroups(elements) {
+  return elements.reduce((groups, element) => {
+    const isFixed = isFixedRootMultiPageContainer(element)
+    const lastGroup = groups[groups.length - 1]
+
+    if (!lastGroup || lastGroup.isFixed !== isFixed) {
+      groups.push({
+        key: `${isFixed ? 'fixed' : 'normal'}-${element.id}`,
+        isFixed,
+        elements: [element],
+      })
+    } else {
+      lastGroup.elements.push(element)
+    }
+
+    return groups
+  }, [])
+}
+
 // Returns the CSS classes that apply the chosen behaviour and top/bottom alignment.
 export function getRootContainerPositioningClasses(element) {
   if (!isPositionedRootContainer(element)) {

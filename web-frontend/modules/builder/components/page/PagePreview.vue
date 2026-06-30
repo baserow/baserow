@@ -40,15 +40,17 @@
         <ThemeProvider class="page">
           <template v-if="headerElements.length !== 0">
             <header
+              v-for="group in headerElementGroups"
+              :key="group.key"
               class="page__header"
               :class="{
                 'page__header--element-selected':
                   pageSectionWithSelectedElement === 'header',
-                'page__header--position-fixed': hasFixedHeaderElements,
+                'page__header--position-fixed': group.isFixed,
               }"
             >
               <ElementPreview
-                v-for="element in headerElements"
+                v-for="element in group.elements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="element.id === firstPreviewElementId"
@@ -104,15 +106,17 @@
               </span>
             </div>
             <footer
+              v-for="group in footerElementGroups"
+              :key="group.key"
               class="page__footer"
               :class="{
                 'page__footer--element-selected':
                   pageSectionWithSelectedElement === 'footer',
-                'page__footer--position-fixed': hasFixedFooterElements,
+                'page__footer--position-fixed': group.isFixed,
               }"
             >
               <ElementPreview
-                v-for="element in footerElements"
+                v-for="element in group.elements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="element.id === firstPreviewElementId"
@@ -154,7 +158,7 @@ import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvid
 import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
 import {
-  isFixedRootMultiPageContainer,
+  getMultiPageElementPositioningGroups,
   isFixedRootSimpleContainer,
 } from '@baserow/modules/builder/utils/rootContainerPositioning'
 
@@ -252,11 +256,11 @@ export default {
           PAGE_PLACES.FOOTER
       )
     },
-    hasFixedHeaderElements() {
-      return this.headerElements.some(isFixedRootMultiPageContainer)
+    headerElementGroups() {
+      return getMultiPageElementPositioningGroups(this.headerElements)
     },
-    hasFixedFooterElements() {
-      return this.footerElements.some(isFixedRootMultiPageContainer)
+    footerElementGroups() {
+      return getMultiPageElementPositioningGroups(this.footerElements)
     },
     firstPreviewElementId() {
       return (
