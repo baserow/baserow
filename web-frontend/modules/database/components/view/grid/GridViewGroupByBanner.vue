@@ -1,13 +1,15 @@
 <template>
   <div
     class="grid-view__group-by-banner"
-    :class="{ 'grid-view__group-by-banner--collapsed': item.collapsed }"
+    :class="{
+      'grid-view__group-by-banner--collapsed': item.collapsed,
+      'grid-view__group-by-banner--first-level': item.depth === 0,
+    }"
     :style="{
       top: item.y + 'px',
       height: item.height + 'px',
       width: width + 'px',
     }"
-    :data-depth="item.depth"
     :data-collapsed="item.collapsed ? 'true' : 'false'"
   >
     <template v-if="includeRowDetails">

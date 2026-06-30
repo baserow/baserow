@@ -3,10 +3,12 @@
     <div
       v-for="item in value"
       :key="item.id"
-      class="grid-field-multiple-select__item"
+      class="grid-view__group-value-select-option"
       :class="'background-color--' + item.color"
     >
-      <div class="grid-field-many-to-many__name">{{ item.value }}</div>
+      <div class="grid-view__group-value-select-option-name">
+        {{ item.value }}
+      </div>
     </div>
   </div>
 </template>

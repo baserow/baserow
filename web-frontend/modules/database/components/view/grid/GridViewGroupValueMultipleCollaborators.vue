@@ -3,19 +3,17 @@
     <div
       v-for="item in value"
       :key="item.id"
-      class="field-multiple-collaborators__item"
+      class="grid-view__group-value-collaborator"
     >
       <!-- An optimistically-created group only knows the id; resolve the name from the
            store so a new group shows its badge before the server display arrives. -->
       <template v-if="item.id != null">
-        <div
-          class="field-multiple-collaborators__name background-color--light-gray"
-        >
-          <span class="field-multiple-collaborators__name-text">{{
+        <div class="grid-view__group-value-collaborator-name">
+          <span class="grid-view__group-value-collaborator-name-text">{{
             getCollaboratorName(item, $store)
           }}</span>
         </div>
-        <div class="field-multiple-collaborators__initials">
+        <div class="grid-view__group-value-collaborator-initials">
           {{ getCollaboratorNameInitials(item, $store) }}
         </div>
       </template>

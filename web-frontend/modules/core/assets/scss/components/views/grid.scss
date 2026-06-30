@@ -495,7 +495,7 @@
   font-size: 13px;
 }
 
-.grid-view__group-by-banner[data-depth='0'] {
+.grid-view__group-by-banner--first-level {
   border-top: 1px solid $palette-neutral-300;
 }
 
@@ -577,27 +577,58 @@
   gap: 4px;
   min-width: 0;
   overflow: hidden;
+}
 
-  > * {
-    flex: 0 0 auto;
-  }
+.grid-view__group-value-select-option {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  overflow: unset;
 
-  .field-multiple-collaborators__item {
-    height: 20px;
-  }
+  @include select-option-style(flex, true, false);
+}
 
-  .field-multiple-collaborators__name {
-    @include fixed-height(18px, 11px);
+.grid-view__group-value-select-option-name {
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 100%;
+}
 
-    padding-left: 15px;
-  }
+.grid-view__group-value-collaborator {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  height: 20px;
+}
 
-  .field-multiple-collaborators__initials {
-    flex: 0 0 18px;
-    margin-right: -12px;
+.grid-view__group-value-collaborator-name {
+  @extend %ellipsis;
 
-    @include center-text(18px, 10px);
-  }
+  display: flex;
+  max-width: 100%;
+  padding: 0 10px 0 15px;
+  color: $palette-neutral-1300;
+  background-color: $palette-neutral-100;
+  border-radius: 20px;
+
+  @include fixed-height(18px, 11px);
+}
+
+.grid-view__group-value-collaborator-name-text {
+  @extend %ellipsis;
+}
+
+.grid-view__group-value-collaborator-initials {
+  z-index: 1;
+  flex: 0 0 18px;
+  margin-left: 0;
+  margin-right: -12px;
+  color: $palette-neutral-0;
+  font-weight: bold;
+  background-color: $palette-blue-500;
+  border-radius: 100%;
+
+  @include center-text(18px, 10px);
 }
 
 .grid-view__group-by-banner-value-text {
@@ -610,9 +641,6 @@
 }
 
 .grid-view__group-by-banner-count {
-  @include fixed-height(20px, 11px);
-  @include rounded(999px);
-
   flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
@@ -623,6 +651,9 @@
   background: $palette-neutral-300;
   color: $palette-neutral-1100;
   font-weight: 600;
+
+  @include fixed-height(20px, 11px);
+  @include rounded(999px);
 }
 
 @keyframes grid-view-group-by-skeleton-pulse {
@@ -642,18 +673,16 @@
 }
 
 .grid-view__group-by-banner-skeleton-chevron {
-  @include rounded($rounded);
-
   flex: 0 0 auto;
   width: 16px;
   height: 16px;
   background: $palette-neutral-200;
   animation: grid-view-group-by-skeleton-pulse 1.2s ease-in-out infinite;
+
+  @include rounded($rounded);
 }
 
 .grid-view__group-by-banner-skeleton-line {
-  @include rounded($rounded);
-
   flex: 0 0 auto;
   width: 140px;
   max-width: 40%;
@@ -661,13 +690,15 @@
   margin-left: 12px;
   background: $palette-neutral-200;
   animation: grid-view-group-by-skeleton-pulse 1.2s ease-in-out infinite;
+
+  @include rounded($rounded);
 }
 
 .grid-view__group-value-boolean {
-  @include fixed-height(20px, 16px);
-
   display: inline-flex;
   align-items: center;
+
+  @include fixed-height(20px, 16px);
 }
 
 .grid-view__group-value-boolean--true {
