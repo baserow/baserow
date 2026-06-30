@@ -8,7 +8,7 @@ msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2023-01-31 17:07+0000\n"
-"PO-Revision-Date: 2026-05-20 15:11+0000\n"
+"PO-Revision-Date: 2026-07-01 08:10+0000\n"
 "Last-Translator: Adam_J <adam@ridgemedia.es>\n"
 "Language-Team: Polish <https://hosted.weblate.org/projects/baserow/premium-"
 "backend/pl/>\n"
@@ -18,7 +18,7 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=3; plural=(n==1 ? 0 : n%10>=2 && n%10<=4 && (n%100<10 "
 "|| n%100>=20) ? 1 : 2);\n"
-"X-Generator: Weblate 2026.6.dev0\n"
+"X-Generator: Weblate 2026.7.dev0\n"
 
 #: baserow_premium/row_comments/actions.py:20
 msgid "Create row comment"
@@ -27,4 +27,4 @@ msgstr "Dodaj komentarz do wiersza"
 #: baserow_premium/row_comments/actions.py:21
 #, python-format
 msgid "Comment (%(comment_id)s) has been added to row (%(row_id)s)"
-msgstr "Komentarz (%(comment_id)s) został dodany do wiersza (%(row_id)s)"
+msgstr "Komentarz (%(comment_id)s) do wiersza (%(row_id)s) został dodany"
