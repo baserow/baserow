@@ -23,8 +23,8 @@
         "name": "Podsumowanie"
     },
     "emptyDashboardSidebar": {
-        "title": "Żaden element nie został wybrany",
-        "message": "Kliknij element, żeby zobaczyć szczegóły."
+        "title": "Nie wybrano żadnego elementu",
+        "message": "Kliknij jakiś element, żeby zobaczyć szczegóły."
     },
     "widgetSettings": {
         "title": "Tytuł",
