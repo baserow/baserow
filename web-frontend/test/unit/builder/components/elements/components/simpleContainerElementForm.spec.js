@@ -22,10 +22,11 @@ describe('SimpleContainerElementForm', () => {
     template: '<div class="radio-group-stub" />',
   })
 
-  const mountComponent = (defaultValues = {}) => {
+  const mountComponent = (defaultValues = {}, { parentElement = null } = {}) => {
     return mountSuspended(SimpleContainerElementForm, {
       props: {
         defaultValues: {
+          id: 1,
           behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
           alignment: PAGE_ELEMENT_ALIGNMENTS.TOP,
           styles: {},
@@ -33,13 +34,18 @@ describe('SimpleContainerElementForm', () => {
           ...defaultValues,
         },
       },
-      mocks: {
-        $t: (key) => key,
-        $registry: {
-          getOrderedList: () => [],
-        },
-      },
       global: {
+        mocks: {
+          $t: (key) => key,
+          $registry: {
+            getOrderedList: () => [],
+          },
+          $store: {
+            getters: {
+              'element/getParent': () => parentElement,
+            },
+          },
+        },
         provide: {
           workspace: {},
           builder: {
@@ -74,11 +80,36 @@ describe('SimpleContainerElementForm', () => {
     ])
   })
 
-  test('disables positioning controls for nested containers', async () => {
+  test('disables positioning controls for containers with a parent id', async () => {
     const wrapper = await mountComponent({
       parent_element_id: 1,
       behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
     })
+
+    expect(getFormGroupLabels(wrapper)).toEqual([
+      'simpleContainerElementForm.behaviourLabel',
+    ])
+    expect(
+      wrapper.find('.form-group-stub').attributes('data-helper-text')
+    ).toBe('simpleContainerElementForm.rootContainerOnlyHelper')
+    expect(
+      wrapper.findComponent(RadioGroupStub).props('options')
+    ).toMatchObject([
+      { value: PAGE_ELEMENT_BEHAVIOURS.NORMAL, disabled: true },
+      { value: PAGE_ELEMENT_BEHAVIOURS.STICKY, disabled: true },
+      { value: PAGE_ELEMENT_BEHAVIOURS.FIXED, disabled: true },
+    ])
+  })
+
+  test('disables positioning controls for graph-nested containers', async () => {
+    const wrapper = await mountComponent(
+      {
+        behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+      },
+      {
+        parentElement: { id: 2, type: 'column' },
+      }
+    )
 
     expect(getFormGroupLabels(wrapper)).toEqual([
       'simpleContainerElementForm.behaviourLabel',

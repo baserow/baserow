@@ -52,8 +52,20 @@ export default {
   },
   computed: {
     PAGE_ELEMENT_BEHAVIOURS: () => PAGE_ELEMENT_BEHAVIOURS,
+    parentElement() {
+      const getParent = this.$store?.getters?.['element/getParent']
+      if (
+        typeof getParent !== 'function' ||
+        !this.elementPage ||
+        !this.defaultValues?.id
+      ) {
+        return null
+      }
+
+      return getParent(this.elementPage, this.defaultValues)
+    },
     isRootContainer() {
-      return !this.defaultValues.parent_element_id
+      return !this.parentElement && !this.defaultValues.parent_element_id
     },
     disablePositioningControls() {
       return !this.isRootContainer
