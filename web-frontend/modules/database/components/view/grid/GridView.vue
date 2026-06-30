@@ -1595,6 +1595,13 @@ export default {
      * outside of GridViewRows.
      */
     cancelMultiSelectIfActive(event) {
+      // A click inside a context menu (e.g. the row "Select row" action) is a
+      // deliberate grid action, not a click outside, so it must not clear the
+      // selection that action just made.
+      if (event.target.closest?.('.context__menu')) {
+        return
+      }
+
       const selectionType =
         this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
 
