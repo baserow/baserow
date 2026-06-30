@@ -128,6 +128,7 @@ def get_workflow_action_property_names(
         - "external" property names are those needed in the frontend.
     """
 
+    from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
     from baserow.contrib.builder.elements.handler import ElementHandler
     from baserow.contrib.builder.workflow_actions.workflow_action_types import (
         BuilderWorkflowServiceActionType,
@@ -136,9 +137,17 @@ def get_workflow_action_property_names(
     results = {"internal": {}, "external": {}}
 
     for workflow_action in workflow_actions:
-        formula_context = ElementHandler().get_import_context_addition(
-            workflow_action.element_id, element_map
-        )
+        try:
+            formula_context = ElementHandler().get_import_context_addition(
+                workflow_action.element_id, element_map
+            )
+        except ElementDoesNotExist:
+            # The workflow action's element may have been trashed (soft-deleted)
+            # while the action itself still exists; the `element` foreign key only
+            # cascades on permanent deletion. Such an action isn't rendered, so its
+            # formulas don't contribute any used properties and we skip it rather
+            # than failing the whole extraction.
+            continue
 
         found_properties = workflow_action.get_type().extract_properties(
             workflow_action, **formula_context
