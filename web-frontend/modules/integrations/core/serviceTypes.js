@@ -329,8 +329,8 @@ export class CoreCSVFileReaderServiceType extends DataSourceServiceTypeMixin(
   }
 
   getErrorMessage({ service }) {
-    if (service.input_type === undefined && service.file === undefined) {
-      // we are in preview or published mode
+    if (service?.input_type === undefined && service?.file === undefined) {
+      // The service is not loaded yet, or we are in preview or published mode
       return super.getErrorMessage({ service })
     }
 
