@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes background tasks being stopped early by the default time limit",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-06-29"
+}
