@@ -25,7 +25,7 @@ dependencies = [
     "gunicorn==23.0.0",
     "uvicorn[standard]==0.40.0",
     "websockets==16.0.0",
-    "requests==2.33.0",
+    "requests==2.34.2",
     "itsdangerous==2.2.0",
     "Pillow==12.2.0",
     "drf-spectacular==0.29.0",
