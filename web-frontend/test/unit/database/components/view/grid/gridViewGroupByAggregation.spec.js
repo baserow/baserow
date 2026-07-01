@@ -102,6 +102,17 @@ describe('GridViewGroupByAggregation', () => {
     expect(wrapper.find('.grid-view-aggregation__empty').exists()).toBe(true)
   })
 
+  test('never shows the summarize affordance for a configured field without a per-group value', async () => {
+    // A non-scalar aggregation (e.g. distribution) is configured but the backend
+    // returns no per-group value, so the field must not look unconfigured.
+    await configureSum()
+
+    const wrapper = await mountCell({ rawValue: undefined })
+
+    expect(wrapper.find('.grid-view-aggregation__empty').exists()).toBe(false)
+    expect(wrapper.text()).not.toContain('30')
+  })
+
   test('renders nothing for a read-only user when nothing is configured', async () => {
     const wrapper = await mountCell(
       { rawValue: undefined },

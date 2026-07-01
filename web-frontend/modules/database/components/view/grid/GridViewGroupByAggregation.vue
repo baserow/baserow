@@ -21,8 +21,10 @@
       v-else-if="loading && viewAggregationType"
       class="grid-view__group-by-banner-aggregation-loading"
     ></div>
+    <!-- Only unconfigured columns offer the picker; a configured column with no
+    per-group value (e.g. distribution) shows nothing. -->
     <div
-      v-else
+      v-else-if="!viewAggregationType"
       class="grid-view-aggregation__empty grid-view__group-by-banner-aggregation-empty"
       :class="{
         'grid-view-aggregation__empty--active':
