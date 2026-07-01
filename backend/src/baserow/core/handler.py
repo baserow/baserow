@@ -1242,16 +1242,17 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
     ) -> WorkspaceUser:
         """
         Adds a user to the workspace by creating the appropriate `WorkspaceUser`.
-        If the user is already in the workspace, the permissions field is updated.
+        If the user is already a member of the workspace the existing membership is
+        returned unchanged, so their permissions are never overwritten.
 
         :param workspace: the workspace in which we want to add the user.
         :param user: the user we want to add.
         :param permissions: the permissions of the user in this workspace. 'member' by
             default if not specified.
-        :return: The created `WorkspaceUser` object.
+        :return: The created or existing `WorkspaceUser` object.
         """
 
-        workspace_user, _ = WorkspaceUser.objects.update_or_create(
+        workspace_user, created = WorkspaceUser.objects.get_or_create(
             user=user,
             workspace=workspace,
             defaults={
@@ -1260,12 +1261,13 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
             },
         )
 
-        workspace_user_added.send(
-            self,
-            workspace_user_id=workspace_user.id,
-            workspace_user=workspace_user,
-            user=user,
-        )
+        if created:
+            workspace_user_added.send(
+                self,
+                workspace_user_id=workspace_user.id,
+                workspace_user=workspace_user,
+                user=user,
+            )
 
         return workspace_user
 
@@ -1277,7 +1279,8 @@ class CoreHandler(metaclass=baserow_trace_methods(tracer, exclude="clear_context
         the right permissions. It can only be accepted if the invitation was
         addressed to the email address of the user. Because the invitation has been
         accepted it can then be deleted. If the user is already a member of the
-        workspace then the permissions are updated.
+        workspace the invitation is consumed without changing their existing
+        permissions, so a stale invitation can never lower an existing member's role.
 
         :param user: The user who has accepted the invitation.
         :param invitation: The invitation that must be accepted.

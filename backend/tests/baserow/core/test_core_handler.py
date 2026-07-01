@@ -782,6 +782,7 @@ def test_accept_workspace_invitation(data_fixture):
     assert WorkspaceInvitation.objects.all().count() == 0
     assert WorkspaceUser.objects.all().count() == 1
 
+    # A second invitation must not change an existing member's permissions.
     workspace_invitation = data_fixture.create_workspace_invitation(
         email="test@test.nl", permissions="ADMIN", workspace=workspace
     )
@@ -789,7 +790,7 @@ def test_accept_workspace_invitation(data_fixture):
         user=user_1, invitation=workspace_invitation
     )
     assert workspace_user.workspace_id == workspace.id
-    assert workspace_user.permissions == "ADMIN"
+    assert workspace_user.permissions == "MEMBER"
     assert WorkspaceInvitation.objects.all().count() == 0
     assert WorkspaceUser.objects.all().count() == 1
 
@@ -803,6 +804,33 @@ def test_accept_workspace_invitation(data_fixture):
     assert workspace_user.permissions == "MEMBER"
     assert WorkspaceInvitation.objects.all().count() == 0
     assert WorkspaceUser.objects.all().count() == 2
+
+
+@pytest.mark.django_db
+def test_accept_workspace_invitation_does_not_downgrade_last_admin(data_fixture):
+    # Accepting a stale MEMBER invitation must not demote an existing admin.
+    workspace = data_fixture.create_workspace()
+    user = data_fixture.create_user(email="admin@test.nl")
+    data_fixture.create_user_workspace(
+        workspace=workspace, user=user, permissions="ADMIN"
+    )
+    workspace_invitation = data_fixture.create_workspace_invitation(
+        email="admin@test.nl", permissions="MEMBER", workspace=workspace
+    )
+
+    handler = CoreHandler()
+
+    workspace_user = handler.accept_workspace_invitation(
+        user=user, invitation=workspace_invitation
+    )
+
+    assert workspace_user.permissions == "ADMIN"
+    assert (
+        WorkspaceUser.objects.filter(workspace=workspace, permissions="ADMIN").count()
+        == 1
+    )
+    assert WorkspaceUser.objects.filter(workspace=workspace).count() == 1
+    assert WorkspaceInvitation.objects.all().count() == 0
 
 
 @pytest.mark.django_db
