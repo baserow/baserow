@@ -114,13 +114,7 @@ export const PAGE_PLACES = {
 
 export const PAGE_ELEMENT_BEHAVIOURS = {
   NORMAL: 'normal',
-  STICKY: 'sticky',
   FIXED: 'fixed',
-}
-
-export const PAGE_ELEMENT_ALIGNMENTS = {
-  TOP: 'top',
-  BOTTOM: 'bottom',
 }
 
 export const WIDTH_TYPES = {

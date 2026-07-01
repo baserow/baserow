@@ -103,7 +103,20 @@ describe('PageContent', () => {
     return wrapper
   }
 
-  test('renders fixed header and footer containers in sticky page sections', () => {
+  const getRenderedIds = (wrapper) => {
+    return wrapper
+      .findAll('.page-element-stub')
+      .map((element) => element.attributes('data-element-id'))
+  }
+
+  test('stacks fixed multi-page elements without moving content elements', () => {
+    const fixedTopContent = createElement({
+      id: 42,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+    })
+    const normalContent = createElement({
+      id: 43,
+    })
     const fixedHeader = createElement({
       id: 44,
       type: 'header',
@@ -115,27 +128,39 @@ describe('PageContent', () => {
       type: 'header',
       page_id: 2,
     })
-    const fixedFooter = createElement({
+    const fixedBottomContent = createElement({
       id: 46,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+    })
+    const fixedFooter = createElement({
+      id: 47,
       type: 'footer',
       page_id: 2,
       behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
     })
+    const normalFooter = createElement({
+      id: 48,
+      type: 'footer',
+      page_id: 2,
+    })
 
     const wrapper = mountComponent({
-      sharedElements: [fixedHeader, normalHeader, fixedFooter],
+      elements: [fixedTopContent, normalContent, fixedBottomContent],
+      sharedElements: [fixedHeader, normalHeader, fixedFooter, normalFooter],
     })
-    const headers = wrapper.findAll('.page__header')
+    const topStack = wrapper.find('.page__fixed-stack--top')
+    const bottomStack = wrapper.find('.page__fixed-stack--bottom')
+    const header = wrapper.find('.page__header')
     const footer = wrapper.find('.page__footer')
 
-    expect(headers).toHaveLength(2)
-    expect(headers[0].classes()).toContain('page__header--position-fixed')
-    expect(headers[1].classes()).not.toContain('page__header--position-fixed')
-    expect(footer.classes()).toContain('page__footer--position-fixed')
-    expect(headers[0].find('[data-element-id="44"]').exists()).toBeTruthy()
-    expect(headers[0].find('[data-element-id="45"]').exists()).toBeFalsy()
-    expect(headers[1].find('[data-element-id="44"]').exists()).toBeFalsy()
-    expect(headers[1].find('[data-element-id="45"]').exists()).toBeTruthy()
-    expect(footer.find('[data-element-id="46"]').exists()).toBeTruthy()
+    expect(getRenderedIds(topStack)).toEqual(['44'])
+    expect(getRenderedIds(header)).toEqual(['45'])
+    expect(
+      wrapper
+        .findAll('.page > .page-element-stub')
+        .map((element) => element.attributes('data-element-id'))
+    ).toEqual(['42', '43', '46'])
+    expect(getRenderedIds(footer)).toEqual(['48'])
+    expect(getRenderedIds(bottomStack)).toEqual(['47'])
   })
 })

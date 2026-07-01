@@ -1,13 +1,23 @@
 <template>
   <div class="page">
-    <header
-      v-for="group in headerElementGroups"
-      :key="group.key"
-      class="page__header"
-      :class="{ 'page__header--position-fixed': group.isFixed }"
+    <div
+      v-if="fixedHeaderElements.length !== 0"
+      class="page__fixed-stack page__fixed-stack--top"
     >
       <PageElement
-        v-for="element in group.elements"
+        v-for="element in fixedHeaderElements"
+        :key="element.id"
+        :element="element"
+        :mode="mode"
+        :application-context-additions="{
+          page: currentPage,
+          recordIndexPath: [],
+        }"
+      />
+    </div>
+    <header v-if="normalHeaderElements.length !== 0" class="page__header">
+      <PageElement
+        v-for="element in normalHeaderElements"
         :key="element.id"
         :element="element"
         :mode="mode"
@@ -27,14 +37,9 @@
         recordIndexPath: [],
       }"
     />
-    <footer
-      v-for="group in footerElementGroups"
-      :key="group.key"
-      class="page__footer"
-      :class="{ 'page__footer--position-fixed': group.isFixed }"
-    >
+    <footer v-if="normalFooterElements.length !== 0" class="page__footer">
       <PageElement
-        v-for="element in group.elements"
+        v-for="element in normalFooterElements"
         :key="element.id"
         :element="element"
         :mode="mode"
@@ -44,6 +49,21 @@
         }"
       />
     </footer>
+    <div
+      v-if="fixedFooterElements.length !== 0"
+      class="page__fixed-stack page__fixed-stack--bottom"
+    >
+      <PageElement
+        v-for="element in fixedFooterElements"
+        :key="element.id"
+        :element="element"
+        :mode="mode"
+        :application-context-additions="{
+          page: currentPage,
+          recordIndexPath: [],
+        }"
+      />
+    </div>
   </div>
 </template>
 
@@ -51,8 +71,10 @@
 import PageElement from '@baserow/modules/builder/components/page/PageElement'
 import { dimensionMixin } from '@baserow/modules/core/mixins/dimensions'
 import _ from 'lodash'
-import { PAGE_PLACES } from '@baserow/modules/builder/enums'
-import { getMultiPageElementPositioningGroups } from '@baserow/modules/builder/utils/rootContainerPositioning'
+import {
+  PAGE_ELEMENT_BEHAVIOURS,
+  PAGE_PLACES,
+} from '@baserow/modules/builder/enums'
 
 export default {
   components: { PageElement },
@@ -91,11 +113,25 @@ export default {
           PAGE_PLACES.FOOTER
       )
     },
-    headerElementGroups() {
-      return getMultiPageElementPositioningGroups(this.headerElements)
+    fixedHeaderElements() {
+      return this.headerElements.filter(
+        (element) => element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
+      )
     },
-    footerElementGroups() {
-      return getMultiPageElementPositioningGroups(this.footerElements)
+    fixedFooterElements() {
+      return this.footerElements.filter(
+        (element) => element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
+      )
+    },
+    normalHeaderElements() {
+      return this.headerElements.filter(
+        (element) => element.behaviour !== PAGE_ELEMENT_BEHAVIOURS.FIXED
+      )
+    },
+    normalFooterElements() {
+      return this.footerElements.filter(
+        (element) => element.behaviour !== PAGE_ELEMENT_BEHAVIOURS.FIXED
+      )
     },
   },
   watch: {

@@ -6,27 +6,6 @@
   >
     <PreviewNavigationBar :page="currentPage" :style="{ maxWidth }" />
     <div ref="preview" class="page-preview" :style="{ 'max-width': maxWidth }">
-      <!-- Fixed root simple containers are rendered outside the scrollable preview so they stay aligned with the viewport. -->
-      <ThemeProvider
-        ref="fixedElements"
-        class="page-preview__fixed-elements"
-        :class="{
-          'page-preview__fixed-elements--preview-locked': isPreviewLocked,
-        }"
-      >
-        <ElementPreview
-          v-for="element in fixedPreviewElements"
-          :key="element.id"
-          :element="element"
-          :is-first-element="element.id === firstPreviewElementId"
-          :application-context-additions="{
-            recordIndexPath: [],
-            page: currentPage,
-          }"
-          :show-element-id="showElementId"
-          @move="moveElement($event)"
-        />
-      </ThemeProvider>
       <div
         ref="previewScaled"
         class="page-preview__scaled"
@@ -38,19 +17,42 @@
         @keydown="handleKeyDown"
       >
         <ThemeProvider class="page">
+          <div
+            v-if="fixedHeaderElements.length !== 0"
+            class="page__fixed-stack page__fixed-stack--top page__fixed-stack--header"
+          >
+            <ElementPreview
+              v-for="element in fixedHeaderElements"
+              :key="element.id"
+              :element="element"
+              :is-first-element="element.id === firstPreviewElementId"
+              :application-context-additions="{
+                recordIndexPath: [],
+                page: currentPage,
+              }"
+              :show-element-id="showElementId"
+              @move="moveElement($event)"
+            />
+            <div
+              v-if="normalHeaderElements.length === 0"
+              class="page-preview__separator"
+            >
+              <span class="page-preview__separator-label">
+                {{ $t('pagePreview.header') }}
+              </span>
+            </div>
+          </div>
           <template v-if="headerElements.length !== 0">
             <header
-              v-for="group in headerElementGroups"
-              :key="group.key"
+              v-if="normalHeaderElements.length !== 0"
               class="page__header"
               :class="{
                 'page__header--element-selected':
                   pageSectionWithSelectedElement === 'header',
-                'page__header--position-fixed': group.isFixed,
               }"
             >
               <ElementPreview
-                v-for="element in group.elements"
+                v-for="element in normalHeaderElements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="element.id === firstPreviewElementId"
@@ -62,7 +64,13 @@
                 @move="moveElement($event)"
               />
             </header>
-            <div class="page-preview__separator">
+            <div
+              v-if="
+                normalHeaderElements.length !== 0 ||
+                fixedHeaderElements.length === 0
+              "
+              class="page-preview__separator"
+            >
               <span class="page-preview__separator-label">
                 {{ $t('pagePreview.header') }}
               </span>
@@ -77,7 +85,7 @@
               @add-element="$refs.addElementModal.show()"
             />
           </template>
-          <template v-else-if="scrollableContentElements.length !== 0">
+          <template v-else>
             <div
               class="page__content"
               :class="{
@@ -86,7 +94,7 @@
               }"
             >
               <ElementPreview
-                v-for="element in scrollableContentElements"
+                v-for="element in elements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="element.id === firstPreviewElementId"
@@ -100,23 +108,27 @@
             </div>
           </template>
           <template v-if="footerElements.length !== 0">
-            <div class="page-preview__separator">
+            <div
+              v-if="
+                normalFooterElements.length !== 0 ||
+                fixedFooterElements.length === 0
+              "
+              class="page-preview__separator"
+            >
               <span class="page-preview__separator-label">
                 {{ $t('pagePreview.footer') }}
               </span>
             </div>
             <footer
-              v-for="group in footerElementGroups"
-              :key="group.key"
+              v-if="normalFooterElements.length !== 0"
               class="page__footer"
               :class="{
                 'page__footer--element-selected':
                   pageSectionWithSelectedElement === 'footer',
-                'page__footer--position-fixed': group.isFixed,
               }"
             >
               <ElementPreview
-                v-for="element in group.elements"
+                v-for="element in normalFooterElements"
                 :key="element.id"
                 :element="element"
                 :is-first-element="element.id === firstPreviewElementId"
@@ -129,6 +141,31 @@
               />
             </footer>
           </template>
+          <div
+            v-if="fixedFooterElements.length !== 0"
+            class="page__fixed-stack page__fixed-stack--bottom page__fixed-stack--footer"
+          >
+            <div
+              v-if="normalFooterElements.length === 0"
+              class="page-preview__separator"
+            >
+              <span class="page-preview__separator-label">
+                {{ $t('pagePreview.footer') }}
+              </span>
+            </div>
+            <ElementPreview
+              v-for="element in fixedFooterElements"
+              :key="element.id"
+              :element="element"
+              :is-first-element="element.id === firstPreviewElementId"
+              :application-context-additions="{
+                recordIndexPath: [],
+                page: currentPage,
+              }"
+              :show-element-id="showElementId"
+              @move="moveElement($event)"
+            />
+          </div>
 
           <client-only>
             <component
@@ -152,15 +189,15 @@ import { mapActions, mapGetters } from 'vuex'
 import ElementPreview from '@baserow/modules/builder/components/elements/ElementPreview'
 import { notifyIf } from '@baserow/modules/core/utils/error'
 import PreviewNavigationBar from '@baserow/modules/builder/components/page/PreviewNavigationBar'
-import { DIRECTIONS, PAGE_PLACES } from '@baserow/modules/builder/enums'
+import {
+  DIRECTIONS,
+  PAGE_ELEMENT_BEHAVIOURS,
+  PAGE_PLACES,
+} from '@baserow/modules/builder/enums'
 import AddElementModal from '@baserow/modules/builder/components/elements/AddElementModal.vue'
 import ThemeProvider from '@baserow/modules/builder/components/theme/ThemeProvider.vue'
 import BuilderToasts from '@baserow/modules/builder/components/BuilderToasts'
 import AddElementZone from '@baserow/modules/builder/components/elements/AddElementZone'
-import {
-  getMultiPageElementPositioningGroups,
-  isFixedRootSimpleContainer,
-} from '@baserow/modules/builder/utils/rootContainerPositioning'
 
 export default {
   name: 'PagePreview',
@@ -225,19 +262,6 @@ export default {
     elements() {
       return this.$store.getters['element/getRootElements'](this.currentPage)
     },
-    fixedContentElements() {
-      return this.elements.filter((element) =>
-        isFixedRootSimpleContainer(element, { isRoot: true })
-      )
-    },
-    fixedPreviewElements() {
-      return this.fixedContentElements
-    },
-    scrollableContentElements() {
-      return this.elements.filter(
-        (element) => !isFixedRootSimpleContainer(element, { isRoot: true })
-      )
-    },
     sharedPage() {
       return this.$store.getters['page/getSharedPage'](this.builder)
     },
@@ -258,18 +282,33 @@ export default {
           PAGE_PLACES.FOOTER
       )
     },
-    headerElementGroups() {
-      return getMultiPageElementPositioningGroups(this.headerElements)
+    fixedHeaderElements() {
+      return this.headerElements.filter(
+        (element) => element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
+      )
     },
-    footerElementGroups() {
-      return getMultiPageElementPositioningGroups(this.footerElements)
+    fixedFooterElements() {
+      return this.footerElements.filter(
+        (element) => element.behaviour === PAGE_ELEMENT_BEHAVIOURS.FIXED
+      )
+    },
+    normalHeaderElements() {
+      return this.headerElements.filter(
+        (element) => element.behaviour !== PAGE_ELEMENT_BEHAVIOURS.FIXED
+      )
+    },
+    normalFooterElements() {
+      return this.footerElements.filter(
+        (element) => element.behaviour !== PAGE_ELEMENT_BEHAVIOURS.FIXED
+      )
     },
     firstPreviewElementId() {
       return (
-        this.headerElements[0]?.id ||
-        this.fixedContentElements[0]?.id ||
-        this.scrollableContentElements[0]?.id ||
-        this.footerElements[0]?.id ||
+        this.fixedHeaderElements[0]?.id ||
+        this.normalHeaderElements[0]?.id ||
+        this.elements[0]?.id ||
+        this.normalFooterElements[0]?.id ||
+        this.fixedFooterElements[0]?.id ||
         null
       )
     },
@@ -444,26 +483,10 @@ export default {
       previewScaled.style.transformOrigin = `0 0`
       previewScaled.style.width = `${currentWidth / scale}px`
       previewScaled.style.height = `${currentHeight / scale}px`
-      this.updateFixedElementsScale({
-        scale,
-        width: currentWidth / scale,
-        height: currentHeight / scale,
-      })
 
       // Also update page top
       this.pageTop.value =
         this.$refs.preview.getBoundingClientRect().top + 30 * scale
-    },
-    updateFixedElementsScale({ scale, width, height }) {
-      const fixedElements =
-        this.$refs.fixedElements?.$el || this.$refs.fixedElements
-      if (!fixedElements) {
-        return
-      }
-      fixedElements.style.transform = `scale(${scale})`
-      fixedElements.style.transformOrigin = `0 0`
-      fixedElements.style.width = `${width}px`
-      fixedElements.style.height = `${height}px`
     },
     async moveElement({ element, direction }) {
       if (

@@ -1130,26 +1130,3 @@ class SimpleContainerElement(ContainerElement):
     """
     A simple container to group elements.
     """
-
-    class PAGE_BEHAVIOURS(models.TextChoices):
-        NORMAL = "normal"
-        STICKY = "sticky"
-        FIXED = "fixed"
-
-    class PAGE_ALIGNMENTS(models.TextChoices):
-        TOP = "top"
-        BOTTOM = "bottom"
-
-    behaviour = models.CharField(
-        choices=PAGE_BEHAVIOURS.choices,
-        max_length=15,
-        default=PAGE_BEHAVIOURS.NORMAL,
-        db_default=PAGE_BEHAVIOURS.NORMAL,
-    )
-
-    alignment = models.CharField(
-        choices=PAGE_ALIGNMENTS.choices,
-        max_length=15,
-        default=PAGE_ALIGNMENTS.TOP,
-        db_default=PAGE_ALIGNMENTS.TOP,
-    )

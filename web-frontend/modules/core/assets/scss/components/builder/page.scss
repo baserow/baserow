@@ -15,8 +15,7 @@
     flex-direction: column;
   }
 
-  .page__header--position-fixed,
-  .page__footer--position-fixed {
+  .page__fixed-stack {
     position: sticky;
     z-index: 3;
     width: 100%;
@@ -26,11 +25,11 @@
     background-repeat: var(--page-background-repeat, no-repeat);
   }
 
-  .page__header--position-fixed {
+  .page__fixed-stack--top {
     top: 0;
   }
 
-  .page__footer--position-fixed {
+  .page__fixed-stack--bottom {
     bottom: 0;
   }
 }

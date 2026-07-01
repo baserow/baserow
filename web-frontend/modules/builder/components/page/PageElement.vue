@@ -34,7 +34,6 @@ import {
   BACKGROUND_MODES,
 } from '@baserow/modules/builder/enums'
 import applicationContextMixin from '@baserow/modules/builder/mixins/applicationContext'
-import { getRootContainerPositioningClasses } from '@baserow/modules/builder/utils/rootContainerPositioning'
 
 import { mapGetters } from 'vuex'
 
@@ -56,11 +55,6 @@ export default {
       default: null,
     },
     showElementId: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    disableRootContainerPositioning: {
       type: Boolean,
       required: false,
       default: false,
@@ -128,12 +122,10 @@ export default {
       })
     },
     wrapperClasses() {
-      const positioningClasses = this.isChildElement
-        ? {}
-        : this.positioningClasses
-      if (this.isChildElement) {
+      if (
+        this.$store.getters['element/getParent'](this.elementPage, this.element)
+      ) {
         return {
-          ...positioningClasses,
           'element__wrapper--full-width':
             this.element.style_width_child === CHILD_WIDTH_TYPES.NORMAL.value,
           'element__wrapper--medium-width':
@@ -143,7 +135,6 @@ export default {
         }
       } else {
         return {
-          ...positioningClasses,
           'element__wrapper--full-bleed':
             this.element.style_width === WIDTH_TYPES.FULL.value,
           'element__wrapper--full-width':
@@ -154,21 +145,6 @@ export default {
             this.element.style_width === WIDTH_TYPES.SMALL.value,
         }
       }
-    },
-    isChildElement() {
-      return !!this.$store.getters['element/getParent'](
-        this.elementPage,
-        this.element
-      )
-    },
-    positioningClasses() {
-      if (this.disableRootContainerPositioning) {
-        return {}
-      }
-
-      return getRootContainerPositioningClasses(this.element, {
-        isRoot: !this.isChildElement,
-      })
     },
     elementStyles() {
       const styles = {

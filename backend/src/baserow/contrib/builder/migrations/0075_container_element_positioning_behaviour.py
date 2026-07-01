@@ -10,33 +10,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.AddField(
-            model_name="simplecontainerelement",
-            name="alignment",
-            field=models.CharField(
-                choices=[
-                    ("top", "Top"),
-                    ("bottom", "Bottom"),
-                ],
-                db_default="top",
-                default="top",
-                max_length=15,
-            ),
-        ),
-        migrations.AddField(
-            model_name="simplecontainerelement",
-            name="behaviour",
-            field=models.CharField(
-                choices=[
-                    ("normal", "Normal"),
-                    ("sticky", "Sticky"),
-                    ("fixed", "Fixed"),
-                ],
-                db_default="normal",
-                default="normal",
-                max_length=15,
-            ),
-        ),
-        migrations.AddField(
             model_name="footerelement",
             name="behaviour",
             field=models.CharField(

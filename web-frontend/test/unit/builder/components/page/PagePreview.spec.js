@@ -4,7 +4,6 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest'
 import PagePreview from '@baserow/modules/builder/components/page/PagePreview'
 import {
   PAGE_PLACES,
-  PAGE_ELEMENT_ALIGNMENTS,
   PAGE_ELEMENT_BEHAVIOURS,
 } from '@baserow/modules/builder/enums'
 
@@ -48,7 +47,6 @@ describe('PagePreview', () => {
     page_id: 1,
     parent_element_id: null,
     behaviour: PAGE_ELEMENT_BEHAVIOURS.NORMAL,
-    alignment: PAGE_ELEMENT_ALIGNMENTS.TOP,
     ...overrides,
   })
 
@@ -157,45 +155,76 @@ describe('PagePreview', () => {
     }
   }
 
-  test('renders the fixed elements overlay before the scrollable preview', async () => {
-    const { wrapper } = await mountComponent()
-    const preview = wrapper.find('.page-preview').element
-    const fixedElements = wrapper.find('.page-preview__fixed-elements').element
-    const previewScaled = wrapper.find('.page-preview__scaled').element
-    const previewChildren = Array.from(preview.children)
+  const getRenderedIds = (wrapper) => {
+    return wrapper
+      .findAll('.element-preview-stub')
+      .map((element) => element.attributes('data-element-id'))
+  }
 
-    expect(previewChildren.indexOf(fixedElements)).toBeLessThan(
-      previewChildren.indexOf(previewScaled)
+  const getDirectChildClassNames = (wrapper) => {
+    return Array.from(wrapper.element.children).map(
+      (child) => child.className
     )
-  })
+  }
 
-  test('renders fixed root elements in the fixed overlay', async () => {
-    const fixedElement = createElement({
+  test('renders fixed multi-page elements in sticky page stacks', async () => {
+    const fixedTopElement = createElement({
       id: 42,
       behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
-      alignment: PAGE_ELEMENT_ALIGNMENTS.BOTTOM,
       parent_element_id: 7,
     })
     const normalElement = createElement({
       id: 43,
     })
-    const { wrapper } = await mountComponent({
-      elements: [fixedElement, normalElement],
+    const fixedHeader = createElement({
+      id: 44,
+      type: 'header',
+      page_id: 2,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
     })
-    const fixedElements = wrapper.find('.page-preview__fixed-elements')
-    const scrollablePreview = wrapper.find('.page-preview__scaled')
+    const normalHeader = createElement({
+      id: 45,
+      type: 'header',
+      page_id: 2,
+    })
+    const fixedBottomElement = createElement({
+      id: 46,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+    })
+    const fixedFooter = createElement({
+      id: 47,
+      type: 'footer',
+      page_id: 2,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+    })
+    const normalFooter = createElement({
+      id: 48,
+      type: 'footer',
+      page_id: 2,
+    })
+    const { wrapper } = await mountComponent({
+      elements: [fixedTopElement, normalElement, fixedBottomElement],
+      sharedElements: [fixedHeader, normalHeader, fixedFooter, normalFooter],
+    })
+    const topStack = wrapper.find('.page__fixed-stack--top')
+    const bottomStack = wrapper.find('.page__fixed-stack--bottom')
+    const header = wrapper.find('.page__header')
+    const content = wrapper.find('.page__content')
+    const footer = wrapper.find('.page__footer')
 
-    expect(fixedElements.find('[data-element-id="42"]').exists()).toBeTruthy()
-    expect(fixedElements.find('[data-element-id="43"]').exists()).toBeFalsy()
-    expect(
-      scrollablePreview.find('[data-element-id="42"]').exists()
-    ).toBeFalsy()
-    expect(
-      scrollablePreview.find('[data-element-id="43"]').exists()
-    ).toBeTruthy()
+    expect(wrapper.find('.page-preview__fixed-elements').exists()).toBeFalsy()
+    expect(topStack.classes()).toContain('page__fixed-stack--header')
+    expect(getRenderedIds(topStack)).toEqual(['44'])
+    expect(topStack.find('.page-preview__separator').exists()).toBe(false)
+    expect(getRenderedIds(header)).toEqual(['45'])
+    expect(getRenderedIds(content)).toEqual(['42', '43', '46'])
+    expect(getRenderedIds(footer)).toEqual(['48'])
+    expect(bottomStack.classes()).toContain('page__fixed-stack--footer')
+    expect(getRenderedIds(bottomStack)).toEqual(['47'])
+    expect(bottomStack.find('.page-preview__separator').exists()).toBe(false)
   })
 
-  test('renders fixed header and footer elements in their page sections', async () => {
+  test('renders normal header and footer elements in their page sections', async () => {
     const fixedHeader = createElement({
       id: 44,
       type: 'header',
@@ -216,46 +245,51 @@ describe('PagePreview', () => {
     const { wrapper } = await mountComponent({
       sharedElements: [fixedHeader, scrollableHeader, fixedFooter],
     })
-    const fixedElements = wrapper.find('.page-preview__fixed-elements')
+    const topStack = wrapper.find('.page__fixed-stack--top')
     const headers = wrapper.findAll('.page__header')
-    const footer = wrapper.find('.page__footer')
+    const bottomStack = wrapper.find('.page__fixed-stack--bottom')
 
-    expect(fixedElements.find('[data-element-id="44"]').exists()).toBeFalsy()
-    expect(fixedElements.find('[data-element-id="46"]').exists()).toBeFalsy()
-    expect(headers).toHaveLength(2)
-    expect(headers[0].classes()).toContain('page__header--position-fixed')
-    expect(headers[1].classes()).not.toContain('page__header--position-fixed')
-    expect(footer.classes()).toContain('page__footer--position-fixed')
-    expect(headers[0].find('[data-element-id="44"]').exists()).toBeTruthy()
-    expect(headers[0].find('[data-element-id="45"]').exists()).toBeFalsy()
-    expect(headers[1].find('[data-element-id="44"]').exists()).toBeFalsy()
-    expect(headers[1].find('[data-element-id="45"]').exists()).toBeTruthy()
-    expect(footer.find('[data-element-id="46"]').exists()).toBeTruthy()
+    expect(getRenderedIds(topStack)).toEqual(['44'])
+    expect(headers).toHaveLength(1)
+    expect(getRenderedIds(headers[0])).toEqual(['45'])
+    expect(getRenderedIds(bottomStack)).toEqual(['46'])
   })
 
-  test('scales the fixed elements overlay with the page preview', () => {
-    const fixedElements = {
-      style: {},
-    }
-
-    PagePreview.methods.updateFixedElementsScale.call(
-      {
-        $refs: {
-          fixedElements,
-        },
-      },
-      {
-        scale: 0.5,
-        width: 800,
-        height: 600,
-      }
-    )
-
-    expect(fixedElements.style).toEqual({
-      transform: 'scale(0.5)',
-      transformOrigin: '0 0',
-      width: '800px',
-      height: '600px',
+  test('renders header and footer separators when only fixed elements exist', async () => {
+    const fixedHeader = createElement({
+      id: 44,
+      type: 'header',
+      page_id: 2,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
     })
+    const fixedFooter = createElement({
+      id: 46,
+      type: 'footer',
+      page_id: 2,
+      behaviour: PAGE_ELEMENT_BEHAVIOURS.FIXED,
+    })
+    const { wrapper } = await mountComponent({
+      sharedElements: [fixedHeader, fixedFooter],
+    })
+    const topStack = wrapper.find('.page__fixed-stack--top')
+    const bottomStack = wrapper.find('.page__fixed-stack--bottom')
+
+    expect(wrapper.find('.page__header').exists()).toBe(false)
+    expect(wrapper.find('.page__footer').exists()).toBe(false)
+    expect(wrapper.findAll('.page-preview__separator')).toHaveLength(2)
+    expect(getDirectChildClassNames(topStack)).toEqual([
+      'element-preview-stub',
+      'page-preview__separator',
+    ])
+    expect(getDirectChildClassNames(bottomStack)).toEqual([
+      'page-preview__separator',
+      'element-preview-stub',
+    ])
+    expect(topStack.find('.page-preview__separator-label').text()).toBe(
+      'pagePreview.header'
+    )
+    expect(bottomStack.find('.page-preview__separator-label').text()).toBe(
+      'pagePreview.footer'
+    )
   })
 })

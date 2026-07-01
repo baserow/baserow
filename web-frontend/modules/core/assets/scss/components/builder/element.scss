@@ -28,29 +28,6 @@
   }
 }
 
-.element--positioned {
-  left: 0;
-  right: 0;
-  width: 100%;
-  z-index: 3;
-}
-
-.element--position-sticky {
-  position: sticky;
-}
-
-.element--position-fixed {
-  position: fixed;
-}
-
-.element--position-alignment-top {
-  top: 0;
-}
-
-.element--position-alignment-bottom {
-  bottom: 0;
-}
-
 .element__inner-wrapper {
   border-top: var(--element-border-top, none);
   border-bottom: var(--element-border-bottom, none);
