@@ -31,6 +31,7 @@ from baserow.core.utils import (
     set_allowed_attrs,
 )
 
+from .constants import BASE_DATA_SYNC_ALLOWED_FIELDS
 from .exceptions import (
     DataSyncDoesNotExist,
     PropertyNotFound,
@@ -168,11 +169,7 @@ class DataSyncHandler:
         data_sync_type = data_sync_type_registry.get(type_name)
         model_class = data_sync_type.model_class
 
-        allowed_fields = [
-            "auto_add_new_properties",
-            "delete_unmatched_rows",
-            "two_way_sync",
-        ] + data_sync_type.allowed_fields
+        allowed_fields = BASE_DATA_SYNC_ALLOWED_FIELDS + data_sync_type.allowed_fields
         values = extract_allowed(kwargs, allowed_fields)
         values = data_sync_type.prepare_values(user, values)
 
@@ -294,11 +291,7 @@ class DataSyncHandler:
         data_sync = data_sync.specific
         data_sync_type = data_sync_type_registry.get_by_model(data_sync)
 
-        allowed_fields = [
-            "auto_add_new_properties",
-            "delete_unmatched_rows",
-            "two_way_sync",
-        ] + data_sync_type.allowed_fields
+        allowed_fields = BASE_DATA_SYNC_ALLOWED_FIELDS + data_sync_type.allowed_fields
 
         # Check if there is two-way support, if it must be enabled and wasn't enabled
         # before.

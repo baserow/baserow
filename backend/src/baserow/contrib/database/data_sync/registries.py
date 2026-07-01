@@ -6,6 +6,9 @@ from django.contrib.auth.models import AbstractUser
 
 from celery.app.task import Context
 
+from baserow.contrib.database.data_sync.constants import (
+    BASE_DATA_SYNC_ALLOWED_FIELDS,
+)
 from baserow.contrib.database.data_sync.export_serialized import (
     DataSyncExportSerializedStructure,
 )
@@ -237,7 +240,8 @@ class DataSyncType(
 
         properties = instance.synced_properties.all()
         type_specific = {
-            field: getattr(instance, field) for field in self.allowed_fields
+            field: getattr(instance, field)
+            for field in BASE_DATA_SYNC_ALLOWED_FIELDS + self.allowed_fields
         }
         last_sync_iso = instance.last_sync.isoformat() if instance.last_sync else None
         return DataSyncExportSerializedStructure.data_sync(
@@ -273,7 +277,9 @@ class DataSyncType(
         properties = serialized_copy.pop("properties", [])
         serialized_copy.pop("type")
         type_properties = {
-            field: serialized_copy.get(field) for field in self.allowed_fields
+            field: serialized_copy.get(field)
+            for field in BASE_DATA_SYNC_ALLOWED_FIELDS + self.allowed_fields
+            if field in serialized_copy
         }
         data_sync = self.model_class.objects.create(
             table=table,

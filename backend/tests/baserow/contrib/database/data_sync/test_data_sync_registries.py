@@ -113,3 +113,62 @@ def test_import_export_data_sync(data_fixture):
     assert fields[1].read_only is True
     assert fields[2].read_only is True
     assert fields[3].read_only is True
+
+
+@pytest.mark.django_db
+@responses.activate
+def test_base_data_sync_settings_are_preserved_on_import_export(data_fixture):
+    responses.add(
+        responses.GET,
+        "https://baserow.io/ical.ics",
+        status=200,
+        body=ICAL_FEED_WITH_ONE_ITEMS,
+    )
+
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    database = data_fixture.create_database_application(workspace=workspace)
+
+    handler = DataSyncHandler()
+
+    data_sync = handler.create_data_sync_table(
+        user=user,
+        database=database,
+        table_name="Test",
+        type_name="ical_calendar",
+        synced_properties=["uid"],
+        auto_add_new_properties=True,  # default False
+        delete_unmatched_rows=False,  # default True
+        ical_url="https://baserow.io/ical.ics",
+    )
+    # `two_way_sync` can't be enabled through the handler for iCal (no two-way sync
+    # strategy), so set it directly to still cover it in the serialization round-trip.
+    data_sync.two_way_sync = True  # default False
+    data_sync.save()
+
+    assert data_sync.auto_add_new_properties is True
+    assert data_sync.delete_unmatched_rows is False
+    assert data_sync.two_way_sync is True
+
+    database_type = application_type_registry.get("database")
+    config = ImportExportConfig(include_permission_data=True)
+    serialized = database_type.export_serialized(database, config)
+
+    imported_workspace = data_fixture.create_workspace()
+    data_fixture.create_user_workspace(workspace=imported_workspace, user=user)
+
+    imported_database = database_type.import_serialized(
+        imported_workspace,
+        serialized,
+        config,
+        {},
+        None,
+        None,
+    )
+
+    imported_table = imported_database.table_set.all().first()
+    imported_data_sync = imported_table.data_sync.specific
+
+    assert imported_data_sync.auto_add_new_properties is True
+    assert imported_data_sync.delete_unmatched_rows is False
+    assert imported_data_sync.two_way_sync is True
