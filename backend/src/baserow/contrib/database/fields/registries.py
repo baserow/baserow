@@ -523,8 +523,7 @@ class FieldType(
         :type model_field: models.Field
         :param field: The related field's instance.
         :type field: Field
-        :return: A Q or AnnotatedQ filter.
-            given value.
+        :return: A Q or AnnotatedQ filter for the given value.
         :rtype: OptionallyAnnotatedQ
         """
 

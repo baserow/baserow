@@ -46,7 +46,10 @@ export function genericStartsWithFilter(
   if (humanReadableRowValue == null) {
     return false
   }
-  humanReadableRowValue = String(humanReadableRowValue).toLowerCase().trim()
+  // The backend runs `__istartswith` on the raw cell value and only strips the
+  // filter value, so we must not trim the row value here or leading whitespace
+  // would make the real-time match disagree with the backend query.
+  humanReadableRowValue = String(humanReadableRowValue).toLowerCase()
   filterValue = String(filterValue).toLowerCase().trim()
 
   return humanReadableRowValue.startsWith(filterValue)

@@ -2,7 +2,7 @@
     "type": "feature",
     "message": "Adds a \"starts with\" filter for text fields",
     "issue_origin": "github",
-    "issue_number": null,
+    "issue_number": 1943,
     "domain": "database",
     "bullet_points": [],
     "created_at": "2026-07-01"

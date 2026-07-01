@@ -1028,6 +1028,11 @@ def test_starts_with_filter_type(data_fixture):
         formula=f"field('{text_field.name}')",
         formula_type="text",
     )
+    number_formula_field = data_fixture.create_formula_field(
+        table=table,
+        name="number formula",
+        formula=f"field('{number_field.name}')",
+    )
 
     handler = ViewHandler()
     model = table.get_model()
@@ -1142,6 +1147,14 @@ def test_starts_with_filter_type(data_fixture):
 
     view_filter.field = formula_field
     view_filter.value = "hello"
+    view_filter.save()
+    ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
+    assert len(ids) == 1
+    assert row.id in ids
+
+    # A non-text formula delegates to the underlying field type's query.
+    view_filter.field = number_formula_field
+    view_filter.value = "123"
     view_filter.save()
     ids = [r.id for r in handler.apply_filters(grid_view, model.objects.all()).all()]
     assert len(ids) == 1

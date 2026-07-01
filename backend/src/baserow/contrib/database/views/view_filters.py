@@ -310,7 +310,9 @@ class ContainsNotViewFilterType(NotViewFilterTypeMixin, ContainsViewFilterType):
 class StartsWithViewFilterType(ViewFilterType):
     """
     The starts with filter checks if the field value starts with the provided filter
-    value. It is compatible with models.CharField and models.TextField.
+    value. The compatible field types are listed in `compatible_field_types` and
+    cover text-based fields as well as number, autonumber, single select and the
+    matching formula types.
     """
 
     type = "starts_with"

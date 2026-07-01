@@ -811,6 +811,24 @@ describe('FieldType tests', () => {
     }
   )
 
+  test('NumberFieldType startsWithFilter matches the raw value despite formatting', () => {
+    // The field is formatted with a prefix, suffix and thousands separator, so its
+    // human readable form ($12,345.00 USD) differs from the raw stored value. The
+    // real-time filter must match the raw value to stay consistent with the backend.
+    const field = {
+      number_decimal_places: 2,
+      number_negative: false,
+      number_prefix: '$',
+      number_suffix: 'USD',
+      number_separator: 'COMMA_PERIOD',
+    }
+    const fieldType = new NumberFieldType()
+
+    expect(fieldType.startsWithFilter('12345', '123', field)).toBe(true)
+    expect(fieldType.startsWithFilter('12345', '$', field)).toBe(false)
+    expect(fieldType.startsWithFilter('12345', '999', field)).toBe(false)
+  })
+
   test.each([null, ''])(
     'Verify that NumberFieldType prepareValueForDuplicate returns null for %s',
     (emptyValue) => {

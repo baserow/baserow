@@ -817,15 +817,19 @@ export class FieldType extends Registerable {
   }
 
   /**
-   * Converts rowValue to its human readable form first before applying the
-   * filter returned from getStartsWithFilterFunction.
+   * Converts rowValue to its searchable form first before applying the filter
+   * returned from getStartsWithFilterFunction. We use `toSearchableString` rather
+   * than `toHumanReadableString` so the real-time match stays consistent with the
+   * backend, which filters on the raw value and knows nothing about display
+   * formatting (e.g. a number's prefix or thousands separator would otherwise
+   * break the start-anchored match).
    */
   startsWithFilter(rowValue, filterValue, field) {
     return (
       filterValue === '' ||
       this.getStartsWithFilterFunction(field)(
         rowValue,
-        this.toHumanReadableString(field, rowValue),
+        this.toSearchableString(field, rowValue),
         filterValue
       )
     )
@@ -4514,6 +4518,19 @@ export class FormulaFieldType extends mix(
       this._mapFormulaTypeToFieldType(field.formula_type)
     )
     return underlyingFieldType.getStartsWithFilterFunction()
+  }
+
+  /**
+   * Delegate to the underlying field type so the searchable-string conversion
+   * (e.g. a number's raw value vs its formatted display) stays consistent with
+   * the backend, matching how starts_with_query is delegated on the backend.
+   */
+  startsWithFilter(rowValue, filterValue, field) {
+    const underlyingFieldType = this.app.$registry.get(
+      'field',
+      this._mapFormulaTypeToFieldType(field.formula_type)
+    )
+    return underlyingFieldType.startsWithFilter(rowValue, filterValue, field)
   }
 
   toHumanReadableString(field, value) {
