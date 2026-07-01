@@ -162,9 +162,7 @@ describe('PagePreview', () => {
   }
 
   const getDirectChildClassNames = (wrapper) => {
-    return Array.from(wrapper.element.children).map(
-      (child) => child.className
-    )
+    return Array.from(wrapper.element.children).map((child) => child.className)
   }
 
   test('renders fixed multi-page elements in sticky page stacks', async () => {
