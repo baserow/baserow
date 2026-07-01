@@ -85,7 +85,7 @@ from baserow.core.services.types import DispatchResult, FormulaToResolve, Servic
 from baserow.version import VERSION as BASEROW_VERSION
 
 # Matches any runtime formula function calls, e.g. `get(`, `concat(`, etc.
-RE_DYNAMIC_FORMULA = re.compile(r"\b[a-z_]+\s*\(")
+RE_FORMULA_FUNCTION = re.compile(r"\b[a-z_]+\s*\(")
 
 
 class CoreServiceType(ServiceType):
@@ -551,7 +551,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         else:
             formula = body_content or ""
 
-        return bool(RE_DYNAMIC_FORMULA.search(formula))
+        return bool(RE_FORMULA_FUNCTION.search(formula))
 
     def dispatch_data(
         self,
