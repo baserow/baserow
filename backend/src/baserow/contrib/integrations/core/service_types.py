@@ -544,12 +544,7 @@ class CoreHTTPRequestServiceType(CoreServiceType):
         error message.
         """
 
-        body_content = service.body_content
-
-        if isinstance(body_content, dict):
-            formula = body_content.get("formula") or ""
-        else:
-            formula = body_content or ""
+        formula = (service.body_content or {}).get("formula") or ""
 
         return bool(RE_FORMULA_FUNCTION.search(formula))
 
