@@ -58,6 +58,7 @@ from baserow.contrib.integrations.core.models import (
 )
 from baserow.contrib.integrations.core.utils import calculate_next_periodic_run
 from baserow.contrib.integrations.utils import get_http_request_function
+from baserow.core.formula.registries import formula_runtime_function_registry
 from baserow.core.formula.types import BaserowFormulaObject
 from baserow.core.formula.validator import (
     ensure_array,
@@ -84,8 +85,11 @@ from baserow.core.services.registries import (
 from baserow.core.services.types import DispatchResult, FormulaToResolve, ServiceDict
 from baserow.version import VERSION as BASEROW_VERSION
 
-# Matches any runtime formula function calls, e.g. `get(`, `concat(`, etc.
-RE_FORMULA_FUNCTION = re.compile(r"\b[a-z_]+\s*\(")
+# Captures potential runtime formula function calls, e.g. `get(`, `concat(`, etc.
+# The captured name is checked against the runtime function registry so that
+# literal text like `foo(` (which isn't a real function) doesn't match. Function
+# names are case-insensitive, so the name is lowercased before the lookup.
+RE_FORMULA_FUNCTION = re.compile(r"\b([a-zA-Z_]+)\s*\(")
 
 
 class CoreServiceType(ServiceType):
@@ -546,7 +550,11 @@ class CoreHTTPRequestServiceType(CoreServiceType):
 
         formula = (service.body_content or {}).get("formula") or ""
 
-        return bool(RE_FORMULA_FUNCTION.search(formula))
+        registered_functions = set(formula_runtime_function_registry.get_types())
+        return any(
+            match.group(1).lower() in registered_functions
+            for match in RE_FORMULA_FUNCTION.finditer(formula)
+        )
 
     def dispatch_data(
         self,
