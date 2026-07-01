@@ -170,6 +170,29 @@ GROUP_BY_DATA_DESCENDANT_ROW_BUDGET_API_PARAM = OpenApiParameter(
         "request limit and is capped by the total group budget."
     ),
 )
+GROUP_BY_DATA_AGGREGATIONS_ONLY_API_PARAM = OpenApiParameter(
+    name="aggregations_only",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.BOOL,
+    required=False,
+    description=(
+        "When true, returns a lean values-only page: each group carries only its "
+        "`path` (plus `children_count` and per-group `aggregations`) and omits the "
+        "windowed layout fields (`row_count`, `sibling_index`, `row_offset`). Used "
+        "to refresh aggregation values in place without rebuilding the layout."
+    ),
+)
+GROUP_BY_DATA_INCLUDE_TOTALS_API_PARAM = OpenApiParameter(
+    name="include_totals",
+    location=OpenApiParameter.QUERY,
+    type=OpenApiTypes.BOOL,
+    required=False,
+    description=(
+        "When true, the response also includes a top-level `aggregations` object "
+        "with the view's table-level field aggregation totals, mirroring the grid "
+        "view field-aggregations response."
+    ),
+)
 
 
 class GridViewView(APIView):
@@ -465,6 +488,8 @@ class GridViewGroupByDataView(APIView):
             GROUP_BY_DATA_INCLUDE_DESCENDANTS_API_PARAM,
             GROUP_BY_DATA_DESCENDANT_LIMIT_API_PARAM,
             GROUP_BY_DATA_DESCENDANT_ROW_BUDGET_API_PARAM,
+            GROUP_BY_DATA_AGGREGATIONS_ONLY_API_PARAM,
+            GROUP_BY_DATA_INCLUDE_TOTALS_API_PARAM,
             OpenApiParameter("offset", OpenApiTypes.INT, OpenApiParameter.QUERY),
             OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
             OpenApiParameter(
@@ -927,6 +952,7 @@ class PublicGridViewGroupByDataView(APIView):
             GROUP_BY_DATA_INCLUDE_DESCENDANTS_API_PARAM,
             GROUP_BY_DATA_DESCENDANT_LIMIT_API_PARAM,
             GROUP_BY_DATA_DESCENDANT_ROW_BUDGET_API_PARAM,
+            GROUP_BY_DATA_AGGREGATIONS_ONLY_API_PARAM,
             OpenApiParameter("offset", OpenApiTypes.INT, OpenApiParameter.QUERY),
             OpenApiParameter("limit", OpenApiTypes.INT, OpenApiParameter.QUERY),
             OpenApiParameter(

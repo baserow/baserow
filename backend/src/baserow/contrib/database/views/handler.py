@@ -5053,6 +5053,8 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             "groups": groups,
             "offset": offset,
             "limit": limit,
+            # Values-only refresh: the client keys values onto groups by path and
+            # never paginates off this response, so the slice size suffices.
             "group_count": len(groups),
         }
 
