@@ -204,6 +204,15 @@ class ViewFixtures:
         if "order" not in kwargs:
             kwargs["order"] = "ASC"
 
+        if "priority" not in kwargs:
+            kwargs["priority"] = (
+                ViewSort.get_highest_order_of_queryset(
+                    ViewSort.objects.filter(view=kwargs["view"]),
+                    field="priority",
+                )
+                + 1
+            )
+
         return ViewSort.objects.create(**kwargs)
 
     def create_view_group_by(self, user=None, **kwargs):
@@ -215,6 +224,15 @@ class ViewFixtures:
 
         if "order" not in kwargs:
             kwargs["order"] = "ASC"
+
+        if "priority" not in kwargs:
+            kwargs["priority"] = (
+                ViewGroupBy.get_highest_order_of_queryset(
+                    ViewGroupBy.objects.filter(view=kwargs["view"]),
+                    field="priority",
+                )
+                + 1
+            )
 
         return ViewGroupBy.objects.create(**kwargs)
 

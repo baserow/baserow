@@ -579,6 +579,28 @@ def test_get_row_serializer_with_user_field_names(
 
 
 @pytest.mark.django_db
+def test_get_row_serializer_with_user_field_names_named_meta(data_fixture):
+    table = data_fixture.create_database_table(name="Cars")
+    text_field = data_fixture.create_text_field(table=table, order=0, name="Meta")
+
+    model = table.get_model()
+    row = model.objects.create(**{f"field_{text_field.id}": "Test value"})
+
+    serialized_row = get_row_serializer_class(
+        model,
+        RowSerializer,
+        is_response=True,
+        user_field_names=True,
+    )(row).data
+
+    assert serialized_row == {
+        "id": 1,
+        "order": "1.00000000000000000000",
+        "Meta": "Test value",
+    }
+
+
+@pytest.mark.django_db
 def test_remap_serialized_row_to_user_field_names(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)

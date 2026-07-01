@@ -938,7 +938,10 @@ class UserHandler(metaclass=baserow_trace_methods(tracer)):
         """
 
         signer = self._get_email_verification_signer()
-        token_data = signer.loads(token)
+        try:
+            token_data = signer.loads(token)
+        except BadSignature as ex:
+            raise InvalidVerificationToken() from ex
 
         if datetime.fromisoformat(token_data["expires_at"]) < datetime.now(
             tz=timezone.utc

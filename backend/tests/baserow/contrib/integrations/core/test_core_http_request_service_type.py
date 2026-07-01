@@ -107,6 +107,39 @@ def test_core_http_request_request_error(
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize(
+    "timeout_exception",
+    [
+        request_exceptions.ReadTimeout(),
+        request_exceptions.ConnectTimeout(),
+        request_exceptions.Timeout(),
+    ],
+)
+def test_core_http_request_timeout_returns_504(data_fixture, timeout_exception):
+    """
+    When the request times out, instead of failing we return a 504
+    status code so that the caller can decide the next step to take.
+    """
+
+    service = data_fixture.create_core_http_request_service(
+        url="'http://foo.localhost/'", timeout=1, http_method=HTTP_METHOD.POST
+    )
+    service_type = service.get_type()
+
+    dispatch_context = FakeDispatchContext()
+
+    with mock_advocate_request(raise_exception=timeout_exception):
+        dispatch_data = service_type.dispatch(service, dispatch_context)
+
+    assert dispatch_data.data == {
+        "raw_body": "",
+        "body": "",
+        "headers": {},
+        "status_code": 504,
+    }
+
+
+@pytest.mark.django_db
 def test_core_http_request_basic_body_raw(
     data_fixture,
 ):
@@ -156,6 +189,45 @@ def test_core_http_request_basic_body_json(
             **{
                 "headers": {"user-agent": AnyStr()},
                 "json": {"test": "2"},
+                "method": HTTP_METHOD.GET,
+                "params": {},
+                "timeout": 30,
+                "url": "http://example.notexist/",
+            }
+        )
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("control_char", ["\n", "\t", "\r"])
+def test_core_http_request_basic_body_json_with_control_characters(
+    data_fixture, control_char
+):
+    """
+    Raw control characters (e.g. newlines, tabs) inside JSON string values
+    should be accepted. The body can be the resolved output of a formula, so
+    such characters are legitimate content and shouldn't fail the request.
+    """
+
+    value = f"line1{control_char}line2"
+    service = data_fixture.create_core_http_request_service(
+        url="'http://example.notexist/'",
+        # A *raw* control character inside the JSON string (not an escaped
+        # `\n` sequence), which `json.loads` rejects unless `strict=False`.
+        body_content="'" + f'{{"test": "{value}"}}' + "'",
+        body_type=BODY_TYPE.JSON,
+    )
+    service_type = service.get_type()
+
+    dispatch_context = FakeDispatchContext()
+
+    # Use the patch context manager to mock `advocate.request`
+    with mock_advocate_request({"foo": "bar"}) as mock_request:
+        service_type.dispatch(service, dispatch_context)
+
+        mock_request.assert_called_once_with(
+            **{
+                "headers": {"user-agent": AnyStr()},
+                "json": {"test": value},
                 "method": HTTP_METHOD.GET,
                 "params": {},
                 "timeout": 30,

@@ -14,6 +14,7 @@ from baserow.contrib.builder.workflow_actions.registries import (
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
 from baserow.core.app_auth_providers.registries import app_auth_provider_type_registry
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.integrations.models import Integration
 from baserow.core.models import WorkspaceUser
 from baserow.core.user.exceptions import UserAlreadyExist
@@ -30,6 +31,24 @@ User = get_user_model()
 
 
 def load_test_data():
+    element_handler = ElementHandler()
+
+    def create_element(
+        element_type,
+        page,
+        reference_element=None,
+        position=GraphPointPosition.SOUTH,
+        place_in_container="",
+        **kwargs,
+    ):
+        element = element_handler.create_element(element_type, page, **kwargs)
+        if reference_element is None:
+            page.get_graph().append(element)
+        else:
+            output = place_in_container if position == GraphPointPosition.CHILD else ""
+            page.get_graph().insert(element, reference_element, position, output)
+        return element
+
     # Get the user created in the main module
     user = User.objects.get(email="admin@baserow.io")
     workspace = user.workspaceuser_set.get(workspace__name="Acme Corp").workspace
@@ -105,9 +124,7 @@ def load_test_data():
     except Page.DoesNotExist:
         loginpage = PageHandler().create_page(builder, "Login", "/login")
 
-        ElementHandler().create_element(
-            auth_form_element, loginpage, user_source=user_source
-        )
+        create_element(auth_form_element, loginpage, user_source=user_source)
 
         builder.login_page = loginpage
         builder.save()
@@ -130,10 +147,11 @@ def load_test_data():
             page=builder.shared_page, content_type__model="columnelement"
         ).first()
 
-        logout_button = ElementHandler().create_element(
+        logout_button = create_element(
             button_element,
             builder.shared_page,
-            parent_element_id=column.id,
+            reference_element=column,
+            position=GraphPointPosition.CHILD,
             place_in_container="2",
             value='"Logout"',
             visibility="logged-in",

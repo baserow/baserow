@@ -110,7 +110,14 @@ const { data, error } = await useAsyncData(
           }),
         }
       } else {
-        throw createError({ statusCode: 404, message: 'Form not found.' })
+        throw createError({
+          statusCode: 404,
+          message: 'Form not found.',
+          data: {
+            report: false,
+          },
+          fatal: true,
+        })
       }
     }
 
@@ -169,7 +176,14 @@ const { data, error } = await useAsyncData(
         Object.assign(values, rowData)
       } catch (e) {
         if (e.response.status === 404) {
-          throw createError({ statusCode: 404, message: 'Invalid edit token.' })
+          throw createError({
+            statusCode: 404,
+            message: 'Invalid edit token.',
+            data: {
+              report: false,
+            },
+            fatal: true,
+          })
         }
         throw e
       }
@@ -199,8 +213,11 @@ const { data, error } = await useAsyncData(
       editToken,
     }
   },
-  // Ensure re-fetch if the URL (incl. query) changes while reusing the page instance
-  { watch: [() => route.fullPath] }
+  {
+    deep: true,
+    // Ensure re-fetch if the URL (incl. query) changes while reusing the page instance
+    watch: [() => route.fullPath],
+  }
 )
 
 if (error.value) {
@@ -331,6 +348,9 @@ async function submit() {
     const value = valuesCopy[valueName]
     const ref = form.value?.$refs?.['field-' + field.field.id]?.[0]
 
+    // Check required at the field-type level, not via the component's
+    // isValid(): some components (e.g. duration) only flag an error once the
+    // user types, so an untouched empty value would otherwise submit.
     if (
       (field.required && fieldType.isEmpty(field.field, value)) ||
       fieldType.getValidationError(field.field, value) !== null ||

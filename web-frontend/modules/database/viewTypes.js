@@ -676,8 +676,8 @@ export class GridViewType extends ViewType {
       { field, fieldType, view: selectedView },
       { root: true }
     )
-    // Sync the grid store's activeGroupBys with the view's group_bys which
-    // may have been updated by the field restore above.
+    // Sync activeGroupBys with the view's group_bys which may have been updated
+    // by the field restore above.
     await dispatch(
       storePrefix + 'view/grid/updateActiveGroupBys',
       clone(selectedView.group_bys || []),

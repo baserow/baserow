@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-16 21:52+0000\n"
+"POT-Creation-Date: 2026-06-15 14:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -134,44 +134,44 @@ msgid ""
 "(%(group_id)s) as %(permissions)s."
 msgstr ""
 
-#: src/baserow/core/actions.py:851
+#: src/baserow/core/actions.py:850
 msgid "Delete group invitation"
 msgstr ""
 
-#: src/baserow/core/actions.py:853
+#: src/baserow/core/actions.py:852
 #, python-format
 msgid ""
 "Group invitation (%(invitation_id)s) deleted for \"%(email)s\" to join "
 "\"%(group_name)s\" (%(group_id)s) as %(permissions)s."
 msgstr ""
 
-#: src/baserow/core/actions.py:911
+#: src/baserow/core/actions.py:910
 msgid "Accept group invitation"
 msgstr ""
 
-#: src/baserow/core/actions.py:913
+#: src/baserow/core/actions.py:912
 #, python-format
 msgid ""
 "Invitation (%(invitation_id)s) sent by \"%(sender)s\" to join "
 "\"%(group_name)s\" (%(group_id)s) as %(permissions)s was accepted."
 msgstr ""
 
-#: src/baserow/core/actions.py:971
+#: src/baserow/core/actions.py:970
 msgid "Reject group invitation"
 msgstr ""
 
-#: src/baserow/core/actions.py:973
+#: src/baserow/core/actions.py:972
 #, python-format
 msgid ""
 "Invitation (%(invitation_id)s) sent by \"%(sender)s\" to join "
 "\"%(group_name)s\" (%(group_id)s) as %(permissions)s was rejected."
 msgstr ""
 
-#: src/baserow/core/actions.py:1031
+#: src/baserow/core/actions.py:1030
 msgid "Update group invitation permissions"
 msgstr ""
 
-#: src/baserow/core/actions.py:1033
+#: src/baserow/core/actions.py:1032
 #, python-format
 msgid ""
 "Invitation (%(invitation_id)s) permissions changed from "
@@ -179,37 +179,37 @@ msgid ""
 "\"%(group_name)s\" (%(group_id)s)."
 msgstr ""
 
-#: src/baserow/core/actions.py:1096
+#: src/baserow/core/actions.py:1095
 msgid "Leave group"
 msgstr ""
 
-#: src/baserow/core/actions.py:1097
+#: src/baserow/core/actions.py:1096
 #, python-format
 msgid "Group \"%(group_name)s\" (%(group_id)s) left."
 msgstr ""
 
-#: src/baserow/core/actions.py:1132
+#: src/baserow/core/actions.py:1131
 msgid "Create initial workspace"
 msgstr ""
 
-#: src/baserow/core/actions.py:1133
+#: src/baserow/core/actions.py:1132
 msgid "Initial workspace created"
 msgstr ""
 
-#: src/baserow/core/actions.py:1161
+#: src/baserow/core/actions.py:1160
 msgid "Export applications"
 msgstr ""
 
-#: src/baserow/core/actions.py:1162
+#: src/baserow/core/actions.py:1161
 #, python-format
 msgid "Applications \"%(application_names)s\" (%(application_ids)s) exported"
 msgstr ""
 
-#: src/baserow/core/actions.py:1235
+#: src/baserow/core/actions.py:1234
 msgid "Import applications"
 msgstr ""
 
-#: src/baserow/core/actions.py:1236
+#: src/baserow/core/actions.py:1235
 #, python-format
 msgid "Applications \"%(application_names)s\" (%(application_ids)s) imported"
 msgstr ""
@@ -242,7 +242,11 @@ msgstr ""
 msgid "Decimal number"
 msgstr ""
 
-#: src/baserow/core/handler.py:2187 src/baserow/core/user/handler.py:271
+#: src/baserow/core/graph/models.py:163
+msgid "Unlabeled"
+msgstr ""
+
+#: src/baserow/core/handler.py:2173 src/baserow/core/user/handler.py:275
 #, python-format
 msgid "%(name)s's workspace"
 msgstr ""
@@ -342,8 +346,9 @@ msgstr[1] ""
 #: src/baserow/core/templates/baserow/core/user/account_deletion_cancelled.html:184
 #: src/baserow/core/templates/baserow/core/user/account_deletion_scheduled.html:189
 #: src/baserow/core/templates/baserow/core/user/change_email_confirmation.html:207
+#: src/baserow/core/templates/baserow/core/user/password_changed.html:189
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:207
-#: src/baserow/core/templates/baserow/core/workspace_invitation.html:209
+#: src/baserow/core/templates/baserow/core/workspace_invitation.html:202
 msgid ""
 "Baserow is an open source no-code database tool which allows you to "
 "collaborate on projects, customers and more. It gives you the powers of a "
@@ -429,6 +434,23 @@ msgstr ""
 msgid "Confirm"
 msgstr ""
 
+#: src/baserow/core/templates/baserow/core/user/password_changed.html:173
+msgid "Password changed"
+msgstr ""
+
+#: src/baserow/core/templates/baserow/core/user/password_changed.html:178
+#, python-format
+msgid ""
+"The password for your account (%(username)s) on Baserow "
+"(%(baserow_embedded_share_hostname)s) has been successfully changed."
+msgstr ""
+
+#: src/baserow/core/templates/baserow/core/user/password_changed.html:183
+msgid ""
+"If you did not make this change, please contact your administrator "
+"immediately to secure your account."
+msgstr ""
+
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:173
 #: src/baserow/core/templates/baserow/core/user/reset_password.html:192
 msgid "Reset password"
@@ -461,7 +483,7 @@ msgid ""
 "<strong>%(workspace_name)s</strong>."
 msgstr ""
 
-#: src/baserow/core/templates/baserow/core/workspace_invitation.html:194
+#: src/baserow/core/templates/baserow/core/workspace_invitation.html:187
 msgid "Accept invitation"
 msgstr ""
 
@@ -638,18 +660,22 @@ msgstr ""
 msgid "Reset password - Baserow"
 msgstr ""
 
-#: src/baserow/core/user/emails.py:37
+#: src/baserow/core/user/emails.py:36
+msgid "Password changed - Baserow"
+msgstr ""
+
+#: src/baserow/core/user/emails.py:53
 msgid "Account deletion scheduled - Baserow"
 msgstr ""
 
-#: src/baserow/core/user/emails.py:56
+#: src/baserow/core/user/emails.py:72
 msgid "Account permanently deleted - Baserow"
 msgstr ""
 
-#: src/baserow/core/user/emails.py:74
+#: src/baserow/core/user/emails.py:90
 msgid "Account deletion cancelled - Baserow"
 msgstr ""
 
-#: src/baserow/core/user/emails.py:94
+#: src/baserow/core/user/emails.py:110
 msgid "Confirm email address change - Baserow"
 msgstr ""

@@ -1,3 +1,4 @@
+import re
 from typing import TYPE_CHECKING, List, Optional
 
 from baserow.core.formula.exceptions import InvalidRuntimeFormula
@@ -84,9 +85,9 @@ class BaserowFormulaValidationVisitor(BaserowFormulaVisitor):
     def process_string(self, ctx):
         literal_without_outer_quotes = ctx.getText()[1:-1]
         if ctx.SINGLEQ_STRING_LITERAL() is not None:
-            literal = literal_without_outer_quotes.replace("\\'", "'")
+            literal = re.sub(r"\\(['\\])", r"\1", literal_without_outer_quotes)
         else:
-            literal = literal_without_outer_quotes.replace('\\"', '"')
+            literal = re.sub(r'\\(["\\])', r"\1", literal_without_outer_quotes)
         return literal
 
     def visitDecimalLiteral(self, ctx: BaserowFormula.DecimalLiteralContext):
@@ -132,27 +133,26 @@ class BaserowFormulaValidationVisitor(BaserowFormulaVisitor):
         Parse arguments for validation, skipping DeferredValue instances.
 
         During validation, nested function calls return DeferredValue markers
-        since their actual values aren't available yet. We pass these through
-        unchanged rather than attempting to parse/cast them.
+        since their actual values aren't available yet. When any arg is deferred
+        we pass the list through unchanged and the caller should detect the
+        DeferredValue and skip validate_args.
+
+        Otherwise we defer to the function type's `parse_args` so per-function
+        overrides (e.g. RuntimeToDuration leaving arg 0 as a string when a
+        format is provided) take effect during validation too.
 
         :param formula_function_type: The function type with arg definitions.
         :param accepted_args: The arguments from visiting child expressions.
-        :return: Parsed arguments with DeferredValue instances preserved.
+        :return: Parsed arguments, or the original list if any are deferred.
         """
 
         if formula_function_type.args is None:
             return accepted_args
 
-        result = []
-        for index, arg in enumerate(accepted_args):
-            if isinstance(arg, DeferredValue):
-                # Preserve deferred values - they'll be resolved at execution time
-                result.append(arg)
-            elif index < len(formula_function_type.args):
-                result.append(formula_function_type.args[index].parse(arg))
-            else:
-                result.append(arg)
-        return result
+        if any(isinstance(arg, DeferredValue) for arg in accepted_args):
+            return accepted_args
+
+        return formula_function_type.parse_args(accepted_args)
 
     def visitFunctionCall(
         self, ctx: BaserowFormula.FunctionCallContext, function_name: str = None

@@ -34,9 +34,9 @@ export default {
     },
 
     parentElement() {
-      return this.$store.getters['element/getElementById'](
+      return this.$store.getters['element/getParent'](
         this.elementPage,
-        this.element?.parent_element_id
+        this.element
       )
     },
 
@@ -75,12 +75,9 @@ export default {
         )
       )
 
-      // The `order`, `place_in_container` and `parent_element_id` properties
-      // are not meant to be changed here. In the event that we've detected
-      // a difference here, remove them.
-      delete differences.order
+      // The `place_in_container` property is not meant to be changed here.
+      // In the event that we've detected a difference here, remove it.
       delete differences.place_in_container
-      delete differences.parent_element_id
 
       if (Object.keys(differences).length > 0) {
         try {

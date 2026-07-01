@@ -2,7 +2,8 @@ import _ from 'lodash'
 
 import { trueValues, falseValues } from '@baserow/modules/core/utils/constants'
 import moment from '@baserow/modules/core/moment'
-import { DateOnly } from '@baserow/modules/core/utils/date'
+import { DateOnly, Timedelta } from '@baserow/modules/core/utils/date'
+import { parseDurationString } from '@baserow/modules/core/utils/duration'
 
 const isoRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z?$/
 const isoDateFormat = 'YYYY-MM-DD HH:mm:ss'
@@ -46,6 +47,9 @@ export const ensureInteger = (value) => {
     if (/^(-|\+)?(\d+|Infinity)$/.test(value)) {
       return Number(value)
     }
+  }
+  if (value instanceof Timedelta) {
+    return Math.floor(value.ms / 1000)
   }
   throw new Error(
     `Value '${value}' is not a valid integer or convertible to an integer.`
@@ -102,6 +106,8 @@ export const ensureString = (value, { allowEmpty = true } = {}) => {
     if (!isNaN(value)) {
       return moment(value).format(isoDateFormat)
     }
+  } else if (value instanceof Timedelta) {
+    return `${Math.floor(value.ms / 1000)}`
   } else if (typeof value === 'object') {
     // If it's a file we just extract the name
     if (value.__file__) {
@@ -284,4 +290,35 @@ export const ensureObject = (value) => {
   throw new TypeError(
     'Value is not a valid object or convertible to an object.'
   )
+}
+
+/**
+ * Ensures that the value is a valid duration or converts it to one.
+ * @param {*} value - The value to ensure as a duration.
+ * @returns {Timedelta} - The converted value as a Timedelta.
+ * @throws {TypeError} if `value` is not convertable to a Timedelta.
+ */
+export const ensureDuration = (value) => {
+  if (value instanceof Timedelta) {
+    return value
+  }
+
+  if (typeof value === 'string') {
+    const result = parseDurationString(value)
+    if (result !== null) return result
+
+    try {
+      return new Timedelta(ensureInteger(value) * 1000)
+    } catch {
+      throw new TypeError(
+        `'${value}' is not a valid duration. Expected format: e.g. '1 day', '2 hours'.`
+      )
+    }
+  }
+
+  if (typeof value === 'number') {
+    return new Timedelta(value * 1000)
+  }
+
+  throw new TypeError('Value cannot be converted to a duration.')
 }

@@ -1,76 +1,43 @@
-# Contributing
+# Contributing to Baserow
 
-We love your input! We want to make contributing to this project as easy and
-transparent as possible. If you wish to contribute please first discuss the change
-you wish to make via an issue, email, contact form at https://baserow.io/contact or
-any other method with us. If you do not know on what to contribute, please send us a
-small overview of your experience and optionally what you would like to learn. We will
-get back to you as soon as possible with proposed issues.
+Thank you for your interest in Baserow. This document explains how you can get involved.
 
-## We develop with GitLab
+## We are not accepting unsolicited pull requests
 
-We use GitLab to host code, to track issues and to make feature requests. The official
-repository can be found on https://github.com/baserow/baserow/. 
+We've decided to stop accepting unsolicited external pull requests for now. Reviewing external code contributions thoroughly takes significant time, and a growing volume of low-quality, AI-generated PRs has made the process difficult to manage for our small team.
 
-## The merge request process
+This wasn't an easy decision, and we know it affects well-intentioned contributors. See the [announcement](https://github.com/baserow/baserow/issues/5598) for the full reasoning.
 
-1. Open a new Feature Request/Change Request/Bug issue by selecting the corresponding 
-   issue type when creating an issue, or comment on an existing issue.
-1. Propose your plans and discuss them with the community on the issue.
-1. Fork the repository and create a branch from `develop`.
-1. Make the changes described in the issue.
-1. Ensure that your code meets the quality standards.
-1. Submit your merge request!
-1. Usually we enable the following GitLab merge options:
-    1. "Delete source branch when merge request is accepted. "
-    1. "Squash commits when merge request is accepted."
-1. A maintainer will review your code and merge your code.
+**We will only review pull requests that were coordinated with the team in advance.** PRs opened without prior coordination will be closed without review.
+
+## How you can still contribute
+
+There's a lot you can do that we genuinely value:
+
+- **Report bugs** — open a [bug report](https://github.com/baserow/baserow/issues/new?template=bug.yml) with steps to reproduce and the expected behavior.
+- **Request features** — open a [feature request](https://github.com/baserow/baserow/issues/new?template=feature_request.yml) describing what you need and why.
+- **Join the discussion** — share ideas, feedback, and use cases in our [community forum](https://community.baserow.io/).
+
+Well-described issues and feedback help us shape the product and are always welcome.
+
+## Want to contribute code?
+
+If you have something specific in mind, contact us first through the [community forum](https://community.baserow.io/) or the contact form at https://baserow.io/contact. If we agree the change makes sense, we'll coordinate the approach with you before any code is written — only then should you open a PR.
+
+Note that the `premium/` and `enterprise/` directories contain licensed code that is not open to external contributions.
 
 ## Quality standards
 
-* Backend code must have unit tests.
-* Python code must be compliant with the PEP 8 standard.
-* In code Python docs must be in reStructured style.
-* SCSS code must be compliant with BEM.
-* JavaScript code must be compliant with the eslint:recommended rules.
-* In code documentation is required for every function or class that is not self-evident.
-* Documentation for every concept that can used by a plugin.
-* A new changelog entry file should be generated using the script found in the changelog folder.
-* The pipeline must pass.
-* Try to apply the **rule of 10s**: MRs should aim to have no more than 10 code files with more than 10 lines modified. 
-  A code file doesn't include tests/css/text/migrations/translations/configuration/ etc.
+For coordinated contributions, see [Code quality](docs/development/code-quality.md) for our standards, linters, and testing expectations. The CI pipeline must pass and the security impact of every change must be considered.
 
-## Any contributions you make will be under the MIT Software License
+## License
 
-In short, when you submit code changes, your submissions are understood to be under
-the same [MIT License](http://choosealicense.com/licenses/mit/) that covers the
-project. Feel free to contact us if that is a concern.
+When you submit code changes, your submissions are understood to be under the same [MIT License](https://choosealicense.com/licenses/mit/) that covers the project.
 
-## Bug reports
+## Security vulnerabilities
 
-We use GitHub issues to track public bugs. You can report a bug by opening a new issue
-at https://github.com/baserow/baserow/issues and selecting the Bug issue type. You may 
-also reach out to us via the community on https://community.baserow.io.
+If you find a security vulnerability, please report it privately via email or the contact form at https://baserow.io/contact — do not open a public issue.
 
-**Great Bug Reports** tend to have:
+## Questions?
 
-* A quick summary and/or background.
-* Steps to reproduce.
-  * Be specific!
-  * Give sample code if you can.
-* What you expected would happen.
-* What actually happens.
-* Notes (possibly including why you think this might be happening, or stuff you tried
-  that did not work)
-  
-People love thorough bug reports.
-
-## Vulnerability
-
-If you have found a vulnerability in Baserow we would appreciate it if you would notify
-us via email or via the contact form at https://baserow.io/contact instead of publicly
-as the vulnerability might need to be addressed first.
-
-## Updating Documentation
-
-The Baserow documentation can be updated by editing Markdown files in the `docs` directory. We use [CommonMark](https://commonmark.org/) specification rendered using [markdown-it](https://www.npmjs.com/package/markdown-it) library. The documentation site cannot be previewed at the moment, use a compatible Markdown editor to verify changes.
+For general questions about Baserow, use the [community forum](https://community.baserow.io/).

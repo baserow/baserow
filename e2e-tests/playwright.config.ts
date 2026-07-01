@@ -1,7 +1,10 @@
 import type { PlaywrightTestConfig } from "@playwright/test";
 import { devices } from "@playwright/test";
+import path from "path";
 
-require("dotenv").config();
+// Resolve relative to this file so paths are correct regardless of cwd
+// (VS Code Playwright extension runs from the workspace root, not e2e-tests/).
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 
 export const baserowConfig = {
   PUBLIC_WEB_FRONTEND_URL: process.env.PUBLIC_WEB_FRONTEND_URL
@@ -17,7 +20,7 @@ export const baserowConfig = {
  * See https://playwright.dev/docs/test-configuration.
  */
 const config: PlaywrightTestConfig = {
-  testDir: "./tests",
+  testDir: path.join(__dirname, "tests"),
   /* Maximum time one test can run for. */
   timeout: 30 * 1000,
   expect: {
@@ -44,6 +47,8 @@ const config: PlaywrightTestConfig = {
     video: "on-first-retry",
     nuxt: {
       host: baserowConfig.PUBLIC_WEB_FRONTEND_URL,
+      // Disable fixture loading - test against running server, not local Nuxt app
+      fixture: false,
     },
   },
   projects: [
@@ -51,6 +56,7 @@ const config: PlaywrightTestConfig = {
       name: "chrome",
       use: {
         ...devices["Desktop Chrome"],
+        ...(process.env.CI ? { channel: "chrome" } : {}),
       },
     },
     {

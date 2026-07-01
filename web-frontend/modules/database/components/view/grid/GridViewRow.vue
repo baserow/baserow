@@ -146,6 +146,7 @@
 
 <script>
 import GridViewCell from '@baserow/modules/database/components/view/grid/GridViewCell'
+import { computeMultiSelectPosition } from '@baserow/modules/database/utils/row'
 import gridViewHelpers from '@baserow/modules/database/mixins/gridViewHelpers'
 import GridViewRowExpandButton from '@baserow/modules/database/components/view/grid/GridViewRowExpandButton'
 import RecursiveWrapper from '@baserow/modules/core/components/RecursiveWrapper'
@@ -367,62 +368,38 @@ export default {
     // Return an object that represents if a cell is selected,
     // and it's current position in the selection grid
     getMultiSelectPosition(rowId, field) {
-      const position = {
-        selected: false,
-        top: false,
-        right: false,
-        bottom: false,
-        left: false,
-      }
       const selectionType =
         this.$store.getters[this.storePrefix + 'view/grid/getSelectionType']
-      if (selectionType !== GRID_VIEW_MULTI_SELECT_AREA) {
-        if (this.isCheckboxSelected(rowId)) {
-          position.selected = true
-        }
-        return position
-      }
-
-      if (
+      const isAreaSelectionActive =
+        selectionType === GRID_VIEW_MULTI_SELECT_AREA &&
         this.$store.getters[this.storePrefix + 'view/grid/isMultiSelectActive']
-      ) {
-        const rowIndex =
+      if (!isAreaSelectionActive) {
+        return computeMultiSelectPosition({
+          isAreaSelectionActive: false,
+          // Checkbox highlight only shows outside area-selection mode, preserving
+          // the original behaviour where entering area-select hides it.
+          isCheckboxSelected:
+            selectionType !== GRID_VIEW_MULTI_SELECT_AREA &&
+            this.isCheckboxSelected(rowId),
+        })
+      }
+      return computeMultiSelectPosition({
+        isAreaSelectionActive: true,
+        isCheckboxSelected: false,
+        rowIndex:
           this.$store.getters[this.storePrefix + 'view/grid/getRowIndexById'](
             rowId
-          )
-
-        const fieldIndex = this.allVisibleFields.findIndex(
-          (f) => f.id === field.id
-        )
-
-        const [minRow, maxRow] =
+          ),
+        fieldIndex: this.allVisibleFields.findIndex((f) => f.id === field.id),
+        rowIndexRange:
           this.$store.getters[
             this.storePrefix + 'view/grid/getMultiSelectRowIndexSorted'
-          ]
-        const [minField, maxField] =
+          ],
+        fieldIndexRange:
           this.$store.getters[
             this.storePrefix + 'view/grid/getMultiSelectFieldIndexSorted'
-          ]
-
-        if (rowIndex >= minRow && rowIndex <= maxRow) {
-          if (fieldIndex >= minField && fieldIndex <= maxField) {
-            position.selected = true
-            if (rowIndex === minRow) {
-              position.top = true
-            }
-            if (rowIndex === maxRow) {
-              position.bottom = true
-            }
-            if (fieldIndex === minField) {
-              position.left = true
-            }
-            if (fieldIndex === maxField) {
-              position.right = true
-            }
-          }
-        }
-      }
-      return position
+          ],
+      })
     },
     setState(value) {
       this.state = value

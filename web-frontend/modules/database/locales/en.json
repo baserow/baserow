@@ -328,6 +328,7 @@
     "dbIndexError": "This field type cannot have an index. Please remove it before saving or change the field type.",
     "dbIndexDescription": "Indexing can significantly improve filtering performance, but slows down create, update, and delete operations.",
     "defaultValueDisabledByConstraint": "Cannot set a default value with a unique constraint",
+    "defaultValueOverriddenByView": "A view-level default value is set for this field and will take precedence over this default value.",
     "dbIndexDisabledTooltip": "Indexing is not available for this field type."
   },
   "fieldSelectThroughFieldSubForm": {
@@ -430,6 +431,18 @@
     "limitFileSize": "The maximum file size is {limit}MB.",
     "limitError": "It is not possible to import more than {limit} rows."
   },
+  "tableExcelImporter": {
+    "chooseFileLabel": "Choose Excel file",
+    "chooseFileDescription": "You can import an existing spreadsheet by uploading a .xlsx, .xls or .ods file. If the file contains multiple sheets you can choose which one to import.",
+    "chooseFile": "Choose Excel file",
+    "sheet": "Sheet",
+    "firstRowHeader": "First row is header",
+    "limitFileSize": "The maximum file size is {limit}MB.",
+    "limitError": "It is not possible to import more than {limit} rows.",
+    "processingError": "An error occurred while processing the Excel file: {error}",
+    "emptyError": "This Excel file does not contain any sheets.",
+    "emptySheetError": "The selected sheet is empty."
+  },
   "tablePasteImporter": {
     "pasteLabel": "Paste the table data",
     "pasteDescription": "You can copy the cells from a spreadsheet and paste them below.",
@@ -450,7 +463,8 @@
     "importError": "Something went wrong during the file import",
     "stateRowCreation": "Importing...",
     "statePreValidation": "Validating data...",
-    "stateCreateTable": "Creating table..."
+    "stateCreateTable": "Creating table...",
+    "importingTable": "Importing table \"{name}\"..."
   },
   "importErrorReport": {
     "reportTitleFailure": "Failing rows",
@@ -476,7 +490,8 @@
     "upsertTooltip": "Match existing rows using a unique field to overwrite data with imported values.",
     "stateRowCreation": "Importing...",
     "statePreValidation": "Validating data...",
-    "stateCreateTable": "Creating table..."
+    "stateCreateTable": "Creating table...",
+    "restoredFile": "Importing file \"{name}\"..."
   },
   "formulaAdvancedEditContext": {
     "textAreaFormulaInputPlaceholder": "Click to edit the formula",
@@ -495,6 +510,9 @@
   "formulaFieldItemDescription": {
     "syntax": "Syntax",
     "examples": "Examples"
+  },
+  "viewSearch": {
+    "clearSearch": "Clear search"
   },
   "viewSearchContext": {
     "searchInRows": "Search in all rows",
@@ -748,7 +766,9 @@
   },
   "exportTableForm": {
     "viewLabel": "Select the view to export:",
-    "typeError": "No exporter type available please select a different view or entire table."
+    "typeError": "No exporter type available please select a different view or entire table.",
+    "includeRowId": "Include row ID",
+    "includePrimaryField": "Include primary field"
   },
   "exportTableLoadingBar": {
     "export": "Export",
@@ -1101,7 +1121,8 @@
     "error": "Something went wrong during the sync",
     "autoAddLabel": "Auto add new properties",
     "autoAddHelper": "Automatically adds and synchronizes newly available properties from the data source into the Baserow table. Note that in order for this to work, all properties must be synced.",
-    "twoWaySyncLabel": "Two-way sync"
+    "twoWaySyncLabel": "Two-way sync",
+    "syncing": "Syncing data..."
   },
   "syncTableModal": {
     "title": "Sync {name}",

@@ -1,4 +1,5 @@
 import UserSourceService from '@baserow/modules/core/services/userSource'
+import { collatedStringCompare } from '@baserow/modules/core/utils/string'
 
 import {
   DEFAULT_USER_ROLE_PREFIX,
@@ -149,7 +150,7 @@ export default {
             })
             .flat()
         )
-      ).sort()
+      ).sort((roleA, roleB) => collatedStringCompare(roleA, roleB, 'ASC'))
 
       // If noRole exists, prefix to array
       if (noRole) {

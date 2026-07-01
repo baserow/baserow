@@ -1,0 +1,30 @@
+.presence-bar {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 8px;
+}
+
+.presence-bar__avatar {
+  margin-left: -2px;
+  border: 2px solid $white;
+
+  &:first-child {
+    margin-left: 0;
+  }
+}
+
+.presence-bar__overflow {
+  margin-left: -2px;
+  border: 2px solid $white;
+  background-color: $palette-neutral-500;
+  font-size: 10px;
+  cursor: default;
+}
+
+.presence-bar__divider {
+  align-self: stretch;
+  width: 1px;
+  margin: 16px 0;
+  background-color: $palette-neutral-200;
+}

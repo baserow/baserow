@@ -4,6 +4,7 @@ import {
   LocalBaserowTableServiceType,
   LocalBaserowCreateRowWorkflowServiceType,
   LocalBaserowDeleteRowWorkflowServiceType,
+  LocalBaserowFieldsUpdatedTriggerServiceType,
 } from '@baserow/modules/integrations/localBaserow/serviceTypes'
 import { TestApp } from '@baserow/test/helpers/testApp'
 
@@ -267,5 +268,24 @@ describe('Local baserow service types', () => {
       },
     ])
     expect(result.length).toBe(2)
+  })
+
+  test('LocalBaserowFieldsUpdatedTriggerServiceType is in error unless a table and at least one field are selected', () => {
+    const serviceType = new LocalBaserowFieldsUpdatedTriggerServiceType({
+      app: { $i18n: { t: (key) => key } },
+    })
+
+    expect(
+      serviceType.isInError({ service: { table_id: null, field_ids: [] } })
+    ).toBe(true)
+    expect(
+      serviceType.isInError({ service: { table_id: 1, field_ids: [] } })
+    ).toBe(true)
+    expect(
+      serviceType.isInError({ service: { table_id: null, field_ids: [1] } })
+    ).toBe(true)
+    expect(
+      serviceType.isInError({ service: { table_id: 1, field_ids: [1, 2] } })
+    ).toBe(false)
   })
 })

@@ -1,0 +1,57 @@
+from django.core.validators import MaxLengthValidator
+from django.db import models
+
+from baserow.core.formula.field import FormulaField
+from baserow.core.services.models import Service
+
+CORE_CODE_SERVICE_CODE_MAX_LENGTH = 4096
+
+
+class CoreCodeService(Service):
+    """
+    A service for executing arbitrary code.
+    """
+
+    code = models.TextField(
+        blank=True,
+        help_text="The code to execute.",
+        max_length=CORE_CODE_SERVICE_CODE_MAX_LENGTH,
+        validators=[MaxLengthValidator(CORE_CODE_SERVICE_CODE_MAX_LENGTH)],
+    )
+
+
+class CoreCodeServiceInjection(models.Model):
+    """
+    A value extracted from the dispatch context and injected into the code context.
+    """
+
+    service = models.ForeignKey(
+        CoreCodeService, on_delete=models.CASCADE, related_name="injections"
+    )
+    name = models.CharField(
+        max_length=255,
+        help_text="The variable name to use in the code executor context.",
+    )
+    formula = FormulaField(
+        blank=True,
+        help_text="The formula used to extract the variable value from the context.",
+    )
+
+
+class CoreXLSFileReaderService(Service):
+    """
+    A service to read rows from an XLS or XLSX file.
+    """
+
+    file = FormulaField(
+        blank=True,
+        help_text="The XLS or XLSX file to read.",
+    )
+    sheet_name = FormulaField(
+        blank=True,
+        help_text="The sheet to read. The first sheet is used when empty.",
+    )
+    first_line_is_header = models.BooleanField(
+        default=True,
+        help_text="Whether the first line of the spreadsheet contains column names.",
+    )

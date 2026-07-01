@@ -7,27 +7,75 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
       <div class="header__loading" style="display: none;"></div>
       <ul class="header__filter">
         <!--v-if-->
-        <li class="header__filter-item header__filter-item--grids"><a class="header__filter-link active" data-highlight="views"><i class="header__filter-icon header-filter-icon--view color-primary iconoir-menu"></i><span class="header__filter-name header__filter-name--forced"><span contenteditable="false" placeholder="" class="">mock_view_1</span></span><i class="header__sub-icon iconoir-nav-arrow-down"></i></a></li>
-        <li class="header__filter-item header__filter-item--no-margin-left"><a class="header__filter-link" data-highlight="view-options"><i class="header__filter-icon baserow-icon-more-vertical"></i></a></li>
+        <li class="header__filter-item header__filter-item--grids"><a class="header__filter-link active" data-highlight="views"><i class="header__filter-icon header-filter-icon--view color-primary iconoir-menu"></i><span class="header__filter-name header__filter-name--forced"><span contenteditable="false" placeholder="" class="">mock_view_1</span></span><i class="header__sub-icon iconoir-nav-arrow-down"></i></a>
+          <teleport-stub to="body">
+            <div class="select context visibility-hidden" header-overflow="false">
+              <!--v-if-->
+            </div>
+          </teleport-stub>
+        </li>
+        <li class="header__filter-item header__filter-item--no-margin-left"><a class="header__filter-link" data-highlight="view-options"><i class="header__filter-icon baserow-icon-more-vertical"></i></a>
+          <teleport-stub to="body">
+            <div views="[object Object]" class="context visibility-hidden context--overflow-scroll">
+              <!--v-if-->
+            </div>
+          </teleport-stub>
+        </li>
         <li class="header__filter-item" data-highlight="view-filters">
-          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-filter"></i><span class="header__filter-name">viewFilter.filter - 0</span></a></div>
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-filter"></i><span class="header__filter-name">viewFilter.filter - 0</span></a>
+            <teleport-stub to="body">
+              <div class="filters context visibility-hidden">
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+          </div>
         </li>
         <li class="header__filter-item" data-highlight="view-sorts">
-          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-sort"></i><span class="header__filter-name">viewSort.sort - 0</span></a></div>
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-sort"></i><span class="header__filter-name">viewSort.sort - 0</span></a>
+            <teleport-stub to="body">
+              <div class="sortings context visibility-hidden">
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+          </div>
         </li>
         <li class="header__filter-item" data-highlight="view-group-by">
-          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-book-stack"></i><span class="header__filter-name">viewGroupBy.groupBy - 0</span></a></div>
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-book-stack"></i><span class="header__filter-name">viewGroupBy.groupBy - 0</span></a>
+            <teleport-stub to="body">
+              <div class="group-bys context visibility-hidden">
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+          </div>
         </li>
         <li class="header__filter-item">
-          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-share-android"></i><span class="header__filter-name">shareViewLink.shareView</span></a></div>
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-share-android"></i><span class="header__filter-name">shareViewLink.shareView</span></a>
+            <teleport-stub to="body">
+              <div class="context visibility-hidden">
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+          </div>
         </li>
         <li class="header__filter-item">
-          <div disable-sort="false"><a class="header__filter-link"><i class="header__filter-icon iconoir-palette"></i><span class="header__filter-name">viewDecorator.decorator - 0</span></a></div>
+          <div disable-sort="false"><a class="header__filter-link"><i class="header__filter-icon iconoir-palette"></i><span class="header__filter-name">viewDecorator.decorator - 0</span></a>
+            <teleport-stub to="body">
+              <div class="context visibility-hidden">
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+          </div>
         </li>
       </ul>
       <ul class="header__filter header__filter--full-width" table="[object Object]">
         <li class="header__filter-item">
-          <div><a class="header__filter-link active active--error"><i class="header__filter-icon iconoir-eye-off"></i><span class="header__filter-name">gridViewHide.hideField - 1</span></a></div>
+          <div><a class="header__filter-link active active--error"><i class="header__filter-icon iconoir-eye-off"></i><span class="header__filter-name">gridViewHide.hideField - 1</span></a>
+            <teleport-stub to="body">
+              <div class="hidings context visibility-hidden">
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+          </div>
         </li>
         <li class="header__filter-item">
           <div><a class="header__filter-link"><i class="header__filter-icon iconoir-table-rows"></i><span class="header__filter-name">gridViewRowHeight.name</span></a>
@@ -67,8 +115,15 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             </div>
           </div>
         </li>
-        <li class="header__filter-item header__filter-item--full-width">
-          <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> </a></div>
+        <!--v-if-->
+        <li class="header__filter-item header__filter-item--right">
+          <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> </a><a class="header__search-clear" aria-label="viewSearch.clearSearch" style="display: none;"><i class="iconoir-cancel"></i></a>
+            <teleport-stub to="body">
+              <div class="context visibility-hidden context--overflow-scroll">
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+          </div>
         </li>
       </ul>
     </header>
@@ -83,7 +138,13 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           <div class="grid-view__inner" style="min-width: 72px;">
             <div class="grid-view__head">
               <div class="grid-view__column grid-view__column--no-border-right" style="width: 72px;">
-                <div class="grid-view__head-row-identifier"><i class="grid-view__head-row-identifier-dropdown iconoir-numbered-list-left"></i></div>
+                <div class="grid-view__head-row-identifier"><i class="grid-view__head-row-identifier-dropdown iconoir-numbered-list-left"></i>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden context--overflow-scroll">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
+                </div>
               </div>
               <!--v-if-->
             </div>
@@ -116,6 +177,11 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             </div>
           </div>
         </div>
+        <teleport-stub to="body">
+          <div class="context visibility-hidden context--overflow-scroll">
+            <!--v-if-->
+          </div>
+        </teleport-stub>
         <div class="grid-view__divider" style="left: 72px;"></div>
         <!--v-if-->
         <div class="grid-view__right" style="left: 72px;">
@@ -129,6 +195,11 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                   </div>
                   <div class="grid-view__description-name" title="Name"><span>Name</span></div>
                   <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden context--overflow-scroll">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                   <div class="grid-view__description-width"></div>
                 </div>
               </div>
@@ -139,6 +210,11 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                   </div>
                   <div class="grid-view__description-name" title="Last name"><span>Last name</span></div>
                   <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden context--overflow-scroll">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                   <div class="grid-view__description-width"></div>
                 </div>
               </div>
@@ -149,10 +225,21 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                   </div>
                   <div class="grid-view__description-name" title="Notes"><span>Notes</span></div>
                   <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden context--overflow-scroll">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                   <div class="grid-view__description-width"></div>
                 </div>
               </div>
-              <div class="grid-view__column" style="width: 100px;"><a class="grid-view__add-column" data-highlight="add-field"><i class="grid-view__add-column-icon iconoir-plus"></i></a></div>
+              <div class="grid-view__column" style="width: 100px;"><a class="grid-view__add-column" data-highlight="add-field"><i class="grid-view__add-column-icon iconoir-plus"></i></a>
+                <teleport-stub to="body">
+                  <div class="field-context context visibility-hidden">
+                    <!--v-if-->
+                  </div>
+                </teleport-stub>
+              </div>
             </div>
             <div class="grid-view__body">
               <div class="grid-view__body-inner">
@@ -190,16 +277,31 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
               <div style="width: 200px;">
                 <div class="grid-view-aggregation">
                   <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                 </div>
               </div>
               <div style="width: 200px;">
                 <div class="grid-view-aggregation">
                   <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                 </div>
               </div>
               <div style="width: 200px;">
                 <div class="grid-view-aggregation">
                   <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                 </div>
               </div>
             </div>
@@ -213,6 +315,14 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           <div class="grid-view__row-dragging" style="width: 672px; top: 0px;"></div>
           <div class="grid-view__row-target" style="width: 672px; top: 0px;"></div>
         </div>
+        <teleport-stub to="body">
+          <div class="context visibility-hidden context--overflow-scroll">
+            <!--v-if-->
+          </div>
+        </teleport-stub>
+        <teleport-stub to="body">
+          <!--v-if-->
+        </teleport-stub>
       </div>
       <!--v-if-->
     </div>
@@ -228,27 +338,75 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
       <div class="header__loading" style="display: none;"></div>
       <ul class="header__filter">
         <!--v-if-->
-        <li class="header__filter-item header__filter-item--grids"><a class="header__filter-link active" data-highlight="views"><i class="header__filter-icon header-filter-icon--view color-primary iconoir-menu"></i><span class="header__filter-name header__filter-name--forced"><span contenteditable="false" placeholder="" class="">mock_view_1</span></span><i class="header__sub-icon iconoir-nav-arrow-down"></i></a></li>
-        <li class="header__filter-item header__filter-item--no-margin-left"><a class="header__filter-link" data-highlight="view-options"><i class="header__filter-icon baserow-icon-more-vertical"></i></a></li>
+        <li class="header__filter-item header__filter-item--grids"><a class="header__filter-link active" data-highlight="views"><i class="header__filter-icon header-filter-icon--view color-primary iconoir-menu"></i><span class="header__filter-name header__filter-name--forced"><span contenteditable="false" placeholder="" class="">mock_view_1</span></span><i class="header__sub-icon iconoir-nav-arrow-down"></i></a>
+          <teleport-stub to="body">
+            <div class="select context visibility-hidden" header-overflow="false">
+              <!--v-if-->
+            </div>
+          </teleport-stub>
+        </li>
+        <li class="header__filter-item header__filter-item--no-margin-left"><a class="header__filter-link" data-highlight="view-options"><i class="header__filter-icon baserow-icon-more-vertical"></i></a>
+          <teleport-stub to="body">
+            <div views="[object Object]" class="context visibility-hidden context--overflow-scroll">
+              <!--v-if-->
+            </div>
+          </teleport-stub>
+        </li>
         <li class="header__filter-item" data-highlight="view-filters">
-          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-filter"></i><span class="header__filter-name">viewFilter.filter - 0</span></a></div>
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-filter"></i><span class="header__filter-name">viewFilter.filter - 0</span></a>
+            <teleport-stub to="body">
+              <div class="filters context visibility-hidden">
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+          </div>
         </li>
         <li class="header__filter-item" data-highlight="view-sorts">
-          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-sort"></i><span class="header__filter-name">viewSort.sort - 0</span></a></div>
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-sort"></i><span class="header__filter-name">viewSort.sort - 0</span></a>
+            <teleport-stub to="body">
+              <div class="sortings context visibility-hidden">
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+          </div>
         </li>
         <li class="header__filter-item" data-highlight="view-group-by">
-          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-book-stack"></i><span class="header__filter-name">viewGroupBy.groupBy - 0</span></a></div>
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-book-stack"></i><span class="header__filter-name">viewGroupBy.groupBy - 0</span></a>
+            <teleport-stub to="body">
+              <div class="group-bys context visibility-hidden">
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+          </div>
         </li>
         <li class="header__filter-item">
-          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-share-android"></i><span class="header__filter-name">shareViewLink.shareView</span></a></div>
+          <div><a class="header__filter-link"><i class="header__filter-icon iconoir-share-android"></i><span class="header__filter-name">shareViewLink.shareView</span></a>
+            <teleport-stub to="body">
+              <div class="context visibility-hidden">
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+          </div>
         </li>
         <li class="header__filter-item">
-          <div disable-sort="false"><a class="header__filter-link"><i class="header__filter-icon iconoir-palette"></i><span class="header__filter-name">viewDecorator.decorator - 0</span></a></div>
+          <div disable-sort="false"><a class="header__filter-link"><i class="header__filter-icon iconoir-palette"></i><span class="header__filter-name">viewDecorator.decorator - 0</span></a>
+            <teleport-stub to="body">
+              <div class="context visibility-hidden">
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+          </div>
         </li>
       </ul>
       <ul class="header__filter header__filter--full-width" table="[object Object]">
         <li class="header__filter-item">
-          <div><a class="header__filter-link active active--error"><i class="header__filter-icon iconoir-eye-off"></i><span class="header__filter-name">gridViewHide.hideField - 1</span></a></div>
+          <div><a class="header__filter-link active active--error"><i class="header__filter-icon iconoir-eye-off"></i><span class="header__filter-name">gridViewHide.hideField - 1</span></a>
+            <teleport-stub to="body">
+              <div class="hidings context visibility-hidden">
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+          </div>
         </li>
         <li class="header__filter-item">
           <div><a class="header__filter-link"><i class="header__filter-icon iconoir-table-rows"></i><span class="header__filter-name">gridViewRowHeight.name</span></a>
@@ -288,8 +446,15 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             </div>
           </div>
         </li>
-        <li class="header__filter-item header__filter-item--full-width">
-          <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> </a></div>
+        <!--v-if-->
+        <li class="header__filter-item header__filter-item--right">
+          <div class="header__search"><a class="header__filter-link"><i class="header__search-icon iconoir-search"></i> </a><a class="header__search-clear" aria-label="viewSearch.clearSearch" style="display: none;"><i class="iconoir-cancel"></i></a>
+            <teleport-stub to="body">
+              <div class="context visibility-hidden context--overflow-scroll">
+                <!--v-if-->
+              </div>
+            </teleport-stub>
+          </div>
         </li>
       </ul>
     </header>
@@ -304,7 +469,13 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           <div class="grid-view__inner" style="min-width: 72px;">
             <div class="grid-view__head">
               <div class="grid-view__column grid-view__column--no-border-right" style="width: 72px;">
-                <div class="grid-view__head-row-identifier"><i class="grid-view__head-row-identifier-dropdown iconoir-numbered-list-left"></i></div>
+                <div class="grid-view__head-row-identifier"><i class="grid-view__head-row-identifier-dropdown iconoir-numbered-list-left"></i>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden context--overflow-scroll">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
+                </div>
               </div>
               <!--v-if-->
             </div>
@@ -337,6 +508,11 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
             </div>
           </div>
         </div>
+        <teleport-stub to="body">
+          <div class="context visibility-hidden context--overflow-scroll">
+            <!--v-if-->
+          </div>
+        </teleport-stub>
         <div class="grid-view__divider" style="left: 72px;"></div>
         <!--v-if-->
         <div class="grid-view__right" style="left: 72px;">
@@ -350,6 +526,11 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                   </div>
                   <div class="grid-view__description-name" title="Name"><span>Name</span></div>
                   <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden context--overflow-scroll">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                   <div class="grid-view__description-width"></div>
                 </div>
               </div>
@@ -360,6 +541,11 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                   </div>
                   <div class="grid-view__description-name" title="Last name"><span>Last name</span></div>
                   <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden context--overflow-scroll">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                   <div class="grid-view__description-width"></div>
                 </div>
               </div>
@@ -370,10 +556,21 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
                   </div>
                   <div class="grid-view__description-name" title="Notes"><span>Notes</span></div>
                   <!--v-if--><span class="grid-view__description-options"><!--v-if--><!--v-if--><a class="grid-view__description-icon-trigger"><i class="iconoir-nav-arrow-down"></i></a></span>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden context--overflow-scroll">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                   <div class="grid-view__description-width"></div>
                 </div>
               </div>
-              <div class="grid-view__column" style="width: 100px;"><a class="grid-view__add-column" data-highlight="add-field"><i class="grid-view__add-column-icon iconoir-plus"></i></a></div>
+              <div class="grid-view__column" style="width: 100px;"><a class="grid-view__add-column" data-highlight="add-field"><i class="grid-view__add-column-icon iconoir-plus"></i></a>
+                <teleport-stub to="body">
+                  <div class="field-context context visibility-hidden">
+                    <!--v-if-->
+                  </div>
+                </teleport-stub>
+              </div>
             </div>
             <div class="grid-view__body">
               <div class="grid-view__body-inner">
@@ -411,16 +608,31 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
               <div style="width: 200px;">
                 <div class="grid-view-aggregation">
                   <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                 </div>
               </div>
               <div style="width: 200px;">
                 <div class="grid-view-aggregation">
                   <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                 </div>
               </div>
               <div style="width: 200px;">
                 <div class="grid-view-aggregation">
                   <div class="grid-view-aggregation__empty"><i class="grid-view-aggregation__empty-icon iconoir-plus"></i> common.summarize</div>
+                  <teleport-stub to="body">
+                    <div class="context visibility-hidden">
+                      <!--v-if-->
+                    </div>
+                  </teleport-stub>
                 </div>
               </div>
             </div>
@@ -434,6 +646,14 @@ exports[`Table Component Tests > Adding a row to a table increases the row count
           <div class="grid-view__row-dragging" style="width: 672px; top: 0px;"></div>
           <div class="grid-view__row-target" style="width: 672px; top: 0px;"></div>
         </div>
+        <teleport-stub to="body">
+          <div class="context visibility-hidden context--overflow-scroll">
+            <!--v-if-->
+          </div>
+        </teleport-stub>
+        <teleport-stub to="body">
+          <!--v-if-->
+        </teleport-stub>
       </div>
       <!--v-if-->
     </div>

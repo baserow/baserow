@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix spurious internal error logged when an MCP connection closes",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-06-28"
+}

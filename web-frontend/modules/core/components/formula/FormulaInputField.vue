@@ -187,9 +187,10 @@ export default {
       default: () => [],
     },
     allowNodeSelection: {
-      type: Boolean,
+      type: String,
       required: false,
-      default: false,
+      default: 'none',
+      validator: (value) => ['none', 'all', 'array', 'object'].includes(value),
     },
     mode: {
       type: String,
@@ -323,7 +324,8 @@ export default {
             this.isFocused = val
           },
           getRootEl: () => this.$el,
-          getContextEl: () => this.$refs.formulaInputExplorerContext?.$el,
+          getContextEl: () =>
+            this.$refs.formulaInputExplorerContext?.getTeleportedElement(),
           showExplorerContextMenu: () => {
             this.$nextTick(() => {
               if (!this.isFocused) return
@@ -415,6 +417,8 @@ export default {
         if (!this.isFormulaInvalid) {
           this.content = content
         }
+        // A newly displayed formula must reflect its own validity.
+        this.validateFormula(value)
       }
     },
     content: {
@@ -431,6 +435,9 @@ export default {
   },
   mounted() {
     this.createEditor()
+    // Reflect the validity of the initially-displayed formula so an
+    // already-invalid stored value shows its error state without an edit.
+    this.validateFormula(this.value)
     this.setupIntersectionObserver()
   },
   beforeUnmount() {
@@ -499,16 +506,17 @@ export default {
       this.editor?.destroy()
       this.createEditor(currentFormula)
     },
-    emitChange() {
-      this.formulaErrorContext = { scope: null, title: '', message: '' }
-      this.errorExpanded = false
-
+    /**
+     * Validate a formula string, updating the error state (and the error
+     * context shown to the user). Returns whether the formula is valid.
+     *
+     * Kept separate from emitChange() so it can also run when a formula is
+     * merely *displayed* (on mount and when the value prop changes), not only
+     * when the user edits it. Otherwise an already-invalid stored formula
+     * renders without any error styling until the field is touched.
+     */
+    validateFormula(formula) {
       const functions = new RuntimeFunctionCollection(this.$registry)
-      // this.wrapperContent can be stale content, so get the data
-      // directly from the editor.
-      const editorContent = this.editor.getJSON()
-      const formula = this.toFormula(editorContent)
-
       // Validate the syntax, and assuming it's valid, then validate the arguments.
       const validationResult = isFormulaValid(
         formula,
@@ -518,14 +526,29 @@ export default {
         this.$t('formulaInputField.invalidSyntax')
       )
       this.isFormulaInvalid = !validationResult.valid
-      if (this.isFormulaInvalid) {
-        this.formulaErrorContext = {
-          scope: validationResult.scope,
-          title: this.$t('formulaInputField.invalidFormulaTitle'),
-          message: validationResult.errors[0],
-        }
-      } else {
+      this.formulaErrorContext = this.isFormulaInvalid
+        ? {
+            scope: validationResult.scope,
+            title: this.$t('formulaInputField.invalidFormulaTitle'),
+            message: validationResult.errors[0],
+          }
+        : { scope: null, title: '', message: '' }
+      return validationResult.valid
+    },
+    emitChange() {
+      this.errorExpanded = false
+
+      // this.wrapperContent can be stale content, so get the data
+      // directly from the editor.
+      const editorContent = this.editor.getJSON()
+      const formula = this.toFormula(editorContent)
+
+      if (this.validateFormula(formula)) {
         this.$emit('input', formula)
+      } else {
+        this.$nextTick(() => {
+          this.editor.commands.repositionContext()
+        })
       }
     },
     onUpdate() {
@@ -534,12 +557,6 @@ export default {
     handleNodeSelected(data) {
       const { path, node } = data
       switch (node.type) {
-        case 'data':
-          this.editor.commands.insertDataComponent(path)
-          break
-        case 'array':
-          this.editor.commands.insertDataComponent(path)
-          break
         case 'function':
           this.editor.commands.insertFunction(node)
           break
@@ -547,6 +564,7 @@ export default {
           this.editor.commands.insertOperator(node)
           break
         default:
+          this.editor.commands.insertDataComponent(path)
           break
       }
     },
@@ -586,8 +604,9 @@ export default {
 
       if (config.needsDynamicOffset) {
         const inputRect = this.$el?.getBoundingClientRect()
-        const contextRect =
-          this.$refs.formulaInputExplorerContext?.$el?.getBoundingClientRect()
+        const contextRect = this.$refs.formulaInputExplorerContext
+          ?.getTeleportedElement()
+          ?.getBoundingClientRect()
 
         switch (this.contextPosition) {
           case 'left':

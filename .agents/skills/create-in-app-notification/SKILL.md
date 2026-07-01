@@ -211,11 +211,13 @@ If you add custom frontend routing or rendering logic, add or update a focused f
 
 Use these searches to move quickly:
 
-- `rg -n "class .*NotificationType" backend/src premium/backend/src enterprise/backend/src`
-- `rg -n "notification_type_registry.register" backend/src premium/backend/src enterprise/backend/src`
-- `rg -n "new .*NotificationType\\(context\\)" web-frontend premium/web-frontend enterprise/web-frontend`
-- `rg -n "NotificationHandler\\.create_direct_notification_for_users|UserNotificationsGrouper|create_broadcast_notification" backend/src premium/backend/src enterprise/backend/src`
-- `rg -n "data__contains=.*_id|get_notification_by\\(" backend/src premium/backend/src enterprise/backend/src`
+Use `rg -n "<pattern>" <paths>` as a faster equivalent when `rg` is available.
+
+- `grep -RInE "class .*NotificationType" backend/src premium/backend/src enterprise/backend/src`
+- `grep -RInE "notification_type_registry.register" backend/src premium/backend/src enterprise/backend/src`
+- `grep -RInE "new .*NotificationType\\(context\\)" web-frontend premium/web-frontend enterprise/web-frontend`
+- `grep -RInE "NotificationHandler\\.create_direct_notification_for_users|UserNotificationsGrouper|create_broadcast_notification" backend/src premium/backend/src enterprise/backend/src`
+- `grep -RInE "data__contains=.*_id|get_notification_by\\(" backend/src premium/backend/src enterprise/backend/src`
 
 ## Guardrails
 

@@ -5,8 +5,19 @@ import {
   ensureObject,
   ensureBoolean,
   ensureArray,
+  ensureDuration,
 } from '@baserow/modules/core/utils/validator'
 import moment from '@baserow/modules/core/moment'
+import {
+  Timedelta,
+  isValidDatetimeFormat,
+  parseDurationString,
+} from '@baserow/modules/core/utils/date'
+import { isValidDurationFormat } from '@baserow/modules/core/utils/duration'
+export { Timedelta, parseDurationString }
+
+const VALID_THOUSAND_SEPARATORS = new Set([',', '.', ' ', ''])
+const VALID_DECIMAL_SEPARATORS = new Set([',', '.'])
 
 export class BaserowRuntimeFormulaArgumentType {
   constructor({ optional = false } = {}) {
@@ -33,6 +44,17 @@ export class BaserowRuntimeFormulaArgumentType {
    */
   parse(value) {
     return value
+  }
+
+  /**
+   * This function returns a specific human-friendly error message if the
+   * value for the type is invalid. Defaults to returning null.
+   * @param value - The value that is incorrect.
+   * @param i18n - The i18n instance.
+   * @returns {string|null} - The human-friendly error message.
+   */
+  getErrorMessage(value, i18n) {
+    return null
   }
 }
 
@@ -64,6 +86,10 @@ export class NumberBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormu
       return parseFloat(val)
     }
     return val
+  }
+
+  getErrorMessage(value, i18n) {
+    return i18n.t('runtimeFormulaTypeErrors.invalidNumber', { value })
   }
 }
 
@@ -177,6 +203,10 @@ export class TimezoneBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFor
   parse(value) {
     return ensureString(value)
   }
+
+  getErrorMessage(value, i18n) {
+    return i18n.t('runtimeFormulaTypeErrors.invalidTimezone', { value })
+  }
 }
 
 export class AnyBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
@@ -186,5 +216,94 @@ export class AnyBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaA
 
   parse(value) {
     return value
+  }
+}
+
+export class ThousandSeparatorBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    if (typeof value !== 'string') return false
+    return VALID_THOUSAND_SEPARATORS.has(value)
+  }
+
+  parse(value) {
+    return ensureString(value)
+  }
+
+  getErrorMessage(value, i18n) {
+    return i18n.t('runtimeFormulaTypeErrors.invalidThousandSeparator', {
+      value,
+    })
+  }
+}
+
+export class DecimalSeparatorBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    if (typeof value !== 'string') return false
+    return VALID_DECIMAL_SEPARATORS.has(value)
+  }
+
+  parse(value) {
+    return ensureString(value)
+  }
+
+  getErrorMessage(value, i18n) {
+    return i18n.t('runtimeFormulaTypeErrors.invalidDecimalSeparator', { value })
+  }
+}
+
+export class TimedeltaBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    return value instanceof Timedelta
+  }
+
+  parse(value) {
+    return value
+  }
+}
+
+export class DurationBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    try {
+      ensureDuration(value)
+      return true
+    } catch (e) {
+      return false
+    }
+  }
+
+  parse(value) {
+    return ensureDuration(value)
+  }
+
+  getErrorMessage(value, i18n) {
+    return i18n.t('runtimeFormulaTypeErrors.invalidDuration', { value })
+  }
+}
+
+export class DatetimeFormatBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    return isValidDatetimeFormat(value)
+  }
+
+  parse(value) {
+    return ensureString(value)
+  }
+
+  getErrorMessage(value, i18n) {
+    return i18n.t('runtimeFormulaTypeErrors.invalidDatetimeFormat', { value })
+  }
+}
+
+export class DurationFormatBaserowRuntimeFormulaArgumentType extends BaserowRuntimeFormulaArgumentType {
+  test(value) {
+    return isValidDurationFormat(value)
+  }
+
+  parse(value) {
+    return ensureString(value)
+  }
+
+  getErrorMessage(value, i18n) {
+    return i18n.t('runtimeFormulaTypeErrors.invalidDurationFormat', { value })
   }
 }

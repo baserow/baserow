@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Resolved a bug in application builder where deleting a row would display an error message.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "builder",
+    "bullet_points": [],
+    "created_at": "2026-06-18"
+}

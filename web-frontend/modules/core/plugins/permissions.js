@@ -12,7 +12,7 @@ export default defineNuxtPlugin({
       hasPermission = () => true
     } else {
       hasPermission = (operation, context, workspaceId = null) => {
-        let perms = []
+        let perms
 
         if (workspaceId === null) {
           perms = $store.getters['auth/getGlobalUserPermissions']

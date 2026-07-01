@@ -1,5 +1,6 @@
 import { isSecureURL } from '@baserow/modules/core/utils/string'
 import { pageFinished } from '@baserow/modules/core/utils/routing'
+import { getCookieName } from '@baserow/modules/core/utils/cookie'
 import jwtDecode from 'jwt-decode'
 import tldjs from 'tldjs'
 import { useCookie, useRuntimeConfig, nextTick } from '#imports'
@@ -19,7 +20,7 @@ export const setToken = (
   return runWithContext(() => {
     const config = useRuntimeConfig()
     const secure = isSecureURL(config.public.publicWebFrontendUrl)
-    const cookie = useCookie(key, {
+    const cookie = useCookie(getCookieName(config, key), {
       path: '/',
       maxAge: refreshTokenMaxAge,
       sameSite:
@@ -63,7 +64,7 @@ export const setUserSessionCookie = (
     // domain, so this won't work if the frontend and backend are on different domains.
     const topLevelDomain = tldjs.getDomain(config.public.publicBackendUrl)
 
-    const cookie = useCookie(key, {
+    const cookie = useCookie(getCookieName(config, key), {
       path: '/',
       maxAge: refreshTokenMaxAge,
       sameSite:
@@ -78,7 +79,8 @@ export const setUserSessionCookie = (
 export const unsetToken = (appOrContext, key = cookieTokenName) => {
   const { runWithContext } = appOrContext
   return runWithContext(() => {
-    const cookie = useCookie(key)
+    const config = useRuntimeConfig()
+    const cookie = useCookie(getCookieName(config, key))
     cookie.value = null
   })
 }
@@ -89,7 +91,8 @@ export const unsetUserSessionCookie = (
 ) => {
   const { runWithContext } = appOrContext
   runWithContext(() => {
-    const cookie = useCookie(key)
+    const config = useRuntimeConfig()
+    const cookie = useCookie(getCookieName(config, key))
     cookie.value = null
   })
 }
@@ -97,7 +100,8 @@ export const unsetUserSessionCookie = (
 export const getToken = async (appOrContext, key = cookieTokenName) => {
   const { runWithContext } = appOrContext
   return await runWithContext(() => {
-    const cookie = useCookie(key)
+    const config = useRuntimeConfig()
+    const cookie = useCookie(getCookieName(config, key))
     return cookie.value
   })
 }

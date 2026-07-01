@@ -102,7 +102,10 @@ def generate_scheduled_ai_field_generation(field_id: int):
         _schedule_generate_ai_value_generation(field_id)
 
 
-@app.task()
+@app.task(
+    soft_time_limit=max(1, settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT - 30),
+    time_limit=settings.CELERY_SEARCH_UPDATE_HARD_TIME_LIMIT,
+)
 def schedule_ai_field_generation(field_id: int, row_ids: list[int] | None = None):
     """
     Populates scheduled rows table for AI field generation.

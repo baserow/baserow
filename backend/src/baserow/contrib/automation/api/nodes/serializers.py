@@ -10,7 +10,7 @@ from baserow.api.services.serializers import (
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.nodes.registries import automation_node_type_registry
-from baserow.contrib.automation.nodes.types import NodePosition
+from baserow.core.graph.types import GraphPointPosition
 
 
 class AutomationNodeSerializer(serializers.ModelSerializer):
@@ -55,7 +55,7 @@ class CreateAutomationNodeSerializer(serializers.ModelSerializer):
         "given id.",
     )
     position = serializers.ChoiceField(
-        choices=NodePosition.choices,
+        choices=GraphPointPosition.choices,
         required=False,
         allow_blank=True,
         help_text="The position of the new node relative to the reference node.",
@@ -104,7 +104,7 @@ class MoveAutomationNodeSerializer(serializers.Serializer):
         help_text="The reference node.",
     )
     position = serializers.ChoiceField(
-        choices=NodePosition.choices,
+        choices=GraphPointPosition.choices,
         required=False,
         allow_blank=True,
         help_text="The new position relative to the reference node.",

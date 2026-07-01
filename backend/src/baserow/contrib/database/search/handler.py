@@ -12,6 +12,7 @@ state should be temporary, and they will be migrated to search data tables event
 
 """
 
+import time
 from collections import defaultdict
 from datetime import datetime, timezone
 from enum import Enum
@@ -507,15 +508,21 @@ class SearchHandler(
         row_ids: list[int] | None = None,
     ):
         """
-        Called when field values for a table have been changed or created. Not called
-        when a row is deleted as we don't care and don't want to do anything for the
-        search indexes.
+        Queue search updates for a table after values have been created or changed.
+        Not called when a row is deleted as we don't care and don't want to do
+        anything for the search indexes.
+
+        If ``fields`` is provided, only those fields are queued. If ``row_ids`` is
+        provided, only those rows are queued. If neither is provided, all searchable
+        fields in the table are queued as full-field updates, which rebuilds search
+        data for every row in those fields without creating one pending entry per row.
 
         :param table: The table a field value has been created or updated in.
         :param fields: Optional list of fields that have been changed or created. If
-            None, all fields in the table will be considered.
+            omitted together with ``row_ids``, all searchable fields are queued as
+            full-field updates.
         :param row_ids: Optional list of row IDs that have been changed or created. If
-            None, all rows in the table will be considered.
+            omitted, the queued update applies to all rows for the selected fields.
         """
 
         workspace_id = table.database.workspace_id
@@ -525,6 +532,8 @@ class SearchHandler(
         field_ids = None
         if fields:
             field_ids = [f.id for f in fields]
+        elif not row_ids:
+            field_ids = [f.id for f in table.get_model().get_searchable_fields()]
 
         transaction.on_commit(
             lambda: schedule_update_search_data.delay(table.id, field_ids, row_ids)
@@ -558,7 +567,7 @@ class SearchHandler(
         table_field_ids = [
             f.id for f in table.get_model().get_fields(include_trash=True)
         ]
-        if field_ids is None:
+        if not field_ids:
             field_ids = table_field_ids
         else:
             field_ids = [fid for fid in set(field_ids) if fid in table_field_ids]
@@ -571,12 +580,19 @@ class SearchHandler(
             `process_search_data_marked_for_deletion` method is called.
             """
 
+            now = datetime.now(tz=timezone.utc)
+            if not row_ids:  # also remove any pending per-row update
+                PendingSearchValueUpdate.objects.filter(
+                    field_id__in=field_ids,
+                    row_id__isnull=False,
+                ).update(deletion_workspace_id=workspace_id, updated_on=now)
             PendingSearchValueUpdate.objects.bulk_create(
                 [
                     PendingSearchValueUpdate(
                         field_id=field_id,
                         row_id=row_id,
-                        deletion_workspace_id=table.database.workspace_id,
+                        deletion_workspace_id=workspace_id,
+                        updated_on=now,
                     )
                     for field_id in sorted(field_ids)
                     for row_id in sorted(row_ids or [None])
@@ -584,7 +600,7 @@ class SearchHandler(
                 update_conflicts=True,
                 unique_fields=["field_id", "row_id"],
                 update_fields=["updated_on", "deletion_workspace_id"],
-                batch_size=1000,
+                batch_size=settings.SEARCH_UPDATE_BATCH_SIZE,
             )
 
         transaction.on_commit(mark_for_deletion)
@@ -859,7 +875,9 @@ class SearchHandler(
         )
 
     @classmethod
-    def process_search_data_updates(cls, table: "Table"):
+    def process_search_data_updates(
+        cls, table: "Table", time_budget_seconds: int | None = None
+    ) -> bool:
         """
         Process pending search updates for a given table in two phases:
 
@@ -869,7 +887,20 @@ class SearchHandler(
            refreshes only affected cells.
 
         :param table: The Table whose pending search updates will be handled.
+        :param time_budget_seconds: If set, processing will stop once this many
+            seconds have elapsed. Returns ``False`` to indicate that pending work
+            remains and the task should be rescheduled.
+        :return: ``True`` if all pending updates were processed, ``False`` if the
+            time budget was exhausted before completion.
         """
+
+        start = time.monotonic()
+
+        def budget_exhausted() -> bool:
+            return (
+                time_budget_seconds is not None
+                and (time.monotonic() - start) > time_budget_seconds
+            )
 
         table_field_ids = list(
             Field.objects_and_trash.filter(table=table)
@@ -880,7 +911,7 @@ class SearchHandler(
             PendingSearchValueUpdate.objects.filter(
                 field_id__in=table_field_ids, row_id=None
             )
-            .order_by("-updated_on")
+            .order_by()
             .values_list("field_id", flat=True)
         )
 
@@ -891,6 +922,12 @@ class SearchHandler(
         # row-specific updates on the same field.
         last = False
         while not last:
+            if budget_exhausted():
+                logger.info(
+                    "Time budget exhausted for table {} during full-field updates.",
+                    table.id,
+                )
+                return False
             with transaction.atomic():
                 field_ids = list(full_field_updates[:fields_batch_size])
                 # Only delete updates older than this timestamp to avoid
@@ -907,13 +944,19 @@ class SearchHandler(
         def _fetch_next_batch() -> QuerySet[PendingSearchValueUpdate]:
             return PendingSearchValueUpdate.objects.filter(
                 field_id__in=table_field_ids, row_id__isnull=False
-            ).order_by("-updated_on")
+            ).order_by()
 
         # Now handle single-cells updates, grouping them for efficiency
         last = False
         while not last:
+            if budget_exhausted():
+                logger.info(
+                    "Time budget exhausted for table {} during row updates.",
+                    table.id,
+                )
+                return False
             with transaction.atomic():
-                count = settings.BATCH_ROWS_SIZE_LIMIT
+                count = settings.SEARCH_UPDATE_BATCH_SIZE
                 pending_cells_updates = _fetch_next_batch()[:count]
                 check_timestamp = datetime.now(tz=timezone.utc)
                 if len(pending_cells_updates) < count:
@@ -932,3 +975,5 @@ class SearchHandler(
                     cls.delete_pending_updates(
                         Q(id__in=update_ids, updated_on__lte=check_timestamp)
                     )
+
+        return True

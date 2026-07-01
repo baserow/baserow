@@ -1,15 +1,23 @@
 from typing import Any, Dict, Optional
 
 from django.contrib.auth.models import AbstractUser
+from django.utils.translation import gettext_lazy as _
+
+from rest_framework.exceptions import PermissionDenied
 
 from baserow.contrib.automation.automation_dispatch_context import (
     AutomationDispatchContext,
 )
-from baserow.contrib.automation.nodes.exceptions import AutomationNodeNotReplaceable
+from baserow.contrib.automation.nodes.exceptions import (
+    AutomationNodeMisconfiguredService,
+    AutomationNodeNotReplaceable,
+)
 from baserow.contrib.automation.nodes.models import AutomationNode
-from baserow.contrib.automation.nodes.types import AutomationNodeDict, NodePositionType
+from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.core.graph.types import GraphPointPositionType
 from baserow.core.integrations.models import Integration
+from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsRegistryMixin,
     EasyImportExportMixin,
@@ -19,6 +27,9 @@ from baserow.core.registry import (
     ModelRegistryMixin,
     PublicCustomFieldsInstanceMixin,
     Registry,
+)
+from baserow.core.services.exceptions import (
+    ServiceImproperlyConfiguredDispatchException,
 )
 from baserow.core.services.handler import ServiceHandler
 from baserow.core.services.registries import ServiceTypeSubClass, service_type_registry
@@ -33,6 +44,8 @@ class AutomationNodeType(
     ModelInstanceMixin,
     Instance,
 ):
+    display_name = _("Unnamed node")
+
     service_type = None
     parent_property_name = "workflow"
     id_mapping_name = "automation_workflow_nodes"
@@ -47,6 +60,17 @@ class AutomationNodeType(
     is_container = False
 
     class SerializedDict(AutomationNodeDict): ...
+
+    def is_deactivated(self, workspace: Workspace) -> bool:
+        """
+        Returns whether this automation node type is deactivated for the workspace.
+        """
+
+        return False
+
+    def raise_if_deactivated(self, workspace: Workspace) -> None:
+        if self.is_deactivated(workspace):
+            raise PermissionDenied("This automation node type is deactivated.")
 
     @property
     def allowed_fields(self):
@@ -83,7 +107,7 @@ class AutomationNodeType(
         self,
         node: AutomationNode,
         reference_node: AutomationNode | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ):
         """Called before the node is moved."""
@@ -92,7 +116,7 @@ class AutomationNodeType(
         self,
         workflow: AutomationWorkflow,
         reference_node: AutomationNode | None,
-        position: NodePositionType,
+        position: GraphPointPositionType,
         output: str,
     ):
         """
@@ -194,6 +218,12 @@ class AutomationNodeType(
                     integration_id, integration_id
                 )
                 integration = Integration.objects.get(id=integration_id)
+                workflow = kwargs.get("workflow")
+                if (
+                    workflow is not None
+                    and integration.application_id != workflow.automation_id
+                ):
+                    integration = None
 
             return ServiceHandler().import_service(
                 integration,
@@ -229,8 +259,31 @@ class AutomationNodeType(
             parent,
             serialized_values,
             id_mapping,
+            workflow=parent,
             **kwargs,
         )
+
+    def _validate_service_integration_belongs_to_workflow(
+        self,
+        workflow: Optional[AutomationWorkflow],
+        service_values: Dict[str, Any],
+    ) -> None:
+        if not workflow or "integration_id" not in service_values:
+            return
+
+        integration_id = service_values["integration_id"]
+        if integration_id is None:
+            return
+
+        integration = Integration.objects.filter(id=integration_id).first()
+        if integration is None:
+            return
+
+        if integration.application_id != workflow.automation_id:
+            raise AutomationNodeMisconfiguredService(
+                f"The integration with ID {integration_id} is not related to the "
+                f"automation {workflow.automation_id}."
+            )
 
     def prepare_values(
         self,
@@ -263,6 +316,11 @@ class AutomationNodeType(
 
         # If we received any service values, prepare them.
         service_values = values.pop("service", None) or {}
+        workflow = instance.workflow if instance else values.get("workflow", None)
+        self._validate_service_integration_belongs_to_workflow(
+            workflow,
+            service_values,
+        )
         prepared_service_values = service_type.prepare_values(
             service_values, user, service if instance else None
         )
@@ -288,6 +346,13 @@ class AutomationNodeType(
         automation_node: AutomationNode,
         dispatch_context: AutomationDispatchContext,
     ) -> DispatchResult:
+        if self.is_deactivated(
+            automation_node.workflow.get_original().automation.workspace
+        ):
+            raise ServiceImproperlyConfiguredDispatchException(
+                "This node type is not available for this workspace."
+            )
+
         return ServiceHandler().dispatch_service(
             automation_node.service.specific, dispatch_context
         )

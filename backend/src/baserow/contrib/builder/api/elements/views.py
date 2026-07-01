@@ -1,3 +1,4 @@
+import json
 from typing import Dict
 
 from django.db import transaction
@@ -26,6 +27,7 @@ from baserow.contrib.builder.api.data_sources.errors import (
 )
 from baserow.contrib.builder.api.elements.errors import (
     ERROR_ELEMENT_DOES_NOT_EXIST,
+    ERROR_ELEMENT_INVALID_FORMULA,
     ERROR_ELEMENT_MOVE_NOT_ALLOWED,
     ERROR_ELEMENT_NOT_IN_SAME_PAGE,
     ERROR_ELEMENT_PROPERTY_OPTIONS_NOT_UNIQUE,
@@ -44,6 +46,13 @@ from baserow.contrib.builder.api.pages.errors import (
 )
 from baserow.contrib.builder.application_types import BuilderApplicationType
 from baserow.contrib.builder.data_sources.exceptions import DataSourceDoesNotExist
+from baserow.contrib.builder.elements.actions import (
+    CreateElementActionType,
+    DeleteElementActionType,
+    DuplicateElementActionType,
+    MoveElementActionType,
+    UpdateElementActionType,
+)
 from baserow.contrib.builder.elements.exceptions import (
     CollectionElementPropertyOptionsNotUnique,
     ElementDoesNotExist,
@@ -56,6 +65,8 @@ from baserow.contrib.builder.elements.registries import element_type_registry
 from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.exceptions import PageDoesNotExist, PageNotInBuilder
 from baserow.contrib.builder.pages.handler import PageHandler
+from baserow.core.formula.exceptions import InvalidRuntimeFormula
+from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
 
 
 class ElementsView(APIView):
@@ -105,13 +116,28 @@ class ElementsView(APIView):
 
         page = PageHandler().get_page(page_id)
 
-        elements = ElementService().get_elements(request.user, page)
+        service = ElementService()
+
+        # Repair the graph if any elements are missing from it (orphans). The patch
+        # is returned so the requesting client can apply it to its already-loaded
+        # graph in-band — connected clients are updated via the realtime broadcast.
+        graph_patch = service.heal_orphan_elements(request.user, page)
+
+        elements = service.get_elements(request.user, page)
 
         data = [
             element_type_registry.get_serializer(element, ElementSerializer).data
             for element in elements
         ]
-        return Response(data)
+        response = Response(data)
+
+        # A small, page-scoped delta (a handful of graph entries) — kept in a header
+        # so the list response body stays a bare array. Tiny by construction, so it
+        # never risks a reverse proxy's response-header size limit.
+        if graph_patch:
+            response["X-Baserow-Builder-Graph-Patch"] = json.dumps(graph_patch)
+
+        return response
 
     @extend_schema(
         parameters=[
@@ -138,6 +164,7 @@ class ElementsView(APIView):
             ),
             400: get_error_schema(
                 [
+                    "ERROR_ELEMENT_INVALID_FORMULA",
                     "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
@@ -151,6 +178,8 @@ class ElementsView(APIView):
             ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
             ElementNotInSamePage: ERROR_ELEMENT_NOT_IN_SAME_PAGE,
             ElementTypeDeactivated: ERROR_ELEMENT_TYPE_DEACTIVATED,
+            InvalidRuntimeFormula: ERROR_ELEMENT_INVALID_FORMULA,
+            GraphPointReferencePointInvalid: ERROR_ELEMENT_DOES_NOT_EXIST,
         }
     )
     @validate_body_custom_fields(
@@ -164,14 +193,8 @@ class ElementsView(APIView):
         type_name = data.pop("type")
         page = PageHandler().get_page(page_id)
 
-        before_id = data.pop("before_id", None)
-        before = ElementHandler().get_element(before_id) if before_id else None
-
         element_type = element_type_registry.get(type_name)
-
-        element = ElementService().create_element(
-            request.user, element_type, page, before=before, **data
-        )
+        element = CreateElementActionType.do(request.user, element_type, page, data)
 
         serializer = element_type_registry.get_serializer(element, ElementSerializer)
         return Response(serializer.data)
@@ -202,6 +225,7 @@ class ElementView(APIView):
             ),
             400: get_error_schema(
                 [
+                    "ERROR_ELEMENT_INVALID_FORMULA",
                     "ERROR_REQUEST_BODY_VALIDATION",
                 ]
             ),
@@ -218,6 +242,7 @@ class ElementView(APIView):
             ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
             DataSourceDoesNotExist: ERROR_DATA_SOURCE_DOES_NOT_EXIST,
             CollectionElementPropertyOptionsNotUnique: ERROR_ELEMENT_PROPERTY_OPTIONS_NOT_UNIQUE,
+            InvalidRuntimeFormula: ERROR_ELEMENT_INVALID_FORMULA,
         }
     )
     @require_request_data_type(dict)
@@ -241,7 +266,7 @@ class ElementView(APIView):
             return_validated=True,
         )
 
-        element_updated = ElementService().update_element(request.user, element, **data)
+        element_updated = UpdateElementActionType.do(request.user, element, data)
 
         serializer = element_type_registry.get_serializer(
             element_updated, ElementSerializer
@@ -285,7 +310,7 @@ class ElementView(APIView):
 
         element = ElementHandler().get_element_for_update(element_id)
 
-        ElementService().delete_element(request.user, element)
+        DeleteElementActionType.do(request.user, element)
 
         return Response(status=204)
 
@@ -329,40 +354,28 @@ class MoveElementView(APIView):
             ElementDoesNotExist: ERROR_ELEMENT_DOES_NOT_EXIST,
             PageNotInBuilder: ERROR_PAGE_NOT_IN_BUILDER,
             ElementMoveNotAllowed: ERROR_ELEMENT_MOVE_NOT_ALLOWED,
+            ElementNotInSamePage: ERROR_ELEMENT_NOT_IN_SAME_PAGE,
+            GraphPointReferencePointInvalid: ERROR_ELEMENT_DOES_NOT_EXIST,
         }
     )
     @validate_body(MoveElementSerializer)
     def patch(self, request, data: Dict, element_id: int):
         """
-        Moves the element in the page before another element or at the end of
-        the page if no before element is given.
+        Moves an `element` relative to the provided `reference_element` and `position`.
         """
 
         element = ElementHandler().get_element_for_update(element_id)
+        reference_element_id = data.get("reference_element_id")
+        target_page_id = data.pop("target_page_id", None)
 
-        before_id = data.get("before_id", None)
-        parent_element_id = data.get("parent_element_id", element.parent_element_id)
-        place_in_container = data.get("place_in_container", element.place_in_container)
-
-        target_page_id = data.get("target_page_id", None)
-
-        before = None
-        if before_id is not None:
-            before = ElementHandler().get_element(before_id)
-
-        parent_element = None
-        if parent_element_id is not None:
-            parent_element = ElementHandler().get_element(parent_element_id)
-
-        # If we have a before or a parent, we use the same page otherwise
-        # we use the page provided or the one from the element
+        reference_element = None
+        if reference_element_id is not None:
+            reference_element = ElementHandler().get_element(reference_element_id)
 
         try:
             target_page = (
-                before.page
-                if before
-                else parent_element.page
-                if parent_element
+                reference_element.page
+                if reference_element
                 else PageHandler().get_page(target_page_id)
                 if target_page_id
                 else element.page
@@ -370,13 +383,8 @@ class MoveElementView(APIView):
         except PageDoesNotExist as e:
             raise PageNotInBuilder(target_page_id) from e
 
-        moved_element = ElementService().move_element(
-            request.user,
-            target_page,
-            element,
-            parent_element,
-            place_in_container,
-            before,
+        moved_element = MoveElementActionType.do(
+            request.user, element, target_page, **data
         )
 
         serializer = element_type_registry.get_serializer(
@@ -423,7 +431,7 @@ class DuplicateElementView(APIView):
 
         element = ElementHandler().get_element_for_update(element_id)
 
-        elements_and_workflow_actions_duplicated = ElementService().duplicate_element(
+        elements_and_workflow_actions_duplicated = DuplicateElementActionType.do(
             request.user, element
         )
 

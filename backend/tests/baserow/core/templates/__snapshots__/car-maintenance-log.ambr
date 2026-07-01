@@ -1,0 +1,5 @@
+# serializer version: 1
+# name: test_template_snapshot[car-maintenance-log]
+  dict({
+  })
+# ---

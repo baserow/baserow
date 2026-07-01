@@ -554,6 +554,54 @@ class MultiFieldPrefetchQuerysetMixin(Generic[ModelInstance]):
         return self._multi_field_prefetch_related_funcs
 
 
+class _PrefetchedManyToManyResult:
+    """
+    Stand-in stored in a row's prefetch cache for a many-to-many relation.
+
+    Iterating it returns the already resolved instances without touching the
+    database. Any queryset operation (`filter`, `order_by`, `values_list`, ...)
+    lazily builds the real `pk__in` scoped queryset, so a consumer that re-queries
+    the relation still gets the correct rows. This avoids building a queryset per
+    row and field up front, which dominates the request time for tables with many
+    many-to-many fields.
+
+    The lazy queryset uses the default manager so re-querying applies the same
+    filters (e.g. trash filtering) as the resolved instances, which come from the
+    default manager too.
+    """
+
+    __slots__ = ("_target_model", "_target_ids", "_result_cache")
+
+    def __init__(self, target_model, target_ids, result_cache):
+        self._target_model = target_model
+        self._target_ids = target_ids
+        self._result_cache = result_cache
+
+    def _build_queryset(self):
+        qs = self._target_model._default_manager.filter(pk__in=self._target_ids or [])
+        qs._result_cache = self._result_cache
+        qs._prefetch_done = True
+        return qs
+
+    def all(self):
+        return self
+
+    def __iter__(self):
+        return iter(self._result_cache)
+
+    def __len__(self):
+        return len(self._result_cache)
+
+    def __bool__(self):
+        return bool(self._result_cache)
+
+    def __getitem__(self, item):
+        return self._result_cache[item]
+
+    def __getattr__(self, name):
+        return getattr(self._build_queryset(), name)
+
+
 class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
     """
     This prefetch class can be used as argument of the `multi_field_prefetch` method.
@@ -660,12 +708,20 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
         :return: The updated `result_set` containing all the prefetched instances.
         """
 
+        # Resolve the model field for each prefetched field name once instead of
+        # for every row. With many fields this is called row_count * field_count
+        # times otherwise.
+        model_meta = queryset.model._meta
+        model_fields = {
+            field_name: model_meta.get_field(field_name)
+            for field_name in self.field_names
+        }
+
         for result in result_set:
+            field_name_to_target_ids = row_id_to_field_name_to_target_ids[result.id]
             for field_name in self.field_names:
-                model_field = queryset.model._meta.get_field(field_name)
-                target_ids = row_id_to_field_name_to_target_ids[result.id].get(
-                    field_name
-                )
+                model_field = model_fields[field_name]
+                target_ids = field_name_to_target_ids.get(field_name)
 
                 if isinstance(model_field, ForeignKey) and target_ids is not None:
                     target_id = target_ids[0]
@@ -673,25 +729,29 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
                     setattr(result, field_name, target_instance)
 
                 if isinstance(model_field, ManyToManyField):
-                    attr = getattr(result, field_name)
-                    qs = attr.get_queryset()
-                    qs._result_cache = (
+                    # The related instances are already fully resolved in
+                    # `target_instances`, so store a lazy stand-in that iterates them
+                    # directly and only builds a real queryset if a consumer re-filters
+                    # or re-orders the relation. See `_PrefetchedManyToManyResult`.
+                    result_cache = (
                         [
                             target_instances.get(target_id)
                             for target_id in target_ids
-                            # It could be that the target doesn't exist, but the
-                            # relationship does. In that case, we don't want the
-                            # result set contain `None` values.
+                            # The target may have been deleted while the relationship
+                            # still exists; don't put `None` in the result set.
                             if target_id in target_instances
                         ]
                         if target_ids
                         else []
                     )
-                    qs._prefetch_done = True
                     result._prefetched_objects_cache = getattr(
                         result, "_prefetched_objects_cache", {}
                     )
-                    result._prefetched_objects_cache[field_name] = qs
+                    result._prefetched_objects_cache[field_name] = (
+                        _PrefetchedManyToManyResult(
+                            self.target_model, target_ids, result_cache
+                        )
+                    )
 
         return result_set
 
@@ -787,7 +847,6 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
         """
 
         sub_queries = []
-        row_ids_as_literal = [sql.Literal(str(result.id)) for result in result_set]
 
         for field_name in self.field_names:
             model_field = queryset.model._meta.get_field(field_name)
@@ -810,6 +869,9 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
                     f"model {self.target_model}."
                 )
 
+            # The row ids are filtered through the `wanted_rows` CTE below instead of
+            # being repeated in every subquery, which keeps the query small even with
+            # hundreds of many-to-many fields.
             subquery = sql.SQL(
                 """
                 (
@@ -819,7 +881,7 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
                         {row_id_column} as row_id,
                         {target_id_column} as target_id_column
                     FROM {m2m_table}
-                    WHERE {row_id_column} IN ({row_ids})
+                    WHERE {row_id_column} IN (SELECT row_id FROM wanted_rows)
                 )
                 """
             ).format(
@@ -827,14 +889,17 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
                 m2m_table=sql.Identifier(through_table_name),
                 row_id_column=sql.Identifier(row_column_name),
                 target_id_column=sql.Identifier(target_column_name),
-                row_ids=sql.SQL(",").join(row_ids_as_literal),
             )
             sub_queries.append(subquery)
 
         if len(sub_queries) > 0 and len(result_set) > 0:
+            wanted_rows = sql.SQL(", ").join(
+                sql.SQL("({})").format(sql.Literal(result.id)) for result in result_set
+            )
             union_query = sql.SQL(" UNION ").join(sub_queries)
             union_sql = sql.SQL(
                 """
+                WITH wanted_rows (row_id) AS (VALUES {wanted_rows})
                 SELECT
                     row_id,
                     field_name,
@@ -842,7 +907,7 @@ class CombinedForeignKeyAndManyToManyMultipleFieldPrefetch:
                 FROM ({union_query}) sub
                 GROUP BY row_id, field_name
                 """
-            ).format(union_query=union_query)
+            ).format(wanted_rows=wanted_rows, union_query=union_query)
 
             with connection.cursor() as cursor:
                 cursor.execute(union_sql)

@@ -42,6 +42,13 @@ class DataSourceService:
     def __init__(self):
         self.handler = DataSourceHandler()
 
+    def _raise_if_service_type_deactivated(
+        self, service_type: ServiceType, page: Page
+    ) -> None:
+        raise_if_deactivated = getattr(service_type, "raise_if_deactivated", None)
+        if raise_if_deactivated:
+            raise_if_deactivated(page.builder.workspace)
+
     def get_data_source(self, user: AbstractUser, data_source_id: int) -> DataSource:
         """
         Returns an data_source instance from the database. Also checks the user
@@ -156,6 +163,7 @@ class DataSourceService:
             # Verify the `service_type` is dispatch-able as DATA.
             if not service_type.can_be_dispatched_as(DispatchTypes.DATA):
                 raise InvalidServiceTypeDispatchSource()
+            self._raise_if_service_type_deactivated(service_type, page)
             prepared_values = service_type.prepare_values(kwargs, user)
         else:
             prepared_values = kwargs
@@ -244,6 +252,9 @@ class DataSourceService:
             service_type_for_preparation = new_service_type
 
         if service_type_for_preparation:
+            self._raise_if_service_type_deactivated(
+                service_type_for_preparation, page or data_source.page
+            )
             service = data_source.service.specific if data_source.service_id else None
             prepared_values = service_type_for_preparation.prepare_values(
                 kwargs, user, instance=service

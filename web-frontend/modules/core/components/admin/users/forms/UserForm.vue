@@ -96,6 +96,32 @@
       </template>
     </FormGroup>
 
+    <FormGroup
+      small-label
+      :label="$t('userForm.twoFactorAuth')"
+      class="margin-top-2"
+    >
+      <div class="user-admin-edit__two-factor">
+        <Badge
+          :color="twoFactorAuthEnabled ? 'green' : 'neutral'"
+          :rounded="true"
+        >
+          {{
+            twoFactorAuthEnabled
+              ? twoFactorAuthProviderName
+              : $t('twoFactorAuthField.disabled')
+          }}
+        </Badge>
+        <a
+          v-if="twoFactorAuthEnabled"
+          class="user-admin-edit__remove-2fa"
+          @click.prevent="$emit('remove-two-factor-auth')"
+        >
+          {{ $t('userForm.removeTwoFactorAuth') }}
+        </a>
+      </div>
+    </FormGroup>
+
     <div class="actions">
       <slot></slot>
       <div class="align-right">
@@ -132,6 +158,7 @@ export default {
       required: true,
     },
   },
+  emits: ['remove-two-factor-auth'],
   setup() {
     const values = reactive({
       values: {
@@ -167,6 +194,16 @@ export default {
     return {
       allowedValues: ['username', 'name', 'is_active', 'is_staff'],
     }
+  },
+  computed: {
+    twoFactorAuthEnabled() {
+      return Boolean(this.user.two_factor_auth?.is_enabled)
+    },
+    twoFactorAuthProviderName() {
+      const type = this.user.two_factor_auth?.type
+      const registered = this.$registry.getAll('twoFactorAuth')
+      return registered[type] ? registered[type].name : type
+    },
   },
 }
 </script>

@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-16 22:06+0000\n"
+"POT-Creation-Date: 2026-06-15 14:48+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,109 +18,267 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-#: src/baserow_enterprise/assistant/tools/automation/tools.py:38
-msgid "Listing workflows..."
-msgstr ""
-
-#: src/baserow_enterprise/assistant/tools/automation/utils.py:283
-#, python-format
-msgid "Creating workflow '%(name)s'..."
-msgstr ""
-
-#: src/baserow_enterprise/assistant/tools/automation/utils.py:296
-#, python-format
-msgid "Creating trigger '%(label)s'..."
-msgstr ""
-
-#: src/baserow_enterprise/assistant/tools/automation/utils.py:316
-#, python-format
-msgid "Creating node '%(label)s'..."
-msgstr ""
-
-#: src/baserow_enterprise/assistant/tools/automation/utils.py:381
+#: src/baserow_enterprise/assistant/tools/automation/agents.py:112
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:128
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:292
 #, python-format
 msgid "Generating formulas for node '%(label)s'..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/core/tools.py:44
+#: src/baserow_enterprise/assistant/tools/automation/helpers.py:187
+#, python-format
+msgid "Creating workflow '%(name)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/helpers.py:228
+#, python-format
+msgid "Creating node '%(label)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/helpers.py:272
+#, python-format
+msgid "Updating node '%(label)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:40
+msgid "Listing workflows..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:72
+msgid "Listing nodes..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:112
+msgid "Adding nodes to workflow..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/automation/tools.py:342
+#, python-format
+msgid "Deleting node %(node_id)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:401
+#, python-format
+msgid "Generating formulas for element '%(ref)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:447
+#, python-format
+msgid "Generating formulas for data source '%(name)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:495
+#, python-format
+msgid "Generating formulas for data source %(id)d..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:575
+#, python-format
+msgid "Generating formulas for element %(id)d..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/agents.py:644
+#, python-format
+msgid "Generating formulas for action on '%(ref)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:106
+#, python-format
+msgid "Listing pages in %(app_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:175
+#, python-format
+msgid "Creating page %(name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:235
+#, python-format
+msgid "Updating page %(id)d..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:272
+#, python-format
+msgid "Listing data sources on %(name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:339
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1131
+#, python-format
+msgid "Creating data source '%(name)s'..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:409
+#, python-format
+msgid "Updating data source %(id)d..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:459
+#, python-format
+msgid "Listing elements on %(name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:484
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1179
+#, python-format
+msgid "Creating %(count)d elements on %(name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:776
+#, python-format
+msgid "Updating element %(id)d..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:845
+#, python-format
+msgid "Styling element %(id)d..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:912
+#, python-format
+msgid "Moving %(count)d elements on %(name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:966
+#, python-format
+msgid "Listing actions on %(name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1029
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1241
+#, python-format
+msgid "Creating %(type)s action..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1083
+#, python-format
+msgid "Adding field mapping to action %(id)d..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1450
+msgid "Setting up user source..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1456
+msgid "Validating existing table..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1461
+msgid "Creating users table..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1466
+msgid "Creating user source..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1476
+msgid "Creating login page..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/builder/tools.py:1526
+#, python-format
+msgid "Applying %(theme)s theme to %(app)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/core/tools.py:43
 #, python-format
 msgid "Listing %(builder_types)ss..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/core/tools.py:103
+#: src/baserow_enterprise/assistant/tools/core/tools.py:116
 #, python-format
 msgid "Creating %(builder_type)s %(builder_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:92
+#: src/baserow_enterprise/assistant/tools/core/tools.py:197
 #, python-format
-msgid "Listing tables in %(database_names)s..."
+msgid "Updating %(app_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:151
+#: src/baserow_enterprise/assistant/tools/database/agents.py:126
 #, python-format
-msgid "Inspecting %(table_names)s schema..."
+msgid "Fixing formula for %(name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:230
-#, python-format
-msgid "Creating table %(table_name)s..."
+#: src/baserow_enterprise/assistant/tools/database/agents.py:227
+msgid "Generating example rows for these new tables..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/tools.py:272
-msgid "Preparing example rows for these new tables..."
-msgstr ""
-
-#: src/baserow_enterprise/assistant/tools/database/tools.py:368
-#, python-format
-msgid "Listing rows in %(table_name)s "
-msgstr ""
-
-#: src/baserow_enterprise/assistant/tools/database/tools.py:506
-#, python-format
-msgid "Listing views in %(table_name)s..."
-msgstr ""
-
-#: src/baserow_enterprise/assistant/tools/database/tools.py:557
-#, python-format
-msgid "Creating filters in %(view_name)s..."
-msgstr ""
-
-#: src/baserow_enterprise/assistant/tools/database/tools.py:602
-#, python-format
-msgid "Creating %(view_type)s view %(view_name)s"
-msgstr ""
-
-#: src/baserow_enterprise/assistant/tools/database/tools.py:781
-msgid "Generating formula..."
-msgstr ""
-
-#: src/baserow_enterprise/assistant/tools/database/utils.py:127
+#: src/baserow_enterprise/assistant/tools/database/helpers.py:158
 #, python-format
 msgid "Creating field %(field_name)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/utils.py:422
+#: src/baserow_enterprise/assistant/tools/database/tools.py:195
+#, python-format
+msgid "Listing tables in %(database_names)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:247
+#, python-format
+msgid "Inspecting %(table_names)s schema..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:301
+#, python-format
+msgid "Listing rows in %(table_name)s "
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:351
+#, python-format
+msgid "Listing views in %(table_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:385
+#, python-format
+msgid "Creating table %(table_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:641
+#, python-format
+msgid "Updating field %(field_id)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:697
+#, python-format
+msgid "Deleting field %(field_id)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:755
+#, python-format
+msgid "Creating %(view_type)s view %(view_name)s"
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:834
+#, python-format
+msgid "Creating filters in %(view_name)s..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:910
+msgid "Generating formula..."
+msgstr ""
+
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1038
 #, python-format
 msgid "Creating rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/utils.py:463
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1075
 #, python-format
 msgid "Updating rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/database/utils.py:502
+#: src/baserow_enterprise/assistant/tools/database/tools.py:1111
 #, python-format
 msgid "Deleting rows in %(table_name)s "
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/navigation/tools.py:39
+#: src/baserow_enterprise/assistant/tools/navigation/tools.py:46
 #, python-format
 msgid "Navigating to %(location)s..."
 msgstr ""
 
-#: src/baserow_enterprise/assistant/tools/search_user_docs/tools.py:135
+#: src/baserow_enterprise/assistant/tools/search_user_docs/tools.py:149
 msgid "Exploring the knowledge base..."
 msgstr ""
 
@@ -141,6 +299,11 @@ msgstr ""
 #: src/baserow_enterprise/assistant/types.py:236
 #, python-format
 msgid "workflow %(workflow_name)s"
+msgstr ""
+
+#: src/baserow_enterprise/assistant/types.py:246
+#, python-format
+msgid "page %(page_name)s"
 msgstr ""
 
 #: src/baserow_enterprise/audit_log/job_types.py:36
@@ -185,6 +348,18 @@ msgstr ""
 
 #: src/baserow_enterprise/audit_log/models.py:32
 msgid "REDONE"
+msgstr ""
+
+#: src/baserow_enterprise/automation/nodes/node_types.py:20
+msgid "Code"
+msgstr ""
+
+#: src/baserow_enterprise/builder/elements/element_types.py:31
+msgid "Auth form"
+msgstr ""
+
+#: src/baserow_enterprise/builder/elements/element_types.py:139
+msgid "File input"
 msgstr ""
 
 #: src/baserow_enterprise/data_scanner/actions.py:18

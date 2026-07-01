@@ -1,0 +1,44 @@
+.sample-data-viewer {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.sample-data-viewer__label {
+  font-weight: 500;
+  margin-bottom: 10px;
+
+  .sample-data-viewer__sample--error & {
+    color: $palette-red-600;
+  }
+}
+
+.sample-data-viewer__code {
+  padding: 10px;
+  background-color: $color-neutral-100;
+
+  @include rounded($rounded);
+
+  pre,
+  code {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 7;
+    margin: 0;
+    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sample-data-viewer__sample--error & {
+    background-color: $palette-red-50;
+  }
+}
+
+.sample-data-viewer__button {
+  justify-content: center;
+}
+
+.sample-data-viewer__button-icon {
+  color: $palette-neutral-600;
+}

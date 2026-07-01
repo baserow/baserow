@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes inserting rows above or below in restricted views",
+    "issue_origin": "github",
+    "issue_number": 5344,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-05-11"
+}

@@ -139,6 +139,15 @@ export default {
       default: false,
     },
     /**
+     * If true (single-select only), choosing the already selected value clears the
+     * selection (emits `null`).
+     */
+    clearable: {
+      type: Boolean,
+      required: false,
+      default: false,
+    },
+    /**
      * Before show let the opportunity to execute something before actually opening the
      * dropdown. Useful when, for instance, you want to populate the item on demand only
      * when the items are dynamic and you want to avoid the non reactivity issue with
@@ -414,7 +423,7 @@ export default {
 
           // 140 is ~ the size of 1 item + optional footer
           const minHeight = 140
-          let offset = 0
+          let offset
 
           if (
             // If the target is two low on the page
@@ -487,11 +496,21 @@ export default {
         this.$emit('update:modelValue', newValue) // Vue 3 compatibility
         this.$emit('change', newValue)
       } else {
-        // emitting the updated value Vue 2 style.
-        this.$emit('input', value)
-        // emitting the updated value Vue 3 style.
-        this.$emit('update:modelValue', value) // Vue 3 compatibility
-        this.$emit('change', value)
+        const hasSingleValue =
+          this.currentValue !== null && this.currentValue !== undefined
+        if (
+          this.clearable &&
+          hasSingleValue &&
+          _.isEqual(value, this.currentValue)
+        ) {
+          this.$emit('input', null)
+          this.$emit('update:modelValue', null)
+          this.$emit('change', null)
+        } else {
+          this.$emit('input', value)
+          this.$emit('update:modelValue', value)
+          this.$emit('change', value)
+        }
         this.hide()
       }
     },

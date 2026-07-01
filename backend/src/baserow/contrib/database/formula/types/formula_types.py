@@ -875,6 +875,14 @@ class BaserowFormulaDateType(
         "date_force_timezone",
     ]
     nullable_option_fields = ["date_force_timezone"]
+    # Only `date_force_timezone` is semantically nullable; others have defaults
+    # applied by `construct_type_from_formula_field` for legacy/corrupt rows.
+    non_nullable_option_defaults = {
+        "date_format": "ISO",
+        "date_include_time": False,
+        "date_time_format": "24",
+        "date_show_tzinfo": False,
+    }
     can_represent_date = True
     can_order_by_in_array = True
     can_group_by = True
@@ -896,6 +904,16 @@ class BaserowFormulaDateType(
         self.date_time_format = date_time_format
         self.date_show_tzinfo = date_show_tzinfo
         self.date_force_timezone = date_force_timezone
+
+    @classmethod
+    def construct_type_from_formula_field(cls, formula_field):
+        kwargs = {}
+        for field_name in cls.all_fields():
+            value = getattr(formula_field, field_name)
+            if value is None and field_name in cls.non_nullable_option_defaults:
+                value = cls.non_nullable_option_defaults[field_name]
+            kwargs[field_name] = value
+        return cls(**kwargs)
 
     @property
     def array_index_sql(self) -> str:

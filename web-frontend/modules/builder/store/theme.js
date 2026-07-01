@@ -1,7 +1,7 @@
 import ThemeService from '@baserow/modules/builder/services/theme'
 import { clone } from '@baserow/modules/core/utils/object'
 
-const state = {}
+const state = () => ({})
 
 let patchRequestTimeout = null
 let patchRequestResolve = null

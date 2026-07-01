@@ -220,6 +220,35 @@ describe('Grid view store', () => {
     expect(store.getters['grid/getCount']).toBe(104)
   })
 
+  test('createdNewRow is idempotent for an already-present row', async () => {
+    // On reconnect a live ``rows_created`` can be both delivered live and
+    // replayed, so ``createdNewRow`` must be a no-op for a row already in the
+    // store rather than inserting a duplicate and inflating the count.
+    const state = Object.assign(gridStore.state(), {
+      bufferStartIndex: 0,
+      bufferLimit: 3,
+      rows: [
+        { id: 1, order: '1.00000000000000000000' },
+        { id: 2, order: '2.00000000000000000000' },
+        { id: 3, order: '3.00000000000000000000' },
+      ],
+      count: 3,
+    })
+    store.replaceState({ ...store.state, grid: state })
+
+    const view = { filters: [], sortings: [], ownership_type: 'collaborative' }
+
+    await store.dispatch('grid/createdNewRow', {
+      view,
+      fields: [],
+      values: { id: 2, order: '2.00000000000000000000' },
+      getScrollTop: () => 0,
+    })
+
+    expect(store.getters['grid/getAllRows'].length).toBe(3)
+    expect(store.getters['grid/getCount']).toBe(3)
+  })
+
   test('updatedExistingRow', async () => {
     const state = Object.assign(gridStore.state(), {
       bufferStartIndex: 0,
@@ -1492,6 +1521,86 @@ describe('Grid view store', () => {
         },
       ],
     })
+  })
+
+  test('group by metadata ignores created and deleted rows outside view filters', async () => {
+    const state = Object.assign(gridStore.state(), {
+      bufferStartIndex: 0,
+      bufferLimit: 0,
+      rows: [],
+      count: 100,
+      activeGroupBys: [
+        {
+          id: 1,
+          field: 1,
+          order: 'ASC',
+        },
+      ],
+      groupByMetadata: {
+        field_1: [
+          {
+            field_1: 'a',
+            count: 2,
+          },
+        ],
+      },
+    })
+
+    store.replaceState({ ...store.state, grid: state })
+
+    const view = {
+      id: 1,
+      filters_disabled: false,
+      filter_type: 'AND',
+      filters: [
+        {
+          id: 1,
+          view: 1,
+          field: 2,
+          type: EqualViewFilterType.getType(),
+          value: 'visible',
+        },
+      ],
+      sortings: [],
+      ownership_type: 'collaborative',
+    }
+    const fields = [
+      {
+        id: 1,
+        name: 'Group',
+        type: 'text',
+        primary: true,
+      },
+      {
+        id: 2,
+        name: 'Visibility',
+        type: 'text',
+        primary: false,
+      },
+    ]
+    const hiddenRow = {
+      id: 1,
+      order: '1.00000000000000000000',
+      field_1: 'a',
+      field_2: 'hidden',
+    }
+    const getScrollTop = () => 0
+
+    await store.dispatch('grid/createdNewRow', {
+      view,
+      fields,
+      values: hiddenRow,
+      getScrollTop,
+    })
+    expect(store.state.grid.groupByMetadata.field_1[0].count).toBe(2)
+
+    await store.dispatch('grid/deletedExistingRow', {
+      view,
+      fields,
+      row: hiddenRow,
+      getScrollTop,
+    })
+    expect(store.state.grid.groupByMetadata.field_1[0].count).toBe(2)
   })
 
   test('group by metadata count change on row update', async () => {

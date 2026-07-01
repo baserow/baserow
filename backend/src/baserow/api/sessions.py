@@ -9,6 +9,7 @@ from baserow.api.exceptions import (
     InvalidClientSessionIdAPIException,
     InvalidUndoRedoActionGroupIdAPIException,
 )
+from baserow.core.utils import get_user_remote_ip_address_from_request
 
 UNTRUSTED_CLIENT_SESSION_ID_USER_ATTR = "untrusted_client_session_id"
 UNDO_REDO_ACTION_GROUP_ID = "untrusted_client_action_group"
@@ -93,20 +94,6 @@ def set_user_websocket_id(user, request):
 
 def _set_user_websocket_id(user, websocket_id):
     user.web_socket_id = websocket_id
-
-
-def get_user_remote_ip_address_from_request(request):
-    x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-    if x_forwarded_for:
-        # X-Forwarded-For can contain multiple IPs: client, proxy1, proxy2.
-        # The first one is the original client IP.
-        return x_forwarded_for.split(",")[0].strip()
-
-    x_real_ip = request.META.get("HTTP_X_REAL_IP")
-    if x_real_ip:
-        return x_real_ip.strip()
-
-    return request.META.get("REMOTE_ADDR")
 
 
 def set_user_remote_addr_ip_from_request(user, request):

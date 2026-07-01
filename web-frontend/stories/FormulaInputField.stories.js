@@ -468,7 +468,8 @@ export default {
       description: 'Hierarchy of available functions and fields.',
     },
     allowNodeSelection: {
-      control: 'boolean',
+      control: 'select',
+      options: ['none', 'all', 'array', 'object'],
       description: 'Allow selecting nodes in the hierarchy.',
     },
   },
@@ -482,7 +483,7 @@ export default {
     mode: 'advanced',
     contextPosition: 'bottom',
     nodesHierarchy: mockNodesHierarchy,
-    allowNodeSelection: true,
+    allowNodeSelection: 'all',
   },
   parameters: {
     design: {

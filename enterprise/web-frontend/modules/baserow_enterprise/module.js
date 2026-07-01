@@ -89,6 +89,7 @@ export default defineNuxtModule({
       nuxt.options.runtimeConfig.public,
       {
         baserowEnterpriseAssistantLlmModel: '',
+        baserowEnterpriseCodeRunnerDefaultType: 'wasmtime_quickjs',
         baserowExtraClientScriptUrls: '',
       }
     )

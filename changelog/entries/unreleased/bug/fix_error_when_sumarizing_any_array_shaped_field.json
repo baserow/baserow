@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix error when summarizing any array shaped field",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "dashboard",
+    "bullet_points": [],
+    "created_at": "2026-05-07"
+}

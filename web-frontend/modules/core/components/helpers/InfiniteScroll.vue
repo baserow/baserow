@@ -4,7 +4,6 @@
     :class="{ 'infinite-scroll--reversed': reverse }"
     class="infinite-scroll"
     @scroll="handleScroll"
-    v-on="$attrs"
   >
     <slot />
     <div

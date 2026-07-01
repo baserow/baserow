@@ -1,3 +1,5 @@
+import json
+
 from django.urls import reverse
 
 import pytest
@@ -9,12 +11,25 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.builder.elements.element_types import HeaderElementType
+from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import (
     ChoiceElementOption,
     Element,
-    HeaderElement,
     LinkElement,
 )
+from baserow.contrib.builder.elements.registries import element_type_registry
+from baserow.contrib.builder.elements.service import ElementService
+from baserow.core.graph.types import GraphPointPosition
+from baserow.core.trash.handler import TrashHandler
+
+
+def pytest_generate_tests(metafunc):
+    if "element_type" in metafunc.fixturenames:
+        metafunc.parametrize(
+            "element_type",
+            [pytest.param(e, id=e.type) for e in element_type_registry.get_all()],
+        )
 
 
 @pytest.mark.django_db
@@ -92,11 +107,164 @@ def test_get_elements(api_client, data_fixture):
     assert response_json[0]["id"] == element1.id
     assert response_json[0]["type"] == "heading"
     assert "level" in response_json[0]
+    assert "order" not in response_json[0]
+    assert "place_in_container" not in response_json[0]
     assert response_json[1]["id"] == element2.id
     assert response_json[1]["type"] == "heading"
     assert response_json[2]["id"] == element3.id
     assert response_json[2]["type"] == "text"
     assert "level" not in response_json[2]
+
+
+@pytest.mark.django_db
+def test_create_element_north_position(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    data_fixture.create_builder_heading_element(page=page)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "heading",
+            "position": "north",
+            "reference_element_id": page.get_graph().graph["0"],
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "heading-1",
+            "heading-0": {},
+            "heading-1": {"next": {"": ["heading-0"]}},
+        }
+    )
+
+
+@pytest.mark.django_db
+def test_create_element_south_position(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    existing = data_fixture.create_builder_heading_element(page=page)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "heading",
+            "position": "south",
+            "reference_element_id": existing.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "heading-0",
+            "heading-0": {"next": {"": ["heading-1"]}},
+            "heading-1": {},
+        }
+    )
+
+
+@pytest.mark.django_db
+def test_create_element_place_in_container_null_compat(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    form = data_fixture.create_builder_form_container_element(page=page)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "input_text",
+            "position": GraphPointPosition.CHILD,
+            "reference_element_id": form.id,
+            "place_in_container": None,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+    child_id = response.json()["id"]
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": form.id,
+        str(form.id): {"children": {"": [child_id]}},
+        str(child_id): {},
+    }
+
+
+@pytest.mark.django_db
+def test_create_elements_in_container_slot_ordering(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    column = data_fixture.create_builder_column_element(page=page, column_amount=3)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+
+    # Add heading_a as the first child of slot '0'
+    resp_a = api_client.post(
+        url,
+        {
+            "type": "heading",
+            "position": GraphPointPosition.CHILD,
+            "reference_element_id": column.id,
+            "place_in_container": "0",
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert resp_a.status_code == HTTP_200_OK
+    id_a = resp_a.json()["id"]
+
+    # Insert heading_b before heading_a
+    resp_b = api_client.post(
+        url,
+        {
+            "type": "heading",
+            "position": GraphPointPosition.NORTH,
+            "reference_element_id": id_a,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert resp_b.status_code == HTTP_200_OK
+
+    # Insert heading_c after heading_a
+    resp_c = api_client.post(
+        url,
+        {
+            "type": "heading",
+            "position": GraphPointPosition.SOUTH,
+            "reference_element_id": id_a,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert resp_c.status_code == HTTP_200_OK
+
+    # Verify order in slot '0': heading_b → heading_a → heading_c
+    page.refresh_from_db()
+    page.assert_reference(
+        {
+            "0": "column-0",
+            "column-0": {"children": {"0": ["heading-2"]}},
+            "heading-2": {"next": {"": ["heading-1"]}},
+            "heading-1": {"next": {"": ["heading-3"]}},
+            "heading-3": {},
+        }
+    )
 
 
 @pytest.mark.django_db
@@ -107,7 +275,11 @@ def test_create_element(api_client, data_fixture):
     url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
     response = api_client.post(
         url,
-        {"type": "heading"},
+        {
+            "type": "heading",
+            "place_in_container": "",
+            "position": GraphPointPosition.SOUTH,
+        },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -191,6 +363,25 @@ def test_create_element_bad_request_for_formula(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_create_element_bad_request_for_invalid_runtime_formula(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.post(
+        url,
+        {"type": "heading", "value": "unsupported_function()"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_ELEMENT_INVALID_FORMULA"
+
+
+@pytest.mark.django_db
 def test_create_element_permission_denied(
     api_client, data_fixture, stub_check_permissions
 ):
@@ -226,14 +417,14 @@ def test_create_element_page_does_not_exist(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_create_element_parent_does_not_exist(api_client, data_fixture):
+def test_create_element_reference_node_does_not_exist(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
 
     url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
     response = api_client.post(
         url,
-        {"type": "heading", "parent_element_id": 99999999},
+        {"type": "heading", "reference_element_id": 99999999},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -287,6 +478,26 @@ def test_updating_element_with_invalid_formula_arguments_throws_error(
             ]
         },
     }
+
+
+@pytest.mark.django_db
+def test_update_element_bad_request_for_invalid_runtime_formula(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_heading_element(page=page)
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": element.id})
+    response = api_client.patch(
+        url,
+        {"value": "unsupported_function()"},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_ELEMENT_INVALID_FORMULA"
 
 
 @pytest.mark.django_db
@@ -353,47 +564,32 @@ def test_update_element_bad_style_property(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_move_element_empty_payload(api_client, data_fixture):
+def test_move_element_null_reference_south_appends_to_end(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
     element1 = data_fixture.create_builder_heading_element(page=page)
     element2 = data_fixture.create_builder_heading_element(page=page)
-    element3 = data_fixture.create_builder_heading_element(page=page)
 
+    # Move element1 (currently first) to the end — null reference + south is the
+    # frontend's convention for "append after the last element."
     url = reverse("api:builder:element:move", kwargs={"element_id": element1.id})
     response = api_client.patch(
         url,
-        {},
+        {"reference_element_id": None, "position": "south"},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
-
-    assert Element.objects.last().id == element1.id
-
-
-@pytest.mark.django_db
-def test_move_element_null_before_id(api_client, data_fixture):
-    user, token = data_fixture.create_user_and_token()
-    page = data_fixture.create_builder_page(user=user)
-    element1 = data_fixture.create_builder_heading_element(page=page)
-    element2 = data_fixture.create_builder_heading_element(page=page)
-    element3 = data_fixture.create_builder_heading_element(page=page)
-
-    url = reverse("api:builder:element:move", kwargs={"element_id": element1.id})
-    response = api_client.patch(
-        url,
-        {"before_id": None},
-        format="json",
-        HTTP_AUTHORIZATION=f"JWT {token}",
-    )
-    assert response.status_code == HTTP_200_OK
-
-    assert Element.objects.last().id == element1.id
+    page.refresh_from_db(fields=["graph"])
+    assert page.get_graph().graph == {
+        "0": element2.id,
+        str(element2.id): {"next": {"": [element1.id]}},
+        str(element1.id): {},
+    }
 
 
 @pytest.mark.django_db
-def test_move_element_before(api_client, data_fixture):
+def test_move_element_north(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
     element1 = data_fixture.create_builder_heading_element(page=page)
@@ -403,29 +599,32 @@ def test_move_element_before(api_client, data_fixture):
     url = reverse("api:builder:element:move", kwargs={"element_id": element3.id})
     response = api_client.patch(
         url,
-        {"before_id": element2.id},
+        {"reference_element_id": element2.id, "position": GraphPointPosition.NORTH},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
     assert response.status_code == HTTP_200_OK
-    assert response.json()["id"] == element3.id
-
-    assert list(Element.objects.all())[1].id == element3.id
+    page.refresh_from_db(fields=["graph"])
+    assert page.get_graph().graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [element3.id]}},
+        str(element3.id): {"next": {"": [element2.id]}},
+        str(element2.id): {},
+    }
 
 
 @pytest.mark.django_db
-def test_move_element_before_not_in_same_page(api_client, data_fixture):
+def test_move_element_reference_element_not_in_same_page(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
+    element = data_fixture.create_builder_heading_element(page=page)
     page2 = data_fixture.create_builder_page(user=user)
-    element1 = data_fixture.create_builder_heading_element(page=page)
-    element2 = data_fixture.create_builder_heading_element(page=page)
-    element3 = data_fixture.create_builder_heading_element(page=page2)
+    element2 = data_fixture.create_builder_heading_element(page=page2)
 
-    url = reverse("api:builder:element:move", kwargs={"element_id": element3.id})
+    url = reverse("api:builder:element:move", kwargs={"element_id": element2.id})
     response = api_client.patch(
         url,
-        {"before_id": element2.id},
+        {"reference_element_id": element.id, "position": GraphPointPosition.SOUTH},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -435,7 +634,7 @@ def test_move_element_before_not_in_same_page(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_move_element_bad_before_id(api_client, data_fixture):
+def test_move_element_bad_reference_element_id(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
     element1 = data_fixture.create_builder_heading_element(page=page)
@@ -443,7 +642,7 @@ def test_move_element_bad_before_id(api_client, data_fixture):
     url = reverse("api:builder:element:move", kwargs={"element_id": element1.id})
     response = api_client.patch(
         url,
-        {"before_id": 9999},
+        {"reference_element_id": 9999},
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
@@ -484,6 +683,51 @@ def test_delete_element_permission_denied(
 
     assert response.status_code == HTTP_401_UNAUTHORIZED
     assert response.json()["error"] == "PERMISSION_DENIED"
+
+
+@pytest.mark.django_db
+def test_delete_container_element_deletes_children(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+
+    container = data_fixture.create_builder_column_element(page=page, column_amount=2)
+    child1 = data_fixture.create_builder_heading_element(
+        page=page,
+        position=GraphPointPosition.CHILD,
+        reference_element=container,
+        place_in_container="0",
+    )
+    child2 = data_fixture.create_builder_column_element(
+        page=page,
+        column_amount=1,
+        position=GraphPointPosition.CHILD,
+        reference_element=container,
+        place_in_container="1",
+    )
+    grandchild = data_fixture.create_builder_heading_element(
+        page=page,
+        position=GraphPointPosition.CHILD,
+        reference_element=child2,
+        place_in_container="0",
+    )
+
+    url = reverse("api:builder:element:item", kwargs={"element_id": container.id})
+    response = api_client.delete(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    assert not Element.objects.filter(
+        id__in=[container.id, child1.id, child2.id, grandchild.id]
+    ).exists()
+
+    page.refresh_from_db(fields=["graph"])
+    for element_id in [container.id, child1.id, child2.id, grandchild.id]:
+        assert str(element_id) not in page.graph
+    assert page.graph == {}
+
+    list_url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    list_response = api_client.get(list_url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert list_response.status_code == HTTP_200_OK
+    assert list_response.json() == []
 
 
 @pytest.mark.django_db
@@ -536,38 +780,42 @@ def test_link_element_path_parameter_wrong_type(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_can_move_element_inside_container(api_client, data_fixture):
+def test_can_move_element_outside_container(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
     container_element = data_fixture.create_builder_column_element(page=page)
     element_one = data_fixture.create_builder_heading_element(
-        page=page, parent_element=container_element, place_in_container="0"
+        page=page,
+        place_in_container="0",
+        position=GraphPointPosition.CHILD,
+        reference_element=container_element,
     )
     element_two = data_fixture.create_builder_heading_element(
-        page=page, parent_element=container_element, place_in_container="0"
+        page=page,
+        place_in_container="0",
+        position=GraphPointPosition.CHILD,
+        reference_element=container_element,
     )
-
-    assert element_two.parent_element is container_element
-    assert element_two.place_in_container == "0"
 
     url = reverse("api:builder:element:move", kwargs={"element_id": element_two.id})
     response = api_client.patch(
         url,
         {
-            "before_id": element_one.id,
-            "parent_element_id": None,
-            "place_in_container": None,
+            "position": GraphPointPosition.NORTH,
+            "reference_element_id": container_element.id,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
-
     assert response.status_code == 200
 
-    element_two.refresh_from_db()
-
-    assert element_two.parent_element is None
-    assert element_two.place_in_container is None
+    page.refresh_from_db(fields=["graph"])
+    assert page.get_graph().graph == {
+        "0": element_two.id,
+        str(container_element.id): {"children": {"0": [element_one.id]}},
+        str(element_one.id): {},
+        str(element_two.id): {"next": {"": [container_element.id]}},
+    }
 
 
 @pytest.mark.django_db
@@ -585,15 +833,16 @@ def test_move_element_returns_error_when_place_in_container_is_invalid(
     response = api_client.patch(
         url,
         {
-            "parent_element_id": column_element.id,
+            "reference_element_id": column_element.id,
             "place_in_container": "9999",
+            "position": GraphPointPosition.CHILD,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert "place_in_container" in response.json()[0]
+    assert response.json() == ["place_in_container can at most be 1, (9999, was given)"]
 
 
 @pytest.mark.django_db
@@ -606,26 +855,32 @@ def test_move_element_with_before_returns_error_when_place_in_container_is_inval
         page=page, column_amount=2
     )
     first_child = data_fixture.create_builder_text_element(
-        page=page, parent_element=column_element, place_in_container="0"
+        page=page,
+        place_in_container="0",
+        reference_element=column_element,
+        position=GraphPointPosition.CHILD,
     )
     second_child = data_fixture.create_builder_text_element(
-        page=page, parent_element=column_element, place_in_container="0"
+        page=page,
+        place_in_container="0",
+        reference_element=column_element,
+        position=GraphPointPosition.CHILD,
     )
 
     url = reverse("api:builder:element:move", kwargs={"element_id": second_child.id})
     response = api_client.patch(
         url,
         {
-            "before_id": first_child.id,
-            "parent_element_id": column_element.id,
             "place_in_container": "9999",
+            "position": GraphPointPosition.CHILD,
+            "reference_element_id": column_element.id,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert "place_in_container" in response.json()[0]
+    assert response.json() == ["place_in_container can at most be 1, (9999, was given)"]
 
     second_child.refresh_from_db()
     assert second_child.parent_element_id == column_element.id
@@ -649,20 +904,21 @@ def test_move_element_to_other_page_container_returns_error_when_place_is_invali
     response = api_client.patch(
         url,
         {
-            "parent_element_id": column_element.id,
+            "reference_element_id": column_element.id,
             "place_in_container": "9999",
+            "position": GraphPointPosition.CHILD,
         },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
-    assert "place_in_container" in response.json()[0]
+    assert response.json() == ["place_in_container can at most be 1, (9999, was given)"]
 
     child.refresh_from_db()
     assert child.page_id == page.id
     assert child.parent_element_id is None
-    assert child.place_in_container is None
+    assert child.place_in_container == ""
 
 
 @pytest.mark.django_db
@@ -690,7 +946,7 @@ def test_move_element_to_shared_page_without_parent_is_invalid_for_regular_eleme
     element.refresh_from_db()
     assert element.page_id == page.id
     assert element.parent_element_id is None
-    assert element.place_in_container is None
+    assert element.place_in_container == ""
 
 
 @pytest.mark.django_db
@@ -702,7 +958,7 @@ def test_move_element_to_regular_page_without_parent_is_invalid_for_shared_eleme
     page = data_fixture.create_builder_page(user=user, builder=builder)
     shared_page = builder.shared_page
     header = data_fixture.create_builder_element(
-        HeaderElement,
+        HeaderElementType,
         user=user,
         page=shared_page,
         share_type="all",
@@ -726,17 +982,193 @@ def test_move_element_to_regular_page_without_parent_is_invalid_for_shared_eleme
 
 
 @pytest.mark.django_db
+def test_create_non_shared_element_inside_shared_container_is_allowed(
+    api_client, data_fixture
+):
+    user, token = data_fixture.create_user_and_token()
+    builder = data_fixture.create_builder_application(user=user)
+    shared_page = builder.shared_page
+    header = data_fixture.create_builder_element(
+        HeaderElementType,
+        user=user,
+        page=shared_page,
+        share_type="all",
+    )
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": shared_page.id})
+    response = api_client.post(
+        url,
+        {
+            "type": "heading",
+            "reference_element_id": header.id,
+            "position": GraphPointPosition.CHILD,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+
+    assert response.status_code == HTTP_200_OK
+
+
+@pytest.mark.django_db
+def test_can_move_element_between_places(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    container_element = data_fixture.create_builder_column_element(page=page)
+    element_one = data_fixture.create_builder_heading_element(
+        page=page,
+        place_in_container="0",
+        position=GraphPointPosition.CHILD,
+        reference_element=container_element,
+    )
+    element_two = data_fixture.create_builder_heading_element(
+        page=page,
+        place_in_container="0",
+        position=GraphPointPosition.CHILD,
+        reference_element=container_element,
+    )
+
+    url = reverse("api:builder:element:move", kwargs={"element_id": element_two.id})
+    response = api_client.patch(
+        url,
+        {
+            "place_in_container": "1",
+            "position": GraphPointPosition.CHILD,
+            "reference_element_id": container_element.id,
+        },
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == 200
+
+    page.refresh_from_db(fields=["graph"])
+    assert page.get_graph().graph == {
+        "0": container_element.id,
+        str(container_element.id): {
+            "children": {"0": [element_one.id], "1": [element_two.id]}
+        },
+        str(element_one.id): {},
+        str(element_two.id): {},
+    }
+
+
+@pytest.mark.django_db
 def test_duplicate_element(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
-    element = data_fixture.create_builder_heading_element(user=user, value="'test'")
+    page = data_fixture.create_builder_page(user=user)
+    container = data_fixture.create_builder_column_element(page=page, column_amount=2)
+    heading = data_fixture.create_builder_heading_element(
+        value="'test'",
+        page=page,
+        place_in_container="1",
+        position=GraphPointPosition.CHILD,
+        reference_element=container,
+    )
 
-    url = reverse("api:builder:element:duplicate", kwargs={"element_id": element.id})
+    url = reverse("api:builder:element:duplicate", kwargs={"element_id": container.id})
     response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
 
     response_json = response.json()
     assert response.status_code == HTTP_200_OK
-    assert response_json["elements"][0]["id"] != element.id
-    assert response_json["elements"][0]["value"] == element.value
+
+    assert len(response_json["elements"]) == 2
+    duplicated_container = response_json["elements"][0]
+    duplicated_heading = response_json["elements"][1]
+    assert response_json["graph"] == {
+        "0": container.id,
+        str(container.id): {
+            "children": {"1": [heading.id]},
+            "next": {"": [duplicated_container["id"]]},
+        },
+        str(heading.id): {},
+        str(duplicated_container["id"]): {
+            "children": {"1": [duplicated_heading["id"]]}
+        },
+        str(duplicated_heading["id"]): {},
+    }
+
+    page.refresh_from_db(fields=["graph"])
+    page.assert_reference(
+        {
+            "0": "column-0",
+            "column-0": {"next": {"": ["column-2"]}, "children": {"1": ["test-1"]}},
+            "test-1": {},
+            "column-2": {"children": {"1": ["test-3"]}},
+            "test-3": {},
+        }
+    )
+
+
+@pytest.mark.django_db
+def test_duplicate_container_preserves_child_order(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+
+    form_container = data_fixture.create_builder_form_container_element(page=page)
+
+    # Create children in reverse graph order so pk(checkbox) < pk(text) < pk(input_text) < pk(heading).
+    # Desired graph order: heading → input_text → text → checkbox
+    checkbox = data_fixture.create_builder_checkbox_element(
+        page=page,
+        position=GraphPointPosition.CHILD,
+        reference_element=form_container,
+        place_in_container="",
+    )
+    text = data_fixture.create_builder_text_element(
+        page=page,
+        position=GraphPointPosition.NORTH,
+        reference_element=checkbox,
+    )
+    input_text = data_fixture.create_builder_input_text_element(
+        page=page,
+        position=GraphPointPosition.NORTH,
+        reference_element=text,
+    )
+    heading = data_fixture.create_builder_heading_element(
+        page=page,
+        position=GraphPointPosition.NORTH,
+        reference_element=input_text,
+    )
+
+    # Confirm pk order is the inverse of graph order.
+    assert checkbox.id < text.id < input_text.id < heading.id
+
+    url = reverse(
+        "api:builder:element:duplicate",
+        kwargs={"element_id": form_container.id},
+    )
+    response = api_client.post(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+
+    response_json = response.json()
+    fc_copy, h_copy, it_copy, t_copy, cb_copy = response_json["elements"]
+
+    # Types reveal graph order. If children were iterated in pk order (checkbox has
+    # the lowest pk), checkbox would appear first instead of heading.
+    assert fc_copy["type"] == "form_container"
+    assert h_copy["type"] == "heading"
+    assert it_copy["type"] == "input_text"
+    assert t_copy["type"] == "text"
+    assert cb_copy["type"] == "checkbox"
+
+    # The full graph includes the original and duplicated chains:
+    # fc_copy → h_copy → it_copy → t_copy → cb_copy
+    assert response_json["graph"] == {
+        "0": form_container.id,
+        str(form_container.id): {
+            "children": {"": [heading.id]},
+            "next": {"": [fc_copy["id"]]},
+        },
+        str(heading.id): {"next": {"": [input_text.id]}},
+        str(input_text.id): {"next": {"": [text.id]}},
+        str(text.id): {"next": {"": [checkbox.id]}},
+        str(checkbox.id): {},
+        str(fc_copy["id"]): {"children": {"": [h_copy["id"]]}},
+        str(h_copy["id"]): {"next": {"": [it_copy["id"]]}},
+        str(it_copy["id"]): {"next": {"": [t_copy["id"]]}},
+        str(t_copy["id"]): {"next": {"": [cb_copy["id"]]}},
+        str(cb_copy["id"]): {},
+    }
 
 
 @pytest.mark.django_db
@@ -757,17 +1189,24 @@ def test_duplicate_element_does_not_exist(api_client, data_fixture):
 def test_child_type_not_allowed_validation(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    parent = data_fixture.create_builder_form_container_element(page=page)
+    reference_element = data_fixture.create_builder_form_container_element(page=page)
 
     url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
     response = api_client.post(
         url,
-        {"type": "form_container", "parent_element_id": parent.id},
+        {
+            "type": "form_container",
+            "position": GraphPointPosition.CHILD,
+            "reference_element_id": reference_element.id,
+        },
         format="json",
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
     assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json() == [
+        "Container of type form_container can't have child of type form_container"
+    ]
 
 
 @pytest.mark.django_db
@@ -817,12 +1256,11 @@ def test_choice_options_updated(api_client, data_fixture):
 
 
 @pytest.mark.django_db
-def test_choice_options_deleted(api_client, data_fixture):
+def test_choice_options_preserved_on_trash(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
     choice_element = data_fixture.create_builder_choice_element(page=page)
 
-    # Add an existing option
     ChoiceElementOption.objects.create(choice=choice_element)
 
     url = reverse("api:builder:element:item", kwargs={"element_id": choice_element.id})
@@ -833,7 +1271,10 @@ def test_choice_options_deleted(api_client, data_fixture):
     )
 
     assert response.status_code == HTTP_204_NO_CONTENT
-    assert ChoiceElementOption.objects.count() == 0
+    # Trashing soft-deletes the element; options survive so they can be
+    # restored together with the element. Django's CASCADE only fires on
+    # permanent deletion (permanently_delete_item → .delete()).
+    assert ChoiceElementOption.objects.count() == 1
 
 
 @pytest.mark.django_db
@@ -974,3 +1415,167 @@ def test_create_collection_element_with_blank_property_option_schema_property(
             ]
         },
     }
+
+
+@pytest.mark.django_db
+def test_list_elements_does_not_mutate_graph_when_consistent(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    data_fixture.create_builder_heading_element(page=page)
+
+    page.refresh_from_db(fields=["graph"])
+    graph_before = dict(page.graph)
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+
+    # No orphans → the graph is untouched and no patch header is sent.
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == graph_before
+    assert "X-Baserow-Builder-Graph-Patch" not in response.headers
+
+
+@pytest.mark.django_db
+def test_list_elements_heals_orphan_on_unshared_page(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    element1 = data_fixture.create_builder_heading_element(page=page)
+
+    # An element in the DB but missing from the graph.
+    orphan = ElementHandler().create_element(
+        element_type_registry.get("heading"), page=page
+    )
+    page.refresh_from_db(fields=["graph"])
+    assert str(orphan.id) not in page.graph
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": page.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+
+    # The orphan is appended to the end of the unshared page's root chain.
+    page.refresh_from_db(fields=["graph"])
+    assert page.graph == {
+        "0": element1.id,
+        str(element1.id): {"next": {"": [orphan.id]}},
+        str(orphan.id): {},
+    }
+
+    # The same change is returned in-band as a small graph-patch header so the
+    # requesting client can apply it to its already-loaded graph immediately.
+    graph_patch = json.loads(response["X-Baserow-Builder-Graph-Patch"])
+    assert graph_patch == {
+        str(element1.id): {"next": {"": [orphan.id]}},
+        str(orphan.id): {},
+    }
+
+
+@pytest.mark.django_db
+def test_list_elements_heals_orphan_on_shared_page(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    page = data_fixture.create_builder_page(user=user)
+    shared_page = page.builder.shared_page
+
+    # The first shared element (a Header container) at the root of the shared page.
+    header = ElementService().create_element(
+        user, element_type_registry.get("header"), page=shared_page
+    )
+
+    # A regular element on the shared page that's missing from the graph.
+    orphan = ElementHandler().create_element(
+        element_type_registry.get("heading"), page=shared_page
+    )
+    shared_page.refresh_from_db(fields=["graph"])
+    assert str(orphan.id) not in shared_page.graph
+
+    url = reverse("api:builder:element:list", kwargs={"page_id": shared_page.id})
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+
+    # The orphan is appended to the end of the first shared element (the header).
+    shared_page.refresh_from_db(fields=["graph"])
+    assert shared_page.graph[str(header.id)]["children"][""] == [orphan.id]
+
+    # The in-band patch header carries the changed entries (orphan + header).
+    graph_patch = json.loads(response["X-Baserow-Builder-Graph-Patch"])
+    assert str(orphan.id) in graph_patch
+    assert str(header.id) in graph_patch
+
+
+@pytest.mark.django_db
+def test_element_full_lifecycle(api_client, data_fixture, element_type):
+    # create → trash → verify → restore → verify → trash → permanently delete → verify
+    user, token = data_fixture.create_user_and_token()
+
+    if element_type.is_multi_page_element:
+        builder = data_fixture.create_builder_application(user=user)
+        page = builder.shared_page
+    else:
+        page = data_fixture.create_builder_page(user=user)
+
+    if element_type.is_deactivated(page.builder.workspace):
+        pytest.skip(f"{element_type.type} is deactivated in this workspace")
+
+    response = api_client.post(
+        reverse("api:builder:element:list", kwargs={"page_id": page.id}),
+        {"type": element_type.type},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK, response.json()
+    element_id = response.json()["id"]
+
+    # For containers, add a HeadingElement child so we can assert that children
+    # are soft-deleted alongside the parent and restored with it.
+    # Refresh the page so its cached graph reflects the element just created by the API.
+    child_id = None
+    if element_type.is_container:
+        page.refresh_from_db(fields=["graph"])
+        parent_element = Element.objects.get(id=element_id)
+        child = data_fixture.create_builder_heading_element(
+            page=page,
+            position=GraphPointPosition.CHILD,
+            reference_element=parent_element,
+            place_in_container="0",
+        )
+        child_id = child.id
+
+    response = api_client.delete(
+        reverse("api:builder:element:item", kwargs={"element_id": element_id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    element_row = Element.objects_and_trash.get(id=element_id)
+    assert element_row.trashed is True
+
+    if child_id is not None:
+        child_row = Element.objects_and_trash.get(id=child_id)
+        assert child_row.trashed is True
+
+    response = api_client.patch(
+        reverse("api:trash:restore"),
+        {"trash_item_type": "builder_element", "trash_item_id": element_id},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    element_row.refresh_from_db()
+    assert element_row.trashed is False
+
+    if child_id is not None:
+        child_row.refresh_from_db()
+        assert child_row.trashed is False
+
+    response = api_client.delete(
+        reverse("api:builder:element:item", kwargs={"element_id": element_id}),
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    TrashHandler.permanently_delete(element_row)
+
+    assert not Element.objects_and_trash.filter(id=element_id).exists()
+    if child_id is not None:
+        assert not Element.objects_and_trash.filter(id=child_id).exists()

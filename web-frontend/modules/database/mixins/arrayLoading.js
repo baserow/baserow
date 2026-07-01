@@ -10,7 +10,8 @@ export default {
     },
     value: {
       type: Array,
-      required: true,
+      required: false,
+      default: () => [],
     },
   },
   computed: {

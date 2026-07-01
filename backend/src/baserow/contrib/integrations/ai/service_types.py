@@ -106,6 +106,30 @@ class AIAgentServiceType(ServiceType):
         ai_prompt: str
         ai_choices: List[str]
 
+    def import_serialized(
+        self,
+        parent: Any,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Dict[int, int]],
+        *args,
+        **kwargs,
+    ) -> AIAgentService:
+        # The app might have been exported from another instance (e.g. Baserow
+        # SaaS), where a generative AI model type can exist that isn't registered
+        # here. In that case there's nothing valid to use, so clear the provider
+        # and model rather than importing a dangling reference.
+        ai_type = serialized_values.get("ai_generative_ai_type")
+        if ai_type:
+            try:
+                generative_ai_model_type_registry.get(ai_type)
+            except GenerativeAITypeDoesNotExist:
+                serialized_values["ai_generative_ai_type"] = None
+                serialized_values["ai_generative_ai_model"] = None
+
+        return super().import_serialized(
+            parent, serialized_values, id_mapping, *args, **kwargs
+        )
+
     def prepare_values(
         self,
         values: Dict[str, Any],

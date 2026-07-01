@@ -74,7 +74,10 @@ from .exceptions import (
 )
 from .fields import DurationFieldUsingPostgresFormatting
 from .models import Field, FieldConstraint, LinkRowField
-from .utils import DeferredForeignKeyUpdater
+from .utils import (
+    DeferredForeignKeyUpdater,
+    guess_json_type_from_response_serializer_field,
+)
 
 if TYPE_CHECKING:
     from baserow.contrib.database.fields.dependencies.handler import FieldDependants
@@ -2394,10 +2397,14 @@ class FieldAggregationType(Instance):
     attributes.
     """
 
-    result_type = "string"
+    result_type = "field"
     """Informs features which use field aggregation types what the aggregation
-    result type be. At the moment the result is always a string, but in the future
-    if we generated an array for example, the result type would be 'array'."""
+    result type is.
+
+    The value is used as the single source of truth for both schema generation
+    and serializer selection. Use "field" to reuse the underlying field
+    serializer, or a primitive result type such as "integer" or "float".
+    """
 
     with_total = False
     """Determines if the result of the aggregation needs to
@@ -2513,6 +2520,35 @@ class FieldAggregationType(Instance):
                 return 0
             return (raw_aggregation_result / total_count) * 100
         return raw_aggregation_result
+
+    def get_result_schema(self, field: Field) -> Dict[str, Any]:
+        """
+        Returns the JSON schema fragment describing the aggregation result.
+        """
+
+        serializer_field = self.get_result_serializer_field(field)
+        return guess_json_type_from_response_serializer_field(serializer_field)
+
+    def get_result_serializer_field(self, field: Field):
+        """
+        Returns the DRF serializer field used to serialize the aggregation result.
+        """
+
+        if self.result_type == "field":
+            return field.get_type().get_serializer_field(field)
+        if self.result_type == "integer":
+            return serializers.IntegerField()
+        if self.result_type == "float":
+            return serializers.FloatField()
+        if self.result_type == "boolean":
+            return serializers.BooleanField()
+        if self.result_type == "string":
+            return serializers.CharField()
+
+        raise ValueError(
+            f"Unsupported aggregation result type '{self.result_type}' "
+            f"for field aggregation type '{self.type}'."
+        )
 
 
 class FieldAggregationTypeRegistry(Registry):

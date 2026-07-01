@@ -241,6 +241,7 @@ export default {
   computed: {
     showOptions() {
       return (
+        this.additionalContextComponents.length > 0 ||
         this.$hasPermission(
           'database.table.run_export',
           this.table,
@@ -265,16 +266,15 @@ export default {
     },
     additionalContextComponents() {
       return Object.values(this.$registry.getAll('plugin'))
-        .reduce(
-          (components, plugin) =>
-            components.concat(
-              plugin.getAdditionalTableContextComponents(
-                this.database.workspace,
-                this.table
-              )
-            ),
-          []
-        )
+        .reduce((components, plugin) => {
+          return components.concat(
+            plugin.getAdditionalApplicationChildContextComponents(
+              this.database.workspace,
+              this.database,
+              this.table
+            )
+          )
+        }, [])
         .filter((component) => component !== null)
     },
     syncTooltipOptions() {

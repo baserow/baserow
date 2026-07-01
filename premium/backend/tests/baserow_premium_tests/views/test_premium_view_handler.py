@@ -5,7 +5,6 @@ from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import (
     OWNERSHIP_TYPE_COLLABORATIVE,
     GridView,
-    View,
 )
 from baserow.core.exceptions import PermissionDenied
 from baserow_premium.views.handler import get_rows_grouped_by_single_select_field
@@ -67,7 +66,7 @@ def test_get_rows_grouped_by_single_select_field(
     )
 
     # The amount of queries including
-    with django_assert_num_queries(6):
+    with django_assert_num_queries(8):
         rows = get_rows_grouped_by_single_select_field(
             user, view, single_select_field, model=model
         )
@@ -174,9 +173,7 @@ def test_get_rows_grouped_by_single_select_field_not_existing_options_are_null(
 ):
     user = premium_data_fixture.create_user()
     table = premium_data_fixture.create_database_table(user=user)
-    view = View()
-    view.id = 999  # fake pk
-    view.table = table
+    view = premium_data_fixture.create_grid_view(table=table)
     text_field = premium_data_fixture.create_text_field(table=table, primary=True)
     single_select_field = premium_data_fixture.create_single_select_field(table=table)
     option_a = premium_data_fixture.create_select_option(
@@ -239,9 +236,7 @@ def test_get_rows_grouped_by_single_select_field_with_empty_table(
 ):
     user = premium_data_fixture.create_user()
     table = premium_data_fixture.create_database_table()
-    view = View()
-    view.id = 999  # fake pk
-    view.table = table
+    view = premium_data_fixture.create_grid_view(table=table)
     single_select_field = premium_data_fixture.create_single_select_field(table=table)
     rows = get_rows_grouped_by_single_select_field(user, view, single_select_field)
     assert len(rows) == 1

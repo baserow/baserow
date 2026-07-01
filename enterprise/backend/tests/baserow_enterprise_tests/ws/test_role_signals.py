@@ -8,13 +8,14 @@ from channels.testing import WebsocketCommunicator
 
 from baserow.config.asgi import application
 from baserow.core.apps import sync_operations_after_migrate
-from baserow.ws.tasks import send_message_to_channel_group
+from baserow.ws.tasks import send_messages_to_channel_group
+from baserow.ws.types import ChannelGroupMessage
 from baserow_enterprise.apps import sync_default_roles_after_migrate
 from baserow_enterprise.role.constants import NO_ROLE_LOW_PRIORITY_ROLE_UID
 from baserow_enterprise.role.handler import RoleAssignmentHandler
 from baserow_enterprise.role.models import Role
 from baserow_enterprise.teams.handler import TeamHandler
-from tests.baserow.contrib.database.utils import received_message
+from tests.baserow.contrib.database.utils import get_message, received_message
 
 
 # We have to run this every time between test executions since we are using
@@ -479,22 +480,21 @@ async def test_unsubscribe_user_from_tables_and_rows_when_role_updated(data_fixt
 
     # Subscribe user to a table and a row from workspace 1
     await communicator.send_json_to({"page": "table", "table_id": table_1.id})
-    response = await communicator.receive_json_from(timeout=0.1)
+    assert await received_message(communicator, "page_add") is True
 
     await communicator.send_json_to(
         {"page": "row", "table_id": table_1.id, "row_id": row_1.id}
     )
-    response = await communicator.receive_json_from(timeout=0.1)
+    assert await received_message(communicator, "page_add") is True
 
     # Remove role from user
     await sync_to_async(RoleAssignmentHandler().assign_role)(
         user_1, workspace_1, no_access_role
     )
 
-    response = await communicator.receive_json_from(timeout=0.1)
-
-    # Receiving messages about being removed from the pages
-    response = await communicator.receive_json_from(timeout=0.1)
+    # Receiving messages about being removed from the pages (presence
+    # messages may be interleaved, so use get_message to skip them).
+    response = await get_message(communicator, "page_discard")
     assert response == {
         "page": "table",
         "parameters": {
@@ -503,7 +503,7 @@ async def test_unsubscribe_user_from_tables_and_rows_when_role_updated(data_fixt
         "type": "page_discard",
     }
 
-    response = await communicator.receive_json_from(timeout=0.1)
+    response = await get_message(communicator, "page_discard")
     assert response == {
         "page": "row",
         "parameters": {
@@ -513,21 +513,21 @@ async def test_unsubscribe_user_from_tables_and_rows_when_role_updated(data_fixt
         "type": "page_discard",
     }
 
-    response = await communicator.receive_json_from(timeout=0.1)
-    assert response == {
-        "type": "permissions_updated",
-        "workspace_id": workspace_1.id,
-    }
+    response = await get_message(communicator, "permissions_updated")
+    assert response["type"] == "permissions_updated"
+    assert response["workspace_id"] == workspace_1.id
 
     # User should not receive any messages to a table in workspace 1
-    await send_message_to_channel_group(
-        channel_layer, f"table-{table_1.id}", {"test": "message"}
+    await send_messages_to_channel_group(
+        channel_layer,
+        ChannelGroupMessage(f"table-{table_1.id}", {"test": "message"}),
     )
     await communicator.receive_nothing(timeout=0.1)
 
     # User should not receive any messages to a row in workspace 1
-    await send_message_to_channel_group(
-        channel_layer, f"table-{table_1.id}-row-{row_1.id}", {"test": "message"}
+    await send_messages_to_channel_group(
+        channel_layer,
+        ChannelGroupMessage(f"table-{table_1.id}-row-{row_1.id}", {"test": "message"}),
     )
     await communicator.receive_nothing(timeout=0.1)
 
@@ -576,18 +576,19 @@ async def test_unsubscribe_user_from_tables_and_rows_when_team_trashed(
 
     # Subscribe user to a table and a row from workspace 1
     await communicator.send_json_to({"page": "table", "table_id": table_1.id})
-    response = await communicator.receive_json_from(timeout=0.1)
+    assert await received_message(communicator, "page_add") is True
 
     await communicator.send_json_to(
         {"page": "row", "table_id": table_1.id, "row_id": row_1.id}
     )
-    response = await communicator.receive_json_from(timeout=0.1)
+    assert await received_message(communicator, "page_add") is True
 
     # Team deleted
     await sync_to_async(TeamHandler().delete_team)(user_1, team)
 
-    # Receiving messages about being removed from the pages
-    response = await communicator.receive_json_from(timeout=0.1)
+    # Receiving messages about being removed from the pages (presence
+    # messages may be interleaved, so use get_message to skip them).
+    response = await get_message(communicator, "page_discard")
     assert response == {
         "page": "table",
         "parameters": {
@@ -595,7 +596,8 @@ async def test_unsubscribe_user_from_tables_and_rows_when_team_trashed(
         },
         "type": "page_discard",
     }
-    response = await communicator.receive_json_from(timeout=0.1)
+
+    response = await get_message(communicator, "page_discard")
     assert response == {
         "page": "row",
         "parameters": {
@@ -605,21 +607,21 @@ async def test_unsubscribe_user_from_tables_and_rows_when_team_trashed(
         "type": "page_discard",
     }
 
-    response = await communicator.receive_json_from(timeout=0.1)
-    assert response == {
-        "type": "permissions_updated",
-        "workspace_id": workspace_1.id,
-    }
+    response = await get_message(communicator, "permissions_updated")
+    assert response["type"] == "permissions_updated"
+    assert response["workspace_id"] == workspace_1.id
 
     # User should not receive any messages to a table in workspace 1
-    await send_message_to_channel_group(
-        channel_layer, f"table-{table_1.id}", {"test": "message"}
+    await send_messages_to_channel_group(
+        channel_layer,
+        ChannelGroupMessage(f"table-{table_1.id}", {"test": "message"}),
     )
     await communicator.receive_nothing(timeout=0.1)
 
     # User should not receive any messages to a row in workspace 1
-    await send_message_to_channel_group(
-        channel_layer, f"table-{table_1.id}-row-{row_1.id}", {"test": "message"}
+    await send_messages_to_channel_group(
+        channel_layer,
+        ChannelGroupMessage(f"table-{table_1.id}-row-{row_1.id}", {"test": "message"}),
     )
     await communicator.receive_nothing(timeout=0.1)
 

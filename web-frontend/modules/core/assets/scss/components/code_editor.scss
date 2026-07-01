@@ -1,4 +1,5 @@
 .code-editor {
+  position: relative;
   border-radius: 4px;
   overflow: hidden;
   padding: 6px;
@@ -13,7 +14,35 @@
   .tiptap.ProseMirror {
     min-height: 100px;
     max-height: 200px;
-    padding: 0;
+    padding: 0 28px 0 0;
     overflow-y: auto;
+  }
+
+  &__code-wrapper {
+    margin: 2px 0;
+  }
+
+  &__expand {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+  }
+
+  /* stylelint-disable-next-line selector-class-pattern */
+  .ProseMirror .is-editor-empty:first-child::before {
+    content: attr(data-placeholder);
+    color: $palette-neutral-600;
+    pointer-events: none;
+    float: left;
+    height: 0;
+  }
+}
+
+.code-editor--modal {
+  /* stylelint-disable-next-line selector-class-pattern */
+  .tiptap.ProseMirror {
+    min-height: 360px;
+    max-height: 60vh;
+    padding-right: 0;
   }
 }

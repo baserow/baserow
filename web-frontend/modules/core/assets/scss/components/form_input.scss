@@ -100,6 +100,10 @@
     padding-right: 8px;
   }
 
+  .form-input--can-clear & {
+    padding-right: 26px;
+  }
+
   .form-input--disabled & {
     cursor: not-allowed;
     background-color: $palette-neutral-100;
@@ -178,6 +182,20 @@
     ):not(.form-input--no-border)
     & {
     color: $palette-blue-500;
+  }
+}
+
+.form-input__clear {
+  color: $palette-neutral-900;
+  font-size: 14px;
+  line-height: 20px;
+  margin-top: -10px;
+
+  @include absolute(50%, 8px, 0, auto);
+
+  &:hover {
+    text-decoration: none;
+    color: $palette-neutral-1200;
   }
 }
 

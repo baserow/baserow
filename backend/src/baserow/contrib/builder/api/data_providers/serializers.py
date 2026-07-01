@@ -2,7 +2,13 @@ import pytz
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
+from baserow.contrib.builder.data_sources.exceptions import (
+    DataSourceRefinementForbidden,
+)
+from baserow.contrib.builder.elements.exceptions import ElementDoesNotExist
 from baserow.contrib.builder.elements.models import Element
+from baserow.contrib.builder.elements.service import ElementService
+from baserow.core.exceptions import PermissionException
 
 IANA_TIMEZONES = [(tz, tz) for tz in pytz.all_timezones]
 
@@ -27,6 +33,15 @@ class DispatchDataSourceDataSourceContextSerializer(serializers.Serializer):
         page = self.context.get("page")
         element = data.get("element")
         if element:
+            user = self.context.get("user")
+            if user is not None:
+                try:
+                    data["element"] = ElementService().get_element(user, element.id)
+                except (ElementDoesNotExist, PermissionException):
+                    raise DataSourceRefinementForbidden(
+                        "The data source is not available for the dispatched element."
+                    ) from None
+
             if (
                 element.page_id != page.id
                 and element.page.builder.shared_page.id != page.id

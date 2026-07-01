@@ -57,8 +57,13 @@ export default {
       if (!el || !this.$refs.context) {
         return
       }
-      const { width } = el.getBoundingClientRect()
-      this.$refs.context.$el.style.width = `${width}px`
+      // Ensure that the context's width is dynamically set
+      // to the targetElement's width, as it can be variable.
+      const contextEl = this.$refs.context?.getTeleportedElement()
+      if (contextEl) {
+        const { width } = el.getBoundingClientRect()
+        contextEl.style.width = `${width}px`
+      }
       return this.$refs.context.show(
         el,
         verticalPosition,

@@ -15,11 +15,17 @@ if (dsn && dsn !== '') {
     dsn,
     release: `baserow-web-frontend@${config.public.version}`,
     environment: config.public.sentryEnvironment || 'production',
-    tracesSampleRate: 1.0,
+    // Sample rate for performance tracing, configurable via the
+    // SENTRY_TRACES_SAMPLE_RATE env var (shared with the backend).
+    tracesSampleRate: parseFloat(config.public.sentryTracesSampleRate) || 0,
     ...(isDev ? { transport: makeFakeTransport } : {}),
     beforeSend(event, hint) {
       const err = hint?.originalException
-      if (err?.fatal === false) return null
+      if (err?.fatal === false) {
+        return null
+      } else if (err?.fatal === true && err?.data?.report === false) {
+        return null
+      }
 
       // Filter known API errors that are handled by the application (e.g. forceLogoff).
       const status = err?.response?.status || err?.statusCode

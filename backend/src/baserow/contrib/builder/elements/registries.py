@@ -1,7 +1,9 @@
 import uuid
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from typing import (
     Any,
+    Callable,
     Dict,
     Generator,
     List,
@@ -16,6 +18,7 @@ from zipfile import ZipFile
 
 from django.core.files.storage import Storage
 from django.db import models
+from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
@@ -23,6 +26,8 @@ from rest_framework.exceptions import ValidationError
 from baserow.contrib.builder.mixins import BuilderInstanceWithFormulaMixin
 from baserow.contrib.builder.pages.models import Page
 from baserow.core.formula.types import BaserowFormulaObject
+from baserow.core.graph.exceptions import GraphPointReferencePointInvalid
+from baserow.core.graph.types import GraphPointPosition, GraphPointPositionType
 from baserow.core.models import Workspace
 from baserow.core.registry import (
     CustomFieldsInstanceMixin,
@@ -60,13 +65,23 @@ class ElementType(
     parent_property_name = "page"
     id_mapping_name = BUILDER_PAGE_ELEMENTS
 
+    display_name = _("Unnamed element")
+
+    # Is this element type a container-type element?
+    is_container = False
+
     # Whether this element is a multi-page element and should be placed on shared page.
     is_multi_page_element = False
 
-    # The order in which this element type is imported in `import_elements`.
-    # By default, the priority is `0`, the lowest value. If this property is
-    # not overridden, then the instance is imported last.
-    import_element_priority = 0
+    def get_places(self, instance: ElementSubClass) -> Dict[str, Dict[str, str]]:
+        """
+        Returns the places available from this element in the graph.
+
+        The default builder element place is the unnamed `next` edge.
+        Container elements override this to expose their child slots.
+        """
+
+        return {"": {"label": ""}}
 
     def is_deactivated(self, workspace: Workspace) -> bool:
         """
@@ -83,70 +98,146 @@ class ElementType(
         implementation of this hook.
 
         :param values: The values that are being updated
-        :param instance: (optional) The existing instance that is being updated
-        :return:
+        :param instance: The existing instance that is being updated
+        :return: Values that should be used for the update or creation of the element.
         """
-
-        from baserow.contrib.builder.elements.handler import ElementHandler
-
-        parent_element_id = values.get(
-            "parent_element_id", getattr(instance, "parent_element_id", None)
-        )
-
-        if instance:
-            place_in_container = values.get(
-                "place_in_container", instance.place_in_container
-            )
-            page = values.get("page", instance.page)
-        else:
-            place_in_container = values.get("place_in_container", None)
-            page = values["page"]
-
-        parent_element = None
-        if parent_element_id is not None:
-            parent_element = ElementHandler().get_element(parent_element_id)
-
-        # Validate the place for this element
-        self.validate_place(page, parent_element, place_in_container)
 
         return values
 
-    def validate_place(
-        self,
-        page: Page,
-        parent_element: Optional[ElementSubClass],
-        place_in_container: str,
+    def export_prepared_values(self, instance: Element) -> Dict[str, Any]:
+        """
+        Returns a JSON-serializable dict of the element's `allowed_fields`, used by
+        the undo/redo `ActionHandler` to snapshot values so they can be restored
+        later. Relation fields are exported as their id so the result stays
+        JSON-serializable.
+
+        Note: re-applying a stored relation id through `update_element` only
+        round-trips for element types whose update path accepts that id (e.g. those
+        exposing an `<field>_id` allowed field). Update undo/redo therefore only
+        snapshots the fields actually changed by an update (see the update action),
+        keeping scalar/JSON field changes fully reversible.
+
+        :param instance: The element instance to export values for.
+        :return: A dict of prepared values keyed by field name.
+        """
+
+        from django.core.exceptions import FieldDoesNotExist
+
+        values: Dict[str, Any] = {}
+        for field_name in self.allowed_fields:
+            try:
+                model_field = instance._meta.get_field(field_name)
+            except FieldDoesNotExist:
+                values[field_name] = getattr(instance, field_name)
+                continue
+
+            if model_field.is_relation:
+                # Use the relation's attname (e.g. "data_source_id") to read the id,
+                # which keeps the value JSON-serializable. allowed_fields may already
+                # use the attname form, so we never construct "<name>_id" ourselves.
+                values[field_name] = getattr(instance, model_field.attname)
+            else:
+                values[field_name] = getattr(instance, field_name)
+
+        return values
+
+    def validate_position_as_child(
+        self, place_in_container: str, instance: ElementSubClass
     ):
         """
-        Validates the page/parent_element/place_in_container for this element.
-        Can be overridden to change the behaviour.
+        Validate that this element type accepts children in the given place.
 
-        :param page: the page we want to add/move the element to.
-        :param parent_element: the parent_element if any.
-        :param place_in_container: the place in container in the parent.
-        :raises ValidationError: if the the element place is not allowed.
+        By default, element types can't have children. Container element types
+        override this method to accept and validate child placement.
+
+        :param place_in_container: The place in container being set.
+        :param instance: The reference element instance.
+        :raises GraphPointReferencePointInvalid: If the element can't have children.
         """
 
-        if parent_element:
-            if self.type not in [
-                e.type for e in parent_element.get_type().child_types_allowed
-            ]:
-                raise ValidationError(
-                    f"Container of type {parent_element.get_type().type} can't have child of "
-                    f"type {self.type}"
-                )
+        raise GraphPointReferencePointInvalid(
+            f"The reference node {instance.id} can't have child"
+        )
 
-            # If we have a parent, we validate the place is accepted by this container.
-            parent_element.get_type().validate_place_in_container(
-                place_in_container, parent_element
+    def validate_position(
+        self,
+        page: Page,
+        reference_element: ElementSubClass | None,
+        place_in_container: str,
+        position: GraphPointPositionType = None,
+    ):
+        """
+        Validates the page/reference_element/position for this element.
+        Can be overridden to change the behavior.
+
+        :param page: the page we want to add/move the element to.
+        :param reference_element: the element reference.
+        :param place_in_container: the place in container in the parent.
+        :param position: the position we are referencing alongside `reference_element`.
+        :raises ValidationError: if the element place is disallowed.
+        """
+
+        if position == GraphPointPosition.CHILD and reference_element is not None:
+            reference_element.get_type().validate_position_as_child(
+                place_in_container, reference_element
             )
-        else:
-            if self.is_multi_page_element != page.shared:
+
+        parent_element = (
+            reference_element
+            if position == GraphPointPosition.CHILD
+            else reference_element.get_parent_point()
+            if reference_element is not None
+            else None
+        )
+
+        if parent_element is None:
+            if page.shared:
                 raise ValidationError(
-                    "This element type can't be added as root of a "
-                    f"{'an unshared' if self.is_multi_page_element else 'the shared'} "
-                    "page."
+                    "This element type can't be added as root of the shared page."
                 )
+            return
+
+        parent_type = parent_element.get_type()
+        if self.type not in [e.type for e in parent_type.child_types_allowed]:
+            raise ValidationError(
+                f"Container of type {parent_type.type} can't have "
+                f"child of type {self.type}"
+            )
+
+    def get_graph_point_label(self, instance: ElementSubClass) -> str:
+        """
+        Returns the label used by the graph handler's labeled graph representation.
+
+        :param instance: The element instance to label.
+        :return: A stable, human-readable label for the element in test/debug graphs.
+        """
+
+        return self.type
+
+    def before_import(
+        self,
+        serialized_values: Dict[str, Any],
+        id_mapping: Dict[str, Any],
+        files_zip: ZipFile | None = None,
+        storage: Storage | None = None,
+        cache: Dict[str, Any] | None = None,
+        **kwargs,
+    ) -> Optional[Callable[[ElementSubClass, Dict[str, Any], Dict[str, Any]], None]]:
+        """
+        This hook is called before the element is imported. It can mutate the
+        serialized values before instance creation and return a callback that will be
+        called once the import context is available.
+
+        :param serialized_values: The serialized element values.
+        :param id_mapping: A map of old->new id per data type.
+        :param files_zip: The zip file containing the files that can be used.
+        :param storage: The storage that can be used to store files.
+        :param cache: A dictionary that can be used to cache data.
+        :return: A callable receiving the imported instance, id_mapping and import
+            context, or None if no deferred work is needed.
+        """
+
+        return None
 
     def after_create(self, instance: ElementSubClass, values: Dict):
         """
@@ -172,19 +263,50 @@ class ElementType(
             element prior to `after_update` being called.
         """
 
-    def after_move(self, instance: ElementSubClass):
-        """
-        This hook is called right after the element has been moved successfully.
-
-        :param instance: Moved instance.
-        """
-
     def before_delete(self, instance: ElementSubClass):
         """
         This hook is called just before the element will be deleted.
 
         :param instance: The to be deleted element instance.
         """
+
+    @contextmanager
+    def wrap_move(
+        self,
+        element: Element,
+        reference_element: Element | None,
+        position: GraphPointPositionType,
+        target_page: Page,
+        place_in_container: str,
+    ) -> Generator[None, None, None]:
+        """
+        Wraps moving the element so element types can run logic before and after the
+        move while keeping any context captured before the move.
+
+        :param element: The element being moved.
+        :param reference_element: The target reference element.
+        :param position: The target position relative to the reference element.
+        :param target_page: The page the element is being moved to.
+        :param place_in_container: The target place in container.
+        """
+        # Captured before the move, while element.page still points at the source.
+        moved_to_new_page = element.page_id != target_page.id
+
+        yield
+
+        if moved_to_new_page:
+            # A workflow action associated with this element has its own page foreign
+            # key. When the element changes page (e.g. moving to/from the shared page)
+            # the action would otherwise be left behind on the source page, so move it
+            # along with the element. This runs for every element in a moved subtree
+            # because each one passes through its type's wrap_move (which chains here).
+            from baserow.contrib.builder.workflow_actions.models import (
+                BuilderWorkflowAction,
+            )
+
+            BuilderWorkflowAction.objects.filter(element=element).update(
+                page_id=target_page.id
+            )
 
     def import_context_addition(self, instance: ElementSubClass) -> Dict[str, Any]:
         """
@@ -208,13 +330,13 @@ class ElementType(
         cache: Dict[str, Any] | None = None,
         **kwargs,
     ) -> ElementSubClass:
+        if cache is None:
+            cache = {}
+
         # Add mapping for builder element event uids (for collection field or other
         # elements that are using dynamic events.
         if "builder_element_event_uids" not in id_mapping:
             id_mapping["builder_element_event_uids"] = {}
-
-        if cache is None:
-            cache = {}
 
         existing_roles = cache.get("existing_roles", {}).get(page.builder.id)
         if not existing_roles:
@@ -243,6 +365,12 @@ class ElementType(
         cache.setdefault("imported_element_map", {})[created_instance.id] = (
             created_instance
         )
+
+        from baserow.contrib.builder.elements.handler import ElementHandler
+
+        # As we've created a new element instance, clear the `ElementHandler`
+        # cache so that any upcoming calls to `get_elements` includes the new model.
+        ElementHandler().invalidate_element_cache(page)
 
         return created_instance
 
@@ -293,9 +421,6 @@ class ElementType(
         You can customize the behavior of the serialization of a property with this
         hook.
         """
-
-        if prop_name == "order":
-            return str(element.order)
 
         if prop_name == "style_background_file_id":
             return UserFileHandler().export_user_file(

@@ -155,6 +155,8 @@ export default {
   },
   methods: {
     startMovingThumbWithMouse(event, originatedIn) {
+      // Prevents text behind the context from being selected while dragging.
+      event.preventDefault()
       this.pointerOriginatedIn = originatedIn
       this.moveThumbWithMouse(event)
     },
@@ -166,10 +168,11 @@ export default {
       this.pointerOriginatedIn = ''
     },
     moveThumbWithMouse(event) {
-      if (event.buttons !== 1) {
+      if (this.pointerOriginatedIn === '' || event.buttons !== 1) {
         return
       }
 
+      event.preventDefault()
       this.moveThumb(event.clientX, event.clientY)
     },
     moveThumbWithTouch(event) {

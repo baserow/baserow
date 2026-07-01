@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: PACKAGE VERSION\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-16 21:52+0000\n"
+"POT-Creation-Date: 2026-05-18 18:56+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -36,20 +36,20 @@ msgstr ""
 msgid "Comment (%(comment_id)s) has been added to row (%(row_id)s)"
 msgstr ""
 
-#: src/baserow_premium/row_comments/actions.py:93
+#: src/baserow_premium/row_comments/actions.py:96
 msgid "Update row comment"
 msgstr ""
 
-#: src/baserow_premium/row_comments/actions.py:94
+#: src/baserow_premium/row_comments/actions.py:97
 #, python-format
 msgid "Comment (%(comment_id)s) has been updated in row (%(row_id)s)"
 msgstr ""
 
-#: src/baserow_premium/row_comments/actions.py:174
+#: src/baserow_premium/row_comments/actions.py:178
 msgid "Delete row comment"
 msgstr ""
 
-#: src/baserow_premium/row_comments/actions.py:175
+#: src/baserow_premium/row_comments/actions.py:179
 #, python-format
 msgid "Comment (%(comment_id)s) has been deleted from row (%(row_id)s)"
 msgstr ""

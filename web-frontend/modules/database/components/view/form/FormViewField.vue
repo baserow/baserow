@@ -188,16 +188,23 @@
 </template>
 
 <script>
-import { isElement, onClickOutside } from '@baserow/modules/core/utils/dom'
+import {
+  collectTeleportRootsForOutsideClick,
+  onClickOutside,
+} from '@baserow/modules/core/utils/dom'
 import { clone } from '@baserow/modules/core/utils/object'
 import { DEFAULT_FORM_VIEW_FIELD_COMPONENT_KEY } from '@baserow/modules/database/constants'
-import FieldContext from '@baserow/modules/database/components/field/FieldContext'
 import ViewFieldConditionsForm from '@baserow/modules/database/components/view/ViewFieldConditionsForm'
 import { createFiltersTree } from '@baserow/modules/database/utils/view'
 
 export default {
   name: 'FormViewField',
-  components: { FieldContext, ViewFieldConditionsForm },
+  components: { ViewFieldConditionsForm },
+  provide() {
+    return {
+      registerChild: this.registerChild,
+    }
+  },
   props: {
     database: {
       type: Object,
@@ -240,7 +247,7 @@ export default {
       editingName: false,
       editingDescription: false,
       value: null,
-      movedToBodyChildren: [],
+      children: [],
     }
   },
   computed: {
@@ -308,19 +315,19 @@ export default {
       this.selected = true
       this.$el.clickOutsideEventCancel = onClickOutside(
         this.$el,
-        (target, event) => {
+        (_target, event) => {
           if (
             this.selected &&
             // If the event was not related to deleting the filter.
-            !event.deletedFilterEvent &&
-            // If the event target is related to a child element that has moved to the
-            // body using the `moveToBody` mixin.
-            !this.movedToBodyChildren.some((child) => {
-              return isElement(child.$el, target)
-            })
+            !event.deletedFilterEvent
           ) {
             this.unselect()
           }
+        },
+        {
+          ignoreElements: () => {
+            return this.children.flatMap(collectTeleportRootsForOutsideClick)
+          },
         }
       )
     },
@@ -505,15 +512,8 @@ export default {
         })
       })
     },
-    /**
-     * This method is called by every child that has moved to the body, using the
-     * `moveToBody` mixin. In order to make sure that this component isn't unselected
-     * when clicking inside a child that has moved to body component, we add them to an
-     * array and check if the event target is actually a child when clicking outside of
-     * the element related to this component.
-     */
-    registerMoveToBodyChild(child) {
-      this.movedToBodyChildren.push(child)
+    registerChild(child) {
+      this.children.push(child)
     },
   },
 }

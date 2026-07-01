@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, call, patch
 
@@ -110,6 +111,21 @@ def test_periodic_trigger_node_creation_and_property_updates(data_fixture):
     assert updated_service_specific.hour == 14
     assert updated_service_specific.day_of_week == 2
     assert updated_service_specific.next_run_at is None
+
+
+@pytest.mark.django_db
+def test_periodic_service_export_serializes_next_run_at_as_iso(data_fixture):
+    service = data_fixture.create_core_periodic_service(
+        interval=PERIODIC_INTERVAL_MINUTE,
+        minute=15,
+        next_run_at=datetime(2025, 2, 15, 10, 30, 0, tzinfo=timezone.utc),
+    )
+
+    serialized = json.loads(
+        json.dumps(CorePeriodicServiceType().export_serialized(service))
+    )
+
+    assert serialized["next_run_at"] == "2025-02-15T10:30:00+00:00"
 
 
 @pytest.mark.django_db

@@ -864,3 +864,27 @@ def test_index_nan_argument_returns_null(data_fixture):
     result = model.objects.get(id=row_a.id)
     assert getattr(result, nan_field.db_column) is None
     assert getattr(result, div_zero_field.db_column) is None
+
+
+def test_baserow_index_to_django_expression_handles_unaugmented_args():
+    """Regression test: https://github.com/baserow/baserow/issues/5320"""
+
+    from django.db.models import IntegerField, JSONField, Value
+
+    from baserow.contrib.database.formula.ast.function_defs import BaserowIndex
+    from baserow.contrib.database.formula.expression_generator.django_expressions import (
+        JSONBArrayGetElement,
+    )
+    from baserow.contrib.database.formula.expression_generator.generator import (
+        WrappedExpressionWithMetadata,
+    )
+
+    array_arg = WrappedExpressionWithMetadata(Value([], output_field=JSONField()))
+    index_arg = WrappedExpressionWithMetadata(Value(0, output_field=IntegerField()))
+
+    result = BaserowIndex().to_django_expression_given_args(
+        [array_arg, index_arg], context=None
+    )
+
+    assert isinstance(result, WrappedExpressionWithMetadata)
+    assert isinstance(result.expression, JSONBArrayGetElement)

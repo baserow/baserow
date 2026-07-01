@@ -6,6 +6,15 @@ set unstable := true
 # Import personal recipes if they exist (not tracked in git)
 import? 'local.just'
 
+_load_env := 'if [ -f ".env.local" ]; then set -a; source ".env.local"; set +a; fi'
+_set_dev_paths := '''
+LOCAL_DEV_PREFIX="${BASEROW_LOCAL_DEV_PREFIX:-/tmp/baserow}"
+BACKEND_LOG="${LOCAL_DEV_PREFIX}-backend.log"
+CELERY_LOG="${LOCAL_DEV_PREFIX}-celery.log"
+FRONTEND_LOG="${LOCAL_DEV_PREFIX}-web-frontend.log"
+STORYBOOK_LOG="${LOCAL_DEV_PREFIX}-storybook.log"
+'''
+
 # Default recipe - show help with groups
 default:
     @just --list
@@ -25,6 +34,7 @@ help:
     @echo "  Option 1: Local processes (faster hot-reload, requires local Python/Node)"
     @echo "  -------------------------------------------------------------------------"
     @echo "    just init           # First time: install dependencies"
+    @echo "    just b code-runtime # Build local Wasmtime + QuickJS runtime artifacts"
     @echo "    just dev up         # Start all services (Ctrl+C stops everything)"
     @echo "    just dev up -d      # Start in background"
     @echo "    just dev stop       # Stop background services"
@@ -58,6 +68,18 @@ init:
     @just b init
     @just f install
 
+# Install pre-commit Git hooks in the repository
+[group('1 - local-dev')]
+[doc("Install pre-commit Git hooks in the repository")]
+pre-commit-install:
+    @just b run pre-commit install --install-hooks
+
+# Uninstall pre-commit Git hooks from the repository
+[group('1 - local-dev')]
+[doc("Uninstall pre-commit Git hooks from the repository")]
+pre-commit-uninstall:
+    @just b run pre-commit uninstall
+
 # Local development environment management
 [group('1 - local-dev')]
 [doc("Local dev: just dev <up|up -d|stop|logs|ps|wipe>")]
@@ -69,6 +91,10 @@ dev *ARGS:
     ALLARGS=({{ ARGS }})
     CMD="${ALLARGS[0]:-}"
     REST=("${ALLARGS[@]:1}")
+
+    {{ _load_env }}
+
+    {{ _set_dev_paths }}
 
     case "$CMD" in
         wipe)
@@ -102,11 +128,6 @@ dev *ARGS:
             just _dev-stop
             ;;
         logs)
-            BACKEND_LOG="{{ backend_log_file }}"
-            CELERY_LOG="{{ celery_log_file }}"
-            FRONTEND_LOG="{{ frontend_log_file }}"
-            STORYBOOK_LOG="{{ storybook_log_file }}"
-
             # Parse args: known service names go to SERVICES, everything else to OPTS
             OPTS=()
             SERVICES=()
@@ -168,7 +189,7 @@ dev *ARGS:
         ps)
             echo "==> Process Status"
             for name in backend celery frontend storybook; do
-                pid_file="/tmp/baserow-${name}.pid"
+                pid_file="${LOCAL_DEV_PREFIX}-${name}.pid"
                 if [ -f "$pid_file" ]; then
                     PID=$(cat "$pid_file")
                     if kill -0 "$PID" 2>/dev/null; then
@@ -231,18 +252,16 @@ _dev-start:
     fi
 
     # Load environment variables from .env.local
-    if [ -f .env.local ]; then
-        set -a
-        source .env.local
-        set +a
-    fi
+    {{ _load_env }}
+
+    {{ _set_dev_paths }}
 
     echo "Starting Baserow local development environment..."
     echo ""
 
     # Start docker services (redis, db, mailhog, otel-collector)
     echo "==> Starting Docker services (redis, db, mailhog, otel-collector)..."
-    just dc-dev up -d --scale backend=0 --scale web-frontend=0 --scale celery=0 --scale celery-beat-worker=0 --scale celery-export-worker=0
+    just dc-dev up -d --scale backend=0 --scale web-frontend=0 --scale celery=0 --scale celery-beat-worker=0 --scale celery-export-worker=0 --scale storybook=0
 
     # Wait for services to be ready
     echo "==> Waiting for PostgreSQL to be ready..."
@@ -278,30 +297,47 @@ _dev-start:
 
     echo ""
     echo "==> Starting backend dev server..."
-    (cd backend && just run-dev-server) > "{{ backend_log_file }}" 2>&1 &
+    (cd backend && BASEROW_BACKEND_LOG_FILE="$BACKEND_LOG" just run-dev-server) >/dev/null 2>&1 &
     BACKEND_PID=$!
-    echo "    PID: $BACKEND_PID (log: {{ backend_log_file }})"
+    echo "    PID: $BACKEND_PID (log: $BACKEND_LOG)"
 
     echo "==> Starting Celery workers..."
-    (cd backend && just run-dev-celery) > "{{ celery_log_file }}" 2>&1 &
+    (cd backend && BASEROW_CELERY_LOG_FILE="$CELERY_LOG" just run-dev-celery) >/dev/null 2>&1 &
     CELERY_PID=$!
-    echo "    PID: $CELERY_PID (log: {{ celery_log_file }})"
+    echo "    PID: $CELERY_PID (log: $CELERY_LOG)"
 
     echo "==> Starting frontend dev server..."
-    (cd web-frontend && just run-dev-server) > "{{ frontend_log_file }}" 2>&1 &
+    (cd web-frontend && just run-dev-server) > "$FRONTEND_LOG" 2>&1 &
     FRONTEND_PID=$!
-    echo "    PID: $FRONTEND_PID (log: {{ frontend_log_file }})"
+    echo "    PID: $FRONTEND_PID (log: $FRONTEND_LOG)"
 
     echo "==> Starting Storybook dev server..."
-    (cd web-frontend && just storybook) > "{{ storybook_log_file }}" 2>&1 &
+    (cd web-frontend && just storybook) > "$STORYBOOK_LOG" 2>&1 &
     STORYBOOK_PID=$!
-    echo "    PID: $STORYBOOK_PID (log: {{ storybook_log_file }})"
+    echo "    PID: $STORYBOOK_PID (log: $STORYBOOK_LOG)"
 
     # Save PIDs
-    echo "$BACKEND_PID" > /tmp/baserow-backend.pid
-    echo "$CELERY_PID" > /tmp/baserow-celery.pid
-    echo "$FRONTEND_PID" > /tmp/baserow-frontend.pid
-    echo "$STORYBOOK_PID" > /tmp/baserow-storybook.pid
+    echo "$BACKEND_PID" > "${LOCAL_DEV_PREFIX}-backend.pid"
+    echo "$CELERY_PID" > "${LOCAL_DEV_PREFIX}-celery.pid"
+    echo "$FRONTEND_PID" > "${LOCAL_DEV_PREFIX}-frontend.pid"
+    echo "$STORYBOOK_PID" > "${LOCAL_DEV_PREFIX}-storybook.pid"
+
+    MAILHOG_STATUS_PORT="${BASEROW_MAILHOG_WEB_PORT:-}"
+    if [ -z "$MAILHOG_STATUS_PORT" ] && [ -f .env.docker-dev ]; then
+        while IFS='=' read -r key value; do
+            if [ "$key" = "BASEROW_MAILHOG_WEB_PORT" ]; then
+                MAILHOG_STATUS_PORT="${value%%#*}"
+                MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT%$'\r'}"
+                MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT%"${MAILHOG_STATUS_PORT##*[![:space:]]}"}"
+                MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT#\"}"
+                MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT%\"}"
+                MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT#\'}"
+                MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT%\'}"
+                break
+            fi
+        done < .env.docker-dev
+    fi
+    MAILHOG_STATUS_PORT="${MAILHOG_STATUS_PORT:-8025}"
 
     echo ""
     echo "=============================================="
@@ -309,10 +345,10 @@ _dev-start:
     echo "=============================================="
     echo ""
     echo "Services:"
-    echo "  Backend:   http://localhost:8000"
-    echo "  Frontend:  http://localhost:3000"
-    echo "  Storybook: http://localhost:6006"
-    echo "  Mailhog:   http://localhost:8025"
+    echo "  Backend:   ${PUBLIC_BACKEND_URL:-http://localhost:8000}"
+    echo "  Frontend:  ${PUBLIC_WEB_FRONTEND_URL:-http://localhost:3000}"
+    echo "  Storybook: http://localhost:${BASEROW_STORYBOOK_PORT:-6006}"
+    echo "  Mailhog:   http://localhost:${MAILHOG_STATUS_PORT}"
     echo ""
     echo "Commands:"
     echo "  just dev logs              # View logs"
@@ -326,45 +362,49 @@ _dev-stop:
     #!/usr/bin/env bash
     set -euo pipefail
 
+    {{ _load_env }}
+
+    LOCAL_DEV_PREFIX="${BASEROW_LOCAL_DEV_PREFIX:-/tmp/baserow}"
+
     echo "Stopping Baserow development environment..."
 
     # Stop backend processes
-    if [ -f /tmp/baserow-backend.pid ]; then
-        PID=$(cat /tmp/baserow-backend.pid)
+    if [ -f "${LOCAL_DEV_PREFIX}-backend.pid" ]; then
+        PID=$(cat "${LOCAL_DEV_PREFIX}-backend.pid")
         if kill -0 "$PID" 2>/dev/null; then
             echo "Stopping backend (PID: $PID)..."
             kill "$PID" 2>/dev/null || true
         fi
-        rm -f /tmp/baserow-backend.pid
+        rm -f "${LOCAL_DEV_PREFIX}-backend.pid"
     fi
 
-    if [ -f /tmp/baserow-celery.pid ]; then
-        PID=$(cat /tmp/baserow-celery.pid)
+    if [ -f "${LOCAL_DEV_PREFIX}-celery.pid" ]; then
+        PID=$(cat "${LOCAL_DEV_PREFIX}-celery.pid")
         if kill -0 "$PID" 2>/dev/null; then
             echo "Stopping celery (PID: $PID)..."
             kill "$PID" 2>/dev/null || true
             # Also kill child processes (celery workers)
             pkill -P "$PID" 2>/dev/null || true
         fi
-        rm -f /tmp/baserow-celery.pid
+        rm -f "${LOCAL_DEV_PREFIX}-celery.pid"
     fi
 
-    if [ -f /tmp/baserow-frontend.pid ]; then
-        PID=$(cat /tmp/baserow-frontend.pid)
+    if [ -f "${LOCAL_DEV_PREFIX}-frontend.pid" ]; then
+        PID=$(cat "${LOCAL_DEV_PREFIX}-frontend.pid")
         if kill -0 "$PID" 2>/dev/null; then
             echo "Stopping frontend (PID: $PID)..."
             kill "$PID" 2>/dev/null || true
         fi
-        rm -f /tmp/baserow-frontend.pid
+        rm -f "${LOCAL_DEV_PREFIX}-frontend.pid"
     fi
 
-    if [ -f /tmp/baserow-storybook.pid ]; then
-        PID=$(cat /tmp/baserow-storybook.pid)
+    if [ -f "${LOCAL_DEV_PREFIX}-storybook.pid" ]; then
+        PID=$(cat "${LOCAL_DEV_PREFIX}-storybook.pid")
         if kill -0 "$PID" 2>/dev/null; then
             echo "Stopping storybook (PID: $PID)..."
             kill "$PID" 2>/dev/null || true
         fi
-        rm -f /tmp/baserow-storybook.pid
+        rm -f "${LOCAL_DEV_PREFIX}-storybook.pid"
     fi
 
     # Stop docker services
@@ -384,7 +424,9 @@ _dev-tmux:
     #!/usr/bin/env bash
     set -euo pipefail
 
-    SESSION="baserow-dev"
+    {{ _load_env }}
+
+    SESSION="${BASEROW_LOCAL_TMUX_SESSION:-baserow-dev}"
     ROOT="$(pwd)"
 
     # Helper: create window
@@ -1175,10 +1217,11 @@ env-clear:
     fi
 
 # Run changelog command (e.g., just changelog add, just changelog release 2.3.0)
+[positional-arguments]
 [group('5 - utilities')]
 [doc("Changelog: just changelog <add|release|generate|purge>")]
 changelog *args:
-    cd backend && uv run --group changelog python ../changelog/src/changelog.py {{ args }}
+    cd backend && uv run --group changelog python ../changelog/src/changelog.py "$@"
 
 # Run changelog tests
 [group('4 - testing')]

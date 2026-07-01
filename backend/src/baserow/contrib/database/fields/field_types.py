@@ -53,6 +53,7 @@ from django.db.models.functions import Cast, Coalesce, Left, RowNumber
 
 from dateutil import parser
 from dateutil.parser import ParserError
+from drf_spectacular.utils import extend_schema_serializer
 from loguru import logger
 from rest_framework import serializers
 
@@ -273,6 +274,18 @@ User = get_user_model()
 
 if TYPE_CHECKING:
     from baserow.contrib.database.table.models import FieldObject, GeneratedTableModel
+
+
+class SelectOptionIntegerOrStringField(IntegerOrStringField):
+    """
+    Accepts either a select option id/name, or a serialized select option object.
+    """
+
+    def to_internal_value(self, data):
+        if isinstance(data, dict):
+            data = data.get("id", data)
+
+        return super().to_internal_value(data)
 
 
 class CollationSortMixin:
@@ -598,8 +611,7 @@ class NumberFieldType(FieldType):
             "The number_type option has been removed and can no longer be provided. "
             "Instead set number_decimal_places to 0 for an integer or 1-5 for a "
             "decimal."
-        ),
-        "_spectacular_annotation": {"exclude_fields": ["number_type"]},
+        )
     }
     _can_group_by = True
     _db_column_fields = ["number_decimal_places"]
@@ -615,6 +627,12 @@ class NumberFieldType(FieldType):
                 value = str(value)
             serialized[field_name] = value
         return serialized
+
+    def get_serializer_class(self, *args, **kwargs) -> serializers.ModelSerializer:
+        serializer_class = super().get_serializer_class(*args, **kwargs)
+        return extend_schema_serializer(exclude_fields=["number_type"])(
+            serializer_class
+        )
 
     def serialize_to_input_value(self, field: Field, value: any) -> any:
         if field.specific.number_decimal_places == 0:
@@ -1546,6 +1564,7 @@ class DateFieldType(FieldType):
 class CreatedOnLastModifiedBaseFieldType(ReadOnlyFieldType, DateFieldType):
     can_be_in_form_view = False
     field_data_is_derived_from_attrs = True
+    include_in_row_move_updated_fields = False
 
     source_field_name = None
     model_field_class = SyncedDateTimeField
@@ -2635,6 +2654,8 @@ class LinkRowFieldType(
         invalid_values = []
 
         def preprocess_value(val):
+            if isinstance(val, dict):
+                val = val.get("id", val)
             return val.strip() if isinstance(val, str) else val
 
         for row_index, values in values_by_row.items():
@@ -4366,7 +4387,7 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
             f" {self.get_select_options_help_text(instance)}."
         )
 
-        field_serializer = IntegerOrStringField(**serializer_kwargs)
+        field_serializer = SelectOptionIntegerOrStringField(**serializer_kwargs)
         return field_serializer
 
     def get_response_serializer_field(self, instance, **kwargs):
@@ -4424,6 +4445,12 @@ class SingleSelectFieldType(CollationSortMixin, SelectOptionBaseFieldType):
         for row_index, value in values_by_row.items():
             if value is None:
                 continue
+
+            if isinstance(value, dict):
+                value = value.get("id", value)
+                values_by_row[row_index] = value
+                if value is None:
+                    continue
 
             if isinstance(value, SelectOption):
                 continue
@@ -4885,7 +4912,7 @@ class MultipleSelectFieldType(
             if default:
                 kwargs["default"] = default
 
-        field_serializer = IntegerOrStringField(
+        field_serializer = SelectOptionIntegerOrStringField(
             **{
                 "required": required,
                 "allow_null": not required,
@@ -4952,6 +4979,13 @@ class MultipleSelectFieldType(
         invalid_values = []
         options_from_ids, options_from_names = [], []
         for row_index, values in values_by_row.items():
+            if isinstance(values, list):
+                values = [
+                    value.get("id", value) if isinstance(value, dict) else value
+                    for value in values
+                ]
+                values_by_row[row_index] = values
+
             for value in values:
                 if isinstance(value, int):
                     id_map[value].append(row_index)
@@ -5734,19 +5768,27 @@ class FormulaFieldType(FormulaFieldTypeArrayFilterSupport, ReadOnlyFieldType):
                     # LinkRowFields might depends on FormulaFields, but we can't update
                     # them here because this is only valid for FormulaFields.
                     continue
+                if dependant_field in updated_fields:
+                    continue
+                if table_id not in update_collectors:
+                    update_collectors[table_id] = FieldUpdateCollector(
+                        dependant_field.table, update_changes_only=True
+                    )
                 self._update_field_values(
                     dependant_field,
                     update_collectors[table_id],
                     field_cache,
                     via_path_to_starting_table,
                 )
-            updated_fields |= set(
-                update_collector.apply_updates_and_get_updated_fields(
-                    field_cache, skip_search_updates=skip_search_updates
+            for collector in update_collectors.values():
+                updated_fields |= set(
+                    collector.apply_updates_and_get_updated_fields(
+                        field_cache, skip_search_updates=skip_search_updates
+                    )
                 )
-            )
 
-        update_collector.send_force_refresh_signals_for_all_updated_tables()
+        for collector in update_collectors.values():
+            collector.send_force_refresh_signals_for_all_updated_tables()
 
         return list(updated_fields)
 
@@ -6215,13 +6257,22 @@ class RollupFieldType(FormulaFieldType):
         "target_field_id",
         "rollup_function",
     ]
-    serializer_field_names = BASEROW_FORMULA_TYPE_ALLOWED_FIELDS + [
+    request_serializer_field_names = (
+        BASEROW_FORMULA_TYPE_REQUEST_SERIALIZER_FIELD_NAMES
+        + [
+            "through_field_id",
+            "target_field_id",
+            "rollup_function",
+            "formula_type",
+        ]
+    )
+    serializer_field_names = BASEROW_FORMULA_TYPE_SERIALIZER_FIELD_NAMES + [
         "through_field_id",
         "target_field_id",
         "rollup_function",
         "formula_type",
     ]
-    serializer_field_overrides = {
+    request_serializer_field_overrides = {
         "through_field_id": serializers.IntegerField(
             required=False,
             allow_null=True,
@@ -6237,14 +6288,6 @@ class RollupFieldType(FormulaFieldType):
         ),
         "nullable": serializers.BooleanField(required=False, read_only=True),
     }
-
-    @property
-    def request_serializer_field_names(self):
-        return self.serializer_field_names
-
-    @property
-    def request_serializer_field_overrides(self):
-        return self.serializer_field_overrides
 
     def before_create(
         self, table, primary, allowed_field_values, order, user, field_kwargs

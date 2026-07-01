@@ -89,6 +89,18 @@ class ViewSortFieldNotSupported(Exception):
     """Raised when a field does not support sorting in a view."""
 
 
+class ViewSortNotInView(Exception):
+    """Raised when a provided view sort does not belong to a view."""
+
+    def __init__(self, view_sort_id=None, *args, **kwargs):
+        self.view_sort_id = view_sort_id
+        super().__init__(
+            f"The view sort {view_sort_id} does not belong to the view.",
+            *args,
+            **kwargs,
+        )
+
+
 class ViewGroupByDoesNotExist(Exception):
     """Raised when trying to get a view group by that does not exist."""
 
@@ -103,6 +115,18 @@ class ViewGroupByFieldAlreadyExist(Exception):
 
 class ViewGroupByFieldNotSupported(Exception):
     """Raised when a field does not support grouping in a view."""
+
+
+class ViewGroupByNotInView(Exception):
+    """Raised when a provided view group by does not belong to a view."""
+
+    def __init__(self, view_group_by_id=None, *args, **kwargs):
+        self.view_group_by_id = view_group_by_id
+        super().__init__(
+            f"The view group by {view_group_by_id} does not belong to the view.",
+            *args,
+            **kwargs,
+        )
 
 
 class ViewDoesNotSupportFieldOptions(Exception):

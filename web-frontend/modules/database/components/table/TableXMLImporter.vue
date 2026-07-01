@@ -8,21 +8,18 @@
         <div class="control__description">
           {{ $t('tableXMLImporter.fileDescription') }}
           <pre>
-&lt;notes&gt;
-  &lt;note&gt;
-    &lt;to&gt;Tove&lt;/to&gt;
-    &lt;from&gt;Jani&lt;/from&gt;
-    &lt;heading&gt;Reminder&lt;/heading&gt;
-    &lt;body&gt;Don't forget me this weekend!&lt;/body&gt;
-  &lt;/note&gt;
-  &lt;note&gt;
-    &lt;heading&gt;Reminder&lt;/heading&gt;
-    &lt;heading2&gt;Reminder2&lt;/heading2&gt;
-    &lt;to&gt;Tove&lt;/to&gt;
-    &lt;from&gt;Jani&lt;/from&gt;
-    &lt;body&gt;Don't forget me this weekend!&lt;/body&gt;
-  &lt;/note&gt;
-&lt;/notes&gt;</pre
+&lt;data&gt;
+  &lt;record&gt;
+    &lt;name&gt;John Doe&lt;/name&gt;
+    &lt;email&gt;john@example.com&lt;/email&gt;
+    &lt;phone&gt;123-456-7890&lt;/phone&gt;
+  &lt;/record&gt;
+  &lt;record&gt;
+    &lt;name&gt;Jane Smith&lt;/name&gt;
+    &lt;email&gt;jane@example.com&lt;/email&gt;
+    &lt;phone&gt;987-654-3210&lt;/phone&gt;
+  &lt;/record&gt;
+&lt;/data&gt;</pre
           >
         </div>
       </template>

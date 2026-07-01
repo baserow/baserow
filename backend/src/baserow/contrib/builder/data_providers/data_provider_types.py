@@ -371,7 +371,7 @@ class CurrentRecordDataProviderType(BuilderDataProviderType):
             return current_record
 
         first_collection_element_ancestor = ElementHandler().get_first_ancestor_of_type(
-            dispatch_context.workflow_action.element_id,
+            dispatch_context.workflow_action.element,
             CollectionElementTypeMixin,
         )
         data_source_id = first_collection_element_ancestor.specific.data_source_id
@@ -505,7 +505,18 @@ class PreviousActionProviderType(BuilderDataProviderType):
             )
             dispatch_result = cache.get(cache_key)
             service = workflow_action.service.specific
-            prepared_path = service.get_type().prepare_value_path(service, rest)
+            service_type = service.get_type()
+            if service_type.returns_list:
+                dispatch_result = dispatch_result["results"]
+                if len(rest) >= 2:
+                    prepared_path = [
+                        rest[0],
+                        *service_type.prepare_value_path(service, rest[1:]),
+                    ]
+                else:
+                    prepared_path = rest
+            else:
+                prepared_path = service_type.prepare_value_path(service, rest)
         else:
             # Frontend actions
             dispatch_result = previous_action_results[previous_action_id]
@@ -596,6 +607,9 @@ class PreviousActionProviderType(BuilderDataProviderType):
             raise InvalidRuntimeFormula() from exc
 
         service_type = previous_action.service.specific.get_type()
+        if service_type.returns_list and rest:
+            _, *rest = rest
+
         return {
             previous_action.service.id: service_type.extract_properties(
                 previous_action.service.specific, rest, **kwargs

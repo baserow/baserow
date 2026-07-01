@@ -1,21 +1,10 @@
 from dataclasses import dataclass
-from typing import Any, Literal, NewType, TypeAlias, TypedDict
-
-from django.db import models
+from typing import Any, NewType, TypedDict
 
 from baserow.contrib.automation.nodes.models import AutomationActionNode, AutomationNode
+from baserow.core.graph.types import GraphPointPositionType
 
 AutomationNodeForUpdate = NewType("AutomationNodeForUpdate", AutomationNode)
-
-
-class NodePosition(models.TextChoices):
-    SOUTH = "south", "South"
-    CHILD = "child", "Child"
-
-
-NodePositionType = Literal["south", "child"]
-
-NodePositionTriplet: TypeAlias = tuple[AutomationNode | None, NodePositionType, str]
 
 
 @dataclass
@@ -37,7 +26,7 @@ class AutomationNodeMove:
     # The node we're trying to move.
     node: AutomationActionNode
     previous_reference_node: AutomationActionNode | None
-    previous_position: NodePositionType
+    previous_position: GraphPointPositionType
     previous_output: str
 
 

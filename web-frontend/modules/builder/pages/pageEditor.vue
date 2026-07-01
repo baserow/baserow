@@ -12,6 +12,7 @@ import { useHead, useAsyncData } from '#imports'
 import { computed } from 'vue'
 import { onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
+import { normalizeError } from '@baserow/modules/database/utils/errors'
 import { DataProviderType } from '@baserow/modules/core/dataProviderTypes'
 import { BuilderApplicationType } from '@baserow/modules/builder/applicationTypes'
 import _ from 'lodash'
@@ -46,8 +47,8 @@ const {
   () => `page-editor-${route.params.builderId}-${route.params.pageId}`,
   async () => {
     // The objects are selected by the middleware
-    const loadedBuilder = $store.getters['application/getSelected']
     const loadedWorkspace = $store.getters['workspace/getSelected']
+    const loadedBuilder = $store.getters['application/getSelected']
     const page = $store.getters['page/getSelected']
 
     try {
@@ -64,6 +65,10 @@ const {
         throw createError({
           statusCode: 404,
           message: $i18n.t('pageEditor.pageNotFound'),
+          data: {
+            report: false,
+          },
+          fatal: true,
         })
       }
 
@@ -95,9 +100,18 @@ const {
         throw e
       }
 
+      const statusCode = e.response?.status || 500
+
       throw createError({
-        statusCode: 404,
-        message: $i18n.t('pageEditor.pageNotFound'),
+        statusCode,
+        message:
+          statusCode === 404
+            ? $i18n.t('pageEditor.pageNotFound')
+            : normalizeError(e).message,
+        data: {
+          report: statusCode >= 500,
+        },
+        fatal: true,
       })
     }
   }

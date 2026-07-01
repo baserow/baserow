@@ -29,9 +29,15 @@ export function useCollectionElement(props) {
   const adhocSortings = ref()
   const adhocSearch = ref()
   const currentOffset = useState(`element-offset-${unref(element).id}`, () => 0)
-  const errorNotified = ref(false)
+  const errorNotified = useState(
+    `element-error-notified-${unref(element).id}`,
+    () => false
+  )
   const resetTimeout = ref(null)
-  const contentFetchEnabled = ref(true)
+  const contentFetchEnabled = useState(
+    `element-content-fetch-enabled-${unref(element).id}`,
+    () => true
+  )
 
   const reset = computed(() =>
     store.getters['elementContent/getReset'](unref(element))

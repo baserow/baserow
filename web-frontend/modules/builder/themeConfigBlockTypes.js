@@ -51,9 +51,9 @@ export class ThemeStyle {
     )
   }
 
-  addColorContrastIfExists(theme, propName, styleName) {
+  addColorContrastIfExists(theme, propName, styleName, amount) {
     return this.addIfExists(theme, propName, styleName, (v) =>
-      colorContrast(resolveColor(v, this.colorVariables))
+      colorContrast(resolveColor(v, this.colorVariables), amount)
     )
   }
 

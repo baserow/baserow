@@ -104,7 +104,7 @@
               :disabled="constraintDisabled(name)"
               :description="
                 constraintDisabled(name)
-                  ? $t(`imageThemeConfigBlock.imageConstraint${label}Disabled`)
+                  ? $t(`imageThemeConfigBlock.imageConstraint${name}Disabled`)
                   : ''
               "
               :name="label"

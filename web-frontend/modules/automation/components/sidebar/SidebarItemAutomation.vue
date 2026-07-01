@@ -31,6 +31,19 @@
       </div>
       <ul class="context__menu">
         <li
+          v-for="(component, index) in additionalContextComponents"
+          :key="index"
+          class="context__menu-item"
+          @click="$refs.context.hide()"
+        >
+          <component
+            :is="component"
+            :application="automation"
+            :automation="automation"
+            :workflow="workflow"
+          ></component>
+        </li>
+        <li
           v-if="
             $hasPermission(
               'automation.workflow.update',
@@ -122,6 +135,7 @@ export default {
   computed: {
     showOptions() {
       return (
+        this.additionalContextComponents.length > 0 ||
         this.$hasPermission(
           'automation.workflow.run_export',
           this.workflow,
@@ -138,6 +152,19 @@ export default {
           this.automation.workspace.id
         )
       )
+    },
+    additionalContextComponents() {
+      return Object.values(this.$registry.getAll('plugin'))
+        .reduce((components, plugin) => {
+          return components.concat(
+            plugin.getAdditionalApplicationChildContextComponents(
+              this.automation.workspace,
+              this.automation,
+              this.workflow
+            )
+          )
+        }, [])
+        .filter((component) => component !== null)
     },
     ...mapGetters({ duplicateJob: 'automationWorkflow/getDuplicateJob' }),
   },

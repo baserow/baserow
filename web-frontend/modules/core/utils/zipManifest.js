@@ -39,7 +39,9 @@ export async function extractManifestFromZip(zipFile) {
     await reader.close()
     return JSON.parse(text)
   } catch (error) {
-    throw new Error(error?.message || 'Failed to extract manifest')
+    throw new Error(error?.message || 'Failed to extract manifest', {
+      cause: error,
+    })
   } finally {
     await reader.close()
   }

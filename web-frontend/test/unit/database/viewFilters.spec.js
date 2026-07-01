@@ -105,7 +105,7 @@ describe('View Filter Tests', () => {
   })
 
   async function editFieldWithoutSavingNewValue(row, fieldType, newValue) {
-    await store.dispatch('page/view/grid/updateMatchFilters', {
+    await store.dispatch('page/view/grid/onRowChange', {
       view: store.getters['view/first'],
       fields: [
         {

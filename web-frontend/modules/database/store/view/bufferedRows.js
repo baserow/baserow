@@ -735,6 +735,10 @@ export default ({ service, customPopulateRow, fieldOptions }) => {
       { dispatch, getters, commit },
       { view, fields, values }
     ) {
+      if (getters.getRow(values.id) !== undefined) {
+        return
+      }
+
       let row = clone(values)
       populateRow(row)
 

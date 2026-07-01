@@ -25,14 +25,19 @@ if (dsn && dsn !== '') {
         blockAllMedia: true,
       }),
     ],
-    tracesSampleRate: 1.0,
+    // Sample rate for performance tracing, configurable via the
+    // SENTRY_TRACES_SAMPLE_RATE env var (shared with the backend).
+    tracesSampleRate: parseFloat(config.public.sentryTracesSampleRate) || 0,
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 1.0,
     ...(isDev ? { transport: makeFakeTransport } : {}),
     beforeSend(event, hint) {
       const err = hint?.originalException
-      if (err?.fatal === false) return null
-
+      if (err?.fatal === false) {
+        return null
+      } else if (err?.fatal === true && err?.data?.report === false) {
+        return null
+      }
       // Filter out axios errors without a response like
       // network error, timeout, aborted, cancelled requests
       if (err?.name === 'AxiosError' && !err?.response) {

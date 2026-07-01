@@ -88,7 +88,7 @@
 </template>
 
 <script setup>
-import { useId } from '#app'
+import { useId } from 'vue'
 
 // Props
 const props = defineProps({

@@ -1,11 +1,12 @@
 import json
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from decimal import Decimal
 from json.decoder import JSONDecodeError
 from typing import Any, List, Optional, Union
 
 from django.core.exceptions import ValidationError
+from django.core.serializers.json import DjangoJSONEncoder
 from django.core.validators import validate_email
 
 from baserow.contrib.database.fields.constants import (
@@ -13,6 +14,29 @@ from baserow.contrib.database.fields.constants import (
     BASEROW_BOOLEAN_FIELD_TRUE_VALUES,
 )
 from baserow.core.datetime import FormattedDate, FormattedDateTime
+from baserow.core.duration import parse_duration_string
+from baserow.core.formula.service_file import ServiceFile
+from baserow.core.models import UserFile
+from baserow.core.utils import split_comma_separated_string
+
+
+def ensure_file(value: Any) -> ServiceFile:
+    if isinstance(value, ServiceFile):
+        return value
+
+    if isinstance(value, UserFile):
+        return ServiceFile.from_user_file(value)
+
+    if isinstance(value, dict):
+        if value.get("__file__") or ("name" in value and "url" in value):
+            return ServiceFile.from_serialized(value)
+
+        raise ValidationError("A valid file or url is required.")
+
+    if isinstance(value, str):
+        return ServiceFile.from_remote_url(value)
+
+    raise ValidationError("A valid file or url is required.")
 
 
 def ensure_boolean(value: Any, strict=True) -> bool:
@@ -99,6 +123,9 @@ def ensure_integer(value: Any, allow_empty: bool = False) -> Optional[int]:
             raise ValidationError("The value is required")
         return None
 
+    if isinstance(value, timedelta):
+        return int(value.total_seconds())
+
     try:
         return int(value)
     except (ValueError, TypeError) as exc:
@@ -125,6 +152,10 @@ def ensure_string(value: Any, allow_empty: bool = True) -> str:
     if isinstance(value, bool):
         # To match the frontend
         return "true" if value else "false"
+
+    if isinstance(value, timedelta):
+        return str(int(value.total_seconds()))
+
     if isinstance(value, list):
         results = [ensure_string(item) for item in value if item]
         return ",".join(results)
@@ -171,7 +202,7 @@ def ensure_array(value: Any, allow_empty: bool = True) -> List[Any]:
         return value
 
     if isinstance(value, str):
-        return [item.strip() for item in value.split(",")]
+        return [item.strip() for item in split_comma_separated_string(value)]
 
     return [value]
 
@@ -206,19 +237,62 @@ def ensure_date(value: Any) -> Optional[date]:
         raise ValidationError("Value cannot be converted to a date.") from exc
 
 
-def ensure_datetime(value: Any) -> Optional[datetime]:
+def ensure_datetime(
+    value: Any, date_format: str = "%Y-%m-%d %H:%M", strict: bool = False
+) -> Optional[datetime]:
     """
     Ensures that the value is a datetime or can be converted to a datetime.
     :param value: The value to ensure as a datetime.
+    :param date_format: The format to use to parse the datetime.
+    :param strict: If True, always validates the date format.
     :return: The value as a datetime.
     :raises ValidationError: If the value is not a valid datetime or convertible to a
         datetime.
     """
 
+    if value is None:
+        return None
+
     try:
-        return FormattedDateTime(value).datetime if value is not None else None
+        if strict and isinstance(value, str):
+            parsed = datetime.strptime(value, date_format)
+            return FormattedDateTime(parsed, date_format=date_format).datetime
+        return FormattedDateTime(value, date_format=date_format).datetime
     except (ValueError, TypeError) as exc:
         raise ValidationError("Value cannot be converted to a datetime.") from exc
+
+
+def ensure_duration(value: Any) -> timedelta:
+    """
+    Ensures that the value is a timedelta or is convertible to a timedelta.
+    :param value: The value to ensure as a timedelta.
+    :return: The value as a timedelta.
+    :raises ValidationError: If the value is not a valid timedelta or
+        convertible to a timedelta.
+    """
+
+    if isinstance(value, timedelta):
+        return value
+
+    if isinstance(value, str):
+        result = parse_duration_string(value)
+        if result is not None:
+            return result
+
+        try:
+            return timedelta(seconds=ensure_integer(value))
+        except ValidationError:
+            pass
+
+        raise ValidationError(
+            f"'{value}' is not a valid duration. "
+            f"Expected format: e.g. '1 day', '2 hours'."
+        )
+
+    if isinstance(value, (int, float)):
+        return timedelta(seconds=value)
+
+    raise ValidationError("Value cannot be converted to a duration.")
 
 
 def ensure_object(value: Any) -> Optional[dict]:
@@ -240,3 +314,48 @@ def ensure_object(value: Any) -> Optional[dict]:
             raise ValidationError("Value is not a JSON.") from exc
 
     raise ValidationError("Value cannot be converted to a dict.")
+
+
+class BaserowFormulaJSONEncoder(DjangoJSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, timedelta):
+            return ensure_integer(obj)
+
+        return super().default(obj)
+
+
+def ensure_deserialized_json(value: Any) -> Any:
+    """
+    Decode a JSON string if possible, otherwise return the value unchanged.
+
+    :param value: The value to decode if it is a valid JSON string.
+    :return: The decoded JSON value if `value` is a valid JSON string, otherwise
+        `value`.
+    """
+
+    if isinstance(value, str):
+        try:
+            return json.loads(value)
+        except (TypeError, JSONDecodeError):
+            pass
+
+    return value
+
+
+def ensure_json_serializable(value: Any) -> Any:
+    """
+    Ensures that the value can be converted to a JSON value.
+    Python types supported by Django's JSON encoder, like dates and datetimes, are
+    converted to their JSON representation.
+
+    :param value: The value to ensure as a JSON value.
+    :return: The JSON-compatible value.
+    :raises ValidationError: If the value cannot be converted to JSON.
+    """
+
+    try:
+        return json.loads(
+            json.dumps(value, cls=BaserowFormulaJSONEncoder, allow_nan=False)
+        )
+    except (TypeError, ValueError) as exc:
+        raise ValidationError("Value cannot be converted to a JSON value.") from exc

@@ -153,12 +153,15 @@ class DjangoChannelsSseServerTransport:
             tg.start_soon(group_listener)
 
             async def response_wrapper(scope: Scope, receive: Receive, send: Send):
-                await EventSourceResponse(
-                    content=sse_stream_reader, data_sender_callable=sse_writer
-                )(scope, receive, send)
-                await read_stream_writer.aclose()
-                await write_stream_reader.aclose()
-                logger.debug(f"SSE client disconnected {session_id}")
+                try:
+                    await EventSourceResponse(
+                        content=sse_stream_reader, data_sender_callable=sse_writer
+                    )(scope, receive, send)
+                finally:
+                    await read_stream_writer.aclose()
+                    await write_stream_reader.aclose()
+                    tg.cancel_scope.cancel()
+                    logger.debug(f"SSE client disconnected {session_id}")
 
             logger.debug("Starting SSE response task")
             tg.start_soon(response_wrapper, scope, receive, send)

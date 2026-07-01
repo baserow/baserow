@@ -14,6 +14,7 @@ from baserow.contrib.database.data_sync.handler import DataSyncHandler
 from baserow.contrib.database.data_sync.models import DataSync
 from baserow.contrib.database.fields.models import TextField
 from baserow.core.db import specific_iterator
+from baserow_enterprise.data_sync.jira_client import JIRA_NO_ISSUES_ERROR
 from baserow_enterprise.data_sync.models import JiraIssuesDataSync
 from baserow_premium.license.exceptions import FeaturesNotAvailableError
 from baserow_premium.license.models import License
@@ -355,6 +356,22 @@ EMPTY_ISSUE_RESPONSE = {
     "issues": [EMPTY_ISSUE],
 }
 
+CLOUD_SERVER_INFO_RESPONSE = {
+    "baseUrl": "https://test.atlassian.net",
+    "version": "1001.0.0",
+    "deploymentType": "Cloud",
+    "serverTitle": "Test",
+}
+
+
+def _mock_server_info_cloud():
+    responses.add(
+        responses.GET,
+        "https://test.atlassian.net/rest/api/2/serverInfo",
+        status=200,
+        json=CLOUD_SERVER_INFO_RESPONSE,
+    )
+
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
@@ -420,6 +437,7 @@ def test_sync_data_sync_table(enterprise_data_fixture):
     encoded_credentials = base64.b64encode(credentials.encode()).decode()
     auth_header_value = f"Basic {encoded_credentials}"
 
+    _mock_server_info_cloud()
     responses.add(
         responses.POST,
         "https://test.atlassian.net/rest/api/2/search/approximate-count",
@@ -597,6 +615,7 @@ def test_sync_data_sync_table_empty_issue(enterprise_data_fixture):
     encoded_credentials = base64.b64encode(credentials.encode()).decode()
     auth_header_value = f"Basic {encoded_credentials}"
 
+    _mock_server_info_cloud()
     responses.add(
         responses.POST,
         "https://test.atlassian.net/rest/api/2/search/approximate-count",
@@ -694,6 +713,7 @@ def test_sync_data_sync_table_empty_issue(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @responses.activate
 def test_sync_data_sync_table_personal_access_token(enterprise_data_fixture):
+    _mock_server_info_cloud()
     responses.add(
         responses.POST,
         "https://test.atlassian.net/rest/api/2/search/approximate-count",
@@ -753,6 +773,7 @@ def test_sync_data_sync_table_personal_access_token(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @responses.activate
 def test_create_data_sync_table_pagination(enterprise_data_fixture):
+    _mock_server_info_cloud()
     responses.add(
         responses.POST,
         "https://test.atlassian.net/rest/api/2/search/approximate-count",
@@ -832,6 +853,7 @@ def test_create_data_sync_table_pagination(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @responses.activate
 def test_create_data_sync_table_invalid_auth(enterprise_data_fixture):
+    _mock_server_info_cloud()
     responses.add(
         responses.POST,
         "https://test.atlassian.net/rest/api/2/search/approximate-count",
@@ -874,15 +896,14 @@ def test_create_data_sync_table_invalid_auth(enterprise_data_fixture):
         jira_api_token="test_token",
     )
     data_sync = handler.sync_data_sync_table(user=user, data_sync=data_sync)
-    assert data_sync.last_error == (
-        "No issues found. This is usually because the authentication details are wrong."
-    )
+    assert data_sync.last_error == JIRA_NO_ISSUES_ERROR
 
 
 @pytest.mark.django_db
 @override_settings(DEBUG=True)
 @responses.activate
 def test_create_data_sync_table_jira_error_message(enterprise_data_fixture):
+    _mock_server_info_cloud()
     responses.add(
         responses.POST,
         "https://test.atlassian.net/rest/api/2/search/approximate-count",
@@ -932,6 +953,7 @@ def test_create_data_sync_table_jira_error_message(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @responses.activate
 def test_create_data_sync_table_with_project_key(enterprise_data_fixture):
+    _mock_server_info_cloud()
     responses.add(
         responses.POST,
         "https://test.atlassian.net/rest/api/2/search/approximate-count",
@@ -981,6 +1003,7 @@ def test_create_data_sync_table_with_project_key(enterprise_data_fixture):
 @override_settings(DEBUG=True)
 @responses.activate
 def test_create_data_sync_table_jira_not_updated_twice(enterprise_data_fixture):
+    _mock_server_info_cloud()
     responses.add(
         responses.POST,
         "https://test.atlassian.net/rest/api/2/search/approximate-count",
@@ -1290,6 +1313,8 @@ def test_get_data_sync(enterprise_data_fixture, api_client):
     assert response_json == {
         "id": data_sync.id,
         "type": "jira_issues",
+        "table_id": data_sync.table_id,
+        "database_id": data_sync.table.database_id,
         "synced_properties": [
             {
                 "field_id": data_sync.table.field_set.all().first().id,
@@ -1347,6 +1372,8 @@ def test_create_data_sync_personal_access_token(enterprise_data_fixture, api_cli
     assert response_json == {
         "id": data_sync_id,
         "type": "jira_issues",
+        "table_id": data_sync.table_id,
+        "database_id": data_sync.table.database_id,
         "synced_properties": [
             {
                 "field_id": data_sync.table.field_set.all().first().id,

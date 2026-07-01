@@ -12,7 +12,7 @@ from django.contrib.auth.models import AbstractUser, AnonymousUser
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.core.exceptions import FieldDoesNotExist, ValidationError
-from django.db import OperationalError, connection
+from django.db import OperationalError, connection, transaction
 from django.db import models as django_models
 from django.db.models import Count, Q, prefetch_related_objects
 from django.db.models.expressions import OrderBy
@@ -67,6 +67,8 @@ from baserow.contrib.database.views.operations import (
     ListViewsOperationType,
     ListViewSortOperationType,
     OrderViewsOperationType,
+    PrioritizeViewGroupByOperationType,
+    PrioritizeViewSortOperationType,
     ReadAggregationsViewOperationType,
     ReadViewDecorationOperationType,
     ReadViewFieldOptionsOperationType,
@@ -128,11 +130,13 @@ from .exceptions import (
     ViewGroupByDoesNotExist,
     ViewGroupByFieldAlreadyExist,
     ViewGroupByFieldNotSupported,
+    ViewGroupByNotInView,
     ViewGroupByNotSupported,
     ViewNotInTable,
     ViewSortDoesNotExist,
     ViewSortFieldAlreadyExist,
     ViewSortFieldNotSupported,
+    ViewSortNotInView,
     ViewSortNotSupported,
 )
 from .models import (
@@ -176,9 +180,11 @@ from .signals import (
     view_group_by_created,
     view_group_by_deleted,
     view_group_by_updated,
+    view_group_bys_prioritized,
     view_sort_created,
     view_sort_deleted,
     view_sort_updated,
+    view_sortings_prioritized,
     view_updated,
     views_reordered,
 )
@@ -660,6 +666,7 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         group_bys: bool = True,
         default_row_values: bool = False,
         limit: int | None = None,
+        prefetch_field_options: bool = True,
     ) -> Iterable[View]:
         """
         Lists available views for a user/table combination.
@@ -670,8 +677,10 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         :param filters: If filters should be prefetched.
         :param sortings: If sorts should be prefetched.
         :param decorations: If view decorations should be prefetched.
+        :param group_bys: If group bys should be prefetched.
         :param default_row_values: If default row values should be prefetched.
         :param limit: To limit the number of returned views.
+        :param prefetch_field_options: If field options should be prefetched.
         :return: Iterator over returned views.
         """
 
@@ -715,7 +724,9 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             per_content_type_queryset_hook=(
                 lambda model, queryset: view_type_registry.get_by_model(
                     model
-                ).enhance_queryset(queryset)
+                ).enhance_queryset(
+                    queryset, prefetch_field_options=prefetch_field_options
+                )
             ),
         )
 
@@ -887,6 +898,22 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             raise ViewDoesNotExist(f"The view with id {view_id} does not exist.")
 
         return view
+
+    def get_view_or_none(self, view_id: Optional[int]) -> Optional[View]:
+        """
+        Returns the view if it exists, or None if the view_id is None or the
+        view has been deleted.
+
+        :param view_id: The id of the view to return.
+        :return: The view instance or None.
+        """
+
+        if view_id is None:
+            return None
+        try:
+            return self.get_view(view_id)
+        except ViewDoesNotExist:
+            return None
 
     def get_view_for_update(
         self,
@@ -2176,6 +2203,22 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
 
         return view_sort
 
+    def _append_to_priority_chain(self, model, view, **create_kwargs):
+        """
+        Creates a `ViewSort`/`ViewGroupBy` for the view, appended last, and renumbers
+        the `priority` chain to a dense `1..N` sequence via `order_objects`. Keeping
+        priorities dense and bounded by the entry count prevents them from reaching the
+        smallint ceiling (the historical `smallint out of range` error). The new entry
+        defaults to the highest `priority`, so it sorts last before renumbering.
+        """
+
+        with transaction.atomic():
+            instance = model.objects.create(view=view, **create_kwargs)
+            queryset = model.objects.select_for_update(of=("self",)).filter(view=view)
+            model.order_objects(queryset, [instance.id], field="priority")
+            instance.refresh_from_db(fields=["priority"])
+            return instance
+
     def create_sort(
         self,
         user: AbstractUser,
@@ -2241,9 +2284,10 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 f"A sort with the field {field.pk} already exists."
             )
 
-        view_sort = ViewSort.objects.create(
+        view_sort = self._append_to_priority_chain(
+            ViewSort,
+            view,
             pk=primary_key,
-            view=view,
             field=field,
             order=order,
             type=sort_type,
@@ -2359,6 +2403,49 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
         view_sort_deleted.send(
             self, view_sort_id=view_sort_id, view_sort=view_sort, user=user
         )
+
+    def prioritize_sortings(
+        self, user: AbstractUser, view: View, view_sort_ids: List[int]
+    ) -> List[int]:
+        """
+        Updates the priority of the view sortings of the given view so that
+        they match the provided list of view sort ids. Items not included in
+        ``view_sort_ids`` keep their relative position after the ones in
+        ``view_sort_ids``.
+
+        :param user: The user on whose behalf the sortings are prioritized.
+        :param view: The view that owns the sortings.
+        :param view_sort_ids: The list of view sort ids in the desired priority
+            order.
+        :raises ViewSortNotInView: If one of the ids does not belong to the
+            view's sortings.
+        :return: The full ordered list of view sort ids.
+        """
+
+        workspace = view.table.database.workspace
+        CoreHandler().check_permissions(
+            user,
+            PrioritizeViewSortOperationType.type,
+            workspace=workspace,
+            context=view,
+        )
+
+        queryset = ViewSort.objects.select_for_update(of=("self",)).filter(view=view)
+        sort_ids = set(queryset.values_list("id", flat=True))
+
+        for view_sort_id in view_sort_ids:
+            if view_sort_id not in sort_ids:
+                raise ViewSortNotInView(view_sort_id)
+
+        view_sort_ids = ViewSort.order_objects(
+            queryset, view_sort_ids, field="priority"
+        )
+
+        view_sortings_prioritized.send(
+            self, view=view, view_sort_ids=view_sort_ids, user=user
+        )
+
+        return view_sort_ids
 
     def list_group_bys(self, user: AbstractUser, view_id: int) -> QuerySet[ViewGroupBy]:
         """
@@ -2490,9 +2577,10 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
                 f"A group by for the field {field.pk} already exists."
             )
 
-        view_group_by = ViewGroupBy.objects.create(
+        view_group_by = self._append_to_priority_chain(
+            ViewGroupBy,
+            view,
             pk=primary_key,
-            view=view,
             field=field,
             order=order,
             width=width,
@@ -2621,6 +2709,49 @@ class ViewHandler(metaclass=baserow_trace_methods(tracer)):
             view_group_by=view_group_by,
             user=user,
         )
+
+    def prioritize_group_bys(
+        self, user: AbstractUser, view: View, view_group_by_ids: List[int]
+    ) -> List[int]:
+        """
+        Updates the priority of the view group bys of the given view so that
+        they match the provided list of view group by ids. Items not included
+        in ``view_group_by_ids`` keep their relative position after the ones
+        in ``view_group_by_ids``.
+
+        :param user: The user on whose behalf the group bys are prioritized.
+        :param view: The view that owns the group bys.
+        :param view_group_by_ids: The list of view group by ids in the desired
+            priority order.
+        :raises ViewGroupByNotInView: If one of the ids does not belong to the
+            view's group bys.
+        :return: The full ordered list of view group by ids.
+        """
+
+        workspace = view.table.database.workspace
+        CoreHandler().check_permissions(
+            user,
+            PrioritizeViewGroupByOperationType.type,
+            workspace=workspace,
+            context=view,
+        )
+
+        queryset = ViewGroupBy.objects.select_for_update(of=("self",)).filter(view=view)
+        group_by_ids = set(queryset.values_list("id", flat=True))
+
+        for view_group_by_id in view_group_by_ids:
+            if view_group_by_id not in group_by_ids:
+                raise ViewGroupByNotInView(view_group_by_id)
+
+        view_group_by_ids = ViewGroupBy.order_objects(
+            queryset, view_group_by_ids, field="priority"
+        )
+
+        view_group_bys_prioritized.send(
+            self, view=view, view_group_by_ids=view_group_by_ids, user=user
+        )
+
+        return view_group_by_ids
 
     def create_decoration(
         self,

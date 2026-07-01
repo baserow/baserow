@@ -122,7 +122,7 @@ export default {
     },
     rowsAtEndOfGroups: {
       type: Set,
-      required: true,
+      default: () => new Set(),
     },
     canDrag: {
       type: Boolean,

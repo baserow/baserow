@@ -7,6 +7,8 @@ and/or released.
 
 Add/remove features flags to the list below:
 
+- `user_presence` - Enables real-time user presence indicators showing which users are viewing the same table. Displays avatar badges in the grid view header.
+
 ## Enabling feature flags
 
 To enable specific feature flags set the environment variable

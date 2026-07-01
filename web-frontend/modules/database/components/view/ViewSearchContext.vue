@@ -7,15 +7,18 @@
     @shown="focus"
   >
     <form class="context__form" @submit.prevent="searchIfChanged">
-      <FormInput
-        ref="activeSearchTermInput"
-        v-model="activeSearchTerm"
-        size="large"
-        icon-left="iconoir-search"
-        :placeholder="$t('viewSearchContext.searchInRows')"
-        class="margin-bottom-2"
-        @keyup="searchIfChanged"
-      ></FormInput>
+      <div class="header__search-form">
+        <FormInput
+          ref="activeSearchTermInput"
+          v-model="activeSearchTerm"
+          size="large"
+          icon-left="iconoir-search"
+          :placeholder="$t('viewSearchContext.searchInRows')"
+          class="margin-bottom-2"
+          :can-clear="true"
+          @keyup="searchIfChanged"
+        ></FormInput>
+      </div>
       <div
         v-if="!alwaysHideRowsNotMatchingSearch"
         class="control control--align-right margin-bottom-0"
@@ -79,6 +82,11 @@ export default {
         this.$refs.activeSearchTermInput.focus()
       })
     },
+    setActiveSearchTerm(value) {
+      this.activeSearchTerm = value
+      this.$emit('search-changed', this.activeSearchTerm)
+      this.search(true)
+    },
     searchIfChanged() {
       this.$emit('search-changed', this.activeSearchTerm)
       if (
@@ -93,7 +101,7 @@ export default {
       this.lastSearch = this.activeSearchTerm
       this.lastHide = this.hideRowsNotMatchingSearch
     },
-    search() {
+    search(immediate = false) {
       if (this.readOnly) {
         this.$emit('refresh', { activeSearchTerm: this.activeSearchTerm })
         return
@@ -104,14 +112,22 @@ export default {
       // When the user toggles from hiding rows to not hiding rows we still
       // need to refresh as we need to fetch the un-searched rows from the server first.
       if (this.hideRowsNotMatchingSearch || this.lastHide) {
-        // noinspection JSValidateTypes
-        this.debouncedServerSearchRefresh()
+        if (immediate) {
+          this.serverSearchRefresh()
+        } else {
+          // noinspection JSValidateTypes
+          this.debouncedServerSearchRefresh()
+        }
       } else {
-        // noinspection JSValidateTypes
-        this.debouncedClientSideSearchRefresh()
+        if (immediate) {
+          this.clientSideSearchRefresh()
+        } else {
+          // noinspection JSValidateTypes
+          this.debouncedClientSideSearchRefresh()
+        }
       }
     },
-    debouncedServerSearchRefresh: debounce(async function () {
+    async serverSearchRefresh() {
       await this.$store.dispatch(
         `${this.storePrefix}view/${this.view.type}/updateSearch`,
         {
@@ -127,10 +143,8 @@ export default {
         callback: this.finishedLoading,
         activeSearchTerm: this.activeSearchTerm,
       })
-    }, 400),
-    // Debounce even the client side only refreshes as otherwise spamming the keyboard
-    // can cause many refreshes to queue up quickly bogging down the UI.
-    debouncedClientSideSearchRefresh: debounce(async function () {
+    },
+    async clientSideSearchRefresh() {
       await this.$store.dispatch(
         `${this.storePrefix}view/${this.view.type}/updateSearch`,
         {
@@ -141,6 +155,14 @@ export default {
         }
       )
       this.finishedLoading()
+    },
+    debouncedServerSearchRefresh: debounce(function () {
+      return this.serverSearchRefresh()
+    }, 400),
+    // Debounce even the client side only refreshes as otherwise spamming the keyboard
+    // can cause many refreshes to queue up quickly bogging down the UI.
+    debouncedClientSideSearchRefresh: debounce(function () {
+      return this.clientSideSearchRefresh()
     }, 10),
     finishedLoading() {
       this.loading = false

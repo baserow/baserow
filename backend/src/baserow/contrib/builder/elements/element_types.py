@@ -1,7 +1,7 @@
 import abc
 import uuid
 from datetime import datetime
-from decimal import InvalidOperation
+from decimal import Decimal, InvalidOperation
 from typing import (
     Any,
     Callable,
@@ -18,8 +18,8 @@ from typing import (
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
-from django.db.models import IntegerField, Q, QuerySet
-from django.db.models.functions import Cast
+from django.db.models import Q, QuerySet
+from django.utils.translation import gettext_lazy as _
 
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -31,7 +31,6 @@ from baserow.contrib.builder.api.elements.serializers import (
 )
 from baserow.contrib.builder.data_sources.handler import DataSourceHandler
 from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
-from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.mixins import (
     CollectionElementTypeMixin,
     CollectionElementWithFieldsTypeMixin,
@@ -68,6 +67,7 @@ from baserow.contrib.builder.elements.models import (
     TableElement,
     TextElement,
     VerticalAlignments,
+    get_default_column_stacking,
     get_default_table_orientation,
 )
 from baserow.contrib.builder.elements.registries import (
@@ -135,6 +135,7 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
     in a column.
     """
 
+    display_name = _("Column")
     type = "column"
     model_class = ColumnElement
 
@@ -142,6 +143,9 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
         column_amount: int
         column_gap: int
         alignment: str
+        layout_type: str
+        column_weights: list
+        column_stacking: Dict[str, str]
 
     @property
     def serializer_field_names(self):
@@ -149,6 +153,9 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
             "column_amount",
             "column_gap",
             "alignment",
+            "layout_type",
+            "column_weights",
+            "column_stacking",
         ]
 
     @property
@@ -157,14 +164,121 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
             "column_amount",
             "column_gap",
             "alignment",
+            "layout_type",
+            "column_weights",
+            "column_stacking",
         ]
+
+    @property
+    def serializer_field_overrides(self):
+        return {
+            **super().serializer_field_overrides,
+            "layout_type": serializers.ChoiceField(
+                choices=ColumnElement.LAYOUT_TYPES.choices,
+                default=ColumnElement.LAYOUT_TYPES.AUTO,
+                help_text=ColumnElement._meta.get_field("layout_type").help_text,
+                required=False,
+            ),
+            "column_weights": serializers.JSONField(
+                default=list,
+                help_text=ColumnElement._meta.get_field("column_weights").help_text,
+                required=False,
+            ),
+            "column_stacking": serializers.JSONField(
+                default=get_default_column_stacking,
+                help_text=ColumnElement._meta.get_field("column_stacking").help_text,
+                required=False,
+            ),
+        }
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, Any]:
         return {
             "column_amount": 2,
             "column_gap": 10,
             "alignment": VerticalAlignments.TOP,
+            "layout_type": ColumnElement.LAYOUT_TYPES.AUTO,
+            "column_weights": [],
+            "column_stacking": {
+                "smartphone": ColumnElement.COLUMN_STACKING_TYPES.STACKED,
+                "tablet": ColumnElement.COLUMN_STACKING_TYPES.HORIZONTAL,
+                "desktop": ColumnElement.COLUMN_STACKING_TYPES.HORIZONTAL,
+            },
         }
+
+    def _parse_custom_weight(self, weight: Any) -> Decimal:
+        if isinstance(weight, bool) or not isinstance(weight, (int, float, Decimal)):
+            raise ValueError("Column weights must be numeric values.")
+
+        parsed_weight = Decimal(str(weight))
+
+        if not parsed_weight.is_finite() or parsed_weight < 0:
+            raise ValueError("Column weights must be 0 or greater.")
+
+        return parsed_weight
+
+    def prepare_value_for_db(
+        self, values: Dict, instance: Optional[ColumnElement] = None
+    ):
+        preset_column_amounts = {
+            ColumnElement.LAYOUT_TYPES.RATIO_1_2: 2,
+            ColumnElement.LAYOUT_TYPES.RATIO_2_1: 2,
+            ColumnElement.LAYOUT_TYPES.RATIO_1_3: 2,
+            ColumnElement.LAYOUT_TYPES.RATIO_3_1: 2,
+            ColumnElement.LAYOUT_TYPES.RATIO_1_1_2: 3,
+            ColumnElement.LAYOUT_TYPES.RATIO_2_1_1: 3,
+            ColumnElement.LAYOUT_TYPES.RATIO_1_2_1: 3,
+        }
+        layout_type = values.get(
+            "layout_type",
+            getattr(instance, "layout_type", ColumnElement.LAYOUT_TYPES.AUTO),
+        )
+        column_weights = values.get(
+            "column_weights", getattr(instance, "column_weights", [])
+        )
+        column_amount = values.get(
+            "column_amount", getattr(instance, "column_amount", 3)
+        )
+
+        if layout_type == ColumnElement.LAYOUT_TYPES.CUSTOM:
+            if (
+                not isinstance(column_weights, list)
+                or len(column_weights) != column_amount
+            ):
+                raise DRFValidationError(
+                    {
+                        "column_weights": (
+                            f"column_weights must have {column_amount} entries "
+                            "for custom layout"
+                        )
+                    }
+                )
+            try:
+                for weight in column_weights:
+                    self._parse_custom_weight(weight)
+            except (InvalidOperation, ValueError) as exc:
+                raise DRFValidationError(
+                    {
+                        "column_weights": (
+                            "column_weights must contain numeric weights of 0 or "
+                            "greater for custom layout"
+                        )
+                    }
+                ) from exc
+
+        if (
+            layout_type in preset_column_amounts
+            and preset_column_amounts[layout_type] != column_amount
+        ):
+            raise DRFValidationError(
+                {
+                    "layout_type": (
+                        f"{layout_type} layout requires "
+                        f"{preset_column_amounts[layout_type]} columns"
+                    )
+                }
+            )
+
+        return super().prepare_value_for_db(values, instance)
 
     def get_new_place_in_container(
         self, container_element_before_update: ColumnElement, places_removed: List[str]
@@ -188,14 +302,12 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
 
         return [str(place) for place in places_removed]
 
-    def apply_order_by_children(self, queryset: QuerySet[Element]) -> QuerySet[Element]:
-        return queryset.annotate(
-            place_in_container_as_int=Cast(
-                "place_in_container", output_field=IntegerField()
-            )
-        ).order_by("place_in_container_as_int", "order")
+    def get_places(self, instance: ColumnElement) -> Dict[str, Dict[str, str]]:
+        return {
+            str(place): {"label": str(place)} for place in range(instance.column_amount)
+        }
 
-    def validate_place_in_container(
+    def validate_position_as_child(
         self, place_in_container: str, instance: ColumnElement
     ):
         max_place_in_container = instance.column_amount - 1
@@ -219,6 +331,7 @@ class ColumnElementType(ContainerElementTypeMixin, ElementType):
 
 
 class FormContainerElementType(ContainerElementTypeMixin, ElementType):
+    display_name = _("Form")
     type = "form_container"
     model_class = FormContainerElement
     allowed_fields = [
@@ -269,8 +382,8 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="button",
-                theme_config_block_type_name=ButtonThemeConfigBlockType.type,
+                property_names=["button"],
+                theme_config_block_type_names=[[ButtonThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -290,6 +403,7 @@ class FormContainerElementType(ContainerElementTypeMixin, ElementType):
 
 
 class SimpleContainerElementType(ContainerElementTypeMixin, ElementType):
+    display_name = _("Container")
     type = "simple_container"
     model_class = SimpleContainerElement
 
@@ -301,6 +415,7 @@ class SimpleContainerElementType(ContainerElementTypeMixin, ElementType):
 
 
 class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
+    display_name = _("Table")
     type = "table"
     model_class = TableElement
 
@@ -334,14 +449,14 @@ class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name=["button", "table", "header_button"],
-                theme_config_block_type_name=[
-                    ButtonThemeConfigBlockType.type,
+                property_names=["button", "table", "header_button"],
+                theme_config_block_type_names=[
+                    [ButtonThemeConfigBlockType.type],
                     [
                         TableThemeConfigBlockType.type,
                         TypographyThemeConfigBlockType.type,
                     ],
-                    ButtonThemeConfigBlockType.type,
+                    [ButtonThemeConfigBlockType.type],
                 ],
                 serializer_kwargs={"required": False},
             ),
@@ -365,6 +480,7 @@ class TableElementType(CollectionElementWithFieldsTypeMixin, ElementType):
 class RepeatElementType(
     CollectionElementTypeMixin, ContainerElementTypeMixin, ElementType
 ):
+    display_name = _("Repeat")
     type = "repeat"
     model_class = RepeatElement
 
@@ -408,10 +524,10 @@ class RepeatElementType(
             **super().serializer_field_overrides,
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name=["button", "header_button"],
-                theme_config_block_type_name=[
-                    ButtonThemeConfigBlockType.type,
-                    ButtonThemeConfigBlockType.type,
+                property_names=["button", "header_button"],
+                theme_config_block_type_names=[
+                    [ButtonThemeConfigBlockType.type],
+                    [ButtonThemeConfigBlockType.type],
                 ],
                 serializer_kwargs={"required": False},
             ),
@@ -432,6 +548,7 @@ class RepeatElementType(
 class RecordSelectorElementType(
     FormElementTypeMixin, CollectionElementTypeMixin, ElementType
 ):
+    display_name = _("Record selector")
     type = "record_selector"
     model_class = RecordSelectorElement
     simple_formula_fields = CollectionElementTypeMixin.simple_formula_fields + [
@@ -579,16 +696,15 @@ class RecordSelectorElementType(
         import_formula: Callable[[str, Dict[str, Any]], str],
         **kwargs: Dict[str, Any],
     ) -> Set[Instance]:
-        # We need to import the option_name_suffix formula separately because
-        # it uses a different import_context
+        # Import the option_name_suffix formula. The import context
+        # (data_source_id etc.) is already passed via **kwargs by the caller.
         updated_models = super().import_formulas(
             instance, id_mapping, import_formula, **kwargs
         )
-        formula_context = ElementHandler().get_import_context_addition(instance.id)
         instance.option_name_suffix = import_formula(
             instance.option_name_suffix,
             id_mapping,
-            **(kwargs | formula_context),
+            **kwargs,
         )
         updated_models.add(instance)
         return updated_models
@@ -681,6 +797,7 @@ class HeadingElementType(ElementType):
     A simple heading element that can be used to display a title.
     """
 
+    display_name = _("Heading")
     type = "heading"
     model_class = HeadingElement
     serializer_field_names = ["value", "level"]
@@ -690,6 +807,16 @@ class HeadingElementType(ElementType):
     class SerializedDict(ElementDict):
         value: BaserowFormulaObject
         level: int
+
+    def get_graph_point_label(self, instance: HeadingElement) -> str:
+        value = instance.value
+        if isinstance(value, dict):
+            formula = value.get("formula", "")
+            if len(formula) >= 2 and formula[0] == "'" and formula[-1] == "'":
+                label = formula[1:-1]
+                if label:
+                    return label
+        return self.type
 
     @property
     def serializer_field_overrides(self):
@@ -713,8 +840,8 @@ class HeadingElementType(ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="typography",
-                theme_config_block_type_name=TypographyThemeConfigBlockType.type,
+                property_names=["typography"],
+                theme_config_block_type_names=[[TypographyThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -737,6 +864,7 @@ class TextElementType(ElementType):
     A text element that allows plain or markdown content.
     """
 
+    display_name = _("Text")
     type = "text"
     model_class = TextElement
     serializer_field_names = ["value", "format"]
@@ -782,8 +910,8 @@ class TextElementType(ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="typography",
-                theme_config_block_type_name=TypographyThemeConfigBlockType.type,
+                property_names=["typography"],
+                theme_config_block_type_names=[[TypographyThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -907,16 +1035,6 @@ class NavigationElementManager:
             "target": "blank",
         }
 
-    def validate_place(
-        self,
-        page: Page,
-        parent_element: Optional[Element],
-        place_in_container: str,
-    ):
-        """
-        We need it because it's called in the prepare_value_for_db.
-        """
-
     def prepare_value_for_db(
         self, values: Dict, instance: Optional[LinkElement] = None
     ):
@@ -968,6 +1086,7 @@ class LinkElementType(ElementType):
     A link element that can be used to navigate to a page or a URL.
     """
 
+    display_name = _("Link")
     type = "link"
     model_class = LinkElement
     simple_formula_fields = NavigationElementManager.simple_formula_fields + ["value"]
@@ -1069,10 +1188,10 @@ class LinkElementType(ElementType):
                 ),
                 "styles": DynamicConfigBlockSerializer(
                     required=False,
-                    property_name=["button", "link"],
-                    theme_config_block_type_name=[
-                        ButtonThemeConfigBlockType.type,
-                        LinkThemeConfigBlockType.type,
+                    property_names=["button", "link"],
+                    theme_config_block_type_names=[
+                        [ButtonThemeConfigBlockType.type],
+                        [LinkThemeConfigBlockType.type],
                     ],
                     serializer_kwargs={"required": False},
                 ),
@@ -1105,6 +1224,7 @@ class ImageElementType(ElementType):
     or via an uploaded file
     """
 
+    display_name = _("Image")
     type = "image"
     model_class = ImageElement
     serializer_field_names = [
@@ -1170,8 +1290,8 @@ class ImageElementType(ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="image",
-                theme_config_block_type_name=ImageThemeConfigBlockType.type,
+                property_names=["image"],
+                theme_config_block_type_names=[[ImageThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -1207,8 +1327,8 @@ class ImageElementType(ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="image",
-                theme_config_block_type_name=ImageThemeConfigBlockType.type,
+                property_names=["image"],
+                theme_config_block_type_names=[[ImageThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
                 request_serializer=True,
             ),
@@ -1268,6 +1388,7 @@ class InputElementType(FormElementTypeMixin, ElementType, abc.ABC):
 
 
 class RatingElementType(ElementType):
+    display_name = _("Rating")
     type = "rating"
     model_class = RatingElement
     allowed_fields = [
@@ -1314,6 +1435,7 @@ class RatingElementType(ElementType):
 
 
 class RatingInputElementType(InputElementType):
+    display_name = _("Rating input")
     type = "rating_input"
     model_class = RatingInputElement
     allowed_fields = [
@@ -1399,6 +1521,7 @@ class RatingInputElementType(InputElementType):
 
 
 class InputTextElementType(InputElementType):
+    display_name = _("Input text")
     type = "input_text"
     model_class = InputTextElement
     allowed_fields = [
@@ -1478,8 +1601,8 @@ class InputTextElementType(InputElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="input",
-                theme_config_block_type_name=InputThemeConfigBlockType.type,
+                property_names=["input"],
+                theme_config_block_type_names=[[InputThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -1538,6 +1661,7 @@ class InputTextElementType(InputElementType):
 
 
 class ButtonElementType(ElementType):
+    display_name = _("Button")
     type = "button"
     model_class = ButtonElement
     allowed_fields = ["value"]
@@ -1563,8 +1687,8 @@ class ButtonElementType(ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="button",
-                theme_config_block_type_name=ButtonThemeConfigBlockType.type,
+                property_names=["button"],
+                theme_config_block_type_names=[[ButtonThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -1582,6 +1706,7 @@ class ButtonElementType(ElementType):
 
 
 class CheckboxElementType(InputElementType):
+    display_name = _("Checkbox")
     type = "checkbox"
     model_class = CheckboxElement
     allowed_fields = ["label", "default_value", "required"]
@@ -1617,8 +1742,8 @@ class CheckboxElementType(InputElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="input",
-                theme_config_block_type_name=InputThemeConfigBlockType.type,
+                property_names=["input"],
+                theme_config_block_type_names=[[InputThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -1655,6 +1780,7 @@ class CheckboxElementType(InputElementType):
 
 
 class ChoiceElementType(FormElementTypeMixin, ElementType):
+    display_name = _("Choice")
     type = "choice"
     model_class = ChoiceElement
     allowed_fields = [
@@ -1764,8 +1890,8 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
             ),
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="input",
-                theme_config_block_type_name=InputThemeConfigBlockType.type,
+                property_names=["input"],
+                theme_config_block_type_names=[[InputThemeConfigBlockType.type]],
                 serializer_kwargs={"required": False},
             ),
         }
@@ -1967,6 +2093,7 @@ class ChoiceElementType(FormElementTypeMixin, ElementType):
 
 
 class IFrameElementType(ElementType):
+    display_name = _("Iframe")
     type = "iframe"
     model_class = IFrameElement
     allowed_fields = ["source_type", "url", "embed", "height"]
@@ -2025,6 +2152,7 @@ class IFrameElementType(ElementType):
 
 
 class DateTimePickerElementType(FormElementTypeMixin, ElementType):
+    display_name = _("Date time picker")
     type = "datetime_picker"
     model_class = DateTimePickerElement
     allowed_fields = [
@@ -2168,6 +2296,7 @@ class HeaderElementType(MultiPageContainerElementType):
     A container element that can be displayed on multiple pages.
     """
 
+    display_name = _("Shared header")
     type = "header"
     model_class = HeaderElement
 
@@ -2177,6 +2306,7 @@ class FooterElementType(MultiPageContainerElementType):
     A container element that can be displayed on multiple pages.
     """
 
+    display_name = _("Shared footer")
     type = "footer"
     model_class = FooterElement
 
@@ -2186,10 +2316,11 @@ class MenuElementType(ElementType):
     A Menu element that provides navigation capabilities to the application.
     """
 
+    display_name = _("Menu")
     type = "menu"
     model_class = MenuElement
-    serializer_field_names = ["orientation", "alignment", "menu_items"]
-    allowed_fields = ["orientation", "alignment"]
+    serializer_field_names = ["orientation", "alignment", "menu_items", "variant"]
+    allowed_fields = ["orientation", "alignment", "variant"]
 
     serializer_mixins = [NestedMenuItemsMixin]
     request_serializer_mixins = []
@@ -2198,6 +2329,7 @@ class MenuElementType(ElementType):
         orientation: str
         alignment: str
         menu_items: List[Dict]
+        variant: Dict[str, str]
 
     @property
     def serializer_field_overrides(self) -> Dict[str, Any]:
@@ -2207,15 +2339,20 @@ class MenuElementType(ElementType):
         from baserow.contrib.builder.theme.theme_config_block_types import (
             ButtonThemeConfigBlockType,
             LinkThemeConfigBlockType,
+            TypographyThemeConfigBlockType,
         )
 
         overrides = {
             **super().serializer_field_overrides,
             "styles": DynamicConfigBlockSerializer(
                 required=False,
-                property_name="menu",
-                theme_config_block_type_name=[
-                    [ButtonThemeConfigBlockType.type, LinkThemeConfigBlockType.type]
+                property_names=["menu", "burger"],
+                theme_config_block_type_names=[
+                    [
+                        ButtonThemeConfigBlockType.type,
+                        LinkThemeConfigBlockType.type,
+                    ],
+                    [TypographyThemeConfigBlockType.type],
                 ],
                 serializer_kwargs={"required": False},
             ),

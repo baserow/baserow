@@ -736,3 +736,41 @@ def test_remove_dependent_count_rollup_field_through_field(
     test_field.refresh_from_db()
     assert test_field.through_field_id is None
     assert test_field.error == "references the deleted or unknown field "
+
+
+@pytest.mark.django_db
+def test_rollup_field_api_response_includes_number_negative(data_fixture, api_client):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    table2 = data_fixture.create_database_table(user=user, database=table.database)
+    data_fixture.create_text_field(name="tableprimary", table=table, primary=True)
+    data_fixture.create_text_field(name="table2primary", table=table2, primary=True)
+    rolled_up_field = data_fixture.create_number_field(
+        name="number", table=table2, number_negative=True
+    )
+    link_row_field = FieldHandler().create_field(
+        user,
+        table,
+        "link_row",
+        name="linkrowfield",
+        link_row_table=table2,
+    )
+    rollup_field = FieldHandler().create_field(
+        user,
+        table,
+        "rollup",
+        name="rollup_field",
+        through_field_id=link_row_field.id,
+        target_field_id=rolled_up_field.id,
+        rollup_function="sum",
+    )
+
+    response = api_client.get(
+        reverse("api:database:fields:item", kwargs={"field_id": rollup_field.id}),
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_200_OK
+    response_json = response.json()
+    assert response_json["type"] == "rollup"
+    assert response_json["number_negative"] is True

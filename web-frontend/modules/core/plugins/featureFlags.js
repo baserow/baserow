@@ -1,6 +1,7 @@
 import { useRuntimeConfig } from '#imports'
 
 const FF_ENABLE_ALL = '*'
+export const FF_USER_PRESENCE = 'user_presence'
 
 function getFeatureFlags(env) {
   return (env.FEATURE_FLAGS || '')

@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Make AutomationWorkflowHistory.original_workflow non-nullable.",
+    "issue_origin": "github",
+    "issue_number": 5236,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-05-07"
+}

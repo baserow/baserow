@@ -49,3 +49,14 @@
   color: $color-error-500;
   font-size: 14px;
 }
+
+.user-admin-edit__two-factor {
+  @include flex-align-items(12px);
+}
+
+.user-admin-edit__remove-2fa {
+  color: $color-error-500;
+  font-size: 13px;
+  line-height: 20px;
+  cursor: pointer;
+}

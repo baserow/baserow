@@ -689,7 +689,7 @@ def test_updating_router_node_with_edge_removals_when_they_have_output_nodes_dis
     )
 
     assert (
-        workflow.get_graph().get_node_at_position(router, "south", str(edge.uid))
+        workflow.get_graph().get_point_at_position(router, "south", str(edge.uid))
         is not None
     )
 
@@ -723,7 +723,7 @@ def test_updating_router_node_without_service_allowed(
     )
 
     assert (
-        workflow.get_graph().get_node_at_position(router, "south", str(edge.uid))
+        workflow.get_graph().get_point_at_position(router, "south", str(edge.uid))
         is not None
     )
 
@@ -758,7 +758,7 @@ def test_deleting_router_node_with_output_nodes_disallowed(api_client, data_fixt
     )
 
     assert (
-        workflow.get_graph().get_node_at_position(router, "south", str(edge.uid))
+        workflow.get_graph().get_point_at_position(router, "south", str(edge.uid))
         is not None
     )
 
@@ -787,7 +787,7 @@ def test_replacing_router_node_with_output_nodes_disallowed(api_client, data_fix
     )
 
     assert (
-        workflow.get_graph().get_node_at_position(router, "south", str(edge.uid))
+        workflow.get_graph().get_point_at_position(router, "south", str(edge.uid))
         is not None
     )
 
@@ -874,8 +874,8 @@ def test_simulate_dispatch_trigger_node_immediate_dispatch(
 
     assert trigger_node.workflow.simulate_until_node is None
 
-    old_imm = trigger_node.service.get_type().can_immediately_be_tested
-    trigger_node.service.get_type().can_immediately_be_tested = lambda s: True
+    old_imm = trigger_node.service.get_type().can_be_immediately_dispatched
+    trigger_node.service.get_type().can_be_immediately_dispatched = lambda s: True
 
     api_kwargs = get_api_kwargs(token)
     url = reverse(API_URL_SIMULATE_DISPATCH, kwargs={"node_id": trigger_node.id})
@@ -890,7 +890,7 @@ def test_simulate_dispatch_trigger_node_immediate_dispatch(
     # In case of an immediate dispatch we want to trigger immediately the workflow
     mock_async_start_workflow.assert_called_with(workflow)
 
-    trigger_node.service.get_type().can_immediately_be_tested = old_imm
+    trigger_node.service.get_type().can_be_immediately_dispatched = old_imm
 
 
 @pytest.mark.django_db()

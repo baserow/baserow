@@ -115,12 +115,16 @@ import {
   NotificationWorkflowActionType,
   OpenPageWorkflowActionType,
   UpdateRowWorkflowActionType,
+  LocalBaserowUpdateRowsWorkflowActionType,
   LogoutWorkflowActionType,
   RefreshDataSourceWorkflowActionType,
   DeleteRowWorkflowActionType,
+  CoreCSVFileReaderWorkflowActionType,
   CoreHTTPRequestWorkflowActionType,
   CoreSMTPEmailWorkflowActionType,
+  CoreStartWorkflowWorkflowActionType,
   AIAgentWorkflowActionType,
+  LocalBaserowCreateRowsWorkflowActionType,
   SlackWriteMessageWorkflowActionType,
 } from '@baserow/modules/builder/workflowActionTypes'
 
@@ -158,14 +162,8 @@ export default defineNuxtPlugin({
   name: 'builder',
   dependsOn: ['core', 'store'],
   async setup(nuxtApp) {
-    const { $store, $registry, $clientErrorMap, $i18n } = nuxtApp
+    const { $store, $registry } = nuxtApp
     const context = { app: nuxtApp }
-
-    $clientErrorMap.setError(
-      'ERROR_PAGE_NAME_NOT_UNIQUE',
-      $i18n.t('pageErrors.errorNameNotUnique'),
-      $i18n.t('pageErrors.errorNameNotUniqueDescription')
-    )
 
     $store.registerModuleNuxtSafe('page', pageStore)
     $store.registerModuleNuxtSafe('element', elementStore)
@@ -361,6 +359,14 @@ export default defineNuxtPlugin({
       'workflowAction',
       new CoreSMTPEmailWorkflowActionType(context)
     )
+    $registry.register(
+      'workflowAction',
+      new CoreCSVFileReaderWorkflowActionType(context)
+    )
+    $registry.register(
+      'workflowAction',
+      new CoreStartWorkflowWorkflowActionType(context)
+    )
     $registry.register('workflowAction', new AIAgentWorkflowActionType(context))
     $registry.register(
       'workflowAction',
@@ -368,7 +374,15 @@ export default defineNuxtPlugin({
     )
     $registry.register(
       'workflowAction',
+      new LocalBaserowCreateRowsWorkflowActionType(context)
+    )
+    $registry.register(
+      'workflowAction',
       new UpdateRowWorkflowActionType(context)
+    )
+    $registry.register(
+      'workflowAction',
+      new LocalBaserowUpdateRowsWorkflowActionType(context)
     )
     $registry.register(
       'workflowAction',

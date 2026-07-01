@@ -74,7 +74,14 @@ def get_nodes_in_order(user: AbstractUser, workflow: AutomationWorkflow) -> list
         ordered_ids.append(node_id)
         info = graph.get(str(node_id), {})
         # Follow children first (for container nodes like iterators)
-        for child_id in info.get("children", []):
+        raw_children = info.get("children")
+        if isinstance(raw_children, list):
+            child_ids = raw_children
+        elif isinstance(raw_children, dict):
+            child_ids = [nid for ids in raw_children.values() for nid in ids]
+        else:
+            child_ids = []
+        for child_id in child_ids:
             walk(child_id)
         # Then follow next edges in order
         for output_uid, next_ids in info.get("next", {}).items():
@@ -89,7 +96,7 @@ def get_nodes_in_order(user: AbstractUser, workflow: AutomationWorkflow) -> list
         node_type = node.get_type()
         entry = {
             "id": node.id,
-            "label": node.get_label(),
+            "label": node.label,
             "type": node_type.type,
         }
         result.append(entry)

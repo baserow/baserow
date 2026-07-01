@@ -212,9 +212,9 @@ export class ToTipTapVisitor extends BaserowFormulaVisitor {
     let literal
 
     if (ctx.SINGLEQ_STRING_LITERAL() !== null) {
-      literal = literalWithoutOuterQuotes.replace(/\\'/g, "'")
+      literal = literalWithoutOuterQuotes.replace(/\\(['\\])/g, '$1')
     } else {
-      literal = literalWithoutOuterQuotes.replace(/\\"/g, '"')
+      literal = literalWithoutOuterQuotes.replace(/\\(["\\])/g, '$1')
     }
 
     return literal

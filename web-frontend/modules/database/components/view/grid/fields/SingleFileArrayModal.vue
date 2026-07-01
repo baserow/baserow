@@ -25,6 +25,11 @@ export default {
     },
   },
   methods: {
+    /** @see FileFieldModal#getTeleportedElement */
+    getTeleportedElement() {
+      const fileModal = this.$refs.fileModal
+      return fileModal ? fileModal.getTeleportedElement() : null
+    },
     show(index) {
       this.$refs.fileModal.show(index)
     },

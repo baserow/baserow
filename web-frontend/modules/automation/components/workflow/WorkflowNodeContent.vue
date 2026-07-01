@@ -199,6 +199,7 @@ const store = useStore()
 const app = useNuxtApp()
 const workflow = inject('workflow')
 const automation = inject('automation')
+const workspace = inject('workspace')
 
 const nodeType = computed(() => {
   return app.$registry.get('node', props.node.type)
@@ -222,7 +223,10 @@ const loading = computed(() => {
   return store.getters['automationWorkflowNode/getLoading'](props.node)
 })
 const isInError = computed(() => {
-  return nodeType.value.isInError({ service: props.node.service })
+  return nodeType.value.isInError({
+    service: props.node.service,
+    workspace: workspace.value,
+  })
 })
 
 /**
@@ -234,6 +238,7 @@ const errorMessage = computed(() => {
   return nodeType.value.getErrorMessage({
     service: props.node.service,
     node: props.node,
+    workspace: workspace.value,
   })
 })
 

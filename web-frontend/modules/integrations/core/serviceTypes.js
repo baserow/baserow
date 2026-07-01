@@ -1,5 +1,6 @@
 import CoreHTTPTriggerServiceForm from '@baserow/modules/integrations/core/components/services/CoreHTTPTriggerServiceForm'
 import {
+  DataSourceServiceTypeMixin,
   ServiceType,
   TriggerServiceTypeMixin,
   WorkflowActionServiceTypeMixin,
@@ -8,7 +9,9 @@ import CoreHTTPRequestServiceForm from '@baserow/modules/integrations/core/compo
 import CoreSMTPEmailServiceForm from '@baserow/modules/integrations/core/components/services/CoreSMTPEmailServiceForm'
 import CoreRouterServiceForm from '@baserow/modules/integrations/core/components/services/CoreRouterServiceForm'
 import CoreIteratorServiceForm from '@baserow/modules/integrations/core/components/services/CoreIteratorServiceForm'
+import CoreCSVFileReaderServiceForm from '@baserow/modules/integrations/core/components/services/CoreCSVFileReaderServiceForm'
 import CorePeriodicServiceForm from '@baserow/modules/integrations/core/components/services/CorePeriodicServiceForm.vue'
+import CoreStartWorkflowServiceForm from '@baserow/modules/integrations/core/components/services/CoreStartWorkflowServiceForm.vue'
 
 export class CoreHTTPRequestServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
@@ -214,6 +217,38 @@ export class CoreHTTPTriggerServiceType extends TriggerServiceTypeMixin(
   }
 }
 
+export class CoreManualTriggerServiceType extends TriggerServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'manual'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreManualTrigger')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreManualTriggerDescription')
+  }
+
+  get icon() {
+    return 'iconoir-play'
+  }
+
+  canBeImmediatelyDispatched(service) {
+    return true
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  getOrder() {
+    return 9
+  }
+}
+
 export class CoreIteratorServiceType extends WorkflowActionServiceTypeMixin(
   ServiceType
 ) {
@@ -231,6 +266,10 @@ export class CoreIteratorServiceType extends WorkflowActionServiceTypeMixin(
 
   get icon() {
     return 'iconoir-repeat'
+  }
+
+  get returnsList() {
+    return true
   }
 
   getErrorMessage({ service }) {
@@ -251,6 +290,134 @@ export class CoreIteratorServiceType extends WorkflowActionServiceTypeMixin(
 
   getOrder() {
     return 5
+  }
+}
+
+export class CoreCSVFileReaderServiceType extends DataSourceServiceTypeMixin(
+  WorkflowActionServiceTypeMixin(ServiceType)
+) {
+  static getType() {
+    return 'csv_file_reader'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreCSVFileReader')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreCSVFileReaderDescription')
+  }
+
+  get icon() {
+    return 'iconoir-page'
+  }
+
+  get returnsList() {
+    return true
+  }
+
+  getRecordName(service, record) {
+    return record?.name || record?.id || ''
+  }
+
+  getIdProperty(service, record) {
+    return record?.id || record?._id
+  }
+
+  getResult(service, data) {
+    return data.results
+  }
+
+  getErrorMessage({ service }) {
+    if (service?.input_type === undefined && service?.file === undefined) {
+      // The service is not loaded yet, or we are in preview or published mode
+      return super.getErrorMessage({ service })
+    }
+
+    if (service?.input_type === 'content') {
+      if (!service?.csv?.formula) {
+        return this.app.$i18n.t('serviceType.errorCSVContentMissing')
+      }
+    } else if (!service?.file?.formula) {
+      return this.app.$i18n.t('serviceType.errorCSVFileMissing')
+    }
+
+    return super.getErrorMessage({ service })
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  get formComponent() {
+    return CoreCSVFileReaderServiceForm
+  }
+
+  getOrder() {
+    return 6
+  }
+}
+
+export class CoreStartWorkflowServiceType extends WorkflowActionServiceTypeMixin(
+  ServiceType
+) {
+  static getType() {
+    return 'start_workflow'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreStartWorkflow')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreStartWorkflowDescription')
+  }
+
+  get icon() {
+    return 'iconoir-play'
+  }
+
+  getWorkflow(workflowId) {
+    const workspace = this.app.$store.getters['workspace/getSelected']
+
+    if (!workspace?.id || !workflowId) {
+      return null
+    }
+
+    const automations = this.app.$store.getters[
+      'application/getAllOfWorkspace'
+    ](workspace).filter((application) => application.type === 'automation')
+
+    return automations
+      .flatMap((automation) =>
+        this.app.$store.getters['automationWorkflow/getWorkflows'](automation)
+      )
+      .find((workflow) => workflow.id === workflowId)
+  }
+
+  getErrorMessage({ service }) {
+    if (service !== undefined && service.workflow_id === null) {
+      return this.app.$i18n.t('serviceType.errorNoWorkflowSelected')
+    }
+
+    const workflow = this.getWorkflow(service?.workflow_id)
+    if (workflow && !workflow.immediate_dispatch) {
+      return this.app.$i18n.t('serviceType.errorWorkflowNotImmediateDispatch')
+    }
+
+    return super.getErrorMessage({ service })
+  }
+
+  get formComponent() {
+    return CoreStartWorkflowServiceForm
+  }
+
+  getDataSchema(service) {
+    return service.schema
+  }
+
+  getOrder() {
+    return 8
   }
 }
 
@@ -275,6 +442,10 @@ export class PeriodicTriggerServiceType extends TriggerServiceTypeMixin(
 
   get icon() {
     return 'iconoir-timer'
+  }
+
+  canBeImmediatelyDispatched(service) {
+    return true
   }
 
   getDataSchema(service) {

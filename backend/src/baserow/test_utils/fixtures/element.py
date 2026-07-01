@@ -1,54 +1,63 @@
 import uuid
 from copy import deepcopy
 
-from baserow.contrib.builder.elements.models import (
-    ButtonElement,
-    ChoiceElement,
-    CollectionField,
-    ColumnElement,
-    FormContainerElement,
-    HeadingElement,
-    ImageElement,
-    InputTextElement,
-    LinkElement,
-    MenuElement,
-    MenuItemElement,
-    RecordSelectorElement,
-    RepeatElement,
-    TableElement,
-    TextElement,
+from baserow.contrib.builder.elements.element_types import (
+    ButtonElementType,
+    CheckboxElementType,
+    ChoiceElementType,
+    ColumnElementType,
+    FormContainerElementType,
+    HeadingElementType,
+    IFrameElementType,
+    ImageElementType,
+    InputTextElementType,
+    LinkElementType,
+    MenuElementType,
+    RatingElementType,
+    RecordSelectorElementType,
+    RepeatElementType,
+    TableElementType,
+    TextElementType,
 )
+from baserow.contrib.builder.elements.handler import ElementHandler
+from baserow.contrib.builder.elements.models import (
+    MenuItemElement,
+)
+from baserow.core.cache import local_cache
+from baserow.core.graph.types import GraphPointPosition
 
 
 class ElementFixtures:
     def create_builder_heading_element(self, user=None, page=None, **kwargs):
-        element = self.create_builder_element(HeadingElement, user, page, **kwargs)
-        return element
+        return self.create_builder_element(HeadingElementType, user, page, **kwargs)
 
     def create_builder_text_element(self, user=None, page=None, **kwargs):
-        element = self.create_builder_element(TextElement, user, page, **kwargs)
-        return element
+        return self.create_builder_element(TextElementType, user, page, **kwargs)
 
     def create_builder_image_element(self, user=None, page=None, **kwargs):
-        element = self.create_builder_element(ImageElement, user, page, **kwargs)
-        return element
+        return self.create_builder_element(ImageElementType, user, page, **kwargs)
 
     def create_builder_column_element(self, user=None, page=None, **kwargs):
-        element = self.create_builder_element(ColumnElement, user, page, **kwargs)
-        return element
+        return self.create_builder_element(ColumnElementType, user, page, **kwargs)
 
     def create_builder_link_element(self, user=None, page=None, **kwargs):
-        element = self.create_builder_element(LinkElement, user, page, **kwargs)
-        return element
+        return self.create_builder_element(LinkElementType, user, page, **kwargs)
 
     def create_builder_input_text_element(self, user=None, page=None, **kwargs):
-        element = self.create_builder_element(InputTextElement, user, page, **kwargs)
-        return element
+        return self.create_builder_element(InputTextElementType, user, page, **kwargs)
+
+    def create_builder_checkbox_element(self, user=None, page=None, **kwargs):
+        return self.create_builder_element(CheckboxElementType, user, page, **kwargs)
+
+    def create_builder_iframe_element(self, user=None, page=None, **kwargs):
+        return self.create_builder_element(IFrameElementType, user, page, **kwargs)
+
+    def create_builder_rating_element(self, user=None, page=None, **kwargs):
+        return self.create_builder_element(RatingElementType, user, page, **kwargs)
 
     def create_builder_table_element(self, user=None, page=None, **kwargs):
-        fields = kwargs.pop(
-            "fields",
-            deepcopy(
+        if "fields" not in kwargs:
+            kwargs["fields"] = deepcopy(
                 [
                     {
                         "name": "Field 1",
@@ -66,61 +75,44 @@ class ElementFixtures:
                         "config": {"value": "get('test3')"},
                     },
                 ]
-            ),
-        )
+            )
 
         if "data_source" not in kwargs:
             kwargs["data_source"] = (
                 self.create_builder_local_baserow_list_rows_data_source(page=page)
             )
 
-        element = self.create_builder_element(TableElement, user, page, **kwargs)
-
-        if fields:
-            created_fields = CollectionField.objects.bulk_create(
-                [
-                    CollectionField(**field, order=index)
-                    for index, field in enumerate(fields)
-                ]
-            )
-            element.fields.add(*created_fields)
-
-        return element
+        return self.create_builder_element(TableElementType, user, page, **kwargs)
 
     def create_builder_button_element(self, user=None, page=None, **kwargs):
-        element = self.create_builder_element(ButtonElement, user, page, **kwargs)
-        return element
+        return self.create_builder_element(ButtonElementType, user, page, **kwargs)
 
     def create_builder_form_container_element(self, user=None, page=None, **kwargs):
-        element = self.create_builder_element(
-            FormContainerElement, user, page, **kwargs
+        return self.create_builder_element(
+            FormContainerElementType, user, page, **kwargs
         )
-        return element
 
     def create_builder_choice_element(self, user=None, page=None, **kwargs):
-        element = self.create_builder_element(ChoiceElement, user, page, **kwargs)
-        return element
+        return self.create_builder_element(ChoiceElementType, user, page, **kwargs)
 
     def create_builder_repeat_element(self, user=None, page=None, **kwargs):
         if "data_source" not in kwargs:
             kwargs["data_source"] = (
                 self.create_builder_local_baserow_list_rows_data_source(page=page)
             )
-        element = self.create_builder_element(RepeatElement, user, page, **kwargs)
-        return element
+        return self.create_builder_element(RepeatElementType, user, page, **kwargs)
 
     def create_builder_record_selector_element(self, user=None, page=None, **kwargs):
         if "data_source" not in kwargs:
             kwargs["data_source"] = (
                 self.create_builder_local_baserow_list_rows_data_source(page=page)
             )
-        element = self.create_builder_element(
-            RecordSelectorElement, user, page, **kwargs
+        return self.create_builder_element(
+            RecordSelectorElementType, user, page, **kwargs
         )
-        return element
 
     def create_builder_menu_element(self, user=None, page=None, **kwargs):
-        return self.create_builder_element(MenuElement, user, page, **kwargs)
+        return self.create_builder_element(MenuElementType, user, page, **kwargs)
 
     def create_builder_menu_element_items(
         self, user=None, page=None, menu_element=None, menu_items=None, **kwargs
@@ -150,7 +142,7 @@ class ElementFixtures:
 
         return menu_element
 
-    def create_builder_element(self, model_class, user=None, page=None, **kwargs):
+    def create_builder_element(self, element_type, user=None, page=None, **kwargs):
         if user is None:
             user = self.create_user()
 
@@ -159,9 +151,42 @@ class ElementFixtures:
             page_args = kwargs.pop("page_args", {})
             page = self.create_builder_page(user=user, builder=builder, **page_args)
 
-        if "order" not in kwargs:
-            kwargs["order"] = model_class.get_last_order(page)
+        [
+            last_reference_element,
+            last_position,
+            last_output,
+        ] = page.get_graph().get_last_position()
 
-        element = model_class.objects.create(page=page, **kwargs)
+        # The element is placed at the end of the graph if no position is provided
+        reference_element = kwargs.pop("reference_element", last_reference_element)
+        position = kwargs.pop("position", last_position)
+        place_in_container = kwargs.pop("place_in_container", None)
+        # For "child" positions, the output determines the container slot.
+        # For all other positions (south/north), the graph edge is always "".
+        if position == GraphPointPosition.CHILD and place_in_container is not None:
+            # Mirror the real editor, which appends a new element after the last
+            # existing child of the target slot. A raw insert(..., CHILD, ...)
+            # would instead make it the slot's new head (CHILD prepends, to stay
+            # the inverse of get_position), reversing the order tests create
+            # their children in. Only an empty slot falls back to a CHILD insert.
+            existing_children = page.get_graph().get_children(
+                reference_element, output=place_in_container, first_only=False
+            )
+            if existing_children:
+                reference_element = existing_children[-1]
+                position = GraphPointPosition.SOUTH
+                output = ""
+            else:
+                output = place_in_container
+        else:
+            output = last_output
 
-        return element
+        with local_cache.context():  # We make sure the cache is empty
+            created_element = ElementHandler().create_element(
+                element_type(), page=page, **kwargs
+            )
+            page.get_graph().insert(
+                created_element, reference_element, position, output
+            )
+
+        return created_element

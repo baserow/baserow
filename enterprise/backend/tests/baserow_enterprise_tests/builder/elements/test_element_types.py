@@ -19,7 +19,6 @@ from baserow_enterprise.builder.elements.element_types import (
     AuthFormElementType,
     FileInputElementType,
 )
-from baserow_enterprise.builder.elements.models import AuthFormElement, FileInputElement
 
 
 @pytest.mark.django_db
@@ -34,7 +33,7 @@ def test_auth_form_element_import_export_data_source(data_fixture):
     element_type = AuthFormElementType()
 
     exported_element = data_fixture.create_builder_element(
-        AuthFormElement, user_source=user_source_1
+        AuthFormElementType, user_source=user_source_1
     )
 
     id_mapping = {"user_sources": {user_source_1.id: user_source_2.id}}
@@ -201,7 +200,7 @@ def test_file_input_element_is_valid_invalid_size(fake):
 
 @pytest.mark.django_db
 def test_dispatch_local_baserow_update_row_workflow_action_with_file(
-    api_client, data_fixture, fake
+    api_client, data_fixture, enable_enterprise, fake
 ):
     user, token = data_fixture.create_user_and_token()
     table, fields, rows = data_fixture.build_table(
@@ -218,7 +217,7 @@ def test_dispatch_local_baserow_update_row_workflow_action_with_file(
     page = data_fixture.create_builder_page(user=user, builder=builder)
     button_element = data_fixture.create_builder_button_element(page=page)
     file_input_element = data_fixture.create_builder_element(
-        FileInputElement, user, page=page, multiple=True
+        FileInputElementType, user, page=page, multiple=True
     )
 
     workflow_action = data_fixture.create_local_baserow_update_row_workflow_action(

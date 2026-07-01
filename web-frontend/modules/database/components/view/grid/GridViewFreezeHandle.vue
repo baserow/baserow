@@ -32,10 +32,8 @@
 
 <script>
 import { notifyIf } from '@baserow/modules/core/utils/error'
-import {
-  filterVisibleFieldsFunction,
-  sortFieldsByOrderAndIdFunction,
-} from '@baserow/modules/database/utils/view'
+import { sortFieldsByOrderAndIdFunction } from '@baserow/modules/database/utils/view'
+import { filterGridViewVisibleFieldsFunction } from '@baserow/modules/database/components/view/grid/utils'
 
 const MAX_FROZEN_COLUMNS = 4
 const HANDLE_PADDING = 20
@@ -104,7 +102,7 @@ export default {
     sortedFields() {
       return this.fields
         .slice()
-        .filter(filterVisibleFieldsFunction(this.fieldOptions))
+        .filter(filterGridViewVisibleFieldsFunction(this.fieldOptions))
         .sort(sortFieldsByOrderAndIdFunction(this.fieldOptions, true))
     },
     maxFrozenColumns() {

@@ -50,6 +50,28 @@ def test_automation_node_type_is_replaceable_with():
     assert not action_node_type.is_replaceable_with(update_trigger_node_type)
 
 
+def test_local_baserow_fields_updated_node_trigger_type_is_registered():
+    node_type = automation_node_type_registry.get("local_baserow_fields_updated")
+
+    assert node_type.is_workflow_trigger is True
+    assert node_type.service_type == "local_baserow_fields_updated"
+
+
+@pytest.mark.django_db
+def test_local_baserow_fields_updated_node_creates_field_updated_service(data_fixture):
+    from baserow.contrib.integrations.local_baserow.models import (
+        LocalBaserowFieldsUpdated,
+    )
+
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(user=user, create_trigger=False)
+    node = data_fixture.create_automation_node(
+        workflow=workflow, type="local_baserow_fields_updated"
+    )
+
+    assert isinstance(node.service.specific, LocalBaserowFieldsUpdated)
+
+
 @pytest.mark.django_db
 @patch(
     "baserow.contrib.automation.workflows.service.AutomationWorkflowHandler.async_start_workflow"
@@ -460,6 +482,20 @@ def test_trigger_node_dispatch_returns_event_payload_if_not_simulated(data_fixtu
 
 
 @pytest.mark.django_db
+def test_trigger_node_dispatch_returns_null_without_event_payload(data_fixture):
+    user = data_fixture.create_user()
+    workflow = data_fixture.create_automation_workflow(
+        state=WorkflowState.LIVE, trigger_type="manual"
+    )
+    trigger = workflow.get_trigger().specific
+    dispatch_context = AutomationDispatchContext(workflow, None)
+
+    result = trigger.get_type().dispatch(trigger, dispatch_context)
+
+    assert result == DispatchResult(data=None, status=200, output_uid="")
+
+
+@pytest.mark.django_db
 def test_trigger_node_dispatch_returns_sample_data_if_simulated(data_fixture):
     user = data_fixture.create_user()
     table = data_fixture.create_database_table(user=user)
@@ -698,3 +734,15 @@ def test_periodic_trigger_node_on_event_only_updates_dispatched_services(data_fi
         # `trigger_node_b2` is the only due service which we've found to be
         # appropriate for dispatching (its workflow is live/published).
         assert list(services_dispatched) == [trigger_node_b2.service]
+
+
+@pytest.mark.parametrize(
+    "node_type",
+    [pytest.param(nt, id=nt.type) for nt in automation_node_type_registry.get_all()],
+)
+def test_automation_node_type_has_display_name(node_type):
+    from django.utils.translation import gettext_lazy as _
+
+    assert node_type.display_name != _("Unnamed element"), (
+        f"{type(node_type).__name__}.display_name is still the default 'Unnamed element'"
+    )

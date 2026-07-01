@@ -1,7 +1,6 @@
 .column-element {
-  display: flex;
+  display: grid;
   width: 100%;
-  justify-content: space-between;
   gap: var(--space-between-columns);
   align-items: stretch;
 }
@@ -11,7 +10,7 @@
   display: flex;
   flex-direction: column;
   justify-content: var(--alignment);
-  width: var(--column-width);
+  min-width: 0;
 }
 
 .column-element__element {

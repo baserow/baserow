@@ -1,0 +1,9 @@
+{
+    "type": "feature",
+    "message": "Added methods, hooks, and model to track automation usage.",
+    "issue_origin": "github",
+    "issue_number": 5263,
+    "domain": "automation",
+    "bullet_points": [],
+    "created_at": "2026-05-07"
+}

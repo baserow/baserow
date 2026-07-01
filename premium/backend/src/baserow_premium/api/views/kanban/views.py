@@ -10,11 +10,14 @@ from baserow.api.schemas import get_error_schema
 from baserow.contrib.database.api.constants import (
     ADHOC_FILTERS_API_PARAMS,
     ADHOC_FILTERS_API_PARAMS_NO_COMBINE,
+    ADHOC_SORTING_API_PARAM,
     LIMIT_LINKED_ITEMS_API_PARAM,
 )
 from baserow.contrib.database.api.fields.errors import (
     ERROR_FIELD_DOES_NOT_EXIST,
     ERROR_FILTER_FIELD_NOT_FOUND,
+    ERROR_ORDER_BY_FIELD_NOT_FOUND,
+    ERROR_ORDER_BY_FIELD_NOT_POSSIBLE,
 )
 from baserow.contrib.database.api.rows.serializers import (
     RowSerializer,
@@ -33,6 +36,8 @@ from baserow.contrib.database.api.views.utils import (
 from baserow.contrib.database.fields.exceptions import (
     FieldDoesNotExist,
     FilterFieldNotFound,
+    OrderByFieldNotFound,
+    OrderByFieldNotPossible,
 )
 from baserow.contrib.database.rows.registries import row_metadata_registry
 from baserow.contrib.database.table.operations import ListRowsDatabaseTableOperationType
@@ -303,6 +308,7 @@ class PublicKanbanViewView(APIView):
                 ),
             ),
             *ADHOC_FILTERS_API_PARAMS,
+            ADHOC_SORTING_API_PARAM,
             LIMIT_LINKED_ITEMS_API_PARAM,
         ],
         tags=["Database table kanban view"],
@@ -320,6 +326,8 @@ class PublicKanbanViewView(APIView):
                 [
                     "ERROR_USER_NOT_IN_GROUP",
                     "ERROR_KANBAN_VIEW_HAS_NO_SINGLE_SELECT_FIELD",
+                    "ERROR_ORDER_BY_FIELD_NOT_FOUND",
+                    "ERROR_ORDER_BY_FIELD_NOT_POSSIBLE",
                     "ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST",
                     "ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD",
                     "ERROR_FILTER_FIELD_NOT_FOUND",
@@ -340,6 +348,8 @@ class PublicKanbanViewView(APIView):
                 ERROR_NO_AUTHORIZATION_TO_PUBLICLY_SHARED_VIEW
             ),
             FilterFieldNotFound: ERROR_FILTER_FIELD_NOT_FOUND,
+            OrderByFieldNotFound: ERROR_ORDER_BY_FIELD_NOT_FOUND,
+            OrderByFieldNotPossible: ERROR_ORDER_BY_FIELD_NOT_POSSIBLE,
             ViewFilterTypeDoesNotExist: ERROR_VIEW_FILTER_TYPE_DOES_NOT_EXIST,
             ViewFilterTypeNotAllowedForField: ERROR_VIEW_FILTER_TYPE_UNSUPPORTED_FIELD,
             FieldDoesNotExist: ERROR_FIELD_DOES_NOT_EXIST,
@@ -353,6 +363,7 @@ class PublicKanbanViewView(APIView):
         """
 
         adhoc_filters = AdHocFilters.from_request(request)
+        order_by = request.GET.get("order_by")
 
         view_handler = ViewHandler()
         view = view_handler.get_public_view_by_slug(
@@ -384,6 +395,7 @@ class PublicKanbanViewView(APIView):
         ) = ViewHandler().get_public_rows_queryset_and_field_ids(
             view,
             adhoc_filters=adhoc_filters,
+            order_by=order_by,
             table_model=model,
             view_type=view_type,
         )
@@ -407,6 +419,7 @@ class PublicKanbanViewView(APIView):
             default_offset=default_offset,
             model=model,
             base_queryset=queryset,
+            apply_view_sorts=not order_by,
         )
 
         for key, value in rows.items():

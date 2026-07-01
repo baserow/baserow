@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fix periodic field update crash after deleting a field referenced by a formula chain",
+    "issue_origin": "github",
+    "issue_number": 5371,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-05-15"
+}

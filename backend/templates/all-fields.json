@@ -539,6 +539,14 @@
               "through_field_name": "Related",
               "target_field_id": 13020,
               "target_field_name": "URL"
+            },
+            {
+              "id": 43346,
+              "type": "long_text",
+              "name": "Rich text notes",
+              "order": 36,
+              "primary": false,
+              "long_text_enable_rich_text": true
             }
           ],
           "views": [
@@ -1203,7 +1211,8 @@
               "field_13017": null,
               "field_13019": null,
               "field_13022": null,
-              "field_13023": null
+              "field_13023": null,
+              "field_43346": ""
             }
           ]
         },

@@ -98,7 +98,8 @@ class TwoFactorAuthHandler:
 
     def disable(self, user: AbstractUser, password: str):
         """
-        Disables any configured provider for the user.
+        Disables any configured provider for the user after confirming
+        their password.
 
         :param user: The user for whom to disable the authentication.
         :param password: Password for confirmation.
@@ -107,6 +108,18 @@ class TwoFactorAuthHandler:
 
         if not user.check_password(password):
             raise WrongPassword
+
+        self.disable_for_user(user)
+
+    def disable_for_user(self, user: AbstractUser):
+        """
+        Disables any configured provider for the user without a password
+        check. Used by instance admins to restore access for users that
+        lost their two-factor device and backup codes.
+
+        :param user: The user for whom to disable the authentication.
+        :raises TwoFactorAuthNotConfigured: If the user has no provider.
+        """
 
         provider = self.get_provider_for_update(user)
         if provider:

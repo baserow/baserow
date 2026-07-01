@@ -66,6 +66,7 @@ class ChangelogHandler:
                 bullet_points=bullet_points,
             )
             json.dump(entry, entry_file, indent=4)
+            entry_file.write(LINE_BREAK_CHARACTER)
 
         return full_path
 

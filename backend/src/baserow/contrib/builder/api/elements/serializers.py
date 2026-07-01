@@ -33,6 +33,7 @@ from baserow.contrib.builder.workflow_actions.registries import (
 from baserow.core.exceptions import InstanceTypeDoesNotExist
 from baserow.core.formula.serializers import FormulaSerializerField
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_RAW
+from baserow.core.graph.types import GraphPointPosition
 
 
 class ElementSerializer(serializers.ModelSerializer):
@@ -66,9 +67,6 @@ class ElementSerializer(serializers.ModelSerializer):
             "id",
             "page_id",
             "type",
-            "order",
-            "parent_element_id",
-            "place_in_container",
             "css_classes",
             "visibility",
             "visibility_condition",
@@ -104,7 +102,6 @@ class ElementSerializer(serializers.ModelSerializer):
             "id": {"read_only": True},
             "page_id": {"read_only": True},
             "type": {"read_only": True},
-            "order": {"read_only": True, "help_text": "Lowest first."},
         }
 
 
@@ -119,24 +116,30 @@ class CreateElementSerializer(serializers.ModelSerializer):
         required=True,
         help_text="The type of the element.",
     )
-    before_id = serializers.IntegerField(
-        required=False,
-        help_text="If provided, creates the element before the element with the "
-        "given id.",
-    )
-    parent_element_id = serializers.IntegerField(
+    reference_element_id = serializers.IntegerField(
         allow_null=True,
         required=False,
         help_text="If provided, creates the element as a child of the element with "
         "the given id.",
     )
-
+    position = serializers.ChoiceField(
+        choices=GraphPointPosition.choices,
+        required=False,
+        allow_blank=True,
+        help_text="The position of the new element relative to the reference element.",
+    )
+    place_in_container = serializers.CharField(
+        required=False,
+        allow_null=True,
+        default="",
+        allow_blank=True,
+        help_text="The place in the container.",
+    )
     style_background_file = UserFileField(
         allow_null=True,
         help_text="The background image file",
         validators=[image_file_validation],
     )
-
     visibility_condition = FormulaSerializerField(
         help_text=Element._meta.get_field("visibility_condition").help_text,
     )
@@ -144,10 +147,9 @@ class CreateElementSerializer(serializers.ModelSerializer):
     class Meta:
         model = Element
         fields = (
-            "order",
-            "before_id",
             "type",
-            "parent_element_id",
+            "reference_element_id",
+            "position",
             "place_in_container",
             "css_classes",
             "visibility",
@@ -232,27 +234,28 @@ class UpdateElementSerializer(serializers.ModelSerializer):
 
 
 class MoveElementSerializer(serializers.Serializer):
-    before_id = serializers.IntegerField(
-        allow_null=True,
+    reference_element_id = serializers.IntegerField(
         required=False,
-        help_text=(
-            "If provided, the element is moved before the element with this Id. "
-            "Otherwise the element is placed at the end of the page."
-        ),
-    )
-    parent_element_id = serializers.IntegerField(
         allow_null=True,
-        required=False,
         default=None,
         help_text="If provided, the element is moved as a child of the element with "
         "the given id.",
     )
+    position = serializers.ChoiceField(
+        choices=GraphPointPosition.choices,
+        default=None,
+        required=False,
+        allow_blank=True,
+        help_text="The new position relative to the reference element.",
+    )
     place_in_container = serializers.CharField(
         required=False,
         allow_null=True,
-        default=None,
+        allow_blank=True,
+        default="",
         help_text="The place in the container.",
     )
+
     target_page_id = serializers.IntegerField(
         allow_null=True,
         required=False,
@@ -266,6 +269,7 @@ class DuplicateElementSerializer(serializers.Serializer):
     workflow_actions = serializers.SerializerMethodField(
         help_text="The duplicated workflow actions"
     )
+    graph = serializers.SerializerMethodField(help_text="The updated page graph.")
 
     @extend_schema_field(ElementSerializer(many=True))
     def get_elements(self, obj: ElementsAndWorkflowActions):
@@ -282,6 +286,12 @@ class DuplicateElementSerializer(serializers.Serializer):
             ).data
             for workflow_action in obj["workflow_actions"]
         ]
+
+    def get_graph(self, obj: ElementsAndWorkflowActions):
+        elements = obj.get("elements", [])
+        if not elements:
+            return {}
+        return elements[0].page.get_graph().graph
 
 
 class PageParameterValueSerializer(serializers.Serializer):

@@ -59,7 +59,9 @@
       :row-is-created="!!row.id"
       :row="row"
       :all-fields-in-table="allFieldsInTable"
+      :touched="localTouched"
       @update="update"
+      @touched="localTouched = true"
       @refresh-row="$emit('refresh-row', row)"
     />
   </div>
@@ -125,6 +127,11 @@ export default {
       required: false,
       default: () => true,
     },
+    touched: {
+      type: Boolean,
+      required: false,
+      default: true,
+    },
   },
   emits: [
     'field-deleted',
@@ -133,6 +140,16 @@ export default {
     'toggle-field-visibility',
     'update',
   ],
+  data() {
+    return {
+      localTouched: this.touched,
+    }
+  },
+  watch: {
+    touched(value) {
+      this.localTouched = value
+    },
+  },
   methods: {
     isReadOnlyField(field) {
       return !this.$registry.get('field', field.type).canWriteFieldValues(field)
@@ -149,6 +166,10 @@ export default {
         value,
         oldValue,
       })
+    },
+    isValid() {
+      // Fail open if not yet mounted.
+      return this.$refs.field?.isValid() ?? true
     },
   },
 }

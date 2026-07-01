@@ -98,11 +98,10 @@ export default {
     this.v$.$touch()
   },
   validations() {
-    const self = this
     return {
       sortReference: {
         isValidSortReference: (value) => {
-          const sortReferences = self.allowedSortReferences.map(
+          const sortReferences = this.allowedSortReferences.map(
             (item) => item.reference
           )
           return includesIfSet(sortReferences)(value)

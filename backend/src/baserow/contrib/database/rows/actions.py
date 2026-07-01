@@ -28,6 +28,7 @@ from baserow.contrib.database.table.models import (
     GeneratedTableModel,
     Table,
 )
+from baserow.contrib.database.views.handler import ViewHandler
 from baserow.contrib.database.views.models import View
 from baserow.core.action.models import Action
 from baserow.core.action.registries import (
@@ -187,15 +188,19 @@ class CreateRowActionType(UndoableActionType):
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
+        view = ViewHandler().get_view_or_none(params.view_id)
         RowHandler().delete_row_by_id(
-            user, TableHandler().get_table(params.table_id), params.row_id
+            user,
+            TableHandler().get_table(params.table_id),
+            params.row_id,
+            view=view,
         )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
-        TrashHandler.restore_item(
-            user, "row", params.row_id, parent_trash_item_id=params.table_id
-        )
+        table = TableHandler().get_table(params.table_id)
+        view = ViewHandler().get_view_or_none(params.view_id)
+        RowHandler().restore_row(user, table, params.row_id, view=view)
 
 
 class CreateRowsActionType(UndoableActionType):
@@ -307,19 +312,26 @@ class CreateRowsActionType(UndoableActionType):
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
+        view = ViewHandler().get_view_or_none(params.view_id)
         trashed_rows_trash_entry = RowHandler().delete_rows(
-            user, TableHandler().get_table(params.table_id), params.row_ids
+            user,
+            TableHandler().get_table(params.table_id),
+            params.row_ids,
+            view=view,
         )
         params.trashed_rows_entry_id = trashed_rows_trash_entry.id
         action_being_undone.params = params
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
-        TrashHandler.restore_item(
+        table = TableHandler().get_table(params.table_id)
+        view = ViewHandler().get_view_or_none(params.view_id)
+        RowHandler().restore_rows(
             user,
-            "rows",
+            table,
             params.trashed_rows_entry_id,
-            parent_trash_item_id=params.table_id,
+            view=view,
+            row_ids=params.row_ids,
         )
 
 
@@ -509,14 +521,18 @@ class DeleteRowActionType(UndoableActionType):
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
-        TrashHandler.restore_item(
-            user, "row", params.row_id, parent_trash_item_id=params.table_id
-        )
+        table = TableHandler().get_table(params.table_id)
+        view = ViewHandler().get_view_or_none(params.view_id)
+        RowHandler().restore_row(user, table, params.row_id, view=view)
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
+        view = ViewHandler().get_view_or_none(params.view_id)
         RowHandler().delete_row_by_id(
-            user, TableHandler().get_table(params.table_id), params.row_id
+            user,
+            TableHandler().get_table(params.table_id),
+            params.row_id,
+            view=view,
         )
 
 
@@ -618,17 +634,24 @@ class DeleteRowsActionType(UndoableActionType):
 
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
-        TrashHandler.restore_item(
+        table = TableHandler().get_table(params.table_id)
+        view = ViewHandler().get_view_or_none(params.view_id)
+        RowHandler().restore_rows(
             user,
-            "rows",
+            table,
             params.trashed_rows_entry_id,
-            parent_trash_item_id=params.table_id,
+            view=view,
+            row_ids=params.row_ids,
         )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
+        view = ViewHandler().get_view_or_none(params.view_id)
         trashed_rows_entry = RowHandler().delete_rows(
-            user, TableHandler().get_table(params.table_id), params.row_ids
+            user,
+            TableHandler().get_table(params.table_id),
+            params.row_ids,
+            view=view,
         )
         params.trashed_rows_entry_id = trashed_rows_entry.id
         action_being_redone.params = params
@@ -717,6 +740,7 @@ class MoveRowActionType(UndoableActionType):
         database_name: str
         row_id: int
         rows_displacement: int
+        view_id: int | None = None
 
     @classmethod
     def do(
@@ -727,6 +751,7 @@ class MoveRowActionType(UndoableActionType):
         before_row: Optional[GeneratedTableModel] = None,
         model: Optional[Type[GeneratedTableModel]] = None,
         send_webhook_events: bool = True,
+        view: Optional[View] = None,
     ) -> GeneratedTableModelForUpdate:
         """
         Moves the row before another row or to the end if no before row is provided.
@@ -747,13 +772,17 @@ class MoveRowActionType(UndoableActionType):
             provided so that it does not have to be generated for a second time.
         :param send_webhook_events: If set the false then the webhooks will not be
             triggered. Defaults to true.
+        :param view: Optionally provide view, if the row is moved in the view.
+            This can result in different permissions checks.
         """
 
         if model is None:
             model = table.get_model()
 
         row_handler = RowHandler()
-        row = row_handler.get_row_for_update(user, table, row_id, model=model)
+        row = row_handler.get_row_for_update(
+            user, table, row_id, model=model, view=view
+        )
 
         original_row_order = row.order
 
@@ -764,6 +793,7 @@ class MoveRowActionType(UndoableActionType):
             before_row=before_row,
             model=model,
             send_webhook_events=send_webhook_events,
+            view=view,
         )
 
         rows_displacement = get_rows_displacement(
@@ -782,6 +812,7 @@ class MoveRowActionType(UndoableActionType):
             table.database.name,
             row.id,
             rows_displacement,
+            view.id if view else None,
         )
         cls.register_action(user, params, cls.scope(table.id), workspace=workspace)
         return updated_row
@@ -794,29 +825,39 @@ class MoveRowActionType(UndoableActionType):
     def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
         table = TableHandler().get_table(params.table_id)
         model = table.get_model()
+        view = ViewHandler().get_view_or_none(params.view_id)
 
         row_handler = RowHandler()
-        row = row_handler.get_row_for_update(user, table, params.row_id, model=model)
+        row = row_handler.get_row_for_update(
+            user, table, params.row_id, model=model, view=view
+        )
 
         before_row = get_before_row_from_displacement(
             row, model, -params.rows_displacement
         )
 
-        row_handler.move_row(user, table, row, before_row=before_row, model=model)
+        row_handler.move_row(
+            user, table, row, before_row=before_row, model=model, view=view
+        )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
         table = TableHandler().get_table(params.table_id)
         model = table.get_model()
+        view = ViewHandler().get_view_or_none(params.view_id)
 
         row_handler = RowHandler()
-        row = row_handler.get_row_for_update(user, table, params.row_id, model=model)
+        row = row_handler.get_row_for_update(
+            user, table, params.row_id, model=model, view=view
+        )
 
         before_row = get_before_row_from_displacement(
             row, model, params.rows_displacement
         )
 
-        row_handler.move_row(user, table, row, before_row=before_row, model=model)
+        row_handler.move_row(
+            user, table, row, before_row=before_row, model=model, view=view
+        )
 
 
 # Deprecated in favor of UpdateRowsActionType
@@ -882,7 +923,12 @@ class UpdateRowActionType(UndoableActionType):
             )
 
         row = row_handler.get_row_for_update(
-            user, table, row_id, enhance_by_fields=True, model=model
+            user,
+            table,
+            row_id,
+            enhance_by_fields=True,
+            model=model,
+            view=view,
         )
         field_ids = set(row_handler.extract_field_ids_from_keys(values.keys()))
         original_row_values = row_handler.get_internal_values_for_fields(row, field_ids)
@@ -922,15 +968,25 @@ class UpdateRowActionType(UndoableActionType):
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
         table = TableHandler().get_table(params.table_id)
+        view = ViewHandler().get_view_or_none(params.view_id)
         RowHandler().update_row_by_id(
-            user, table, row_id=params.row_id, values=params.original_row_values
+            user,
+            table,
+            row_id=params.row_id,
+            values=params.original_row_values,
+            view=view,
         )
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
         table = TableHandler().get_table(params.table_id)
+        view = ViewHandler().get_view_or_none(params.view_id)
         RowHandler().update_row_by_id(
-            user, table, row_id=params.row_id, values=params.row_values
+            user,
+            table,
+            row_id=params.row_id,
+            values=params.row_values,
+            view=view,
         )
 
 
@@ -1051,10 +1107,12 @@ class UpdateRowsActionType(UndoableActionType):
     @classmethod
     def undo(cls, user: AbstractUser, params: Params, action_being_undone: Action):
         table = TableHandler().get_table(params.table_id)
+        view = ViewHandler().get_view_or_none(params.view_id)
         original_rows_values = list(params.original_rows_values_by_id.values())
-        RowHandler().update_rows(user, table, original_rows_values)
+        RowHandler().update_rows(user, table, original_rows_values, view=view)
 
     @classmethod
     def redo(cls, user: AbstractUser, params: Params, action_being_redone: Action):
         table = TableHandler().get_table(params.table_id)
-        RowHandler().update_rows(user, table, params.row_values)
+        view = ViewHandler().get_view_or_none(params.view_id)
+        RowHandler().update_rows(user, table, params.row_values, view=view)

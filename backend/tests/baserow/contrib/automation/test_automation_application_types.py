@@ -229,6 +229,28 @@ def test_automation_application_import(data_fixture):
 
 
 @pytest.mark.django_db
+def test_automation_application_import_initializes_integrations_mapping(data_fixture):
+    workspace = data_fixture.create_workspace()
+    id_mapping = {}
+
+    AutomationApplicationType().import_serialized(
+        workspace,
+        {
+            "id": 1,
+            "name": "Sample automation",
+            "order": 1,
+            "type": "automation",
+            "integrations": [],
+            "workflows": [],
+        },
+        ImportExportConfig(include_permission_data=True),
+        id_mapping,
+    )
+
+    assert id_mapping["integrations"] == {}
+
+
+@pytest.mark.django_db
 def test_fetch_workflows_to_serialize_without_user(data_fixture):
     workflow = data_fixture.create_automation_workflow(name="test")
 

@@ -597,3 +597,148 @@ def test_cant_delete_view_sort_when_view_trashed(api_client, data_fixture):
     response = api_client.delete(url, format="json", HTTP_AUTHORIZATION=f"JWT {token}")
 
     assert response.status_code == HTTP_404_NOT_FOUND
+
+
+@pytest.mark.django_db
+def test_prioritize_view_sortings(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    field_3 = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(table=table)
+
+    sort_1 = data_fixture.create_view_sort(view=view, field=field_1)
+    sort_2 = data_fixture.create_view_sort(view=view, field=field_2)
+    sort_3 = data_fixture.create_view_sort(view=view, field=field_3)
+
+    response = api_client.post(
+        reverse("api:database:views:prioritize_sortings", kwargs={"view_id": view.id}),
+        {"view_sort_ids": [sort_3.id, sort_1.id, sort_2.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    sort_1.refresh_from_db()
+    sort_2.refresh_from_db()
+    sort_3.refresh_from_db()
+    assert sort_3.priority < sort_1.priority < sort_2.priority
+
+    ordered_ids = list(
+        ViewSort.objects.filter(view=view)
+        .order_by("priority", "id")
+        .values_list("id", flat=True)
+    )
+    assert ordered_ids == [sort_3.id, sort_1.id, sort_2.id]
+
+
+@pytest.mark.django_db
+def test_prioritize_view_sortings_user_not_in_workspace(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table()
+    field = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(table=table)
+    sort = data_fixture.create_view_sort(view=view, field=field)
+
+    response = api_client.post(
+        reverse("api:database:views:prioritize_sortings", kwargs={"view_id": view.id}),
+        {"view_sort_ids": [sort.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+
+@pytest.mark.django_db
+def test_prioritize_view_sortings_view_does_not_exist(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+
+    response = api_client.post(
+        reverse("api:database:views:prioritize_sortings", kwargs={"view_id": 99999}),
+        {"view_sort_ids": [1]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_404_NOT_FOUND
+    assert response.json()["error"] == "ERROR_VIEW_DOES_NOT_EXIST"
+
+
+@pytest.mark.django_db
+def test_prioritize_view_sortings_sort_not_in_view(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(table=table)
+    view_1 = data_fixture.create_grid_view(table=table)
+    view_2 = data_fixture.create_grid_view(table=table)
+    sort_in_other_view = data_fixture.create_view_sort(view=view_2, field=field_1)
+
+    response = api_client.post(
+        reverse(
+            "api:database:views:prioritize_sortings", kwargs={"view_id": view_1.id}
+        ),
+        {"view_sort_ids": [sort_in_other_view.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response.json()["error"] == "ERROR_VIEW_SORT_NOT_IN_VIEW"
+
+
+@pytest.mark.django_db
+def test_prioritize_view_sortings_partial_list(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    field_3 = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(table=table)
+
+    sort_1 = data_fixture.create_view_sort(view=view, field=field_1)
+    sort_2 = data_fixture.create_view_sort(view=view, field=field_2)
+    sort_3 = data_fixture.create_view_sort(view=view, field=field_3)
+
+    # Swapping sort_2 and sort_3 via a partial list. sort_1 keeps its
+    # original (first) position because it is not part of the payload —
+    # consistent with OrderableMixin.order_objects semantics.
+    response = api_client.post(
+        reverse("api:database:views:prioritize_sortings", kwargs={"view_id": view.id}),
+        {"view_sort_ids": [sort_3.id, sort_2.id]},
+        format="json",
+        HTTP_AUTHORIZATION=f"JWT {token}",
+    )
+    assert response.status_code == HTTP_204_NO_CONTENT
+
+    ordered_ids = list(
+        ViewSort.objects.filter(view=view)
+        .order_by("priority", "id")
+        .values_list("id", flat=True)
+    )
+    assert ordered_ids == [sort_1.id, sort_3.id, sort_2.id]
+
+
+@pytest.mark.django_db
+def test_create_view_sort_assigns_next_priority(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    field_1 = data_fixture.create_text_field(table=table)
+    field_2 = data_fixture.create_text_field(table=table)
+    field_3 = data_fixture.create_text_field(table=table)
+    view = data_fixture.create_grid_view(table=table)
+
+    for field in (field_1, field_2, field_3):
+        response = api_client.post(
+            reverse("api:database:views:list_sortings", kwargs={"view_id": view.id}),
+            {"field": field.id, "order": "ASC"},
+            format="json",
+            HTTP_AUTHORIZATION=f"JWT {token}",
+        )
+        assert response.status_code == HTTP_200_OK
+
+    priorities = list(
+        ViewSort.objects.filter(view=view)
+        .order_by("id")
+        .values_list("priority", flat=True)
+    )
+    assert priorities == [1, 2, 3]

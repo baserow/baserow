@@ -117,6 +117,9 @@ from baserow.contrib.database.table.exceptions import (
     TableDoesNotExist,
 )
 from baserow.contrib.database.table.handler import TableHandler
+from baserow.contrib.database.table.operations import (
+    ListRowsDatabaseTableOperationType,
+)
 from baserow.contrib.database.tokens.exceptions import NoPermissionToTable
 from baserow.contrib.database.tokens.handler import TokenHandler
 from baserow.contrib.database.views.exceptions import (
@@ -628,6 +631,14 @@ class UniqueRowValueFieldView(APIView):
     @validate_query_parameters(UniqueRowValueParamsSerializer)
     def get(self, request, field_id, query_params):
         field = FieldHandler().get_field(field_id)
+
+        CoreHandler().check_permissions(
+            request.user,
+            ListRowsDatabaseTableOperationType.type,
+            workspace=field.table.database.workspace,
+            context=field.table,
+        )
+
         limit = query_params.get("limit")
         split_comma_separated = query_params.get("split_comma_separated")
 

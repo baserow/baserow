@@ -3,7 +3,9 @@ import { RuntimeFunctionCollection } from '@baserow/modules/core/functionCollect
 import { ToTipTapVisitor } from '@baserow/modules/core/formula/tiptap/toTipTapVisitor'
 import { FromTipTapVisitor } from '@baserow/modules/core/formula/tiptap/fromTipTapVisitor'
 import parseBaserowFormula from '@baserow/modules/core/formula/parser/parser'
-import { disambiguateMinusOperator } from '@baserow/modules/core/components/formula/FormulaInputField.vue'
+import FormulaInputField, {
+  disambiguateMinusOperator,
+} from '@baserow/modules/core/components/formula/FormulaInputField.vue'
 
 // ── disambiguateMinusOperator ──────────────────────────────────────
 
@@ -131,5 +133,51 @@ describe('Advanced mode formula roundtrip', () => {
 
   it('roundtrips decimal literal', () => {
     expect(roundtrip('3.14')).toBe('3.14')
+  })
+})
+
+// ── Validation on display ───────────────────────────────────────────
+// An invalid stored formula (e.g. one that leaked a `$formula:` prefix)
+// must surface its error state as soon as it is displayed, not only after
+// the user edits the field.
+
+describe('FormulaInputField validates on display', () => {
+  let testApp = null
+
+  beforeEach(() => {
+    testApp = new TestApp()
+  })
+
+  afterEach(() => {
+    testApp.afterEach()
+  })
+
+  async function mountField(value) {
+    const wrapper = await testApp.mount(FormulaInputField, {
+      props: { value, mode: 'advanced' },
+    })
+    await wrapper.vm.$nextTick()
+    return wrapper
+  }
+
+  it('flags an invalid initial value without requiring an edit', async () => {
+    const wrapper = await mountField('$formula: now()')
+    expect(wrapper.vm.isFormulaInvalid).toBe(true)
+    expect(wrapper.find('.formula-input-field--error').exists()).toBe(true)
+  })
+
+  it('does not flag a valid initial value', async () => {
+    const wrapper = await mountField('now()')
+    expect(wrapper.vm.isFormulaInvalid).toBe(false)
+    expect(wrapper.find('.formula-input-field--error').exists()).toBe(false)
+  })
+
+  it('re-validates when the displayed value changes', async () => {
+    const wrapper = await mountField('now()')
+    expect(wrapper.vm.isFormulaInvalid).toBe(false)
+
+    await wrapper.setProps({ value: '$formula: now()' })
+    await wrapper.vm.$nextTick()
+    expect(wrapper.vm.isFormulaInvalid).toBe(true)
   })
 })

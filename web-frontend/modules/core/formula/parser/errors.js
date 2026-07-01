@@ -67,6 +67,13 @@ export class InvalidFormulaArgumentType extends BaseHumanReadableError {
     super()
     this.formulaFunctionType = formulaFunctionType
     this.arg = arg
+    const { app: { $i18n } = {} } = formulaFunctionType
+    this.message = $i18n
+      ? $i18n.t('formulaParserErrors.invalidArgumentType', {
+          funcType: formulaFunctionType.getType(),
+          value: arg,
+        })
+      : `'${arg}' is not a valid argument for '${formulaFunctionType.getType()}'.`
   }
 }
 

@@ -2,6 +2,7 @@ from typing import List, TypedDict
 
 from baserow.contrib.automation.nodes.types import AutomationNodeDict
 from baserow.contrib.automation.workflows.constants import WorkflowState
+from baserow.core.graph.types import SerializedGraph
 from baserow.core.integrations.types import IntegrationDictSubClass
 
 
@@ -11,7 +12,7 @@ class AutomationWorkflowDict(TypedDict):
     order: int
     nodes: List[AutomationNodeDict]
     state: WorkflowState
-    graph: dict
+    graph: SerializedGraph
     notification_recipient_emails: List[str]
 
 

@@ -106,7 +106,7 @@ export default {
         // first in the preview. Try to select that one, and if that's not possible,
         // then try to select the first application of the template.
         const openApplication = this.applications.find(
-          (a) => a.id === this.template.open_application
+          (a) => a.id === template.open_application
         )
         if (openApplication) {
           this.selectApplication(openApplication)

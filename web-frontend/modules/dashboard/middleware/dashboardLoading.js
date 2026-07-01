@@ -1,4 +1,5 @@
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
+import { normalizeError } from '@baserow/modules/database/utils/errors'
 
 /**
  * Middleware that changes the dashboard loading state to true before the route
@@ -28,10 +29,18 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
       if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
         throw e
       }
+      const errorStatus = e.response?.status || 404
 
       throw createError({
-        statusCode: 404,
-        message: 'Dashboard not found.',
+        statusCode: errorStatus,
+        message:
+          errorStatus === 404
+            ? 'Dashboard not found.'
+            : normalizeError(e).message,
+        data: {
+          report: errorStatus !== 404,
+        },
+        fatal: true,
       })
     }
   }

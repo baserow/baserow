@@ -247,9 +247,6 @@ export const buildFormulaFunctionNodes = (app) => {
       for (const func of category.functions) {
         const instance = func.instance
 
-        // Get function signature information
-        let signature = null
-
         // Check if function is variadic
         // A function is variadic if:
         // 1. It has a custom validateNumberOfArgs implementation
@@ -277,53 +274,54 @@ export const buildFormulaFunctionNodes = (app) => {
           minArgs = instance.numArgs ?? instance.args.length
         }
 
-        if (instance.args && instance.args.length > 0) {
-          signature = {
-            parameters: instance.args.map((arg, index) => {
-              // Map argument types to their string representation
-              let type = 'any'
-              const argClassName = arg.constructor.name
+        const signature =
+          instance.args && instance.args.length > 0
+            ? {
+                parameters: instance.args.map((arg, index) => {
+                  // Map argument types to their string representation
+                  let type = 'any'
+                  const argClassName = arg.constructor.name
 
-              if (argClassName === 'NumberBaserowRuntimeFormulaArgumentType') {
-                type = 'number'
-              } else if (
-                argClassName === 'TextBaserowRuntimeFormulaArgumentType'
-              ) {
-                type = 'text'
-              } else if (
-                argClassName === 'DateTimeBaserowRuntimeFormulaArgumentType'
-              ) {
-                type = 'date'
-              } else if (
-                argClassName === 'ObjectBaserowRuntimeFormulaArgumentType'
-              ) {
-                type = 'object'
-              }
+                  if (
+                    argClassName === 'NumberBaserowRuntimeFormulaArgumentType'
+                  ) {
+                    type = 'number'
+                  } else if (
+                    argClassName === 'TextBaserowRuntimeFormulaArgumentType'
+                  ) {
+                    type = 'text'
+                  } else if (
+                    argClassName === 'DateTimeBaserowRuntimeFormulaArgumentType'
+                  ) {
+                    type = 'date'
+                  } else if (
+                    argClassName === 'ObjectBaserowRuntimeFormulaArgumentType'
+                  ) {
+                    type = 'object'
+                  }
 
-              return {
-                type,
-                required: true,
+                  return {
+                    type,
+                    required: true,
+                  }
+                }),
+                variadic: isVariadic,
+                minArgs,
+                maxArgs: isVariadic
+                  ? null
+                  : (instance.numArgs ?? instance.args.length),
               }
-            }),
-            variadic: isVariadic,
-            minArgs,
-            maxArgs: isVariadic
-              ? null
-              : (instance.numArgs ?? instance.args.length),
-          }
-        } else {
-          signature = {
-            parameters: [
-              {
-                type: 'any',
-                required: true,
-              },
-            ],
-            variadic: isVariadic,
-            minArgs,
-            maxArgs: isVariadic ? null : 1,
-          }
-        }
+            : {
+                parameters: [
+                  {
+                    type: 'any',
+                    required: true,
+                  },
+                ],
+                variadic: isVariadic,
+                minArgs,
+                maxArgs: isVariadic ? null : 1,
+              }
 
         // Get description and examples
         let description = null
@@ -442,13 +440,9 @@ export const buildFormulaFunctionNodes = (app) => {
           maxArgs: 2,
         }
 
-        // Get description and examples
-        let description = null
-        let example = null
-
-        description = instance.getDescription()
+        const description = instance.getDescription()
         const examples = instance.getExamples()
-        example = examples && examples.length > 0 ? examples[0] : null
+        const example = examples && examples.length > 0 ? examples[0] : null
 
         categoryNodes.push({
           name: op.name,

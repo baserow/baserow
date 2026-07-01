@@ -1,6 +1,7 @@
 import {
   ensureArray,
   ensureDateTime,
+  ensureDuration,
   ensureInteger,
   ensureString,
   ensureNumeric,
@@ -10,7 +11,7 @@ import {
 } from '@baserow/modules/core/utils/validator'
 import { expect } from 'vitest'
 import { QUERY_PARAM_TYPE_HANDLER_FUNCTIONS } from '@baserow/modules/builder/enums'
-import { DateOnly } from '@baserow/modules/core/utils/date'
+import { DateOnly, Timedelta } from '@baserow/modules/core/utils/date'
 
 describe('ensureInteger', () => {
   it('should return the value as an integer if it is already an integer', () => {
@@ -29,6 +30,13 @@ describe('ensureInteger', () => {
     expect(() => ensureInteger(true)).toThrow(Error)
     expect(() => ensureInteger(null)).toThrow(Error)
     expect(() => ensureInteger([])).toThrow(Error)
+  })
+
+  it('should convert a Timedelta to total seconds', () => {
+    expect(ensureInteger(new Timedelta(86400000))).toBe(86400)
+    expect(ensureInteger(new Timedelta(3600000))).toBe(3600)
+    expect(ensureInteger(new Timedelta(0))).toBe(0)
+    expect(ensureInteger(new Timedelta(1500))).toBe(1)
   })
 })
 
@@ -227,6 +235,16 @@ describe('ensureString', () => {
     expect(ensureString(new DateOnly('2025-07-09'))).toBe('2025-07-09')
     expect(ensureString(new DateOnly(NaN))).toBe('Invalid Date')
     expect(ensureString(new Date(NaN))).toBe('Invalid Date')
+  })
+
+  it('should convert Timedelta to total seconds string', () => {
+    expect(ensureString(new Timedelta(0))).toBe('0')
+    expect(ensureString(new Timedelta(86400000))).toBe('86400')
+    expect(ensureString(new Timedelta(2 * 86400000))).toBe('172800')
+    expect(ensureString(new Timedelta(3600000))).toBe('3600')
+    expect(ensureString(new Timedelta(93784000))).toBe('93784')
+    expect(ensureString(new Timedelta(90000))).toBe('90')
+    expect(ensureString(new Timedelta(-86400000))).toBe('-86400')
   })
 })
 
@@ -533,5 +551,55 @@ describe('ensureDateTime', () => {
       expect(result.getUTCMinutes()).toBe(30)
       expect(result.getUTCSeconds()).toBe(45)
     })
+  })
+})
+
+describe('ensureDuration', () => {
+  test('returns Timedelta for valid duration strings', () => {
+    expect(ensureDuration('1 day')).toStrictEqual(new Timedelta(86400000))
+    expect(ensureDuration('2 hours')).toStrictEqual(new Timedelta(2 * 3600000))
+    expect(ensureDuration('30 minutes')).toStrictEqual(
+      new Timedelta(30 * 60000)
+    )
+    expect(ensureDuration('1 week')).toStrictEqual(new Timedelta(7 * 86400000))
+    expect(ensureDuration('1 year')).toStrictEqual(
+      new Timedelta(365 * 86400000)
+    )
+    expect(ensureDuration('1 month')).toStrictEqual(
+      new Timedelta(30 * 86400000)
+    )
+  })
+
+  test('returns Timedelta passthrough', () => {
+    const td = new Timedelta(5000)
+    expect(ensureDuration(td)).toBe(td)
+  })
+
+  test('converts number to Timedelta in seconds', () => {
+    expect(ensureDuration(60)).toStrictEqual(new Timedelta(60000))
+    expect(ensureDuration(3600)).toStrictEqual(new Timedelta(3600000))
+    expect(ensureDuration(0)).toStrictEqual(new Timedelta(0))
+  })
+
+  test('converts numeric string to Timedelta in seconds', () => {
+    expect(ensureDuration('86400')).toStrictEqual(new Timedelta(86400000))
+    expect(ensureDuration('3600')).toStrictEqual(new Timedelta(3600000))
+    expect(ensureDuration('60')).toStrictEqual(new Timedelta(60000))
+    expect(ensureDuration('0')).toStrictEqual(new Timedelta(0))
+  })
+
+  test('throws for invalid strings', () => {
+    expect(() => ensureDuration('foo')).toThrow()
+    expect(() => ensureDuration('')).toThrow()
+  })
+
+  test('throws for null/undefined', () => {
+    expect(() => ensureDuration(null)).toThrow()
+    expect(() => ensureDuration(undefined)).toThrow()
+  })
+
+  test('throws for invalid types', () => {
+    expect(() => ensureDuration([])).toThrow()
+    expect(() => ensureDuration({})).toThrow()
   })
 })

@@ -6,10 +6,6 @@ from django.urls import reverse
 import pytest
 from rest_framework.status import HTTP_200_OK
 
-from baserow.contrib.builder.elements.models import (
-    FormContainerElement,
-    RecordSelectorElement,
-)
 from baserow.contrib.builder.workflow_actions.models import EventTypes
 
 
@@ -17,8 +13,8 @@ from baserow.contrib.builder.workflow_actions.models import EventTypes
 def test_record_selector_element_api_rejects_schema_property(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token()
     page = data_fixture.create_builder_page(user=user)
-    record_selector_element = data_fixture.create_builder_element(
-        RecordSelectorElement, user, page
+    record_selector_element = data_fixture.create_builder_record_selector_element(
+        user, page
     )
 
     url = reverse(
@@ -71,13 +67,12 @@ def test_record_selector_element_form_submission(api_client, data_fixture):
         view=view,
         table=table,
     )
-    form = data_fixture.create_builder_element(FormContainerElement, user, page)
-    record_selector_element = data_fixture.create_builder_element(
-        RecordSelectorElement,
-        user=user,
-        page=page,
+    form = data_fixture.create_builder_form_container_element(user, page)
+    record_selector_element = data_fixture.create_builder_record_selector_element(
+        user,
+        page,
         data_source=data_source,
-        parent_element=form,
+        reference_element=form,
     )
 
     workflow_action = data_fixture.create_local_baserow_create_row_workflow_action(

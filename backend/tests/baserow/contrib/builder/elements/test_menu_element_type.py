@@ -8,10 +8,12 @@ import pytest
 from baserow.contrib.builder.api.elements.serializers import MenuItemSerializer
 from baserow.contrib.builder.elements.handler import ElementHandler
 from baserow.contrib.builder.elements.models import MenuElement, MenuItemElement
+from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.workflow_actions.models import NotificationWorkflowAction
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict
 from baserow.test_utils.helpers import AnyInt
 
@@ -28,6 +30,7 @@ def menu_element_fixture(data_fixture):
     menu_element = data_fixture.create_builder_menu_element(user=user, page=page_a)
 
     return {
+        "user": user,
         "page_a": page_a,
         "page_b": page_b,
         "menu_element": menu_element,
@@ -391,11 +394,19 @@ def test_all_workflow_actions_removed_when_menu_element_deleted(
     assert updated_menu_element.menu_items.count() == 2
     assert NotificationWorkflowAction.objects.count() == 2
 
-    # Delete the Menu element, which will cascade delete all menu items
-    ElementHandler().delete_element(menu_element)
+    # Deleting only soft-trashes the element. Its menu items and workflow actions
+    # must survive so a restore can bring them back.
+    ElementService().delete_element(menu_element_fixture["user"], menu_element)
 
-    # There should be no Menu Element, Menu items, or Notifications remaining
     assert MenuElement.objects.count() == 0
+    assert MenuItemElement.objects.count() == 2
+    assert NotificationWorkflowAction.objects.count() == 2
+
+    # Permanently deleting the element cleans up the menu items and their
+    # associated workflow actions.
+    TrashHandler.permanently_delete(menu_element)
+
+    assert MenuElement.objects_and_trash.count() == 0
     assert MenuItemElement.objects.count() == 0
     assert NotificationWorkflowAction.objects.count() == 0
 
@@ -450,9 +461,11 @@ def test_import_export(menu_element_fixture, data_fixture):
     exported = menu_element_type.export_serialized(menu_element)
     assert json.dumps(exported)
 
-    ElementHandler().delete_element(menu_element)
+    # Permanently delete so no Menu element or its items remain before re-importing.
+    ElementService().delete_element(menu_element_fixture["user"], menu_element)
+    TrashHandler.permanently_delete(menu_element)
 
-    assert MenuElement.objects.count() == 0
+    assert MenuElement.objects_and_trash.count() == 0
     assert MenuItemElement.objects.count() == 0
 
     # After importing the Menu element the menu items should be correctly
@@ -514,7 +527,9 @@ def test_delete_duplicated_menu_doesnt_affect_initial_element(
 
     assert NotificationWorkflowAction.objects.count() == 2
 
-    ElementHandler().delete_element(element)
+    # Permanently delete the clone so its workflow action is cleaned up.
+    ElementService().delete_element(menu_element_fixture["user"], element)
+    TrashHandler.permanently_delete(element)
 
     # We want to make sure that deleting the clone doesn't delete the initial event
     assert NotificationWorkflowAction.objects.count() == 1

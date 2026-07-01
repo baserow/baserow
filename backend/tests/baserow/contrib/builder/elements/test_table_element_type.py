@@ -17,6 +17,7 @@ from baserow.contrib.builder.workflow_actions.models import NotificationWorkflow
 from baserow.core.formula import BaserowFormulaObject
 from baserow.core.formula.field import BASEROW_FORMULA_VERSION_INITIAL
 from baserow.core.formula.types import BASEROW_FORMULA_MODE_SIMPLE
+from baserow.core.trash.handler import TrashHandler
 from baserow.core.utils import MirrorDict
 
 
@@ -66,9 +67,8 @@ def test_create_table_element_with_fields(data_fixture):
     fields = list(created_element.fields.all())
 
     assert len(fields) == 2
-
-    fields[0].name == "Field 1"
-    fields[1].name == "Field 2"
+    assert fields[0].name == "Field 1"
+    assert fields[1].name == "Field 2"
 
 
 @pytest.mark.django_db
@@ -168,8 +168,13 @@ def test_delete_table_element_remove_fields(data_fixture):
 
     assert CollectionField.objects.count() == 3
 
+    # Deleting only soft-trashes the element; its fields must survive so a restore
+    # can bring them back.
     ElementService().delete_element(user, table_element)
+    assert CollectionField.objects.count() == 3
 
+    # Permanently deleting the element removes the fields for good.
+    TrashHandler.permanently_delete(table_element)
     assert CollectionField.objects.count() == 0
 
 
@@ -386,7 +391,13 @@ def test_delete_table_element_removes_associated_workflow_actions(data_fixture):
     )
 
     assert NotificationWorkflowAction.objects.count() == 1
+
+    # Deleting only soft-trashes the element; its fields' workflow actions survive.
     ElementService().delete_element(user, table_element)
+    assert NotificationWorkflowAction.objects.count() == 1
+
+    # Permanently deleting the element removes the associated workflow actions.
+    TrashHandler.permanently_delete(table_element)
     assert NotificationWorkflowAction.objects.count() == 0
 
 
@@ -448,7 +459,7 @@ def test_table_element_import_export(data_fixture):
 
     # After importing the table element the fields should be properly imported too
     id_mapping = defaultdict(lambda: MirrorDict())
-    table_element_type.import_serialized(page, exported, id_mapping)
+    ElementHandler().import_element(page, exported, id_mapping)
     assert (
         TableElement.objects.filter(
             page=page,
@@ -528,13 +539,11 @@ def test_table_element_import_field_with_formula_with_current_record(data_fixtur
         ],
         "data_source_id": 42,
     }
-    table_element_type = data_fixture.create_builder_table_element().get_type()
-
     id_mapping = defaultdict(MirrorDict)
     id_mapping["builder_data_sources"] = {42: data_source.id}
     id_mapping["database_fields"] = {424: fields[0].id}
 
-    table_element = table_element_type.import_serialized(page, exported, id_mapping)
+    table_element = ElementHandler().import_element(page, exported, id_mapping)
     assert (
         table_element.fields.first().config["label"]["formula"]
         == f"get('current_record.field_{fields[0].id}')"

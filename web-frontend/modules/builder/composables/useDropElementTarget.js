@@ -8,6 +8,7 @@ export function useDropElementTarget({
   referenceElement = null,
   placeInContainer = null,
   page = null,
+  targetPagePlace = null,
 }) {
   const store = useStore()
   const uid = useId()
@@ -76,10 +77,12 @@ export function useDropElementTarget({
 
   const referencePagePlace = computed(() => {
     const reference = unref(referenceElement)
-    if (!reference || !$registry.exists('element', reference.type)) {
-      return null
+    if (reference && $registry.exists('element', reference.type)) {
+      return $registry.get('element', reference.type).getPagePlace()
     }
-    return $registry.get('element', reference.type).getPagePlace()
+    // Empty drop zones have no reference element; fall back to the zone's
+    // declared place so shared-element guards can still reject the drop.
+    return unref(targetPagePlace) ?? null
   })
 
   const draggedElementType = computed(() => {
@@ -187,6 +190,14 @@ export function useDropElementTarget({
 
     syncDropPosition(event)
 
+    // Empty placeholders have no reference element, so dragover marks them
+    // active directly when the cursor is over their real DOM box.
+    if (!unref(referenceElement)) {
+      // force dragenter local state because native dragenter event is not always reliable.
+      dragEnterCount = Math.max(dragEnterCount, 1)
+      dndContext.dropTargetId = uid
+    }
+
     event.preventDefault()
     event.stopPropagation()
   }
@@ -252,14 +263,52 @@ export function useDropElementTarget({
 
     const draggedPage = store.getters['page/getById'](builder, dragged.page_id)
 
+    // Translate beforeElement + parentElement into the new positioning API.
+    const resolvedBefore = resolvedBeforeElement.value
+    const resolvedParent = resolvedParentElement.value
+    const resolvedPlace = unref(placeInContainer)
+
+    let referenceElementId = null
+    let position = 'south'
+    let resolvedPlaceInContainer = ''
+
+    if (resolvedBefore) {
+      referenceElementId = resolvedBefore.id
+      position = 'north'
+    } else if (resolvedParent) {
+      // Exclude the dragged element itself: when it's the only (or last) element
+      // in the target place, it must not become its own move reference — move()
+      // removes it from the graph first, so referencing it would then fail.
+      const elementsInPlace = store.getters['element/getElementsInPlace'](
+        targetPage.value,
+        resolvedParent.id,
+        resolvedPlace
+      ).filter((element) => element.id !== dragged.id)
+      if (elementsInPlace.length > 0) {
+        referenceElementId = elementsInPlace.at(-1).id
+        position = 'south'
+      } else {
+        referenceElementId = resolvedParent.id
+        position = 'child'
+        resolvedPlaceInContainer = resolvedPlace
+      }
+    }
+
+    // Dropping an element relative to itself is a no-op; bail out before move()
+    // (which would otherwise reference an element it has just removed).
+    if (referenceElementId === dragged.id) {
+      clearState()
+      return
+    }
+
     try {
       await store.dispatch('element/move', {
         builder,
         page: draggedPage,
         elementId: dragged.id,
-        beforeElementId: resolvedBeforeElement.value?.id || null,
-        parentElementId: resolvedParentElement.value?.id || null,
-        placeInContainer: unref(placeInContainer),
+        referenceElementId,
+        position,
+        placeInContainer: resolvedPlaceInContainer,
         targetPage: targetPage.value,
       })
     } catch (error) {

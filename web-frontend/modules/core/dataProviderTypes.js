@@ -222,6 +222,7 @@ export class DataProviderType extends Registerable {
         order,
         icon: this.getIconForNode(schema),
         type: 'array',
+        node_type: schema.items?.type,
         nodes: schema.items
           ? this._toNode(applicationContext, [...pathParts, null], schema.items)
               .nodes
@@ -234,6 +235,7 @@ export class DataProviderType extends Registerable {
         name,
         identifier,
         order,
+        type: 'object',
         icon: this.getIconForNode(schema),
         nodes: schema.properties
           ? Object.entries(schema.properties).map(([identifier, subSchema]) =>

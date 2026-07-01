@@ -6,7 +6,6 @@ from unittest.mock import MagicMock, Mock
 from zipfile import ZIP_DEFLATED, ZipFile
 
 from django.conf import settings
-from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import FileSystemStorage
 from django.http import HttpRequest
 
@@ -36,27 +35,17 @@ from baserow.contrib.builder.elements.element_types import (
 )
 from baserow.contrib.builder.elements.exceptions import ElementImproperlyConfigured
 from baserow.contrib.builder.elements.handler import ElementHandler
-from baserow.contrib.builder.elements.mixins import (
-    ContainerElementTypeMixin,
-)
 from baserow.contrib.builder.elements.models import (
-    ButtonElement,
     CheckboxElement,
     ChoiceElement,
     ChoiceElementOption,
-    CollectionField,
     DateTimePickerElement,
     Element,
-    FormContainerElement,
     HeadingElement,
-    IFrameElement,
-    ImageElement,
     InputTextElement,
     LinkElement,
     RatingInputElement,
     RecordSelectorElement,
-    TableElement,
-    TextElement,
 )
 from baserow.contrib.builder.elements.registries import (
     ElementType,
@@ -66,6 +55,7 @@ from baserow.contrib.builder.elements.service import ElementService
 from baserow.contrib.builder.pages.handler import PageHandler
 from baserow.contrib.builder.pages.service import PageService
 from baserow.contrib.database.fields.handler import FieldHandler
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.handler import CoreHandler
 from baserow.core.registries import ImportExportConfig
 from baserow.core.storage import ExportZipFile
@@ -86,15 +76,13 @@ def pytest_generate_tests(metafunc):
 def test_export_element(data_fixture, element_type: ElementType):
     page = data_fixture.create_builder_page()
     pytest_params = element_type.get_pytest_params(data_fixture)
-    element = data_fixture.create_builder_element(
-        element_type.model_class, page=page, order=17, **pytest_params
-    )
+    element = element_type.model_class.objects.create(page=page, **pytest_params)
+    page.get_graph().insert(element, *page.get_graph().get_last_position())
 
     exported = element_type.export_serialized(element)
 
     assert exported["id"] == element.id
     assert exported["type"] == element_type.type
-    assert exported["order"] == str(element.order)
 
     for key, value in pytest_params.items():
         assert exported[key] == value
@@ -107,9 +95,7 @@ def test_import_element(data_fixture, element_type: ElementType):
 
     serialized = {
         "id": 9999,
-        "order": 42,
         "type": element_type.type,
-        "parent_element_id": None,
         "roles": [],
         "role_type": Element.ROLE_TYPES.ALLOW_ALL,
     }
@@ -119,7 +105,6 @@ def test_import_element(data_fixture, element_type: ElementType):
     element = element_type.import_serialized(page, serialized, id_mapping)
 
     assert element.id != 9999
-    assert element.order == element.order
     assert isinstance(element, element_type.model_class)
 
     for key, value in pytest_params.items():
@@ -139,7 +124,7 @@ def test_link_element_path_parameter_does_not_exist(data_fixture):
     link_element = data_fixture.create_builder_link_element(
         page=page,
         navigation_type=LinkElement.NAVIGATION_TYPES.PAGE,
-        navigate_to_page=page_with_params,
+        navigate_to_page_id=page_with_params.id,
     )
 
     with pytest.raises(ValidationError):
@@ -173,55 +158,57 @@ def test_link_element_path_parameter_does_not_exist_new_page(data_fixture):
 
 @pytest.mark.django_db
 def test_link_collection_field_import_export_formula(data_fixture):
-    """
-    Test the import/export of the Link CollectionField.
-    """
-
     page = data_fixture.create_builder_page()
-    data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source()
-    data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
+    data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page
+    )
+    data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page
+    )
 
-    table_element = TableElement.objects.create(
-        order=1,
+    element = data_fixture.create_builder_table_element(
         page=page,
-        items_per_page=5,
-        content_type=ContentType.objects.get_for_model(TableElement),
-    )
-    field = CollectionField.objects.create(
-        order=1,
-        name="test1",
-        type="link",
-        config={
-            "link_name": f"get('data_source.{data_source_1.id}.field_1')",
-            "navigate_to_url": f"get('data_source.{data_source_1.id}.field_1')",
-            "navigation_type": "",
-            "navigate_to_page_id": "",
-            "page_parameters": [
-                {
-                    "name": "fooPageParam",
-                    "value": f"get('data_source.{data_source_1.id}.field_1')",
+        fields=[
+            {
+                "name": "test1",
+                "type": "link",
+                "config": {
+                    "link_name": f"get('data_source.{data_source_1.id}.field_1')",
+                    "navigate_to_url": f"get('data_source.{data_source_1.id}.field_1')",
+                    "navigation_type": "",
+                    "navigate_to_page_id": "",
+                    "page_parameters": [
+                        {
+                            "name": "fooPageParam",
+                            "value": f"get('data_source.{data_source_1.id}.field_1')",
+                        },
+                    ],
+                    "query_parameters": [
+                        {
+                            "name": "fooQueryParam",
+                            "value": f"get('data_source.{data_source_1.id}.field_2')",
+                        },
+                    ],
+                    "target": "",
+                    "variant": LinkElement.VARIANTS.BUTTON,
                 },
-            ],
-            "query_parameters": [
-                {
-                    "name": "fooQueryParam",
-                    "value": f"get('data_source.{data_source_1.id}.field_2')",
-                },
-            ],
-            "target": "",
-            "variant": LinkElement.VARIANTS.BUTTON,
-        },
+            },
+        ],
     )
-    table_element.fields.add(field)
 
-    field_type = table_element.get_type()
-    serialized = field_type.export_serialized(table_element)
+    element_type = element.get_type()
+    serialized = element_type.export_serialized(element)
 
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
-    id_mapping = {"builder_data_sources": {data_source_1.id: data_source_2.id}}
+    id_mapping = {
+        "builder_data_sources": {
+            data_source_1.id: data_source_2.id,
+            element.data_source_id: element.data_source_id,
+        }
+    }
 
-    imported_element = field_type.import_serialized(page, serialized, id_mapping)
+    imported_element = ElementHandler().import_element(page, serialized, id_mapping)
 
     expected_formula = f"get('data_source.{data_source_2.id}.field_1')"
     expected_query_formula = f"get('data_source.{data_source_2.id}.field_2')"
@@ -240,15 +227,11 @@ def test_link_collection_field_import_export_formula(data_fixture):
 
 @pytest.mark.django_db
 def test_link_element_import_export_formula(data_fixture):
-    """Test the import/export of the LinkElement."""
-
     page = data_fixture.create_builder_page()
     data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source()
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
-    element_type = LinkElementType()
-
-    exported_element = data_fixture.create_builder_element(
-        LinkElement,
+    exported_element = data_fixture.create_builder_link_element(
+        page=page,
         navigate_to_url=f"get('data_source.{data_source_1.id}.field_1')",
         value=f"get('data_source.{data_source_1.id}.field_1')",
         page_parameters=[
@@ -264,7 +247,7 @@ def test_link_element_import_export_formula(data_fixture):
             },
         ],
     )
-    serialized = element_type.export_serialized(exported_element)
+    serialized = LinkElementType().export_serialized(exported_element)
 
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
@@ -284,18 +267,14 @@ def test_link_element_import_export_formula(data_fixture):
 
 @pytest.mark.django_db
 def test_form_container_element_import_export_formula(data_fixture):
-    """Test the import/export of the FormContainerElement."""
-
     page = data_fixture.create_builder_page()
     data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source()
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
-    element_type = FormContainerElementType()
-
-    exported_element = data_fixture.create_builder_element(
-        FormContainerElement,
+    exported_element = data_fixture.create_builder_form_container_element(
+        page=page,
         submit_button_label=f"get('data_source.{data_source_1.id}.field_1')",
     )
-    serialized = element_type.export_serialized(exported_element)
+    serialized = FormContainerElementType().export_serialized(exported_element)
 
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
@@ -323,18 +302,14 @@ def test_form_container_child_types_allowed(allowed_element_type):
 
 @pytest.mark.django_db
 def test_text_element_import_export_formula(data_fixture):
-    """Test the import/export of the TextElementType."""
-
     page = data_fixture.create_builder_page()
     data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source()
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
-    element_type = TextElementType()
-
-    exported_text_element = data_fixture.create_builder_element(
-        TextElement,
+    exported_text_element = data_fixture.create_builder_text_element(
+        page=page,
         value=f"get('data_source.{data_source_1.id}.field_1')",
     )
-    serialized = element_type.export_serialized(exported_text_element)
+    serialized = TextElementType().export_serialized(exported_text_element)
 
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
@@ -350,15 +325,13 @@ def test_input_text_element_import_export_formula(data_fixture):
     page = data_fixture.create_builder_page()
     data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source()
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
-    element_type = InputTextElementType()
-
-    exported_input_text_element = data_fixture.create_builder_element(
-        InputTextElement,
+    exported_input_text_element = data_fixture.create_builder_input_text_element(
+        page=page,
         label=f"get('data_source.{data_source_1.id}.field_1')",
         default_value=f"get('data_source.{data_source_1.id}.field_1')",
         placeholder=f"get('data_source.{data_source_1.id}.field_1')",
     )
-    serialized = element_type.export_serialized(exported_input_text_element)
+    serialized = InputTextElementType().export_serialized(exported_input_text_element)
 
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
@@ -376,14 +349,12 @@ def test_image_element_import_export_formula(data_fixture):
     page = data_fixture.create_builder_page()
     data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source()
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
-    element_type = ImageElementType()
-
-    exported_image_element = data_fixture.create_builder_element(
-        ImageElement,
+    exported_image_element = data_fixture.create_builder_image_element(
+        page=page,
         image_url=f"get('data_source.{data_source_1.id}.field_1')",
         alt_text=f"get('data_source.{data_source_1.id}.field_1')",
     )
-    serialized = element_type.export_serialized(exported_image_element)
+    serialized = ImageElementType().export_serialized(exported_image_element)
 
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
@@ -400,13 +371,11 @@ def test_button_element_import_export_formula(data_fixture):
     page = data_fixture.create_builder_page()
     data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source()
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
-    element_type = ButtonElementType()
-
-    exported_image_element = data_fixture.create_builder_element(
-        ButtonElement,
+    exported_image_element = data_fixture.create_builder_button_element(
+        page=page,
         value=f"get('data_source.{data_source_1.id}.field_1')",
     )
-    serialized = element_type.export_serialized(exported_image_element)
+    serialized = ButtonElementType().export_serialized(exported_image_element)
 
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
@@ -485,17 +454,15 @@ def test_choice_element_import_export_formula(data_fixture):
     page = data_fixture.create_builder_page()
     data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source()
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
-    element_type = ChoiceElementType()
-
-    exported_choice_element = data_fixture.create_builder_element(
-        ChoiceElement,
+    exported_choice_element = data_fixture.create_builder_choice_element(
+        page=page,
         label=f"get('data_source.{data_source_1.id}.field_1')",
         default_value=f"get('data_source.{data_source_1.id}.field_1')",
         placeholder=f"get('data_source.{data_source_1.id}.field_1')",
         formula_name=f"get('data_source.{data_source_1.id}.field_1')",
         formula_value=f"get('data_source.{data_source_1.id}.field_1')",
     )
-    serialized = element_type.export_serialized(exported_choice_element)
+    serialized = ChoiceElementType().export_serialized(exported_choice_element)
 
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
@@ -786,37 +753,13 @@ def test_choice_element_is_valid_formula_context(data_fixture):
     )
 
 
-def test_element_type_import_element_priority():
-    element_types = element_type_registry.get_all()
-    container_element_types = [
-        element_type
-        for element_type in element_types
-        if isinstance(element_type, ContainerElementTypeMixin)
-    ]
-    other_element_types = [
-        element_type
-        for element_type in element_types
-        if not isinstance(element_type, ContainerElementTypeMixin)
-    ]
-    manual_ordering = container_element_types + other_element_types
-    expected_ordering = sorted(
-        element_types,
-        key=lambda element_type: element_type.import_element_priority,
-        reverse=True,
-    )
-    assert manual_ordering == expected_ordering, (
-        "The element types ordering are expected to be: "
-        "containers first, then everything else."
-    )
-
-
 @pytest.mark.django_db
 def test_page_with_element_using_form_data_has_dependencies_import_first(data_fixture):
     user = data_fixture.create_user()
     page = data_fixture.create_builder_page(user=user)
     form_container = data_fixture.create_builder_form_container_element(page=page)
     form_input = data_fixture.create_builder_input_text_element(
-        page=page, parent_element=form_container
+        page=page, reference_element=form_container
     )
     data_fixture.create_builder_heading_element(
         page=page, value=f"get('form_data.{form_input.id}')"
@@ -834,14 +777,12 @@ def test_checkbox_element_import_export_formula(data_fixture):
     page = data_fixture.create_builder_page()
     data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source()
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
-    element_type = CheckboxElementType()
-
-    exported_input_element = data_fixture.create_builder_element(
-        CheckboxElement,
+    exported_input_element = data_fixture.create_builder_checkbox_element(
+        page=page,
         label=f"get('data_source.{data_source_1.id}.field_1')",
         default_value=f"get('data_source.{data_source_1.id}.field_1')",
     )
-    serialized = element_type.export_serialized(exported_input_element)
+    serialized = CheckboxElementType().export_serialized(exported_input_element)
 
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
@@ -892,14 +833,13 @@ def test_iframe_element_import_export_formula(data_fixture):
     page = data_fixture.create_builder_page()
     data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source()
     data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
-    element_type = IFrameElementType()
 
-    exported_element = data_fixture.create_builder_element(
-        IFrameElement,
+    exported_element = data_fixture.create_builder_iframe_element(
+        page=page,
         url=f"get('data_source.{data_source_1.id}.field_1')",
         embed=f"get('data_source.{data_source_1.id}.field_1')",
     )
-    serialized = element_type.export_serialized(exported_element)
+    serialized = IFrameElementType().export_serialized(exported_element)
 
     # After applying the ID mapping the imported formula should have updated
     # the data source IDs
@@ -919,18 +859,21 @@ def test_iframe_element_import_export_formula(data_fixture):
 )
 def test_image_element_import_export(data_fixture, fake, storage):
     user = data_fixture.create_user()
-    page = data_fixture.create_builder_page()
-    data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source()
-    data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
-    element_type = ImageElementType()
+    page = data_fixture.create_builder_page(user=user)
+    data_source_1 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page
+    )
+    data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page
+    )
 
     zip_buffer = BytesIO()
     image_file = UserFileHandler().upload_user_file(
         user, "test.jpg", BytesIO(fake.image()), storage=storage
     )
 
-    element_to_export = data_fixture.create_builder_element(
-        ImageElement,
+    element_to_export = data_fixture.create_builder_image_element(
+        page=page,
         image_source_type="upload",
         image_file=image_file,
         image_url=f"get('data_source.{data_source_1.id}.field_1')",
@@ -941,7 +884,7 @@ def test_image_element_import_export(data_fixture, fake, storage):
         compress_type=zipstream.ZIP_DEFLATED,
     )
 
-    serialized = element_type.export_serialized(
+    serialized = ImageElementType().export_serialized(
         element_to_export, files_zip=zip_file, storage=storage
     )
 
@@ -971,17 +914,18 @@ def test_image_element_import_export(data_fixture, fake, storage):
 @pytest.mark.django_db
 def test_choice_element_import_export(data_fixture):
     page = data_fixture.create_builder_page()
-    data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source()
-    element_type = ChoiceElementType()
+    data_source_2 = data_fixture.create_builder_local_baserow_get_row_data_source(
+        page=page
+    )
 
-    exported_element = data_fixture.create_builder_element(
-        ChoiceElement,
+    exported_element = data_fixture.create_builder_choice_element(
+        page=page,
         label=f"get('data_source.42.field_1')",
         default_value=f"get('data_source.42.field_1')",
         placeholder=f"get('data_source.42.field_1')",
         multiple=True,
     )
-    serialized = element_type.export_serialized(exported_element)
+    serialized = ChoiceElementType().export_serialized(exported_element)
 
     # Just check that the serialization works properly
     json.dumps(serialized)
@@ -1222,7 +1166,8 @@ def test_collection_element_type_after_update(collection_element_type, data_fixt
     user = data_fixture.create_user()
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(user=user, builder=builder)
-    element = collection_element_type.model_class.objects.create(page=page)
+    element = ElementHandler().create_element(collection_element_type, page=page)
+    page.get_graph().insert(element, *page.get_graph().get_last_position())
     element.property_options.create(schema_property="field_123")
 
     # The `after_update` method drops all property options, and creates
@@ -1248,7 +1193,9 @@ def test_collection_element_type_prepare_value_for_db(
     builder = data_fixture.create_builder_application(user=user)
     page = data_fixture.create_builder_page(user=user, builder=builder)
     different_page = data_fixture.create_builder_page(user=user, builder=builder)
-    element = collection_element_type.model_class.objects.create(page=page)
+    element = data_fixture.create_builder_element(
+        collection_element_type.__class__, page=page
+    )
 
     multiple_rows = data_fixture.create_builder_local_baserow_list_rows_data_source(
         user=user,
@@ -1588,7 +1535,8 @@ def test_repeat_element_import_export(data_fixture):
     data_fixture.create_builder_repeat_element(
         page=page,
         data_source=None,
-        parent_element_id=outer_repeat.id,
+        reference_element=outer_repeat,
+        position=GraphPointPosition.CHILD,
         schema_property=multiple_select_field.db_column,
     )
 
@@ -1614,14 +1562,16 @@ def test_repeat_element_import_export(data_fixture):
 
     # Pluck out the imported builder records.
     imported_page = imported_builder.visible_pages.all()[0]
-    imported_data_source = imported_page.datasource_set.get()
-    imported_root_repeat = imported_page.element_set.get(
-        parent_element_id=None
-    ).specific
-    imported_nested_repeat = imported_root_repeat.children.get().specific
+    [imported_root_element, imported_nested_element] = imported_page.element_set.all()
+    assert imported_page.graph == {
+        "0": imported_root_element.id,
+        str(imported_root_element.id): {"children": {"": [imported_nested_element.id]}},
+        str(imported_nested_element.id): {},
+    }
 
-    assert imported_root_repeat.data_source_id == imported_data_source.id
-    assert imported_nested_repeat.schema_property == imported_field.db_column
+    imported_data_source = imported_page.datasource_set.get()
+    assert imported_root_element.specific.data_source_id == imported_data_source.id
+    assert imported_nested_element.specific.schema_property == imported_field.db_column
 
 
 @pytest.mark.parametrize(
@@ -1652,3 +1602,11 @@ def test_datetime_picker_element_is_valid(
             element_type.is_valid(element, value, {})
     else:
         assert str(element_type.is_valid(element, value, {})) == expected
+
+
+def test_element_type_has_display_name(element_type):
+    from django.utils.translation import gettext_lazy as _
+
+    assert element_type.display_name != _("Unnamed node"), (
+        f"{type(element_type).__name__}.display_name is still the default 'Unnamed node'"
+    )

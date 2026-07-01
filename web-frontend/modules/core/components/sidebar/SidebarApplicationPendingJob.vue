@@ -26,7 +26,7 @@ export default {
       return this.$registry.get('job', this.job.type).getSidebarText(this.job)
     },
     jobIconClass() {
-      return this.$registry.get('job', this.job.type).getIconClass()
+      return this.$registry.get('job', this.job.type).getIconClass(this.job)
     },
   },
 }

@@ -1,0 +1,9 @@
+{
+  "type": "bug",
+  "message": "Fixed index(), first() and last() formulas crashing on partial arguments.",
+  "issue_origin": "github",
+  "issue_number": 5320,
+  "domain": "database",
+  "bullet_points": [],
+  "created_at": "2026-05-06"
+}

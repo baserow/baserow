@@ -1,5 +1,7 @@
 from unittest.mock import Mock
 
+from django.test import override_settings
+
 import pytest
 
 from baserow.contrib.database.rows.handler import RowHandler
@@ -7,7 +9,10 @@ from baserow.contrib.integrations.local_baserow.models import LocalBaserowDelete
 from baserow.contrib.integrations.local_baserow.service_types import (
     LocalBaserowDeleteRowServiceType,
 )
-from baserow.core.services.exceptions import DoesNotExist
+from baserow.core.services.exceptions import (
+    DoesNotExist,
+    InvalidContextContentDispatchException,
+)
 from baserow.core.services.handler import ServiceHandler
 from baserow.test_utils.pytest_conftest import FakeDispatchContext
 
@@ -88,7 +93,7 @@ def test_local_baserow_delete_row_service_dispatch_data_with_no_row_id(data_fixt
     dispatch_context = FakeDispatchContext()
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
-    assert result["data"] == {}
+    assert result["data"] is None
 
 
 @pytest.mark.django_db
@@ -112,7 +117,7 @@ def test_local_baserow_delete_row_service_dispatch_data_row_not_exist(data_fixtu
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     with pytest.raises(DoesNotExist) as exc:
         service_type.dispatch_data(service, dispatch_values, dispatch_context)
-    assert exc.value.args[0] == "The row with id 1 does not exist."
+    assert exc.value.args[0] == "Rows with ids [1] do not exist."
 
 
 @pytest.mark.django_db
@@ -147,14 +152,134 @@ def test_local_baserow_delete_row_service_dispatch_data(data_fixture):
     dispatch_context = FakeDispatchContext()
     dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
     result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
-    assert result["data"] == {}
+    assert result["data"] is None
     assert model.objects.count() == 2
     assert model.objects.filter(id=1).exists() is False
 
 
 @pytest.mark.django_db
+def test_local_baserow_delete_row_service_dispatch_data_with_multiple_ids(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table, name="Name")
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+
+    model = table.get_model()
+    row_1 = model.objects.create(**{f"field_{field.id}": "Dog"})
+    row_2 = model.objects.create(**{f"field_{field.id}": "Badger"})
+    row_3 = model.objects.create(**{f"field_{field.id}": "Horse"})
+    service = data_fixture.create_local_baserow_delete_row_service(
+        integration=integration,
+        table=table,
+        row_id='get("page_parameter.row_ids")',
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={"page_parameter": {"row_ids": [row_1.id, row_3.id]}}
+    )
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
+
+    assert result["data"] is None
+    assert model.objects.count() == 1
+    assert model.objects.filter(id=row_2.id).exists() is True
+    assert model.objects.filter(id__in=[row_1.id, row_3.id]).exists() is False
+
+
+@pytest.mark.django_db
+@override_settings(INTEGRATION_LOCAL_BASEROW_BATCH_OPERATION_SIZE_LIMIT=1)
+def test_local_baserow_delete_row_service_rejects_too_many_ids(data_fixture):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_database_table(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    service = data_fixture.create_local_baserow_delete_row_service(
+        integration=integration,
+        table=table,
+        row_id='get("page_parameter.row_ids")',
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={"page_parameter": {"row_ids": [1, 2]}}
+    )
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    with pytest.raises(
+        InvalidContextContentDispatchException,
+        match="The batch delete rows action can process at most 1 rows at once.",
+    ):
+        service_type.dispatch_data(service, dispatch_values, dispatch_context)
+
+
+@pytest.mark.django_db
+def test_local_baserow_delete_row_service_dispatch_data_with_json_text_ids(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_text_field(table=table, name="Name")
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    model = table.get_model()
+    row_1 = model.objects.create(**{f"field_{field.id}": "Dog"})
+    row_2 = model.objects.create(**{f"field_{field.id}": "Badger"})
+    service = data_fixture.create_local_baserow_delete_row_service(
+        integration=integration,
+        table=table,
+        row_id='get("page_parameter.row_ids")',
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={"page_parameter": {"row_ids": f"[{row_1.id}, {row_2.id}]"}}
+    )
+
+    dispatch_values = service_type.resolve_service_formulas(service, dispatch_context)
+    result = service_type.dispatch_data(service, dispatch_values, dispatch_context)
+
+    assert result["data"] is None
+    assert model.objects.count() == 0
+
+
+@pytest.mark.django_db
+def test_local_baserow_delete_row_service_dispatch_data_rejects_invalid_ids(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    table = data_fixture.create_database_table(user=user)
+    integration = data_fixture.create_local_baserow_integration(
+        application=page.builder, user=user
+    )
+    service = data_fixture.create_local_baserow_delete_row_service(
+        integration=integration,
+        table=table,
+        row_id='get("page_parameter.row_ids")',
+    )
+    service_type = service.get_type()
+    dispatch_context = FakeDispatchContext(
+        context={"page_parameter": {"row_ids": [1, "invalid"]}}
+    )
+
+    with pytest.raises(
+        InvalidContextContentDispatchException,
+        match="Row ID 2 must be a number.",
+    ):
+        service_type.resolve_service_formulas(service, dispatch_context)
+
+
+@pytest.mark.django_db
 def test_local_baserow_delete_row_service_dispatch_transform(data_fixture):
     service_type = LocalBaserowDeleteRowServiceType()
-    dispatch_data = {"data": {}, "baserow_table_model": Mock()}
+    dispatch_data = {"data": None, "baserow_table_model": Mock()}
     result = service_type.dispatch_transform(dispatch_data)
     assert result.status == 204
+    # A 204 response must not carry a body, so `data` is `None` rather than {}.
+    assert result.data is None

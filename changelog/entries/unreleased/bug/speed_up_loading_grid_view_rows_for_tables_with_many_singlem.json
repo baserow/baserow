@@ -1,0 +1,9 @@
+{
+    "type": "refactor",
+    "message": "Speed up loading rows for tables with many single or multiple select fields.",
+    "issue_origin": "github",
+    "issue_number": null,
+    "domain": "database",
+    "bullet_points": [],
+    "created_at": "2026-06-19"
+}

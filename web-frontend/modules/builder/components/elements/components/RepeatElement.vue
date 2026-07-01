@@ -220,9 +220,7 @@ export default {
       )
     },
     isCollapsed() {
-      return this.$store.getters['element/getRepeatElementCollapsed'](
-        this.element
-      )
+      return this.element._.collapsed
     },
     repeatElementIsNested() {
       return this.elementType.hasAncestorOfType(

@@ -111,7 +111,6 @@ export function createPasteHandler({ toContent, getMode }) {
     }
 
     let wrapperContent = null
-    let extraParens = 0
 
     // First attempt: parse the formula as-is.
     const directContent = toContent(text)
@@ -125,7 +124,7 @@ export function createPasteHandler({ toContent, getMode }) {
       // artificial parens from the content before inserting, which leaves
       // the cursor inside the last open function's argument slot. The user
       // can then type the argument and close with `)` normally.
-      extraParens = countUnbalancedParens(text)
+      const extraParens = countUnbalancedParens(text)
       if (extraParens > 0) {
         const completedContent = toContent(text + ')'.repeat(extraParens))
         if (completedContent) {

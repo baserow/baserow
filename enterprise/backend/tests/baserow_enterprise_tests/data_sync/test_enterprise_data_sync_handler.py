@@ -838,7 +838,7 @@ def test_periodic_sync_failure_deactivation_shows_failure_message(
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.table.signals.table_created.send")
 def test_create_two_way_data_sync_table(
-    send_mock, enterprise_data_fixture, create_postgresql_test_table
+    send_mock, enterprise_data_fixture, create_postgresql_test_table, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
 
@@ -879,7 +879,7 @@ def test_create_two_way_data_sync_table(
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.table.signals.table_created.send")
 def test_create_two_way_data_sync_table_and_add_properties(
-    send_mock, enterprise_data_fixture, create_postgresql_test_table
+    send_mock, enterprise_data_fixture, create_postgresql_test_table, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
 
@@ -931,7 +931,7 @@ def test_create_two_way_data_sync_table_and_add_properties(
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.table.signals.table_created.send")
 def test_create_and_unset_two_way_data_sync_table(
-    send_mock, enterprise_data_fixture, create_postgresql_test_table
+    send_mock, enterprise_data_fixture, create_postgresql_test_table, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
 
@@ -983,7 +983,7 @@ def test_create_and_unset_two_way_data_sync_table(
 @override_settings(DEBUG=True)
 @patch("baserow.contrib.database.table.signals.table_created.send")
 def test_create_and_set_two_way_data_sync_table(
-    send_mock, enterprise_data_fixture, create_postgresql_test_table
+    send_mock, enterprise_data_fixture, create_postgresql_test_table, synced_roles
 ):
     enterprise_data_fixture.enable_enterprise()
 

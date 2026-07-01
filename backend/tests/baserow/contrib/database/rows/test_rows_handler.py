@@ -1057,6 +1057,68 @@ def test_import_rows(
 
 
 @pytest.mark.django_db
+@patch(
+    "baserow.contrib.database.search.handler.SearchHandler.schedule_update_search_data"
+)
+def test_import_rows_large_change_uses_full_field_search_update(
+    mock_schedule_update_search_data, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    data_fixture.create_text_field(table=table, name="Name", order=1)
+
+    rows, report = RowHandler().import_rows(
+        user=user,
+        table=table,
+        data=[["Tesla"]],
+        send_realtime_update=False,
+    )
+
+    assert len(rows) == 1
+    assert report == {}
+    args, kwargs = mock_schedule_update_search_data.call_args
+    assert args == (table,)
+    assert kwargs == {}
+
+
+@pytest.mark.django_db
+@patch(
+    "baserow.contrib.database.search.handler.SearchHandler.schedule_update_search_data"
+)
+def test_import_rows_small_change_keeps_row_specific_search_update(
+    mock_schedule_update_search_data, data_fixture
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    name_field = data_fixture.create_text_field(table=table, name="Name", order=1)
+    handler = RowHandler()
+
+    handler.create_rows(
+        user=user,
+        table=table,
+        rows_values=[{f"field_{name_field.id}": f"Car {i}"} for i in range(20)],
+        send_realtime_update=False,
+        send_webhook_events=False,
+    )
+
+    mock_schedule_update_search_data.reset_mock()
+
+    rows, report = handler.import_rows(
+        user=user,
+        table=table,
+        data=[["New car"]],
+        send_realtime_update=False,
+    )
+
+    assert len(rows) == 1
+    assert report == {}
+    args, kwargs = mock_schedule_update_search_data.call_args
+    assert args == (table,)
+    assert "fields" in kwargs
+    assert kwargs["row_ids"] == [rows[0].id]
+
+
+@pytest.mark.django_db
 def test_import_rows_with_read_only_field(
     data_fixture,
 ):
@@ -1180,6 +1242,42 @@ def test_move_row(before_send_mock, send_mock, data_fixture):
     assert row_ids[0].id == row_2.id
     assert row_ids[1].id == row_1.id
     assert row_ids[2].id == row_3.id
+
+
+@pytest.mark.django_db
+def test_move_row_does_not_update_last_modified(data_fixture):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(name="Car", user=user)
+    last_modified_field = data_fixture.create_last_modified_field(table=table)
+    created_on_field = data_fixture.create_created_on_field(table=table)
+
+    handler = RowHandler()
+
+    with freeze_time("2020-01-01 12:00"):
+        row_1 = handler.create_row(user=user, table=table)
+        row_2 = handler.create_row(user=user, table=table)
+        handler.create_row(user=user, table=table)
+
+    created_on_before = row_1.created_on
+    updated_on_before = row_1.updated_on
+    last_modified_before = getattr(row_1, last_modified_field.db_column)
+    created_on_field_before = getattr(row_1, created_on_field.db_column)
+
+    with freeze_time("2020-06-01 12:00"):
+        returned_row = handler.move_row_by_id(
+            user=user, table=table, row_id=row_1.id, before_row=row_2
+        )
+
+    assert returned_row.updated_on == updated_on_before
+    assert returned_row.created_on == created_on_before
+    assert getattr(returned_row, last_modified_field.db_column) == last_modified_before
+
+    row_1.refresh_from_db()
+
+    assert row_1.created_on == created_on_before
+    assert row_1.updated_on == updated_on_before
+    assert getattr(row_1, last_modified_field.db_column) == last_modified_before
+    assert getattr(row_1, created_on_field.db_column) == created_on_field_before
 
 
 @pytest.mark.django_db

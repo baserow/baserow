@@ -42,9 +42,9 @@ export default class BaserowFormulaExecutionVisitor extends BaserowFormulaVisito
     const literalWithoutOuterQuotes = ctx.getText().slice(1, -1)
     let literal
     if (ctx.SINGLEQ_STRING_LITERAL() !== null) {
-      literal = literalWithoutOuterQuotes.replace(/\\'/g, "'")
+      literal = literalWithoutOuterQuotes.replace(/\\(['\\])/g, '$1')
     } else {
-      literal = literalWithoutOuterQuotes.replace(/\\"/g, '"')
+      literal = literalWithoutOuterQuotes.replace(/\\(["\\])/g, '$1')
     }
     return literal
   }
@@ -56,7 +56,7 @@ export default class BaserowFormulaExecutionVisitor extends BaserowFormulaVisito
 
   doFunc(ctx, functionName) {
     const functionArgumentExpressions = ctx.expr()
-    let formulaFunctionType = null
+    let formulaFunctionType
     try {
       formulaFunctionType = this.functions.get(functionName)
     } catch (e) {

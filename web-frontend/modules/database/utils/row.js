@@ -1,5 +1,9 @@
 //import Vue from 'vue'
 import { clone } from '@baserow/modules/core/utils/object'
+import {
+  getRowSortFunction,
+  matchSearchFilters,
+} from '@baserow/modules/database/utils/view'
 
 /**
  * Serializes a row to make sure that the values are according to what the API expects.
@@ -87,6 +91,165 @@ export function prepareNewOldAndUpdateRequestValues(
 }
 
 /**
+ * Compute the row-form values a brand-new row should start with,
+ * combining: explicit caller-supplied values (highest priority),
+ * view-level default_row_values, and each field type's own default
+ * (`getNewRowValue`). Returns a `{ field_X: rowFormValue, ... }` map
+ * suitable for an optimistic insert; pass each value through the
+ * field type's `prepareValueForUpdate` separately to build the BE
+ * payload.
+ *
+ */
+export function buildNewRowDefaults({
+  view,
+  fields,
+  registry,
+  suppliedValues = {},
+}) {
+  const defaultItems = view?.default_row_values ?? []
+  const defaultsByFieldId = {}
+  for (const item of defaultItems) {
+    if (item.enabled && (item.value != null || item.function)) {
+      defaultsByFieldId[item.field] = item
+    }
+  }
+  const newRow = {}
+  for (const field of fields) {
+    const name = `field_${field.id}`
+    if (name in suppliedValues) {
+      newRow[name] = suppliedValues[name]
+      continue
+    }
+    const fieldTypeKey = field._?.type?.type || field.type
+    const fieldType = registry.get('field', fieldTypeKey)
+    const defaultViewItem = defaultsByFieldId[field.id]
+    const supportedFunctions = fieldType.getSupportedDefaultValueFunctions
+      ? fieldType.getSupportedDefaultValueFunctions().map((f) => f.name)
+      : []
+    if (
+      defaultViewItem?.function &&
+      supportedFunctions.includes(defaultViewItem.function)
+    ) {
+      newRow[name] = fieldType.resolveDefaultValueFunction(
+        defaultViewItem.function,
+        field
+      )
+    } else if (
+      defaultViewItem?.value != null &&
+      (!defaultViewItem.field_type ||
+        defaultViewItem.field_type === fieldTypeKey)
+    ) {
+      newRow[name] = fieldType.parseDefaultRowValue(
+        field,
+        defaultViewItem.value
+      )
+    } else if (fieldType.getNewRowValue) {
+      newRow[name] = fieldType.getNewRowValue(field)
+    }
+  }
+  return newRow
+}
+
+/**
+ * Decide whether a row still belongs at its current position after a change:
+ * whether it still matches the view's filters, and whether it lands at the same
+ * sorted index amongst the comparison set.
+ */
+export function computeRowMatchFlags({
+  row,
+  view,
+  fields,
+  registry,
+  rowsInSortingGroup = [],
+  groupBys = [],
+}) {
+  const matchFilters = view?.filters_disabled
+    ? true
+    : matchSearchFilters(
+        registry,
+        view.filter_type,
+        view.filters ?? [],
+        view.filter_groups ?? [],
+        fields ?? [],
+        row
+      )
+
+  let matchSortings = true
+  if (fields && fields.length > 0) {
+    const sortFn = getRowSortFunction(
+      registry,
+      view?.sortings ?? [],
+      fields,
+      groupBys
+    )
+    const currentIndex = rowsInSortingGroup.findIndex((r) => r.id === row.id)
+    if (currentIndex >= 0) {
+      const rowsForSorting = [...rowsInSortingGroup]
+      rowsForSorting[currentIndex] = {
+        ...rowsForSorting[currentIndex],
+        ...row,
+      }
+      const sorted = rowsForSorting.sort(sortFn)
+      const sortedIndex = sorted.findIndex((r) => r.id === row.id)
+      matchSortings = currentIndex === sortedIndex
+    }
+  }
+
+  return { matchFilters, matchSortings }
+}
+
+/**
+ * Compute the per-cell flags used by the area / checkbox multi-cell
+ * highlight: `{selected, top, right, bottom, left}`. The view's row
+ * component passes this object to `GridViewCell` which uses it to
+ * paint the outer borders only on the rectangle's perimeter (not on
+ * internal cell edges).
+ *
+ * Pure function. Grid row components can call it with their own coordinate
+ * model as long as coordinates use the same model as the grid's
+ * multi-select state: integer row index in the visible row list and integer
+ * field index in the visible fields list.
+ */
+export function computeMultiSelectPosition({
+  isAreaSelectionActive,
+  isCheckboxSelected,
+  rowIndex,
+  fieldIndex,
+  rowIndexRange,
+  fieldIndexRange,
+}) {
+  const position = {
+    selected: false,
+    top: false,
+    right: false,
+    bottom: false,
+    left: false,
+  }
+  if (!isAreaSelectionActive) {
+    if (isCheckboxSelected) position.selected = true
+    return position
+  }
+  const [minRow, maxRow] = rowIndexRange ?? [-1, -1]
+  const [minField, maxField] = fieldIndexRange ?? [-1, -1]
+  if (
+    rowIndex < 0 ||
+    fieldIndex < 0 ||
+    rowIndex < minRow ||
+    rowIndex > maxRow ||
+    fieldIndex < minField ||
+    fieldIndex > maxField
+  ) {
+    return position
+  }
+  position.selected = true
+  if (rowIndex === minRow) position.top = true
+  if (rowIndex === maxRow) position.bottom = true
+  if (fieldIndex === minField) position.left = true
+  if (fieldIndex === maxField) position.right = true
+  return position
+}
+
+/**
  * Returns an object only containing the read-only values of the row, and the id.
  * This can be used to update a row with the return data after making an update
  * request. The reason we need to do this, is because the other values might have
@@ -152,4 +315,36 @@ export function updateRowMetadataType(row, rowMetadataType, updateFunction) {
  */
 export function getRowMetadata(row, metadata = {}) {
   return { ...metadata, ...(row.metadata || {}) }
+}
+
+/**
+ * Compute where `row` belongs among `existingRows` according to the given sorts.
+ *
+ * Returns `{ anchorRowId, sortedIndex, isFirst, isLast }`:
+ * - `anchorRowId` is the id of the row immediately before `row` in sorted order,
+ *   or null when `row` sorts first.
+ * - `sortedIndex` is the 0-based position of `row` in the merged, sorted result.
+ *
+ * Expressing the insert position by row identity rather than numeric index lets
+ * both flat-array stores and group-tree stores consume the result without
+ * needing to agree on a shared index space.
+ */
+export function computeRowInsertPosition(
+  row,
+  existingRows,
+  sorts,
+  fields,
+  registry,
+  groupBys = []
+) {
+  const sortFn = getRowSortFunction(registry, sorts, fields, groupBys)
+  const sorted = [...existingRows, row].sort(sortFn)
+  const sortedIndex = sorted.findIndex((r) => r.id === row.id)
+  const anchorRowId = sortedIndex > 0 ? sorted[sortedIndex - 1].id : null
+  return {
+    anchorRowId,
+    sortedIndex,
+    isFirst: sortedIndex === 0,
+    isLast: sortedIndex === sorted.length - 1,
+  }
 }

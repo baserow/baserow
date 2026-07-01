@@ -90,7 +90,8 @@ export async function deleteAllNonPrimaryFieldsFromTable(
   user: User,
   table: Table
 ): Promise<void> {
-  (await getFieldsForTable(user, table))
-    .filter((f) => !f.primary)
-    .forEach((f) => deleteField(user, f));
+  const fields = (await getFieldsForTable(user, table)).filter(
+    (f) => !f.primary
+  );
+  await Promise.all(fields.map((f) => deleteField(user, f)));
 }

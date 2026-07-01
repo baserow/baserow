@@ -1,4 +1,5 @@
 import type { StorybookConfig } from '@nuxtjs/storybook'
+import { mergeConfig } from 'vite'
 
 const config: StorybookConfig = {
   stories: [
@@ -17,9 +18,24 @@ const config: StorybookConfig = {
   docs: {
     autodocs: 'tag',
   },
+  /** Limit 504 "Outdated Optimize Dep" on cold start: wait for dep crawl, pre-bundle common deps. */
+  async viteFinal(viteConfig) {
+    return mergeConfig(viteConfig, {
+      optimizeDeps: {
+        holdUntilCrawlEnd: true,
+        include: [
+          'axios',
+          'lodash',
+          'lodash-es',
+          'mitt',
+          'papaparse',
+          'posthog-js',
+          'flush-promises',
+          'vuex',
+          'moment',
+        ],
+      },
+    })
+  },
 }
 export default config
-
-// 'storybook-addon-pseudo-states',
-// 'storybook-addon-designs',
-// '@storybook/addon-coverage',

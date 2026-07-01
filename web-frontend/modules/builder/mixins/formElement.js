@@ -63,9 +63,13 @@ export default {
       ).some(({ type }) => type === FormContainerElementType.getType())
     },
   },
+  beforeUnmount() {
+    this.unsetFormData()
+  },
   methods: {
     ...mapActions({
       actionSetFormData: 'formData/setFormData',
+      actionRemoveFormData: 'formData/removeFormData',
     }),
     /*
      * When a form element has been modified (e.g. a user has inputted a value),
@@ -94,6 +98,12 @@ export default {
             this.applicationContext
           ),
         },
+      })
+    },
+    unsetFormData() {
+      return this.actionRemoveFormData({
+        page: this.elementPage,
+        uniqueElementId: this.uniqueElementId,
       })
     },
     /**

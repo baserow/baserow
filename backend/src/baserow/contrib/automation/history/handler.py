@@ -5,6 +5,7 @@ from django.db.models import Prefetch, QuerySet
 
 from baserow.contrib.automation.history.constants import HistoryStatusChoices
 from baserow.contrib.automation.history.exceptions import (
+    AutomationNodeHistoryDoesNotExist,
     AutomationWorkflowHistoryDoesNotExist,
     AutomationWorkflowHistoryNodeResultDoesNotExist,
 )
@@ -33,15 +34,6 @@ class AutomationHistoryHandler:
         return base_queryset.filter(
             original_workflow=workflow,
             simulate_until_node__isnull=True,
-        ).prefetch_related(
-            Prefetch(
-                "node_histories",
-                queryset=AutomationNodeHistory.objects.select_related(
-                    "node", "node__workflow"
-                )
-                .prefetch_related("node_results")
-                .order_by("started_on"),
-            ),
         )
 
     def get_workflow_history(
@@ -143,3 +135,72 @@ class AutomationHistoryHandler:
             raise AutomationWorkflowHistoryNodeResultDoesNotExist()
 
         return node_result.result
+
+    def get_node_history(
+        self,
+        node_history_id: int,
+        base_queryset: Optional[QuerySet] = None,
+    ) -> AutomationNodeHistory:
+        """Returns an AutomationNodeHistory by its ID."""
+
+        if base_queryset is None:
+            base_queryset = AutomationNodeHistory.objects.all()
+
+        try:
+            return base_queryset.select_related(
+                "workflow_history__original_workflow__automation__workspace",
+            ).get(id=node_history_id)
+        except AutomationNodeHistory.DoesNotExist:
+            raise AutomationNodeHistoryDoesNotExist(node_history_id)
+
+    def get_node_histories(
+        self, workflow_history: AutomationWorkflowHistory
+    ) -> QuerySet[AutomationNodeHistory]:
+        """Returns a queryset of AutomationNodeHistory by the workflow history."""
+
+        return (
+            AutomationNodeHistory.objects.filter(workflow_history=workflow_history)
+            .select_related("node", "node__workflow")
+            .prefetch_related(
+                Prefetch(
+                    "node_results",
+                    queryset=AutomationNodeResult.objects.only(
+                        "id", "node_history_id", "iteration_path"
+                    ),
+                )
+            )
+            .order_by("started_on", "id")
+        )
+
+    def get_node_history_result(
+        self, node_history: AutomationNodeHistory
+    ) -> AutomationNodeResult:
+        """Returns the AutomationNodeResult for the given node history."""
+
+        try:
+            return AutomationNodeResult.objects.only("result").get(
+                node_history=node_history
+            )
+        except AutomationNodeResult.DoesNotExist:
+            raise AutomationWorkflowHistoryNodeResultDoesNotExist()
+
+    def get_edge_labels(
+        self, node_histories: List[AutomationNodeHistory]
+    ) -> Dict[int, str]:
+        """
+        For each node history whose result has an edge label, return a
+        mapping of `node_history_id -> label` of the edge taken.
+        """
+
+        if not node_histories:
+            return {}
+
+        results = AutomationNodeResult.objects.filter(
+            node_history_id__in=[nh.id for nh in node_histories],
+        ).only("node_history_id", "result")
+
+        return {
+            nr.node_history_id: label
+            for nr in results
+            if (label := nr.result.get("edge", {}).get("label"))
+        }

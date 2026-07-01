@@ -171,6 +171,42 @@ def test_job_cancel_before_run(data_fixture, test_thread, mutable_job_type_regis
 
 
 @pytest.mark.django_db(transaction=True)
+def test_job_cancel_before_run_calls_on_cancelled(
+    data_fixture, mutable_job_type_registry
+):
+    on_cancelled_called = threading.Event()
+    cancelled_job_ids = []
+
+    class IdlingJobType(JobType):
+        type = "idling_job_pre_cancel_cleanup"
+        model_class = Job
+        max_count = 1
+
+        def run(self, job, progress):
+            pytest.fail("The job should not run after being cancelled.")
+
+        def on_cancelled(self, job):
+            cancelled_job_ids.append(job.id)
+            on_cancelled_called.set()
+
+    jh = JobHandler()
+    mutable_job_type_registry.register(IdlingJobType())
+
+    user = data_fixture.create_user()
+    with patch("baserow.core.jobs.tasks.run_async_job.delay"):
+        job = jh.create_and_start_job(user, IdlingJobType.type, sync=False)
+
+    jh.cancel_job(job)
+
+    run_async_job(job.id)
+
+    assert on_cancelled_called.is_set()
+    assert cancelled_job_ids == [job.id]
+    job.refresh_from_db()
+    assert job.cancelled
+
+
+@pytest.mark.django_db(transaction=True)
 @pytest.mark.flaky(retries=3, delay=1)
 def test_job_cancel_when_running(data_fixture, test_thread, mutable_job_type_registry):
     # marker that the job started

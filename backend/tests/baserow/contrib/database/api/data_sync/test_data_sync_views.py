@@ -217,6 +217,8 @@ def test_create_data_sync(data_fixture, api_client):
         "data_sync": {
             "id": data_sync.id,
             "type": "ical_calendar",
+            "table_id": data_sync.table_id,
+            "database_id": data_sync.table.database_id,
             "auto_add_new_properties": False,
             "two_way_sync": False,
             "synced_properties": [
@@ -294,6 +296,8 @@ def test_create_data_sync_with_auto_add_new_properties(data_fixture, api_client)
         "data_sync": {
             "id": data_sync.id,
             "type": "ical_calendar",
+            "table_id": data_sync.table_id,
+            "database_id": data_sync.table.database_id,
             "auto_add_new_properties": True,
             "two_way_sync": False,
             "synced_properties": [
@@ -517,6 +521,8 @@ def test_update_data_sync_not_providing_anything(data_fixture, api_client):
     assert response_json == {
         "id": data_sync.id,
         "type": "ical_calendar",
+        "table_id": data_sync.table_id,
+        "database_id": data_sync.table.database_id,
         "auto_add_new_properties": False,
         "two_way_sync": False,
         "synced_properties": [
@@ -565,6 +571,8 @@ def test_update_data_sync(data_fixture, api_client):
     assert response.json() == {
         "id": data_sync.id,
         "type": "ical_calendar",
+        "table_id": data_sync.table_id,
+        "database_id": data_sync.table.database_id,
         "auto_add_new_properties": False,
         "two_way_sync": False,
         "synced_properties": [
@@ -1324,6 +1332,8 @@ def test_get_data_sync(data_fixture, api_client):
     assert response_json == {
         "id": data_sync.id,
         "type": "ical_calendar",
+        "table_id": data_sync.table_id,
+        "database_id": data_sync.table.database_id,
         "auto_add_new_properties": False,
         "two_way_sync": False,
         "synced_properties": [

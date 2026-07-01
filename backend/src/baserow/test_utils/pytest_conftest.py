@@ -13,10 +13,12 @@ from typing import Any, AsyncGenerator, Dict, List, Optional
 from unittest.mock import patch
 
 from django.conf import settings as django_settings
+from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.core.management import call_command
 from django.db import DEFAULT_DB_ALIAS, OperationalError, connection, transaction
 from django.db.migrations.executor import MigrationExecutor
+from django.db.models.options import Options
 from django.test.utils import CaptureQueriesContext
 
 import pytest
@@ -165,6 +167,14 @@ def clear_cache():
 
     _generate_search_table_model.cache_clear()
     _workspace_search_table_exists.cache_clear()
+
+    # baserow.contrib.database.apps pins User._meta._expire_cache to a no-op
+    # for prod safety, but in tests that causes generated-table reverse FKs
+    # (LastModifiedBy/CreatedBy/Collaborators -> User, on_delete=SET_NULL) to
+    # leak into User._meta._relation_tree across tests in the same xdist
+    # worker. A later user.delete() then UPDATEs dropped database_table_* rows.
+    # Call the original class-level _expire_cache, bypassing the instance patch.
+    Options._expire_cache(get_user_model()._meta)
 
     # Thread-local cache
     with local_cache.context():
@@ -370,6 +380,39 @@ def mutable_builder_workflow_action_registry():
     yield builder_workflow_action_type_registry
     builder_workflow_action_type_registry.get_for_class.cache_clear()
     builder_workflow_action_type_registry.registry = before
+
+
+@pytest.fixture()
+def mutable_automation_node_type_registry():
+    from baserow.contrib.automation.nodes.registries import (
+        automation_node_type_registry,
+    )
+
+    before = automation_node_type_registry.registry.copy()
+    automation_node_type_registry.get_for_class.cache_clear()
+    yield automation_node_type_registry
+    automation_node_type_registry.get_for_class.cache_clear()
+    automation_node_type_registry.registry = before
+
+
+@pytest.fixture()
+def mutable_service_type_registry():
+    from baserow.core.services.registries import service_type_registry
+
+    before = service_type_registry.registry.copy()
+    service_type_registry.get_for_class.cache_clear()
+    yield service_type_registry
+    service_type_registry.get_for_class.cache_clear()
+    service_type_registry.registry = before
+
+
+@pytest.fixture()
+def mutable_code_runner_type_registry():
+    from baserow.core.code_runner.registries import code_runner_type_registry
+
+    before = code_runner_type_registry.registry.copy()
+    yield code_runner_type_registry
+    code_runner_type_registry.registry = before
 
 
 @pytest.fixture()
@@ -943,6 +986,11 @@ class FakeDispatchContext(DispatchContext):
         "_searchable_fields",
         "_search_query",
         "_count",
+        "_is_publicly_searchable",
+        "_is_publicly_filterable",
+        "_is_publicly_sortable",
+        "_filters",
+        "_sortings",
     ]
 
     def __init__(self, **kwargs):
@@ -952,13 +1000,18 @@ class FakeDispatchContext(DispatchContext):
         self._searchable_fields = kwargs.pop("searchable_fields", [])
         self._search_query = kwargs.pop("search_query", None)
         self._count = kwargs.pop("count", 100)
+        self._is_publicly_searchable = kwargs.pop("is_publicly_searchable", True)
+        self._is_publicly_filterable = kwargs.pop("is_publicly_filterable", True)
+        self._is_publicly_sortable = kwargs.pop("is_publicly_sortable", True)
+        self._filters = kwargs.pop("filters", None)
+        self._sortings = kwargs.pop("sortings", None)
 
         for key, value in kwargs.items():
             setattr(self, key, value)
 
     @property
     def is_publicly_searchable(self):
-        return True
+        return self._is_publicly_searchable
 
     def search_query(self):
         return self._search_query
@@ -968,17 +1021,17 @@ class FakeDispatchContext(DispatchContext):
 
     @property
     def is_publicly_filterable(self):
-        return True
+        return self._is_publicly_filterable
 
     def filters(self):
-        return None
+        return self._filters
 
     @property
     def is_publicly_sortable(self):
-        return True
+        return self._is_publicly_sortable
 
     def sortings(self):
-        return None
+        return self._sortings
 
     def range(self, service):
         return [0, self._count]
@@ -1097,12 +1150,17 @@ def baserow_db_setup(django_db_setup, django_db_blocker):
         with connection.cursor() as cursor:
             cursor.execute(f"CREATE SEQUENCE IF NOT EXISTS {sequence_name};")
 
-    all_formula_functions = "\n".join(iter_formula_pgsql_functions())
     with django_db_blocker.unblock():
-        with connection.cursor() as cursor:
-            cursor.execute(all_formula_functions)
+        with transaction.atomic():
+            with connection.cursor() as cursor:
+                # In CI, multiple pytest-xdist workers can run this session fixture
+                # against the same database. PostgreSQL function creation is not
+                # concurrency-safe when two workers create the same missing
+                # signature, even with CREATE OR REPLACE.
+                cursor.execute("SELECT pg_advisory_xact_lock(20240503, 1103);")
+                cursor.execute("\n".join(iter_formula_pgsql_functions()))
 
-        init_link_row_sequence()
+            init_link_row_sequence()
 
 
 @pytest.fixture()

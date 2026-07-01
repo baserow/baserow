@@ -1,7 +1,7 @@
 import DataSourceService from '@baserow/modules/builder/services/dataSource'
 import PublishedBuilderService from '@baserow/modules/builder/services/publishedBuilder'
 
-const state = {}
+const state = () => ({})
 
 const updateContext = {
   updateTimeout: null,
@@ -109,6 +109,9 @@ const actions = {
     )
 
     await dispatch('forceCreate', { page, dataSource, beforeId })
+    await dispatch('application/refreshPermissions', page.builder_id, {
+      root: true,
+    })
     commit('SET_LOADING', { page, value: false })
 
     return dataSource

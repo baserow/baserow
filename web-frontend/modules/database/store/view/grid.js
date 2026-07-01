@@ -2,6 +2,13 @@ import axios from 'axios'
 import _ from 'lodash'
 import BigNumber from 'bignumber.js'
 import { createNewUndoRedoActionGroupId } from '@baserow/modules/database/utils/action'
+import {
+  createRowLifecycleContext,
+  handleRowCreated,
+  handleRowDeleted,
+  handleRowUpdated,
+  reapplyMatchFlags,
+} from '@baserow/modules/database/utils/rowLifecycle'
 
 import { uuid } from '@baserow/modules/core/utils/string'
 import { clone } from '@baserow/modules/core/utils/object'
@@ -18,6 +25,7 @@ import {
   getGroupBy,
   getOrderBy,
   canRowsBeOptimisticallyUpdatedInView,
+  viewHasRulesThatCanMoveOrHideRows,
 } from '@baserow/modules/database/utils/view'
 import { RefreshCancelledError } from '@baserow/modules/core/errors'
 import {
@@ -26,6 +34,9 @@ import {
   updateRowMetadataType,
   getRowMetadata,
   extractChangedFields,
+  buildNewRowDefaults,
+  computeRowMatchFlags,
+  computeRowInsertPosition,
 } from '@baserow/modules/database/utils/row'
 import { getDefaultSearchModeFromEnv } from '@baserow/modules/database/utils/search'
 import { fieldValuesAreEqualInObjects } from '@baserow/modules/database/utils/groupBy'
@@ -1129,6 +1140,7 @@ export const actions = {
     })
     commit('REPLACE_ALL_FIELD_OPTIONS', data.field_options)
     commit('SET_GROUP_BY_METADATA', data.group_by_metadata || {})
+
     dispatch('updateSearch', { fields })
   },
   /**
@@ -1215,6 +1227,7 @@ export const actions = {
           bufferLimit: data.results.length,
         })
         commit('SET_GROUP_BY_METADATA', data.group_by_metadata || {})
+
         dispatch('updateSearch', { fields })
         if (includeFieldOptions) {
           if (rootGetters['page/view/public/getIsPublic']) {
@@ -2074,47 +2087,11 @@ export const actions = {
       `table_${table.id}`
     )
     const taskId = taskQueue.add(async () => {
-      // Create an object of default field values that can be used to fill the row. If
-      // the view has default row values configured, those take precedence over the
-      // field type's default value.
-      const defaultItems = view.default_row_values
-      const defaultsByFieldId = {}
-      for (const item of defaultItems) {
-        if (item.enabled && (item.value != null || item.function)) {
-          defaultsByFieldId[item.field] = item
-        }
-      }
-      const fieldNewRowValueMap = fields.reduce((map, field) => {
-        const name = `field_${field.id}`
-        const fieldType = $registry.get('field', field._.type.type)
-        const defaultViewItem = defaultsByFieldId[field.id]
-        const supportedFunctions = fieldType
-          .getSupportedDefaultValueFunctions()
-          .map((f) => f.name)
-        if (
-          defaultViewItem &&
-          defaultViewItem.function &&
-          supportedFunctions.includes(defaultViewItem.function)
-        ) {
-          map[name] = fieldType.resolveDefaultValueFunction(
-            defaultViewItem.function,
-            field
-          )
-        } else if (
-          defaultViewItem &&
-          defaultViewItem.value != null &&
-          (!defaultViewItem.field_type ||
-            defaultViewItem.field_type === field._.type.type)
-        ) {
-          map[name] = fieldType.parseDefaultRowValue(
-            field,
-            defaultViewItem.value
-          )
-        } else {
-          map[name] = fieldType.getNewRowValue(field)
-        }
-        return map
-      }, {})
+      const fieldNewRowValueMap = buildNewRowDefaults({
+        view,
+        fields,
+        registry: $registry,
+      })
 
       const step = before ? ORDER_STEP_BEFORE : ORDER_STEP
 
@@ -2237,6 +2214,18 @@ export const actions = {
         })
       }
 
+      if (
+        canUpdateOptimistically &&
+        isSingleRowInsertion &&
+        viewHasRulesThatCanMoveOrHideRows(view, getters.getActiveSearchTerm)
+      ) {
+        await dispatch('onRowChange', {
+          view,
+          row: rowsPopulated[0],
+          fields,
+        })
+      }
+
       // The backend expects slightly different values than what we have in the row
       // buffer. Therefore, we need to prepare the rows before we can send them to the
       // backend.
@@ -2296,20 +2285,18 @@ export const actions = {
           }
           dispatch('onRowChange', { view, row, fields })
           const rowId = row.id
-          setTimeout(() => {
-            // Get the latest row so that any changes that might have been made in the
-            // meantime are included. This is needed to pass the correct row into the
-            // `refreshRow` that shows/hide the row.
-            const row = getters.getRow(rowId)
-            if (row && !row._.selected) {
-              dispatch('refreshRow', {
-                grid: view,
-                row,
-                fields,
-                isRowOpenedInModal,
-              })
-            }
-          }, REFRESH_ROW_DELAY)
+          // Get the latest row so that any changes that might have been made in the
+          // meantime are included. This is needed to pass the correct row into the
+          // `refreshRow` that shows/hide the row.
+          const latestRow = getters.getRow(rowId)
+          if (latestRow && !latestRow._.selected) {
+            dispatch('refreshRow', {
+              grid: view,
+              row: latestRow,
+              fields,
+              isRowOpenedInModal,
+            })
+          }
         }
 
         await dispatch('fetchAllFieldAggregationData', {
@@ -2364,67 +2351,65 @@ export const actions = {
     { commit, getters, dispatch },
     { view, fields, values, metadata, populate = true }
   ) {
-    const { $registry, $client, $i18n, $config } = this
+    if (getters.getRowIndexById(values.id) !== -1) {
+      return
+    }
+
+    const { $registry } = this
     const row = clone(values)
 
     if (populate) {
       populateRow(row, metadata)
     }
 
-    // Check if the row belongs into the current view by checking if it matches the
-    // filters and search.
-    await dispatch('updateMatchFilters', { view, row, fields })
+    // The lifecycle helper only evaluates filters/sortings, so the search match
+    // is still gated here against the active search term.
     await dispatch('updateSearchMatchesForRow', { row, fields })
-
-    // If the row does not match the filters or the search then we don't have to add
-    // it at all.
-    if (!row._.matchFilters || !row._.matchSearch) {
+    if (!row._.matchSearch) {
       return
     }
 
-    // Update the group by metadata if needed.
-    commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-      fields,
-      registry: $registry,
+    handleRowCreated({
+      context: createRowLifecycleContext({
+        registry: $registry,
+        view,
+        fields,
+        groupBys: view.group_bys,
+      }),
+      mutations: {
+        insertAtPosition: (insertedRow, { sortedIndex, isFirst, isLast }) => {
+          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+            fields,
+            registry: $registry,
+            row: insertedRow,
+            increase: true,
+            decrease: false,
+          })
+
+          const inBuffer =
+            (isFirst && getters.getBufferStartIndex === 0) ||
+            (isLast && getters.getBufferEndIndex === getters.getCount) ||
+            (!isFirst && !isLast)
+          if (inBuffer) {
+            commit('INSERT_NEW_ROWS_IN_BUFFER_AT_INDEX', {
+              rows: [insertedRow],
+              index: sortedIndex,
+            })
+          } else {
+            if (isFirst) {
+              commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex + 1)
+            }
+            commit('SET_COUNT', getters.getCount + 1)
+          }
+        },
+        applyMatchFlags: (rowId, { matchFilters, matchSortings }) => {
+          commit('SET_ROW_MATCH_FILTERS', { row, value: matchFilters })
+          commit('SET_ROW_MATCH_SORTINGS', { row, value: matchSortings })
+        },
+        rowsForMatchCheck: () => getters.getAllRows,
+      },
       row,
-      increase: true,
-      decrease: false,
     })
-
-    // Now that we know that the row applies to the filters, which means it belongs
-    // in this view, we need to estimate what position it has in the table.
-    const allRowsCopy = clone(getters.getAllRows)
-    allRowsCopy.push(row)
-    const sortFunction = getRowSortFunction(
-      $registry,
-      view.sortings,
-      fields,
-      view.group_bys
-    )
-    allRowsCopy.sort(sortFunction)
-    const index = allRowsCopy.findIndex((r) => r.id === row.id)
-
-    const isFirst = index === 0
-    const isLast = index === allRowsCopy.length - 1
-
-    if (
-      // All of these scenario's mean that the row belongs in the buffer that
-      // we have loaded currently.
-      (isFirst && getters.getBufferStartIndex === 0) ||
-      (isLast && getters.getBufferEndIndex === getters.getCount) ||
-      (index > 0 && index < allRowsCopy.length - 1)
-    ) {
-      commit('INSERT_NEW_ROWS_IN_BUFFER_AT_INDEX', { rows: [row], index })
-    } else {
-      if (isFirst) {
-        // Because the row has been added before the our buffer, we need know that the
-        // buffer start index has increased by one.
-        commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex + 1)
-      }
-      // The row has been added outside of the buffer, so we can safely increase the
-      // count.
-      commit('SET_COUNT', getters.getCount + 1)
-    }
   },
   /**
    * Moves an existing row to the position before the provided before row. It will
@@ -2534,12 +2519,26 @@ export const actions = {
     }
   ) {
     const { $registry, $client, $i18n, $config } = this
-    // Add the update actual update function to the queue so that the same row
-    // will never be updated concurrency, and so that the value won't be
-    // updated if the row hasn't been created yet
     const taskQueue = createAndUpdateRowQueue.getOrCreateQueue(
       `table_${table.id}`
     )
+
+    // Apply the changed field value immediately so the UI reflects the user's
+    // input even when a pending create is holding the persistentId lock.
+    // The PATCH and all other side-effects still run inside the task queue.
+    if (
+      canRowsBeOptimisticallyUpdatedInView(
+        $registry,
+        view,
+        fields,
+        getters.getActiveSearchTerm
+      )
+    ) {
+      const storeRow = getters.getRow(row.id)
+      if (storeRow !== undefined) {
+        commit('UPDATE_ROW_FIELD_VALUE', { row: storeRow, field, value })
+      }
+    }
 
     const taskId = taskQueue.add(async () => {
       /**
@@ -2553,27 +2552,11 @@ export const actions = {
           // If the row exists in the buffer, we can visually show to the user that
           // the values have changed, without immediately reflecting the change in
           // the buffer.
-          if (optimisticUpdate) {
-            commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-              fields,
-              registry: $registry,
-              row,
-              increase: false,
-              decrease: true,
-            })
-          }
           commit('UPDATE_ROW_VALUES', {
             row,
             values: { ...values },
           })
           if (optimisticUpdate) {
-            commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-              fields,
-              registry: $registry,
-              row,
-              increase: true,
-              decrease: false,
-            })
             await dispatch('onRowChange', { view, row, fields })
           }
         } else {
@@ -2612,6 +2595,8 @@ export const actions = {
         fields,
         getters.getActiveSearchTerm
       )
+      const hasViewRulesThatCanMoveOrHideRows =
+        viewHasRulesThatCanMoveOrHideRows(view, getters.getActiveSearchTerm)
       if (!canUpdateOptimistically) {
         commit('SET_ROW_LOADING', { row, value: true })
       }
@@ -2663,9 +2648,13 @@ export const actions = {
           // If we can't optimistically update the row, refresh it to stop the loading
           // state, show proper messages, and update its position and state. Also, if the
           // backend changed other fields, we should refresh sorting/search/filtering.
-          if (!canUpdateOptimistically || otherFieldsChangedInBackend) {
+          if (
+            !canUpdateOptimistically ||
+            otherFieldsChangedInBackend ||
+            hasViewRulesThatCanMoveOrHideRows
+          ) {
             commit('SET_ROW_LOADING', { row: existing, value: false })
-            setTimeout(() => {
+            const refreshUnselectedRow = () => {
               // Get the latest row so that updated `readOnlyData` values are included,
               // and any other changes that might have been made in the meantime. This is
               // needed to pass the correct row into the `refreshRow` that shows/hide the
@@ -2679,7 +2668,13 @@ export const actions = {
                   isRowOpenedInModal,
                 })
               }
-            }, REFRESH_ROW_DELAY)
+            }
+
+            if (hasViewRulesThatCanMoveOrHideRows) {
+              refreshUnselectedRow()
+            } else {
+              setTimeout(refreshUnselectedRow, REFRESH_ROW_DELAY)
+            }
           }
         }
         dispatch('fetchAllFieldAggregationData', {
@@ -2690,6 +2685,15 @@ export const actions = {
           commit('SET_ROW_LOADING', { row, value: false })
         }
         await updateValues(row, oldRowValues, true)
+        const latestRow = getters.getRow(row.id)
+        if (latestRow && hasViewRulesThatCanMoveOrHideRows) {
+          await dispatch('refreshRow', {
+            grid: view,
+            row: latestRow,
+            fields,
+            isRowOpenedInModal,
+          })
+        }
         throw error
       }
     }, row._.persistentId)
@@ -2959,7 +2963,6 @@ export const actions = {
         selectPrimaryCell: false,
         undoRedoActionGroupId,
       })
-      rowTailIndex = rowTailIndex + newRowsCount
     }
     // Loop over the old rows, find the matching updated row and update them in the
     // buffer accordingly.
@@ -2995,72 +2998,136 @@ export const actions = {
     { commit, getters, dispatch },
     { view, fields, row, values, metadata, updatedFieldIds = [] }
   ) {
-    const { $registry, $client, $i18n, $config } = this
+    const { $registry } = this
     const oldRow = clone(row)
     const newRow = Object.assign(clone(row), values)
     populateRow(oldRow, metadata)
     populateRow(newRow, metadata)
 
-    await dispatch('updateMatchFilters', { view, row: oldRow, fields })
+    // The lifecycle helper only evaluates filters/sortings, so the search match
+    // is still gated here against the active search term. A row that fails the
+    // active search is effectively out of the view regardless of its filters.
     await dispatch('updateSearchMatchesForRow', { row: oldRow, fields })
-
-    await dispatch('updateMatchFilters', { view, row: newRow, fields })
     await dispatch('updateSearchMatchesForRow', { row: newRow, fields })
 
-    const oldRowExists = oldRow._.matchFilters && oldRow._.matchSearch
-    const newRowExists = newRow._.matchFilters && newRow._.matchSearch
+    const oldMatchesSearch = oldRow._.matchSearch
+    const newMatchesSearch = newRow._.matchSearch
+    const oldFlags = computeRowMatchFlags({
+      row: oldRow,
+      view,
+      fields,
+      registry: $registry,
+      rowsInSortingGroup: getters.getAllRows,
+      groupBys: view.group_bys,
+    })
+    const rowsExcludingNew = getters.getAllRows.filter(
+      (r) => r.id !== newRow.id
+    )
+    const newFlags = computeRowMatchFlags({
+      row: newRow,
+      view,
+      fields,
+      registry: $registry,
+      rowsInSortingGroup: rowsExcludingNew,
+      groupBys: view.group_bys,
+    })
+    const oldRowExists = oldMatchesSearch && oldFlags.matchFilters
+    const newRowExists = newMatchesSearch && newFlags.matchFilters
 
+    if (!oldRowExists && !newRowExists) {
+      return
+    }
+
+    // When the row crosses the view boundary, delegate to the create/delete paths
+    // so filter/search checks and group-by metadata updates stay aligned.
     if (oldRowExists && !newRowExists) {
-      await dispatch('deletedExistingRow', {
-        view,
-        fields,
-        row,
-      })
-    } else if (!oldRowExists && newRowExists) {
+      await dispatch('deletedExistingRow', { view, fields, row })
+      return
+    }
+    if (!oldRowExists && newRowExists) {
       await dispatch('createdNewRow', {
         view,
         fields,
         values: newRow,
         metadata,
       })
-    } else if (oldRowExists && newRowExists) {
-      // Instead of implementing a metadata updated mutation, we can easily just
-      // call the deleted and created mutation because that will have the same effect.
-      commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-        fields,
-        registry: $registry,
-        row: oldRow,
-        increase: false,
-        decrease: true,
-      })
-      commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-        fields,
-        registry: $registry,
-        row: newRow,
-        increase: true,
-        decrease: false,
-      })
+      return
+    }
 
-      // If the new order already exists in the buffer and is not the row that has
-      // been updated, we need to decrease all the other orders, otherwise we could
-      // have duplicate orders.
-      if (
-        getters.getAllRows.findIndex(
-          (r) => r.id !== newRow.id && r.order === newRow.order
-        ) > -1
-      ) {
-        commit('DECREASE_ORDERS_IN_BUFFER_LOWER_THAN', newRow.order)
+    commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+      fields,
+      registry: $registry,
+      row: oldRow,
+      increase: false,
+      decrease: true,
+    })
+    commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+      fields,
+      registry: $registry,
+      row: newRow,
+      increase: true,
+      decrease: false,
+    })
+
+    if (
+      getters.getAllRows.findIndex(
+        (r) => r.id !== newRow.id && r.order === newRow.order
+      ) > -1
+    ) {
+      commit('DECREASE_ORDERS_IN_BUFFER_LOWER_THAN', newRow.order)
+    }
+
+    const insertAtPosition = (
+      insertedRow,
+      { sortedIndex, isFirst, isLast }
+    ) => {
+      const inBuffer =
+        (isFirst && getters.getBufferStartIndex === 0) ||
+        (isLast && getters.getBufferEndIndex === getters.getCount) ||
+        (!isFirst && !isLast)
+      if (inBuffer) {
+        commit('INSERT_NEW_ROWS_IN_BUFFER_AT_INDEX', {
+          rows: [insertedRow],
+          index: sortedIndex,
+        })
+      } else {
+        if (isFirst) {
+          commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex + 1)
+        }
+        commit('SET_COUNT', getters.getCount + 1)
       }
+    }
 
-      // Figure out if the row is currently in the buffer.
-      const sortFunction = getRowSortFunction(
-        $registry,
+    const remove = (rowId) => {
+      const allRows = getters.getAllRows
+      const idx = allRows.findIndex((r) => r.id === rowId)
+      if (idx >= 0) {
+        commit('DELETE_ROW_IN_BUFFER', row)
+        dispatch('correctMultiSelect')
+        return
+      }
+      const position = computeRowInsertPosition(
+        oldRow,
+        allRows,
         view.sortings,
         fields,
+        $registry,
         view.group_bys
       )
+      if (position.isFirst) {
+        commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex - 1)
+      }
+      commit('SET_COUNT', getters.getCount - 1)
+      dispatch('correctMultiSelect')
+    }
+
+    const replaceAtPosition = (
+      rowId,
+      newRowValues,
+      { sortedIndex, isFirst, isLast }
+    ) => {
       const allRows = getters.getAllRows
-      const index = allRows.findIndex((r) => r.id === row.id)
+      const index = allRows.findIndex((r) => r.id === rowId)
       const oldIsFirst = index === 0
       const oldIsLast = index === allRows.length - 1
       const oldRowInBuffer =
@@ -3069,52 +3136,34 @@ export const actions = {
         (index > 0 && index < allRows.length - 1)
 
       if (oldRowInBuffer) {
-        // If the old row is inside the buffer at a known position.
         commit('UPDATE_ROW_IN_BUFFER', { row, values, metadata })
         commit('SET_BUFFER_LIMIT', getters.getBufferLimit - 1)
-      } else if (oldIsFirst) {
-        // If the old row exists in the buffer, but is at the before position.
-        commit('DELETE_ROW_IN_BUFFER_WITHOUT_UPDATE', row)
-        commit('SET_BUFFER_LIMIT', getters.getBufferLimit - 1)
-      } else if (oldIsLast) {
-        // If the old row exists in the buffer, bit is at the after position.
+      } else if (oldIsFirst || oldIsLast) {
         commit('DELETE_ROW_IN_BUFFER_WITHOUT_UPDATE', row)
         commit('SET_BUFFER_LIMIT', getters.getBufferLimit - 1)
       } else {
-        // The row does not exist in the buffer, so we need to check if it is before
-        // or after the buffer.
-        const allRowsCopy = clone(getters.getAllRows)
-        const oldRowIndex = allRowsCopy.findIndex((r) => r.id === oldRow.id)
-        if (oldRowIndex > -1) {
-          allRowsCopy.splice(oldRowIndex, 1)
-        }
-        allRowsCopy.push(oldRow)
-        allRowsCopy.sort(sortFunction)
-        const oldIndex = allRowsCopy.findIndex((r) => r.id === newRow.id)
-        if (oldIndex === 0) {
-          // If the old row is before the buffer.
+        const oldPosition = computeRowInsertPosition(
+          oldRow,
+          allRows.filter((r) => r.id !== oldRow.id),
+          view.sortings,
+          fields,
+          $registry,
+          view.group_bys
+        )
+        if (oldPosition.isFirst) {
           commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex - 1)
         }
       }
 
-      // Calculate what the new index should be.
-      const allRowsCopy = clone(getters.getAllRows)
-      const oldRowIndex = allRowsCopy.findIndex((r) => r.id === oldRow.id)
-      if (oldRowIndex > -1) {
-        allRowsCopy.splice(oldRowIndex, 1)
-      }
-      allRowsCopy.push(newRow)
-      allRowsCopy.sort(sortFunction)
-      const newIndex = allRowsCopy.findIndex((r) => r.id === newRow.id)
-      const newIsFirst = newIndex === 0
-      const newIsLast = newIndex === allRowsCopy.length - 1
+      const newIndex = sortedIndex
+      const newIsFirst = isFirst
+      const newIsLast = isLast
       const newRowInBuffer =
         (newIsFirst && getters.getBufferStartIndex === 0) ||
         (newIsLast && getters.getBufferEndIndex === getters.getCount - 1) ||
-        (newIndex > 0 && newIndex < allRowsCopy.length - 1)
+        (!newIsFirst && !newIsLast)
 
       if (oldRowInBuffer && newRowInBuffer) {
-        // If the old row and the new row are in the buffer.
         if (index !== newIndex) {
           commit('MOVE_EXISTING_ROW_IN_BUFFER', {
             row: oldRow,
@@ -3123,47 +3172,68 @@ export const actions = {
         }
         commit('SET_BUFFER_LIMIT', getters.getBufferLimit + 1)
       } else if (newRowInBuffer) {
-        // If the new row should be in the buffer, but wasn't.
         commit('INSERT_EXISTING_ROW_IN_BUFFER_AT_INDEX', {
-          row: newRow,
+          row: newRowValues,
           index: newIndex,
         })
         commit('SET_BUFFER_LIMIT', getters.getBufferLimit + 1)
       } else if (newIsFirst) {
-        // If the new row is before the buffer.
         commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex + 1)
       }
 
-      // Remove every pending AI field if a value is provided for it. This will make
-      // sure the loading state will stop if the value is updated. This is done even
-      // if the row is not found in the buffer because it could have been removed from
-      // the buffer when scrolling outside the buffer range.
-      const getFieldId = (key) => parseInt(key.split('_')[1])
-      const fieldIdsToClearPendingOperationsFor = Object.entries(values)
-        .filter(
-          ([key, value]) =>
-            key.startsWith('field_') &&
-            // Either the value has changed.
-            (_.isEqual(value, oldRow[key]) ||
-              // Or the backend has just recalculated the value, even if it hasn't
-              // actually changed.
-              updatedFieldIds.includes(getFieldId(key)))
-        )
-        .map(([key, value]) => getFieldId(key))
-
-      commit('CLEAR_PENDING_FIELD_OPERATIONS', {
-        fieldIds: fieldIdsToClearPendingOperationsFor,
-        rowId: row.id,
-      })
-
-      // If the row as in the old buffer, but ended up at the first/before or
-      // last/after position. This means that we can't know for sure the row should
-      // be in the buffer, so it is removed from it.
       if (oldRowInBuffer && !newRowInBuffer && (newIsFirst || newIsLast)) {
         commit('DELETE_ROW_IN_BUFFER_WITHOUT_UPDATE', row)
       }
-      await dispatch('correctMultiSelect')
+      dispatch('correctMultiSelect')
     }
+
+    const applyMatchFlags = (rowId, { matchFilters, matchSortings }) => {
+      const targetRow = getters.getAllRows.find((row) => row.id === rowId)
+      if (!targetRow?._) {
+        return
+      }
+
+      commit('SET_ROW_MATCH_FILTERS', { row: targetRow, value: matchFilters })
+      commit('SET_ROW_MATCH_SORTINGS', {
+        row: targetRow,
+        value: matchSortings,
+      })
+    }
+
+    const rowsForMatchCheck = () => getters.getAllRows
+
+    handleRowUpdated({
+      context: createRowLifecycleContext({
+        registry: $registry,
+        view,
+        fields,
+        groupBys: view.group_bys,
+      }),
+      mutations: {
+        insertAtPosition,
+        remove,
+        replaceAtPosition,
+        applyMatchFlags,
+        rowsForMatchCheck,
+      },
+      oldRow,
+      newRow,
+    })
+
+    const getFieldId = (key) => parseInt(key.split('_')[1])
+    const fieldIdsToClearPendingOperationsFor = Object.entries(values)
+      .filter(
+        ([key, value]) =>
+          key.startsWith('field_') &&
+          (_.isEqual(value, oldRow[key]) ||
+            updatedFieldIds.includes(getFieldId(key)))
+      )
+      .map(([key, value]) => getFieldId(key))
+
+    commit('CLEAR_PENDING_FIELD_OPERATIONS', {
+      fieldIds: fieldIdsToClearPendingOperationsFor,
+      rowId: row.id,
+    })
   },
   /**
    * Called when the user wants to delete an existing row in the table.
@@ -3254,94 +3324,89 @@ export const actions = {
     { commit, getters, dispatch },
     { view, fields, row }
   ) {
-    const { $registry, $client, $i18n, $config } = this
+    const { $registry } = this
     row = clone(row)
     populateRow(row)
 
-    // Check if that row was visible in the view.
-    await dispatch('updateMatchFilters', { view, row, fields })
+    // The lifecycle helper only evaluates filters/sortings, so the search match
+    // is still gated here against the active search term.
     await dispatch('updateSearchMatchesForRow', { row, fields })
-
-    // If the row does not match the filters or the search then did not exist in the
-    // view, so we don't have to do anything.
-    if (!row._.matchFilters || !row._.matchSearch) {
+    if (!row._.matchSearch) {
       return
     }
 
-    // Decrease the count in the group by metadata if an entry exists.
-    commit('UPDATE_GROUP_BY_METADATA_COUNT', {
-      fields,
-      registry: $registry,
+    handleRowDeleted({
+      context: createRowLifecycleContext({
+        registry: $registry,
+        view,
+        fields,
+        groupBys: view.group_bys,
+      }),
+      mutations: {
+        remove: (rowId) => {
+          commit('UPDATE_GROUP_BY_METADATA_COUNT', {
+            fields,
+            registry: $registry,
+            row,
+            increase: false,
+            decrease: true,
+          })
+
+          const allRows = getters.getAllRows
+          const idx = allRows.findIndex((r) => r.id === rowId)
+          if (idx >= 0) {
+            commit('DELETE_ROW_IN_BUFFER', row)
+            dispatch('correctMultiSelect')
+            return
+          }
+          const position = computeRowInsertPosition(
+            row,
+            allRows,
+            view.sortings,
+            fields,
+            $registry,
+            view.group_bys
+          )
+          if (position.isFirst) {
+            commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex - 1)
+          }
+          commit('SET_COUNT', getters.getCount - 1)
+          dispatch('correctMultiSelect')
+        },
+        rowsForMatchCheck: () => getters.getAllRows,
+      },
       row,
-      increase: false,
-      decrease: true,
     })
-
-    // Now that we know for sure that the row belongs in the view, we need to figure
-    // out if is before, inside or after the buffered results.
-    const allRowsCopy = clone(getters.getAllRows)
-    const exists = allRowsCopy.findIndex((r) => r.id === row.id) > -1
-
-    // If the row is already in the buffer, it can be removed via the
-    // `DELETE_ROW_IN_BUFFER` commit, which removes it and changes the buffer state
-    // accordingly.
-    if (exists) {
-      commit('DELETE_ROW_IN_BUFFER', row)
-      await dispatch('correctMultiSelect')
-      return
-    }
-
-    // Otherwise we have to calculate was before or after the current buffer.
-    allRowsCopy.push(row)
-    const sortFunction = getRowSortFunction(
-      $registry,
-      view.sortings,
-      fields,
-      view.group_bys
-    )
-    allRowsCopy.sort(sortFunction)
-    const index = allRowsCopy.findIndex((r) => r.id === row.id)
-
-    // If the row is at position 0, it means that the row existed before the buffer,
-    // which means the buffer start index has decreased.
-    if (index === 0) {
-      commit('SET_BUFFER_START_INDEX', getters.getBufferStartIndex - 1)
-    }
-
-    // Regardless of where the
-    commit('SET_COUNT', getters.getCount - 1)
-    await dispatch('correctMultiSelect')
   },
   /**
    * Triggered when a row has been changed, or has a pending change in the provided
    * overrides.
    */
-  onRowChange({ dispatch }, { view, row, fields, overrides = {} }) {
-    dispatch('updateMatchFilters', { view, row, fields, overrides })
-    dispatch('updateMatchSortings', { view, row, fields, overrides })
+  onRowChange(
+    { dispatch, commit, getters },
+    { view, row, fields, overrides = {} }
+  ) {
+    const lifecycleRow =
+      Object.keys(overrides).length > 0
+        ? Object.assign({}, row, overrides)
+        : row
+    reapplyMatchFlags({
+      context: createRowLifecycleContext({
+        registry: this.$registry,
+        view,
+        fields,
+        groupBys: view.group_bys,
+      }),
+      mutations: {
+        applyMatchFlags: (rowId, { matchFilters, matchSortings }) => {
+          commit('SET_ROW_MATCH_FILTERS', { row, value: matchFilters })
+          commit('SET_ROW_MATCH_SORTINGS', { row, value: matchSortings })
+        },
+        rowsForMatchCheck: () => getters.getAllRows,
+      },
+      row: lifecycleRow,
+    })
     dispatch('updateSearchMatchesForRow', { row, fields, overrides })
-  },
-  /**
-   * Checks if the given row still matches the given view filters. The row's
-   * matchFilters value is updated accordingly. It is also possible to provide some
-   * override values that not actually belong to the row to do some preliminary checks.
-   */
-  updateMatchFilters({ commit }, { view, row, fields, overrides = {} }) {
-    const values = JSON.parse(JSON.stringify(row))
-    Object.assign(values, overrides)
-
-    // The value is always valid if the filters are disabled.
-    const matches = view.filters_disabled
-      ? true
-      : matchSearchFilters(
-          this.$registry,
-          view.filter_type,
-          view.filters,
-          view.filter_groups,
-          fields,
-          values
-        )
-    commit('SET_ROW_MATCH_FILTERS', { row, value: matches })
   },
   /**
    * Changes the current search parameters if provided and optionally refreshes which
@@ -3395,30 +3460,6 @@ export const actions = {
     }
   },
   /**
-   * Checks if the given row index is still the same. The row's matchSortings value is
-   * updated accordingly. It is also possible to provide some override values that not
-   * actually belong to the row to do some preliminary checks.
-   */
-  updateMatchSortings(
-    { commit, getters },
-    { view, row, fields, overrides = {} }
-  ) {
-    const { $registry, $client, $i18n, $config } = this
-    const values = clone(row)
-    Object.assign(values, overrides)
-
-    const allRows = getters.getAllRows
-    const currentIndex = getters.getAllRows.findIndex((r) => r.id === row.id)
-    const sortedRows = clone(allRows)
-    sortedRows[currentIndex] = values
-    sortedRows.sort(
-      getRowSortFunction($registry, view.sortings, fields, view.group_bys)
-    )
-    const newIndex = sortedRows.findIndex((r) => r.id === row.id)
-
-    commit('SET_ROW_MATCH_SORTINGS', { row, value: currentIndex === newIndex })
-  },
-  /**
    * Refreshes the row in the store if the given rowId exists. If the row
    * doesn't exist in the store, nothing will happen. This method ensures that
    * the row refreshed is the one of this store, because it could be that the
@@ -3463,8 +3504,7 @@ export const actions = {
     }
   ) {
     const { $registry, $client, $i18n, $config } = this
-    const rowShouldBeHidden =
-      (!row._.matchFilters || !row._.matchSearch) && !row._.loading
+    const rowShouldBeHidden = !row._.matchFilters || !row._.matchSearch
     const openedInModal =
       isRowOpenedInModal !== undefined ? isRowOpenedInModal(row) : false
     if (row._.selectedBy.length === 0 && rowShouldBeHidden && !openedInModal) {
@@ -3864,16 +3904,16 @@ export const getters = {
   getAllFieldAggregationData(state) {
     return state.fieldAggregationData
   },
-  hasSelectedCell(state) {
-    return state.rows.some((row) => {
-      return row._.selected && row._.selectedFieldId !== -1
-    })
-  },
   getActiveGroupBys(state) {
     return state.activeGroupBys
   },
   getGroupByMetadata(state) {
     return state.groupByMetadata
+  },
+  hasSelectedCell(state) {
+    return state.rows.some((row) => {
+      return row._.selected && row._.selectedFieldId !== -1
+    })
   },
   getAdhocFiltering(state) {
     return state.adhocFiltering

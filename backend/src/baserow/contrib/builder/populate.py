@@ -14,6 +14,7 @@ from baserow.contrib.builder.pages.models import Page
 from baserow.contrib.database.fields.models import Field
 from baserow.contrib.database.table.models import Table
 from baserow.contrib.database.views.models import GridView
+from baserow.core.graph.types import GraphPointPosition
 from baserow.core.handler import CoreHandler
 from baserow.core.integrations.handler import IntegrationHandler
 from baserow.core.integrations.models import Integration
@@ -27,6 +28,24 @@ User = get_user_model()
 def load_test_data():
     fake = Faker()
     print("Add builder basic data...")
+
+    element_handler = ElementHandler()
+
+    def create_element(
+        element_type,
+        page,
+        reference_element=None,
+        position=GraphPointPosition.SOUTH,
+        place_in_container="",
+        **kwargs,
+    ):
+        element = element_handler.create_element(element_type, page, **kwargs)
+        if reference_element is None:
+            page.get_graph().append(element)
+        else:
+            output = place_in_container if position == GraphPointPosition.CHILD else ""
+            page.get_graph().insert(element, reference_element, position, output)
+        return element
 
     user = User.objects.get(email="admin@baserow.io")
     workspace = user.workspaceuser_set.get(workspace__name="Acme Corp").workspace
@@ -76,74 +95,69 @@ def load_test_data():
     except Page.DoesNotExist:
         homepage = PageHandler().create_page(builder, "Homepage", "/")
 
-        ElementHandler().create_element(
-            heading_element_type, homepage, value='"Back to local"', level=1
-        )
-        ElementHandler().create_element(
+        create_element(heading_element_type, homepage, value='"Back to local"', level=1)
+        create_element(
             heading_element_type, homepage, value='"Buy closer, Buy better"', level=2
         )
         content = "\n".join(fake.paragraphs(nb=2))
-        ElementHandler().create_element(
+        create_element(
             text_element_type,
             homepage,
             value=f'"{content}"',
         )
-        ElementHandler().create_element(
+        create_element(
             heading_element_type,
             homepage,
             value='"Give more sense to what you eat"',
             level=2,
         )
         content = "\n".join(fake.paragraphs(nb=2))
-        ElementHandler().create_element(
+        create_element(
             text_element_type,
             homepage,
             value=f'"{content}"',
         )
-
     try:
         terms = Page.objects.get(name="Terms", builder=builder)
     except Page.DoesNotExist:
         terms = PageHandler().create_page(builder, "Terms", "/terms")
 
-        ElementHandler().create_element(
-            heading_element_type, terms, value='"Terms"', level=1
-        )
-        ElementHandler().create_element(
+        create_element(heading_element_type, terms, value='"Terms"', level=1)
+        create_element(
             heading_element_type, terms, value='"Article 1. General"', level=2
         )
         content = "\n".join(fake.paragraphs(nb=3))
-        ElementHandler().create_element(
+        create_element(
             text_element_type,
             terms,
             value=f'"{content}"',
         )
-        ElementHandler().create_element(
+        create_element(
             heading_element_type,
             terms,
             value='"Article 2. Services"',
             level=2,
         )
         content = "\n".join(fake.paragraphs(nb=3))
-        ElementHandler().create_element(
+        create_element(
             text_element_type,
             terms,
             value=(f'"{content}"'),
         )
-        ElementHandler().create_element(
+        create_element(
             heading_element_type,
             terms,
             value='"Article 3. Data"',
             level=2,
         )
         content = "\n".join(fake.paragraphs(nb=3))
-        ElementHandler().create_element(
+        create_element(
             text_element_type,
             terms,
             value=(f'"{content}"'),
         )
 
-        ElementHandler().create_element(
+        create_element(
             link_element_type,
             terms,
             value='"Home"',
@@ -154,7 +168,7 @@ def load_test_data():
         )
 
         # Button for homepage
-        ElementHandler().create_element(
+        create_element(
             link_element_type,
             homepage,
             value='"See terms"',
@@ -164,7 +178,7 @@ def load_test_data():
             navigate_to_page_id=terms.id,
         )
 
-        ElementHandler().create_element(
+        create_element(
             link_element_type,
             homepage,
             value='"Visit Baserow"',
@@ -174,7 +188,6 @@ def load_test_data():
             navigate_to_url='"https://baserow.io"',
             styles={"link": {"link_text_alignment": "center"}},
         )
-
     table = Table.objects.get(
         name="Products",
         database__workspace=workspace,
@@ -216,21 +229,20 @@ def load_test_data():
             row_id='get("page_parameter.id")',
         )
 
-        ElementHandler().create_element(
+        create_element(
             heading_element_type,
             product_detail,
             value=f'get("data_source.{product_detail_data_source.id}.{field_name.db_column}")',
             level=1,
         )
 
-        ElementHandler().create_element(
+        create_element(
             text_element_type,
             product_detail,
             value=(
                 f'get("data_source.{product_detail_data_source.id}.{field_notes.db_column}")'
             ),
         )
-
     try:
         products = Page.objects.get(name="Products", builder=builder)
     except Page.DoesNotExist:
@@ -250,11 +262,9 @@ def load_test_data():
             integration=integration,
         )
 
-        ElementHandler().create_element(
-            heading_element_type, products, value='"All products"', level=1
-        )
+        create_element(heading_element_type, products, value='"All products"', level=1)
 
-        table_element = ElementHandler().create_element(
+        table_element = create_element(
             table_element_type,
             products,
             data_source=products_data_source,
@@ -311,7 +321,7 @@ def load_test_data():
         table_element.fields.all().delete()
         table_element.fields.add(*created_fields)
 
-        ElementHandler().create_element(
+        create_element(
             link_element_type,
             products,
             value='"Home"',
@@ -322,7 +332,7 @@ def load_test_data():
         )
 
         # Button back from detail page
-        ElementHandler().create_element(
+        create_element(
             link_element_type,
             product_detail,
             value='"Back to list"',
@@ -332,7 +342,7 @@ def load_test_data():
         )
 
         # Button back from detail page
-        ElementHandler().create_element(
+        create_element(
             link_element_type,
             homepage,
             value='"See product list"',
@@ -340,20 +350,23 @@ def load_test_data():
             navigation_type="page",
             navigate_to_page_id=products.id,
         )
-
     # Add shared elements
     if builder.shared_page.element_set.count() == 0:
-        header = ElementHandler().create_element(
+        header = create_element(
             header_element,
             builder.shared_page,
         )
-        column = ElementHandler().create_element(
-            column_element, builder.shared_page, parent_element_id=header.id
+        column = create_element(
+            column_element,
+            builder.shared_page,
+            reference_element=header,
+            position=GraphPointPosition.CHILD,
         )
-        ElementHandler().create_element(
+        create_element(
             link_element_type,
             builder.shared_page,
-            parent_element_id=column.id,
+            reference_element=column,
+            position=GraphPointPosition.CHILD,
             place_in_container="0",
             value='"Home"',
             variant="link",

@@ -9,6 +9,26 @@ from baserow.core.storage import get_default_storage
 from baserow.core.utils import split_comma_separated_string
 
 
+class PrefetchedManyToManyListSerializer(serializers.ListSerializer):
+    """
+    Reads a many-to-many relation straight from the instance's prefetch cache
+    instead of going through `getattr(instance, field)`, which builds a Django
+    `ManyRelatedManager` for every row. For wide tables serialized in bulk this
+    manager creation dominates the response time. Falls back to the default
+    lookup when the relation wasn't prefetched.
+
+    Use as `Meta.list_serializer_class` on a serializer used with `many=True`.
+    """
+
+    def get_attribute(self, instance):
+        prefetched = getattr(instance, "_prefetched_objects_cache", None)
+        if prefetched is not None and len(self.source_attrs) == 1:
+            cached = prefetched.get(self.source_attrs[0])
+            if cached is not None:
+                return cached
+        return super().get_attribute(instance)
+
+
 def get_example_pagination_serializer_class(
     results_serializer_class,
     additional_fields=None,

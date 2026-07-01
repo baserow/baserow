@@ -7,11 +7,14 @@ import {
 } from '@baserow/modules/automation/nodeTypeMixins'
 import {
   LocalBaserowCreateRowWorkflowServiceType,
+  LocalBaserowCreateRowsWorkflowServiceType,
   LocalBaserowUpdateRowWorkflowServiceType,
+  LocalBaserowUpdateRowsWorkflowServiceType,
   LocalBaserowDeleteRowWorkflowServiceType,
   LocalBaserowRowsCreatedTriggerServiceType,
   LocalBaserowRowsDeletedTriggerServiceType,
   LocalBaserowRowsUpdatedTriggerServiceType,
+  LocalBaserowFieldsUpdatedTriggerServiceType,
   LocalBaserowGetRowServiceType,
   LocalBaserowListRowsServiceType,
   LocalBaserowAggregateRowsServiceType,
@@ -19,11 +22,14 @@ import {
 import slackIntegration from '@baserow/modules/integrations/slack/assets/images/slack.svg?url'
 import localBaserowIntegration from '@baserow/modules/integrations/localBaserow/assets/images/localBaserowIntegration.svg?url'
 import {
+  CoreCSVFileReaderServiceType,
   CoreHTTPRequestServiceType,
   CoreRouterServiceType,
   CoreSMTPEmailServiceType,
   CoreHTTPTriggerServiceType,
   CoreIteratorServiceType,
+  CoreManualTriggerServiceType,
+  CoreStartWorkflowServiceType,
 } from '@baserow/modules/integrations/core/serviceTypes'
 import { AIAgentServiceType } from '@baserow/modules/integrations/ai/serviceTypes'
 import { uuid } from '@baserow/modules/core/utils/string'
@@ -119,6 +125,10 @@ export class NodeType extends Registerable {
     return this.serviceType.formComponent
   }
 
+  get returnsList() {
+    return Boolean(this.serviceType.returnsList)
+  }
+
   /**
    * Whether this node type can be moved around the workflow. By default,
    * all nodes can be moved. This can be overridden by the node type
@@ -144,7 +154,10 @@ export class NodeType extends Registerable {
    * method, but can be overridden by the node type.
    * @returns {boolean} - Whether the properties are in-error.
    */
-  isInError({ service }) {
+  isInError({ service, workspace = null }) {
+    if (workspace && this.isDeactivated({ workspace })) {
+      return true
+    }
     return this.serviceType.isInError({ service })
   }
 
@@ -157,7 +170,12 @@ export class NodeType extends Registerable {
    *  error message is being retrieved.
    * @returns {string} - The error message.
    */
-  getErrorMessage({ service, node }) {
+  getErrorMessage({ service, node, workspace = null }) {
+    const deactivatedReason =
+      workspace && this.isDeactivatedReason({ workspace })
+    if (deactivatedReason) {
+      return deactivatedReason
+    }
     return this.serviceType.getErrorMessage({ service })
   }
 
@@ -260,6 +278,22 @@ export class NodeType extends Registerable {
   getEdges({ node }) {
     return [{ uid: '', label: '' }]
   }
+
+  isDeactivatedReason({ workspace }) {
+    const serviceReason = this.serviceType.isDeactivatedReason({ workspace })
+    if (serviceReason) {
+      return serviceReason
+    }
+    return null
+  }
+
+  isDeactivated({ workspace }) {
+    return !!this.isDeactivatedReason({ workspace })
+  }
+
+  getDeactivatedClickModal({ workspace }) {
+    return this.serviceType.getDeactivatedClickModal({ workspace })
+  }
 }
 
 export class LocalBaserowNodeType extends NodeType {
@@ -360,6 +394,70 @@ export class LocalBaserowRowsUpdatedTriggerNodeType extends TriggerNodeTypeMixin
   }
 }
 
+export class LocalBaserowFieldsUpdatedTriggerNodeType extends TriggerNodeTypeMixin(
+  LocalBaserowSignalTriggerType
+) {
+  static getType() {
+    return 'local_baserow_fields_updated'
+  }
+
+  getOrder() {
+    return 3
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowFieldsUpdatedLabel'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowFieldsUpdatedTriggerServiceType.getType()
+    )
+  }
+
+  /**
+   * Resolves the names of the watched fields from the service schema, which
+   * carries each field's metadata (including its name). Returns an empty array
+   * when no field is selected, or their metadata isn't available yet.
+   */
+  getFieldNames(node) {
+    const fieldIds = node.service?.field_ids || []
+    if (fieldIds.length === 0) {
+      return []
+    }
+    const properties = node.service?.schema?.items?.properties || {}
+    const nameById = {}
+    for (const property of Object.values(properties)) {
+      if (property?.metadata?.id) {
+        nameById[property.metadata.id] = property.metadata.name
+      }
+    }
+    return fieldIds.map((id) => nameById[id]).filter(Boolean)
+  }
+
+  getDefaultLabel({ automation, node }) {
+    const { tableName } = this.getLabelContext({ automation, node })
+    const fieldIds = node.service?.field_ids || []
+
+    if (fieldIds.length === 0 || !tableName) {
+      return this.app.$i18n.t('nodeType.localBaserowFieldsUpdatedNoFieldLabel')
+    }
+
+    if (fieldIds.length === 1) {
+      return this.app.$i18n.t('nodeType.localBaserowFieldsUpdatedLabel', {
+        fieldName: this.getFieldNames(node)[0],
+        tableName,
+      })
+    }
+
+    return this.app.$i18n.t('nodeType.localBaserowFieldsUpdatedMultipleLabel', {
+      count: fieldIds.length,
+      tableName,
+    })
+  }
+}
+
 export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin(
   LocalBaserowSignalTriggerType
 ) {
@@ -368,7 +466,7 @@ export class LocalBaserowRowsDeletedTriggerNodeType extends TriggerNodeTypeMixin
   }
 
   getOrder() {
-    return 3
+    return 3.5
   }
 
   get labelTemplateName() {
@@ -450,6 +548,35 @@ export class CoreHTTPTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
   }
 }
 
+export class CoreManualTriggerNodeType extends TriggerNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'manual'
+  }
+
+  get name() {
+    return this.app.$i18n.t('serviceType.coreManualTrigger')
+  }
+
+  get description() {
+    return this.app.$i18n.t('serviceType.coreManualTriggerDescription')
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreManualTriggerServiceType.getType()
+    )
+  }
+
+  getOrder() {
+    return 5
+  }
+
+  getDefaultLabel({ automation, node }) {
+    return this.app.$i18n.t('serviceType.coreManualTrigger')
+  }
+}
+
 export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
@@ -473,6 +600,29 @@ export class LocalBaserowCreateRowActionNodeType extends ActionNodeTypeMixin(
   }
 }
 
+export class LocalBaserowCreateRowsActionNodeType extends ActionNodeTypeMixin(
+  LocalBaserowNodeType
+) {
+  static getType() {
+    return 'local_baserow_create_rows'
+  }
+
+  getOrder() {
+    return 2
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowCreateRowsLabel'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowCreateRowsWorkflowServiceType.getType()
+    )
+  }
+}
+
 export class LocalBaserowUpdateRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
@@ -481,7 +631,7 @@ export class LocalBaserowUpdateRowActionNodeType extends ActionNodeTypeMixin(
   }
 
   getOrder() {
-    return 2
+    return 3
   }
 
   get labelTemplateName() {
@@ -496,6 +646,29 @@ export class LocalBaserowUpdateRowActionNodeType extends ActionNodeTypeMixin(
   }
 }
 
+export class LocalBaserowUpdateRowsActionNodeType extends ActionNodeTypeMixin(
+  LocalBaserowNodeType
+) {
+  static getType() {
+    return 'local_baserow_update_rows'
+  }
+
+  getOrder() {
+    return 4
+  }
+
+  get labelTemplateName() {
+    return 'nodeType.localBaserowUpdateRowsLabel'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      LocalBaserowUpdateRowsWorkflowServiceType.getType()
+    )
+  }
+}
+
 export class LocalBaserowDeleteRowActionNodeType extends ActionNodeTypeMixin(
   LocalBaserowNodeType
 ) {
@@ -504,7 +677,7 @@ export class LocalBaserowDeleteRowActionNodeType extends ActionNodeTypeMixin(
   }
 
   getOrder() {
-    return 3
+    return 4
   }
 
   get labelTemplateName() {
@@ -598,7 +771,7 @@ export class CoreHttpRequestNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   getOrder() {
-    return 7
+    return 6.2
   }
 
   get name() {
@@ -688,13 +861,81 @@ export class CoreIteratorNodeType extends containerNodeTypeMixin(
   }
 }
 
+export class CoreCSVFileReaderNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'csv_file_reader'
+  }
+
+  getOrder() {
+    return 9
+  }
+
+  get name() {
+    return this.app.$i18n.t('nodeType.csvFileReaderLabel')
+  }
+
+  get dataType() {
+    return 'array'
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreCSVFileReaderServiceType.getType()
+    )
+  }
+}
+
+export class CoreStartWorkflowNodeType extends ActionNodeTypeMixin(NodeType) {
+  static getType() {
+    return 'start_workflow'
+  }
+
+  getOrder() {
+    return 6.1
+  }
+
+  get serviceType() {
+    return this.app.$registry.get(
+      'service',
+      CoreStartWorkflowServiceType.getType()
+    )
+  }
+
+  getDefaultLabel({ automation, node }) {
+    const workspace =
+      automation?.workspace || this.app.$store.getters['workspace/getSelected']
+    const workflowId = node.service?.workflow_id
+
+    if (!workspace?.id || !workflowId) {
+      return this.name
+    }
+
+    const automations = this.app.$store.getters[
+      'application/getAllOfWorkspace'
+    ](workspace).filter((application) => application.type === 'automation')
+
+    const workflow = automations
+      .flatMap((automation) =>
+        this.app.$store.getters['automationWorkflow/getWorkflows'](automation)
+      )
+      .find((workflow) => workflow.id === workflowId)
+
+    return workflow
+      ? this.app.$i18n.t('nodeType.startWorkflowLabel', {
+          workflowName: workflow.name,
+        })
+      : this.name
+  }
+}
+
 export class CoreSMTPEmailNodeType extends ActionNodeTypeMixin(NodeType) {
   static getType() {
     return 'smtp_email'
   }
 
   getOrder() {
-    return 8
+    return 6.3
   }
 
   get name() {
@@ -870,7 +1111,7 @@ export class SlackWriteMessageNodeType extends ActionNodeTypeMixin(NodeType) {
   }
 
   getOrder() {
-    return 8
+    return 90
   }
 
   get iconClass() {

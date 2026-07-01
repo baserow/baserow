@@ -198,10 +198,12 @@ export const actions = {
       commit('DELETE_WIDGET', tempId)
       throw error
     }
-    return await dispatch('handleNewWidgetCreated', {
+    const createdWidget = await dispatch('handleNewWidgetCreated', {
       tempWidgetId: tempId,
       createdWidget: widgetData,
     })
+    await dispatch('application/refreshPermissions', dashboard, { root: true })
+    return createdWidget
   },
   async handleNewWidgetCreated(
     { commit, dispatch },

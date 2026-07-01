@@ -20,11 +20,22 @@ export default defineNuxtRouteMiddleware(async (to, from) => {
     table = result.table
     await $store.dispatch('workspace/selectById', database.workspace.id)
   } catch (e) {
-    if (e.response === undefined && !(e instanceof StoreItemLookupError))
+    const isStoreLookupError = e instanceof StoreItemLookupError
+    if (e.response === undefined && !isStoreLookupError) {
       throw e
+    }
+
+    const errorStatus =
+      isStoreLookupError || !e.response?.status ? 404 : e.response.status
+
     throw createError({
-      statusCode: e.response?.status || 404,
-      message: normalizeError(e).message,
+      statusCode: errorStatus,
+      message:
+        errorStatus === 404 ? 'Table not found.' : normalizeError(e).message,
+      data: {
+        report: errorStatus !== 404,
+      },
+      fatal: true,
     })
   }
 

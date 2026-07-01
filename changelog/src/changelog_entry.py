@@ -1,7 +1,7 @@
 import abc
 import os
 from datetime import datetime, timezone
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Union, Any
 
 GITLAB_URL = os.environ.get("GITLAB_URL", "https://gitlab.com/baserow/baserow")
 GITHUB_URL = os.environ.get("GITHUB_URL", "https://github.com/baserow/baserow")
@@ -21,7 +21,7 @@ class ChangelogEntry(abc.ABC):
         issue_origin: str,
         issue_number: Optional[int] = None,
         bullet_points: List[str] = None,
-    ) -> Dict[str, any]:
+    ) -> Dict[str, Any]:
         if bullet_points is None:
             bullet_points = []
 

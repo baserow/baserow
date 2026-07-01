@@ -31,8 +31,6 @@ class RestrictedViewPageType(PageType):
             if view.ownership_type != RestrictedViewOwnershipType.type:
                 return False
 
-            # Check if the user has any permissions to access the view. If so,
-            # we'll allow the user to listen for events.
             CoreHandler().check_permissions(
                 user,
                 ListenToAllRestrictedViewEventsOperationType.type,
@@ -49,3 +47,6 @@ class RestrictedViewPageType(PageType):
 
     def get_permission_channel_group_name(self, restricted_view_id, **kwargs):
         return f"permissions-restricted-view-{restricted_view_id}"
+
+    def get_presence_space_name(self, **kwargs) -> str | None:
+        return None

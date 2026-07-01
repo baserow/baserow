@@ -12,6 +12,10 @@ export default {
 
       return null
     },
+    getTeleportedElement() {
+      const modal = this.getRootModal()
+      return modal ? modal.getTeleportedElement() : null
+    },
     toggle(...args) {
       const modal = this.getRootModal()
       modal && modal.toggle(...args)

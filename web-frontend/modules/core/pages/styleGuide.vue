@@ -592,7 +592,7 @@
             </template>
           </Alert>
 
-          <Alert type="danger" close-button>
+          <Alert type="error" close-button>
             <template #title>Alert title</template>
             <template #actions>
               <button
@@ -1943,6 +1943,37 @@
             :color-variables="colorVariables"
             :allow-opacity="false"
           />
+          <h3>Color contrast</h3>
+          <table class="style-guide__color-contrast-table">
+            <thead>
+              <tr>
+                <th>Preview</th>
+                <th>Initial color</th>
+                <th>Contrasted color</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="colorPair in contrastedColors" :key="colorPair.color">
+                <td>
+                  <div
+                    class="style-guide__color-contrast-preview"
+                    :style="{ backgroundColor: colorPair.color }"
+                  >
+                    <div
+                      class="style-guide__color-contrast-preview-inner"
+                      :style="{ backgroundColor: colorPair.contrastedColor }"
+                    ></div>
+                  </div>
+                </td>
+                <td>
+                  <code>{{ colorPair.color }}</code>
+                </td>
+                <td>
+                  <code>{{ colorPair.contrastedColor }}</code>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
         <div class="margin-bottom-3">
@@ -1952,6 +1983,73 @@
           <CallToAction icon="baserow-icon-plus">
             Call to action with an icon
           </CallToAction>
+        </div>
+        <div class="margin-bottom-3">
+          <div class="margin-bottom-3">
+            <nuxt-link
+              :to="{
+                name: 'builder-page',
+                params: {
+                  builderId: 99,
+                  pageId: 99,
+                },
+              }"
+            >
+              <Button type="primary" size="small">
+                To missing builder page
+              </Button>
+            </nuxt-link>
+          </div>
+          <div class="margin-bottom-3">
+            <nuxt-link
+              :to="{
+                name: 'database-table',
+                params: {
+                  databaseId: 9999,
+                  tableId: 99,
+                  viewId: 99,
+                },
+              }"
+            >
+              <Button type="primary" size="small">
+                To missing database table
+              </Button>
+            </nuxt-link>
+          </div>
+          <div class="margin-bottom-3">
+            <nuxt-link
+              :to="{
+                name: 'dashboard-application',
+                params: {
+                  dashboardId: 9999,
+                },
+              }"
+            >
+              <Button type="primary" size="small">
+                To missing dashboard
+              </Button>
+            </nuxt-link>
+          </div>
+          <div class="margin-bottom-3">
+            <nuxt-link
+              :to="{
+                name: 'automation-workflow',
+                params: {
+                  automationId: 999,
+                  workflowId: 999,
+                },
+              }"
+            >
+              <Button type="primary" size="small">
+                To missing automation workflow
+              </Button>
+            </nuxt-link>
+          </div>
+          <div>
+            <Button type="primary" size="small" @click="triggerError">
+              Trigger fake error
+            </Button>
+          </div>
         </div>
         <br /><br /><br />
         <br /><br /><br />
@@ -1967,7 +2065,7 @@ import BaserowIcon from '@baserow/modules/core/static/img/logoOnly.svg?url'
 import ColorPickerContext from '@baserow/modules/core/components/ColorPickerContext.vue'
 import ColorPicker from '@baserow/modules/core/components/ColorPicker.vue'
 import Paginator from '@baserow/modules/core/components/Paginator.vue'
-import { resolveColor } from '@baserow/modules/core/utils/colors'
+import { colorContrast, resolveColor } from '@baserow/modules/core/utils/colors'
 
 export default {
   components: {
@@ -1996,6 +2094,13 @@ export default {
         { name: 'Primary', value: 'primary', color: '#985353ff' },
         { name: 'Secondary', value: 'secondary', color: '#545398ff' },
       ],
+      colorContrastSamples: [
+        '#000000ff',
+        '#2c3e50ff',
+        '#5498dbff',
+        '#985353ff',
+        '#ffffff',
+      ],
       radioOptions: [
         { value: 'a', label: 'Option A' },
         { value: 'b', label: 'Option B' },
@@ -2015,10 +2120,27 @@ export default {
       title: 'Style guide',
     }
   },
+  computed: {
+    contrastedColors() {
+      const resolvedPickerColor = resolveColor(this.color, this.colorVariables)
+      return [
+        resolvedPickerColor,
+        ...this.colorContrastSamples.filter(
+          (color) => color !== resolvedPickerColor
+        ),
+      ].map((color) => ({
+        color,
+        contrastedColor: colorContrast(color),
+      }))
+    },
+  },
   methods: {
     resolveColor,
     alert(message) {
       alert(message)
+    },
+    triggerError() {
+      throw new Error('Fake error')
     },
   },
 }

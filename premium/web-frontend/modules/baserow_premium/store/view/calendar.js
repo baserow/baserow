@@ -584,6 +584,10 @@ export const actions = {
     { dispatch, commit, getters, rootGetters },
     { view, values, fields }
   ) {
+    if (getters.findStackIdAndIndex(values.id) !== undefined) {
+      return
+    }
+
     const { $registry } = this
     const row = clone(values)
     populateRow(row)

@@ -162,12 +162,30 @@ class QuerysetSerializer(abc.ABC):
 
     can_handle_rich_value = False
 
-    def __init__(self, queryset, ordered_field_objects):
+    def __init__(
+        self,
+        queryset,
+        ordered_field_objects,
+        include_row_id=True,
+        include_primary_field=True,
+    ):
         self.queryset = queryset
-        self.field_serializers = [lambda row: ("id", "id", row.id)]
+        self.include_row_id = include_row_id
+        self.include_primary_field = include_primary_field
+
+        if not include_primary_field:
+            ordered_field_objects = [
+                field_object
+                for field_object in ordered_field_objects
+                if not field_object["field"].primary
+            ]
         self.ordered_field_objects = ordered_field_objects
 
-        for field_object in ordered_field_objects:
+        self.field_serializers = []
+        if include_row_id:
+            self.field_serializers.append(lambda row: ("id", "id", row.id))
+
+        for field_object in self.ordered_field_objects:
             self.field_serializers.append(self._get_field_serializer(field_object))
 
     @abc.abstractmethod
@@ -180,20 +198,36 @@ class QuerysetSerializer(abc.ABC):
         """
 
     @classmethod
-    def for_table(cls, table) -> "QuerysetSerializer":
+    def for_table(
+        cls, table, include_row_id=True, include_primary_field=True
+    ) -> "QuerysetSerializer":
         """
         Generates a queryset serializer for the provided table.
         :param table: The table to serialize.
+        :param include_row_id: Whether to include the row id column in the export.
+        :param include_primary_field: Whether to include the primary field column
+            in the export.
         :return: A QuerysetSerializer ready to serialize the table.
         """
 
         model = table.get_model()
         qs = model.objects.all().enhance_by_fields()
         ordered_field_objects = model._field_objects.values()
-        return cls(qs, ordered_field_objects)
+        return cls(
+            qs,
+            ordered_field_objects,
+            include_row_id=include_row_id,
+            include_primary_field=include_primary_field,
+        )
 
     @classmethod
-    def for_view(cls, view, visible_field_ids_in_order=None) -> "QuerysetSerializer":
+    def for_view(
+        cls,
+        view,
+        visible_field_ids_in_order=None,
+        include_row_id=True,
+        include_primary_field=True,
+    ) -> "QuerysetSerializer":
         """
         Generates a queryset serializer for the provided view according to it's view
         type and any relevant view settings it might have (filters, sorts,
@@ -202,6 +236,9 @@ class QuerysetSerializer(abc.ABC):
         :param view: The view to serialize.
         :param visible_field_ids_in_order: Optionally provide a list of field IDs in
             the correct order. Only those fields will be included in the export.
+        :param include_row_id: Whether to include the row id column in the export.
+        :param include_primary_field: Whether to include the primary field column
+            in the export.
         :return: A QuerysetSerializer ready to serialize the table.
         """
 
@@ -223,7 +260,15 @@ class QuerysetSerializer(abc.ABC):
                 if field_id in field_map
             ]
         qs = ViewHandler().get_queryset(None, view, model=model)
-        return cls(qs, fields), visible_field_objects_in_view
+        return (
+            cls(
+                qs,
+                fields,
+                include_row_id=include_row_id,
+                include_primary_field=include_primary_field,
+            ),
+            visible_field_objects_in_view,
+        )
 
     def add_ad_hoc_filters_dict_to_queryset(self, filters_dict, only_by_field_ids=None):
         filters = AdHocFilters.from_dict(filters_dict)

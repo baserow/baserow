@@ -16,6 +16,7 @@ import { onBeforeRouteUpdate, onBeforeRouteLeave } from 'vue-router'
 import AutomationWorkflowContent from '@baserow/modules/automation/components/AutomationWorkflowContent'
 import { AutomationApplicationType } from '@baserow/modules/automation/applicationTypes'
 import { StoreItemLookupError } from '@baserow/modules/core/errors'
+import { normalizeError } from '@baserow/modules/database/utils/errors'
 
 definePageMeta({
   layout: 'app',
@@ -23,6 +24,7 @@ definePageMeta({
     'settings',
     'authenticated',
     'workspacesAndApplications',
+    'selectWorkspaceAutomationWorkflow',
     'pendingJobs',
   ],
 })
@@ -38,29 +40,6 @@ const workflowLoading = ref(false)
 const route = useRoute()
 const { $store, $registry } = useNuxtApp()
 
-// Parse route params once at setup time
-const automationId = computed(() => {
-  const param = route.params.automationId
-  if (typeof param === 'string') {
-    return parseInt(param, 10)
-  }
-  if (typeof param === 'number') {
-    return param
-  }
-  return null
-})
-
-const workflowId = computed(() => {
-  const param = route.params.workflowId
-  if (typeof param === 'string') {
-    return parseInt(param, 10)
-  }
-  if (typeof param === 'number') {
-    return param
-  }
-  return null
-})
-
 // Load page data
 const automationApplicationType = $registry.get(
   'application',
@@ -68,29 +47,15 @@ const automationApplicationType = $registry.get(
 )
 
 const { data: pageData, error } = await useAsyncData(
-  () => `automation-workflow-${automationId.value}-${workflowId.value}`,
+  () =>
+    `automation-workflow-${route.params.automationId}-${route.params.workflowId}`,
   async () => {
     try {
-      const automation = await $store.dispatch(
-        'application/selectById',
-        automationId.value
-      )
-
-      const workspace = await $store.dispatch(
-        'workspace/selectById',
-        automation.workspace.id
-      )
+      const automation = $store.getters['application/getSelected']
+      const workspace = $store.getters['workspace/getSelected']
+      const workflow = $store.getters['automationWorkflow/getSelected']
 
       await automationApplicationType.loadExtraData(automation)
-
-      const workflow = await $store.dispatch('automationWorkflow/selectById', {
-        automation,
-        workflowId: workflowId.value,
-      })
-
-      await $store.dispatch('automationHistory/fetchWorkflowHistory', {
-        workflowId: workflowId.value,
-      })
 
       await $store.dispatch('automationWorkflowNode/fetch', {
         workflow,
@@ -104,9 +69,22 @@ const { data: pageData, error } = await useAsyncData(
         workflow,
       }
     } catch (e) {
+      if (e.response === undefined && !(e instanceof StoreItemLookupError)) {
+        throw e
+      }
+
+      const statusCode = e.response?.status || 500
+
       throw createError({
-        statusCode: 404,
-        message: 'Automation workflow not found.',
+        statusCode,
+        message:
+          statusCode === 404
+            ? 'Automation workflow not found.'
+            : normalizeError(e).message,
+        data: {
+          report: statusCode >= 500,
+        },
+        fatal: true,
       })
     }
   }

@@ -9,6 +9,7 @@ from pytest_unordered import unordered
 from baserow.contrib.database.fields.actions import UpdateFieldActionType
 from baserow.contrib.database.fields.handler import FieldHandler
 from baserow.contrib.database.fields.models import DurationField
+from baserow.contrib.database.fields.registries import field_type_registry
 from baserow.contrib.database.fields.utils.duration import (
     DURATION_FORMAT_TOKENS,
     DURATION_FORMATS,
@@ -481,6 +482,45 @@ def test_convert_duration_field_to_text_to_duration_field(
         formatted,
         text_value_sql_to_duration(updated_field),
     )
+
+
+@pytest.mark.field_duration
+@pytest.mark.parametrize(
+    "duration_format,value,expected",
+    [
+        # One representative value per DURATION_FORMATS key, exercising the
+        # display path through the field type (DurationFieldType.format_duration,
+        # which the CSV/JSON exporters, row history and notifications all route
+        # through).
+        ("h:mm", timedelta(hours=1, minutes=1), "1:01"),
+        ("h:mm:ss", timedelta(hours=1, minutes=1, seconds=6), "1:01:06"),
+        ("h:mm:ss.s", timedelta(hours=1, minutes=1, seconds=6.6), "1:01:06.6"),
+        ("h:mm:ss.ss", timedelta(hours=1, minutes=1, seconds=6.66), "1:01:06.66"),
+        (
+            "h:mm:ss.sss",
+            timedelta(hours=1, minutes=1, seconds=6.666),
+            "1:01:06.666",
+        ),
+        ("d h", timedelta(days=1, hours=1), "1d 1h"),
+        ("d h:mm", timedelta(days=1, hours=1, minutes=1), "1d 1:01"),
+        (
+            "d h:mm:ss",
+            timedelta(days=1, hours=1, minutes=1, seconds=6),
+            "1d 1:01:06",
+        ),
+        # "no colons" formats, missing from the interesting-table export guard
+        ("d h mm", timedelta(days=1, hours=2, minutes=3), "1d 2h 03m"),
+        (
+            "d h mm ss",
+            timedelta(days=1, hours=2, minutes=3, seconds=4),
+            "1d 2h 03m 04s",
+        ),
+    ],
+)
+def test_duration_field_type_format_duration(duration_format, value, expected):
+    field_type = field_type_registry.get("duration")
+
+    assert field_type.format_duration(value, duration_format) == expected
 
 
 @pytest.mark.parametrize(

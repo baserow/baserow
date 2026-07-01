@@ -53,6 +53,7 @@ class CountFieldAggregationType(FieldAggregationType):
     """
 
     type = "count"
+    result_type = "integer"
     raw_type = CountViewAggregationType
     compatible_field_types = raw_type.compatible_field_types
 
@@ -63,6 +64,7 @@ class EmptyCountFieldAggregationType(FieldAggregationType):
     """
 
     type = "empty_count"
+    result_type = "integer"
     raw_type = EmptyCountViewAggregationType
     compatible_field_types = raw_type.compatible_field_types
 
@@ -73,6 +75,7 @@ class NotEmptyCountFieldAggregationType(FieldAggregationType):
     """
 
     type = "not_empty_count"
+    result_type = "integer"
     raw_type = NotEmptyCountViewAggregationType
     compatible_field_types = raw_type.compatible_field_types
 
@@ -83,6 +86,7 @@ class CheckedFieldAggregationType(FieldAggregationType):
     """
 
     type = "checked_count"
+    result_type = "integer"
     raw_type = NotEmptyCountViewAggregationType
     compatible_field_types = [
         BooleanFieldType.type,
@@ -98,6 +102,7 @@ class NotCheckedFieldAggregationType(FieldAggregationType):
     """
 
     type = "not_checked_count"
+    result_type = "integer"
     raw_type = EmptyCountViewAggregationType
     compatible_field_types = [
         BooleanFieldType.type,
@@ -113,6 +118,7 @@ class EmptyPercentageFieldAggregationType(FieldAggregationType):
     """
 
     type = "empty_percentage"
+    result_type = "float"
     raw_type = EmptyCountViewAggregationType
     with_total = True
     compatible_field_types = [
@@ -150,6 +156,7 @@ class NotEmptyPercentageFieldAggregationType(FieldAggregationType):
     """
 
     type = "not_empty_percentage"
+    result_type = "float"
     raw_type = NotEmptyCountViewAggregationType
     with_total = True
     compatible_field_types = [
@@ -187,6 +194,7 @@ class CheckedPercentageFieldAggregationType(FieldAggregationType):
     """
 
     type = "checked_percentage"
+    result_type = "float"
     raw_type = NotEmptyCountViewAggregationType
     with_total = True
     compatible_field_types = [
@@ -203,6 +211,7 @@ class NotCheckedPercentageFieldAggregationType(FieldAggregationType):
     """
 
     type = "not_checked_percentage"
+    result_type = "float"
     raw_type = EmptyCountViewAggregationType
     with_total = True
     compatible_field_types = [
@@ -219,6 +228,7 @@ class UniqueCountFieldAggregationType(FieldAggregationType):
     """
 
     type = "unique_count"
+    result_type = "integer"
     raw_type = UniqueCountViewAggregationType
     compatible_field_types = raw_type.compatible_field_types
 

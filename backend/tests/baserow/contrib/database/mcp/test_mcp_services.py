@@ -354,6 +354,28 @@ def test_create_rows_with_user_field_names(data_fixture):
     assert created[1]["Name"] == "Bob"
 
 
+@pytest.mark.django_db(transaction=True)
+def test_create_rows_with_rich_text_mention(data_fixture):
+    user = data_fixture.create_user()
+    workspace = data_fixture.create_workspace(user=user)
+    db = data_fixture.create_database_application(workspace=workspace)
+    table = data_fixture.create_database_table(database=db)
+    data_fixture.create_text_field(name="Name", table=table, primary=True)
+    data_fixture.create_long_text_field(
+        name="Notes", table=table, long_text_enable_rich_text=True
+    )
+
+    created = services.create_rows(
+        user,
+        workspace,
+        table.id,
+        [{"Name": "Test", "Notes": f"Hello @{user.id} check this"}],
+    )
+    assert len(created) == 1
+    assert created[0]["Name"] == "Test"
+    assert f"@{user.id}" in created[0]["Notes"]
+
+
 @pytest.mark.django_db
 def test_create_rows_unknown_field_raises(data_fixture):
     user = data_fixture.create_user()

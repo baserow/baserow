@@ -4,17 +4,16 @@
       <nuxt-link :to="{ name: 'index' }" class="api-docs__logo">
         <Logo />
       </nuxt-link>
-      <button
+      <a
         ref="databasesToggle"
-        type="button"
         class="api-docs__switch"
         :aria-expanded="databasesOpen"
         aria-controls="api-docs-databases"
-        @click="databasesOpen = !databasesOpen"
+        @click.prevent="databasesOpen = !databasesOpen"
       >
         <i class="api-docs__switch-icon iconoir-db"></i>
         {{ $t('apiDocsDatabase.pageTitle', database) }}
-      </button>
+      </a>
       <div class="api-docs__open">
         <Button
           v-if="database.tables.length > 0"

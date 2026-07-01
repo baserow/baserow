@@ -1,9 +1,10 @@
 import {
+  deleteValueAtPath,
   getValueAtPath,
   setValueAtPath,
 } from '@baserow/modules/core/utils/object'
 
-const state = {}
+const state = () => ({})
 
 /**
  * Responsible for setting a form entry at a given path in the form data of a page in
@@ -34,12 +35,12 @@ const mutations = {
 
     setFormEntryAtPath(page, uniqueElementId, payload)
   },
-  REMOVE_FORM_DATA(state, { page, elementId }) {
-    page.formData = Object.fromEntries(
-      Object.entries(page.formData).filter(
-        ([key]) => key !== elementId.toString()
-      )
-    )
+  REMOVE_FORM_DATA(state, { page, uniqueElementId }) {
+    if (!page.formData) {
+      return
+    }
+
+    deleteValueAtPath(page.formData, uniqueElementId)
   },
   SET_ELEMENT_TOUCHED(state, { page, uniqueElementId, wasTouched }) {
     setFormEntryAtPath(page, `${uniqueElementId}.touched`, wasTouched)
@@ -50,8 +51,8 @@ const actions = {
   setFormData({ commit }, { page, uniqueElementId, payload }) {
     commit('SET_FORM_DATA', { page, uniqueElementId, payload })
   },
-  removeFormData({ commit }, { page, elementId }) {
-    commit('REMOVE_FORM_DATA', { page, elementId })
+  removeFormData({ commit }, { page, uniqueElementId }) {
+    commit('REMOVE_FORM_DATA', { page, uniqueElementId })
   },
   setElementTouched({ commit }, { page, uniqueElementId, wasTouched }) {
     commit('SET_ELEMENT_TOUCHED', { page, uniqueElementId, wasTouched })

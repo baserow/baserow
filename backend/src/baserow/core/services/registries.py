@@ -418,6 +418,10 @@ class ServiceType(
         Remove the non public fields from the result.
         """
 
+        # A no-body result (e.g. a 204 from a deletion) has nothing to sanitize.
+        if result is None:
+            return None
+
         if self.returns_list:
             return {
                 **result,
@@ -511,6 +515,9 @@ class ServiceType(
     def extract_properties(
         self, service: Service, path: List[str], **kwargs
     ) -> List[str]:
+        if path:
+            return [path[0]]
+
         return []
 
     def import_property_name(
@@ -524,7 +531,7 @@ class ServiceType(
 
         return property_name
 
-    def get_edges(self, service):
+    def get_edges(self, service: Service) -> Dict[str, Dict[str, str]]:
         return {"": {"label": ""}}
 
 
@@ -576,10 +583,10 @@ class TriggerServiceTypeMixin(ABC):
     # The service is always dispatched by an event.
     dispatch_types = [DispatchTypes.EVENT]
 
-    def can_immediately_be_tested(self, service: Service):
+    def can_be_immediately_dispatched(self, service: Service):
         """
-        Does this trigger can be dispatched immediately. It's possible only if the
-        trigger data can be generated
+        Whether this trigger can be dispatched immediately without waiting for an
+        external event.
         """
 
         return False

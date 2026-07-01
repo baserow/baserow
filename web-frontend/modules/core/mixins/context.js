@@ -32,5 +32,9 @@ export default {
       const context = this.getRootContext()
       context && context.hide(...args)
     },
+    getTeleportedElement() {
+      const context = this.getRootContext()
+      return context?.getTeleportedElement() ?? null
+    },
   },
 }

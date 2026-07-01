@@ -1,10 +1,10 @@
 import uuid
-from typing import TYPE_CHECKING, List, Optional
+from typing import List, Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
-from django.db.models import SET_NULL, QuerySet
+from django.db.models import SET_NULL
 from django.utils.functional import lazy
 
 from baserow.contrib.builder.constants import (
@@ -20,18 +20,15 @@ from baserow.core.constants import (
 )
 from baserow.core.formula.field import FormulaField, JSONFormulaField
 from baserow.core.formula.serializers import collect_json_formula_field_properties
+from baserow.core.graph.models import GraphPointMixin
 from baserow.core.mixins import (
     CreatedAndUpdatedOnMixin,
-    FractionOrderableMixin,
     HierarchicalModelMixin,
     PolymorphicContentTypeMixin,
     TrashableModelMixin,
     WithRegistry,
 )
 from baserow.core.user_files.models import UserFile
-
-if TYPE_CHECKING:
-    from baserow.contrib.builder.pages.models import Page
 
 
 class BackgroundTypes(models.TextChoices):
@@ -59,6 +56,11 @@ class INPUT_TEXT_TYPES(models.TextChoices):
     PASSWORD = "password"  # nosec bandit B105
 
 
+class MENU_VARIANTS(models.TextChoices):
+    EXPANDED = "expanded"
+    COMPACT = "compact"
+
+
 def get_default_element_content_type():
     return ContentType.objects.get_for_model(Element)
 
@@ -84,12 +86,28 @@ def get_collection_field_config_formula_properties() -> List[str]:
     return collect_json_formula_field_properties(collection_field_type_registry)
 
 
+def get_default_variant():
+    return {
+        "smartphone": MENU_VARIANTS.COMPACT,
+        "tablet": MENU_VARIANTS.COMPACT,
+        "desktop": MENU_VARIANTS.EXPANDED,
+    }
+
+
+def get_default_column_stacking():
+    return {
+        "smartphone": "stacked",
+        "tablet": "horizontal",
+        "desktop": "horizontal",
+    }
+
+
 class Element(
     HierarchicalModelMixin,
     TrashableModelMixin,
     CreatedAndUpdatedOnMixin,
-    FractionOrderableMixin,
     PolymorphicContentTypeMixin,
+    GraphPointMixin,
     WithRegistry,
     models.Model,
 ):
@@ -109,29 +127,12 @@ class Element(
         DISALLOW_ALL_EXCEPT = "disallow_all_except"
 
     page = models.ForeignKey("builder.Page", on_delete=models.CASCADE)
-    order = models.DecimalField(
-        help_text="Lowest first.",
-        max_digits=40,
-        decimal_places=20,
-        editable=False,
-        default=1,
-    )
     content_type = models.ForeignKey(
         ContentType,
         verbose_name="content type",
         related_name="page_elements",
         on_delete=models.SET(get_default_element_content_type),
     )
-    # This is used for container elements, if NULL then this is a root element
-    parent_element = models.ForeignKey(
-        "self",
-        on_delete=models.CASCADE,
-        null=True,
-        default=None,
-        help_text="The parent element, if inside a container.",
-        related_name="children",
-    )
-
     role_type = models.CharField(
         choices=ROLE_TYPES.choices,
         max_length=19,
@@ -142,17 +143,6 @@ class Element(
         default=list,
         help_text="User roles associated with this element, used in conjunction with role_type.",
     )
-
-    # The following fields are used to store the position of the element in the
-    # container. If the element is a root element then this is null.
-    place_in_container = models.CharField(
-        null=True,
-        blank=True,
-        default=None,
-        max_length=255,
-        help_text="The place in the container.",
-    )
-
     visibility = models.CharField(
         choices=VISIBILITY_TYPES.choices,
         max_length=20,
@@ -295,8 +285,71 @@ class Element(
         max_length=6,
     )
 
+    # ---- Compatibility fields, will be removed in an upcoming release ---- #
+    compat_order = models.DecimalField(
+        help_text="Lowest first.",
+        max_digits=40,
+        decimal_places=20,
+        editable=False,
+        default=1,
+        db_column="order",
+    )
+    compat_parent_element = models.ForeignKey(
+        "self",
+        on_delete=models.CASCADE,
+        null=True,
+        default=None,
+        help_text="The parent element, if inside a container.",
+        related_name="compat_children",
+        db_column="parent_element_id",
+    )
+    compat_place_in_container = models.CharField(
+        null=True,
+        blank=True,
+        default=None,
+        max_length=255,
+        help_text="The place in the container.",
+        db_column="place_in_container",
+    )
+    # ---- Compatibility fields, will be removed in an upcoming release ---- #
+
     class Meta:
-        ordering = ("order", "id")
+        ordering = ("id",)
+
+    @property
+    def place_in_container(self) -> str:
+        """
+        Responsible for returning this element's `place_in_container`. This is the
+        position index this element has if it's inside a container element. We will
+        either return a blank string, or a string index representing a place.
+
+        :return: The place in container of this element.
+        """
+
+        return self.get_place_name()
+
+    @property
+    def parent_element(self) -> Optional["Element"]:
+        return self.get_parent_point()
+
+    @property
+    def parent_element_id(self) -> Optional[int]:
+        return self.parent_element.id if self.parent_element else None
+
+    @property
+    def graph_point_label(self) -> str:
+        label = self.get_type().get_graph_point_label(self)
+        graph = self.get_parent().graph
+        element_ids = sorted(
+            int(point_id)
+            for point_id in graph
+            if point_id != self._get_graph().GRAPH_ROOT_KEY
+        )
+        return f"{label}-{element_ids.index(self.id)}"
+
+    def graph_point_edge_label(self, uid: str) -> str:
+        places = self.get_type().get_places(self)
+        return places.get(uid, {"label": uid})["label"]
 
     @staticmethod
     def get_type_registry():
@@ -304,108 +357,11 @@ class Element(
 
         return element_type_registry
 
+    def __str__(self):
+        return str(self.get_type().display_name)
+
     def get_parent(self):
         return self.page
-
-    def get_sibling_elements(self):
-        return Element.objects.filter(
-            parent_element=self.parent_element, page=self.page
-        ).exclude(id=self.id)
-
-    @property
-    def is_root_element(self):
-        return self.parent_element is None
-
-    @classmethod
-    def get_last_order(
-        cls,
-        page: "Page",
-        parent_element_id: Optional[int] = None,
-        place_in_container: Optional[str] = None,
-    ):
-        """
-        Returns the last order for the given page.
-
-        :param page: The page we want the order for.
-        :param base_queryset: The base queryset to use.
-        :return: The last order.
-        """
-
-        return cls.get_last_orders(page, parent_element_id, place_in_container)[0]
-
-    @classmethod
-    def get_last_orders(
-        cls,
-        page: "Page",
-        parent_element_id: Optional[int] = None,
-        place_in_container: Optional[str] = None,
-        amount=1,
-    ):
-        """
-        Returns the last orders for the given page.
-
-        :param page: The page we want the order for.
-        :param parent_element_id: The id of the parent element.
-        :param place_in_container: The place in the container
-        :param amount: The number of orders you wish to have returned
-        :return: The last order.
-        """
-
-        queryset = Element.objects.filter(page=page)
-
-        queryset = cls._scope_queryset_to_container(
-            queryset, parent_element_id, place_in_container
-        )
-
-        return cls.get_highest_order_of_queryset(queryset, amount=amount)
-
-    @classmethod
-    def get_unique_order_before_element(
-        cls, before: "Element", parent_element_id: int, place_in_container: str
-    ):
-        """
-        Returns a safe order value before the given element in the given page.
-
-        :param before: The element before which we want the safe order
-        :param parent_element_id: The id of the parent element.
-        :param place_in_container: The place in the container
-        :raises CannotCalculateIntermediateOrder: If it's not possible to find an
-            intermediate order. The full order of the items must be recalculated in this
-            case before calling this method again.
-        :return: The order value.
-        """
-
-        queryset = Element.objects.filter(page=before.page)
-
-        queryset = cls._scope_queryset_to_container(
-            queryset, parent_element_id, place_in_container
-        )
-
-        return cls.get_unique_orders_before_item(before, queryset)[0]
-
-    @classmethod
-    def _scope_queryset_to_container(
-        cls, queryset: QuerySet, parent_element_id: int, place_in_container: str
-    ) -> QuerySet:
-        """
-        Filters the queryset to only include elements that are in the same container
-        as the child element.
-
-        :param queryset: The queryset to filter.
-        :param parent_element_id: The ID of the parent element.
-        :param place_in_container: The place in container of the child element.
-        :return: The filtered queryset.
-        """
-
-        if parent_element_id:
-            return queryset.filter(
-                parent_element_id=parent_element_id,
-                place_in_container=place_in_container,
-            )
-        else:
-            return queryset.filter(
-                parent_element_id=None,
-            )
 
 
 class ContainerElement(Element):
@@ -421,6 +377,21 @@ class ColumnElement(ContainerElement):
     """
     A column element that can contain other elements.
     """
+
+    class LAYOUT_TYPES(models.TextChoices):
+        AUTO = "auto"
+        RATIO_1_2 = "1:2"
+        RATIO_2_1 = "2:1"
+        RATIO_1_3 = "1:3"
+        RATIO_3_1 = "3:1"
+        RATIO_1_1_2 = "1:1:2"
+        RATIO_2_1_1 = "2:1:1"
+        RATIO_1_2_1 = "1:2:1"
+        CUSTOM = "custom"
+
+    class COLUMN_STACKING_TYPES(models.TextChoices):
+        HORIZONTAL = "horizontal"
+        STACKED = "stacked"
 
     column_amount = models.IntegerField(
         default=3,
@@ -442,6 +413,27 @@ class ColumnElement(ContainerElement):
         choices=VerticalAlignments.choices,
         max_length=10,
         default=VerticalAlignments.TOP,
+    )
+    layout_type = models.CharField(
+        choices=LAYOUT_TYPES.choices,
+        max_length=20,
+        default=LAYOUT_TYPES.AUTO,
+        db_default=LAYOUT_TYPES.AUTO,
+        help_text="The layout type determining column weights.",
+    )
+    column_weights = models.JSONField(
+        default=list,
+        db_default=[],
+        help_text=(
+            "Custom weight configuration for each column. Used when layout_type is "
+            "'custom'."
+        ),
+    )
+    column_stacking = models.JSONField(
+        blank=True,
+        default=get_default_column_stacking,
+        db_default=get_default_column_stacking(),
+        help_text="Whether columns are horizontal or stacked for each device type.",
     )
 
 
@@ -1111,6 +1103,13 @@ class MenuElement(Element):
         choices=HorizontalAlignments.choices,
         max_length=10,
         default=HorizontalAlignments.LEFT,
+    )
+
+    variant = models.JSONField(
+        blank=True,
+        default=get_default_variant,
+        db_default=get_default_variant(),
+        help_text="The menu variant (expanded or compact) for each device type",
     )
 
     menu_items = models.ManyToManyField(MenuItemElement)

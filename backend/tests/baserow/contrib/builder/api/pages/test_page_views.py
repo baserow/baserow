@@ -9,6 +9,8 @@ from rest_framework.status import (
     HTTP_404_NOT_FOUND,
 )
 
+from baserow.contrib.builder.pages.models import Page
+
 
 @pytest.mark.django_db
 def test_create_page(api_client, data_fixture):
@@ -182,8 +184,9 @@ def test_create_page_duplicate_page_name(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_PAGE_NAME_NOT_UNIQUE"
+    assert response.status_code == HTTP_200_OK
+    duplicated_page = Page.objects.get(id=response.json()["id"])
+    assert duplicated_page.name == page.name
 
 
 @pytest.mark.django_db
@@ -387,8 +390,9 @@ def test_update_page_duplicate_page_name(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_PAGE_NAME_NOT_UNIQUE"
+    assert response.status_code == HTTP_200_OK
+    page_two.refresh_from_db()
+    assert page_two.name == page.name
 
 
 @pytest.mark.django_db
@@ -728,5 +732,6 @@ def test_rename_page_using_existing_page_name(api_client, data_fixture):
         HTTP_AUTHORIZATION=f"JWT {token}",
     )
 
-    assert response.status_code == HTTP_400_BAD_REQUEST
-    assert response.json()["error"] == "ERROR_PAGE_NAME_NOT_UNIQUE"
+    assert response.status_code == HTTP_200_OK
+    page_2.refresh_from_db()
+    assert page_2.name == "test1"

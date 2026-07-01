@@ -4,6 +4,13 @@
     enable-row-id
     v-bind="$attrs"
     :enable-view-picker="false"
+    row-id-label="localBaserowDeleteRowServiceForm.rowIdLabel"
+    row-id-placeholder="localBaserowDeleteRowServiceForm.rowIdPlaceholder"
+    :row-id-helper-text="
+      $t('localBaserowDeleteRowServiceForm.rowIdHelper', {
+        limit: batchOperationSizeLimit,
+      })
+    "
   />
 </template>
 
@@ -14,6 +21,11 @@ export default {
   name: 'LocalBaserowDeleteRowServiceForm',
   components: {
     LocalBaserowServiceForm,
+  },
+  computed: {
+    batchOperationSizeLimit() {
+      return this.$config.public.integrationLocalBaserowBatchOperationSizeLimit
+    },
   },
   methods: {
     isFormValid() {

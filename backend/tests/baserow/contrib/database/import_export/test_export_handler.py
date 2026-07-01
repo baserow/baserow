@@ -486,6 +486,57 @@ def test_can_export_special_characters_in_arabic_encoding_to_csv(
 
 
 @pytest.mark.django_db
+@patch("baserow.core.storage.get_default_storage")
+def test_csv_export_escapes_formula_in_header_and_cell(get_storage_mock, data_fixture):
+    # A collaborator can name a field or store a value that is a spreadsheet
+    # formula. Both the header row and the cell values must be neutralized
+    # against formula injection (CWE-1236).
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+    text_field = data_fixture.create_text_field(user=user, table=table, name="=2+5+cmd")
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{text_field.id}": "=3+4+cmd"})
+
+    _, contents = run_export_job_with_mock_storage(table, grid_view, storage_mock, user)
+
+    bom = "\ufeff"
+    # Both the "=2+5+cmd" header and the "=3+4+cmd" value are prefixed with "'".
+    assert contents == bom + "id,'=2+5+cmd\r\n1,'=3+4+cmd\r\n"
+
+
+@pytest.mark.django_db
+@patch("baserow.core.storage.get_default_storage")
+def test_csv_export_escapes_formula_after_leading_newline(
+    get_storage_mock, data_fixture
+):
+    # A value that starts with a newline followed by a formula can still be read
+    # as a formula by spreadsheet parsers that trim leading whitespace. The
+    # exported cell must be neutralized (CWE-1236).
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    grid_view = data_fixture.create_grid_view(table=table)
+    notes_field = data_fixture.create_long_text_field(
+        user=user, table=table, name="notes"
+    )
+
+    model = table.get_model()
+    model.objects.create(**{f"field_{notes_field.id}": '\n=HYPERLINK("http://evil")'})
+
+    _, contents = run_export_job_with_mock_storage(table, grid_view, storage_mock, user)
+
+    # Parse the exported file back; the notes value must carry the "'" guard so
+    # the "=" is no longer the first meaningful character.
+    rows = list(csv.reader(StringIO(contents.lstrip("\ufeff"))))
+    assert rows[1][1] == '\'\n=HYPERLINK("http://evil")'
+
+
+@pytest.mark.django_db
 def test_creating_a_new_export_job_will_cancel_any_already_running_jobs_for_that_user(
     data_fixture,
 ):
@@ -789,6 +840,72 @@ def test_can_export_csv_without_header(get_storage_mock, data_fixture):
         "\ufeff"
         f"2,atest,A,02/01/2020 01:23,,-10.20,linked_row_1\r\n"
         f'1,test,B,02/01/2020 01:23,,10.20,"linked_row_1,linked_row_2"\r\n'
+    )
+    assert expected == contents
+
+
+@pytest.mark.django_db
+@patch("baserow.core.storage.get_default_storage")
+def test_can_export_csv_without_row_id(get_storage_mock, data_fixture):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+
+    _, contents = setup_table_and_run_export_decoding_result(
+        data_fixture,
+        storage_mock,
+        options={"exporter_type": "csv", "include_row_id": False},
+    )
+    expected = (
+        "\ufeff"
+        "text_field,option_field,date_field,File,Price,Customer\r\n"
+        "atest,A,02/01/2020 01:23,,-10.20,linked_row_1\r\n"
+        'test,B,02/01/2020 01:23,,10.20,"linked_row_1,linked_row_2"\r\n'
+    )
+    assert expected == contents
+
+
+@pytest.mark.django_db
+@patch("baserow.core.storage.get_default_storage")
+def test_can_export_csv_without_primary_field(get_storage_mock, data_fixture):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+
+    _, contents = setup_table_and_run_export_decoding_result(
+        data_fixture,
+        storage_mock,
+        options={"exporter_type": "csv", "include_primary_field": False},
+    )
+    expected = (
+        "\ufeff"
+        "id,option_field,date_field,File,Price,Customer\r\n"
+        "2,A,02/01/2020 01:23,,-10.20,linked_row_1\r\n"
+        '1,B,02/01/2020 01:23,,10.20,"linked_row_1,linked_row_2"\r\n'
+    )
+    assert expected == contents
+
+
+@pytest.mark.django_db
+@patch("baserow.core.storage.get_default_storage")
+def test_can_export_csv_without_row_id_and_primary_field(
+    get_storage_mock, data_fixture
+):
+    storage_mock = MagicMock()
+    get_storage_mock.return_value = storage_mock
+
+    _, contents = setup_table_and_run_export_decoding_result(
+        data_fixture,
+        storage_mock,
+        options={
+            "exporter_type": "csv",
+            "include_row_id": False,
+            "include_primary_field": False,
+        },
+    )
+    expected = (
+        "\ufeff"
+        "option_field,date_field,File,Price,Customer\r\n"
+        "A,02/01/2020 01:23,,-10.20,linked_row_1\r\n"
+        'B,02/01/2020 01:23,,10.20,"linked_row_1,linked_row_2"\r\n'
     )
     assert expected == contents
 

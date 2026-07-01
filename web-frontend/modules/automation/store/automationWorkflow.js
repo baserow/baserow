@@ -20,7 +20,7 @@ export function populateAutomationWorkflow(workflow) {
   }
 }
 
-const state = {
+const state = () => ({
   // Holds the value of which workflow is currently selected
   selected: {},
   // A job object that tracks the progress of a workflow duplication currently running
@@ -29,10 +29,20 @@ const state = {
   // `null` (side panel is closed), `history` (view workflow run history) and
   // `node` (trigger and action node edit forms).
   activeSidePanel: null,
-}
+})
 
 const mutations = {
   ADD_ITEM(state, { automation, workflow }) {
+    const existing = automation.workflows.find(
+      (item) => item.id === workflow.id
+    )
+    if (existing) {
+      // Workflow duplication can arrive through both the realtime
+      // `automation_workflow_created` event and the duplicate job completion.
+      Object.assign(existing, workflow)
+      return
+    }
+
     automation.workflows.push(populateAutomationWorkflow(workflow))
   },
   UPDATE_ITEM(state, { workflow, values }) {

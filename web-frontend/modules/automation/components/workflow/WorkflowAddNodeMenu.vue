@@ -6,8 +6,10 @@
       class="context__menu-item"
     >
       <a
+        v-tooltip="nodeType.isDeactivatedReason({ workspace })"
         class="context__menu-item-link context__menu-item-link--with-desc"
-        @click="onChange(nodeType.getType())"
+        :class="{ disabled: nodeType.isDeactivated({ workspace }) }"
+        @click="onChange(nodeType)"
       >
         <span class="context__menu-item-title" :title="nodeType.name">
           <i
@@ -26,6 +28,14 @@
         <div class="context__menu-item-description">
           {{ nodeType.description }}
         </div>
+        <component
+          :is="getDeactivatedClickModal(nodeType)[0]"
+          v-if="getDeactivatedClickModal(nodeType) !== null"
+          :ref="`deactivatedClickModal_${nodeType.getType()}`"
+          v-bind="getDeactivatedClickModal(nodeType)[1]"
+          :name="nodeType.name"
+          :workspace="workspace"
+        ></component>
       </a>
     </li>
   </ul>
@@ -36,6 +46,7 @@ import context from '@baserow/modules/core/mixins/context'
 export default {
   name: 'WorkflowNodeContext',
   mixins: [context],
+  inject: ['workspace'],
   props: {
     node: {
       type: Object,
@@ -76,7 +87,19 @@ export default {
   },
   methods: {
     onChange(nodeType) {
-      this.$emit('change', nodeType)
+      if (nodeType.isDeactivated({ workspace: this.workspace })) {
+        const deactivatedClickModal = this.getDeactivatedClickModal(nodeType)
+        if (deactivatedClickModal !== null) {
+          this.$refs[`deactivatedClickModal_${nodeType.getType()}`][0].show()
+        }
+        return
+      }
+      this.$emit('change', nodeType.getType())
+    },
+    getDeactivatedClickModal(nodeType) {
+      return nodeType.getDeactivatedClickModal({
+        workspace: this.workspace,
+      })
     },
   },
 }

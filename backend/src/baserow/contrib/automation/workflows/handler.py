@@ -47,6 +47,7 @@ from baserow.contrib.automation.workflows.exceptions import (
 )
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
 from baserow.contrib.automation.workflows.signals import (
+    automation_workflow_before_run,
     automation_workflow_dispatch_started,
     automation_workflow_updated,
 )
@@ -824,9 +825,9 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         if simulate_until_node is None:  # Full test
             AutomationWorkflowHandler().set_workflow_temporary_states(workflow)
-            if workflow.can_immediately_be_tested():
-                # If the service related to the trigger can immediately be tested
-                # we immediately trigger the workflow run
+            if workflow.can_be_immediately_dispatched():
+                # If the service related to the trigger can immediately dispatch,
+                # we immediately trigger the workflow run.
                 self.async_start_workflow(workflow)
         else:
             AutomationWorkflowHandler().set_workflow_temporary_states(
@@ -842,7 +843,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
                 history=None,
                 simulate_until_node=simulate_until_node,
             )
-            if workflow.can_immediately_be_tested() or (
+            if workflow.can_be_immediately_dispatched() or (
                 trigger.service.get_type().get_sample_data(
                     trigger.service.specific, dispatch_context
                 )
@@ -1129,6 +1130,8 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
 
         self._check_is_rate_limited(workflow)
 
+        automation_workflow_before_run.send(sender=self, workflow=workflow)
+
     def async_start_workflow(
         self,
         workflow: AutomationWorkflow,
@@ -1146,7 +1149,7 @@ class AutomationWorkflowHandler(metaclass=baserow_trace_methods(tracer)):
         create_history_entry = True
 
         simulate_until_node = (
-            workflow.get_graph().get_node(workflow.simulate_until_node_id)
+            workflow.get_graph().get_point(workflow.simulate_until_node_id)
             if workflow.simulate_until_node_id
             else None
         )

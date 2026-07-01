@@ -36,6 +36,14 @@ export default {
       required: false,
       default: null,
     },
+    // The PAGE_PLACES this zone lives in. Used as the reference place when the
+    // zone has no reference element (e.g. the empty content drop zone), so that
+    // shared-element drop guards can still reject cross-place drops.
+    targetPagePlace: {
+      type: [String, null],
+      required: false,
+      default: null,
+    },
     placeInContainer: {
       type: [String, null],
       required: false,
@@ -63,6 +71,7 @@ export default {
       parentElement: props.parentElement,
       placeInContainer: props.placeInContainer,
       page: props.page,
+      targetPagePlace: props.targetPagePlace,
     })
   },
 }

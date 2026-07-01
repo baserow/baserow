@@ -38,6 +38,7 @@ def get_rows_grouped_by_single_select_field(
     adhoc_filters: Optional[AdHocFilters] = None,
     model: Optional[GeneratedTableModel] = None,
     base_queryset: Optional[QuerySet] = None,
+    apply_view_sorts: bool = True,
 ) -> Dict[str, Dict[str, Union[int, list]]]:
     """
     This method fetches the rows grouped by a single select field in a query
@@ -74,6 +75,10 @@ def get_rows_grouped_by_single_select_field(
     :param base_queryset: Optionally an alternative base queryset can be provided
         that will be used to fetch the rows. This should be provided if additional
         filters and/or sorts must be added.
+    :param apply_view_sorts: When `True` (the default) the view's own sorts are
+        applied to the queryset. Set to `False` when the caller has already
+        ordered the queryset (e.g. via an adhoc `order_by` query parameter) so
+        that the explicit ordering is preserved.
     :return: The fetched rows including the total count.
     """
 
@@ -86,7 +91,10 @@ def get_rows_grouped_by_single_select_field(
         model = table.get_model()
 
     if base_queryset is None:
-        base_queryset = model.objects.all().enhance_by_fields().order_by("order", "id")
+        base_queryset = model.objects.all().enhance_by_fields()
+
+    if apply_view_sorts:
+        base_queryset = ViewHandler().apply_sorting(view, base_queryset)
 
     if adhoc_filters is None:
         adhoc_filters = AdHocFilters()

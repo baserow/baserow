@@ -117,7 +117,7 @@ const { data, error } = await useAsyncData(
         )
       )
 
-      return { success: true, database, table }
+      return { success: true, database, table, fields, view }
     } catch (e) {
       const statusCode = e.response?.status
       // password protected view requires authentication
@@ -130,7 +130,14 @@ const { data, error } = await useAsyncData(
           },
         }
       } else if (statusCode === 404) {
-        throw createError({ statusCode: 404, message: 'View not found.' })
+        throw createError({
+          statusCode: 404,
+          message: 'View not found.',
+          data: {
+            report: false,
+          },
+          fatal: true,
+        })
       } else {
         throw createError({
           statusCode: 500,

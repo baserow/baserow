@@ -17,10 +17,14 @@ from baserow.contrib.builder.elements.element_types import NavigationElementMana
 from baserow.contrib.builder.formula_importer import import_formula
 from baserow.contrib.builder.workflow_actions.models import (
     AIAgentWorkflowAction,
+    CoreCSVFileReaderWorkflowAction,
     CoreHTTPRequestWorkflowAction,
     CoreSMTPEmailWorkflowAction,
+    CoreStartWorkflowWorkflowAction,
+    LocalBaserowCreateRowsWorkflowAction,
     LocalBaserowCreateRowWorkflowAction,
     LocalBaserowDeleteRowWorkflowAction,
+    LocalBaserowUpdateRowsWorkflowAction,
     LocalBaserowUpdateRowWorkflowAction,
     LogoutWorkflowAction,
     NotificationWorkflowAction,
@@ -34,11 +38,15 @@ from baserow.contrib.builder.workflow_actions.registries import (
 from baserow.contrib.builder.workflow_actions.types import BuilderWorkflowActionDict
 from baserow.contrib.integrations.ai.service_types import AIAgentServiceType
 from baserow.contrib.integrations.core.service_types import (
+    CoreCSVFileReaderServiceType,
     CoreHTTPRequestServiceType,
     CoreSMTPEmailServiceType,
+    CoreStartWorkflowServiceType,
 )
 from baserow.contrib.integrations.local_baserow.service_types import (
+    LocalBaserowCreateRowsServiceType,
     LocalBaserowDeleteRowServiceType,
+    LocalBaserowUpdateRowsServiceType,
     LocalBaserowUpsertRowServiceType,
 )
 from baserow.contrib.integrations.slack.service_types import (
@@ -451,9 +459,29 @@ class CreateRowWorkflowActionType(UpsertRowWorkflowActionType):
     model_class = LocalBaserowCreateRowWorkflowAction
 
 
+class LocalBaserowCreateRowsWorkflowActionType(LocalBaserowWorkflowActionType):
+    type = "local_baserow_create_rows"
+    model_class = LocalBaserowCreateRowsWorkflowAction
+    service_type = LocalBaserowCreateRowsServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_local_baserow_create_rows_service()
+        return {"service": service}
+
+
 class UpdateRowWorkflowActionType(UpsertRowWorkflowActionType):
     type = "update_row"
     model_class = LocalBaserowUpdateRowWorkflowAction
+
+
+class LocalBaserowUpdateRowsWorkflowActionType(LocalBaserowWorkflowActionType):
+    type = "local_baserow_update_rows"
+    model_class = LocalBaserowUpdateRowsWorkflowAction
+    service_type = LocalBaserowUpdateRowsServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_local_baserow_update_rows_service()
+        return {"service": service}
 
 
 class DeleteRowWorkflowActionType(LocalBaserowWorkflowActionType):
@@ -483,6 +511,26 @@ class CoreSMTPEmailActionType(BuilderWorkflowServiceActionType):
 
     def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
         service = pytest_data_fixture.create_core_smtp_email_service()
+        return {"service": service}
+
+
+class CoreCSVFileReaderActionType(BuilderWorkflowServiceActionType):
+    type = "csv_file_reader"
+    model_class = CoreCSVFileReaderWorkflowAction
+    service_type = CoreCSVFileReaderServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_core_csv_file_reader_service()
+        return {"service": service}
+
+
+class CoreStartWorkflowActionType(BuilderWorkflowServiceActionType):
+    type = "start_workflow"
+    model_class = CoreStartWorkflowWorkflowAction
+    service_type = CoreStartWorkflowServiceType.type
+
+    def get_pytest_params(self, pytest_data_fixture) -> Dict[str, int]:
+        service = pytest_data_fixture.create_core_start_workflow_service()
         return {"service": service}
 
 

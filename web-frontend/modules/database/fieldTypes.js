@@ -411,7 +411,8 @@ export class FieldType extends Registerable {
   }
 
   /**
-   * Should return true if the provided value is empty.
+   * Returns true if the value is empty. Shared by the conditional-visibility
+   * filters and required form validation so the two stay in sync.
    */
   isEmpty(field, value) {
     const isEmptyValue = (v) => {
@@ -1719,16 +1720,17 @@ export class LinkRowFieldType extends FieldType {
     return true
   }
 
+  /**
+   * A link_row is empty only when no row is selected. A picked row counts as
+   * filled even when its primary is empty, which matches the backend, where the
+   * field is a many-to-many relation. Slots without a real id stay empty.
+   */
   isEmpty(field, value) {
-    if (super.isEmpty(field, value)) {
-      return true
-    }
-
-    if (value.some((v) => !Number.isInteger(v.id))) {
-      return true
-    }
-
-    return false
+    return (
+      !Array.isArray(value) ||
+      value.length === 0 ||
+      value.every((v) => !Number.isInteger(v.id))
+    )
   }
 
   shouldRefetchFieldData(field, rows) {
@@ -1957,6 +1959,13 @@ export class NumberFieldType extends FieldType {
 
   prepareValueForUpdate(field, value) {
     return parseNumberValue(field, value)
+  }
+
+  prepareValueForDuplicate(field, value) {
+    if (value == null || value === '') {
+      return null
+    }
+    return parseNumberValue(field, new BigNumber(value))
   }
 
   parseFromLinkedRowItemValue(field, value) {

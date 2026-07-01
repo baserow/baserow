@@ -65,7 +65,7 @@
 </template>
 
 <script>
-import { useId } from '#app'
+import { useId } from 'vue'
 
 export default {
   name: 'Checkbox',

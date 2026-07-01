@@ -17,7 +17,25 @@
         :read-only="readOnly"
       ></GridViewRowHeight>
     </li>
-    <li class="header__filter-item header__filter-item--full-width">
+    <template v-if="presenceEnabled">
+      <li
+        class="header__filter-item header__filter-item--right header__filter-item--stretch"
+      >
+        <PresenceBar :space-name="activePresenceSpace" />
+      </li>
+      <li
+        v-if="hasPresenceUsers"
+        class="header__filter-item header__filter-item--stretch header__filter-item--no-margin-left"
+      >
+        <div class="presence-bar__divider" />
+      </li>
+    </template>
+    <li
+      :class="[
+        'header__filter-item',
+        { 'header__filter-item--right': !presenceEnabled },
+      ]"
+    >
       <ViewSearch
         :view="view"
         :fields="fields"
@@ -33,11 +51,18 @@ import { mapState } from 'vuex'
 
 import GridViewRowHeight from '@baserow/modules/database/components/view/grid/GridViewRowHeight'
 import GridViewHide from '@baserow/modules/database/components/view/grid/GridViewHide'
+import PresenceBar from '@baserow/modules/core/components/presence/PresenceBar'
+import { FF_USER_PRESENCE } from '@baserow/modules/core/plugins/featureFlags'
 import ViewSearch from '@baserow/modules/database/components/view/ViewSearch'
 
 export default {
   name: 'GridViewHeader',
-  components: { GridViewRowHeight, GridViewHide, ViewSearch },
+  components: {
+    GridViewRowHeight,
+    GridViewHide,
+    PresenceBar,
+    ViewSearch,
+  },
   props: {
     database: {
       type: Object,
@@ -65,6 +90,25 @@ export default {
     ...mapState({
       tableLoading: (state) => state.table.loading,
     }),
+    presenceEnabled() {
+      return (
+        typeof this.$featureFlagIsEnabled === 'function' &&
+        this.$featureFlagIsEnabled(FF_USER_PRESENCE)
+      )
+    },
+    activePresenceSpace() {
+      const table = this.$store.state.table.selected
+      if (!table || !table.id) return ''
+      return `table-${table.id}`
+    },
+    hasPresenceUsers() {
+      if (!this.activePresenceSpace) return false
+      const currentUserId = this.$store.getters['auth/getUserId']
+      const users = this.$store.getters['presence/getUniqueUsersBySpace'](
+        this.activePresenceSpace
+      )
+      return users.some((u) => u.user_id !== currentUserId)
+    },
     fieldsAllowedToBeHidden() {
       return this.fields.filter((field) => !field.primary)
     },

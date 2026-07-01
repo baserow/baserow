@@ -2,6 +2,7 @@ from django.urls import re_path
 
 from baserow.api.admin.users.views import (
     UserAdminImpersonateView,
+    UserAdminTwoFactorAuthView,
     UserAdminView,
     UsersAdminView,
 )
@@ -12,4 +13,9 @@ urlpatterns = [
     re_path(r"^$", UsersAdminView.as_view(), name="list"),
     re_path(r"^impersonate/$", UserAdminImpersonateView.as_view(), name="impersonate"),
     re_path(r"^(?P<user_id>[0-9]+)/$", UserAdminView.as_view(), name="edit"),
+    re_path(
+        r"^(?P<user_id>[0-9]+)/two-factor-auth/$",
+        UserAdminTwoFactorAuthView.as_view(),
+        name="two_factor_auth",
+    ),
 ]

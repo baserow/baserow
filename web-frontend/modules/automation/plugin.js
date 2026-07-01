@@ -11,20 +11,26 @@ import automationWorkflowNodeStore from '@baserow/modules/automation/store/autom
 import automationHistoryStore from '@baserow/modules/automation/store/automationHistory'
 import {
   LocalBaserowCreateRowActionNodeType,
+  LocalBaserowCreateRowsActionNodeType,
   LocalBaserowUpdateRowActionNodeType,
+  LocalBaserowUpdateRowsActionNodeType,
   LocalBaserowDeleteRowActionNodeType,
   LocalBaserowGetRowActionNodeType,
   LocalBaserowListRowsActionNodeType,
   LocalBaserowRowsCreatedTriggerNodeType,
   LocalBaserowRowsUpdatedTriggerNodeType,
   LocalBaserowRowsDeletedTriggerNodeType,
+  LocalBaserowFieldsUpdatedTriggerNodeType,
   CoreHTTPTriggerNodeType,
   LocalBaserowAggregateRowsActionNodeType,
+  CoreCSVFileReaderNodeType,
   CoreHttpRequestNodeType,
   CoreIteratorNodeType,
   CoreSMTPEmailNodeType,
   CoreRouterNodeType,
   CorePeriodicTriggerNodeType,
+  CoreStartWorkflowNodeType,
+  CoreManualTriggerNodeType,
   AIAgentActionNodeType,
   SlackWriteMessageNodeType,
 } from '@baserow/modules/automation/nodeTypes'
@@ -97,13 +103,27 @@ export default defineNuxtPlugin({
       'node',
       new LocalBaserowRowsDeletedTriggerNodeType(context)
     )
+    $registry.register(
+      'node',
+      new LocalBaserowFieldsUpdatedTriggerNodeType(context)
+    )
     $registry.register('node', new CoreHTTPTriggerNodeType(context))
     $registry.register('node', new LocalBaserowCreateRowActionNodeType(context))
+    $registry.register(
+      'node',
+      new LocalBaserowCreateRowsActionNodeType(context)
+    )
     $registry.register('node', new LocalBaserowUpdateRowActionNodeType(context))
+    $registry.register(
+      'node',
+      new LocalBaserowUpdateRowsActionNodeType(context)
+    )
     $registry.register('node', new CoreHttpRequestNodeType(context))
     $registry.register('node', new CoreSMTPEmailNodeType(context))
     $registry.register('node', new CoreRouterNodeType(context))
     $registry.register('node', new CoreIteratorNodeType(context))
+    $registry.register('node', new CoreCSVFileReaderNodeType(context))
+    $registry.register('node', new CoreStartWorkflowNodeType(context))
     $registry.register('node', new SlackWriteMessageNodeType(context))
     $registry.register('node', new LocalBaserowDeleteRowActionNodeType(context))
     $registry.register('node', new LocalBaserowGetRowActionNodeType(context))
@@ -113,6 +133,7 @@ export default defineNuxtPlugin({
       new LocalBaserowAggregateRowsActionNodeType(context)
     )
     $registry.register('node', new CorePeriodicTriggerNodeType(context))
+    $registry.register('node', new CoreManualTriggerNodeType(context))
     $registry.register('node', new AIAgentActionNodeType(context))
 
     // Automation job types

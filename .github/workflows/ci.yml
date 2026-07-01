@@ -547,7 +547,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - name: Log in to GitHub Container Registry
         if: needs.build-frontend.outputs.is_fork != 'true'
@@ -571,16 +571,20 @@ jobs:
       - name: Run web-frontend tests for shard ${{ matrix.shard }}
         env:
           CI: "true"
-          EXTRA_VITEST_PARAMS: --shard=${{ matrix.shard }}/3 --reporter=junit --outputFile=./reports/junit.xml
+          EXTRA_VITEST_PARAMS: --shard=${{ matrix.shard }}/${{ strategy.job-total }} --reporter=default --reporter=junit --outputFile=./reports/junit.xml
         run: |
           mkdir -p reports
           set -o pipefail
+          set +e
           docker run \
             --name=webfrontend_test \
             -e EXTRA_VITEST_PARAMS="$EXTRA_VITEST_PARAMS" \
             ${{ needs.build-frontend.outputs.image }} ci-test | tee reports/stdout.txt
-          docker cp webfrontend_test:/baserow/web-frontend/reports/junit.xml ./reports
+          test_exit_code="${PIPESTATUS[0]}"
+          set -e
+          docker cp webfrontend_test:/baserow/web-frontend/reports/junit.xml ./reports || true
           docker rm webfrontend_test
+          exit "$test_exit_code"
 
       - name: Upload test reports
         uses: actions/upload-artifact@v4
@@ -675,10 +679,12 @@ jobs:
       packages: read
       checks: write
       pull-requests: write
+    env:
+      PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: 1
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2]
+        shard: [1, 2, 3, 4]
     services:
       db:
         image: pgvector/pgvector:pg14
@@ -827,22 +833,8 @@ jobs:
           cd e2e-tests
           yarn install
 
-      - name: Get Playwright version
-        id: playwright-version
-        run: echo "version=$(cd e2e-tests && yarn list @playwright/test --depth=0 | grep @playwright/test | sed 's/.*@//')" >> $GITHUB_OUTPUT
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
-
-      - name: Install Playwright browsers
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: |
-          cd e2e-tests
-          npx playwright install --with-deps firefox
+      - name: Verify Google Chrome
+        run: google-chrome --version
 
       - name: Wait for services
         env:
@@ -877,7 +869,7 @@ jobs:
           CI: 1
         run: |
           cd e2e-tests
-          npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/2 --project=firefox
+          npx playwright test --timeout=30000 --grep-invert=@slow --shard=${{ matrix.shard }}/4 --project=chrome
 
       - name: Upload E2E test results
         uses: actions/upload-artifact@v4

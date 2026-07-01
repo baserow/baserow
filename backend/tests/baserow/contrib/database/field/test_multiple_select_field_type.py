@@ -2217,25 +2217,20 @@ def test_conversion_to_multiple_select_with_same_option_value_on_same_row(
         type_name="long_text",
     )
 
-    row_1 = row_handler.create_row(
+    row_1, row_2 = row_handler.force_create_rows(
         user=user,
         table=table,
-        values={
-            f"field_{field_1.id}": "test,test",
-        },
-    )
-
-    row_2 = row_handler.create_row(
-        user=user,
-        table=table,
-        values={
-            f"field_{field_1.id}": "test, test",
-        },
-    )
+        rows_values=[
+            {f"field_{field_1.id}": "test,test"},
+            {f"field_{field_1.id}": "test, test"},
+        ],
+    ).created_rows
 
     unique_values = field_handler.get_unique_row_values(
         field=field_1, limit=10, split_comma_separated=True
     )
+    assert unique_values == ["test"]
+
     field_handler.update_field(
         user=user,
         field=field_1,
@@ -2243,23 +2238,18 @@ def test_conversion_to_multiple_select_with_same_option_value_on_same_row(
         select_options=[{"value": value, "color": "blue"} for value in unique_values],
     )
 
-    field_type = field_type_registry.get_by_model(field_1)
     select_options = field_1.select_options.all()
     id_of_only_select_option = select_options[0].id
-    assert field_type.type == "multiple_select"
     assert len(select_options) == 1
 
     model = table.get_model()
-    rows = model.objects.all()
-    row_1, row_2 = rows
-    cell_1 = getattr(row_1, f"field_{field_1.id}").all()
-    cell_2 = getattr(row_2, f"field_{field_1.id}").all()
-
-    assert len(cell_1) == 1
-    assert cell_1[0].id == id_of_only_select_option
-
-    assert len(cell_2) == 1
-    assert cell_2[0].id == id_of_only_select_option
+    row_1, row_2 = model.objects.all()
+    assert list(getattr(row_1, f"field_{field_1.id}").values_list("id", flat=True)) == [
+        id_of_only_select_option
+    ]
+    assert list(getattr(row_2, f"field_{field_1.id}").values_list("id", flat=True)) == [
+        id_of_only_select_option
+    ]
 
 
 @pytest.mark.django_db

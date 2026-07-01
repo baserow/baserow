@@ -6,6 +6,7 @@
     >
       <template #default>
         <FormGroup
+          v-if="!extraArgs?.noFontSelector"
           horizontal-narrow
           small-label
           class="margin-bottom-2"
@@ -20,6 +21,7 @@
           </template>
         </FormGroup>
         <FormGroup
+          v-if="!extraArgs?.noFontWeight"
           horizontal-narrow
           small-label
           class="margin-bottom-2"
@@ -253,7 +255,7 @@ import { DEFAULT_FONT_SIZE_PX } from '@baserow/modules/builder/defaultStyles'
 
 const fontSizeMin = 1
 const fontSizeMax = 100
-const bodyFontSizeMax = 30
+const bodyFontSizeMax = 50
 const headings = [1, 2, 3, 4, 5, 6]
 
 export default {

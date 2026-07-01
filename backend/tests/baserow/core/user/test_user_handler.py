@@ -781,6 +781,12 @@ def test_verify_email_address_expired(data_fixture):
 
 
 @pytest.mark.django_db
+def test_verify_email_address_malformed_token():
+    with pytest.raises(InvalidVerificationToken):
+        UserHandler().verify_email_address("not-a-real-token")
+
+
+@pytest.mark.django_db
 def test_verify_email_address_user_doesnt_exist(data_fixture):
     user = data_fixture.create_user()
     token = UserHandler().create_email_verification_token(user)

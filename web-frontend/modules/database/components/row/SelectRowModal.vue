@@ -5,12 +5,6 @@
     box-class="select-row-modal__box"
     @hidden="$emit('hidden')"
   >
-    <!--
-    Because of how the moveToBody mixin works it takes a small moment before the $refs
-    become available. In order for the Scrollbars components to work the refs need to
-    be available right away. That is the reason why the contents of the SelectRowModal
-    have been moved to a separate component.
-    -->
     <SelectRowContent
       :table-id="tableId"
       :view-id="viewId"

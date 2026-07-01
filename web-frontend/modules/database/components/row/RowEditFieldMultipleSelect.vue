@@ -1,6 +1,11 @@
 <template>
   <div class="control__elements">
-    <ul class="field-multiple-select__items">
+    <ul
+      class="field-multiple-select__items"
+      :class="{
+        'field-multiple-select__items--empty': !value || value.length === 0,
+      }"
+    >
       <li
         v-for="item in value"
         :key="item.id"
@@ -31,6 +36,7 @@
       :disabled="readOnly"
       :show-input="false"
       :show-empty-value="false"
+      :fixed-items="true"
       :error="touched && !valid"
       @input="updateValue($event, value)"
       @create-option="createOption($event)"

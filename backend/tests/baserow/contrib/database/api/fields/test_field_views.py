@@ -882,6 +882,32 @@ def test_unique_row_values(api_client, data_fixture):
 
 
 @pytest.mark.django_db
+def test_unique_row_values_user_not_in_workspace(api_client, data_fixture):
+    user, token = data_fixture.create_user_and_token()
+    other_user, other_token = data_fixture.create_user_and_token()
+    table = data_fixture.create_database_table(user=user)
+    text_field = data_fixture.create_text_field(table=table, order=0, name="Letter")
+    model = table.get_model()
+    model.objects.create(**{f"field_{text_field.id}": "secret"})
+
+    url = reverse(
+        "api:database:fields:unique_row_values", kwargs={"field_id": text_field.id}
+    )
+
+    # A user that is not a member of the field's workspace must not be able to read
+    # the unique row values of that field.
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {other_token}")
+    response_json = response.json()
+    assert response.status_code == HTTP_400_BAD_REQUEST
+    assert response_json["error"] == "ERROR_USER_NOT_IN_GROUP"
+
+    # The member of the workspace can still read the values.
+    response = api_client.get(url, HTTP_AUTHORIZATION=f"JWT {token}")
+    assert response.status_code == HTTP_200_OK
+    assert response.json()["values"] == ["secret"]
+
+
+@pytest.mark.django_db
 def test_unique_row_values_splitted_by_comma(api_client, data_fixture):
     user, token = data_fixture.create_user_and_token(
         email="11@11.com", password="password", first_name="abcd"

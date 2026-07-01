@@ -1,147 +1,150 @@
 // Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
 
 exports[`Field footer component > Change type 1`] = `
-<div
-  class="context"
-  style="top: 10px; right: auto; bottom: auto; left: 0px;"
+<teleport-stub
+  to="body"
 >
-  
-  <ul
-    class="select__items"
+  <div
+    class="context"
   >
-    <li
-      class="select__item select__item--no-options"
-    >
-      <a
-        class="select__item-link"
-      >
-        <div
-          class="select__item-name"
-        >
-          <span
-            class="select__item-name-text"
-          >
-            common.none
-          </span>
-        </div>
-      </a>
-      <!--v-if-->
-    </li>
     
-    <li
-      class="select__item select__item--no-options"
+    <ul
+      class="select__items"
     >
-      <a
-        class="select__item-link"
+      <li
+        class="select__item select__item--no-options"
       >
-        <div
-          class="select__item-name"
+        <a
+          class="select__item-link"
         >
-          <span
-            class="select__item-name-text"
+          <div
+            class="select__item-name"
           >
-            viewAggregationType.emptyCount
-          </span>
-        </div>
-      </a>
-      <!--v-if-->
-    </li>
-    <li
-      class="select__item select__item--no-options active"
-    >
-      <a
-        class="select__item-link"
+            <span
+              class="select__item-name-text"
+            >
+              common.none
+            </span>
+          </div>
+        </a>
+        <!--v-if-->
+      </li>
+      
+      <li
+        class="select__item select__item--no-options"
       >
-        <div
-          class="select__item-name"
+        <a
+          class="select__item-link"
         >
-          <span
-            class="select__item-name-text"
+          <div
+            class="select__item-name"
           >
-            viewAggregationType.notEmptyCount
-          </span>
-        </div>
-      </a>
-      <i
-        class="select__item-active-icon iconoir-check"
-      />
-    </li>
-    <li
-      class="select__item select__item--no-options"
-    >
-      <a
-        class="select__item-link"
+            <span
+              class="select__item-name-text"
+            >
+              viewAggregationType.emptyCount
+            </span>
+          </div>
+        </a>
+        <!--v-if-->
+      </li>
+      <li
+        class="select__item select__item--no-options active"
       >
-        <div
-          class="select__item-name"
+        <a
+          class="select__item-link"
         >
-          <span
-            class="select__item-name-text"
+          <div
+            class="select__item-name"
           >
-            viewAggregationType.emptyPercentage
-          </span>
-        </div>
-      </a>
-      <!--v-if-->
-    </li>
-    <li
-      class="select__item select__item--no-options"
-    >
-      <a
-        class="select__item-link"
+            <span
+              class="select__item-name-text"
+            >
+              viewAggregationType.notEmptyCount
+            </span>
+          </div>
+        </a>
+        <i
+          class="select__item-active-icon iconoir-check"
+        />
+      </li>
+      <li
+        class="select__item select__item--no-options"
       >
-        <div
-          class="select__item-name"
+        <a
+          class="select__item-link"
         >
-          <span
-            class="select__item-name-text"
+          <div
+            class="select__item-name"
           >
-            viewAggregationType.notEmptyPercentage
-          </span>
-        </div>
-      </a>
-      <!--v-if-->
-    </li>
-    <li
-      class="select__item select__item--no-options"
-    >
-      <a
-        class="select__item-link"
+            <span
+              class="select__item-name-text"
+            >
+              viewAggregationType.emptyPercentage
+            </span>
+          </div>
+        </a>
+        <!--v-if-->
+      </li>
+      <li
+        class="select__item select__item--no-options"
       >
-        <div
-          class="select__item-name"
+        <a
+          class="select__item-link"
         >
-          <span
-            class="select__item-name-text"
+          <div
+            class="select__item-name"
           >
-            viewAggregationType.uniqueCount
-          </span>
-        </div>
-      </a>
-      <!--v-if-->
-    </li>
-    <li
-      class="select__item select__item--no-options"
-    >
-      <a
-        class="select__item-link"
+            <span
+              class="select__item-name-text"
+            >
+              viewAggregationType.notEmptyPercentage
+            </span>
+          </div>
+        </a>
+        <!--v-if-->
+      </li>
+      <li
+        class="select__item select__item--no-options"
       >
-        <div
-          class="select__item-name"
+        <a
+          class="select__item-link"
         >
-          <span
-            class="select__item-name-text"
+          <div
+            class="select__item-name"
           >
-            viewAggregationType.distribution
-          </span>
-        </div>
-      </a>
-      <!--v-if-->
-    </li>
+            <span
+              class="select__item-name-text"
+            >
+              viewAggregationType.uniqueCount
+            </span>
+          </div>
+        </a>
+        <!--v-if-->
+      </li>
+      <li
+        class="select__item select__item--no-options"
+      >
+        <a
+          class="select__item-link"
+        >
+          <div
+            class="select__item-name"
+          >
+            <span
+              class="select__item-name-text"
+            >
+              viewAggregationType.distribution
+            </span>
+          </div>
+        </a>
+        <!--v-if-->
+      </li>
+      
+    </ul>
     
-  </ul>
-  
-</div>
+  </div>
+</teleport-stub>
 `;
 
 exports[`Field footer component > Change type 2`] = `
@@ -149,13 +152,158 @@ exports[`Field footer component > Change type 2`] = `
   class="grid-view-aggregation"
 >
   <div
-    class="grid-view-aggregation__empty"
+    class="grid-view-aggregation__empty grid-view-aggregation__empty--active"
   >
     <i
       class="grid-view-aggregation__empty-icon iconoir-plus"
     />
      common.summarize
   </div>
+  <teleport-stub
+    to="body"
+  >
+    <div
+      class="context"
+      style="top: 10px; right: auto; bottom: auto; left: 0px;"
+    >
+      
+      <ul
+        class="select__items"
+      >
+        <li
+          class="select__item select__item--no-options active"
+        >
+          <a
+            class="select__item-link"
+          >
+            <div
+              class="select__item-name"
+            >
+              <span
+                class="select__item-name-text"
+              >
+                common.none
+              </span>
+            </div>
+          </a>
+          <i
+            class="select__item-active-icon iconoir-check"
+          />
+        </li>
+        
+        <li
+          class="select__item select__item--no-options"
+        >
+          <a
+            class="select__item-link"
+          >
+            <div
+              class="select__item-name"
+            >
+              <span
+                class="select__item-name-text"
+              >
+                viewAggregationType.emptyCount
+              </span>
+            </div>
+          </a>
+          <!--v-if-->
+        </li>
+        <li
+          class="select__item select__item--no-options"
+        >
+          <a
+            class="select__item-link"
+          >
+            <div
+              class="select__item-name"
+            >
+              <span
+                class="select__item-name-text"
+              >
+                viewAggregationType.notEmptyCount
+              </span>
+            </div>
+          </a>
+          <!--v-if-->
+        </li>
+        <li
+          class="select__item select__item--no-options"
+        >
+          <a
+            class="select__item-link"
+          >
+            <div
+              class="select__item-name"
+            >
+              <span
+                class="select__item-name-text"
+              >
+                viewAggregationType.emptyPercentage
+              </span>
+            </div>
+          </a>
+          <!--v-if-->
+        </li>
+        <li
+          class="select__item select__item--no-options"
+        >
+          <a
+            class="select__item-link"
+          >
+            <div
+              class="select__item-name"
+            >
+              <span
+                class="select__item-name-text"
+              >
+                viewAggregationType.notEmptyPercentage
+              </span>
+            </div>
+          </a>
+          <!--v-if-->
+        </li>
+        <li
+          class="select__item select__item--no-options"
+        >
+          <a
+            class="select__item-link"
+          >
+            <div
+              class="select__item-name"
+            >
+              <span
+                class="select__item-name-text"
+              >
+                viewAggregationType.uniqueCount
+              </span>
+            </div>
+          </a>
+          <!--v-if-->
+        </li>
+        <li
+          class="select__item select__item--no-options"
+        >
+          <a
+            class="select__item-link"
+          >
+            <div
+              class="select__item-name"
+            >
+              <span
+                class="select__item-name-text"
+              >
+                viewAggregationType.distribution
+              </span>
+            </div>
+          </a>
+          <!--v-if-->
+        </li>
+        
+      </ul>
+      
+    </div>
+  </teleport-stub>
 </div>
 `;
 
@@ -178,6 +326,151 @@ exports[`Field footer component > Change type 3`] = `
       10
     </span>
   </div>
+  <teleport-stub
+    to="body"
+  >
+    <div
+      class="context"
+      style="top: 10px; right: auto; bottom: auto; left: 0px;"
+    >
+      
+      <ul
+        class="select__items"
+      >
+        <li
+          class="select__item select__item--no-options"
+        >
+          <a
+            class="select__item-link"
+          >
+            <div
+              class="select__item-name"
+            >
+              <span
+                class="select__item-name-text"
+              >
+                common.none
+              </span>
+            </div>
+          </a>
+          <!--v-if-->
+        </li>
+        
+        <li
+          class="select__item select__item--no-options active"
+        >
+          <a
+            class="select__item-link"
+          >
+            <div
+              class="select__item-name"
+            >
+              <span
+                class="select__item-name-text"
+              >
+                viewAggregationType.emptyCount
+              </span>
+            </div>
+          </a>
+          <i
+            class="select__item-active-icon iconoir-check"
+          />
+        </li>
+        <li
+          class="select__item select__item--no-options"
+        >
+          <a
+            class="select__item-link"
+          >
+            <div
+              class="select__item-name"
+            >
+              <span
+                class="select__item-name-text"
+              >
+                viewAggregationType.notEmptyCount
+              </span>
+            </div>
+          </a>
+          <!--v-if-->
+        </li>
+        <li
+          class="select__item select__item--no-options"
+        >
+          <a
+            class="select__item-link"
+          >
+            <div
+              class="select__item-name"
+            >
+              <span
+                class="select__item-name-text"
+              >
+                viewAggregationType.emptyPercentage
+              </span>
+            </div>
+          </a>
+          <!--v-if-->
+        </li>
+        <li
+          class="select__item select__item--no-options"
+        >
+          <a
+            class="select__item-link"
+          >
+            <div
+              class="select__item-name"
+            >
+              <span
+                class="select__item-name-text"
+              >
+                viewAggregationType.notEmptyPercentage
+              </span>
+            </div>
+          </a>
+          <!--v-if-->
+        </li>
+        <li
+          class="select__item select__item--no-options"
+        >
+          <a
+            class="select__item-link"
+          >
+            <div
+              class="select__item-name"
+            >
+              <span
+                class="select__item-name-text"
+              >
+                viewAggregationType.uniqueCount
+              </span>
+            </div>
+          </a>
+          <!--v-if-->
+        </li>
+        <li
+          class="select__item select__item--no-options"
+        >
+          <a
+            class="select__item-link"
+          >
+            <div
+              class="select__item-name"
+            >
+              <span
+                class="select__item-name-text"
+              >
+                viewAggregationType.distribution
+              </span>
+            </div>
+          </a>
+          <!--v-if-->
+        </li>
+        
+      </ul>
+      
+    </div>
+  </teleport-stub>
 </div>
 `;
 
@@ -193,6 +486,15 @@ exports[`Field footer component > Default component 1`] = `
     />
      common.summarize
   </div>
+  <teleport-stub
+    to="body"
+  >
+    <div
+      class="context visibility-hidden"
+    >
+      <!--v-if-->
+    </div>
+  </teleport-stub>
 </div>
 `;
 
@@ -213,6 +515,15 @@ exports[`Field footer component > Default component 2`] = `
       class="grid-view-aggregation__generic-value"
     />
   </div>
+  <teleport-stub
+    to="body"
+  >
+    <div
+      class="context visibility-hidden"
+    >
+      <!--v-if-->
+    </div>
+  </teleport-stub>
 </div>
 `;
 
@@ -235,5 +546,14 @@ exports[`Field footer component > Default component 3`] = `
       75%
     </span>
   </div>
+  <teleport-stub
+    to="body"
+  >
+    <div
+      class="context visibility-hidden"
+    >
+      <!--v-if-->
+    </div>
+  </teleport-stub>
 </div>
 `;

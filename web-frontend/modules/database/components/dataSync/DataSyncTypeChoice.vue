@@ -2,8 +2,8 @@
   <li>
     <a
       class="choice-items__link"
-      :class="{ active }"
-      @click="select(dataSyncType)"
+      :class="{ active, disabled }"
+      @click="!disabled && select(dataSyncType)"
     >
       <i class="choice-items__icon" :class="dataSyncType.iconClass"></i>
       <span> {{ dataSyncType.getName() }}</span>
@@ -40,6 +40,10 @@ export default {
     active: {
       required: true,
       type: Boolean,
+    },
+    disabled: {
+      type: Boolean,
+      default: false,
     },
   },
   emits: ['selected'],

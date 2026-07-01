@@ -115,6 +115,8 @@ class DatabaseConfig(AppConfig):
             DuplicateViewActionType,
             EditFormRowActionType,
             OrderViewsActionType,
+            PrioritizeViewGroupBysActionType,
+            PrioritizeViewSortsActionType,
             RotateViewSlugActionType,
             SubmitFormActionType,
             UpdateDecorationActionType,
@@ -138,9 +140,11 @@ class DatabaseConfig(AppConfig):
         action_type_registry.register(CreateViewSortActionType())
         action_type_registry.register(UpdateViewSortActionType())
         action_type_registry.register(DeleteViewSortActionType())
+        action_type_registry.register(PrioritizeViewSortsActionType())
         action_type_registry.register(CreateViewGroupByActionType())
         action_type_registry.register(UpdateViewGroupByActionType())
         action_type_registry.register(DeleteViewGroupByActionType())
+        action_type_registry.register(PrioritizeViewGroupBysActionType())
         action_type_registry.register(SubmitFormActionType())
         action_type_registry.register(EditFormRowActionType())
         action_type_registry.register(RotateViewSlugActionType())
@@ -571,7 +575,11 @@ class DatabaseConfig(AppConfig):
 
         application_type_registry.register(DatabaseApplicationType())
 
-        from .ws.pages import PublicViewPageType, RowPageType, TablePageType
+        from .ws.pages import (
+            PublicViewPageType,
+            RowPageType,
+            TablePageType,
+        )
 
         page_registry.register(TablePageType())
         page_registry.register(PublicViewPageType())
@@ -860,7 +868,10 @@ class DatabaseConfig(AppConfig):
             ListViewRowsOperationType,
             ListViewsOperationType,
             ListViewSortOperationType,
+            MoveViewRowOperationType,
             OrderViewsOperationType,
+            PrioritizeViewGroupByOperationType,
+            PrioritizeViewSortOperationType,
             ReadAdjacentViewRowOperationType,
             ReadAggregationsViewOperationType,
             ReadViewDecorationOperationType,
@@ -875,6 +886,7 @@ class DatabaseConfig(AppConfig):
             ReadViewSortOperationType,
             RestoreViewOperationType,
             RestoreViewRowCommentOperationType,
+            RestoreViewRowOperationType,
             UpdateViewDecorationOperationType,
             UpdateViewFilterGroupOperationType,
             UpdateViewFilterOperationType,
@@ -901,12 +913,14 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(ListViewRowsOperationType())
         operation_type_registry.register(CreateViewRowOperationType())
         operation_type_registry.register(UpdateViewRowOperationType())
+        operation_type_registry.register(MoveViewRowOperationType())
         operation_type_registry.register(DeleteViewRowOperationType())
         operation_type_registry.register(ReadViewRowCommentsOperationType())
         operation_type_registry.register(CreateViewRowCommentOperationType())
         operation_type_registry.register(UpdateViewRowCommentOperationType())
         operation_type_registry.register(DeleteViewRowCommentOperationType())
         operation_type_registry.register(RestoreViewRowCommentOperationType())
+        operation_type_registry.register(RestoreViewRowOperationType())
         operation_type_registry.register(CreateTableDatabaseTableOperationType())
         operation_type_registry.register(ListTablesDatabaseTableOperationType())
         operation_type_registry.register(OrderTablesDatabaseTableOperationType())
@@ -939,6 +953,8 @@ class DatabaseConfig(AppConfig):
         operation_type_registry.register(SubmitAnonymousFieldValuesOperationType())
         operation_type_registry.register(DeleteViewSortOperationType())
         operation_type_registry.register(DeleteViewGroupByOperationType())
+        operation_type_registry.register(PrioritizeViewSortOperationType())
+        operation_type_registry.register(PrioritizeViewGroupByOperationType())
         operation_type_registry.register(UpdateViewSlugOperationType())
         operation_type_registry.register(UpdateViewPublicOperationType())
         operation_type_registry.register(ReadViewsOrderOperationType())

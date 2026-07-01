@@ -1,0 +1,9 @@
+{
+    "type": "bug",
+    "message": "Fixes a guided tour crash when the highlighted element is not on the page",
+    "issue_origin": "github",
+    "issue_number": 5377,
+    "domain": "core",
+    "bullet_points": [],
+    "created_at": "2026-05-15"
+}

@@ -50,6 +50,32 @@ def test_local_baserow_aggregate_rows_service_generate_schema(data_fixture):
     assert service_type.generate_schema(Mock(aggregation_type="")) is None
 
 
+@pytest.mark.django_db
+def test_local_baserow_aggregate_rows_service_generate_schema_for_count_result(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_multiple_select_field(table=table)
+    service = data_fixture.create_local_baserow_aggregate_rows_service(
+        table_id=table.id,
+        field_id=field.id,
+        aggregation_type="unique_count",
+    )
+    service_type = service_type_registry.get("local_baserow_aggregate_rows")
+
+    assert service_type.generate_schema(service) == {
+        "title": f"Aggregation{service.id}Schema",
+        "type": "object",
+        "properties": {
+            "result": {
+                "title": f"{field.name} result",
+                "type": "number",
+            },
+        },
+    }
+
+
 def test_local_baserow_aggregate_rows_resolve_service_formulas():
     service_type = service_type_registry.get("local_baserow_aggregate_rows")
     with pytest.raises(ServiceImproperlyConfiguredDispatchException) as exc:
@@ -286,6 +312,33 @@ def test_local_baserow_aggregate_rows_dispatch_data_with_view(data_fixture):
     assert service_type.dispatch_transform(result) == DispatchResult(
         data={"result": "20"}, status=200, output_uid=""
     )
+
+
+@pytest.mark.django_db
+def test_local_baserow_aggregate_rows_dispatch_transform_with_scalar_result_for_list_field(
+    data_fixture,
+):
+    user = data_fixture.create_user()
+    page = data_fixture.create_builder_page(user=user)
+    dashboard = page.builder
+    table = data_fixture.create_database_table(user=user)
+    field = data_fixture.create_multiple_select_field(table=table)
+    integration = data_fixture.create_local_baserow_integration(
+        application=dashboard, user=user
+    )
+    service_type = service_type_registry.get("local_baserow_aggregate_rows")
+    service = data_fixture.create_local_baserow_aggregate_rows_service(
+        integration=integration,
+        table=table,
+        field=field,
+        aggregation_type="unique_count",
+    )
+
+    result = service_type.dispatch_transform(
+        {"field": field, "service": service, "data": {"result": 2}}
+    )
+
+    assert result == DispatchResult(data={"result": 2}, status=200, output_uid="")
 
 
 @pytest.mark.django_db

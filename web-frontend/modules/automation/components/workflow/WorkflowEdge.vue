@@ -27,14 +27,7 @@
             draggingNodeId && !isDropZoneDisabled,
         }"
         :disabled="readOnly"
-        @add-node="
-          emit('add-node', {
-            type: $event,
-            position: isChild ? 'child' : 'south',
-            output: edgeUid,
-            referenceNode: node,
-          })
-        "
+        @add-node="handleAddNode"
       />
     </div>
 
@@ -153,14 +146,37 @@ const handleDragLeave = () => {
   isDragOver.value = false
 }
 
+// The dropzone and the add button both sit at the head of this edge, so an
+// insertion means "before the first node currently on the edge" (a 'north' move).
+// The backend derives the correct edge/output from the reference node's position,
+// so output is '' for north. When the edge is empty we attach directly to this
+// node on its own edge.
+const resolveHeadTarget = () => {
+  const firstNodeOnEdge = nextNodesOnEdge.value[0]
+  if (firstNodeOnEdge) {
+    return { referenceNode: firstNodeOnEdge, position: 'north', output: '' }
+  }
+  return {
+    referenceNode: props.node,
+    position: props.isChild ? 'child' : 'south',
+    output: props.edgeUid,
+  }
+}
+
 const handleDrop = () => {
   isDragOver.value = false
 
+  const { referenceNode, position, output } = resolveHeadTarget()
   emit('move-node', {
-    referenceNodeId: props.node.id,
-    position: props.isChild ? 'child' : 'south',
-    output: props.edgeUid,
+    referenceNodeId: referenceNode.id,
+    position,
+    output,
   })
+}
+
+const handleAddNode = (type) => {
+  const { referenceNode, position, output } = resolveHeadTarget()
+  emit('add-node', { type, referenceNode, position, output })
 }
 
 const nextNodesOnEdge = computed(() => {

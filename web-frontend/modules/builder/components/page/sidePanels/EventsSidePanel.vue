@@ -29,7 +29,7 @@ export default {
   },
   computed: {
     availableWorkflowActionTypes() {
-      return Object.values(this.$registry.getAll('workflowAction'))
+      return this.$registry.getOrderedList('workflowAction')
     },
     workflowActions() {
       if (!this.elementPage || !this.element) return []

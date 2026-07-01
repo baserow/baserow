@@ -55,7 +55,7 @@ going forward at: https://github.com/baserow/baserow.
 ## Get Involved
 
 Join our forum at https://community.baserow.io/. See
-[CONTRIBUTING.md](./CONTRIBUTING.md) on how to become a contributor.
+[CONTRIBUTING.md](./CONTRIBUTING.md) for how to get involved.
 
 ## Installation
 
