@@ -48,8 +48,6 @@ from baserow.contrib.builder.elements.models import (
     RatingInputElement,
     RecordSelectorElement,
     SimpleContainerElement,
-    TableElement,
-    TextElement,
 )
 from baserow.contrib.builder.elements.registries import (
     ElementType,
