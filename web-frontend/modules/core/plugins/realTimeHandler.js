@@ -10,6 +10,9 @@ const RECONNECT_BASE_DELAY = 1000
 const RECONNECT_MAX_DELAY = 30000
 const RECONNECT_MAX_ATTEMPTS = 10
 const RECONNECT_JITTER = 1000
+// The handshake resets ``attempts`` before the auth result arrives, so the
+// backoff cap can't bound an auth-rejection loop; bound the refreshes instead.
+const MAX_TOKEN_REFRESH_RETRIES = 1
 
 export class RealTimeHandler {
   constructor(context) {
@@ -30,6 +33,11 @@ export class RealTimeHandler {
 
     this.lastSeenEventId = FIRST_CONNECT_CURSOR
     this.replayEnabled = false
+
+    this.connecting = false
+    // Set on a rejected token so the next reconnect refreshes before retrying.
+    this.forceTokenRefresh = false
+    this.tokenRefreshRetries = 0
 
     this.registerCoreEvents()
 
@@ -67,16 +75,13 @@ export class RealTimeHandler {
    * Creates a new connection with to the web socket so that real time updates can be
    * received.
    */
-  connect(reconnect = true, anonymous = false) {
+  async connect(reconnect = true, anonymous = false) {
     if (!import.meta.client) {
       return
     }
 
     this.reconnect = reconnect
     this.anonymous = anonymous
-
-    const jwtToken = this.context.store.getters['auth/token']
-    const token = anonymous ? jwtToken || 'anonymous' : jwtToken
 
     if (
       this.socket &&
@@ -86,10 +91,41 @@ export class RealTimeHandler {
       return
     }
 
+    // A backgrounded tab makes no HTTP calls, so the axios refresh interceptor
+    // never runs and the access token silently expires; reconnecting with it
+    // would be rejected as a permanent auth failure. Only this branch awaits,
+    // keeping the common reconnect path synchronous.
+    if (this._tokenRefreshNeeded(anonymous)) {
+      if (this.connecting) {
+        return
+      }
+      this.connecting = true
+      let transientRefreshFailure = false
+      try {
+        await this.context.store.dispatch('auth/refresh')
+        this.forceTokenRefresh = false
+      } catch (error) {
+        // A 401 means the refresh token itself expired: the session is gone
+        // and the guards below surface it. Anything else is transient (e.g. a
+        // network blip), so retry with backoff instead of failing, keeping
+        // forceTokenRefresh set for the next attempt.
+        transientRefreshFailure = error?.response?.status !== 401
+      } finally {
+        this.connecting = false
+      }
+      if (transientRefreshFailure) {
+        this.delayedReconnect()
+        return
+      }
+    }
+
     if (this.socket) {
       this.socket.onclose = null
       this.socket = null
     }
+
+    const jwtToken = this.context.store.getters['auth/token']
+    const token = anonymous ? jwtToken || 'anonymous' : jwtToken
 
     // "Failed — refresh" is only for genuine auth problems; transient
     // network failures keep retrying with capped backoff.
@@ -232,9 +268,21 @@ export class RealTimeHandler {
     return typeof navigator === 'undefined' || navigator.onLine !== false
   }
 
+  _tokenRefreshNeeded(anonymous) {
+    if (anonymous) {
+      return false
+    }
+    const store = this.context.store
+    if (!store.getters['auth/isAuthenticated']) {
+      return false
+    }
+    return this.forceTokenRefresh || store.getters['auth/shouldRefreshToken']()
+  }
+
   _retryReconnectNow() {
     clearTimeout(this.reconnectTimeout)
     this.attempts = 0
+    this.tokenRefreshRetries = 0
     this.context.store.dispatch('toast/setFailedConnecting', false)
     // Keep the "Reconnecting" toast up until ``onopen`` clears it; flickering
     // it off here just confuses the user during the retry round-trip.
@@ -335,6 +383,9 @@ export class RealTimeHandler {
     this.reconnect = false
     this.attempts = 0
     this.connected = false
+    this.connecting = false
+    this.forceTokenRefresh = false
+    this.tokenRefreshRetries = 0
     this.lastSeenEventId = FIRST_CONNECT_CURSOR
     // Reset until the next auth message confirms replay is enabled.
     this.replayEnabled = false
@@ -391,8 +442,20 @@ export class RealTimeHandler {
         this.lastSeenEventId = NO_REPLAY_AVAILABLE
       }
 
-      if (data.success && this._canReplayEvents()) {
-        this._sendReplayEventsRequest()
+      if (data.success) {
+        this.forceTokenRefresh = false
+        this.tokenRefreshRetries = 0
+        if (this._canReplayEvents()) {
+          this._sendReplayEventsRequest()
+        }
+      } else if (
+        !this.anonymous &&
+        this.tokenRefreshRetries < MAX_TOKEN_REFRESH_RETRIES
+      ) {
+        // A rejected token is usually just expired: refresh and retry rather
+        // than failing. Once the cap is hit, let connect()'s guard surface it.
+        this.tokenRefreshRetries++
+        this.forceTokenRefresh = true
       }
     })
 

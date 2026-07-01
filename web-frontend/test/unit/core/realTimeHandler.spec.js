@@ -790,3 +790,220 @@ describe('RealTimeHandler presence events', () => {
     ).toBe(true)
   })
 })
+
+describe('RealTimeHandler token refresh on reconnect', () => {
+  function makeRefreshStore({ shouldRefresh = false } = {}) {
+    const dispatched = []
+    const store = {
+      getters: {
+        'auth/token': 'stale-token',
+        'auth/webSocketId': 'ws-id',
+        'auth/isAuthenticated': true,
+        'auth/shouldRefreshToken': () => shouldRefresh,
+      },
+      dispatch(name, value) {
+        dispatched.push([name, value])
+        if (name === 'auth/refresh') {
+          const refreshCount = dispatched.filter(
+            ([n]) => n === 'auth/refresh'
+          ).length
+          store.getters['auth/token'] = `fresh-token-${refreshCount}`
+        }
+        return Promise.resolve()
+      },
+      subscribe() {},
+      _dispatched: dispatched,
+    }
+    return store
+  }
+
+  function makeHandlerWith(store) {
+    const context = { store, app: { router: {} } }
+    return { handler: new RealTimeHandler(context), store }
+  }
+
+  beforeEach(() => {
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'visible',
+      writable: true,
+      configurable: true,
+    })
+  })
+
+  test('an expiring access token is refreshed before the socket opens', async () => {
+    const store = makeRefreshStore({ shouldRefresh: true })
+    const { handler } = makeHandlerWith(store)
+
+    await handler.connect(true, false)
+
+    expect(store._dispatched.some(([n]) => n === 'auth/refresh')).toBe(true)
+    expect(handler.lastToken).toBe('fresh-token-1')
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === true
+      )
+    ).toBe(false)
+  })
+
+  test('a fresh-looking token is not refreshed on a normal reconnect', async () => {
+    const store = makeRefreshStore({ shouldRefresh: false })
+    const { handler } = makeHandlerWith(store)
+
+    await handler.connect(true, false)
+
+    expect(store._dispatched.some(([n]) => n === 'auth/refresh')).toBe(false)
+    expect(handler.lastToken).toBe('stale-token')
+  })
+
+  test('anonymous reconnects never refresh the token', async () => {
+    const store = makeRefreshStore({ shouldRefresh: true })
+    // An anonymous session has no refresh token to spend.
+    store.getters['auth/isAuthenticated'] = false
+    const { handler } = makeHandlerWith(store)
+
+    await handler.connect(true, true)
+
+    expect(store._dispatched.some(([n]) => n === 'auth/refresh')).toBe(false)
+  })
+
+  test('auth rejection forces a token refresh on the next reconnect', async () => {
+    // The token looks fresh to the client (shouldRefresh=false) but the server
+    // rejects it. The reconnect must still refresh instead of giving up.
+    const store = makeRefreshStore({ shouldRefresh: false })
+    const { handler } = makeHandlerWith(store)
+    handler.reconnect = true
+    handler.anonymous = false
+
+    await handler.connect(true, false)
+    expect(handler.lastToken).toBe('stale-token')
+
+    fire(handler, 'authentication', { success: false })
+    expect(handler.forceTokenRefresh).toBe(true)
+
+    await handler.connect(true, false)
+
+    expect(store._dispatched.some(([n]) => n === 'auth/refresh')).toBe(true)
+    expect(handler.lastToken).toBe('fresh-token-1')
+    expect(handler.forceTokenRefresh).toBe(false)
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === true
+      )
+    ).toBe(false)
+  })
+
+  test('a successful reconnect clears the forced-refresh flag', async () => {
+    const store = makeRefreshStore({ shouldRefresh: false })
+    const { handler } = makeHandlerWith(store)
+    handler.forceTokenRefresh = true
+
+    fire(handler, 'authentication', { success: true, replay_enabled: false })
+
+    expect(handler.forceTokenRefresh).toBe(false)
+  })
+
+  test('stops refreshing once a freshly refreshed token is also rejected', async () => {
+    const store = makeRefreshStore({ shouldRefresh: false })
+    const { handler } = makeHandlerWith(store)
+    handler.reconnect = true
+    handler.anonymous = false
+
+    fire(handler, 'authentication', { success: false })
+    expect(handler.forceTokenRefresh).toBe(true)
+    expect(handler.tokenRefreshRetries).toBe(1)
+    await handler.connect(true, false)
+    expect(handler.lastToken).toBe('fresh-token-1')
+
+    fire(handler, 'authentication', { success: false })
+    expect(handler.forceTokenRefresh).toBe(false)
+
+    // The next reconnect reuses the same rejected token and surfaces failure.
+    const refreshesBefore = store._dispatched.filter(
+      ([n]) => n === 'auth/refresh'
+    ).length
+    await handler.connect(true, false)
+    const refreshesAfter = store._dispatched.filter(
+      ([n]) => n === 'auth/refresh'
+    ).length
+    expect(refreshesAfter).toBe(refreshesBefore)
+    expect(
+      store._dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === true
+      )
+    ).toBe(true)
+  })
+
+  test('a 401 refresh clears the session and surfaces the failure toast', async () => {
+    const dispatched = []
+    const store = {
+      getters: {
+        'auth/token': 'stale-token',
+        'auth/webSocketId': 'ws-id',
+        'auth/isAuthenticated': true,
+        'auth/shouldRefreshToken': () => true,
+      },
+      dispatch(name, value) {
+        dispatched.push([name, value])
+        if (name === 'auth/refresh') {
+          store.getters['auth/token'] = null
+          const error = new Error('session expired')
+          error.response = { status: 401 }
+          return Promise.reject(error)
+        }
+        return Promise.resolve()
+      },
+      subscribe() {},
+      _dispatched: dispatched,
+    }
+    const { handler } = makeHandlerWith(store)
+
+    await handler.connect(true, false)
+
+    expect(dispatched.some(([n]) => n === 'auth/refresh')).toBe(true)
+    expect(
+      dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === true
+      )
+    ).toBe(true)
+  })
+
+  test('a transient refresh failure retries with backoff instead of failing', async () => {
+    vi.useFakeTimers()
+    const dispatched = []
+    const store = {
+      getters: {
+        'auth/token': 'stale-token',
+        'auth/webSocketId': 'ws-id',
+        'auth/isAuthenticated': true,
+        'auth/shouldRefreshToken': () => true,
+      },
+      dispatch(name, value) {
+        dispatched.push([name, value])
+        if (name === 'auth/refresh') {
+          // No ``response`` — a network-level error that leaves the token intact.
+          return Promise.reject(new Error('Network Error'))
+        }
+        return Promise.resolve()
+      },
+      subscribe() {},
+      _dispatched: dispatched,
+    }
+    const { handler } = makeHandlerWith(store)
+    handler.reconnect = true
+
+    await handler.connect(true, false)
+
+    expect(
+      dispatched.some(
+        ([n, v]) => n === 'toast/setFailedConnecting' && v === true
+      )
+    ).toBe(false)
+    expect(
+      dispatched.some(([n, v]) => n === 'toast/setReconnecting' && v === true)
+    ).toBe(true)
+    expect(handler.connecting).toBe(false)
+
+    clearTimeout(handler.reconnectTimeout)
+    vi.useRealTimers()
+  })
+})
