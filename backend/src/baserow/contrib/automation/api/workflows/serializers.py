@@ -125,12 +125,19 @@ class AutomationHistorySerializer(serializers.ModelSerializer):
 
 
 class AutomationWorkflowHistorySerializer(AutomationHistorySerializer):
+    plugin_data = serializers.SerializerMethodField()
+
     class Meta:
         model = AutomationWorkflowHistory
         fields = AutomationHistorySerializer.Meta.fields + (
             "is_test_run",
             "simulate_until_node",
+            "plugin_data",
         )
+
+    @extend_schema_field(serializers.DictField())
+    def get_plugin_data(self, obj):
+        return self.context.get("workflow_history_plugin_data", {}).get(obj.id, {})
 
 
 class AutomationWorkflowHistoryPagination(PageNumberPagination):

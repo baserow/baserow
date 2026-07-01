@@ -58,6 +58,17 @@
           {{ totalRunTimeMessage }}
         </div>
       </template>
+      <div
+        v-if="workflowHistoryComponents.length"
+        class="workflow-history__components"
+      >
+        <component
+          :is="component"
+          v-for="(component, index) in workflowHistoryComponents"
+          :key="index"
+          :workflow-history="item"
+        />
+      </div>
     </template>
   </Expandable>
 </template>
@@ -142,6 +153,14 @@ const completedDate = computed(() => {
 
 const humanCompletedDate = computed(() => {
   return moment.utc(props.item.completed_on).tz(getUserTimeZone()).fromNow()
+})
+
+const workflowHistoryComponents = computed(() => {
+  return Object.values(app.$registry.getAll('plugin')).reduce(
+    (components, plugin) =>
+      components.concat(plugin.getWorkflowHistoryComponents(props.item)),
+    []
+  )
 })
 
 const historyTitlePrefix = computed(() => {

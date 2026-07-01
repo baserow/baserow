@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Union
 
 from django.db.models import Prefetch, QuerySet
 
@@ -16,6 +16,9 @@ from baserow.contrib.automation.history.models import (
 )
 from baserow.contrib.automation.nodes.models import AutomationNode
 from baserow.contrib.automation.workflows.models import AutomationWorkflow
+from baserow.core.db import specific_iterator
+from baserow.core.services.handler import ServiceHandler
+from baserow.core.services.models import Service
 
 
 class AutomationHistoryHandler:
@@ -153,14 +156,11 @@ class AutomationHistoryHandler:
         except AutomationNodeHistory.DoesNotExist:
             raise AutomationNodeHistoryDoesNotExist(node_history_id)
 
-    def get_node_histories(
-        self, workflow_history: AutomationWorkflowHistory
+    def _query_node_histories(
+        self, base_queryset: QuerySet[AutomationNodeHistory]
     ) -> QuerySet[AutomationNodeHistory]:
-        """Returns a queryset of AutomationNodeHistory by the workflow history."""
-
         return (
-            AutomationNodeHistory.objects.filter(workflow_history=workflow_history)
-            .select_related("node", "node__workflow")
+            base_queryset.select_related("node", "node__workflow")
             .prefetch_related(
                 Prefetch(
                     "node_results",
@@ -169,8 +169,75 @@ class AutomationHistoryHandler:
                     ),
                 )
             )
-            .order_by("started_on", "id")
+            .order_by("workflow_history_id", "started_on", "id")
         )
+
+    def _with_specific_nodes(
+        self, node_histories: QuerySet[AutomationNodeHistory]
+    ) -> List[AutomationNodeHistory]:
+        """
+        Resolves the related nodes to their specific model instances in batches.
+        """
+
+        node_histories = list(node_histories)
+        nodes = [node_history.node for node_history in node_histories]
+        specific_nodes = {
+            node.id: node
+            for node in specific_iterator(
+                nodes,
+                base_model=AutomationNode,
+                select_related=["workflow"],
+            )
+        }
+        service_ids = [
+            node.service_id
+            for node in specific_nodes.values()
+            if node.service_id is not None
+        ]
+        specific_services_map = {
+            service.id: service
+            for service in ServiceHandler().get_services(
+                base_queryset=Service.objects.filter(id__in=service_ids)
+            )
+        }
+        for node in specific_nodes.values():
+            service_id = node.service_id
+            if service_id is not None and service_id in specific_services_map:
+                node.service = specific_services_map[service_id]
+
+        for node_history in node_histories:
+            node_history.node = specific_nodes[node_history.node_id]
+        return node_histories
+
+    def get_node_histories(
+        self,
+        workflow_history: AutomationWorkflowHistory,
+        specific: bool = False,
+    ) -> QuerySet[AutomationNodeHistory] | List[AutomationNodeHistory]:
+        """Returns a queryset of AutomationNodeHistory by the workflow history."""
+
+        node_histories = self._query_node_histories(
+            AutomationNodeHistory.objects.filter(workflow_history=workflow_history)
+        )
+        if specific:
+            return self._with_specific_nodes(node_histories)
+        return node_histories
+
+    def get_node_histories_for_workflow_histories(
+        self,
+        workflow_history_ids: Iterable[int],
+        specific: bool = False,
+    ) -> QuerySet[AutomationNodeHistory] | List[AutomationNodeHistory]:
+        """Returns node histories for the given workflow history ids."""
+
+        node_histories = self._query_node_histories(
+            AutomationNodeHistory.objects.filter(
+                workflow_history_id__in=workflow_history_ids
+            )
+        )
+        if specific:
+            return self._with_specific_nodes(node_histories)
+        return node_histories
 
     def get_node_history_result(
         self, node_history: AutomationNodeHistory

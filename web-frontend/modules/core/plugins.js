@@ -174,6 +174,29 @@ export class BaserowPlugin extends Registerable {
   }
 
   /**
+   * Every registered plugin can display multiple additional components in each
+   * workflow history run entry.
+   * @returns {*[]}
+   */
+  getWorkflowHistoryComponents(workflowHistory) {
+    return []
+  }
+
+  /**
+   * Every registered plugin can display multiple additional components next to
+   * node names in the automation workflow node creation/replacement context.
+   * @returns {*[]}
+   */
+  getAutomationWorkflowNodeContextComponents({
+    workflow,
+    automation,
+    node,
+    nodeType,
+  }) {
+    return []
+  }
+
+  /**
    * Provides additional icons before 'standard' icons in the field header in a
    * grid view.
    *

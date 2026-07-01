@@ -52,6 +52,7 @@ from baserow.core.exceptions import ApplicationDoesNotExist
 from baserow.core.jobs.exceptions import MaxJobCountExceeded
 from baserow.core.jobs.handler import JobHandler
 from baserow.core.jobs.registries import job_type_registry
+from baserow.core.registries import plugin_registry
 
 AUTOMATION_WORKFLOWS_TAG = "Automation workflows"
 
@@ -272,9 +273,17 @@ class AutomationWorkflowHistoryView(APIView):
         )
 
         page = paginator.paginate_queryset(queryset, request, self)
+        plugin_data = {}
+        for plugin in plugin_registry.get_all():
+            for history_id, data in plugin.get_automation_workflow_history_plugin_data(
+                request.user, workflow_id, page
+            ).items():
+                plugin_data.setdefault(history_id, {})[plugin.type] = data
+
         serializer = AutomationWorkflowHistorySerializer(
             page,
             many=True,
+            context={"workflow_history_plugin_data": plugin_data},
         )
 
         return paginator.get_paginated_response(

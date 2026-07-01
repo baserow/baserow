@@ -6,9 +6,13 @@
       class="context__menu-item"
     >
       <a
-        v-tooltip="nodeType.isDeactivatedReason({ workspace })"
+        v-tooltip="
+          nodeType.isDeactivatedReason({ workspace: resolvedWorkspace })
+        "
         class="context__menu-item-link context__menu-item-link--with-desc"
-        :class="{ disabled: nodeType.isDeactivated({ workspace }) }"
+        :class="{
+          disabled: nodeType.isDeactivated({ workspace: resolvedWorkspace }),
+        }"
         @click="onChange(nodeType)"
       >
         <span class="context__menu-item-title" :title="nodeType.name">
@@ -23,7 +27,18 @@
             :src="nodeType.image"
             class="context__menu-item-icon"
           />
-          {{ nodeType.name }}
+          <span class="context__menu-item-title-text">
+            {{ nodeType.name }}
+          </span>
+          <component
+            :is="component"
+            v-for="(component, index) in getNodeContextComponents(nodeType)"
+            :key="index"
+            :workflow="resolvedWorkflow"
+            :automation="resolvedAutomation"
+            :node="getNodeContextNode(nodeType)"
+            :node-type="nodeType"
+          />
         </span>
         <div class="context__menu-item-description">
           {{ nodeType.description }}
@@ -34,7 +49,7 @@
           :ref="`deactivatedClickModal_${nodeType.getType()}`"
           v-bind="getDeactivatedClickModal(nodeType)[1]"
           :name="nodeType.name"
-          :workspace="workspace"
+          :workspace="resolvedWorkspace"
         ></component>
       </a>
     </li>
@@ -42,11 +57,12 @@
 </template>
 
 <script>
+import { unref } from 'vue'
 import context from '@baserow/modules/core/mixins/context'
 export default {
   name: 'WorkflowNodeContext',
   mixins: [context],
-  inject: ['workspace'],
+  inject: ['workspace', 'workflow', 'automation'],
   props: {
     node: {
       type: Object,
@@ -61,6 +77,15 @@ export default {
   },
   emits: ['change'],
   computed: {
+    resolvedAutomation() {
+      return unref(this.automation)
+    },
+    resolvedWorkflow() {
+      return unref(this.workflow)
+    },
+    resolvedWorkspace() {
+      return unref(this.workspace)
+    },
     editingTriggerNode() {
       return this.onlyTrigger
     },
@@ -87,7 +112,7 @@ export default {
   },
   methods: {
     onChange(nodeType) {
-      if (nodeType.isDeactivated({ workspace: this.workspace })) {
+      if (nodeType.isDeactivated({ workspace: this.resolvedWorkspace })) {
         const deactivatedClickModal = this.getDeactivatedClickModal(nodeType)
         if (deactivatedClickModal !== null) {
           this.$refs[`deactivatedClickModal_${nodeType.getType()}`][0].show()
@@ -98,8 +123,29 @@ export default {
     },
     getDeactivatedClickModal(nodeType) {
       return nodeType.getDeactivatedClickModal({
-        workspace: this.workspace,
+        workspace: this.resolvedWorkspace,
       })
+    },
+    getNodeContextNode(nodeType) {
+      return {
+        ...(this.node || {}),
+        type: nodeType.getType(),
+      }
+    },
+    getNodeContextComponents(nodeType) {
+      const node = this.getNodeContextNode(nodeType)
+      return Object.values(this.$registry.getAll('plugin')).reduce(
+        (components, plugin) =>
+          components.concat(
+            plugin.getAutomationWorkflowNodeContextComponents({
+              workflow: this.resolvedWorkflow,
+              automation: this.resolvedAutomation,
+              node,
+              nodeType,
+            })
+          ),
+        []
+      )
     },
   },
 }
