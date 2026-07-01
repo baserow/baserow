@@ -7,6 +7,7 @@ import {
 import { clone } from '@baserow/modules/core/utils/object'
 import { pathKey } from '@baserow/modules/database/utils/gridGroupByRender'
 import { getDefinedRowsFromSectionRows } from '@baserow/modules/database/utils/gridGroupBy'
+import flushPromises from 'flush-promises'
 
 import { createStore } from 'vuex'
 
@@ -3854,6 +3855,88 @@ describe('Grid view store', () => {
       3: { loading: false, value: 99 },
     })
     expect(aggStore.getters['grid/getGroupByAggregationsLoading']()).toBe(false)
+  })
+
+  test('a targeted fieldId spins that column while a grouped row-edit refresh runs', async () => {
+    const baseState = gridStore.state()
+    const state = Object.assign(baseState, {
+      lastGridId: 1,
+      activeGroupBys: [{ field: 2, order: 'ASC', type: 'default' }],
+      rowHeight: 33,
+      windowHeight: 330,
+      fieldOptions: {
+        3: { aggregation_type: 'sum', aggregation_raw_type: 'sum' },
+      },
+      groupBy: {
+        ...baseState.groupBy,
+        treeNodes: [
+          { path: { field_2: 'A' }, depth: 0, aggregations: { field_3: 10 } },
+        ],
+      },
+    })
+    const aggStore = testApp.createStore({
+      modules: {
+        grid: gridStore,
+        field: {
+          namespaced: true,
+          getters: {
+            getAll: () => [
+              { id: 2, name: 'Team', type: 'text' },
+              { id: 3, name: 'Amount', type: 'number' },
+            ],
+          },
+        },
+      },
+    })
+    aggStore.replaceState({ ...aggStore.state, grid: state })
+    aggStore.app = { $featureFlagIsEnabled: () => true }
+
+    let resolveRequest = null
+    mockServer.mock.onGet('/database/views/grid/1/group-by-data/').reply(
+      () =>
+        new Promise((resolve) => {
+          resolveRequest = () =>
+            resolve([
+              200,
+              {
+                pages: [
+                  {
+                    parent: {},
+                    groups: [
+                      {
+                        path: { field_2: 'A' },
+                        depth: 0,
+                        aggregations: { field_3: 99 },
+                      },
+                    ],
+                    offset: 0,
+                    limit: 40,
+                  },
+                ],
+                aggregations: { field_3: 99 },
+              },
+            ])
+        })
+    )
+
+    const promise = aggStore.dispatch('grid/fetchAllFieldAggregationData', {
+      view: { id: 1 },
+      fieldId: 3,
+    })
+
+    // The edited column spins mid-refresh, even though a row edit refreshes silently.
+    expect(aggStore.getters['grid/getGroupByAggregationsLoading'](3)).toBe(true)
+
+    await flushPromises()
+    resolveRequest()
+    await promise
+
+    expect(aggStore.getters['grid/getGroupByAggregationsLoading'](3)).toBe(
+      false
+    )
+    expect(aggStore.state.grid.groupBy.treeNodes[0].aggregations).toEqual({
+      field_3: 99,
+    })
   })
 
   test('fetchAllFieldAggregationData makes no request in grouped mode when no aggregation is configured', async () => {

@@ -1714,12 +1714,14 @@ export const actions = {
     }
     const gridId = getters.getLastGridId
     const controller = supersedeRequest(lastGroupByAggregationRequest)
-    // Row edits refresh silently; the picker passes a fieldId to spin that column.
-    if (!silent) {
-      commit(
-        'SET_GROUP_BY_AGGREGATIONS_LOADING',
-        fieldId !== null ? [fieldId] : true
-      )
+    // A targeted fieldId spins those columns even on an otherwise-silent row-edit
+    // refresh; a loud refresh with no target spins every column.
+    const loadingFieldIds =
+      fieldId === null ? null : Array.isArray(fieldId) ? fieldId : [fieldId]
+    if (loadingFieldIds !== null) {
+      commit('SET_GROUP_BY_AGGREGATIONS_LOADING', loadingFieldIds)
+    } else if (!silent) {
+      commit('SET_GROUP_BY_AGGREGATIONS_LOADING', true)
     }
     try {
       const { data } = await GridService($client).fetchGroupByData({
@@ -1763,11 +1765,13 @@ export const actions = {
       if (lastGroupByAggregationRequest.controller === controller) {
         lastGroupByAggregationRequest.controller = null
         commit('SET_GROUP_BY_AGGREGATIONS_LOADING', false)
-        if (fieldId !== null) {
-          commit('SET_FIELD_AGGREGATION_DATA_LOADING', {
-            fieldId,
-            value: false,
-          })
+        if (loadingFieldIds !== null) {
+          loadingFieldIds.forEach((id) =>
+            commit('SET_FIELD_AGGREGATION_DATA_LOADING', {
+              fieldId: id,
+              value: false,
+            })
+          )
         }
       }
     }
@@ -3286,7 +3290,7 @@ export const actions = {
    */
   async fetchAllFieldAggregationData(
     { rootGetters, getters, commit, dispatch },
-    { view }
+    { view, fieldId = null }
   ) {
     const { $registry, $client, $i18n, $config } = this
     const isPublic = rootGetters['page/view/public/getIsPublic']
@@ -3303,6 +3307,7 @@ export const actions = {
         return dispatch('refreshGroupByAggregations', {
           view,
           fields: rootGetters['field/getAll'],
+          fieldId,
           silent: true,
         })
       }
@@ -4808,8 +4813,10 @@ export const actions = {
             }
           }
         }
+        // Spin the edited column's group aggregations while the refresh recomputes.
         dispatch('fetchAllFieldAggregationData', {
           view,
+          fieldId: field.id,
         })
       } catch (error) {
         if (!canUpdateOptimistically) {
@@ -5119,7 +5126,11 @@ export const actions = {
       scrollTop: getScrollTop(),
       fields: allFieldsInTable,
     })
-    dispatch('fetchAllFieldAggregationData', { view })
+    // Spin the pasted columns' group aggregations while the refresh recomputes.
+    dispatch('fetchAllFieldAggregationData', {
+      view,
+      fieldId: writeFields.map((f) => f.id),
+    })
   },
   /**
    * Called after an existing row has been updated, which could be by the user or
