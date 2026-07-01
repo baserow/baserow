@@ -38,7 +38,7 @@
       </template>
     </BaserowTable>
     <div
-      v-if="contentLoadingOverlay && rows.length"
+      v-if="contentLoading && rows.length"
       class="ab-table__loading-overlay loading-overlay"
     ></div>
   </div>
@@ -66,11 +66,6 @@ export default {
       default: ORIENTATIONS.HORIZONTAL,
     },
     contentLoading: {
-      type: Boolean,
-      required: false,
-      default: false,
-    },
-    contentLoadingOverlay: {
       type: Boolean,
       required: false,
       default: false,

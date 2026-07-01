@@ -11,7 +11,6 @@
       :fields="fields"
       :rows="rows"
       :content-loading="contentLoading"
-      :content-loading-overlay="contentLoading && currentOffset === 0"
       :style="getStyleOverride('table')"
       :orientation="orientation"
     >
@@ -105,7 +104,6 @@ export default {
       adhocSortings,
       adhocSearch,
       contentFetchEnabled,
-      currentOffset,
       elementContent,
       hasMorePage,
       contentLoading,
@@ -122,7 +120,6 @@ export default {
       elementContent,
       contentLoading,
       contentFetchEnabled,
-      currentOffset,
       hasMorePage,
       loadMore,
       resolveFormula,
