@@ -10,6 +10,8 @@ const RECONNECT_BASE_DELAY = 1000
 const RECONNECT_MAX_DELAY = 30000
 const RECONNECT_MAX_ATTEMPTS = 10
 const RECONNECT_JITTER = 1000
+// Force-close a socket stuck in CONNECTING so onclose can drive a reconnect.
+const CONNECTION_TIMEOUT = 10000
 // The handshake resets ``attempts`` before the auth result arrives, so the
 // backoff cap can't bound an auth-rejection loop; bound the refreshes instead.
 const MAX_TOKEN_REFRESH_RETRIES = 1
@@ -22,6 +24,7 @@ export class RealTimeHandler {
     this.reconnect = false
     this.anonymous = false
     this.reconnectTimeout = null
+    this.connectionTimeout = null
     this.attempts = 0
     this.events = {}
     this.pages = []
@@ -68,6 +71,7 @@ export class RealTimeHandler {
       window.addEventListener('pageshow', this._onShouldRetryNow)
       document.addEventListener('visibilitychange', this._onVisibilityChange)
       window.addEventListener('online', this._onShouldRetryNow)
+      window.addEventListener('focus', this._onShouldRetryNow)
     }
   }
 
@@ -157,7 +161,9 @@ export class RealTimeHandler {
     this.socket = new WebSocket(
       `${url}?jwt_token=${token}&web_socket_id=${webSocketId}`
     )
+    this._armConnectionTimeout()
     this.socket.onopen = () => {
+      this._clearConnectionTimeout()
       this.connected = true
       this.attempts = 0
       this.authenticationSuccess = true
@@ -196,6 +202,7 @@ export class RealTimeHandler {
     }
 
     this.socket.onclose = () => {
+      this._clearConnectionTimeout()
       this.connected = false
       this.subscribedToPages = this.pages.length === 0
       this.context.store.dispatch('presence/clearAllSpaces')
@@ -232,8 +239,15 @@ export class RealTimeHandler {
     this.attempts++
 
     if (this.attempts > RECONNECT_MAX_ATTEMPTS) {
+      // Surface the failure but keep retrying at the slowest interval: this is
+      // the only way the connection self-heals when no visibility/focus/online
+      // event fires (e.g. the tab stayed visible through a backend outage).
+      this.attempts = RECONNECT_MAX_ATTEMPTS + 1
       this.context.store.dispatch('toast/setReconnecting', false)
       this.context.store.dispatch('toast/setFailedConnecting', true)
+      this.reconnectTimeout = setTimeout(() => {
+        this.connect(true, this.anonymous)
+      }, RECONNECT_MAX_DELAY)
       return
     }
 
@@ -266,6 +280,21 @@ export class RealTimeHandler {
   _isNavigatorOnline() {
     // ``navigator.onLine === false`` is the only reliable signal.
     return typeof navigator === 'undefined' || navigator.onLine !== false
+  }
+
+  _armConnectionTimeout() {
+    clearTimeout(this.connectionTimeout)
+    this.connectionTimeout = setTimeout(() => {
+      // Still mid-handshake: abandon it so onclose starts a fresh attempt.
+      if (this.socket && this.socket.readyState === WebSocket.CONNECTING) {
+        this.socket.close()
+      }
+    }, CONNECTION_TIMEOUT)
+  }
+
+  _clearConnectionTimeout() {
+    clearTimeout(this.connectionTimeout)
+    this.connectionTimeout = null
   }
 
   _tokenRefreshNeeded(anonymous) {
@@ -380,6 +409,7 @@ export class RealTimeHandler {
     this.context.store.dispatch('toast/setReconnecting', false)
     this.context.store.dispatch('toast/setWorkspaceOutdated', false)
     clearTimeout(this.reconnectTimeout)
+    this._clearConnectionTimeout()
     this.reconnect = false
     this.attempts = 0
     this.connected = false

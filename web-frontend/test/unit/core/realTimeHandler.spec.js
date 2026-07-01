@@ -299,6 +299,18 @@ describe('RealTimeHandler reconnect logic', () => {
     connectSpy.mockRestore()
   })
 
+  test('wires a window focus listener to the retry handler', () => {
+    const addSpy = vi.spyOn(window, 'addEventListener')
+    const handler = new RealTimeHandler({
+      store: makeStore(),
+      app: { router: {} },
+    })
+    const focusCall = addSpy.mock.calls.find(([type]) => type === 'focus')
+    expect(focusCall).toBeDefined()
+    expect(focusCall[1]).toBe(handler._onShouldRetryNow)
+    addSpy.mockRestore()
+  })
+
   test('delayedReconnect skipped when reconnect is false', () => {
     const { handler } = env
     handler.reconnect = false
@@ -581,21 +593,30 @@ describe('RealTimeHandler max attempts', () => {
     vi.useRealTimers()
   })
 
-  test('delayedReconnect stops and shows failed toast after exceeding max attempts', () => {
+  test('shows the failed toast but keeps retrying slowly after max attempts', () => {
     const { handler, store } = env
     handler.reconnect = true
-    // After 10 successful calls, attempts will be 10.
-    // The 11th call increments to 11 which exceeds RECONNECT_MAX_ATTEMPTS (10).
     handler.attempts = 10
+    const connectSpy = vi.spyOn(handler, 'connect').mockImplementation(() => {})
 
     handler.delayedReconnect()
 
+    // Capped so slow retries can't grow the count unbounded.
     expect(handler.attempts).toBe(11)
+    handler.delayedReconnect()
+    expect(handler.attempts).toBe(11)
+
     expect(
       store._dispatched.some(
         ([n, v]) => n === 'toast/setFailedConnecting' && v === true
       )
     ).toBe(true)
+
+    // Self-heals when the backend returns, with no user action.
+    expect(connectSpy).not.toHaveBeenCalled()
+    vi.advanceTimersByTime(30000)
+    expect(connectSpy).toHaveBeenCalledWith(true, false)
+    connectSpy.mockRestore()
   })
 
   test('connect does not show failed toast while tab is hidden', () => {
@@ -724,6 +745,68 @@ describe('RealTimeHandler connect early-exit', () => {
         ([n, v]) => n === 'toast/setReconnecting' && v === false
       )
     ).toBe(true)
+  })
+})
+
+describe('RealTimeHandler connection watchdog', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  test('force-closes a socket stuck in CONNECTING so a reconnect can start', () => {
+    const { handler } = makeHandler()
+    let closed = false
+    handler.socket = {
+      readyState: WebSocket.CONNECTING,
+      close() {
+        closed = true
+      },
+      send() {},
+    }
+    handler._armConnectionTimeout()
+
+    vi.advanceTimersByTime(9999)
+    expect(closed).toBe(false)
+    vi.advanceTimersByTime(1)
+    expect(closed).toBe(true)
+  })
+
+  test('does not close a socket that finished connecting', () => {
+    const { handler } = makeHandler()
+    let closed = false
+    handler.socket = {
+      readyState: WebSocket.OPEN,
+      close() {
+        closed = true
+      },
+      send() {},
+    }
+    handler._armConnectionTimeout()
+
+    vi.advanceTimersByTime(10000)
+    expect(closed).toBe(false)
+  })
+
+  test('clearing the watchdog cancels the pending force-close', () => {
+    const { handler } = makeHandler()
+    let closed = false
+    handler.socket = {
+      readyState: WebSocket.CONNECTING,
+      close() {
+        closed = true
+      },
+      send() {},
+    }
+    handler._armConnectionTimeout()
+    handler._clearConnectionTimeout()
+
+    vi.advanceTimersByTime(10000)
+    expect(closed).toBe(false)
+    expect(handler.connectionTimeout).toBeNull()
   })
 })
 
