@@ -75,20 +75,30 @@ class GridViewGroupByDataGroupSerializer(serializers.Serializer):
         help_text="Zero-based depth of this group in the group-by hierarchy."
     )
     row_count = serializers.IntegerField(
-        help_text="Number of leaf rows descending from this group."
+        required=False,
+        help_text=(
+            "Number of leaf rows descending from this group. Omitted in "
+            "`aggregations_only` mode, which returns no windowed layout."
+        ),
     )
     children_count = serializers.IntegerField(
         required=False,
         help_text="Number of immediate sub-groups. Omitted at leaf depth.",
     )
     sibling_index = serializers.IntegerField(
-        help_text="Zero-based index of this group among its siblings."
+        required=False,
+        help_text=(
+            "Zero-based index of this group among its siblings. Omitted in "
+            "`aggregations_only` mode, which returns no windowed layout."
+        ),
     )
     row_offset = serializers.IntegerField(
+        required=False,
         help_text=(
             "Absolute offset of this group's first descendant row in the full "
-            "grouped row order."
-        )
+            "grouped row order. Omitted in `aggregations_only` mode, which returns "
+            "no windowed layout."
+        ),
     )
     aggregations = serializers.DictField(
         required=False,
@@ -117,5 +127,13 @@ class GridViewGroupByDataSerializer(serializers.Serializer):
         help_text=(
             "Whether descendant loading stopped early because the response page or "
             "group cap was reached."
+        ),
+    )
+    aggregations = serializers.DictField(
+        required=False,
+        help_text=(
+            "Table-level field aggregation totals keyed by field db_column, "
+            "mirroring the grid view field-aggregations response. Only present when "
+            "`include_totals=true` was requested."
         ),
     )
