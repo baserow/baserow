@@ -5,11 +5,11 @@
         "rbac": "RBAC",
         "sso": "SSO",
         "deactivated": "Dostępne w wersji Advanced/Enterprise",
-        "licenseDescription": "W wersji Enterprise konta dla użytkowników z uprawnieniami tylko do odczytu są bezpłatne. Jeśli użytkownik ma inną rolę w jakimkolwiek obszarze roboczym, automatycznie zajmuje płatne stanowisko.",
-        "overflowWarning": "Masz zbyt wielu użytkowników z uprawnieniami tylko do odczytu i nie ma już więcej płatnych stanowisk. Na stronach użytkowników możesz indywidualnie i w każdym obszarze roboczym zmienić uprawnienia na tylko do odczytu."
+        "licenseDescription": "W wersji Enterprise konta dla użytkowników z uprawnieniami tylko do odczytu są bezpłatne. Jeśli w jakimkolwiek obszarze roboczym użytkownikowi przypisano inną rolę, to automatycznie zajmie on płatne stanowisko.",
+        "overflowWarning": "Masz zbyt wielu użytkowników z uprawnieniami innymi niż tylko do odczytu, a nie masz już więcej płatnych stanowisk. Na stronach użytkowników możesz indywidualnie i w każdym obszarze roboczym zmienić uprawnienia użytkowników na tylko do odczytu."
     },
     "clientHandler": {
-        "cannotDisableAllAuthProvidersTitle": "Ostatni włączony dostawca",
+        "cannotDisableAllAuthProvidersTitle": "Ostatni aktywny dostawca",
         "cannotDisableAllAuthProvidersDescription": "Nie można wyłączyć ani usunąć ostatniego aktywnego dostawcy."
     },
     "updateTeamModal": {
@@ -34,9 +34,9 @@
         "title": "{teamCount} zespołów w obszarze {workspaceName}",
         "createNew": "Utwórz zespół",
         "nameColumn": "Nazwa",
-        "createdColumn": "Utworzono dnia",
+        "createdColumn": "Utworzono",
         "roleHelpText": "Można nadpisać rolami na poziomie baz danych i tabel.",
-        "subjectsColumn": "Członków",
+        "subjectsColumn": "Członkowie",
         "roleColumn": "Domyślna rola"
     },
     "subjectSampleField": {
@@ -47,7 +47,7 @@
     },
     "adminType": {
         "AuditLog": "Log audytu",
-        "Authentication": "Uwierzytelnianie",
+        "Authentication": "Uwierzytelnienie",
         "DataScanner": "Skaner danych"
     },
     "auditLog": {
@@ -59,8 +59,8 @@
         "actionType": "Typ zdarzenia",
         "description": "Opis",
         "ip_address": "Adres IP",
-        "exportToCsv": "Eksportuj do CSV",
-        "exportModalTitle": "Eksportuj do CSV",
+        "exportToCsv": "Eksportuj do pliku CSV",
+        "exportModalTitle": "Eksportuj do pliku CSV",
         "allUsers": "Wszyscy użytkownicy",
         "allWorkspaces": "Wszystkie obszary robocze",
         "allActionTypes": "Wszystkie rodzaje zdarzeń",
@@ -71,11 +71,11 @@
         "workspace": "Obszar roboczy",
         "timestamp": "Znacznik czasu",
         "clearFilters": "Wyczyść",
-        "workspaceTitle": "Log audytu – {workspaceName}",
+        "workspaceTitle": "Log audytu obszaru {workspaceName}",
         "adminTitle": "Log audytu"
     },
     "manageTeamModals": {
-        "subheading": "W ramach zespołów można zbiorczo nadawać lub ograniczać uprawnienia wielu użytkownikom."
+        "subheading": "W ramach zespołów można zbiorczo nadawać lub ograniczać uprawnienia wielu użytkownikom równocześnie."
     },
     "trashType": {
         "team": "zespół"
@@ -86,19 +86,19 @@
         "invalidNameMessage": "W podanym obszarze roboczym ta nazwa zespołu jest już w użyciu."
     },
     "auditLogExportModal": {
-        "title": "Eksportuj do CSV",
+        "title": "Eksportuj do pliku CSV",
         "cancelledTitle": "Eksport nie powiódł się",
-        "exportFilename": "Eksport logu audytu administratora – {date}",
+        "exportFilename": "Eksport logu audytu administratora z datą {date}",
         "cancelledDescription": "Eksport tego logu audytu nie powiódł się. Spróbuj ponownie.",
-        "exportWorkspaceFilename": " Obszar roboczy ({workspaceId}) Eksport dziennika inspekcji - {data}"
+        "exportWorkspaceFilename": " Eksport dziennika inspekcji obszaru roboczego ({workspaceId}) z datą {data}"
     },
     "authProviders": {
-        "title": "Dostawcy uwierzytelniania",
+        "title": "Dostawcy usług uwierzytelniania",
         "addProvider": "Dodaj dostawcę",
-        "noProviders": "Nie skonfigurowano jeszcze dostawców uwierzytelniania."
+        "noProviders": "Nie skonfigurowano jeszcze dostawców usług uwierzytelniania."
     },
     "authProviderTypes": {
-        "password": "Uwierzytelnianie e-mailem i hasłem",
+        "password": "Uwierzytelnienie e-mailem i hasłem",
         "ssoSamlProviderNameUnconfigured": "Nieskonfigurowane SSO SAML",
         "ssoOIDCProviderNameUnconfigured": "Nieskonfigurowane OpenID Connect",
         "saml": "Dostawca SSO SAML",
@@ -109,31 +109,31 @@
         "domain": "Domena SAML",
         "domainPlaceholder": "Wpisz nazwę domeny firmy…",
         "domainAlreadyExists": "Dostawca SAML tej domeny już istnieje",
-        "metadata": "Metadane",
-        "metadataPlaceholder": "Wklej metadane dostawcy tożsamości...",
-        "invalidMetadata": "Nieprawidłowe metadane XML dla dostawcy tożsamości",
+        "metadata": "Meta-dane",
+        "metadataPlaceholder": "Wklej meta-dane dostawcy tożsamości...",
+        "invalidMetadata": "Nieprawidłowe meta-dane XML dla dostawcy tożsamości",
         "relayStateUrl": "URL domyślnego stanu RelayState",
-        "acsUrl": "Adres URL funkcji pojedynczego logowania",
+        "acsUrl": "Adres URL funkcji logowania SSO",
         "providerIsVerified": "Dostawca został zweryfikowany",
         "emailAttrKeyHelper": "Adres e-mail, który zostanie użyty jako nazwa użytkownika.",
-        "lastNameAttrKeyHelper": "Nazwisko użytkownika (opcjonalnie). Pomiń tę wartość, jeśli pole 'Imię' zawiera już pełne imię i nazwisko.",
+        "lastNameAttrKeyHelper": "Nazwisko użytkownika (opcjonalnie). Pomiń tę wartość, jeśli pole 'imię' zawiera już pełne imię i nazwisko.",
         "customAttrs": "Niestandardowe",
         "emailAttrKey": "E-mail",
         "samlResponseSettings": "Atrybuty odpowiedzi SAML",
         "defaultAttrs": "Domyślne",
-        "firstNameAttrKeyHelper": "Imię użytkownika lub imię i nazwisko, jeśli nie podano 'Nazwiska'.",
+        "firstNameAttrKeyHelper": "Imię użytkownika lub imię i nazwisko, jeśli nie podano 'nazwiska'.",
         "firstNameAttrKey": "Imię",
         "lastNameAttrKey": "Nazwisko"
     },
     "createSettingsAuthProviderModal": {
-        "title": "Dodaj {type}"
+        "title": "Dodaj nowy typ {type}"
     },
     "updateSettingsAuthProviderModal": {
         "title": "Edytuj {name}"
     },
     "deleteAuthProviderModal": {
         "title": "Usuń {name}",
-        "comment": "Czy na pewno {type} ma być usunięty?"
+        "comment": "Czy na pewno typ {type} ma być usunięty?"
     },
     "loginWithSaml": {
         "signInWithSaml": "Zaloguj się za pomocą SAML SSO",
@@ -147,12 +147,12 @@
         "loginText": "Masz już konto?",
         "errorUserDeactivated": "użytkownik został wyłączony.",
         "help": "W celu uzyskania pomocy należy skontaktować się z administratorem.",
-        "defaultErrorMessage": "ukończenie procesu logowania SSO nie było możliwe.",
+        "defaultErrorMessage": "zakończenie procesu logowania SSO nie było możliwe.",
         "errorSsoFeatureNotActive": "Funkcja logowania SSO nie jest aktywna. Skontaktuj się z administratorem.",
         "errorInvalidSamlRequest": "Żądanie SAML jest nieprawidłowe.",
         "errorInvalidSamlResponse": "Odpowiedź SAML jest nieprawidłowa.",
-        "errorProviderDoesNotExist": "ten dostawca uwierzytelniania nie istnieje lub jest niedostępny.",
-        "errorAuthFlowError": "wystąpił błąd podczas procesu uwierzytelniania u wybranego dostawcy.",
+        "errorProviderDoesNotExist": "ten dostawca usług uwierzytelniania nie istnieje lub jest niedostępny.",
+        "errorAuthFlowError": "wystąpił błąd podczas uwierzytelnienia u wybranego dostawcy.",
         "errorDifferentProvider": "prosimy o wybranie dostawcy użytego przy rejestracji.",
         "errorWorkspaceInvitationEmailMismatch": "twój adres e-mail nie jest zgodny z adresem w zaproszeniu.",
         "errorSignupDisabled": "rejestracja została wyłączona przez administratora."
@@ -160,7 +160,7 @@
     "roles": {
         "commenter": {
             "name": "Komentujący",
-            "description": "Może tylko odczytywać i komentować dane."
+            "description": "Może tylko odczytywać dane i dodawać uwagi."
         },
         "noAccess": {
             "name": "Brak dostępu",
@@ -202,7 +202,7 @@
             "selectMembers": "Wybierz członków",
             "onlyYouHaveAccess": "Tylko ty masz dostęp do tej bazy danych.",
             "warningTitle": "Inni użytkownicy mogą odziedziczyć dostęp!",
-            "everyoneHasAccess": "Każdy w obszarze roboczym {name} ma dostęp do tej bazy danych.",
+            "everyoneHasAccess": "Każdy użytkownik w obszarze {name} ma dostęp do tej bazy danych.",
             "warningMessage": "Inni użytkownicy mogą odziedziczyć dostęp na podstawie przypisanych im ról w nadrzędnym obszarze roboczym.",
             "headerTooltip": "Role przypisane na poziomie baz danych są nadrzędne w stosunku do ról w obszarach roboczych."
         },
@@ -211,14 +211,14 @@
             "selectMembers": "Wybierz członków",
             "onlyYouHaveAccess": "Tylko ty masz dostęp do tej tabeli.",
             "warningTitle": "Inni użytkownicy mogą odziedziczyć dostęp!",
-            "everyoneHasAccess": "Każdy w obszarze roboczym {name} ma dostęp do tej tabeli.",
+            "everyoneHasAccess": "Każdy użytkownik w obszarze roboczym {name} ma dostęp do tej tabeli.",
             "warningMessage": "Inni użytkownicy mogą odziedziczyć dostęp na podstawie przypisanych im ról w nadrzędnej bazie danych lub obszarze roboczym.",
             "headerTooltip": "Role przypisane na poziomie tabel są nadrzędne w stosunku do ról określonych w obszarach roboczych i bazach danych."
         },
         "view": {
             "title": "Widok {name}",
             "selectMembers": "Wybierz członków",
-            "everyoneHasAccess": "Każdy w obszarze roboczym {name} ma dostęp do tego widoku.",
+            "everyoneHasAccess": "Każdy użytkownik w obszarze roboczym {name} ma dostęp do tego widoku.",
             "onlyYouHaveAccess": "Tylko ty masz dostęp do tego widoku.",
             "warningTitle": "Inni użytkownicy mogą odziedziczyć dostęp!",
             "warningMessage": "Inni użytkownicy mogą odziedziczyć dostęp na podstawie przypisanych im ról w nadrzędnej tabeli, bazie danych lub obszarze roboczym.",
@@ -226,8 +226,8 @@
         }
     },
     "memberRolesShareToggle": {
-        "label": "Udostępnij każdemu w {name}",
-        "subLabel": "{totalUserAmount} członków obszaru roboczego"
+        "label": "Udostępnij każdemu użytkownikowi w {name}",
+        "subLabel": "Liczba członków obszaru roboczego: {totalUserAmount}"
     },
     "memberRolesDatabaseContexItem": {
         "label": "Zarządzaj członkami",
@@ -249,7 +249,7 @@
     },
     "selectTeamsList": {
         "searchPlaceholder": "Znajdź zespoły...",
-        "selectedAmountLabel": "Wybrano {count} zespołów"
+        "selectedAmountLabel": "Wybrano {count} zespoły/ów"
     },
     "selectSubjectsListFooter": {
         "invite": "Zaproś {count} {type}",
@@ -280,8 +280,8 @@
         "emailAttrKeyHelper": "Adres e-mail, który zostanie użyty jako nazwa użytkownika. ",
         "firstNameAttrKey": "Imię",
         "lastNameAttrKey": "Nazwisko",
-        "firstNameAttrKeyHelper": "Imię użytkownika lub pełne imię i nazwisko, jeśli pole 'Nazwisko' nie jest podane.",
-        "lastNameAttrKeyHelper": "Nazwisko użytkownika (opcjonalnie). Wyczyść tę wartość, jeśli w polu 'Imię' zostały już wpisane imię i nazwisko."
+        "firstNameAttrKeyHelper": "Imię użytkownika lub pełne imię i nazwisko, jeśli pole 'nazwisko' nie jest wypełnione.",
+        "lastNameAttrKeyHelper": "Nazwisko użytkownika (opcjonalnie). Wyczyść tę wartość, jeśli w polu 'imię' zostały już wpisane imię i nazwisko."
     },
     "loginButton": {
         "continueWith": "Kontynuuj z"
@@ -313,9 +313,9 @@
         "chartWidget": "Widżet wykresu",
         "advancedWebhooks": "Zaawansowane webhooki",
         "rbacContent": "Precyzyjnie zarządzaj uprawnieniami. Przypisz role administratora, konfiguratora, edytora, komentującego lub użytkownika z uprawnieniami tylko do odczytu, indywidualnie oraz na poziomie obszaru roboczego, bazy danych, tabeli i widoku. Dostęp można też określać w ramach zespołów.",
-        "dataSyncContent": "Automatycznie aktualizuj tabele dzięki synchronizacji z innymi tabelami Baserow lub zewnętrznymi źródłami, takimi jak Jira, GitHub, GitLab czy HubSpot. W przypadku wspieranych typów synchronizacji Baserow obsługuje również synchronizację cykliczną oraz dwukierunkową.",
+        "dataSyncContent": "Automatycznie aktualizuj tabele dzięki synchronizacji z innymi tabelami Baserow lub zewnętrznymi źródłami, takimi jak Jira, GitHub, GitLab czy HubSpot. W przypadku niektórych typów synchronizacji Baserow obsługuje również synchronizację cykliczną oraz dwukierunkową.",
         "supportContent": "Pomoc wtedy, kiedy jej potrzebujesz. Możesz skontaktować się z zespołem Baserow bezpośrednio z platformy.",
-        "auditLogsContent": "Monitoruj wszystko, co się dzieje w bazie. Przeglądaj pełną historię dla całej instancji lub obszaru roboczego, z możliwością filtrowania wg. użytkownika, rodzaju zdarzenia i innych kryteriów.",
+        "auditLogsContent": "Monitoruj wszystko, co się dzieje w bazie. Przeglądaj pełną historię dla całej instancji lub obszaru roboczego, korzystając z filtrowania wg. użytkownika, rodzaju zdarzenia i innych kryteriów.",
         "ssoContent": "Włącz bezpieczne logowanie za pomocą opcji SAML, Google, Facebook, GitHub, GitLab lub OpenID Connect. Obsługiwanych jest wielu dostawców jednocześnie. Zarówno Baserow jako narzędzie, jak i system uwierzytelniania w konfiguratorze aplikacji obsługują SSO.",
         "coBrandingContent": "Spersonalizuj interfejs Baserow przez dodanie własnego logo. W takim przypadku zostanie umieszczony dopisek \"powered by Baserow\".",
         "advancedWebhooksContent": "Wyzwalaj webhooki, gdy wiersz pojawi się w określonym widoku – idealne do automatyzacji procesów opartych na warunkach filtrowania.",
@@ -324,13 +324,13 @@
         "builderBranding": "Branding aplikacji",
         "builderBrandingContent": "Usuń dopisek 'Made with Baserow' ze stopki aplikacji.",
         "builderFileInputElement": "Element pliku",
-        "builderFileInputElementContent": "Element pliku umożliwia dodanie pola do stron aplikacji służącego do przesyłania plików. Daje to użytkownikom możliwość przechowywania ważnych dokumentów lub obrazów.",
+        "builderFileInputElementContent": "Element pliku umożliwia dodanie pola służącego do przesyłania plików na stronie w aplikacji. Daje to użytkownikom możliwość przechowywania ważnych dokumentów lub plików graficznych.",
         "builderCustomCode": "Własny kod w aplikacjach",
-        "builderCustomCodeContent": "Aby dostosować wygląd i funkcje aplikacji w Baserow, dołącz własny kod CSS/JavaScript. Przy pomocy kodu można np. integrować zewnętrzne usługi takie jak analityka czy media społecznościowe.",
+        "builderCustomCodeContent": "Aby dostosować wygląd i funkcje aplikacji w Baserow, dołącz własny kod CSS/JavaScript. Przy pomocy własnego kodu można np. zintegrować zewnętrzne usługi takie jak analityka czy media społecznościowe.",
         "dateDependency": "Zależności między datami",
-        "dateDependencyContent": "Możliwość określenia zależności między dwiema datami oraz czasem trwania (data początkowa/końcowa i czas trwania). Gdy jedna wartość ulegnie zmianie, powiązane wartości zostaną automatycznie uaktualnione.",
+        "dateDependencyContent": "Możliwość określenia zależności między dwiema datami oraz czasem trwania (data początkowa/końcowa i czas trwania). Gdy jedna z wartości ulegnie zmianie, powiązane wartości zostaną automatycznie uaktualnione.",
         "dataScanner": "Skaner danych",
-        "dataScannerContent": "Skanuj dane w instancji Baserow pod kątem schematów do wyszukiwania danych, np. chronionych, takich jak numery IBAN czy identyfikatory medyczne pacjentów. Alternatywnie porównuj te dane z listami zdefiniowanymi. Konfiguruj harmonogramy automatycznego skanowania i przeglądaj szczegółowe wyniki."
+        "dataScannerContent": "Skanuj dane w instancji Baserow pod kątem schematów np. do wyszukiwania danych chronionych, takich jak numery IBAN czy identyfikatory pacjentów. Alternatywnie porównuj te dane z listami zdefiniowanymi. Skonfiguruj automatyczne skanowanie i przeanalizuj szczegółowe wyniki."
     },
     "chatwootSupportSidebarWorkspace": {
         "directSupport": "Bezpośrednie wsparcie"
@@ -339,7 +339,7 @@
         "no_records": "Brak zespołów"
     },
     "snapshotModalWarning": {
-        "message": "Pamiętaj, że migawka będzie zawierała wszelkie uprawnienia ustawione dla aplikacji i jej tabel."
+        "message": "Pamiętaj, że migawka będzie zawierała wszystkie informacje o uprawnieniach w aplikacji i tabelach."
     },
     "auditLogSidebarWorkspace": {
         "title": "Log audytu",
@@ -370,8 +370,8 @@
         "coBrandingLogo": "Logo",
         "branding": "Wizerunek",
         "deactivated": "Dostępne w wersji Enterprise",
-        "coBrandingLogoDescription": "Zastępuje logo Baserow własnym logo z dopiskiem ‘Powered by Baserow’ (176×29). Jeżeli opcja jest wybrana, ze stopki we wiadomościach e-mail zostanie również usunięta informacja o Baserow.",
-        "uploadFileButton": "Prześlij obraz"
+        "coBrandingLogoDescription": "Zastępuje logo Baserow własnym logo z dopiskiem ‘Powered by Baserow’ (176×29). Jeżeli opcja jest wybrana, informacja o Baserow zostanie również usunięta ze stopki we wiadomościach e-mail.",
+        "uploadFileButton": "Prześlij plik graficzny"
     },
     "localBaserowUserSourceType": {
         "notConfigured": "Nie skonfigurowano"
@@ -409,13 +409,13 @@
         "authorizing": "Autoryzujesz wybór danych z tabeli źródłowej.",
         "table": "Tabela",
         "view": "Widok",
-        "viewHelper": "Tylko widoczne pola i wiersze odpowiadające konfiguracji filtrów są synchronizowane."
+        "viewHelper": "Tylko widoczne pola i wiersze odpowiadające konfiguracji filtrów zostaną synchronizowane."
     },
     "jiraIssuesDataSync": {
-        "usernameHelper": "Nazwa użytkownika konta Jira, które zostanie użyte do uwierzytelnienia, tj. adres e-mail, którego używasz do logowania.",
+        "usernameHelper": "Nazwa użytkownika konta Jira użyta w trakcie uwierzytelnienia, tj. adres e-mail, którego używasz do logowania.",
         "urlHelper": "Bazowy adres URL instancji Jira (np. https://your-domain.atlassian.net).",
         "apiToken": "Token API Jira",
-        "apiTokenHelper": "Token API konta Jira używany do uwierzytelniania. Może zostać utworzony pod adresem https://id.atlassian.com/manage-profile/security/api-tokens.",
+        "apiTokenHelper": "Token API konta Jira używany do uwierzytelniania. Można go utworzyć pod adresem https://id.atlassian.com/manage-profile/security/api-tokens.",
         "projectKey": "Klucz projektu w Jira (opcjonalnie)",
         "projectKeyHelper": "Klucz projektu w Jira (np. PROJ). Można go znaleźć, klikając w `Ustawienia projektu` w Jira. Jeśli nie podano klucza projektu, zostaną przesłane wszystkie zagadnienia.",
         "jiraUrl": "URL instancji Jira",
@@ -423,7 +423,7 @@
         "authenticationLabel": "Uwierzytelnianie",
         "authenticationHelper": "Wybierz metodę uwierzytelniania w Jira.",
         "personalAccessToken": "Osobisty token dostępu w Jira",
-        "personalAccessTokenHelper": "Token API konta Jira używany do uwierzytelnienia. Może zostać utworzony pod adresem https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html."
+        "personalAccessTokenHelper": "Token API konta Jira używany do uwierzytelnienia. Można go utworzyć pod adresem https://confluence.atlassian.com/enterprise/using-personal-access-tokens-1026032365.html."
     },
     "commonOidcSettingForm": {
         "callbackTitle": "URL wywołania zwrotnego (kliknij aby skopiować)",
@@ -431,15 +431,15 @@
         "preview": "Podgląd"
     },
     "githubIssuesDataSync": {
-        "repoHelper": "Nazwa repozytorium. Zazwyczaj widoczna w lewym górnym rogu jako `owner / repo`",
+        "repoHelper": "Nazwa repozytorium. Zazwyczaj wyświetlane w lewym górnym rogu jako `owner / repo`",
         "owner": "Właściciel",
-        "ownerHelper": "Nazwa użytkownika lub właściciel repozytorium. Zazwyczaj widoczny w lewym górnym rogu jako `owner / repo`",
+        "ownerHelper": "Nazwa użytkownika lub właściciel repozytorium. Zazwyczaj wyświetlane w lewym górnym rogu jako `owner / repo`",
         "repo": "Repozytorium",
         "apiToken": "Token API",
-        "apiTokenHelper": "Może być wygenerowany pod adresem https://github.com/settings/tokens poprzez kliknięcie na `Generate new token`, wybranie `All repositories`, a następnie pod `Repository permissions` ustawienie `Issues` na `read-only`."
+        "apiTokenHelper": "Można wygenerować pod adresem https://github.com/settings/tokens poprzez kliknięcie `Generate new token`, wybranie `All repositories`, a następnie pod `Repository permissions` ustawienie `Issues` na `read-only`."
     },
     "exportWorkspaceModalWarning": {
-        "message": "Pamiętaj, że eksport nie będzie zawierał żadnych uprawnień ustawionych dla aplikacji i jej tabel."
+        "message": "Pamiętaj, że eksport nie będzie zawierał informacji o uprawnieniach w aplikacji i tabelach."
     },
     "commonSamlSettingForm": {
         "acsTitle": "URL logowania SSO (kliknij aby skopiować)",
@@ -449,7 +449,7 @@
     "gitlabIssuesDataSync": {
         "url": "Bazowy adres URL",
         "projectId": "ID projektu",
-        "accessTokenHelper": "Może zostać wygenerowany pod adresem https://gitlab.com/-/user_settings/personal_access_tokens przez kliknięcie w `Add new token` i wybór `read_api`.",
+        "accessTokenHelper": "Można wygenerować pod adresem https://gitlab.com/-/user_settings/personal_access_tokens klikając `Add new token` i wybierając `read_api`.",
         "urlHelper": "Bazowy adres URL instancji GitLab (np. https://gitlab.com).",
         "projectIdHelper": "ID projektu, z którego chcesz zsynchronizować issues, które można znaleźć na stronie projektu (np. https://gitlab.com/baserow/baserow). Kliknij w trzy kropki w prawym górnym rogu, a potem w 'Copy project ID: 12345678'.",
         "accessToken": "Token dostępu"
@@ -460,7 +460,7 @@
         "emailPlaceholder": "Podaj swój e-mail..."
     },
     "configureDataSyncPeriodicInterval": {
-        "deactivatedTitle": "Ustawienia cykliczne synchronizacji danych wyłączone",
+        "deactivatedTitle": "Ustawienia cykliczne synchronizacji danych zostały wyłączone",
         "activate": "Aktywuj synchronizację cykliczną",
         "enterprise": "Synchronizacja cykliczna jest dostępna w wersjach Advanced i Enterprise.",
         "more": "Więcej informacji",
@@ -482,7 +482,7 @@
     },
     "hubspotContactsDataSync": {
         "accessToken": "Prywatny token dostępu do aplikacji",
-        "accessTokenHelper": "Aby wygenerować prywatny token dostępu do aplikacji w HubSpot, kliknij w Settings na górnym pasku, przejdź do Integrations > Private Apps i utwórz nową aplikację prywatną. Dodaj następujące zakresy: crm.objects.contacts.read, crm.schemas.contacts.read i crm.objects.custom.read. Następnie kliknij Create App, aby wygenerować token."
+        "accessTokenHelper": "Aby wygenerować prywatny token dostępu do aplikacji w HubSpot, w górnym pasku kliknij Settings, przejdź do Integrations > Private Apps i utwórz nową aplikację prywatną. Dodaj następujące zakresy: crm.objects.contacts.read, crm.schemas.contacts.read i crm.objects.custom.read. Następnie kliknij Create App, aby wygenerować token."
     },
     "oidcAuthLink": {
         "placeholderWithOIDC": "{login} z {provider}"
@@ -603,7 +603,7 @@
         "wholeWordsHelp": "Po włączeniu skaner dopasuje tylko całe wyrazy lub tokeny. Np. 'DDDD' będzie pasował do ciągu '1234', ale nie do '12345'.",
         "workspaceScopeLabel": "Obszary robocze do zeskanowania",
         "scanAllWorkspaces": "Zeskanuj wszystkie obszary robocze",
-        "filterByScan": "Filtruj wg skanu",
+        "filterByScan": "Filtruj wg. skanu",
         "allScans": "Wszystkie skany",
         "scanNameColumn": "Skan",
         "workspaceColumn": "Obszar roboczy",
@@ -625,11 +625,11 @@
         "noResults": "Brak wyników",
         "resolveResult": "Rozwiąż",
         "resultResolved": "Rozwiązano",
-        "exportToCsv": "Eksportuj do CSV",
-        "exportModalTitle": "Eksportuj wyniki do CSV",
+        "exportToCsv": "Eksportuj do pliku CSV",
+        "exportModalTitle": "Eksportuj wyniki do pliku CSV",
         "exportFilename": "data_scan_results_{date}.csv",
         "exportFailedTitle": "Eksport nie powiódł się",
-        "exportFailedDescription": "Zadanie eksportu nie powiodło się. Spróbuj ponownie.",
+        "exportFailedDescription": "Eksport nie powiódł się. Spróbuj ponownie.",
         "exportCancelledTitle": "Eksport został anulowany",
         "exportCancelledDescription": "Zadanie eksportu zostało anulowane.",
         "emptyTitle": "Brak skanerów danych",
@@ -643,8 +643,8 @@
         "delete": "Usuń skan"
     },
     "dataScanNewResultsNotification": {
-        "titleSingular": "Znaleziono {count} nowy wynik dla {scanName}",
-        "titlePlural": "Znaleziono {count} nowe/ych wyniki/ów dla {scanName}",
+        "titleSingular": "Skan {scanName} znalazł {count} nowy wynik",
+        "titlePlural": "Skan {scanName} znalazł nowe wyniki w liczbie: {count}",
         "description": "Przejrzyj wyniki w administracyjnym skanerze danych."
     },
     "assistantSidebarItem": {
@@ -664,7 +664,7 @@
         "promptCreateDatabaseTitle": "Utwórz bazę danych",
         "promptCreateDatabasePrompt": "Zbuduj bazę danych do zarządzania projektami.",
         "promptCreateAutomationTitle": "Utwórz automatyzację",
-        "promptCreateAutomationPrompt": "Utwórz automatyzację, która każdego wtorku rano pyta na kanale deweloperów w Slacku, czy jest coś do zademonstrowania.",
+        "promptCreateAutomationPrompt": "Utwórz automatyzację, która każdego wtorku rano wyśle zapytanie na kanale deweloperów w Slacku, o to, czy jest coś nowego do zademonstrowania.",
         "promptInviteUsersTitle": "Zaproś użytkowników",
         "promptInviteUsersPrompt": "Jak zaprosić użytkowników do mojego obszaru roboczego?",
         "promptCreateTableTitle": "Utwórz tabelę",
@@ -672,21 +672,21 @@
         "promptWhichTablesTitle": "Które tabele",
         "promptWhichTablesPrompt": "Jakie tabele są w tej bazie danych?",
         "promptCreateFormTitle": "Utwórz formularz",
-        "promptCreateFormPrompt": "Utwórz formularz dla tej tabeli.",
+        "promptCreateFormPrompt": "Utwórz formularz na podstawie tej tabeli.",
         "promptCreateFilterTitle": "Utwórz filtr",
         "promptCreateFilterPrompt": "Pokaż tylko wiersze, w których pole główne jest puste."
     },
     "assistantInputMessage": {
         "statusWaiting": "Asystent jest gotowy do pracy",
-        "statusRunning": "Przetwarzam...",
+        "statusRunning": "Przetwarzanie...",
         "placeholder": "Zapytaj o cokolwiek...",
         "send": "Wyślij wiadomość",
         "stop": "Zatrzymaj generowanie"
     },
     "assistant": {
-        "statusThinking": "Analizuję...",
-        "statusAnswering": "Odpowiadam...",
-        "statusCancelling": "Anuluję…",
+        "statusThinking": "Analiza...",
+        "statusAnswering": "Odpowiedź...",
+        "statusCancelling": "Anulowanie…",
         "messageCancelled": "Wiadomość została anulowana"
     },
     "assistantChatHistoryContext": {
@@ -694,7 +694,7 @@
         "loading": "Wczytywanie historii czatu..."
     },
     "assistantMessageList": {
-        "disclaimer": "Kuma może popełniać błędy, sprawdzaj jego odpowiedzi"
+        "disclaimer": "Kuma może popełniać błędy, sprawdzaj wygenerowane odpowiedzi"
     },
     "assistantMessageActions": {
         "feedbackContextTitle": "Daj nam znać co możemy poprawić",
